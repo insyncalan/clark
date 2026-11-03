@@ -30,7 +30,7 @@ a { color: var(--status-blue-text); }
 .tab[aria-selected="true"]::after { transform: scaleX(1); }
 
 /* One page frame for every view: the page's 1280 px less its padding (1232 px), so the Dashboard is as wide as Work items. */
-main { max-width: var(--max-width); margin: 0 auto; padding: 28px var(--space-5) 96px; }
+main { position: relative; max-width: var(--max-width); margin: 0 auto; padding: 28px var(--space-5) 96px; }
 .frame { width: 100%; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: var(--space-5) 28px; }
 .frame h1 { margin: 0 0 var(--space-3); font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
 .crumbs { margin: 0 0 2px; font-size: var(--size-caption); color: var(--text-muted); }
@@ -71,6 +71,7 @@ main { max-width: var(--max-width); margin: 0 auto; padding: 28px var(--space-5)
 .fig textarea.hreason.needs { border-color: var(--status-amber); }
 .fig textarea.hreason:focus-visible, .pillbtn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; font-size: var(--size-small); }
+.glance-hint { margin: 8px 2px 0; font-size: var(--size-small); color: var(--text-muted); }
 .glance .fig.go { cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-state) var(--ease-out); }
 .glance .fig.go:hover { border-color: var(--brand-blue); box-shadow: var(--shadow); }
 .glance .fig.go:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
@@ -231,9 +232,24 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 /* Work items controls and the Add button (item 64, part a). Colours from the tokens only, so dark mode follows. */
 .head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .head h1 { margin-bottom: 0; }
+.head-sub { margin: 2px 0 0; font-size: var(--size-small); color: var(--text-muted); }      /* the sentence under a page's title (the Milestones page) */
+.hacts { display: flex; align-items: center; gap: 8px; }
 .note { margin: var(--space-2) 0 0; font-size: var(--size-small); }
 .note:empty { display: none; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.i { width: 14px; height: 14px; flex: none; }
+.fbox { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 260px; max-height: 340px; overflow: auto; padding: var(--space-2) 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
+.fbox.right { left: auto; right: 0; }
+.fbox .isnot { display: flex; gap: var(--space-1); padding: 0 var(--space-3) 6px; }
+.fbox .isnot button { all: unset; padding: 3px 10px; border-radius: var(--radius-pill); cursor: pointer; font-size: var(--size-small); color: var(--text-muted); }
+.fbox .isnot button[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.fbox .isnot button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.fbox .fact { display: flex; gap: 6px; padding: 0 var(--space-3) 6px; border-bottom: 1px solid var(--grey-100); margin-bottom: var(--space-1); }
+.btn.sm { padding: 2px 10px; font-size: var(--size-small); min-height: 24px; }
+.fbox label { display: flex; align-items: center; gap: 10px; padding: 6px var(--space-3); cursor: pointer; }
+.fbox label:hover { background: var(--grey-50); }
+.fbox label .c { margin-left: auto; color: var(--text-muted); font-size: var(--size-caption); }
+/* The published file keeps the older filter bar and its chips (#69); the line is the app's only. */
 .wbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); margin-top: var(--space-3); }
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
 .seg button { all: unset; box-sizing: border-box; padding: 6px var(--space-3); min-height: 32px; font-size: var(--size-small); cursor: pointer; color: var(--text); }
@@ -251,27 +267,58 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fbtn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .fbtn.on { color: var(--status-blue-text); }
 .fbtn.on::after { content: ""; position: absolute; top: 4px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--brand-blue); }
-.i { width: 14px; height: 14px; flex: none; }
-.fbox { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 260px; max-height: 340px; overflow: auto; padding: var(--space-2) 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
-.fbox.right { left: auto; right: 0; }
-.fbox .isnot { display: flex; gap: var(--space-1); padding: 0 var(--space-3) 6px; }
-.fbox .isnot button { all: unset; padding: 3px 10px; border-radius: var(--radius-pill); cursor: pointer; font-size: var(--size-small); color: var(--text-muted); }
-.fbox .isnot button[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
-.fbox .isnot button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.fbox .fact { display: flex; gap: 6px; padding: 0 var(--space-3) 6px; border-bottom: 1px solid var(--grey-100); margin-bottom: var(--space-1); }
-.btn.sm { padding: 2px 10px; font-size: var(--size-small); }
-.fbox label { display: flex; align-items: center; gap: 10px; padding: 6px var(--space-3); cursor: pointer; }
-.fbox label:hover { background: var(--grey-50); }
-.fbox label .c { margin-left: auto; color: var(--text-muted); font-size: var(--size-caption); }
-.factive { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 14px 0 var(--space-1); font-size: var(--size-small); }
-.fchip { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-1) 2px 10px; border-radius: var(--radius-pill); background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: var(--size-small); }
-.fchip button { all: unset; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; }
+.factive.pub { margin: 14px 0 4px; }
+.factive.pub .fchip { padding: 2px 4px 2px 10px; }
+.factive.pub .fchip button { width: 22px; height: 22px; }
+/* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
+.fline-wrap { margin-top: 12px; }
+.fviews { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
+.vtabs { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.vtab { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; min-height: calc(var(--space-6) - var(--space-1)); border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); cursor: pointer; font-size: var(--size-small); color: var(--text); }
+.vtab:hover { background: var(--grey-50); }
+.vtab[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); border-color: var(--brand-blue); font-weight: var(--weight-medium); }
+.vtab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.vtab em { font-style: normal; color: var(--text-muted); }
+.vtab[aria-pressed="true"] em { color: inherit; }
+.fdot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand-blue); flex: none; }
+.vform { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; flex: 1 1 100%; font-size: var(--size-small); }
+.vform input { box-sizing: border-box; min-height: calc(var(--space-6) - var(--space-1)); padding: 2px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: var(--size-small); }
+.vform input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.vmsg { color: var(--status-red-text); }
+.vmsg:empty { display: none; }
+.fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
+.fline input { all: unset; box-sizing: border-box; flex: 1 1 160px; min-width: 120px; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: var(--text); }
+.fline input::placeholder { color: var(--text-muted); }
+.fkey { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.fkey kbd { font: inherit; padding: 0 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--grey-50); }
+.fline.on .fkey { display: none; }
+.fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 2px 0 10px; min-height: 26px; border-radius: var(--radius-pill); background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: var(--size-small); }
+.fchip.word { background: var(--grey-100); color: var(--text); }
+.fchip button { all: unset; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
 .fchip button:hover { background: var(--grey-200); }
 .fchip button:focus-visible { outline: 2px solid var(--brand-blue); }
+.flist { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; margin: 0; padding: 6px 0; list-style: none; width: min(420px, 100%); max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
+.fopt { display: flex; align-items: baseline; gap: 10px; padding: 4px 12px; min-height: calc(var(--space-6) - var(--space-1)); box-sizing: border-box; cursor: pointer; color: var(--text); }
+.fopt:hover, .fopt[aria-selected="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.fopt .fl1 { font-weight: var(--weight-medium); }
+.fopt .fl2 { font-size: var(--size-small); color: var(--text-muted); }
+.fopt[aria-selected="true"] .fl2 { color: inherit; }
+.fopt .c { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); }
+.fhints { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; min-height: 26px; visibility: hidden; }
+.fhints.on { visibility: visible; }
+.fhl { font-size: var(--size-small); color: var(--text-muted); }
+.fhint { all: unset; box-sizing: border-box; padding: 2px 10px; min-height: 24px; display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: var(--radius-pill); cursor: pointer; font-size: var(--size-small); color: var(--text-muted); background: var(--surface); }
+.fhint:hover { background: var(--grey-100); color: var(--text); }
+.fhint:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.fmsg { margin: 6px 0 0; font-size: var(--size-small); color: var(--status-amber-text); }
+.fmsg:empty { display: none; }
+.factive { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 10px 0 4px; font-size: var(--size-small); }
 
 /* Work items on a phone (item 130, point 5): compact controls, and each row is a small card that shows Status, Due and Priority under the
    item, so nothing scrolls sideways. 640 px and below only; the 900 and 1400 px table is unchanged. */
 @media (max-width: 640px) {
+  .fkey { display: none; }
   .top { gap: 6px; padding: 0 6px; }
   .top .logo-icon { margin-right: var(--space-1); }
   .top .divider { display: none; }
@@ -285,8 +332,6 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
   .fbtn { padding: 2px var(--space-2); min-height: 28px; }
   .fbox { width: min(260px, calc(100vw - 48px)); }
   .fbox .isnot button { min-height: 24px; display: inline-flex; align-items: center; }
-  .btn.sm { min-height: 24px; }
-  .fchip button { width: 24px; height: 24px; }
   table.items, table.items tbody { display: block; width: 100%; }
   table.items thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   table.items tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); gap: 6px var(--space-3); padding: 10px var(--space-1); border-top: 1px solid var(--grey-100); }
@@ -299,6 +344,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
   table.items .c-prio { grid-column: 3; grid-row: 3; }
   table.items td.c-type, table.items td.c-item, table.items td.c-owner, table.items td.c-due, table.items td.c-prio, table.items td.c-status { width: auto; overflow-wrap: anywhere; }
   table.items td.c-status .pill { white-space: normal; max-width: 100%; }
+  table.items td .cell-pick[data-cell], table.items td .cell-pick[data-cell] .cell-val { white-space: normal; min-width: 0; max-width: 100%; flex: 0 1 auto; overflow-wrap: anywhere; }   /* issue 442: the pickers now show in View too: in a card they wrap by word and never leave it, even in a very wide font */
   table.items tr.grp { display: block; padding: var(--space-2) var(--space-1); }
   table.items tr.grp th { display: block; min-width: 0; width: auto; padding: 0; text-align: left; overflow-wrap: anywhere; }
   table.items td.c-type::before, table.items td.c-owner::before, table.items td.c-status::before, table.items td.c-due::before, table.items td.c-prio::before { display: block; font-size: var(--size-small); color: var(--text-muted); }
@@ -629,7 +675,7 @@ table.items.grouped tr.grp th { padding: 10px var(--space-1) 6px; border-top: 1p
 .col-body { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); min-height: 64px; }
 .col-body .none { margin: var(--space-2) var(--space-1); font-size: var(--size-small); }
 .bwrap { position: relative; }
-.bcard { position: relative; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px var(--space-3); }
+.bcard { position: relative; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius); box-shadow: var(--shadow); padding: 7px 10px; }
 .board[data-editing="1"] .bcard { cursor: grab; user-select: none; -webkit-user-select: none; }
 .bcard.sel { border-color: var(--brand-blue); }
 .bcard.picked { border-color: var(--brand-blue); box-shadow: 0 0 0 2px var(--brand-blue), var(--shadow); background: color-mix(in srgb, var(--brand-blue-tint) 60%, var(--surface)); }
@@ -642,18 +688,19 @@ table.items.grouped tr.grp th { padding: 10px var(--space-1) 6px; border-top: 1p
 .bcard.drag { opacity: .5; }
 .bcard.done .bc-title { color: var(--text-muted); }
 .bc-main { cursor: pointer; border-radius: var(--radius-sm); }
-.bc-main:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.bc-main:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }   /* the cursor: a drawn solid blue ring, never only colour */
+table.items tr[data-id]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .bc-top { display: flex; align-items: center; gap: var(--space-2); padding-right: 28px; }
 .bc-id { font-size: var(--size-small); color: var(--text-muted); }
+.type.tl { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0; font-size: var(--size-small); font-weight: 600; line-height: 1; }
 .eye { display: inline-flex; color: var(--status-blue-text); }
 .eye .i { width: 16px; height: 16px; }
-.bc-title { margin: 6px 0 var(--space-2); font-size: var(--size-small); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.bc-title { margin: var(--space-1) 0 6px; font-size: var(--size-small); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .bc-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-2); }
 .bc-foot .due-l { display: inline; }
 .bc-foot .pill { margin-left: auto; }
-.bmv { position: absolute; top: 6px; right: 6px; }
-.bc-move { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; opacity: .35; }
-.bcard:hover .bc-move, .bcard:focus-within .bc-move, .bc-move[aria-expanded="true"] { opacity: 1; }
+.bmv { position: absolute; top: 4px; right: 6px; }
+.bc-move { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
 .bc-move:hover { background: var(--grey-100); color: var(--text); }
 .bc-move:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .bc-move .i { width: 16px; height: 16px; }
@@ -883,6 +930,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .msl-prog { display: flex; align-items: center; gap: var(--space-2); font-size: var(--size-caption); }
 .pbar { flex: 1; height: 6px; border-radius: 3px; background: var(--grey-100); overflow: hidden; } .pbar i { display: block; height: 100%; background: var(--brand-blue); }
 .msl-all { display: inline-block; margin: var(--space-2) 0 0 var(--space-1); }
+.msl-det { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; min-height: 24px; margin: 6px 0 2px; font-size: var(--size-small); color: var(--text-muted); cursor: pointer; border-radius: 4px; }
+.msl-det:hover { color: var(--text); } .msl-det:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.msl-det .i { transition: transform var(--dur-instant) var(--ease-out); } .msl-det[aria-expanded="false"] .i { transform: rotate(-90deg); }
 .cal-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding-right: 210px; flex-wrap: wrap; }
 .cal-t { font-weight: var(--weight-medium); margin-left: var(--space-2); color: var(--heading); }
 .cal-dow, .cal-g { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
@@ -892,7 +942,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .cal-d.we, .cal-d.out { background: var(--grey-50); }
 .cal-n { font-size: var(--size-caption); color: var(--text-muted); padding: 1px 6px; align-self: flex-start; border-radius: 10px; }
 .cal-d.today .cal-n { background: var(--brand-blue); color: var(--text-on-brand); font-weight: var(--weight-medium); }
-.cal-ms { all: unset; box-sizing: border-box; display: flex; align-items: flex-start; gap: var(--space-1); max-width: 100%; font-size: var(--size-small); line-height: 1.3; padding: 2px 5px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--text); cursor: pointer; }
+.cal-ms { all: unset; box-sizing: border-box; display: flex; align-items: flex-start; gap: var(--space-1); max-width: 100%; font-size: var(--size-small); line-height: 1.3; padding: var(--space-1); border-radius: var(--radius-sm); background: var(--grey-100); color: var(--text); cursor: pointer; }
 .cal-ms span { flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; }   /* the full name, wrapped, nothing is cut (the prototype, app.css:668) */ .cal-ms .ms-i { width: 14px; height: 14px; flex: none; margin-top: 1px; }
 .cal-ms:hover { background: var(--brand-blue-tint); } .cal-ms:focus-visible { outline: 2px solid var(--brand-blue); }
 .cal-ms.ghost { background: transparent; border: 1px dashed var(--status-red); color: var(--status-red-text); }
@@ -900,14 +950,14 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .cal-sc button[aria-current="true"] { background: var(--brand-blue-tint); border-color: var(--brand-blue); color: var(--heading); }
 .cal-wk .cal-d { min-height: 180px; }
 .cal-q { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.cal-qm { all: unset; display: inline-block; font-weight: var(--weight-medium); color: var(--heading); margin: 0 0 6px; cursor: pointer; border-radius: var(--radius-sm); padding: 0 var(--space-1); } .cal-qm:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; } .cal-qm:hover { color: var(--status-blue-text); text-decoration: underline; }
+.cal-qm { all: unset; display: inline-block; font-weight: var(--weight-medium); color: var(--heading); margin: 0 0 var(--space-2); cursor: pointer; border-radius: var(--radius-sm); padding: 0 var(--space-1); } .cal-qm:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; } .cal-qm:hover { color: var(--status-blue-text); text-decoration: underline; }
 .cal-q .cal-d { min-height: 44px; padding: 2px; } .cal-q .cal-ms:not(.ghost) span { display: none; }   /* a dashed "Expected: name" chip is kept whole, here too */
 .cal:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 4px; }
 .cal-d[data-d]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
-.cal-far { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; color: var(--status-amber-text); }
-.cal-list { display: none; margin-top: 14px; }   /* a phone only, as in the prototype (app.css:1297, 1306); shown at 700 px and below, below */
-.cal-list h4 { margin: 0 0 6px; color: var(--heading); font-weight: var(--weight-medium); }
-.cal-list ul { list-style: none; margin: 0; padding: 0; } .cal-list li { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 4px 0; border-bottom: 1px solid var(--grey-200); }
+.cal-far { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin: 0 0 var(--space-3); color: var(--status-amber-text); }
+.cal-list { display: none; margin-top: var(--space-4); }   /* a phone only, as in the prototype (app.css:1297, 1306); shown at 700 px and below, below */
+.cal-list h4 { margin: 0 0 var(--space-2); color: var(--heading); font-weight: var(--weight-medium); }
+.cal-list ul { list-style: none; margin: 0; padding: 0; } .cal-list li { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; padding: var(--space-1) 0; border-bottom: 1px solid var(--grey-200); }
 .cal-ld { color: var(--text-muted); min-width: 6.5em; } .cal-ln { font-weight: var(--weight-medium); }
 @media (max-width: 900px) { .cal-d { min-height: 64px; } .cal-q { grid-template-columns: 1fr; } .msl-cells { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 700px) { .cal-list { display: block; } .cal-ms span { display: none; } .cal-ms { justify-content: center; } }   /* the cells keep their marks, the names go, the period is listed under the month */
@@ -971,10 +1021,21 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .dlg-f { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
 .btn.pri { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); }
 .btn.pri:disabled { opacity: .55; cursor: default; }
+.btn.pri[data-go] { display: inline-flex; align-items: center; gap: 8px; }
+.btn.pri[aria-busy="true"]:disabled { opacity: 1; }
+.btn.pri .spin { border-color: rgba(255,255,255,.4); border-top-color: var(--text-on-brand); }
+.btn.pri.ok { background: var(--status-green-text); border-color: var(--status-green-text); }
+.btn.pri .pub-tick { background: var(--text-on-brand); color: var(--status-green-text); }
 .btn.quiet { background: transparent; }
 .btn { min-height: 32px; }
 .btn:disabled { cursor: default; opacity: .6; }
 .setting { margin-top: var(--space-4); }
+.set-head p { margin: 0; }
+.set-nav { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.set-chip { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 28px; padding: 3px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out); }      /* no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
+.set-chip:hover { border-color: var(--text-muted); background: var(--brand-blue-tint); }
+.set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
+.setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
 .setting h2 { margin: 0 0 6px; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
 .setting .row { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
 .folder-now { overflow-wrap: anywhere; }
@@ -983,7 +1044,14 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .backup-panel { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .backup-panel p { margin: 0 0 6px; }
 .setting p.error { color: var(--status-red-text); }
-@media (max-width: 900px) { .dlg-form { padding: var(--space-4); } }
+/* item 443: Settings > Published reports: a plain table, the same look as the work items table; it wraps instead of scrolling sideways. */
+.pubs { width: 100%; border-collapse: collapse; font-size: var(--size-small); margin-top: 8px; }
+.pubs th { text-align: left; font-weight: 400; font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: 8px 10px; border-top: 1px solid var(--grey-200); }
+.pubs td { padding: 9px 10px; border-top: 1px solid var(--grey-100); vertical-align: middle; overflow-wrap: anywhere; }
+.pubs th:first-child, .pubs td:first-child { padding-left: 4px; width: 48px; }
+.pubs td.acts { text-align: right; white-space: nowrap; }
+#pubs-note { margin: 8px 0 0; font-size: var(--size-small); }
+@media (max-width: 900px) { .pubnote { display: none; } .dlg-form { padding: var(--space-4); } }
 /* #43: on a phone the Publish button must not push the top bar wider than the window; only top-bar rules, after the phone card rules. */
 @media (max-width: 640px) { .pubbar { gap: var(--space-1); } .pubbtn { padding: 0 var(--space-2); font-size: var(--size-small); } .top:has(.pubbar) .logo .wm { display: none; } }   /* the Edit top bar only: the logo keeps its icon (its aria-label names it) */
 
@@ -995,7 +1063,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucn { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
 .meter { display: flex; gap: 2px; flex: 1 1 120px; max-width: 280px; height: 8px; }
 .meter i { flex: 1 1 0; border-radius: 2px; background: var(--status-grey); }
-.meter .m-g { background: var(--status-green); } .meter .m-a { background: var(--status-amber); } .meter .m-r { background: var(--status-red); }
+.meter .m-g { background: var(--status-green); } .meter .m-a { background: var(--status-amber); } .meter .m-r { background: var(--status-red); } .meter .m-n { background: var(--status-grey); }
 .ucrows { border-top: 1px solid var(--grey-200); }
 .ucrows > li.ucrow { padding: 0; border-top: 0; border-bottom: 1px solid var(--grey-100); }
 .ucbar { all: unset; box-sizing: border-box; display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 104px 112px; gap: var(--space-3); align-items: center; width: 100%; min-height: 40px; padding: 6px var(--space-1); cursor: pointer; font-size: var(--size-body); }
@@ -1011,6 +1079,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucdetail h3 { margin: var(--space-2) 0 2px; font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
 .ucdetail p { margin: 0 0 6px; }
 .ucdetail ul.plain li { border-top: 0; padding: 2px 0; }
+.ucdetail ul.ucstepl li { display: flex; align-items: center; gap: 8px; }
+.ucstepl .av { width: 26px; height: 26px; font-size: var(--size-caption); }
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 96px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
 
 /* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): slim is the default. */
@@ -1112,6 +1182,10 @@ html[data-secstyle="card"] .secs { padding: var(--space-1) 20px var(--space-3); 
 /* type: Montserrat extra-bold for headings and figures, Inter for text, tracked capitals for the small line above a title */
 h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800; letter-spacing: -.01em; line-height: 1.15; }
 .crumbs { font-family: var(--font-label); font-weight: var(--weight-semibold); font-size: var(--size-caption); text-transform: uppercase; letter-spacing: .1em; }
+/* Work items: the project name above the title is plain (not tracked capitals), and one intro line sits under the title */
+#work .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }
+#work .head h1 { margin: 0; }
+#work .intro { margin: 4px 0 0; font-size: var(--size-small); }
 .fig .k, .tile .l { font-family: var(--font-label); font-weight: var(--weight-medium); }
 .tab, .proj { font-family: var(--font-label); font-weight: 500; }
 
@@ -1172,6 +1246,81 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .ddmenu .ck { display: inline-block; width: 1.2em; margin-right: var(--space-1); color: var(--status-blue-text); }   /* the tick of the choice in use, with room before the word */
 .pk-stale { margin: 0 0 var(--space-2); }
 .pk-chip { display: inline-block; padding: 2px var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--grey-200); color: var(--text-muted); font-size: var(--size-caption); }
+
+/* Loading placeholder: still grey blocks in the shape of the screen, with no shimmer. Shown only after a short wait (Views.jsx). */
+.skel { display: block; background: var(--grey-100); border-radius: var(--radius-sm); }
+.skel-title { width: min(280px, 60%); height: 28px; margin-bottom: var(--space-4); }
+.skel-line { height: 14px; width: 100%; }
+.skel-line.wide { width: 100%; }
+.skel-line.half { width: 40%; }
+.skel-tiles { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-4); }
+.skel-tile { width: 160px; max-width: 100%; height: 64px; }
+.skel-row { display: grid; grid-template-columns: 72px minmax(0, 1fr) 96px 80px; gap: var(--space-3); align-items: center; padding: 14px 0; border-top: 1px solid var(--grey-100); }
+.skel-row.one { grid-template-columns: minmax(0, 1fr); }
+.skel-sec { display: grid; gap: 10px; padding: 14px 0; border-top: 1px solid var(--grey-200); }
+@media (max-width: 900px) { .skel-row { grid-template-columns: 56px minmax(0, 1fr) 64px; } .skel-row > :nth-child(4) { display: none; } }
+@media (forced-colors: active) { .skel { border: 1px solid CanvasText; } }
+
+/* Changed rows: a tint, a bar on the left edge and the word "Changed", all still and paint only (no margin, padding or border), so
+   nothing shifts. The mark reads the same without motion or colour: the word and the bar are there. */
+.tag.chg { flex: none; background: var(--status-amber-tint); color: var(--status-amber-text); border: 1px solid var(--status-amber); }
+.sec.is-changed { background: var(--status-amber-tint); box-shadow: inset 4px 0 0 var(--status-amber); }
+table.items tr.changed td { background: var(--status-amber-tint); }
+table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-amber); }
+.msl-row.changed { background: var(--status-amber-tint); box-shadow: inset 4px 0 0 var(--status-amber); }
+@media (forced-colors: active) { .sec.is-changed, .msl-row.changed, table.items tr.changed td:first-child { outline: 2px solid CanvasText; outline-offset: -2px; } }
+
+/* The first-time hint beside the section handle: plain words, there with or without the pulse. */
+.sec-ctl.hint { opacity: 1; z-index: 20; }
+.sec-hint { position: absolute; left: 30px; top: 0; white-space: nowrap; pointer-events: none; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: var(--size-small); }
+
+/* Motion: motion that explains and never decorates. Every rule here is inside one block, so a motion is absent (not switched
+   off afterwards) when the computer asks for reduced motion or clark's own setting (<html data-motion="reduce">) is on. Nothing
+   loops here (the publish ring, above, turns only while it works), only the --dur and --ease tokens are used, and nothing waits for it: the elements
+   stay live while it runs. The block uses native CSS nesting, so a browser without it (older than current Chrome or Edge) keeps the still forms only. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) {
+    /* the placeholder fades out as the screen arrives */
+    .skel-leave { position: absolute; left: var(--space-5); right: var(--space-5); top: 28px; z-index: 1; pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+    /* a changed row glows, then settles to the still mark (tint, bar and the word stay) */
+    .sec.is-changed, table.items tr.changed td, .msl-row.changed { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1; }
+    /* the peek slides in on opening and its body fades in as Previous or Next steps on */
+    .peek { animation: m-slide var(--dur-state) var(--ease-enter) 1; }
+    .pk-body { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
+    /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
+    .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
+    .secs.drop-end { animation: m-line-end var(--dur-state) var(--ease-enter) 1; }
+    .sec.drop-left::after, .sec.drop-right::after, .sec.drop-before.slot-left::before { animation: m-outline var(--dur-state) var(--ease-enter) 1; }
+    /* the health badge and reason settle when health changes */
+    .hrow.settle { animation: m-settle var(--dur-state) var(--ease-enter) 1; }
+    /* the timeline and calendar swap: the new view rises 4 px and fades in */
+    .msv-swap { animation: m-rise var(--dur-state) var(--ease-enter) 1; }
+    /* the section handle shows itself once: the grip and + pulse over 700 ms */
+    .sec-ctl.hint .handle, .sec-ctl.hint .plus { animation: m-pulse var(--dur-enter) var(--ease-out) 1; }
+    /* the count line and the switches' counts fade in when a filter changes */
+    #work-count, .wbar em.num { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
+    /* the Add a section preview cross-fades as the selection moves; cards lift on hover on fine pointers */
+    .ad-prev > * { animation: m-in var(--dur-state) var(--ease-enter) 1; }
+    /* publish: the tick appears once (the ring is main's, and turns only until the work ends) */
+    .pub-tick { animation: m-tick var(--dur-state) var(--ease-out) 1; }
+  }
+  @media (hover: hover) and (pointer: fine) {
+    :root:not([data-motion="reduce"]) .ad-tpl { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+    :root:not([data-motion="reduce"]) .ad-tpl:not(.off):hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+  }
+  @keyframes m-tick { from { opacity: 0; transform: scale(.4); } }
+  @keyframes m-line-top { from { box-shadow: 0 -3px 0 transparent; } }
+  @keyframes m-line-end { from { box-shadow: 0 3px 0 transparent; } }
+  @keyframes m-outline { from { opacity: 0; transform: scale(.97); } }
+  @keyframes m-out { to { opacity: 0; } }
+  @keyframes m-in { from { opacity: 0; } }
+  @keyframes m-slide { from { opacity: 0; transform: translateX(24px); } }
+  @keyframes m-rise { from { opacity: 0; transform: translateY(4px); } }
+  @keyframes m-pulse { 50% { transform: scale(1.35); background: var(--brand-blue-tint); } }
+  @keyframes m-settle { from { opacity: .35; } }
+  @keyframes m-glow { from { background-color: color-mix(in srgb, var(--status-amber) 40%, var(--status-amber-tint)); } }
+}
+
 
 /* G5 typed notes (#96): Callout, Quote, Contacts, Table, as the report and the published file draw them. Tokens only. */
 .tpl-callout { margin: var(--space-2) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--radius); background: var(--surface-muted); color: var(--text); overflow-wrap: anywhere; }
@@ -1311,6 +1460,10 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 a.tpl-name, .tpl-lc-title a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
 a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 .tpl-facts { color: var(--text-muted); font-size: var(--size-caption); }
+.docs-view-row { align-items: center; }
+.docs-ic { flex: none; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: var(--radius); background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.docs-ic .i { width: 18px; height: 18px; }
+.docs-open { flex: none; color: var(--text-muted); }
 .tpl-od-text, .tpl-lc-text { margin: var(--space-2) 0 0; color: var(--text); overflow-wrap: anywhere; }
 .tpl-lc { margin: var(--space-2) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-left: 4px solid var(--brand-blue); border-radius: var(--radius); background: var(--surface); min-width: 0; }
 .tpl-lc-site { margin: 0; color: var(--text-muted); font-size: var(--size-caption); overflow-wrap: anywhere; }
@@ -1384,3 +1537,21 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
 .ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
 
+/* Publish progress: main draws the ring (.spin, a still ring with one strong quarter) and the green tick; clark's own setting
+   (<html data-motion="reduce">) also stops the ring, which the media query alone would not. */
+:root[data-motion="reduce"] .spin { animation: none; }
+@media (forced-colors: active) { .spin { border-color: CanvasText; border-top-color: Highlight; } }
+
+/* The work item rows of Risks and issues, Open actions and Decisions (A-D5): a state pill, the item, who and when, the ID.
+   A list, not a table, so it stays one column at laptop widths and nothing pushes the page sideways. */
+.wl { list-style: none; margin: 8px 0; padding: 0; }
+.wl-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 4px 14px; align-items: start; padding: 9px 0; border-top: 1px solid var(--grey-100); }
+.wl-row:first-child { border-top: 0; }
+.wl-state { min-width: 0; }
+.wl-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wl-title { overflow-wrap: anywhere; color: var(--text); }
+.wl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: var(--size-small); color: var(--text-muted); }
+.wl-meta .av { width: 22px; height: 22px; font-size: var(--size-small); }
+.wl-meta .late { color: var(--status-red-text); }
+.wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
+.wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }

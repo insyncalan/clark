@@ -32,6 +32,11 @@ BAD_SITE = "That site name can't be used. If it uses another alphabet, open the 
 BAD_PORT = "That link's number after the site name isn't right. Copy the address from the address bar, then paste it again."
 ONE_EMAIL = "An email link must hold one email address and nothing else."
 BAD_EMAIL = "That email address isn't written the usual way."
+INTERNAL = "That link only works inside one network or on one computer, so others can't open it. Use a shared link."
+TITLE_ELSEWHERE = "That title looks like the address of another site. Use words, or the link's own site name."
+
+# The kinds a document may be (#74): the store, the change route and the publish build all read this one list.
+KINDS = ("Minutes", "Actions list", "Report", "Slides", "Plan", "Other")
 
 
 class LinkError(ValueError):
@@ -91,6 +96,29 @@ def _host(host):
     return host.lower()
 
 
+# Names that only mean something inside one network (the owner's decision on #74): a host with no dot (localhost, intranet), or ending
+# in one of these. The dotted-number addresses are tested by _private_address.
+_INTERNAL_ENDINGS = ("local", "internal", "lan", "localhost", "corp", "home", "intranet", "private", "test")
+
+
+def _private_address(labels):
+    """True for a plain four-part number that is not a public address: this-network (0.x), loopback (127.x), private (10.x,
+    172.16-31.x, 192.168.x), link-local (169.254.x), carrier-grade NAT (100.64-127.x), 192.0.0.x, benchmarking (198.18-19.x),
+    or multicast and broadcast (224 and above). _host has already refused every other way of writing a number (decimal, hex, octal, short forms, IPv6)."""
+    if len(labels) != 4 or not all(label.isdigit() for label in labels):
+        return False
+    a, b = int(labels[0]), int(labels[1])
+    c = int(labels[2])
+    return (a in (0, 10, 127) or a >= 224 or (a == 172 and 16 <= b <= 31) or (a == 192 and b == 168) or (a == 169 and b == 254)
+            or (a == 100 and 64 <= b <= 127) or (a == 192 and b == 0 and c == 0) or (a == 198 and b in (18, 19)))
+
+
+def _internal(host):
+    """True when `host` (already checked by _host) can only be reached from inside a network or from this computer."""
+    labels = host.lower().rstrip(".").split(".")
+    return len(labels) == 1 or labels[-1] in _INTERNAL_ENDINGS or _private_address(labels)
+
+
 def _parse(text):
     """(address, host, mailbox) for a link that may be used; LinkError otherwise. `mailbox` is the whole email
     address in lower case for a mailto link, else None. `address` is the text with its scheme and host lower-cased."""
@@ -115,6 +143,8 @@ def _parse(text):
         if not at or "@" in domain or not _LOCAL.fullmatch(local) or ".." in local:
             raise LinkError(BAD_EMAIL)
         domain = _host(domain)
+        if _internal(domain):
+            raise LinkError(INTERNAL)
         return f"mailto:{local}@{domain}", domain, f"{local}@{domain}".lower()
 
     if not rest.startswith("//"):                                       # "https:example.com" is read as a site by browsers
@@ -126,6 +156,8 @@ def _parse(text):
         raise LinkError(CREDENTIALS)
     host, colon, port = authority.partition(":")
     host = _host(host)                                                  # first, so "[::1]" is a site problem, not a number one
+    if _internal(host):
+        raise LinkError(INTERNAL)
     if colon:
         if not (_PORT.fullmatch(port) and 1 <= int(port) <= 65535):
             raise LinkError(BAD_PORT)
@@ -140,7 +172,8 @@ def check_link(text):
     every other scheme (javascript, data, vbscript, file, blob, ftp ...), a scheme hidden by case, an entity, a tab,
     new line, NUL or other control character, a space or a leading control inside it; "//host", a relative path or a bare
     "example.com"; an empty site name; a site name not written as letters, digits and hyphens (a lookalike letter, an
-    IPv6 or number-system host); a user name or password in the address; a backslash, "<", ">" or a quote; an encoded
+    IPv6 or number-system host); an address that only works inside a network or on this computer (localhost, a name with no dot
+    such as intranet, .local, .internal or .lan, 127.x, 10.x, 172.16-31.x, 192.168.x, 169.254.x); a user name or password in the address; a backslash, "<", ">" or a quote; an encoded
     control character (%00, %0d); and a mailto with a second recipient or any header (?cc=, ?bcc=, ?body=, ?subject=).
     Only the scheme and the host are lower-cased and a port loses its leading zeros (:08080 becomes :8080; a port of more
     than five digits is refused); the rest is returned as it was given, so check_link(check_link(x)) is check_link(x).

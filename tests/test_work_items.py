@@ -195,8 +195,11 @@ class RealBrowser(unittest.TestCase):
                                          "nothing inside the list scrolls sideways")
                         text = cdp.js("document.querySelector('#work').innerText", sid)
                         self.assertNotRegex(text, r"\d{4}-\d{2}-\d{2}", "dates read DD-MM-YYYY")
-                        self.assertEqual(cdp.js("document.querySelectorAll('#work table input:not(.gtick), #work table button:not(.grp-b), #work table select,"
-                                                " #work table textarea, #work table [contenteditable]').length", sid), 0, "nothing in the list edits data (a group heading only opens and shuts its rows; its tick box only selects them)")
+                        # #442: in View exactly the four picker cells (owner, due, priority, status) edit, as buttons carrying data-cell; nothing else does
+                        self.assertEqual(cdp.js("document.querySelectorAll('#work table input:not(.gtick), #work table button:not(.grp-b):not([data-cell]), #work table select,"
+                                                " #work table textarea, #work table [contenteditable]').length", sid), 0, "nothing else in the list edits data (a group heading only opens and shuts its rows; its tick box only selects them)")
+                        self.assertEqual(cdp.js("[...new Set([...document.querySelectorAll('#work table [data-cell]')].map(c => c.dataset.cell.split(':')[1]))].sort()", sid),
+                                         ["due", "owner", "priority", "status"], "the four picker cells show in View (the eye, Duplicate and Archive are not in the rows: they stay in Edit)")
                         self.assertIn(f"{len(ids)} items", text)
             self.assertEqual(blocked, [], f"the policy blocked nothing: {blocked}")
 
@@ -210,7 +213,7 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, f"no sideways page scroll: {wide}")
             self.assertEqual(cdp.js("[...document.querySelectorAll('#work, #work *')].filter(e => e.scrollWidth > e.clientWidth + 1"
                                     " && /auto|scroll/.test(getComputedStyle(e).overflowX)).length", sid), 0, "no inner sideways scroll")
-            bad = cdp.js("[...document.querySelectorAll('#work tbody tr, #work .seg, #work .fbar, #work .wbar, #work .head')]"
+            bad = cdp.js("[...document.querySelectorAll('#work tbody tr, #work .fline, #work .fviews, #work .head')]"
                          ".filter(e => { const r = e.getBoundingClientRect(); return r.left < -0.5 || r.right > window.innerWidth + 0.5 "
                          "|| e.scrollWidth > e.clientWidth + 1; }).map(e => e.className || e.tagName)", sid)
             self.assertEqual(bad, [], "every row and control sits inside the window")
@@ -230,12 +233,13 @@ class RealBrowser(unittest.TestCase):
             small = cdp.js("[...document.querySelectorAll('#work, #work *')].filter(e => e.childNodes.length && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())"
                            " && parseFloat(getComputedStyle(e).fontSize) < 12).map(e => e.className)", sid)
             self.assertEqual(small, [], "text is at least 12 px")
-            cdp.js("document.querySelector('[data-fb=owner]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fbox-owner')", sid)))
-            targets = cdp.js("[...document.querySelectorAll('#work .seg button, #work .fbtn, #work .newb, #fbox-owner button, #fbox-owner label')]"
+            cdp.js("document.querySelector('#fline-input').focus()", sid)
+            cdp.call("Input.insertText", {"text": "st"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)))
+            targets = cdp.js("[...document.querySelectorAll('#work .vtab, #work .fchip button, #work .newb, #work .fhint, #fline-list .fopt')]"
                              ".filter(e => { const r = e.getBoundingClientRect(); return r.height < 24 || r.width < 24; }).map(e => e.className || e.textContent)", sid)
             self.assertEqual(targets, [], "targets are at least 24 px")
-            self.assertEqual(cdp.js("(() => { const r = document.querySelector('#fbox-owner').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth; })()", sid), True)
+            self.assertEqual(cdp.js("(() => { const r = document.querySelector('#fline-list').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth; })()", sid), True)
             self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True)
 
     def test_the_card_cells_never_overlap_in_a_wide_or_a_narrow_font_at_390_px(self):
@@ -316,9 +320,9 @@ class RealBrowser(unittest.TestCase):
             order = [r["id"] for r in self.rows(cdp, sid)]
             self.assertEqual(order[0], "TUL-A-002", "the oldest open date comes first")
             late = rows["TUL-010"]                                    # an open Urgent issue due 25-10-2026
-            self.assertEqual((late["words"], late["late"], late["pill"]), ("3 days late", True, "Red"))
+            self.assertEqual((late["words"], late["late"], late["pill"]), ("3 days late", True, "Open"))   # #442: the status cell shows the item's own status, as in Edit
             self.assertIn("25-10-2026", late["text"])
-            self.assertEqual(rows["TUL-A-002"]["pill"], "Overdue")    # Delayed, but overdue wins
+            self.assertEqual(rows["TUL-A-002"]["pill"], "Delayed")    # the item's own status; its lateness shows in the due words
             closed = rows["TUL-A-003"]                                # closed: its date, no words
             self.assertIsNone(closed.get("words"))
             self.assertIn("13-10-2026", closed["text"])
@@ -372,7 +376,7 @@ class RealBrowser(unittest.TestCase):
         s = self.serve()
         with chrome() as cdp:
             sid = self.load_page(cdp, s.port, 1400, "#settings&p=TUL")
-            self.assertTrue(wait(lambda: "Settings are not ready yet." in (cdp.js("document.querySelector('main').innerText", sid) or "")))
+            self.assertTrue(wait(lambda: "your backups and asking Claude." in (cdp.js("document.querySelector('main').innerText", sid) or "")))
         gate = (SRC / "clark" / "page" / "src" / "components" / "Views.jsx").read_text(encoding="utf-8")
         self.assertIn("Opening {project.value}.", gate)
         self.assertNotIn("Loading work items", gate)
