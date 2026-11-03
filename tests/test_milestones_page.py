@@ -558,7 +558,7 @@ class RealBrowser(unittest.TestCase):
             for scale in ("month", "week", "quarter"):
                 self.scale(cdp, sid, scale)
                 for name, want in (("ArrowRight", "2026-10-29"), ("ArrowLeft", "2026-10-27"), ("ArrowUp", "2026-10-21"), ("ArrowDown", "2026-11-04")):
-                    cdp.js("document.querySelector('[data-cal=\\"0\\"]').click()", sid)      # Today: the period holding it is drawn again
+                    cdp.js("document.querySelector('[data-cal=\"0\"]').click()", sid)      # Today: the period holding it is drawn again
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal-d.today')", sid)))
                     cdp.js("document.querySelector('.cal-d.today').focus()", sid)
                     self.assertEqual(self.where(cdp, sid), "2026-10-28")

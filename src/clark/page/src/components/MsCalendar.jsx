@@ -67,32 +67,31 @@ export function MsCalendar({ rows, today, open, place, client }) {
   const [far, setFar] = useState(false);
   const [moved, setMoved] = useState(false);   // true once the person has changed the period, so it is announced then and not on load
   const box = useRef(null);
-  const [tick, setTick] = useState(0);        // bumped on every move, so focus can be put back once the new period is drawn
+  // Every move asks for focus to be put back once the new period is drawn: `iso` is the day to focus (a key move), else the calendar itself.
+  // The ask is state, not a ref, so a first run of the effect that a quiet page flushes late reads its own render's ask (#481).
+  const [ask, setAsk] = useState({ n: 0, iso: "" });
+  const bump = (iso = "") => setAsk((r) => ({ n: r.n + 1, iso }));
   const [day, setDay] = useState(null);       // the day last moved to by a key: the one tab stop of the period (#481)
-  const want = useRef(null);                  // the day that should hold focus once the move is drawn
   useEffect(() => {
     const el = box.current, a = document.activeElement;
-    if (!tick) return;                      // the first draw moves nothing (a late first run must not use up a move)
-    if (want.current && el) {
-      const cell = el.querySelector(`.cal-d[data-d="${want.current}"]`);
-      want.current = null;
-      if (cell) { cell.focus(); return; }
-    }
+    if (!ask.n) return;                     // the first draw moves nothing
+    const cell = ask.iso && el ? el.querySelector(`.cal-d[data-d="${ask.iso}"]`) : null;
+    if (cell) { cell.focus(); return; }
     // The button or chip that had focus is drawn again by a move: keep focus on the calendar, never let it fall to the page.
     if (el && (!a || a === document.body || !document.contains(a))) el.focus();
-  }, [tick]);
+  }, [ask]);
   const here = buckets(scale, at, at)[0];
   const rove = roveDay(day, here, today);
-  const go = (k) => { const b = neighbour(scale, at, k); if (b) { setFar(false); setMoved(true); setAt(b.start); setDay(null); } else setFar(true); setTick((n) => n + 1); };
-  const toToday = () => { setFar(false); setMoved(true); setAt(home()); setDay(null); setTick((n) => n + 1); };
+  const go = (k) => { const b = neighbour(scale, at, k); if (b) { setFar(false); setMoved(true); setAt(b.start); setDay(null); } else setFar(true); bump(); };
+  const toToday = () => { setFar(false); setMoved(true); setAt(home()); setDay(null); bump(); };
   // The new scale opens on today when today is in what is shown, else on what starts it.
   const pick = (s) => { if (!client && place) remember(`msv.calv.${place}`, s); setFar(false); setMoved(true); setScale(s); setDay(null); setAt(here.start <= today && today <= here.end ? today : here.start); };
   // A day moved to by a key: its period is drawn if it is one the page draws, else the calendar says so (#481).
   const stepTo = (iso) => {
-    if (!inRange(iso)) { setFar(true); setTick((n) => n + 1); return; }
+    if (!inRange(iso)) { setFar(true); bump(); return; }
     setFar(false);
     if (buckets(scale, iso, iso)[0].key !== here.key) setMoved(true);
-    want.current = iso; setDay(iso); setAt(iso); setTick((n) => n + 1);
+    setDay(iso); setAt(iso); bump(iso);
   };
   const keys = (e) => {
     const t = e.target, chip = t.closest ? t.closest(".cal-ms") : null, cell = chip && chip.closest(".cal-d[data-d]");
@@ -122,7 +121,7 @@ export function MsCalendar({ rows, today, open, place, client }) {
   } else {
     body = (
       <div class="cal-q">{here.months.map((m) => (
-        <div key={m}><button type="button" class="cal-qm" data-goto={m} title={`Show ${MONTHS[+m.slice(5) - 1]}`} onClick={() => { if (!client && place) remember(`msv.calv.${place}`, "month"); setScale("month"); setMoved(true); setDay(null); setAt(`${m}-01`); setTick((n) => n + 1); }}>{MONTHS[+m.slice(5) - 1]}</button>
+        <div key={m}><button type="button" class="cal-qm" data-goto={m} title={`Show ${MONTHS[+m.slice(5) - 1]}`} onClick={() => { if (!client && place) remember(`msv.calv.${place}`, "month"); setScale("month"); setMoved(true); setDay(null); setAt(`${m}-01`); bump(); }}>{MONTHS[+m.slice(5) - 1]}</button>
           <MonthGrid month={m} chips={chips} today={today} open={open} rove={rove} /></div>
       ))}</div>
     );
