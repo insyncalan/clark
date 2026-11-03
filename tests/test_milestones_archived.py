@@ -136,7 +136,8 @@ class Archived(Base):
                 self.assertEqual(cdp.js("document.querySelector('#archived-peek [data-pk-restore]').getAttribute('aria-label')", sid), "Restore Go live")
                 self.until(cdp, sid, "!!document.activeElement && document.activeElement.hasAttribute('data-pk-close')", "focus goes into the peek, to Close")
                 self.assertFalse(cdp.js("document.documentElement.scrollWidth > window.innerWidth", sid), "no sideways scroll")
-                self.assertTrue(cdp.js("(() => { const r = document.querySelector('#archived-peek').getBoundingClientRect(); return r.right <= window.innerWidth + 1 && r.left >= 0; })()", sid), "the peek fits the screen")
+                # the peek slides in (shell.css m-slide), so its box is measured once the slide has ended
+                self.until(cdp, sid, "(() => { const r = document.querySelector('#archived-peek').getBoundingClientRect(); return r.right <= window.innerWidth + 1 && r.left >= 0; })()", "the peek fits the screen")
                 self.assertEqual(self.flags(), {self.dated: 1, self.undated: 1}, "opening it changes nothing")
                 cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid)
                 self.until(cdp, sid, "!document.querySelector('#archived-peek')", "Esc closes it")

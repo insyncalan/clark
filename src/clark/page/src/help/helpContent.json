@@ -951,7 +951,7 @@
       [
        "An archived milestone leaves the Milestones list, the counts, the Dashboard and the published page.",
        "**Show archived** on Milestones, with the number of them in brackets, lists the archived ones in muted text, each marked **Archived**, with its agreed date and how many work items are still linked to it. A published file has no such list.",
-       "An archived milestone is read-only, with one **Restore** button. Restore is in Edit only, and is one step with **Undo**; in View the list says “To put one back, switch to Edit.”",
+       "An archived milestone is read-only. Its name opens it, with one **Restore** button. Restore works in View and in Edit, and is one step with **Undo**.",
        "A work item keeps its link to an archived milestone."
       ]
      ]
