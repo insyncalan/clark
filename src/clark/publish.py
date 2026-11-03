@@ -41,7 +41,7 @@ import unicodedata
 from html.parser import HTMLParser
 from pathlib import Path
 
-from clark import milestones, page, platform, section_bodies
+from clark import doclinks, milestones, page, platform, section_bodies
 from clark.store import Invalid as StoreInvalid, NumberTaken, check_section_body, excluded_label_names, open_store
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
 
@@ -57,8 +57,8 @@ DEFAULT_SECTIONS = tuple({"id": f"s-{t}", "type": t, "title": title, "body": "",
                                                          ("usecases", "Use cases"), ("milestones", "Milestones"),
                                                          ("raid", "Risks and issues"), ("actions", "Actions"),
                                                          ("decisions", "Decisions")), 1))
-SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions") + section_bodies.BODY_TYPES
-# not "docs" (v0.1); needs, tracker and the section templates (#96) carry content: a section of those types stays in only when its
+SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs") + section_bodies.BODY_TYPES
+# "docs" (#74): only while it has a document to show (documents()); needs, tracker and the section templates (#96) carry content: a section of those types stays in only when its
 # body checks again and its published fields are not empty (_content; a template stub is never in the file)
 
 # The columns the view shows, per table. Anything not named here is never copied into the file.
@@ -75,6 +75,7 @@ PUBLISH_FIELDS = {
                   "revisit", "replaces", "use_case"),
     "use_cases": ("id", "ref", "title", "status", "headline", "standing", "sort_order"),
     "links": ("from_item", "to_item", "kind"),
+    "documents": ("title", "kind", "url", "date"),        # #74: never its id, place or archive flag
 }
 RICH = {"projects": ("current_state",), "use_cases": ("standing",)}     # HTML the editor wrote: through clean_html
 # Read from the database as well, only to decide (never copied): the gates, and what a milestone's state is worked out from.
@@ -261,6 +262,37 @@ def _keeper(d, code, hidden_ids, blocked):
     return keep
 
 
+def _document(row):
+    """#74: one document as the file carries it, or None to leave it out. Every field is checked again here, never trusted: the
+    link must pass doclinks.check_link (the one link rule; a bad one drops the document, it is never repaired) and the title must
+    not read as the address of another site; the title is text with hidden characters dropped (doclinks.link_label) and must hold
+    something; a kind not in doclinks.KINDS and a date that is not a real day are carried as nothing."""
+    try:
+        url = doclinks.check_link(row.get("url"))
+        title = doclinks.link_label(row.get("title"), url) if str(row.get("title") or "").strip() else ""
+        if not title or doclinks.looks_like_other_place(title, url):
+            return None
+    except doclinks.LinkError:
+        return None
+    day = row.get("date")
+    try:
+        day = day if isinstance(day, str) and re.fullmatch(r"\d{4}-\d\d-\d\d", day) and date.fromisoformat(day) else None
+    except ValueError:
+        day = None
+    kind = row.get("kind")
+    return {"title": title, "kind": kind if kind in doclinks.KINDS else "", "url": url, "date": day}
+
+
+def documents(rows, code, hidden_ids, hidden_types):
+    """#74: the documents a client may see, in their order: live (not archived), this project's, not hidden by the eye
+    (report_hidden), and only while the Supporting documents section is not hidden; each through _document."""
+    if "docs" in hidden_types:
+        return []
+    kept = (_document(r) for r in sorted(rows or (), key=lambda r: (r.get("sort_order") or 0, str(r.get("id"))))
+            if r.get("archived") == 0 and r.get("project", code) == code and r.get("id") not in hidden_ids)
+    return [_pick(c, PUBLISH_FIELDS["documents"]) for c in kept if c]
+
+
 OPEN_STEPS = ("Open", "Delayed")                                # an action's statuses that are still to do
 
 
@@ -348,12 +380,15 @@ def select(inputs):
     proj["health_reason"] = reason_text(proj["health_reason"])
     proj["current_state"] = "" if "current" in hidden_types else clean_html(proj["current_state"])
     out["project"] = proj
+    out["documents"] = documents(inputs.get("documents"), code, hidden_ids, hidden_types) if any(
+        s.get("type") == "docs" and not s.get("hidden") for s in sections) else []          # #74: carried only with a section to draw them
 
     shown = []
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
     ctx = section_bodies.Context({k: out[k] for k in KINDS}, as_at)          # #96: only what is already kept, as the file carries it
     extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
-    out_of_file = lambda x: x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
+    out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
+                             or (x.get("type") == "docs" and not out["documents"]))       # #74: no document to show, no section
     i = 0
     while i < len(sections):
         if sections[i].get("beside") and i + 1 < len(sections):
@@ -454,7 +489,7 @@ def _escape_places(css, plain):
     """Where, in plain (= css_plain(css)), each escape of the style as typed put its character: two sorted lists, the starts and
     the ends. One pass. None if the places cannot be told (an escape built a comment: plain is then shorter than the decoded
     text). Used to ask whether a piece of the read text is spelled out as typed, with no escape in it."""
-    typed = _without_comments(css.replace("\x00", ""))
+    typed = _without_comments(css.replace("\x00", "\ufffd"))
     starts, ends, shift = [], [], 0
     for m in _CSS_ESCAPE.finditer(typed):
         put = len(_css_escape(m))
@@ -811,9 +846,9 @@ def _without_comments(css):
 
 
 def css_plain(css):
-    """Style text as a browser's reader sees it: no null bytes, no comments, each \\75 or \\u escape turned into the character it
-    stands for (so \\75rl( and u/**/rl( are url( and \\69mport is import). One forward pass at each step."""
-    css = _without_comments(css.replace("\x00", ""))
+    """Style text as a browser's reader sees it: each null byte read as U+FFFD (not dropped), no comments, each \\75 or \\u escape
+    turned into the character it stands for (so \\75rl( and u/**/rl( are url( and \\69mport is import). One forward pass at each step."""
+    css = _without_comments(css.replace("\x00", "\ufffd"))
     return _without_comments(_CSS_ESCAPE.sub(_css_escape, css))
 
 
@@ -848,33 +883,35 @@ def css_findings(css, work=None):
     found = set()
     if "(" not in css and "@" not in css and "\\" not in css:
         return found             # no bracket, @ or escape: no url(, no @import (u/**/rl( keeps its bracket, \40 import its backslash)
-    for text in (css, css_plain(css)):
+    # a browser reads a null byte as U+FFFD; the guard also reads the text with it dropped (the stricter reading kept from before)
+    plains = [css_plain(css)] + ([css_plain(css.replace("\x00", ""))] if "\x00" in css else [])
+    for text in [css] + plains:
         if re.search(r"@\s*import", text, re.I):
             found.add(IMPORT_FOUND)
         if _url_outside(text, work):
             found.add(ADDRESS_FOUND)
-    plain = css_plain(css)
-    images, argument_start = 0, False
-    stack = []
-    for m in _CSS_PIECE.finditer(plain):
-        work.spend()
-        piece = m.group(0)
-        if m.group(1) is not None:
-            stack.append(bool(_IMAGE_FUNCTION.match(m.group(1))))
-            images += stack[-1]
-            argument_start = True
-        elif piece == "(":
-            stack.append(False)
-            argument_start = True
-        elif piece == ")":
-            images -= stack.pop() if stack else 0
-            argument_start = False
-        elif piece[0] in "\"'":
-            if images and argument_start and _not_data(piece):
-                found.add(ADDRESS_FOUND)
-            argument_start = False
-        else:
-            argument_start = piece.rstrip().endswith(",") or (argument_start and not piece.strip())
+    for plain in plains:
+        images, argument_start = 0, False
+        stack = []
+        for m in _CSS_PIECE.finditer(plain):
+            work.spend()
+            piece = m.group(0)
+            if m.group(1) is not None:
+                stack.append(bool(_IMAGE_FUNCTION.match(m.group(1))))
+                images += stack[-1]
+                argument_start = True
+            elif piece == "(":
+                stack.append(False)
+                argument_start = True
+            elif piece == ")":
+                images -= stack.pop() if stack else 0
+                argument_start = False
+            elif piece[0] in "\"'":
+                if images and argument_start and _not_data(piece):
+                    found.add(ADDRESS_FOUND)
+                argument_start = False
+            else:
+                argument_start = piece.rstrip().endswith(",") or (argument_start and not piece.strip())
     return found
 
 
@@ -1133,11 +1170,16 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
             raise PublishError(f"{dest.name} could not be saved ({e.strerror or e}). Nothing was written.") from e
     digest = built["sha256"]
     earlier = None                         # #120: a file overwrite=True replaces is put back if the publish fails or loses the race
+    earlier_link = None                    # #388: so is a link it replaces (the link itself, not the file it points at)
     if overwrite:
         try:
             earlier = read_plain(dest, 64 * 1048576)
         except OSError:
             earlier = None
+            try:
+                earlier_link = os.readlink(dest)
+            except OSError:
+                earlier_link = None
     try:
         try:
             platform.write_file(dest, body)
@@ -1163,6 +1205,13 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
                 try:
                     platform.write_file(dest, earlier)
                 except (OSError, platform.PlatformError):
+                    pass
+        elif earlier_link is not None:
+            if still_ours(dest, digest):
+                try:
+                    os.unlink(dest)
+                    os.symlink(earlier_link, dest)
+                except OSError:
                     pass
         else:
             take_back(dest, digest)

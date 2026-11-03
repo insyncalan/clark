@@ -114,6 +114,9 @@ class Editor(unittest.TestCase):
     def seen(self, root):
         return {r["id"]: r for r in self.js(SEE % root)["rows"]}
 
+    def query_id(self, name):
+        return [m['id'] for m in self.store.data_for('ABC')['milestones'] if m['name'] == name][0]
+
     def left_out(self):
         return self.store.data_for("ABC")["report_hidden"]
 
@@ -158,6 +161,23 @@ class Editor(unittest.TestCase):
                         self.assertEqual(got["place"], "page")
                         self.check_every_row({r["id"]: r for r in got["rows"]}, f"{width}/{theme} page")
                         self.assertTrue(got["noScroll"])
+
+    def test_an_internal_only_milestone_has_an_eye_drawn_as_already_out_that_changes_nothing(self):
+        with self.store.step("dashboard", USER) as st:
+            st.create("milestones", {"project": "ABC", "name": "Private checkpoint", "baseline_date": "2030-06-01", "client_visible": 0, "source": "demo"})
+        ident = self.query_id("Private checkpoint")
+        with chrome() as cdp:
+            self.visit(cdp, "#milestones&p=ABC")
+            sel = f".msv .msl-row[data-ms='{ident}'] button[data-ms-eye]"
+            self.assertTrue(wait(lambda: self.js(f"!!document.querySelector({json.dumps(sel)})"), 10), "it has an eye")
+            self.assertTrue(self.js(f"document.querySelector({json.dumps(sel)}).disabled"), "nothing to press: it is never on the page")
+            self.assertEqual(self.js(f"document.querySelector({json.dumps(sel)}).getAttribute('aria-label')"), "Internal only, never on the published page: Private checkpoint")
+            self.assertEqual(self.js(f"document.querySelector({json.dumps(sel)}).querySelector('svg').getAttribute('data-icn')"), "eyeoff")
+            self.js(f"document.querySelector({json.dumps(sel)}).click()")
+            self.assertEqual(self.sent_changes(), [], "pressing it sends nothing")
+            self.assertEqual(self.left_out(), [])
+            # a milestone the client can see still has the working eye
+            self.assertEqual(self.js("document.querySelector(\".msl-row[data-ms='ABC-M-001'] button[data-ms-eye]\").disabled"), False)
 
     def test_a_left_out_row_says_so_in_words_and_shows_the_eye_pressed_at_both_widths_in_both_themes(self):
         self.store_hide("ABC-M-002")

@@ -54,9 +54,6 @@ Where the tiles are computed (decision on the board item's review, 28-10-2026)
   published file is static and its numbers cannot be worked out again in a browser from rows the file does not hold.
 
 Gaps, in plain words
-- The prototype's use case menu offers "Done". The schema allows only On track, Flag and High risk, so this module knows
-  three statuses; a use case with any other status is shown with the status as stored and no colour. "Done" must be removed
-  from the prototype (the board item's Open 2).
 - `Store.data_for` does not return `glance_tiles` or `report_hidden`, and the writer has no step kind for them yet (#65).
   Until then the page part passes them in as `rows_by_table["glance_tiles"]` and `["report_hidden"]`.
 """
@@ -67,15 +64,15 @@ from clark import publish        # select(): the one function that chooses what 
 
 HEALTHS = ("On track", "At risk", "Off track")                       # (projects.health, schema.sql)
 HEALTH_COLOUR = {"On track": "green", "At risk": "amber", "Off track": "red"}
-COLOUR_CLASS = {"green": "g", "amber": "a", "red": "r", None: "n"}   # the Work items list's class letters
+COLOUR_CLASS = {"green": "g", "amber": "a", "red": "r", "grey": "n", None: "n"}   # the Work items list's class letters (grey: a Done use case)
 TILES = ("health", "overdue", "risks", "decisions")                  # glance_tiles.tile, in the default order
 TILE_TITLES = {"health": "Project health", "overdue": "Overdue actions", "risks": "High risks and issues",
                "decisions": "Decisions needed"}
 DEFAULT_HIDDEN = frozenset({"decisions"})
 SECTION_OF_TILE = {"overdue": "actions", "risks": "raid", "decisions": "decisions"}   # the published section a tile summarises
 OUTLINE_COLOUR = {"R": "red", "A": "amber", "G": "green", "N": None}  # glance_tiles.outline; "" is automatic
-USE_CASE_STATUSES = ("On track", "Flag", "High risk")                 # (use_cases.status, schema.sql)
-USE_CASE_COLOUR = {"On track": "green", "Flag": "amber", "High risk": "red"}
+USE_CASE_STATUSES = ("On track", "Flag", "High risk", "Done")         # (use_cases.status, schema.sql)
+USE_CASE_COLOUR = {"On track": "green", "Flag": "amber", "High risk": "red", "Done": "grey"}
 CLOSED = ("Closed", "Cancelled", "Made", "Withdrawn")                 # (workItems.js CLOSED)
 HIGH = ("Urgent", "High")
 SOON_DAYS = 7

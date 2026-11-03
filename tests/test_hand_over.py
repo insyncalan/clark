@@ -262,7 +262,8 @@ class Page(Base):
             self.assertEqual(self.steps(), steps + 1, "one step for actions, a risk and a decision")
             self.assertEqual({r: self.owner(r) for r in shown}, {r: "Zelda Quince" for r in shown})
             self.until(cdp, sid, "!document.querySelector('#hand-bar')", "pick mode ends")
-            self.until(cdp, sid, "document.activeElement && document.activeElement.id === 'hand-over'", "the keyboard back on Hand over")
+            # the filter line drops an owner who now has no items (#153), and the button goes with it: the keyboard is on the line's box
+            self.until(cdp, sid, "!document.querySelector('#hand-over') && document.activeElement && document.activeElement.id === 'fline-input'", "the keyboard on the filter line")
             click(cdp, sid, ".toast [data-undo]")
             self.until(cdp, sid, UNDONE, "the undo")
             self.assertEqual(cdp.js("document.querySelector('.toast .toast-text').textContent", sid), "Undone: 4 items are back with their owner.")
