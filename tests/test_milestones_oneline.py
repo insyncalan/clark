@@ -81,7 +81,7 @@ class Rows(unittest.TestCase):
         self.addCleanup(s.close)
         for code in ("TUL", "MOSS"):
             for scheme in ("light", "dark"):
-                for width in (1400, 900):
+                for width in (1400, 1201, 900):
                     with self.subTest(code=code, scheme=scheme, width=width), chrome() as cdp:
                         sid = self.open_page(cdp, s.port, width, scheme, code)
                         got = cdp.js(MEASURE, sid)
@@ -97,7 +97,7 @@ class Rows(unittest.TestCase):
                             self.assertTrue(r["inCard"], f"{where}: the row stays inside the card ({r['text']})")
                             self.assertTrue(r["inRow"], f"{where}: every cell stays inside its row ({r['text']})")
                             self.assertTrue(r["dateClearOfName"], f"{where}: the date cell does not run into the name ({r['text']})")
-                            if width == 1400:
+                            if width >= 1201:               # the rule starts at 1201 px, so its first width is tested too
                                 self.assertEqual(r["lines"], 1, f"{where}: the second line is one line ({r['text']})")
                                 self.assertTrue(r["smallInDate"], f"{where}: the second line stays inside its cell ({r['text']})")
                                 self.assertFalse(r["cellsClip"], f"{where}: no cell cuts text off ({r['text']})")

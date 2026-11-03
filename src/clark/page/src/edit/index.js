@@ -14,10 +14,13 @@ import { BulkActions, BulkLayer, installBulk } from "./Bulk.jsx";
 import { Publish } from "./Publish.jsx";
 import { ReportBar } from "./ReportBar.jsx";
 import { ProfileMenu, exportExcel } from "./ProfileMenu.jsx";
+import { ExportBtn } from "./ExportBtn.jsx";
 import { Personal } from "./Personal.jsx";
 import { GLANCE } from "./GlanceEdit.jsx";
 import { ClientFolder } from "./ClientFolder.jsx";
 import { Movement } from "./Movement.jsx";
+import { MilestonesPage } from "./MilestonesPage.jsx";
+import { MsAdd } from "./MsAdd.jsx";
 import { RichField } from "./RichField.jsx";
 import { NeedsEdit } from "./NeedsEdit.jsx";
 import { DocumentsEdit } from "./DocumentsEdit.jsx";
@@ -28,6 +31,7 @@ import { cleanHtml } from "../logic/cleanHtml.js";
 import { Safety } from "./Safety.jsx";
 import { UseCasesPage } from "./UseCasesPage.jsx";
 import { Diagnostics } from "./Diagnostics.jsx";
+import { PublishedReports } from "./PublishedReports.jsx";
 import { installPageErrors } from "./pageErrors.js";
 import { Palette } from "./Palette.jsx";
 import { AskSettings } from "./AskSettings.jsx";
@@ -44,4 +48,4 @@ import { templateEdit } from "./templates/index.js";
 // Help (#82) is among them: a published file has no Help panel and no "?" key.
 // `clean` is the page's own cleaner for a saved body that View draws as text (Section.jsx); a body it refuses draws as nothing.
 const clean = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
-export const EDIT = { clean, glance: GLANCE, Personal, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, richOn, Gutter, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, PeekLatest, PeekWarn, Cell, Publish, ReportBar, ProfileMenu, exportExcel, ClientFolder, Safety, Diagnostics, pageErrors: installPageErrors, AskSettings, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MsEye, ArchivedMilestones, UseCasesPage, Board, LayoutSwitch, HelpLayer, AddDialog, Palette, templateEdit, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk } };
+export const EDIT = { clean, glance: GLANCE, Personal, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, richOn, Gutter, ExportBtn, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, PeekLatest, PeekWarn, Cell, Publish, ReportBar, ProfileMenu, PublishedReports, exportExcel, ClientFolder, Safety, Diagnostics, pageErrors: installPageErrors, AskSettings, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MsEye, ArchivedMilestones, UseCasesPage, Board, LayoutSwitch, HelpLayer, AddDialog, Palette, templateEdit, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk } };

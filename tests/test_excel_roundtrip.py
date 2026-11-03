@@ -765,6 +765,45 @@ class Wording(RoundTrip):
         self.assertNotIn("database is locked", res.message)
 
 
+class UseCaseDone(RoundTrip):
+    """#412: Done is a use case status. Chosen in the workbook it imports as Done; a Done use case exports as Done, in grey, and an
+    unchanged workbook imports as no change at all."""
+
+    def test_done_typed_in_the_workbook_imports_as_done_and_undoes(self):
+        edit(self.path, "Use cases", self.demo.use_case, Status="Done")
+        p = self.read()
+        self.assertEqual(p.problems, [])
+        p.accept_all()
+        self.assertTrue(xi.apply_import(self.s, p, USER, state_path=self.state).applied)
+        self.assertEqual(self.s.read("use_cases", ref=self.demo.use_case)["status"], "Done")
+
+    def test_a_done_use_case_exports_as_done_in_grey_and_reads_back_unchanged(self):
+        from clark import excel_colours as colours
+        with self.s.step("dashboard", USER) as st:
+            st.update("use_cases", self.demo.use_case, {"status": "Done"})
+        self.export_again()
+        ws = load_workbook(str(self.path))["Use cases"]
+        head = {c.value: c.column for c in ws[1]}
+        row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, head["ID"]).value == self.demo.use_case)
+        cell = ws.cell(row, head["Status"])
+        self.assertEqual(cell.value, "Done")
+        rules = [r for cf in ws.conditional_formatting for r in cf.rules
+                 if str(cf.sqref).startswith(cell.column_letter) and r.type == "cellIs" and r.formula == ['"Done"']]
+        self.assertEqual(len(rules), 1, "one rule draws Done")
+        self.assertEqual((rules[0].dxf.fill.bgColor.rgb[-6:], rules[0].dxf.font.color.rgb[-6:]), colours.hexes("grey"))
+        p = self.read()
+        self.assertEqual((p.changes, p.problems), ([], []))
+        self.assertEqual(xi.read_workbook(self.s, self.path, "ABC", state_path=self.state).problems, [])
+
+    def test_a_status_that_is_not_one_of_the_four_is_still_refused(self):
+        edit(self.path, "Use cases", self.demo.use_case, Status="Finished")
+        p = self.read()
+        self.assertEqual([c.problem for c in p.changes], ["Status must be one of On track, Flag, High risk, Done (got 'Finished')"])
+        p.accept_all()
+        xi.apply_import(self.s, p, USER, state_path=self.state)
+        self.assertEqual(self.s.read("use_cases", ref=self.demo.use_case)["status"], "On track", "a change with a problem is not applied")
+
+
 class RichText(RoundTrip):
     HOSTILE = '<p onerror="steal()">Live</p><script>alert(1)</script><img src=x onerror=alert(2)>'
 
