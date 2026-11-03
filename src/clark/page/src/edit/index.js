@@ -28,6 +28,7 @@ import { RichRead } from "./RichRead.jsx";
 import { richOn } from "./richSave.js";
 import { cleanHtml } from "../logic/cleanHtml.js";
 import { Safety } from "./Safety.jsx";
+import { RowMenu } from "./RowMenu.jsx";
 import { UseCasesPage } from "./UseCasesPage.jsx";
 import { UCEDIT } from "./UseCasesEdit.jsx";
 import { Diagnostics } from "./Diagnostics.jsx";
@@ -52,4 +53,4 @@ import { HAND_OVER } from "./HandOver.jsx";
 // Help (#82) is among them: a published file has no Help panel and no "?" key.
 // `clean` is the page's own cleaner for a saved body that View draws as text (Section.jsx); a body it refuses draws as nothing.
 const clean = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
-export const EDIT = { clean, glance: GLANCE, Personal, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, richOn, Gutter, ExportBtn, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, Cell, Publish, ReportBar, ProfileMenu, PublishedReports, exportExcel, ClientFolder, Safety, Diagnostics, pageErrors: installPageErrors, AskSettings, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MsEye, MsAddBack, MsLayers, ArchivedMilestones, UseCasesPage, ucEdit: UCEDIT, Board, LayoutSwitch, HelpLayer, HelpButton, AddDialog, Palette, templateEdit, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk }, HandOver: HAND_OVER };
+export const EDIT = { clean, glance: GLANCE, Personal, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, richOn, Gutter, ExportBtn, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, Cell, Publish, ReportBar, ProfileMenu, PublishedReports, exportExcel, ClientFolder, Safety, Diagnostics, pageErrors: installPageErrors, AskSettings, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MsEye, MsAddBack, MsLayers, ArchivedMilestones, UseCasesPage, ucEdit: UCEDIT, Board, LayoutSwitch, RowMenu, HelpLayer, HelpButton, AddDialog, Palette, templateEdit, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk }, HandOver: HAND_OVER };

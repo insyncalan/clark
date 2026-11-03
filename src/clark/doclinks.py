@@ -178,7 +178,10 @@ def check_link(text):
     new line, NUL or other control character, a space or a leading control inside it; "//host", a relative path or a bare
     "example.com"; an empty site name; a site name not written as letters, digits and hyphens (a lookalike letter, an
     IPv6 or number-system host); an address that only works inside a network or on this computer (localhost, a name with no dot
-    such as intranet, .local, .internal or .lan, 127.x, 10.x, 172.16-31.x, 192.168.x, 169.254.x); a user name or password in the address; a backslash, "<", ">" or a quote; an encoded
+    such as intranet, a name ending .local, .internal, .lan, .localhost, .corp, .home, .intranet, .private, .test, .localdomain,
+    .router or .arpa (home.arpa too), and the numbers 0.x, 127.x, 10.x, 172.16-31.x, 192.168.x, 169.254.x, 100.64-127.x, 192.0.0.x,
+    198.18-19.x, 224 and above, and the ranges kept for documents and tunnels: 192.0.2.x, 198.51.100.x, 203.0.113.x and 192.88.99.x
+    (#594, #609)); a user name or password in the address; a backslash, "<", ">" or a quote; an encoded
     control character (%00, %0d); and a mailto with a second recipient or any header (?cc=, ?bcc=, ?body=, ?subject=).
     Only the scheme and the host are lower-cased and a port loses its leading zeros (:08080 becomes :8080; a port of more
     than five digits is refused); the rest is returned as it was given, so check_link(check_link(x)) is check_link(x).
