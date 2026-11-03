@@ -104,7 +104,8 @@ class Workflow(unittest.TestCase):
         self.assertNotIn("eval ", plan)
         self.assertIn("GH_TOKEN: ${{ github.token }}", plan)
         self.assertIn("PR_NUMBER: ${{ github.event.pull_request.number }}", plan)
-        self.assertIn('gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq \'.[].filename\'', plan)
+        # #593: a file renamed away from a guarded path is seen too: both the new name and the old one (previous_filename) are listed
+        self.assertIn('gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq \'.[] | .filename, (.previous_filename // empty)\'', plan)
         for guarded in ("src/clark/store.py", "src/clark/server.py", "src/clark/publish.py", "src/clark/secret_screen.py",
                         "src/clark/updates.py", "src/clark/platform.py", "src/clark/schema.sql", "src/clark/history.py",
                         ".github/*"):

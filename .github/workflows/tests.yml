@@ -88,12 +88,13 @@ jobs:
           case ",$LABELS," in
             *,full-ci,*) FULL=1; MACOS=1 ;;
           esac
-          # A pull request that changes a guarded file is the full matrix without the label. The changed files come from the API
+          # A pull request that changes a guarded file is the full matrix without the label. A file moved away from a guarded path counts too (#593):
+          # the API gives the old name as previous_filename, so both names are listed. The changed files come from the API
           # (nothing from the pull request is checked out); if the call fails the answer is full (fail safe). Exact names or
           # anchored prefixes in `case`, never eval. The list is dev/run_tests.py GUARDED plus the publishing, secret-screen,
           # update and platform modules and the workflows.
           if [ "$EVENT" = "pull_request" ] && [ -z "$FULL" ]; then
-            if CHANGED="$(gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename')"; then
+            if CHANGED="$(gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')"; then
               while IFS= read -r F; do
                 case "$F" in
                   src/clark/store.py|src/clark/schema.sql|src/clark/history.py|src/clark/server.py) FULL=1; MACOS=1 ;;
