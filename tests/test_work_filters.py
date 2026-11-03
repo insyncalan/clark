@@ -596,6 +596,11 @@ class RealBrowser(unittest.TestCase):
                 self.assertEqual(js("[...document.querySelectorAll('#newBtnMenu [role=menuitem]')].map(b => b.textContent)"), ["Add risk", "Add issue"])
                 key(cdp, sid, "Escape")
                 self.assertTrue(wait(lambda: js("!document.querySelector('#newBtnMenu')")))
+                # Esc puts the focus back on the Add button one frame after the menu goes, and the button then grows to its words; at 900 px
+                # that wraps the row and pushes the line down by about 20 px. A click aimed at the line before that lands beside it, so
+                # wait for the focus and for the growth to end before the line is measured.
+                self.assertTrue(wait(lambda: js("document.activeElement.id === 'newBtn'")), "the focus is back on the Add button")
+                self.assertTrue(wait(lambda: js("document.getAnimations().every(a => a.playState !== 'running')")), "the Add button stopped growing")
                 set_line(cdp, sid, TYPE_LINES["action"])                                         # Actions: no menu, one click
                 self.assertTrue(wait(lambda: tile()[3] is None))
                 click(cdp, sid, "#newBtn")
