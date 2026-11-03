@@ -63,7 +63,7 @@ export function AskSettings() {
   const list = Array.isArray(folders) ? folders : [];
   return (
     <section class="frame setting" id="ask-settings">
-      <h2>Asking</h2>
+      <h2 id="ask-settings-h" tabIndex={-1}>Asking</h2>
       <p class="muted">Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.</p>
       <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? "Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs." : ASK_OFF_LINE}</p>
       {status === "ready" && !saved ? <p class="muted" id="ask-unsaved">This computer's saved data can't keep this choice yet, so asking stays off. Restart clark to bring the saved data up to date.</p> : null}

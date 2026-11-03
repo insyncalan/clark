@@ -1,6 +1,6 @@
 // Show archived on Milestones (C-M4, #126; Edit parts only, so a published file has none: it carries no archived row). A button
 // with the count; on, a box called Archived with the archived milestones in muted text, each marked Archived, with its agreed date
-// and how many work items are still linked to it. A row is read only: Restore is its one action, and it puts the milestone back in
+// and how many work items are linked to it (none said when there are none). A row is read only: Restore is its one action, and it puts the milestone back in
 // one step with one Undo. Restore is offered in Edit only (View changes nothing, and its changes have no Undo to offer).
 // The rows are read from GET /api/data?archived=only, into this block's own state and never into the page's data, so an archived
 // row cannot reach the Plan, the published file, the export or Ask. They are read again whenever the project's data is read again
@@ -54,7 +54,7 @@ export function ArchivedMilestones() {
                   <li key={r.id} data-id={r.id} class="ma-row">
                     <span class="ma-name">{r.name}</span>
                     <span class="tag">Archived</span>
-                    <span class="ma-meta">{`${r.baseline_date ? `Agreed ${showDate(r.baseline_date)}` : "No agreed date"} · ${plural(linked, "work item")} still linked`}</span>
+                    <span class="ma-meta">{`${r.baseline_date ? `Agreed ${showDate(r.baseline_date)}` : "No agreed date"}${linked > 0 ? ` · ${plural(linked, "work item")} linked` : ""}`}</span>
                     {editing ? <button type="button" class="btn sm ma-restore" data-edit-only aria-label={`Restore ${r.name}`} onClick={() => restore(r)}>Restore</button> : null}
                   </li>
                 );
