@@ -1764,13 +1764,16 @@ def _is_hand_over(store, step, rows):
     return any(e["step"] == step and e["place"] == BULK_PLACE for e in store.history(key))
 
 
-def _hand_over_changed(store, step, rows):
-    """#199: the id of an item whose owner (or made_by) was changed after this hand over, or None. The owner and its link go back
-    together or not at all: the store judges each field alone, so an Undo of a hand over whose owner text was edited since would put
-    the old link back beside the new name. A hand over with a changed item is not undone from here (the name, as it reads now, has
-    its own link to keep). A link-only hand over is judged by the name the new link has. Read only."""
+def _hand_over_changed(store, step, rows, all_gone=True):
+    """#199, #620: the id of an item that stops this hand over being undone from here, or None. The owner and its link go back
+    together or not at all. When an item's owner (or made_by) text was changed after the hand over, the store leaves that item alone,
+    link and all, and undoes the others (Store.undo's per-item skip, #620), so such an item blocks nothing, unless every item of the
+    step changed (`all_gone`: nothing would go back, so a single Undo says so and is refused). A link-only item (no owner text row in
+    the step, so the store has no name to judge by) whose name was edited since is judged here by the name the new link has: it
+    blocks the whole step, as the store would put its link back beside the new name. Read only."""
     if not _is_hand_over(store, step, rows):
         return None
+    items, changed = [], []
     for key in dict.fromkeys(r["key"] for r in rows if r.get("field") == "owner_id"):
         table = clark_store.item_table(str(key))
         field = HAND_OVER_FIELD[table]
@@ -1784,9 +1787,14 @@ def _hand_over_changed(store, step, rows):
             if not named:
                 continue                                            # a link cleared with the name as it was: nothing to compare
             expected = named[0]
+        items.append(key)
         row = store.read(table, ref=key)
         if row is not None and str(row[field] if row[field] is not None else "") != str(expected if expected is not None else ""):
-            return key
+            if not text:
+                return key                                          # a link alone can't be skipped by the store: the step is left whole
+            changed.append(key)
+    if all_gone and changed and len(changed) == len(items):
+        return changed[0]
     return None
 
 
@@ -2096,7 +2104,7 @@ def _do_undo(store, by_user, req):
     if not _ours(store, step, step_rows, project) and not _batch_is_ours(store, step, project):   # a missing step, another project's and
         raise Refused(NO_UNDO)                                      # another route's all say the same: nothing tells which exist
     if _hand_over_changed(store, step, step_rows):
-        raise Refused(HAND_OVER_CHANGED, 409, "changed_since")      # #199: the owner and its link go back together or not at all
+        raise Refused(HAND_OVER_CHANGED, 409, "changed_since")      # #199: nothing of it can go back; #620: when some can, the store skips only the changed owner
     names = {r["id"]: r["title"] for r in _sections(store, project)}
     _name_use_cases(store, step_rows, names)                        # #164
     try:                                                            # still inside the caller's one lock
@@ -2125,7 +2133,9 @@ def _do_undo(store, by_user, req):
                 continue                                            # one line for a whole section, not one for each field
             entry["field"] = None
         reversed_.append(entry)
-    skipped = [{"ref": s["ref"], "field": s["field"], "why": _skipped_why(s["why"]), "by_step": s["by_step"]} for s in done["skipped"]]
+    owner_skipped = {s["ref"] for s in done["skipped"] if s["field"] in HAND_OVER_FIELD.values()}
+    skipped = [{"ref": s["ref"], "field": s["field"], "why": _skipped_why(s["why"]), "by_step": s["by_step"]} for s in done["skipped"]
+               if not (s["field"] == "owner_id" and s["ref"] in owner_skipped)]      # #620: a link left with its owner text is one line, not two
     if not reversed_ and any(s["why"] == MADE_CANT_BE_PUT_BACK for s in skipped):       # a decision that is made is not put back
         raise Refused(MADE_CANT_BE_PUT_BACK, 409, "not_undoable")
     out = {"ok": True, "apply_id": done["step_id"],
@@ -2264,8 +2274,8 @@ def _do_undo_many(store, by_user, req):
             why = "is an undo"
         elif not _ours(store, s, rows, project):
             why = NOT_FROM_HERE
-        elif _hand_over_changed(store, s, rows):
-            why = "has changed since: left as it is"                # #199: a hand over goes back whole or not at all
+        elif _hand_over_changed(store, s, rows, all_gone=False):
+            why = "has changed since: left as it is"                # #199: a link-only item whose name changed leaves the step whole; #620: other changed owners are skipped one by one
         else:
             ours.append(s)
             continue
