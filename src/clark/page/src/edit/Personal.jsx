@@ -3,7 +3,7 @@
 import { style, setStyle } from "../stores/style.js";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { appearance, setAppearance } from "../stores/appearance.js";
-import { profile, loadProfile, setProfile, wantName } from "../stores/profile.js";
+import { profile, loadProfile, profileKnown, setProfile, wantName } from "../stores/profile.js";
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
 
 export const STYLES = [
@@ -21,22 +21,30 @@ export const APPEARANCES = [                                 // the ruled order:
 
 // About you (#180): the two optional boxes. Each is saved when it is left (or on Enter); a refusal says why under the box and writes
 // nothing, and what was typed stays in the box so it can be mended. Emptying the name returns the menu's top line to its link.
+const UNREAD = "Your saved name and email could not be read. Reload the page and try again. Nothing was saved.";
+
 function AboutYou() {
   const name = useRef(null), email = useRef(null);
   const [typed, setTyped] = useState({ name: profile.value.name, email: profile.value.email });
   const [said, setSaid] = useState({ name: "", email: "" });
   useEffect(() => { loadProfile(); }, []);
   const typedIn = useRef({ name: false, email: false });
-  // The boxes follow what clark has when it is read late (a read that finished after Settings opened), but only a box nobody has typed in:
-  // a person who keeps typing while a save is on its way must never see the box go back to what was saved (and a box typed in before that
-  // effect ran must not be emptied by it). A saved value is put back in its box by save(), below, and only when the box still holds what was sent.
+  // The boxes follow what clark has when it is read late (a read that finished after Settings opened), but only a box nobody has typed in
+  // since it was last saved: a person who keeps typing while a save is on its way must never see the box go back to what was saved (and a
+  // box typed in before that effect ran must not be emptied by it). A saved value is put back in its box by save(), below, and only when
+  // the box still holds what was sent; that box is then no longer typed in, so it follows clark again.
   useEffect(() => {
     setTyped((t) => ({ name: typedIn.current.name ? t.name : profile.value.name, email: typedIn.current.email ? t.email : profile.value.email }));
   }, [profile.value.name, profile.value.email]);
   useEffect(() => { if (wantName.value && name.current) { wantName.value = false; name.current.focus(); } });
   const save = async (field) => {
-    // both boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over the other
-    const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };
+    // #420: a save made before the first read has landed would send a blank for the other box and so blank what clark has saved there: wait
+    // for the read first. If it cannot be read, nothing is sent.
+    if (!(await profileKnown())) { setSaid({ name: field === "name" ? UNREAD : "", email: field === "email" ? UNREAD : "" }); return; }
+    // the box left is read as it is now (not from an earlier draw); the other box is sent as it is now only if it has been typed in, else as clark has it
+    const now = (f) => { const ref = f === "name" ? name : email; return typedIn.current[f] && ref.current ? ref.current.value : profile.value[f]; };
+    const sent = { name: field === "name" ? (name.current ? name.current.value : typed.name) : now("name"),
+                   email: field === "email" ? (email.current ? email.current.value : typed.email) : now("email") };
     const r = await setProfile(sent.name, sent.email);
     // One rule: an answer speaks only for the newest save. A late answer to an older save changes nothing on the page (it can neither clear
     // nor replace what a newer save said), so a refusal is never lost and an old refusal never shows over text that was saved. A refusal is
@@ -44,7 +52,9 @@ function AboutYou() {
     if (!r.newest) return;
     if (r.ok) {
       // what clark kept (it may be tidied, such as spaces cut off the ends) goes back in a box only if the box still holds what was sent:
-      // a box changed since is left as it is
+      // a box changed since is left as it is (and stays typed in); a box that holds what was sent, even typed away and back, agrees with
+      // clark again, so it follows clark again
+      for (const [f, ref] of [["name", name], ["email", email]]) if ((ref.current ? ref.current.value : typed[f]) === sent[f]) typedIn.current[f] = false;
       setTyped((t) => ({ name: t.name === sent.name ? r.name : t.name, email: t.email === sent.email ? r.email : t.email }));
       setSaid({ name: "", email: "" });
       return;
