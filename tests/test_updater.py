@@ -17,7 +17,7 @@ from unittest import mock
 from pathlib import Path
 
 from _paths import ROOT
-from clark import launch, server as sv, update_helper as h, update_install as ui, updater as up, updates
+from clark import launch, platform, server as sv, update_helper as h, update_install as ui, updater as up, updates
 from test_update_helper import FakeSeams, snapshot
 from test_update_install import Base as InstallBase
 import _signing
@@ -37,6 +37,11 @@ class Rig(InstallBase):
 
     def setUp(self):
         super().setUp()
+        # an undo that restores the data looks for OneDrive folders, which only a Mac has (platform.onedrive_roots refuses
+        # elsewhere): none here, as on a Mac with no OneDrive
+        patch = mock.patch.object(platform, "onedrive_roots", return_value=[])
+        patch.start()
+        self.addCleanup(patch.stop)
         self.clock = Clock()
         self.chosen = None
         self.started = []

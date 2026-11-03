@@ -462,6 +462,27 @@ class Command(unittest.TestCase):
             self.assertNotIn(word, text)
 
 
+ONEDRIVE_NONE = """
+import importlib.abc, importlib.machinery, sys
+
+class _Hook(importlib.abc.MetaPathFinder):
+    def find_spec(self, name, path=None, target=None):
+        if name != "clark.platform":
+            return None
+        spec = importlib.machinery.PathFinder.find_spec(name, path)
+        if spec is None or spec.loader is None:
+            return None
+        run = spec.loader.exec_module
+        def exec_module(module):
+            run(module)
+            module.onedrive_roots = lambda home=None, on=None: []
+        spec.loader.exec_module = exec_module
+        return spec
+
+sys.meta_path.insert(0, _Hook())
+"""
+
+
 class StoppedBetweenTwoMoves(unittest.TestCase):
     """An update swaps src and clark by moving the old folder into .clark-old-<time> and then the new one in. A stop between the
     two moves leaves no src (or no clark), and then nothing can import clark to finish the update. The real clark.command, in a
@@ -501,8 +522,14 @@ class StoppedBetweenTwoMoves(unittest.TestCase):
         (bin_ / "python3").symlink_to(sys.executable)
         taken = Fake("html")
         self.addCleanup(taken.close)
+        # the launcher looks for OneDrive folders, which only a Mac has (platform.onedrive_roots refuses elsewhere); the child
+        # process cannot be patched from here, so a sitecustomize on its path answers "none" once clark.platform is loaded
+        hook = Path(app).parent / "hook"
+        hook.mkdir()
+        (hook / "sitecustomize.py").write_text(ONEDRIVE_NONE, encoding="utf-8")
         return subprocess.run([BASH, str(app / "clark.command"), "--data", str(data), "--port", str(taken.port)],
-                              cwd=str(Path(app).parent), env={"PATH": f"{bin_}:/usr/bin:/bin", "HOME": str(Path(app).parent)},
+                              cwd=str(Path(app).parent), env={"PATH": f"{bin_}:/usr/bin:/bin", "HOME": str(Path(app).parent),
+                                                              "PYTHONPATH": str(hook)},
                               stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120)
 
     def check(self, missing):
