@@ -600,7 +600,7 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 .selbar .sb-x[data-tip]:hover::after, .selbar .sb-x[data-tip]:focus-visible::after { right: 0; }
 .sel-note { margin: var(--space-1) 0 0; font-size: var(--size-caption); }
 @media (prefers-reduced-motion: no-preference) { table.items tbody tr { transition: background-color var(--dur-instant) var(--ease-out); } }
-.cpop { position: fixed; z-index: 35; min-width: 180px; max-width: min(320px, calc(100vw - 16px)); padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: var(--size-body); cursor: default; }
+.cpop { position: fixed; z-index: 41;   /* one above .toasts (40): a cell picker opened low on the page stays clickable while a toast shows; still under the Ask panel (45) and scrims (50) */  min-width: 180px; max-width: min(320px, calc(100vw - 16px)); padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: var(--size-body); cursor: default; }
 .cpop.cmenu { display: block; }
 .cpop.cmenu > div { display: flex; flex-direction: column; }
 .cpop [role="menuitemradio"] { display: flex; align-items: center; }
