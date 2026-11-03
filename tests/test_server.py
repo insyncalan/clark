@@ -329,6 +329,7 @@ class Saving(ServerTest):
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
                                                 "/api/section-file": 1024,
+                                                "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,     # #72
                                                 "/api/people": 4 * 1024, "/api/people/undo": 1024,
                                                 "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024,
                                                 "/api/update/undo": 1024})     # #96: a project and a section only
