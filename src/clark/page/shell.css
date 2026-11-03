@@ -953,7 +953,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .cal-qm { all: unset; display: inline-block; font-weight: var(--weight-medium); color: var(--heading); margin: 0 0 var(--space-2); cursor: pointer; border-radius: var(--radius-sm); padding: 0 var(--space-1); } .cal-qm:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; } .cal-qm:hover { color: var(--status-blue-text); text-decoration: underline; }
 .cal-q .cal-d { min-height: 44px; padding: 2px; } .cal-q .cal-ms span { display: none; }
 .cal:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 4px; }
-.cal-d[data-d]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }   /* #481: a day is a tab stop, as in the prototype */
+.cal-d[data-d]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }   /* a day is a tab stop, as in the prototype (issue 481) */
 .cal-far { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin: 0 0 var(--space-3); color: var(--status-amber-text); }
 .cal-list { display: none; margin-top: var(--space-4); }   /* a phone only, as in the prototype (app.css:1297, 1306); shown at 700 px and below, below */
 .cal-list h4 { margin: 0 0 var(--space-2); color: var(--heading); font-weight: var(--weight-medium); }
