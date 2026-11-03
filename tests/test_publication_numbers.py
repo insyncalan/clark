@@ -103,7 +103,8 @@ class TheCounter(unittest.TestCase):
             con.execute("INSERT OR REPLACE INTO publications (project, local_path, file_sha256, checks, by_user, number) "
                         "VALUES ('ABC', '/x/y.html', ?, 'not needed', 'u', 1)", (SHA,))
         self.assertEqual(numbers(con), [1])
-        con.execute("UPDATE publications SET client_path = '/x/c.html' WHERE seq = ?", (seq,))    # the client copy's path may be set
+        with self.assertRaises(sqlite3.DatabaseError):                                             # #324: the client copy's path is set at insert, never after
+            con.execute("UPDATE publications SET client_path = '/x/c.html' WHERE seq = ?", (seq,))
 
     def test_undo_never_frees_a_number(self):
         self.log()
@@ -114,7 +115,7 @@ class TheCounter(unittest.TestCase):
 
 class TheShapeAndTheStep(unittest.TestCase):
     def test_the_step_is_number_10_and_the_table_has_no_gap(self):
-        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 10)                  # later steps follow (#412 is 11)
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 10)                  # later steps follow (#412 is 11, #324 is 12)
         self.assertIn((10, store_module.migrate_publication_numbers), store_module.MIGRATIONS)
         self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, store_module.SCHEMA_VERSION + 1)))
 
@@ -133,6 +134,7 @@ class TheShapeAndTheStep(unittest.TestCase):
                     "checks TEXT NOT NULL CHECK (checks IN ('passed','not needed')), by_user TEXT NOT NULL)")
         con.execute("BEGIN")
         store_module.migrate_publication_numbers(con)
+        store_module.migrate_publication_guard(con)                     # step 12 (#324): the wider trigger, so the two ways give one shape
         con.execute("COMMIT")
 
         def shape(c):
@@ -142,6 +144,51 @@ class TheShapeAndTheStep(unittest.TestCase):
                                                   "AND sql IS NOT NULL"))
         self.assertEqual(shape(con), shape(fresh.store.con))
         self.assertEqual(len(shape(con)), 4, "the table and its three triggers")
+
+
+class ThePublicationGuardStep(unittest.TestCase):
+    """Step 12 (#324, #325): the trigger guards client_path, and a file that has the narrower one gets the wider one."""
+    NARROW = store_module.PUBLICATION_TRIGGERS[1]
+
+    def row(self, demo):
+        demo.store.log_publication("ABC", LOCAL, None, SHA, "Sam Carter")
+        return demo.store.con.execute("SELECT MAX(seq) FROM publications").fetchone()[0]
+
+    def test_a_new_file_refuses_a_change_to_client_path(self):
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        seq = self.row(demo)
+        with self.assertRaises(sqlite3.DatabaseError):
+            demo.store.con.execute("UPDATE publications SET client_path = '/x/c.html' WHERE seq = ?", (seq,))
+
+    def test_a_file_with_the_narrower_trigger_gets_the_wider_one_and_keeps_its_rows(self):
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        seq = self.row(demo)
+        con = demo.store.con
+        con.execute("DROP TRIGGER publications_number_fixed")
+        con.execute(self.NARROW.replace("IF NOT EXISTS ", ""))                         # the trigger as step 10 made it
+        con.execute("UPDATE publications SET client_path = '/x/c.html' WHERE seq = ?", (seq,))      # the gap: allowed there
+        con.execute("BEGIN")
+        store_module.migrate_publication_guard(con)
+        con.execute("COMMIT")
+        with self.assertRaises(sqlite3.DatabaseError):
+            con.execute("UPDATE publications SET client_path = '/x/d.html' WHERE seq = ?", (seq,))
+        self.assertEqual(con.execute("SELECT client_path FROM publications WHERE seq = ?", (seq,)).fetchone()[0], "/x/c.html")
+        self.assertEqual(con.execute("SELECT COUNT(*) FROM sqlite_master WHERE name = 'publications_number_fixed'").fetchone()[0], 1)
+
+    def test_running_it_twice_changes_nothing(self):
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        con = demo.store.con
+        before = con.execute("SELECT sql FROM sqlite_master WHERE name = 'publications_number_fixed'").fetchone()[0]
+        con.execute("BEGIN")
+        store_module.migrate_publication_guard(con)
+        con.execute("COMMIT")
+        self.assertEqual(con.execute("SELECT sql FROM sqlite_master WHERE name = 'publications_number_fixed'").fetchone()[0], before)
+
+    def test_the_step_is_number_12(self):
+        self.assertIn((12, store_module.migrate_publication_guard), store_module.MIGRATIONS)
 
 
 class OlderFiles(unittest.TestCase):
@@ -361,6 +408,23 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertEqual(dest.read_bytes(), earlier)
         self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "nothing numbered or half-written is left")
         self.assertEqual(numbers(store.con, "PUB"), [1])
+
+    def test_overwrite_of_a_file_over_the_cap_is_refused_and_leaves_it_whole(self):
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        big = b"x" * 40                                            # #326: over the (lowered) cap, so a copy put back would be cut off
+        dest.write_bytes(big)
+        real = publish.EARLIER_MAX
+        publish.EARLIER_MAX = 32
+        self.addCleanup(setattr, publish, "EARLIER_MAX", real)
+        with self.assertRaises(publish.PublishError) as e:
+            publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING, overwrite=True)
+        self.assertIn("too big to replace", str(e.exception))
+        self.assertEqual(dest.read_bytes(), big, "the file is untouched, not cut off")
+        self.assertEqual(numbers(store.con, "PUB"), [1], "and no number was taken")
+        publish.EARLIER_MAX = 40                                   # at the cap exactly it is replaced as before
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING, overwrite=True)
 
     def test_overwrite_with_a_lost_race_and_no_earlier_file_leaves_nothing(self):
         store, folder = self._overwrite_rig()

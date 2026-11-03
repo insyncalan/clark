@@ -34,7 +34,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 11          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 12          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#324, #325): the publications trigger also guards client_path. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -2101,11 +2101,23 @@ def migrate_use_case_done(con):
     _use_cases_allow_done(con)
 
 
+PUBLICATION_FIXED_V12 = """CREATE TRIGGER publications_number_fixed BEFORE UPDATE OF seq, at, week_ending, local_path, client_path, checks, number, project, word, file_sha256, by_user ON publications
+BEGIN SELECT RAISE(ABORT, 'a publication''s number, project, kind, file, date, week, checks and publisher never change'); END;"""
+
+
+def migrate_publication_guard(con):
+    """The publications trigger guards client_path too (#324), and a file that already has the narrower one gets the wider one (#325:
+    CREATE TRIGGER IF NOT EXISTS skips a trigger that is there, so this drops it first). Its own step, number 12 (see SCHEMA_VERSION and
+    MIGRATIONS); it touches no table and no row. Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    con.execute("DROP TRIGGER IF EXISTS publications_number_fixed")
+    con.execute(PUBLICATION_FIXED_V12)
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
               (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers),
-              (11, migrate_use_case_done))
+              (11, migrate_use_case_done), (12, migrate_publication_guard))
 
 
 def migration_plan(version, table=None):

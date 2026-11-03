@@ -45,6 +45,7 @@ from clark import doclinks, milestones, page, platform, section_bodies
 from clark.store import Invalid as StoreInvalid, NumberTaken, check_section_body, excluded_label_names, open_store
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
 
+EARLIER_MAX = 64 * 1048576               # #326: the largest earlier file an overwrite will put back if the publish fails
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused
 VERSION = 1                               # the data block's shape; the page refuses another
 KINDS = ("milestones", "actions", "raid", "decisions", "use_cases")
@@ -1170,9 +1171,11 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
     earlier = None                         # #120: a file overwrite=True replaces is put back if the publish fails or loses the race
     if overwrite:
         try:
-            earlier = read_plain(dest, 64 * 1048576)
+            earlier = read_plain(dest, EARLIER_MAX + 1)
         except OSError:
             earlier = None
+        if earlier is not None and len(earlier) > EARLIER_MAX:      # #326: never put back a cut-off copy; a file this big is not replaced
+            raise PublishError(f"{dest.name} is over {EARLIER_MAX // 1048576} MB, too big to replace safely. Choose another name. Nothing was written.")
     try:
         try:
             platform.write_file(dest, body)
