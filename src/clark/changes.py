@@ -68,12 +68,13 @@ CHANGE_KINDS = {
     "glance_tiles": {UPDATE: ("hidden", "outline"), MOVE: ()},
     "projects": {UPDATE: ("health", "health_reason", "week_ending")},     # week_ending: the report bar's date (YYYY-MM-DD)
     # #136: Milestones Movement. The dates, Done, the state with its reason, the client wording and the Movement choice. Never the
-    # internal note, the owner, the name, the workstream, the place or the archive flag (archive stays its own op).
+    # owner, the name, the workstream, the place or the archive flag (archive stays its own op). #458: + the internal note, the one
+    # box Movement keeps for the owner (owner only: never in a reply, a Movement entry or a published file).
     "milestones": {UPDATE: ("baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
-                            "client_message", "movement")},
+                            "client_message", "movement", "internal_note")},
     # #164: an EXISTING use case's name, headline, status, standing text and eye (client_visible). Only `update` here: the
     # archive and restore ops below are #126's, and there is no new, move or delete for use cases.
-    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible")},
+    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible"), NEW: ("ref", "title", "status", "headline")},   # #455: and a NEW one (below)
     # #67: the eye on a report row. `new` hides the row from the report and `delete` shows it again; both take only the item's id
     # (no values: the row is the pair project + item, and the project is the request's).
     # `pick` is the picker's Add (see _do_pick): it puts several hidden rows back on the page in one step.
@@ -82,6 +83,7 @@ CHANGE_KINDS = {
 KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values",)} for k in NEWABLE},   # per kind, the keys an op takes when they are not OP_KEYS' (a project has no id)
                 "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)},
                 "report_sections": {NEW: ("values", "after", "beside")}}      # #149: a new section may go beside the one it is added after, in the same step
+KIND_OP_KEYS["use_cases"] = {NEW: ("values",)}    # #455: a new use case is only `values` (its reference, name, status and headline); no id is sent
 KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline")     # #136: a milestone's agreed date moves with a `rebaseline`
 TILES = ("health", "overdue", "risks", "decisions")  # glance_tiles.tile (the store's ALLOWED holds the same four; a test says so)
 TILE_WORDS = {"health": "Project health", "overdue": "Overdue actions", "risks": "High risks and issues",
@@ -97,12 +99,12 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
             "glance_tiles": ("hidden", "outline", "sort_order"),
             "projects": ("health", "health_reason", "week_ending", "archived", "active"),       # #126: a project's own archive or restore step sets the flag and `active`
             "milestones": ("archived", "baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
-                           "client_message", "movement"),     # #136: a Movement step; its decision is a work item's row (see _movement_step)
+                           "client_message", "movement", "internal_note"),     # #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
             "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible"), "documents": ("archived",) + DOC_FIELDS, "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
-CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone")      # #67: a row added in the report: no id,
+CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone", "latest_update")      # #67: a row added in the report: no id,
 CHANGE_KINDS["raid"][NEW] = ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone")   # raised, status or source
-CHANGE_KINDS["decisions"][NEW] = ("decision", "made_by", "status", "date", "needed_by")      # (clark gives those), and no priority on a risk (worked out)
+CHANGE_KINDS["decisions"][NEW] = ("decision", "made_by", "status", "date", "needed_by", "reasoning")      # (clark gives those), and no priority on a risk (worked out)
 CHANGE_KINDS["milestones"][NEW] = ("name", "baseline_date", "owner", "workstream")
 # #196: one field change to several work items of one kind, in one step with one Undo (_do_bulk). A risk's impact and likelihood
 # are here (its priority is worked out from them); a decision takes only who makes it.
@@ -115,10 +117,12 @@ for _kind in ARCHIVABLE:                              # #126: every record can b
     CHANGE_KINDS.setdefault(_kind, {}).update({ARCHIVE: (), RESTORE: ()})
 ITEM_KINDS = ("actions", "raid", "decisions")        # the work items; every other kind is a report section
 UC_FIELDS = CHANGE_KINDS["use_cases"][UPDATE]        # #164: what a request may change on a use case
+UC_REF_LIMIT = 20                                    # #455: a new use case's reference as the project writes it ("3.1"), in characters
 UC_NAME_LIMIT = 120                                  # a use case's name, in characters
 UC_HEADLINE_LIMIT = 300                              # its one-line headline
 ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision")
 CLEARED_BY_NEW = ("owner", "priority", "status", "description", "decision", "type", "name", "impact", "likelihood")   # sent as null on a new row: refused      # a work item field that has to have a value (the others may be cleared)
+EXPLAIN_FIELDS = ("latest_update", "reasoning")      # #458: the one explanation line a new action or decision may start with (Movement's buttons); never said back, never in ask clark's before and after
 TITLE_FIELDS = ("description", "decision")           # #67: a work item's title; never said back in a reply (the page keeps what it sent); a new milestone's name is held to the same
 ITEM_SHOWN = {k: ("id",) + tuple(f for f in CHANGE_KINDS[k][UPDATE] if f not in TITLE_FIELDS) + (("closed",) if k != "decisions" else ())
               for k in ITEM_KINDS}                   # what a reply says of a changed item
@@ -187,6 +191,7 @@ NO_DECISION_FIELD = {"workstream": "A decision isn't part of a workstream.", "mi
                      "priority": "A decision has no priority."}
 ITEM_VALUE_WORDS = "That value isn't one clark can use."
 ITEM_TEXT_WORDS = "Use plain text, with no line breaks or hidden characters."
+NOTE_TEXT_WORDS = "Use plain text, with no hidden characters."      # #458: the internal note may hold line breaks
 ITEM_BAD_KINDS = frozenset({"Cc", "Cf", "Cs", "Co", "Zl", "Zp"})   # as the store's section titles: control, format, surrogate, private use, separators
 NOT_A_DATE = "That isn't a date. Pick a day from the calendar."
 DOC_NOT_A_DATE = "That isn't a date. Write it as DD-MM-YYYY (day, month, year), or leave it empty."      # #74: a document's date is typed, there is no calendar
@@ -225,6 +230,8 @@ UC_NAME_WORDS = f"A use case needs a name of 1 to {UC_NAME_LIMIT} characters, wi
 UC_HEADLINE_WORDS = f"A headline can be at most {UC_HEADLINE_LIMIT} characters, with no line breaks or hidden characters."
 UC_STATUS_WORDS = "A use case's status can be On track, Flag, High risk or Done."
 UC_STANDING_WORDS = "That text can't be saved. It may be too long, or not text."
+UC_REF_WORDS = f"A use case needs an ID of 1 to {UC_REF_LIMIT} characters, with no line breaks or hidden characters."
+UC_REF_USED = "That ID is already used by another use case of this project."
 UC_NOT_MINE = NOT_MINE_RECORD                          # another project's use case and a missing one: the same words
 NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES         # what a new section may be: an allow-list, never the request's own spelling
 NEW_TYPE_WORDS = "That kind of section can't be added."
@@ -614,7 +621,7 @@ def _do_change(store, by_user, req):
     if kind == "documents":                                         # #74: a document link's add or edit
         return _do_document_change(store, by_user, req, project, table, columns, op, place)
     if kind == "use_cases":                                         # #164: first, and before any work item line, so that a use case
-        return _do_use_case_change(store, by_user, req, project, table, columns, place)       # is never taken by the work item path
+        return _do_use_case_change(store, by_user, req, project, table, columns, place, op)       # is never taken by the work item path
     if op == NEW and kind in NEWABLE:
         return _do_new_row(store, by_user, req, project, table, columns, place)
     if op == BULK:
@@ -754,9 +761,12 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
             if words_ is None:
                 raise
             raise Refused(words_) from None
+        if any(values.get(f) for f in EXPLAIN_FIELDS):              # #487: a row that starts with Movement's explanation line starts hidden from the client (the eye off), in this same step so one Undo takes both back; the owner shows it when he chooses
+            if not st.is_hidden(project, ref):
+                st.create("report_hidden", {"project": project, "item_id": ref})     # only if no hiding row is there yet (a Duplicate of a hidden item makes one too; the key is project + item, so a second would fail)
         apply_id = st.peek_apply_id()
     row = store.read(table, ref=ref)
-    shown = ("id",) + tuple(f for f in CHANGE_KINDS[table][NEW] if f not in TITLE_FIELDS + ("name",)) + (("raised",) if table in ("actions", "raid") else ()) + ("status",) \
+    shown = ("id",) + tuple(f for f in CHANGE_KINDS[table][NEW] if f not in TITLE_FIELDS + EXPLAIN_FIELDS + ("name",)) + (("raised",) if table in ("actions", "raid") else ()) + ("status",) \
         + (("priority",) if table == "raid" else ())
     return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "item": {k: row[k] for k in dict.fromkeys(shown)}}
 
@@ -905,6 +915,7 @@ MILESTONE_DATES = ("baseline_date", "forecast_date", "actual_date")
 MILESTONE_STATUSES = ("Planned", "Done")                 # Cancelled is its own matter, never set from a request
 MILESTONE_MOVEMENTS = ("hold", "rebaseline")             # recover and escalate come with their own item
 MILESTONE_TEXT = {"state_reason": 300, "client_message": 500}
+INTERNAL_NOTE_MAX = 2000                                 # #458: the internal note, in characters; it may run over several lines
 MILESTONE_SHOWN = ("id", "status", "baseline_date", "forecast_date", "actual_date", "state", "state_set", "state_reason",
                    "client_message", "movement")          # what a reply says of a milestone: never its internal note
 REBASELINE_KEYS = ("agreed_with", "reason", "source", "date")
@@ -935,6 +946,16 @@ def _checked_milestone_changes(fields):
             if v not in (None, "") and (not isinstance(v, str) or v not in MILESTONE_MOVEMENTS):
                 raise Refused(BAD_MOVEMENT)
             out[k] = v or None
+        elif k == "internal_note":                                  # #458: plain text over several lines; the line breaks are the only control character let through
+            if v is not None and not isinstance(v, str):
+                raise Refused(ITEM_VALUE_WORDS)
+            if isinstance(v, str):
+                v = v.replace("\r\n", "\n").replace("\r", "\n")            # folded first, so a CRLF counts once
+                if len(v) > INTERNAL_NOTE_MAX:
+                    raise Refused(ITEM_VALUE_WORDS)
+                if not _plain_text(v.replace("\n", " ")):
+                    raise Refused(NOTE_TEXT_WORDS)
+            out[k] = unicodedata.normalize("NFC", v).strip() or None if isinstance(v, str) else None
         else:                                                       # state_reason, client_message
             if v is not None and (not isinstance(v, str) or len(v) > MILESTONE_TEXT[k]):
                 raise Refused(ITEM_VALUE_WORDS)
@@ -976,6 +997,14 @@ def _milestone_words(e):
     return ITEM_VALUE_WORDS
 
 
+def _note_with_line(was, line):
+    """The internal note with a dated line added at the end; the oldest lines go first when it would pass the limit."""
+    text = ((was or "").strip() + "\n" + line).strip()
+    while len(text) > INTERNAL_NOTE_MAX and "\n" in text:
+        text = text.split("\n", 1)[1]
+    return text
+
+
 def _hold_line(today, forecast):
     """The dated line a Hold is recorded with (dates only, nothing a person typed)."""
     return "%s: holding; agreed date unchanged%s." % (milestone_rows.shown(today), ", forecast " + milestone_rows.shown(forecast) if forecast else "")
@@ -984,8 +1013,9 @@ def _hold_line(today, forecast):
 def _do_milestone_change(store, by_user, req, project, table, columns, place):
     """#136: change fields of one milestone of THIS project, in one step (several fields, one Undo). Moving the agreed date is a
     rebaseline: who agreed it, the reason and the source are asked for (milestone_rows.rebaseline_request's own rules and words),
-    and the date, the new decision and the note are one step. A Hold writes its dated line as the step's note. The internal note,
-    the owner, the name, the workstream and the archive flag are not changeable here. A refusal writes nothing."""
+    and the date, the new decision and the note are one step. A Hold writes its dated line as the step's note and adds it to the internal note (#458). The internal note
+    (#458) may be set or cleared; the owner, the name, the workstream and the archive flag are not changeable here. A refusal
+    writes nothing."""
     ref = req.get("id")
     changes = _checked_milestone_changes(_fields(req.get("changes"), table, UPDATE, columns, "the changes"))
     given = _checked_rebaseline(req.get("rebaseline"))
@@ -1020,6 +1050,9 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
         note = None
         if changes.get("movement") == "hold" and rebase is None:
             note = _hold_line(today, changes.get("forecast_date", row.get("forecast_date")))
+            last = (row.get("internal_note") or "").strip().split("\n")[-1]
+            if "internal_note" not in changes and last != note:     # #458: the Hold's dated line goes into the internal note too (the prototype's), in this same step and Undo; not twice when the last line is this same Hold today
+                changes["internal_note"] = _note_with_line(row.get("internal_note"), note)
         try:
             st.update(table, ref, changes, rebaseline=rebase, note=note)
         except Invalid as e:                                        # a rule of the store, in fixed words: no field name, no value
@@ -1075,11 +1108,50 @@ def _use_case_shown(row):
             "standing": row["standing"], "client_visible": row["client_visible"]}
 
 
-def _do_use_case_change(store, by_user, req, project, table, columns, place):
+def _do_new_use_case(store, by_user, req, project, table, columns, place):
+    """#455: add one use case to THIS project, in one step (it is in the change log under its own apply id and shows in History). The
+    request gives its reference (as the project writes it, "3.1"), name, status and headline; clark gives the id (the next -U-
+    number), the project, the place at the end of the list, the source, and puts it on the dashboard (client_visible is set here to 1,
+    the store's own default, not left to the table). The name and headline are held to the same plain-text rule as an edit.
+    A reference that any use case of the project already has, archived or not, is refused: an archived use case's reference is still
+    taken, and a Restore must never bring back a second live one with it. The reply has no Undo (see below). Nothing is written when
+    anything is refused."""
+    if clark_store.is_archived(store.con, project):
+        raise Refused(PROJECT_NOT_ACTIVE)
+    given = _fields(req.get("values"), table, NEW, columns, "the new use case's values")
+    ref_text = unicodedata.normalize("NFC", given["ref"]).strip() if isinstance(given.get("ref"), str) else ""
+    if not ref_text or len(ref_text) > UC_REF_LIMIT or not _plain_text(ref_text):
+        raise Refused(UC_REF_WORDS)
+    values = _checked_use_case_changes({k: v for k, v in given.items() if k != "ref"})
+    if "title" not in values:
+        raise Refused(UC_NAME_WORDS)
+    values.setdefault("status", "On track")
+    values.setdefault("headline", "")
+    values.update(ref=ref_text, project=project, source=NEW_SOURCE, client_visible=1)
+    with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: the next number is read and used inside it
+        mine = store.read(table, project=project)                   # live AND archived: an archived use case's reference is still taken
+        if any(str(r["ref"]).strip().casefold() == ref_text.casefold() for r in mine):
+            raise Refused(UC_REF_USED)
+        values["sort_order"] = max([r["sort_order"] for r in mine] + [0]) + 1
+        try:
+            new_ref = st.create(table, values)
+        except Invalid as e:                                        # a rule of the store, in fixed words
+            words_ = _store_words(e)
+            if words_ is None:
+                raise
+            raise Refused(words_) from None
+    # The step is logged under its own apply id (st.create opens it), but the reply gives none: no Undo. Taking back a creation would
+    # DELETE the row, and use cases are archived, never deleted, so _eligible refuses an undo of this step (NO_UNDO); Archive is the way back.
+    return 200, {"ok": True, "apply_id": None, "undoable": False, "ref": new_ref,
+                 "use_case": {**_use_case_shown(store.read(table, ref=new_ref)), "ref": ref_text}}
+
+
+def _do_use_case_change(store, by_user, req, project, table, columns, place, op):
     """#164: change fields of one EXISTING use case of THIS project, in one step (several fields, one Undo, one history line
-    each). Only `update` gets here for a change of fields: there is no new, move or delete for use cases, and none is made
-    from here. Another project's use case and a missing one get the same words; an archived one is not edited; nothing is
+    each). `update` changes fields; `new` (#455) adds one, see _do_new_use_case. There is no move or delete for use cases. Another project's use case and a missing one get the same words; an archived one is not edited; nothing is
     written when anything is refused."""
+    if op == NEW:
+        return _do_new_use_case(store, by_user, req, project, table, columns, place)
     ref = req.get("id")
     changes = _checked_use_case_changes(_fields(req.get("changes"), table, UPDATE, columns, "the changes"))
     if not changes:
@@ -1525,11 +1597,12 @@ def _eligible(rows, project):
         return (r["table"] in shown_kinds and bool(shown_kinds[r["table"]].fullmatch(str(r["key"])))
                 and r.get("field") in ("client_visible", "updated_at", "note"))
     picked = any(r.get("field") == "note" and r["table"] in shown_kinds and bool(shown_kinds[r["table"]].fullmatch(str(r["key"]))) for r in rows)
-    if (picked or any(r["table"] == "report_hidden" for r in rows)) and any(r.get("field") == "client_visible" for r in rows):
+    made_item = any(r.get("op") == MADE_OP and r["table"] in ("actions", "decisions") and of_item(r) for r in rows)      # #487: a new row that started hidden is a work-item step with its hiding in it
+    if not made_item and (picked or any(r["table"] == "report_hidden" for r in rows)) and any(r.get("field") == "client_visible" for r in rows):
         return all(r["via"] in (VIA, clark_store.SEED_VIA) and not r["via"].startswith(clark_store.REVERT_VIA) and pick_row(r) for r in rows)
     if any(item_field_row(r) for r in rows):                        # a step of work-item fields: nothing else in it (#47e: ask clark's too)
         return all((r["via"] in (VIA, clark_store.SEED_VIA) or (r["via"] == ASSISTANT and r["table"] in ASK_KINDS))      # ask clark's: its own kinds only, never a use case
-                   and not r["via"].startswith(clark_store.REVERT_VIA) and (item_field_row(r) or item_stamp_row(r)) for r in rows)
+                   and not r["via"].startswith(clark_store.REVERT_VIA) and (item_field_row(r) or item_stamp_row(r) or (made_item and r["table"] == "report_hidden" and _row_is_ours(r, project, False, flagged))) for r in rows)
     archive_family = any(r.get("field") in ("archived", "active") for r in rows)
     page_family = any(r["table"] in ("report_sections", "glance_tiles", "report_hidden") or (r["table"] == "projects" and r.get("field") in ("health", "health_reason", "week_ending", "note"))
                       for r in rows)
@@ -1554,7 +1627,7 @@ MILESTONE_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-M-\d{3}")           # #136: a mi
 MILESTONE_FIELD_NAMES = {"baseline_date": "agreed date", "forecast_date": "forecast date", "actual_date": "achieved date",
                          "status": "status"}
 MILESTONE_KEPT_AS_WAS = {"state": "state", "state_set": "state", "state_reason": "state", "client_message": "client wording",
-                         "movement": "Movement choice"}        # said without the value: a reason or wording is never repeated
+                         "movement": "Movement choice", "internal_note": "internal note"}        # said without the value: a reason or wording is never repeated
 
 
 def _name(names, ref):
@@ -1961,6 +2034,28 @@ def _do_undo_many(store, by_user, req):
     return 200, out
 
 
+def undo_refusals(store, project, steps):
+    """The steps among `steps` that Undo several would leave out whole, each with its plain reason: {step: words}. It asks the same
+    questions _do_undo_many asks, in the same order (an undo, a step that is not ours, a step undone already), so the Activity tab can
+    withhold the tick before it is chosen. A step that can be chosen is not in the answer. Read only."""
+    out = {}
+    reverted = None                                        # #377: the reverted set is read once per call, not once per step
+    for s in set(steps):
+        rows = store.step_rows(s)
+        if not rows:
+            continue
+        if all(str(r["via"]).startswith(clark_store.REVERT_VIA) for r in rows):
+            out[s] = IS_AN_UNDO
+        elif not _ours(store, s, rows, project):
+            out[s] = NOT_FROM_HERE
+        else:
+            if reverted is None:
+                reverted = clark_store.reverted_rowids(store.con)
+            if store.step_undone(s, reverted):
+                out[s] = UNDONE_ALREADY
+    return out
+
+
 def _call(path, onedrive_roots, by_user, work, req):
     """Run `work(store, by_user, req)` on a store of its own, under the one lock; (status, body). A refusal and the
     store's own rule messages are 400 in plain words; a missing database, a busy one and an unusable folder are 503; any
@@ -2239,8 +2334,9 @@ ASK_PART = {NEW: "values", UPDATE: "changes"}
 ASK_OFF = "Asking is off, so nothing was changed. Turn it on in Settings first."
 ASK_NOT_YET = "That change can't be made by asking yet. Nothing was changed. Make it yourself on the board."
 ASK_CHANGED = "That item has changed since the change was shown. Nothing was changed. Look at the change again."
-ASK_SHOWN = {t: ("id",) + tuple(dict.fromkeys(CHANGE_KINDS[t][NEW] + CHANGE_KINDS[t][UPDATE] + ("type", "status", "closed", "priority", "raised")))
-             for t in ASK_KINDS}               # what a before or after says of a row (a field the table lacks is left out)
+ASK_SHOWN = {t: ("id",) + tuple(f for f in dict.fromkeys(CHANGE_KINDS[t][NEW] + CHANGE_KINDS[t][UPDATE] + ("type", "status", "closed", "priority", "raised"))
+                                if f not in clark_store.NEVER_PUBLISH and f not in EXPLAIN_FIELDS)
+             for t in ASK_KINDS}               # what a before or after says of a row (a field the table lacks is left out); #458: never an owner-only column (the internal note, the Movement choice)
 
 
 class _Dry(Exception):

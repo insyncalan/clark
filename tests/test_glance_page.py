@@ -12,6 +12,7 @@ import unittest
 
 from _demo import USER
 from _paths import ROOT, SRC
+from _new_page import reload_to_new_page
 from _publish import PublishedFile
 from test_report_editor import ALT, Base, Pg, tearDownModule  # noqa: F401
 from test_server import chrome, wait
@@ -330,6 +331,19 @@ class EditTiles(Setup):
             self.undo(p)
             self.assertEqual(self.rows()["overdue"]["outline"], "")
 
+    def test_edit_says_under_the_tiles_what_a_tile_can_do_and_view_says_nothing(self):
+        want = ("Drag a tile to move it, or hold Alt and press an arrow key. Use the eye to hide or show a tile. Right-click a tile to change its colour. "
+                "Hidden tiles are left out of the published page.")
+        for width in (1400, 900):
+            for dark in (False, True):
+                with chrome() as cdp:
+                    p = self.show(cdp, width=width, dark=dark)
+                    self.assertEqual(p.js("document.querySelectorAll('[data-glance-hint]').length"), 0, "View has no hint")
+                    p.edit()
+                    self.assertEqual(p.js("(document.querySelector('[data-glance-hint]') || {}).textContent"), want)
+                    self.assertEqual(p.js("document.querySelector('[data-glance-hint]').previousElementSibling.matches('[data-glance]')"), True, "it sits right under the tiles")
+                    self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True)
+
     def test_view_has_no_tile_control(self):
         with chrome() as cdp:
             p = self.show(cdp)
@@ -433,7 +447,7 @@ class Styles(Setup):
                 p.js(f"document.querySelector('input[name=secstyle][value={value}]').click()")
                 p.until(f"document.documentElement.dataset.secstyle === '{value}'", f"{value} applied")
             p.js("document.querySelector('input[name=secstyle][value=grey]').click()")
-            p.js("location.reload()")
+            reload_to_new_page(p.js)
             p.until("document.documentElement.dataset.secstyle === 'grey'", "remembered after a reload")
             gap = []
             for value in ("slim", "roomy"):
@@ -513,7 +527,7 @@ class Published(PublishedFile, Setup):
 class PublishedPage(unittest.TestCase):
     def test_page_view_html_holds_nothing_that_only_the_owner_has(self):
         text = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
-        for owner_only in ("data-tile-grip", "data-tile-eye", "data-reason", "health-pill", "/api/change", "Hide from the published report", "Section style", "Dashboard sections", "Slim gaps"):
+        for owner_only in ("data-tile-grip", "data-tile-eye", "data-reason", "health-pill", "/api/change", "Hide from the published report", "Section style", "Dashboard sections", "data-glance-hint", "Slim gaps"):
             self.assertNotIn(owner_only, text, owner_only)
 
 

@@ -521,6 +521,32 @@ class SavedViews(Line):
         self.assertEqual(self.ids(views["client"]), ["T-R-001"])
         self.assertEqual(self.v(f"viewCount({lit(self.v('DEFAULT_VIEWS')[1])}, {lit(ROWS)}, {lit(CTX)})"), 1)
 
+    def test_a_view_the_line_cannot_read_says_why_in_plain_words(self):
+        """#589: it is listed with a message, not hidden. A view that reads gives no message."""
+        old = {"id": "old", "name": "Old", "line": "is:open colour:red"}
+        said = self.v(f"viewTrouble({lit(old)}, {lit(ROWS)}, {lit(CTX)})")
+        self.assertTrue(said.startswith("This view cannot be used any more. There is no \u201ccolour\u201d filter."), said)
+        self.assertTrue(said.endswith(" Rename it or archive it."), said)
+        self.assertNotIn("Did you mean", said, "the message keeps to its first sentence")
+        self.assertEqual(self.v(f"viewTrouble({lit(self.v('DEFAULT_VIEWS')[0])}, {lit(ROWS)}, {lit(CTX)})"), "")
+        self.assertEqual(self.v(f"viewTrouble(null, {lit(ROWS)}, {lit(CTX)})"), "")
+        needed = self.v("DEFAULT_VIEWS")[2]
+        self.assertIn("is not available on this page yet.", self.v(f"viewTrouble({lit(needed)}, {lit(ROWS)}, {lit(OFF)})"))
+        self.assertEqual(self.v(f"viewTrouble({lit(needed)}, {lit(ROWS)}, {lit(CTX)})"), "", "once the page can answer it, it reads")
+
+    def test_only_a_starting_view_the_page_cannot_answer_yet_is_held_back(self):
+        """#589: Waiting on the client, as given, stays out of the tabs while is:needed is off; the same view edited, or any other, stays in."""
+        base = self.v("DEFAULT_VIEWS")
+        client = base[2]
+        def held(view, ctx):
+            return self.v(f"heldBack({lit(view)}, {lit(ROWS)}, {lit(ctx)})")
+        self.assertTrue(held(client, OFF))
+        self.assertFalse(held(client, CTX), "back as soon as the page can answer it")
+        self.assertFalse(held({**client, "line": "is:needed"}, OFF), "edited: it is the person's view now")
+        self.assertFalse(held({**client, "id": "v9"}, OFF))
+        self.assertFalse(held({"id": "old", "name": "Old", "line": "colour:red"}, OFF))
+        self.assertTrue(all(not held(v, CTX) for v in base))
+
     def test_the_dot(self):
         view = {"id": "o", "name": "Overdue", "line": "is:open due:overdue"}
         def differs(line):
@@ -851,6 +877,40 @@ class Freshness(Line):
             self.assertEqual(got["dropped"], [])
             self.assertEqual(got["line"], "is:open is:" + ("quiet" if value == "stale" else "incomplete"))
             self.assertEqual(self.parse(got["line"])["errors"], [])
+
+
+class ShowThem(Line):
+    """#159's Show them calls openWork(showState(value)); showState is setFilter(initial(), "reviewed", [value], false). Run here in the
+    page's own store: the dialog must close on Work items with a working line, never on a TypeError."""
+
+    def open_work(self, value, with_dates=False):
+        rows = [{"id": "S-A-1", "description": "Book the room", "status": "Open", "owner": "", "due_date": "2026-11-01"},
+                {"id": "S-A-2", "description": "Send the invitations", "status": "Open", "owner": "Owner One", "due_date": None},
+                {"id": "S-A-3", "description": "Order the laptops", "status": "Open", "owner": "Owner One", "due_date": "2026-11-05"}]
+        if with_dates:
+            rows[2]["freshness"] = {"raised": "2026-09-01", "last_reviewed": "2026-10-01", "not_reviewed": True, "days": 14}
+        data = {"actions": rows, "raid": [{"id": "S-R-1", "type": "Risk", "description": "No date on a risk", "status": "Open", "owner": "Owner One", "due_date": None}],
+                "decisions": [], "workstreams": [], "milestones": []}
+        return self.val("(function(){ var R = T.report; history.replaceState(null, '', '#dashboard&p=TUL'); R.project.value = 'TUL'; R.data.value = " + lit(data) + "; "
+                        f"R.openWork(T.filters.setFilter(T.filters.initial(), 'reviewed', [{lit(value)}], false)); "
+                        "return { view: R.view.value, line: R.lineText.value, hash: location.hash, shown: T.fl.apply(R.rows.value, R.lineText.value, R.filterCtx()).map(function (r) { return r.id; }), "
+                        "errors: T.fl.parse(R.lineText.value, R.rows.value, R.filterCtx()).errors.length }; })()")
+
+    def test_show_them_for_no_owner_or_no_date_opens_work_items_on_those_items(self):
+        got = self.open_work("incomplete")
+        self.assertEqual((got["view"], got["line"], got["errors"]), ("work", "is:open is:incomplete", 0), got)
+        self.assertIn("#work", got["hash"])
+        self.assertEqual(got["shown"], ["S-A-1", "S-A-2"], "an action with no date counts; a risk with no date does not")
+
+    def test_show_them_for_not_reviewed_opens_work_items_when_the_data_has_dates(self):
+        got = self.open_work("stale", with_dates=True)
+        self.assertEqual((got["view"], got["line"], got["errors"]), ("work", "is:open is:quiet", 0), got)
+        self.assertEqual(got["shown"], ["S-A-3"])
+
+    def test_show_them_for_not_reviewed_with_no_dates_still_opens_work_items_with_a_plain_line(self):
+        got = self.open_work("stale")
+        self.assertEqual((got["view"], got["errors"]), ("work", 0), got)
+        self.assertEqual(got["line"], "is:open", "the word the page cannot answer yet is left out, not an error")
 
 
 class Cost(Line):
