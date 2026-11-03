@@ -8,9 +8,9 @@ appears or disappears without this file being changed fails the comparison, so a
 # Each route says which piece of work added it.
 GET_ROUTES = (
     "/api/activity", "/api/ai/status", "/api/ask-enabled", "/api/ask-folders", "/api/ask/status", "/api/backups", "/api/data", "/api/diagnostics",
-    "/api/export", "/api/milestones", "/api/movement", "/api/people", "/api/profile", "/api/projects", "/api/publication",
-    "/api/use-cases",
-)     # #147: export; #136: movement; #180: profile; #47: asking; #42: activity
+    "/api/export", "/api/milestones", "/api/movement", "/api/past-report", "/api/people", "/api/profile", "/api/projects",
+    "/api/publication", "/api/publications", "/api/use-cases",
+)     # #147: export; #136: movement; #180: profile; #47: asking; #42: activity; #443: the Published reports list and Open (neither writes anything)
 
 POST_ROUTES = (
     "/api/ai/stop", "/api/ai/suggest", "/api/ask", "/api/ask-enabled", "/api/ask-folders", "/api/ask/change/apply", "/api/ask/change/dry", "/api/ask/stop",

@@ -48,6 +48,10 @@ class SectionHandle(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
+            # The first time in Edit, the first handle shows at full strength with its hint (#131); a key ends it, as for a person.
+            p.until("!!document.querySelector('.sec-ctl.hint')", "the first-time hint")
+            p.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Shift'}))")
+            p.until("!document.querySelector('.sec-ctl.hint')", "the hint has gone")
             for scheme in ("light", "dark"):
                 for w in WIDTHS:
                     rows = self.at(cdp, p, w, scheme)
@@ -94,6 +98,7 @@ class SectionHandle(Base):
                     in_view = {r["id"]: r["card"][::2] for r in self.at(cdp, p, w, scheme)}      # left and right edges
                     p.edit()
                     in_edit = {r["id"]: r["card"][::2] for r in p.js(MEASURE)}
+                    in_edit = {k: v for k, v in in_edit.items() if k in in_view}       # #74: an empty Supporting documents is in Edit only
                     self.assertEqual(in_edit, in_view, f"{w} px, {scheme}: the same left edge and width in View and Edit")
 
 

@@ -5,7 +5,16 @@
 import { Icon } from "../components/Icon.jsx";
 import { setMsHidden } from "./actions.js";
 
-export function MsEye({ id, name, left }) {
+export function MsEye({ id, name, left, internal }) {
+  // An Internal-only milestone is never on the published page, so there is nothing to leave out: the eye is drawn as already out.
+  if (internal) {
+    return (
+      <button type="button" class="ib ms-eye is-left" data-ms-eye={id} data-ms-internal data-edit-only disabled aria-label={`Internal only, never on the published page: ${name}`}
+        title="Internal only, never on the published page">
+        <Icon name="eyeoff" />
+      </button>
+    );
+  }
   const verb = left ? "Include in the published page" : "Leave out of the published page";
   return (
     <button type="button" class={`ib ms-eye${left ? " is-left" : ""}`} data-ms-eye={id} data-edit-only aria-label={`${verb}: ${name}`}
