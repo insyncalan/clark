@@ -175,9 +175,11 @@ class AgainstThePage(unittest.TestCase):
         # 49 measured on the merge of #421, #443 and #124 onto Train 03 (the PDF entry adds no bold name absent from the page)
         # 49 measured on the merge of #421 onto Train 03 (held use-case entry no longer bolds '+ Add use case', '+ Link an existing work item', 'Archive use case', 'Show archived', 'Draft from the project'; 50 fails)
         # 48 measured on the merged tree with the parity batch (#214) and main: one more name left the absent list than on Train 03 (49 fails)
-        # 48 measured on the merged tree with parity batch 3 (A-S11, A-S6, B-16, A-D19, B-8, B-13): the Projects table's Show archived is the same bold name the Milestones button already took off the list, so the floor stays at main's 48 (names printed: 48)
-        # 43 measured on the merged tree with the Settings Data card and Projects table (#444, #454): five fewer of Help's bold names are absent from the page than on the base branch (48), through this stack's Add project, Edit, Import workbook and Reset the demo data and its import box
-        self.assertGreaterEqual(len(names), 43)
+        # 47 measured on the merge of main into the #527 branch (main is 48): Help no longer names New project, so that bold name left the count
+        # 46 measured on the take-over of PR 209 (#271) merged with main (47 there): the held use-case entry now bolds only 'See all' and quotes the button's full name, and 'See all' is on the page, so one more name left the absent list (47 fails)
+        # 46 measured on the merged tree with parity batch 3 (A-S11, A-S6, B-16, A-D19, B-8, B-13) and main (46 on main): the batch adds no bold Help name to the page that main does not already count
+        # 41 measured on the merged tree with the Settings Data card and Projects table (#444, #454): five fewer of Help's bold names are absent from the page than on the base branch (46)
+        self.assertGreaterEqual(len(names), 41)
         # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
         # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
         # 56 measured on the merged tree after the next main merge (names printed): the milestone details toggle (C-M6) leaves the list on top of the Supporting documents section
