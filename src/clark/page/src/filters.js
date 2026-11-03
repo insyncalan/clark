@@ -33,7 +33,7 @@ export const REVIEW_DAYS = 14;
 let reviewDays = REVIEW_DAYS;
 export function setReviewDays(n) { reviewDays = Number.isInteger(n) && n >= 1 && n <= 365 ? n : REVIEW_DAYS; }
 export function currentReviewDays() { return reviewDays; }
-export const staleWords = (days = reviewDays) => "Not reviewed in " + plural(days, "day");       // the filter's value and the peek's chip say it the same way
+export const staleWords = (days = reviewDays) => (days === REVIEW_DAYS ? "Not reviewed in 14 days" : "Not reviewed in " + plural(days, "day"));       // the filter's value and the peek's chip say it the same way; the default's words are written whole so the words Help quotes are found in the source (test_help_parity)
 const reviewed = () => [["stale", staleWords()], ["incomplete", "No owner or no date"]];
 export function notReviewed(row, today, days = reviewDays) {
   if (!isOpen(row)) return false;
