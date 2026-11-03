@@ -10,6 +10,7 @@ import unittest
 import urllib.parse
 
 from _paths import ROOT, SRC  # noqa: F401
+from _new_page import reload_to_new_page_cdp
 import _testpage as testpage
 
 from test_server import Running, chrome, wait  # noqa: E402
@@ -434,7 +435,7 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("clarkPage.filters()", sid) == "mode:all;type:action"))
             cdp.js(f"clarkPage.openPeek({json.dumps(item)})", sid)
             self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == f"#work&p=TUL&item={item}&f=mode:all;type:action"))
-            cdp.call("Page.reload", {}, sid)
+            reload_to_new_page_cdp(cdp, sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
             self.assertEqual(cdp.js("clarkPage.peek().id", sid), item)
             self.assertEqual(self.chips(cdp, sid), ["type:action"])
@@ -513,7 +514,7 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == "#milestones&p=TUL"))
             click(cdp, sid, "[data-view=work]")
             self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open", "priority:High", "supplier"]), "the line comes back with Work items")
-            cdp.call("Page.reload", {}, sid)
+            reload_to_new_page_cdp(cdp, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-input')", sid)))
             self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open", "priority:High", "supplier"]), "and after a reload")
             other = [p["code"] for p in self.projects if p["code"] != "TUL"][0]
@@ -565,7 +566,7 @@ class Line(unittest.TestCase):
                     key(cdp, sid, "Enter")
                     self.assertTrue(wait(lambda: "Urgent soon" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)))
                     # it is kept in this browser
-                    cdp.call("Page.reload", {}, sid)
+                    reload_to_new_page_cdp(cdp, sid)
                     self.assertTrue(wait(lambda: "Urgent soon" in (cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid) or [])))
                     # Save the line as a new view, then archive it, then bring it back
                     self.put(cdp, sid, "type:decision")
@@ -685,7 +686,7 @@ class Line(unittest.TestCase):
                 sid = self.load(cdp, s.port)
                 cdp.js("sessionStorage.setItem('clark.fline', JSON.stringify({TUL: %s})); localStorage.setItem('clark.fviews', JSON.stringify({TUL: [{id: 'constructor', name: 'toString', line: 'constructor:x'}]}))" % json.dumps(kept), sid)
                 self.watch(cdp, sid)
-                cdp.call("Page.reload", {}, sid)
+                reload_to_new_page_cdp(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-input')", sid)))
                 self.assertTrue(wait(lambda: self.drawn(cdp, sid)), f"{kept}: the list is not blank")
                 self.assertEqual(self.errors(cdp, sid), [], kept)
@@ -695,7 +696,7 @@ class Line(unittest.TestCase):
                 sid = self.load(cdp, s.port)
                 self.watch(cdp, sid)
                 cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#work&p=TUL&f=" + urllib.parse.quote(f, safe=":;,")}, sid)
-                cdp.call("Page.reload", {}, sid)
+                reload_to_new_page_cdp(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-input')", sid)), f)
                 self.assertTrue(wait(lambda: self.drawn(cdp, sid)), f"{f}: not blank")
                 self.assertEqual(self.errors(cdp, sid), [], f)
