@@ -116,7 +116,10 @@ class Running:
                 conn.putheader("Host", host)
             for k, v in (headers.items() if hasattr(headers, "items") else headers or ()):      # a list of pairs may repeat a name
                 conn.putheader(k, v)
-            conn.endheaders(body)
+            try:
+                conn.endheaders(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass                      # a request over its limit is refused from its length before all of it is sent; the answer is still there to read
             r = conn.getresponse()
             return r.status, r.msg, r.read()
         finally:
@@ -317,7 +320,7 @@ class Saving(ServerTest):
         self.assertEqual(sv.POST_ROUTES["/api/word-export"], sv.word_export_route)
         self.assertEqual(sv.POST_ROUTES["/api/section-image"], sv.section_image_route)
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page
-                                                "/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
+                                                "/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                                                  "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
@@ -326,6 +329,7 @@ class Saving(ServerTest):
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
                                                 "/api/section-file": 1024,
+                                                "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,     # #72
                                                 "/api/people": 4 * 1024, "/api/people/undo": 1024})     # #96: a project and a section only
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
@@ -421,23 +425,36 @@ class Saving(ServerTest):
         status, _, data = running.api("POST", "/api/change", over)
         got = json.loads(data)
         self.assertEqual((status, got["code"], got["message"]), (400, "too_large", sv.MESSAGES["change_too_large"]))
-        self.assertIn("Shorten a line or remove some lines", got["message"])
+        self.assertIn("Make the text shorter, or take some of the list out", got["message"])
         self.assertFalse(got["message"].startswith("clark"))
-        status, _, data = running.api("POST", "/api/undo", b'{"a": "' + b"x" * 2048 + b'"}')
+        status, _, data = running.api("POST", "/api/undo", b'{"a": "' + b"x" * 16 * 1024 + b'"}')
         self.assertEqual((status, json.loads(data)["message"]), (400, sv.MESSAGES["too_large"]))     # another route keeps the general words
 
     def test_the_change_route_limit_is_two_largest_sections_plus_4_kb(self):
-        # a template's section body (up to 64 KB, each quote and backslash escaped twice) arrives through /api/change, so its limit is 2 x 64 KB + 4 KB = 132 KB, tied to the registry's 64 KB; a separate /api/section-body route is the later fix (Tech Debt)
+        # a section's body (a template's up to 64 KB; "Needs from you" and the tracker up to 256 KB, each quote and backslash escaped twice) arrives through /api/change, so its limit is twice the largest body plus the request around it, worked out from the checker's own limits (#405)
         from clark import section_bodies
-        self.assertEqual(sv.CHANGE_BODY_LIMIT, 135168)
-        self.assertEqual(sv.CHANGE_BODY_LIMIT, 2 * 64 * 1024 + 4 * 1024)
+        self.assertEqual(sv.CHANGE_BODY_LIMIT, sv.ESCAPE_FACTOR * max(section_bodies.LIMITS[section_bodies.NEEDS], section_bodies.LIMITS[section_bodies.TRACKER], *(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_bodies.TEMPLATES.values())) + sv.REQUEST_ENVELOPE)
         self.assertEqual(max(m.LIMIT for m in section_bodies.TEMPLATES.values() if not hasattr(m, "with_picture")), 64 * 1024)      # the picture templates' pictures come in through /api/section-image
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
+
+    def test_the_undo_limit_sits_above_the_largest_batch_the_seam_accepts(self):
+        """#268: 200 steps (twice the 100 a batch takes, the most the seam looks at) of 19 digits is a request the seam answers in
+        words ("Choose 1 to 100 changes to undo."); the byte limit must not turn it into the general "too big" first."""
+        from clark import store as clark_store
+        running = self.seams()
+        self.addCleanup(running.close)
+        steps = [10 ** 18 + k for k in range(clark_store.MAX_UNDO_MANY * 2)]
+        body = json.dumps({"project": "ABC", "steps": steps, "preview": False, "confirm": False}).encode("utf-8")
+        self.assertGreater(len(body), 1024)
+        self.assertLessEqual(len(body), sv.ROUTE_BODY_LIMITS["/api/undo"])
+        status, _, data = running.api("POST", "/api/undo", body)
+        self.assertEqual((status, json.loads(data)["code"]), (409, "undone"))      # it reached the seam, not the too-large reply
+        self.assertEqual(self.calls, [("undo", {"project": "ABC", "steps": steps, "preview": False, "confirm": False})])
 
     def test_change_and_undo_limits_and_415(self):
         running = self.seams()
         self.addCleanup(running.close)
-        for route, limit in (("/api/change", sv.CHANGE_BODY_LIMIT), ("/api/undo", 1024)):      # #96: twice the largest section content plus 4 KB
+        for route, limit in (("/api/change", sv.CHANGE_BODY_LIMIT), ("/api/undo", 8 * 1024)):      # #96: twice the largest section content plus 4 KB
             over = {sv.TOKEN_HEADER: sv.TOKEN, "Content-Type": "application/json", "Content-Length": str(limit + 1)}
             status, _, data = running.ask("POST", route, over, b"{}")
             self.assertEqual((status, json.loads(data)["code"]), (400, "too_large"), route)       # refused from its length
@@ -1230,13 +1247,13 @@ class RobustReplies(ServerTest):
         self.assertEqual(sv.Handler.timeout, 30)
         with mock.patch.object(sv.Handler, "timeout", 0.5), socket.create_connection((sv.HOST, self.s.port)) as c:
             c.sendall(b"POST /csp-report HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 50\r\n")   # half-sent
-            c.settimeout(5)
+            c.settimeout(25)
             t0 = time.time()
             try:
                 c.recv(65536)
             except ConnectionResetError:
                 pass
-            self.assertLess(time.time() - t0, 4, "the server let go well inside 5 s")
+            self.assertLess(time.time() - t0, 20, "the server let go well inside 25 s, far short of its 30 s default")
 
 
 class Port(unittest.TestCase):

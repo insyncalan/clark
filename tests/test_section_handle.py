@@ -15,12 +15,14 @@ from test_server import chrome  # noqa: E402
 WIDTHS = (1400, 900)
 GUTTER = 1304                      # px: the page is this wide or wider when the handle has the margin to itself
 
-# Every section: its handle parts, its heading (View: .sec-h; Edit: the Title field) and the card's box.
+# Every section: its handle parts, its heading (View: .sec-h; Edit: the Title field, not the h2 around it) and the card's box.
 MEASURE = r"""(() => {
   const box = (e) => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; };
   const out = [];
   document.querySelectorAll('.secs > .sec').forEach((s) => {
-    const heads = [...s.querySelectorAll('.sec-h, .sec-title')].filter((h) => h.getBoundingClientRect().width > 0);
+    // the heading a person sees: in Edit the Title field itself (it sits inside the h2, whose box starts later), in View the h2
+    const shown = (sel) => [...s.querySelectorAll(sel)].filter((h) => h.getBoundingClientRect().width > 0);
+    const heads = shown('.sec-title').length ? shown('.sec-title') : shown('.sec-h');
     const parts = [...s.querySelectorAll(':scope > .sec-ctl .handle, :scope > .sec-ctl .plus, :scope > .sec-ctl .eye')];
     const ctl = s.querySelector(':scope > .sec-ctl');
     out.push({ id: s.dataset.id, card: box(s), heads: heads.map(box), parts: parts.map(box), ctl: ctl ? box(ctl) : null,
@@ -46,6 +48,10 @@ class SectionHandle(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
+            # The first time in Edit, the first handle shows at full strength with its hint (#131); a key ends it, as for a person.
+            p.until("!!document.querySelector('.sec-ctl.hint')", "the first-time hint")
+            p.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Shift'}))")
+            p.until("!document.querySelector('.sec-ctl.hint')", "the hint has gone")
             for scheme in ("light", "dark"):
                 for w in WIDTHS:
                     rows = self.at(cdp, p, w, scheme)
@@ -65,6 +71,24 @@ class SectionHandle(Base):
                             self.assertLessEqual(c[2], r["card"][0], f"{where}: in the margin beside the card")
                             self.assertGreaterEqual(c[0], inner - 28, f"{where}: and within the frame's padding")
 
+    def test_the_handle_never_overlaps_a_heading_in_view_or_edit(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for mode in ("view", "edit"):
+                getattr(p, mode)()
+                for scheme in ("light", "dark"):
+                    for w in WIDTHS:
+                        rows = self.at(cdp, p, w, scheme)
+                        self.assertTrue(rows, f"{mode}, {w} px, {scheme}: sections were measured")
+                        for r in rows:
+                            where = f"{mode}, {w} px, {scheme}, {r['id']}"
+                            self.assertTrue(r["heads"], f"{where}: the section shows a heading")
+                            for part in ([r["ctl"]] if r["ctl"] else []) + r["parts"]:
+                                for h in r["heads"]:
+                                    across = min(part[2], h[2]) - max(part[0], h[0])         # px the two boxes share left to right
+                                    down = min(part[3], h[3]) - max(part[1], h[1])           # and top to bottom
+                                    self.assertFalse(across > 0 and down > 0, f"{where}: the handle {part} runs {across} px into the heading {h}")
+
     def test_the_section_card_is_as_wide_in_view_as_in_edit(self):
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -74,6 +98,7 @@ class SectionHandle(Base):
                     in_view = {r["id"]: r["card"][::2] for r in self.at(cdp, p, w, scheme)}      # left and right edges
                     p.edit()
                     in_edit = {r["id"]: r["card"][::2] for r in p.js(MEASURE)}
+                    in_edit = {k: v for k, v in in_edit.items() if k in in_view}       # #74: an empty Supporting documents is in Edit only
                     self.assertEqual(in_edit, in_view, f"{w} px, {scheme}: the same left edge and width in View and Edit")
 
 

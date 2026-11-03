@@ -14,15 +14,15 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from _demo import USER
-from clark import changes, page, server as sv
+from _real_server import USER, real_server  # noqa: F401  (USER: test_activity_undo reads it as tuk.USER)
+from clark import page, server as sv
 from clark.store import open_store
-from test_server import CHROME, Running, chrome, wait
+from test_server import CHROME, chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 META, CTRL, SHIFT = 4, 2, 8
-NOTHING = "Nothing to undo."
+NOTHING = "Nothing to undo since this page was opened. Older changes are in Activity."
 CELL = "[data-cell='TUL-A-001:priority']"
 
 
@@ -54,15 +54,14 @@ class UndoKey(unittest.TestCase):
         self.addCleanup(self.store.close)
         self.path = self.folder / "clark.db"
         self.sent = []
-        real_change, real_undo = changes.make_change(self.path, [], USER), changes.make_undo(self.path, [], USER)
 
         def seam(real, which):
             def call(req):
                 self.sent.append((which, req))
                 return real(req)
             return call
-        self.s = Running(data_for=self.read, projects=lambda: [{"code": "TUL", "name": "Tulip"}],
-                         page_html=lambda: page.page_html(EMPTY_BRANDING), change=seam(real_change, "change"), undo=seam(real_undo, "undo"))
+        self.s = real_server(self.path, self.read, projects=lambda: [{"code": "TUL", "name": "Tulip"}],
+                             page_html=lambda: page.page_html(EMPTY_BRANDING), seam=seam)
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
         quiet.start()
@@ -203,11 +202,14 @@ class UndoKey(unittest.TestCase):
             self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "the menu closed")
             cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
             press_z(cdp, sid, CTRL | SHIFT)                     # redo is not this key
+            cdp.js("location.hash = '#dashboard&p=TUL'", sid)   # View and Edit exist only on the Dashboard (#442): the other pages are always editable
+            self.until(cdp, sid, "!!document.querySelector('[data-mode=view]') && location.hash.startsWith('#dashboard')", "the Dashboard opened")
             cdp.js("document.querySelector('[data-mode=view]').click()", sid)
-            press_z(cdp, sid, CTRL)                             # View changes nothing, so it undoes nothing
+            self.until(cdp, sid, "document.querySelector('[data-mode=view]').getAttribute('aria-pressed') === 'true'", "View is on")
+            cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
+            press_z(cdp, sid, CTRL)                             # View on the Dashboard changes nothing, so it undoes nothing
+            time.sleep(0.5)
             self.assertEqual((self.undos_sent(), self.steps(), self.priority()), (n, before, "Low"), "nothing was undone")
-            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-            self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "back in Edit")
             cdp.js("location.hash = '#settings&p=TUL'", sid)
             self.until(cdp, sid, "location.hash.startsWith('#settings')", "Settings opened")
             cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
@@ -222,6 +224,25 @@ class UndoKey(unittest.TestCase):
             press_z(cdp, sid, CTRL)
             self.until(cdp, sid, "/back to Urgent\\.$/.test((document.querySelector('.toast-text') || {}).textContent || '')", "still there to undo")
             self.assertEqual(self.undos_sent(), n + 1)
+
+    def test_exactly_one_live_region_on_every_page_in_view_and_in_edit(self):
+        """The message region (what the last change did, and what Preview or Export did) is one `.toasts` live region on every
+        page: Work items in View, the Dashboard in View, and Edit (#442)."""
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400, edit=False)
+            count = "document.querySelectorAll('.toasts').length"
+            self.assertEqual(cdp.js("document.querySelector('[data-mode=edit]').getAttribute('aria-pressed')", sid), "false", "View")
+            self.assertEqual(cdp.js(count, sid), 1, "Work items in View")
+            cdp.js("location.hash = '#dashboard&p=TUL'", sid)
+            self.until(cdp, sid, "location.hash.startsWith('#dashboard') && !!document.querySelector('[data-mode=view]')", "the Dashboard opened")
+            self.until(cdp, sid, "document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'false'", "still View")
+            self.assertEqual(cdp.js(count, sid), 1, "the Dashboard in View")
+            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+            self.until(cdp, sid, "document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'true'", "Edit")
+            self.assertEqual(cdp.js(count, sid), 1, "the Dashboard in Edit")
+            cdp.js("location.hash = '#work&p=TUL&f=mode:all'", sid)
+            self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "Work items")
+            self.assertEqual(cdp.js(count, sid), 1, "Work items in Edit")
 
     KEPT = ("(async () => ({local: Object.entries(localStorage), session: Object.entries(sessionStorage), cookie: document.cookie, "
             "idb: ((await indexedDB.databases()) || []).map(d => d.name), caches: window.caches ? await caches.keys() : [], "

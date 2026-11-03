@@ -1,5 +1,6 @@
 """#253: the v0.3 release line "A key or a password typed into a question, or inside the text you selected, is refused before
-anything is sent", proved in code instead of by a hand check.
+anything is sent", proved in code instead of by a hand check. (#312: the released wording overstates the second half, because there
+is no live selection route yet; any later notes should say only "typed into a question".)
 
 The question path is driven through the REAL server and the REAL /api/ask route (a real store, a real HTTP request) with a fake
 provider that records every call. The selected-text path has no server route on main (see SelectionHasNoRoute), so it is driven
@@ -20,11 +21,18 @@ from _paths import SRC  # noqa: F401  (puts src/ on the path)
 import test_ask_route as route_base
 from test_ai_key_refusal import ATTACKS, REFUSED, SECRET_PART, TEXT
 from test_ai_menu import FakeProvider
-from clark import ai_menu as am, ask, server as sv
+from clark import ai_menu as am, ai_service, ask, ask_passages, ask_service, secret_screen, server as sv
 
 CLEAN_Q = "What is the state of the plan?"
 CLEAN_SELECTION = "The supplier confirmed the delivery for Friday."
-SAMPLES = {**{"a " + k: v for k, v in REFUSED.items()}, **{"b " + k: v for k, v in ATTACKS.items()}}
+# #330: the kinds the two shared lists have no sample for, built from pieces: an npm token in both of its forms and a PyPI token
+KINDS_ADDED_HERE = {
+    "npm token": "np" + "m_" + "A1b2C3d4E5f6G7h8I9j0K1l2",
+    "npm auth line": "//registry.example.org/:_auth" + "Token=" + "AbCdEfGhIjKlMnOp",
+    "pypi token": "py" + "pi-" + "AgEIcHlwaS5vcmc" + "A1b2C",
+}
+SAMPLES = {**{"a " + k: v for k, v in REFUSED.items()}, **{"b " + k: v for k, v in ATTACKS.items()},
+           **{"c " + k: v for k, v in KINDS_ADDED_HERE.items()}}
 
 
 def secret_part(name, sample):
@@ -128,16 +136,58 @@ class SelectedText(unittest.TestCase):
         self.assertEqual(len(prov.calls), 1)
 
 
+class EverySecretKindHasASample(unittest.TestCase):
+    """#330: the three tests above run every sample in SAMPLES, so a kind with no sample there is not tested at all (the npm and PyPI
+    tokens were once taken out of the screen and all of them still passed). Each entry of the screen's own list needs a sample
+    that its pattern matches, and each sample is on the question and selection paths above."""
+
+    @staticmethod
+    def _alternatives(pattern):
+        """The pattern cut at each `|` that is not inside brackets (a pattern with two forms, such as the npm one, needs a sample for
+        each form, or removing one form would go unnoticed)."""
+        parts, depth, in_class, start, i = [], 0, False, 0, 0
+        while i < len(pattern):
+            c = pattern[i]
+            if c == "\\":
+                i += 1
+            elif in_class:
+                in_class = c != "]"
+            elif c == "[":
+                in_class = True
+            elif c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+            elif c == "|" and depth == 0:
+                parts.append(pattern[start:i])
+                start = i + 1
+            i += 1
+        return parts + [pattern[start:]]
+
+    def test_every_secret_pattern_has_a_sample_here(self):
+        missing = []
+        for kind, pattern in secret_screen.SECRET_PATTERNS:
+            for alt in self._alternatives(pattern):
+                rx = re.compile(alt)
+                if not any(rx.search(sample) for sample in SAMPLES.values()):
+                    missing.append(kind + ": " + alt)
+        self.assertEqual(missing, [], "add a sample, built from pieces, for each kind named here")
+
+    def test_the_splitter_cuts_only_at_a_top_level_bar(self):
+        self.assertEqual(self._alternatives(r"a|b(c|d)[|]e|f"), ["a", r"b(c|d)[|]e", "f"])
+        self.assertEqual(self._alternatives(r"x\|y"), [r"x\|y"])
+
+
 class EveryRouteThatSendsText(unittest.TestCase):
     """The inventory, so a new caller cannot appear unscreened: the only call sites of a provider's `ask` in src/clark."""
 
-    def test_the_only_provider_call_sites_are_the_two_screened_ones(self):
+    def test_the_only_provider_call_sites_are_the_three_screened_ones(self):
         found = {}
         for path in sorted(Path(SRC, "clark").glob("*.py")):
             for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
                 if re.search(r"\bprovider\.ask\(", line) and not line.lstrip().startswith(("#", "def ", '"""')):
                     found[path.name] = found.get(path.name, 0) + 1
-        self.assertEqual(found, {"ai_menu.py": 1, "ask.py": 1})
+        self.assertEqual(found, {"ai_menu.py": 1, "ai_service.py": 1, "ask.py": 1})
 
     def test_ask_provider_is_reached_only_after_build_request(self):
         src = inspect.getsource(route_base.ask_service.AskService.ask)
@@ -148,9 +198,49 @@ class EveryRouteThatSendsText(unittest.TestCase):
         self.assertLess(src.index("build_prompt("), src.index("provider.ask("))
         self.assertIn("check_request(", inspect.getsource(am.build_prompt))
 
-    def test_the_server_has_no_route_for_the_selection(self):
+    def test_ai_service_screens_for_a_secret_before_the_provider(self):
+        src = inspect.getsource(ai_service.AiService.suggest)
+        self.assertLess(src.index("looks_like_secret("), src.index("provider.ask("))
+
+    def test_the_server_has_no_route_for_the_selection_except_the_three_ai_ones(self):
+        # #72 slice 4: the three /api/ai/* routes exist (off in the launcher: no ai=, so they answer 404); each is screened above
         routes = set(sv.GET_ROUTES) | set(sv.POST_ROUTES)
-        self.assertEqual({r for r in routes if "suggest" in r or "edit" in r or r.startswith("/api/ai")}, set())
+        self.assertEqual({r for r in routes if "suggest" in r or "edit" in r or r.startswith("/api/ai")},
+                         {"/api/ai/status", "/api/ai/suggest", "/api/ai/stop"})
+
+
+class OneWordingForEveryLooksLikeAPasswordNote(unittest.TestCase):
+    """#406: every note that says "looks like a password or a key" uses the phrase held once in `ask.LOOKS_LIKE`, then says what
+    happened, then gives one next step, and the product name never starts a clause."""
+
+    def folder_note(self):
+        found = ask_passages.FolderData(safety=1, secret_labels=("saved/keys.txt",))     # the real type, so every field folder_notes reads is there
+        return [n for n in ask_service.folder_notes(found) if n.startswith("saved/keys.txt")][0]
+
+    def test_every_note_follows_the_rules(self):
+        self.assertEqual(ask.LOOKS_LIKE, "looks like a password or a key")
+        self.assertIs(am.SECRET_MESSAGE, ask.SECRET)
+        folder = self.folder_note()
+        # (note, what happened, how the next step starts)
+        cases = ((ask.SECRET, "so it wasn't sent", "Take it out"),
+                 (ask.SECRET_EARLIER, "so this chat can't be sent", "Start a new chat"),
+                 (folder, "so it was left out", "Take it out"))
+        for note, happened, step in cases:
+            with self.subTest(note=note):
+                self.assertIn(ask.LOOKS_LIKE, note)
+                self.assertIn(happened, note)
+                self.assertLess(note.index(ask.LOOKS_LIKE), note.index(happened))
+                self.assertTrue(note.split(". ")[-1].startswith(step), note)
+                self.assertNotIn("secret", note.lower())
+                self.assertIsNone(re.search(r"[,.;:] clark|^clark", note, re.IGNORECASE), note)
+
+    def test_the_exact_words(self):
+        self.assertEqual(ask.SECRET, "That looks like a password or a key, so it wasn't sent. Take it out and try again.")
+        self.assertEqual(ask.SECRET_EARLIER, "An earlier message looks like a password or a key, so this chat can't be sent. "
+                                             "Start a new chat and try again.")
+        self.assertEqual(self.folder_note(), "saved/keys.txt holds text that looks like a password or a key, so it was left out and "
+                                             "the answer may be missing something. Take it out of the file, or remove the file from "
+                                             "the saved folder, then ask again.")
 
 
 if __name__ == "__main__":

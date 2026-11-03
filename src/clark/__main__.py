@@ -26,7 +26,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
+from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -115,7 +115,7 @@ def port_number(text, where):
     except (TypeError, ValueError):
         port = 0
     if not 1 <= port <= 65535:
-        raise Usage(f"The port setting ({where}) must be a whole number from 1 to 65535.")
+        raise Usage(f"The start-up number (set with {where}) must be a whole number from 1 to 65535. Change it, then start clark again.")
     return port
 
 
@@ -401,6 +401,10 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         projects = projects_of(store.path, roots)
         log, handler, logs = start_log(store.path.parent, projects, home, scratch)
         LOG.info("started on port %d", port)
+        try:
+            page.ensure_built()          # #495: a source checkout builds its pages now, before the first request
+        except page.PageError as e:
+            print(str(e), file=err or sys.stderr)
         done = serve(port=port, data_for=store.data_for, page_html=page.page_html,
                      projects=projects, out=shown,
                      err=err,
@@ -418,7 +422,10 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent),
                      app_settings=app_settings.AppSettings(store.path, roots),
                      ask=ask_service.AskService(store.path, ask_claude.ClaudeCommand(), roots),
+                     # No ai= here on purpose: the /api/ai/* routes answer 404 until suggestions run under their own system
+                     # prompt (#72 slice 5) AND the real canary exists (#277). Do not pass ai= before both; test_main pins it.
                      activity=activity_read.make_read(store.path, store.data_for),
+                     past=past_reports.PastReports(store.path),
                      brand_picture=page.brand_picture,
                      **handlers)
         LOG.info("stopped with code %d", done)

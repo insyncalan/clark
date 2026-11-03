@@ -1,6 +1,7 @@
 // One section of the report (#65). In Edit, `tools` (edit/) adds the gutter control (grip, + and menu) and the editable title; View
 // never renders any of them, so they are not in the page at all.
 // A 'Needs from you' section (#121) is a table of rows: view only here and in a published file, edited in place in Edit (edit/NeedsEdit.jsx).
+// A 'Progress tracker' section (#189) is a bar and groups of lines: view only here and in a published file, edited in place in Edit (edit/TrackerEdit.jsx).
 // A text section's body (Summary, This week, Next week; #74) is drawn only in a published file, view-only: the publish build
 // cleaned it (publish.clean_html) before it wrote the file, and the file holds nothing else. A published file draws no other type
 // (Dashboard leaves those sections out of it, so a client never reads that something is missing). The page clark serves never
@@ -11,15 +12,20 @@
 // A section template (#96) is drawn by its own parts, looked up by type (Edit: its Edit part from tools.templateEdit, given the
 // section and the tools; View and the file: its view part from templates/index.js, given the section and the report's data). Dashboard leaves a template
 // with nothing to show out of View and the file, so its view part is only ever asked to draw something. No branch per template
-// is ever added here.
+// is ever added here. The Supporting documents section (#74) is its links: Documents.jsx in View and a file, tools.DocumentsEdit in Edit.
 import { dropAt, fromFile, data } from "../stores/report.js";
 import { templateFor } from "../templates/index.js";
+import { ItemRows } from "./ItemRows.jsx";
+import { KINDS } from "../logic/sectionRows.js";
+import { isChanged, WORD } from "../stores/changed.js";
 import { anchorId } from "../logic/minimap.js";
 import { Glance } from "./Glance.jsx";
 import { UseCases } from "./UseCases.jsx";
 import { MsBlock } from "./MsBlock.jsx";
 import { emptyBody } from "../logic/emptyBody.js";
 import { Needs } from "./Needs.jsx";
+import { Documents } from "./Documents.jsx";
+import { Tracker } from "./Tracker.jsx";
 
 // View's text for a text or current section: cleaned HTML in the prose style, or one plain line when there is nothing to read.
 function ViewText({ html }) {
@@ -38,24 +44,30 @@ export function Section({ section, index, count, slot, anchor, tools, clean, onE
   const drop = editing && dropAt.value ? dropAt.value : null;      // what a drag would draw (#95)
   const mark = !drop ? "" : drop.line === "before" && drop.ids.includes(section.id) ? " drop-before"
     : drop.outline === section.id ? ` drop-${drop.side}` : "";
+  const changed = isChanged(section.id);
   const tpl = templateFor(section.type);
   return (
-    <article class={`sec slot-${slot}${hidden ? " is-hidden" : ""}${mark}`}
-      id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type}>
+    <article class={`sec slot-${slot}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}`}
+      id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type} data-changed={changed ? "1" : undefined}>
       {editing ? <tools.Gutter section={section} count={count} /> : null}
       <header class="sec-head">
         <h2 class="sec-h">{editing ? <tools.Title section={section} /> : section.title}</h2>
+        {changed ? <span class="tag chg">{WORD}</span> : null}
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}
+        {editing && section.type === "usecases" && tools.ucEdit ? <tools.ucEdit.Add /> : null}
       </header>
-      {section.type === "glance" ? <Glance tools={tools} /> : section.type === "usecases" ? <UseCases onExport={onExport} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} />
+      {section.type === "glance" ? <Glance tools={tools} /> : section.type === "usecases" ? <UseCases onExport={onExport} tools={tools} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} tools={tools} />
         : tpl ? (editing ? <TemplateEdit section={section} tools={tools} /> : <tpl.view section={section} data={data.value} />)
         : section.type === "needs" ? (editing ? <tools.NeedsEdit section={section} /> : <Needs section={section} />)
+        : section.type === "docs" ? (editing ? <tools.DocumentsEdit section={section} /> : <Documents />)
+        : section.type === "tracker" ? (editing ? <tools.TrackerEdit section={section} slot={slot} /> : <Tracker section={section} slot={slot} />)
         : editing && section.type === "text" && tools.richOn("body")
         ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} />
         : fromFile.value && section.type === "text"
         ? (typeof section.body === "string" && section.body ? <div class="sec-body prose" dangerouslySetInnerHTML={{ __html: section.body }} /> : null)
         : !editing && clean && (section.type === "text" || section.type === "current")
         ? <ViewText html={clean(section.type === "current" ? ((data.value && data.value.project) || {}).current_state : section.body)} />
+        : KINDS[section.type] ? <ItemRows type={section.type} />          // risks and issues, actions, decisions: their rows (A-D5)
         : <p class="quiet">Not shown on this page yet.</p>}
     </article>
   );

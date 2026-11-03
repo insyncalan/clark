@@ -1,11 +1,17 @@
-"""#272: the use case empty-state words follow the prototype ("Not written yet."), source and built pages."""
+"""#272: the use case empty-state words follow the prototype ("Not written yet."), in the sources and in the built pages.
+
+Run: python3 dev/run_tests.py test_empty_state_words
+The built pages are not committed (#495), so the test asks the page module for them: page.ensure_built() builds them in a
+source checkout when they are missing or out of date, and the test then reads page.PAGE and page.VIEW_PAGE.
+"""
 import unittest
 
 import _paths  # noqa: F401
 from _paths import ROOT
 
+from clark import page  # noqa: E402
+
 COMPONENTS = ROOT / "src/clark/page/src/components"
-PAGES = ("page.html", "page-view.html")
 
 
 def read(path):
@@ -29,14 +35,16 @@ class EmptyStateWordsTest(unittest.TestCase):
             self.assertNotIn("Nothing recorded", text, name)
 
     def test_built_pages_carry_the_words(self):
-        for name in PAGES:
-            text = read(ROOT / "src/clark/page" / name)
-            self.assertIn("Not written yet.", text, name)
-            # The old words are gone from the use case screens. Other screens (the client report's own blank, the rich text reader's default)
-            # keep their own wording, so this looks for the old use case lines in the built page, not for the phrase anywhere.
+        page.ensure_built()
+        for built in (page.PAGE, page.VIEW_PAGE):
+            text = read(built)
+            self.assertIn("Not written yet.", text, built.name)
+            # The old words are gone from the use case screens. Other screens (the client report's own blank, the rich text
+            # reader's default) keep their own wording, so this looks for the old use case lines in the built page, not for
+            # the phrase anywhere.
             for old in ('||"Nothing written yet."', 'class:"muted",children:"Nothing written yet."', 'empty:"Nothing written yet. Click to write."'):
-                self.assertNotIn(old, text, name)
-        self.assertIn("Not written yet. Click to write.", read(ROOT / "src/clark/page/page.html"))
+                self.assertNotIn(old, text, built.name)
+        self.assertIn("Not written yet. Click to write.", read(page.PAGE))
 
     def test_prototype_says_not_written_yet_for_use_cases(self):
         text = read(ROOT / "system/prototype/usecases.js")

@@ -80,7 +80,7 @@ class Allowed(Api):
             self.assertFalse(any(never in fields for ops in changes.CHANGE_KINDS.values() for fields in ops.values()), never)
         self.assertEqual([(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields],
                          [(KIND, "update")])             # a body is written by one request only: a section's update, and then only for a needs or tracker section
-        self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk"})      # #196: + bulk
+        self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk", "handover"})      # #196: + bulk; #199: + handover
 
     def test_the_route_admits_only_the_approved_kinds(self):
         """#45 (Full tier, approved) added glance_tiles and projects (test_changes_tiles holds their tests) and #67 the eye,
@@ -89,9 +89,9 @@ class Allowed(Api):
         self.assertEqual(set(changes.CHANGE_KINDS), {"report_sections", "glance_tiles", "report_hidden", *changes.ARCHIVABLE})
         for kind in changes.ARCHIVABLE:
             ops = set(changes.CHANGE_KINDS[kind])
-            want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases") else set())
-            self.assertEqual(ops, want | ({"new"} if kind in changes.NEWABLE else set())      # #67: a row can be added to four kinds, never a use case
-                             | ({"bulk"} if kind in changes.ITEM_KINDS else set()))           # #196: only the work items take a bulk change
+            want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases", "documents") else set())
+            self.assertEqual(ops, want | ({"new"} if kind in changes.NEWABLE + ("use_cases", "documents") else set())      # #67: a row can be added to four kinds; #455: and a use case (its own writer); #74: + a document link
+                             | ({"bulk", "handover"} if kind in changes.ITEM_KINDS else set()))     # #196, #199: only the work items take a bulk change or a hand over
             self.assertEqual(set(changes.CHANGE_KINDS[kind]["archive"]) | set(changes.CHANGE_KINDS[kind]["restore"]), set())
         for kind in ("workstreams", "labels", "links", "report_sections ", "",
                      "REPORT_SECTIONS", "report_sections; DROP TABLE x"):
@@ -600,6 +600,57 @@ class AddBeside(Api):
         self.assertEqual(self.undone(got["apply_id"])[0], 200)
         self.assertEqual(self.snapshot()[2], before, "the section is gone and the one above is on its own again")
 
+    def stale_last(self):
+        last = self.ids_now()[-1]
+        self.ok("update", id=last, changes={"beside": 1})
+        return last
+
+    def test_a_plain_add_below_the_last_section_clears_its_stale_flag_in_the_same_step(self):
+        """#244: the page ignores a 1 on the last section, but a new section after it would pair with it."""
+        for after in (None, "last"):
+            with self.subTest(after=after):
+                last = self.stale_last()
+                got = self.ok("new", values={"title": "Plain"}, after=last if after else None)
+                flags = {r["id"]: r["beside"] for r in self.rows()}
+                self.assertEqual((flags[last], flags[got["ref"]]), (0, 0))
+                updates = [(r["key"], r["field"]) for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update"]
+                self.assertEqual(updates, [(last, "beside")], "the one step holds the new row and the cleared flag")
+                self.assertEqual(self.undone(got["apply_id"])[0], 200)
+                self.assertEqual({r["id"]: r["beside"] for r in self.rows()}[last], 1, "one Undo restores the flag as well")
+                self.assertNotIn(got["ref"], self.ids_now())
+                self.ok("update", id=last, changes={"beside": 0})
+
+    def test_a_plain_add_clears_a_stale_flag_on_a_report_of_one_section(self):
+        """The only section is also the last one; its stale 1 is cleared the same way."""
+        keep = self.ids_now()[0]
+        self.s.con.execute("DELETE FROM report_sections WHERE project = 'ABC' AND id != ?", (keep,))
+        self.s.con.commit()
+        self.assertEqual(len(self.ids_now()), 1)
+        last = self.stale_last()
+        got = self.ok("new", values={"title": "Plain"})
+        self.assertEqual({r["id"]: r["beside"] for r in self.rows()}[last], 0)
+        self.assertEqual(self.undone(got["apply_id"])[0], 200)
+        self.assertEqual({r["id"]: r["beside"] for r in self.rows()}[last], 1)
+
+    def test_a_plain_add_leaves_other_flags_alone(self):
+        """No stale flag on the last section: nothing but the new row is written. Adding in the middle clears nothing either."""
+        got = self.ok("new", values={"title": "Plain"})
+        self.assertEqual([r for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update"], [])
+        last = self.stale_last()
+        mid = self.ok("new", values={"title": "Mid"}, after=self.ids_now()[0])
+        self.assertEqual([r for r in self.s.step_rows(mid["apply_id"]) if r["op"] == "update" and r["field"] == "beside"], [])
+        self.assertEqual({r["id"]: r["beside"] for r in self.rows()}[last], 1)
+
+    def test_a_flag_on_the_second_half_of_a_last_pair_is_not_touched_by_a_plain_add(self):
+        """The last two sections are a pair; the page ignores the 1 on the second half and the pair stays a pair."""
+        ids = self.ids_now()
+        self.ok("update", id=ids[-2], changes={"beside": 1})
+        self.ok("update", id=ids[-1], changes={"beside": 1})
+        got = self.ok("new", values={"title": "Plain"}, after=ids[-1])
+        flags = {r["id"]: r["beside"] for r in self.rows()}
+        self.assertEqual((flags[ids[-2]], flags[ids[-1]]), (1, 1), "the pair is as it was")
+        self.assertEqual([r for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update"], [])
+
     def test_a_section_that_already_has_a_partner_is_refused_and_nothing_is_written(self):
         self.refused(self.req("new", values={"title": "No"}, after=self.paired(), beside=1), changes.STALE)
 
@@ -1012,7 +1063,7 @@ class Items(Api):
     def test_the_fields_are_columns_and_priority_and_archived_are_never_in_the_wrong_list(self):
         columns = {k: set(store_module.columns(self.s.con, k)) for k in changes.ITEM_KINDS}
         for kind, fields in ITEM_FIELDS.items():
-            self.assertEqual(set(changes.CHANGE_KINDS[kind]), {"update", "archive", "restore", "new", "bulk"}, kind)      # #67: + new; #196: + bulk
+            self.assertEqual(set(changes.CHANGE_KINDS[kind]), {"update", "archive", "restore", "new", "bulk", "handover"}, kind)      # #67: + new; #196: + bulk; #199: + handover
             self.assertTrue(set(changes.CHANGE_KINDS[kind]["bulk"]) <= columns[kind], kind)
             for never in ("archived", "id", "project", "type", "client_visible", "closed", "description", "decision"):
                 self.assertNotIn(never, changes.CHANGE_KINDS[kind]["bulk"], (kind, never))
@@ -1023,6 +1074,8 @@ class Items(Api):
                 self.assertNotIn(never, fields, (kind, never))
         self.assertNotIn("priority", changes.CHANGE_KINDS["raid"]["update"])
         self.assertNotIn("priority", changes.CHANGE_KINDS["raid"]["bulk"])
+        self.assertEqual({k: changes.CHANGE_KINDS[k]["handover"] for k in changes.ITEM_KINDS},
+                         {"actions": ("owner",), "raid": ("owner",), "decisions": ("made_by",)})     # #199: who has it, and nothing else
 
     def test_one_request_with_several_fields_is_one_step_and_one_undo(self):
         body = self.go("actions", self.a, status="Closed", workstream=None)
