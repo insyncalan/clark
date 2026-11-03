@@ -319,7 +319,7 @@ class Refusals(Base):
             z.writestr("[Content_Types].xml", "<Types/>")
             z.writestr("word/document.xml", b"0" * (60 * 1024 * 1024))                # about 60 KB packed, 60 MB unpacked
         got = self.refused(op="check", project="ABC", name=NAME, data=encoded(big.getvalue()))
-        self.assertIn("MB", got["message"])
+        self.assertEqual(got["message"], str(word_route.docx_read._too_big(NAME, "part", 60 * 1024 * 1024, word_route.docx_read.MAX_PART_BYTES)))
 
     def test_an_oversize_request_is_refused_before_it_is_decoded(self):
         got = self.refused(op="check", project="ABC", name=NAME, data="A" * (word_route.docx_read.MAX_FILE_BYTES * 4 // 3 + 1000))
@@ -910,7 +910,7 @@ class WholeJourney(unittest.TestCase):
             z.writestr("word/document.xml", b"0" * (60 * 1024 * 1024))
         status, got = self.post("/api/word-import", {"op": "check", "project": "ABC", "name": NAME, "data": encoded(bomb.getvalue())})
         self.assertEqual(status, 400)
-        self.assertRegex(got["message"], r"MB")
+        self.assertEqual(got["message"], str(word_route.docx_read._too_big(NAME, "part", 60 * 1024 * 1024, word_route.docx_read.MAX_PART_BYTES)))
         self.assertNotRegex(got["message"], JARGON)
         self.assertEqual(self.demo.store.read("actions", "ABC"), [])
 
