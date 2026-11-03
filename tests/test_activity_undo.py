@@ -132,7 +132,8 @@ class Tab(unittest.TestCase):
                     self.assertIn("2 changes will be undone", text)
                     self.assertIn("1 change will be left as it is", text)
                     self.assertIn("This has been undone already.", text, "the reason is in words")
-                    self.assertEqual(cdp.js("document.activeElement.dataset.paHead !== undefined", sid), True, "the keyboard lands on the preview")
+                    # The preview takes the focus in an effect, one frame after it draws; the peek now animates (#131), so wait for it.
+                    self.until(cdp, sid, "!!document.activeElement && document.activeElement.dataset.paHead !== undefined", "the keyboard lands on the preview")
                     key(cdp, sid, "Escape")                                                   # Esc closes the preview and keeps the choice
                     self.until(cdp, sid, "!document.querySelector('[data-pa-preview]')", "Esc closed the preview")
                     self.assertEqual(self.bar(cdp, sid), "3 selected")
