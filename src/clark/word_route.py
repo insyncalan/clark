@@ -413,7 +413,8 @@ def _take_back(dest):
 
 def _file_text(data):
     """#607: what a reader of the finished .docx sees, as UTF-8 bytes for to_client.markers_found: the text of every XML part
-    (the document, its footer, the document properties; tags dropped, entities read, a paragraph end as a line break) and the
+    (the document, its footer, the document properties; tags dropped, entities read, a paragraph end as a line break, a tab or
+    line break as a space: docx_build writes those as tags, so the words either side would join) and the
     address every relationship points at (a hyperlink's target is not in the text). The raw bytes are a zip, so the web
     publish's check cannot read them as they are. Raises BadZipFile (or KeyError, ValueError) for a file that is not one."""
     out = []
@@ -425,7 +426,7 @@ def _file_text(data):
             if name.endswith(".rels"):
                 out += [html.unescape(t) for t in re.findall(r'\bTarget="([^"]*)"', xml)]
             else:
-                out.append(html.unescape(re.sub(r"<[^>]*>", "", re.sub(r"</w:p>", "\n", xml))))
+                out.append(html.unescape(re.sub(r"<[^>]*>", "", re.sub(r"<w:(?:tab|br)/>", " ", re.sub(r"</w:p>", "\n", xml)))))
     return "\n".join(out).encode("utf-8")
 
 
@@ -436,12 +437,27 @@ def _held_back(store, code, published, data, client_folder):
     to_client.check_copy: its outside-address scan reads HTML markup (src=, href=, <link>), which this file has none of, and
     it would refuse a typed address in a row's text that a reader of the web file also sees. No bare page, so no note is
     exempted (template ""). Writes nothing."""
+    def say(what):                                   # #618: a Word file is not a publish, so not "Nothing was published."
+        return to_client.MESSAGES["held_back"].format(what=what).replace("Nothing was published. ", "", 1)
     try:
         text = _file_text(data)
     except (zipfile.BadZipFile, KeyError, ValueError):
-        return to_client.MESSAGES["held_back"].format(what="a file clark could not check")
+        return say("a file clark could not check")
     markers = publish_flow.markers_for(store, code, published)
-    found = to_client.markers_found(text, markers)
+    where = getattr(markers, "where", None) or {}
+    # #618: two looks, a hit in either refuses. (1) The source text: what the web page carries (every row select() kept, in its
+    # JSON-escaped spelling), where a note with a tab, a blank line or a CRLF is found as the web publish finds it, because the
+    # .docx drops or rewrites that whitespace (docx_build.run, text_paras). (2) The file's own text with every run of white
+    # space made one space, on both sides, so spacing the Word file changes cannot hide a marker.
+    source = json.dumps({"data": published["data"], "sections": published["sections"]}, default=str, ensure_ascii=False)
+    hits = [where.get(m) for m in to_client.markers_found(source.encode("utf-8"), markers)]
+    squash = {}                                      # each marker with its white space squashed -> the item it came from
+    for m in markers:
+        squash.setdefault(" ".join(m.split()), where.get(m))
+    squashed = " ".join(text.decode("utf-8").split()).encode("utf-8")
+    squash_hits = to_client.markers_found(squashed, list(squash))
+    found = bool(hits or squash_hits)
+    hits += [squash[m] for m in squash_hits]
     problems = []
     if client_folder and to_client._key(client_folder) in to_client._key(text.decode("utf-8")):
         problems.append("the location of the client folder")
@@ -449,13 +465,12 @@ def _held_back(store, code, published, data, client_folder):
         problems.append("text that was meant to be left out")
     if not problems:
         return ""
-    words = to_client.MESSAGES["held_back"].format(what=to_client.held_words(problems))
     ids = []
-    for m in found:                                  # the same " Look at: ID, ID." as the web publish (Publisher.which_items)
-        item = (getattr(markers, "where", None) or {}).get(m)
+    for item in hits:                                # the same " Look at: ID, ID." as the web publish (Publisher.which_items)
         if item and item not in ids:
             ids.append(item)
-    return words + (publish_flow.MESSAGES["look_at"].format(items=", ".join(ids[:10])) if ids else "")
+    return say(to_client.held_words(problems)) + \
+        (publish_flow.MESSAGES["look_at"].format(items=", ".join(ids[:10])) if ids else "")
 
 
 def _do_export(store, who, req, today, chosen, roots):

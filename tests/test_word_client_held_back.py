@@ -32,6 +32,7 @@ HIDDEN_TEXT = "Hidden supplier review"
 NOTHING_WRITTEN = "Nothing was written to the client folder."
 
 NOTE_TEXT = "Supplier may walk away in March"
+WORD_HELD = "The report has something in it that must not go to the client (text that was meant to be left out)."
 
 
 class Setup:
@@ -89,9 +90,9 @@ class Cases(Setup):
     def test_the_word_client_copy_refuses_it(self):
         status, got = self.word_export()
         self.assertEqual((status, got["ok"], got["code"]), (409, False, "refused"), got)
-        held = to_client.MESSAGES["held_back"].format(what="text that was meant to be left out")
-        self.assertTrue(got["message"].startswith(held), got["message"])
+        self.assertTrue(got["message"].startswith(WORD_HELD), got["message"])
         self.assertTrue(got["message"].endswith(" Nothing was saved."), got["message"])
+        self.assertNotIn("Nothing was published", got["message"], "a Word file is not a publish")
         self.assertEqual(self.names(self.client), [], NOTHING_WRITTEN)
         self.assertEqual(self.word_files_holding_the_leak(), [], "no Word file holds the held-back text")
 
@@ -141,6 +142,37 @@ class NotePastedIntoText(Cases, unittest.TestCase):
                                      "client_visible": 1, "raised": "2026-10-01", "source": "demo"})
         (risk,) = self.store.read("raid", "ABC")
         self.look_at = risk["id"]
+
+
+class NoteWithWhitespace(Setup, unittest.TestCase):
+    """#618: the note pasted into its own row's visible text has a tab, a blank line, a Windows line break (CRLF) or odd spaces.
+    The web publish refuses each (it reads the data block's JSON-escaped spelling). The .docx drops or rewrites that white
+    space (docx_build.run, text_paras), so a look at the text read back from it is not enough: the check also reads the source
+    text, and compares with every white-space run squashed."""
+    NOTES = {"a tab": "Supplier may\twalk away in March", "a blank line": "Supplier may\n\nwalk away in March",
+             "a Windows line break": "Supplier may\r\nwalk away in March", "a line break": "Supplier may\nwalk away in March",
+             "spaces at each end": "  Supplier may walk away in March  ", "a double space": "Supplier may  walk  away in March"}
+    note = NOTE_TEXT
+
+    def plant(self):
+        with self.store.step("dashboard", USER) as st:
+            st.create("raid", {"project": "ABC", "type": "Risk", "description": f"Watch this: {self.note}", "response_action": self.note,
+                                     "client_visible": 1, "raised": "2026-10-01", "source": "demo"})
+
+    def test_each_variant_is_refused_by_the_web_publish_and_the_word_client_copy(self):
+        for name, note in self.NOTES.items():
+            with self.subTest(name):
+                self.note = note
+                self.setUp()                                       # fresh store and folders for each variant
+                status, web = self.web_publish()
+                self.assertEqual((status, web["action"]), (409, "refused"), web)
+                self.assertTrue(web["message"].startswith(to_client.MESSAGES["held_back"].format(
+                    what="text that was meant to be left out")), web["message"])
+                status, word = self.word_export()
+                self.assertEqual((status, word["ok"]), (409, False), word)
+                self.assertTrue(word["message"].startswith(WORD_HELD), word["message"])
+                self.assertIn(publish_flow.MESSAGES["look_at"].format(items=self.store.read("raid", "ABC")[0]["id"]), word["message"])
+                self.assertEqual((self.names(self.client), self.names(self.word_local)), ([], []), "nothing written in either folder")
 
 
 class CleanReport(Setup, unittest.TestCase):
