@@ -1155,8 +1155,10 @@ def _use_case_shown(row):
 def _do_new_use_case(store, by_user, req, project, table, columns, place):
     """#455: add one use case to THIS project, in one step (it is in the change log under its own apply id and shows in History). The
     request gives its reference (as the project writes it, "3.1"), name, status and headline; clark gives the id (the next -U-
-    number), the project, the place at the end of the list, the source, and puts it on the dashboard (client_visible is set here to 1,
-    the store's own default, not left to the table). The name and headline are held to the same plain-text rule as an edit.
+    number), the project, the place at the end of the list and the source. #455 (Alan, 03-11-2026): a new use case is hidden from the
+    client by default, so client_visible is set here to 0 (eye off), not left to the table's default of 1, which existing and imported
+    use cases keep; it is off the dashboard and out of the published file until the eye is turned on (the Use cases page's eye, or the
+    dashboard's "Add a use case from your project record"). The name and headline are held to the same plain-text rule as an edit.
     A reference that any use case of the project already has, archived or not, is refused: an archived use case's reference is still
     taken, and a Restore must never bring back a second live one with it. The reply has no Undo (see below). Nothing is written when
     anything is refused."""
@@ -1171,7 +1173,7 @@ def _do_new_use_case(store, by_user, req, project, table, columns, place):
         raise Refused(UC_NAME_WORDS)
     values.setdefault("status", "On track")
     values.setdefault("headline", "")
-    values.update(ref=ref_text, project=project, source=NEW_SOURCE, client_visible=1)
+    values.update(ref=ref_text, project=project, source=NEW_SOURCE, client_visible=0)   # #455: hidden from the client until the eye is on
     with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: the next number is read and used inside it
         mine = store.read(table, project=project)                   # live AND archived: an archived use case's reference is still taken
         if any(str(r["ref"]).strip().casefold() == ref_text.casefold() for r in mine):
