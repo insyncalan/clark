@@ -86,6 +86,13 @@ class Screen(unittest.TestCase):
             with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
+    def test_a_short_mixed_value_after_api_key_is_refused_on_purpose(self):
+        """The accepted trade-off (#242): some ordinary mixed values after the name are refused too, because a short mixed value cannot be told from a key. Help says so."""
+        for text in ("api " + "key: v2beta3", "access " + "key = rotate2026"):
+            with self.subTest(text):
+                self.assertTrue(secret_screen.looks_like_secret(text))
+        self.assertFalse(secret_screen.looks_like_secret("api " + "key is fine"))
+
     def test_ask_refuses_the_new_short_shapes(self):
         for text in ("what is s" + "k-abc123def456?", "my api_" + "key=abc123", "API " + "key: AbCd1234EfGh5678Ij"):
             with self.subTest(text):

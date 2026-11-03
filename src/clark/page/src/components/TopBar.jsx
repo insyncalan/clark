@@ -9,6 +9,7 @@ export function TopBar({ tools }) {
   const ProfileMenu = tools && tools.ProfileMenu && !fromFile.value ? tools.ProfileMenu : null;     // the profile circle's menu (#77)
   const ProjectSwitch = tools && tools.ProjectSwitch && !fromFile.value ? tools.ProjectSwitch : null;     // the project switcher (A-D25)
   const Publish = tools && tools.Publish && !fromFile.value ? tools.Publish : null;     // only a page clark serves can publish
+  const HelpButton = tools && tools.HelpButton && !fromFile.value ? tools.HelpButton : null;     // the "?" beside the profile circle: Help
   return (
     <header class="top">
       <span class="logo" aria-label="clark"><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></span>
@@ -22,6 +23,7 @@ export function TopBar({ tools }) {
       {fromFile.value && asAt.value ? <span class="asat num">As at {shownDate(asAt.value)}</span> : null}
       {Publish ? <Publish /> : null}
       {Toggle ? <Toggle /> : null}
+      {HelpButton ? <HelpButton /> : null}
       {ProfileMenu ? <ProfileMenu /> : null}
     </header>
   );
