@@ -378,8 +378,7 @@ class AboutYou(Base):
             self.open_settings(p)
             self.type_into(p, "name", "Sam Lee")
             self.handled(p, "Sam Lee")
-            p.js("location.reload()")
-            p.until("!!document.querySelector('#profile-btn')", "the page again")
+            reload_to_new_page(p.js, "!!document.querySelector('#profile-btn')", "the page again")
             self.open_settings(p)
             p.until("document.querySelector('#about-name').value === 'Sam Lee'", "the box follows what clark holds")
             self.type_into(p, "name", "Sam Lee")                      # the stored words, saved again
