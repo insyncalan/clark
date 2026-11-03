@@ -55,6 +55,15 @@ class TheKnownSet(unittest.TestCase):
             self.assertEqual(k.codes, ("ABC",))
             self.assertIsNone(am.known_for(store, "ZZZ"))          # no such project: the shape rules stay in force
 
+    def test_the_fall_back_to_the_shape_rules_is_logged_with_the_kind_of_fault_only(self):
+        """#266: a Known that cannot be read is no longer silent; the log names the fault's kind and never its words."""
+        with DemoStore() as store:
+            with self.assertLogs("clark.ai", level="WARNING") as logged:
+                self.assertIsNone(am.known_for(store, "ZZZ"))
+            self.assertEqual(len(logged.records), 1)
+            self.assertIn("PublishError", logged.output[0])
+            self.assertNotIn("ZZZ", logged.output[0])
+
 
 class RealCodesAndNames(unittest.TestCase):
     def test_a_real_item_code_in_any_spelling_is_blocked(self):

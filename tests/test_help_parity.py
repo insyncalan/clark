@@ -77,6 +77,14 @@ class EveryPrototypeEntryIsAccountedFor(unittest.TestCase):
             code = read(*where[0]) if where else PAGE          # one file, or all the page's code
             self.assertNotRegex(code, marker, f"{feature} is on the page now: write {place} from the prototype's words, for what the page does")
 
+    def test_helpLater_records_each_waiting_and_renamed_entry(self):
+        """helpLater.json's "missing" (entries the prototype has and the source does not, with what each waits for) and "renamed" mirror WAITS and REPLACED."""
+        self.assertEqual(sorted(LATER["missing"]), sorted(WAITS))
+        self.assertEqual(LATER["renamed"], REPLACED)
+        for place, why in LATER["missing"].items():
+            self.assertTrue(why.strip(), place)
+            self.assertNotIn(place, held_ids() | shown_ids())
+
     def test_a_replaced_entry_is_shown(self):
         for old, new in REPLACED.items():
             self.assertIn(new, shown_ids(), f"{new} replaces the prototype's {old}")

@@ -130,7 +130,8 @@ Without Docker:
 
 1. Double-click clark.command in this folder.
 
-2. The first time, your Mac may say it could not verify clark.command. Do not
+2. The first time, your Mac may say it could not verify clark.command and
+   offer only Move to Trash and Done. This is expected, not a fault. Do not
    choose Move to Trash: choose Done. Then open System Settings, choose
    Privacy & Security, scroll down and choose Open Anyway beside clark.command,
    then double-click it again. On a computer your employer manages, Open Anyway

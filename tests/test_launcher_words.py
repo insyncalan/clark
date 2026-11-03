@@ -80,6 +80,39 @@ class StartHere(unittest.TestCase):
         self.assertNotIn("restart", flat.lower())
 
 
+class TheFirstRunDialog(unittest.TestCase):
+    """#615: this macOS says the file was not opened, with only Move to Trash and Done and no Open button. Step 2 says the dialog
+    is expected, names Move to Trash as the one not to choose, and leads with Privacy & Security and Open Anyway. #427 folded this
+    into the Docker-first guide: an employer's Mac may want an administrator's password, the typed way is the fallback, and
+    Control-click is not offered (it no longer opens an unsigned download on current macOS)."""
+
+    def step_two(self):
+        text = package.START_HERE_MAC
+        return " ".join(text[text.index("\n2. "):text.index("\n3. ")].split())
+
+    def test_the_step(self):
+        self.assertEqual(self.step_two(), "2. The first time, your Mac may say it could not verify clark.command and offer only Move "
+                                          "to Trash and Done. This is expected, not a fault. Do not choose Move to Trash: choose Done. "
+                                          "Then open System Settings, choose Privacy & Security, scroll down and choose Open Anyway "
+                                          "beside clark.command, then double-click it again. On a computer your employer manages, Open "
+                                          "Anyway may ask for an administrator's password, and your employer may not allow it. If you "
+                                          "cannot get past it, use the typed way below, which needs no password.")
+
+    def test_privacy_and_security_and_open_anyway_are_the_way_past_it_and_control_click_is_not_offered(self):
+        step = self.step_two()
+        self.assertLess(step.index("Privacy & Security"), step.index("Open Anyway"))
+        self.assertNotIn("Control-click", " ".join(package.START_HERE_MAC.split()))
+
+    def test_move_to_trash_is_named_as_the_one_not_to_choose(self):
+        self.assertIn("Do not choose Move to Trash: choose Done.", self.step_two())
+
+    def test_releasing_step_15_says_the_dialog_is_expected(self):
+        text = (ROOT / "dev" / "RELEASING.md").read_text(encoding="utf-8")
+        step = [line for line in text.splitlines() if line.startswith("15. ")][0]
+        for words in ("is expected", "Apple could not verify it is free of malware", "never Move to Trash", "Privacy & Security", "Open Anyway"):
+            self.assertIn(words, step)
+
+
 class TheyAgree(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
