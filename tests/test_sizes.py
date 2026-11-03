@@ -72,7 +72,7 @@ AUDIT = """(function (allowed) {
 })(%s)"""
 
 
-VIEWS = (("dashboard", "#report"), ("work", "#work"), ("milestones", "#milestones"), ("settings", ".frame.empty"))
+VIEWS = (("dashboard", "#report"), ("work", "#work"), ("milestones", "#milestones"), ("settings", ".frame.set-head"))
 
 
 def published_page():

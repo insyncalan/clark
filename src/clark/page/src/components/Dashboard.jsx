@@ -2,6 +2,8 @@
 // View removes, never hides: it draws only the sections that show (a hidden one is dropped) and renders no edit component at all,
 // so there is no input, text area, select, editable text, grip, menu or Add in the page. Edit (a page clark serves, with
 // `tools` from edit/) draws every section, a hidden one dimmed, with those parts. A published file passes no tools and is never Edit.
+import { useEffect } from "preact/hooks";
+import { armHint } from "../stores/motion.js";
 import { data, mode, fromFile, dropAt } from "../stores/report.js";
 import { Section } from "./Section.jsx";
 import { Minimap } from "./Minimap.jsx";
@@ -13,6 +15,8 @@ import { emptyBody } from "../logic/emptyBody.js";
 export { emptyBody };
 import { templateFor, templateEmpty } from "../templates/index.js";
 import { rowsOf, shownRows } from "../logic/needs.js";
+import { rowsFor } from "./ItemRows.jsx";
+import { KINDS } from "../logic/sectionRows.js";
 import { visibleDocs } from "../logic/documents.js";
 
 // A section set beside the next one shares its row with it (half width each); every other section takes the full row. The rows
@@ -44,11 +48,11 @@ export function Dashboard({ tools }) {
   // does not draw yet (only text bodies are drawn, #74). Rows are read from every section first (#95), so a section whose partner
   // is left out takes the full row and never pairs with the next one. The page clark serves is unchanged.
   // The file draws a text section with a body, the At a glance section when it carries tiles and the use case summary when it
-  // carries use cases (#45), and a 'Needs from you' section that has a row to show (#121); the other types are left out until they are drawn.
+  // carries use cases (#45), Risks and issues, Open actions and Decisions when they have a row to show (A-D5), and a 'Needs from you' section that has a row to show (#121); the other types are left out until they are drawn.
   // A section template (#96) is drawn in the file and in the served View alike only while it has something to show (its isEmpty,
   // FR-11: View is what the client sees), so an empty template or a stub is in neither.
   const hasNeeds = (s) => shownRows(rowsOf(s, fromFile.value)).length > 0;       // a 'Needs from you' section with no row to show is left out (a left-out row is absent)
-  const fileDraws = (s) => (templateFor(s.type) ? !templateEmpty(s, d) : s.type === "text" ? !emptyBody(s.body) : s.type === "glance" ? !!(d.glance && d.glance.tiles && d.glance.tiles.length) : s.type === "usecases" ? !!(d.use_cases && d.use_cases.length) : s.type === "needs" ? hasNeeds(s) : s.type === "docs" ? visibleDocs(d, true).length > 0 : false);
+  const fileDraws = (s) => (templateFor(s.type) ? !templateEmpty(s, d) : s.type === "text" ? !emptyBody(s.body) : s.type === "glance" ? !!(d.glance && d.glance.tiles && d.glance.tiles.length) : s.type === "usecases" ? !!(d.use_cases && d.use_cases.length) : s.type === "needs" ? hasNeeds(s) : s.type === "docs" ? visibleDocs(d, true).length > 0 : !!KINDS[s.type] && rowsFor(s.type).length > 0);
   const shown = (s) => !s.hidden && !(fromFile.value && !fileDraws(s)) && !(templateFor(s.type) && templateEmpty(s, d)) && !(s.type === "needs" && !hasNeeds(s)) && !(s.type === "docs" && !visibleDocs(d, fromFile.value).length);       // #74: no document to show, no section
   const list = editing ? all : all.filter(shown);
   const places = slots(all, editing ? undefined : shown);
@@ -57,6 +61,8 @@ export function Dashboard({ tools }) {
   for (const e of entries(list)) anchors[e.id] = e.anchor;      // one anchor per section, shared with the minimap
   const counts = {};
   for (const s of list) { const c = countOf(s, d, todayIso(), fromFile.value); if (c) counts[s.id] = c; }
+  const first = editing && list.length ? list[0].id : null;
+  useEffect(() => { if (first) armHint(first); }, [first]);      // the first time in Edit, the handle of the first section pulses once and says what it does
   const jump = (id) => { if (anchors[id]) jumpTo(anchors[id]); };
   const Bar = tools && tools.ReportBar && !fromFile.value ? tools.ReportBar : null;      // a page clark serves only (A-D2)
   return (
