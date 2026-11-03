@@ -35,6 +35,7 @@ import html as htmllib
 import json
 import os
 import re
+import secrets
 import stat
 import sys
 import unicodedata
@@ -1138,15 +1139,95 @@ def still_ours(path, digest):
         return False
 
 
-def take_back(path, digest):
-    """Remove a file this call wrote and nothing else: only when it still holds exactly the bytes written. True when it is gone."""
-    if not still_ours(path, digest):
-        return not Path(path).exists()
+def _aside_name(path):
+    """A hidden name beside `path` that nothing else uses, for moving a file out of the way in one step (#604)."""
+    path = Path(path)
+    return path.with_name(f".{path.name}.{os.getpid()}.{secrets.token_hex(4)}.aside")
+
+
+def _link_no_follow(src, dest):
+    """A second name for `src` itself: a link moved aside is put back as that link, never as the file it points at."""
     try:
-        Path(path).unlink()
+        os.link(src, dest, follow_symlinks=False)
+    except NotImplementedError:
+        os.link(src, dest)
+
+
+def _put_back(aside, dest):
+    """Move `aside` back to `dest`, never over a name taken meanwhile. True when placed; False when the name was taken
+    (`aside` is left as it is); None when it could not be moved (`aside` is left as it is, bytes intact)."""
+    try:
+        return platform.move_unless_exists(aside, dest, link=_link_no_follow)
+    except (OSError, platform.PlatformError):
+        return None
+
+
+def take_back(path, digest):
+    """Remove a file this call wrote and nothing else: only when it still holds exactly the bytes written. True when it is gone.
+    #604: there is no gap between the check and the removal. Whatever is at `path` is first moved aside in one step and
+    checked there; only our own bytes are removed, and anything else is put straight back, never replaced."""
+    path = Path(path)
+    aside = _aside_name(path)
+    try:
+        os.rename(path, aside)
+    except FileNotFoundError:
         return True
     except OSError:
         return False
+    if still_ours(aside, digest):
+        try:
+            os.unlink(aside)
+            return True
+        except OSError:
+            pass                                        # ours, but it would not go: put back below, not left hidden
+    _put_back(aside, path)
+    return False
+
+
+def put_link_back(dest, target, digest):
+    """Put the link `dest` -> `target` back in place of the file this call wrote (#388, #604), without a check-then-act gap:
+    whatever is at `dest` is first moved aside in one step, and only a file that holds exactly the bytes whose SHA-256 is
+    `digest` is replaced; anything else is put straight back (never replaced, never removed) and the link is not made.
+    The link itself is made with os.symlink, which never replaces a name that has appeared meanwhile. If the link cannot
+    be made, our file is put back without replacing anything. Returns:
+      "linked"  the link is back;
+      "kept"    the link could not be made, and our file is still at `dest`;
+      "other"   something that is not ours is at `dest` (it was left alone), so the link was not made;
+      "lost"    the link could not be put back and nothing of ours is at `dest` (it was gone, or could not be moved)."""
+    dest = Path(dest)
+    aside = _aside_name(dest)
+    try:
+        os.rename(dest, aside)
+    except OSError:
+        return "lost"                                   # gone, or could not be moved: nothing was touched
+    if not still_ours(aside, digest):
+        _put_back(aside, dest)                          # someone else's: back where it was, or left whole beside it
+        return "other"
+    try:
+        os.symlink(target, dest)
+    except OSError:
+        placed = _put_back(aside, dest)
+        if placed:
+            return "kept"
+        if placed is False:                             # a name appeared meanwhile; ours is the extra copy
+            try:
+                os.unlink(aside)
+            except OSError:
+                pass
+            return "other"
+        return "lost"
+    try:
+        os.unlink(aside)
+    except OSError:
+        pass                                            # the link is back; a leftover hidden copy of ours harms nothing
+    return "linked"
+
+
+LINK_NOT_PUT_BACK = {                                   # #605: what is said when a replaced link could not be put back
+    "kept": "The link that was at {name} could not be put back, so this report is still there under that name.",
+    "other": "The link that was at {name} could not be put back, because another file is there now. That file was left as it is.",
+    "lost": "The link that was at {name} could not be put back.",
+}
 
 
 def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding=None):
@@ -1209,12 +1290,9 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
                 except (OSError, platform.PlatformError):
                     pass
         elif earlier_link is not None:
-            if still_ours(dest, digest):
-                try:
-                    os.unlink(dest)
-                    os.symlink(earlier_link, dest)
-                except OSError:
-                    pass
+            outcome = put_link_back(dest, earlier_link, digest)
+            if outcome != "linked":                                       # #605: said plainly, not swallowed
+                raise PublishError(f"{e} " + LINK_NOT_PUT_BACK[outcome].format(name=dest.name)) from e
         else:
             take_back(dest, digest)
         raise PublishError(str(e)) from e

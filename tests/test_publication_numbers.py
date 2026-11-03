@@ -4,6 +4,7 @@ taken back; History gets one line per publish. Fictional data only.
 
 Run: python3 dev/run_tests.py test_publication_numbers
 """
+import hashlib
 import json
 import os
 import re
@@ -380,6 +381,213 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertEqual(os.readlink(dest), str(target))
         self.assertEqual(target.read_bytes(), b"the file the link points at")
         self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
+
+    def test_a_link_that_cannot_be_put_back_leaves_the_report_not_an_empty_folder(self):
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        target = folder.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        dest.unlink()
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        real = os.symlink
+
+        def refuse(src, dst, *a, **kw):                                  # the put-back's link cannot be made
+            raise OSError(13, "Permission denied")
+        os.symlink = refuse
+        try:
+            with self.assertRaises(publish.PublishError):
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.symlink = real
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "the file is still there and no temporary name is left")
+        self.assertTrue(dest.read_bytes().startswith(b"<!doctype html"), "the report is kept, not removed")
+        self.assertEqual(target.read_bytes(), b"the file the link points at")
+
+    def test_a_link_that_cannot_be_put_back_is_said_plainly(self):          # #605
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        target = folder.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        dest.unlink()
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        real = os.symlink
+
+        def refuse(src, dst, *a, **kw):
+            raise OSError(13, "Permission denied")
+        os.symlink = refuse
+        try:
+            with self.assertRaises(publish.PublishError) as caught:
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.symlink = real
+        self.assertIn("Another publication was made", str(caught.exception), "the reason for the refusal is still given")
+        self.assertIn(f"The link that was at {dest.name} could not be put back", str(caught.exception))
+
+    def test_a_link_is_never_put_over_a_file_that_is_not_ours(self):       # #604: no gap between the check and the swap
+        folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"someone else's report, put there a moment ago")
+        ours = hashlib.sha256(b"what this publish wrote").hexdigest()
+        self.assertEqual(publish.put_link_back(dest, folder / "elsewhere.html", ours), "other")
+        self.assertFalse(os.path.islink(dest))
+        self.assertEqual(dest.read_bytes(), b"someone else's report, put there a moment ago")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "nothing is left beside it")
+        dest.write_bytes(b"what this publish wrote")
+        self.assertEqual(publish.put_link_back(dest, folder / "elsewhere.html", ours), "linked")
+        self.assertTrue(os.path.islink(dest))
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
+
+    def _folder(self):
+        folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        return folder
+
+    def _swap_in_during_the_check(self, dest, data):
+        """The moment after the check runs, another program saves `data` at `dest` (the window #604 is about)."""
+        real = publish.still_ours
+
+        def check_then_swap(path, digest):
+            answer = real(path, digest)
+            dest.write_bytes(data)
+            return answer
+        publish.still_ours = check_then_swap
+        self.addCleanup(setattr, publish, "still_ours", real)
+
+    def test_a_file_saved_during_the_check_is_never_overwritten_by_the_link(self):        # #604
+        folder = self._folder()
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"what this publish wrote")
+        ours = hashlib.sha256(b"what this publish wrote").hexdigest()
+        self._swap_in_during_the_check(dest, b"someone else's report, saved during the check")
+        self.assertEqual(publish.put_link_back(dest, folder / "elsewhere.html", ours), "other")
+        self.assertFalse(os.path.islink(dest))
+        self.assertEqual(dest.read_bytes(), b"someone else's report, saved during the check")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "our copy is gone and nothing is left beside it")
+
+    def test_a_link_swapped_in_is_put_back_as_that_link_not_followed(self):               # #604
+        folder = self._folder()
+        theirs = folder / "theirs.html"
+        theirs.write_bytes(b"the file their link points at")
+        dest = folder / "PUB-report.html"
+        try:
+            os.symlink(theirs, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        ours = hashlib.sha256(b"what this publish wrote").hexdigest()
+        self.assertEqual(publish.put_link_back(dest, folder / "elsewhere.html", ours), "other")
+        self.assertTrue(os.path.islink(dest))
+        self.assertEqual(os.readlink(dest), str(theirs))
+        self.assertEqual(publish.take_back(dest, ours), False)
+        self.assertEqual(os.readlink(dest), str(theirs))
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), sorted([dest.name, theirs.name]))
+
+    def test_take_back_never_removes_a_file_that_is_not_ours(self):                       # #604: take_back has the same shape
+        folder = self._folder()
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"someone else's report")
+        ours = hashlib.sha256(b"what this publish wrote").hexdigest()
+        self.assertFalse(publish.take_back(dest, ours))
+        self.assertEqual(dest.read_bytes(), b"someone else's report")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "nothing is left beside it")
+        dest.write_bytes(b"what this publish wrote")
+        self.assertTrue(publish.take_back(dest, ours))
+        self.assertEqual(list(folder.iterdir()), [])
+        self.assertTrue(publish.take_back(dest, ours), "a file already gone is gone")
+
+    def test_take_back_never_removes_a_file_saved_during_the_check(self):                 # #604
+        folder = self._folder()
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"what this publish wrote")
+        ours = hashlib.sha256(b"what this publish wrote").hexdigest()
+        self._swap_in_during_the_check(dest, b"someone else's report, saved during the check")
+        self.assertTrue(publish.take_back(dest, ours), "our bytes are gone")
+        self.assertEqual(dest.read_bytes(), b"someone else's report, saved during the check")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
+
+    def test_take_back_puts_our_file_back_when_it_will_not_go(self):
+        folder = self._folder()
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"what this publish wrote")
+        ours = hashlib.sha256(b"what this publish wrote").hexdigest()
+        real, refused = os.unlink, []
+
+        def refuse(path, *a, **kw):                                         # the removal is refused once, then works
+            if not refused:
+                refused.append(path)
+                raise OSError(13, "Permission denied")
+            return real(path, *a, **kw)
+        os.unlink = refuse
+        try:
+            self.assertFalse(publish.take_back(dest, ours))
+        finally:
+            os.unlink = real
+        self.assertEqual(dest.read_bytes(), b"what this publish wrote")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "not left under a hidden name")
+
+    def _linked_report(self):
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        target = folder.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        self.addCleanup(lambda: target.unlink() if target.exists() else None)
+        dest.unlink()
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        return store, folder, dest, target
+
+    def test_a_link_lost_to_a_file_saved_meanwhile_is_said_plainly_and_the_file_kept(self):     # #605
+        store, folder, dest, target = self._linked_report()
+        real = os.symlink
+
+        def someone_saves_first(src, dst, *a, **kw):                       # another program takes the name just before the link
+            Path(dst).write_bytes(b"someone else's report, saved meanwhile")
+            raise FileExistsError(17, "File exists")
+        os.symlink = someone_saves_first
+        try:
+            with self.assertRaises(publish.PublishError) as caught:
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.symlink = real
+        said = str(caught.exception)
+        self.assertIn("Another publication was made", said)
+        self.assertIn(f"The link that was at {dest.name} could not be put back, because another file is there now", said)
+        self.assertNotIn(str(folder), said, "no folder path in the message")
+        self.assertEqual(dest.read_bytes(), b"someone else's report, saved meanwhile")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "no hidden copy is left")
+        self.assertEqual(target.read_bytes(), b"the file the link points at")
+
+    def test_a_link_and_report_that_cannot_be_moved_back_are_said_plainly(self):              # #605
+        store, folder, dest, target = self._linked_report()
+        real_link, real_move = os.symlink, publish.platform.move_unless_exists
+
+        def refuse(*a, **kw):
+            raise OSError(5, "Input/output error")
+        os.symlink = refuse
+        publish.platform.move_unless_exists = refuse
+        try:
+            with self.assertRaises(publish.PublishError) as caught:
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.symlink, publish.platform.move_unless_exists = real_link, real_move
+        said = str(caught.exception)
+        self.assertIn(f"The link that was at {dest.name} could not be put back.", said)
+        self.assertNotIn(str(folder), said, "no folder path in the message")
+        self.assertNotIn(".aside", said, "no hidden name in the message")
+        self.assertEqual(len(list(folder.iterdir())), 1, "the report's bytes are kept, not removed")
+        self.assertTrue(next(folder.iterdir()).read_bytes().startswith(b"<!doctype html"))
+        self.assertEqual(target.read_bytes(), b"the file the link points at")
 
     def test_overwrite_with_a_lost_race_and_no_earlier_file_leaves_nothing(self):
         store, folder = self._overwrite_rig()
