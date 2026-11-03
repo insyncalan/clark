@@ -31,7 +31,8 @@ export const IMPORT = {
   close: "Close",
   none: "Nothing in this workbook differs from what clark has, so there is nothing to import.",
   already: "That workbook was already imported as it is, so there is nothing to import. Save it again after editing it, or export a fresh one.",
-  unrecorded: "There is no record of exporting this workbook from clark, so clark cannot say what you changed in it. Check it is the right file; every difference is listed and nothing is ticked that archives a row.",
+  unrecorded: "There is no record of exporting this workbook from clark, so clark cannot say what you changed in it. Check it is the right file; every difference is listed and nothing that archives a row starts on Accept.",
+  archiveNote: "Accept archives it. It is not deleted.",   // on a Not in the workbook row, as the prototype says it
   anyway: "Import anyway",
   undo: "Undo this import",
   undone: "Put back as it was before the import.",
@@ -117,7 +118,7 @@ export function summaryLine(r) {
 
 // The numbers ticked, in order. `ticked` is an object {n: true}. Items past the shown ones follow their own default.
 export function acceptedNumbers(items, ticked) {
-  return items.filter((i) => (Object.prototype.hasOwnProperty.call(ticked, i.n) ? ticked[i.n] : i.default) && !i.problem).map((i) => i.n);
+  return items.filter((i) => isAccepted(i, ticked)).map((i) => i.n);
 }
 
 // The starting ticks: what the server says Accept all takes (a new or changed row with no problem and no clash).
@@ -128,6 +129,20 @@ export function startTicks(items) {
 }
 
 export const KIND_WORD = { new: "New", changed: "Changed", removed: "Not in the workbook" };
+// The prototype's label for rows of the workbook that match clark (the server counts them as `unchanged`; they have no Accept / Reject).
+export const NO_CHANGE = "No change";
+
+// Whether a row shows Accept: its own choice, else the server's default; a row that would be refused is never accepted.
+export function isAccepted(i, ticked) {
+  return !!(Object.prototype.hasOwnProperty.call(ticked, i.n) ? ticked[i.n] : i.default) && !i.problem;
+}
+
+// Reject all: every row on Reject (Accept all is startTicks: new and changed rows, never a row not in the workbook).
+export function rejectAll(items) {
+  const t = {};
+  for (const i of items) t[i.n] = false;
+  return t;
+}
 
 // Base64 of bytes in pieces, so a large workbook does not overflow the call stack.
 export function toBase64(bytes) {

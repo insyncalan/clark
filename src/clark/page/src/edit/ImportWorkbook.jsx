@@ -1,6 +1,6 @@
 // Import workbook (#444), the prototype's two steps (system/prototype/io.js importExcel): say what is read and choose a file, then Check
-// the import: the counts, every difference in words with a tick, and Import. Nothing is saved until Import; the server (POST
-// /api/excel-import) reads the workbook, compares it with this project by ID and applies the ticked changes as ONE step, which Undo
+// the import: the counts, every difference in words with Accept / Reject (Accept all · Reject all above the list), and Import. Nothing is saved until Import; the server (POST
+// /api/excel-import) reads the workbook, compares it with this project by ID and applies the accepted changes (sent by row number, as before) as ONE step, which Undo
 // this import takes back. The workbook is sent once to be checked and not again. `api`, `read` and `tpl` (Get the template: GET /api/export?template=1) are seams for the tests.
 import { useRef, useState } from "preact/hooks";
 import { Dialog } from "./Dialog.jsx";
@@ -11,7 +11,7 @@ import * as L from "../logic/dataCard.js";
 
 const T = L.IMPORT;
 const MAX_FILE = 25 * 1024 * 1024;                       // clark's own limit (excel.MAX_FILE_BYTES); the server says it again
-const SHOWN = 300;                                       // the changes listed with a tick; any more follow what the server takes for "all"
+const SHOWN = 300;                                       // the changes listed with Accept / Reject; any more follow what the server takes for "all"
 
 const REAL = { check: checkWorkbook, apply: applyWorkbook, undo: undoWorkbook };
 const readBytes = async (file) => new Uint8Array(await file.arrayBuffer());
@@ -106,22 +106,35 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
       {p.problems.map((t, i) => <p class="imp-note" key={`p${i}`}>Not imported: {t}</p>)}
       {p.notes.map((t, i) => <p class="muted imp-note" key={`n${i}`}>{t}</p>)}
       {empty ? null : (
+        <div class="imp-bar" id="import-bar"><span class="muted">Changes to check</span>
+          <span><button type="button" class="link" id="import-accept-all" onClick={() => setTicks(L.startTicks(items))}>Accept all</button> · <button type="button" class="link" id="import-reject-all" onClick={() => setTicks(L.rejectAll(items))}>Reject all</button></span></div>
+      )}
+      {empty ? null : (
         <ul class="imp-list" aria-label="Changes in this workbook">
-          {shown.map((i) => (
-            <li key={i.n} class={i.problem ? "bad" : ""} data-change={i.n}>
-              <label>
-                <input type="checkbox" checked={!!(Object.prototype.hasOwnProperty.call(ticks, i.n) ? ticks[i.n] : i.default) && !i.problem} disabled={!!i.problem}
-                  onChange={(e) => setTicks({ ...ticks, [i.n]: e.currentTarget.checked })} />
-                <span class="tag">{L.KIND_WORD[i.kind] || i.kind}</span> <span>{i.text}</span>
-              </label>
-              {i.detail ? <div class="muted imp-detail">{i.detail}</div> : null}
-              {i.clash ? <div class="muted imp-detail">It changed in clark after the workbook was made.</div> : null}
-              {i.problem ? <div class="imp-detail error">Would be refused: {i.problem}</div> : null}
-            </li>
-          ))}
+          {shown.map((i) => {
+            const on = L.isAccepted(i, ticks), name = `import-choice-${i.n}`;
+            return (
+              <li key={i.n} class={i.problem ? "bad" : ""} data-change={i.n} data-kind={i.kind}>
+                <div class="imp-main">
+                  <span class={i.kind === "removed" ? "tag" : "tag cl"}>{L.KIND_WORD[i.kind] || i.kind}</span> <span>{i.text}</span>
+                  {i.kind === "removed" ? <div class="muted imp-detail imp-archive-note">{T.archiveNote}</div> : null}
+                  {i.detail ? <div class="muted imp-detail">{i.detail}</div> : null}
+                  {i.clash ? <div class="muted imp-detail">It changed in clark after the workbook was made.</div> : null}
+                  {i.problem ? <div class="imp-detail error">Would be refused: {i.problem}</div> : null}
+                </div>
+                <div class="imp-act" role="radiogroup" aria-label={i.text}>
+                  <label><input type="radio" name={name} value="1" checked={on} disabled={!!i.problem} onChange={() => setTicks({ ...ticks, [i.n]: true })} />Accept</label>
+                  <label><input type="radio" name={name} value="0" checked={!on} disabled={!!i.problem} onChange={() => setTicks({ ...ticks, [i.n]: false })} />Reject</label>
+                </div>
+              </li>
+            );
+          })}
+          {p.unchanged ? (
+            <li class="imp-same" id="import-unchanged"><div class="imp-main"><span class="tag">{L.NO_CHANGE}</span> <span>{p.unchanged} {p.unchanged === 1 ? "row" : "rows"} in the workbook</span><div class="muted imp-detail">nothing differs</div></div></li>
+          ) : null}
         </ul>
       )}
-      {items.length > SHOWN ? <p class="muted">and {items.length - SHOWN} more, taken as the ticks above are for the rest: new and changed rows with no problem.</p> : null}
+      {items.length > SHOWN ? <p class="muted">and {items.length - SHOWN} more, taken as Accept all takes them: new and changed rows with no problem.</p> : null}
       <p class="error" role="alert" id="import-problem">{problem}</p>
     </Dialog>
   );

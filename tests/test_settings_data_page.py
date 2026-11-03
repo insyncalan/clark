@@ -21,8 +21,9 @@ WIDTHS = (1400, 900)
 USER = "Test Person"
 
 
-def workbook(rig, tmp, new_text):
-    """A workbook exported as the page's Export does it, with the first action's description changed; (base64, the action's id, its old text)."""
+def workbook(rig, tmp, new_text, drop=False):
+    """A workbook exported as the page's Export does it, with the first action's description changed; (base64, the action's id, its old text).
+    With drop, the row of another open action is taken out too, so the check has a "Not in the workbook" row (rig.dropped is its id)."""
     from openpyxl import load_workbook
     path = Path(tmp) / "PUB work items.xlsx"
     made = excel.export_project(rig.store, "PUB", path, Path(tmp) / "state.json", on="2030-06-01")
@@ -34,6 +35,10 @@ def workbook(rig, tmp, new_text):
     head = {c.value: c.column for c in ws[1]}
     row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, head["ID"]).value == action["id"])
     ws.cell(row, head["Description"]).value = new_text
+    if drop:
+        other = next(a for a in rig.store.read("actions", "PUB", archived=False)[1:] if a["status"] not in ("Closed", "Cancelled"))
+        ws.delete_rows(next(r for r in range(2, ws.max_row + 1) if ws.cell(r, head["ID"]).value == other["id"]))
+        rig.dropped = other["id"]
     wb.save(str(path))
     return base64.b64encode(path.read_bytes()).decode(), action["id"], action["description"]
 
@@ -134,6 +139,65 @@ class Card(Base):
                 p.js("document.querySelector('#import-close').click()")
                 p.until("!document.querySelector('#import-box')", "the box closed")
 
+    def test_the_check_has_accept_or_reject_per_row_accept_all_reject_all_and_the_archive_note(self):
+        """#454: the prototype's check (system/prototype/io.js stage/stRow): each row an Accept / Reject pair, Accept all · Reject all above
+        the list, Not in the workbook starting on Reject with "Accept archives it. It is not deleted.", and No change for the rows that match.
+        The request is still the accepted row numbers: only the rows on Accept are applied."""
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                folder = Path(self.tmp.name) / f"rr{w}"
+                folder.mkdir()
+                b64, action, old = workbook(self.rig, folder, "Agree the cut-over plan, radios", drop=True)
+                gone = self.rig.dropped
+                p = self.page(cdp)
+                p.width(w)
+                self.open_settings(p)
+                p.js("document.querySelector('#import-workbook').click()")
+                p.until("!!document.querySelector('#import-box')", "the box opened")
+                self.choose(p, b64)
+                p.until("!!document.querySelector('#import-summary')", "the check")
+                rows = p.js("""[...document.querySelectorAll('.imp-list li[data-change]')].map(li => ({kind: li.dataset.kind, text: li.innerText,
+                  radios: [...li.querySelectorAll('input[type=radio]')].map(r => [r.parentElement.textContent, r.checked]),
+                  boxes: li.querySelectorAll('input[type=checkbox]').length, group: li.querySelectorAll('[role=radiogroup]').length}))""")
+                kinds = {r["kind"]: r for r in rows}
+                self.assertEqual(set(kinds), {"changed", "removed"}, rows)
+                for r in rows:
+                    self.assertEqual((r["boxes"], r["group"]), (0, 1), "a radio pair, no checkbox")
+                self.assertIn(action, kinds["changed"]["text"])
+                self.assertEqual(kinds["changed"]["radios"], [["Accept", True], ["Reject", False]])
+                self.assertIn(gone, kinds["removed"]["text"])
+                self.assertIn("Not in the workbook", kinds["removed"]["text"])
+                self.assertIn("Accept archives it. It is not deleted.", kinds["removed"]["text"])
+                self.assertEqual(kinds["removed"]["radios"], [["Accept", False], ["Reject", True]], "Not in the workbook starts on Reject")
+                self.assertNotIn("Accept archives it", kinds["changed"]["text"])
+                self.assertIn("No change", p.js("document.querySelector('#import-unchanged').innerText"))
+                self.assertEqual(p.js("document.querySelector('#import-bar').innerText.replace(/\\s+/g, ' ').trim()"), "Changes to check Accept all · Reject all")
+                self.assertLessEqual(p.js("document.querySelector('#import-bar').getBoundingClientRect().bottom"),
+                                     p.js("document.querySelector('.imp-list').getBoundingClientRect().top") + 1, "the bar is above the list")
+                go = "document.querySelector('#import-go')"
+                self.assertEqual(p.js(f"{go}.textContent"), "Import 1 change")
+                checked = "((k, v) => document.querySelector(`.imp-list li[data-kind=${k}] input[value='${v}']`).checked)"
+                p.js("document.querySelector('#import-reject-all').click()")
+                p.until(f"{go}.disabled", "Reject all leaves nothing to import")
+                self.assertEqual(p.js(f"[{checked}('changed', '0'), {checked}('removed', '0')]"), [True, True])
+                p.js("document.querySelector('#import-accept-all').click()")
+                p.until(f"{go}.textContent === 'Import 1 change' && !{go}.disabled", "Accept all")
+                self.assertEqual(p.js(f"[{checked}('changed', '1'), {checked}('removed', '0')]"), [True, True], "Accept all leaves Not in the workbook on Reject")
+                p.js("document.querySelector(`.imp-list li[data-kind=removed] input[value='1']`).click()")
+                p.until(f"{go}.textContent === 'Import 2 changes'", "Accept on the row not in the workbook")
+                p.js("document.querySelector(`.imp-list li[data-kind=changed] input[value='0']`).click()")
+                p.until(f"{go}.textContent === 'Import 1 change'", "Reject on the changed row")
+                self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
+                self.assertLessEqual(p.js("Math.max(...[...document.querySelectorAll('#import-box .imp-act')].map(e => e.getBoundingClientRect().right))"),
+                                     p.js("document.querySelector('#import-box').getBoundingClientRect().right"), "the radios fit in the box")
+                p.js(f"{go}.click()")
+                p.until("!!document.querySelector('#import-result')", "the result")
+                self.assertTrue(self.rig.store.read("actions", ref=gone)["archived"], "the accepted row is archived")
+                self.assertEqual(self.rig.store.read("actions", ref=action)["description"], old, "the rejected row is not changed")
+                p.js("document.querySelector('#import-undo').click()")
+                p.until("document.querySelector('#import-result') && document.querySelector('#import-result').textContent.startsWith('Put back')", "Undo")
+                self.assertFalse(self.rig.store.read("actions", ref=gone)["archived"])
+
     def test_the_first_box_lists_each_sheets_columns_as_the_export_writes_them(self):
         from clark import excel_import
         with chrome() as cdp:
@@ -225,8 +289,11 @@ class Card(Base):
                 p.until("!!document.querySelector('#import-box')", "the box opened")
                 self.choose(p, b64)
                 p.until("!!document.querySelector('#import-go')", "the check")
-                for sel in ("#import-go", "#import-box .btn.quiet"):
-                    self.assertGreaterEqual(p.js(f"({probe})('{sel}')"), 4.5, sel)
+                for w in WIDTHS:                    # #454: the check's radios, Accept all and Reject all at both widths
+                    p.width(w)
+                    for sel in ("#import-go", "#import-box .btn.quiet", "#import-accept-all", "#import-reject-all", ".imp-act label", ".imp-list .tag"):
+                        self.assertGreaterEqual(p.js(f"({probe})('{sel}')"), 4.5, (w, sel))
+                    self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
 
 
 if __name__ == "__main__":

@@ -560,8 +560,13 @@ textarea.tpl-field { resize: vertical; }
 .ad.dlg .imp-note { font-size: 13px; }
 .ad.dlg .imp-cols { margin: var(--space-1) 0 0; font-size: 13px; max-height: 30vh; overflow: auto; }
 .ad.dlg .imp-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; max-height: 40vh; overflow: auto; }
-.ad.dlg .imp-list li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
-.ad.dlg .imp-list label { display: flex; align-items: baseline; gap: 8px; cursor: pointer; }
-.ad.dlg .imp-list input { flex: none; }
-.ad.dlg .imp-detail { margin-left: 26px; font-size: 13px; }
+.ad.dlg .imp-list li { padding: 6px 0; border-top: 1px solid var(--grey-100); display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.ad.dlg .imp-main { min-width: 0; overflow-wrap: anywhere; }
+.ad.dlg .imp-act { display: flex; gap: 12px; flex: none; font-size: 13px; }
+.ad.dlg .imp-act label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; min-height: 24px; }
+.ad.dlg .imp-act input { flex: none; margin: 0; }
+.ad.dlg .imp-act label:has(input:disabled) { cursor: default; }
+.ad.dlg .imp-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: var(--space-2) 0 0; font-size: 13px; }
+.ad.dlg .imp-detail { margin-top: 2px; font-size: 13px; }
 @media (max-width: 900px) { .ad.dlg, .ad.dlg.wide { width: 100%; } }
+@media (max-width: 700px) { .ad.dlg .imp-list li { flex-direction: column; } }
