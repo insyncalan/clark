@@ -78,12 +78,13 @@ for name in os.listdir("/dev/fd"):
 FDS.sort()
 mask = os.umask(0)
 os.umask(mask)
-with open(os.path.join(here, "seen.json"), "w", encoding="utf-8") as f:
+with open(os.path.join(here, "seen.json.tmp"), "w", encoding="utf-8") as f:
     json.dump({"args": args, "env": dict(os.environ), "cwd": os.getcwd(), "stdin": data.decode("utf-8", "surrogateescape"),
                "stdin_len": len(data), "eof": again == b"", "pid": os.getpid(), "pgid": os.getpgid(0), "fds": FDS,
                "inodes": {str(n): INO[n] for n in FDS if n > 2 and n in INO}, "sockets": [n for n in FDS if n in SOCK],
                "umask": mask, "tmp": tmp, "tmp_mode": (tmp_st.st_mode & 0o777) if tmp_st else None,
                "tmp_uid": tmp_st.st_uid if tmp_st else None, "start_cwd": start_cwd, "start_tmp": start_tmp}, f)
+os.replace(os.path.join(here, "seen.json.tmp"), os.path.join(here, "seen.json"))
 if mode == "slow":
     time.sleep(60)
 if mode == "helper":
@@ -177,7 +178,10 @@ class Fake(unittest.TestCase):
 
     def seen(self):
         p = self.bin / "seen.json"
-        return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
+        try:
+            return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
+        except ValueError:
+            return None                                   # caught half-written: the same as not there yet
 
     def calls(self):
         p = self.bin / "calls.jsonl"
@@ -759,6 +763,10 @@ class Limits(Fake):
         self.assertEqual(out["got"], ask.Failure(ask.STOPPED))
         self.assertFalse(alive(self.seen()["pid"]))
         self.assertFalse(provider.stop(), "nothing left to stop")
+
+    def test_seen_is_none_for_a_half_written_file(self):
+        (self.bin / "seen.json").write_text("", encoding="utf-8")
+        self.assertIsNone(self.seen())
 
     def test_one_question_at_a_time(self):
         self.mode("slow")
