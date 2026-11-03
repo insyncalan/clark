@@ -93,12 +93,15 @@ EVERYTHING = ("VERSION", "docs/RULES.md", ".claude/", ".github/", "vendor/", ".g
 # (the store, its schema and history, the server); listing a path that is not on main yet is fine. The workflow is already
 # covered by EVERYTHING (.github/).
 GUARDED = ("src/clark/store.py", "src/clark/schema.sql", "src/clark/history.py", "src/clark/server.py",
-           ".github/workflows/tests.yml",
-           # the update trust chain (#282): the pinned key, the signature check, the vendored verifier, the helper, the installer
-           "src/clark/updates.py", "vendor/ed25519_verify/", "src/clark/update_helper.py", "src/clark/update_install.py",
-           "dev/tools/sign_release.py", "dev/tools/ed25519_sign.py", "tests/test_update_signature.py",
-           # the launcher and the platform layer that start and finish an update
-           "clark.command", "src/clark/__main__.py", "src/clark/platform.py")
+           ".github/workflows/tests.yml", ".github/workflows/",   # the board rule names the workflows (all of them)
+           # #592: the guarded files our rules name (a path is matched as a prefix, so "ask" covers every ask*.py, "publish" every
+           # publish*.py and "update" every update*.py)
+           "src/clark/publish", "src/clark/secret_screen.py", "src/clark/update",
+           "src/clark/platform.py", "src/clark/changes.py", "src/clark/word_route.py", "src/clark/section_bodies.py",
+           "src/clark/ai_service.py", "src/clark/doclinks.py", "src/clark/ask",
+           # the update trust chain (#282) beyond the prefixes above: the vendored verifier, the signing tools, the pin test, the launcher
+           "vendor/ed25519_verify/", "dev/tools/sign_release.py", "dev/tools/ed25519_sign.py", "tests/test_update_signature.py",
+           "clark.command", "src/clark/__main__.py")
 DOCUMENTS = ("docs/",)                # and any *.md: these reach only the tests that name them (see `guard_tests`)
 NAMES_GUARD = "test_no_real_names"    # reads every tracked file, so any change runs it
 FILE_TIMEOUT = float(os.environ.get("CLARK_FILE_TIMEOUT") or 900)   # seconds; 0 means no limit (see --file-timeout)
@@ -179,8 +182,8 @@ def changed_paths(base):
         if r.returncode:
             raise SystemExit(f"git {' '.join(args)} failed: {r.stderr.strip()} (is {base!r} a branch or commit?)")
         return [x for x in r.stdout.splitlines() if x]
-    mb = git("merge-base", "HEAD", base)
-    return sorted(set(git("diff", "--name-only", mb[0] if mb else base)) | set(git("ls-files", "-o", "--exclude-standard")))
+    mb = git("merge-base", "HEAD", base)   # #593: --no-renames below lists the old path of a rename too
+    return sorted(set(git("diff", "--name-only", "--no-renames", mb[0] if mb else base)) | set(git("ls-files", "-o", "--exclude-standard")))
 
 
 def _module_name(rel):

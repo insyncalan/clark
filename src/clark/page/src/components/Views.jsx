@@ -1,6 +1,6 @@
 // The other pages as a shell: Work items and the Dashboard (Dashboard.jsx) sit in one frame of the same width (
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
 import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, mode } from "../stores/report.js";
 import { milestoneRows, headLine, showDate, todayIso } from "../logic/milestones.js";
@@ -110,28 +110,64 @@ export function Milestones({ tools }) {
 
 // The Settings head: the title, a line of help and one chip for each card that is on the page. A chip scrolls to its card and moves
 // focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
+// The row of chips (item 440, S2) is a bar of its own under the head: it stays under the top bar as you scroll, and the chip of the card
+// you are reading is marked (aria-current). The prototype's other chips wait for their cards.
 const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
   ["Safety", "Backups", "safety-h"], ["AskSettings", "Asking", "ask-settings-h"]];
+
+const cardOf = (headId) => { const head = document.getElementById(headId); return head ? head.closest("section") || head : null; };
 
 function goToCard(headId) {
   const head = document.getElementById(headId);
   if (!head) return;
   const calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  (head.closest("section") || head).scrollIntoView({ block: "start", behavior: calm ? "auto" : "smooth" });
+  cardOf(headId).scrollIntoView({ block: "start", behavior: calm ? "auto" : "smooth" });
   head.focus({ preventScroll: true });
 }
 
+// The card you are reading: the last one whose top has come up to the bar (with a little room). At the foot of the page the last
+// cards can never come up that far, so there the chip last chosen stays marked while its card is in view.
+function cardHere(cards, picked) {
+  const bar = document.querySelector(".set-bar");
+  if (!bar || !cards.length) return "";
+  const edge = bar.getBoundingClientRect().bottom + 24, foot = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+  const chosen = picked && cardOf(picked);
+  if (foot && chosen && chosen.getBoundingClientRect().top < window.innerHeight) return picked;
+  let here = cards[0][2];
+  for (const [, , headId] of cards) { const card = cardOf(headId); if (card && card.getBoundingClientRect().top <= edge) here = headId; }
+  return here;
+}
+
 function SettingsHead({ cards }) {
+  const [here, setHere] = useState("");
+  const picked = useRef("");
+  const ids = cards.map(([, , headId]) => headId).join(" ");
+  useEffect(() => {
+    const mark = () => setHere(cardHere(cards, picked.current));
+    // the bar's height (one row of chips or two) is room the browser keeps clear when it scrolls a card or a box into view (shell.css)
+    const bar = document.querySelector(".set-bar"), root = document.documentElement;
+    const room = () => { root.style.setProperty("--set-bar", `${bar ? bar.offsetHeight : 0}px`); mark(); };
+    const seen = bar && window.ResizeObserver ? new ResizeObserver(room) : null;
+    if (seen) seen.observe(bar);
+    room();
+    window.addEventListener("scroll", mark, { passive: true });
+    return () => { window.removeEventListener("scroll", mark); if (seen) seen.disconnect(); root.style.removeProperty("--set-bar"); };
+  }, [ids]);
+  const go = (headId) => { picked.current = headId; setHere(headId); goToCard(headId); };
   return (
-    <section class="frame set-head">
-      <h1>Settings</h1>
-      <p class="muted">Where reports are published, how clark looks for you, the log, your backups and asking Claude.</p>
+    <>
+      <section class="frame set-head">
+        <h1>Settings</h1>
+        <p class="muted">Where reports are published, how clark looks for you, the log, your backups and asking Claude.</p>
+      </section>
       {cards.length ? (
-        <nav aria-label="Settings sections">
-          <ul class="set-nav">{cards.map(([, name, headId]) => <li key={headId}><button type="button" class="set-chip" onClick={() => goToCard(headId)}>{name}</button></li>)}</ul>
+        <nav class="set-bar" aria-label="Settings sections">
+          <ul class="set-nav">{cards.map(([, name, headId]) => (
+            <li key={headId}><button type="button" class="set-chip" aria-current={here === headId ? "location" : undefined} onClick={() => go(headId)}>{name}</button></li>
+          ))}</ul>
         </nav>
       ) : null}
-    </section>
+    </>
   );
 }
 

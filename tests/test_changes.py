@@ -129,7 +129,7 @@ class Refusals(Api):
         self.refused(self.req("new", before="ABC-S-001"), "That change doesn't take 'before'.")
         self.refused(self.req("update", id="ABC-S-005", values={"title": "x"}), "That change doesn't take 'values'.")
         self.refused(self.req("update", id="ABC-S-005", changes={"sort_order": 1}), "The field 'sort_order' can't be set here.")
-        self.refused(self.req("update", id="ABC-S-005", changes={"body": "x"}), changes.NO_BODY_HERE)         # a text section's body write stays closed
+        self.refused(self.req("update", id="ABC-S-001", changes={"body": "x"}), changes.NO_BODY_HERE)         # a built-in section takes no body (a text section does: test_changes_text_body)
         self.refused(self.req("update", id="ABC-S-005", changes={"project": "XYZ"}), "The field 'project' can't be set here.")
         self.refused(self.req("update", id="ABC-S-005", changes={}), "Say what to change.")
         self.refused(self.req("update", id="ABC-S-005"), "Say what to change.")
@@ -993,9 +993,9 @@ class ByUser(Api):
                          "Someone Else")
 
 
-ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description"},
-               "raid": {"status", "workstream", "owner", "due_date", "milestone", "use_case", "description"},
-               "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision"}}      # #67: + the title
+ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "client_visible"},
+               "raid": {"status", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_visible"},
+               "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision", "client_visible"}}      # #67: + the title; #97: + the eye
 
 
 class Items(Api):
@@ -1070,7 +1070,7 @@ class Items(Api):
             self.assertEqual(set(changes.CHANGE_KINDS[kind]["update"]), fields, kind)
             self.assertTrue(fields <= columns[kind], kind)
             self.assertTrue(set(changes.ITEM_SHOWN[kind]) <= columns[kind], kind)
-            for never in ("archived", "id", "project", "type", "client_visible", "closed"):
+            for never in ("archived", "id", "project", "type", "closed"):
                 self.assertNotIn(never, fields, (kind, never))
         self.assertNotIn("priority", changes.CHANGE_KINDS["raid"]["update"])
         self.assertNotIn("priority", changes.CHANGE_KINDS["raid"]["bulk"])
@@ -1219,7 +1219,7 @@ class Items(Api):
 
     def test_unknown_and_never_fields_are_refused(self):
         self.no(self.item("actions", self.a, client_message="x"), "The field 'client_message' can't be set here.")
-        self.no(self.item("actions", self.a, client_visible=0), "The field 'client_visible' can't be set here.")
+        self.no(self.item("actions", self.a, client_message="x", client_visible=0), "The field 'client_message' can't be set here.")
         self.no(self.item("actions", self.a, closed="2026-10-02"), "The field 'closed' can't be set here.")
         self.no(self.item("actions", self.a, project="XYZ"), "The field 'project' can't be set here.")
         self.no(self.item("actions", self.a, id="ABC-A-099"), "The field 'id' can't be set here.")

@@ -6,11 +6,13 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
+import { weightsNote } from "../logic/trackerNote.js";
 import { Overall, GroupFull, GroupHalf, columnsOf, fitOf, useNarrow, colCount } from "../components/Tracker.jsx";
 import {
-  trackerOf, totals, pct, problem, totalProblem, made, draftOf, blankLine, nameProblem, noteProblem, bodyOf, STATUSES, HEALTH, COLUMNS, NAME_MAX, TEXT_MAX, NO_MAX, NOTE_MAX, WORDS,
+  trackerOf, totals, pct, draftOf, blankLine, bodyOf, STATUSES, HEALTH, COLUMNS, NAME_MAX, TEXT_MAX, NO_MAX, NOTE_MAX,
   withLineAdded, withLineReplaced, withoutLine, withLineMoved, withGroupAdded, withGroupRenamed, withoutGroup, withGroupMoved, withOverall, withColumn, MAX_GROUPS, MAX_LINES,
 } from "../logic/tracker.js";
+import { WORDS, problem, totalProblem, made, nameProblem, noteProblem } from "../logic/trackerEdit.js";
 
 const NEW = -1;                                           // the line being added, not yet in the list
 
@@ -199,7 +201,7 @@ export function TrackerEdit({ section, slot }) {
           </p>
         </div>
       ))}
-      {t.weightsNote ? <p class="quiet tr-weights" data-tr-weights>{t.weightsNote}</p> : null}
+      {weightsNote(t) ? <p class="quiet tr-weights" data-tr-weights>{weightsNote(t)}</p> : null}
       {!lineCount ? <p class="quiet" data-tr-unpublished>{WORDS.notPublished}</p> : null}
       {naming === NEW ? (
         <div class="t-gtools t-new-group" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setNaming(null); setNameError(""); focusLater(sid, "[data-add-group]"); } else if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); onName(); } }}>

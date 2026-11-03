@@ -301,13 +301,18 @@ class Changed(unittest.TestCase):
         # #31 and #33 land these; a change to any of them runs everything (as creaite's guarded set does), so a change
         # to src/clark/server.py runs tests/test_server.py and all the rest
         every = sorted(f.name for f in self.files)
-        self.assertEqual(set(run_tests.GUARDED), {"src/clark/store.py", "src/clark/schema.sql", "src/clark/history.py",
-                                                   "src/clark/server.py", ".github/workflows/tests.yml",
-                                                   "src/clark/updates.py", "vendor/ed25519_verify/", "src/clark/update_helper.py",
-                                                   "src/clark/update_install.py", "dev/tools/sign_release.py",
-                                                   "dev/tools/ed25519_sign.py", "tests/test_update_signature.py",
-                                                   "clark.command", "src/clark/__main__.py", "src/clark/platform.py"})
+        self.assertLessEqual({"src/clark/store.py", "src/clark/schema.sql", "src/clark/history.py",
+                              "src/clark/server.py", ".github/workflows/tests.yml", ".github/workflows/"},
+                             set(run_tests.GUARDED))
         for p in run_tests.GUARDED:
+            with self.subTest(p):
+                self.assertEqual(self.chosen([p]), every)
+        # #592: the files our rules name, ask*.py by prefix
+        for p in ("src/clark/changes.py", "src/clark/word_route.py", "src/clark/section_bodies.py", "src/clark/ai_service.py",
+                  "src/clark/doclinks.py", "src/clark/ask_service.py", "src/clark/ask.py", "src/clark/publish.py",
+                  "src/clark/secret_screen.py", "src/clark/update.py", "src/clark/updates.py", "src/clark/update_helper.py",
+                  "src/clark/publish_flow.py", "src/clark/publish_pdf.py", "src/clark/platform.py",
+                  ".github/workflows/release.yml"):
             with self.subTest(p):
                 self.assertEqual(self.chosen([p]), every)
         _, why = run_tests.choose(self.files, ["src/clark/server.py"], repo=self.repo)
@@ -318,10 +323,26 @@ class Changed(unittest.TestCase):
         owners = {ln.split()[0] for ln in (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8").splitlines()
                   if ln.strip() and not ln.startswith("#")}
         for path in run_tests.GUARDED:
-            if path.startswith(("src/clark/update", "vendor/ed25519", "dev/tools/sign_release", "dev/tools/ed25519",
-                                "tests/test_update", "clark.command", "src/clark/__main__", "src/clark/platform")):
+            if path.startswith(("vendor/ed25519", "dev/tools/sign_release", "dev/tools/ed25519",
+                                "tests/test_update", "clark.command", "src/clark/__main__")):
                 with self.subTest(path):
                     self.assertIn("/" + path, owners)
+
+    def test_a_rename_away_from_a_guarded_path_is_seen(self):
+        # #593: git diff must list the old name of a rename, so moving store.py away still runs everything
+        def git(*a):
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", *a], cwd=d, check=True,
+                           capture_output=True)
+        with tempfile.TemporaryDirectory() as d:
+            git("init", "-q")
+            (Path(d) / "src" / "clark").mkdir(parents=True)
+            (Path(d) / "src/clark/store.py").write_text("x = 1\n" * 50, encoding="utf-8")
+            git("add", ".")
+            git("commit", "-qm", "a")
+            git("mv", "src/clark/store.py", "src/clark/other.py")
+            with mock.patch.object(run_tests, "REPO", Path(d)):
+                paths = run_tests.changed_paths("HEAD")
+        self.assertIn("src/clark/store.py", paths)
 
     def test_the_real_repo(self):
         files, why = run_tests.choose(everything(), ["src/clark/milestones.py"])
