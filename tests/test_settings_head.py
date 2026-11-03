@@ -50,6 +50,10 @@ class Head(Base):
         p.until(f"document.activeElement && document.activeElement.id === '{head_id}'", f"focus is on {head_id}")
         p.until(f"(function(){{var r = document.getElementById('{head_id}').getBoundingClientRect(); return r.top >= 56 && r.bottom <= window.innerHeight;}})()",
                 "the heading is in view, clear of the top bar")
+        # The chip's scroll is smooth and the heading is in view before it ends. A window.scrollTo while it is still running cancels it
+        # and leaves the next chip's smooth scroll stuck near the top, so wait for the scroll to stop (the same position on two reads).
+        p.until("(function(){var y = window.scrollY, same = window.__settled === y; window.__settled = y; return same;})()",
+                "the chip's scroll finished")
 
     def test_C_the_title_the_help_line_and_a_chip_for_each_card_that_exists(self):
         for w in WIDTHS:
