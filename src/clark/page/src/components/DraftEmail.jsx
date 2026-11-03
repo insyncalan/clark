@@ -4,7 +4,7 @@
 // Every word from the data is a text node; the email's own HTML is cleaned (safeHtml) before it is drawn.
 import { useState, useRef, useEffect } from "preact/hooks";
 import { todayIso } from "../workItems.js";
-import { MODES, LABELS, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mailLink, internalNote, pickWords, togglePick, sentEntry, sentWords, NO_OPEN_ITEMS, NO_ADDRESS } from "../logic/draftEmail.js";
+import { MODES, LABELS, TONES, chasedWords, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mailLink, internalNote, pickWords, togglePick, sentEntry, sentWords, NO_OPEN_ITEMS, NO_ADDRESS } from "../logic/draftEmail.js";
 
 export function DraftEmail({ items, state, draft, today, onChange, onSent, onClose, clip }) {
   const [note, setNote] = useState("");
@@ -69,13 +69,24 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
       <div class="de-body">
         <fieldset class="de-kinds"><legend class="sr">{LABELS.kind}</legend>
           {MODES.map((m) => (
-            <label key={m.mode}><input type="radio" name="de-kind" value={m.mode} checked={state.mode === m.mode} onChange={() => change({ mode: m.mode })} /> {m.label}</label>
+            <label key={m.mode}><input type="radio" name="de-kind" value={m.mode} checked={state.mode === m.mode} onChange={() => change({ mode: m.mode, tone: null })} /> {m.label}</label>
           ))}
         </fieldset>
         <dl class="de-meta">
           <dt>{LABELS.to}</dt><dd>{draft.to || NO_ADDRESS}</dd>
           <dt>{LABELS.subject}</dt><dd>{draft.subject}</dd>
         </dl>
+        {state.mode === "chase" && !none ? <div class="de-tone">
+          <span class="de-tone-label" id="de-tone-label">{LABELS.tone}</span>
+          {/* #452: preselected to the tone the builder used (clark's own choice until the user picks one); a pick asks for a new draft */}
+          <span class="seg" role="group" aria-labelledby="de-tone-label">
+            {TONES.map((name, n) => (
+              <button key={name} type="button" data-tone={n} aria-pressed={draft.tone === n ? "true" : "false"}
+                onClick={() => { if (draft.tone !== n) change({ tone: n }); }}>{name}</button>
+            ))}
+          </span>
+          <span class="muted de-chased">{chasedWords(draft.chased)}</span>
+        </div> : null}
         {none ? null : <section aria-label={LABELS.items}>
           <h3>{LABELS.items}</h3>
           <ul class="pick">

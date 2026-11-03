@@ -116,6 +116,26 @@ class Seam(unittest.TestCase):
             self.assertTrue(body["draft"]["text"].rstrip().endswith("Sam"))
             self.assertTrue(body["draft"]["ready"], body["draft"]["problems"])
 
+    def test_a_chosen_tone_is_passed_on_and_the_answer_says_how_often_it_was_chased(self):
+        """#452: the tone the user picked replaces clark's own; the count of earlier chases comes back for the page's line."""
+        chased = {"ABC-A-001": {"n": 2, "last": "2026-10-08"}}
+        req = {"project": "ABC", "mode": "chase", "picked": ["ABC-A-001"], "email": INSIDE}
+        _, own = ask(req, chased=lambda code: chased)
+        self.assertEqual((own["draft"]["tone"], own["draft"]["chased"]), (2, 2))
+        for tone in (0, 1, 2):
+            status, body = ask(dict(req, tone=tone), chased=lambda code: chased)
+            self.assertEqual((status, body["draft"]["tone"], body["draft"]["chased"]), (200, tone, 2))
+        _, none = ask(req)
+        self.assertEqual((none["draft"]["tone"], none["draft"]["chased"]), (0, 0))
+
+    def test_a_tone_that_is_not_0_1_or_2_is_refused_before_the_store_is_read(self):
+        for bad in (-1, 3, 1.5, "1", "Firmer chase", True, [2]):
+            calls = Calls()
+            status, body = ask({"project": "ABC", "mode": "chase", "tone": bad}, calls=calls)
+            self.assertEqual((status, body["ok"], body["code"]), (400, False, "bad_tone"), bad)
+            self.assertEqual(body["message"], "That tone isn't available. Choose First chase, Second chase or Firmer chase.")
+            self.assertEqual(calls.reads, [])
+
     def test_the_answer_says_whether_the_address_is_outside_the_own_domains(self):
         """The AI menu reads this one answer (#72) to offer its email place for an own address only; no address counts as outside."""
         for email, outside in ((INSIDE, False), (OUTSIDE, True), ("", True)):
@@ -501,6 +521,12 @@ class Route(unittest.TestCase):
         status, body = self.post({"project": "ABC", "mode": "chase", "email": INSIDE})
         self.assertEqual((status, body["ok"], body["draft"]["mode"]), (200, True, "chase"))
 
+    def test_the_tone_goes_through_the_route_unchanged(self):
+        status, body = self.post({"project": "ABC", "mode": "chase", "email": INSIDE, "tone": 2})
+        self.assertEqual((status, body["draft"]["tone"], body["draft"]["chased"]), (200, 2, 0))
+        status, body = self.post({"project": "ABC", "mode": "chase", "tone": 7})
+        self.assertEqual((status, body["code"]), (400, "bad_tone"))
+
     def test_the_token_host_and_origin_come_first(self):
         raw = b'{"project": "ABC"}'
         h = {"Content-Type": "application/json", "Content-Length": str(len(raw))}
@@ -569,13 +595,13 @@ class EditorShape(unittest.TestCase):
     def test_the_state_keys_the_editor_changes_are_request_keys(self):
         src = (SRC / "clark" / "page" / "src" / "components" / "DraftEmail.jsx").read_text(encoding="utf-8")
         keys = set(re.findall(r"change\(\{\s*(\w+)\s*:", src))
-        self.assertEqual(keys, {"mode", "picked", "replyBy", "unblocks", "includeUpdate"})
+        self.assertEqual(keys, {"mode", "picked", "replyBy", "unblocks", "includeUpdate", "tone"})
         for key in keys:
             self.assertIn(self.snake(key), feed.KEYS, key)
 
     def test_what_the_editor_reads_back_is_in_the_answer(self):
         _, body = ask({"project": "ABC", "email": INSIDE})
-        for key in ("html", "text", "to", "subject", "ids", "internal_ids", "problems"):
+        for key in ("html", "text", "to", "subject", "ids", "internal_ids", "problems", "tone", "chased"):
             self.assertIn(key, body["draft"], key)
         for item in body["items"]:
             self.assertTrue({"id", "text"} <= set(item))
