@@ -16,8 +16,8 @@ slide-out (#450), the calendar's keys (#481), the dashboard's use cases in Edit 
 prototype and the Publish and Preview words (#459), the AI card in Settings (#72), the About you path (#422), saved views that stay
 listed (#589), "Not written yet." (#375), the documents link check (#594), the short value after "api key" (#583, #527), a lost
 number race (#388), a null character in the logo rule (#493), the right-click menu (#97), hand over (#199) and the Word client copy's
-held-back check (#618) and the unknown-kind document (#595). Not merged, so WAITING: #325 (PR 474, a data layout step), #620 (PR 541) and #622 (PR 542).
-#220, #171, #160, #269 and #427 are not in this cut: they go to 0.8. Left out on purpose: #196 (in 0.5.0), #198 (in the code since 0.4.0, in no notes) and #270 (in 0.6.0).
+held-back check (#618) and the unknown-kind document (#595). Not merged, so WAITING: #622 (PR 542).
+#220, #171, #160, #269 and #427 are not in this cut: they go to 0.8.
 The cut checks (version, release notes, hand-check sheet) skip until the cut commit sets 0.7.0, then fail if they are wrong.
 The notes' own rules (title, the Beta line, plain words, the data-layout paragraph) are read from the tree now.
 """
@@ -250,13 +250,17 @@ COVERED = [
      "test_glance_page::UseCases::test_next_steps_are_every_open_item_in_the_client_wording_with_the_owner_in_a_circle"),
     ("#429", "A save that is turned away shows no toast and no Undo",
      "test_about_you::AboutYou::test_C_a_refused_save_shows_no_toast_and_no_undo"),
+    ("#325", "The data layout step 12 is in and the version says so",
+     "test_publication_numbers::TheTriggerStepTwelve::test_the_step_is_number_12_and_the_version_says_so"),
+    ("#325", "A data file at layout 10 or 11 is upgraded, and then refuses a change to a client copy's path",
+     "test_publication_numbers::TheTriggerStepTwelve::test_a_file_at_step_10_or_11_with_the_narrow_trigger_is_upgraded_and_refuses_a_client_path_update"),
+    ("#325", "The data layout step is safe to repeat",
+     "test_publication_numbers::TheTriggerStepTwelve::test_the_step_is_safe_to_repeat"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#325", "The publications trigger also guards the client copy's path (a data layout step)", "PR 474",
-     "store.py", "migrate_publication_trigger_client_path"),
     ("#622", "Settings, Backups: an optional 'Copy my backups to' folder (OneDrive allowed)", "PR 542",
      "settings.py", "# ===== Copy my backups to (#622, Settings"),
 ]
