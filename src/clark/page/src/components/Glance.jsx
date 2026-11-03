@@ -5,6 +5,8 @@
 import { data, rows, openWork, fromFile } from "../stores/report.js";
 import { todayIso } from "../workItems.js";
 import { allTiles, fileTiles } from "../glanceTiles.js";
+import { useRef } from "preact/hooks";
+import { useSettle } from "../stores/motion.js";
 
 function Cell({ tile, children }) {
   return <div class={`tcell${tile.key === "health" ? " health" : ""}`} data-tile={tile.key}>{children}</div>;
@@ -28,11 +30,12 @@ function Figure({ t, file }) {
 }
 
 function Health({ t, tools, editing }) {
-  const G = editing ? tools.glance : null;
+  const G = editing ? tools.glance : null, hrow = useRef(null);
+  useSettle(hrow, `${t.pill}|${t.value}|${t.reason || ""}`);
   return (
     <div class={`fig health-fig rag-${t.rag}`} data-fig="health">
       <span class="k"><i class="ragdot" aria-hidden="true"></i>Project health{t.word ? <span class="tw">{t.word}</span> : null}</span>   {/* the word sits in the label row at the right; here it is read, as it says what it is */}
-      <div class="hrow">
+      <div class="hrow" ref={hrow}>
         {G ? <G.HealthPill health={data.value.project.health} reason={t.reason} /> : <span class={`pill hpill ${t.pill || "n"}`}>{t.value}</span>}
         {G ? <G.Reason health={data.value.project.health} reason={t.reason} /> : t.reason ? <span class="hreason">{t.reason}</span> : null}
       </div>
@@ -45,7 +48,8 @@ export function Glance({ tools }) {
   const list = fromFile.value ? fileTiles(d.glance, d.project) : allTiles(rows.value, todayIso(), d.project, d.glance_tiles).filter((t) => editing || !t.hidden);
   const Wrap = editing ? tools.glance.Cell : Cell;
   const order = list.map((t) => t.key);
-  const tiles = (
+  return (
+    <>
     <div class="glance" data-glance>
       {list.map((t, i) => (
         <Wrap key={t.key} tile={t} order={order} index={i}>
@@ -53,7 +57,7 @@ export function Glance({ tools }) {
         </Wrap>
       ))}
     </div>
+    {editing ? <tools.glance.Hint /> : null}
+    </>
   );
-  // In Edit a line under the tiles says how to move one (A-D19; the prototype's words, views.js:241): nothing else on a tile says it can be moved.
-  return editing ? <>{tiles}<tools.glance.Note /></> : tiles;
 }

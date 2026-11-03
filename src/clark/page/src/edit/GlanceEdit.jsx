@@ -95,11 +95,6 @@ function Cell({ tile, order, children }) {
   );
 }
 
-// The line under the tiles in Edit (A-D19), in the prototype's words (views.js:241): nothing else on a tile says it can be moved.
-function Note() {
-  return <p class="note" data-edit-only data-tile-note>Drag a tile to reorder it (or Alt with the arrow keys); the eye hides it; right-click a tile to change its colour. Hidden tiles are left out of the published page.</p>;
-}
-
 const ITEMS = [["On track", "g"], ["At risk", "a"], ["Off track", "r"]];
 
 function HealthPill({ health, reason }) {
@@ -134,4 +129,9 @@ function Reason({ health, reason }) {
   );
 }
 
-export const GLANCE = { Cell, HealthPill, Reason, Note };
+// The line under the tiles in Edit: what a tile can do (A-D19: this one line serves, with no second note beside it). Edit only; the published page never carries it.
+function Hint() {
+  return <p class="glance-hint" data-glance-hint>Drag a tile to move it, or hold Alt and press an arrow key. Use the eye to hide or show a tile. Right-click a tile to change its colour. Hidden tiles are left out of the published page.</p>;
+}
+
+export const GLANCE = { Cell, HealthPill, Reason, Hint };
