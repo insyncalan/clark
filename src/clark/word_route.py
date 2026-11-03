@@ -28,17 +28,20 @@ Every message is plain words (no file-format terms), "clark" in lower case and n
 import base64
 import binascii
 import hashlib
+import html
+import io
 import json
 import os
 import re
 import secrets
 import threading
 import time
+import zipfile
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-from clark import docx_build, docx_read, milestones, platform, publish, to_client, word_import
+from clark import docx_build, docx_read, milestones, platform, publish, publish_flow, to_client, word_import
 from clark import store as clark_store
 from clark.changes import Refused, _call, _shown
 from clark.store import Invalid
@@ -408,6 +411,53 @@ def _take_back(dest):
         pass
 
 
+def _file_text(data):
+    """#607: what a reader of the finished .docx sees, as UTF-8 bytes for to_client.markers_found: the text of every XML part
+    (the document, its footer, the document properties; tags dropped, entities read, a paragraph end as a line break) and the
+    address every relationship points at (a hyperlink's target is not in the text). The raw bytes are a zip, so the web
+    publish's check cannot read them as they are. Raises BadZipFile (or KeyError, ValueError) for a file that is not one."""
+    out = []
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        for name in z.namelist():
+            if not name.endswith((".xml", ".rels")):
+                continue
+            xml = z.read(name).decode("utf-8")
+            if name.endswith(".rels"):
+                out += [html.unescape(t) for t in re.findall(r'\bTarget="([^"]*)"', xml)]
+            else:
+                out.append(html.unescape(re.sub(r"<[^>]*>", "", re.sub(r"</w:p>", "\n", xml))))
+    return "\n".join(out).encode("utf-8")
+
+
+def _held_back(store, code, published, data, client_folder):
+    """#607: the web publish's second look (publish_flow, client_plan) on the Word file for the client: "" when it is clean, else
+    the web publish's own words (and the items to look at). Same markers (text of every row select() left out, every row's
+    working notes, a left-out document's address) and the same client-folder-path check, on the text the file shows. Not
+    to_client.check_copy: its outside-address scan reads HTML markup (src=, href=, <link>), which this file has none of, and
+    it would refuse a typed address in a row's text that a reader of the web file also sees. No bare page, so no note is
+    exempted (template ""). Writes nothing."""
+    try:
+        text = _file_text(data)
+    except (zipfile.BadZipFile, KeyError, ValueError):
+        return to_client.MESSAGES["held_back"].format(what="a file clark could not check")
+    markers = publish_flow.markers_for(store, code, published)
+    found = to_client.markers_found(text, markers)
+    problems = []
+    if client_folder and to_client._key(client_folder) in to_client._key(text.decode("utf-8")):
+        problems.append("the location of the client folder")
+    if found:
+        problems.append("text that was meant to be left out")
+    if not problems:
+        return ""
+    words = to_client.MESSAGES["held_back"].format(what=to_client.held_words(problems))
+    ids = []
+    for m in found:                                  # the same " Look at: ID, ID." as the web publish (Publisher.which_items)
+        item = (getattr(markers, "where", None) or {}).get(m)
+        if item and item not in ids:
+            ids.append(item)
+    return words + (publish_flow.MESSAGES["look_at"].format(items=", ".join(ids[:10])) if ids else "")
+
+
 def _do_export(store, who, req, today, chosen, roots):
     code, want_client, clash = _export_shape(req)
     row = store.read("projects", ref=code)
@@ -439,6 +489,9 @@ def _do_export(store, who, req, today, chosen, roots):
         if not checked["ok"]:
             raise Refused(checked["message"] + " Nothing was saved.", 400, "client_folder")
         client = Path(checked["folder"])
+        held = _held_back(store, code, published, data, saved)          # #607: before any write, the Local copy included
+        if held:
+            raise Refused(held + " Nothing was saved.", 409, "refused")
     try:
         listing = {"here": _names_in(local), **({"client": _names_in(client)} if client else {})}
     except OSError as e:
