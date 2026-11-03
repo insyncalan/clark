@@ -429,7 +429,7 @@ def copy_warning_text(folder, error):
             "and has space, or choose another in Settings › Backups. A new try is made with your next backup.")
 
 
-def _set_copy_warning(text):
+def set_copy_warning(text):
     global copy_warning
     copy_warning = text
 
@@ -444,7 +444,7 @@ def copy_out(data_dir, final, has_rows=True):
     except Exception:
         return
     if folder is None:
-        _set_copy_warning(None)
+        set_copy_warning(None)
         return
     worker = threading.Thread(target=_copy_worker, args=(Path(data_dir), folder, Path(final), keep, has_rows),
                               name="clark-backup-copy", daemon=True)
@@ -461,9 +461,9 @@ def _copy_worker(data_dir, folder, final, keep, has_rows):
         except Exception as e:
             warning = copy_warning_text(folder, e)
             LOG.warning("%s", warning)
-            _set_copy_warning(warning)
+            set_copy_warning(warning)
         else:
-            _set_copy_warning(None)
+            set_copy_warning(None)
 
 
 def _copy_into(folder, final, keep, has_rows):

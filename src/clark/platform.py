@@ -162,7 +162,7 @@ def check_data_dir(path, roots=None, what="data"):
             raise PlatformError(f"Backups can't be kept in {shown(path)} because it is inside OneDrive ({root.name}). OneDrive "
                                 "copies files while they are being written, which damages a database. Keep them beside the "
                                 "database on this computer. To have a copy in OneDrive, choose it in Settings › Backups › Copy my "
-                                "backups to (#622).")
+                                "backups to.")
         raise PlatformError(f"Your data can't be kept in {shown(path)} because it is inside OneDrive ({root.name}). OneDrive "
                             "copies files while they are being written, which damages the database. Choose a folder on "
                             "this computer that OneDrive doesn't sync, and choose a backup folder in OneDrive instead (Settings › "
