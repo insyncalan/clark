@@ -76,7 +76,7 @@ class TheSetting(Rig):
         settings.set_backups_kept(self.data, 21)
         self.assertEqual(self.on(), self.copy)
         self.assertEqual(settings.backup_copy_folder(self.data), self.copy)
-        self.assertEqual(json.loads((self.data / settings.FILE).read_text()), {"backups_kept": 21, "backup_copy_folder": str(self.copy)})
+        self.assertEqual(json.loads((self.data / settings.FILE).read_text(encoding="utf-8")), {"backups_kept": 21, "backup_copy_folder": str(self.copy)})
         settings.set_profile(self.data, "Sam Lee", "")
         self.assertEqual(settings.backup_copy_folder(self.data), self.copy, "another setting saved later leaves it")
 
@@ -138,7 +138,7 @@ class TheSetting(Rig):
     def test_a_settings_file_that_cannot_be_read_is_never_replaced(self):
         (self.data / settings.FILE).write_text("{not json", encoding="utf-8")
         self.refused(str(self.copy), settings.COPY_UNREADABLE)
-        self.assertEqual((self.data / settings.FILE).read_text(), "{not json")
+        self.assertEqual((self.data / settings.FILE).read_text(encoding="utf-8"), "{not json")
 
     def test_a_saved_value_that_is_not_a_usable_path_reads_as_off(self):
         for value in ("relative", "", 5, None, ["/x"]):
