@@ -15,6 +15,7 @@ from _paths import SRC
 
 from clark import page, publish  # noqa: E402
 from test_work_board_page import Base  # noqa: E402
+from _new_page import reload_to_new_page_cdp  # noqa: E402
 from test_work_filters import click  # noqa: E402
 
 VARIANTS = [(w, s) for w in (1400, 900) for s in ("light", "dark")]
@@ -61,8 +62,7 @@ class Archived(Base):
                 sid = self.visit(cdp, width=width)
                 self.scheme(cdp, sid, scheme)
                 cdp.js("try { localStorage.removeItem('clark.workArchived.ABC'); } catch (e) {}", sid)
-                cdp.call("Page.reload", {}, sid)
-                self.until(cdp, sid, "!!document.querySelector('#showArchived')", "the pill")
+                reload_to_new_page_cdp(cdp, sid, "!!document.querySelector('#showArchived')", "the pill")
                 self.assertEqual(cdp.js("document.querySelector('#showArchived').getAttribute('aria-pressed')", sid), "false")
                 off = cdp.js("getComputedStyle(document.querySelector('#showArchived')).backgroundColor", sid)
                 click(cdp, sid, "#showArchived")
@@ -72,15 +72,13 @@ class Archived(Base):
                 self.assertNotEqual(on, off, "the pressed pill looks pressed")
                 self.assertEqual(cdp.js("localStorage.getItem('clark.workArchived.ABC')", sid), "on")
                 self.assertFalse(cdp.js("document.documentElement.scrollWidth > window.innerWidth", sid), "no sideways scroll")
-                cdp.call("Page.reload", {}, sid)
-                self.until(cdp, sid, "!!document.querySelector('#archived-list .arch-row')", "the list again after the reload")
+                reload_to_new_page_cdp(cdp, sid, "!!document.querySelector('#archived-list .arch-row')", "the list again after the reload")
                 self.assertEqual(cdp.js("document.querySelector('#showArchived').getAttribute('aria-pressed')", sid), "true")
                 self.assertEqual(cdp.js("document.querySelector('#showArchived').textContent", sid), "Show archived 2")
                 click(cdp, sid, "#showArchived")
                 self.until(cdp, sid, "!document.querySelector('#archived-list')", "the list shut")
                 self.assertIsNone(cdp.js("localStorage.getItem('clark.workArchived.ABC')", sid))
-                cdp.call("Page.reload", {}, sid)
-                self.until(cdp, sid, "!!document.querySelector('#showArchived')", "the pill after the second reload")
+                reload_to_new_page_cdp(cdp, sid, "!!document.querySelector('#showArchived')", "the pill after the second reload")
                 self.assertEqual(cdp.js("document.querySelector('#showArchived').getAttribute('aria-pressed')", sid), "false")
                 self.assertFalse(cdp.js("!!document.querySelector('#archived-list')", sid))
 
