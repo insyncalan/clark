@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from unittest import mock
 
 from _demo import USER, DemoStore
+from _paths import SRC
 from clark import changes, history, publish, server as sv, store as store_module
 
 WORDS = "Choose a whole number of days from 1 to 365. Nothing was changed."
@@ -327,6 +328,18 @@ class Routes(Base):
         self.assertEqual(self.write(30, extra={"Sec-Fetch-Site": "cross-site"})[0], 403)
         self.assertEqual(self.counts(), before)
         self.assertEqual(self.write(30, extra={"Origin": f"http://127.0.0.1:{self.server.port}"})[0], 200, "this server's own origin is let through")
+
+
+class Sources(unittest.TestCase):
+    def test_no_page_file_or_server_file_holds_a_second_copy_of_the_number(self):
+        """The default is written once on the server (freshness.DEFAULT_DAYS) and once in the page (filters.js REVIEW_DAYS); the page's
+        other words and rules read the project's number."""
+        filters = (SRC / "clark" / "page" / "src" / "filters.js").read_text(encoding="utf-8")
+        self.assertEqual(filters.count("REVIEW_DAYS = 14"), 1)
+        line = (SRC / "clark" / "page" / "src" / "logic" / "filterLine.js").read_text(encoding="utf-8")
+        self.assertNotIn("= 14", line)
+        self.assertNotIn("in 14 days", line)
+        self.assertNotIn("QUIET_DAYS", line)
 
 
 if __name__ == "__main__":

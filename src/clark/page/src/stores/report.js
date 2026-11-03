@@ -2,10 +2,10 @@
 // reload keeps them; the project's data comes from GET /api/data with this run's token (#33, #31's data_for).
 // A published file (#39) has its data in an inline block, id="clark-data": then the page is a file (fromFile), reads that block
 // and nothing else: no fetch, no token, no Settings tab, and "today" is the date it was published (as_at).
-import { signal, computed, batch } from "@preact/signals";
+import { signal, computed, batch, effect } from "@preact/signals";
 import * as route from "../router.js";
 import { rowsOf, todayIso } from "../workItems.js";
-import { decode, encode, fits, hasReviewDates, setPublished } from "../filters.js";
+import { decode, encode, fits, hasReviewDates, setPublished, setReviewDays } from "../filters.js";
 import { searchIndex } from "../clientView.js";
 import { lineApi } from "./lineSlot.js";
 import { ucKey } from "../logic/useCasesList.js";
@@ -35,6 +35,7 @@ export const filterNote = signal("");                // a plain line when a filt
 export const refusals = signal(0);                   // counts the refusals, so a ticked box that was not kept is drawn unticked again
 export const status = signal(project.value ? "loading" : "none");   // none | loading | ready | missing | failed
 export const data = signal(null);
+effect(() => setReviewDays(data.value && data.value.project ? data.value.project.review_after_days : undefined));   // #171: the words and rules for "not reviewed" follow the open project's own number (a file has none: 14)
 export const message = signal("");
 export const publication = signal(0);       // a published file: its publication number (#120), else 0; the footer reads it
 export const fromFile = signal(false);       // true when the page is a published file (#39): it never edits and never asks a server
