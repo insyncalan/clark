@@ -24,6 +24,7 @@ sheet, minutes, report, readonly and line places, the project facts, the email a
 relevel (clark stores its headings as it shows them).
 """
 import html
+import logging
 import re
 import unicodedata
 from collections import Counter
@@ -31,6 +32,8 @@ from urllib.parse import unquote
 
 from clark import ask, edit_ai, sanitise, secret_screen
 from clark.edit_ai import Refused
+
+LOG = logging.getLogger("clark.ai")
 
 MAX_TEXT = 12000            # characters of selected text
 MAX_INSTRUCTION = 400       # "Or say what you want…"
@@ -501,7 +504,9 @@ def known_for(store, code):
     from clark import publish
     try:
         return known_from_data(publish.read_inputs(store, code)["data"])
-    except Exception:  # noqa: BLE001  a store that cannot be read leaves the strict shape check in place
+    except Exception as e:  # noqa: BLE001  a store that cannot be read leaves the strict shape check in place
+        # #266 (Low): the fall back is no longer silent. The log holds the kind of fault only, never its words (they could hold a path).
+        LOG.warning("ai known_for: the project's codes and names could not be read (%s); the shape rules stay in force", type(e).__name__)
         return None
 
 
