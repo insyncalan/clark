@@ -2046,7 +2046,7 @@ PUBLICATIONS_NUMBERED = """CREATE TABLE publications_v10 (
 PUBLICATION_TRIGGERS = (
     """CREATE TRIGGER IF NOT EXISTS publications_no_delete BEFORE DELETE ON publications
 BEGIN SELECT RAISE(ABORT, 'a publication is never deleted'); END;""",
-    """CREATE TRIGGER IF NOT EXISTS publications_number_fixed BEFORE UPDATE OF seq, at, week_ending, local_path, checks, number, project, word, file_sha256, by_user ON publications
+    """CREATE TRIGGER IF NOT EXISTS publications_number_fixed BEFORE UPDATE OF seq, at, week_ending, local_path, client_path, checks, number, project, word, file_sha256, by_user ON publications
 BEGIN SELECT RAISE(ABORT, 'a publication''s number, project, kind, file, date, week, checks and publisher never change'); END;""",
     """CREATE TRIGGER IF NOT EXISTS publications_never_replaced BEFORE INSERT ON publications
 WHEN EXISTS (SELECT 1 FROM publications WHERE (project = NEW.project AND number = NEW.number) OR seq = NEW.seq)
@@ -2070,6 +2070,9 @@ def migrate_publication_numbers(con):
             "FROM publications p ORDER BY p.seq")
         con.execute("DROP TABLE publications")
         con.execute("ALTER TABLE publications_v10 RENAME TO publications")
+    old = con.execute("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'publications_number_fixed'").fetchone()
+    if old and "client_path" not in old[0]:       # #325: a narrower one (made before client_path was named) is replaced, not kept by IF NOT EXISTS
+        con.execute("DROP TRIGGER publications_number_fixed")
     for statement in PUBLICATION_TRIGGERS:
         con.execute(statement)
 

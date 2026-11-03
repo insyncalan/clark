@@ -93,7 +93,8 @@ class TheCounter(unittest.TestCase):
         for sql in ("DELETE FROM publications", "UPDATE publications SET number = 9", "UPDATE publications SET project = 'XYZ'",
                     "UPDATE publications SET word = 1", "UPDATE publications SET file_sha256 = '%s'" % ("b" * 64),
                     "UPDATE publications SET seq = 99", "UPDATE publications SET at = '2020-01-01'", "UPDATE publications SET week_ending = '2020-01-03'",
-                    "UPDATE publications SET local_path = '/x/z.html'", "UPDATE publications SET checks = 'passed'"):
+                    "UPDATE publications SET local_path = '/x/z.html'", "UPDATE publications SET checks = 'passed'",
+                    "UPDATE publications SET client_path = '/x/c.html'", "UPDATE publications SET by_user = 'Someone Else'"):
             with self.assertRaises(sqlite3.DatabaseError, msg=sql):
                 con.execute(sql)
         with self.assertRaises(sqlite3.DatabaseError):                   # REPLACE would remove the row without the delete trigger
@@ -103,7 +104,19 @@ class TheCounter(unittest.TestCase):
             con.execute("INSERT OR REPLACE INTO publications (project, local_path, file_sha256, checks, by_user, number) "
                         "VALUES ('ABC', '/x/y.html', ?, 'not needed', 'u', 1)", (SHA,))
         self.assertEqual(numbers(con), [1])
-        con.execute("UPDATE publications SET client_path = '/x/c.html' WHERE seq = ?", (seq,))    # the client copy's path may be set
+
+    def test_the_step_replaces_a_narrower_trigger_a_dev_file_kept(self):          # #325
+        con = self.s.con
+        seq = self.log()
+        con.execute("DROP TRIGGER publications_number_fixed")
+        con.execute("CREATE TRIGGER publications_number_fixed BEFORE UPDATE OF number ON publications "
+                    "BEGIN SELECT RAISE(ABORT, 'narrow'); END")
+        con.execute("UPDATE publications SET client_path = '/x/c.html' WHERE seq = ?", (seq,))       # the narrow one lets it through
+        con.execute("BEGIN")
+        store_module.migrate_publication_numbers(con)
+        con.execute("COMMIT")
+        with self.assertRaises(sqlite3.DatabaseError):
+            con.execute("UPDATE publications SET client_path = '/x/d.html' WHERE seq = ?", (seq,))
 
     def test_undo_never_frees_a_number(self):
         self.log()
