@@ -1154,7 +1154,9 @@ def put_link_back(dest, target, digest):
     `digest` is replaced; anything else is put straight back (never replaced) and the link is not made. The link itself
     is made with os.symlink, which never replaces a name that has appeared meanwhile. If the link cannot be made, our
     file is put back, so `dest` is never left empty. Returns "linked", "kept" (our file is still at `dest`; the link was
-    not put back) or "other" (something that is not ours is at `dest`; it was left alone, no link made)."""
+    not put back: also when it could not even be moved aside), "other" (something that is not ours is at `dest`, or it
+    is gone; it was left alone, no link made) or "aside" (the link could not be made and our file could not be put
+    back either: it is under its hidden aside name, not at `dest`)."""
     dest = Path(dest)
     aside = dest.with_name(f".{dest.name}.{os.getpid()}.{secrets.token_hex(4)}.aside")
 
@@ -1166,8 +1168,8 @@ def put_link_back(dest, target, digest):
 
     try:
         os.rename(dest, aside)
-    except OSError:
-        return "other"                                  # gone, or not ours to move: nothing was touched
+    except OSError:                                     # nothing was moved: if our file is still at dest, say so (#605)
+        return "kept" if still_ours(dest, digest) else "other"
     if not still_ours(aside, digest):
         back()                                          # someone else's file: back where it was
         return "other"
@@ -1179,7 +1181,8 @@ def put_link_back(dest, target, digest):
             return "kept"
         if placed is False:                             # the name was taken meanwhile: ours is the extra copy
             os.unlink(aside)
-        return "other"
+            return "other"
+        return "aside"                                  # None: the report is under its aside name; no extra sentence yet
     os.unlink(aside)
     return "linked"
 
