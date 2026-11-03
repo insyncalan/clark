@@ -662,6 +662,19 @@
     ]
    },
    {
+    "id": "add-people-details",
+    "g": "Settings and safety",
+    "t": "Add people’s emails and roles",
+    "w": "Settings › People",
+    "go": "settings#people",
+    "s": [
+     "Open **Settings** and find the **People** card. It lists everyone who owns a work item or a milestone. The line above the table says how many people still need details (“8 of 8 people need details”). **Show only these** lists just those people, each marked **Needs details**; **Show everyone** brings the rest back.",
+     "Press **Paste from Excel**, then paste rows copied from a sheet: name, email, organisation and role, separated by tabs. A first row of headings is skipped. A preview shows what happens to each row, and names every row that needs fixing.",
+     "Press **Add to the list**. People are matched by name, so the owner pickers keep working on names. One **Undo**, in the card, takes the whole paste back."
+    ],
+    "n": "The table is read-only apart from the paste."
+   },
+   {
     "id": "undo-a-mistake",
     "g": "Settings and safety",
     "t": "Undo a mistake",
@@ -1596,6 +1609,22 @@
         "The log level (Normal or Debug), the log folder, **Copy diagnostics** and recent errors. See [Diagnostics and logs](#ref-diagnostics)."
        ]
       ]
+     ]
+    ]
+   },
+   {
+    "id": "people",
+    "g": "Settings and data",
+    "t": "People",
+    "w": "Settings › People",
+    "b": [
+     [
+      "p",
+      "The table is built from the owners on work items and milestones, and shows each person’s email, organisation and role. The line above it says how many need details; **Show only these** lists them, each marked **Needs details**."
+     ],
+     [
+      "p",
+      "**Paste from Excel** takes rows of name, email, organisation and role, separated by tabs; a heading row is skipped. A name that matches a person updates that person; a new name is added. Nothing is added while a row needs fixing. One **Undo** reverses a paste. Owner pickers still work on names."
      ]
     ]
    },
