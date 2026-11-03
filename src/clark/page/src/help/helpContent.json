@@ -55,7 +55,7 @@
   "first": [
    {
     "t": "Say who you are",
-    "d": "In [Settings › Profile](go:settings#profile), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
+    "d": "In [Settings › Personal › About you](go:settings#personal), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
    },
    {
     "t": "Pick a project",
@@ -653,8 +653,8 @@
     "id": "set-your-profile",
     "g": "Settings and safety",
     "t": "Set your profile",
-    "w": "Settings › Profile",
-    "go": "settings#profile",
+    "w": "Settings › Personal › About you",
+    "go": "settings#personal",
     "s": [
      "Fill in your **Name**, **Alias**, **Email**, **Phone number** and **Organisation**.",
      "Each saves when you leave the box (or press [[Enter]]), with **Undo**.",
@@ -1675,7 +1675,7 @@
       "ul",
       [
        "There is no Save button. Each change is written when you make it: a pick from a menu, [[Enter]] in a field, leaving a box, or closing an editor.",
-       "Each change records who made it (your full name from Settings › Profile, or “You”), how (by hand, in words, imported, ask clark), what it was and what it became.",
+       "Each change records who made it (your full name from Settings › Personal › About you, or “You”), how (by hand, in words, imported, ask clark), what it was and what it became.",
        "**Undo** in the message reverses exactly that step. Several changes made together undo together."
       ]
      ]
