@@ -1288,7 +1288,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     /* a changed row glows, then settles to the still mark (tint, bar and the word stay) */
     .sec.is-changed, table.items tr.changed td, .msl-row.changed { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1; }
     /* the peek slides in on opening and its body fades in as Previous or Next steps on */
-    .peek { animation: m-slide var(--dur-state) var(--ease-enter) 1; }
+    .peek:not(.leaving) { animation: m-slide var(--dur-state) var(--ease-enter) 1; }
     .pk-body { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
     /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
     .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
