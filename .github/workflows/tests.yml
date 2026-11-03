@@ -27,8 +27,8 @@
 # test reads the reuse record. Skipping the run for a document would let a real name merge unchecked. The suite
 # takes seconds, so nothing is saved by skipping it.
 #
-# Shards (`--shard I/N`, balanced by the real per-file times in dev/tools/shard_times.txt): one per Python to start with; add
-# shards when the slowest job passes 10 minutes. Every test file is in exactly one shard (tests/test_run_tests.py proves it).
+# Shards (`--shard I/N`, balanced by the real per-file times in dev/tools/shard_times.txt): Ubuntu 3.x has three on the full path
+# (one on the cheap path), macOS two, Python 3.9 one; add shards when the slowest job passes 10 minutes. Every test file is in exactly one shard (tests/test_run_tests.py proves it).
 # `--max-fail 8` stops a shard that has plainly gone wrong after 8 failed files.
 on:
   workflow_dispatch:
@@ -66,6 +66,8 @@ jobs:
     outputs:
       full: ${{ steps.plan.outputs.full }}
       macos: ${{ steps.plan.outputs.macos }}
+      shards: ${{ steps.plan.outputs.shards }}
+      count: ${{ steps.plan.outputs.count }}
     steps:
       - id: plan
         env:
@@ -108,17 +110,27 @@ jobs:
               FULL=1; MACOS=1
             fi
           fi
+          # The Ubuntu 3.x job runs every file on the full path: three shards, so each stays well under its 30-minute cap
+          # (one shard hit the cap on PR 440, twice). The cheap path (--push) is one shard.
+          SHARDS='[1]'; COUNT=1
+          if [ -n "$FULL" ]; then SHARDS='[1,2,3]'; COUNT=3; fi
           echo "full=$FULL" >> "$GITHUB_OUTPUT"
           echo "macos=$MACOS" >> "$GITHUB_OUTPUT"
-          echo "event: $EVENT; branch: $BRANCH; full: ${FULL:-no}; macOS: ${MACOS:-no}"
+          echo "shards=$SHARDS" >> "$GITHUB_OUTPUT"
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "event: $EVENT; branch: $BRANCH; full: ${FULL:-no}; macOS: ${MACOS:-no}; Ubuntu 3.x shards: $COUNT"
 
   tests:
     # Python "3.x" (the newest) on Ubuntu: the cheap path on an ordinary pull request (--push origin/<base>), every file when
     # the plan says full.
-    name: ubuntu-24.04 · Python 3.x · shard 1/1
+    name: ubuntu-24.04 · Python 3.x · shard ${{ matrix.shard }}/${{ needs.plan.outputs.count }}      # the gate reads needs.tests.result (one value for the whole matrix), never this name
     needs: plan
     runs-on: ubuntu-24.04      # not ubuntu-latest: it became 26.04 on 21-10-2026, which has no Python 3.9 (the oldest supported)
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -150,8 +162,8 @@ jobs:
         env:
           FILES: ${{ github.event.inputs.files }}
           JOBS: 4
-          SHARD: 1
-          SHARDS: 1
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ needs.plan.outputs.count }}
           FULL: ${{ needs.plan.outputs.full }}
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.base_ref }}

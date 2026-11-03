@@ -142,9 +142,14 @@ class Workflow(unittest.TestCase):
         self.assertNotIn("ubuntu-latest", self.text)
         self.assertIn('python-version: "3.x"', tests)
         self.assertIn('python-version: "3.9"', py39)
-        self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.x \u00b7 shard 1/1", tests)
+        self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.x \u00b7 shard ${{ matrix.shard }}/${{ needs.plan.outputs.count }}", tests)
         self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.9 \u00b7 shard 1/1", py39)
-        self.assertNotIn("matrix", tests)
+        # three shards on the full path, one on the cheap path: the plan decides, the job reads it
+        self.assertIn("shard: ${{ fromJSON(needs.plan.outputs.shards) }}", tests)
+        self.assertIn("SHARD: ${{ matrix.shard }}", tests)
+        self.assertIn("SHARDS: ${{ needs.plan.outputs.count }}", tests)
+        self.assertIn("if [ -n \"$FULL\" ]; then SHARDS='[1,2,3]'; COUNT=3; fi", self.jobs["plan"])
+        self.assertIn("fail-fast: false", tests)
         self.assertIn('--quick --shard "1/1" --max-fail 8 $FILES', py39)
 
     def test_an_ordinary_pull_request_is_the_cheap_path_and_the_full_suite_runs_elsewhere(self):
