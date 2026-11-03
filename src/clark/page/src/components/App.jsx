@@ -21,6 +21,7 @@ export function App({ tools }) {
   const body = status.value === "ready" ? <><Page tools={tools} /><Leaving /></> : <Gate />;
   const AddDialog = tools && tools.AddDialog;
   const Boxes = tools && tools.Boxes;                    // the boxes Settings opens (#444): the project form, Import workbook, the Reset confirm; a published file has none
+  const UcBoxes = tools && tools.ucEdit && tools.ucEdit.Boxes;      // the Dashboard's use case boxes (#455): beside <main>, which they make inert
   return (
     <>
       <TopBar tools={tools} />
@@ -32,6 +33,7 @@ export function App({ tools }) {
       {Pal ? <Pal /> : null}
       {AddDialog ? <AddDialog /> : null}
       {Boxes ? <Boxes /> : null}
+      {UcBoxes ? <UcBoxes /> : null}
     </>
   );
 }
