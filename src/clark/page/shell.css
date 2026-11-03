@@ -1012,7 +1012,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 /* Publish (issue 130, point 4): a spinner while it works, then a tick with the success line. With reduced motion the ring stays still. */
 .pub-msg .working { display: flex; align-items: center; gap: var(--space-2); color: var(--text-muted); }
 .spin { flex: none; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--brand-blue); border-radius: 50%; }
-/* #380: the ring turns four times (about 3.6 s) and then rests as the still ring; it never loops. A loop needs the owner's written word (#131); the words "Publishing…" say the work is going on. */
+/* Ticket 380: the ring turns four times (about 3.6 s) and then rests as the still ring; it never loops. A loop needs the owner's written word (ticket 131); the words "Publishing…" say the work is going on. */
 @media (prefers-reduced-motion: no-preference) { .spin { animation: pub-spin 900ms linear 4 forwards; } }
 @keyframes pub-spin { to { transform: rotate(360deg); } }
 .pub-msg .success { display: flex; align-items: center; gap: var(--space-2); }
