@@ -16,8 +16,8 @@ slide-out (#450), the calendar's keys (#481), the dashboard's use cases in Edit 
 prototype and the Publish and Preview words (#459), the AI card in Settings (#72), the About you path (#422), saved views that stay
 listed (#589), "Not written yet." (#375), the documents link check (#594), the short value after "api key" (#583, #527), a lost
 number race (#388), a null character in the logo rule (#493), the right-click menu (#97), hand over (#199) and the Word client copy's
-held-back check (#618) and the unknown-kind document (#595). Not merged, so WAITING: #286 (PR 508), #325 (PR 474, a data layout step), #160 (no pull request), #481 (PR 532), #620 (PR 541) and #622 (PR 542).
-#220, #171, #269 and #427 are not in this cut (the Head, 04-11-2026): they go to 0.8. Left out on purpose: #196 (in 0.5.0), #198 (in the code since 0.4.0, in no notes) and #270 (in 0.6.0).
+held-back check (#618) and the unknown-kind document (#595). Not merged, so WAITING: #325 (PR 474, a data layout step), #620 (PR 541) and #622 (PR 542).
+#220, #171, #160, #269 and #427 are not in this cut: they go to 0.8. Left out on purpose: #196 (in 0.5.0), #198 (in the code since 0.4.0, in no notes) and #270 (in 0.6.0).
 The cut checks (version, release notes, hand-check sheet) skip until the cut commit sets 0.7.0, then fail if they are wrong.
 The notes' own rules (title, the Beta line, plain words, the data-layout paragraph) are read from the tree now.
 """
@@ -118,6 +118,10 @@ COVERED = [
      "test_documents_page::Archive::test_archive_undo_and_restore_at_both_widths_light_and_dark"),
     ("#74", "A published file leaves out an archived document",
      "test_documents_page::Archive::test_the_published_file_omits_an_archived_document"),
+    ("#286", "The filter line no longer says Press / (that key opens ask clark)",
+     "test_filter_line_page::Line::test_the_line_does_not_say_press_slash_in_view_or_edit_because_that_key_opens_ask"),
+    ("#481", "One plain Help line names the calendar's keys",
+     "test_help_content::CalendarKeysHelp::test_the_calendar_line_names_the_keys_the_page_handles"),
     ("#618", "The Word client copy is refused when it carries text held back from the client",
      "test_word_client_held_back::Cases::test_the_word_client_copy_refuses_it"),
     ("#618", "A refused Word client copy writes nothing in either folder",
@@ -129,11 +133,6 @@ COVERED = [
 WAITING = [
     ("#325", "The publications trigger also guards the client copy's path (a data layout step)", "PR 474",
      "store.py", "migrate_publication_trigger_client_path"),
-    ("#286", "The filter line no longer says Press / (that key opens ask clark)", "PR 508",
-     "page/src/components/FilterLine.jsx", "opens ask clark (#286)"),
-    ("#160", "Settings has a 'Not reviewed after (days)' setting and the At a glance row can show an optional Not reviewed tile", "no pull request yet (issue 160)", "", None),
-    ("#481", "One plain Help line names the calendar's keys", "PR 532",
-     "page/src/help/helpContent.json", "[[Tab]] reaches the calendar once"),
     ("#620", "A hand over's Undo skips only the owner that changed and undoes the rest", "PR 541",
      "changes.py", "def _hand_over_changed(store, step, rows, all_gone=True):"),
     ("#622", "Settings, Backups: an optional 'Copy my backups to' folder (OneDrive allowed)", "PR 542",
