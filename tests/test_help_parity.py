@@ -29,11 +29,8 @@ def read(*parts):
 # prototype entry id (howto- or ref-) -> (the feature it needs, a pattern that must NOT yet match the page's code, and the one file to look in when it is not all of it)
 WAITS = {
     "howto-check-before-you-publish": ("the stale and incomplete notes with Show them in the Publish box", r"Show them"),
-    "howto-find-a-past-publication": ("the Published reports list (numbered publications)", r"Published reports"),
-    "ref-published-reports": ("the Published reports list (numbered publications)", r"Published reports"),
     "howto-start-from-last-report": ("Start from last week's report", r"Start from last"),
     "ref-since-last-report": ("the Since the last report panel", r"Since the last report"),
-    "howto-save-as-a-pdf": ("the PDF option in the Publish box", r"PDF", ("page", "src", "edit", "Publish.jsx")),
     "howto-add-people-details": ("the People card in Settings", r"[\"'>]People[\"'<]"),
     "ref-people": ("the People card in Settings", r"[\"'>]People[\"'<]"),
     "howto-word-in-and-out": ("Export to Word and Import from Word on the page", r"Import from Word"),
@@ -90,6 +87,14 @@ class EveryPrototypeEntryIsAccountedFor(unittest.TestCase):
         self.assertEqual(sorted(want & held_ids()), [])
 
 
+# Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
+COMPUTED = {
+    "3 days late": "Due, built from the date (workItems.js dueCell)",
+    "In 5 days": "Due, built from the date (workItems.js dueCell)",
+    "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
+}
+
+
 class WhatIsShownIsOnThePage(unittest.TestCase):
     """Every control or label a shown entry names (its bold names, its quoted words, the first cell of a table row) is a word the page holds
     in its own source: the page's code, Help's own code, the tile titles and the default section titles."""
@@ -109,13 +114,19 @@ class WhatIsShownIsOnThePage(unittest.TestCase):
 
     def on_page(self, label):
         label = re.sub(r"[‘’]", "'", label)
-        return bool(re.search(r"(?<![\w])" + re.escape(label) + r"(?![\w])", self.CORPUS))
+        return bool(re.search(r"(?<![\w])" + re.escape(label) + r"(?![\w])", self.CORPUS)) or label in COMPUTED
 
     def missing(self, entries):
         return sorted({f"{e['id']}: {x}" for e in entries for x in self.labels_of(e) if not self.on_page(x)})
 
     def test_every_label_in_a_shown_entry_is_on_the_page(self):
         self.assertEqual(self.missing(SHOWN["howto"]["tasks"] + SHOWN["reference"]["sections"]), [])
+
+    def test_the_computed_words_are_still_in_shown_entries(self):
+        """A word excused as computed must still be quoted by a shown entry, or it is stale."""
+        every = json.dumps(SHOWN, ensure_ascii=False)
+        for w in COMPUTED:
+            self.assertIn(w, every)
 
     def test_the_check_fails_on_a_made_up_label(self):
         bad = {"id": "x", "b": [["p", "Press **Frobnicate** or see “Widget zone”."], ["tbl", ["A", "B"], [["Gizmo row", "c"]]]]}
@@ -148,13 +159,14 @@ class ReportSectionsHasNeedsFromYou(unittest.TestCase):
         self.assertNotRegex(row, r"(?i)pending decision|Needed from the client|straight after|Word file")     # what the page does not do (yet)
 
     def test_the_table_has_no_row_for_a_section_the_page_does_not_draw(self):
-        """Risks and issues, Open actions, Decisions and Supporting documents show 'Not shown on this page yet.' (Section.jsx), as does Current state in Edit."""
+        """Risks and issues, Open actions and Decisions show 'Not shown on this page yet.' (Section.jsx), as does Current state in Edit."""
         names = [r[0] for r in self.TABLE[2]]
         self.assertEqual(names, ["At a glance", "Use case summary", "Milestones", "Summary, This week, Next week", "Needs from you"])
         section = read("page", "src", "components", "Section.jsx")
         self.assertIn("Not shown on this page yet.", section)
-        for t in ("raid", "actions", "decisions", "docs"):
+        for t in ("raid", "actions", "decisions"):
             self.assertNotRegex(section, rf'section\.type === "{t}"')
+        self.assertIn('section.type === "docs"', section)       # Supporting documents are drawn now
 
     def test_the_needs_entry_links_to_the_task_and_the_task_is_shown(self):
         self.assertIn("(#howto-ask-for-what-you-need)", json.dumps(entry("ref", "needs-from-you"), ensure_ascii=False))
@@ -162,14 +174,14 @@ class ReportSectionsHasNeedsFromYou(unittest.TestCase):
 
 
 class TheWeekEndsOnAFriday(unittest.TestCase):
-    """Row 64 (needs the owner): the prototype says 'The week ends on a Friday.' The page has no such rule, so the line stays out of Help."""
-    def test_help_does_not_say_it(self):
+    """Row 64: the prototype says 'The week ends on a Friday.' The page has the rule (#570), so Help's 'Dates and IDs' says it now it is released."""
+    def test_help_says_it(self):
         every = json.dumps(SHOWN, ensure_ascii=False)
-        self.assertNotIn("The week ends on a Friday", every)
+        self.assertIn("The week ends on a Friday", every)
 
     def test_the_page_week_end_is_a_friday(self):
         """#570 (option a2): the board's 'this week' ends on a Friday (logic/board.js fridayOnOrAfter) and a week ending that is not a
-        Friday is refused (changes.NOT_FRIDAY). Help's 'Dates and IDs' lines say so and are held in helpLater until the release shows them.
+        Friday is refused (changes.NOT_FRIDAY). Help's 'Dates and IDs' lines say so and are shown.
         client_filters.week_end (the Sunday of the client filters) is outside #570 and is raised with the owner."""
         from clark import client_filters
         self.assertEqual(client_filters.week_end("2026-11-02", 0), "2026-11-08")
@@ -219,7 +231,7 @@ class DiagnosticsEntry(unittest.TestCase):
         self.assertNotIn("Open the folder", self.TEXT)
         self.assertNotIn("**Log level**", self.TEXT)
         self.assertEqual(entry("ref", "diagnostics")["w"], "Settings › Logs and diagnostics")
-        self.assertIn("<h2>Logs and diagnostics</h2>", self.PAGE)
+        self.assertIn('<h2 id="diagnostics-h" tabIndex={-1}>Logs and diagnostics</h2>', self.PAGE)
 
     def test_the_numbers_are_the_log_s(self):
         log, diag = read("log.py"), read("diagnostics.py")
