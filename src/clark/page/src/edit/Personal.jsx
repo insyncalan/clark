@@ -19,7 +19,7 @@ export const APPEARANCES = [                                 // the ruled order:
   ["dark", "Dark", "Always dark."],
 ];
 
-// About you (#180): the two optional boxes. Each is saved when it is left (or on Enter); a refusal says why under the box and writes
+// About you (#180): the two optional boxes, with the prototype's placeholders (#440). Each is saved when it is left (or on Enter); a refusal says why under the box and writes
 // nothing, and what was typed stays in the box so it can be mended. Emptying the name returns the menu's top line to its link.
 function AboutYou() {
   const name = useRef(null), email = useRef(null);
@@ -54,10 +54,10 @@ function AboutYou() {
     if ((mine.current ? mine.current.value : typed[about]) !== sent[about]) return;
     setSaid({ name: about === "name" ? r.message : "", email: about === "email" ? r.message : "" });
   };
-  const box = (field, label, type, line, ref) => (
+  const box = (field, label, type, hint, line, ref) => (
     <div class="fld">
       <label for={`about-${field}`}>{label}</label>
-      <input id={`about-${field}`} ref={ref} type={type} value={typed[field]} autocomplete={field === "name" ? "name" : "email"} data-about={field}
+      <input id={`about-${field}`} ref={ref} type={type} value={typed[field]} autocomplete={field === "name" ? "name" : "email"} placeholder={hint} data-about={field}
         aria-describedby={`about-${field}-line`} aria-invalid={said[field] ? "true" : undefined}
         onInput={(e) => { const v = e.currentTarget.value; typedIn.current[field] = true; setTyped((t) => ({ ...t, [field]: v })); }}
         onBlur={() => save(field)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(field); } }} />
@@ -68,8 +68,8 @@ function AboutYou() {
   return (
     <fieldset class="styles about" data-about-you>
       <legend>About you</legend>
-      {box("name", "Your name", "text", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.", name)}
-      {box("email", "Your email", "email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.", email)}
+      {box("name", "Your name", "text", "Your full name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.", name)}
+      {box("email", "Your email", "email", "name@company.com", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.", email)}
     </fieldset>
   );
 }

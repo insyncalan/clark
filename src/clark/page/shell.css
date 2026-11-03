@@ -1053,9 +1053,15 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn:disabled { cursor: default; opacity: .6; }
 .setting { margin-top: var(--space-4); }
 .set-head p { margin: 0; }
-.set-nav { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* The chips' bar (#440, S2): it stays under the top bar as you scroll, on the page's own ground (carried out to both edges), and the
+   chip of the card in view is marked. Its height is kept clear when a card or a box is scrolled into view (--set-bar, Views.jsx). */
+.set-bar { position: sticky; top: var(--topbar); z-index: 15; margin-top: var(--space-3); padding: var(--space-2) 0; background: var(--grey-50); box-shadow: 0 0 0 100vmax var(--grey-50); clip-path: inset(0 -100vmax); }
+:root:has(.set-bar) { scroll-padding-top: var(--set-bar, 0px); }
+.set-bar + .setting { margin-top: var(--space-2); }
+.set-nav { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .set-chip { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 28px; padding: 3px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out); }      /* no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
 .set-chip:hover { border-color: var(--text-muted); background: var(--brand-blue-tint); }
+.set-chip[aria-current], .set-chip[aria-current]:hover { border-color: var(--brand-blue); background: var(--brand-blue); color: var(--text-on-brand); }      /* the same weight, so marking a chip never moves the row */
 .set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
 .setting h2 { margin: 0 0 6px; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
