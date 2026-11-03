@@ -321,6 +321,60 @@ class PeopleList(Base):
         status, body = self.undo({"project": "ABC", "apply_id": apply_id})
         self.assertEqual((status, body["ok"], body["message"]), (400, False, changes.NO_UNDO), body)
 
+    def test_an_undo_after_the_owner_was_edited_by_hand_keeps_the_new_name_and_its_link(self):
+        """Ada has it, it goes to Bob, then the owner is typed over as Cara Free. The Undo must not put Ada's link back beside Cara
+        Free: the owner and its link go back together or not at all (#199)."""
+        ada, bob = self.person(OWNER), self.person(NEW)
+        ref = self.actions[0]
+        with self.s.step("dashboard", USER) as st:
+            st.update("actions", ref, {"owner_id": ada})
+        _, body = self.send([ref])
+        self.assertEqual((self.who(ref), self.linked(ref)), (NEW, bob))
+        status, edited = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": ref, "changes": {"owner": "Cara Free"}})
+        self.assertEqual((status, edited["ok"]), (200, True), edited)
+        before = self.counts()
+        status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
+        self.assertEqual((status, undone["ok"], undone["message"]), (409, False, changes.HAND_OVER_CHANGED), undone)
+        self.assertEqual((self.who(ref), self.linked(ref)), ("Cara Free", bob), "the name stays, and no old link is put back beside it")
+        self.assertEqual(self.counts(), before, "nothing was written")
+
+    def test_a_hand_over_with_an_edited_owner_is_left_whole_in_an_undo_of_several(self):
+        ada, bob = self.person(OWNER), self.person(NEW)
+        ref = self.actions[0]
+        with self.s.step("dashboard", USER) as st:
+            st.update("actions", ref, {"owner_id": ada})
+        _, body = self.send([ref])
+        self.change({"project": "ABC", "kind": "actions", "op": "update", "id": ref, "changes": {"owner": "Cara Free"}})
+        status, undone = self.undo({"project": "ABC", "steps": [body["apply_id"]], "preview": True})
+        self.assertEqual(status, 200, undone)
+        self.assertEqual([(x["ref"], x["why"]) for x in undone["skipped"]], [(ref, changes.CHANGED_SINCE)], undone)
+        self.assertEqual(undone["undo"], [])
+        self.assertEqual((self.who(ref), self.linked(ref)), ("Cara Free", bob))
+
+    def test_a_link_only_hand_over_is_undone_and_only_the_link_goes_back(self):
+        """The owner text already reads the person's name, so only the link changes (#199): its Undo is offered and restores the link."""
+        bob = self.person(NEW)
+        ref = self.actions[0]
+        with self.s.step("dashboard", USER) as st:
+            st.update("actions", ref, {"owner": NEW})
+        _, body = self.send([ref])
+        self.assertEqual((body["ok"], body["changed"], self.linked(ref)), (True, [ref], bob), body)
+        self.assertEqual([e["field"] for e in self.s.history(ref) if e["step"] == body["apply_id"]], ["owner_id"], "only the link changed")
+        status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
+        self.assertEqual((status, undone["ok"]), (200, True), undone)
+        self.assertEqual((self.who(ref), self.linked(ref)), (NEW, None), "the name is as it was; the link is back to none")
+
+    def test_a_link_only_hand_over_is_not_undone_once_the_name_was_edited(self):
+        bob = self.person(NEW)
+        ref = self.actions[0]
+        with self.s.step("dashboard", USER) as st:
+            st.update("actions", ref, {"owner": NEW})
+        _, body = self.send([ref])
+        self.change({"project": "ABC", "kind": "actions", "op": "update", "id": ref, "changes": {"owner": "Cara Free"}})
+        status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
+        self.assertEqual((status, undone["message"]), (409, changes.HAND_OVER_CHANGED), undone)
+        self.assertEqual((self.who(ref), self.linked(ref)), ("Cara Free", bob))
+
     def test_free_text_writes_no_id_and_clears_an_old_one(self):
         old = self.person(OWNER)
         with self.s.step("dashboard", USER) as st:
