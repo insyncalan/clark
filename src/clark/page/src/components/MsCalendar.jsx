@@ -84,8 +84,8 @@ export function MsCalendar({ rows, today, open, place, client }) {
   const rove = roveDay(day, here, today);
   const go = (k) => { const b = neighbour(scale, at, k); if (b) { setFar(false); setMoved(true); setAt(b.start); setDay(null); } else setFar(true); bump(); };
   const toToday = () => { setFar(false); setMoved(true); setAt(home()); setDay(null); bump(); };
-  // The new scale opens on today when today is in what is shown, else on what starts it.
-  const pick = (s) => { if (!client && place) remember(`msv.calv.${place}`, s); setFar(false); setMoved(true); setScale(s); setDay(null); setAt(here.start <= today && today <= here.end ? today : here.start); };
+  // A new scale always opens on the current period, as the prototype's does (system/prototype/views.js, toToday), wherever you had gone.
+  const pick = (s) => { if (!client && place) remember(`msv.calv.${place}`, s); setFar(false); setMoved(true); setScale(s); setDay(null); setAt(home()); };
   // A day moved to by a key: its period is drawn if it is one the page draws, else the calendar says so (#481).
   const stepTo = (iso) => {
     if (!inRange(iso)) { setFar(true); bump(); return; }

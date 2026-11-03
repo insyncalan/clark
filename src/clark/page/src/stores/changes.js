@@ -3,7 +3,7 @@
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
-import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData } from "../api.js";
+import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendRecordChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData } from "../api.js";
 import { flashed } from "./wordsState.js";
 import { diffIds, markChanged } from "./changed.js";
 import { undoRequest as wordUndoRequest, words as wordWords } from "../edit/wordApi.js";
@@ -120,6 +120,21 @@ export function changeItem(req, done) {
   });
 }
 
+// Archive an item or add a copy of it (#97), from the right-click menu: one step with Undo (`req` is the change, `done.text` what the
+// toast says and `done.back` what it says after the Undo, "" for "Undone."). The work items are read again, as after a board move.
+// A refusal is a note: nothing was changed.
+export function changeRecord(req, done) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendRecordChange(code, req);
+    if (!r.ok) { say("note", r.message); return null; }
+    await reread(code);
+    itemSteps.set(r.reply.apply_id, done.back || "");
+    say("done", done.text, r.reply.apply_id, code);
+    return r.reply;
+  });
+}
+
 // Undo one step, by the id the change's reply gave, in the project the step was made in (`code`; the open one if not given). If some rows were left as they are, the toast
 // says which, in the words clark gives (they name the section and why); otherwise it says what went back (a work item's cell, #80)
 // or that it is undone.
@@ -229,7 +244,7 @@ export function changeBulk(req, back) {
     }
     await reread(code);
     const step = r.reply.undoable === true && r.reply.apply_id ? r.reply.apply_id : null;
-    if (step) itemSteps.set(step, back || "");
+    if (step) itemSteps.set(step, typeof back === "function" ? back(r.reply) : back || "");     // #199: `back` may work out its words from the reply
     say(step ? "done" : "note", r.reply.words, step, code);
     return r;
   });

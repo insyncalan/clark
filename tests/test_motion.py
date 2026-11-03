@@ -47,17 +47,26 @@ class Rules(unittest.TestCase):
         self.assertNotIn("@keyframes", outside)
 
     def test_only_tokens_set_a_time_or_an_easing_and_nothing_loops(self):
-        # The one exception is the Publish ring, which turns only while the work is going on (the dialog says "Publishing…") and
-        # is gone when it ends; the issue asks for it by name. Everything else runs once.
+        # Everything in the Motion block runs once.
         self.assertEqual([x.strip() for x in re.findall(r"([^{}\s][^{}]*)\{[^}]*infinite", re.sub(r"/\*.*?\*/", "", MOTION, flags=re.S))], [])
         for decl in re.findall(r"animation:([^;]+);", MOTION):
-            if "infinite" in decl:
-                self.assertRegex(decl, r"var\(--dur-[a-z]+\)")
-                continue
             self.assertRegex(decl, r"var\(--dur-[a-z]+\)", decl)
             self.assertRegex(decl, r"var\(--ease-[a-z]+\)", decl)
             self.assertNotRegex(decl, r"(?<![-\w(])\d+(\.\d+)?m?s\b", "a literal time: " + decl)
             self.assertTrue(re.search(r"\b1\b|forwards", decl), "runs once: " + decl)
+
+    def test_no_animation_anywhere_in_the_page_loops_unless_a_loop_is_approved(self):
+        """#380 (#131): "nothing loops" is the rule for every animation in shell.css, not only the Motion block. A loop is allowed
+        only if its selector is in APPROVED_LOOPS, which holds a name only once the owner has approved that loop in writing; none has.
+        The Publish ring (.spin) is bounded: a whole number of turns, then it rests as the still ring."""
+        APPROVED_LOOPS = ()
+        bare = re.sub(r"/\*.*?\*/", "", CSS, flags=re.S)
+        loops = [sel.strip() for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", bare) if re.search(r"animation[^;]*\binfinite\b", body)]
+        self.assertEqual([x for x in loops if x not in APPROVED_LOOPS], [], "an animation loops with no approval")
+        ring = re.search(r"\.spin \{ animation:([^;]+);", bare)
+        self.assertTrue(ring, "the ring animation rule is there")
+        self.assertRegex(ring.group(1), r"\blinear 4\b", "the ring turns a counted number of times")
+        self.assertNotIn("infinite", ring.group(1))
 
     def test_the_placeholder_overlay_never_takes_input(self):
         self.assertIn("pointer-events: none", re.search(r"\.skel-leave \{[^}]*\}", MOTION).group(0))
@@ -364,6 +373,8 @@ class PublishLooks(tpd.Base):
                 if mode[0] == "allowed":
                     self.assertEqual(spin[0], "pub-spin")
                     self.assertGreater(spin[1], 0)
+                    turns = p.js("document.querySelector('.spin').getAnimations()[0].effect.getComputedTiming().iterations")
+                    self.assertEqual(turns, 4, "#380: a counted number of turns, never Infinity (which the page reports as null)")
                 else:
                     self.assertEqual(spin, ["none", 0], "a still ring")
                     self.assertGreater(p.js("document.querySelector('.spin').offsetWidth"), 0, "and it is there")
