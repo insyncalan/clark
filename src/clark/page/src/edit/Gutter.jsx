@@ -8,6 +8,7 @@ import { startDrag } from "./drag.js";
 import { askToAdd } from "./addSection.js";
 import { note } from "./notes.js";
 import { useMenuState } from "../components/Menu.jsx";
+import { handleHint, HINT_WORDS } from "../stores/motion.js";
 
 // An item that cannot apply stays in the menu, unavailable, with the reason on it.
 const why = (r) => (r.ok || r.quiet ? {} : { off: true, reason: r.message });
@@ -18,6 +19,7 @@ export function Gutter({ section, count }) {
   const [open, setOpen] = useMenuState();
   const grip = useRef(null), menu = useRef(null), down = useRef(null);
   const canDelete = DELETABLE.includes(section.type);
+  const hinted = handleHint.value === section.id;
 
   const items = (() => {
     const out = [
@@ -76,7 +78,7 @@ export function Gutter({ section, count }) {
   };
 
   return (
-    <div class={`sec-ctl${open ? " open" : ""}`}>
+    <div class={`sec-ctl${open ? " open" : ""}${hinted ? " hint" : ""}`} data-hint={hinted ? "1" : undefined}>
       <button type="button" class="handle" ref={grip} data-edit-only data-drag data-options aria-haspopup="menu" aria-expanded={open ? "true" : "false"}
         aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown" title="Drag to move · click for options"
         aria-label={`Move or change ${section.title}`} onKeyDown={onKeyDown} onPointerDown={onPointerDown} onClick={onClick}>
@@ -94,6 +96,7 @@ export function Gutter({ section, count }) {
           </svg>
         </span>
       ) : null}
+      {hinted ? <span class="sec-hint" role="status">{HINT_WORDS}</span> : null}
       {open ? (
         <div class="menu" role="menu" ref={menu} data-edit-only aria-label={`Options for ${section.title}`} onKeyDown={onMenuKey}>
           {items.map((it) => [
