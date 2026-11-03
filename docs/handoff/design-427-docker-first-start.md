@@ -26,7 +26,7 @@ clark listens on 127.0.0.1 only, and refuses any request whose peer address is n
 
 ### What B weakens, said plainly
 
-1. Inside the container clark now listens on all of the container's addresses, not only loopback. Another container on the same Docker network can open a connection to it. It is refused (403), because its peer address is its own, not the gateway's. The compose file has no other service, and its network is private to this project.
+1. Inside the container clark now listens on all of the container's addresses, not only loopback. Another container on the same Docker network can open a connection to it. It is refused (403) on every route: the API (the peer check in csp_local) and, since a reader's finding, the page and /health too (GET checks the peer in container mode; a real request in tests/test_server_container.py proves it), because its peer address is its own, not the gateway's. The compose file has no other service, and its network is private to this project.
 2. The peer check no longer means "this very machine". It means "the container's gateway", which is Docker's forwarder. Anything that Docker forwards to the port arrives as that gateway. So the line `127.0.0.1:8766:8766` in the compose file is now a security control. If someone edits it to `8766:8766`, anyone on the network can reach clark, the peer check will not stop them, and only the Host check and the token remain. A test reads the compose file and fails if any published port lacks `127.0.0.1:`.
 3. Any program on the Mac can already reach 127.0.0.1:8766 today, on the terminal route; B does not change that. Anyone who can run `docker` commands can already do far more than reach clark.
 4. A browser page on another site still cannot talk to clark: Host, Origin and Sec-Fetch-Site are unchanged.
@@ -131,3 +131,9 @@ Way 2: without Docker
 - Pointing the log into `/data`, and the OneDrive check in the Mac-side starter: see slice 2 above.
 - No image was built and no container started: the machine's load was over 40 (91 at the start). Only the compose file was checked (`docker compose config`), and the guarded tests were run.
 - The done-when in the issue (both routes tried on a clean Mac from the downloaded zip) is untouched.
+
+## Scope of this pull request (stated plainly, so the done-when is not read as met)
+
+- **In:** the container setting, the 0.0.0.0 bind inside a container only, the peer rule on the API and on GET, the compose file (loopback port, non-root, read-only, no capabilities), and their tests.
+- **Not in, and still to do before the item is done:** the Mac-side starter and its test (it is where the OneDrive refusal for a shared data folder lives; inside the container that refusal does not run, so a data folder shared from OneDrive would be accepted until the starter checks it); one recorded real run on Docker Desktop to see which peer address it presents (if it is the VM's address the request is refused, which fails safe); a warning line when the bind is 0.0.0.0 under `--network host`.
+- container_mode() is written twice (server.py cannot import platform.py by design). tests/test_server_container.py and tests/test_platform_container.py cover both; keep them the same.

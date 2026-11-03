@@ -1121,6 +1121,8 @@ class Handler(BaseHTTPRequestHandler):
             return None
         if not self.host_ok():
             return self.send(403, error_body("not_allowed"))
+        if container_mode() and not local_peer(self.client_address[0]):      # #427: with the container's 0.0.0.0 bind, the page and /health are for this machine only too
+            return self.send(403, error_body("not_allowed"))
         route = self.path.split("?")[0]
         if route == "/health":
             return self.send(200, health_answer(self.headers.get(MARK_HEADER)))

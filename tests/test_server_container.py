@@ -4,7 +4,9 @@ Run: python3 dev/run_tests.py test_server_container
 Only the one setting (CLARK_CONTAINER=1, inside a container) lets the server listen on 0.0.0.0 and trust the container's
 gateway as a local peer. Nothing here starts a container or needs Docker.
 """
+import http.client
 import re
+import threading
 import unittest
 from unittest import mock
 
@@ -138,6 +140,61 @@ class Compose(unittest.TestCase):
         text = (ROOT / "docker" / "Dockerfile").read_text(encoding="utf-8")
         self.assertIn("CLARK_CONTAINER=1", text)
         self.assertRegex(text, r"(?m)^USER clark$")
+
+
+class ComposeIsLanSafe(unittest.TestCase):
+    """The compose file's 127.0.0.1 prefix is the whole defence against the LAN, so the file may say nothing that sidesteps it (#427)."""
+    TEXT = (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8")
+    CODE = "\n".join(line.split("#", 1)[0] for line in TEXT.splitlines())        # the file without its comments
+
+    def test_it_publishes_exactly_one_port_in_the_short_form_on_loopback(self):
+        self.assertEqual(len(re.findall(r"(?m)^\s*ports:\s*$", self.CODE)), 1)
+        listed = re.findall(r"(?m)^\s*-\s*(.+?)\s*$", self.CODE.split("ports:", 1)[1].split("volumes:", 1)[0])
+        self.assertEqual([p.strip("\"'") for p in listed], ["127.0.0.1:8766:8766"])
+
+    def test_nothing_in_it_can_put_the_container_on_the_hosts_network_or_another_address(self):
+        for word in ("network_mode", "host_ip", "0.0.0.0", "expose:", "extra_hosts", "privileged", "pid:", "ipc:"):
+            self.assertNotIn(word, self.CODE, word)
+        ports_block = self.CODE.split("ports:", 1)[1].split("volumes:", 1)[0]
+        for word in ("published:", "target:", "mode:"):                      # the long form of a port (the volume below has its own target)
+            self.assertNotIn(word, ports_block, word)
+        ports_line = next(line for line in self.CODE.splitlines() if "8766:8766" in line)
+        self.assertNotIn("${", ports_line, "the address is not read from the environment")
+
+
+class GetFromAnotherPeer(unittest.TestCase):
+    """A real server, a real request: in container mode the page and /health answer this machine only (#427, a reader's finding:
+    GET checked the Host header and nothing else, and the container's 0.0.0.0 bind lets in any peer on the Docker network)."""
+
+    def get(self, path, peer_is_local, container):
+        httpd = sv.LocalServer((sv.HOST, 0), page_html=lambda: "<html><head></head><body>ZQ-THE-PAGE</body></html>")
+        self.addCleanup(httpd.server_close)
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        self.addCleanup(httpd.shutdown)
+        with mock.patch.object(sv, "container_mode", lambda: container), mock.patch.object(sv, "local_peer", lambda address: peer_is_local):
+            conn = http.client.HTTPConnection(sv.HOST, httpd.server_port, timeout=10)
+            try:
+                conn.request("GET", path, headers={"Host": f"127.0.0.1:{httpd.server_port}"})
+                answer = conn.getresponse()
+                return answer.status, answer.read().decode("utf-8", "replace")
+            finally:
+                conn.close()
+
+    def test_the_page_and_health_are_refused_to_a_peer_that_is_not_this_machine(self):
+        for path in ("/", "/health"):
+            status, body = self.get(path, peer_is_local=False, container=True)
+            self.assertEqual(status, 403, path)
+            self.assertNotIn("ZQ-THE-PAGE", body, "no page and no token reach it")
+            self.assertNotIn(sv.TOKEN, body)
+
+    def test_the_page_and_health_answer_this_machine_and_the_container_gateway(self):
+        self.assertEqual(self.get("/health", peer_is_local=True, container=True)[0], 200)
+        status, body = self.get("/", peer_is_local=True, container=True)
+        self.assertEqual(status, 200)
+        self.assertIn("ZQ-THE-PAGE", body)
+
+    def test_outside_a_container_nothing_changes(self):
+        self.assertEqual(self.get("/health", peer_is_local=False, container=False)[0], 200)
 
 
 class GatewayRead(unittest.TestCase):
