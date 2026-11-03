@@ -1,4 +1,4 @@
-// #210 (option C): the Priority picker of a risk or an issue. Its priority is worked out by clark from its impact and likelihood,
+// Item 210 (option C): the Priority picker of a risk or an issue. Its priority is worked out by clark from its impact and likelihood,
 // so the picker offers those two, each High, Medium or Low, as two labelled groups of one menu with a tick in each. A pick
 // changes one of them (one step, with Undo in the toast) and the cell then shows the priority clark worked out. Keys as MenuPick:
 // focus starts on the ticked impact; Down and Up wrap across both groups, Home and End jump, Enter or Space picks, Esc leaves it.

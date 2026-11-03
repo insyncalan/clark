@@ -178,7 +178,7 @@ export function changeCell(table, id, changes, done) {
   });
 }
 
-// #210: a risk's or issue's impact or likelihood from its Priority cell. The update op doesn't take those two (clark works the
+// Item 210: a risk's or issue's impact or likelihood from its Priority cell. The update op doesn't take those two (clark works the
 // priority out from them), so the change goes as a bulk change of this one item, from the cell: one step and one Undo, the value
 // checked by clark, the history "in the table". The data is read again, so the cell shows the priority clark worked out, and
 // the toast says it.

@@ -1,5 +1,5 @@
 // #80: the Priority picker, for an action (a RAID item's priority comes from its impact and likelihood; a decision has none).
-// The same props as StatusPick, so the peek (#42) can use it as it is. #210: a risk's or issue's opens RatingPick instead.
+// The same props as StatusPick, so the peek (#42) can use it as it is. Item 210: a risk's or issue's opens RatingPick instead.
 import { MenuPick } from "./MenuPick.jsx";
 import { RatingPick } from "./RatingPick.jsx";
 import { PRIORITIES } from "../itemEdit.js";

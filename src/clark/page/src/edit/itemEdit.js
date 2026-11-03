@@ -2,7 +2,7 @@
 // today). Each cell (owner, due, priority, status) has its own picker in ./cells/, and the peek (#42) can use the same pickers
 // later. A change is sent through api.js as kind actions, raid or decisions, op update (clark/changes.py, #68): only
 // the fields it accepts are named here. A RAID item's priority comes from its impact and likelihood and a decision has none, so
-// a decision's Priority cell is not a picker; a risk's or issue's opens a picker for its impact and likelihood (#210, option C).
+// a decision's Priority cell is not a picker; a risk's or issue's opens a picker for its impact and likelihood (item 210, option C).
 import { dueField, showDate, dayNumber, colourOf, pillOf } from "../workItems.js";
 
 export const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
@@ -12,7 +12,7 @@ const STATUSES = {
   decision: ["Pending", "Made", "Withdrawn"],
 };
 export const FIELDS = ["owner", "due", "priority", "status"];
-export const LEVELS = ["High", "Medium", "Low"];           // #210: a risk's or issue's impact and likelihood (the store's own list)
+export const LEVELS = ["High", "Medium", "Low"];           // item 210: a risk's or issue's impact and likelihood (the store's own list)
 const DAY = 86400000;
 // A character no one can see or that breaks a line (control, format such as a zero-width space or a right-to-left override,
 // surrogate, private use, line and paragraph separators): clark/changes.py refuses a name with one (ITEM_BAD_KINDS), so the
@@ -35,7 +35,7 @@ export function whyFixed(row, field) {
   return field === "priority" && tableOf(row) === "raid" && !RATED.includes(row.kind) ? "Set from impact and likelihood" : "";
 }
 
-/** #210: the Priority picker of a risk or issue: its impact and likelihood, each High, Medium or Low, sent as `impact:High`. */
+/** Item 210: the Priority picker of a risk or issue: its impact and likelihood, each High, Medium or Low, sent as `impact:High`. */
 export function ratingGroups(row) {
   if (!RATED.includes(row.kind)) return [];
   return [["impact", "Impact"], ["likelihood", "Likelihood"]].map(([f, t]) => ({ field: f, heading: t, current: row[f] || null,
@@ -122,7 +122,7 @@ export function changeFor(row, field, value, today) {
     return { changes: { [dueColumn(row)]: iso }, words: iso ? `${name} of ${row.id} changed to ${showDate(iso)}.` : `${name} of ${row.id} cleared.`, back };
   }
   if (field === "priority" && RATED.includes(row.kind)) {
-    // #210: a risk's or issue's priority follows from its impact and likelihood, so its cell changes one of those two. The update
+    // Item 210: a risk's or issue's priority follows from its impact and likelihood, so its cell changes one of those two. The update
     // op doesn't take them, so it is sent as a bulk change of this one item (one step, one Undo; clark checks the value).
     const m = /^(impact|likelihood):(.*)$/.exec(String(value == null ? "" : value));
     if (!m || !LEVELS.includes(m[2])) return { error: "Impact and likelihood are each High, Medium or Low, so nothing was changed. Pick one from the list." };
