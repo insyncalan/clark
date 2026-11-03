@@ -225,7 +225,7 @@ class Rows(unittest.TestCase):
             self.rows("nonsense")
 
     def test_footnote_constant(self):
-        self.assertEqual(history.FOOTNOTE, "Names come from this computer until you add your name in Settings \u203a Profile.")
+        self.assertEqual(history.FOOTNOTE, "Names come from this computer until you add your name in Settings \u203a Personal \u203a About you.")
         self.assertEqual(history.view_for_project(self.con, "ABC")["footnote"], history.FOOTNOTE)
 
     # -- order, scope, limit

@@ -227,7 +227,7 @@ class PlainWordsMedium(unittest.TestCase):
         self.assertEqual(build()["problems"], [])
 
     def test_a_missing_sender_name_asks_for_it(self):
-        msg = "Add your name in Settings › Profile so it signs the email."
+        msg = "Add your name in Settings › Personal › About you so it signs the email."
         for blank in ("", "   "):
             d = build(**{"from": blank})
             self.assertEqual(d["problems"], [msg])
@@ -374,6 +374,53 @@ class ToneNames(unittest.TestCase):
         for name in de.TONE_NAMES:
             self.assertIn(name, proto)
         self.assertNotIn("'First']", proto)
+
+
+class ToneChoice(unittest.TestCase):
+    """#452: the user can choose the tone; the answer says how often the items were chased before."""
+
+    def test_a_chosen_tone_overrides_clarks_own(self):
+        c = both(3, "2026-10-08")
+        self.assertEqual(build(mode="chase", items=[LATE, LATE2], chased=c)["tone"], 2)
+        first = build(mode="chase", items=[LATE, LATE2], chased=c, tone=0)
+        self.assertEqual(first["tone"], 0)
+        self.assertIn("A quick reminder about the items below", first["text"])
+        self.assertIn("· Reminder:", first["subject"])
+        firmer = build(mode="chase", items=[LATE, LATE2], tone=2)
+        self.assertEqual(firmer["tone"], 2)
+        self.assertIn("Please reply with a firm date for each", firmer["text"])
+        self.assertIn("· Reply needed:", firmer["subject"])
+        second = build(mode="chase", items=[LATE], tone=1)
+        self.assertEqual(second["tone"], 1)
+        self.assertIn("I'm following up on my earlier note about the item below", second["text"])
+
+    def test_no_tone_leaves_the_choice_to_clark(self):
+        c = both(1, "2026-10-08")
+        self.assertEqual(build(mode="chase", items=[LATE, LATE2], chased=c, tone=None)["tone"], 1)
+
+    def test_an_update_request_has_no_tone_whatever_is_asked(self):
+        self.assertEqual(build(tone=2)["tone"], 0)
+
+    def test_anything_but_0_1_or_2_is_refused_in_plain_words(self):
+        for bad in (-1, 3, 1.0, "1", "Firmer chase", True, False, [1], {}):
+            with self.subTest(bad=bad), self.assertRaises(ValueError) as e:
+                build(mode="chase", items=[LATE], tone=bad)
+            self.assertEqual(str(e.exception), "That tone isn't available. Choose First chase, Second chase or Firmer chase.")
+        self.assertNotIn("_", de.NO_SUCH_TONE)
+
+    def test_the_answer_carries_the_highest_chase_count_of_the_ticked_items(self):
+        c = {"ABC-A-001": {"n": 1, "last": "2026-10-06"}, "ABC-A-006": {"n": 3, "last": "2026-10-08"}}
+        self.assertEqual(build(mode="chase", items=[LATE, LATE2], chased=c)["chased"], 3)
+        self.assertEqual(build(mode="chase", items=[LATE, LATE2], chased=c, picked=["ABC-A-001"])["chased"], 1)
+        self.assertEqual(build(mode="chase", items=[LATE, LATE2])["chased"], 0)
+        self.assertEqual(build(mode="chase", items=[LATE, LATE2], chased=c, tone=0)["chased"], 3, "the count is the history, not the tone")
+        self.assertEqual(de.times_chased(["ABC-A-009"], c), 0)
+
+    def test_no_tone_word_reaches_the_email(self):
+        for tone in (0, 1, 2):
+            d = build(mode="chase", items=[LATE, LATE2], tone=tone)
+            for name in de.TONE_NAMES:
+                self.assertNotIn(name.lower(), (d["text"] + d["subject"] + d["html"]).lower())
 
 
 class Dates(unittest.TestCase):
