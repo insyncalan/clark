@@ -172,7 +172,7 @@ def read(data, item_id, words, now=None, known_owners=None):
     if bad:
         return {"ok": False, "message": BAD_DATE}
     if any(not 2000 <= d.year <= 2100 for d in found):
-        return {"ok": False, "message": "That year looks wrong, so nothing was changed. Check the date."}
+        return {"ok": False, "message": "That year looks wrong, so nothing was changed. Type a year between 2000 and 2100."}
     statuses = _statuses_for(rest, kind)
     if len(statuses) > 1 or (statuses and NEGATION.search(rest.replace("’", "'"))):
         return {"ok": False, "message": UNSURE_STATUS}

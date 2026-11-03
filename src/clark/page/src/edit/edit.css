@@ -54,6 +54,8 @@
 .mvm-f span { font-size: var(--size-caption); color: var(--text-muted); }
 .mvm-f input { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .mvm-f input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.mvm-note { display: block; box-sizing: border-box; width: 100%; min-height: 84px; padding: var(--space-2) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; resize: vertical; }
+.mvm-note:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .mvm-confirm { margin: var(--space-3) 0 var(--space-1); }
 .mvm-problems p { margin: var(--space-1) 0; color: var(--status-red-text); }
 @media (max-width: 1100px) { .mvm-row { grid-template-columns: 1fr auto; } .mvm-track { grid-column: 1 / -1; } }
@@ -444,6 +446,21 @@ textarea.tpl-field { resize: vertical; }
 .tpl-form .btn { justify-self: start; margin-top: var(--space-2); }
 .tpl-problem { margin: 0; color: var(--status-red-text); font-size: var(--size-caption); }
 .tpl-empty { margin: 0; }
+
+/* #74 Supporting documents in Edit: each link's buttons, the add or edit form, and "Add back a document". Tokens only. */
+.docs-edit { gap: var(--space-2); margin: var(--space-2) 0; }
+.docs-edit .docs-list { margin: 0; }
+.docs-row { flex-wrap: wrap; }
+.docs-row-buttons { flex: none; display: flex; gap: var(--space-1); align-self: center; }
+.docs-row-buttons .btn, .docs-left-list .btn { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; }
+.docs-row .docs-form { flex: 1 1 100%; }
+.tpl-form select { min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.tpl-form select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.docs-form-buttons { display: flex; gap: var(--space-2); }
+.docs-left summary { cursor: pointer; color: var(--text-muted); font-size: var(--size-small); min-height: 24px; }
+.docs-left summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.docs-left-list { list-style: none; margin: var(--space-1) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.docs-left-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
 
 /* The bar above the page (A-D2): the week, where the report stands, and in Edit the notes. Tokens only. */
 .rbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 12px; font-size: var(--size-small); color: var(--text-muted); }
