@@ -196,10 +196,33 @@ class Arguments(Fake):
             "--max-budget-usd", "1.00", "--system-prompt", ask.RULES])
 
     def test_every_flag_the_run_uses_is_checked_in_the_help_except_the_documented_unlisted_one(self):
-        used = {a for a in ac.arguments("/x/claude")[1:] if a.startswith("--") and a != ask.RULES}
+        used = {a for a in ac.arguments("/x/claude", model="opus")[1:] if a.startswith("--") and a != ask.RULES}
         self.assertEqual(used, set(ac.NEEDED_FLAGS) | {"--max-turns"})
         self.assertEqual(ac.UNLISTED_FLAGS, ("--max-turns",))
         self.assertNotIn("--max-turns", ac.NEEDED_FLAGS, "a version whose --help leaves it out is still usable")
+
+    def test_the_chosen_model_is_one_fixed_alias_or_nothing(self):
+        """#54 (FR-65, #541): the model chosen in Settings › AI goes to the command, and only one of the three aliases ever does."""
+        self.assertEqual(ac.MODELS, ("opus", "sonnet", "haiku"))
+        self.assertNotIn("--model", ac.NEVER_FLAGS)
+        for alias in ac.MODELS:
+            args = ac.arguments("/x/claude", model=alias)
+            self.assertEqual(args[-4:], ["--model", alias, "--system-prompt", ask.RULES])
+        for bad in (None, "", "opus --dangerously-skip-permissions", "claude-opus", "gpt-5", "--bare", ["opus"], 3):
+            self.assertNotIn("--model", ac.arguments("/x/claude", model=bad), bad)
+
+    def test_the_command_is_given_the_model_read_for_each_run(self):
+        chosen = ["sonnet"]
+        provider = self.make(model=lambda: chosen[0])
+        self.assertEqual(provider.ask(self.request()), ANSWER)
+        self.assertEqual(self.seen()["args"][-4:-2], ["--model", "sonnet"])
+        chosen[0] = "not-a-model"
+        self.assertEqual(provider.ask(self.request()), ANSWER)
+        self.assertNotIn("--model", self.seen()["args"])
+        def broken():
+            raise OSError("settings can't be read")
+        self.assertEqual(self.make(model=broken).ask(self.request()), ANSWER)
+        self.assertNotIn("--model", self.seen()["args"], "a choice that can't be read is no choice")
 
     def test_the_sign_in_check_reads_no_settings_file(self):
         self.assertEqual(ac.AUTH_ARGS, ("--setting-sources", "", "auth", "status"))
@@ -675,6 +698,19 @@ class Replies(Fake):
         with mock.patch.object(ac, "hints", return_value=[]):
             for text in bad:
                 self.assertEqual(self.reply(text), ask.Failure(ac.NO_ANSWER), text[:40])
+
+    def test_a_result_that_says_the_plan_limit_was_reached_is_the_limit_line(self):
+        """#54 (FR-66): the command's limit result is its own line, never 'couldn't answer', and nothing else is tried."""
+        for words in ("You've hit your limit · resets 3pm", "Claude AI usage limit reached|1760000000", "Session limit reached"):
+            got = self.reply(json.dumps({"type": "result", "subtype": "success", "is_error": True, "result": words}))
+            self.assertEqual(got, ask.Failure(ac.LIMITED), words)
+            self.assertNotIn("resets", got.message, "none of the command's own text is shown")
+        with mock.patch.object(ac, "hints", return_value=[]):
+            got = self.reply(json.dumps({"type": "result", "subtype": "success", "is_error": False, "result": "   "}))
+            self.assertEqual(got, ask.Failure(ac.NO_ANSWER), "a result that isn't an error is not a limit")
+            got = self.reply(json.dumps({"type": "result", "subtype": "success", "is_error": True, "result": "something else broke"}))
+            self.assertEqual(got, ask.Failure(ac.NO_ANSWER))
+        self.assertEqual(sum(1 for c in self.calls() if "--print" in c["args"]), 5, "one run each: nothing retried by itself")
 
     def test_bytes_that_are_not_utf8_are_no_answer(self):
         self.mode("raw")

@@ -203,10 +203,11 @@ class EveryRouteThatSendsText(unittest.TestCase):
         self.assertLess(src.index("looks_like_secret("), src.index("provider.ask("))
 
     def test_the_server_has_no_route_for_the_selection_except_the_three_ai_ones(self):
-        # #72 slice 4: the three /api/ai/* routes exist (off in the launcher: no ai=, so they answer 404); each is screened above
+        # #72 slice 4: the three /api/ai/* routes exist (off in the launcher: no ai=, so they answer 404); each is screened above.
+        # #446, #54: the card's connect, disconnect and model routes carry no selection and send no text to a provider (test_ai_connect).
         routes = set(sv.GET_ROUTES) | set(sv.POST_ROUTES)
         self.assertEqual({r for r in routes if "suggest" in r or "edit" in r or r.startswith("/api/ai")},
-                         {"/api/ai/status", "/api/ai/suggest", "/api/ai/stop"})
+                         {"/api/ai/status", "/api/ai/suggest", "/api/ai/stop", "/api/ai-connect", "/api/ai-disconnect", "/api/ai-model"})
 
 
 class OneWordingForEveryLooksLikeAPasswordNote(unittest.TestCase):

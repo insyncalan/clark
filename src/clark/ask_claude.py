@@ -25,7 +25,8 @@ The safety steps, each one tested in tests/test_ask_claude.py with a fake comman
   `--no-session-persistence` (nothing saved under ~/.claude), `--system-prompt` with the fixed rules (the default prompt, which
   carries the folder, the platform and the date, is replaced), `--max-turns 1`, a pinned `--output-format json`
   (one result object, read strictly) and a `--max-budget-usd` cap. Never `--bare` (it would allow an API key only and never the sign-in),
-  never `--add-dir`, never a model, never a file argument. `--max-turns` is documented for print mode but some versions leave it
+  never `--add-dir`, never a file argument. #54: `--model` with the model chosen in Settings › AI, only one of the fixed aliases in
+  `MODELS` (opus, sonnet, haiku); none chosen, none sent (the command's own default, as before). `--max-turns` is documented for print mode but some versions leave it
   out of `--help`, so it is in `UNLISTED_FLAGS`: sent, not looked for (with no tools there is one answer either way).
 - SCRUBBED ENVIRONMENT (`child_env`): an allow-list built from nothing: HOME, USER and LOGNAME from the system's own record of
   this user (never from clark's environment), a fixed system PATH and a plain language, plus the pinned switches in `PINNED_ENV`.
@@ -56,10 +57,11 @@ PROVIDER = "claude"
 PLACES = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude")
 OTHER_ROOTS = ("/opt/homebrew", "/usr/local")       # besides the home folder, where the file a place names may be
 NEEDED_FLAGS = ("--print", "--safe-mode", "--disable-slash-commands", "--tools", "--strict-mcp-config", "--setting-sources",
-                "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd")
+                "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd", "--model")
 UNLISTED_FLAGS = ("--max-turns",)                 # documented for print mode, missing from some versions' --help: sent, not checked
 NEVER_FLAGS = ("--bare", "--add-dir", "--mcp-config", "--settings", "--dangerously-skip-permissions", "--resume", "--continue",
-               "--model", "--verbose", "--append-system-prompt", "--plugin-dir", "--agents")
+               "--verbose", "--append-system-prompt", "--plugin-dir", "--agents")     # #54: --model left this list (MODELS only)
+MODELS = ("opus", "sonnet", "haiku")              # #54: the only values --model is ever given
 SAFE_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
 KEEP_ENV = ("HOME", "USER", "LOGNAME", "LANG")      # what the sign-in and the text need; everything else is left out
 # Set in the child, never copied from clark's. The first three are the ones the design read named (no telemetry, no self-update,
@@ -101,6 +103,11 @@ NO_ANSWER = ("Claude couldn't answer just now. Try again in a moment. If it keep
              "when it asks.")
 TOO_SLOW = "Claude took too long to answer, so it was stopped. Try a shorter question."
 TOO_LONG_REPLY = "Claude's answer was too long to read, so it was stopped. Ask a narrower question."
+# #54 (FR-66): the command's result said the plan's limit was reached. providers.Router puts the offer of another provider or a smaller
+# model in its place; it never switches by itself. LIMIT_TEXT is creaite's (v27-132-build a6249e2d, providers.py LIMIT_TEXT).
+LIMITED = ("Claude says your plan has reached its limit, so this wasn't answered. You can choose a smaller model in Settings › AI, "
+           "or wait and ask again. clark never switches by itself.")
+LIMIT_TEXT = re.compile(r"(?i)you'?ve hit your (?:\w+ )?limit|usage limit reached|rate limit reached|session limit reached")
 BAD_SYSTEM = ask.BAD_INPUT                          # a coding fault, so the same plain line as any other bad input
 MAX_SYSTEM = 8000                                   # characters of a caller-given system prompt
 BUSY = "Another question is being answered. Wait for it, or press Stop."
@@ -140,13 +147,17 @@ def child_env(home=None, user=None):
     return env
 
 
-def arguments(path, canary="", system=None):
+def arguments(path, canary="", system=None, model=None):
     """The command line for one run: the fixed flags, the fixed rules as the system prompt (with this request's canary, #277),
     and nothing the person typed. `system` is a fixed rules text written in clark's own code (ai_menu.SUGGEST_RULES); left out,
-    it is ask clark's `ask.RULES`. The canary goes onto either one."""
-    return [str(path), "--print", "--safe-mode", "--disable-slash-commands", "--tools", "", "--strict-mcp-config",
+    it is ask clark's `ask.RULES`. The canary goes onto either one. `model` (#54) is one of MODELS or nothing: anything else is
+    left out, never passed on."""
+    args = [str(path), "--print", "--safe-mode", "--disable-slash-commands", "--tools", "", "--strict-mcp-config",
             "--setting-sources", "", "--no-session-persistence", "--max-turns", "1", "--output-format", "json",
-            "--max-budget-usd", MAX_BUDGET_USD, "--system-prompt", ask.system_prompt(canary, system)]
+            "--max-budget-usd", MAX_BUDGET_USD]
+    if model in MODELS:
+        args += ["--model", model]
+    return args + ["--system-prompt", ask.system_prompt(canary, system)]
 
 
 def roots_for(home=None):
@@ -255,6 +266,16 @@ def read_answer(out):
     return text
 
 
+def limit_hit(out):
+    """True when the command's one result object is an error whose text says the plan's limit was reached (#54, FR-66)."""
+    try:
+        got = json.loads(out.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError, RecursionError):
+        return False
+    return (isinstance(got, dict) and got.get("type") == "result" and got.get("is_error") is True
+            and isinstance(got.get("result"), str) and bool(LIMIT_TEXT.search(got["result"][:2000])))
+
+
 def run(args, data, env, limit, max_out, stop=None):
     """One run of the command (platform.run_stoppable: its own group, its own folders, the environment exactly `env`)."""
     return platform.run_stoppable(args, data, env, limit, max_out, stop=stop, prefix="clark-ask-", tmp_names=TMP_NAMES)
@@ -265,8 +286,9 @@ class ClaudeCommand(ask.Provider):
     command); clark itself uses the defaults."""
     provider = PROVIDER
 
-    def __init__(self, places=PLACES, env=None, limit=TIME_LIMIT, max_out=MAX_OUT, check_limit=CHECK_LIMIT, roots=None):
+    def __init__(self, places=PLACES, env=None, limit=TIME_LIMIT, max_out=MAX_OUT, check_limit=CHECK_LIMIT, roots=None, model=None):
         self.places, self.limit, self.max_out, self.check_limit = tuple(places), limit, max_out, check_limit
+        self.model = model                     # #54: a callable giving the chosen alias (one of MODELS) or None; read for each run
         self.roots = roots
         self.env = env if env is not None else child_env()
         self.lock = threading.Lock()           # one run at a time
@@ -341,7 +363,8 @@ class ClaudeCommand(ask.Provider):
     # ----- one question -----
     def answer(self, path, text, canary="", system=None):
         """Send `text` to the command at `path` (already checked) and read its answer: the reply text, or an ask.Failure."""
-        status, out, _code = run(arguments(path, canary, system), text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)
+        status, out, _code = run(arguments(path, canary, system, self.chosen()), text.encode("utf-8"), self.env, self.limit, self.max_out,
+                                 stop=self.stop_event)
         if status == "stopped":
             return ask.Failure(ask.STOPPED)
         if status == "slow":
@@ -349,9 +372,19 @@ class ClaudeCommand(ask.Provider):
         if status == "too_much":
             return ask.Failure(TOO_LONG_REPLY)
         reply = read_answer(out) if status == "ok" else None
+        if reply is None and status in ("ok", "failed") and limit_hit(out):
+            return ask.Failure(LIMITED)
         if reply is None:
             return ask.Failure(" ".join([NO_ANSWER] + hints()))
         return reply
+
+    def chosen(self):
+        """The model alias for this run, or None: only one of MODELS, and None if the choice can't be read."""
+        try:
+            got = self.model() if callable(self.model) else None
+        except Exception:  # noqa: BLE001  a choice that can't be read is no choice: the command's own default
+            return None
+        return got if got in MODELS else None
 
     @staticmethod
     def fixed_rules(system):
