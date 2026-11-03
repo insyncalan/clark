@@ -23,10 +23,6 @@ SKIP = {"_new_page.py", Path(__file__).name}
 ACCEPTED = (
     ("test_palette.py", 'p.js("location.reload()")', "sets window.__old_document, then until_new_page waits for it to go"),
     ("test_section_style_cards.py", "window.__before = 1; location.reload()", "settled() waits for window.__before to go"),
-    ("test_about_you.py", "window.__before_reload = true; location.reload()", "the next wait needs window.__before_reload to be gone"),
-    ("test_ask_settings.py", "window.__beforeReload = true; localStorage.clear(); location.reload()",
-     "the next wait needs window.__beforeReload to be gone"),
-    ("test_undo_key.py", 'cdp.call("Page.reload", {}, sid)', "sets window.__before_reload, then waits for it to be gone"),
 )
 TOKEN = re.compile(r"window\.__\w+")
 

@@ -4,7 +4,7 @@ Run: python3 dev/run_tests.py test_movement_page
 Without a browser: the block is in the served page and in nothing a published file is made from (no word, class, route or file of it
 in page-view.html or in that build's inputs), and the page's words are the Python constants' (movement_view.py and the refusals of
 milestone_rows.py and changes.py). With headless Chrome (the #33 harness; fails, never skips, without it): the block loads from
-GET /api/movement in Edit and is absent in View; Hold and Move the agreed date go through the real change route with their toasts,
+GET /api/movement in Edit and is read-only in View (#436 row 18); Hold and Move the agreed date go through the real change route with their toasts,
 Undo and refusals; loading and "can't load" states; keyboard use; accessible names; 1400 and 900 px in light and dark. Laptop only.
 """
 import json
@@ -173,7 +173,7 @@ class Base(unittest.TestCase):
 
 
 class Block(Base):
-    def test_view_has_no_movement_and_edit_draws_it_from_the_route(self):
+    def test_view_starts_on_the_plan_and_edit_draws_movement_from_the_route(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             self.assertEqual(p.js("!!document.querySelector('#movement')"), False)
@@ -196,12 +196,12 @@ class Block(Base):
             self.assertEqual(p.js("document.querySelector('#mv-move').disabled"), True, "not slipped: no move")
             self.assertEqual(p.js("document.querySelector('#mv-why').textContent"), "This milestone hasn't slipped, so its agreed date can't be moved yet.")
             p.js("document.querySelector('[data-mode=view]').click()")
-            p.until("!document.querySelector('#movement')", "View removes it")
+            p.until("!!document.querySelector('#movement[data-readonly] .mvm-card') && !document.querySelector('#mv-hold')", "View keeps it, read-only")
 
-    def test_plan_movement_switch_is_edit_only_and_remembered(self):
+    def test_plan_movement_switch_is_in_view_and_edit_and_remembered(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            self.assertEqual(p.js("!!document.querySelector('[data-mspage-switch]')"), False, "View has no switch")
+            p.until("!!document.querySelector('[data-mspage-switch]')", "View has the switch too (#436 row 18)")
             p.js("document.querySelector('[data-mode=edit]').click()")
             p.until("!!document.querySelector('[data-mspage-switch]')", "Edit has the switch")
             self.assertEqual(p.js("[...document.querySelectorAll('[data-mspv]')].map(b => b.textContent)"), ["Plan", "Movement"])
@@ -217,7 +217,7 @@ class Block(Base):
             p.js("document.querySelector('[data-mspv=plan]').click()")
             p.until("!!document.querySelector('.msv') && !document.querySelector('#movement')", "back to the Plan")
             p.js("document.querySelector('[data-mode=view]').click()")
-            p.until("!document.querySelector('[data-mspage-switch]') && !!document.querySelector('.msv')", "View is the Plan alone")
+            p.until("!!document.querySelector('[data-mspage-switch]') && !!document.querySelector('.msv') && !document.querySelector('#movement')", "View keeps the switch and the Plan")
 
     def test_hold_is_recorded_with_its_toast_and_undo(self):
         with chrome() as cdp:
