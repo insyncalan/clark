@@ -381,6 +381,31 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertEqual(target.read_bytes(), b"the file the link points at")
         self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
 
+    def test_a_link_that_cannot_be_put_back_leaves_the_report_not_an_empty_folder(self):
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        target = folder.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        dest.unlink()
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        real = os.symlink
+
+        def refuse(src, dst, *a, **kw):                                  # the put-back's link cannot be made
+            raise OSError(13, "Permission denied")
+        os.symlink = refuse
+        try:
+            with self.assertRaises(publish.PublishError):
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.symlink = real
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "the file is still there and no temporary name is left")
+        self.assertTrue(dest.read_bytes().startswith(b"<!doctype html"), "the report is kept, not removed")
+        self.assertEqual(target.read_bytes(), b"the file the link points at")
+
     def test_overwrite_with_a_lost_race_and_no_earlier_file_leaves_nothing(self):
         store, folder = self._overwrite_rig()
         store.log_publication("PUB", Path("/tmp/clark-fictional/other.html"), None, SHA, "Someone Else")

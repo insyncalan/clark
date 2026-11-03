@@ -35,6 +35,7 @@ import html as htmllib
 import json
 import os
 import re
+import secrets
 import stat
 import sys
 import unicodedata
@@ -1145,6 +1146,24 @@ def take_back(path, digest):
         return False
 
 
+def put_link_back(dest, target):
+    """Put the link `dest` -> `target` back over whatever is at `dest` (#388): the link is made under a temporary name beside
+    it and renamed over `dest` in one step, so `dest` is never missing. True when done; False when the link could not be
+    made (what is at `dest` is then left exactly as it was, and no temporary name is left behind)."""
+    dest = Path(dest)
+    tmp = dest.with_name(f".{dest.name}.{os.getpid()}.{secrets.token_hex(4)}.link")
+    try:
+        os.symlink(target, tmp)
+        os.replace(tmp, dest)
+        return True
+    except OSError:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        return False
+
+
 def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding=None):
     """Write {folder}/{CODE}-report-{date}.html and return {"path", "sha256", "bytes", "seq"}. The file is encoded once,
     hashed once, written with platform.write_file (a temporary file, then replaced: never half a file), read back and
@@ -1206,11 +1225,7 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
                     pass
         elif earlier_link is not None:
             if still_ours(dest, digest):
-                try:
-                    os.unlink(dest)
-                    os.symlink(earlier_link, dest)
-                except OSError:
-                    pass
+                put_link_back(dest, earlier_link)
         else:
             take_back(dest, digest)
         raise PublishError(str(e)) from e
