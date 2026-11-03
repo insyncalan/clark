@@ -535,11 +535,13 @@ class Steps(Api):
         self.assertEqual(self.beside_now(), before)
 
     # ----- #439 (prototype views.js:251): a lone section's stray beside flag is tidied after any add or move -----
-    def test_any_add_clears_a_stray_flag_on_the_last_section_in_the_same_step(self):
+    def test_an_add_after_the_last_section_clears_a_stray_flag_on_it_in_the_same_step(self):
+        # #439 row 67 asked for this after ANY add; main's #244 rule (pinned by AddBeside: a plain add leaves other flags alone) clears it
+        # only for an add after the last section, so this test follows that narrower rule.
         last = self.ids_now()[-1]
         self.ok("update", id=last, changes={"beside": 1})                   # a 1 on the last section: the page ignores it
         before = self.beside_now()
-        body = self.ok("new", values={"title": "Middle"}, after="ABC-S-002")      # an add in the middle, not after the last section
+        body = self.ok("new", values={"title": "Last"}, after=last)               # an add after the last section
         self.assertEqual(self.beside_now()[last], 0)
         self.assertEqual(self.undone(body["apply_id"])[1]["skipped"], [])
         self.assertEqual(self.beside_now(), before, "one Undo puts the section away and the flag back")
