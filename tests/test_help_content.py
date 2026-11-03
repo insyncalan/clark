@@ -404,6 +404,13 @@ class HelpMatchesThePage(unittest.TestCase):
             for st in fr50:
                 self.assertIn(st, line, f"{name} names {st}")
 
+    def test_help_names_the_tile_menu_as_the_page_does(self):
+        """#453: the tile's right-click menu is headed 'Outline colour' (edit/GlanceEdit.jsx); Help calls it that everywhere."""
+        glance = (self.SRC / "edit" / "GlanceEdit.jsx").read_text(encoding="utf-8")
+        self.assertIn('<div class="lab" role="presentation">Outline colour</div>', glance)
+        self.assertNotIn("**Tile colour**", self.ALL)
+        self.assertGreaterEqual(self.ALL.count("right-click for **Outline colour**") + self.ALL.count("Right-click a tile in Edit for **Outline colour**"), 2)
+
     def test_delete_section_is_said_for_both_kinds_that_have_it(self):
         gutter = (self.SRC / "edit" / "Gutter.jsx").read_text(encoding="utf-8")
         self.assertIn('DELETABLE = ["text", "needs"]', gutter)
