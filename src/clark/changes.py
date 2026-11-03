@@ -62,7 +62,7 @@ CHANGE_KINDS = {
     # (an item is closed or cancelled by its status, and archived only by archiving). priority is not in raid's list because the
     # store works it out from impact and likelihood (D-12: the status picker's Rating sets those two); `archived` is in no list.
     # #67: a work item's title is the column the page shows as its title: an action's and a RAID item's `description`, a decision's `decision`.
-    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "client_visible")},
+    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_visible")},   # the peek's Latest update (an action's only)
     "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_visible")},
     "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision", "client_visible")},   # #45: use_case links an existing use case of this project, or clears the link
     # #45: the At a glance tiles and the project's health. A tile is hidden, given an outline colour or moved (its place is worked
@@ -205,6 +205,9 @@ NO_RAID_PRIORITY = "A risk or issue's priority comes from its impact and likelih
 NO_DECISION_FIELD = {"workstream": "A decision isn't part of a workstream.", "milestone": "A decision isn't tied to a milestone.",
                      "priority": "A decision has no priority."}
 ITEM_VALUE_WORDS = "That value isn't one clark can use."
+LATEST_UPDATE_MAX = 1000                  # the most characters a latest update may have
+LATEST_LONG_WORDS = f"A latest update can be at most {LATEST_UPDATE_MAX} characters. Shorten it and try again."
+LATEST_HIDDEN_WORDS = "That has a hidden character in it. Take it out and try again."     # a latest update may have line breaks, so ITEM_TEXT_WORDS would be wrong
 ITEM_TEXT_WORDS = "Use plain text, with no line breaks or hidden characters."
 NOTE_TEXT_WORDS = "Use plain text, with no hidden characters."      # #458: the internal note may hold line breaks
 ITEM_BAD_KINDS = frozenset({"Cc", "Cf", "Cs", "Co", "Zl", "Zp"})   # as the store's section titles: control, format, surrogate, private use, separators
@@ -228,7 +231,6 @@ RATING_FIELDS = ("impact", "likelihood")
 NOT_A_RATING = "Impact and likelihood are each High, Medium or Low, so nothing was changed. Pick a rating from the list."
 RATING_KINDS = ("Risk", "Issue")
 RATING_NOT_THIS_KIND = "Only a risk or an issue has a rating, so nothing was changed. Pick a status instead."
-RATING_NOT_OPEN = "A closed or cancelled item can't be rated, so nothing was changed. Reopen it first."
 NO_WORKSTREAM = "That workstream isn't available."
 ARCHIVED_MILESTONE = "That milestone is archived. Restore it first."
 NOT_PLANNED = "A Hold or a Rebaseline is for a Planned milestone. This one is not Planned."
@@ -386,6 +388,16 @@ def _checked_item_changes(fields):
     short. The store checks the rest (the words a status may take, a real date, an active workstream, this project's
     milestone); its refusals are put into plain words in _do_item_change."""
     fields = {k: (None if k == "use_case" and v == "" else v) for k, v in fields.items()}    # an empty use case clears the link
+    sent_latest = "latest_update" in fields                        # a JSON false is a value to refuse, not a field left out
+    latest = fields.pop("latest_update", None)                     # the peek's Latest update: plain text, line breaks allowed, up to 1000 characters, blank clears it
+    if sent_latest:
+        if latest is not None and not isinstance(latest, str):
+            raise Refused(ITEM_VALUE_WORDS)
+        if isinstance(latest, str) and len(latest) > LATEST_UPDATE_MAX:
+            raise Refused(LATEST_LONG_WORDS)
+        if isinstance(latest, str) and not _plain_text(latest.replace("\n", "")):
+            raise Refused(LATEST_HIDDEN_WORDS)
+        latest = unicodedata.normalize("NFC", latest).strip() or None if isinstance(latest, str) else None
     flag = {k: _flag(v) for k, v in fields.items() if k == "client_visible"}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
     fields = {k: v for k, v in fields.items() if k != "client_visible"}
     for k, v in fields.items():
@@ -393,7 +405,10 @@ def _checked_item_changes(fields):
             raise Refused(ITEM_VALUE_WORDS)
         if isinstance(v, str) and not _plain_text(v):
             raise Refused(ITEM_TEXT_WORDS)
-    return {**{k: (unicodedata.normalize("NFC", v).strip() if isinstance(v, str) else v) for k, v in fields.items()}, **flag}
+    out = {k: (unicodedata.normalize("NFC", v).strip() if isinstance(v, str) else v) for k, v in fields.items()}
+    if sent_latest:
+        out["latest_update"] = latest
+    return {**out, **flag}
 
 
 def _store_words(e):
@@ -855,11 +870,9 @@ def _do_item_change(store, by_user, req, project, table, columns, place):
         row = store.read(table, ref=ref) if isinstance(ref, str) else None
         if row is None or row["project"] != project or row["archived"]:
             raise Refused(ITEM_NOT_MINE)
-        if table == "raid" and any(f in changes for f in RATING_FIELDS):   # D-12: an open risk or issue only, High, Medium or Low
+        if table == "raid" and any(f in changes for f in RATING_FIELDS):   # D-12: a risk or issue only, whatever its status (#448), High, Medium or Low
             if row["type"] not in RATING_KINDS:
                 raise Refused(RATING_NOT_THIS_KIND)
-            if changes.get("status", row["status"]) != "Open":
-                raise Refused(RATING_NOT_OPEN)
             if any(changes[f] not in clark_store.ALLOWED[("raid", f)] for f in RATING_FIELDS if f in changes):
                 raise Refused(NOT_A_RATING)
         link = changes.get("use_case")
@@ -1855,7 +1868,8 @@ def _eligible(rows, project, hand_over=False):
 UC_FIELD_NAMES = {"title": "name", "headline": "headline", "standing": "standing text"}
 ITEM_FIELD_NAMES = {"description": "title", "decision": "title", "status": "status", "workstream": "workstream", "owner": "owner", "priority": "priority",
                     "due_date": "due date", "milestone": "milestone", "made_by": "decider", "needed_by": "needed-by date",
-                    "date": "decision date", "closed": "closing date", "use_case": "use case", "impact": "impact", "likelihood": "likelihood"}
+                    "date": "decision date", "closed": "closing date", "use_case": "use case", "impact": "impact", "likelihood": "likelihood",
+                    "latest_update": "latest update"}
 UC_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-U-\d{3}")                  # #164: a use case's id; the words call it by its name
 TILE_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}\|(" + "|".join(TILES) + ")")      # #45: a tile's key
 ITEM_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-(?:[ADMU]-)?\d{3}")        # a work item's id is what a person calls it
@@ -1915,6 +1929,8 @@ def _field_words(entry, name):
             return f"the {MILESTONE_KEPT_AS_WAS[f]} of {name} is back as it was"
     if UC_REF.fullmatch(str(entry.get("ref"))):
         return _use_case_words(f, to, name)
+    if f == "latest_update" and ITEM_REF.fullmatch(str(entry.get("ref"))):
+        return f"the latest update of {name} is back as it was"      # never the text itself
     if DOC_REF.fullmatch(str(entry.get("ref"))) and f in DOC_FIELD_NAMES:
         return f"the {DOC_FIELD_NAMES[f]} of {name}"                # #74: never the old text or link itself
     if f in ("description", "decision") and ITEM_REF.fullmatch(str(entry.get("ref"))):
