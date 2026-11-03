@@ -490,14 +490,14 @@ textarea.tpl-field { resize: vertical; }
 .tracker-edit .t-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px 10px; margin: 0 0 8px; }
 .tracker-edit .t-f-text { grid-column: span 2; }
 .tracker-edit .t-f { display: flex; flex-direction: column; gap: 2px; margin: 0; }
-.tracker-edit .t-fl { font-size: 13px; color: var(--text-muted); }
+.tracker-edit .t-fl { font-size: var(--size-caption); color: var(--text-muted); }
 .tracker-edit .t-f input, .tracker-edit .t-f select { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .tracker-edit .t-f input:focus-visible, .tracker-edit .t-f select:focus-visible, .tracker-edit .t-check input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .tracker-edit .t-overall-edit { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin: 0 0 14px; }
 .tracker-edit .t-overall-edit .t-f { width: 140px; }
 .tracker-edit .t-overall-edit .t-f-note { width: 280px; max-width: 100%; }
 .tracker-edit .t-cols { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
-.tracker-edit .t-check { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; }
+.tracker-edit .t-check { display: inline-flex; align-items: center; gap: 4px; font-size: var(--size-small); }
 .tracker-edit .t-err { margin: 4px 0; font-size: var(--size-small); color: var(--status-red-text); }
 .tracker-edit .t-name-form { display: inline-flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 10px; }
 .tracker-edit .t-name-form .t-f, .tracker-edit .t-new-group .t-f { width: 260px; max-width: 100%; }
