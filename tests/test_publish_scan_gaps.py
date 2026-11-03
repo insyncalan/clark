@@ -334,6 +334,16 @@ class BrandPictures(unittest.TestCase):
             with self.assertRaises(PublishError, msg=css):
                 publish.check_brand(self.style(css))
 
+    def test_a_null_byte_in_the_logo_rule_is_refused(self):
+        """#493: a browser reads a null byte as U+FFFD, so s\0vg and backg\0round-image are not the logo rule's words."""
+        good = '.logo-icon{background-image:url(data:image/svg+xml;base64,PHN2Zz4=)}'
+        publish.check_brand(self.style(good))
+        for bad in (good.replace("svg", "s\0vg"), good.replace("background-image", "backg\0round-image"),
+                    good.replace("logo-icon", "logo\0icon"), good.replace("base64,", "base\x0064,")):
+            with self.subTest(bad):
+                with self.assertRaises(PublishError):
+                    publish.check_brand(self.style(bad))
+
     def test_a_picture_as_data_in_a_second_style_or_a_spliced_page_is_refused(self):
         with self.assertRaises(PublishError):
             publish.check_brand(self.style("a{color:red}") + self.style("b{background:url(data:image/png;base64,AAAA)}"))
