@@ -534,8 +534,8 @@ def _do_export(store, who, req, today, chosen, roots):
             else:
                 copy = target
         except (OSError, platform.PlatformError) as e:
-            failed = f"{getattr(e, 'strerror', None) or e}."
-        words += SAVED_CLIENT.format(name=names["client"]) if copy else CLIENT_FAILED.format(reason=failed)
+            failed = CLIENT_FAILED.format(reason=f"{getattr(e, 'strerror', None) or e}.")
+        words += SAVED_CLIENT.format(name=names["client"]) if copy else " " + failed       # `failed` is the whole sentence, built once
     seq, number = None, None
     try:
         seq = store.log_publication(code, dest, week, digest, who, word=1, client_path=copy)

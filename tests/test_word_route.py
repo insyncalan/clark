@@ -591,9 +591,24 @@ class Export(unittest.TestCase):
         with mock.patch.object(word_route, "_write_new", lambda dest, data: False if dest.parent == self.client else real(dest, data)):
             status, got = self.post(to_client=True)
         self.assertEqual(status, 200, got)
-        self.assertIn(" The report was saved, but it was not copied to the client folder, because a file called “" + self.name
-                      + "” appeared there while clark was working. Nothing was added to the client folder. Export again to choose what to do.", got["message"])
+        # the whole message, with the failure sentence once and one space before it
+        self.assertEqual(got["message"], word_route.SAVED.format(name=self.name, folder=f"“{self.local.name}”") + " " + word_route.APPEARED_CLIENT.format(name=self.name)
+                         + f" It is Publication {got['number']}.")
+        self.assertEqual(got["message"].count("not copied to the client folder"), 1)
         self.assertNotIn("Nothing was saved", got["message"], "the report folder copy WAS saved")
+
+    def test_a_client_copy_that_cannot_be_written_says_why_once(self):
+        self.save_client_folder()
+        real = word_route._write_new
+        def write(dest, data):
+            if dest.parent == self.client:
+                raise OSError(13, "Permission denied")
+            return real(dest, data)
+        with mock.patch.object(word_route, "_write_new", write):
+            status, got = self.post(to_client=True)
+        self.assertEqual((status, got["client_failed"]), (200, True), got)
+        self.assertEqual(got["message"], word_route.SAVED.format(name=self.name, folder=f"“{self.local.name}”") + " " + word_route.CLIENT_FAILED.format(
+            reason="Permission denied.") + f" It is Publication {got['number']}.")
 
     def test_a_client_folder_that_changed_says_try_again_not_publish_again(self):
         self.save_client_folder()
@@ -641,8 +656,9 @@ class Export(unittest.TestCase):
         with mock.patch.object(word_route, "_verified", lambda dest, digest: real(dest, digest) if dest.parent == self.local else False):
             status, got = self.post(to_client=True)
         self.assertEqual((status, got["client_failed"], got["client_name"]), (200, True, None))
-        self.assertIn("The report was saved, but it was not copied to the client folder: What was copied did not match the report, so it was taken back. "
-                      "Nothing was added to the client folder.", got["message"])
+        self.assertEqual(got["message"], word_route.SAVED.format(name=self.name, folder=f"“{self.local.name}”") + " " + word_route.CLIENT_FAILED.format(
+            reason="What was copied did not match the report, so it was taken back.") + f" It is Publication {got['number']}.")
+        self.assertEqual(got["message"].count("Nothing was added to the client folder"), 1)
         self.assertEqual((self.files(self.local), self.files(self.client)), ([self.name], []))
         self.assertIsNone(self.publications()[0]["client_path"])
 
