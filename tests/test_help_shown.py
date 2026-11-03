@@ -97,12 +97,12 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["set-the-health", "find-a-past-publication", "save-as-a-pdf", "use-the-board", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["set-the-health", "find-a-past-publication", "save-as-a-pdf", "use-the-board", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone", "update-clark"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "status-words",
-                          "milestone-states", "published-reports", "diagnostics", "dates-and-ids", "using-help", "keys"])
+                          "milestone-states", "published-reports", "updating-clark", "diagnostics", "dates-and-ids", "using-help", "keys"])     # #445 released Update clark and Updating clark
         self.assertEqual(s["start"]["parts"], [])
         self.assertEqual(len(s["reference"]["keys"]), 36 - len(LATER["keys"]))
-        self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones"])
+        self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones", "Settings and safety"])     # #445: Update clark
         self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Publishing", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
@@ -126,7 +126,7 @@ class AgainstThePage(unittest.TestCase):
     def test_every_bold_name_shown_is_on_the_page(self):
         norm = lambda t: re.sub(r"[‘’]", "'", t)
         code = norm(self.HELPCODE)
-        missing = sorted({b for t in shown_texts() for b in re.findall(r"\*\*(.+?)\*\*", t) if norm(b).strip(" .,:;…") not in code})
+        missing = sorted({b for t in shown_texts() for b in re.findall(r"\*\*(.+?)\*\*", t) if norm(b).strip(" .,:;…") not in code and b not in COMPUTED})
         self.assertEqual(missing, [], "Help names buttons the page does not have: hold the entry in helpLater.json, or reword it")
 
     def test_the_held_use_case_entry_names_only_what_the_page_has(self):
@@ -139,7 +139,8 @@ class AgainstThePage(unittest.TestCase):
         self.assertEqual(names, [])
 
     def test_every_screen_shown_is_a_tab_of_the_page(self):
-        screens = set(re.findall(r'(\w+): "[A-Z]\w+"', re.search(r"export const TITLES = \{(.*?)\}", (PAGE_SRC / "stores" / "report.js").read_text(encoding="utf-8")).group(1)))
+        screens = set(re.findall(r'(\w+): "[A-Z]\w+"', re.search(r"export const TITLES = \{(.*)\};", (PAGE_SRC / "stores" / "report.js").read_text(encoding="utf-8")).group(1)))
+        self.assertTrue({"dashboard", "milestones", "settings"} <= screens, screens)     # #445: read past the getter's braces, so the settings tab is seen
         text = " ".join(shown_texts())
         gos = {m.split("#")[0].split("+")[0] for m in re.findall(r"\]\(go:([^)]+)\)", text)}
         self.assertEqual(sorted(gos - screens), [])
@@ -178,7 +179,8 @@ class AgainstThePage(unittest.TestCase):
         # 47 measured on the merge of main into the #527 branch (main is 48): Help no longer names New project, so that bold name left the count
         # 46 measured on the take-over of PR 209 (#271) merged with main (47 there): the held use-case entry now bolds only 'See all' and quotes the button's full name, and 'See all' is on the page, so one more name left the absent list (47 fails)
         # 44 measured on the merge with the Version and updates card: Updates, Choose zip and Undo update are bold Help names the page now draws, so two leave the absent list (46 on main)
-        self.assertGreaterEqual(len(names), 44)
+        # 39 measured on #445 stacked on PR 513 (44 there): the released Update clark entry names what the update card now draws, so five bold names left the absent list
+        self.assertGreaterEqual(len(names), 39)
         # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
         # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
         # 56 measured on the merged tree after the next main merge (names printed): the milestone details toggle (C-M6) leaves the list on top of the Supporting documents section
@@ -201,6 +203,7 @@ COMPUTED = {
     "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
     "this week\u2019s actions": "an example of what a card might be called, not a label",
     "decisions needed": "an example of what a card might be called, not a label",
+    "Review X.Y.Z": "the Update row's button, built from the version the server found in Downloads (updater.py: Review and the version)",
 }
 
 

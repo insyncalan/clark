@@ -1,4 +1,5 @@
-// Settings › Version and updates: what is installed, "Review X.Y.Z" or "Up to date.", Choose zip…, the Review panel (Install is a
+// Settings › Version and updates: labelled rows as the prototype draws them (Installed; Update with "Review X.Y.Z" or "Up to date."
+// and a hint; Install from a file with Choose zip… and a hint; Last update with Undo update), the Review panel (Install is a
 // second click), and Undo update (arm, then confirm). Edit parts only (a published file has no Settings). The server decides and
 // checks everything; this draws its answers in plain words (logic/update.js). `api`, `reload`, `sleep` and `copy` are seams for
 // the tests; the page passes none of them.
@@ -8,6 +9,7 @@ import * as L from "../logic/update.js";
 
 const REAL = { status: A.updateStatus, review: A.reviewUpdate, install: A.installUpdate, arm: A.armUndo, undo: A.undoUpdate, who: A.whoAnswers };
 const realCopy = (t) => navigator.clipboard.writeText(t);
+Update.chip = L.TITLE;      // the Settings head's chip for this card says what its heading says (#445)
 
 export function Update({ api = REAL, reload = () => window.location.reload(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)), copy = realCopy }) {
   const [state, setState] = useState({ phase: "loading", st: null, message: "" });
@@ -96,34 +98,52 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   const st = state.st;
   return (
     <section class="frame setting" id="update">
-      <h2>{L.TITLE}</h2>
+      <h2 id="update-h" tabIndex={-1}>{L.TITLE}</h2>
       <p class="muted">{L.INTRO}</p>
       {state.phase === "loading" ? <p class="muted">{L.LOADING}</p> : null}
       {state.phase === "failed" ? <p class="error">{state.message} <button type="button" class="btn sm" data-update-again onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
       {st ? (
-        <>
-          <p id="update-installed"><b>{st.installed}</b></p>
-          {st.blocked ? <p id="update-blocked">{st.blocked}</p> : (
-            <div class="row">
-              {st.review ? <button type="button" class="btn pri" data-review disabled={busy} onClick={() => review("downloads", false)}>{st.review}</button>
-                : <p id="update-line" class="muted">{st.line}</p>}
-              <button type="button" class="btn" data-choose disabled={busy} onClick={() => review("file", false)}>{L.LABELS.choose}</button>
-              {again ? <button type="button" class="btn" data-install-again disabled={busy} onClick={() => review(again, true)}>{L.LABELS.installAgain}</button> : null}
-            </div>
+        <div class="upd-rows">
+          <p class="upd-l" id="update-installed-l">{L.ROWS.installed}</p>
+          <div class="upd-c" role="group" aria-labelledby="update-installed-l"><p id="update-installed"><b>{st.installed}</b></p></div>
+          <p class="upd-l" id="update-row-l">{L.ROWS.update}</p>
+          <div class="upd-c" role="group" aria-labelledby="update-row-l" id="update-row">
+            {st.blocked ? <p id="update-blocked">{st.blocked}</p> : (
+              <>
+                {st.review ? <div class="row"><button type="button" class="btn pri" data-review disabled={busy} onClick={() => review("downloads", false)}>{st.review}</button></div>
+                  : <p id="update-line">{st.line}</p>}
+                <p class="muted upd-hint" id="update-hint">{st.review ? L.HINTS.ready : L.HINTS.upToDate}</p>
+              </>
+            )}
+          </div>
+          {st.blocked ? null : (
+            <>
+              <p class="upd-l" id="update-file-l">{L.ROWS.file}</p>
+              <div class="upd-c" role="group" aria-labelledby="update-file-l" id="update-file">
+                <div class="row">
+                  <button type="button" class="btn" data-choose disabled={busy} onClick={() => review("file", false)}>{L.LABELS.choose}</button>
+                  {again ? <button type="button" class="btn" data-install-again disabled={busy} onClick={() => review(again, true)}>{L.LABELS.installAgain}</button> : null}
+                </div>
+                <p class="muted upd-hint" id="update-file-hint">{L.HINTS.file}</p>
+              </div>
+            </>
           )}
           {st.last ? (
-            <div class="row" id="update-last">
-              <p class="muted">{st.last}</p>
-              {armed ? (
-                <>
-                  <p id="update-armed">{armed.line}</p>
-                  <button type="button" class="btn pri" data-undo-confirm disabled={busy} onClick={confirmUndo}>
-                    {armed.choice === "full" ? L.LABELS.undoConfirm : L.LABELS.appOnly}</button>
-                </>
-              ) : <button type="button" class="btn" data-undo disabled={busy} onClick={arm}>{L.LABELS.undo}</button>}
-            </div>
+            <>
+              <p class="upd-l" id="update-last-l">{L.ROWS.last}</p>
+              <div class="upd-c" role="group" aria-labelledby="update-last-l" id="update-last">
+                <p>{st.last}</p>
+                {armed ? (
+                  <>
+                    <p id="update-armed">{armed.line}</p>
+                    <div class="row"><button type="button" class="btn pri" data-undo-confirm disabled={busy} onClick={confirmUndo}>
+                      {armed.choice === "full" ? L.LABELS.undoConfirm : L.LABELS.appOnly}</button></div>
+                  </>
+                ) : <div class="row"><button type="button" class="btn" data-undo disabled={busy} onClick={arm}>{L.LABELS.undo}</button></div>}
+              </div>
+            </>
           ) : null}
-        </>
+        </div>
       ) : null}
       {panel ? (
         <div class="backup-panel" id="update-panel" role="region" aria-labelledby="update-heading">

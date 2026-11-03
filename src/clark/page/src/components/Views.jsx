@@ -111,7 +111,7 @@ export function Milestones({ tools }) {
 // The Settings head: the title, a line of help and one chip for each card that is on the page. A chip scrolls to its card and moves
 // focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
 const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
-  ["Safety", "Backups", "safety-h"], ["AskSettings", "Asking", "ask-settings-h"]];
+  ["Safety", "Backups", "safety-h"], ["Update", null, "update-h"], ["AskSettings", "Asking", "ask-settings-h"]];
 
 function goToCard(headId) {
   const head = document.getElementById(headId);
@@ -142,7 +142,8 @@ export function Settings({ tools }) {
   const Diagnostics = tools && tools.Diagnostics;        // logs and diagnostics (#110)
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
   const Update = tools && tools.Update;                  // Version and updates; a published file has none
-  const cards = CARDS.filter(([tool]) => tools && tools[tool]);
+  // A chip with no name here takes its tool's own (the update card's words live in Edit's code only, never in a published file).
+  const cards = CARDS.filter(([tool]) => tools && tools[tool]).map(([tool, name, headId]) => [tool, name || tools[tool].chip, headId]);
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
   return (
     <>

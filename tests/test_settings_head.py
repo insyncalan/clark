@@ -16,7 +16,8 @@ from test_server import chrome
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 HELP = "Where reports are published, how clark looks for you, the log, your backups and asking Claude."
-CARDS = [("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Logs and diagnostics", "diagnostics-h"), ("Backups", "safety-h"), ("Asking", "ask-settings-h")]
+CARDS = [("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Logs and diagnostics", "diagnostics-h"), ("Backups", "safety-h"), ("Version and updates", "update-h"),
+         ("Asking", "ask-settings-h")]     # #445: the prototype's head has a chip for the update card (its "Version"), named as the card's heading
 
 
 def ratio(a, b):
