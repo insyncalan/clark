@@ -10,10 +10,9 @@ Same shape as test_v050.
   WAITING       the feature is not on main yet; its check is written when it lands. Skipped, with the question.
   WALK_THROUGH  judgement or live only, with the reason and the one line a person follows. Skipped: 'needs a person'.
 
-NOT YET MERGED to origin/main on 02-11-2026 (so WAITING, no test): #124 the PDF option on publishing (with its Tech Debt
-#269 and #270), #153 the one filter line for Work items (its Tech Debt #286, #287 and #305), the #130 and #132 UX sweep fixes
-beyond the Publish spinner, the tick and Publication N (phone layouts, timeline labels, the 12 px minimum), #131 the motion
-enrichments. Merged and checked here: #120 numbered publications and #87 the design-system sizes (PR 240). The calendar (test_calendar_scales, #76) and the filter
+NOT YET MERGED to origin/main on 02-11-2026 (so WAITING, no test): the #130 and #132 UX sweep fixes beyond the Publish spinner,
+the tick and Publication N (phone layouts, timeline labels, the 12 px minimum). #124 the PDF option and #153 the one filter line
+are in the 0.6.0 train and are COVERED by their own tests. Merged and checked here: #120 numbered publications, #87 the design-system sizes (PR 240), #559 (PR 378), #495 (PR 363) and #570. The calendar (test_calendar_scales, #76) and the filter
 line in test_filter_line are 0.4 features and are covered by test_v040, not here.
 The cut checks (version, release notes, hand-check sheet) skip until the cut commit sets 0.6.0, then fail if they are wrong.
 """
@@ -64,12 +63,18 @@ COVERED = [
      "test_secret_screen::Screen::test_the_words_password_and_secret_are_not_placeholders"),
     ("#243", "Placeholder, redacted and example still pass as placeholders",
      "test_secret_screen::Screen::test_placeholder_redacted_and_example_are_placeholders"),
-    ("#320", "After a failed first Undo the toast offers Undo again, and the retry takes both steps back",
-     "test_templates::Box::test_after_a_failed_first_undo_the_toast_offers_undo_again_and_the_retry_takes_both_steps_back"),
     ("#320", "If the page cannot be read again after an Undo, the toast says to reload",
      "test_templates::Box::test_if_the_page_cannot_be_read_again_after_an_undo_the_toast_says_to_reload"),
-    ("#320", "If the second Undo fails and the page cannot be read, the toast says to reload",
-     "test_templates::Box::test_if_the_second_undo_fails_and_the_page_cannot_be_read_the_toast_says_to_reload"),
+    ("#131", "The ten mild motions keep a static change marker with reduced motion",
+     "test_motion::Rules::test_the_changed_mark_is_paint_only_and_adds_no_space"),
+    ("#124", "Publishing offers a PDF option, unticked and never remembered",
+     "test_publish_dialog::Dialog::test_C_pdf_tick_is_there_unticked_and_never_remembered"),
+    ("#124", "The PDF is made with Chrome, saved beside the report (and in the client folder) and holds only what is published",
+     "test_pdf::PublishRealChrome::test_the_pdf_holds_only_what_is_published"),
+    ("#153", "Work items has one filter line (the '/' key focuses it)",
+     "test_filter_line_page::Line::test_the_slash_key_focuses_the_line_but_not_while_typing_or_with_a_menu_open"),
+    ("#153", "The published file draws the older filter bar and none of the filter line",
+     "test_filter_line_not_published::NotPublished::test_the_published_file_draws_the_older_bar_and_no_line"),
 ]
 
 # Live: the real page. Not repeated from COVERED; these are the checks a person would make in the app itself.
@@ -81,10 +86,7 @@ LIVE = [
 
 # Not on main yet: (item, check, the question or where it is being built).
 WAITING = [
-    ("#124", "Publishing offers a PDF option (Local and To client) and the PDF file is named in the publications row", "open; Tech Debt #269 and #270 for the row and the footer number"),
-    ("#153", "Work items has one filter line (the '/' key focuses it in View)", "open; Tech Debt #286, #287 and #305"),
     ("#130", "Settings tables stack at phone width, the timeline labels never overlap, text is 12 px or more", "open; phone checks go through the 390 px window but the rule is desktop only, so ask before writing them"),
-    ("#131", "The ten mild motion improvements keep a static change marker with reduced motion", "open"),
 ]
 
 # (item, check, kind, why, what the person does)
@@ -197,7 +199,7 @@ class Live(unittest.TestCase):
                 rig.save_to = rig.local / name
                 p.open_publish()
                 p.go()
-                p.until("document.querySelector('[data-go]').innerText === 'Close'", "published")
+                p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
                 self.assertRegex(p.message(), r"^Published \(Publication %d\)\. Saved locally as " % want)
                 p.go()
                 p.until("!document.querySelector('#publish-dialog[open]')", "the dialog closed")
@@ -375,7 +377,7 @@ class ServedTabs559(unittest.TestCase):
         js = read(self.REPORT)
         self.assertRegex(js, r'SERVED_TABS\s*=\s*VIEWS\.filter\(\(v\) => v !== "clientreport"\)')
         self.assertRegex(js, r"export const tabs = signal\(SERVED_TABS\)")
-        self.assertIn('start.view === "clientreport" ? "dashboard"', js, "its address opens the first tab")
+        self.assertIn('start.view === "clientreport" && !published() ? "dashboard"', js, "its address opens the first tab")
 
     def test_559_2_a_published_file_lists_it_as_weekly_snapshot(self):
         js = read(self.REPORT)
@@ -394,7 +396,7 @@ class Numbers120(unittest.TestCase):
         schema = read(SRC / "clark" / "schema.sql")
         for name in ("publications_no_delete", "publications_number_fixed", "publications_never_replaced"):
             self.assertRegex(schema, rf"CREATE TRIGGER IF NOT EXISTS {name}\b", name)
-        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = 10\b")
+        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = 11\b")      # 11 since PR 310 (#412, a use case can be Done); step 10 is this item\'s
 
     def test_120_2_a_number_is_fixed_and_never_reused(self):
         schema = read(SRC / "clark" / "schema.sql")
@@ -492,7 +494,7 @@ class Friday570(unittest.TestCase):
         self.addCleanup(demo.close)
         change = changes.make_change(demo.store.path, [], USER)
         req = lambda day: {"project": "ABC", "kind": "projects", "op": "update", "changes": {"week_ending": day}}      # noqa: E731
-        for day, friday in (("2026-11-02", "06-11-2026"), ("2026-11-07", "06-11-2026"), ("2026-11-08", "06-11-2026")):
+        for day, friday in (("2026-11-02", "06-11-2026"), ("2026-11-07", "13-11-2026"), ("2026-11-08", "13-11-2026")):
             status, body = change(req(day))
             self.assertEqual((status, body["ok"], body["message"]), (400, False, f"Week ending is a Friday. Pick Friday {friday}."), day)
         status, body = change(req("2026-11-06"))

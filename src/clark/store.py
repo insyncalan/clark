@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from clark import doclinks, freshness as fresh, people as people_rules, platform, section_bodies
+from clark import doclinks, freshness as fresh, people as people_rules, platform, published_copies, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
@@ -173,7 +173,7 @@ PUBLISH_ORDER = {"milestones": "sort_order, id", "workstreams": "id", "actions":
 # #136: what the Movement read (Store.milestone_moves) may read from change_log: a fixed list, never a caller's. The internal
 # note's history and every other field are not in it. `id` is only there so a milestone's creation can be told from a change.
 # What "note" is here: a step's note (Step.update(note=...)) is a change_log row with field "note", history only; it is not the
-# milestones.internal_note column, and no request can change that column (changes.py _do_milestone_change refuses it). A Hold's
+# milestones.internal_note column, which only a milestone update can change (changes.py, #458: owner only, never in a reply). A Hold's
 # dated line (dates only) and a rebaseline's reason line are stored this way, so a "note" row can sit in `shown` in
 # milestone_moves, kept because its step also has a dated or Movement row. What keeps its text off the page is not this tuple but
 # the Movement view's entries_for, which drops every entry of kind "note" or "internal_note"; the internal_note field itself is not in
@@ -2649,10 +2649,26 @@ class Store:
                 "VALUES (?, ?, ?, ?, ?, ?, 'not needed', ?, ?)",
                 (code, week_ending, str(path), None if client_path is None else str(client_path), word, sha256, str(by_user).strip(), nxt))
             self.con.execute("COMMIT")
-            return cur.lastrowid
+            seq = cur.lastrowid
         except BaseException:
             self.con.execute("ROLLBACK")
             raise
+        if not word:
+            self.keep_copy(code, nxt, path, sha256)
+        return seq
+
+    def keep_copy(self, code, number, source, sha256):
+        """#443 (from #342): keep a copy of a web page's file in clark's own `published-copies` folder, beside this database, once the
+        publication's row is in (so a refused number keeps nothing). The copy is made from the file at `source` only while it still
+        holds the bytes whose SHA-256 the row has; it is written once, never changed and never removed (published_copies.py). It is
+        best effort: a publication is made when its row is, so a copy that could not be kept is logged nowhere and listed as "Not kept".
+        True when a copy was written. A Word file is not kept (its row has no page to open)."""
+        if str(self.path) == ":memory:":
+            return False
+        try:
+            return published_copies.keep(self.path.parent, code, number, source, sha256)
+        except Exception:        # noqa: BLE001  never let a copy that could not be kept undo a publication that was made
+            return False
 
     def next_publication(self, code):
         """The number the next publication of `code` will have (#120), to be put in the file before it is made. Nothing is reserved:
@@ -2867,6 +2883,15 @@ class Store:
         return [{"table": r["tbl"], "key": r["item_id"], "field": r["field"], "via": r["via"], "op": r["op"]} for r in self.con.execute(
             "SELECT tbl, item_id, field, via, op FROM change_log WHERE apply_id = ? ORDER BY rowid", (apply_id,))]
 
+    def step_undone(self, apply_id, reverted=None):
+        """Whether step `apply_id` has been undone already: every row it really wrote (not a note, an updated_at stamp or a starting
+        section) has been put back by an undo still in force, the rule undo_many skips a step by. Read only. #377: a caller that asks about
+        many steps passes `reverted` (reverted_rowids, computed once) so it is not rescanned for every step."""
+        real = [r[0] for r in self.con.execute("SELECT rowid FROM change_log WHERE apply_id = ? AND field NOT IN ('note', 'updated_at') "
+                                               "AND via != ?", (apply_id, SEED_VIA))]
+        back = (reverted if reverted is not None else reverted_rowids(self.con)) if real else set()
+        return bool(real) and all(r in back for r in real)
+
     def step_actors(self, apply_id):
         """Who made step `apply_id`, read only (#47e): the set of item_events actors for it ('you', 'clark'); empty when it wrote no
         event or is not there. So /api/undo takes a step on the assistant route only when ask clark itself made it."""
@@ -3023,6 +3048,10 @@ class Step:
     def peek_apply_id(self):
         """This step's applies row, or None if nothing is written yet."""
         return self._apply_id
+
+    def is_hidden(self, project, item_id):
+        """#487: read only. Whether a report_hidden row already hides this item (its key is project + item, so a second would fail)."""
+        return self.con.execute("SELECT 1 FROM report_hidden WHERE project = ? AND item_id = ?", (project, item_id)).fetchone() is not None
 
     def create(self, kind, values):
         """A new row; returns its ref (the ID clark gives it, or its key)."""
