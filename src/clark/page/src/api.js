@@ -186,7 +186,7 @@ export async function saveProfile(name, email) {
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true) return { ok: true, name: String(reply.name || ""), email: String(reply.email || "") };
     const said = reply && typeof reply.message === "string" && reply.message.length <= 240 ? reply.message : "";
-    if (r.status === 400 && said) return { ok: false, message: said };
+    if (r.status === 400 && said) return { ok: false, message: said, field: reply.field === "name" || reply.field === "email" ? reply.field : "" };
     return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };
   } catch (e) {
     return { ok: false, message: plainChange(0) };
@@ -244,8 +244,8 @@ export async function sendMilestoneRestore(project, id) {
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true) return { ok: true, reply };
     const said = reply && typeof reply.message === "string" ? reply.message : "";
-    const mine = (r.status === 400 || r.status === 409) && said && said.length <= 200 && !/[\u0000-\u001f]/.test(said);
-    return { ok: false, message: mine ? said : plainChange(r.ok ? 500 : r.status, reply) };
+    const mine = (r.status === 400 || r.status === 409) ? knownRefusal(said) : "";      // only clark's own fixed sentences, never other server text
+    return { ok: false, message: mine || plainChange(r.ok ? 500 : r.status, reply) };
   } catch (e) {
     return { ok: false, message: plainChange(0) };
   }
@@ -270,6 +270,10 @@ export async function sendMilestoneChange(project, req) {
     return { ok: false, message: plainChange(0), known: false };
   }
 }
+
+// Add one work item or milestone (#458; op "new", place "report", clark/changes.py): {ok: true, reply} (the reply's `ref` is the new id and
+// `apply_id` its step) or {ok: false, message}. `values` are the fields the kind's `new` list takes. A short refusal of clark's own is shown as it is.
+export const sendNewRow = (project, kind, values) => postItem("/api/change", { project, kind, op: "new", values, place: "report" });
 
 // The Use cases page's own reads (#157). Both are GETs of routes that exist: /api/use-cases (each use case carries its history) and
 // /api/data with archived=only (the archived use cases, which the page's usual read leaves out). {ok, ...} or {ok: false}: a read

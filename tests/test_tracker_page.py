@@ -76,6 +76,8 @@ class Page(Base):
         return self.many(ref, rest) + ".length"
 
     def click(self, p, ref, selector):
+        # A button is disabled while the page is still saving the step before, and a click on a disabled button does nothing: wait for it.
+        p.until("(function(){var el=" + self.one(ref, selector) + "; return !!el && !el.disabled;})()", selector + " is there and free to click")
         p.js(self.one(ref, selector) + ".click()")
 
     def set(self, p, ref, selector, value, event="input"):
