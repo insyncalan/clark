@@ -3,12 +3,16 @@
 // this file is the controls: removable chips, a combobox with a listbox of suggestions, a live region for plain-words messages, hint
 // chips while the line is focused, "/" to focus it, saved views as tabs and one View menu. Keys: arrows choose, Enter accepts,
 // Backspace in an empty box removes the last chip, Esc closes the open list.
+// The View menu (#287, the prototype's one View menu, gap list B-2 and B-17) holds Layout (Table or Board), Group by, the board's
+// swimlanes and the saved-view actions: nothing of these sits beside the line any more.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { rows as allRows, project, filterCtx, fromFile, peek } from "../stores/report.js";
 import { lineText, setLine, local } from "../stores/line.js";
 import * as FL from "../logic/filterLine.js";
 import { Menu } from "./Menu.jsx";
+import { work, setWork, announce } from "../stores/work.js";
+import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
 
 // A saved view whose line the filter line no longer reads (a word it does not know) stays on the tabs with a plain message, and can be renamed
 // or archived like any other (#589). The one view left out is a starting view the page cannot answer yet (Waiting on the client, while
@@ -79,7 +83,27 @@ function FreshnessMenu() {
   return <Menu label="Freshness" ariaLabel="Freshness" id="freshMenu" btnCls="btn sm" menuId="freshMenuList" menuLabel="Freshness" items={items.map((i) => ({ id: i.id, name: i.on ? `${i.name} (on)` : i.name }))} onPick={pick} />;
 }
 
-function SavedViews() {
+// The View menu's Layout, Group by and Swimlanes entries (the prototype's words: "Group by", then on the board "Swimlanes" with
+// "No lanes", "Workstream lanes", "Type lanes"; the lane Group by uses is not offered). `board` is false where there is no board.
+export function layoutItems(w, board) {
+  const onBoard = board && w.view === "board", g = onBoard ? boardGroup(w.group) : w.group;
+  const lane = onBoard && w.lane && w.lane !== g && LANE_GROUPS.includes(w.lane) ? w.lane : "none";
+  const out = [];
+  if (board) out.push({ id: "lab-layout", lab: "Layout" }, ...["table", "board"].map((k) => ({ id: `layout:${k}`, name: k === "table" ? "Table" : "Board", checked: (w.view === "board") === (k === "board") })), { id: "sep-layout", sep: true });
+  out.push({ id: "lab-group", lab: "Group by" }, ...GROUPS.filter((x) => !onBoard || x.id !== "nothing").map((x) => ({ id: `group:${x.id}`, name: x.label, checked: x.id === g })));
+  if (onBoard) out.push({ id: "sep-lanes", sep: true }, { id: "lab-lanes", lab: "Swimlanes" }, { id: "lane:none", name: "No lanes", checked: lane === "none" },
+    ...LANE_GROUPS.filter((x) => x !== g).map((x) => ({ id: `lane:${x}`, name: `${groupLabel(x)} lanes`, checked: lane === x })));
+  return { items: out, label: `View: ${onBoard ? "board" : board ? "table" : ""}${board ? ", " : ""}grouped by ${groupLabel(g)}${lane !== "none" ? `, ${groupLabel(lane).toLowerCase()} lanes` : ""}` };
+}
+
+function pickLayout(id) {
+  const [what, v] = id.split(":");
+  if (what === "layout") { setWork({ view: v }); announce.value = v === "board" ? `Showing the board, grouped by ${groupLabel(boardGroup(work.value.group))}.` : "Showing the table."; }
+  else if (what === "group") { const lane = work.value.lane; setWork({ group: v, lane: lane === v ? null : lane }); announce.value = `Grouped by ${groupLabel(v)}.`; }
+  else if (what === "lane") { setWork({ lane: v === "none" ? null : v }); announce.value = v === "none" ? "No lanes." : `${groupLabel(v)} lanes.`; }
+}
+
+function SavedViews({ board }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
   const all = viewsOf(code), shown = FL.visibleViews(all).filter((v) => !FL.heldBack(v, rows, ctx));
   const trouble = (v) => FL.viewTrouble(v, rows, ctx);
@@ -91,7 +115,8 @@ function SavedViews() {
   const dirty = !!active && !said && FL.differs(active, line, rows, ctx);
   const pick = (v) => { chosen.value = { ...chosen.value, [code]: v.id }; if (!trouble(v)) setLine(FL.normalise(v.line, rows, ctx)); };
   const act = (id) => {
-    if (id === "save" && active) { const r = FL.saveView(all, active.id, FL.normalise(line, rows, ctx)); if (r.ok) saveViews(code, r.views); }
+    if (/^(layout|group|lane):/.test(id)) pickLayout(id);
+    else if (id === "save" && active) { const r = FL.saveView(all, active.id, FL.normalise(line, rows, ctx)); if (r.ok) saveViews(code, r.views); }
     else if (id === "saveas") setForm({ mode: "saveas", name: "", error: "" });
     else if (id === "rename" && active) setForm({ mode: "rename", name: active.name, error: "" });
     else if (id === "archive" && active) {
@@ -116,7 +141,8 @@ function SavedViews() {
     const t = setTimeout(() => { if (nameBox.current) nameBox.current.focus(); }, 40);
     return () => clearTimeout(t);
   }, [form && form.mode]);
-  const items = [];
+  const lay = layoutItems(work.value, !!board);
+  const items = [...lay.items, { id: "sep-views", sep: true }, { id: "lab-views", lab: "Saved views" }];
   if (active && dirty) items.push({ id: "save", name: `Save changes to ${active.name}` });
   items.push({ id: "saveas", name: "Save this line as a new view…" });
   if (active) { items.push({ id: "rename", name: `Rename ${active.name}…` }); items.push({ id: "archive", name: `Archive ${active.name}` }); }
@@ -143,7 +169,7 @@ function SavedViews() {
         })}
       </div>
       <FreshnessMenu />
-      {fromFile.value ? null : <Menu label="View" ariaLabel="View" id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={items} onPick={act} />}
+      {fromFile.value ? null : <Menu label="View" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={items} onPick={act} />}
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setForm(null); } }}>
           {form.mode === "note" ? null : (
@@ -162,7 +188,7 @@ function SavedViews() {
   );
 }
 
-export function FilterLine() {
+export function FilterLine({ board }) {
   const rows = allRows.value, ctx = filterCtx(), line = lineText.value, parsed = FL.parse(line, rows, ctx);
   const [draft, setDraft] = useState("");
   const [focused, setFocused] = useState(false);
@@ -228,7 +254,7 @@ export function FilterLine() {
     <div class="fline-wrap" ref={box}
       onFocusIn={() => setFocused(true)}
       onFocusOut={(e) => { if (!e.relatedTarget || !box.current.contains(e.relatedTarget)) { setFocused(false); setClosed(false); setForced(false); setActive(-1); } }}>
-      <SavedViews />
+      <SavedViews board={board} />
       <div class={`fline${focused ? " on" : ""}`} data-fline>
         <Chips parsed={parsed} onRemove={remove} />
         <input ref={input} id="fline-input" type="text" role="combobox" autocomplete="off" spellcheck={false}
