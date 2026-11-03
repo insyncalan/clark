@@ -3,7 +3,7 @@
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
-import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendRecordChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData } from "../api.js";
+import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendRecordChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData, sendRestore } from "../api.js";
 import { flashed } from "./wordsState.js";
 import { diffIds, markChanged } from "./changed.js";
 
@@ -129,6 +129,20 @@ export function changeRecord(req, done) {
     await reread(code);
     itemSteps.set(r.reply.apply_id, done.back || "");
     say("done", done.text, r.reply.apply_id, code);
+    return r.reply;
+  });
+}
+
+// Restore one archived work item (B-5): the work items are read again after it and after its undo. A refusal is a note.
+export function restoreItem(table, id) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendRestore(code, table, id);
+    if (!r.ok) { say("note", r.message); return null; }
+    const step = r.reply.apply_id || null;
+    if (step) itemSteps.set(step, "");
+    if (!(await reread(code)) && project.value === code) { say("problem", `${id} was restored, but the page could not be refreshed. Reload the page to see it.`, step, code); return r.reply; }
+    say("done", `${id} restored.`, step, code);
     return r.reply;
   });
 }

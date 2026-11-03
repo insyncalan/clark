@@ -280,6 +280,7 @@ export function WorkItems({ tools }) {
                   <List Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />
                 </>}
           </>}
+      {tools && tools.ArchivedItems && !fromFile.value ? <tools.ArchivedItems /> : null}   {/* B-5: Edit parts only; a published file carries no archived row */}
     </section>
   );
 }
