@@ -1,5 +1,5 @@
 """B-5 and #450 row 38, Show archived on Work items: a pill in the Work items bar with the count, remembered for each project
-across a reload, archived rows read only with Restore, Restore and Undo against the
+across a reload, archived rows read only (Restore is in the archived peek, row 39), Restore and Undo against the
 real change route; a published file has none of it (it carries no archived row).
 
 Run: python3 dev/run_tests.py test_work_archived_page
@@ -50,10 +50,8 @@ class Archived(Base):
                 click(cdp, sid, "#showArchived")
                 self.until(cdp, sid, "document.querySelectorAll('#archived-list .arch-row').length === 2", "the archived rows")
                 self.assertEqual(cdp.js("[...document.querySelectorAll('#archived-list .tag')].map(t => t.textContent).join()", sid), "Archived,Archived")
-                self.assertEqual(cdp.js("document.querySelectorAll('#archived-list input, #archived-list select, #archived-list textarea, #archived-list [contenteditable]').length", sid), 0)
-                click(cdp, sid, f"#archived-list li[data-id='{self.gone[0]}'] .arch-open")
-                self.until(cdp, sid, "!!document.querySelector('#archived-list .arch-read')", "the read-only fields")
-                self.assertIn("Low", cdp.js("document.querySelector('#archived-list .arch-read').textContent", sid))
+                self.assertEqual(cdp.js("document.querySelectorAll('#archived-list input, #archived-list select, #archived-list textarea, #archived-list [contenteditable], #archived-list button').length", sid), 0,
+                                 "read only: Restore is in the peek (row 39), not on the row")
                 self.assertFalse(cdp.js("document.documentElement.scrollWidth > window.innerWidth", sid), "no sideways scroll")
 
     def test_the_choice_is_remembered_for_the_project_across_a_reload(self):
@@ -93,7 +91,9 @@ class Archived(Base):
             click(cdp, sid, "#showArchived")
             self.until(cdp, sid, "document.querySelectorAll('#archived-list .arch-row').length === 2", "the rows")
             before = self.steps()
-            click(cdp, sid, f"#archived-list li[data-id='{self.gone[0]}'] .arch-restore")
+            click(cdp, sid, f"#archived-list tr[data-arch-id='{self.gone[0]}']")
+            self.until(cdp, sid, "!!document.querySelector('#peek-archived #pk-restore')", "the archived peek")
+            click(cdp, sid, "#peek-archived #pk-restore")
             self.until(cdp, sid, f"!!document.querySelector('#work-list tr[data-id=\"{self.gone[0]}\"]')", "the restored row in the table")
             self.assertEqual(self.archived_flags(), {self.gone[0]: 0, self.gone[1]: 1})
             self.assertEqual(self.steps(), before + 1, "one step, one Undo")

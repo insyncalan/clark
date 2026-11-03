@@ -50,7 +50,8 @@ function Row({ name, children, ref_, key_ }) {          // key_: which field thi
   return <div class={`pk-row${hit ? " flash" : ""}`} data-row={key_ || undefined} data-flash={hit ? "1" : undefined}><dt>{name}</dt><dd>{children}{hit ? <span class="tag chg">Changed</span> : null}</dd></div>;
 }
 
-function ItemFields({ row, editing }) {
+// ItemFields and Edge are also the archived peek's (edit/ArchivedItems.jsx, #450 row 39): the same rows, read only.
+export function ItemFields({ row, editing }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner);
   return (
     <dl class="pk-fields">
@@ -86,7 +87,7 @@ function MilestoneFields({ m }) {
 }
 
 // The edge you drag. Keys work too: Left widens, Right narrows, Home resets. Double-click resets.
-function Edge() {
+export function Edge() {
   const start = useRef(null);
   const down = (e) => { start.current = true; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* no capture: the move still follows */ } e.preventDefault(); };
   const move = (e) => { if (start.current) setWidth(document.documentElement.clientWidth - e.clientX); };
