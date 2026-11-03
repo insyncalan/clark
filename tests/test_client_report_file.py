@@ -100,7 +100,10 @@ class Nothing(unittest.TestCase):
         # The 0.5.0 hand-check, step 14: what the client's page drew that is for the team or the author. The built file is searched
         # for each (the words only the client report drew; "Not set" and "Nothing written yet" are also words of Edit and of other
         # pages, so those two are pinned by the rendered-text tests below and by the sectionsShown tests).
-        _, _, text = made()
+        # The file a client gets is made from the view page (publish.py: page_html(view=True)), which holds no Edit code. `made()` uses
+        # the served page, whose Edit part carries owner-only words (the "Escalate to steering" button, #458), so the file is made here.
+        plant, pub, _ = made()
+        text = publish.render(pub, page.page_html(EMPTY_BRANDING, view=True), plant["as_at"], pub["data"]["project"]["name"])
         for gone in ("Escalate", "cr-esc", 'class: "wl-id"', 'class: "idl"', "The delivery progress template", "cr-placeholder",
                      "Write it in the"):
             self.assertNotIn(gone, text, gone)
