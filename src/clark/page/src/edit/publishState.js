@@ -16,7 +16,7 @@ export const dialog = signal(null);      // null (closed) or the state below
 export const latest = signal(null);      // {at: YYYY-MM-DD, to_client} for the report bar, or null
 export const next = signal(0);           // the number the next publication will have (#437), or 0 until the server has said
 
-// What the PDF tick adds to the answer (#438): the browser's own print box opens on the page in a new tab, and the person chooses Save as PDF there.
+// What the PDF tick adds to the answer (item 438): the browser's own print box opens on the page in a new tab, and the person chooses Save as PDF there.
 // WORDING: owner to rule (both sentences)
 export const PRINT_OPENED = "Your browser’s print box opens in a new tab; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address.";
 export const PRINT_NOT_OPENED = "The PDF did not open. Allow pop-ups for this page, then choose Preview the page in a new tab in the profile menu and print it.";
@@ -131,7 +131,7 @@ export async function go() {
     return;
   }
   const said = words(r, "publish");
-  // #353: the number the server gave this publication (#120), so the success line can pick out "Published (Publication N)". A print box that did not open is an info line.
+  // Item 353: the number the server gave this publication (item 120), so the success line can pick out "Published (Publication N)". A print box that did not open is an info line.
   if (r.status === 200 && b && b.ok === true) {
     const text = s.pdf ? `${said} ${printed ? PRINT_OPENED : PRINT_NOT_OPENED}` : said;
     set({ phase: "done", clash: null, message: { kind: s.pdf && !printed ? "info" : "success", text, number: Number.isInteger(b.publication) && b.publication > 0 ? b.publication : null } });

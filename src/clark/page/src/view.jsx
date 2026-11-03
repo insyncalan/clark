@@ -4,4 +4,4 @@ import { boot } from "./boot.jsx";
 import { printWhenAsked } from "./stores/print.js";
 
 boot(null);
-printWhenAsked();      // a published file prints its tabs one after another, and opens the print box when its address asks (#438)
+printWhenAsked();      // a published file prints its tabs one after another, and opens the print box when its address asks (item 438)

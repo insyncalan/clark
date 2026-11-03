@@ -1,4 +1,4 @@
-// Printing the report (#438). The published page shows one tab at a time, so for a print it draws every tab, one after another
+// Printing the report (item 438). The published page shows one tab at a time, so for a print it draws every tab, one after another
 // (`printing`, read by components/App.jsx), and goes back to the one tab afterwards. The browser says when: `beforeprint` (the
 // print box, Ctrl+P or Cmd+P, from anywhere) and `afterprint`. Nothing is sent anywhere and nothing is added to the page: it prints
 // what the tabs already draw. Only a published file asks for this; the editor never does.

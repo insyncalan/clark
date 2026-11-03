@@ -13,7 +13,7 @@ import { ClientReport } from "./ClientReport.jsx";
 
 const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, clientreport: ClientReport, settings: Settings };
 
-// The printed page (#438): every tab the file has, one after another, each under its own name, with the day it was published at the head.
+// The printed page (item 438): every tab the file has, one after another, each under its own name, with the day it was published at the head.
 // Only a published file draws it, and only while the browser is printing (stores/print.js).
 function PrintStack({ tools }) {
   const name = data.value && data.value.project && data.value.project.name;
