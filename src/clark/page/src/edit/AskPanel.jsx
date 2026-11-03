@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { project, show, token } from "../stores/report.js";
 import { words } from "./publishApi.js";
-import { panelOpen, panelState, panelModel, panelWidth, panelFocus, turns, pending, closePanel, setWidth, clampWidth, nextQuip, quipDelay } from "./askPanelState.js";
+import { panelOpen, panelState, panelModel, panelWidth, panelFocus, turns, pending, closePanel, newChat, setWidth, clampWidth, nextQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 
@@ -116,7 +116,10 @@ export function AskPanel() {
       <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
       <header class="ask-head">
         <h2>{W.PANEL_TITLE}</h2>
-        <button type="button" class="btn sm" id="ask-close" onClick={closePanel}>{W.CLOSE}</button>
+        <div class="ask-head-btns">
+          <button type="button" class="btn sm" id="ask-new" disabled={busy} onClick={() => { setNote(""); newChat(); }}>{W.NEW_CHAT}</button>
+          <button type="button" class="btn sm" id="ask-close" onClick={closePanel}>{W.CLOSE}</button>
+        </div>
       </header>
       <p class="ask-status" id="ask-status" role="status" aria-live="polite">
         {busy ? W.WORKING : state === "checking" ? W.CHECKING_LINE : state === "off" ? null : state === "signed-out" ? null : model ? W.MODEL_LINE(model) : W.READY_LINE}

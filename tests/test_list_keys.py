@@ -22,6 +22,7 @@ CSS = (PAGE / "shell.css").read_text(encoding="utf-8")
 HELP = (PAGE / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
 ROWS = "[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => r.dataset.id)"
 FOCUS = "(document.activeElement.dataset || {}).id || ''"
+CELL_FOCUS = "((document.activeElement && document.activeElement.dataset) || {}).cell || ''"
 
 
 class Source(unittest.TestCase):
@@ -35,7 +36,7 @@ class Source(unittest.TestCase):
         self.assertIn(".bc-main:focus-visible { outline: 2px solid", CSS)
 
     def test_help_lists_every_key(self):
-        for words in ("Work items table: move the cursor", "Work items board: move from card to card", "In Edit, [[Enter]] on a cell opens that cell"):
+        for words in ("Work items table: move the cursor", "Work items board: move from card to card", "In Edit, [[Enter]] on a cell opens that cell", "[[Right]] opens it and [[Left]] closes it again", "[[Esc]] closes it and returns to the row"):   # #381: the peek keys are in Help too
             self.assertIn(words, HELP)
 
 
@@ -82,12 +83,19 @@ class Keys(ie.Live):
                 key(cdp, sid, "ArrowRight")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Right opens the peek")
                 self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "focus is in the peek")
-                # a plain arrow with the focus inside the peek (a button, a tab, the page) is not taken: the peek's own keys and the page's scrolling are left alone
+                # Left and Right with the focus inside the peek are not taken: the peek's tabs and the page keep them. Up and Down are the
+                # peek's own (#246, the peek steps to the item before or after in the list it was opened from), so they are taken.
                 cdp.js("window.__seen.length = 0", sid)
-                for name in ("ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"):
+                for name in ("ArrowLeft", "ArrowRight"):
                     key(cdp, sid, name)
-                self.assertEqual(cdp.js("window.__seen.filter(x => x[1]).length", sid), 0, "no arrow in the peek was taken")
+                self.assertEqual(cdp.js("window.__seen.filter(x => x[1]).length", sid), 0, "Left and Right in the peek were not taken")
                 self.assertTrue(cdp.js(f"location.hash.includes('item={rows[0]}')", sid), "and the peek stayed on its item, open")
+                key(cdp, sid, "ArrowDown")
+                self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Down steps the open peek to the next item")
+                self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "and the focus stays in the peek")
+                key(cdp, sid, "ArrowUp")
+                self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Up steps it back")
+                self.assertEqual(cdp.js("window.__seen.filter(x => x[1]).length", sid), 2, "Down and Up in the peek were taken, once each")
                 cdp.js("document.body.focus(); document.activeElement.blur()", sid)
                 cdp.js("window.__seen.length = 0", sid)
                 key(cdp, sid, "ArrowLeft")
@@ -209,7 +217,7 @@ class Keys(ie.Live):
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[-1]}')", "the last row's peek")
                 key(cdp, sid, "ArrowDown")
-                self.assertTrue(cdp.js(f"location.hash.includes('item={rows[-1]}')", sid), "Down inside the peek is not taken")
+                self.assertTrue(cdp.js(f"location.hash.includes('item={rows[-1]}')", sid), "Down in the peek on the last item stays on it (no wrap)")
 
     def test_in_edit_the_row_keeps_its_cells_and_enter_on_a_cell_opens_its_picker(self):
         for width in (1400, 900):
@@ -227,6 +235,65 @@ class Keys(ie.Live):
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "!!document.querySelector('[data-pop]')", "Enter on a cell opens its picker")
                 self.assertFalse(cdp.js("location.hash.includes('item=')", sid), "and not the peek")
+
+    def test_enter_on_every_kind_of_cell_opens_its_picker_and_esc_returns_to_the_cell(self):
+        # #381 (#194 Done-when 5): not only the owner cell. Enter is the cell button's own, so the row never turns it into the peek.
+        for width in (1400, 900):
+            with self.subTest(width=width), ie.chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=True)
+                first = cdp.js(ROWS, sid)[0]
+                for field in ("owner", "due", "priority", "status"):
+                    cell = f"{first}:{field}"
+                    with self.subTest(field=field):
+                        self.until(cdp, sid, f"!!document.querySelector('[data-cell=\"{cell}\"]')", f"the {field} cell")
+                        cdp.js(f"document.querySelector('[data-cell=\"{cell}\"]').focus()", sid)
+                        key(cdp, sid, "Enter")
+                        self.until(cdp, sid, "!!document.querySelector('[data-pop]')", f"Enter on the {field} cell opens its picker")
+                        self.assertFalse(cdp.js("location.hash.includes('item=')", sid), "and not the peek")
+                        key(cdp, sid, "Escape")
+                        self.until(cdp, sid, "!document.querySelector('[data-pop]')", "Esc closes the picker")
+                        self.until(cdp, sid, f"{CELL_FOCUS} === '{cell}'", "focus is back on the cell")
+                        self.assertFalse(cdp.js("location.hash.includes('item=')", sid), "Esc did not open a peek either")
+
+    def test_arrows_home_and_end_inside_an_open_picker_never_move_the_row_cursor(self):
+        # #381 (#194 Done-when 6): nothing steals a key from an open picker; the cursor stays on the row that opened it.
+        for width in (1400, 900):
+            with self.subTest(width=width), ie.chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=True)
+                first = cdp.js(ROWS, sid)[0]
+                for field in ("owner", "priority"):
+                    cell = f"{first}:{field}"
+                    with self.subTest(field=field):
+                        cdp.js(f"document.querySelector('[data-cell=\"{cell}\"]').focus()", sid)
+                        key(cdp, sid, "Enter")
+                        self.until(cdp, sid, "!!document.querySelector('[data-pop]')", "the picker is open")
+                        for name in ("ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft", "Home", "End"):
+                            key(cdp, sid, name)
+                            self.assertTrue(cdp.js("!!document.querySelector('[data-pop]')", sid), f"{name} left the picker open")
+                            self.assertTrue(cdp.js("!!(document.activeElement && document.activeElement.closest('[data-pop]'))", sid), f"{name} left the focus in the picker")
+                        self.assertFalse(cdp.js("location.hash.includes('item=')", sid), "no peek opened")
+                        key(cdp, sid, "Escape")
+                        self.until(cdp, sid, f"{CELL_FOCUS} === '{cell}'", "Esc: back on the cell that opened it")
+                        self.assertEqual(cdp.js("(document.activeElement.closest('tr[data-id]') || {dataset: {}}).dataset.id", sid), first, "the cursor row never changed")
+
+    def test_up_and_down_on_a_cell_keep_the_column_and_stop_at_the_first_and_last_row(self):
+        # #381: Up and Down on a cell go to the same cell one row on; the ends stay; Home and End on a cell are left to the cell.
+        for width in (1400, 900):
+            with self.subTest(width=width), ie.chrome() as cdp:
+                sid = self.open_page(cdp, width, edit=True)
+                rows = cdp.js(ROWS, sid)
+                cdp.js(f"document.querySelector('[data-cell=\"{rows[0]}:due\"]').focus()", sid)
+                key(cdp, sid, "ArrowUp")
+                self.assertEqual(self.focused(cdp, sid), f"{rows[0]}:due", "Up on the first row stays on its cell")
+                key(cdp, sid, "ArrowDown")
+                self.assertEqual(self.focused(cdp, sid), f"{rows[1]}:due", "Down: the same column, the next row")
+                for name in ("Home", "End"):
+                    key(cdp, sid, name)
+                    self.assertEqual(self.focused(cdp, sid), f"{rows[1]}:due", f"{name} on a cell is not the row cursor's")
+                cdp.js(f"document.querySelector('[data-cell=\"{rows[-1]}:due\"]').focus()", sid)
+                key(cdp, sid, "ArrowDown")
+                self.assertEqual(self.focused(cdp, sid), f"{rows[-1]}:due", "Down on the last row stays on its cell")
+                self.assertFalse(cdp.js("location.hash.includes('item=')", sid), "no peek opened")
 
     def test_a_key_in_a_box_is_left_alone(self):
         with ie.chrome() as cdp:
