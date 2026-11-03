@@ -94,7 +94,7 @@ class Feed(unittest.TestCase):
         got = self.rows()[a]["freshness"]
         self.assertEqual((got["last_reviewed"], got["not_reviewed"]), ("2026-10-25", False))
 
-    def test_one_function_gives_n_and_nothing_is_stored_for_it(self):
+    def test_one_function_gives_n_and_no_per_item_or_per_tile_column_holds_it(self):
         row = self.demo.store.data_for("ABC")["project"]
         self.assertEqual(store_module.review_days_for(row), 14)
         with mock.patch("clark.store.review_days_for", lambda project: 3):

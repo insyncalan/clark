@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS projects (
   layout          TEXT NOT NULL DEFAULT 'boxed' CHECK (layout IN ('boxed','spine','cover')),             -- clark: report layout
   publish_local   TEXT,                                   -- clark: the local folder last used
   publish_client  TEXT,                                   -- clark: the client's SharePoint folder, as synced on this machine
-  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  review_after_days INTEGER NOT NULL DEFAULT 14 CHECK (typeof(review_after_days) = 'integer' AND review_after_days BETWEEN 1 AND 365)  -- clark: days before an open item counts as not reviewed (#171); last, as the migration's ADD COLUMN puts it
 );
 -- Not copied: next_milestone and milestone_date. clark works the next milestone out from `milestones` (the Next milestone tile).
 

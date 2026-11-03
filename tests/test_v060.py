@@ -396,7 +396,7 @@ class Numbers120(unittest.TestCase):
         schema = read(SRC / "clark" / "schema.sql")
         for name in ("publications_no_delete", "publications_number_fixed", "publications_never_replaced"):
             self.assertRegex(schema, rf"CREATE TRIGGER IF NOT EXISTS {name}\b", name)
-        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = 11\b")      # 11 since PR 310 (#412, a use case can be Done); step 10 is this item\'s
+        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = (?:1\d|[2-9]\d)\b")      # 10 or later: step 10 is this item's; 11 is #412 (a use case can be Done), 12 is #171 (review_after_days)
 
     def test_120_2_a_number_is_fixed_and_never_reused(self):
         schema = read(SRC / "clark" / "schema.sql")

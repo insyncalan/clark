@@ -34,7 +34,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 11          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 12          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#171): projects.review_after_days. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -140,13 +140,16 @@ PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board
 ORIGINS = ("report", "sneak")
 ACTORS = ("you", "clark")
 REVERT_VIA = "revert:"
+REVIEW_DAYS_RANGE = (1, 365)         # #171: the whole numbers a project's review_after_days may be (schema.sql's CHECK says the same)
 FRESH_TABLES = ("actions", "raid", "decisions")          # #158: the items whose review dates the peek shows (milestones have none)
 
 
 def review_days_for(project_row):
-    """N, the days after which an open item counts as not reviewed in this project (#160). Today every project uses the one
-    default; a per-project setting will be read here, from the project row, so nothing else has to change."""
-    return fresh.DEFAULT_DAYS
+    """N, the days after which an open item counts as not reviewed in this project (#160, #171): the project's own
+    review_after_days, or the default (freshness.DEFAULT_DAYS) when the row has none or holds something that is not a whole
+    number from 1 to 365 (a file from before step 12 read through a stand-in row, say). The one place that default is applied."""
+    n = (project_row or {}).get("review_after_days")
+    return n if type(n) is int and REVIEW_DAYS_RANGE[0] <= n <= REVIEW_DAYS_RANGE[1] else fresh.DEFAULT_DAYS
 
 
 def attach_freshness(con, data, days, cache=None):
@@ -449,6 +452,8 @@ def _check_number_and_flags(f, v):
         raise Invalid(f"percent_complete must be a whole number from 0 to 100 (got {v!r})")
     if f == "sort_order" and (isinstance(v, bool) or not isinstance(v, int)):
         raise Invalid(f"sort_order must be a whole number (got {v!r})")
+    if f == "review_after_days" and (type(v) is not int or not REVIEW_DAYS_RANGE[0] <= v <= REVIEW_DAYS_RANGE[1]):
+        raise Invalid(f"review_after_days must be a whole number from 1 to 365 (got {v!r})")
 
 
 def _check_label_value(table, f, v):
@@ -2101,11 +2106,21 @@ def migrate_use_case_done(con):
     _use_cases_allow_done(con)
 
 
+def migrate_review_after_days(con):
+    """A project's own "not reviewed after N days" (#171): projects gains review_after_days, 14 on every project that is there
+    (the number clark used for all of them before). A column added at the end of the table, with the CHECK of schema.sql, so no
+    table is made again and no frozen schema file is needed. Skipped when the column is already there. Its own step, number 12 (see
+    SCHEMA_VERSION and MIGRATIONS); it touches no other table. Runs inside the caller's transaction; the runner writes the version."""
+    if "review_after_days" not in columns(con, "projects"):
+        con.execute("ALTER TABLE projects ADD COLUMN review_after_days INTEGER NOT NULL DEFAULT 14 "
+                    "CHECK (typeof(review_after_days) = 'integer' AND review_after_days BETWEEN 1 AND 365)")
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
               (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers),
-              (11, migrate_use_case_done))
+              (11, migrate_use_case_done), (12, migrate_review_after_days))
 
 
 def migration_plan(version, table=None):
