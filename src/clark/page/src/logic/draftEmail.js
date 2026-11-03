@@ -31,6 +31,7 @@ export const LABELS = {
   sent: "I sent it",
   close: "Close",
   edit: "You can edit the wording below before you copy it.",
+  tone: "Tone",
 };
 
 const SENT_KIND = "email_sent";
@@ -83,13 +84,32 @@ export function sentWords(entry, saved = false, failed = false) {
 export function buildOptions(state) {
   const mode = text(state.mode) || "update_request";
   if (!modeKnown(mode)) throw new Error(CHOOSE_A_KIND);
-  return {
+  const out = {
     mode,
     picked: Array.isArray(state.picked) ? state.picked.slice() : [],
     reply_by: text(state.replyBy),
     unblocks: text(state.unblocks).trim(),
     include_update: !!state.includeUpdate,
   };
+  // The tone is sent only when the user chose one for a chase (#452); otherwise the builder chooses it from the history.
+  if (mode === "chase" && state.tone != null) out.tone = toneChoice(state.tone);
+  return out;
+}
+
+/** #452: the three tones of a chase, as the buttons read them (the same as draft_email.TONE_NAMES). */
+export const TONES = ["First chase", "Second chase", "Firmer chase"];
+export const NO_SUCH_TONE = "That tone isn't available. Choose First chase, Second chase or Firmer chase.";
+
+/** The tone the user picked, 0, 1 or 2; anything else is refused in plain words (never sent on). */
+export function toneChoice(tone) {
+  if (!Number.isInteger(tone) || tone < 0 || tone >= TONES.length) throw new Error(NO_SUCH_TONE);
+  return tone;
+}
+
+/** The line beside the tone: how often the most often chased of the ticked items was chased before (the prototype's words). */
+export function chasedWords(n) {
+  const k = Number.isInteger(n) && n > 0 ? n : 0;
+  return k ? `Chased ${k} time${k === 1 ? "" : "s"} before` : "Not chased yet";
 }
 
 /** The note shown under the preview, and never in the email, for a ticked item that is not marked for the client. */
@@ -109,6 +129,8 @@ export function blocked(draft) {
  *  the preview is drawn, so a draft handed in from elsewhere can never run a script or load a picture. */
 const TAGS = new Set(["DIV", "P", "B", "I", "STRONG", "EM", "BR", "TABLE", "TBODY", "THEAD", "TR", "TD", "TH"]);
 const ATTRS = new Set(["style", "align", "cellpadding", "cellspacing", "border", "colspan"]);
+// A style may not load anything or hold an at-rule: any "@" is refused (the same pattern, plain: the built page holds no literal at-rule word, which test_page scans for).
+const STYLE_BAD = /url\s*\(|expression|@/i;
 
 /** The email's HTML with everything outside the allowed elements and attributes removed (the text of a removed element goes
  *  with it when it is a script or style). Returns a string. */
@@ -126,7 +148,7 @@ export function safeHtml(html, parse) {
         continue;
       }
       for (const a of Array.from(child.attributes)) {
-        const bad = !ATTRS.has(a.name) || (a.name === "style" && /url\s*\(|expression|@import/i.test(a.value));
+        const bad = !ATTRS.has(a.name) || (a.name === "style" && STYLE_BAD.test(a.value));
         if (bad) child.removeAttribute(a.name);
       }
       walk(child);

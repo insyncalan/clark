@@ -7,6 +7,7 @@ buckets, chips and the Legend. Part 2 loads the committed page from the real ser
 1400 and 900 px. Part 3 publishes a project with an internal note, a state reason and a hidden milestone and searches the file.
 The browser parts are required: they fail, never skip, without Chrome.
 """
+import itertools
 import json
 import shutil
 import tempfile
@@ -500,10 +501,43 @@ class RealBrowser(unittest.TestCase):
                         }
                         return out; })()""", sid)
                     self.assertEqual(got["cut"], [], "no chip text is cut off")
+                    self.assertTrue(got["ghost"], "there is a slipped milestone's chip to check")
                     for visible, label in got["ghost"]:
                         self.assertTrue(visible.startswith("Expected: "), "the prototype's words: 'Expected: ' then the name")
                         self.assertEqual(visible.count("Expected"), 1)
                         self.assertTrue(label.startswith("Expected: "), "the accessible name says it too")
+
+    def test_the_expected_chip_is_whole_at_900_px_and_in_quarter(self):
+        for width, theme, scale in itertools.product((1400, 900), ("light", "dark"), ("month", "quarter")):
+            with self.subTest(width=width, theme=theme, scale=scale), chrome() as cdp:
+                sid = self.view(cdp, width, theme)
+                cdp.js(f"document.querySelector('[data-scale-b={scale}]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('.cal').dataset.scale", sid) == scale))
+                if scale == "month":                      # the slipped milestone's expected day is in November (Quarter holds it already)
+                    cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal-ms.ghost')", sid)))
+                got = cdp.js("""[...document.querySelectorAll('.cal-ms.ghost')].map(c => { const sp = c.querySelector('span'), r = c.getBoundingClientRect();
+                    return [sp.textContent, getComputedStyle(sp).display, sp.scrollWidth <= sp.clientWidth + 1, r.right <= document.documentElement.clientWidth]; })""", sid)
+                for text, display, fits, inside in got:
+                    self.assertTrue(text.startswith("Expected: ") and len(text) > len("Expected: "), "the whole chip: Expected: and the name")
+                    self.assertNotEqual(display, "none", "shown, not hidden by the width or the scale")
+                    self.assertTrue(fits and inside, "not cut off")
+
+    def test_switching_scale_always_lands_on_the_current_period(self):
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sid = self.view(cdp, width, theme)
+                    for _ in range(3):
+                        before = self.title(cdp, sid)
+                        cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
+                        self.assertTrue(wait(lambda: self.title(cdp, sid) != before))
+                    self.assertEqual(self.title(cdp, sid), "January 2027")
+                    for scale, label in (("quarter", "Q4 2026"), ("week", "Week of 26-10-2026"), ("month", "October 2026")):
+                        cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)           # wander off, then switch
+                        cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
+                        cdp.js(f"document.querySelector('[data-scale-b={scale}]').click()", sid)
+                        self.assertTrue(wait(lambda: self.title(cdp, sid) == label), f"{scale} opens on {label}")
 
     def test_the_quarter_month_button_has_a_visible_focus_ring(self):
         for width in (1400, 900):
