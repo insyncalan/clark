@@ -318,6 +318,17 @@ def uncommitted(root, paths):
     return out.rstrip()                 # the first line's leading space is part of its status
 
 
+def tag_problem(root, ver):
+    """Why a release zip can't be built from `root`: HEAD is not the commit tagged v<ver>, or git can't say. None when it is.
+    The v0.2.1 download was built from a tree that was not its tag (#400)."""
+    run = subprocess.run(["git", "-C", str(root), "tag", "--points-at", "HEAD"], capture_output=True, text=True)
+    if run.returncode != 0:
+        return "git could not say which tag this folder is at"
+    if f"v{ver}" not in run.stdout.split():
+        return f"this folder is not at the tag v{ver}"
+    return None
+
+
 def changed_files(porcelain):
     """The file names in `git status --porcelain` output (for a rename, the new name)."""
     return [line[3:].split(" -> ")[-1] for line in porcelain.splitlines() if line.strip()]
@@ -343,6 +354,14 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
     if release and not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version(root)):
         raise Refused(f"Version {version(root)} is not a release number (it must be three numbers, like 0.3.1). "
                       "Nothing was written. Set the version in src/clark/__init__.py, then build again.")
+    if release:
+        if dirty:
+            raise Refused("A release zip is built only from committed files, so --release can't be used with --dirty. "
+                          "Nothing was written.")
+        problem = tag_problem(root, version(root))
+        if problem:
+            raise Refused(f"A release zip must be built from its tag, and {problem}. Nothing was written. Check out the tag "
+                          f"in an empty folder (dev/RELEASING.md step 5), then build again.")
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", min_from):
         raise Refused("The oldest version that may update to this one must be three numbers, like 0.2.0.")
     if for_client:
@@ -407,7 +426,7 @@ def main(argv=None):
     p.add_argument("--dirty", action="store_true", help="build even if the listed files have uncommitted changes")
     p.add_argument("--for-client", action="store_true",
                    help="a zip for a client: only from the scrubbed public snapshot, and only if the name guard finds nothing")
-    p.add_argument("--release", action="store_true", help="refuse a version that is not three numbers (a .dev build)")
+    p.add_argument("--release", action="store_true", help="refuse a version that is not three numbers (a .dev build), a tree not at its tag vX.Y.Z, and --dirty")
     p.add_argument("--notes", metavar="FILE", help="a text file of release notes, kept in clark-release.json")
     p.add_argument("--min-from", metavar="X.Y.Z", default="0.0.0", help="the oldest version that may update to this one")
     args = p.parse_args(argv)

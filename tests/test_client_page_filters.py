@@ -13,6 +13,7 @@ import unittest
 from pathlib import Path
 
 from _paths import ROOT  # noqa: F401  (puts src/ on the path)
+from _new_page import reload_to_new_page_cdp
 import _publish_fixture as fx
 
 from clark import publish
@@ -277,14 +278,14 @@ class ClientPageFilters(unittest.TestCase):
                 if view != "dashboard":
                     self.click(cdp, sid, f".tab[data-view={view}]")
                     self.settle(cdp, sid, f"location.hash.startsWith('#{view}')")
-                cdp.call("Page.reload", {}, sid)
+                reload_to_new_page_cdp(cdp, sid)
                 self.settle(cdp, sid, "!!document.querySelector('.tab[data-view=work]') && !document.querySelector('#work-list')")
                 self.assertEqual(cdp.js("localStorage.getItem('clark.work.PUB')", sid), kept, "the Dashboard does not change what is kept")
                 self.click(cdp, sid, ".tab[data-view=work]")
                 self.settle(cdp, sid, "!!document.querySelector('#work-list') && !!document.querySelector('[data-chip=owner]')")
                 self.assertTrue(wait(lambda: self.chosen(cdp, sid)), "the tab shows the kept choices")
                 self.assertEqual(cdp.js("localStorage.getItem('clark.work.PUB')", sid), kept, "the click did not write over them")
-                cdp.call("Page.reload", {}, sid)                       # the address is now #work with the filters: reload keeps both
+                reload_to_new_page_cdp(cdp, sid)                       # the address is now #work with the filters: reload keeps both
                 self.settle(cdp, sid, "!!document.querySelector('#work-list') && !!document.querySelector('[data-chip=owner]')")
                 self.assertTrue(self.chosen(cdp, sid))
                 self.assertEqual(cdp.js("localStorage.getItem('clark.work.PUB')", sid), kept, "still kept after the reload")
@@ -330,7 +331,7 @@ class ClientPageFilters(unittest.TestCase):
                 sid = open_page(cdp, self.path.as_uri() + "#work", 1400, "light")
                 self.settle(cdp, sid, "!!document.querySelector('#work-list')")
                 cdp.js(f"localStorage.setItem('clark.work.PUB', {json.dumps(bad)})", sid)
-                cdp.call("Page.reload", {}, sid)
+                reload_to_new_page_cdp(cdp, sid)
                 self.settle(cdp, sid, "!!document.querySelector('#work-list')")
                 self.assertEqual(self.count(cdp, sid), 6, "the start page: every open row")
                 self.assertFalse(cdp.js("!!document.querySelector('.fchip')", sid))

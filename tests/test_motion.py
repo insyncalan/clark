@@ -28,6 +28,7 @@ CSS = te.CSS
 _START = CSS.index("Motion:")
 MOTION = CSS[_START:CSS.index("\n}\n", CSS.index("@media (prefers-reduced-motion: no-preference) {\n", _START)) + 3]     # the one block, not the rules after it
 MODES = (("allowed", False, False), ("media", True, False), ("setting", False, True))
+ALLOW = [{"name": "prefers-reduced-motion", "value": "no-preference"}]     # "allowed" says so itself: a machine whose own setting asks for less motion (a CI Mac) must not decide it
 SECTION = {"allowed": "ABC-S-002", "media": "ABC-S-003", "setting": "ABC-S-004"}     # one each: a hidden section stays hidden
 OWN = "document.documentElement.dataset.motion='reduce'"
 
@@ -87,8 +88,7 @@ class Looks(tre.Base):
     def go(self, cdp, hash_, mode):
         _, media, own = mode
         p = tre.Pg.at(self, cdp, self.s.port, hash_)
-        if media:
-            cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE}, p.sid)
+        cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE if media else ALLOW}, p.sid)
         p.ready() if hash_.startswith('#dashboard') else p.until("!!document.querySelector('#work-count')", 'the list drew')
         if own:
             p.js(OWN)
@@ -228,8 +228,7 @@ class More(tre.Base):
         sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
         cdp.call("Page.enable", {}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-        if media:
-            cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE}, sid)
+        cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE if media else ALLOW}, sid)
         if own:
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": Fade.OWN_EARLY}, sid)
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{hash_}"}, sid)
@@ -352,8 +351,7 @@ class PublishLooks(tpd.Base):
             with self.subTest(mode=mode[0]), chrome() as cdp:
                 p = self.page(cdp)
                 _, media, own = mode
-                if media:
-                    cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE}, p.sid)
+                cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE if media else ALLOW}, p.sid)
                 if own:
                     p.js(OWN)
                 p.js(self.HOLD)
@@ -410,8 +408,7 @@ class Fade(tre.Base):
                 sid = cdp.call("Target.attachToTarget", {"targetId": sid, "flatten": True})["sessionId"]
                 cdp.call("Page.enable", {}, sid)
                 cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": self.WATCH + (self.OWN_EARLY if mode[2] else "")}, sid)
-                if mode[1]:
-                    cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE}, sid)
+                cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE if mode[1] else ALLOW}, sid)
                 cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#work&p=ABC"}, sid)
                 p = tre.Pg(self, cdp, sid)
                 p.until("!!document.querySelector('.skel-frame')", "the placeholder appeared")
