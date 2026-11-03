@@ -1226,6 +1226,8 @@ class Items(Api):
                 row = self.s.read(kind, ref=ref)
                 self.assertEqual((row["client_message"], row[title]), ("What the client reads", before[title]), "the team's own text is untouched")
                 self.no(self.item(kind, ref, client_message=""), changes.ITEM_VALUE_WORDS)
+                self.no(self.item(kind, ref, client_message=None), changes.ITEM_VALUE_WORDS)     # a null is refused in the same plain words, not a 500
+                self.assertEqual(self.s.read(kind, ref=ref)["client_message"], "What the client reads", "nothing saved")
                 self.no(self.item(kind, ref, client_message="x" * 201), changes.ITEM_VALUE_WORDS)
                 self.no(self.item(kind, ref, client_message="two\nlines"), changes.ITEM_TEXT_WORDS)
                 status, undone = self.undone(body["apply_id"])
