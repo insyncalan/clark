@@ -15,8 +15,9 @@ Written before the cut, from origin/main on 03-11-2026. In 0.7.0 so far (merged 
 slide-out (#450), the calendar's keys (#481), the dashboard's use cases in Edit (#455), New chat in ask clark (#407), Help like the
 prototype and the Publish and Preview words (#459), the AI card in Settings (#72), the About you path (#422), saved views that stay
 listed (#589), "Not written yet." (#375), the documents link check (#594), the short value after "api key" (#583, #527), a lost
-number race (#388) and a null character in the logo rule (#493). Not merged, so WAITING: #97, #199, #220, #171, #325, #618, #286,
-#595 and #269. Left out on purpose: #196 (in 0.5.0), #198 (in the code since 0.4.0, in no notes) and #270 (in 0.6.0).
+number race (#388), a null character in the logo rule (#493), the right-click menu (#97), hand over (#199) and the Word client copy's
+held-back check (#618). Not merged, so WAITING: #220 (PR 509), #171 (PR 472), #325 (PR 474), #286 (PR 508), #595 (PR 493) and #269 (no pull
+request). Left out on purpose: #196 (in 0.5.0), #198 (in the code since 0.4.0, in no notes) and #270 (in 0.6.0).
 The cut checks (version, release notes, hand-check sheet) skip until the cut commit sets 0.7.0, then fail if they are wrong.
 The notes' own rules (title, the Beta line, plain words, the data-layout paragraph) are read from the tree now.
 """
@@ -101,25 +102,33 @@ COVERED = [
      "test_package::ReleaseFromTagTest::test_untagged_tree_is_refused_and_nothing_is_written"),
     ("#400", "A release zip is not built from a dirty tree",
      "test_package::ReleaseFromTagTest::test_release_with_dirty_is_refused"),
+    ("#97", "Right-click a work item opens the menu with every entry",
+     "test_row_menu::Menu::test_a_right_click_on_a_row_opens_the_menu_with_every_entry"),
+    ("#97", "Draft email to the owner opens with the To line empty unless an address is found by the owner's id",
+     "test_row_menu::Rules::test_draft_email_opens_with_the_to_line_empty_and_finds_an_address_by_owner_id_never_the_name"),
+    ("#199", "Hand over changes every owner in one step and one Undo puts them back",
+     "test_hand_over::Page::test_hand_over_changes_every_owner_in_one_step_and_one_undo"),
+    ("#199", "Items that cannot take the hand over are left out and named",
+     "test_changes_hand_over::HandOver::test_items_that_cannot_take_it_are_left_out_and_named"),
+    ("#618", "The Word client copy is refused when it carries text held back from the client",
+     "test_word_client_held_back::Cases::test_the_word_client_copy_refuses_it"),
+    ("#618", "A refused Word client copy writes nothing in either folder",
+     "test_word_client_held_back::Cases::test_the_refusal_writes_nothing_in_either_folder"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#97", "Right-click a work item opens a menu with Draft email to the owner and other shortcuts", "PR 324",
-     "page/src/edit/RowMenu.jsx", ""),
-    ("#199", "Several work items are handed over to someone else in one step with one Undo", "PR 480",
-     "page/src/edit/HandOver.jsx", ""),
-    ("#220", "Edit opens the one editor in place for Summary, This week and Next week", "PR 433",
+    ("#220", "Edit opens the one editor in place for Summary, This week and Next week", "PR 509",
      "changes.py", "def _text_body"),
     ("#171", "Each project keeps its own not-reviewed-after-days number (a data layout step)", "PR 472",
      "schema.sql", "review_after_days"),
     ("#325", "The publications trigger also guards the client copy's path (a data layout step)", "PR 474",
      "store.py", "migrate_publication_trigger_client_path"),
-    ("#618", "The Word client copy gets the held-back check before any write (client-facing, waits for the owner's word)", "PR 482",
-     "word_route.py", "def _held_back"),
-    ("#286", "A visible hint says / opens ask clark in Edit and the filter line in View", "no pull request yet (issue 286)", "", None),
-    ("#595", "A document of an unknown kind is not published as an empty kind", "no pull request yet (issue 595)", "", None),
+    ("#286", "The filter line no longer says Press / (that key opens ask clark)", "PR 508",
+     "page/src/components/FilterLine.jsx", "opens ask clark (#286)"),
+    ("#595", "A document of an unknown kind is left out of the published file, not published as an empty kind", "PR 493",
+     "publish.py", "if kind not in doclinks.KINDS:"),
     ("#269", "The publications row names the PDF file", "no pull request yet (issue 269)", "", None),
 ]
 
