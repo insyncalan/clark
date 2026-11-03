@@ -79,6 +79,8 @@ class Request:
     kept: tuple = ()              # the position (in the passages as given) of each passage sent, in order, so a caller can match them
     system: str = RULES           # the system prompt the caller wants: ask clark's own RULES unless the caller passes its own (suggestions do); "" is refused
     canary: str = field(default="", repr=False, compare=False)    # #277: this request's private marker; set by ask_provider, never kept
+    owner: object = field(default=None, repr=False, compare=False)   # #284: who asked (a service's own token), so Stop can end only that service's run
+    cancel: object = field(default=None, repr=False, compare=False)  # #284: a threading.Event; set before the run is registered, the run does not start
 
     @property
     def passage_ids(self):
