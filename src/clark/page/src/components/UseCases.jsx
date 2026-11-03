@@ -65,7 +65,7 @@ function Row({ s, shown, toggle, ed }) {
         <div class="ucdetail" id={id}>
           {ed ? <ed.Name u={u} /> : null}
           <h3>Where it stands</h3>
-          {ed ? <ed.Standing u={u} /> : fromFile.value && u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : <p>{plain(u.standing) || "Nothing written yet."}</p>}
+          {ed ? <ed.Standing u={u} /> : fromFile.value && u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : <p>{plain(u.standing) || "Not written yet."}</p>}
           <h3>Next steps</h3>
           {s.steps.length ? <ul class="plain ucstepl">{s.steps.map((r) => <li key={r.id}><StepLine r={r} /></li>)}</ul> : <p class="muted">No open next steps.</p>}
           {ed ? <><ed.NextStep u={u} /><ed.LinkButton u={u} /></> : null}

@@ -25,7 +25,8 @@ import { Icon } from "../components/Icon.jsx";
 import { Line, NAME_MAX, HEAD_MAX } from "../components/UseCaseDetail.jsx";
 import { RichField } from "./RichField.jsx";
 import { KIND_WORDS, todayIso } from "../workItems.js";
-import { splitStep, stepValues, linkable, narrow, KINDS, linkedWords } from "../logic/ucRow.js";
+import { splitStep, knownNames, stepValues, linkable, narrow, KINDS, linkedWords } from "../logic/ucRow.js";
+import { peopleList } from "../stores/handover.js";
 
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -193,18 +194,18 @@ export function Eye({ u }) {
 
 /** "Where it stands" in an opened row: the text is changed in place, as on the use case's own page (the same editor, one change with one Undo). */
 export function Standing({ u }) {
-  return <RichField field="standing" id={u.id} value={u.standing} label={`where ${name(u)} stands`} empty="Nothing written yet. Click to write."
+  return <RichField field="standing" id={u.id} value={u.standing} label={`where ${name(u)} stands`} empty="Not written yet. Click to write."
     save={(html) => send(u, { standing: html }, `Use case ${name(u)} saved.`)} />;
 }
 
 /** "+ Add a next step: “Owner: what it is”, then Enter": a new action that names the use case, in one step with one Undo. The words before
- * the first colon are the owner; the step is due a week from today, as in the prototype. A step that is refused stays in the box. */
+ * the first colon are the owner when they are a person ("Fix: the loader" has none); the step is due a week from today, as in the prototype. A step that is refused stays in the box. */
 export function NextStep({ u }) {
   const busy = useRef(false);
   const keys = async (e) => {
     if (e.key !== "Enter" || e.isComposing) return;
     e.preventDefault();
-    const input = e.currentTarget, parts = splitStep(input.value);
+    const input = e.currentTarget, parts = splitStep(input.value, knownNames(data.value, peopleList.value));
     if (!parts || busy.current) return;
     busy.current = true;
     const reply = await change({ kind: "actions", op: "new", values: stepValues(parts, u.id, todayIso()), place: "report" }, `Next step added to use case ${name(u)}.`);

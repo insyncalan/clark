@@ -265,6 +265,19 @@ class Edit(Setup):
             made = [r for r in self.store.read("actions", "ABC") if r["description"] == "Order the new cables"]
             self.assertEqual((len(made), made[0]["owner"]), (1, "TBC"))
 
+    def test_a_step_with_a_colon_but_no_person_keeps_all_its_words_and_no_owner(self):
+        """"Fix: the loader cables" names nobody: "Fix" is not taken as the owner, and the whole text is the step."""
+        with chrome() as cdp:
+            p = self.edit(cdp)
+            self.click(p, ".ucrow .ucref")
+            p.until("!!document.querySelector('.ucdetail [data-uc-step]')", "the row opened")
+            self.type_in(p, "[data-uc-step]", "Fix: the loader cables")
+            p.key("Enter", code="Enter", vk=13)
+            p.saved()
+            self.assertEqual([r for r in self.store.read("actions", "ABC") if r["owner"] == "Fix"], [], "Fix is not an owner")
+            made = [r for r in self.store.read("actions", "ABC") if r["description"] == "Fix: the loader cables"]
+            self.assertEqual((len(made), made[0]["owner"]), (1, "TBC"))
+
     def test_link_an_existing_work_item_opens_a_box_beside_main_and_links_several_in_one_step(self):
         with chrome() as cdp:
             p = self.edit(cdp)
