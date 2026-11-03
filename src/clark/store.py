@@ -1577,11 +1577,14 @@ def revert_group(con, apply_id, table, key, rows_, step):
     by_field = {}                                     # a field changed twice in one step: judged by its last value, put back
     for r in rows_:                                   # to its first old value (creaite's whole-step cmd_undo)
         by_field.setdefault(r["field"], []).append(r)
-    for f, rs in by_field.items():
+    for f, rs in sorted(by_field.items(), key=lambda kv: kv[0] == "owner_id"):     # #620: the link is judged after its owner text
         if text(row[f]) != rs[-1]["new_value"]:
             skipped.append(entry(rs[-1], why="has changed since: left as it is",
                                  by_step=changed_after(con, rs[-1]["rowid"], table, key, skip=(step.peek_apply_id(),))))
-        else:
+        elif f == "owner_id" and any(x["field"] == OWNER_TEXT.get(table) and x["why"].startswith("has changed since") for x in skipped):
+            gone = next(x for x in skipped if x["field"] == OWNER_TEXT[table])     # #620: an owner_id rides with its owner text. When the
+            skipped.append(entry(rs[-1], why=gone["why"], by_step=gone["by_step"]))     # name was changed since, the link stays beside it and is
+        else:                                                                       # never put back alone (the old link beside a new name)
             changes[f] = rs[0]["old_value"]
             undoes[f] = rs[-1]["rowid"]
     if table == "projects" and "health" in changes and "health_reason" not in changes:    # a health change takes its reason back too
@@ -2659,13 +2662,31 @@ class Store:
         publication's row is in (so a refused number keeps nothing). The copy is made from the file at `source` only while it still
         holds the bytes whose SHA-256 the row has; it is written once, never changed and never removed (published_copies.py). It is
         best effort: a publication is made when its row is, so a copy that could not be kept is logged nowhere and listed as "Not kept".
-        True when a copy was written. A Word file is not kept (its row has no page to open)."""
+        True when a copy was written. A Word file is not kept (its row has no page to open). #342: a copy of the page's data is kept
+        beside it, cut from the same bytes (published_copies.keep)."""
         if str(self.path) == ":memory:":
             return False
         try:
             return published_copies.keep(self.path.parent, code, number, source, sha256)
         except Exception:        # noqa: BLE001  never let a copy that could not be kept undo a publication that was made
             return False
+
+    def archive_publication(self, code, number):
+        """#342: archive Publication `number` of `code`: the list leaves it out, and nothing is removed or changed (its row, its kept
+        page and its data copy stay as they are; FR-43c, archive never delete). The mark is written once beside the kept copies
+        (published_copies.archive); like a publication it is a record, not an edit, so there is no step and no Undo. Refused in plain
+        words when there is no such publication or it is archived already. True when archived."""
+        if published_copies.file_name(code, number) is None:
+            raise Invalid("Give the project's code and the publication's number.")
+        if str(self.path) == ":memory:":
+            raise Invalid("A publication can't be archived in a database that is not saved to a file.")
+        if not self.con.execute("SELECT 1 FROM publications WHERE project = ? AND number = ?", (code, number)).fetchone():
+            raise Invalid(f"There is no Publication {number} for {code}. Nothing was changed.")
+        if published_copies.is_archived(self.path.parent, code, number):
+            raise Invalid(f"Publication {number} is already archived. Nothing was changed.")
+        if not published_copies.archive(self.path.parent, code, number):
+            raise Invalid(f"Publication {number} could not be archived. Nothing was changed. Try again.")
+        return True
 
     def next_publication(self, code):
         """The number the next publication of `code` will have (#120), to be put in the file before it is made. Nothing is reserved:
