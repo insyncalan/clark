@@ -216,6 +216,29 @@ export function search(index, q) {
   return out.sort((a, b) => b.score - a.score || a.n - b.n);
 }
 
+/**
+ * A line of a result as parts, the words the search matched marked: [{ t: "text", hit: true | false }]. A long line that
+ * matches late starts a little before the match, with an ellipsis (the prototype's `mark`, help.js). Never HTML: the page draws
+ * each part as text, a marked one inside <mark>.
+ */
+export function markParts(line, q) {
+  const qw = wordsOf(q).filter((w) => w.length >= 2), s = String(line == null ? "" : line), out = [];
+  let last = 0, first = -1;
+  for (const m of s.matchAll(/[\p{L}\p{N}]+/gu)) {
+    if (!qw.some((w) => hit(w, norm(m[0])))) continue;
+    if (first < 0) first = m.index;
+    if (m.index > last) out.push({ t: s.slice(last, m.index), hit: false });
+    out.push({ t: m[0], hit: true });
+    last = m.index + m[0].length;
+  }
+  if (last < s.length) out.push({ t: s.slice(last), hit: false });
+  if (first > 60 && s.length > 170) {
+    const cut = s.lastIndexOf(" ", first - 40);
+    if (cut > 0) return [{ t: "…", hit: false }, ...markParts(s.slice(cut + 1), q)];
+  }
+  return out;
+}
+
 const TAB_NAME = Object.fromEntries(CONTENT.tabs);
 /** The results as the panel shows them: a count line, then groups in the order How do I…, Reference, Start here. */
 export function resultsView(index, q) {
