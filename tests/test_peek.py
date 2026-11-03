@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest import mock
 
 from _paths import ROOT
+from _new_page import reload_to_new_page_cdp
 import _testpage as testpage
 
 from clark import changes, page, server as sv, sneak  # noqa: E402
@@ -356,7 +357,7 @@ class Browser(unittest.TestCase):
                 for kind, x in (("mousePressed", edge[0]), ("mouseMoved", client - 700), ("mouseReleased", client - 700)):
                     cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": edge[1], "button": "left", "buttons": 1 if kind != "mouseReleased" else 0, "clickCount": 1}, sid)
                 self.assertTrue(wait(lambda: abs(w() - min(700, client)) <= 2), f"dragged to {w()}")
-                cdp.call("Page.reload", {}, sid)
+                reload_to_new_page_cdp(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
                 self.assertLessEqual(abs(w() - min(700, client)), 2, "kept after a reload")
                 cdp.js("document.querySelector('.pk-edge').focus()", sid)
