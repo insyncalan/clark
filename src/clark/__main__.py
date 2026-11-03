@@ -26,7 +26,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, updater as clark_updater, use_cases_read, word_route
+from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -115,7 +115,7 @@ def port_number(text, where):
     except (TypeError, ValueError):
         port = 0
     if not 1 <= port <= 65535:
-        raise Usage(f"The port setting ({where}) must be a whole number from 1 to 65535.")
+        raise Usage(f"The start-up number (set with {where}) must be a whole number from 1 to 65535. Change it, then start clark again.")
     return port
 
 
@@ -201,6 +201,15 @@ def open_data(folder, onedrive_roots):
     except OSError as e:
         raise Quiet(f"The data folder {folder} can't be made ({backup.plain_reason(e)}). Check you may write there, or choose "
                     f"another folder with --data.") from e
+    platform.hold_data_lock(folder)                       # a second clark on this folder is refused here, before the database is touched
+    try:
+        return _open_store(folder, onedrive_roots)
+    except BaseException:
+        platform.release_data_lock(folder)
+        raise
+
+
+def _open_store(folder, onedrive_roots):
     try:
         return clark_store.open_store(folder / DB_NAME, onedrive_roots=onedrive_roots)
     except clark_store.Unfinished as e:                   # its own words say where the database you had is (F1)
@@ -258,17 +267,24 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
             print(backup.RESTORE_HELP, file=out, flush=True)
             return 0
         database = folder / DB_NAME
+        locked = folder.is_dir()
+        if locked:
+            platform.hold_data_lock(folder, restoring=True)       # a clark open on this folder refuses the restore, before the database is touched
         held = None
-        if database.exists() and database.stat().st_size > 0:        # never open an empty file: that would build a new database in it
-            try:
-                held = clark_store.open_store(database, onedrive_roots=onedrive_roots)
-            except clark_store.Invalid:
-                held = None                   # too damaged to open: that is when a restore is needed, and it is moved aside whole
         try:
-            done = backup.restore_path(database, args.name, folder / "backups", onedrive_roots, held)
+            if database.exists() and database.stat().st_size > 0:    # never open an empty file: that would build a new database in it
+                try:
+                    held = clark_store.open_store(database, onedrive_roots=onedrive_roots)
+                except clark_store.Invalid:
+                    held = None               # too damaged to open: that is when a restore is needed, and it is moved aside whole
+            try:
+                done = backup.restore_path(database, args.name, folder / "backups", onedrive_roots, held)
+            finally:
+                if held is not None:
+                    held.close()
         finally:
-            if held is not None:
-                held.close()
+            if locked:
+                platform.release_data_lock(folder)
         if not done["replaced"]:
             where = ""
         elif done["backed_up"]:
@@ -292,11 +308,12 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
 
 
 def use_case_ids_on_file(store):
-    """The rule for Use Cases' on_dashboard, as a function of the project code: today publish.select's own choice. When
-    publish.client_use_cases exists (#168) this is the one place to point at it."""
+    """The rule for Use Cases' on_dashboard, as a function of the project code: the use cases the published file's Use Cases
+    tab carries, which publish.client_use_cases decides (select stores its answer as use_case_pages). The route never
+    repeats the rule."""
     def ids(code):
         chosen = publish.select(publish.read_inputs(store, code))
-        return {u["id"] for u in chosen["data"]["use_cases"]}
+        return {p["id"] for p in chosen["data"]["use_case_pages"]}
     return ids
 
 
@@ -384,6 +401,10 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         projects = projects_of(store.path, roots)
         log, handler, logs = start_log(store.path.parent, projects, home, scratch)
         LOG.info("started on port %d", port)
+        try:
+            page.ensure_built()          # #495: a source checkout builds its pages now, before the first request
+        except page.PageError as e:
+            print(str(e), file=err or sys.stderr)
         updates_seam = None if args.demo else clark_updater.Updater(store.path.parent, store.path, port, migration_backup=store.migration_backup, open_db=store)   # demo data is never updated
         if updates_seam is not None:
             updates_seam.watch()              # records how an update or undo that started this server ended, once the helper is done
@@ -404,7 +425,10 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent),
                      app_settings=app_settings.AppSettings(store.path, roots),
                      ask=ask_service.AskService(store.path, ask_claude.ClaudeCommand(), roots),
+                     # No ai= here on purpose: the /api/ai/* routes answer 404 until suggestions run under their own system
+                     # prompt (#72 slice 5) AND the real canary exists (#277). Do not pass ai= before both; test_main pins it.
                      activity=activity_read.make_read(store.path, store.data_for),
+                     past=past_reports.PastReports(store.path),
                      brand_picture=page.brand_picture,
                      updater=updates_seam,
                      **handlers)
@@ -420,6 +444,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
             logging.getLogger("clark").removeHandler(handler)
         if store is not None:
             store.close()
+            platform.release_data_lock(store.path.parent)
         if scratch is not None:
             shutil.rmtree(scratch, ignore_errors=True)
 

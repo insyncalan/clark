@@ -18,15 +18,16 @@ from pathlib import Path
 from unittest import mock
 
 from _demo import USER, DemoStore
+from _real_server import real_server
 from _paths import SRC, TOOLS
 
 sys.path.insert(0, str(TOOLS))
 import build_page  # noqa: E402
 
-from clark import __main__ as launcher, changes, page, server as sv, use_cases_read  # noqa: E402
+from clark import __main__ as launcher, page, server as sv, use_cases_read  # noqa: E402
 from clark.store import open_store  # noqa: E402
 from test_inline_edits import EMPTY_BRANDING, KEYS, click, key, need_chrome  # noqa: E402,F401
-from test_server import Running, chrome, wait  # noqa: E402
+from test_server import chrome, wait, wait_toast  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -141,15 +142,14 @@ class Detail(unittest.TestCase):
         self.addCleanup(self.store.close)
         self.path = self.folder / "clark.db"
         self.sent = []
-        real_change, real_undo = changes.make_change(self.path, [], USER), changes.make_undo(self.path, [], USER)
 
         def seam(real, which):
             def call(req):
                 self.sent.append((which, req))
                 return real(req)
             return call
-        self.s = Running(data_for=self.read, projects=lambda: [{"code": "TUL", "name": "Tulip"}], page_html=lambda: self.built,
-                         change=seam(real_change, "change"), undo=seam(real_undo, "undo"))
+        self.s = real_server(self.path, self.read, projects=lambda: [{"code": "TUL", "name": "Tulip"}], page_html=lambda: self.built,
+                             seam=seam)
         self.s.httpd.use_cases = use_cases_read.make_read(self.read, lambda code: set(), launcher.use_case_history(mock.Mock(path=self.path)))
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
@@ -198,7 +198,7 @@ class Detail(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js(expr, sid), seconds), what)
 
     def toast(self, cdp, sid):
-        return cdp.js("(document.querySelector('.toast-text') || {}).textContent || ''", sid)
+        return wait_toast(lambda: cdp.js("(document.querySelector('.toast-text') || {}).textContent || ''", sid))
 
     def undo(self, cdp, sid):
         before = self.steps()
@@ -219,8 +219,8 @@ class Detail(unittest.TestCase):
                     self.until(cdp, sid, "!!document.querySelector('[data-history] li')", "the history was read")
                     self.assertEqual(js("document.querySelector('.ucd-crumb').textContent"), "Use cases › UC 1.1")
                     self.assertEqual(js("document.querySelector('.ucd-crumb a').getAttribute('href')"), "#usecases&p=TUL")
-                    self.assertEqual(js("document.querySelector('[data-ucd-field=title]').value"), u["title"])
-                    self.assertEqual(js("document.querySelector('[data-ucd-field=headline]').value"), u["headline"])
+                    self.assertEqual(js("document.querySelector('[data-ucd] [data-ucd-field=title]').value"), u["title"])
+                    self.assertEqual(js("document.querySelector('[data-ucd] [data-ucd-field=headline]').value"), u["headline"])
                     self.assertEqual(js("document.querySelector('[data-ucd] [data-word]').textContent"), "Flag", "the status is a word, not only a colour")
                     self.assertRegex(js("document.querySelector('.ucd-sub').textContent"), r"^Flag2 of 2 work items open · 1 milestone$")
                     self.assertEqual(js("document.querySelector('[data-eye]').textContent"), "On the dashboard")
@@ -245,7 +245,7 @@ class Detail(unittest.TestCase):
             sid = self.open_detail(cdp, edit=False)
             self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea, [data-ucd] [data-rich], [data-eye-toggle], [data-archive], #ucd-status').length", sid), 0)
             self.assertIn("Flag", cdp.js("document.querySelector('[data-ucd] [data-word]').textContent", sid))
-            self.assertTrue(cdp.js("document.querySelector('[data-ucd-field=title]').textContent.length > 0", sid))
+            self.assertTrue(cdp.js("document.querySelector('[data-ucd] [data-ucd-field=title]').textContent.length > 0", sid))
 
     # ---- saving ----
     def test_the_standing_text_is_one_change_with_one_undo(self):
@@ -274,17 +274,17 @@ class Detail(unittest.TestCase):
             was = self.row()
 
             def type_into(field, text):
-                cdp.js(f"(() => {{ const t = document.querySelector('[data-ucd-field={field}]'); t.focus(); t.select(); }})()", sid)
+                cdp.js(f"(() => {{ const t = document.querySelector('[data-ucd] [data-ucd-field={field}]'); t.focus(); t.select(); }})()", sid)
                 cdp.call("Input.insertText", {"text": text}, sid)
                 key(cdp, sid, "Enter")
             before = self.steps()
             type_into("title", "A new name")
             self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "the toast offers Undo")
             self.assertEqual((self.row()["title"], self.steps(), self.toast(cdp, sid)), ("A new name", before + 1, "Name changed."))
-            self.until(cdp, sid, "document.querySelector('[data-ucd-field=title]').value === 'A new name'", "the page shows it")
+            self.until(cdp, sid, "document.querySelector('[data-ucd] [data-ucd-field=title]').value === 'A new name'", "the page shows it")
             self.undo(cdp, sid)
             self.assertEqual(self.row()["title"], was["title"])
-            self.until(cdp, sid, f"document.querySelector('[data-ucd-field=title]').value === {json.dumps(was['title'])}", "Undo draws the old name")
+            self.until(cdp, sid, f"document.querySelector('[data-ucd] [data-ucd-field=title]').value === {json.dumps(was['title'])}", "Undo draws the old name")
             before = self.steps()
             type_into("headline", "One new line")
             self.until(cdp, sid, "/Headline changed/.test((document.querySelector('.toast-text') || {}).textContent || '')", "the headline saved")
@@ -292,26 +292,26 @@ class Detail(unittest.TestCase):
             self.undo(cdp, sid)
             self.assertEqual(self.row()["headline"], was["headline"])
             n, before = len(self.sent), self.steps()
-            cdp.js("(() => { const t = document.querySelector('[data-ucd-field=title]'); t.focus(); t.select(); })()", sid)
+            cdp.js("(() => { const t = document.querySelector('[data-ucd] [data-ucd-field=title]'); t.focus(); t.select(); })()", sid)
             cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Delete", "code": "Delete", "windowsVirtualKeyCode": 46}, sid)
             key(cdp, sid, "Enter")
             self.until(cdp, sid, "/needs a name/.test((document.querySelector('.toast-text') || {}).textContent || '')", "a blank name is refused in plain words")
             self.assertEqual((len(self.sent), self.steps(), self.row()["title"]), (n, before, was["title"]), "nothing was sent")
-            self.assertEqual(cdp.js("document.querySelector('[data-ucd-field=title]').value", sid), was["title"])
+            self.assertEqual(cdp.js("document.querySelector('[data-ucd] [data-ucd-field=title]').value", sid), was["title"])
             # Esc puts the text back and does not leave the page
-            cdp.js("(() => { const t = document.querySelector('[data-ucd-field=headline]'); t.focus(); t.select(); })()", sid)
+            cdp.js("(() => { const t = document.querySelector('[data-ucd] [data-ucd-field=headline]'); t.focus(); t.select(); })()", sid)
             cdp.call("Input.insertText", {"text": "Thrown away"}, sid)
             key(cdp, sid, "Escape")
-            self.assertEqual(cdp.js("document.querySelector('[data-ucd-field=headline]').value", sid), was["headline"])
+            self.assertEqual(cdp.js("document.querySelector('[data-ucd] [data-ucd-field=headline]').value", sid), was["headline"])
             self.assertEqual((len(self.sent), cdp.js("location.hash", sid)), (n, "#dashboard&p=TUL"), "Esc in a field only puts the text back")
 
-    def test_the_status_menu_offers_three_words_and_a_pick_is_one_change_with_one_undo(self):
+    def test_the_status_menu_offers_four_words_and_a_pick_is_one_change_with_one_undo(self):
         with chrome() as cdp:
             sid = self.open_detail(cdp)
             before = self.steps()
             click(cdp, sid, "#ucd-status")
             self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "the menu opened")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('[role=menu] [role=menuitemradio]')].map(b => b.textContent.replace('✓', ''))", sid), ["On track", "Flag", "High risk"])
+            self.assertEqual(cdp.js("[...document.querySelectorAll('[role=menu] [role=menuitemradio]')].map(b => b.textContent.replace('✓', ''))", sid), ["On track", "Flag", "High risk", "Done"])
             self.assertEqual(cdp.js("document.querySelector('[role=menu] [aria-checked=true]').textContent.replace('✓', '')", sid), "Flag")
             click(cdp, sid, "[role=menu] [data-kind='High risk']")
             self.until(cdp, sid, "!!document.querySelector('[data-undo]') && document.querySelector('[data-ucd] [data-word]').textContent === 'High risk'", "the word changed")
@@ -319,6 +319,23 @@ class Detail(unittest.TestCase):
             self.undo(cdp, sid)
             self.assertEqual(self.row()["status"], "Flag")
             self.until(cdp, sid, "document.querySelector('[data-ucd] [data-word]').textContent === 'Flag'", "Undo draws the old word")
+
+    def test_done_in_the_status_menu_saves_and_shows_its_word_in_grey(self):
+        """#412: choosing Done in Edit saves it (one change, one Undo) and the page shows the word Done with the grey dot."""
+        with chrome() as cdp:
+            sid = self.open_detail(cdp)
+            before = self.steps()
+            click(cdp, sid, "#ucd-status")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "the menu opened")
+            click(cdp, sid, "[role=menu] [data-kind='Done']")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]') && document.querySelector('[data-ucd] [data-word]').textContent === 'Done'", "the word changed")
+            self.assertEqual((self.row()["status"], self.steps(), self.toast(cdp, sid)), ("Done", before + 1, "Status changed to Done."))
+            self.assertEqual(cdp.js("document.querySelector('[data-ucd] [data-word]').className", sid).split()[-1], "rag-n")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('[data-ucd] [data-word] .ragdot')).backgroundColor", sid),
+                             cdp.js("(() => { const i = document.createElement('i'); i.style.color = 'var(--status-grey)'; document.body.append(i); "
+                                    "const c = getComputedStyle(i).color; i.remove(); return c; })()", sid))
+            self.undo(cdp, sid)
+            self.assertEqual(self.row()["status"], "Flag")
 
     def test_the_eye_is_said_in_words_and_toggles_with_one_undo(self):
         with chrome() as cdp:
@@ -347,7 +364,7 @@ class Detail(unittest.TestCase):
             self.assertIn("Archived", cdp.js("document.querySelector('.ucd-sub').textContent", sid))
             self.assertIn("read-only", cdp.js("document.querySelector('[data-archived-note]').textContent", sid))
             self.assertFalse(cdp.js("/\\bdelete\\b/i.test(document.querySelector('[data-ucd]').innerText)", sid), "no Delete")
-            self.assertEqual(cdp.js("document.querySelector('[data-ucd-field=title]').textContent.length > 0", sid), True, "it still shows its text")
+            self.assertEqual(cdp.js("document.querySelector('[data-ucd] [data-ucd-field=title]').textContent.length > 0", sid), True, "it still shows its text")
             self.until(cdp, sid, "document.querySelectorAll('[data-item]').length === 2", "its work items are still listed")
             self.undo(cdp, sid)
             self.assertEqual(self.row()["archived"], 0)
@@ -359,6 +376,7 @@ class Detail(unittest.TestCase):
             click(cdp, sid, "[data-restore]")
             self.until(cdp, sid, "!!document.querySelector('[data-archive]')", "Restore made it editable again")
             self.assertEqual((self.row()["archived"], self.steps()), (0, before + 1))
+            self.until(cdp, sid, "((document.querySelector('.toast-text') || {}).textContent || '') === 'Use case restored.'", "the toast says it was restored")
             self.assertEqual(self.toast(cdp, sid), "Use case restored.")
             self.undo(cdp, sid)
             self.assertEqual(self.row()["archived"], 1)

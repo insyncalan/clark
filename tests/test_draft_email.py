@@ -208,6 +208,12 @@ class PlainWordsMedium(unittest.TestCase):
             de.sent_entry([], "chase", TODAY)
         self.assertEqual(str(a.exception), "Tick at least one item before you press I sent it.")
 
+    def test_the_python_and_script_copies_of_the_nothing_ticked_wording_match(self):
+        js = (Path(de.__file__).parent / "page" / "src" / "logic" / "draftEmail.js").read_text(encoding="utf-8")
+        found = re.search(r'export const NOTHING_TO_RECORD = "([^"]*)";', js)
+        self.assertIsNotNone(found, "draftEmail.js no longer exports NOTHING_TO_RECORD")
+        self.assertEqual(found.group(1), de.NOTHING_TO_RECORD)
+
     def test_an_empty_selection_blocks_copying(self):
         d = build(picked=[])
         msg = "No items are ticked. Tick at least one to draft the email."
@@ -221,7 +227,7 @@ class PlainWordsMedium(unittest.TestCase):
         self.assertEqual(build()["problems"], [])
 
     def test_a_missing_sender_name_asks_for_it(self):
-        msg = "Add your name in Settings › Profile so it signs the email."
+        msg = "Add your name in Settings › Personal › About you so it signs the email."
         for blank in ("", "   "):
             d = build(**{"from": blank})
             self.assertEqual(d["problems"], [msg])
@@ -375,7 +381,7 @@ class Dates(unittest.TestCase):
         self.assertEqual(de.shown("2026-10-29"), "29-10-2026")
         self.assertEqual(de.weekday_date("2026-10-29"), "Thursday 29-10-2026")
         self.assertEqual(de.shown("0999-01-02"), "02-01-0999")
-        for text in ("20261029", "2026-W44-3", "2026-10-29T10:00", "2026-10-29 ", "2026-10-29\n", "2026-13-01", "2026-02-30",
+        for text in ("20261029", "2026-W44-3", "2026-10-29T10:00", "2026-10-29 ", "2026-10-29\n", "2026-13-01", "2026-02-30", "2026/10/29",
                      "\u0662\u0660\u0662\u0666-\u0661\u0660-\u0662\u0669", "", "12345"):
             with self.subTest(text=text):
                 self.assertEqual(de.shown(text), text)
@@ -411,6 +417,16 @@ class Dates(unittest.TestCase):
         self.assertTrue(feed._day("2026-10-29"))
         for bad in ("29/10/2026", "29-10-2026", "10/29/2026", "2026/10/29", "29.10.2026", "Oct 29 2026"):
             self.assertFalse(feed._day(bad), bad)
+
+    def test_the_sent_record_takes_only_a_stored_day(self):
+        # #254: the sent record's day is YYYY-MM-DD only, on every Python (fromisoformat reads more forms on 3.11).
+        self.assertEqual(de.sent_entry(["ABC-A-001"], "chase", "2026-10-29")["date"], "2026-10-29")
+        for bad in ("20261029", "2026-W44-3", "29-10-2026", "29/10/2026", "2026-10-29T10:00", "2026-02-30", "", None):
+            with self.subTest(day=bad):
+                with self.assertRaises(ValueError) as caught:
+                    de.sent_entry(["ABC-A-001"], "chase", bad)
+                self.assertEqual(str(caught.exception), "The day the email was sent must be a real date.")
+
 
     def test_overdue_and_due_soon_in_words_and_colour(self):
         d = de.due_info("2026-10-09", TODAY)
@@ -524,7 +540,8 @@ class Outside(unittest.TestCase):
         sens = item("ABC-A-012", "Sensitive matter", "2026-10-20", sensitive=True)
         d = build(items=[LATE, held, hidden, sens], email=OUTSIDE)
         self.assertEqual(d["ids"], ["ABC-A-001"])
-        self.assertEqual(build(items=[sens], email=INSIDE)["ids"], ["ABC-A-012"])           # kept for an own address
+        self.assertEqual(build(items=[sens], email=INSIDE)["ids"], [])                      # Sensitive: barred for an own address too
+        self.assertNotIn("Sensitive matter", build(items=[LATE, sens], email=INSIDE)["text"])
         ok, left = de.offered([LATE, held, hidden, sens], OUTSIDE, OWN)
         self.assertEqual(([i["id"] for i in ok], left), (["ABC-A-001"], 3))
 

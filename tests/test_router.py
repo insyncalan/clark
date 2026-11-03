@@ -20,6 +20,7 @@ import unittest
 from pathlib import Path
 
 from _paths import ROOT, SRC, TOOLS
+from _new_page import reload_to_new_page_cdp
 import _testpage as testpage
 
 sys.path.insert(0, str(TOOLS))
@@ -143,6 +144,16 @@ class Pure(Browser):
                                            e("usecases"), e("usecases", uc="1.2", i="A-12"), e("usecases"),
                                            "#usecases&p=PDF&uc=1.2", "#usecases&p=PDF", "#work&p=PDF", "#usecases&p=PDF", "#usecases&p=PDF&uc=1.2&item=A-12"],
                          "a use case key is read on the Use cases page only, as one clean word; a peek can sit beside it")
+    def test_the_client_report_view_has_its_own_address(self):
+        """#192: Client Requested Report View is "#clientreport", with a project and a peek like the other pages."""
+        got = self.run_in_page("""JSON.stringify([R.VIEWS, R.parse('#clientreport&p=PDF'), R.parse('#clientreport&p=PDF&item=A-12'),
+            R.format({view:'clientreport',project:'PDF'}), R.format({view:'clientreport'}), R.parse('#clientreports&p=PDF').view,
+            R.parse('#CLIENTREPORT').view])""")
+        e = lambda i="": {"view": "clientreport", "project": "PDF", "item": i, "ms": "", "f": "", "uc": ""}  # noqa: E731
+        views, plain, peek, f1, f2, near, upper = json.loads(got)
+        self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "clientreport", "settings"])
+        self.assertEqual((plain, peek, f1, f2), (e(), e("A-12"), "#clientreport&p=PDF", "#clientreport"))
+        self.assertEqual((near, upper), ("dashboard", "dashboard"), "a near miss or another case falls back to the Dashboard")
 
     def test_hostile_hashes_never_throw_and_round_trip_to_a_stable_hash_only_address(self):
         hostile = json.dumps(HOSTILE + ["#work&item=" + "%41" * 70, "#work&item=A-" + "9" * 70])
@@ -782,8 +793,7 @@ class BuiltPage(Browser):
                 self.ev("clarkPage.show('dashboard')")
                 self.cdp.call("Page.navigate", {"url": self.base + want}, self.sid)              # a bookmark
                 self.until("document.documentElement.dataset.ready", "1", "reopened")
-                self.cdp.call("Page.reload", {}, self.sid)
-                self.until("document.documentElement.dataset.ready", "1", "reloaded")
+                reload_to_new_page_cdp(self.cdp, self.sid, "document.documentElement.dataset.ready === '1'")
                 name = DATA[re.search(r"p=([A-Z]+)", want).group(1)]["project"]["name"]
                 self.until("document.getElementById('project-name').textContent", name, f"the project after reload of {want}")
                 self.assertEqual(self.ev("location.hash"), want)
@@ -838,8 +848,7 @@ class BuiltPage(Browser):
             self.draw(cdp, "#work&p=PDF&item=A-12&f=a%26b%3Dc")
             self.assertEqual(self.ev("clarkPage.filters()"), "a%26b%3Dc")
             self.assertEqual(self.peek(), {"kind": "item", "id": "A-12"}, "the peek is untouched by f")
-            self.cdp.call("Page.reload", {}, self.sid)
-            self.until("document.documentElement.dataset.ready", "1", "reloaded")
+            reload_to_new_page_cdp(self.cdp, self.sid, "document.documentElement.dataset.ready === '1'")
             self.until("document.getElementById('project-name').textContent", "Example Programme", "the data")
             self.assertEqual(self.ev("location.hash"), "#work&p=PDF&item=A-12&f=a%26b%3Dc")
             self.assertEqual(self.ev("clarkPage.filters()"), "a%26b%3Dc")

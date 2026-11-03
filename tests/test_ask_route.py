@@ -194,7 +194,7 @@ class WhatIsSent(Base):
         self.assertEqual(self.question("How is the plan?")[0], 200)
         self.assertEqual(framed.sent[0], framed.envelope(text))
         self.assertNotIn(str(self.d), text, "no path of this computer")
-        self.assertTrue(text.startswith(ask.RULES))
+        self.assertNotIn(ask.RULES, text, "the rules are the system prompt, not part of the request text (#278)")
 
     def test_writes_nothing(self):
         before = self.counts()
@@ -313,7 +313,7 @@ class Stop(Base):
         self.provider.stop = mock.Mock(return_value=True)
         status, got = self.s.api("POST", "/api/ask/stop", {})
         self.assertEqual((status, got["stopped"]), (200, True))
-        self.provider.stop.assert_called_once_with()
+        self.provider.stop.assert_called_once_with(owner=self.s.httpd.ask.owner)
 
 
 SETTINGS_WRITER = "ask_folders.py"      # the Settings entry's folder list: it saves through the store's one writer (store.step)

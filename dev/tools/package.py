@@ -1,13 +1,16 @@
 """Build the download for one system: one zip with one top folder, clark-<version>/ (#57, step 3 of
 docs/handoff/packaging-57.md).
 
-Run: python3 dev/tools/package.py mac [--out FOLDER] [--dirty] [--release] [--notes FILE]   # writes dist/clark-<version>-mac.zip, for the team
+Run: python3 dev/tools/package.py mac [--out FOLDER] [--dirty] [--release] [--notes FILE]   # writes dist/clark-<version>-mac.zip
      python3 dev/tools/package.py mac --for-client                # in a checkout of the scrubbed public snapshot only
      python3 dev/tools/package.py windows                         # not built yet (steps 6 and 7 of the note)
 
-Who the zip is for. The default build is for the team only: it is built from the private copy, unscrubbed, so its files
-still carry the team's names in comments and README.md is the private one. Its Built line and its START-HERE.txt say so.
-A zip for a client is built with --for-client, which refuses, and writes nothing, unless (1) this folder is the scrubbed
+Who the zip is for is decided by the tree it is built from, not by a flag (#463). If git tracks any private-only file in
+it (any path publish_public.is_excluded names: the notes in EXCLUDED and docs/public/), it is the private copy, and the zip
+is for the team only: its files may still carry the team's names in comments and README.md may be the private one. If
+git tracks none, the tree holds none of the team's private notes, it is what the public repository holds, and the zip
+may be published there. The Built line and START-HERE.txt say which, and nothing else: they never claim the files are
+scrubbed. If git cannot say, the zip is for the team only. A zip for a client is built with --for-client, which refuses, and writes nothing, unless (1) this folder is the scrubbed
 public snapshot that dev/tools/publish_public.py makes (#94; see snapshot_problem for how that is told) and (2) the name
 guard finds nothing in any file going into the zip, START-HERE.txt included. The name guard is the one the publish tool
 runs: its own list of the team's and private names (publish_public.guard_kinds) and the hashed list of real client
@@ -54,9 +57,46 @@ def listed(system):
     return SHARED + SYSTEMS[system]
 
 
+# The two generated pages (#495): never committed, so git cannot list them. They are built here, from the sources at the tag,
+# and put in the zip by name. A tree without src/clark/page/src (a test's scratch repo) has none.
+GENERATED_PAGES = ("src/clark/page/page.html", "src/clark/page/page-view.html")
+BUILD_PAGE = Path("dev") / "tools" / "build_page.py"
+
+
+def generated_pages(root=ROOT):
+    return list(GENERATED_PAGES) if (Path(root) / "src" / "clark" / "page" / "src").is_dir() else []
+
+
+def make_pages(root=ROOT, twice=False):
+    """Build both pages from the sources in `root` (python3 dev/tools/build_page.py) and refuse if either is missing after.
+    With `twice` (a release) it builds again and refuses if the second pair differs from the first by a single byte."""
+    root = Path(root)
+    names = generated_pages(root)
+    if not names:
+        return
+    script = root / BUILD_PAGE
+
+    def run():
+        if script.is_file():
+            done = subprocess.run([sys.executable, str(script)], cwd=str(root), capture_output=True, text=True)
+            if done.returncode != 0:
+                raise Refused("The pages could not be built, so nothing was written: "
+                              + (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or ["no reason given"])[-1])
+        missing = [n for n in names if not (root / n).is_file()]
+        if missing:
+            raise Refused(f"A page the download needs has not been built: {', '.join(missing)}. Run python3 dev/tools/build_page.py, "
+                          "then build again. Nothing was written.")
+        return {n: hashlib.sha256((root / n).read_bytes()).hexdigest() for n in names}
+
+    first = run()
+    if twice and script.is_file() and run() != first:
+        raise Refused("Two builds of the pages gave different bytes, so this release is refused. Nothing was written.")
+
+
 LEFT_OUT = re.compile(r"(^|/)(__pycache__|\.DS_Store)(/|\Z)|\.(pyc|db|log)\Z")
 
 TEAM_ONLY = "This download is for the team only; it is built from the private copy."
+PUBLIC_BUILD = "This download is built from the public repository; it holds none of the team's private notes."
 
 FIXED_TIME = (2000, 1, 1, 0, 0, 0)  # every entry's time, so two builds are byte for byte the same
 UNIX = 3                            # ZipInfo.create_system: the modes below are Unix modes
@@ -83,8 +123,11 @@ Double-clicking while clark is open just opens another window.
 
 If it says nothing was started because clark is already open in another
 Terminal window, or another program is using the connection it needs, close
-that Terminal window or program, then double-click clark.command again. If that
-does not help, restart your Mac.
+that Terminal window or program, then double-click clark.command again.
+
+If you can't close it, the message also gives a line to type in Terminal that
+starts clark on a different connection. Type it as shown and press Return. If
+that does not work either, run the check described below: it says what to fix.
 
 If double-clicking does nothing, open Terminal, type bash and a space,
 drag clark.command into the Terminal window and press Return.
@@ -134,12 +177,17 @@ def files(system, root=ROOT):
         if not found or not all((Path(root) / p).is_file() for p in found):
             raise Refused(f"A file the download needs is missing: {item}. Restore it, then build again.")
         chosen.update(p for p in found if not LEFT_OUT.search(p))
+    if "src/clark/" in listed(system):
+        for p in generated_pages(root):
+            if not (Path(root) / p).is_file():
+                raise Refused(f"A page the download needs has not been built: {p}. Run python3 dev/tools/build_page.py, then build again.")
+            chosen.add(p)
     return sorted(chosen)
 
 
-def start_here(system, for_client=False):
+def start_here(system, for_client=False, root=ROOT):
     text = START_HERE_MAC + (START_HERE_DEMO if INCLUDE_DEMO else "")
-    return text if for_client else f"{TEAM_ONLY}\n\n{text}"
+    return text if for_client else f"{audience(root)}\n\n{text}"
 
 
 def publish_tool():
@@ -149,6 +197,23 @@ def publish_tool():
         sys.path.insert(0, here)
     import publish_public
     return publish_public
+
+
+def private_paths(root):
+    """The paths git tracks in `root` that only the private copy holds (publish_public.is_excluded); None when git
+    cannot say, which the caller treats as private."""
+    pub = publish_tool()
+    try:
+        return [p for p in tracked(root, []) if pub.is_excluded(p)]
+    except (subprocess.CalledProcessError, OSError):
+        return None
+
+
+def audience(root=ROOT):
+    """The audience line of a default build (not --for-client): TEAM_ONLY if `root` tracks any private-only path, or if
+    git cannot say; else PUBLIC_BUILD. The Built line, START-HERE.txt and the tests all read it from here."""
+    found = private_paths(root)
+    return TEAM_ONLY if found is None or found else PUBLIC_BUILD
 
 
 def snapshot_problem(root):
@@ -164,7 +229,9 @@ def snapshot_problem(root):
     A remote's address was not chosen: a copy of either repo can have any remote, or none, and the address says
     nothing about the files themselves. The constants are read from the tool, so a change there changes this too."""
     pub = publish_tool()
-    private = [p for p in tracked(root, []) if pub.is_excluded(p)]
+    private = private_paths(root)
+    if private is None:
+        return "git could not list this folder's files, so it can't be told from the private copy"
     if private:
         return "this folder is the private copy: it holds the team's own notes that the public snapshot leaves out"
     log = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%an%n%ae%n%cn%n%ce"],
@@ -251,6 +318,17 @@ def uncommitted(root, paths):
     return out.rstrip()                 # the first line's leading space is part of its status
 
 
+def tag_problem(root, ver):
+    """Why a release zip can't be built from `root`: HEAD is not the commit tagged v<ver>, or git can't say. None when it is.
+    The v0.2.1 download was built from a tree that was not its tag (#400)."""
+    run = subprocess.run(["git", "-C", str(root), "tag", "--points-at", "HEAD"], capture_output=True, text=True)
+    if run.returncode != 0:
+        return "git could not say which tag this folder is at"
+    if f"v{ver}" not in run.stdout.split():
+        return f"this folder is not at the tag v{ver}"
+    return None
+
+
 def changed_files(porcelain):
     """The file names in `git status --porcelain` output (for a rename, the new name)."""
     return [line[3:].split(" -> ")[-1] for line in porcelain.splitlines() if line.strip()]
@@ -276,6 +354,14 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
     if release and not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version(root)):
         raise Refused(f"Version {version(root)} is not a release number (it must be three numbers, like 0.3.1). "
                       "Nothing was written. Set the version in src/clark/__init__.py, then build again.")
+    if release:
+        if dirty:
+            raise Refused("A release zip is built only from committed files, so --release can't be used with --dirty. "
+                          "Nothing was written.")
+        problem = tag_problem(root, version(root))
+        if problem:
+            raise Refused(f"A release zip must be built from its tag, and {problem}. Nothing was written. Check out the tag "
+                          f"in an empty folder (dev/RELEASING.md step 5), then build again.")
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", min_from):
         raise Refused("The oldest version that may update to this one must be three numbers, like 0.2.0.")
     if for_client:
@@ -291,10 +377,12 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
     if changed:
         raise Refused(f"Some of the files that go in the zip have changes that aren't committed: {', '.join(changed)}. "
                       "Commit them first, or add --dirty to build from them as they are.")
+    if "src/clark/" in listed(system):
+        make_pages(root, twice=release)
     names = files(system, root)
     top = top_folder(root)
     content = {f"{top}/{p}": ((root / p).read_bytes(), RUN_MODE if p in RUN_BIT else FILE_MODE) for p in names}
-    content[f"{top}/{START_HERE}"] = (start_here(system, for_client).encode("utf-8"), FILE_MODE)
+    content[f"{top}/{START_HERE}"] = (start_here(system, for_client, root).encode("utf-8"), FILE_MODE)
     if for_client:
         shown_paths, hidden = name_guard_hits({n[len(top) + 1:]: data for n, (data, _) in content.items()}, banned)
         if shown_paths or hidden:
@@ -338,7 +426,7 @@ def main(argv=None):
     p.add_argument("--dirty", action="store_true", help="build even if the listed files have uncommitted changes")
     p.add_argument("--for-client", action="store_true",
                    help="a zip for a client: only from the scrubbed public snapshot, and only if the name guard finds nothing")
-    p.add_argument("--release", action="store_true", help="refuse a version that is not three numbers (a .dev build)")
+    p.add_argument("--release", action="store_true", help="refuse a version that is not three numbers (a .dev build), a tree not at its tag vX.Y.Z, and --dirty")
     p.add_argument("--notes", metavar="FILE", help="a text file of release notes, kept in clark-release.json")
     p.add_argument("--min-from", metavar="X.Y.Z", default="0.0.0", help="the oldest version that may update to this one")
     args = p.parse_args(argv)
@@ -353,7 +441,7 @@ def main(argv=None):
         print(e, file=sys.stderr)
         return 1
     who = ("It is for a client: it was built from the scrubbed public snapshot and the name guard found nothing."
-           if args.for_client else TEAM_ONLY)
+           if args.for_client else audience(ROOT))
     print(f"Built the {args.system.capitalize()} download: {shown(target)}. {who}")
     return 0
 

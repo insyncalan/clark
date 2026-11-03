@@ -33,6 +33,12 @@ def fingerprint(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest(), counts
 
 
+CLOCK_WORDS = (
+    "The date on this computer is too far in the past to be right. Check its clock, then reload the page and try again. Nothing was saved.",
+    "The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.",
+)
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
@@ -87,16 +93,16 @@ class Writing(Base):
 
     def test_the_day_may_be_one_day_ahead_and_not_more(self):
         self.send(day=str(TODAY + timedelta(days=1)))
-        self.refuses("can't be in the future", day=str(TODAY + timedelta(days=2)))
+        self.refuses("is ahead of today", day=str(TODAY + timedelta(days=2)))
 
     def test_a_chase_stepped_three_times_makes_the_tone_firmer(self):
         for n in range(3):
-            self.send(day=f"2026-10-2{n + 1}")
+            self.send(day=f"2026-10-2{n + 7}")
         self.send(mode="update_request")
         counts = de.chase_counts([dict(kind=de.SENT_KIND, ids=r["ids"], date=r["day"], mode=r["mode"]) for r in self.store.email_sent_for("ABC")])
         self.assertEqual(counts[self.a]["n"], 3, "an update request does not count")
         self.assertEqual(de.tone_for([self.a], counts), 2)
-        self.assertEqual(counts[self.a]["last"], "2026-10-23")
+        self.assertEqual(counts[self.a]["last"], "2026-10-29")
 
 
 class InTheHistory(Base):
@@ -136,8 +142,8 @@ class InTheHistory(Base):
 
 class Refusals(Base):
     def test_each_refusal_writes_nothing_and_says_what_to_do(self):
-        self.refuses("who pressed it", who="  ")
-        self.refuses("who pressed it", who=None)
+        self.refuses("Add your name in Settings", who="  ")
+        self.refuses("Add your name in Settings", who=None)
         self.refuses("isn't one clark records", mode="reminder")
         self.refuses("Tick at least one item", ids=[])
         self.refuses("Tick at least one item", ids=["  ", ""])
@@ -147,21 +153,47 @@ class Refusals(Base):
         self.refuses("not in this project", ids=[self.a, self.other])
         self.refuses("not in this project", ids=["ABC-A-999"])
         self.refuses("not in this project", ids=["ABC-M-001"])
-        self.refuses("must be a real date", day="2026-02-30")
-        self.refuses("must be a real date", day="20261028")
-        self.refuses("must be a real date", day="28-10-2026")
+        self.refuses("is not a real date", day="2026-02-30")
+        self.refuses("is not a real date", day="20261028")
+        self.refuses("is not a real date", day="28-10-2026")
         self.refuses("There is no project", code="QQQ")
+
+    def test_no_name_says_what_to_do(self):
+        with self.assertRaises(Invalid) as caught:
+            self.send(who="  ")
+        self.assertEqual(str(caught.exception), "Add your name in Settings, then try again. Nothing was saved.")
+
+    def test_each_refusal_ends_with_nothing_was_saved_and_is_short(self):
+        with self.store.step("dashboard", USER) as st:
+            st.archive("projects", "ABC")
+        cases = [dict(who=""), dict(mode="bogus"), dict(ids=[]), dict(ids=["ABC-A-%03d" % i for i in range(60)]),
+                 dict(code="QQQ"), dict(day="2026-02-30"), dict(day="2020-01-01"), dict(day="2030-01-01"), dict()]
+        for kw in cases:
+            with self.subTest(kw=list(kw)):
+                with self.assertRaises(Invalid) as caught:
+                    self.send(**kw)
+                msg = str(caught.exception)
+                self.assertTrue(msg.endswith("Nothing was saved."), msg)
+                if msg in CLOCK_WORDS:      # the two date-clock refusals are pinned exactly, with their own ceiling
+                    self.assertLessEqual(len(msg), 140, msg)
+                else:
+                    self.assertLessEqual(len(msg), 120, msg)
 
     def test_an_archived_project_is_refused(self):
         with self.store.step("dashboard", USER) as st:
             st.archive("projects", "ABC")
         self.refuses("archived")
+        with self.assertRaises(Invalid) as caught:
+            self.send()
+        from clark import draft_email_feed
+        self.assertEqual(str(caught.exception), draft_email_feed.ARCHIVED + " Nothing was saved.")
 
     def test_a_step_that_is_open_is_not_broken_into(self):
         with self.store.step("dashboard", USER):
             with self.assertRaises(Invalid) as caught:
                 self.send()
-            self.assertIn("middle of a step", str(caught.exception))
+            self.assertIn("Another change is still being saved", str(caught.exception))
+            self.assertNotIn("sent record", str(caught.exception))
 
     def test_the_email_words_are_in_no_column(self):
         con = sqlite3.connect(self.store.path)
@@ -208,7 +240,7 @@ class Append(Base):
 
     def test_a_fresh_insert_still_works_and_the_migrated_file_refuses_replace_too(self):
         self.send()
-        self.send()
+        self.send(mode="update_request")
         con = sqlite3.connect(self.store.path)
         try:
             self.assertEqual(con.execute("SELECT count(*) FROM email_sent").fetchone()[0], 2)
@@ -350,6 +382,97 @@ class Migration(unittest.TestCase):
         finally:
             mine.close()
             theirs.close()
+
+class Refusals258(Base):
+    """#258: hidden, closed, archived, Sensitive items and a day before 2020 are refused, each writing nothing."""
+    def test_hidden_closed_archived_sensitive_and_withdrawn_items_are_refused(self):
+        words = "hidden, closed or marked Sensitive"
+        mk = self.demo.action
+        hidden, closed, cancelled, archived, sens = (mk(description=n) for n in ("h", "c", "x", "a", "s"))
+        with self.store.step("dashboard", USER) as st:
+            st.create("report_hidden", {"project": "ABC", "item_id": hidden})
+            st.create("item_labels", {"item_id": sens, "label": "Sensitive"})
+            st.update("actions", closed, {"status": "Closed", "closed": "2026-10-20"})
+            st.update("actions", cancelled, {"status": "Cancelled"})
+            st.archive("actions", archived)
+            withdrawn = st.create("decisions", {"project": "ABC", "decision": "Old", "status": "Withdrawn", "source": "demo"})
+        for bad in (hidden, closed, cancelled, archived, sens, withdrawn):
+            with self.subTest(item=bad):
+                self.refuses(words, ids=[self.a, bad])
+        self.assertTrue(self.send(ids=[self.a, self.d, self.r]), "open items still record")
+
+    def test_the_words_name_no_field_and_no_sent_value(self):
+        sens = self.demo.action(description="s")
+        with self.store.step("dashboard", USER) as st:
+            st.create("item_labels", {"item_id": sens, "label": "Sensitive"})
+        with self.assertRaises(Invalid) as caught:
+            self.send(ids=[sens], day="2026-10-27")
+        self.assertNotIn(sens, str(caught.exception))
+        self.assertNotIn("2026-10-27", str(caught.exception))
+
+    def test_the_three_day_refusals_say_what_to_do_and_that_nothing_was_saved(self):
+        # The page sends its own clock's date; the person typed none, so the advice is the computer's clock and a reload.
+        for day in ("2026-02-30", str(TODAY - timedelta(days=2)), str(TODAY + timedelta(days=2))):
+            with self.subTest(day=day):
+                with self.assertRaises(Invalid) as caught:
+                    self.send(day=day)
+                words = str(caught.exception)
+                self.assertTrue(words.endswith("Reload the page and try again. Nothing was saved.")
+                                or words.endswith("then reload the page and try again. Nothing was saved."), words)
+                for banned in ("calendar", "Check the date", "reply-by", day):
+                    self.assertNotIn(banned, words)
+
+    def test_a_local_day_that_differs_from_the_servers_utc_day_is_accepted(self):
+        # A page just past local midnight sends the next day while the server's day has not turned; both sides of that are in range.
+        utc_day = TODAY
+        for local in (utc_day + timedelta(days=1), utc_day - timedelta(days=1)):
+            with self.subTest(local=str(local)):
+                self.assertNotEqual(local, utc_day)
+                self.assertTrue(self.send(day=str(local)))
+
+    def test_the_day_is_bounded_by_the_servers_clock_not_the_pages(self):
+        self.refuses("too far in the past", day="2019-12-31")
+        self.refuses("too far in the past", day="2020-01-01")
+        self.refuses("too far in the past", day=str(TODAY - timedelta(days=2)))
+        self.refuses("is ahead of today", day=str(TODAY + timedelta(days=2)))
+        for d in (TODAY, TODAY - timedelta(days=1), TODAY + timedelta(days=1)):
+            self.assertTrue(self.send(day=str(d)))
+
+    def test_an_item_whose_label_is_excluded_by_default_is_refused_like_a_sensitive_one(self):
+        item, other = self.demo.action(description="x"), self.demo.action(description="y")
+        with self.store.step("dashboard", USER) as st:
+            st.create("labels", {"name": "Keep quiet", "behaviour": "warn", "default_choice": "exclude"})
+            st.create("labels", {"name": "Never", "behaviour": "exclude", "default_choice": "include"})
+            st.create("item_labels", {"item_id": item, "label": "Keep quiet"})
+            st.create("item_labels", {"item_id": other, "label": "Never"})
+        self.refuses("hidden, closed or marked Sensitive", ids=[self.a, item])
+        self.refuses("hidden, closed or marked Sensitive. Nothing was saved.", ids=[other])
+        self.assertTrue(self.send(ids=[self.a]))
+
+    def test_the_sent_record_publish_and_the_picker_agree_on_which_labels_are_kept_off(self):
+        from clark import changes, publish
+        a, b, c, d = (self.demo.action(description=n) for n in "abcd")
+        with self.store.step("dashboard", USER) as st:
+            st.create("labels", {"name": "Keep quiet", "behaviour": "warn", "default_choice": "exclude"})
+            st.create("labels", {"name": "Never", "behaviour": "exclude", "default_choice": "include"})
+            st.create("labels", {"name": "Fine", "behaviour": "warn", "default_choice": "include"})
+            for item, label in ((a, "Keep quiet"), (b, "Never"), (c, "Fine"), (d, "Sensitive")):
+                st.create("item_labels", {"item_id": item, "label": label})
+        rules = [dict(r) for r in self.store.read("labels")]
+        publish_set, picker_set = publish._excluded_labels(rules), changes._blocked_labels(self.store)
+        self.assertEqual(publish_set, picker_set)
+        for item, label in ((a, "Keep quiet"), (b, "Never"), (c, "Fine"), (d, "Sensitive")):
+            self.assertEqual(self.store.sensitive_among([item]), label.casefold() in publish_set, label)
+
+    def test_the_same_press_again_within_seconds_is_one_record_and_anything_different_is_another(self):
+        first = self.send(ids=[self.a, self.b])
+        self.assertEqual(self.send(ids=[self.b, self.a]), first, "a second tab a moment later")
+        self.assertEqual(len(self.store.email_sent_for("ABC")), 1)
+        for change in ({"mode": "update_request"}, {"ids": [self.a]}, {"day": str(TODAY - timedelta(days=1))}, {"who": "Pat Doe"}):
+            with self.subTest(change=change):
+                self.assertNotEqual(self.send(**change), first)
+        self.assertEqual(len(self.store.email_sent_for("ABC")), 5)
+
 
 
 if __name__ == "__main__":

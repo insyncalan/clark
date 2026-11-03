@@ -126,6 +126,9 @@ export const FAR_NOTE = "Left off the timeline because the date looks wrong";
 export const inRange = (iso) => typeof iso === "string" && dayNumber(iso) !== null && +iso.slice(0, 4) >= YEAR_MIN && +iso.slice(0, 4) <= YEAR_MAX;
 const allMarks = (rows) => rows.flatMap((r) => [r.marks.solid, r.marks.ghost]).filter(Boolean);
 export const markDates = (rows) => allMarks(rows).map((m) => m.date).filter(inRange);
+// Where the Calendar opens: today when today is in range, else the earliest dated mark, else the first of the year of `today`
+// (the clock is read once, in workItems.js, and passed in; this never reads it).
+export const homeDay = (rows, today) => inRange(today) ? today : (markDates(rows).sort()[0] || `${String(today).slice(0, 4)}-01-01`);
 // The rows with a mark outside the range: the Timeline leaves them off its axis and names them in the note.
 export const farRows = (rows) => rows.filter((r) => [r.marks.solid, r.marks.ghost].some((m) => m && !inRange(m.date)));
 
@@ -185,6 +188,19 @@ export function buckets(kind, start, end) {
   }
 }
 
+/** The period before (k = -1) or after (k = 1) the one holding `iso`, as a bucket, or null when it would leave the years the page
+ *  draws (YEAR_MIN to YEAR_MAX): the calendar then says so and offers Today. */
+export function neighbour(kind, iso, k) {
+  const here = buckets(kind, iso, iso)[0];
+  const day = addDays(k < 0 ? here.start : here.end, k < 0 ? -1 : 1);
+  return inRange(day) ? buckets(kind, day, day)[0] : null;
+}
+
+/** The chips that fall in a period (a bucket), by date then in the order the calendar draws them. */
+export function periodChips(chips, b) {
+  return Object.keys(chips).filter((d) => d >= b.start && d <= b.end).sort().flatMap((d) => chips[d]);
+}
+
 /** {date: [chip]}: a chip on each solid mark, then a ghost chip on each slipped milestone's expected date. */
 export function calendarChips(rows) {
   const out = {};
@@ -221,4 +237,14 @@ export function labelLines(xs, width, gap = 0) {
     ends[r] = x + w / 2;
     return r;
   });
+}
+
+// The Milestones page's one-sentence summary (#458; the prototype's, views.js): the last milestone's date (and where it is now
+// expected), then how many are achieved and how many are still to come. Cancelled ones are not counted. null when there is none.
+// `agreed` is false for a last milestone that has only a forecast, so the page does not call that date agreed.
+export function headLine(rows) {
+  const live = (rows || []).filter((r) => r.state !== CANCELLED);
+  if (!live.length) return null;
+  const dated = live.filter((r) => r.baseline || r.forecast), last = (dated.length ? dated : live).slice(-1)[0], achieved = live.filter((r) => r.state === "Achieved").length;
+  return { name: last.name, date: last.baseline || last.forecast, agreed: !!last.baseline, expected: last.slip > 0 ? last.expected : null, achieved, toCome: live.length - achieved };
 }

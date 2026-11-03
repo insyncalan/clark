@@ -102,6 +102,61 @@ class Kept(unittest.TestCase):
                 self.same(ids, cache)
         self.assertEqual(answers(self.con(), [a1], cache=cache)[a1]["last_reviewed"], "2026-10-20")
 
+    def test_a_kept_item_follows_a_batch_undo_an_import_and_a_link(self):
+        ids = self.busy_history()
+        cache = history.ReviewCache()
+        self.same(ids, cache)
+        a1, a2, a3 = ids[:3]
+
+        def batch_undo():
+            self.at(9)
+            first = self.demo.update("actions", a1, {"priority": "Low"})
+            second = self.demo.update("actions", a2, {"priority": "Low"})
+            self.at(10)
+            self.assertTrue(self.store.undo_many([first, second], USER)["reversed"])
+
+        def import_rows():
+            with self.store.step("excel", USER, src_ref="Excel import: plan.xlsx") as st:
+                st.update("actions", a3, {"owner": "Pat Example"})
+                st.create("actions", {"project": "ABC", "description": "Imported", "raised": "2026-10-01", "source": "demo"})
+
+        def link_two():
+            with self.store.step("dashboard", USER) as st:
+                st.create("links", {"from_item": a3, "to_item": ids[3], "source": "demo"})
+
+        for day, change in ((9, batch_undo), (12, import_rows), (14, link_two)):
+            if day != 9:
+                self.at(day)
+            change()
+            with self.subTest(step=change.__name__):
+                self.same(ids, cache)
+        con = self.con()
+        try:
+            self.assertEqual(answers(con, [a1], cache=cache)[a1]["last_reviewed"], "2026-10-09")
+            self.assertEqual(answers(con, [a3], cache=cache)[a3]["last_reviewed"], "2026-10-14")
+        finally:
+            con.close()
+
+    def test_the_cache_stops_at_its_bound_and_still_answers_right(self):
+        ids = self.busy_history()[:4]
+        cache = history.ReviewCache(limit=2)
+        for asked in (ids[:1], ids[1:2], ids[2:3], ids[3:4], ids[:2], ids[:1]):
+            self.same(asked, cache)
+            self.assertLessEqual(len(cache.events), 2)
+        self.same(ids[2:4], cache)
+        self.assertEqual(sorted(cache.events), sorted(ids[2:4]), "the items kept longest ago went, the ones asked for stayed")
+        self.same(ids, cache)
+        self.assertEqual(len(cache.events), 0, "one call that asks for more than the bound is answered and keeps nothing")
+        self.at(25)
+        self.demo.update("actions", ids[0], {"priority": "Low"})
+        self.same(ids[:2], cache)
+        self.assertEqual(len(cache.events), 2)
+
+    def test_the_default_bound_is_large_and_a_store_keeps_the_default(self):
+        self.assertGreaterEqual(history.ReviewCache().limit, 10000)
+        self.store.data_for("ABC")
+        self.assertEqual(self.store.review_cache.limit, history.ReviewCache.LIMIT)
+
     def test_an_item_asked_for_later_is_read_whole_then_kept(self):
         ids = self.busy_history()
         cache = history.ReviewCache()
@@ -129,6 +184,20 @@ class Kept(unittest.TestCase):
         cache = history.ReviewCache()
         self.same(ids, cache)
         self.same(ids, cache)
+
+    def test_an_id_with_no_hyphen_is_read_whole_and_gives_the_full_answer(self):
+        ids = self.busy_history()
+        a1, a2 = ids[:2]
+        con = self.store.con
+        for old, new in ((a1, "AB"), (a2, "ABC")):                  # a store's IDs all have a hyphen: rename the log's by hand
+            con.execute("UPDATE change_log SET item_id = replace(item_id, ?, ?)", (old, new))
+            con.execute("UPDATE item_events SET item_id = replace(item_id, ?, ?)", (old, new))
+        con.commit()
+        bare = ["AB", "ABC", "ABC-7"]
+        got = answers(self.con(), bare, cache=history.ReviewCache())
+        self.assertEqual(got, answers(self.con(), bare, many=True))
+        self.assertTrue(got["AB"]["last_reviewed"], "the hyphenless id got no events")
+        self.same(bare + ids[2:], history.ReviewCache())
 
     def test_a_dashboard_event_that_is_an_undo_is_not_a_review(self):
         self.at(2)

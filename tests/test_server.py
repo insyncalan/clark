@@ -21,6 +21,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import _routes as routes_expected
 from _paths import ROOT, SRC
 
 from clark import appfiles, idle, page, server as sv
@@ -115,7 +116,10 @@ class Running:
                 conn.putheader("Host", host)
             for k, v in (headers.items() if hasattr(headers, "items") else headers or ()):      # a list of pairs may repeat a name
                 conn.putheader(k, v)
-            conn.endheaders(body)
+            try:
+                conn.endheaders(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass                      # a request over its limit is refused from its length before all of it is sent; the answer is still there to read
             r = conn.getresponse()
             return r.status, r.msg, r.read()
         finally:
@@ -141,6 +145,19 @@ class ServerTest(unittest.TestCase):
     def setUp(self):
         self.s = Running()
         self.addCleanup(self.s.close)
+
+    def wait_until(self, read, want, what, limit=15.0):
+        """Wait, up to `limit` seconds, for `read()` to equal `want`; fail with the last value read. The server sends a reply
+        from inside run_route and only then leaves its `finally` (which takes the count down), so on a loaded machine the
+        client can see the reply a moment before the count has moved (#358): the test waits for the condition, never for a time."""
+        end = time.monotonic() + limit
+        while True:
+            seen = read()
+            if seen == want:
+                return
+            if time.monotonic() >= end:
+                self.fail(f"{what}: wanted {want!r}, still {seen!r} after {limit:g} s")
+            time.sleep(0.01)
 
     def report(self, body, host="default", ctype="application/csp-report", extra=None):
         h = {"Content-Type": ctype, "Content-Length": str(len(body)), **(extra or {})}
@@ -294,12 +311,8 @@ class Saving(ServerTest):
             return 409, {"ok": False, "message": "That step has been undone already.", "code": "undone"}
         return Running(change=change, undo=undo)
 
-    def test_the_post_routes_are_exactly_change_undo_the_sneak_read_the_publish_ones_the_two_backup_ones_profile_the_draft_email_two_the_two_word_ones_and_the_ask_settings(self):
-        self.assertEqual(set(sv.POST_ROUTES), {"/api/change", "/api/undo", "/api/sneak/read", "/api/publish", "/api/client-folder", "/api/preview",
-                                                  "/api/backups/preview", "/api/backups/restore", "/api/profile", "/api/page-error", "/api/logging", "/api/logging/open-folder", "/api/draft-email", "/api/draft-email/sent", "/api/word-import", "/api/word-export",
-                                                  "/api/ask-folders", "/api/ask-enabled", "/api/ask", "/api/ask/stop", "/api/ask/change/dry",
-                                                  "/api/ask/change/apply", "/api/section-image", "/api/section-file", "/api/people", "/api/people/undo",
-                                                  "/api/update/review", "/api/update/install", "/api/update/arm-undo", "/api/update/undo"})     # #43, #111, #147, #180, #50; #48 the two Word ones; #47, #47e; #42 the sneak read; #96 R1 the picture one, R2 the section file
+    def test_the_post_routes_are_exactly_the_listed_ones(self):
+        self.assertEqual(routes_expected.unplanned(sv), {}, "a route the tests were not told of, or one that has gone")     # tests/_routes.py
         self.assertEqual(sv.POST_ROUTES["/api/change"], sv.change_route)
         self.assertEqual(sv.POST_ROUTES["/api/undo"], sv.undo_route)
         self.assertEqual(sv.POST_ROUTES["/api/sneak/read"], sv.sneak_route)
@@ -307,7 +320,7 @@ class Saving(ServerTest):
         self.assertEqual(sv.POST_ROUTES["/api/word-export"], sv.word_export_route)
         self.assertEqual(sv.POST_ROUTES["/api/section-image"], sv.section_image_route)
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page
-                                                "/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
+                                                "/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                                                  "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
@@ -316,6 +329,7 @@ class Saving(ServerTest):
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
                                                 "/api/section-file": 1024,
+                                                "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,     # #72
                                                 "/api/people": 4 * 1024, "/api/people/undo": 1024,
                                                 "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024,
                                                 "/api/update/undo": 1024})     # #96: a project and a section only
@@ -413,23 +427,36 @@ class Saving(ServerTest):
         status, _, data = running.api("POST", "/api/change", over)
         got = json.loads(data)
         self.assertEqual((status, got["code"], got["message"]), (400, "too_large", sv.MESSAGES["change_too_large"]))
-        self.assertIn("Shorten a line or remove some lines", got["message"])
+        self.assertIn("Make the text shorter, or take some of the list out", got["message"])
         self.assertFalse(got["message"].startswith("clark"))
-        status, _, data = running.api("POST", "/api/undo", b'{"a": "' + b"x" * 2048 + b'"}')
+        status, _, data = running.api("POST", "/api/undo", b'{"a": "' + b"x" * 16 * 1024 + b'"}')
         self.assertEqual((status, json.loads(data)["message"]), (400, sv.MESSAGES["too_large"]))     # another route keeps the general words
 
     def test_the_change_route_limit_is_two_largest_sections_plus_4_kb(self):
-        # a template's section body (up to 64 KB, each quote and backslash escaped twice) arrives through /api/change, so its limit is 2 x 64 KB + 4 KB = 132 KB, tied to the registry's 64 KB; a separate /api/section-body route is the later fix (Tech Debt)
+        # a section's body (a template's up to 64 KB; "Needs from you" and the tracker up to 256 KB, each quote and backslash escaped twice) arrives through /api/change, so its limit is twice the largest body plus the request around it, worked out from the checker's own limits (#405)
         from clark import section_bodies
-        self.assertEqual(sv.CHANGE_BODY_LIMIT, 135168)
-        self.assertEqual(sv.CHANGE_BODY_LIMIT, 2 * 64 * 1024 + 4 * 1024)
+        self.assertEqual(sv.CHANGE_BODY_LIMIT, sv.ESCAPE_FACTOR * max(section_bodies.LIMITS[section_bodies.NEEDS], section_bodies.LIMITS[section_bodies.TRACKER], *(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_bodies.TEMPLATES.values())) + sv.REQUEST_ENVELOPE)
         self.assertEqual(max(m.LIMIT for m in section_bodies.TEMPLATES.values() if not hasattr(m, "with_picture")), 64 * 1024)      # the picture templates' pictures come in through /api/section-image
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
+
+    def test_the_undo_limit_sits_above_the_largest_batch_the_seam_accepts(self):
+        """#268: 200 steps (twice the 100 a batch takes, the most the seam looks at) of 19 digits is a request the seam answers in
+        words ("Choose 1 to 100 changes to undo."); the byte limit must not turn it into the general "too big" first."""
+        from clark import store as clark_store
+        running = self.seams()
+        self.addCleanup(running.close)
+        steps = [10 ** 18 + k for k in range(clark_store.MAX_UNDO_MANY * 2)]
+        body = json.dumps({"project": "ABC", "steps": steps, "preview": False, "confirm": False}).encode("utf-8")
+        self.assertGreater(len(body), 1024)
+        self.assertLessEqual(len(body), sv.ROUTE_BODY_LIMITS["/api/undo"])
+        status, _, data = running.api("POST", "/api/undo", body)
+        self.assertEqual((status, json.loads(data)["code"]), (409, "undone"))      # it reached the seam, not the too-large reply
+        self.assertEqual(self.calls, [("undo", {"project": "ABC", "steps": steps, "preview": False, "confirm": False})])
 
     def test_change_and_undo_limits_and_415(self):
         running = self.seams()
         self.addCleanup(running.close)
-        for route, limit in (("/api/change", sv.CHANGE_BODY_LIMIT), ("/api/undo", 1024)):      # #96: twice the largest section content plus 4 KB
+        for route, limit in (("/api/change", sv.CHANGE_BODY_LIMIT), ("/api/undo", 8 * 1024)):      # #96: twice the largest section content plus 4 KB
             over = {sv.TOKEN_HEADER: sv.TOKEN, "Content-Type": "application/json", "Content-Length": str(limit + 1)}
             status, _, data = running.ask("POST", route, over, b"{}")
             self.assertEqual((status, json.loads(data)["code"]), (400, "too_large"), route)       # refused from its length
@@ -884,7 +911,7 @@ def free_port():
 
 
 class Here(ServerTest):
-    """#71: POST /api/here and the idle stop. /api/here is outside POST_ROUTES (test_the_post_routes_are_exactly_change_and_undo
+    """#71: POST /api/here and the idle stop. /api/here is outside POST_ROUTES (test_the_post_routes_are_exactly_the_listed_ones
     stays as it is), so the token checks the Token class makes for the table are made here for it."""
 
     def test_here_needs_the_token_and_the_dispatcher_checks(self):
@@ -1039,7 +1066,7 @@ class Here(ServerTest):
             raise RuntimeError("x")
         with mock.patch.dict(sv.POST_ROUTES, {"/api/broken": broken}), self.assertLogs("clark.server", "ERROR"):
             self.assertEqual(self.s.api("POST", "/api/broken", b"{}")[0], 500)
-        self.assertFalse(sv.busy())
+        self.wait_until(sv.busy, False, "a failing POST is not left counted as a running job")
         self.assertEqual(self.s.api("POST", "/api/here", b"{}")[0], 200)
         self.assertFalse(sv.busy(), "/api/here is not counted as a job")
 
@@ -1222,13 +1249,13 @@ class RobustReplies(ServerTest):
         self.assertEqual(sv.Handler.timeout, 30)
         with mock.patch.object(sv.Handler, "timeout", 0.5), socket.create_connection((sv.HOST, self.s.port)) as c:
             c.sendall(b"POST /csp-report HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 50\r\n")   # half-sent
-            c.settimeout(5)
+            c.settimeout(25)
             t0 = time.time()
             try:
                 c.recv(65536)
             except ConnectionResetError:
                 pass
-            self.assertLess(time.time() - t0, 4, "the server let go well inside 5 s")
+            self.assertLess(time.time() - t0, 20, "the server let go well inside 25 s, far short of its 30 s default")
 
 
 class Port(unittest.TestCase):
@@ -1320,6 +1347,35 @@ def wait(check, seconds=15):
             return True
         time.sleep(0.2)
     return False
+
+
+def wait_toast(read, seconds=10):
+    """The text of the toast a page test is about to read: waits (up to `seconds`) for `read()` to give something, then returns the text
+    that wait saw (not a second read, which could find the toast gone). A slow runner paints a toast late. Fails with a plain
+    message if none appears. It does not tell an old toast from a new one: clear the old one first when that matters."""
+    seen = []
+
+    def check():
+        text = read()
+        if text:
+            seen.append(text)
+        return bool(text)
+
+    if not wait(check, seconds):
+        raise AssertionError(f"no toast appeared within {seconds} s")
+    return seen[-1]
+
+
+class WaitToast(unittest.TestCase):
+    """wait_toast needs no browser: it is given the function that reads the toast."""
+
+    def test_it_returns_the_text_the_wait_saw(self):
+        reads = iter(["", "", "Saved.", ""])   # a fourth read would find the toast gone
+        self.assertEqual(wait_toast(lambda: next(reads), 5), "Saved.")
+
+    def test_no_toast_fails_with_a_plain_message(self):
+        with self.assertRaisesRegex(AssertionError, "no toast appeared within 1 s"):
+            wait_toast(lambda: "", 1)
 
 
 class _Pipe:
