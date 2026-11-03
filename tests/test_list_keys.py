@@ -269,7 +269,7 @@ class Keys(ie.Live):
                 self.assertIn("solid", cdp.js("getComputedStyle(document.activeElement).outlineStyle", sid), "a drawn cursor")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"location.hash.includes('item={ids[0]}')", "Enter opens the card's peek")
-                self.assertEqual(cdp.js("(document.querySelector('[data-move]') || {}).tagName || 'none'", sid), "none", "View: no Move to button")
+                self.assertEqual(cdp.js("(document.querySelector('[data-move]') || {}).tagName || 'none'", sid), "BUTTON", "View: the board still has Move to (#442)")
 
     def test_space_does_not_open_a_row_or_card_and_shift_arrows_are_the_selections(self):
         shift = lambda cdp, sid, name, vk: [cdp.call("Input.dispatchKeyEvent", {"type": t, "key": name, "code": name, "windowsVirtualKeyCode": vk, "modifiers": 8}, sid) for t in ("keyDown", "keyUp")]
