@@ -108,8 +108,12 @@ class HandOver(Base):
         self.assertEqual(self.counts(), before)
 
     def test_a_refusal_in_the_real_step_leaves_every_item_as_it_was(self):
+        """#317: the refusal is aimed at one named item (the last one asked for) in the real step, not at the Nth write, and what
+        is asserted is the outcome: the answer, the counts and every owner as it was. Items before it were written inside the
+        step, so the test only means something if they are rolled back."""
         real_step, real_update = type(self.s).step, clark_store.Step.update
-        state = {"real": False, "writes": 0}
+        aim = self.all[-1]
+        state = {"real": False, "written": [], "refused": False}
 
         def step(store, *a, **kw):                                  # mark when the real (not dry) step starts
             state["real"] = not kw.get("dry")
@@ -117,17 +121,19 @@ class HandOver(Base):
 
         def update(st, kind, ref, changes_, **kw):
             if state["real"]:
-                state["writes"] += 1
-                if state["writes"] == 2:                            # the second write of the real step, whatever came before it
+                if ref == aim:
+                    state["refused"] = True
                     raise clark_store.Invalid("owner must be one of nobody")
+                state["written"].append(ref)
             return real_update(st, kind, ref, changes_, **kw)
         before = self.counts()
         with mock.patch.object(type(self.s), "step", step), mock.patch.object(clark_store.Step, "update", update):
             status, body = self.send(self.all)
-        self.assertEqual(state["writes"], 2, "the refusal came in the real step")
-        self.assertEqual((status, body["message"]), (400, changes.STALE), body)
+        self.assertTrue(state["refused"], "the refusal came in the real step, on the item aimed at")
+        self.assertTrue(set(state["written"]) & set(self.all[:-1]), "other items were written in that step before the refusal")
+        self.assertEqual((status, body["ok"], body["message"]), (400, False, changes.STALE), body)
         self.assertEqual(self.counts(), before, "no step, no history line, nothing written")
-        self.assertEqual({self.who(r) for r in self.all}, {OWNER})
+        self.assertEqual({ref: self.who(ref) for ref in self.all}, {ref: OWNER for ref in self.all})
 
     def test_an_item_closed_or_decided_between_the_trial_and_the_write_rolls_the_whole_step_back(self):
         for table, ref, sql in (("decisions", self.decisions[0], "UPDATE decisions SET status = 'Made', date = '2026-10-01' WHERE id = ?"),
