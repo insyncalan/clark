@@ -752,5 +752,18 @@ def _outcome(f, *args):
         return ["refused", str(error)]
 
 
+class DocstringNamesWhatIsRefused(unittest.TestCase):
+    """#609: the check_link docstring is the one place that lists what is refused as inside one network; every ending the check
+    holds and every documentation range it blocks must be named there, so a new one cannot be added without the list."""
+
+    def test_every_internal_ending_and_documentation_range_is_named(self):
+        from clark import doclinks
+        text = doclinks.check_link.__doc__
+        for ending in doclinks._INTERNAL_ENDINGS:
+            self.assertIn("." + ending, text, f"the ending .{ending} is not in the check_link docstring")
+        for rng in ("192.0.2.x", "198.51.100.x", "203.0.113.x", "192.88.99.x"):
+            self.assertIn(rng, text, f"{rng} is not in the check_link docstring")
+
+
 if __name__ == "__main__":
     unittest.main()
