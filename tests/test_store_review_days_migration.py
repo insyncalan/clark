@@ -104,10 +104,8 @@ class Migrating(Base):
             s.close()
         self.assertEqual(days(path), {"ABC": 14, "DEF": 14, "GHI": 14})
         after = every_row(path)
-        for table, rows in before.items():
-            if table != "projects":
-                self.assertEqual(after[table], rows, table)
-        self.assertEqual([r[:-1] for r in after["projects"]], before["projects"], "a project's other columns are as they were; the new one is last")
+        self.assertEqual({t: after[t] for t in before}, before)
+        self.assertEqual(after["projects"], before["projects"], "a project's other columns are as they were (every_row leaves the new one out)")
         self.assertEqual(len(self.copies()), 1)
 
     def test_a_version_1_file_goes_through_every_step_and_ends_with_the_column(self):
