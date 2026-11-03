@@ -9,6 +9,7 @@ import time
 import unittest
 
 from _paths import ROOT
+from _new_page import reload_to_new_page_cdp
 
 import test_inline_edits as ie  # noqa: E402  (not bound by name, so its own tests are not run again here)
 from test_inline_edits import key  # noqa: E402
@@ -43,7 +44,7 @@ class Source(unittest.TestCase):
 class Keys(ie.Live):
     def board(self, cdp, sid):
         cdp.js("localStorage.setItem('clark.work.v1', JSON.stringify({TUL: {view: 'board', group: 'status', lane: null, collapsed: []}}))", sid)
-        cdp.call("Page.reload", {}, sid)
+        reload_to_new_page_cdp(cdp, sid)
         self.until(cdp, sid, "!!document.querySelector('#work-board .bcard')", "the board")
 
     def test_the_table_cursor_is_one_tab_stop_and_never_lands_on_a_heading(self):
