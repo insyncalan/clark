@@ -18,6 +18,7 @@ from test_work_filters import click, expect, key, need_chrome, page_rows, set_li
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 INPUT = "#fline-input"
+CORE = ["Open items", "Actions", "Risks and issues", "Decisions", "All work items"]    # #640: always first, always there
 SIZES = (1400, 900)
 THEMES = ("light", "dark")
 
@@ -172,6 +173,9 @@ class Line(unittest.TestCase):
             cdp.js("document.activeElement.blur()", sid)
             self.focus(cdp, sid)
             self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "", "the slash itself is not typed")
+            # #640: a click into the empty box opens the field list, and the hint chips wait until it is closed
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.fhints')).visibility", sid), "hidden", "not with the field list")
+            key(cdp, sid, "Escape")
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.fhints')).visibility", sid), "visible", "the hint chips show while the line is focused")
             # not while typing in another field
             click(cdp, sid, "#viewMenu")
@@ -192,6 +196,8 @@ class Line(unittest.TestCase):
                 sid = self.load(cdp, s.port, width)
                 self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.fhints')).visibility", sid), "hidden")
                 self.focus(cdp, sid)
+                key(cdp, sid, "Escape")                                          # #640: the field list first; Esc shuts it and the hints show
+                self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.fhints')).visibility", sid), "visible")
                 hints = cdp.js("[...document.querySelectorAll('.fhint')].map(h => h.textContent)", sid)
                 self.assertIn("due:overdue", hints)
                 self.assertIn("is:quiet", hints, "the demo carries review facts, so the word is offered")
@@ -531,7 +537,7 @@ class Line(unittest.TestCase):
                     sid = self.load(cdp, s.port, width, theme=theme)
                     rows = self.rows(cdp, sid)
                     names = cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)
-                    self.assertEqual(names, ["Open items", "Overdue", "My actions"], "four default views, one hidden until the page can answer it")
+                    self.assertEqual(names, CORE + ["Overdue", "My actions"], "the core five, then the person's starting views, one hidden until the page can answer it")
                     self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), "Open items")
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-dot]').length", sid), 0)
                     click(cdp, sid, ".vtab[data-view-id=overdue]")
@@ -549,7 +555,7 @@ class Line(unittest.TestCase):
                     click(cdp, sid, "#viewMenuList [data-kind=save]")
                     self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-dot]').length", sid) == 0), "saved: the dot goes")
                     # another tab, then back: the saved line is what comes back
-                    click(cdp, sid, ".vtab[data-view-id=open]")
+                    click(cdp, sid, ".vtab[data-view-id=core-open]")
                     self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open"]))
                     click(cdp, sid, ".vtab[data-view-id=overdue]")
                     self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open", "due:overdue", "priority:High"]))
@@ -573,17 +579,17 @@ class Line(unittest.TestCase):
                     click(cdp, sid, "#viewMenu")
                     click(cdp, sid, "#viewMenuList [data-kind=saveas]")
                     self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vname"), "the name box has the focus")
-                    self.type(cdp, sid, "Decisions")
+                    self.type(cdp, sid, "Decision log")
                     key(cdp, sid, "Enter")
-                    self.assertTrue(wait(lambda: "Decisions" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)))
-                    self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), "Decisions")
+                    self.assertTrue(wait(lambda: "Decision log" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)))
+                    self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), "Decision log")
                     click(cdp, sid, "#viewMenu")
                     click(cdp, sid, "#viewMenuList [data-kind=archive]")
-                    self.assertTrue(wait(lambda: "Decisions" not in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)))
+                    self.assertTrue(wait(lambda: "Decision log" not in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)))
                     click(cdp, sid, "#viewMenu")
-                    self.assertTrue(wait(lambda: any(i == "Bring back Decisions" for i in cdp.js("[...document.querySelectorAll('#viewMenuList [role=menuitem]')].map(b => b.textContent)", sid))))
+                    self.assertTrue(wait(lambda: any(i == "Bring back Decision log" for i in cdp.js("[...document.querySelectorAll('#viewMenuList [role=menuitem]')].map(b => b.textContent)", sid))))
                     click(cdp, sid, "#viewMenuList [data-kind^='restore:']")
-                    self.assertTrue(wait(lambda: "Decisions" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)))
+                    self.assertTrue(wait(lambda: "Decision log" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)))
                     self.assertEqual(self.shown(cdp, sid), self.shown(cdp, sid))
                     self.assertTrue(rows)
                     cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
@@ -601,8 +607,9 @@ class Line(unittest.TestCase):
                 self.watch(cdp, sid)
                 cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
                 reload_to_new_page_cdp(cdp, sid)
-                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.vtab').length", sid) == 2))
-                self.assertEqual(cdp.js(tabs, sid), ["Open items", "Old view"], "the broken view is listed; the starting client view is still left out")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.vtab').length", sid) == 6))
+                self.assertEqual(cdp.js(tabs, sid), CORE + ["Old view"], "the broken view is listed; the starting client view is still left out;"
+                                 " the stored Open items is the core one now, not drawn twice")
                 self.assertEqual(cdp.js("document.querySelector('[data-vbad]').textContent", sid), "", "nothing said until it is chosen")
                 before = self.shown(cdp, sid)
                 click(cdp, sid, ".vtab[data-view-id=old]")
@@ -625,12 +632,12 @@ class Line(unittest.TestCase):
                 cdp.js("document.querySelector('#vname').select()", sid)
                 self.type(cdp, sid, "Older view")
                 key(cdp, sid, "Enter")
-                self.assertTrue(wait(lambda: cdp.js(tabs, sid) == ["Open items", "Older view"]))
+                self.assertTrue(wait(lambda: cdp.js(tabs, sid) == CORE + ["Older view"]))
                 self.assertIn("cannot be used any more", cdp.js("document.querySelector('[data-vbad]').textContent", sid), "renamed, still said")
                 # Archive it, then it can be brought back
                 click(cdp, sid, "#viewMenu")
                 click(cdp, sid, "#viewMenuList [data-kind=archive]")
-                self.assertTrue(wait(lambda: cdp.js(tabs, sid) == ["Open items"]))
+                self.assertTrue(wait(lambda: cdp.js(tabs, sid) == CORE))
                 self.assertEqual(cdp.js("document.querySelector('[data-vbad]').textContent", sid), "")
                 click(cdp, sid, "#viewMenu")
                 self.assertTrue(wait(lambda: "Bring back Older view (cannot be used now)" in cdp.js("[...document.querySelectorAll('#viewMenuList [role=menuitem]')].map(b => b.textContent)", sid)))
@@ -711,7 +718,7 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
             self.put(cdp, sid, "priority:High")
             self.assertTrue(wait(lambda: "priority:High" in self.chips(cdp, sid)))
-            self.assertEqual(cdp.js("document.querySelectorAll('.vtab').length", sid), 3)
+            self.assertEqual(cdp.js("document.querySelectorAll('.vtab').length", sid), 7, "the core five and the two starting views")
 
     def test_the_chosen_filter_and_the_view_edit_toggle_look_different_from_the_others(self):
         # Replaces the older bar's check (#153): the highlight rules in shell.css must match the aria-pressed the buttons set

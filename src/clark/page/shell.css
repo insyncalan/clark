@@ -315,6 +315,31 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fopt .fl2 { font-size: var(--size-small); color: var(--text-muted); }
 .fopt[aria-selected="true"] .fl2 { color: inherit; }
 .fopt .c { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); }
+/* #640: the field list (each field with its icon, plain name and one-line note), the x that clears the line, the core tabs' row with the
+   open tab's ▾ and "New view" at its end. The row keeps to one line and scrolls inside its own box at 900 px and below. */
+.flist.ffields { width: min(380px, 100%); }
+.fopt .fic { flex: none; align-self: center; width: var(--space-4); height: var(--space-4); color: var(--text-muted); }
+.fopt[aria-selected="true"] .fic { color: inherit; }
+.fopt.field .fl1 { min-width: 6em; }
+.fclear { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; flex: none; width: var(--space-5); height: var(--space-5); margin-left: auto; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; }
+.fclear .i { width: var(--space-4); height: var(--space-4); }
+.fline:not(.on) .fkey + .fclear { margin-left: 0; }        /* "Press /" already takes the line's right end; the x sits just after it */
+.fclear:hover { background: var(--grey-100); color: var(--text); }
+.fclear:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.vtabw { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.vtabm, .vnew { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); min-width: var(--space-5); min-height: var(--space-5); border-radius: var(--radius); cursor: pointer; color: var(--text-muted); font-size: var(--size-small); }
+.vtabm .i { width: var(--space-4); height: var(--space-4); }
+.vnew { flex: none; padding: 0 var(--space-2); }
+.vnew .i { width: var(--space-4); height: var(--space-4); }
+.vtabm:hover, .vnew:hover, .vtabm[aria-expanded="true"] { background: var(--grey-100); color: var(--text); }
+.vtabm:focus-visible, .vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.ddmenu.vtabmenu { position: fixed; right: auto; top: 0; left: 0; z-index: 40; }
+.ddmenu.vtabmenu [role="menuitem"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-small); color: var(--text); }
+.ddmenu.vtabmenu [role="menuitem"]:hover, .ddmenu.vtabmenu [role="menuitem"]:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+@media (max-width: 900px) {
+  .vtabs { flex: 1 1 100%; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+  .vtab { white-space: nowrap; }
+}
 .fhints { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; min-height: 26px; visibility: hidden; }
 .fhints.on { visibility: visible; }
 .fhl { font-size: var(--size-small); color: var(--text-muted); }
@@ -329,6 +354,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
    item, so nothing scrolls sideways. 640 px and below only; the 900 and 1400 px table is unchanged. */
 @media (max-width: 640px) {
   .fkey { display: none; }
+  .fline:not(.on) .fkey + .fclear { margin-left: auto; }
   .top { gap: 6px; padding: 0 6px; }
   .top .logo-icon { margin-right: var(--space-1); }
   .top .divider { display: none; }

@@ -189,9 +189,10 @@ class RealBrowser(unittest.TestCase):
                         rows = self.rows(cdp, sid)
                         self.assertEqual(sorted(r["id"] for r in rows), ids, f"every row of {code}, once each")
                         self.assertGreaterEqual(len(rows), 16)
+                        # The one row allowed to scroll in its own box is the view tabs' (#640, as the milestone strip does).
                         self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True,
                                          f"{code} at {width}px has no sideways scroll")
-                        self.assertEqual(cdp.js("[...document.querySelectorAll('#work, #work *')].filter(e => e.scrollWidth > e.clientWidth + 1"
+                        self.assertEqual(cdp.js("[...document.querySelectorAll('#work, #work *')].filter(e => !e.matches('.vtabs') && e.scrollWidth > e.clientWidth + 1"
                                                 " && /auto|scroll/.test(getComputedStyle(e).overflowX)).length", sid), 0,
                                          "nothing inside the list scrolls sideways")
                         text = cdp.js("document.querySelector('#work').innerText", sid)
@@ -212,7 +213,7 @@ class RealBrowser(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
             wide = cdp.js("[...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > window.innerWidth + 0.5).map(e => e.tagName + '.' + e.className).slice(0, 8)", sid)
             self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, f"no sideways page scroll: {wide}")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('#work, #work *')].filter(e => e.scrollWidth > e.clientWidth + 1"
+            self.assertEqual(cdp.js("[...document.querySelectorAll('#work, #work *')].filter(e => !e.matches('.vtabs') && e.scrollWidth > e.clientWidth + 1"
                                     " && /auto|scroll/.test(getComputedStyle(e).overflowX)).length", sid), 0, "no inner sideways scroll")
             bad = cdp.js("[...document.querySelectorAll('#work tbody tr, #work .fline, #work .fviews, #work .head')]"
                          ".filter(e => { const r = e.getBoundingClientRect(); return r.left < -0.5 || r.right > window.innerWidth + 0.5 "

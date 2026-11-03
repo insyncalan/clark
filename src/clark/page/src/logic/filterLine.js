@@ -401,6 +401,29 @@ export function suggest(wordTyped, rows, ctx) {
     .map(([v, l]) => ({ kind: "value", ins: `${not ? "-" : ""}${k}:${done}${quote(word(k, v))}`, label: word(k, v), note: l !== word(k, v) ? l : "", n: count(k, v), gloss: k === "is" ? own(GLOSS, v) || "" : "" }));
 }
 
+/** The field list (#640, as GitHub's): what opens when you click or Tab into the line with no word being typed. Each field with its
+ *  icon (a name from components/Icon.jsx), its plain name and a one-line note. Picking one puts `field:` in the box, and the list then
+ *  shows that field's values with their counts (suggest). Only the fields this page's line can use (names()). */
+const FIELD_NOTES = {      // the prototype's notes (#640, PR 545); `is` first, then `no:` last
+  is: ["circ", "Open, closed, overdue, not reviewed…"],
+  type: ["tag", "Action, risk, issue, decision…"],
+  status: ["half", "Where the item has got to"],
+  owner: ["user", "Who it is with"],
+  priority: ["flag", "Urgent, High, Medium or Low"],
+  due: ["cal", "Overdue, today, in the next 7 days…"],
+  workstream: ["bars", "The workstream"],
+  usecase: ["doc", "The use case it belongs to"],
+  milestone: ["tline", "The milestone it feeds"],
+  client: ["eye", "Shown to the client, or internal only"],
+  no: ["x", "Has no owner, date, workstream…"],
+};
+const FIELD_ORDER = ["is", "type", "status", "owner", "priority", "due", "workstream", "usecase", "milestone", "client"];
+export function fieldList() {
+  const live = names();
+  const fs = FIELD_ORDER.filter((k) => live.includes(k)).map((k) => ({ kind: "field", ins: `${k}:`, label: LINE_FIELDS[k].name, note: FIELD_NOTES[k][1], icon: FIELD_NOTES[k][0], field: k }));
+  return [...fs, { kind: "field", ins: "no:", label: "No", note: FIELD_NOTES.no[1], icon: FIELD_NOTES.no[0], field: "no" }];
+}
+
 /** The hint chips under the focused line: a few to start from, each with a plain meaning for its tooltip. */
 export const HINTS = [
   { text: "status:", gloss: "Open, Pending, Delayed, Closed or Cancelled" },
@@ -518,6 +541,21 @@ export const DEFAULT_VIEWS = [
   { id: "client", name: "Waiting on the client", line: "is:open is:needed" },
   { id: "mine", name: "My actions", line: "is:open type:action owner:me" },
 ];
+/** The five core tabs (#640), always first and always there, in this order. They are not the person's saved views: they cannot be
+ *  renamed or archived, and Save changes is not offered on them (Save as a new view is). All work items has no filter, so closed items
+ *  are there; the other four show open items only, as the prototype has them (PR 545; open-only is pending Alan's sign-off). Risks and
+ *  issues is risks and issues, as the issue and the prototype give it. */
+export const CORE_VIEWS = [
+  { id: "core-open", name: "Open items", line: "is:open", core: true },
+  { id: "core-actions", name: "Actions", line: "is:open type:action", core: true },
+  { id: "core-raid", name: "Risks and issues", line: "is:open type:risk,issue", core: true },
+  { id: "core-decisions", name: "Decisions", line: "is:open type:decision", core: true },
+  { id: "core-all", name: "All work items", line: "", core: true },
+];
+export const isCore = (view) => !!view && CORE_VIEWS.some((c) => c.id === view.id);
+/** The person's own views shown after the core five: the starting Open items view (as given) is the core one now, so it is not drawn
+ *  twice. It stays in storage untouched; nothing stored is lost or rewritten. */
+export const userViews = (views) => (views || []).filter((v) => !(isStartingView(v) && CORE_VIEWS.some((c) => c.line === v.line)));
 export const MAX_VIEWS = 20;
 export const MAX_NAME = 40;
 
@@ -538,7 +576,7 @@ function nameProblem(views, name, exceptId) {
   const n = cleanName(name);
   if (!n) return "Give the view a name.";
   if (n.length > MAX_NAME) return `Keep the name to ${MAX_NAME} characters or fewer.`;
-  if ((views || []).some((v) => !v.archived && v.id !== exceptId && low(v.name) === low(n))) return `A view called ${n} already exists. Choose another name.`;
+  if ([...CORE_VIEWS, ...(views || [])].some((v) => !v.archived && v.id !== exceptId && low(v.name) === low(n))) return `A view called ${n} already exists. Choose another name.`;
   return "";
 }
 const nextId = (views) => { let n = (views || []).length + 1; const ids = new Set((views || []).map((v) => v.id)); while (ids.has(`v${n}`)) n++; return `v${n}`; };

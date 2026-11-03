@@ -514,6 +514,18 @@ class SavedViews(Line):
         for x in views:
             self.assertEqual(self.parse(x["line"])["errors"], [], x)
 
+    def test_the_core_five_and_the_field_list(self):
+        """#640: the core tabs, in order, with their lines; the stored starting Open items is not drawn twice; a core name is taken."""
+        core = self.v("CORE_VIEWS")
+        self.assertEqual([(x["name"], x["line"]) for x in core], [("Open items", "is:open"), ("Actions", "is:open type:action"),
+                         ("Risks and issues", "is:open type:risk,issue"), ("Decisions", "is:open type:decision"), ("All work items", "")])
+        self.assertEqual([x["id"] for x in self.v(f"userViews({lit(self.v('DEFAULT_VIEWS'))})")], ["overdue", "client", "mine"])
+        self.assertEqual([x["id"] for x in self.v("userViews([{id: 'open', name: 'Mine', line: 'is:open priority:High'}])")], ["open"], "an edited one is the person's own")
+        self.assertEqual(self.v(f"addView([], 'actions', '')")["message"], "A view called actions already exists. Choose another name.")
+        fields = self.v("fieldList()")
+        self.assertEqual([f["ins"] for f in fields], ["is:", "type:", "status:", "owner:", "priority:", "due:", "workstream:", "usecase:", "milestone:", "client:", "no:"])
+        self.assertTrue(all(f["label"] and f["note"] and f["icon"] for f in fields))
+
     def test_the_starting_views_show_what_their_names_say(self):
         views = {x["id"]: x["line"] for x in self.v("DEFAULT_VIEWS")}
         self.assertEqual(self.ids(views["overdue"]), ["T-A-001"])
