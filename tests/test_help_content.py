@@ -208,6 +208,15 @@ class Words(unittest.TestCase):
         self.assertEqual(sorted(missing - CHECKED_BY_HAND), [], "bold names that the prototype does not have: add them there, or reword Help")
         self.assertEqual(sorted(CHECKED_BY_HAND - missing), [], "no longer needed in the hand-checked list: take it out")
 
+    def test_help_names_new_project_only_if_the_page_builds_it(self):
+        """#527: Help may not send a reader to a "New project" menu item that the page does not have."""
+        src = HELP.parent
+        built = any("New project" in f.read_text(encoding="utf-8", errors="ignore")
+                    for f in src.rglob("*") if f.is_file() and f.suffix in (".js", ".jsx", ".ts", ".tsx") and HELP not in f.parents)
+        help_text = "\n".join(f.read_text(encoding="utf-8") for f in HELP.glob("*.json"))
+        if not built:
+            self.assertNotIn("New project", help_text, "Help names New project but no code under src/clark/page/src builds it")
+
 
 class Held(unittest.TestCase):
     def test_taken_out_text_is_not_in_the_shipped_source(self):
