@@ -47,7 +47,7 @@ from clark.store import Invalid
 # The ops, as the request names them. Made from one string, not written one by one: tests/test_store_writer.py reads a lone
 # "update" or "delete" string anywhere in src/ as SQL (its check is case-blind until #39's case-sensitive version merges), and
 # these are not SQL: no op here is ever put in a statement.
-NEW, UPDATE, MOVE, DELETE, ARCHIVE, RESTORE, PICK, BULK, HAND_OVER = "new update move delete archive restore pick bulk handover".split()
+NEW, UPDATE, MOVE, DELETE, ARCHIVE, RESTORE, PICK, BULK, HAND_OVER, LINK = "new update move delete archive restore pick bulk handover link".split()
 
 # The allow-list: kind -> op -> the fields a request may give (`values` for new, `changes` for update). A field must also
 # be a column of the table (tests/test_changes.py asserts it for each). sort_order, project, id and type (after creation)
@@ -75,7 +75,7 @@ CHANGE_KINDS = {
                             "client_message", "movement", "internal_note")},
     # #164: an EXISTING use case's name, headline, status, standing text and eye (client_visible). Only `update` here: the
     # archive and restore ops below are #126's, and there is no new, move or delete for use cases.
-    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible"), NEW: ("ref", "title", "status", "headline")},   # #455: and a NEW one (below)
+    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible"), NEW: ("ref", "title", "status", "headline"), LINK: ()},   # #455: and a NEW one (below); #485: link work items to it (no fields: the items' own use_case is set)
     # #67: the eye on a report row. `new` hides the row from the report and `delete` shows it again; both take only the item's id
     # (no values: the row is the pair project + item, and the project is the request's).
     # `pick` is the picker's Add (see _do_pick): it puts several hidden rows back on the page in one step.
@@ -84,7 +84,7 @@ CHANGE_KINDS = {
 KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values", "copy_of") if k in ("actions", "raid", "decisions") else ("values",)} for k in NEWABLE},   # per kind, the keys an op takes when they are not OP_KEYS' (a project has no id)
                 "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)},
                 "report_sections": {NEW: ("values", "after", "beside")}}      # #149: a new section may go beside the one it is added after, in the same step
-KIND_OP_KEYS["use_cases"] = {NEW: ("values",)}    # #455: a new use case is only `values` (its reference, name, status and headline); no id is sent
+KIND_OP_KEYS["use_cases"] = {NEW: ("values",), LINK: ("id", "ids")}    # #455: a new use case is only `values` (its reference, name, status and headline); no id is sent. #485: `link` names the use case and the work items to link to it
 KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline")     # #136: a milestone's agreed date moves with a `rebaseline`
 TILES = ("health", "overdue", "risks", "decisions")  # glance_tiles.tile (the store's ALLOWED holds the same four; a test says so)
 TILE_WORDS = {"health": "Project health", "overdue": "Overdue actions", "risks": "High risks and issues",
@@ -103,7 +103,7 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
                            "client_message", "movement", "internal_note"),     # #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
             "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible"), "documents": ("archived",) + DOC_FIELDS, "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
-CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone", "client_visible", "latest_update")      # #67: a row added in the report: no id,
+CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone", "client_visible", "latest_update", "use_case")      # #485: a next step added from a use case's row names it; #67: a row added in the report: no id,
 CHANGE_KINDS["raid"][NEW] = ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible")   # raised, status or source
 CHANGE_KINDS["decisions"][NEW] = ("decision", "made_by", "status", "date", "needed_by", "client_visible", "reasoning")      # (clark gives those), and no priority on a risk (worked out)
 CHANGE_KINDS["milestones"][NEW] = ("name", "baseline_date", "owner", "workstream")
@@ -134,7 +134,8 @@ ITEM_SHOWN = {k: ("id",) + tuple(f for f in CHANGE_KINDS[k][UPDATE] if f not in 
 FLAG_FIELDS = ("hidden", "beside")        # 0 or 1 only: a bool, a float, a string or any other number is refused
 BASE_KEYS = ("project", "kind", "op", "place")
 OP_KEYS = {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "before", "flags"), DELETE: ("id",),
-           ARCHIVE: ("id",), RESTORE: ("id",), PICK: ("ids",), BULK: ("ids", "changes", "confirm"), HAND_OVER: ("ids", "to", "confirm")}
+           ARCHIVE: ("id",), RESTORE: ("id",), PICK: ("ids",), BULK: ("ids", "changes", "confirm"), HAND_OVER: ("ids", "to", "confirm"),
+           LINK: ("id", "ids")}
 MAX_PICK = 100                            # the picker adds at most this many rows in one step
 MAX_BULK = 500                            # #196: a bulk change names at most this many items (the body limit allows about this many)
 BULK_CONFIRM_ABOVE = 25                   # #196: more items than this need the request's `confirm`, counting every id sent
@@ -174,6 +175,7 @@ DOC_KIND_WORDS = clark_store.DOC_KIND_WORDS
 ALREADY_HIDDEN = "That is hidden from the report already."
 NOT_HIDDEN = "That isn't hidden from the report."
 PICK_NOTHING = "Choose at least one item to add."
+LINK_NOTHING = "Choose at least one work item to link."
 PICK_TOO_MANY = f"Choose at most {MAX_PICK} items at a time."
 PICK_NOT_HIDDEN = "One of those is already on the page. Reload the page and try again."
 PICK_SENSITIVE = "A Sensitive item is never published, so it can't be added to the report."
@@ -804,6 +806,13 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
     if source is not None and (table not in ITEM_KINDS or not isinstance(source, str)):
         raise Refused(ITEM_NOT_MINE)
     with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: the next number is read and used inside it
+        link = values.get("use_case")                               # #485: a next step added from a use case's row: an existing, live use case of this project
+        if link is not None:
+            found = store.read("use_cases", ref=link) if _belongs("use_cases", link, project) else None
+            if found is None or found["project"] != project:
+                raise Refused(NO_USE_CASE)
+            if found["archived"]:
+                raise Refused(ARCHIVED_USE_CASE)
         if source is not None:                                      # Duplicate: the copy is the item again, so it carries the item's labels and its hiding from the report (a Sensitive item's copy stays Sensitive and unpublished), read inside the step
             was = store.read(table, ref=source) if _belongs(table, source, project) else None
             if was is None or was["project"] != project or was["archived"]:
@@ -1223,6 +1232,8 @@ def _do_use_case_change(store, by_user, req, project, table, columns, place, op)
     written when anything is refused."""
     if op == NEW:
         return _do_new_use_case(store, by_user, req, project, table, columns, place)
+    if op == LINK:
+        return _do_link_use_case(store, by_user, req, project, table, place)
     ref = req.get("id")
     changes = _checked_use_case_changes(_fields(req.get("changes"), table, UPDATE, columns, "the changes"))
     if not changes:
@@ -1243,6 +1254,48 @@ def _do_use_case_change(store, by_user, req, project, table, columns, place, op)
         apply_id = st.peek_apply_id()                               # None when nothing changed: the page shows no Undo
     return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref,
                  "use_case": _use_case_shown(store.read(table, ref=ref))}
+
+
+def _do_link_use_case(store, by_user, req, project, table, place):
+    """#485: link existing work items (actions, risks and issues, decisions, of any mix) to ONE use case of THIS project, in one step with
+    one Undo: each item's `use_case` is set to the use case; an item already linked to it is left as it is, and one linked to another use
+    case moves. The whole request is checked before anything is written: the use case must be this project's and live, every item
+    must be a live work item of this project (an id that is not, another project's item, an archived one and a use case's own id get the
+    same words and are never said back). The reply gives the Undo only when something changed."""
+    if clark_store.is_archived(store.con, project):
+        raise Refused(PROJECT_NOT_ACTIVE)
+    given = req.get("ids")
+    if not isinstance(given, list) or not given:
+        raise Refused(LINK_NOTHING)
+    if len(given) > MAX_PICK:
+        raise Refused(PICK_TOO_MANY)
+    ids = []
+    for item in given:
+        if not (isinstance(item, str) and clark_store.ITEM_ID.fullmatch(item) and clark_store.item_table(item) in ITEM_KINDS):
+            raise Refused(ITEM_NOT_MINE)
+        if item not in ids:
+            ids.append(item)
+    ref = req.get("id")
+    with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: what is read next is what is changed
+        found = store.read(table, ref=ref) if isinstance(ref, str) else None
+        if found is None or found["project"] != project:
+            raise Refused(UC_NOT_MINE)
+        if found["archived"]:
+            raise Refused(ARCHIVED_USE_CASE)
+        plan = []
+        for item in ids:
+            item_table = clark_store.item_table(item)
+            row = store.read(item_table, ref=item)
+            if row is None or row["project"] != project or row["archived"]:
+                raise Refused(ITEM_NOT_MINE)
+            if row["use_case"] != ref:
+                plan.append((item_table, item))
+        for item_table, item in plan:
+            st.update(item_table, item, {"use_case": ref})
+        apply_id = st.peek_apply_id()                               # None when nothing changed: the page shows no Undo
+    return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref, "linked": [item for _, item in plan]}
+
+
 HIDABLE = ("milestones", "actions", "raid", "decisions", "use_cases")      # what the eye can hide: the store's own list of items a report shows
 
 
