@@ -240,6 +240,23 @@ class Dialog(Base):
             self.assertRegex(p.js("document.querySelector('#report-state').textContent"), r"^Published \d\d-\d\d-\d{4} locally$")
             self.assertEqual(p.js("document.querySelectorAll('.rbar input').length"), 0, "View has no field")
 
+    def test_C_the_dialog_line_says_which_publication_this_will_be_and_when_the_last_one_went(self):
+        """#437 row 26 (the prototype's io.js): 'this will be Publication N' and, once there is one, 'last published <date>, locally'."""
+        sub = "document.querySelector('#pub-sub').textContent"
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.open_publish()
+            p.until("/this will be Publication 1/.test(" + sub + ")", "the first one says it will be number 1")
+            self.assertNotIn("last published", p.js(sub), "no earlier one yet")
+            self.assertNotIn("Published (", p.js(sub))
+            p.go()
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
+            p.go()
+            p.until("!document.querySelector('#publish-dialog[open]')", "the dialog closed")
+            p.open_publish()
+            p.until("/this will be Publication 2/.test(" + sub + ")", "the next one says it will be number 2")
+            self.assertRegex(p.js(sub), r"this will be Publication 2 · last published \d\d-\d\d-\d{4}, locally$")
+
     def test_C_cancelling_the_save_window_says_so_and_writes_nothing(self):
         self.rig.save_to = None
         with chrome() as cdp:

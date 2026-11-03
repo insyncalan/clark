@@ -25,7 +25,7 @@ let sent = 0, applied = 0;                              // saves sent so far; th
  *  is given a saved answer unless a newer saved answer has already been given (the older one must not put the menu back). */
 export async function setProfile(name, email) {
   const n = ++sent;
-  const before = loaded ? profile.value : await getProfile();      // not read yet (Settings opened a moment ago): ask clark, and without an answer there is no "before"
+  const before = loaded ? profile.value : null;      // not read yet (Settings opened a moment ago): without an answer there is no "before", and the save never waits for a read
   const r = await saveProfile(name, email);
   if (r.ok && n > applied) { applied = n; profile.value = { name: r.name, email: r.email }; }
   return { ...r, newest: n === sent, before };
