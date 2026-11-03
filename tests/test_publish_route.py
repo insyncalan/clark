@@ -169,6 +169,32 @@ class TheCopy(Base):
         for absent in ("ZQ-LATE-FLAG-OFF", "ZQ-LATE-INTERNAL-NOTE", ref):
             self.assertNotIn(absent, copy)
 
+    def test_a_new_use_case_is_absent_until_its_eye_is_turned_on(self):
+        """#455 (the owner, 03-11-2026): a use case added through the writer starts hidden from the client, so the published file does
+        not hold it; turning its eye on publishes it. The use cases already there are published as before."""
+        change = changes.make_change(self.rig.db, [], USER)
+        self.rig.publish(to_client=True)
+        copy = (self.rig.client / WANTED).read_text(encoding="utf-8")
+        existing = [r["id"] for r in self.rig.store.read("use_cases", "PUB")]
+        shown_before = sorted(i for i in existing if i in copy)
+        self.assertTrue(shown_before, "the plant publishes at least one use case")
+        status, got = change({"project": "PUB", "kind": "use_cases", "op": "new", "values": {"ref": "9.9", "title": "ZQ-NEW-UC-HIDDEN"}})
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        ref = got["ref"]
+        status, got = self.rig.publish(to_client=True, on_clash="overwrite", confirmed=True)       # the same week's file again
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        copy = (self.rig.client / WANTED).read_text(encoding="utf-8")
+        for absent in ("ZQ-NEW-UC-HIDDEN", ref):
+            self.assertNotIn(absent, copy)
+        self.assertEqual(sorted(i for i in existing if i in copy), shown_before, "the existing use cases are published as before")
+        status, got = change({"project": "PUB", "kind": "use_cases", "op": "update", "id": ref, "changes": {"client_visible": 1}})
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        status, got = self.rig.publish(to_client=True, on_clash="overwrite", confirmed=True)       # the same week's file again
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        copy = (self.rig.client / WANTED).read_text(encoding="utf-8")
+        self.assertIn("ZQ-NEW-UC-HIDDEN", copy)
+        self.assertIn(ref, copy)
+
     def test_unticked_leaves_the_client_folder_untouched(self):
         before = {p.name: p.stat().st_mtime_ns for p in self.rig.client.iterdir()}
         status, got = self.rig.publish(to_client=False)

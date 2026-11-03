@@ -180,7 +180,9 @@ class AgainstThePage(unittest.TestCase):
         # 47 measured on the merge of main into the #527 branch (main is 48): Help no longer names New project, so that bold name left the count
         # 46 measured on the take-over of PR 209 (#271) merged with main (47 there): the held use-case entry now bolds only 'See all' and quotes the button's full name, and 'See all' is on the page, so one more name left the absent list (47 fails)
         # 44 measured on the merge of main into this branch (main is 46): Latest update and Move to Friday together with main's Help changes left two more names off the absent list (45 fails)
-        self.assertGreaterEqual(len(names), 44)
+        # 44 with the first-run welcome (#174): its Not now button and its words put two more of Help's bold names on the page (46 fails)
+        # 42 measured on the merge of main into this branch (44 on each side alone): the first-run welcome (#174) and Latest update with Move to Friday together put two more names on the page (43 fails)
+        self.assertGreaterEqual(len(names), 42)
         # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
         # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
         # 56 measured on the merged tree after the next main merge (names printed): the milestone details toggle (C-M6) leaves the list on top of the Supporting documents section
