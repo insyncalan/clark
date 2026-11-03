@@ -164,7 +164,7 @@ export async function saveProfile(name, email) {
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true) return { ok: true, name: String(reply.name || ""), email: String(reply.email || "") };
     const said = reply && typeof reply.message === "string" && reply.message.length <= 240 ? reply.message : "";
-    if (r.status === 400 && said) return { ok: false, message: said };
+    if (r.status === 400 && said) return { ok: false, message: said, field: reply.field === "name" || reply.field === "email" ? reply.field : "" };
     return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };
   } catch (e) {
     return { ok: false, message: plainChange(0) };
@@ -199,6 +199,36 @@ export async function sendBulk(project, req) {
   }
 }
 
+// Show archived on Milestones (C-M4, #126): the project's archived milestones (GET /api/data with archived=only) and Restore of one
+// (op restore: one step, one Undo). The read is {ok: true, rows, links} or {ok: false}; Restore answers {ok: true, reply} or
+// {ok: false, message}, in the server's own fixed sentence when it is a short one (a refusal says why), else plainChange's words.
+export async function getArchivedMilestones(project) {
+  try {
+    const r = await fetch(`/api/data?project=${encodeURIComponent(project)}&archived=only`, { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    const body = await r.json().catch(() => null);
+    const d = r.ok && body && body.ok === true ? body.data : null;
+    return d && Array.isArray(d.milestones) ? { ok: true, rows: d.milestones } : { ok: false };
+  } catch (e) {
+    return { ok: false };
+  }
+}
+
+export async function sendMilestoneRestore(project, id) {
+  try {
+    const r = await fetch("/api/change", {
+      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify({ project, kind: "milestones", op: "restore", id, place: "menu" }), cache: "no-store",
+    });
+    const reply = await r.json().catch(() => null);
+    if (r.ok && reply && reply.ok === true) return { ok: true, reply };
+    const said = reply && typeof reply.message === "string" ? reply.message : "";
+    const mine = (r.status === 400 || r.status === 409) ? knownRefusal(said) : "";      // only clark's own fixed sentences, never other server text
+    return { ok: false, message: mine || plainChange(r.ok ? 500 : r.status, reply) };
+  } catch (e) {
+    return { ok: false, message: plainChange(0) };
+  }
+}
+
 // One change to a milestone from the Movement block (#136), in the Movement place (clark/changes.py). {ok: true, reply} or
 // {ok: false, message, known}: `known` is true when the message is clark's own fixed refusal (shown as it is).
 export async function sendMilestoneChange(project, req) {
@@ -218,6 +248,10 @@ export async function sendMilestoneChange(project, req) {
     return { ok: false, message: plainChange(0), known: false };
   }
 }
+
+// Add one work item or milestone (#458; op "new", place "report", clark/changes.py): {ok: true, reply} (the reply's `ref` is the new id and
+// `apply_id` its step) or {ok: false, message}. `values` are the fields the kind's `new` list takes. A short refusal of clark's own is shown as it is.
+export const sendNewRow = (project, kind, values) => postItem("/api/change", { project, kind, op: "new", values, place: "report" });
 
 // The Use cases page's own reads (#157). Both are GETs of routes that exist: /api/use-cases (each use case carries its history) and
 // /api/data with archived=only (the archived use cases, which the page's usual read leaves out). {ok, ...} or {ok: false}: a read

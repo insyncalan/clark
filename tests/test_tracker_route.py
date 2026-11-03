@@ -37,7 +37,10 @@ class Running:
             for k, v in ((("Host", f"127.0.0.1:{self.port}"), (sv.TOKEN_HEADER, sv.TOKEN), ("Content-Type", "application/json"),
                           ("Content-Length", str(len(body))))):
                 conn.putheader(k, v)
-            conn.endheaders(body)
+            try:
+                conn.endheaders(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass                      # a request over the limit is refused from its length, before all of it is sent; the answer is still there to read
             r = conn.getresponse()
             return r.status, r.msg, r.read()
         finally:
@@ -118,7 +121,7 @@ class Route(unittest.TestCase):
         self.assertGreater(sv.CHANGE_BODY_LIMIT, widest)
         self.assertGreaterEqual(sv.CHANGE_BODY_LIMIT, widest + 4 * 1024)       # the envelope (project, place, ids) is far smaller than 4 KB
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
-        for route, limit in (("/api/undo", 1024), ("/api/sneak/read", 4 * 1024), ("/api/profile", 2 * 1024), ("/api/draft-email", 16 * 1024)):
+        for route, limit in (("/api/undo", 8 * 1024), ("/api/sneak/read", 4 * 1024), ("/api/profile", 2 * 1024), ("/api/draft-email", 16 * 1024)):
             self.assertEqual(sv.ROUTE_BODY_LIMITS[route], limit, route)
 
     def padded(self, size):

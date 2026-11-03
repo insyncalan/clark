@@ -84,32 +84,6 @@ class Bar(Base):
             p.until("!!document.querySelector('#week-ending') && document.querySelector('#report').dataset.mode === 'edit'", "Edit again")
             self.assertIsNone(p.js("document.querySelector('#report-hint')"), "not shown again")
 
-    def test_the_first_time_in_edit_the_first_grip_and_plus_pulse_once(self):
-        """Row 35 (prototype views.js:530, app.css:1272): the first section's controls pulse once, and never again in this browser."""
-        with chrome() as cdp:
-            p = self.show(cdp)
-            self.assertEqual(p.js("document.querySelectorAll('.sec-ctl.first').length"), 0, "not in View")
-            p.edit()
-            p.until("!!document.querySelector('.sec-ctl.first')", "the pulse")
-            self.assertEqual(p.js("document.querySelectorAll('.sec-ctl.first').length"), 1, "one section's controls only")
-            self.assertEqual(p.js("document.querySelector('.sec-ctl.first').closest('.sec') === document.querySelector('.sec')"), True, "the first section")
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('.sec-ctl.first')).animationName"), "nudge")
-            self.assertEqual(p.js("document.querySelectorAll('.sec-ctl.first .handle, .sec-ctl.first .plus').length"), 2, "the grip and the plus are in it")
-            p.until("document.querySelectorAll('.sec-ctl.first').length === 0", "the pulse ends")
-            p.js("document.querySelector('[data-mode=view]').click()")
-            p.until("document.querySelector('#report').dataset.mode === 'view'", "View")
-            p.edit()
-            p.until("document.querySelectorAll('.sec-ctl').length > 0", "Edit again")
-            self.assertEqual(p.js("document.querySelectorAll('.sec-ctl.first').length"), 0, "once")
-
-    def test_the_pulse_is_left_out_when_the_person_asks_for_less_motion(self):
-        with chrome() as cdp:
-            p = self.show(cdp)
-            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
-            p.edit()
-            p.until("document.querySelectorAll('.sec-ctl').length > 0 && !!document.querySelector('#report-hint')", "Edit")
-            self.assertEqual(p.js("document.querySelectorAll('.sec-ctl.first').length"), 0)
-
     def type_week(self, p, text):
         """Type into the box as a person does (the value set the way the page's own field takes it) and leave it, which saves."""
         p.js("(() => { const e = document.querySelector('#week-ending'); e.focus(); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(e, %s); e.blur(); })()" % json.dumps(text))
@@ -213,6 +187,39 @@ class Bar(Base):
             self.assertNotIn("Pick a date and try again", p.js("document.querySelector('.toast-text').textContent"), "the server's own words are never shown")
             self.assertEqual(p.js("document.querySelector('#week-ending').value"), "02-05-2031")
             self.assertEqual(self.week(), "2031-05-02")
+
+    def test_a_typed_weekend_day_names_the_coming_friday_like_the_boards_this_week(self):
+        # #570: a Saturday or Sunday rolls forward (fridayOnOrAfter). 10-05-2031 is a Saturday: the Friday offered is 16-05-2031.
+        for bad, friday in (("10-05-2031", "16-05-2031"), ("11-05-2031", "16-05-2031")):
+            with self.subTest(bad=bad), chrome() as cdp:
+                p = self.show(cdp)
+                p.edit()
+                self.type_week(p, bad)
+                p.until("/Pick Friday %s/.test(document.body.textContent)" % friday, "the coming Friday")
+
+    def test_the_bar_takes_its_friday_from_the_boards_helper(self):
+        src = (PAGE / "src" / "edit" / "ReportBar.jsx").read_text(encoding="utf-8")
+        self.assertIn("weekEndOf", src)
+        self.assertNotIn("getUTCDay() || 7", src)
+
+    def test_a_typed_day_that_is_not_a_friday_keeps_the_old_date_and_names_the_friday(self):
+        # #570: Friday is the week end everywhere. 05-05-2031 is a Monday; the Friday of its week is 09-05-2031.
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            before = self.week()
+            shown = "-".join(reversed(before.split("-"))) if before else ""
+            self.type_week(p, "05-05-2031")
+            p.until("/Pick Friday 09-05-2031/.test(document.body.textContent)", "the plain words")
+            self.assertIn("The old week ending date was kept.", p.js("document.body.textContent"))
+            self.assertEqual(p.js("document.querySelector('#week-ending').value"), shown)
+            self.assertEqual(self.week(), before)
+
+    def test_the_route_refuses_a_real_day_that_is_not_a_friday(self):
+        req = {"project": "ABC", "kind": "projects", "op": "update", "changes": {"week_ending": "2031-05-05"}}
+        status, _, raw = self.s.api("POST", "/api/change", json.dumps(req).encode("utf-8"))
+        self.assertEqual(status, 400)
+        self.assertEqual(json.loads(raw).get("message"), "Week ending is a Friday. Pick Friday 09-05-2031.")
 
     def test_the_route_refuses_a_date_that_is_not_one(self):
         for bad in ("2031-02-30", "tomorrow", "09-05-2031", 20310509, None):

@@ -273,8 +273,8 @@ class RunsAsAProcess(TempFolder):
         self.assertTrue((pl.data_dir(self.tmp, on=pl.MAC) / "clark.db").is_file())
 
     def test_argument_errors_are_plain(self):
-        for args, text in ((["--port", "abc"], "The port setting (--port) must be a whole number from 1 to 65535."),
-                           (["--port", "70000"], "The port setting (--port) must be a whole number from 1 to 65535."),
+        for args, text in ((["--port", "abc"], "The start-up number (set with --port) must be a whole number from 1 to 65535. Change it, then start clark again."),
+                           (["--port", "70000"], "The start-up number (set with --port) must be a whole number from 1 to 65535. Change it, then start clark again."),
                            (["--demo", "--data", str(self.tmp)], "--demo makes its own temporary folder. Use --data or "
                                                                  "--demo, not both."),
                            (["--foo"], "The option --foo isn't recognised."),
@@ -286,7 +286,7 @@ class RunsAsAProcess(TempFolder):
             self.assertNotIn("Traceback", "\n".join(err))
         code, out, err = self.start("--demo", home=self.tmp, env={"CLARK_PORT": "x"}).finish()
         self.assertEqual(code, 2)
-        self.assertEqual(err[0], "The port setting (CLARK_PORT) must be a whole number from 1 to 65535.")
+        self.assertEqual(err[0], "The start-up number (set with CLARK_PORT) must be a whole number from 1 to 65535. Change it, then start clark again.")
 
     def test_the_help_text_is_plain(self):
         code, out, err = self.start("--help", home=self.tmp).finish()
@@ -421,8 +421,9 @@ class InProcess(TempFolder):
         code, out, err, serve = self.run_main("--port", "8123")
         self.assertEqual((code, err), (0, ""))
         (call,) = serve.calls
-        self.assertEqual(sorted(call), ["activity", "app_settings", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "logs", "milestones", "movement", "out", "page_html", "people", "people_list", "people_undo", "port", "profile", "projects", "publisher", "safety", "section_image", "sneak", "undo", "use_cases",
-                                        "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route
+        self.assertEqual(sorted(call), ["activity", "app_settings", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "logs", "milestones", "movement", "out", "page_html", "past", "people", "people_list", "people_undo", "port", "profile", "projects", "publisher", "safety", "section_image", "sneak", "undo", "use_cases",
+                                        "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route; #443: past (the Published reports list and Open)
+        self.assertTrue(callable(call["past"].listing) and callable(call["past"].visit) and callable(call["past"].take))
         self.assertTrue(callable(call["change"]) and callable(call["undo"]))
         self.assertTrue(callable(call["word_import"]) and callable(call["word_export"]))
         self.assertTrue(callable(call["safety"].listing) and callable(call["safety"].preview) and callable(call["safety"].restore))

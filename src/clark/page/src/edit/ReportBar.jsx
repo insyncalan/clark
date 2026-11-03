@@ -1,7 +1,8 @@
 // The bar above the page (A-D2): the week the report covers, and where it stands (Draft, or when it was published). Only a page
 // clark serves has it (the published file is never given this part). The week is a typed DD-MM-YYYY box in View and in Edit alike (never the browser's calendar),
-// showing the coming Friday when the project keeps no week yet (prototype views.js:507; shown, saved only on Enter). Edit adds the
-// note that each change saves on its own and, the first time only, the drag hint (and the first section's grip and plus pulse once).
+// showing the coming Friday when the project keeps no week yet (prototype views.js:507; shown, saved only on Enter). #570: Friday is the
+// week end, so a day that is not a Friday keeps the old date and names the Friday (the server says the same). Edit adds the
+// note that each change saves on its own and, the first time only, the drag hint.
 import { useEffect } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { recall, remember } from "../logic/remember.js";
@@ -10,13 +11,17 @@ import { change, say } from "../stores/changes.js";
 import { parseDay, problem } from "../templates/keydates.js";
 import { todayIso } from "../workItems.js";
 import { weekOf, shownDay } from "../logic/week.js";
+import { weekEndOf } from "../logic/board.js";
 import { latest, refreshLatest } from "./publishState.js";
 import { lastLine } from "./Publish.jsx";
-import { begin as pulseFirst } from "./firstEdit.js";
 import { ownToast } from "./BarToast.jsx";
 
 // The drag hint shows the first time this browser enters Edit and stays until Edit is left; after that it is not shown again.
 const hintOpen = signal(!recall("dragHintSeen", false));
+
+// #570: Friday is the week end. The Friday on or after a day (a weekend day rolls forward, as the board's This week does), the one the server's refusal names.
+export const isFriday = (iso) => new Date(iso + "T00:00:00Z").getUTCDay() === 5;
+export const notFriday = (iso) => `Week ending is a Friday. Pick Friday ${shownDay(weekEndOf(iso))}.`;
 
 export function ReportBar() {
   useEffect(() => { refreshLatest(); }, [project.value]);
@@ -25,7 +30,7 @@ export function ReportBar() {
   const week = weekOf(stored, todayIso());       // the project's own week, else the coming Friday (shown, never saved until a day is picked)
   const editing = mode.value === "edit";
   useEffect(() => {
-    if (editing && hintOpen.value) { remember("dragHintSeen", true); pulseFirst(); }
+    if (editing && hintOpen.value) remember("dragHintSeen", true);
     if (!editing && hintOpen.value && recall("dragHintSeen", false)) hintOpen.value = false;
   }, [editing]);
   const published = lastLine(latest.value);
@@ -37,6 +42,7 @@ export function ReportBar() {
     }
     if (!raw || iso === week) { el.value = shownDay(week); return; }
     if (!iso) { say("problem", problem.day + " The old week ending date was kept."); ownToast(); el.value = shownDay(week); return; }       // not a day: the old one comes back
+    if (!isFriday(iso)) { say("problem", notFriday(iso) + " The old week ending date was kept."); ownToast(); el.value = shownDay(week); return; }       // #570: the server says the same
     change({ kind: "projects", op: "update", changes: { week_ending: iso }, place: "cell" }, `Week ending changed to ${shownDay(iso)}.`)
       .then((reply) => { ownToast(); if (!reply) { const x = document.getElementById("week-ending"); if (x) x.value = shownDay(week); } });
   };
@@ -46,7 +52,7 @@ export function ReportBar() {
   };
   return (
     <div class="rbar" id="report-bar">
-      <label class="rbar-week">Week ending <input type="text" inputMode="numeric" placeholder="DD-MM-YYYY" title={stored ? undefined : "Not saved yet. Press Enter to use this Friday, or type a date"} id="week-ending" key={week} defaultValue={shownDay(week)} onBlur={save} onKeyDown={enter} /></label>
+      <label class="rbar-week">Week ending <input type="text" inputMode="numeric" placeholder="DD-MM-YYYY" title={stored ? undefined : "Not saved yet. Press Enter to use this Friday, or type a Friday"} id="week-ending" key={week} defaultValue={shownDay(week)} onBlur={save} onKeyDown={enter} /></label>
       <span class="rbar-state" id="report-state">{editing ? "Editing · each change saves on its own" : published || "Draft · not published yet"}</span>
       {editing && hintOpen.value ? <span class="rbar-hint" id="report-hint">Drag to move, + to add a template</span> : null}
     </div>

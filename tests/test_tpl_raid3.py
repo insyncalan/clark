@@ -313,6 +313,7 @@ class PageSide(PageBase):
             # View now draws the cards
             p.view()
             self.assertEqual(self.card_ids(p, sec), [ids["risk"], ids["action"]])
+            p.until(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent.includes('Typed words')", "View draws the words just typed")      # the page takes the saved section a moment after the field shows it; the hosted Mac drew View first
             self.assertIn("Typed words", p.js(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent"))
             self.assertIn("LATESTWORDS", p.js(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent"))
             self.assertEqual(self.sent[-1][1]["place"], "report")

@@ -540,25 +540,24 @@ class Export(unittest.TestCase):
 
     def test_a_local_file_that_does_not_match_is_taken_back_and_nothing_is_recorded(self):
         self.post()                                                 # remember the folder
-        for row in self.publications():
-            pass
+        before = self.publications()                                # #120: a publication is never deleted, so the first one stays
         os.unlink(self.local / self.name)
-        self.store.con.execute("DELETE FROM publications")
         with mock.patch.object(word_route, "_verified", lambda dest, digest: False):
             status, got = self.post()
         self.assertEqual((status, got["code"]), (500, "not_as_made"))
         self.assertEqual(self.files(self.local), [])
+        self.assertEqual(self.publications(), before, "nothing new was recorded")
 
     def test_a_file_that_cannot_be_written_says_so_in_plain_words_and_records_nothing(self):
         self.post()
-        self.store.con.execute("DELETE FROM publications")
+        before = self.publications()                                # #120: a publication is never deleted, so the first one stays
         os.unlink(self.local / self.name)
         err = platform.PlatformError("clark couldn't save the file because another program is using it")
         with mock.patch.object(platform, "write_file_unless_exists", side_effect=err):
             status, got = self.post()
         self.assertEqual((status, got["code"]), (503, "not_saved"))
         self.assertIn("Nothing was written.", got["message"])
-        self.assertEqual(self.publications(), [])
+        self.assertEqual(self.publications(), before)
 
     def test_a_publication_that_cannot_be_recorded_is_said_and_the_file_stands(self):
         with mock.patch.object(type(self.store), "log_publication", side_effect=word_route.Invalid("busy")):
