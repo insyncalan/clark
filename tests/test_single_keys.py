@@ -10,6 +10,7 @@ from pathlib import Path
 import _paths  # noqa: F401
 from _clean_html import wait_for
 from _paths import ROOT, TOOLS
+from _new_page import reload_to_new_page_cdp
 
 sys.path.insert(0, str(TOOLS))
 import build_page  # noqa: E402
@@ -49,8 +50,7 @@ class Store:
         return self.cdp.js(expr, self.sid)
 
     def reload(self):
-        self.cdp.call("Page.reload", {}, self.sid)
-        assert wait_for(lambda: self.cdp.js("typeof KP === 'object'", self.sid) is True, 60), "the script did not reload"
+        reload_to_new_page_cdp(self.cdp, self.sid, "typeof KP === 'object'", "the script to reload", 60)
 
 
 class Switch(unittest.TestCase):
