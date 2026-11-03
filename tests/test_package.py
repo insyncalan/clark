@@ -127,6 +127,23 @@ class MacZipTest(unittest.TestCase):
         self.assertNotIn("open Terminal in this folder", text, "the drag-into-Terminal steps are given instead")
         self.assertNotIn("!", text)
 
+    def test_start_here_leads_with_docker_in_typed_commands_and_the_zip_holds_what_it_needs(self):
+        """#427: a computer that will not open clark.command uses Docker and Chrome only. The guide says it first, as commands to
+        type (never a .command file), and the download holds the Dockerfile and the compose file it names."""
+        text = package.start_here("mac")
+        up = "docker compose -f docker/compose.yaml up -d"
+        self.assertIn(up, text)
+        self.assertIn("docker compose -f docker/compose.yaml down", text)
+        self.assertIn("http://localhost:8766", text)
+        self.assertLess(text.index(up), text.index("1. Double-click clark.command"), "Docker is said first")
+        self.assertIn("Install clark", text)
+        self.assertIn("OneDrive", text)
+        self.assertNotIn("clark-docker.command", text)
+        with zipfile.ZipFile(self.zip) as z:
+            names = set(z.namelist())
+        for need in ("docker/compose.yaml", "docker/Dockerfile", "docker/Dockerfile.dockerignore"):
+            self.assertIn(f"{self.top}/{need}", names, need)
+
     def test_the_default_build_says_what_is_true_of_the_tree_it_was_built_from(self):
         """This checkout is what is published on the public repository (#463): it tracks no private-only path, so the zip
         is not 'for the team only'. DefaultAudienceTest pins both lines and the tree that holds a private path."""

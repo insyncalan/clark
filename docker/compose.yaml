@@ -21,6 +21,10 @@ services:
     # The container's user is 10001. If clark says it cannot write to the data folder, run it as yourself instead:
     #   CLARK_UID=$(id -u) CLARK_GID=$(id -g) docker compose -f docker/compose.yaml up
     user: "${CLARK_UID:-10001}:${CLARK_GID:-10001}"
+    # The Mac folder shared in as /data, told to clark by name (from the same setting as the volume above), so clark can refuse it
+    # when it is inside OneDrive: from inside the container OneDrive cannot be seen. Keep this line equal to the volume's source.
+    environment:
+      CLARK_DATA_SOURCE: "${CLARK_DATA:-${HOME}/Library/Application Support/clark}"
     read_only: true
     tmpfs:
       - /tmp

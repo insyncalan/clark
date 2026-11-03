@@ -206,5 +206,54 @@ class StartsOnLinuxInTheContainer(Case):
         self.assertEqual(Path(pl.check_data_dir(folder)).resolve(), folder)
 
 
+class ContainerOneDrive(unittest.TestCase):
+    """The Mac's data folder, named by the compose file, is refused when it is in OneDrive (#427): from inside the container OneDrive
+    cannot be seen, so the name is read."""
+
+    def host(self, path, container=True):
+        env = {"CLARK_CONTAINER": "1" if container else "0", "CLARK_DATA_SOURCE": path}
+        return mock.patch.dict("os.environ", env), markers("/.dockerenv")
+
+    def test_a_onedrive_folder_is_named_whichever_way_the_app_spells_it(self):
+        for path in ("/Users/sam/Library/CloudStorage/OneDrive-Fictional Ltd/clark", "/Users/sam/OneDrive/clark",
+                     "/Users/sam/OneDrive - Fictional Ltd/Documents/clark", "/Users/sam/onedrive-personal/clark"):
+            with self.subTest(path):
+                a, b = self.host(path)
+                with a, b:
+                    self.assertIsNotNone(pl.container_host_in_onedrive())
+                    with self.assertRaises(pl.PlatformError) as e:
+                        pl.check_data_dir("/data")
+                    self.assertIn("inside OneDrive", str(e.exception))
+                    self.assertIn("clark", str(e.exception)); self.assertNotIn("/data", str(e.exception), "it names the Mac's folder, not the container's")
+
+    def test_an_ordinary_folder_and_a_name_that_only_contains_onedrive_are_let_through(self):
+        for path in ("/Users/sam/Library/Application Support/clark", "/Users/sam/clark-data", "/Users/sam/Documents/not-OneDrive-really/clark",
+                     "/Users/sam/Library/CloudStorage/Dropbox/clark"):
+            with self.subTest(path):
+                a, b = self.host(path)
+                with a, b:
+                    self.assertIsNone(pl.container_host_in_onedrive())
+                    self.assertEqual(pl.check_data_dir("/data"), Path("/data").resolve())
+
+    def test_it_is_never_asked_outside_a_container_and_the_backups_words_are_unchanged(self):
+        a, b = self.host("/Users/sam/OneDrive/clark", container=False)
+        with a, b:
+            self.assertIsNone(pl.container_host_in_onedrive())
+        a, b = self.host("/Users/sam/OneDrive/clark")
+        with a, b:
+            self.assertEqual(pl.check_data_dir("/data", what="backups"), Path("/data").resolve())    # only the data folder is the shared one
+
+    def test_without_the_variable_nothing_is_known_and_nothing_is_refused(self):
+        with mock.patch.dict("os.environ", {"CLARK_CONTAINER": "1"}), markers("/.dockerenv"):
+            os.environ.pop("CLARK_DATA_SOURCE", None)
+            self.assertIsNone(pl.container_host_in_onedrive())
+
+    def test_the_compose_file_hands_the_same_setting_to_clark_as_it_shares_in(self):
+        text = (Path(__file__).resolve().parents[1] / "docker" / "compose.yaml").read_text(encoding="utf-8")
+        default = "${CLARK_DATA:-${HOME}/Library/Application Support/clark}"
+        self.assertIn(f"source: {default}", text)
+        self.assertIn(f'CLARK_DATA_SOURCE: "{default}"', text)
+
+
 if __name__ == "__main__":
     unittest.main()

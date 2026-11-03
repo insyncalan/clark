@@ -64,6 +64,23 @@ def container_mode():
     return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
 
 
+def container_host_in_onedrive(environ=None):
+    """#427: inside the shipped container, the Mac folder that is shared in as the data folder, named by the compose file in
+    CLARK_DATA_SOURCE, as a Path when it is in OneDrive (a part of the path is OneDrive's own folder, `OneDrive`, `OneDrive - <name>`
+    or `OneDrive-<name>`, case ignored), else None. Never outside a container. Without that variable nothing is known, so nothing is
+    refused here; the compose file always sets it. This reads a name, not the disk: it cannot be fooled by a link to OneDrive."""
+    if not container_mode():
+        return None
+    host = (os.environ if environ is None else environ).get("CLARK_DATA_SOURCE")
+    if not host:
+        return None
+    path = Path(host)
+    for i, part in enumerate(path.parts):
+        if part.lower().startswith("onedrive"):
+            return Path(*path.parts[:i + 1])
+    return None
+
+
 def _only_mac(what, on=None):
     """Raise NotBuiltYet unless `on` (default: this system) is the Mac."""
     on = on or system()
@@ -170,6 +187,10 @@ def check_data_dir(path, roots=None, what="data"):
     OneDrive syncs a database part-way through a write and can't lock it, so the data would be damaged. `what="backups"`
     words the refusal for the backups folder (#86), where "backups can still go to OneDrive" would read wrongly."""
     root = inside_onedrive(path, roots)
+    if root is None and what == "data":
+        root = container_host_in_onedrive()                  # #427: inside the container the Mac's OneDrive can't be seen, so the Mac's path is told
+        if root is not None:
+            path = os.environ["CLARK_DATA_SOURCE"]           # and the Mac's folder is what the person must change, not the container's /data
     if root is not None:
         if what == "backups":
             raise PlatformError(f"Backups can't be kept in {shown(path)} because it is inside OneDrive ({root.name}). OneDrive "

@@ -106,6 +106,28 @@ RUN_MODE = 0o100755
 START_HERE_MAC = """\
 Getting started on a Mac
 
+If your computer will not open clark.command (a work computer often will not),
+or you already use Docker, use Docker instead. You only need Docker and Chrome.
+  1. Open Docker Desktop and wait until it says it is running.
+  2. Open Terminal, type cd and a space, drag this folder into the Terminal
+     window and press Return.
+  3. Type this and press Return (the first time it takes a few minutes):
+        docker compose -f docker/compose.yaml up -d
+  4. Open Chrome and go to http://localhost:8766
+     To keep clark as its own app, choose the Install clark button at the
+     right end of Chrome's address bar. Open it from there on later days.
+  5. To stop clark, type this in the same folder and press Return:
+        docker compose -f docker/compose.yaml down
+Your data is kept in ~/Library/Application Support/clark. clark refuses a folder
+inside OneDrive. To keep it somewhere else, put the folder in front of the
+command, for example:
+        env CLARK_DATA=/Users/you/clark-data docker compose -f docker/compose.yaml up -d
+If it says port 8766 is already used, another clark is open: close it, or stop
+it with the command in step 5, then try again. If it says it cannot connect to
+Docker, Docker Desktop is not running yet.
+
+Without Docker:
+
 1. Double-click clark.command in this folder.
 
 2. The first time, your Mac may say it can't check who made the file.
