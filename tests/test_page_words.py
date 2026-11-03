@@ -24,9 +24,12 @@ from test_server import Running, chrome, wait  # noqa: E402
 READ_FAILED = "This project could not be read. Reload the page. If it happens again, restart clark."
 HIT_PROBLEM = "A problem came up reading this project. Reload the page. If it happens again, restart clark."
 NOT_ACCEPTED = "That request was not accepted. Reload the page."
-STALE = "This page is out of date: clark was restarted after you opened it. Reload the page and try again."
-NOT_ANSWERING = "Nothing is running behind this page: clark stops by itself after a while with nothing open. Start it again from clark.command."
+STALE = "This page is out of date because clark was restarted after you opened it. Reload the page and try again."
+NOT_ANSWERING = "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command."
 WENT_WRONG = "Something went wrong"
+# #318: a clause that starts with the product name, at the start of a string or after a full stop, colon or semicolon. A word must
+# follow it: an event name like "clark:open" is not a sentence.
+SENTENCE_STARTS_WITH_PRODUCT_NAME = re.compile(r"""(?:[`"'>:;]|[.!?]\s)\s*clark\s+[a-z]""", re.I)
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bClark\b|\bUC\b|!")
 PAGE_SRC = Path(page.PAGE).parent / "src"
 WAIT = 30     # seconds to poll for what the page should show: a busy machine can take far longer than a quiet one
@@ -198,7 +201,10 @@ class Words(unittest.TestCase):
                                   "Turn on asking", "Folders asking may read",
                                   "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
                                   "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
-                                  "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is."])
+                                  "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
+                                  "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
+                                  "Suggestions for the text you select in the report. Nothing changes until you accept one.",
+                                  "AI suggestions come in a later version."])
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)
@@ -264,8 +270,9 @@ class Words(unittest.TestCase):
 
     def test_no_sentence_on_the_page_starts_with_the_product_name(self):
         """A screen sentence does not start with the product name (the rule set in #170): every string in the page's code, and the
-        words of Help (the page's and the prototype's), at the start of a string and after a full stop inside one."""
-        starts = re.compile(r"""(?:[`"'>]|[.!?]\s)\s*clark\s+[a-z]""", re.I)   # a word after it: an event name like "clark:open" is not a sentence
+        words of Help (the page's and the prototype's), at the start of a string, after a full stop inside one and, since #318,
+        after a colon or semicolon."""
+        starts = SENTENCE_STARTS_WITH_PRODUCT_NAME
         headings = ("clark version and updates",)                                   # a heading in Help's list of Settings entries, not a sentence
         files = (sorted(PAGE_SRC.rglob("*.js")) + sorted(PAGE_SRC.rglob("*.jsx")) + [PAGE_SRC / "help" / "helpContent.json",
                  PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"])
@@ -279,12 +286,20 @@ class Words(unittest.TestCase):
                         continue
                     self.fail(f"{f.name}:{n}: a sentence starts with the product name")
 
+    def test_the_product_name_scan_catches_a_clause_after_a_colon_or_semicolon(self):
+        """#318: the scan can fail. A clause that starts with the product name is caught after a colon or semicolon as well as after
+        a full stop; a name inside a clause, an event name and a name not followed by a word are not."""
+        for caught in ("note: clark does x", "Wait; clark does x", "\"Done. clark does x\"", "\"clark does x\"", "<p>clark does x</p>"):
+            self.assertIsNotNone(SENTENCE_STARTS_WITH_PRODUCT_NAME.search(caught), caught)
+        for passed in ("note, because clark does x", "after a while, clark does x", "dispatch('clark:open')", "note: the clark folder", "note: clark."):
+            self.assertIsNone(SENTENCE_STARTS_WITH_PRODUCT_NAME.search(passed), passed)
+
     def test_help_names_no_version_that_may_not_exist(self):
         """#209: the Update entry shows the button as Review X.Y.Z, not a real-looking version."""
         for path in (PAGE_SRC / "help" / "helpContent.json", PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"):
             text = path.read_text(encoding="utf-8")
-            self.assertIn("**Review X.Y.Z**", text, path.name)
-            self.assertNotRegex(text, r"Review \d+\.\d+\.\d+", path.name)
+            self.assertIn("X.Y.Z", text, path.name)                                  # the placeholder, whatever the button is called
+            self.assertNotRegex(text, r"Review v?\d+\.\d+\.\d+", path.name)
 
     def test_every_publish_message_a_person_can_see_is_plain_words(self):
         """#43: the publish routes' messages hold no system text slot, no jargon and no request talk."""
