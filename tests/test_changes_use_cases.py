@@ -270,7 +270,7 @@ class New(unittest.TestCase):
         for values, words in (({"ref": "3.3"}, changes.UC_NAME_WORDS), ({"ref": "3.3", "title": "  "}, changes.UC_NAME_WORDS),
                               ({"title": "No ref"}, changes.UC_REF_WORDS), ({"ref": "x" * 21, "title": "T"}, changes.UC_REF_WORDS),
                               ({"ref": "3.\n4", "title": "T"}, changes.UC_REF_WORDS),
-                              ({"ref": "3.4", "title": "T", "status": "Done"}, changes.UC_STATUS_WORDS),
+                              ({"ref": "3.4", "title": "T", "status": "Finished"}, changes.UC_STATUS_WORDS),
                               ({"ref": "3.4", "title": "T" * 121}, changes.UC_NAME_WORDS)):
             with self.subTest(values=values):
                 before = len(self.s.read("use_cases", "ABC"))
