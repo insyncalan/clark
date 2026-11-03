@@ -80,7 +80,7 @@ class Allowed(Api):
             self.assertFalse(any(never in fields for ops in changes.CHANGE_KINDS.values() for fields in ops.values()), never)
         self.assertEqual([(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields],
                          [(KIND, "update")])             # a body is written by one request only: a section's update, and then only for a needs or tracker section
-        self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk"})      # #196: + bulk
+        self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk", "handover"})      # #196: + bulk; #199: + handover
 
     def test_the_route_admits_only_the_approved_kinds(self):
         """#45 (Full tier, approved) added glance_tiles and projects (test_changes_tiles holds their tests) and #67 the eye,
@@ -91,7 +91,7 @@ class Allowed(Api):
             ops = set(changes.CHANGE_KINDS[kind])
             want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases", "documents") else set())
             self.assertEqual(ops, want | ({"new"} if kind in changes.NEWABLE + ("use_cases", "documents") else set())      # #67: a row can be added to four kinds; #455: and a use case (its own writer); #74: + a document link
-                             | ({"bulk"} if kind in changes.ITEM_KINDS else set()))           # #196: only the work items take a bulk change
+                             | ({"bulk", "handover"} if kind in changes.ITEM_KINDS else set()))     # #196, #199: only the work items take a bulk change or a hand over
             self.assertEqual(set(changes.CHANGE_KINDS[kind]["archive"]) | set(changes.CHANGE_KINDS[kind]["restore"]), set())
         for kind in ("workstreams", "labels", "links", "report_sections ", "",
                      "REPORT_SECTIONS", "report_sections; DROP TABLE x"):
@@ -993,9 +993,9 @@ class ByUser(Api):
                          "Someone Else")
 
 
-ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description"},
-               "raid": {"status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description"},
-               "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision"}}      # #67: + the title
+ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "client_visible"},
+               "raid": {"status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_visible"},
+               "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision", "client_visible"}}      # #67: + the title; #97: + the eye
 
 
 class Items(Api):
@@ -1063,17 +1063,19 @@ class Items(Api):
     def test_the_fields_are_columns_and_priority_and_archived_are_never_in_the_wrong_list(self):
         columns = {k: set(store_module.columns(self.s.con, k)) for k in changes.ITEM_KINDS}
         for kind, fields in ITEM_FIELDS.items():
-            self.assertEqual(set(changes.CHANGE_KINDS[kind]), {"update", "archive", "restore", "new", "bulk"}, kind)      # #67: + new; #196: + bulk
+            self.assertEqual(set(changes.CHANGE_KINDS[kind]), {"update", "archive", "restore", "new", "bulk", "handover"}, kind)      # #67: + new; #196: + bulk; #199: + handover
             self.assertTrue(set(changes.CHANGE_KINDS[kind]["bulk"]) <= columns[kind], kind)
             for never in ("archived", "id", "project", "type", "client_visible", "closed", "description", "decision"):
                 self.assertNotIn(never, changes.CHANGE_KINDS[kind]["bulk"], (kind, never))
             self.assertEqual(set(changes.CHANGE_KINDS[kind]["update"]), fields, kind)
             self.assertTrue(fields <= columns[kind], kind)
             self.assertTrue(set(changes.ITEM_SHOWN[kind]) <= columns[kind], kind)
-            for never in ("archived", "id", "project", "type", "client_visible", "closed"):
+            for never in ("archived", "id", "project", "type", "closed"):
                 self.assertNotIn(never, fields, (kind, never))
         self.assertNotIn("priority", changes.CHANGE_KINDS["raid"]["update"])
         self.assertNotIn("priority", changes.CHANGE_KINDS["raid"]["bulk"])
+        self.assertEqual({k: changes.CHANGE_KINDS[k]["handover"] for k in changes.ITEM_KINDS},
+                         {"actions": ("owner",), "raid": ("owner",), "decisions": ("made_by",)})     # #199: who has it, and nothing else
 
     def test_one_request_with_several_fields_is_one_step_and_one_undo(self):
         body = self.go("actions", self.a, status="Closed", workstream=None)
@@ -1217,7 +1219,7 @@ class Items(Api):
 
     def test_unknown_and_never_fields_are_refused(self):
         self.no(self.item("actions", self.a, client_message="x"), "The field 'client_message' can't be set here.")
-        self.no(self.item("actions", self.a, client_visible=0), "The field 'client_visible' can't be set here.")
+        self.no(self.item("actions", self.a, client_message="x", client_visible=0), "The field 'client_message' can't be set here.")
         self.no(self.item("actions", self.a, closed="2026-10-02"), "The field 'closed' can't be set here.")
         self.no(self.item("actions", self.a, project="XYZ"), "The field 'project' can't be set here.")
         self.no(self.item("actions", self.a, id="ABC-A-099"), "The field 'id' can't be set here.")
