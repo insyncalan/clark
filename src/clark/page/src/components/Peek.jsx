@@ -11,6 +11,7 @@ import { data, rows, peek, openPeek, closePeek, mode, fromFile } from "../stores
 import { width, wide, setWidth, resetWidth, MIN, peekTab } from "../stores/peekState.js";
 import { staleWords, notReviewed } from "../filters.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso } from "../workItems.js";
+import { slideOut } from "../peek/exit.js";
 import { itemIds, milestoneIds, around, placeIn } from "../peek/list.js";
 import { Icon } from "./Icon.jsx";
 import { wordsOpen, flashed } from "../stores/wordsState.js";
@@ -195,6 +196,7 @@ export function Peek({ tools }) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [p && p.id, !!Words]);                               // eslint-disable-line react-hooks/exhaustive-deps
+  if (!p) slideOut(box.current);                          // closed: the panel slides out (a copy of it; the live one is gone)
   if (!p || !data.value) return null;
   const milestone = p.kind === "milestone";
   const row = milestone ? null : rows.value.find((r) => r.id === p.id);
