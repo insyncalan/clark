@@ -6,6 +6,8 @@ exactly the rows the file kept. Source tests pin the tab rule; the browser test 
 server, at 1400 and 900 px, light and dark, and reads the page as the client does.
 """
 import json
+import os
+import shutil
 import subprocess
 import tempfile
 import time
@@ -35,6 +37,9 @@ def shown(pub, editing=False, mutate=None):
     if mutate:
         mutate(d)
     expr = f"CR.sectionsShown({json.dumps(d)}, true, {json.dumps(editing)}, {json.dumps(pub['as_at'] or '2026-10-20')})"
+    # clark itself needs no Node, only this test does: on a computer without it the test is skipped; in CI (CI is set) a missing Node still fails.
+    if shutil.which("node") is None and not os.environ.get("CI"):
+        raise unittest.SkipTest("node is not installed on this computer (CI has it)")
     done = subprocess.run(["node", "-e", bundled(MODULE, "CR") + f";console.log(JSON.stringify({expr}))"], capture_output=True, text=True)
     assert done.returncode == 0, done.stderr
     return json.loads(done.stdout)

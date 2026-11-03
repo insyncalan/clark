@@ -14,6 +14,7 @@ import hashlib
 import io
 import os
 import platform
+import socket
 import subprocess
 import sys
 import tarfile
@@ -28,6 +29,7 @@ SHA256 = {"darwin-arm64": "1980cde09749094452b20d36ff267585ccb3f72749c7bc97291cd
           # linux-arm64, 25-10-2026: `npm pack` of the pinned version; its sha512 equals the registry's dist.integrity
           "linux-arm64": "a96dbfa41d3ef5dbd1ef22b1c10d5187be9267e86093a870f06402a7ec931596"}
 MEMBER = "package/bin/esbuild"
+FETCH_TIMEOUT = 120      # seconds, for the download (and curl's --max-time)
 CACHE = Path(__file__).resolve().parents[1] / ".cache" / "esbuild"
 
 
@@ -54,17 +56,28 @@ def tarball_url(key):
     return f"https://registry.npmjs.org/@esbuild/{key}/-/{key}-{PINNED}.tgz"
 
 
+_TIMED_OUT = "the esbuild download timed out; check the network and try again"
+
+
 def fetch(url):
     """The bytes at `url`. Python first; if it can't verify the certificate (python.org's Python without its
     certificates), curl, which uses the system's trusted certificates. Verification stays on either way, and the hash
     is checked after (verify)."""
     try:
-        with urllib.request.urlopen(url, timeout=120) as r:
+        with urllib.request.urlopen(url, timeout=FETCH_TIMEOUT) as r:
             return r.read()
+    except (socket.timeout, TimeoutError):
+        raise EsbuildError(_TIMED_OUT) from None
     except urllib.error.URLError as e:
+        if isinstance(e.reason, (socket.timeout, TimeoutError)):
+            raise EsbuildError(_TIMED_OUT) from None
         if "CERTIFICATE_VERIFY_FAILED" not in str(e):
             raise
-    return subprocess.run(["curl", "-fsSL", "--max-time", "120", url], capture_output=True, check=True).stdout
+    try:
+        return subprocess.run(["curl", "-fsSL", "--max-time", str(FETCH_TIMEOUT), url], capture_output=True, check=True,
+                              timeout=FETCH_TIMEOUT + 10).stdout
+    except subprocess.TimeoutExpired:
+        raise EsbuildError(_TIMED_OUT) from None
 
 
 def verify(data, key):

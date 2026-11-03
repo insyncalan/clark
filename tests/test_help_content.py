@@ -8,6 +8,7 @@ or names creaite is in helpHeld.json, which the page never loads, and none of it
 """
 import json
 import re
+import pathlib
 import unittest
 
 from _paths import ROOT
@@ -24,9 +25,9 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # 'Source folders for ask clark' is the name the product's Settings card still has; the prototype's card is now "Asking" (#170),
 # and the product build renames it (#47).
 # 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
-# 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) and 'Shown to client' (the tag on a work item row, components/WorkItems.jsx) are read on the page itself; the prototype words them differently
+# 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) is read on the page itself; the prototype words it differently. 'Shown to client' left this list with the tag on a work item row (#456: the eye column says it, and Help no longer bolds it)
 # 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
-CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'Shown to client', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
+CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -396,6 +397,20 @@ class HelpMatchesThePage(unittest.TestCase):
         self.assertIn('DELETABLE = ["text", "needs"]', gutter)
         arrange = next(t for t in STEPS if t["id"] == "arrange-the-report")
         self.assertIn("for a text section or the Needs from you section, **Delete section**", " ".join(arrange["s"]))
+
+
+class CalendarKeysHelp(unittest.TestCase):
+    """#481: the Milestones entry names the calendar's keys, and each one is a key the calendar handles (so Help says only what the page does)."""
+
+    def test_the_calendar_line_names_the_keys_the_page_handles(self):
+        ROOT = pathlib.Path(__file__).resolve().parent.parent
+        code = (ROOT / "src" / "clark" / "page" / "src" / "components" / "MsCalendar.jsx").read_text(encoding="utf-8")
+        task = next(t for t in STEPS if t["t"] == "Read the timeline and calendar")
+        line = next(x for x in task["s"] if x.startswith("With the keyboard, [[Tab]] reaches the calendar"))
+        for key, handled in (("[[Left]]", "ArrowLeft"), ("[[Right]]", "ArrowRight"), ("[[Up]]", "ArrowUp"), ("[[Down]]", "ArrowDown"),
+                             ("[[Enter]]", "Enter"), ("[[Esc]]", "Escape"), ("[[Shift+Tab]]", "shiftKey")):
+            self.assertIn(key, line)
+            self.assertIn(handled, code, f"Help names {key} but the calendar does not handle {handled}")
 
 
 if __name__ == "__main__":

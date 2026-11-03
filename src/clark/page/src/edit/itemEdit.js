@@ -3,7 +3,7 @@
 // later. A change is sent through api.js as kind actions, raid or decisions, op update (clark/changes.py, #68): only
 // the fields it accepts are named here. A RAID item's priority comes from its impact and likelihood and a decision has none, so
 // their Priority cell is not a picker.
-import { dueField, showDate, dayNumber } from "../workItems.js";
+import { dueField, showDate, dayNumber, colourOf, pillOf } from "../workItems.js";
 
 export const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
 const STATUSES = {
@@ -40,16 +40,24 @@ export function statusChoices(row) {
   return row.kind === "decision" && row.status === "Made" ? all.filter((s) => s !== "Pending") : all.slice();
 }
 
-// The Status cell in Edit shows the status itself, the word its picker offers, so a pick and the cell always say the same:
-// Open and Pending blue, Delayed amber, Made green, Closed, Cancelled and Withdrawn grey. (View keeps #36's pills, where a late
-// action reads Overdue and an open risk its colour.)
-const STATUS_TONE = { Open: "b", Pending: "b", Delayed: "a", Made: "g", Closed: "n", Cancelled: "n", Withdrawn: "n" };
+// #448 (row 54): the Status cell in Edit shows the live look, as the prototype's C.look does and View's pill does: a pick redraws it
+// from the reply at once. An open risk or issue reads its colour (Red, Amber, Green), a late action Overdue, Delayed amber, Made
+// green; Closed, Cancelled and Withdrawn are grey. The picker still offers, and its toast still says, the status words.
 
-/** The Status cell's pill in Edit: {text, class}, with the item's own status as its word. */
-export function statusPill(row) {
-  const s = String(row.status == null ? "" : row.status);
-  return { text: s, class: STATUS_TONE[s] || "n" };
-}
+/** The Status cell's pill in Edit: {text, class}, the item's live look (the same as View's). `today` is YYYY-MM-DD. */
+export function statusPill(row, today) { return pillOf(row, today); }
+
+// D-12: a risk's or issue's rating is worked out from its impact and likelihood, so a colour is picked by setting those two:
+// Red is High impact with Medium likelihood (High priority), Amber Medium and Medium, Green Low and Low.
+export const RATINGS = { Red: { impact: "High", likelihood: "Medium" }, Amber: { impact: "Medium", likelihood: "Medium" }, Green: { impact: "Low", likelihood: "Low" } };
+
+/** The Rating section of a risk's or issue's status picker: the three colours, whatever its status (#448, as the prototype), or
+ * none for any other item (an action, a decision, an assumption, a dependency), as clark/changes.py refuses. */
+export function ratingChoices(row) { return RATED.includes(row.kind) ? Object.keys(RATINGS) : []; }
+const RATED = ["risk", "issue"];
+
+/** The field a pick belongs to: the picker's Rating entries are sent as `rating:Red`, `rating:Amber` or `rating:Green`. */
+export function pickField(field, value) { return field === "status" && /^rating:/.test(String(value)) ? "rating" : field; }
 
 /** The small print under a status in the picker: Made is the one pick that can't be undone. */
 export function statusNote(row, status) {
@@ -72,7 +80,7 @@ export function canClearDue(row) { return !(row.kind === "decision" && row.statu
 export function fieldName(row, field) {
   if (field === "owner") return row.kind === "decision" ? "Decider" : "Owner";
   if (field === "due") return row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date";
-  return field === "priority" ? "Priority" : "Status";
+  return field === "priority" ? "Priority" : field === "rating" ? "Rating" : "Status";
 }
 
 /**
@@ -112,6 +120,13 @@ export function changeFor(row, field, value, today) {
     if (value === row.priority) return null;
     const back = row.priority ? `Priority of ${row.id} is back to ${row.priority}.` : `Priority of ${row.id} is blank again.`;
     return { changes: { priority: value }, words: `Priority of ${row.id} changed to ${value}.`, back };
+  }
+  if (field === "rating") {
+    const word = String(value).replace(/^rating:/, "");
+    if (!ratingChoices(row).length || !RATINGS[word]) return { error: "Only a risk or an issue has a rating. Pick Red, Amber or Green." };
+    const now = colourOf(row.priority);
+    if (now.word === word) return null;
+    return { changes: { ...RATINGS[word] }, words: `${row.id} rated ${word}.`, back: `${row.id} is back to ${now.word}.` };
   }
   if (field === "status") {
     if (!statusChoices(row).includes(value)) return { error: "That status isn't one this item can have, so nothing was changed. Pick one from the list." };
