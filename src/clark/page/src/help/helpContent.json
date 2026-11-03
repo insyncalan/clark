@@ -1051,12 +1051,8 @@
       ],
       [
        [
-        "Type",
-        "Action, Risk, Issue, Assumption, Dependency or Decision"
-       ],
-       [
         "Item",
-        "The title, then the ID, use case, milestone and workstream, and a **Shown to client** tag"
+        "A letter for the kind of item (the letters are listed in [Types, statuses and colours](#ref-status-words)), the title, then the ID, use case, milestone and workstream"
        ],
        [
         "Owner",
@@ -1073,6 +1069,10 @@
        [
         "Status",
         "The state in words and colour: in View, the pill; in Edit, the status itself; see [Status words](#ref-status-words)"
+       ],
+       [
+        "Client-visible (the eye)",
+        "Whether the client sees the item. Open eye: shown to the client. Crossed-out eye: internal only. It follows the item’s client flag, the hidden list and Sensitive labels together, so an item with a Sensitive label shows crossed out. In View it is a mark only; in Edit, select it to turn the item on or off, with **Undo**"
        ]
       ]
      ],
@@ -1232,8 +1232,41 @@
       ]
      ],
      [
+      "tbl",
+      [
+       "Letter",
+       "Kind of item"
+      ],
+      [
+       [
+        "A",
+        "Action"
+       ],
+       [
+        "R",
+        "Risk"
+       ],
+       [
+        "I",
+        "Issue"
+       ],
+       [
+        "D",
+        "Decision"
+       ],
+       [
+        "S",
+        "Assumption (this letter waits for the owner to confirm)"
+       ],
+       [
+        "P",
+        "Dependency (this letter waits for the owner to confirm)"
+       ]
+      ]
+     ],
+     [
       "p",
-      "A risk or issue’s colour follows its priority, which is set from impact and likelihood. Priorities are Urgent, High, Medium and Low."
+      "The letter shows before the title in the Work items table. A risk or issue’s colour follows its priority, which is set from impact and likelihood. Priorities are Urgent, High, Medium and Low."
      ],
      [
       "p",

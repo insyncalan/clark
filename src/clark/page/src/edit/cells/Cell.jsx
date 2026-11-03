@@ -13,7 +13,7 @@ import { itemRows } from "../../stores/work.js";
 import { cellPlan } from "../bulkLogic.js";
 import { ask, runBulk } from "../Bulk.jsx";
 import { todayIso } from "../../workItems.js";
-import { canPick, changeFor, fieldName, people, statusPill, tableOf, whyFixed } from "../itemEdit.js";
+import { canPick, changeFor, pickField, fieldName, people, statusPill, tableOf, whyFixed } from "../itemEdit.js";
 import { OwnerPick } from "./OwnerPick.jsx";
 import { DuePick } from "./DuePick.jsx";
 import { PriorityPick } from "./PriorityPick.jsx";
@@ -45,7 +45,8 @@ export function Cell({ row, field, said, children }) {
   const close = (back) => { if (openCell.value === k) openCell.value = ""; if (back && button.current) button.current.focus(); };
   const pick = (value) => {
     // #196: on a row that is one of two or more selected, the pick changes that field of every selected row, and says so first.
-    const chosen = workSelection.ids.value, plan = chosen.length >= 2 ? cellPlan(row.id, field, itemRows.value.filter((r) => chosen.includes(r.id))) : null;
+    // D-12: a Rating pick (`rating:Red`) is about this one risk or issue, never the bulk status change, so it skips the plan.
+    const chosen = workSelection.ids.value, plan = chosen.length >= 2 && pickField(field, value) !== "rating" ? cellPlan(row.id, field, itemRows.value.filter((r) => chosen.includes(r.id))) : null;
     if (plan && plan.why) { if (field === "owner") return plan.why; close(true); say("note", plan.why); return ""; }
     if (plan) {
       if (field === "owner" && !String(value == null ? "" : value).trim()) return "An owner can't be blank. Type a name, or TBC if no one is known yet.";
@@ -54,7 +55,7 @@ export function Cell({ row, field, said, children }) {
       return "";
     }
     const today = todayIso();
-    const c = changeFor(row, field, value, today);
+    const c = changeFor(row, pickField(field, value), value, today);
     if (c && c.error) return c.error;
     close(true);
     if (c) changeCell(tableOf(row), row.id, c.changes, { text: c.words, back: c.back, always: row.kind === "decision" && field === "status" && value === "Made" }).then(() => refocus(k));
