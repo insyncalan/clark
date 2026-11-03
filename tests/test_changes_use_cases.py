@@ -242,7 +242,7 @@ class NoCreateNoDelete(unittest.TestCase):
 
 
 class New(unittest.TestCase):
-    """#455: Add use case on the dashboard: one new use case through the one writer, on the dashboard, with no Undo (a use case is
+    """#455: Add use case on the dashboard: one new use case through the one writer, hidden from the client (eye off), with no Undo (a use case is
     archived, never deleted)."""
     def setUp(self):
         self.demo = DemoStore()
@@ -253,14 +253,14 @@ class New(unittest.TestCase):
     def add(self, values, project="ABC"):
         return self.change({"project": project, "kind": "use_cases", "op": "new", "values": values})
 
-    def test_a_new_use_case_has_its_id_from_clark_its_reference_and_is_on_the_dashboard(self):
+    def test_a_new_use_case_has_its_id_from_clark_its_reference_and_starts_hidden_from_the_client(self):
         status, body = self.add({"ref": "3.1", "title": "Report checks", "status": "Flag", "headline": "Two left"})
         self.assertEqual((status, body["ok"], body["apply_id"], body["undoable"]), (200, True, None, False), body)
         row = self.s.read("use_cases", ref=body["ref"])
         self.assertRegex(body["ref"], r"^ABC-U-\d{3}$")
         self.assertEqual((row["ref"], row["title"], row["status"], row["headline"], row["client_visible"], row["project"]),
-                         ("3.1", "Report checks", "Flag", "Two left", 1, "ABC"))
-        self.assertEqual(body["use_case"]["ref"], "3.1")
+                         ("3.1", "Report checks", "Flag", "Two left", 0, "ABC"))
+        self.assertEqual((body["use_case"]["ref"], body["use_case"]["client_visible"]), ("3.1", 0), "the reply says the eye is off")
         self.assertGreater(row["sort_order"], self.s.read("use_cases", ref=self.demo.use_case)["sort_order"])    # the end of the list
 
     def test_status_and_headline_default_and_the_name_is_needed(self):
@@ -319,15 +319,33 @@ class New(unittest.TestCase):
         live = [r for r in self.s.read("use_cases", "ABC", archived=False) if r["ref"] == "7.1"]
         self.assertEqual(len(live), 1)
 
-    def test_client_visible_is_set_to_on_by_the_writer(self):
-        """#455: set explicitly (on), not left to the table default; it is in the step's own rows."""
-        _, body = self.add({"ref": "8.1", "title": "On the page"})
+    def test_client_visible_is_set_to_off_by_the_writer(self):
+        """#455 (the owner, 03-11-2026): a new use case is hidden from the client by default. Set explicitly (off), not left to the table
+        default (on, which existing and imported use cases keep); it is in the step's own rows."""
+        _, body = self.add({"ref": "8.1", "title": "Off the page"})
         con = sqlite3.connect(str(self.s.path))
         try:
             rows = con.execute("SELECT field, new_value FROM change_log WHERE tbl = 'use_cases' AND item_id = ?", (body["ref"],)).fetchall()
         finally:
             con.close()
-        self.assertIn(("client_visible", "1"), rows)
+        self.assertIn(("client_visible", "0"), rows)
+        self.assertEqual(self.s.read("use_cases", ref=body["ref"])["client_visible"], 0)
+
+    def test_existing_use_cases_are_unchanged_by_an_add(self):
+        """#455: only the new row starts hidden; no existing use case's eye (or anything else) is touched, and the table default stays on."""
+        before = {r["id"]: dict(r) for r in self.s.read("use_cases", "ABC")}
+        self.assertEqual(self.add({"ref": "8.2", "title": "Another"})[0], 200)
+        after = {r["id"]: dict(r) for r in self.s.read("use_cases", "ABC")}
+        self.assertEqual({k: after[k] for k in before}, before)
+        self.assertEqual(len(after), len(before) + 1)
+        with self.s.step("dashboard", USER) as st:
+            made = st.create("use_cases", {"project": "ABC", "title": "From an import", "status": "On track", "ref": "8.3", "source": "demo"})
+        self.assertEqual(self.s.read("use_cases", ref=made)["client_visible"], 1, "the table's own default is left as it was")
+
+    def test_turning_the_eye_on_puts_a_new_use_case_on_the_dashboard(self):
+        _, body = self.add({"ref": "8.4", "title": "Shown later"})
+        status, got = self.change({"project": "ABC", "kind": "use_cases", "op": "update", "id": body["ref"], "changes": {"client_visible": 1}})
+        self.assertEqual((status, got["ok"]), (200, True), got)
         self.assertEqual(self.s.read("use_cases", ref=body["ref"])["client_visible"], 1)
 
     def test_the_step_is_logged_under_its_own_apply_id_and_has_no_undo(self):

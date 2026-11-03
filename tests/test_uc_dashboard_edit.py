@@ -14,6 +14,7 @@ from test_glance_page import Published, Setup, tearDownModule  # noqa: F401
 from test_server import chrome
 
 PICKER = "Add a use case from your project record"
+ADDED = "Use case 3.1 added, hidden from the client until its eye is turned on. Archive it from the Use cases page if it is not wanted."
 
 
 class Edit(Setup):
@@ -105,7 +106,7 @@ class Edit(Setup):
             self.assertEqual(self.row(self.demo.use_case)["title"], "Invoice matching, live")
             self.assertEqual(p.js("!!document.querySelector('.ucdetail')"), True, "the row stays open after a save")
 
-    def test_add_use_case_opens_the_box_adds_it_on_the_dashboard_and_opens_its_row(self):
+    def test_add_use_case_opens_the_box_and_adds_it_hidden_from_the_client(self):
         with chrome() as cdp:
             p = self.edit(cdp)
             self.click(p, "#ucAdd")
@@ -129,12 +130,47 @@ class Edit(Setup):
             p.js("document.querySelector('#ucF').requestSubmit()")
             p.until("!document.querySelector('#ucF')", "the box closed")
             # a new use case is archived, never deleted, so its toast has no Undo (saved() waits for one): wait for its words
-            p.until("(document.querySelector('.toast-text') || {}).textContent === 'Use case 3.1 added. Archive it from the Use cases page if it is not wanted.'", "the added toast")
+            p.until("(document.querySelector('.toast-text') || {}).textContent === " + json.dumps(ADDED), "the added toast")
             made = {r["ref"]: r for r in self.store.read("use_cases", "ABC")}["3.1"]
-            self.assertEqual((made["title"], made["status"], made["headline"], made["client_visible"]), ("Report checks", "Flag", "Two checks left", 1))
-            p.until("document.querySelectorAll('.ucrow').length === 3", "the row is on the dashboard")
-            p.until("!!document.querySelector('.ucdetail .ucx-in')", "its row opened")
-            self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "3 use cases")
+            # #455 (the owner, 03-11-2026): a new use case is hidden from the client by default (eye off): it is not on the dashboard,
+            # it is counted in "from your project record", and the use cases already there are as they were
+            self.assertEqual((made["title"], made["status"], made["headline"], made["client_visible"]), ("Report checks", "Flag", "Two checks left", 0))
+            p.until("document.querySelector('[data-uc-back]').textContent === '+ Add a use case from your project record (3)'", "the new one is counted as off")
+            self.assertEqual(p.js("document.querySelectorAll('.ucrow').length"), 2, "the new one is not on the dashboard")
+            self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "2 use cases")
+            self.assertEqual((self.row(self.uc3)["client_visible"], self.row(self.uc4)["client_visible"]), (0, 0))
+
+    def test_a_new_use_case_is_hidden_at_each_width_and_theme_and_turning_its_eye_on_shows_it(self):
+        """#455: at 1400 and 900 px, light and dark: the toast says the new use case is hidden from the client; it is off the
+        dashboard and counted in "from your project record" until it is picked (the picker turns its eye on)."""
+        n = 0
+        for width in (1400, 900):
+            for dark in (False, True):
+                n += 1
+                ref = f"7.{n}"
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    p = self.edit(cdp, width, dark)
+                    off = p.js("document.querySelector('[data-uc-back]').textContent")
+                    self.click(p, "#ucAdd")
+                    p.until("!!document.querySelector('#ucF')", "the box")
+                    self.type_in(p, "#ucI", ref)
+                    self.type_in(p, "#ucT", f"Hidden {ref}")
+                    p.js("document.querySelector('#ucF').requestSubmit()")
+                    p.until("!document.querySelector('#ucF')", "the box closed")
+                    want = ADDED.replace("3.1", ref)
+                    p.until("(document.querySelector('.toast-text') || {}).textContent === " + json.dumps(want), "the hidden toast")
+                    made = {r["ref"]: r for r in self.store.read("use_cases", "ABC")}[ref]
+                    self.assertEqual(made["client_visible"], 0)
+                    p.until("document.querySelector('[data-uc-back]').textContent !== " + json.dumps(off), "the count went up")
+                    self.assertEqual(p.js("document.querySelectorAll('.ucrow').length"), 2 + n - 1, "not on the dashboard")
+                    self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True, "no sideways scroll")
+                    self.click(p, "[data-uc-back]")
+                    p.until("!!document.querySelector('form.picker')", "the picker")
+                    p.js("document.querySelector('form.picker .pick input[value=\"%s\"]').click()" % made["id"])
+                    p.js("document.querySelector('form.picker button[type=submit]').click()")
+                    p.until("!document.querySelector('form.picker')", "the picker closed")
+                    p.until("document.querySelectorAll('.ucrow').length === %d" % (2 + n), "on the dashboard once its eye is on")
+                    self.assertEqual(self.store.read("use_cases", ref=made["id"])["client_visible"], 1)
 
     def test_an_id_already_used_is_not_added(self):
         with chrome() as cdp:
