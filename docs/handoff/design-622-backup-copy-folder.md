@@ -34,7 +34,7 @@ Refused, in plain words ending "Nothing was changed.", with nothing written:
 - not an absolute path (or `~`), or longer than 1,000 characters, or holding a control character;
 - the live data folder, inside it, or the live backups folder (compared after following links, so a shortcut does not get round it);
 - a file where the folder should be, or a folder this account cannot write to;
-- a folder that does not exist and cannot be made (a missing last folder is made, never anything above it that is a file).
+- a folder that does not exist and cannot be made (a missing folder is made when it is chosen, never later).
 
 OneDrive is allowed here, on purpose. Because the setting file can also be edited by hand, the same checks run again at every
 copy, and a failure is a warning, never a stop.
