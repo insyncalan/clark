@@ -65,7 +65,8 @@ class Migrated(Rig):
         copy = s.migration_backup
         s.close()
         decoy = backup.make(self.db, self.data / "backups", [], "migrate")        # newer, taken of the already migrated data
-        self.assertGreater(Path(decoy).name, Path(copy).name)
+        order = [e.name for e in backup.entries(self.data / "backups") if e.tag == "migrate"]
+        self.assertEqual([Path(copy).name, Path(decoy).name], order)              # the decoy is the newest, by the order retention uses
         self.make(version="0.3.1").settle()
         self.assertEqual(Path(copy).name, ui.last_update(self.data)[1]["migration"]["backup"])
 
@@ -79,8 +80,12 @@ class Migrated(Rig):
         now = self.make(version="0.3.1")
         now.settle()
         self.assertIsNone(ui.last_update(self.data)[1]["migration"]["backup"])
-        status, said = now.arm_undo({})
-        self.assertNotEqual(200, status)
+        started = len(self.started)
+        armed = now.arm_undo({})[1]
+        status, said = now.undo({"arm_id": armed["arm_id"]})                      # the copy is looked for when the undo starts
+        self.assertEqual((409, "data_gone"), (status, said["code"]))
+        self.assertEqual(started, len(self.started))                              # nothing was handed over
+        self.assertEqual(str(store_module.SCHEMA_VERSION), version(self.db))      # and the data was not touched
 
     def test_an_update_that_kept_the_layout_records_no_migration_and_keeps_the_old_undo(self):
         self.db.unlink()
