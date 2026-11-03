@@ -18,9 +18,10 @@ import { isOpen, pillOf, dueCell, ownerOf, sortRows, showDate, todayIso, plural 
 import { initial, setFilter } from "../filters.js";
 import { refOf } from "../logic/useCasesList.js";
 
-const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];
+const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
-const NAME_MAX = 120, HEAD_MAX = 300, SHOW = 8;
+export const NAME_MAX = 120, HEAD_MAX = 300;
+const SHOW = 8;
 const EYE = { on: "On the dashboard", off: "Not on the dashboard" };
 
 const refWords = (u) => refOf(u) || "Use case";
@@ -66,7 +67,7 @@ function whatWas(h) {
 
 // A one-line or short text field changed in place: a text box that looks like the text it holds. Enter saves it, so does leaving
 // it; Esc puts the old text back. It grows with what is typed and never scrolls sideways. `ro` draws the text as text.
-function Line({ value, label, cls, field, max, empty, ro, onSave, problem }) {
+export function Line({ value, label, cls, field, max, empty, ro, onSave, problem }) {
   const el = useRef(null), cancelled = useRef(false), now = useRef(value);
   now.current = value;
   const fit = () => { const t = el.current; if (t) { t.style.height = "auto"; t.style.height = `${t.scrollHeight}px`; } };
@@ -207,9 +208,9 @@ export function UseCaseDetail({ id }) {
         <div class="ucd-main">
           <section class="ucd-card" aria-labelledby="ucd-h-std">
             <h2 id="ucd-h-std" class="ucd-ch"><span>Where it stands</span>{!ro ? <span class="ucd-hint">Click the text to change it</span> : null}</h2>
-            {!ro ? <RichField field="standing" id={u.id} value={u.standing} label={`where ${refWords(u)} stands`} empty="Nothing written yet. Click to write."
+            {!ro ? <RichField field="standing" id={u.id} value={u.standing} label={`where ${refWords(u)} stands`} empty="Not written yet. Click to write."
               save={(html) => send({ standing: html }, "Text saved.")} />
-              : safe(u.standing) ? <div class="prose ucd-std" dangerouslySetInnerHTML={{ __html: safe(u.standing) }} /> : <p class="muted">Nothing written yet.</p>}
+              : safe(u.standing) ? <div class="prose ucd-std" dangerouslySetInnerHTML={{ __html: safe(u.standing) }} /> : <p class="muted">Not written yet.</p>}
           </section>
           <section class="ucd-card" aria-labelledby="ucd-h-work">
             <h2 id="ucd-h-work" class="ucd-ch"><span>Work items</span>

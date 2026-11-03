@@ -12,6 +12,7 @@ import re
 import unittest
 
 from _paths import SRC
+from _new_page import reload_to_new_page
 from test_publish_dialog import Base, PAGE_SRC
 from test_server import chrome
 
@@ -94,7 +95,7 @@ class Appearance(Base):
                 p.width(w)
                 self.open_menu(p)
                 roles = p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')})")
-                self.assertEqual(roles[:6], ["menuitem", "menuitem", "menuitem", "menuitem", "separator", "group"])
+                self.assertEqual(roles[:7], ["menuitem", "menuitem", "menuitem", "menuitem", "menuitem", "separator", "group"])     # Publish, Preview, Export, Published reports (#443), Settings, Help
                 self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
                                  "presentation,menuitemradio,menuitemradio,menuitemradio", "the label and the three radios are one group")
                 self.assertEqual(p.js("document.querySelectorAll('#profile-menu .lab')[0].textContent"), "Appearance", "the group has the same name in the menu as in Settings")
@@ -122,7 +123,7 @@ class Appearance(Base):
             p.js("document.querySelector('#profile-menu [data-kind=look-dark]').click()")
             p.until("document.documentElement.dataset.theme === 'dark'", "Dark applied")
             self.assertEqual(p.js("localStorage.getItem('clark.appearance')"), "dark")
-            p.js("location.reload()")
+            reload_to_new_page(p.js)
             p.until("!!document.querySelector('#profile-btn') && document.documentElement.dataset.theme === 'dark'", "Dark again after a reload")
             self.open_menu(p)
             self.assertEqual(self.in_menu(p), ["Dark"])
