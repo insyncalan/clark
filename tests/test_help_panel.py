@@ -16,6 +16,7 @@ import unittest
 from pathlib import Path
 
 from _paths import SRC, TOOLS  # noqa: F401  (puts src/ on the path)
+from _new_page import reload_to_new_page
 from test_report_editor import ALT, Base, Pg  # noqa: F401
 from clark import page
 from _help_shown import shown_content
@@ -175,9 +176,8 @@ class Panel(Base):
             p.js("window.clarkPage.help.close()")
             p.js("window.clarkPage.help.open()")
             p.until("document.querySelector('#hpTab-howto') && document.querySelector('#hpTab-howto').getAttribute('aria-selected') === 'true'", "opened on the tab used last")
-            p.js("window.__old_document = true")
-            p.js("location.reload()")
-            p.until_new_page("window.__old_document === undefined && !!window.clarkPage && !!document.querySelector('#report')", "reloaded")
+            reload_to_new_page(p.js)
+            p.until("!!window.clarkPage && !!document.querySelector('#report')", "reloaded")
             p.key("?", code="Slash", vk=191)
             p.until("!!document.querySelector('#hpTab-howto') && document.querySelector('#hpTab-howto').getAttribute('aria-selected') === 'true'", "a reload still opens on the tab used last")
             p.js("window.clarkPage.show('work')")
