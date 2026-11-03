@@ -74,10 +74,22 @@
 .pa-what ins { color: var(--status-green-text); text-decoration: underline; }
 .pa-none { padding: var(--space-3) 0; margin: 0; }
 
+/* The right-click menu on a work item (#97): the ordinary menu box, placed where the pointer or the row is. An entry that can't be
+   used shows its reason under it; the arrow marks an entry that opens a short list. */
+.rowmenu { position: fixed; z-index: 36; }
+.rowmenu .ddmenu { position: static; min-width: 240px; max-width: min(340px, calc(100vw - 16px)); }
+.rowmenu [role="menuitem"] { display: flex; align-items: center; gap: 8px; }
+.rowmenu [role="menuitem"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.rowmenu .rm-t { flex: 1; min-width: 0; }
+.rowmenu .rm-t small { display: block; font-size: 13px; color: var(--text-muted); }
+.rowmenu .rm-go { flex: none; width: 14px; height: 14px; color: var(--text-muted); }
+.rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
+.rowmenu .ddmenu { max-height: calc(100vh - 16px); overflow-y: auto; }
+
 /* Changing several work items at once (#196): the bar's buttons wrap at 900 px, the "N items" menu, and the question. Tokens only. */
 .selbar { flex-wrap: wrap; row-gap: 6px; }
 .sb-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.sb-a { padding: 3px 10px; min-height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: 13px; cursor: pointer; }
+.sb-a { padding: 3px 10px; min-height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-caption); cursor: pointer; }
 .sb-a:hover { border-color: var(--grey-500); }
 .sb-a:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .sb-a[aria-disabled="true"] { color: var(--text-muted); border-style: dashed; cursor: default; }
@@ -125,7 +137,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-head { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex: none; height: 60px; padding: 0 14px 0 20px; color: var(--white); background-color: var(--brand-navy); background-image: linear-gradient(90deg, var(--brand-navy), var(--bar-end)); }
 .ask-head::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--image-cover) center top / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .9; }
 .ask-head-btns { display: flex; gap: 8px; }
-.ask-head h2 { margin: 0; font-size: 18px; font-weight: var(--weight-medium); letter-spacing: .01em; color: var(--white); }
+.ask-head h2 { margin: 0; font-size: var(--size-h3); font-weight: var(--weight-medium); letter-spacing: .01em; color: var(--white); }
 .ask-head .btn { background: transparent; color: var(--white); border-color: color-mix(in srgb, var(--white) 70%, transparent); }
 .ask-head .btn:hover { background: color-mix(in srgb, var(--white) 14%, transparent); border-color: var(--white); }
 .ask-head .btn:focus-visible { outline-color: var(--white); }
@@ -477,6 +489,8 @@ textarea.tpl-field { resize: vertical; }
 .docs-left summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 .docs-left-list { list-style: none; margin: var(--space-1) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .docs-left-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
+.docs-arch-text { min-width: 0; }                 /* #455: an archived document's title and its "Archived · kind · date" line */
+.docs-arch-text .tpl-facts { color: var(--text-muted); }
 
 /* The bar above the page (A-D2): the week, where the report stands, and in Edit the notes. Tokens only. */
 .rbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 12px; font-size: var(--size-small); color: var(--text-muted); }
@@ -505,14 +519,14 @@ textarea.tpl-field { resize: vertical; }
 .tracker-edit .t-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px 10px; margin: 0 0 8px; }
 .tracker-edit .t-f-text { grid-column: span 2; }
 .tracker-edit .t-f { display: flex; flex-direction: column; gap: 2px; margin: 0; }
-.tracker-edit .t-fl { font-size: 13px; color: var(--text-muted); }
+.tracker-edit .t-fl { font-size: var(--size-caption); color: var(--text-muted); }
 .tracker-edit .t-f input, .tracker-edit .t-f select { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .tracker-edit .t-f input:focus-visible, .tracker-edit .t-f select:focus-visible, .tracker-edit .t-check input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .tracker-edit .t-overall-edit { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin: 0 0 14px; }
 .tracker-edit .t-overall-edit .t-f { width: 140px; }
 .tracker-edit .t-overall-edit .t-f-note { width: 280px; max-width: 100%; }
 .tracker-edit .t-cols { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
-.tracker-edit .t-check { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; }
+.tracker-edit .t-check { display: inline-flex; align-items: center; gap: 4px; font-size: var(--size-small); }
 .tracker-edit .t-err { margin: 4px 0; font-size: var(--size-small); color: var(--status-red-text); }
 .tracker-edit .t-name-form { display: inline-flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 10px; }
 .tracker-edit .t-name-form .t-f, .tracker-edit .t-new-group .t-f { width: 260px; max-width: 100%; }
