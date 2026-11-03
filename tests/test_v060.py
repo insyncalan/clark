@@ -472,7 +472,8 @@ class GeneratedPages495(unittest.TestCase):
         self.need()
         src = read(self.INIT)
         self.assertIn("class _file_lock", src)
-        self.assertIn("fcntl.flock(self.f, fcntl.LOCK_EX)", src)
+        self.assertIn("fcntl.flock(self.f, fcntl.LOCK_EX | fcntl.LOCK_NB)", src, "the wait is bounded: it polls")
+        self.assertIn("LOCK_WAIT", src)
         self.assertIn("_build_lock = threading.Lock()", src)
         body = src[src.index("def ensure_built"):]
         body = body[:body.index("DEMO_OPEN")]
