@@ -86,7 +86,7 @@ def lines(project, sections, tiles, exported, by=None, owner=None, email=None, i
     sections the report_sections rows in order: type, title, body (HTML), hidden
     tiles    glance.tiles(...) output (the editor's, with `hidden`): title, value, detail, tile, reason
     exported the words for the export's date and time, for example excel.exported_text()
-    by       the name that exported it (Settings › Profile); owner, email: who the file goes back to
+    by       the name that exported it (Settings › Personal › About you); owner, email: who the file goes back to
     internal the INTERNAL sentence (excel.INTERNAL_NOTE): the title band's tag and the last line of the About block"""
     name = str(project.get("name") or project.get("code") or "").strip()
     title = _line("title", cut(name, 200))
