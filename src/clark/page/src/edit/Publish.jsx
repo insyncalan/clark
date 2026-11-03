@@ -6,7 +6,8 @@ import { useEffect, useRef } from "preact/hooks";
 import { data, project } from "../stores/report.js";
 import { Icon } from "../components/Icon.jsx";
 import { showDate } from "../workItems.js";
-import { dialog, latest, pdfInfo, NO_FOLDER_LEAD, NO_FOLDER_LINK, toPublishingCard, folderName, open, close, tick, tickPdf, tickWord, wordPick, wordConfirm, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
+import { dialogLine } from "./publishLine.js";
+import { dialog, latest, next, pdfInfo, NO_FOLDER_LEAD, NO_FOLDER_LINK, toPublishingCard, folderName, open, close, tick, tickPdf, tickWord, wordPick, wordConfirm, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
 import { WordClash } from "./WordClash.jsx";
 import { WordLayer } from "./Word.jsx";
 
@@ -39,13 +40,12 @@ function Dialog() {
     if (target) target.focus();
   }, [s.phase, s.phase === "clash" ? s.choice : ""]);
   const working = s.phase === "working", clash = s.clash;
-  const stateWords = lastLine(latest.value);
   return (
     <dialog id="publish-dialog" class="dlg" aria-labelledby="pub-title" ref={el} onCancel={(e) => { e.preventDefault(); cancel(); }}>
       <form class="dlg-form" onSubmit={(e) => { e.preventDefault(); go(); }}>
         <h2 id="pub-title">{s.phase === "clash" ? clash.title : s.phase === "wordclash" ? "The Word file name is taken" : "Publish the report"}</h2>
         {s.phase === "clash" || s.phase === "wordclash" ? null : (
-          <p class="muted dlg-sub">{p ? p.name : project.value}{p && p.week_ending ? ` · week ending ${showDate(p.week_ending)}` : ""}{stateWords ? ` · ${stateWords}` : ""}</p>
+          <p class="muted dlg-sub" id="pub-sub">{dialogLine(p ? p.name : project.value, p && p.week_ending, next.value, latest.value, showDate)}</p>
         )}
         {s.phase === "wordclash" ? (
           <>
