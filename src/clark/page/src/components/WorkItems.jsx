@@ -226,6 +226,7 @@ export function WorkItems({ tools }) {
   const board = !!Board && work.value.view === "board";
   // Coming back to Work items: the project's line is the one kept in this session (the address holds the older form of it).
   useEffect(() => { if (L) L.restore(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  const Arch = tools && tools.ArchivedItems && !fromFile.value, Pill = Arch && tools.ArchivedPill ? tools.ArchivedPill : null;   // B-5: Edit parts only
   return (
     <section class={`frame work${fromFile.value ? " pub" : ""}`} id="work">
       <p class="crumbs">{d.project.name}</p>
@@ -249,17 +250,17 @@ export function WorkItems({ tools }) {
         : <>
             {!L
               ? <>
-                  <Switches><GroupBy board={board} /><SearchBox />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
+                  <Switches>{Pill ? <Pill /> : null}<GroupBy board={board} /><SearchBox />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
                   <FilterBar />
                   <PublishedList Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} />
                 </>
               : <>
-                  <Switches L={L}><GroupBy board={board} />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
+                  <Switches L={L}>{Pill ? <Pill /> : null}<GroupBy board={board} />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
                   <FilterLine />
                   <List Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} L={L} />
                 </>}
           </>}
-      {tools && tools.ArchivedItems && !fromFile.value ? <tools.ArchivedItems /> : null}   {/* B-5: Edit parts only; a published file carries no archived row */}
+      {Arch ? <tools.ArchivedItems pill={allRows.value.length === 0} /> : null}   {/* B-5: the pill is in the bar; a published file carries no archived row */}
     </section>
   );
 }
