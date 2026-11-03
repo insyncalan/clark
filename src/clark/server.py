@@ -26,6 +26,8 @@ Routes:
 - GET  /api/publications ?project=<CODE>: the newest 10 publications with number, time, where and who (#443; past_reports.py); no path, no hash
 - GET  /api/past-report  ?project=<CODE>&number=<N>: checks that publication's kept copy and answers a one-visit address (#443)
 - GET  /past             ?id=<from /api/past-report>: that kept page as it was published, once, local only (#443)
+- GET  /api/as-at        ?project=<CODE>&date=<YYYY-MM-DD>: the project's data as at the end of that day, rebuilt from the change
+                         history in a copy, read only, never published (#349; as_at.py); without the seam, not found
 - GET  /api/backups      the backups newest first, a status line, the daily-copy warning (#111; safety.py)
 - POST /api/backups/preview  {name}: counts in a backup and now, from a temporary copy
 - POST /api/backups/restore  {name, last_step}: put a backup back (one writer at a time, never waiting)
@@ -585,6 +587,25 @@ def past_route(method):
     return route
 
 
+def as_at_route(handler):
+    """GET /api/as-at?project=<CODE>&date=<YYYY-MM-DD> (#349): the project's data as at the end of that day, rebuilt from the change
+    history. The server's `as_at` (as_at.AsAt) answers (status, body); it reads clark.db on a read-only connection and rebuilds in a
+    copy of its own, so it never writes. Without the seam the route is not there (404). No body is accepted (400); each parameter
+    once and nothing else (400); the seam checks the code and the day."""
+    seam = getattr(handler.server, "as_at", None)
+    if seam is None:
+        return handler.send(404, error_body("not_found"))
+    if handler.headers.get("Content-Length") not in (None, "0") or handler.headers.get("Transfer-Encoding"):
+        return handler.send(400, error_body("bad_request"))
+    query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
+    if set(query) != {"project", "date"} or any(len(v) != 1 for v in query.values()):
+        return handler.send(400, error_body("bad_request"))
+    if not PROJECT_CODE.fullmatch(query["project"][0]):
+        return handler.send(400, error_body("bad_project_code"))
+    status, body = seam.read(query["project"][0], query["date"][0])
+    return handler.send(status, body)
+
+
 def past_page_route(handler):
     """GET /past?id=: a kept page, once (#443). A new tab can't send the token, so the address itself is the one-visit secret (made by
     GET /api/past-report); the Host and Origin checks are as everywhere, the id is the one parameter, and what is sent is the kept
@@ -963,7 +984,7 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/diagnostics": logs_route("diagnostics"),
-              "/api/publications": past_route("listing"), "/api/past-report": past_route("open")}
+              "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
@@ -1179,7 +1200,7 @@ class LocalServer(ThreadingHTTPServer):
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None,
-                 people=None, people_undo=None, people_list=None, section_image=None, past=None):
+                 people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -1205,6 +1226,7 @@ class LocalServer(ThreadingHTTPServer):
         self.ask = ask                        # ask_service.AskService (#47): questions; None: the ask routes answer 404
         self.ai = ai                          # ai_service.AiService (#72): AI suggestions, on the ask service's provider; None: 404
         self.past = past                      # past_reports.PastReports (#443): the Published reports list and Open; None: those routes answer 404
+        self.as_at = as_at                    # as_at.AsAt (#349): the dashboard as at a day, rebuilt from the history, read only; None: 404
         super().__init__(server_address, handler)
 
     def server_bind(self):
@@ -1238,7 +1260,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None,
-          people=None, people_undo=None, people_list=None, section_image=None, past=None):
+          people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
@@ -1247,7 +1269,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, ai=ai,
-                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, past=past)
+                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, past=past, as_at=as_at)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)

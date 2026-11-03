@@ -1621,6 +1621,55 @@ def _typed(con, table, changes):
     return out
 
 
+def rewound_copy(path, dest, until):
+    """#349: a copy of clark.db at `dest` (a new file in a temporary folder of the caller's) as it stood just before `until`
+    ('YYYY-MM-DD HH:MM:SS', UTC, as change_log writes it), for the Dashboard as at a day (as_at.py). Read only as far as clark.db
+    goes: it is read on a read-only connection and copied with SQLite's backup; every write below is to the copy. In the copy,
+    every change_log row at or after `until` is undone, newest first: a changed field gets its old value back, a row made since is
+    taken out, and a row deleted since is put back from the copy of it the log keeps (REMOVED). Then the log, its events and its steps
+    from `until` on are dropped from the copy, so a reader of history (freshness) sees it as it was. A change the copy will not take
+    back (a built-in label's guard, a value an older rule allowed) is left as it is now."""
+    src = connect(path, readonly=True)
+    try:
+        out = sqlite3.connect(str(dest), isolation_level=None)
+        try:
+            src.backup(out)
+        finally:
+            out.close()
+    finally:
+        src.close()
+    con = sqlite3.connect(str(dest), isolation_level=None)
+    con.row_factory = sqlite3.Row
+    try:
+        con.execute("PRAGMA foreign_keys = OFF")          # in the copy only: a row comes back before the row it refers to does
+        con.execute("BEGIN")
+        have = {}
+        for r in con.execute("SELECT rowid, tbl, item_id, field, old_value, op FROM change_log WHERE at >= ? ORDER BY rowid DESC",
+                             (until,)).fetchall():
+            table, key, f = r["tbl"], r["item_id"], r["field"]
+            if table not in TABLES or len(key_values(table, key)) != len(KEYS[table]):
+                continue
+            cols = have.setdefault(table, set(columns(con, table)))
+            try:
+                if f == REMOVED:                          # deleted since: put back as the log kept it
+                    row = {k: v for k, v in json.loads(r["old_value"] or "{}").items() if k in cols}
+                    if row and fetch(con, table, key) is None:
+                        _insert_sql(con, table, row)
+                elif r["op"] == OP_MADE:                  # made since: not there yet
+                    con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
+                elif f in cols:
+                    con.execute(f"UPDATE {_table(table)} SET {f} = ? WHERE {where_key(table)}",
+                                [_typed(con, table, {f: r["old_value"]})[f], *key_values(table, key)])
+            except (sqlite3.DatabaseError, ValueError):
+                continue
+        con.execute("DELETE FROM item_events WHERE at >= ?", (until,))
+        con.execute("DELETE FROM change_log WHERE at >= ?", (until,))
+        con.execute("DELETE FROM applies WHERE at >= ?", (until,))
+        con.execute("COMMIT")
+    finally:
+        con.close()
+
+
 # ── The store ─────────────────────────────────────────────────────────────────
 
 def connect(path, readonly=False, existing=False):

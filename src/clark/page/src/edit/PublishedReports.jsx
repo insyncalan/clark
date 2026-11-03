@@ -9,6 +9,7 @@ import { openInNewTab } from "../router.js";
 import { dialog } from "./publishState.js";
 import { listPublications, readyPast } from "./pastReportsApi.js";
 import * as L from "../logic/pastReports.js";
+import { AsAtPick } from "./AsAtPick.jsx";            // #349: the Dashboard as at a day, under the list
 
 const REAL = { list: listPublications, ready: readyPast };
 
@@ -24,7 +25,7 @@ export function showPublished() {
   }, 60);
 }
 
-export function PublishedReports({ api = REAL, openTab = openInNewTab, code = project.value, name }) {
+export function PublishedReports({ api = REAL, openTab = openInNewTab, code = project.value, name, withAsAt = true }) {
   const [state, setState] = useState({ phase: "loading", list: null, message: "" });
   const [msg, setMsg] = useState(null);                      // {kind: "error" | "note", text}
   const [busy, setBusy] = useState(0);                       // the number being opened, or 0
@@ -84,6 +85,7 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
         </>
       ) : null}
       <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg ? <p class={msg.kind}>{msg.text}</p> : null}</div>
+      {withAsAt ? <AsAtPick code={code} /> : null}
     </section>
   );
 }
