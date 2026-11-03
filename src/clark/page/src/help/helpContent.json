@@ -55,11 +55,11 @@
   "first": [
    {
     "t": "Say who you are",
-    "d": "In [Settings › Profile](go:settings#profile), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
+    "d": "In [Settings › Personal › About you](go:settings#personal), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
    },
    {
     "t": "Pick a project",
-    "d": "The project name in the top bar switches projects. **New project…** in the same menu adds one."
+    "d": "The project name in the top bar switches projects."
    },
    {
     "t": "Bring in the work",
@@ -231,7 +231,7 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
-     "Set **Week ending** to the Friday the report covers (press Enter in the empty box to use this week’s Friday; clark only takes a Friday). The cover shows it as “Week ending Friday 30 October 2026”.",
+     "Set **Week ending** to the Friday the report covers (press Enter in the empty box to use this week’s Friday; any other day is not accepted). The cover shows it as “Week ending Friday 30 October 2026”.",
      "Click the text under **Current state** and write where the project stands. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] cancels.",
      "Write **Summary**, **This week** and **Next week** the same way. In an empty section, type [[/]] and choose **Draft with AI** for a first draft from the project.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
@@ -572,7 +572,7 @@
      "The **Timeline** scrolls sideways. The arrows move along it and **Today** comes back. Drag its bottom edge to zoom in or out; **Reset** puts it back.",
      "A slipped milestone keeps its mark on the agreed date, with a dashed ring where it is now expected and a dashed line between them.",
      "The two buttons at the top right, **Timeline** and **Calendar**, switch between them. Your choice is kept.",
-     "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. Tab to a day, then [[Left]] and [[Right]] move by a day, [[Up]] and [[Down]] by a week, [[Enter]] goes to its first milestone and [[Esc]] comes back. In Quarter, click a month’s name to open that month.",
+     "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. In Quarter, click a month’s name to open that month.",
      "**Legend**, at the right under the milestones, explains every mark when you point at it or tab to it.",
      "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all** shows the rest. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept."
     ],
@@ -646,15 +646,15 @@
      "A new project opens on Work items, ready for an import.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Source folders for ask clark** and its **Publishing** folders.",
-     "The project name in the top bar switches projects, shows each one’s open items, and has **New project…** and **Project settings**."
+     "The project name in the top bar switches projects, shows each one’s open items, and has **Project settings**."
     ]
    },
    {
     "id": "set-your-profile",
     "g": "Settings and safety",
     "t": "Set your profile",
-    "w": "Settings › Profile",
-    "go": "settings#profile",
+    "w": "Settings › Personal › About you",
+    "go": "settings#personal",
     "s": [
      "Fill in your **Name**, **Alias**, **Email**, **Phone number** and **Organisation**.",
      "Each saves when you leave the box (or press [[Enter]]), with **Undo**.",
@@ -711,7 +711,7 @@
       "ul",
       [
        "**The logo** (or clark’s icon and name): back to the Dashboard.",
-       "**The project name**: switch projects. Each shows its count of open items; **New project…** and **Project settings** are at the foot.",
+       "**The project name**: switch projects. Each shows its count of open items; **Project settings** is at the foot.",
        "**Dashboard**, **Work items** and **Milestones**: the three screens.",
        "**ask clark**: opens the assistant down the right. The [[/]] beside it is its key.",
        "**The profile circle**: your initials (a person icon until you add your name). See [The profile circle](#ref-profile-circle)."
@@ -1161,7 +1161,7 @@
      ],
      [
       "p",
-      "Passwords and keys: a question, or a passage from a source folder, that looks like a password or a key is not sent. A password or key with a name in front of it is not sent when its value looks like one: letters mixed with digits or symbols, or a word in quotes. A plain word with nothing else in it, typed after the name without quotes, is still sent, because clark cannot tell it from an ordinary word. Take any real password out of a question before you send it."
+      "Passwords and keys: a question, or a passage from a source folder, that looks like a password or a key is not sent. A password or key with a name in front of it is not sent when its value looks like one: letters mixed with digits or symbols, or a word in quotes. A plain word with nothing else in it, typed after the name without quotes, is still sent, because clark cannot tell it from an ordinary word. A short mixed value typed after “api key” or “access key” (such as v2beta3) is not sent, on purpose, even when it is not a key. Take any real password out of a question before you send it."
      ]
     ]
    },
@@ -1675,7 +1675,7 @@
       "ul",
       [
        "There is no Save button. Each change is written when you make it: a pick from a menu, [[Enter]] in a field, leaving a box, or closing an editor.",
-       "Each change records who made it (your full name from Settings › Profile, or “You”), how (by hand, in words, imported, ask clark), what it was and what it became.",
+       "Each change records who made it (your full name from Settings › Personal › About you, or “You”), how (by hand, in words, imported, ask clark), what it was and what it became.",
        "**Undo** in the message reverses exactly that step. Several changes made together undo together."
       ]
      ]
@@ -1690,7 +1690,7 @@
       "ul",
       [
        "Dates are shown day, month, year: DD-MM-YYYY.",
-       "The week ends on a Friday, everywhere. **Week ending** must be a Friday: clark says no to another day and names the Friday to pick. In Work items, **This week** runs from today to Friday; on a Saturday or Sunday it runs to the coming Friday.",
+       "The week ends on a Friday, everywhere. **Week ending** must be a Friday. Any other day is not accepted, and the message names the Friday to pick. In Work items, **This week** runs from today to Friday; on a Saturday or Sunday it runs to the coming Friday.",
        "IDs: actions CODE-A-001, decisions CODE-D-001, risks, issues, assumptions and dependencies CODE-001, milestones CODE-M-001. Actions, decisions, and everything numbered CODE-001 share one numbering, so CODE-A-002 and CODE-002 never both exist. CODE is the project’s short code.",
        "Use cases keep the ID you give them, such as 3.1."
       ]

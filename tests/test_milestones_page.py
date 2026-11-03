@@ -79,10 +79,6 @@ class Rules(unittest.TestCase):
               lines: MS.labelLines([0, 10, 20, 300, 305], 136),
               near: [MS.neighbour("month", "2026-12-15", 1), MS.neighbour("week", "2026-10-28", -1), MS.neighbour("quarter", "2026-10-28", -1),
                      MS.neighbour("month", "2100-12-31", 1), MS.neighbour("month", "2000-01-01", -1), MS.neighbour("week", "2100-12-31", 1)],
-              step: [["2026-10-28", "ArrowLeft"], ["2026-10-28", "ArrowRight"], ["2026-10-28", "ArrowUp"], ["2026-10-28", "ArrowDown"], ["2026-10-31", "ArrowRight"],
-                     ["2026-11-01", "ArrowLeft"], ["2026-10-28", "PageDown"], ["2026-10-28", "PageUp"], ["2026-10-28", "j"], ["2100-12-31", "ArrowRight"], ["2000-01-01", "ArrowUp"], ["nonsense", "ArrowRight"]].map(([d, k]) => MS.dayStep(d, k)),
-              tab: (() => { const m = MS.buckets("month", "2026-10-28", "2026-10-28")[0], q = MS.buckets("quarter", "2026-10-28", "2026-10-28")[0], w = MS.buckets("week", "2026-10-28", "2026-10-28")[0];
-                return [MS.tabDay(m, "2026-10-05", "2026-10-28"), MS.tabDay(m, "2026-11-05", "2026-10-28"), MS.tabDay(m, "", "2026-11-28"), MS.tabDay(m, "", ""), MS.tabDay(q, "2026-12-01", "x"), MS.tabDay(w, "", "2026-10-28"), MS.tabDay(w, "", "2026-11-28")]; })(),
               inPeriod: MS.periodChips(chips0, MS.buckets("month", "2026-12-01", "2026-12-01")[0]).map((c) => c.id),
             };
         }""" + ")(" + json.dumps({"cases": CASES, "today": TODAY, "from": "2026-10-28", "to": "2027-03-02"}) + ")")
@@ -153,12 +149,6 @@ class Rules(unittest.TestCase):
 
     def test_the_period_list_holds_the_chips_of_that_period_by_date(self):
         self.assertEqual(self.js["inPeriod"], ["X-M-001", "X-M-015", "X-M-002", "X-M-016"])
-
-    def test_an_arrow_moves_a_day_or_a_week_into_the_next_period_and_stops_at_the_ends(self):
-        self.assertEqual(self.js["step"], ["2026-10-27", "2026-10-29", "2026-10-21", "2026-11-04", "2026-11-01", "2026-10-31", None, None, None, None, None, None])
-
-    def test_each_period_has_one_tab_stop_the_chosen_day_else_today_else_its_first_day(self):
-        self.assertEqual(self.js["tab"], ["2026-10-05", "2026-10-28", "2026-10-01", "2026-10-01", "2026-12-01", "2026-10-28", "2026-10-26"])
 
     def test_the_rules_never_read_the_clock_or_the_page(self):
         text = MODULE.read_text(encoding="utf-8")
@@ -305,6 +295,26 @@ class RealBrowser(unittest.TestCase):
     def title(self, cdp, sid):
         return cdp.js("document.querySelector('.cal-t').textContent", sid)
 
+    def press(self, cdp, sid, name, shift=False, target=None):
+        """A keydown on the element that has focus (or on `target`, a selector), as a person's key would reach it (#481)."""
+        who = "document.activeElement" if target is None else f"document.querySelector('{target}')"
+        cdp.js(f"({who}).dispatchEvent(new KeyboardEvent('keydown', {{key: '{name}', shiftKey: {str(shift).lower()}, bubbles: true, cancelable: true}}))", sid)
+        time.sleep(0.05)
+
+    def focus_day(self, cdp, sid, iso):
+        cdp.js(f"document.querySelector('.cal-d[data-d=\"{iso}\"]').focus()", sid)
+
+    def where(self, cdp, sid):
+        """The day that has focus, else the class of what has."""
+        return cdp.js("(() => { const a = document.activeElement; return a ? (a.dataset && a.dataset.d) || a.className || a.tagName : ''; })()", sid)
+
+    def stops(self, cdp, sid):
+        return cdp.js("[...document.querySelectorAll('.cal-d[data-d]')].filter(d => d.tabIndex === 0).map(d => d.dataset.d)", sid)
+
+    def scale(self, cdp, sid, name):
+        cdp.js(f"document.querySelector('[data-scale-b={name}]').click()", sid)
+        self.assertTrue(wait(lambda: cdp.js("document.querySelector('.cal').dataset.scale", sid) == name))
+
     def test_the_scale_is_remembered_for_the_place_and_not_for_another(self):
         port = self.serve()
         with chrome() as cdp:
@@ -325,11 +335,12 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('.cal').getAttribute('role')", sid), "group", "a name needs a role")
             self.assertEqual(cdp.js("document.querySelector('.cal').getAttribute('aria-label')", sid), "Milestone calendar", "short name")
             self.assertIsNone(cdp.js("document.querySelector('.cal').getAttribute('title')", sid), "the hint is not repeated in a tooltip")
-            hint = cdp.js("(() => { const c = document.querySelector('.cal'); const h = document.getElementById(c.getAttribute('aria-describedby')); "
+            hint = cdp.js("(() => { const d = [...document.querySelectorAll('.cal-d[data-d]')].filter(x => x.tabIndex === 0); "
+                          "const h = d.length === 1 ? document.getElementById(d[0].getAttribute('aria-describedby')) : null; "
                           "return h ? [h.textContent, h.className] : null; })()", sid)
-            self.assertIsNotNone(hint, "the hint is described by an element")
-            self.assertNotIn("Page", hint[0], "the prototype has no Page Up or Page Down")
-            self.assertIn("arrows", hint[0])
+            self.assertIsNotNone(hint, "the hint is described by an element, on the one day that is a tab stop (#481)")
+            self.assertIn("Page Down", hint[0])
+            self.assertIn("Enter", hint[0])
             self.assertIn("sr-only", hint[1])
             self.assertEqual(cdp.js("document.querySelector('[data-cal-say]').textContent", sid), "", "nothing announced on load")
             self.assertEqual(cdp.js("document.querySelector('[data-cal-say]').getAttribute('aria-live')", sid), "polite")
@@ -395,7 +406,8 @@ class RealBrowser(unittest.TestCase):
         port = self.serve()
         with chrome() as cdp:
             sid = self.open_calendar(cdp, port)
-            self.later(cdp, sid, 40)
+            for _ in range(40):
+                self.key(cdp, sid, "PageDown")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-cal-empty]')", sid)), "an empty period")
             text = cdp.js("document.querySelector('[data-cal-empty]').textContent", sid)
             self.assertTrue(text.startswith("No milestones in this period."))
@@ -408,17 +420,21 @@ class RealBrowser(unittest.TestCase):
         port = self.serve()
         with chrome() as cdp:
             sid = self.open_calendar(cdp, port)
-            for sel, want in (('1', "November 2026"), ('1', "December 2026"), ('-1', "November 2026"), ('-1', "October 2026")):
-                cdp.js(f"document.querySelector('[data-cal=\"{sel}\"]').click()", sid)
-                self.assertTrue(wait(lambda: self.title(cdp, sid) == want), f"the button {sel} gives {want}")
+            for name, want in (("PageDown", "November 2026"), ("PageDown", "December 2026"), ("PageUp", "November 2026"), ("PageUp", "October 2026")):
+                self.key(cdp, sid, name)
+                self.assertTrue(wait(lambda: self.title(cdp, sid) == want), f"{name} gives {want}")
+            self.key(cdp, sid, "ArrowRight")                  # #481: an arrow on the calendar itself no longer steps a period; it moves a day, from a day
+            time.sleep(0.2)
+            self.assertEqual(self.title(cdp, sid), "October 2026")
             cdp.js("document.querySelector('[data-scale-b=week]').click()", sid)
             self.assertTrue(wait(lambda: self.title(cdp, sid) == "Week of 26-10-2026"))
-            cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
+            self.key(cdp, sid, "PageDown")
             self.assertTrue(wait(lambda: self.title(cdp, sid) == "Week of 02-11-2026"))
             self.assertEqual(cdp.js("document.querySelectorAll('[data-cal-far]').length", sid), 0)
             cdp.js("document.querySelector('[data-scale-b=quarter]').click()", sid)
             self.assertTrue(wait(lambda: self.title(cdp, sid) == "Q4 2026"))
-            self.later(cdp, sid, 300)
+            for _ in range(300):
+                self.key(cdp, sid, "PageDown")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-cal-far]')", sid)), "the range message")
             self.assertIn("Go back to today", cdp.js("document.querySelector('[data-cal-far]').textContent", sid))
             far_title = self.title(cdp, sid)
@@ -427,94 +443,6 @@ class RealBrowser(unittest.TestCase):
             self.assertTrue(wait(lambda: self.title(cdp, sid) == "Q4 2026"))
             self.assertEqual(cdp.js("document.querySelectorAll('[data-cal-far]').length", sid), 0)
 
-    def press(self, cdp, sid, name, shift=False):
-        """A key pressed on whatever has focus, as a person's would be (it bubbles up to the calendar)."""
-        cdp.js(f"document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {{key: '{name}', shiftKey: {str(shift).lower()}, bubbles: true, cancelable: true}}))", sid)
-        time.sleep(0.05)
-
-    def on_day(self, cdp, sid):
-        return cdp.js("(() => { const a = document.activeElement; return a && a.classList.contains('cal-d') ? a.dataset.d : (a && a.classList.contains('cal-ms') ? 'chip:' + a.closest('.cal-d').dataset.d : null); })()", sid)
-
-    def test_each_day_is_a_tab_stop_with_arrows_by_day_and_week_enter_to_the_chip_and_esc_back(self):
-        for width in (1400, 900):
-            for theme in ("light", "dark"):
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
-                    sid = self.view(cdp, width, theme)
-                    self.assertEqual(cdp.js("document.querySelector('.cal').getAttribute('tabindex')", sid), "-1", "the calendar itself is not a tab stop")
-                    self.assertEqual(cdp.js("[...document.querySelectorAll('.cal-d[data-d][tabindex=\"0\"]')].map(d => d.dataset.d)", sid), [TODAY], "one day is the tab stop: today")
-                    self.assertEqual(cdp.js("document.querySelectorAll('.cal-d[data-d]:not([tabindex=\"0\"])').length === document.querySelectorAll('.cal-d[data-d]').length - 1", sid), True)
-                    cdp.js("document.querySelector('[data-cal=\"0\"]').focus()", sid)
-                    stops = []
-                    for _ in range(12):                                # real Tabs: a chip is a button, so it is a stop too (as in the prototype); the only day that is one is today
-                        if self.on_day(cdp, sid) == TODAY:
-                            break
-                        for kind in ("rawKeyDown", "keyUp"):
-                            cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Tab", "code": "Tab", "windowsVirtualKeyCode": 9}, sid)
-                        time.sleep(0.05)
-                        stops.append(self.on_day(cdp, sid))
-                    self.assertEqual(self.on_day(cdp, sid), TODAY, "Tabbing on from the bar lands on today")
-                    self.assertTrue(all(s.startswith("chip:") for s in stops[:-1] if s), f"between the bar and today the only calendar stops are chips, not other days: {stops}")
-                    ring = cdp.js("(() => { const s = getComputedStyle(document.activeElement); return [document.activeElement.matches(':focus-visible'), s.outlineStyle, parseFloat(s.outlineWidth)]; })()", sid)
-                    self.assertTrue(ring[0]); self.assertEqual(ring[1], "solid"); self.assertGreaterEqual(ring[2], 2)
-                    for key, want in (("ArrowRight", "2026-10-29"), ("ArrowLeft", TODAY), ("ArrowUp", "2026-10-21"), ("ArrowDown", TODAY)):
-                        self.press(cdp, sid, key)
-                        self.assertTrue(wait(lambda: self.on_day(cdp, sid) == want), f"{key} goes to {want}")
-                    self.assertEqual(self.title(cdp, sid), "October 2026", "inside the month the period stays")
-                    self.assertEqual(cdp.js(f"document.querySelector('.cal-d[data-d=\"{TODAY}\"]').getAttribute('tabindex')", sid), "0")
-                    self.press(cdp, sid, "ArrowDown")                   # 04-11-2026: the next month, drawn, with focus on the day
-                    self.assertTrue(wait(lambda: self.on_day(cdp, sid) == "2026-11-04"))
-                    self.assertEqual(self.title(cdp, sid), "November 2026")
-                    self.assertEqual(cdp.js("document.querySelector('[data-cal-say]').textContent", sid), "Now on November 2026")
-                    self.press(cdp, sid, "ArrowUp")
-                    self.assertTrue(wait(lambda: self.on_day(cdp, sid) == TODAY))
-                    self.assertEqual(self.title(cdp, sid), "October 2026")
-                    self.press(cdp, sid, "Enter")                       # the 28th holds a chip: Enter goes to it
-                    self.assertTrue(wait(lambda: self.on_day(cdp, sid) == "chip:" + TODAY))
-                    self.press(cdp, sid, "Escape")
-                    self.assertTrue(wait(lambda: self.on_day(cdp, sid) == TODAY), "Esc goes back to the day")
-                    self.press(cdp, sid, "Enter")
-                    self.assertTrue(wait(lambda: self.on_day(cdp, sid) == "chip:" + TODAY))
-                    self.press(cdp, sid, "Tab", shift=True)
-                    self.assertTrue(wait(lambda: self.on_day(cdp, sid) == TODAY), "Shift+Tab goes back to the day")
-                    cdp.js("document.querySelector('.cal-d[data-d=\"2026-10-07\"]').focus()", sid)
-                    self.press(cdp, sid, "Enter")
-                    self.assertEqual(self.on_day(cdp, sid), "2026-10-07", "Enter on a day with no chip stays on the day")
-
-    def test_the_arrows_work_in_week_and_quarter_and_stop_at_the_ends(self):
-        for width in (1400, 900):
-            for theme in ("light", "dark"):
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
-                    sid = self.view(cdp, width, theme)
-                    cdp.js("document.querySelector('[data-scale-b=week]').click()", sid)
-                    self.assertTrue(wait(lambda: self.title(cdp, sid) == "Week of 26-10-2026"))
-                    cdp.js(f"document.querySelector('.cal-d[data-d=\"{TODAY}\"]').focus()", sid)
-                    self.press(cdp, sid, "ArrowDown")
-                    self.assertTrue(wait(lambda: self.on_day(cdp, sid) == "2026-11-04"))
-                    self.assertEqual(self.title(cdp, sid), "Week of 02-11-2026")
-                    cdp.js("document.querySelector('[data-scale-b=quarter]').click()", sid)
-                    self.assertTrue(wait(lambda: self.title(cdp, sid) == "Q4 2026"))
-                    cdp.js(f"document.querySelector('.cal-d[data-d=\"2026-12-31\"]').focus()", sid)
-                    self.press(cdp, sid, "ArrowRight")
-                    self.assertTrue(wait(lambda: self.on_day(cdp, sid) == "2027-01-01"))
-                    self.assertEqual(self.title(cdp, sid), "Q1 2027")
-                    self.assertEqual(cdp.js("document.querySelectorAll('.cal-d[data-d][tabindex=\"0\"]').length", sid), 1)
-
-    def test_switching_scale_always_lands_on_the_current_period(self):
-        for width in (1400, 900):
-            for theme in ("light", "dark"):
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
-                    sid = self.view(cdp, width, theme)
-                    for _ in range(3):
-                        before = self.title(cdp, sid)
-                        cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
-                        self.assertTrue(wait(lambda: self.title(cdp, sid) != before))
-                    self.assertEqual(self.title(cdp, sid), "January 2027")
-                    for scale, label in (("quarter", "Q4 2026"), ("week", "Week of 26-10-2026"), ("month", "October 2026")):
-                        cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)           # wander off, then switch
-                        cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
-                        cdp.js(f"document.querySelector('[data-scale-b={scale}]').click()", sid)
-                        self.assertTrue(wait(lambda: self.title(cdp, sid) == label), f"{scale} opens on {label}")
-
     def view(self, cdp, width, theme):
         port = self.serve()
         sid = self.visit(cdp, width, "#milestones&p=MOSS", port)
@@ -522,10 +450,6 @@ class RealBrowser(unittest.TestCase):
         cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal')", sid)))
         return sid
-
-    def later(self, cdp, sid, n):
-        for _ in range(n):
-            cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
 
     def active(self, cdp, sid):
         return cdp.js("(() => { const a = document.activeElement; return a ? (a.classList.contains('cal') ? 'cal' : a.tagName) : 'none'; })()", sid)
@@ -536,10 +460,10 @@ class RealBrowser(unittest.TestCase):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     sid = self.view(cdp, width, theme)
                     cdp.js("document.querySelector('.cal').focus()", sid)
-                    for sel in ("1", "-1", "1"):
-                        cdp.js(f"document.querySelector('[data-cal=\"{sel}\"]').click()", sid)
+                    for name in ("PageDown", "PageDown", "PageUp"):
+                        self.key(cdp, sid, name)
                         time.sleep(0.15)
-                        self.assertEqual(self.active(cdp, sid), "cal", f"the button {sel} keeps focus on the calendar")
+                        self.assertEqual(self.active(cdp, sid), "cal", f"{name} keeps focus on the calendar")
                     cdp.js("document.querySelector('[data-scale-b=quarter]').click()", sid)
                     self.assertTrue(wait(lambda: cdp.js("document.querySelector('.cal').dataset.scale", sid) == "quarter"))
                     cdp.js("document.querySelector('.cal-qm').focus()", sid)
@@ -547,9 +471,11 @@ class RealBrowser(unittest.TestCase):
                     self.assertTrue(wait(lambda: cdp.js("document.querySelector('.cal').dataset.scale", sid) == "month"))
                     time.sleep(0.2)
                     self.assertEqual(self.active(cdp, sid), "cal", "a Quarter month click keeps focus on the calendar")
-                    self.later(cdp, sid, 300)
+                    for _ in range(300):
+                        self.key(cdp, sid, "PageDown")
                     cdp.js("document.querySelector('[data-scale-b=quarter]').click()", sid)
-                    self.later(cdp, sid, 300)
+                    for _ in range(300):
+                        self.key(cdp, sid, "PageDown")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-cal-home]')", sid)))
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-cal-home], [data-cal-empty] button').length", sid), 1, "one Go to today button")
                     cdp.js("document.querySelector('[data-cal-home]').focus()", sid)
@@ -597,6 +523,22 @@ class RealBrowser(unittest.TestCase):
                     self.assertNotEqual(display, "none", "shown, not hidden by the width or the scale")
                     self.assertTrue(fits and inside, "not cut off")
 
+    def test_switching_scale_always_lands_on_the_current_period(self):
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sid = self.view(cdp, width, theme)
+                    for _ in range(3):
+                        before = self.title(cdp, sid)
+                        cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
+                        self.assertTrue(wait(lambda: self.title(cdp, sid) != before))
+                    self.assertEqual(self.title(cdp, sid), "January 2027")
+                    for scale, label in (("quarter", "Q4 2026"), ("week", "Week of 26-10-2026"), ("month", "October 2026")):
+                        cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)           # wander off, then switch
+                        cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
+                        cdp.js(f"document.querySelector('[data-scale-b={scale}]').click()", sid)
+                        self.assertTrue(wait(lambda: self.title(cdp, sid) == label), f"{scale} opens on {label}")
+
     def test_the_quarter_month_button_has_a_visible_focus_ring(self):
         for width in (1400, 900):
             for theme in ("light", "dark"):
@@ -618,24 +560,171 @@ class RealBrowser(unittest.TestCase):
                     self.assertGreaterEqual(ring[2], 2)
                     self.assertNotIn(ring[3], ("rgba(0, 0, 0, 0)", "transparent"))
 
-    def test_shift_arrows_and_typing_in_a_field_or_editable_do_not_move_the_period(self):
+    def test_shift_and_typing_in_a_field_or_editable_do_not_move_the_period(self):
         port = self.serve()
         with chrome() as cdp:
             sid = self.open_calendar(cdp, port)
             before = self.title(cdp, sid)
             fire = ("(tag, init) => { const el = document.createElement(tag); if (tag === 'div') el.contentEditable = 'true'; "
-                    "document.querySelector('.cal').appendChild(el); el.dispatchEvent(new KeyboardEvent('keydown', Object.assign({key: 'ArrowRight', bubbles: true, cancelable: true}, init))); el.remove(); }")
+                    "document.querySelector('.cal').appendChild(el); el.dispatchEvent(new KeyboardEvent('keydown', Object.assign({key: 'PageDown', bubbles: true, cancelable: true}, init))); el.remove(); }")
             for tag, init in (("input", {}), ("textarea", {}), ("div", {}), ("span", {"shiftKey": True})):
                 cdp.js(f"({fire})('{tag}', {json.dumps(init)})", sid)
-            cdp.js("document.querySelector('.cal').dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowRight', shiftKey: true, bubbles: true, cancelable: true}))", sid)
+            cdp.js("document.querySelector('.cal').dispatchEvent(new KeyboardEvent('keydown', {key: 'PageDown', shiftKey: true, bubbles: true, cancelable: true}))", sid)
             time.sleep(0.3)
             self.assertEqual(self.title(cdp, sid), before, "none of those moved the period")
-            for name in ("PageDown", "PageUp"):
-                self.key(cdp, sid, name)
-                time.sleep(0.3)
-                self.assertEqual(self.title(cdp, sid), before, f"{name} does nothing: the prototype has neither")
-            cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
-            self.assertTrue(wait(lambda: self.title(cdp, sid) != before), "the Later button still does")
+            self.key(cdp, sid, "PageDown")
+            self.assertTrue(wait(lambda: self.title(cdp, sid) != before), "a plain Page Down still does")
+
+    # ---- #481: the prototype's key model (system/prototype/views.js:155-171, selftest.js:1069-1093) ----
+
+    def test_one_day_is_the_tab_stop_in_each_scale_and_it_is_today(self):
+        port = self.serve()
+        with chrome() as cdp:
+            sid = self.open_calendar(cdp, port)
+            for name in ("month", "week", "quarter", "month"):
+                self.scale(cdp, sid, name)
+                self.assertEqual(self.stops(cdp, sid), ["2026-10-28"], f"{name}: one tab stop, today")
+
+    def test_left_right_up_and_down_move_a_day_or_a_week_and_the_tab_stop_goes_with_the_focus(self):
+        port = self.serve()
+        with chrome() as cdp:
+            sid = self.open_calendar(cdp, port)
+            for scale in ("month", "week", "quarter"):
+                self.scale(cdp, sid, scale)
+                for name, want in (("ArrowRight", "2026-10-29"), ("ArrowLeft", "2026-10-27"), ("ArrowUp", "2026-10-21"), ("ArrowDown", "2026-11-04")):
+                    cdp.js("document.querySelector('[data-cal=\"0\"]').click()", sid)      # Today: the period holding it is drawn again
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal-d.today')", sid)))
+                    cdp.js("document.querySelector('.cal-d.today').focus()", sid)
+                    self.assertEqual(self.where(cdp, sid), "2026-10-28")
+                    self.press(cdp, sid, name)
+                    self.assertTrue(wait(lambda: self.where(cdp, sid) == want), f"{scale}: {name} from today lands on {want}, got {self.where(cdp, sid)}")
+                    self.assertEqual(self.stops(cdp, sid), [want], f"{scale}: {name} - the tab stop is the day that has focus")
+
+    def test_an_arrow_that_leaves_the_period_goes_on_into_the_next_or_earlier_one(self):
+        port = self.serve()
+        with chrome() as cdp:
+            sid = self.open_calendar(cdp, port)
+            self.focus_day(cdp, sid, "2026-10-31")
+            self.press(cdp, sid, "ArrowRight")
+            self.assertTrue(wait(lambda: self.title(cdp, sid) == "November 2026"), "Right past the month end shows the next month")
+            self.assertTrue(wait(lambda: self.where(cdp, sid) == "2026-11-01"), self.where(cdp, sid))
+            self.press(cdp, sid, "ArrowLeft")
+            self.assertTrue(wait(lambda: self.title(cdp, sid) == "October 2026"), "Left before the month start shows the month before")
+            self.assertTrue(wait(lambda: self.where(cdp, sid) == "2026-10-31"), self.where(cdp, sid))
+            self.scale(cdp, sid, "week")
+            self.assertEqual(self.title(cdp, sid), "Week of 26-10-2026")
+            self.focus_day(cdp, sid, "2026-11-01")
+            self.press(cdp, sid, "ArrowRight")
+            self.assertTrue(wait(lambda: self.title(cdp, sid) == "Week of 02-11-2026"), "Right from a Sunday shows the next week")
+            self.assertTrue(wait(lambda: self.where(cdp, sid) == "2026-11-02"), self.where(cdp, sid))
+            self.press(cdp, sid, "ArrowUp")
+            self.assertTrue(wait(lambda: self.title(cdp, sid) == "Week of 26-10-2026"), "Up a week shows the week before")
+            self.assertTrue(wait(lambda: self.where(cdp, sid) == "2026-10-26"), self.where(cdp, sid))
+            self.scale(cdp, sid, "quarter")
+            self.focus_day(cdp, sid, "2026-12-31")
+            self.press(cdp, sid, "ArrowRight")
+            self.assertTrue(wait(lambda: self.title(cdp, sid) == "Q1 2027"), "Right past the quarter end shows the next quarter")
+            self.assertTrue(wait(lambda: self.where(cdp, sid) == "2027-01-01"), self.where(cdp, sid))
+
+    def test_arrows_on_a_button_a_chip_or_with_a_modifier_do_not_move_a_day_or_a_period(self):
+        port = self.serve()
+        with chrome() as cdp:
+            sid = self.open_calendar(cdp, port)
+            before = self.title(cdp, sid)
+            self.press(cdp, sid, "ArrowRight", target="[data-cal=\"1\"]")
+            self.press(cdp, sid, "ArrowRight", target="[data-scale-b=week]")
+            self.press(cdp, sid, "ArrowDown", target=".cal-ms")
+            cdp.js("document.querySelector('.cal-d.today').focus()", sid)
+            self.press(cdp, sid, "ArrowRight", shift=True)
+            time.sleep(0.2)
+            self.assertEqual(self.title(cdp, sid), before)
+            self.assertEqual(self.stops(cdp, sid), ["2026-10-28"], "none of those moved the tab stop")
+            self.assertEqual(self.scale_now(cdp, sid), "month", "no key switches the scale; its three buttons do (the prototype has no such key)")
+
+    def scale_now(self, cdp, sid):
+        return cdp.js("document.querySelector('.cal').dataset.scale", sid)
+
+    def day_with_a_chip(self, cdp, sid):
+        return cdp.js("(() => { const c = [...document.querySelectorAll('.cal-d[data-d]')].find(d => d.querySelector('button.cal-ms')); return c ? c.dataset.d : ''; })()", sid)
+
+    def test_enter_on_a_day_with_milestones_goes_to_its_first_chip_and_on_an_empty_day_does_nothing(self):
+        port = self.serve()
+        with chrome() as cdp:
+            sid = self.open_calendar(cdp, port)
+            iso = self.day_with_a_chip(cdp, sid)
+            self.assertTrue(iso, "the demo month holds a milestone")
+            self.focus_day(cdp, sid, iso)
+            self.press(cdp, sid, "Enter")
+            self.assertEqual(cdp.js("(() => { const a = document.activeElement; return [a.tagName, a.classList.contains('cal-ms'), a === document.querySelector(`.cal-d[data-d='%s'] .cal-ms`)]; })()" % iso, sid),
+                             ["BUTTON", True, True], "the first chip of that day has focus")
+            empty = cdp.js("[...document.querySelectorAll('.cal-d[data-d]')].find(d => !d.querySelector('.cal-ms')).dataset.d", sid)
+            self.focus_day(cdp, sid, empty)
+            self.press(cdp, sid, "Enter")
+            self.assertEqual(self.where(cdp, sid), empty, "Enter on an empty day leaves focus where it is")
+
+    def real_key(self, cdp, sid, key, code, vk, text=""):
+        for kind in ("rawKeyDown", "char", "keyUp") if text else ("rawKeyDown", "keyUp"):
+            ev = {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk}
+            if kind == "char":
+                ev["text"] = text
+            cdp.call("Input.dispatchKeyEvent", ev, sid)
+        time.sleep(0.1)
+
+    def test_enter_or_space_on_a_chip_opens_it_and_esc_closes_it(self):
+        port = self.serve()
+        with chrome() as cdp:
+            sid = self.open_calendar(cdp, port)
+            iso = self.day_with_a_chip(cdp, sid)
+            for key, code, vk, text in (("Enter", "Enter", 13, "\r"), (" ", "Space", 32, " ")):
+                cdp.js(f"document.querySelector('.cal-d[data-d=\"{iso}\"] button.cal-ms').focus()", sid)
+                self.real_key(cdp, sid, key, code, vk, text)
+                self.assertTrue(wait(lambda: cdp.js("!!document.getElementById('peek')", sid)), f"{code} on a chip opens its peek")
+                self.real_key(cdp, sid, "Escape", "Escape", 27)
+                self.assertTrue(wait(lambda: not cdp.js("!!document.getElementById('peek')", sid)), "Esc closes the peek")
+
+    def test_shift_tab_or_esc_on_a_chip_goes_back_to_its_day_but_with_a_peek_open_esc_closes_the_peek(self):
+        port = self.serve()
+        with chrome() as cdp:
+            sid = self.open_calendar(cdp, port)
+            iso = self.day_with_a_chip(cdp, sid)
+            chip = f"document.querySelector('.cal-d[data-d=\"{iso}\"] button.cal-ms')"
+            cdp.js(f"{chip}.focus()", sid)
+            self.press(cdp, sid, "Tab", shift=True)
+            self.assertEqual(self.where(cdp, sid), iso, "Shift+Tab goes back to the day the chip sits in")
+            self.assertEqual(self.stops(cdp, sid), [iso])
+            cdp.js(f"{chip}.focus()", sid)
+            self.press(cdp, sid, "Escape")
+            self.assertEqual(self.where(cdp, sid), iso, "Esc, with no peek open, goes back to the day")
+            self.assertFalse(cdp.js("!!document.getElementById('peek')", sid))
+            cdp.js(f"{chip}.click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.getElementById('peek')", sid)))
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)), "the peek has taken focus, so its own keys are wired")
+            stayed = cdp.js(f"""(() => {{ const c = {chip}; c.focus();
+                c.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Escape', bubbles: true, cancelable: true}}));
+                return document.activeElement === c; }})()""", sid)     # read in the same instant: the peek closes a moment later
+            self.assertTrue(stayed, "with a peek open, Esc leaves the chip alone and does not jump to the day")
+            self.assertTrue(wait(lambda: not cdp.js("!!document.getElementById('peek')", sid)), "with a peek open, Esc closes the peek")
+
+    def test_the_days_keys_work_by_real_key_presses_with_a_visible_ring_at_1400_and_900_px_light_and_dark(self):
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sid = self.view(cdp, width, theme)
+                    cdp.js("document.querySelector('.cal').focus()", sid)
+                    for _ in range(60):                       # a real Tab: the first day is the tab stop after the bar's buttons
+                        if cdp.js("document.activeElement.classList.contains('cal-d')", sid):
+                            break
+                        self.real_key(cdp, sid, "Tab", "Tab", 9)
+                    self.assertEqual(self.where(cdp, sid), "2026-10-28", "Tab reaches today, the one tab stop")
+                    ring = cdp.js("""(() => { const s = getComputedStyle(document.activeElement);
+                        return [document.activeElement.matches(':focus-visible'), s.outlineStyle, parseFloat(s.outlineWidth), s.outlineColor]; })()""", sid)
+                    self.assertTrue(ring[0], "focus-visible matches")
+                    self.assertEqual(ring[1], "solid")
+                    self.assertGreaterEqual(ring[2], 2)
+                    self.assertNotIn(ring[3], ("rgba(0, 0, 0, 0)", "transparent"))
+                    for key, want in (("ArrowRight", "2026-10-29"), ("ArrowDown", "2026-11-05"), ("ArrowLeft", "2026-11-04"), ("ArrowUp", "2026-10-28")):
+                        self.real_key(cdp, sid, key, key, {"ArrowLeft": 37, "ArrowUp": 38, "ArrowRight": 39, "ArrowDown": 40}[key])
+                        self.assertTrue(wait(lambda: self.where(cdp, sid) == want), f"{key} gives {want}, got {self.where(cdp, sid)}")
 
     def test_a_slipped_milestone_also_shows_on_its_expected_day_in_the_calendar(self):
         slipped = [r for r in self.expected("MOSS") if r["marks"]["ghost"]]
@@ -724,51 +813,6 @@ class Published(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('.cal').dataset.scale", sid) == "quarter"))
             self.assertEqual(cdp.js("Object.keys(window.localStorage).filter(k => k.indexOf('msv') >= 0)", sid), [], "a published file remembers nothing")
             self.assertEqual(cdp.js("document.querySelectorAll('.cal input, .cal textarea, .cal select, .cal [contenteditable]').length", sid), 0, "the calendar is read only")
-
-    def test_the_calendar_in_the_file_has_day_tab_stops_and_arrows_and_enter_goes_nowhere(self):
-        """The published file keeps the keyboard calendar: one day is the tab stop, the arrows move by a day or a week and across a month
-        end; its chips are plain text (no button), so Enter on a day does nothing and there is no Edit control."""
-        demo, folder, path, _ = publish_with_plants()
-        self.addCleanup(demo.close)
-        self.addCleanup(shutil.rmtree, folder, True)
-        for width in (1400, 900):
-            for theme in ("light", "dark"):
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
-                    sid = page_target(cdp)
-                    cdp.call("Page.enable", {}, sid)
-                    cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
-                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-                    cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
-                    self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready === '1' && !!document.querySelector('.tab')", sid)))
-                    cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
-                    cdp.js("[...document.querySelectorAll('.tab')].find(t => /Milestones/.test(t.textContent)).click()", sid)
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-msvb=cal]')", sid)))
-                    cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal')", sid)))
-                    self.assertEqual(cdp.js("document.querySelector('.cal').getAttribute('tabindex')", sid), "-1", "the calendar itself is not a tab stop")
-                    self.assertEqual(cdp.js("[...document.querySelectorAll('.cal-d[data-d][tabindex=\"0\"]')].map(d => d.dataset.d)", sid), [TODAY], "one day is the tab stop: today")
-                    self.assertEqual(cdp.js("document.querySelectorAll('.cal-d[data-d][tabindex=\"-1\"]').length === document.querySelectorAll('.cal-d[data-d]').length - 1", sid), True)
-
-                    def press(name):
-                        cdp.js(f"document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {{key: '{name}', bubbles: true, cancelable: true}}))", sid)
-                        time.sleep(0.05)
-
-                    def on_day():
-                        return cdp.js("(() => { const a = document.activeElement; return a && a.classList.contains('cal-d') ? a.dataset.d : null; })()", sid)
-
-                    cdp.js(f"document.querySelector('.cal-d[data-d=\"{TODAY}\"]').focus()", sid)
-                    for key, want in (("ArrowRight", "2026-10-29"), ("ArrowLeft", TODAY), ("ArrowUp", "2026-10-21"), ("ArrowDown", TODAY)):
-                        press(key)
-                        self.assertTrue(wait(lambda: on_day() == want), f"{key} goes to {want} in the file")
-                    press("ArrowDown")
-                    self.assertTrue(wait(lambda: on_day() == "2026-11-04"), "a week down crosses into November")
-                    self.assertEqual(cdp.js("document.querySelector('.cal-t').textContent", sid), "November 2026")
-                    self.assertEqual(cdp.js("document.querySelectorAll('.cal-d[data-d][tabindex=\"0\"]').length", sid), 1, "still one tab stop")
-                    cdp.js("document.querySelector('.cal-d[data-d=\"2026-11-04\"]').focus()", sid)
-                    press("Enter")
-                    self.assertEqual(on_day(), "2026-11-04", "Enter on a day stays on the day: the file's chips are not buttons")
-                    self.assertEqual(cdp.js("document.querySelectorAll('.cal button.cal-ms, .cal input, .cal textarea, .cal select, .cal [contenteditable]').length", sid), 0, "nothing to edit or open")
-
 
 FAR = ["0001-01-01", "0026-10-01", "0099-12-31", "1999-12-31", "2101-01-01", "2126-03-01", "9999-12-31", "10000-01-01", "2026-02-30", "soon"]
 
