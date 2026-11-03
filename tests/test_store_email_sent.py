@@ -33,6 +33,12 @@ def fingerprint(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest(), counts
 
 
+CLOCK_WORDS = (
+    "The date on this computer is too far in the past to be right. Check its clock, then reload the page and try again. Nothing was saved.",
+    "The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.",
+)
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
@@ -136,8 +142,8 @@ class InTheHistory(Base):
 
 class Refusals(Base):
     def test_each_refusal_writes_nothing_and_says_what_to_do(self):
-        self.refuses("who pressed it", who="  ")
-        self.refuses("who pressed it", who=None)
+        self.refuses("Add your name in Settings", who="  ")
+        self.refuses("Add your name in Settings", who=None)
         self.refuses("isn't one clark records", mode="reminder")
         self.refuses("Tick at least one item", ids=[])
         self.refuses("Tick at least one item", ids=["  ", ""])
@@ -152,16 +158,42 @@ class Refusals(Base):
         self.refuses("is not a real date", day="28-10-2026")
         self.refuses("There is no project", code="QQQ")
 
+    def test_no_name_says_what_to_do(self):
+        with self.assertRaises(Invalid) as caught:
+            self.send(who="  ")
+        self.assertEqual(str(caught.exception), "Add your name in Settings, then try again. Nothing was saved.")
+
+    def test_each_refusal_ends_with_nothing_was_saved_and_is_short(self):
+        with self.store.step("dashboard", USER) as st:
+            st.archive("projects", "ABC")
+        cases = [dict(who=""), dict(mode="bogus"), dict(ids=[]), dict(ids=["ABC-A-%03d" % i for i in range(60)]),
+                 dict(code="QQQ"), dict(day="2026-02-30"), dict(day="2020-01-01"), dict(day="2030-01-01"), dict()]
+        for kw in cases:
+            with self.subTest(kw=list(kw)):
+                with self.assertRaises(Invalid) as caught:
+                    self.send(**kw)
+                msg = str(caught.exception)
+                self.assertTrue(msg.endswith("Nothing was saved."), msg)
+                if msg in CLOCK_WORDS:      # the two date-clock refusals are pinned exactly, with their own ceiling
+                    self.assertLessEqual(len(msg), 140, msg)
+                else:
+                    self.assertLessEqual(len(msg), 120, msg)
+
     def test_an_archived_project_is_refused(self):
         with self.store.step("dashboard", USER) as st:
             st.archive("projects", "ABC")
         self.refuses("archived")
+        with self.assertRaises(Invalid) as caught:
+            self.send()
+        from clark import draft_email_feed
+        self.assertEqual(str(caught.exception), draft_email_feed.ARCHIVED + " Nothing was saved.")
 
     def test_a_step_that_is_open_is_not_broken_into(self):
         with self.store.step("dashboard", USER):
             with self.assertRaises(Invalid) as caught:
                 self.send()
-            self.assertIn("middle of a step", str(caught.exception))
+            self.assertIn("Another change is still being saved", str(caught.exception))
+            self.assertNotIn("sent record", str(caught.exception))
 
     def test_the_email_words_are_in_no_column(self):
         con = sqlite3.connect(self.store.path)
@@ -389,6 +421,14 @@ class Refusals258(Base):
                                 or words.endswith("then reload the page and try again. Nothing was saved."), words)
                 for banned in ("calendar", "Check the date", "reply-by", day):
                     self.assertNotIn(banned, words)
+
+    def test_a_local_day_that_differs_from_the_servers_utc_day_is_accepted(self):
+        # A page just past local midnight sends the next day while the server's day has not turned; both sides of that are in range.
+        utc_day = TODAY
+        for local in (utc_day + timedelta(days=1), utc_day - timedelta(days=1)):
+            with self.subTest(local=str(local)):
+                self.assertNotEqual(local, utc_day)
+                self.assertTrue(self.send(day=str(local)))
 
     def test_the_day_is_bounded_by_the_servers_clock_not_the_pages(self):
         self.refuses("too far in the past", day="2019-12-31")
