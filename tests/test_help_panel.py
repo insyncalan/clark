@@ -16,6 +16,7 @@ import unittest
 from pathlib import Path
 
 from _paths import SRC, TOOLS  # noqa: F401  (puts src/ on the path)
+from _new_page import reload_to_new_page
 from test_report_editor import ALT, Base, Pg  # noqa: F401
 from clark import page
 from _help_shown import shown_content
@@ -117,7 +118,7 @@ class Panel(Base):
             p.until("!!document.querySelector('.hp-idx a')", "the contents list")
             p.js("document.querySelector('.hp-idx a[data-hlink=ref-keys]').click()")
             p.until("!!document.querySelector('#hp-ref-keys.hp-found')", "a contents link opens its place and flashes it")
-            self.assertEqual(p.js("document.querySelector('[data-hlink=ref-peek], [data-hlink=howto-use-the-board], [data-hgo]')"), None)
+            self.assertEqual(p.js("document.querySelector('[data-hlink=ref-peek], [data-hlink=ref-publishing], [data-hlink=howto-publish-the-report]')"), None)
             self.assertTrue(p.js("location.hash.indexOf('#dashboard') === 0"), "the page left is the Dashboard")
 
     def test_focus_goes_back_to_what_had_it_when_help_closes(self):                     # MEDIUM
@@ -175,7 +176,7 @@ class Panel(Base):
             p.js("window.clarkPage.help.close()")
             p.js("window.clarkPage.help.open()")
             p.until("document.querySelector('#hpTab-howto') && document.querySelector('#hpTab-howto').getAttribute('aria-selected') === 'true'", "opened on the tab used last")
-            p.js("location.reload()")
+            reload_to_new_page(p.js)
             p.until("!!window.clarkPage && !!document.querySelector('#report')", "reloaded")
             p.key("?", code="Slash", vk=191)
             p.until("!!document.querySelector('#hpTab-howto') && document.querySelector('#hpTab-howto').getAttribute('aria-selected') === 'true'", "a reload still opens on the tab used last")

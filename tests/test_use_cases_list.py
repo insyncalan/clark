@@ -14,6 +14,7 @@ from pathlib import Path
 
 from _demo import USER
 from _paths import SRC
+from _new_page import reload_to_new_page
 from test_report_editor import EMPTY_BRANDING, Base, Pg, tearDownModule  # noqa: F401
 from test_server import chrome, wait
 
@@ -105,9 +106,7 @@ class Setup(Base):
 
     def reload(self, p):
         """Reload and wait for the NEW document (a bare wait could still see the old one)."""
-        p.js("window.__old_document = true")
-        p.js("location.reload()")
-        p.until("window.__old_document === undefined && document.readyState === 'complete' && document.querySelectorAll('#usecases .ucl-row').length > 0", "the page reloaded")
+        reload_to_new_page(p.js, "document.querySelectorAll('#usecases .ucl-row').length > 0")
 
     def click(self, p, selector):
         p.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})")
@@ -396,7 +395,7 @@ class Narrowing(Setup):
             self.click(p, "#ucl-status")
             p.until("!!document.querySelector('.ucl-pop')", "open")
             p.until("document.activeElement.value === 'On track'", "the first choice takes the focus")
-            self.assertEqual(p.js("[...document.querySelectorAll('.ucl-pop label')].map(e => e.textContent)"), ["On track", "Flag", "High risk"])
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucl-pop label')].map(e => e.textContent)"), ["On track", "Flag", "High risk", "Done"])
             self.click(p, ".ucl-pop input[value=Flag]")
             p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 1", "one is Flag")
             self.assertEqual(p.js("document.querySelector('#ucl-status').textContent.trim()"), "Status: Flag")
@@ -412,6 +411,27 @@ class Narrowing(Setup):
             p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 4", "Clear")
             self.click(p, "h1")
             p.until("!document.querySelector('.ucl-pop')", "a click away closes it")
+
+    def test_done_has_its_word_in_a_grey_pill_its_own_filter_and_sorts_last(self):
+        """#412: a Done use case says Done in a grey pill, the Status choice can pick it, and sorting by status puts it last."""
+        with self.store.step("dashboard", USER) as st:
+            st.update("use_cases", self.uc3, {"status": "Done"})          # 1.10 was High risk: the worst, now finished
+        with chrome() as cdp:
+            p = self.show(cdp)
+            pill = "document.querySelector('#usecases .ucl-row[data-uc=\"%s\"] [data-status]')" % self.uc3
+            self.assertEqual(p.js(pill + ".textContent"), "Done")
+            self.assertEqual(p.js(pill + ".className"), "pill n")
+            self.click(p, "#ucl-sort")
+            p.until("!!document.querySelector('.ddmenu [role=menuitemradio]')", "the sort menu")
+            p.js("[...document.querySelectorAll('.ddmenu [role=menuitemradio]')].find(b => b.textContent.includes('Status')).click()")
+            p.until("document.querySelector('#ucl-sort').textContent.trim() === 'Sort: Status'", "sorted")
+            self.assertEqual(self.refs(p), ["UC 1.2", "UC 1.1", "UC 2.1", "UC 1.10"], "Flag, then On track, then Done")
+            self.click(p, "#ucl-status")
+            p.until("!!document.querySelector('.ucl-pop')", "open")
+            self.click(p, ".ucl-pop input[value=Done]")
+            p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 1", "one is Done")
+            self.assertEqual(self.refs(p), ["UC 1.10"])
+            self.assertEqual(p.js("document.querySelector('.ucl-pop input[value=Done] + .pill').className"), "pill n")
 
     def test_the_switch_counts_follow_the_other_filters_and_narrow_the_list(self):
         with chrome() as cdp:
