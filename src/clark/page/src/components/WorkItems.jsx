@@ -242,6 +242,7 @@ export function WorkItems({ tools }) {
         </div>
         {tools ? (
           <div class="hacts">
+            {tools.ImportBtn && mode.value !== "edit" ? <tools.ImportBtn /> : null}   {/* Import from Excel beside Export, as the prototype (#454): the same box as Settings › Data */}
             {tools.ExportBtn && mode.value !== "edit" ? <tools.ExportBtn /> : null}   {/* the workbook download: View only (FR-70), and never in a published file */}
             <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={adder(tools)} />   {/* a published file is read only: no Add (#204) */}
           </div>

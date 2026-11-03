@@ -1,5 +1,6 @@
 """B-4: an Export icon beside Add on Work items, in View mode of the editor only (FR-70: hidden in Edit); the published file has none.
-The icon asks the route that already exists, GET /api/export. There is no Import icon: no Excel import route exists yet.
+The icon asks the route that already exists, GET /api/export. Beside it, the Import icon (#454 point 2, the prototype's #impBtn
+"Import from Excel") opens the same Import from Excel box as Settings › Data; it too is View only and never in a published file.
 
 Run: python3 dev/run_tests.py test_work_export_button
 Headless Chrome (required: fails, never skips, without it). Desktop only: 1400 and 900 px, light and dark.
@@ -48,6 +49,7 @@ class ExportButton(unittest.TestCase):
                 cdp.js("[...document.querySelectorAll('.tab')].find(t => /Work items/.test(t.textContent)).click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#work h1')", sid)))
                 self.assertEqual(cdp.js("document.querySelectorAll('#expBtn').length", sid), 0)
+                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn').length", sid), 0)
 
     def test_the_editor_shows_it_in_view_not_in_edit_and_it_asks_the_export_route(self):
         demo = DemoStore()
@@ -62,13 +64,22 @@ class ExportButton(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelector('#expBtn').getAttribute('aria-label')", sid), "Export to Excel")
                 self.assertEqual(cdp.js("document.querySelector('#expBtn').getAttribute('data-tip')", sid), "Export to Excel")
                 self.assertEqual(cdp.js("document.querySelectorAll('#newBtn').length", sid), 1, "Add is still there")
-                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn').length", sid), 0, "no Import icon: no route yet")
+                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn').length", sid), 1, "the Import icon is in View (#454)")
+                self.assertEqual(cdp.js("document.querySelector('#impBtn').getAttribute('aria-label')", sid), "Import from Excel")
+                self.assertEqual(cdp.js("document.querySelector('#impBtn').getAttribute('data-tip')", sid), "Import from Excel")
+                cdp.js("document.querySelector('#impBtn').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#import-box')", sid)), "it opens the Import from Excel box")
+                self.assertIn("Import from Excel", cdp.js("document.querySelector('#import-box').textContent", sid))
+                self.assertTrue(cdp.js("!!document.querySelector('#import-template')", sid), "the box has Get the template")
+                cdp.js("[...document.querySelectorAll('#import-box button')].find(b => b.textContent.trim() === 'Cancel').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!document.querySelector('#import-box')", sid)), "Cancel closes it")
                 cdp.js("window.__asked = []; const f = window.fetch; window.fetch = (u, o) => { window.__asked.push(String(u)); return f(u, o); }", sid)
                 cdp.js("document.querySelector('#expBtn').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("window.__asked.some(u => u.startsWith('/api/export?project=ABC'))", sid)), "it asked GET /api/export")
                 cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'true'", sid)))
                 self.assertEqual(cdp.js("document.querySelectorAll('#expBtn').length", sid), 0, "hidden in Edit (FR-70)")
+                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn').length", sid), 0, "hidden in Edit, like Export")
                 self.assertEqual(cdp.js("document.querySelectorAll('#newBtn').length", sid), 1)
 
 

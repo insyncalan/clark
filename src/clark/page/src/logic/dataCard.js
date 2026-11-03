@@ -39,7 +39,7 @@ export const IMPORT = {
   readFailed: "That file could not be read as a spreadsheet.",
   tooBig: "That file is more than 25 MB, more than clark will open. A clark export is far smaller. Check it is the right file.",
   notAnswering: "There was no answer. Check that the window clark runs in is still open, then try again.",
-  stale: "This page is out of date: clark was restarted after you opened it. Reload the page and try again.",
+  stale: "This page is out of date because clark was restarted after you opened it. Reload the page and try again.",
   fallback: "That could not be done. Reload the page. If it happens again, restart clark.",
 };
 
