@@ -12,11 +12,16 @@ Nothing is remembered between steps: "is a daily copy due?" is decided by listin
 request (#65) decides the same way. The one piece of module state is the lock below.
 
 The copies sit beside the database, on the same disk. They protect against a clark bug, a bad import or a wrong undo, not against
-losing the disk or the computer (the off-computer copy is #86b). Standard library only, Python 3.9.
+losing the disk or the computer. For that there is an optional second place (#622, settings.py `backup_copy_folder`, Settings ›
+Backups › Copy my backups to): `copy_out` puts each finished copy there too, under a temporary name that is renamed when whole, with the
+same name and the same retention, and only ever a single finished file, never the live database or its -wal and -shm. That folder may be
+in OneDrive (the live database never may). A failed copy there is a plain warning (`copy_warning`) and never stops a save or a backup.
+`bring_in` is the other way: a file from that folder, checked, into the backups folder for a restore. Standard library only, Python 3.9.
 """
 import contextlib
 import json
 import errno
+import hashlib
 import logging
 import os
 import re
@@ -51,9 +56,12 @@ RESTORING = ".restoring"
 MARKER = ".restoring.json"
 
 LOG = logging.getLogger("clark.backup")
+copy_warning = None             # #622: the plain words of the last failed copy into the copy folder, or None after a good one (or when there is no copy folder); the page reads this
 backup_warning = None           # #111: the plain words of the last failed daily copy, or None after a good one. A store is closed after each request, so the page reads this, not a store; a restart clears it
 _HOLD = object()                # what `once` leaves on a store (store._backup_hold) to say its copy is already taken; nothing else counts
 _lock = threading.Lock()        # held while a copy is given its final name and when old copies are removed (threads; see move_unless_exists)
+_copy_lock = threading.Lock()   # #622: one copy into the copy folder at a time; never held with `_lock`, so a slow folder can't hold up a backup here
+COPY_WAIT = 5.0                 # #622: seconds a save waits for the copy folder before carrying on (the copy then finishes on its own)
 
 
 # ── Words ─────────────────────────────────────────────────────────────────────
@@ -219,10 +227,10 @@ def _unreadable(folder, error):
             "open it, then try again.")
 
 
-def valid_name(backups_dir, name):
+def valid_name(backups_dir, name, see="python3 -m clark restore"):
     """The path of the backup called `name` in `backups_dir`, or Invalid. One function for retention and both restores: the
     whole name must be a backup's name (so `..`, a path, `replaced-*` and `notes.txt` are refused), a regular file and not a
-    link, and directly in the folder."""
+    link, and directly in the folder. `see` is the command the refusal gives for listing them."""
     text = str(name)
     folder = Path(backups_dir)
     try:
@@ -235,7 +243,7 @@ def valid_name(backups_dir, name):
     path = folder / text
     if not NAME.fullmatch(text) or path.is_symlink() or not path.is_file() or path.stat().st_nlink > 1 or path.resolve().parent != folder.resolve():
         said = "".join(c if c.isprintable() else "?" for c in text[:80])      # a name typed with a control character can't change the screen
-        raise Invalid(f"No backup called {said} is in {shown(folder)}. To see the backups, run:\n    python3 -m clark restore")
+        raise Invalid(f"No backup called {said} is in {shown(folder)}. To see the backups, run:\n    {see}")
     return path
 
 
@@ -301,8 +309,9 @@ class Pending:
     """A copy taken for an undo or an import, whose step has not finished: retention waits (so a step that fails does not push an
     older copy out), and a step that fails or writes nothing removes it."""
 
-    def __init__(self, path, folder, has_rows):
+    def __init__(self, path, folder, has_rows, data_dir=None):
         self.path, self.folder, self.has_rows = Path(path), Path(folder), has_rows
+        self.data_dir = Path(data_dir) if data_dir is not None else self.folder.parent       # #622: where settings.json is
 
 
 def take_pending(store, tag):
@@ -312,7 +321,7 @@ def take_pending(store, tag):
         final, summary = _write(store.path, folder, store.onedrive_roots, tag)
     except (OSError, platform.PlatformError, Invalid) as e:
         raise Invalid(refusal(tag, folder, e)) from e
-    return Pending(final, folder, summary["rows"]["projects"] > 0)
+    return Pending(final, folder, summary["rows"]["projects"] > 0, Path(store.path).parent)
 
 
 def finish(pending, kept):
@@ -322,6 +331,7 @@ def finish(pending, kept):
         return
     if kept:
         prune(pending.folder, newest_has_rows=pending.has_rows, protect=(pending.path,))
+        copy_out(pending.data_dir, pending.path, pending.has_rows)      # #622: only a copy that is kept goes to the copy folder
     else:
         with contextlib.suppress(OSError):
             pending.path.unlink()
@@ -348,6 +358,7 @@ def make(path, folder, onedrive_roots, tag=None, protect=(), family=None):
     prune(folder, newest_has_rows=summary["rows"]["projects"] > 0, protect=(final, *protect))     # after a good copy only, and never an error
     if not os.path.lexists(final):
         raise Invalid(refusal(tag, folder, Invalid(SAVED)))         # removed straight after it was made
+    copy_out(Path(path).parent, final, summary["rows"]["projects"] > 0)     # #622: never raises
     return final
 
 
@@ -405,20 +416,133 @@ def once(store, tag):
         store._backup_hold = _HOLD if held else None
 
 
+# ── The copy folder (#622) ────────────────────────────────────────────────────
+
+COPY_REFUSED = "that folder can't be used: it isn't a folder, or it is clark's own data or backups folder"
+COPY_DIFFERENT = "the copy didn't match the original"
+
+
+def copy_warning_text(folder, error):
+    """The plain warning for a copy that could not be made. Not a refusal: the backup here is made and the change is saved."""
+    reason = plain_reason(error) if isinstance(error, (Invalid, OSError, platform.PlatformError)) else "something went wrong"
+    return (f"Your backup was made, but the copy in {shown(folder)} could not be made ({reason}). Check that the folder is there "
+            "and has space, or choose another in Settings › Backups. A new try is made with your next backup.")
+
+
+def _set_copy_warning(text):
+    global copy_warning
+    copy_warning = text
+
+
+def copy_out(data_dir, final, has_rows=True):
+    """Put the finished backup `final` into the copy folder saved in `data_dir`'s settings (#622), if there is one. Never raises, and
+    never waits more than COPY_WAIT seconds: the copy is made on a thread of its own, so a folder that is slow or has hung can't hold up
+    a save. Only `final` is ever copied (a single finished file made by `_write`; the live database and its -wal and -shm never are)."""
+    try:
+        folder = settings.backup_copy_folder(data_dir)
+        keep = settings.backups_kept(data_dir)
+    except Exception:
+        return
+    if folder is None:
+        _set_copy_warning(None)
+        return
+    worker = threading.Thread(target=_copy_worker, args=(Path(data_dir), folder, Path(final), keep, has_rows),
+                              name="clark-backup-copy", daemon=True)
+    worker.start()
+    worker.join(COPY_WAIT)
+
+
+def _copy_worker(data_dir, folder, final, keep, has_rows):
+    with _copy_lock:
+        try:
+            if settings.backup_copy_problem(data_dir, folder) is not None:          # also checked here: the settings file may have been edited by hand
+                raise Invalid(COPY_REFUSED)
+            _copy_into(folder, final, keep, has_rows)
+        except Exception as e:
+            warning = copy_warning_text(folder, e)
+            LOG.warning("%s", warning)
+            _set_copy_warning(warning)
+        else:
+            _set_copy_warning(None)
+
+
+def _copy_into(folder, final, keep, has_rows):
+    """`final` into `folder` under the same name: written to a private temporary name there, read back and compared, then renamed into
+    place, so a half file is never seen under a backup's name (OneDrive would upload it). A name already there is left as it is. Then the
+    folder is tidied by the same retention, which only ever removes a file with a whole backup name. The folder is never made here: one
+    that is missing is a warning (Settings makes it when it is chosen)."""
+    dest = folder / final.name
+    if not os.path.lexists(dest):
+        part = folder / f".{final.stem}.{os.getpid()}.{secrets.token_hex(4)}.part"
+        platform.private_file(part)
+        try:
+            _copy_checked(final, part)
+            os.utime(part)                          # its file time is now: retention orders by it
+            platform.replace_file(part, dest)
+        finally:
+            _clear(part)
+    prune(folder, keep, has_rows, protect=(dest,), lock=contextlib.nullcontext())
+
+
+def _copy_checked(source, part):
+    """The bytes of `source` into the empty file `part`, then read back and compared (size and SHA-256). No database is opened: `part` may be
+    in a folder OneDrive is watching. Invalid if they differ (a full disk may cut a file short without an error)."""
+    seen = hashlib.sha256()
+    with open(source, "rb") as src, open(part, "wb") as dst:
+        for block in iter(lambda: src.read(1024 * 1024), b""):
+            seen.update(block)
+            dst.write(block)
+        dst.flush()
+        os.fsync(dst.fileno())
+    back = hashlib.sha256()
+    with open(part, "rb") as again:
+        for block in iter(lambda: again.read(1024 * 1024), b""):
+            back.update(block)
+    if back.digest() != seen.digest():
+        raise Invalid(COPY_DIFFERENT)
+
+
+def bring_in(copy_folder, name, backups_dir, onedrive_roots=None):
+    """Put the backup `name` from the copy folder into the backups folder beside the data (#622), so it can be restored from there: the
+    path. The name must be a whole backup name that is a regular file in `copy_folder`, and the file must be a good clark database (a
+    corrupt one, or a file that isn't one, is refused with Invalid). A restore never writes into the copy folder. A copy of the same name
+    already in the backups folder is used if it is the same file, and refused if it is not."""
+    chosen = valid_name(copy_folder, name, see="python3 -m clark restore --from FOLDER")
+    clark_store.check_copy(chosen)
+    platform.check_data_dir(backups_dir, onedrive_roots, what="backups")
+    backups_dir = platform.private_folder(backups_dir)
+    dest = backups_dir / chosen.name
+    part = backups_dir / f".{chosen.stem}.{os.getpid()}.{secrets.token_hex(4)}.part"
+    platform.private_file(part)
+    try:
+        _copy_checked(chosen, part)
+        if os.path.lexists(dest):
+            if dest.is_file() and not dest.is_symlink() and dest.read_bytes() == part.read_bytes():
+                return dest
+            raise Invalid(f"A different backup called {chosen.name} is already in {shown(backups_dir)}, so it wasn't copied from the "
+                          "other folder. Nothing was changed.")
+        os.utime(part)
+        platform.replace_file(part, dest)
+    finally:
+        _clear(part)
+    return dest
+
+
 # ── Retention ─────────────────────────────────────────────────────────────────
 
-def prune(folder, keep=None, newest_has_rows=True, protect=()):
+def prune(folder, keep=None, newest_has_rows=True, protect=(), lock=None):
     """Remove the oldest copies, keeping the newest `keep` (default: the data folder's setting, 14 unless changed) of each kind (daily, undo, restore, and import-changes) and never the
     newest of all: so a kind can hold 14, plus the newest of all, which may be one more. "Oldest" and "newest" are by when the
     file was written, never by a comparison with the clock; the name and the file time come from the same clock, so a copy dated
     in the future can't be told from a real one and ages like any other. If the newest copy has no projects (`newest_has_rows` False) the newest one that does is kept too, whatever
     its age. Nothing in `protect` (paths) is removed. Only a regular file directly in `folder` with a backup's whole name is ever removed, one file at a time; a
-    working file of an earlier run, a day old, is removed too. Never raises: a failure here stops nothing. The names removed."""
+    working file of an earlier run, a day old, is removed too. Never raises: a failure here stops nothing. The names removed.
+    `lock` (#622) is the lock held while the folder is read and tidied: the copy folder's own, never the one a backup here waits for."""
     removed = []
     try:
         if keep is None:
             keep = settings.backups_kept(Path(folder).parent)
-        with _lock:
+        with lock or _lock:
             found = entries(folder)
             keepers = set()
             for family in set(FAMILY.values()):
