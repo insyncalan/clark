@@ -139,6 +139,13 @@ class MacZipTest(unittest.TestCase):
         self.assertIn("Install clark", text)
         self.assertIn("OneDrive", text)
         self.assertNotIn("clark-docker.command", text)
+        # #615: the second route says what a managed Mac really does (an unsigned download is stopped), and what to do about it.
+        self.assertIn("Do not\n   choose Move to Trash: choose Done", text)
+        self.assertIn("Privacy & Security", text)
+        self.assertIn("Open Anyway", text)
+        self.assertIn("administrator's password", text)
+        self.assertIn("   bash clark.command", text, "the typed way, which needs no password")
+        self.assertNotIn("Control-click", text, "that way stopped working for an unsigned download on current macOS")
         with zipfile.ZipFile(self.zip) as z:
             names = set(z.namelist())
         for need in ("docker/compose.yaml", "docker/Dockerfile", "docker/Dockerfile.dockerignore"):

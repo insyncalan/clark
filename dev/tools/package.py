@@ -130,10 +130,12 @@ Without Docker:
 
 1. Double-click clark.command in this folder.
 
-2. The first time, your Mac may say it can't check who made the file.
-   Control-click clark.command, choose Open, then choose Open again.
-   If there is no Open button: open System Settings, choose Privacy & Security,
-   scroll down and choose Open Anyway beside clark.command.
+2. The first time, your Mac may say it could not verify clark.command. Do not
+   choose Move to Trash: choose Done. Then open System Settings, choose
+   Privacy & Security, scroll down and choose Open Anyway beside clark.command,
+   then double-click it again. On a computer your employer manages, Open Anyway
+   may ask for an administrator's password, and your employer may not allow it.
+   If you cannot get past it, use the typed way below, which needs no password.
 
 3. A Terminal window starts clark, then its window opens in Chrome
    (or in your usual browser if Chrome isn't there).
@@ -151,8 +153,10 @@ If you can't close it, the message also gives a line to type in Terminal that
 starts clark on a different connection. Type it as shown and press Return. If
 that does not work either, run the check described below: it says what to fix.
 
-If double-clicking does nothing, open Terminal, type bash and a space,
-drag clark.command into the Terminal window and press Return.
+The typed way: open Terminal, type cd and a space, drag this folder into the
+Terminal window and press Return. Then type:
+   bash clark.command
+and press Return. Use this too if double-clicking does nothing.
 
 If your Mac is missing something it needs, clark.command says how to get it.
 
