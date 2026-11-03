@@ -14,6 +14,7 @@ import time
 import unittest
 
 from _paths import ROOT
+from _new_page import reload_to_new_page_cdp
 
 from clark import activity_read, page  # noqa: E402
 from test_dark_contrast import dark_blocks, ratio  # noqa: E402
@@ -184,7 +185,7 @@ class ActivityBrowser(unittest.TestCase):
                     click(cdp, sid, "[data-pk-tab=activity]")
                     self.peek_stays(cdp, sid, ids[0])
                     # a reload with &item= in the address opens the peek (in View, as every reload is), and it stays
-                    cdp.call("Page.reload", {}, sid)
+                    reload_to_new_page_cdp(cdp, sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
                     self.peek_stays(cdp, sid, ids[0], rows=False)
 
