@@ -90,7 +90,7 @@ class Source(unittest.TestCase):
         for k in ("S", "P"):
             self.assertIn("waits for the owner", rows[k], f"{k} is not final yet and Help says so")
         table = next(b for b in sections["work-items"]["b"] if b[0] == "tbl" and b[1][0] == "Table column")
-        eye = next(r for r in table[2] if r[0].startswith("The eye"))[1]
+        eye = next(r for r in table[2] if r[0].startswith("Client-visible"))[1]
         for phrase in ("In View it is a mark only", "in Edit", "client flag", "hidden list", "Sensitive"):
             self.assertIn(phrase, eye)
         item = next(r for r in table[2] if r[0] == "Item")[1]

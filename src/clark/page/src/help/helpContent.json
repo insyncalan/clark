@@ -1052,7 +1052,7 @@
       [
        [
         "Item",
-        "A letter for the kind of item (the key is in [Types, statuses and colours](#ref-status-words)), the title, then the ID, use case, milestone and workstream"
+        "A letter for the kind of item (the letters are listed in [Types, statuses and colours](#ref-status-words)), the title, then the ID, use case, milestone and workstream"
        ],
        [
         "Owner",
@@ -1071,7 +1071,7 @@
         "The state in words and colour: in View, the pill; in Edit, the status itself; see [Status words](#ref-status-words)"
        ],
        [
-        "The eye (Client-visible)",
+        "Client-visible (the eye)",
         "Whether the client sees the item. Open eye: shown to the client. Crossed-out eye: internal only. It follows the item’s client flag, the hidden list and Sensitive labels together, so an item with a Sensitive label shows crossed out. In View it is a mark only; in Edit, select it to turn the item on or off, with **Undo**"
        ]
       ]
