@@ -153,6 +153,8 @@ class AiService:
             self.run_lock.release()
         if not isinstance(reply, str):
             return 200, self.fail("failed")
+        # Deferred (#587, Low): no `people` or `known` is given here, so for a client message this check cannot see the project's
+        # names or item codes; the page's own check (which has them) still runs before anything is shown. Fixed with slice 5.
         checked = ai_menu.check_reply(reply, req["original"], req["option"], req["place"])
         if not checked["ok"]:
             return 200, self.fail("failed", checked["message"])
