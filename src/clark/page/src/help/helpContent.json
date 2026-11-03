@@ -55,11 +55,11 @@
   "first": [
    {
     "t": "Say who you are",
-    "d": "In [Settings › Profile](go:settings#profile), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
+    "d": "In [Settings › Personal › About you](go:settings#personal), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
    },
    {
     "t": "Pick a project",
-    "d": "The project name in the top bar switches projects. **New project…** in the same menu adds one."
+    "d": "The project name in the top bar switches projects."
    },
    {
     "t": "Bring in the work",
@@ -338,7 +338,7 @@
      "**Filter by** has Workstream, Status, Due, Owner, Priority, Use case, Milestone and Client. Each opens a list with a count beside every value: tick the ones you want, choose **is** or **is not**, and close the list to apply it. **Select all** and **Clear** are at the top. A dot marks a filter that is on.",
      "The filters that are on show as chips beside the count of items. **×** on a chip removes it; **Clear all** removes everything, the type and the search too. In the app it goes back to the open items.",
      "The search box finds words in the ID, title, owner, description, latest update and use case as you type.",
-     "Your choices are kept for next time. A tile on the Dashboard, or **See all work items** on a use case, opens Work items already filtered to what it counts."
+     "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N open work items”), opens Work items already filtered to what it counts."
     ]
    },
    {
@@ -502,7 +502,7 @@
     "go": "dashboard",
     "s": [
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
-     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** link opens Work items filtered to that use case.",
+     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N open work items”, opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "In the detail, write **Where it stands**, or add a next step as “Owner: what it is”.",
      "**Archive this use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Restore** or Undo brings it back."
@@ -646,15 +646,15 @@
      "A new project opens on Work items, ready for an import.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Source folders for ask clark** and its **Publishing** folders.",
-     "The project name in the top bar switches projects, shows each one’s open items, and has **New project…** and **Project settings**."
+     "The project name in the top bar switches projects, shows each one’s open items, and has **Project settings**."
     ]
    },
    {
     "id": "set-your-profile",
     "g": "Settings and safety",
     "t": "Set your profile",
-    "w": "Settings › Profile",
-    "go": "settings#profile",
+    "w": "Settings › Personal › About you",
+    "go": "settings#personal",
     "s": [
      "Fill in your **Name**, **Alias**, **Email**, **Phone number** and **Organisation**.",
      "Each saves when you leave the box (or press [[Enter]]), with **Undo**.",
@@ -711,7 +711,7 @@
       "ul",
       [
        "**The logo** (or clark’s icon and name): back to the Dashboard.",
-       "**The project name**: switch projects. Each shows its count of open items; **New project…** and **Project settings** are at the foot.",
+       "**The project name**: switch projects. Each shows its count of open items; **Project settings** is at the foot.",
        "**Dashboard**, **Work items** and **Milestones**: the three screens.",
        "**ask clark**: opens the assistant down the right. The [[/]] beside it is its key.",
        "**The profile circle**: your initials (a person icon until you add your name). See [The profile circle](#ref-profile-circle)."
@@ -1161,7 +1161,7 @@
      ],
      [
       "p",
-      "Passwords and keys: a question, or a passage from a source folder, that looks like a password or a key is not sent. A password or key with a name in front of it is not sent when its value looks like one: letters mixed with digits or symbols, or a word in quotes. A plain word with nothing else in it, typed after the name without quotes, is still sent, because clark cannot tell it from an ordinary word. Take any real password out of a question before you send it."
+      "Passwords and keys: a question, or a passage from a source folder, that looks like a password or a key is not sent. A password or key with a name in front of it is not sent when its value looks like one: letters mixed with digits or symbols, or a word in quotes. A plain word with nothing else in it, typed after the name without quotes, is still sent, because clark cannot tell it from an ordinary word. A short mixed value typed after “api key” or “access key” (such as v2beta3) is not sent, on purpose, even when it is not a key. Take any real password out of a question before you send it."
      ]
     ]
    },
@@ -1675,7 +1675,7 @@
       "ul",
       [
        "There is no Save button. Each change is written when you make it: a pick from a menu, [[Enter]] in a field, leaving a box, or closing an editor.",
-       "Each change records who made it (your full name from Settings › Profile, or “You”), how (by hand, in words, imported, ask clark), what it was and what it became.",
+       "Each change records who made it (your full name from Settings › Personal › About you, or “You”), how (by hand, in words, imported, ask clark), what it was and what it became.",
        "**Undo** in the message reverses exactly that step. Several changes made together undo together."
       ]
      ]
