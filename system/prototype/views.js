@@ -1020,26 +1020,29 @@
     return `<div class="empty"><p>No ${what}items match ${why}.</p><button class="btn" id="clearAll">${q && !extra.length && show === 'open' ? 'Clear search' : 'Clear the filters'}</button></div>`;
   }
   /* ── the filter line: saved views as tabs, the line with its chips, the suggestions, the hint chips ── */
+  /* the one-line note beside each field when the box is opened empty (the list of fields, as GitHub's filter shows) */
+  const FIELD_NOTE = { is: 'Open, closed, overdue, not reviewed…', type: 'Action, risk, issue or decision', status: 'Where the item has got to', owner: 'Who it is with', priority: 'Urgent, High, Medium or Low',
+    due: 'Overdue, today, in the next 7 days…', workstream: 'The workstream', usecase: 'The use case it belongs to', milestone: 'The milestone it feeds', client: 'Shown to the client, or internal only', no: 'Has no owner, date, workstream…' };
   const HINTS = ['type:action', 'status:Open,Pending', '-status:Closed', 'no:owner', 'due:overdue', 'due:next-7-days', 'is:quiet', 'owner:me'];
   const vcount = line => workList(line).length;
   function viewsHtml() {
     if (FL.OPT.VIEWS !== 'tabs') return '';
-    const vs = FL.views(UI.code), cur = vs.find(v => v.id === W.view), dirty = !!cur && FL.norm(cur.line) !== lineNow(), focusable = cur ? cur.id : vs[0]?.id;
-    return `<div class="fvtabs" role="tablist" aria-label="Saved views">${vs.map(v => { const on = v.id === W.view, n = vcount(v.line);
-      return `<button role="tab" class="fvtab" data-wv="${esc(v.id)}" aria-selected="${on}" tabindex="${v.id === focusable ? 0 : -1}" aria-controls="wlist" aria-label="${esc(v.name)}, ${n} item${n === 1 ? '' : 's'}${on && dirty ? ', changed and not saved' : ''}${FL.needsMe(v.line) ? '. ' + FL.NO_ME : ''}" title="${esc((on && dirty ? 'Changed since you saved it. ' : '') + (FL.needsMe(v.line) ? FL.NO_ME + ' ' : '') + 'Shows: ' + FL.sayLine(v.line))}"><span>${esc(v.name)}</span><em>${n}</em>${on && dirty ? '<i class="fvdot" aria-hidden="true" title="Changed since you saved it"></i>' : ''}</button>`; }).join('')}</div>
-      <span class="fvacts">${dirty ? `<button class="btn sm" id="fvSave">Save view</button><button class="link" id="fvRevert">Discard changes</button>` : ''}<button class="link" id="fvNew">Save as a new view…</button></span>`;
+    const vs = FL.views(UI.code).filter(v => !v.archived), cur = vs.find(v => v.id === W.view), dirty = !!cur && FL.norm(cur.line) !== lineNow(), focusable = cur ? cur.id : vs[0]?.id;
+    /* the five core views first, then the person's own; a small ▾ on the open tab holds its menu, and + New view ends the row (as GitHub's view tabs do) */
+    return `<div class="fvtabs" role="tablist" aria-label="Views">${vs.map(v => { const on = v.id === W.view, n = vcount(v.line);
+      return `<span class="fvt${v.core ? ' core' : ''}"><button role="tab" class="fvtab" data-wv="${esc(v.id)}" aria-selected="${on}" tabindex="${v.id === focusable ? 0 : -1}" aria-controls="wlist" aria-label="${esc(v.name)}, ${n} item${n === 1 ? '' : 's'}${on && dirty ? ', changed and not saved' : ''}${FL.needsMe(v.line) ? '. ' + FL.NO_ME : ''}" title="${esc((on && dirty ? 'Changed since you saved it. ' : '') + (FL.needsMe(v.line) ? FL.NO_ME + ' ' : '') + 'Shows: ' + FL.sayLine(v.line))}"><span>${esc(v.name)}</span><em>${n}</em>${on && dirty ? '<i class="fvdot" aria-hidden="true" title="Changed since you saved it"></i>' : ''}</button>${on ? `<button type="button" class="fvmenu" id="fvMenu" aria-haspopup="menu" aria-label="Options for ${esc(v.name)}" title="Options for ${esc(v.name)}">${C.icon('chev', 's')}</button>` : ''}</span>`; }).join('')}<button type="button" class="fvadd" id="fvNew">${C.icon('plus', 's')}New view</button></div>`;
   }
   const chipsHtml = () => W.chips.map((t, i) => { const c = FL.token(t), s = c.err ? t : FL.say(c);
     return `<span class="fchip" data-tok="${esc(t)}" title="${esc(s)}" data-gloss="${esc(t + ': ' + s)}"><span class="fc-t">${esc(t)}</span><button type="button" data-fx="${i}" aria-label="Remove the filter: ${esc(s)}">${C.icon('x', 's')}</button></span>`; }).join('');
   const holder = () => W.chips.length ? '' : 'Filter by keyword or by field';
   function lineHtml() {
-    const key = C.keysOn() && FL.OPT.SLASH_KEY;
     return `<div class="fline-w${FL.OPT.HINTS === 'always' ? ' hints-always' : FL.OPT.HINTS === 'never' ? ' hints-never' : ''}" id="flw">
       <div class="fline" id="fline">${C.icon('filter', 's fl-ic')}<span class="fl-chips" id="flChips">${chipsHtml()}</span>
         <input id="fl" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="flList" aria-label="Filter work items" aria-describedby="flHelp" autocomplete="off" spellcheck="false" placeholder="${holder()}" value="${esc(W.q)}">
+        <button type="button" class="fl-x" id="flX" aria-label="Clear the filter" title="Clear the filter" hidden>${C.icon('x', 's')}</button>
         <ul class="fl-list" id="flList" role="listbox" aria-label="Suggestions" hidden></ul></div>
       <p class="fl-err" id="flErr" hidden></p>
-      <div class="fl-hints" id="flHints" role="group" aria-label="Examples to add">${HINTS.map(h => { const m = FL.say(FL.token(h)); return `<button type="button" class="fl-hint" data-hint="${esc(h)}" title="${esc(m)}" aria-label="${esc(h)}: ${esc(m)}" data-gloss="${esc(h + ': ' + m)}">${esc(h)}</button>`; }).join('')}<span class="fl-hw">Plain words search titles.${key ? `<span class="fl-key"> Press <kbd>${esc(key)}</kbd> to come back here.</span>` : ''}</span><span class="fl-gloss" id="flGloss" aria-hidden="true" hidden></span></div>
+      <div class="fl-hints" id="flHints" role="group" aria-label="Examples to add">${HINTS.map(h => { const m = FL.say(FL.token(h)); return `<button type="button" class="fl-hint" data-hint="${esc(h)}" title="${esc(m)}" aria-label="${esc(h)}: ${esc(m)}" data-gloss="${esc(h + ': ' + m)}">${esc(h)}</button>`; }).join('')}<span class="fl-gloss" id="flGloss" aria-hidden="true" hidden></span></div>
       <span class="sr" id="flHelp">Type a field such as status: and then a value, or plain words to search titles. The arrow keys choose a suggestion, Enter accepts it, Backspace in an empty box removes the last filter and Esc closes the list.</span>
       <span class="sr" id="flSay" role="status" aria-live="polite"></span></div>`;
   }
@@ -1082,19 +1085,32 @@
           /* a tab row: ←/→ move between the views (and choose them), Home and End jump */
           b.addEventListener('keydown', e => { const tabs = C.$$('[data-wv]'), i = tabs.indexOf(b), j = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key]; if (j === undefined) return; e.preventDefault(); tabs[(j + tabs.length) % tabs.length].click(); });
         });
-        C.$('#fvSave')?.addEventListener('click', () => { const vs = FL.views(UI.code), v = vs.find(z => z.id === W.view); if (!v) return; v.line = lineNow(); FL.viewsPut(UI.code, vs); rer(); C.toast(`View saved: ${v.name}`); C.$('[data-wv][aria-selected=true]')?.focus(); });
-        C.$('#fvRevert')?.addEventListener('click', () => C.$(`[data-wv="${CSS.escape(W.view)}"]`)?.click());
-        C.$('#fvNew')?.addEventListener('click', () => C.dialog(`<form id="fvF"><div class="dlg-h"><h2>Save as a new view</h2><p>The view keeps this filter line: ${esc(lineNow() || 'everything')}. It shows as a tab on this project's Work items, for you.</p></div>
-          <div class="dlg-b"><div class="form"><label for="fvN">Name</label><input class="field" id="fvN" required placeholder="For example: Due this week"></div></div>
-          <div class="dlg-f"><button type="button" class="btn quiet" data-close>Cancel</button><button class="btn pri">Save view</button></div></form>`, d => { C.$('#fvN', d).focus(); C.$('#fvF', d).addEventListener('submit', e => { e.preventDefault();
-          const name = C.$('#fvN', d).value.trim(); if (!name) return; const vs = FL.views(UI.code), v = { id: 'v' + Date.now().toString(36), name, line: lineNow() }; vs.push(v); FL.viewsPut(UI.code, vs); W.view = v.id; d.close(); rer(); C.toast(`View saved: ${name}`); }); }));
+        const curView = () => FL.views(UI.code).find(z => z.id === W.view);
+        const isDirty = () => { const v = curView(); return !!v && FL.norm(v.line) !== lineNow(); };
+        const saveChanges = () => { const vs = FL.views(UI.code), v = vs.find(z => z.id === W.view); if (!v || v.core) return; v.line = lineNow(); FL.viewsPut(UI.code, vs); rer(); C.toast(`View saved: ${v.name}`); C.$('[data-wv][aria-selected=true]')?.focus(); };
+        const discard = () => C.$(`[data-wv="${CSS.escape(W.view)}"]`)?.click();
+        const nameDialog = (title, intro, value, label, done) => C.dialog(`<form id="fvF"><div class="dlg-h"><h2>${title}</h2><p>${intro}</p></div>
+          <div class="dlg-b"><div class="form"><label for="fvN">Name</label><input class="field" id="fvN" required maxlength="40" placeholder="For example: Due this week" value="${esc(value)}"></div></div>
+          <div class="dlg-f"><button type="button" class="btn quiet" data-close>Cancel</button><button class="btn pri">${label}</button></div></form>`, d => { C.$('#fvN', d).focus(); C.$('#fvN', d).select(); C.$('#fvF', d).addEventListener('submit', e => { e.preventDefault();
+          const name = C.$('#fvN', d).value.trim(); if (!name) return; d.close(); done(name); }); });
+        const newView = () => nameDialog('Save as a new view', `The view keeps this filter line: ${esc(lineNow() || 'everything')}. It shows as a tab on this project's Work items, for you.`, '', 'Save view',
+          name => { const vs = FL.views(UI.code), v = { id: 'v' + Date.now().toString(36), name, line: lineNow() }; vs.push(v); FL.viewsPut(UI.code, vs); W.view = v.id; rer(); C.toast(`View saved: ${name}`); });
+        const renameView = v => nameDialog('Rename the view', 'The view keeps its filter line.', v.name, 'Rename', name => { const vs = FL.views(UI.code), z = vs.find(q => q.id === v.id); if (z) { z.name = name; FL.viewsPut(UI.code, vs); rer(); C.toast(`View renamed: ${name}`); } });
+        const archiveView = v => { const vs = FL.views(UI.code), z = vs.find(q => q.id === v.id); if (!z) return; z.archived = true; FL.viewsPut(UI.code, vs); W.view = 'open'; setLine(FL.BASE); fl.value = ''; rer(); C.toast(`View archived: ${v.name}. Bring it back from the ▾ menu.`); };
+        C.$('#fvMenu')?.addEventListener('click', e => { const v = curView(); if (!v) return; const dirty = isDirty(), back = FL.views(UI.code).filter(z => z.archived);
+          C.menu(e.currentTarget, [...(dirty && !v.core ? [{ label: 'Save changes', onPick: saveChanges }] : []), ...(dirty ? [{ label: 'Discard changes', onPick: discard }] : []), { label: 'Save as a new view…', onPick: newView },
+            ...(v.core ? [] : [{ label: 'Rename…', onPick: () => renameView(v) }, { label: 'Archive', onPick: () => archiveView(v) }]),
+            ...(back.length ? [{ sep: true }, ...back.map(z => ({ label: 'Bring back ' + z.name, onPick: () => { const vs = FL.views(UI.code), y = vs.find(q => q.id === z.id); if (y) { delete y.archived; FL.viewsPut(UI.code, vs); rer(); } } }))] : [])]); });
+        C.$('#fvNew')?.addEventListener('click', newView);
       };
-      const drawLine = () => { C.$('#flChips').innerHTML = chipsHtml(); fl.placeholder = holder(); const fv = C.$('#fviews'); if (fv) { const had = fv.contains(document.activeElement) && document.activeElement.dataset.wv; fv.innerHTML = viewsHtml(); if (had) C.$(`[data-wv="${CSS.escape(had)}"]`)?.focus(); } wireLine(); };
+      const drawLine = () => { C.$('#flChips').innerHTML = chipsHtml(); fl.placeholder = holder(); const fv = C.$('#fviews'); if (fv) { const had = fv.contains(document.activeElement) && document.activeElement.dataset.wv; fv.innerHTML = viewsHtml(); if (had) C.$(`[data-wv="${CSS.escape(had)}"]`)?.focus(); } wireLine(); syncX(); };
       /* a filter change: the list, the chips, the views and the labels only */
       const rer = () => { const oldC = C.$('.factive > span')?.textContent; saveW(); C.$('#wlist').innerHTML = listHtml(); drawLine(); syncBars(); wireList();
         /* the count line fades when a filter changes it (idea 9): the number only, opacity only */
         if (!C.reduce) { const nf = el => { el.classList.remove('n-chg'); void el.offsetWidth; el.classList.add('n-chg'); setTimeout(() => el.classList.remove('n-chg'), 300); };
           const c = C.$('.factive > span'); if (c && oldC && c.textContent !== oldC) nf(c); } };
+      /* the x inside the box: there while the line is not the starting line (or something is typed); it puts the line back to the starting one */
+      const syncX = () => { const x = C.$('#flX'); if (x) x.hidden = !(lineNow() !== FL.norm(FL.BASE) || fl.value.trim()); };
       const clr = () => { const v0 = FL.views(UI.code).find(v => FL.norm(v.line) === FL.norm(FL.BASE)); if (v0) W.view = v0.id; setLine(FL.BASE); fl.value = ''; showErr(''); rer(); };
 
       /* ── the box: suggestions (fields, then values with counts), chips, plain-words errors ── */
@@ -1106,7 +1122,10 @@
       /* the counts are of the items the other filters leave, so a value's count is what choosing it would show */
       const baseFor = w => { const k = (w.replace(/^-/, '').split(':')[0] || '').toLowerCase(); return workList(W.chips.filter(t => FL.token(t).field !== k).join(' ')); };
       const close = () => { open = false; at = -1; lst.hidden = true; lst.innerHTML = ''; fl.setAttribute('aria-expanded', 'false'); fl.removeAttribute('aria-activedescendant'); };
-      const draw = () => { const w = cur(); opts = FL.suggest(w, baseFor(w)).slice(0, 12); if (!opts.length) return close();
+      const draw = () => { const w = cur(); opts = FL.suggest(w, baseFor(w));
+        /* an empty box lists every field, "is" first, each with a one-line note (as GitHub's filter does); a word being typed narrows it as before */
+        if (!w) opts = [...opts, { kind: 'field', ins: 'no:', label: 'no:', note: '' }].map(o => ({ ...o, note: FIELD_NOTE[o.label.replace(/:$/, '')] || o.note })).sort((a, b) => (b.label === 'is:') - (a.label === 'is:'));
+        opts = opts.slice(0, 12); if (!opts.length) return close();
         open = true; if (at >= opts.length) at = opts.length - 1;
         if (at === 0) { const bare = v => v.replace(/"/g, '').toLowerCase(), ex = opts.findIndex(o => o.kind === 'value' && bare(o.ins) === bare(w)); if (ex > 0) at = ex; }   // a value typed in full is the one Enter takes
         lst.innerHTML = opts.map((o, i) => `<li role="option" id="flo-${i}" class="flo${i === at ? ' on' : ''}" aria-selected="${i === at}" data-o="${i}" aria-label="${esc(o.label + (o.note ? ', ' + o.note : '') + (o.n !== undefined ? `, ${o.n} item${o.n === 1 ? '' : 's'}` : ''))}"><b>${esc(o.label)}</b>${o.note ? `<span>${esc(o.note)}</span>` : ''}${o.n !== undefined ? `<em>${o.n}</em>` : ''}</li>`).join('');
@@ -1127,14 +1146,19 @@
         /* an earlier word with an error keeps its message; the word being typed is only checked for its field */
         const ws = FL.words(fl.value), rest = w ? ws.slice(0, -1) : ws, old = rest.filter(FL.isField).map(FL.token).find(t => t.err);
         const t = FL.isField(w) && !/^-?no:/i.test(w) ? FL.token(w.replace(/:.*$/, ':x')) : null; showErr(old ? old.err : t && t.err && /There is no/.test(t.err) ? t.err : '');
-        if (fl.value.trim()) { at = 0; draw(); } else close(); rer(); });
+        if (fl.value.trim()) { at = 0; draw(); } else { at = -1; draw(); } rer(); syncX(); });
       fl.addEventListener('keydown', e => {
-        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (!open) { at = 0; draw(); return; } at = (at + (e.key === 'ArrowDown' ? 1 : opts.length - 1)) % opts.length; draw(); return; }
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (!open) { at = 0; draw(); return; } at = e.key === 'ArrowDown' ? (at + 1) % opts.length : at <= 0 ? opts.length - 1 : at - 1; draw(); return; }
         if (e.key === 'Enter') { e.preventDefault(); if (open && at >= 0 && opts[at]) accept(opts[at]); else commit(); return; }
         if (e.key === 'Escape') { if (open) { e.preventDefault(); e.stopPropagation(); close(); } return; }
         if (e.key === 'Backspace' && fl.selectionStart === 0 && fl.selectionEnd === 0 && W.chips.length) { e.preventDefault(); const t = W.chips.pop(), c = FL.token(t); rer(); say('Removed the filter: ' + (c.err ? t : FL.say(c))); return; }
         if (e.key === 'Tab') close();
       });
+      /* a click or Tab into an empty box opens the list of fields */
+      const showFields = () => { if (!cur()) { at = -1; draw(); } };
+      fl.addEventListener('focus', showFields); fl.addEventListener('click', showFields);
+      C.$('#flX').addEventListener('mousedown', e => e.preventDefault());
+      C.$('#flX').addEventListener('click', () => { clr(); fl.focus(); say('Filter cleared'); });
       fl.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== fl) close(); }, 150));
       lst.addEventListener('mousedown', e => e.preventDefault());   // a click on a suggestion keeps the cursor in the box
       lst.addEventListener('click', e => { const li = e.target.closest('[data-o]'); if (li) accept(opts[+li.dataset.o]); });

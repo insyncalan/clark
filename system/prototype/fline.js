@@ -18,8 +18,16 @@
     REMEMBER: 'session',
   };
   /* the views a project starts with; the person can change them and save more */
+  /* the five core views: always the first tabs, in this order, on every project. They cannot be renamed or archived and are not part of the person's own views (#640) */
+  const CORE = [
+    { id: 'open', name: 'Open items', line: 'is:open', core: true },
+    { id: 'actions', name: 'Actions', line: 'is:open type:action', core: true },
+    { id: 'ri', name: 'Risks and issues', line: 'is:open type:risk,issue', core: true },
+    { id: 'decisions', name: 'Decisions', line: 'is:open type:decision', core: true },
+    { id: 'all', name: 'All work items', line: '', core: true },
+  ];
+  /* the person's own views a project starts with; they can be renamed, archived and added to */
   const DEFAULT_VIEWS = [
-    { id: 'open', name: 'Open items', line: 'is:open' },
     { id: 'overdue', name: 'Overdue', line: 'is:open due:overdue' },
     { id: 'client', name: 'Waiting on the client', line: 'is:open is:needed' },
     { id: 'mine', name: 'My actions', line: 'is:open type:action owner:me' },
@@ -150,8 +158,10 @@
   const mem = () => OPT.REMEMBER === 'session' ? sessionStorage : OPT.REMEMBER === 'always' ? localStorage : null;
   const lineGet = code => { try { const m = mem(); return m ? (JSON.parse(m.getItem('clark.fline') || '{}')[code] || null) : null; } catch (e) { return null; } };
   const linePut = (code, v) => { try { const m = mem(); if (!m) return; const all = JSON.parse(m.getItem('clark.fline') || '{}'); all[code] = v; m.setItem('clark.fline', JSON.stringify(all)); } catch (e) { /* private window */ } };
-  const views = code => { const all = C.store.get('fviews', {}); return all[code] || DEFAULT_VIEWS.map(v => ({ ...v })); };
-  const viewsPut = (code, vs) => { const all = C.store.get('fviews', {}); all[code] = vs; C.store.set('fviews', all); };
+  const isCore = v => CORE.some(c => c.id === v.id);
+  const own = code => { const all = C.store.get('fviews', {}); return (all[code] || DEFAULT_VIEWS.map(v => ({ ...v }))).filter(v => !isCore(v)); };   // an older stored set had its own Open items: the core one replaces it
+  const views = code => [...CORE.map(v => ({ ...v })), ...own(code)];
+  const viewsPut = (code, vs) => { const all = C.store.get('fviews', {}); all[code] = vs.filter(v => !v.core && !isCore(v)); C.store.set('fviews', all); };
 
-  C.fline = { NO_ME, needsMe, OPT, DEFAULT_VIEWS, BASE, FIELDS, NAMES, NONE_OK, words, token, parse, match, say, sayLine, norm, suggest, fromFilter, quote, isField, lineGet, linePut, views, viewsPut };
+  C.fline = { NO_ME, needsMe, OPT, CORE, DEFAULT_VIEWS, BASE, FIELDS, NAMES, NONE_OK, words, token, parse, match, say, sayLine, norm, suggest, fromFilter, quote, isField, lineGet, linePut, views, viewsPut };
 })();

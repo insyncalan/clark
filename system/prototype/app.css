@@ -206,12 +206,27 @@ main:has(.board), body.bfull main:has(.board) { padding-bottom: 0; } body:has(.b
 .fvtab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: 4px; }
 .fvtab em { font-style: normal; font-weight: 400; font-size: var(--fs-xs); min-width: 22px; padding: 1px 6px; border-radius: 999px; background: var(--grey-100); color: var(--text); text-align: center; }
 .fvdot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-blue); flex: none; }
+.fvt { display: inline-flex; align-items: flex-end; }
+.fvmenu { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; margin: 0 4px 6px -8px; border: 1px solid var(--control-border); border-radius: 6px; background: var(--surface); color: var(--text-muted); cursor: pointer; }
+.fvmenu:hover { color: var(--text); background: var(--grey-100); }
+.fvmenu:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.fvmenu svg { width: 14px; height: 14px; }
+.fvadd { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 12px; margin-bottom: -1px; font-size: 14px; color: var(--text-muted); white-space: nowrap; cursor: pointer; }
+.fvadd:hover { color: var(--text); }
+.fvadd:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: 4px; }
+.fvadd svg { width: 14px; height: 14px; }
 .fvacts { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-left: auto; padding-bottom: 6px; font-size: var(--fs-s); }
 .fvacts .link { display: inline-flex; align-items: center; min-height: 24px; }
 .fline-w { position: relative; }
 .fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-height: 38px; padding: 4px 8px 4px 32px; background: var(--surface); border: 1px solid var(--control-border); border-radius: var(--radius); cursor: text; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-state) var(--ease-out); }
 .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 3px var(--brand-blue-tint); }
 .fline.bad { border-color: var(--status-red); }
+.fline { padding-right: 36px; }
+.fl-x { all: unset; box-sizing: border-box; position: absolute; right: 6px; top: 7px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; color: var(--text-muted); cursor: pointer; }
+.fl-x[hidden] { display: none; }
+.fl-x:hover { color: var(--text); background: var(--grey-100); }
+.fl-x:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.fl-x svg { width: 14px; height: 14px; }
 .fline .fl-ic { position: absolute; left: 10px; top: 11px; width: 16px; height: 16px; color: var(--text-muted); }
 .fl-chips { display: contents; }
 .fline .fchip { font-size: var(--fs-s); padding: 0 2px 0 8px; white-space: nowrap; max-width: 100%; }
