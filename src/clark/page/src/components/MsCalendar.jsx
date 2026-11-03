@@ -51,7 +51,7 @@ function MonthGrid({ month, chips, today, open, rove }) {
 }
 
 // Which day is the tab stop: the day the person last moved to, if the period shown holds it, else today, else the first day (#481).
-export const roveDay = (day, here, today) => (day && day >= here.start && day <= here.end ? day : today >= here.start && today <= here.end ? today : here.start);
+const roveDay = (day, here, today) => (day && day >= here.start && day <= here.end ? day : today >= here.start && today <= here.end ? today : here.start);
 const STEP = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
 
 const SCALE_KEYS = SCALES.map(([v]) => v);
