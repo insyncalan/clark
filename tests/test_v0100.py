@@ -35,12 +35,6 @@ SCHEMA_AT_0_9_0 = 11
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
-    ("#74", "In Edit the Supporting documents section adds, edits, leaves out and adds back a document, each with its own Undo",
-     "test_documents_page::InEdit::test_add_edit_leave_out_and_add_back_each_with_undo"),
-    ("#74", "Archive takes a document off the list and the published page in one step with Undo, and Restore brings it back",
-     "test_documents_page::Archive::test_archive_undo_and_restore_at_both_widths_light_and_dark"),
-    ("#74", "A published file leaves out an archived document",
-     "test_documents_page::Archive::test_the_published_file_omits_an_archived_document"),
     ("#429", "Saving the name or the email says so with Undo, and saving the same words again says nothing",
      "test_about_you::AboutYou::test_C_saving_the_name_or_the_email_says_so_with_undo_and_a_second_save_of_the_same_words_says_nothing"),
     ("#429", "Undo puts the old value back in the box, the menu and the store",
