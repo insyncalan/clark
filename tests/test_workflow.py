@@ -97,6 +97,24 @@ class Workflow(unittest.TestCase):
         self.assertIn('workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;', plan)
         self.assertNotIn("actions/checkout", plan)               # seconds, nothing from the pull request runs here
 
+    def test_the_plan_sets_full_for_a_guarded_file_and_fails_safe(self):
+        plan = self.jobs["plan"]
+        self.assertIn("pull-requests: read", plan)
+        self.assertNotIn("actions/checkout", plan)
+        self.assertNotIn("eval ", plan)
+        self.assertIn("GH_TOKEN: ${{ github.token }}", plan)
+        self.assertIn("PR_NUMBER: ${{ github.event.pull_request.number }}", plan)
+        # #593: a file renamed away from a guarded path is seen too: both the new name and the old one (previous_filename) are listed
+        self.assertIn('gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq \'.[] | .filename, (.previous_filename // empty)\'', plan)
+        for guarded in ("src/clark/store.py", "src/clark/server.py", "src/clark/publish.py", "src/clark/secret_screen.py",
+                        "src/clark/updates.py", "src/clark/platform.py", "src/clark/schema.sql", "src/clark/history.py",
+                        ".github/*"):
+            self.assertIn(guarded, plan)
+        # a failed API call is full, not cheap
+        self.assertRegex(plan, r"else\s+echo \"could not list[^\n]*\n\s+FULL=1; MACOS=1")
+        # the filenames are text from the pull request: only through the shell variable, never in a ${{ }} expression
+        self.assertNotRegex(plan, r"\$\{\{[^}]*(filename|files)")
+
     def test_never_pull_request_target_no_secrets_read_only(self):
         self.assertNotIn("pull_request_target", self.text)          # the header comment says "never"
         self.assertNotIn("secrets.", self.text)
@@ -104,7 +122,11 @@ class Workflow(unittest.TestCase):
         self.assertEqual(block(self.text, "permissions").split(), ["contents:", "read"])
         self.assertNotRegex(self.text, r"\bwrite\b")
         for job, body in self.jobs.items():
-            self.assertNotIn("permissions:", body, f"{job} widens the permissions")
+            if job != "plan":
+                self.assertNotIn("permissions:", body, f"{job} widens the permissions")
+        # only the plan job widens, by one read scope (the changed-files API call); every other scope stays absent
+        self.assertEqual(code(block(self.jobs["plan"], "permissions", 4)).split(), ["contents:", "read", "pull-requests:", "read"])
+        self.assertEqual(self.text.count("pull-requests: read"), 1)
         self.assertEqual(self.text.count("persist-credentials: false"), self.text.count("actions/checkout@"))
 
     def test_a_newer_pull_request_run_cancels_the_older_and_a_main_or_release_run_never_is(self):
@@ -120,9 +142,15 @@ class Workflow(unittest.TestCase):
         self.assertNotIn("ubuntu-latest", self.text)
         self.assertIn('python-version: "3.x"', tests)
         self.assertIn('python-version: "3.9"', py39)
-        self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.x \u00b7 shard 1/1", tests)
+        self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.x \u00b7 shard ${{ matrix.shard }}/${{ needs.plan.outputs.count }}", tests)
         self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.9 \u00b7 shard 1/1", py39)
-        self.assertNotIn("matrix", tests)
+        # three shards on both paths (the cheap path can reach every file, and as one shard it hit the 30-minute cap): the plan decides, the job reads it
+        self.assertIn("shard: ${{ fromJSON(needs.plan.outputs.shards) }}", tests)
+        self.assertIn("SHARD: ${{ matrix.shard }}", tests)
+        self.assertIn("SHARDS: ${{ needs.plan.outputs.count }}", tests)
+        self.assertIn("SHARDS='[1,2,3]'; COUNT=3", self.jobs["plan"])
+        self.assertNotIn("SHARDS='[1]'", self.jobs["plan"])
+        self.assertIn("fail-fast: false", tests)
         self.assertIn('--quick --shard "1/1" --max-fail 8 $FILES', py39)
 
     def test_an_ordinary_pull_request_is_the_cheap_path_and_the_full_suite_runs_elsewhere(self):
@@ -192,6 +220,30 @@ class Workflow(unittest.TestCase):
         self.assertIn('if [ -n "$WANT_MACOS" ]; then test "$MACOS" = "success"; else test "$MACOS" = "skipped"; fi', passed)
         for job, body in self.jobs.items():
             self.assertNotIn("continue-on-error", body, job)
+
+    def test_the_guarded_list_in_the_plan_job_matches_run_tests_guarded(self):
+        """The plan job's case patterns are dev/run_tests.py GUARDED (source files) plus the documented extras and `.github/*`."""
+        text = WORKFLOW.read_text(encoding="utf-8")
+        plan = block(code(text), "plan", 2)
+        listed = set()
+        for ln in plan.splitlines():
+            m = re.match(r"^\s*([A-Za-z0-9_./*|-]+)\)\s", ln)
+            if m and "/" in m.group(1):
+                listed.update(m.group(1).split("|"))
+        src = (ROOT / "dev" / "run_tests.py").read_text(encoding="utf-8")
+        guarded = set(re.findall(r'"([^"]+)"', re.search(r"^GUARDED = \((.*?)\)", src, re.S | re.M).group(1)))
+        # .github/* covers the workflow files, so a GUARDED entry under .github/ is handled by that pattern
+        sources = {g for g in guarded if not g.startswith(".github/")}
+        extras = {"src/clark/publish.py", "src/clark/publish_flow.py", "src/clark/secret_screen.py",
+                  "src/clark/platform.py", "src/clark/updates.py", ".github/*"}
+        self.assertTrue(sources, "no source file found in run_tests.GUARDED")
+        self.assertIn(".github/*", listed, "the plan job must treat .github/* (the workflows) as guarded")
+        missing = sorted(sources - listed)
+        self.assertFalse(missing, f"in run_tests.GUARDED but missing from the workflow's plan list: {missing}")
+        extra = sorted(listed - sources - extras)
+        self.assertFalse(extra, f"in the workflow's plan list but not in GUARDED or the documented extras: {extra}")
+        gone = sorted(extras - listed)
+        self.assertFalse(gone, f"documented extras missing from the workflow's plan list: {gone}")
 
     def test_untrusted_text_reaches_the_shell_only_through_the_environment(self):
         for ln in self.text.splitlines():
