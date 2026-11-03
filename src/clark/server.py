@@ -29,6 +29,7 @@ Routes:
 - GET  /api/backups      the backups newest first, a status line, the daily-copy warning (#111; safety.py)
 - POST /api/backups/preview  {name}: counts in a backup and now, from a temporary copy
 - POST /api/backups/restore  {name, last_step}: put a backup back (one writer at a time, never waiting)
+- POST /api/backups/copy-folder  {folder}: choose the optional folder each backup is also copied into, OneDrive allowed, or "" for none (#622; safety.py)
 - POST /api/page-error   the page reports a fault: one short line in the log at most, rate-limited (#110; log_routes.py)
 - GET  /api/diagnostics  the logging level, the last 7 days' errors and the Copy diagnostics text (#110)
 - POST /api/logging      set Normal or Debug (#110); POST /api/logging/open-folder shows the log folder
@@ -117,7 +118,7 @@ def change_body_limit(body_max=SECTION_BODY_MAX):
 
 
 CHANGE_BODY_LIMIT = change_body_limit()   # #96, #378, #405: 516 KB today; moves with the three above, never with a bare number
-ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
+ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096,
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
@@ -966,7 +967,7 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open")}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
-               "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
+               "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
                 "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"),
                 "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
                 "/api/ai/suggest": ask_route("suggest", "ai"), "/api/ai/stop": ask_route("stop", "ai"),
