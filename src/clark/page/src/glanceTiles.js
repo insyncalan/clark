@@ -2,7 +2,7 @@
 // functions with no DOM and no clock (today is passed in). Each tile counts with the SAME filter state it opens Work items with
 // (filters.js applyFilters), so the number on a tile is always the number of rows in the list it opens.
 import { applyFilters, initial, setType, setFilter } from "./filters.js";
-import { isOpen, dueField, showDate, dayNumber, plural } from "./workItems.js";
+import { isOpen, dueField, showDate, dayNumber, plural, colourOf } from "./workItems.js";
 
 const state = (type, field, values) => setFilter(setType(initial(), type), field, values, false);
 
@@ -15,6 +15,19 @@ export const FILTERS = {
 };
 export const HEALTH_WORDS = { "On track": "g", "At risk": "a", "Off track": "r" };
 
+// The High risks and issues colour (#391; D-12, as glance.py _risks_tile): the colour of the worst open priority. Urgent or High is
+// red, Medium amber, Low green. An open item with no priority adds no colour, and with none open or none rated the tile is green.
+const RANK = { g: 1, a: 2, r: 3 };
+export function risksRag(rows) {
+  let worst = "g";
+  for (const r of rows) {
+    if (!isOpen(r) || r.kind === "action" || r.kind === "decision") continue;
+    const c = colourOf(r.priority).class;
+    if ((RANK[c] || 0) > RANK[worst]) worst = c;
+  }
+  return worst;
+}
+
 /** The tiles after Project health, in order: [{key, label, value, detail, rag ("g" "a" "r"), filter}]. */
 export function tiles(rows, today) {
   const n = (s) => applyFilters(rows, s, today).length;
@@ -24,7 +37,7 @@ export function tiles(rows, today) {
   const risksOpen = open("risk");
   return [
     { key: "overdue", label: "Overdue actions", value: over, detail: `of ${plural(open("action"), "open action")}`, rag: over ? "r" : "g", filter: FILTERS.overdue },
-    { key: "risks", label: "High risks and issues", value: high, detail: high ? `of ${risksOpen} open` : risksOpen ? "None high" : "None open", rag: high ? "r" : risksOpen ? "a" : "g", filter: FILTERS.risks },
+    { key: "risks", label: "High risks and issues", value: high, detail: high ? `of ${risksOpen} open` : risksOpen ? "None high" : "None open", rag: risksRag(rows), filter: FILTERS.risks },
     { key: "decisions", label: "Decisions needed", value: dec.length, detail: dates.length ? `Oldest ${showDate(dates[0])}` : dec.length ? "No date set" : "None waiting", rag: dec.length ? "a" : "g", filter: FILTERS.decisions },
   ];
 }

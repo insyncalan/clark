@@ -272,6 +272,26 @@ class RisksTile(unittest.TestCase):
             d = data(raid_=[raid(i + 1, priority=p) for i, p in enumerate(priorities)])
             self.assertEqual(by_name(g.tiles(d, ON))["risks"]["colour"], colour, priorities)
 
+    def test_help_states_the_same_rule_in_plain_words(self):
+        """#391: Help's High risks and issues line says the colour is that of the highest open priority, as the page and the file draw it."""
+        help_ = json.loads((ROOT / "src" / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
+        rows = []
+
+        def walk(node):
+            if isinstance(node, list):
+                if len(node) == 3 and node[0] == "High risks and issues":
+                    rows.append(node)
+                for n in node:
+                    walk(n)
+            elif isinstance(node, dict):
+                for n in node.values():
+                    walk(n)
+        walk(help_["reference"]["sections"])
+        self.assertTrue(rows, "Help has the High risks and issues row")
+        said = rows[0][2]
+        for part in ("highest priority", "red for Urgent or High", "amber for Medium", "green for Low", "none are open or none is rated"):
+            self.assertIn(part, said)
+
     def test_words(self):
         none = by_name(g.tiles(data(), ON))["risks"]
         self.assertEqual((none["value"], none["detail"]), (0, "None open"))

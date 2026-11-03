@@ -983,7 +983,7 @@
        [
         "High risks and issues",
         "Open risks and issues of Urgent or High priority",
-        "Red when any is rated Urgent or High; amber when some are open but none is that high; green when none are open"
+        "The colour of the highest priority among the open ones: red for Urgent or High, amber for Medium, green for Low. Green too when none are open or none is rated"
        ],
        [
         "Decisions needed",

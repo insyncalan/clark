@@ -3,6 +3,7 @@
 Run: python3 dev/run_tests.py test_glance_tiles
 #140: `Words` runs glanceTiles.js's own tileWord (bundled by the pinned esbuild, as test_work_items does) in headless Chrome: each
 tile's status in plain words, by colour and kind, never a colour name.
+#391: `RisksColour` feeds the same risks to the page's tiles() and to glance.py and asserts one colour for the High risks and issues tile.
 Drives the real server and the committed page in headless Chrome over the demo store at CLARK_NOW=2026-10-28. Required: fails,
 never skips, without Chrome (set CLARK_CHROME).
 """
@@ -207,6 +208,71 @@ class Words(unittest.TestCase):
             self.assertEqual(w, w.strip())
         self.assertEqual(self.out["table"], {"g": "On track", "a": "At risk", "r": "Off track"})
         self.assertEqual({v: k for k, v in self.out["health"].items()}, self.out["table"], "the same words as the health pill")
+
+
+# #391: the High risks and issues colour is one rule, the worst open priority (D-12): Urgent or High red, Medium amber, Low green,
+# green when none is open or none is rated. glance.py draws the published file's tile; glanceTiles.js draws the page's.
+# Each case is [(type, priority, status), ...].
+RISK_CASES = [
+    [("Risk", "Low", "Open")],
+    [("Risk", "Low", "Open"), ("Issue", "Low", "Open")],
+    [("Risk", "Medium", "Open"), ("Risk", "Low", "Open")],
+    [("Issue", "Medium", "Open")],
+    [("Risk", "High", "Open")],
+    [("Risk", "Urgent", "Open")],
+    [("Risk", "Low", "Open"), ("Issue", "High", "Open"), ("Risk", "Medium", "Open")],
+    [("Risk", "High", "Closed"), ("Risk", "Low", "Open")],
+    [("Risk", "Urgent", "Closed")],
+    [("Risk", None, "Open")],
+    [("Risk", None, "Open"), ("Risk", "Low", "Open")],
+    [],
+]
+
+
+class RisksColour(unittest.TestCase):
+    """#391: the page and the published file give the High risks and issues tile the same colour, case by case, and the page's
+    word follows that colour. The page's own tiles() runs in headless Chrome; glance.py runs here."""
+
+    @classmethod
+    def setUpClass(cls):
+        need_chrome()
+        rows = [[{"id": f"ABC-{n + 1:03d}", "kind": t.lower(), "status": st, "priority": pr, "due_date": None, "owner": None}
+                 for n, (t, pr, st) in enumerate(case)] for case in RISK_CASES]
+        script = (bundled(SRC / "clark" / "page" / "src" / "glanceTiles.js", "GT") + ";\n("
+                  + "(cs) => cs.map((rows) => { const t = GT.tiles(rows, '2026-10-28').find((x) => x.key === 'risks');"
+                  + " return { rag: t.rag, word: GT.tileWord('risks', t.rag), value: t.value, detail: t.detail }; })" + ")(" + json.dumps(rows) + ")")
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            res = cdp.call("Runtime.evaluate", {"expression": script, "returnByValue": True}, sid)
+            assert "exceptionDetails" not in res, res
+            cls.page = res["result"]["value"]
+
+    def file_tile(self, case):
+        from test_glance import data, raid, by_name
+        from clark import glance
+        d = data(raid_=[raid(n + 1, t, pr, st) for n, (t, pr, st) in enumerate(case)])
+        return by_name(glance.tiles(d, TODAY))["risks"]
+
+    def test_the_page_and_the_published_file_give_every_case_the_same_colour(self):
+        for case, got in zip(RISK_CASES, self.page):
+            with self.subTest(case=case):
+                self.assertEqual(got["rag"], self.file_tile(case)["class"])
+
+    def test_a_project_whose_open_risks_are_all_low_is_green_on_both(self):
+        low = [("Risk", "Low", "Open"), ("Issue", "Low", "Open")]
+        self.assertEqual(self.page[RISK_CASES.index(low)]["rag"], "g", "the page")
+        self.assertEqual(self.file_tile(low)["colour"], "green", "the published file")
+
+    def test_the_word_follows_the_colour(self):
+        words = {"g": "On track", "a": "Watch", "r": "High"}
+        for case, got in zip(RISK_CASES, self.page):
+            with self.subTest(case=case):
+                self.assertEqual(got["word"], words[got["rag"]])
+
+    def test_the_count_is_still_the_open_urgent_or_high_ones(self):
+        for case, got in zip(RISK_CASES, self.page):
+            with self.subTest(case=case):
+                self.assertEqual(got["value"], self.file_tile(case)["value"])
 
 
 if __name__ == "__main__":
