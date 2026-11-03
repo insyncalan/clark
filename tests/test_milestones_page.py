@@ -558,6 +558,8 @@ class RealBrowser(unittest.TestCase):
             for scale in ("month", "week", "quarter"):
                 self.scale(cdp, sid, scale)
                 for name, want in (("ArrowRight", "2026-10-29"), ("ArrowLeft", "2026-10-27"), ("ArrowUp", "2026-10-21"), ("ArrowDown", "2026-11-04")):
+                    cdp.js("document.querySelector('[data-cal=\\"0\\"]').click()", sid)      # Today: the period holding it is drawn again
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal-d.today')", sid)))
                     cdp.js("document.querySelector('.cal-d.today').focus()", sid)
                     self.assertEqual(self.where(cdp, sid), "2026-10-28")
                     self.press(cdp, sid, name)
@@ -662,6 +664,7 @@ class RealBrowser(unittest.TestCase):
             self.assertFalse(cdp.js("!!document.getElementById('peek')", sid))
             cdp.js(f"{chip}.click()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.getElementById('peek')", sid)))
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)), "the peek has taken focus, so its own keys are wired")
             stayed = cdp.js(f"""(() => {{ const c = {chip}; c.focus();
                 c.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Escape', bubbles: true, cancelable: true}}));
                 return document.activeElement === c; }})()""", sid)     # read in the same instant: the peek closes a moment later

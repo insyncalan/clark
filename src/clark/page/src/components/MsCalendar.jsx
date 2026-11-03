@@ -72,13 +72,14 @@ export function MsCalendar({ rows, today, open, place, client }) {
   const want = useRef(null);                  // the day that should hold focus once the move is drawn
   useEffect(() => {
     const el = box.current, a = document.activeElement;
+    if (!tick) return;                      // the first draw moves nothing (a late first run must not use up a move)
     if (want.current && el) {
       const cell = el.querySelector(`.cal-d[data-d="${want.current}"]`);
       want.current = null;
       if (cell) { cell.focus(); return; }
     }
     // The button or chip that had focus is drawn again by a move: keep focus on the calendar, never let it fall to the page.
-    if (tick && el && (!a || a === document.body || !document.contains(a))) el.focus();
+    if (el && (!a || a === document.body || !document.contains(a))) el.focus();
   }, [tick]);
   const here = buckets(scale, at, at)[0];
   const rove = roveDay(day, here, today);
