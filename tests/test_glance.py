@@ -624,9 +624,18 @@ class Strip(unittest.TestCase):
         self.assertEqual([r["id"] for r in s["rows"]], ["ABC-U-001"])
 
     def test_a_status_the_schema_does_not_allow_is_shown_as_stored_with_no_colour(self):
-        r = g.use_case_strip([use_case(1, "Done")], [], ON)["rows"][0]       # the prototype's "Done"
-        self.assertEqual((r["status"], r["colour"], r["class"]), ("Done", None, "n"))
-        self.assertEqual(g.use_case_strip([use_case(1, "Done")], [], ON)["counts"], [], "it has no place in the counts")
+        r = g.use_case_strip([use_case(1, "Finished")], [], ON)["rows"][0]
+        self.assertEqual((r["status"], r["colour"], r["class"]), ("Finished", None, "n"))
+        self.assertEqual(g.use_case_strip([use_case(1, "Finished")], [], ON)["counts"], [], "it has no place in the counts")
+
+    def test_done_is_grey_with_its_own_word_and_its_own_count_after_the_others(self):
+        """#412: Done is a status: its word, grey (never colour alone: the word is always there), and a count after High risk."""
+        s = g.use_case_strip([use_case(1, "Done"), use_case(2, "Flag"), use_case(3, "Done")], [], ON)
+        r = s["rows"][0]
+        self.assertEqual((r["status"], r["colour"], r["class"]), ("Done", "grey", "n"))
+        self.assertEqual([(c["status"], c["colour"], c["class"], c["count"]) for c in s["counts"]],
+                         [("Flag", "amber", "a", 1), ("Done", "grey", "n", 2)])
+        self.assertEqual(g.USE_CASE_STATUSES[-1], "Done")
 
     def test_the_client_version_whitelist(self):
         ucs = [use_case(1, source=PLANTED_MARKER, standing=f"<p>{PLANTED_MARKER}</p>", state_notes=PLANTED_MARKER, internal_note=PLANTED_MARKER),

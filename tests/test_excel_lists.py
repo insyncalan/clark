@@ -41,7 +41,7 @@ EXPECTED = {
              "Milestone": (MS, True), "Use case": (UC, True)},
     "Decisions": {"Project": (["ABC"], False), "Status": (["Pending", "Made", "Withdrawn"], False),
                   "Client-visible": (YES_NO, False), "Use case": (UC, True)},
-    "Use cases": {"Project": (["ABC"], False), "Status": (["On track", "Flag", "High risk"], False),
+    "Use cases": {"Project": (["ABC"], False), "Status": (["On track", "Flag", "High risk", "Done"], False),
                   "Client-visible": (YES_NO, False)},
 }
 # Free text on purpose: people (until the people table, #115), names, notes and dates. Priority on RAID is worked out (locked).
