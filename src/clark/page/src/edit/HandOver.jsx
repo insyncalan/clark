@@ -9,7 +9,8 @@
 // are in ../logic/handOver.js.
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { effect } from "@preact/signals";
-import { data, filterState, mode, fromFile, view, project } from "../stores/report.js";
+import { data, rows as allRows, filterState, filterCtx, mode, fromFile, view, project } from "../stores/report.js";
+import { lineApi } from "../stores/lineSlot.js";
 import { changeBulk } from "../stores/changes.js";
 import { workSelection } from "../stores/selection.js";
 import { handOver, handing, ticks, peopleList, focusBack } from "../stores/handover.js";
@@ -59,7 +60,8 @@ export function handOverNow() {
 /** The Hand over button, beside Add: in Edit, with the Owner filter on, while pick mode is off. */
 export function HandOverButton() {
   const btn = useRef(null);
-  const shown = editing() && !handing() && H.ownerFilterOn(filterState.value);
+  const L = lineApi.current, state = L ? L.toState(allRows.value, filterCtx()) : filterState.value;      // the filter line (#153) is the app's filter; its state is read the older way
+  const shown = editing() && !handing() && H.ownerFilterOn(state);
   useLayoutEffect(() => {
     if (shown && focusBack.value && btn.current) { focusBack.value = false; btn.current.focus({ preventScroll: true }); }
   });

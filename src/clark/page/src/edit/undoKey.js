@@ -17,7 +17,7 @@ function busy(el) {
 export function isUndoKey(e) {
   if (!e || (e.key !== "z" && e.key !== "Z" && e.code !== "KeyZ")) return false;
   if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || e.repeat || e.isComposing || e.defaultPrevented) return false;
-  if (fromFile.value || !data.value || mode.value !== "edit" || !PAGES.includes(view.value)) return false;
+  if (fromFile.value || !data.value || (mode.value !== "edit" && view.value === "dashboard") || !PAGES.includes(view.value)) return false;
   if (busy(document.activeElement) || busy(e.target)) return false;
   return !document.querySelector(OPEN);
 }
