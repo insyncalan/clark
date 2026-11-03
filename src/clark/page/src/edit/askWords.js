@@ -14,6 +14,7 @@ export const PLACEHOLDER = "Ask a question about this project";
 export const SEND = "Ask";
 export const STOP = "Stop";
 export const CLOSE = "Close";
+export const NEW_CHAT = "New chat";
 export const STOPPING_LINE = "Stopping. Your question and the earlier answers stay here.";
 export const NO_ANSWER_LINE = "No answer came back. Wait a moment and ask again.";
 export const NOT_REACHED_LINE = "The question did not reach clark. Check that its window is still open, then ask again.";

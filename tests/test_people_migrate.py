@@ -120,7 +120,7 @@ class InTheOrderedTable(Base):
 
     def test_the_step_is_registered_as_9_and_the_version_matches(self):
         self.assertIn((9, store_module.migrate_people), store_module.MIGRATIONS)
-        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 9)    # #120 is step 10
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 9)                # later steps follow (#120 is step 10, #412 is step 11)
         self.assertEqual(max(n for n, _ in store_module.MIGRATIONS), store_module.SCHEMA_VERSION)
 
     def test_a_version_1_file_with_data_moves_up_to_the_current_version(self):

@@ -4,9 +4,10 @@
 // and nothing else: no fetch, no token, no Settings tab, and "today" is the date it was published (as_at).
 import { signal, computed, batch } from "@preact/signals";
 import * as route from "../router.js";
-import { rowsOf } from "../workItems.js";
-import { decode, encode, fits, setPublished } from "../filters.js";
+import { rowsOf, todayIso } from "../workItems.js";
+import { decode, encode, fits, hasReviewDates, setPublished } from "../filters.js";
 import { searchIndex } from "../clientView.js";
+import { lineApi } from "./lineSlot.js";
 import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
 
@@ -26,7 +27,8 @@ const filterText = signal(start.f);                  // the Work items filters' 
 export const f = computed(() => filterText.value);   // read-only: a component changes it only through setFilters()
 export const peek = computed(() => (item.value ? { kind: "item", id: item.value } : ms.value ? { kind: "milestone", id: ms.value } : null));
 // Work items' filters (filters.js) live in the address as `f` and nowhere else: the state is read from the text each time it changes,
-// so a reload, Back and Forward bring the filters back with the page. `openFilter` is which filter's box is open ("" for none).
+// so a reload, Back and Forward bring the filters back with the page. The published file keeps this older bar (#69; the filter line is
+// for the app only, #153): `openFilter` is which filter's box is open ("" for none).
 export const filterState = computed(() => decode(f.value));
 export const openFilter = signal("");
 export const filterNote = signal("");                // a plain line when a filter could not be added; "" otherwise
@@ -50,6 +52,18 @@ export const rows = computed(() => (data.value ? rowsOf(data.value) : []));
 export const query = signal("");
 export const found = computed(() => (data.value ? searchIndex(data.value) : {}));
 export function setQuery(text) { query.value = String(text == null ? "" : text); }
+
+// The signed-in person's name for the app's filter line: the page has no source for it yet. Read by filterCtx only.
+export const me = signal("");
+// The project's own lists, from the data the page already holds: workstream names in the project's order, milestones in their own order with the date each is working to.
+export const filterCtx = () => {
+  const d = data.value;
+  return {
+    today: fromFile.value && asAt.value ? asAt.value : todayIso(), me: me.value, quietReady: hasReviewDates(rows.value),
+    workstreams: d ? (d.workstreams || []).map((w) => w.name).filter(Boolean) : [],
+    milestones: d ? (d.milestones || []).map((m) => ({ name: m.name, date: m.forecast_date || m.baseline_date || "" })).filter((m) => m.name) : [],
+  };
+};
 
 export const counts = computed(() => {
   const d = data.value;
@@ -108,7 +122,7 @@ function settle() {
 
 // Back and Forward (the trackpad swipe, the mouse buttons, the keyboard) with something still open on the page. What is being typed
 // (a section's title) is kept: the field is left first, so it is saved as a click on a tab saves it, to the project it belongs to,
-// before the page moves, and the message says so, with Undo. A menu, a filter's box or a drag closes, and nothing is chosen. The
+// before the page moves, and the message says so, with Undo. A menu or a drag closes, and nothing is chosen. The
 // peek has an entry of its own (closing it is a Back), so the page redraws after this as it would anyway.
 function leave() {
   const el = document.activeElement;
@@ -128,7 +142,11 @@ export function show(next) {
 }
 
 /** Open Work items with a filter state already set (an At a glance tile, #79): one new entry, as any change of page is. */
-export function openWork(state) {
+export function openWork(want) {
+  // The app's filter line (installed at start-up, never in a published file) leaves out a word it cannot answer yet and keeps the line.
+  const L = fromFile.value ? null : lineApi.current;
+  const state = L ? L.usable(want) : want;
+  if (L && project.value && fits(state)) L.remember(project.value, state);
   go({ view: "work", project: project.value, item: "", ms: "", f: fits(state) ? encode(state) : "" });
 }
 
@@ -183,8 +201,8 @@ export function setFilters(text) {
   go({ ...where(), f: text }, { replace: true });
 }
 
-/** A filter change from the Work items page: the state is encoded (filters.js) into `f`. If it would not fit in the address, nothing
- *  changes and a plain line says why. */
+/** A filter change from the published file's bar (#69): the state is encoded (filters.js) into `f`. If it would not fit in the
+ *  address, nothing changes and a plain line says why. */
 export function setFilterState(next) {
   if (!fits(next)) {
     refusals.value++;
@@ -208,6 +226,11 @@ function published() {
     const p = JSON.parse(el.textContent);
     return p && p.v === 1 && p.data && p.data.project && Array.isArray(p.tabs) ? p : "bad";
   } catch (e) { return "bad"; }
+}
+
+/** True when the page is a published file: it has its data in it and never waits for a server, so it never shows a loading placeholder. */
+export function isFile() {
+  return published() !== null;
 }
 
 function openPublished(p) {
@@ -236,7 +259,7 @@ let reading = 0;                                       // the newest read wins w
 // program's error name or a technical phrase: it looks the server's message up here by the HTTP status, and a message it does not
 // know (or none at all) gets the plain fallback for that status. Every line says what to do next. A status of 0 is "no answer".
 const READ_FAILED = "This project could not be read. Reload the page. If it happens again, restart clark.";
-const STALE = "This page is out of date: clark was restarted after you opened it. Reload the page and try again.";
+const STALE = "This page is out of date because clark was restarted after you opened it. Reload the page and try again.";
 const BAD_CODE = "Use a project code of 3 to 7 capital letters or digits.";
 const NO_PROJECT = "There is no project with that code. Check the code in the address, or choose a project from the list.";
 const NOT_ACCEPTED = "That request was not accepted. Reload the page.";
@@ -250,7 +273,7 @@ const ALLOWED = {
          known: { [NO_PROJECT]: NO_PROJECT,
                   "There is no project with that code.": NO_PROJECT } },
   500: { fallback: "A problem came up reading this project. Reload the page. If it happens again, restart clark.", known: {} },
-  0: { fallback: "Nothing is running behind this page: clark stops by itself after a while with nothing open. Start it again from clark.command.", known: {} },
+  0: { fallback: "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command.", known: {} },
 };
 export function plain(code, body) {
   const row = ALLOWED[code];

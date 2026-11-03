@@ -54,14 +54,22 @@ PROBE = """(() => {
   r.none = H.noResults("  <b>x</b> ");
   r.keys = H.keysList(false); r.keysMac = H.keysList(true);
   r.icons = H.iconLegend(); r.marks = H.milestoneMarks();
-  r.links = H.linksIn(); r.go = [H.goLabel("work"), H.goLabel("settings#profile"), H.goLabel("nowhere")];
+  r.links = H.linksIn(); r.go = [H.goLabel("work"), H.goLabel("settings#personal"), H.goLabel("nowhere")];
   r.plain = [H.plain("Press **Keep** or [[Mod+Enter]], then `x` in [Help](#ref-keys) or [Work](go:work)"), H.plain("[[Alt+Left]] [[Esc]] [[?]]", true), H.plain(null), H.plain("[[Mod+Enter]]", true)];
   r.jobs = H.jobs(); r.first = H.firstTen().length; r.loop = H.loopSteps().length;
   const one = (title, q) => H.search([{ tab: "howto", id: "t", title, tw: H.wordsOf(title), lw: [] }], q).length;
   r.stem = [one("The item", "items"), one("The entry", "entries"), one("The box", "boxes"), one("The items", "item"), one("The itch", "items"), one("An ox", "ox")];
+  const long = "Open the board with the key, then drag a card to a new column and the status changes with it, and nothing else on the card moves; an Undo in the message puts it back to where it was";
+  r.mark = { plain: H.markParts("Press the Keys to search", "keys"), two: H.markParts("Undo the change, then undo again", "undo change"), none: H.markParts("Nothing to find", "zzz"),
+    stem: H.markParts("Three items and one entry", "items entries"), accent: H.markParts("Café menu", "cafe"), markup: H.markParts("<b>x</b> keys", "keys"),
+    short: H.markParts("a b keys", "a"), empty: H.markParts("", "keys"), nul: H.markParts(null, "keys"), late: H.markParts(long, "undo"), early: H.markParts(long, "board") };
   r.dyn = H.buildIndex({ types: ["Zebra badge"] }).filter((e) => e.lines.includes("Zebra badge")).map((e) => e.id);
   return r;
 })()"""
+
+
+CONTENT_LONG = ("Open the board with the key, then drag a card to a new column and the status changes with it, and nothing else on the card "
+                "moves; an Undo in the message puts it back to where it was")
 
 
 def bundled():
@@ -112,14 +120,14 @@ class Logic(unittest.TestCase):
         lst = self.r["lists"]["howto"]
         self.assertEqual([g["group"] for g in lst], CONTENT["howto"]["groups"])
         self.assertEqual(sum(len(g["entries"]) for g in lst), len(TASKS))
-        self.assertEqual(sum(len(g["entries"]) for g in lst), 30)
+        self.assertEqual(sum(len(g["entries"]) for g in lst), 32)
         first = lst[0]["entries"][0]
         self.assertEqual(first, {"id": TASKS[0]["id"], "title": TASKS[0]["t"], "place": "howto-" + TASKS[0]["id"]})
 
     def test_reference_lists_every_section_under_its_group(self):
         lst = self.r["lists"]["reference"]
         self.assertEqual([g["group"] for g in lst], CONTENT["reference"]["groups"])
-        self.assertEqual(sum(len(g["entries"]) for g in lst), 33)
+        self.assertEqual(sum(len(g["entries"]) for g in lst), 34)
         self.assertTrue(all(e["place"].startswith("ref-") for g in lst for e in g["entries"]))
 
     def test_start_here_lists_its_seven_parts_and_an_unknown_tab_lists_nothing(self):
@@ -156,7 +164,7 @@ class Logic(unittest.TestCase):
     def test_every_place_is_unique_and_the_count_is_right(self):
         p = self.r["places"]
         self.assertEqual(len(p), len(set(p)))
-        self.assertEqual(len(p), 7 + 30 + 33)
+        self.assertEqual(len(p), 7 + 32 + 34)
 
     # ---- search ----
     def test_search_finds_every_entry_by_its_title(self):
@@ -235,10 +243,27 @@ class Logic(unittest.TestCase):
         self.assertEqual(self.r["dyn"], ["ref-icons"])
 
     # ---- the keys and the icons ----
+    def test_a_result_marks_the_words_that_matched(self):
+        """C-H9: the prototype marks the matched word in a title and a line (help.js `mark`), as text parts, never markup."""
+        m = self.r["mark"]
+        join = lambda parts: "".join(p["t"] for p in parts)
+        hits = lambda parts: [p["t"] for p in parts if p["hit"]]
+        self.assertEqual(m["plain"], [{"t": "Press the ", "hit": False}, {"t": "Keys", "hit": True}, {"t": " to search", "hit": False}])
+        self.assertEqual(hits(m["two"]), ["Undo", "change", "undo"], "every word of the search is marked, in the line's own capitals")
+        self.assertEqual(m["none"], [{"t": "Nothing to find", "hit": False}])
+        self.assertEqual(hits(m["stem"]), ["items", "entry"], "a plural finds the singular and the other way round")
+        self.assertEqual(hits(m["accent"]), ["Café"], "accents are ignored in matching, kept in the words")
+        self.assertEqual(join(m["markup"]), "<b>x</b> keys", "the text is kept as it is; the page draws it as text")
+        self.assertEqual(hits(m["short"]), [], "a one-letter word is not searched for")
+        self.assertEqual((m["empty"], m["nul"]), ([], []))
+        self.assertEqual(join(m["early"]), CONTENT_LONG, "a match near the start keeps the whole line")
+        self.assertEqual(m["late"][0], {"t": "…", "hit": False}, "a match late in a long line starts a little before it, with an ellipsis")
+        self.assertTrue(hits(m["late"]) == ["Undo"] and join(m["late"][1:]) in CONTENT_LONG)
+
     def test_keys_list(self):
         keys, mac = self.r["keys"], self.r["keysMac"]
-        self.assertEqual(len(keys), 33)
-        self.assertEqual(len(mac), 33)
+        self.assertEqual(len(keys), 36)
+        self.assertEqual(len(mac), 36)
         row = next(k for k in keys if "J" in k["keys"] and "ask clark" in k["does"])
         self.assertEqual(row["keys"], "Ctrl+J")
         self.assertEqual(next(k for k in mac if k["does"] == row["does"])["keys"], "⌘+J")
@@ -288,21 +313,24 @@ class Shown(unittest.TestCase):
 
     def test_a_held_entry_is_in_no_list_no_place_and_no_search(self):
         s = self.shown
-        SEC = ["howto-set-the-health", "howto-use-the-board", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-handle-a-slipped-milestone",
-               "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-freshness", "ref-archive-restore", "ref-milestones-page", "ref-diagnostics", "ref-keys"]
+        SEC = ["howto-set-the-health", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-use-the-board", "howto-arrange-the-report", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-handle-a-slipped-milestone",
+               "ref-profile-circle", "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-freshness", "ref-archive-restore", "ref-at-a-glance", "ref-layouts", "ref-work-items",
+               "ref-milestones-page", "ref-status-words", "ref-milestone-states", "ref-published-reports", "ref-diagnostics", "ref-dates-and-ids", "ref-using-help", "ref-keys"]
         self.assertEqual(s["places"], SEC)
         self.assertEqual(s["tabs"]["start"], [])
-        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:6])
+        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:9])
         self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]],
-                         ["ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-milestones-page", "ref-freshness", "ref-archive-restore", "ref-diagnostics", "ref-keys"])      # by group: Screens, Working with items, Settings and data, Keys and icons
+                         ["ref-profile-circle", "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-at-a-glance", "ref-layouts", "ref-work-items", "ref-milestones-page", "ref-freshness", "ref-archive-restore",
+                          "ref-status-words", "ref-milestone-states", "ref-published-reports", "ref-diagnostics", "ref-dates-and-ids", "ref-using-help", "ref-keys"])      # by group: Screens, Working with items, Milestones, Publishing, Settings and data, Keys and icons
         self.assertEqual(s["index"], SEC)
-        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "ref-needs-from-you", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-keys"], ["dashboard+edit", "work", "milestones"]))
+        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "ref-needs-from-you", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "ref-status-words", "howto-use-the-board", "howto-handle-a-slipped-milestone", "ref-keys"], ["dashboard+edit", "settings#pubs", "publish", "work", "milestones"]))
         self.assertEqual(s["q"]["sneak"], [], "no Sneak peek entry is shown")      # "ask clark" is left out: the board entry says \"clark remembers\", which the search reads as a match
         self.assertEqual(s["q"]["peek"], ["ref-freshness"], "no peek entry of its own is shown; Freshness says where the peek shows Raised and Last reviewed")
         self.assertEqual(s["q"]["movement"][:2], ["ref-milestones-page", "howto-handle-a-slipped-milestone"], "a search for movement finds the Movement entries")
         self.assertEqual(s["q"]["diagnostics"][0], "ref-diagnostics", "a search for diagnostics finds the Diagnostics entry")
-        self.assertEqual(s["q"]["publish"], ["howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-sections", "ref-needs-from-you", "ref-archive-restore", "ref-milestones-page"],
-                         "only entries that say what is or is not on the published page; no Publish entry is shown")
+        self.assertEqual(s["q"]["publish"], ["ref-published-reports", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-archive-restore",
+                                             "ref-layouts", "ref-milestones-page", "ref-status-words", "ref-milestone-states"],
+                         "the Published reports entries, then the entries that say what is or is not on the published page; only entries about Publish that are shown")
         self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "ref-section-templates"])
 
     def test_opening_help_at_a_held_place_is_an_unknown_place_and_a_shown_one_still_opens(self):

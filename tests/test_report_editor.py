@@ -20,6 +20,7 @@ from _demo import USER, DemoStore
 from _editor_checks import edit_elements
 from _real_server import real_server
 from _paths import SRC, TOOLS
+from _new_page import reload_to_new_page
 import _testpage as testpage
 
 sys.path.insert(0, str(TOOLS))
@@ -36,6 +37,7 @@ TITLES = ["Current state", "At a glance", "Use case summary", "Milestones", "Sum
           "Risks and issues", "Open actions", "Decisions", "Supporting documents"]
 IDS = [f"ABC-S-{n:03d}" for n in range(1, 12)]
 SECRET = "Server text that a person must never read"
+NOTHING = "Nothing to show."                  # a work item section with no row to draw (A-D5)
 QUIET = "Not shown on this page yet."                    # the page clark serves, for every type (#74)
 ALT = 1                                                            # Input.dispatchKeyEvent modifiers: Alt
 
@@ -60,27 +62,13 @@ class Pg:
     def until(self, expr, what, seconds=10):
         self.t.assertTrue(wait(lambda: self.js(expr), seconds), what)
 
-    def until_new_page(self, expr, what, seconds=10):
-        """until(), but a call made while the page is navigating is waited out: Chrome answers it with 'Inspected target navigated
-        or closed' (seen on the hosted macOS runner), and the next poll sees the new page. Any other error still fails."""
-        def ask():
-            try:
-                return self.js(expr)
-            except RuntimeError as e:
-                if "navigated or closed" in str(e):
-                    return False
-                raise
-        self.t.assertTrue(wait(ask, seconds), what)
-
     def ready(self):
         self.until("document.querySelectorAll('.sec').length > 0 || !!document.querySelector('#no-sections')", "the report drew")
 
     def reload(self):
-        """Reload and wait for the NEW document: location.reload() returns while the old one is still up, so a bare ready()
+        """Reload and wait for the NEW document (_new_page.py): a reload returns while the old one is still up, so a bare ready()
         sees the old sections (or none, mid-teardown). A token set on the old window is gone in the new one."""
-        self.js("window.__old_document = true")
-        self.js("location.reload()")
-        self.until_new_page("window.__old_document === undefined && document.readyState === 'complete'", "the page reloaded")
+        reload_to_new_page(self.js)
         self.ready()
 
     def edit(self):
@@ -264,14 +252,15 @@ class Modes(Base):
             self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"
             kinds = p.js(sec + ".map(s => s.dataset.type)")
-            self.assertEqual(p.js(quiet), [f"{k}:{QUIET}" for k in kinds], "View: one plain line, the same for every type")
+            want = [f"{k}:{NOTHING if k in ('raid', 'actions', 'decisions') else QUIET}" for k in kinds]       # A-D5: those three draw their rows
+            self.assertEqual(p.js(quiet), want, "View: one plain line, the same for every type that draws no rows")
             self.assertTrue(p.js("!!document.querySelector('.secs > .sec[data-type=milestones] .msv, .secs > .sec[data-type=milestones] [data-no-milestones]')"),
                             "View: the milestones section is drawn, not the plain line")
             p.edit()
             found = edit_elements(cdp, p.sid)
             for what in ("[data-drag]", "[data-options]", "[data-add]", "[contenteditable=plaintext-only]"):
                 self.assertEqual(len([f for f in found if what in f]), 11, what)
-            self.assertEqual(p.js(quiet), [f"{k}:{QUIET}" for k in kinds], "Edit: the same line")
+            self.assertEqual(p.js(quiet), want, "Edit: the same line")
             self.assertEqual(p.js(texts), [QUIET] + ["Click to write."] * 3, "Edit: Current state keeps the old line; the three text sections open the editor in place (#220)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
@@ -820,7 +809,7 @@ class Sections(Base):
 
 class Failures(Base):
     """Every failure says plain words and nothing the server said; nothing is drawn that was not saved."""
-    STALE = "This page is out of date: clark was restarted after you opened it. Reload the page and try again."
+    STALE = "This page is out of date because clark was restarted after you opened it. Reload the page and try again."
 
     def shown_problem(self, p, words):
         p.until(f"!!document.querySelector('.toast.problem') && document.querySelector('.toast-text').textContent === {json.dumps(words)}",
@@ -890,7 +879,7 @@ class Failures(Base):
             self.s.close()                                                        # clark's window was closed
             self.addCleanup(lambda: None)
             p.menu("ABC-S-002", "up")
-            self.shown_problem(p, "Nothing is running behind this page: clark stops by itself after a while with nothing open. Start it again from clark.command.")
+            self.shown_problem(p, "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command.")
             self.assertEqual(p.ids(), IDS)
 
     def test_changes_go_out_one_at_a_time(self):
