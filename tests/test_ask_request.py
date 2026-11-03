@@ -42,7 +42,7 @@ class Build(unittest.TestCase):
 
     def test_a_request_holds_text_only(self):
         names = {f.name for f in dataclasses.fields(ask.Request)}
-        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "left_out_secret", "kept", "system", "canary"})   # dropped_turns and left_out_secret are counts, kept is positions; system is the caller's fixed rules text ("" = ask clark's own); canary (#277) is the random marker ask_provider sets
+        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "left_out_secret", "kept", "system", "canary", "owner", "cancel"})   # dropped_turns and left_out_secret are counts, kept is positions; system is the caller's fixed rules text ("" = ask clark's own); canary (#277) is the random marker ask_provider sets; owner and cancel (#284) let a Stop end only its own service's run
         for bad in ("tool", "file", "path", "key", "tools", "files", "env"):
             self.assertNotIn(bad, names)
 
@@ -233,12 +233,41 @@ class Secrets(unittest.TestCase):
         for text in self.FINE:
             ask.build_request(text, P)
 
-    def test_the_users_earlier_turns_are_checked_but_the_assistants_are_not(self):
+    def test_every_earlier_turn_is_checked_whoever_it_is_marked_as_from(self):
         with self.assertRaises(ask.AskRefused) as cm:
             ask.build_request("Q?", P, earlier=[("user", "password is hunter22")])
         self.assertEqual(str(cm.exception), ask.SECRET_EARLIER)
         self.assertEqual(ask.SECRET_EARLIER, "An earlier message looks like a password or a key, so this chat can't be sent. Start a new chat and try again.")
-        ask.build_request("Q?", P, earlier=[("assistant", "password is hunter22")])
+        for role in ask.ROLES:
+            with self.assertRaises(ask.AskRefused, msg=role) as cm:
+                ask.build_request("Q?", P, earlier=[("user", "Fine."), (role, "password is hunter22")])
+            self.assertEqual(str(cm.exception), ask.SECRET_EARLIER)
+        ask.build_request("Q?", P, earlier=[("assistant", "The plan is on track.")])
+
+    def test_the_refusal_never_holds_what_was_typed(self):
+        for text in self.REFUSED:
+            with self.assertRaises(ask.AskRefused) as cm:
+                ask.build_request(text, P)
+            self.assertNotIn(text, str(cm.exception))
+
+    def test_url_encoded_and_base64_password_text_is_refused(self):
+        """Already screened on main by secret_screen (#257); held here for the ask path so a regression shows."""
+        import base64
+        import urllib.parse
+        line = "pass" + "word: " + "Welcome" + "2026!"
+        for text in (urllib.parse.quote(line, safe=""), urllib.parse.quote_plus(line),
+                     base64.b64encode(line.encode()).decode(), base64.b64encode(("ok\n" + line + "\n").encode()).decode(),
+                     base64.b64encode(("pass" + "word: Summer" + "2026x").encode()).decode()):      # only the base64 reading catches this one
+            with self.assertRaises(ask.AskRefused, msg=text):
+                ask.build_request(text, P)
+            with self.assertRaises(ask.AskRefused, msg=text):
+                ask.build_request("Q?", P, earlier=[("assistant", text)])
+
+    def test_check_question_is_the_whole_screen_without_passages(self):
+        self.assertEqual(ask.check_question("Q?", [("user", "Fine.")]), [("user", "Fine.")])
+        for bad in ("", "x" * (ask.MAX_QUESTION + 1), "my pass" + "word is hunter22"):
+            with self.assertRaises(ask.AskRefused):
+                ask.check_question(bad)
 
     def test_passage_text_is_not_refused(self):
         ask.build_request("Q?", [ask.Passage("a.md", "password is hunter22")])

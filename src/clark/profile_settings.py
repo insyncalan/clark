@@ -8,6 +8,7 @@ import threading
 from clark import platform, settings
 
 KEYS = ("name", "email")
+FIELD_OF = {settings.NAME_BAD: "name", settings.NAME_TOO_LONG: "name", settings.EMAIL_BAD: "email"}
 BAD = "That could not be read. Reload the page and try again. Nothing was saved."
 
 
@@ -29,7 +30,11 @@ class Profile:
             try:
                 saved = settings.set_profile(self.data_dir, req["name"], req["email"])
             except ValueError as e:
-                return 400, {"ok": False, "message": str(e), "code": "refused"}
+                reply = {"ok": False, "message": str(e), "code": "refused"}
+                field = FIELD_OF.get(str(e))
+                if field:
+                    reply["field"] = field            # the box the refusal is about (a save carries both boxes)
+                return 400, reply
         return 200, {"ok": True, **saved}
 
     def who(self):

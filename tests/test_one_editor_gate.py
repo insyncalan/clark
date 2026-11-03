@@ -66,6 +66,7 @@ class Source(unittest.TestCase):
         self.assertEqual(importers, ["core/editor.js"])
 
     def test_the_published_page_has_no_editor(self):
+        page.ensure_built()          # #495: the pages are generated, so a fresh checkout builds them here
         view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
         scripts = "".join(re.findall(r"<script>(.*?)</script>", view, re.S))          # the stylesheet names the editor's classes; the script must not hold it
         self.assertGreater(len(scripts), 1000)
@@ -171,11 +172,9 @@ class PageGate(unittest.TestCase):
         s = self.serve(self.page_on)
         with chrome() as cdp:
             js, sid = self.edit(cdp, s)
-            js("document.querySelector('[data-rich]').click()")
-            self.assertTrue(wait(lambda: js("!!document.querySelector('.ProseMirror')"), 10))
+            self.open_field(cdp, js, sid)             # waits until the editor has the focus: a key sent before that goes to the page (the hosted Mac is slow)
             js("document.querySelector('.ProseMirror').cxed.editor.commands.insertContent('New words'); true")
-            cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13,
-                                                "modifiers": 4 if js("/Mac/.test(navigator.platform)") else 2}, sid)
+            self.key(cdp, sid, "Enter", "Enter", 13, self.mod(js))
             self.assertTrue(wait(lambda: any(r.get("changes", {}).get("body") for r in self.sent), 30), "the change was sent")  # a bounded poll: the hosted macOS runner can take longer than 10 s
             self.assertTrue(wait(lambda: js("!!document.querySelector('.toast')"), 30))
             self.assertTrue(js("!!document.querySelector('.ProseMirror')"), "the field stays open")

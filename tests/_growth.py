@@ -12,7 +12,7 @@ import time
 GROWTH_STEP = 4         # the larger run is GROWTH_STEP times the size of the smaller one
 GROWTH_LIMIT = 8        # t(4n) / t(n): linear is 4, n to the power 1.5 is 8, quadratic is 16, cubic is 64. Above 8 means the work is growing faster than n to the power 1.5; a square is a factor of two over it and linear a factor of two under.
 GROWTH_FLOOR = 0.01     # CPU seconds; a faster t(n) than this is raised to it, so timer noise cannot fail a very quick run
-ABSOLUTE_CAP = 30       # CPU seconds for the larger run: a generous bound, so a scan that stays linear but gets a hundred times slower still fails
+ABSOLUTE_CAP = 400      # CPU seconds for the larger run. Only a backstop for a scan that stays linear but gets a hundred times slower: the quietest-box t(4n) of the slowest test is about 36 s (test_secret_screen), so this is ten times that and a loaded box (CPU time inflates under contention) cannot trip it. The ratio above is the real guard.
 
 
 def growth_ratio(work, n, tries=3):
@@ -38,3 +38,29 @@ def assert_growth(test, work, n, label, tries=3):
     test.assertLessEqual(ratio, GROWTH_LIMIT, "%s: t(n)=%.3f t(4n)=%.3f ratio=%.2f" % (label, small, big, ratio))
     test.assertLessEqual(big, ABSOLUTE_CAP, "%s: t(4n)=%.3f CPU seconds is over the absolute cap" % (label, big))
     return small, big, ratio
+
+
+NEAR_LIMIT = 50         # work / baseline: a hostile input may cost this many times a plain input of the same size. Linear work sits near 1 to 10; a square at 60 000 characters is in the thousands.
+NEAR_CAP = 100         # CPU seconds for the hostile input: a backstop only, ten times the old bound so a loaded runner cannot trip it; NEAR_LIMIT against the baseline is the real guard.
+
+
+def best_cpu(work, tries=3):
+    """The fastest of `tries` runs of work(), in CPU time (time.process_time, so a busy machine does not count against it)."""
+    found = None
+    for _ in range(tries):
+        start = time.process_time()
+        work()
+        spent = time.process_time() - start
+        found = spent if found is None else min(found, spent)
+    return found
+
+
+def assert_near_baseline(test, work, baseline, label, tries=3):
+    """For a check on one hostile input of a fixed size: time work() and baseline() (a plain input of the same size) in the same run, best
+    of `tries` each, and fail `test` if work is more than NEAR_LIMIT times the baseline (the baseline raised to GROWTH_FLOOR, so timer noise
+    cannot fail a quick run) or is over NEAR_CAP CPU seconds. Returns (work time, baseline time)."""
+    spent, plain = best_cpu(work, tries), best_cpu(baseline, tries)
+    msg = "%s: %.3f CPU s against a plain %.3f CPU s" % (label, spent, plain)
+    test.assertLessEqual(spent, NEAR_LIMIT * max(plain, GROWTH_FLOOR), msg)
+    test.assertLessEqual(spent, NEAR_CAP, msg + " (over the absolute cap)")
+    return spent, plain

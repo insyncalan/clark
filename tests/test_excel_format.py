@@ -251,6 +251,15 @@ class Formatting(unittest.TestCase):
         self.assertEqual(colours.MILESTONE_STATE["At risk"], "amber")
         self.assertEqual(colours.DECISION_STATUS, {"Pending": "amber", "Made": "green", "Withdrawn": "grey"})
 
+    def test_use_case_status_is_green_amber_red_and_done_grey(self):
+        """#412: Done is grey on the Use cases sheet, as the page draws it; the word is always in the cell."""
+        self.assertEqual(colours.BY_FIELD[("use_cases", "status")],
+                         {"On track": "green", "Flag": "amber", "High risk": "red", "Done": "grey"})
+        ws = self.sheet({"use_cases": [use_case(1, status="Done")]}, "Use cases")
+        c = self.cell(ws, "DEMO-U-001", "Status")
+        self.assertEqual(c.value, "Done")
+        self.assertEqual(look_of(ws, c.column_letter, "Done"), colours.hexes("grey"))
+
     def test_action_and_raid_status_follow_the_pages_tones(self):
         self.assertEqual(colours.BY_FIELD[("actions", "status")],
                          {"Open": "blue", "Delayed": "amber", "Closed": "grey", "Cancelled": "grey"})
@@ -377,7 +386,7 @@ class Formatting(unittest.TestCase):
                             action(2, priority="Low", status="Closed", closed="2030-01-02")],
                 "raid": [raid(1, impact="High", likelihood="Low", priority="High", status="Open")],
                 "decisions": [decision(1, status="Pending", needed_by="2030-01-01")],
-                "use_cases": [use_case(1, status="High risk")]}
+                "use_cases": [use_case(1, status="High risk"), use_case(2, status="Done")]}
         back = excel.read_workbook(self.build(rows))
         for table, want in rows.items():
             for got, row in zip(back[table], want):
