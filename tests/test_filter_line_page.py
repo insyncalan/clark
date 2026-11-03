@@ -631,6 +631,23 @@ class Line(unittest.TestCase):
                 self.assertEqual(kept["bad"]["line"], "is:old")
                 cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 
+    def test_the_starting_views_as_they_came_say_nothing_but_an_edited_one_is_named(self):
+        """#591: "Waiting on the client" (is:open is:needed) is a starting view the page cannot answer yet. Left as it came it is not named on
+        every load; the same view with the person's own line is theirs and is named like any other."""
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+                cdp.call("Page.reload", {}, sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.vtabs')", sid)))
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-vskip]').length", sid), 0, "a starting view as it came is not named")
+                views = [{"id": "client", "name": "Waiting on the client", "line": "is:open is:needed is:old"}]
+                cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
+                cdp.call("Page.reload", {}, sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-vskip] p').length", sid) == 1), "an edited starting view is named")
+                cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
     # ---- keys that are also Object.prototype properties (#153 review) ----
     WATCH = ("(function () { window.__errs = []; addEventListener('error', function (e) { window.__errs.push(String(e.message)); });"
              " addEventListener('unhandledrejection', function (e) { window.__errs.push(String(e.reason)); });"

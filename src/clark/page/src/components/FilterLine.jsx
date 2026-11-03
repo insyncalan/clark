@@ -18,6 +18,9 @@ const usable = (view, rows, ctx) => FL.parse(view.line, rows, ctx).errors.length
 export function unreadableViews(views, rows, ctx) {
   const out = [];
   for (const v of FL.visibleViews(views)) {
+    // The page's own starting views, as they came, are not the person's: "Waiting on the client" needs an answer this page cannot give yet,
+    // and saying so on every load would be noise (#591). A starting view the person edited is theirs and is named like any other.
+    if (FL.DEFAULT_VIEWS.some((d) => d.id === v.id && d.line === v.line)) continue;
     const errs = FL.parse(v.line, rows, ctx).errors;
     if (!errs.length) continue;
     const why = String(errs[0].msg || "").trim().replace(/([^.!?])$/, "$1.");
