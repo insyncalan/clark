@@ -110,6 +110,29 @@ def local_peer(address):
         return True
     gateway = container_mode() and container_gateway()
     return bool(gateway) and address == gateway
+
+
+# item 427 (a reader's finding): a peer refused in container mode is told why in a plain page, and the container's log names it, so
+# a second run in Docker shows which address Docker Desktop really connects from. Addresses only: never a token or a header.
+CONTAINER_REFUSED = "clark is running in Docker and refused this connection."
+CONTAINER_REFUSED_PAGE = f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>clark</title></head><body><p>{CONTAINER_REFUSED}</p></body></html>
+"""
+_REFUSED_PEERS = set()          # each refused address is logged once; at most REFUSED_PEERS_KEPT of them, then no more lines
+REFUSED_PEERS_KEPT = 256
+_REFUSED_LOCK = threading.Lock()
+
+
+def note_refused_peer(address):
+    """item 427: one line to the container's log (stderr) the first time `address` is refused, naming it and the gateway that is
+    accepted. Never more than once for an address, and never more than REFUSED_PEERS_KEPT lines in all, so no peer can fill the log."""
+    with _REFUSED_LOCK:
+        if address in _REFUSED_PEERS or len(_REFUSED_PEERS) >= REFUSED_PEERS_KEPT:
+            return
+        _REFUSED_PEERS.add(address)
+    gateway = container_gateway()
+    print(f"Refused a connection from {address}: in Docker only 127.0.0.1 and the container's gateway "
+          f"({gateway or 'not found'}) are accepted.", file=sys.stderr, flush=True)
 TOKEN = secrets.token_urlsafe(24)     # new at every start; the page gets it in GET /
 TOKEN_HEADER = "X-Clark-Token"
 STALE_PAGE = "This page is out of date because clark was restarted. Reload the page and try again."
@@ -350,6 +373,8 @@ def csp_local(handler):
     Origin and Sec-Fetch-Site header counts, not only the first, and an Origin must be this very Host and port (#65: the page
     is served from that one address; a page on another local port is another site). No Origin at all (a plain client) is fine."""
     if not handler.host_ok() or not local_peer(handler.client_address[0]):
+        if container_mode() and not local_peer(handler.client_address[0]):
+            note_refused_peer(handler.client_address[0])                 # item 427: the container's log names a refused peer, once
         return False
     get_all = getattr(handler.headers, "get_all", None)                  # a request with no version has no parsed headers (a dict)
     every = (lambda name: get_all(name) or []) if get_all else (lambda name: [v for v in [handler.headers.get(name)] if v])
@@ -1227,7 +1252,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self.host_ok():
             return self.send(403, error_body("not_allowed"))
         if container_mode() and not local_peer(self.client_address[0]):      # item 427: with the container's 0.0.0.0 bind, the page and /health are for this machine only too
-            return self.send(403, error_body("not_allowed"))
+            note_refused_peer(self.client_address[0])
+            return self.send(403, CONTAINER_REFUSED_PAGE, "text/html")
         route = self.path.split("?")[0]
         if route == "/health":
             return self.send(200, health_answer(self.headers.get(MARK_HEADER)))

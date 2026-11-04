@@ -106,8 +106,10 @@ RUN_MODE = 0o100755
 START_HERE_MAC = """\
 Getting started on a Mac
 
-If your computer will not open clark.command (a work computer often will not),
-or you already use Docker, use Docker instead. You only need Docker and Chrome.
+These steps are for a Mac.
+
+If your Mac will not open clark.command (a work Mac often will not), or you
+already use Docker, use Docker instead. You only need Docker and Chrome.
   1. Open Docker Desktop and wait until it says it is running.
   2. Open Terminal, type cd and a space, drag this folder into the Terminal
      window and press Return.
@@ -118,10 +120,17 @@ or you already use Docker, use Docker instead. You only need Docker and Chrome.
      right end of Chrome's address bar. Open it from there on later days.
   5. To stop clark, type this in the same folder and press Return:
         docker compose -f docker/compose.yaml down
-Your data is kept in ~/Library/Application Support/clark. clark refuses a folder
-inside OneDrive. To keep it somewhere else, put the folder in front of the
-command, for example:
-        env CLARK_DATA=/Users/you/clark-data docker compose -f docker/compose.yaml up -d
+With Docker, your data is kept in the data folder beside the clark files, made
+at the first start. Keep that data folder when you swap this folder for a newer
+download. To use the data clark.command uses instead, type this in step 3:
+        CLARK_DATA_DIR="$HOME/Library/Application Support/clark" docker compose -f docker/compose.yaml up -d
+To use another folder, put its full path in CLARK_DATA_DIR the same way. A
+folder inside OneDrive is refused.
+Never open the same data from clark.command and from Docker at the same time:
+stop one before you start the other.
+To use another port, put it in front of the command, for example:
+        CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d
+then open http://localhost:8800 instead.
 If it says port 8766 is already used, another clark is open: close it, or stop
 it with the command in step 5, then try again. If it says it cannot connect to
 Docker, Docker Desktop is not running yet.
@@ -166,8 +175,8 @@ drag this folder into the Terminal window and press Return. Then type:
    python3 -m clark.doctor
 and press Return. It says what is ready and what to fix.
 
-Your data is kept in ~/Library/Application Support/clark, not in this folder,
-so you can swap this folder for a newer download without losing anything.
+Without Docker, your data is kept in ~/Library/Application Support/clark, not in
+this folder, so you can swap this folder for a newer download without losing anything.
 """
 
 START_HERE_DEMO = """

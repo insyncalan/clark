@@ -6,6 +6,7 @@ import contextlib
 import functools
 import io
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -135,7 +136,8 @@ class MacZipTest(unittest.TestCase):
         self.assertIn("bash", text, "the fallback when the run bit is lost")
         self.assertNotIn("Clark", text)
         for line in text.splitlines():
-            self.assertFalse(line.strip().lower().startswith("clark"), line)
+            if not line.strip().startswith(("CLARK_DATA_DIR=", "CLARK_PORT=")):     # item 427: a command to type, which sets a variable
+                self.assertFalse(line.strip().lower().startswith("clark"), line)
         self.assertEqual(package.INCLUDE_DEMO, "--demo" in text)
         self.assertIn("If your Mac is missing something it needs, clark.command says how to get it.", text)
         self.assertIn("python3 -m clark.doctor", text, "where the checks are run from")
@@ -165,6 +167,27 @@ class MacZipTest(unittest.TestCase):
             names = set(z.namelist())
         self.assertIn(f"{self.top}/docker/compose.yaml", names)
         self.assertNotIn(f"{self.top}/docker/Dockerfile", names, "item 427: a stock Python image, no image of clark's own")
+
+    def test_start_here_names_only_the_variables_the_compose_file_reads(self):
+        """item 427: a variable START-HERE tells a person to set must be one compose.yaml really reads (a wrong name, such as the
+        old CLARK_DATA, does nothing: clark starts on the empty data folder and the person believes their own is in use)."""
+        text = package.start_here("mac")
+        compose = (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8")
+        said = set(re.findall(r"\b(CLARK_[A-Z_]+)=", text))
+        read = set(re.findall(r"\$\{(CLARK_[A-Z_]+)(?::-|-|\})", compose))
+        self.assertEqual(said, {"CLARK_DATA_DIR", "CLARK_PORT"})
+        self.assertLessEqual(said, read, f"START-HERE sets {sorted(said - read)}, which compose.yaml does not read")
+        self.assertNotIn("CLARK_DATA=", text)
+
+    def test_start_here_says_where_docker_keeps_the_data_and_the_two_ways_never_share_it_at_once(self):
+        flat = " ".join(package.start_here("mac").split())
+        self.assertIn("These steps are for a Mac.", flat)
+        self.assertIn("With Docker, your data is kept in the data folder beside the clark files", flat)
+        self.assertIn('CLARK_DATA_DIR="$HOME/Library/Application Support/clark" docker compose -f docker/compose.yaml up -d', flat)
+        self.assertIn("Never open the same data from clark.command and from Docker at the same time: stop one before you start the other.", flat)
+        self.assertIn("CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d then open http://localhost:8800 instead.", flat)
+        self.assertLess(flat.index("With Docker, your data"), flat.index("Without Docker:"))
+        self.assertIn("Without Docker, your data is kept in ~/Library/Application Support/clark", flat)
 
     def test_the_default_build_says_what_is_true_of_the_tree_it_was_built_from(self):
         """This checkout is what is published on the public repository (#463): it tracks no private-only path, so the zip

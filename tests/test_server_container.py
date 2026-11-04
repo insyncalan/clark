@@ -5,6 +5,7 @@ Only the one setting (CLARK_CONTAINER=1, inside a container) lets the server lis
 gateway as a local peer. Nothing here starts a container or needs Docker.
 """
 import http.client
+import io
 import json
 import re
 import threading
@@ -285,15 +286,45 @@ class AlwaysAnswered(unittest.TestCase):
             self.assertEqual(status, 200, peer)
             self.assertIn("ZQ-THE-PAGE", body, peer)
 
-    def test_another_container_in_the_subnet_and_a_lan_address_get_a_plain_403(self):
+    def test_another_container_in_the_subnet_and_a_lan_address_get_a_plain_403_page_that_names_the_cause(self):
         for peer in ("172.18.0.2", "172.18.0.5", "172.18.255.255", "172.17.0.1", "192.168.1.10", "10.0.0.5", "0.0.0.0"):
             for path in ("/", "/health"):
                 status, ctype, body = self.get(peer, path)
                 self.assertEqual(status, 403, (peer, path))
-                self.assertEqual(ctype, "application/json; charset=utf-8")
-                self.assertEqual(json.loads(body), sv.error_body("not_allowed"), (peer, path))
+                self.assertEqual(ctype, "text/html; charset=utf-8")
+                self.assertIn("<p>clark is running in Docker and refused this connection.</p>", body, (peer, path))
+                self.assertNotIn("Reload the page", body)
                 self.assertNotIn("ZQ-THE-PAGE", body)
                 self.assertNotIn(sv.TOKEN, body)
+
+    def test_the_log_names_each_refused_peer_and_the_gateway_once_and_holds_no_token(self):
+        log = io.StringIO()
+        with mock.patch.object(sv, "_REFUSED_PEERS", set()), mock.patch("sys.stderr", log):
+            for peer in ("172.18.0.5", "172.18.0.5", "192.168.1.10", "172.18.0.5", "127.0.0.1", "172.18.0.1"):
+                for path in ("/", "/health"):
+                    self.get(peer, path)
+        lines = log.getvalue().splitlines()
+        self.assertEqual(lines, [
+            "Refused a connection from 172.18.0.5: in Docker only 127.0.0.1 and the container's gateway (172.18.0.1) are accepted.",
+            "Refused a connection from 192.168.1.10: in Docker only 127.0.0.1 and the container's gateway (172.18.0.1) are accepted."])
+        self.assertNotIn(sv.TOKEN, log.getvalue())
+
+    def test_a_refused_post_is_logged_once_too_and_the_log_is_bounded(self):
+        log = io.StringIO()
+        with mock.patch.object(sv, "_REFUSED_PEERS", set()), mock.patch("sys.stderr", log), \
+                mock.patch.object(sv, "REFUSED_PEERS_KEPT", 2):
+            for peer in ("172.18.0.7", "172.18.0.7", "172.18.0.8", "172.18.0.9"):
+                self.assertFalse(local(Handler(peer, headers={sv.TOKEN_HEADER: sv.TOKEN})))
+        self.assertEqual([line.split(":")[0] for line in log.getvalue().splitlines()],
+                         ["Refused a connection from 172.18.0.7", "Refused a connection from 172.18.0.8"])
+        self.assertNotIn(sv.TOKEN, log.getvalue())
+
+    def test_outside_a_container_nothing_is_logged(self):
+        log = io.StringIO()
+        with mock.patch.object(sv, "container_mode", lambda: False), mock.patch.object(sv, "_REFUSED_PEERS", set()), \
+                mock.patch("sys.stderr", log):
+            self.assertFalse(local(Handler("192.168.1.10")))
+        self.assertEqual(log.getvalue(), "")
 
     def test_a_page_that_cannot_be_made_is_answered_not_dropped(self):
         def missing():
