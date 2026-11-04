@@ -58,11 +58,13 @@ import { MsAddBack } from "./MsAddBack.jsx";
 import { MsLayers } from "./MsLayers.jsx";
 import { ArchivedMilestones } from "./ArchivedMilestones.jsx";
 import { HelpPeek } from "../help/HelpPeek.jsx";
+import { addOverlay } from "../components/pick.js";
 import { installKeys, openHelp, closeHelp, helpOpen, setCloseOthers, closeContext } from "../help/helpStore.js";
 import { effect } from "@preact/signals";
 
 // One right-hand panel at a time: the Help peek closes the ask panel as it opens, and the ask panel opening closes the Help peek.
 setCloseOthers(() => closePanel());
+addOverlay("#help-peek");                                   // Esc and clicks in the Help peek are the peek's, not the Work selection's
 effect(() => { if (panelOpen.value) closeContext({ focus: false }); });
 import { templateEdit } from "./templates/index.js";
 import { HAND_OVER } from "./HandOver.jsx";
