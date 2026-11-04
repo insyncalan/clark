@@ -150,6 +150,12 @@ class TheChain(Base):
 
 
 class Words(Base):
+    def test_the_card_says_where_the_passages_go_and_what_they_cost(self):
+        intro = self.connect.get()[1]["intro"]
+        self.assertEqual(intro, ac.CARD_INTRO)
+        for words in ("leave this computer", "go to Claude", "count against your Claude plan", "No password or key is kept"):
+            self.assertIn(words, intro)
+
     def test_nothing_says_a_key_or_a_password_is_kept_and_no_answer_holds_one(self):
         self.assertNotIn("key", json.dumps(self.connect.get()[1]["claude"]))
         for line in (ac.DISCONNECTED, ac.CONNECTED, ac.USING, ac.WEAKER, ac.OFF_WORDS):

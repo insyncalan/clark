@@ -45,7 +45,7 @@ function ConnectCard() {
   const c = conn.claude;
   return (
     <>
-    <p class="muted">Sign in to Claude for ask clark and the AI menu: the passages they send go to Claude. No password or key is kept.</p>
+    <p class="muted" data-ai-intro>{conn.intro}</p>
     <div class="ai-provs">
       <div class={`ai-prov${c.connected ? " on" : ""}`} data-ai-tile="claude">
         <h3>Claude <span class={`tag${c.connected ? " cl" : ""}`}>{c.connected ? "Connected" : "Not connected"}</span></h3>

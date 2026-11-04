@@ -1,5 +1,5 @@
-"""ai connect (#54, #446): the logic of Settings › AI. GET /api/ai-connect, POST /api/ai-connect, POST /api/ai-disconnect and POST
-/api/ai-model. server.py only routes to it. There is no key and no password anywhere in this: a provider is the person's own signed-in
+"""ai connect (#54, #446): the logic of Settings › AI. GET /api/providers, and POST /api/providers/connect, /disconnect and
+/model. server.py only routes to it. There is no key and no password anywhere in this: a provider is the person's own signed-in
 command, so what is kept in settings.json is ordinary words only (whether clark may use Claude, the model chosen, the smaller models the
 person said "use it anyway" to).
 
@@ -14,6 +14,7 @@ Every answer is (status, {ok, ...}); a refusal has a stable `code` and a plain `
 the provider and what happened, nothing else.
 """
 import logging
+import threading
 
 from clark import ai_providers, ask, ask_claude, settings
 
@@ -30,6 +31,7 @@ WEAKER = "{model} is smaller than the recommended model, so its answers may be l
 BAD = "That could not be read. Reload the page and try again."
 NO_PROVIDER = "That isn't something clark can connect yet."
 NOT_CONNECTED = "Connect Claude first."
+CARD_INTRO = "Connect Claude for ask clark: the passages it sends leave this computer, go to Claude and count against your Claude plan. No password or key is kept."
 
 
 def fail(status, code, message):
@@ -42,6 +44,7 @@ class AiConnect:
 
     def __init__(self, data_dir, claude):
         self.data_dir, self.claude = data_dir, claude
+        self.lock = threading.Lock()         # two saves take turns: each reads the settings file and writes it back
 
     # ----- what the provider chain reads, for every question -----
     def on(self):
@@ -57,7 +60,7 @@ class AiConnect:
         connected = st["connected"] and self.on()
         models = [{"id": m, "label": LABELS[m], "recommended": m == RECOMMENDED} for m in ask_claude.MODELS] if connected else []
         return {"ok": True, "claude": {"connected": connected, "signed_in": st["connected"], "why": "" if st["connected"] else st["why"]},
-                "openai": {"connected": False, "later": True}, "model": self.model() if connected else "", "models": models, "message": message}
+                "openai": {"connected": False, "later": True}, "intro": CARD_INTRO, "model": self.model() if connected else "", "models": models, "message": message}
 
     def get(self, *_ignored):
         return 200, self.view()
@@ -98,7 +101,8 @@ class AiConnect:
 
     def _save(self, changes, message, what):
         try:
-            settings.ai_write(self.data_dir, changes)
+            with self.lock:
+                settings.ai_write(self.data_dir, changes)
         except (ValueError, OSError):
             return fail(409, "unreadable", settings.AI_UNREADABLE)
         LOG.info("ai: %s %s", CLAUDE, what)

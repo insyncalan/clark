@@ -21,7 +21,7 @@ from _paths import SRC  # noqa: F401  (puts src/ on the path)
 import test_ask_route as route_base
 from test_ai_key_refusal import ATTACKS, REFUSED, SECRET_PART, TEXT
 from test_ai_menu import FakeProvider
-from clark import ai_menu as am, ai_service, ask, ask_passages, ask_service, secret_screen, server as sv
+from clark import ai_providers, ai_menu as am, ai_service, ask, ask_passages, ask_service, secret_screen, server as sv
 
 CLEAN_Q = "What is the state of the plan?"
 CLEAN_SELECTION = "The supplier confirmed the delivery for Friday."
@@ -181,13 +181,21 @@ class EverySecretKindHasASample(unittest.TestCase):
 class EveryRouteThatSendsText(unittest.TestCase):
     """The inventory, so a new caller cannot appear unscreened: the only call sites of a provider's `ask` in src/clark."""
 
-    def test_the_only_provider_call_sites_are_the_three_screened_ones(self):
+    def test_the_only_provider_call_sites_are_the_three_screened_ones_and_the_chains_pass_through(self):
         found = {}
         for path in sorted(Path(SRC, "clark").glob("*.py")):
             for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
                 if re.search(r"\bprovider\.ask\(", line) and not line.lstrip().startswith(("#", "def ", '"""')):
                     found[path.name] = found.get(path.name, 0) + 1
-        self.assertEqual(found, {"ai_menu.py": 1, "ai_service.py": 1, "ask.py": 1})
+        # #54, on purpose: ai_providers.Chosen sits between those three and the command. It builds no text: the next test holds it to that.
+        self.assertEqual(found, {"ai_menu.py": 1, "ai_providers.py": 1, "ai_service.py": 1, "ask.py": 1})
+
+    def test_the_chain_hands_on_the_very_request_it_was_given(self):
+        got = []
+        inner = type("P", (), {"name": "x", "ask": lambda self, request, model=None: got.append(request) or "ok"})()
+        request = ask.Request(text="q", question="q")
+        self.assertEqual(ai_providers.Chosen(inner, lambda: True, lambda: "sonnet", "off").ask(request), "ok")
+        self.assertIs(got[0], request)
 
     def test_ask_provider_is_reached_only_after_build_request(self):
         src = inspect.getsource(route_base.ask_service.AskService.ask)

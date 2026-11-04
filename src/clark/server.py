@@ -32,9 +32,9 @@ Routes:
 - POST /api/backups/preview  {name}: counts in a backup and now, from a temporary copy
 - POST /api/backups/restore  {name, last_step}: put a backup back (one writer at a time, never waiting)
 - POST /api/backups/copy-folder  {folder}: choose the optional folder each backup is also copied into, OneDrive allowed, or "" for none (#622; safety.py)
-- GET  /api/ai-connect   Settings › AI (#54): whether Claude is connected, the model and the models offered (ai_connect.py)
-- POST /api/ai-connect   {provider}: clark may use it; POST /api/ai-disconnect {provider}: clark stops using it, and the sign-in stays
-- POST /api/ai-model     {model, accept?}: the model asking uses, from a fixed list
+- GET  /api/providers    Settings › AI (#54): whether Claude is connected, the model and the models offered (ai_connect.py)
+- POST /api/providers/connect {provider}: clark may use it; POST /api/providers/disconnect {provider}: clark stops using it, and the sign-in stays
+- POST /api/providers/model {model, accept?}: the model asking uses, from a fixed list
 - POST /api/page-error   the page reports a fault: one short line in the log at most, rate-limited (#110; log_routes.py)
 - GET  /api/diagnostics  the logging level, the last 7 days' errors and the Copy diagnostics text (#110)
 - POST /api/logging      set Normal or Debug (#110); POST /api/logging/open-folder shows the log folder
@@ -137,7 +137,7 @@ PEOPLE_ROW_BYTES = (PEOPLE_NAME_MAX + PEOPLE_EMAIL_MAX + 2 * PEOPLE_CELL_MAX) * 
 PEOPLE_BODY_LIMIT = PEOPLE_ROW_MAX * PEOPLE_ROW_BYTES + REQUEST_ENVELOPE      # 500 * 3508 + 4096 = 1,758,096 bytes (1.68 MiB), under BODY_LIMIT; an add or an edit is a few hundred bytes
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096,
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
-                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ai-connect": 1024, "/api/ai-disconnect": 1024, "/api/ai-model": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
+                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
                      "/api/people": PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #115: a person's few short fields; #454: or one paste of up to 500 rows; a step number
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
@@ -934,7 +934,7 @@ def ask_folders_route(method):
 
 
 def ai_connect_route(method):
-    """GET and POST /api/ai-connect, POST /api/ai-disconnect and /api/ai-model (#54): hand the request to the server's `ai_connect`
+    """GET /api/providers and POST /api/providers/connect, /disconnect and /model (#54): hand the request to the server's `ai_connect`
     (ai_connect.AiConnect), which answers (status, body). Without one: not found."""
     def route(handler, *req):
         service = getattr(handler.server, "ai_connect", None)
@@ -1017,14 +1017,14 @@ def profile_route(method):
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
-              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ai-connect": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
+              "/api/ask-enabled": app_settings_route("read_ask"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/diagnostics": logs_route("diagnostics"),
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
-                "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"), "/api/ai-connect": ai_connect_route("connect"),
-                "/api/ai-disconnect": ai_connect_route("disconnect"), "/api/ai-model": ai_connect_route("choose"),
+                "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"), "/api/providers/connect": ai_connect_route("connect"),
+                "/api/providers/disconnect": ai_connect_route("disconnect"), "/api/providers/model": ai_connect_route("choose"),
                 "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
                 "/api/ai/suggest": ask_route("suggest", "ai"), "/api/ai/stop": ask_route("stop", "ai"),
                 "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply"),

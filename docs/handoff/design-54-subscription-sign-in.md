@@ -27,7 +27,7 @@ Replaces the API-key plan in `readiness-54-providers.md`. The owner's answers ar
 - **Sonnet is the default model**, sent as `--model sonnet` (the owner, 04-11-2026: "default for claude is always sonnet"). Before this, the command chose. A plan without it gets the plain line and can pick another.
 - **Haiku asks first**, and a yes is remembered. Opus and Fable are simply offered.
 - **The OpenAI tile says Later** until slice 3.
-- **The AI menu stays off:** the launcher still passes no `ai=`, so the line under the card still says suggestions come later.
+- **The suggestions menu stays off:** the launcher still passes no `ai=`, so the line under the card still says suggestions come later.
 
 ## The ChatGPT run (slice 3), from the tests on #52
 
@@ -47,14 +47,15 @@ Also: the native binary, not the npm script; an environment built from nothing, 
 
 Slice 2 adds:
 
-- "Sign in to Claude for ask clark and the AI menu: the passages they send go to Claude. No password or key is kept."
+- "Connect Claude for ask clark: the passages it sends leave this computer, go to Claude and count against your Claude plan. No password or key is kept."
 - "Through your Claude subscription, using the Claude command on this computer."
 - "Coming soon, through your ChatGPT sign-in."
-- "Connected. Asking will use Claude Opus."
+- "Connected. Asking will use Claude Sonnet." and "Asking will use Claude Sonnet." (the model name changes)
 - "Disconnected. You're still signed in to Claude on this computer, but clark won't use it."
-- "Asking will use Claude Sonnet."
 - "Claude Haiku is smaller than the recommended model, so its answers may be less careful. Use it anyway?" with "Use it anyway" and "Keep the model I have"
 - "Claude isn't connected in Settings. Connect it there to use this."
 - "Could not check the AI connection just now. Reload the page to try again."
+- Refusals: "That could not be read. Reload the page and try again.", "That isn't something clark can connect yet.", "Connect Claude first.", "Your settings couldn't be read, so the AI choice was not changed."
+- Labels: "Model for ask clark", "(recommended)", "Connected", "Not connected", "Later", "Connect", "Disconnect", "OpenAI"
 
-The first four lines above reach a screen with slice 2.
+All of these reach a screen with slice 2. The owner has approved only "Claude says that model can't be used with this sign-in. Choose another model in Settings."

@@ -37,6 +37,7 @@ class Card(unittest.TestCase):
             js = self.show(cdp)
             self.assertIn("Connected", js("document.querySelector('[data-ai-tile=claude] .tag').innerText"))
             self.assertEqual(js("document.querySelector('[data-ai-tile=openai] .tag').innerText"), "Later")
+            self.assertEqual(js("document.querySelector('[data-ai-intro]').innerText"), ai_connect.CARD_INTRO)
             self.assertEqual(js("document.querySelector('#ai-model').value"), "sonnet")
             self.assertIn("(recommended)", js("document.querySelector('#ai-model option[value=sonnet]').innerText"))
 
