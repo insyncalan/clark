@@ -137,6 +137,35 @@ class FailsClosed(unittest.TestCase):
         self.assertIn(re.escape(os.path.realpath("/tmp")), rules)
 
 
+class NoSandboxProgram(unittest.TestCase):
+    """#52: if the Mac's sandbox program can't be started, ChatGPT is not asked at all. Platform-independent: the sandbox path is pointed at a file that isn't
+    there, and a real script stands in for Codex, so a run that skipped the wall would leave a mark."""
+
+    def test_a_missing_sandbox_program_sends_nothing_and_says_so_plainly(self):
+        with tempfile.TemporaryDirectory() as d:
+            marked = os.path.join(d, "marked")
+            script = os.path.join(d, "codex")
+            with open(script, "w") as f:
+                f.write(f'#!/bin/sh\ncat > "{marked}"\nprintf \'{{"type":"item.completed","item":{{"type":"agent_message","text":"hi"}}}}\\n\'\n')
+            os.chmod(script, 0o700)
+            real, started = subprocess.Popen, []
+
+            def spy(args, *a, **kw):
+                started.append(list(args))
+                return real(args, *a, **kw)         # the real one: a missing program raises here, as it would for a person
+
+            ours = ask.Request(text="a question nobody may see", question="q", system=ask.RULES)
+            missing = os.path.join(d, "no-such-dir", "sandbox-exec")
+            with mock.patch.object(c, "SANDBOX", missing), mock.patch.object(c, "own_home", return_value="/Users/sam"), \
+                    mock.patch.object(c.platform, "scratch_parent", return_value=d), \
+                    mock.patch.object(c.CodexCommand, "usable", return_value=(Path(script), None)), \
+                    mock.patch.object(c.platform.subprocess, "Popen", side_effect=spy):
+                got = c.CodexCommand(env={}).ask(ours)
+            self.assertEqual(got, ask.Failure("ChatGPT couldn't answer just now. Try again in a moment."))
+            self.assertEqual([a[0] for a in started], [missing], "the only thing tried was the sandbox program: Codex was never started without it")
+            self.assertFalse(os.path.exists(marked), "Codex never saw the question")
+
+
 class TheCommandLine(unittest.TestCase):
     def args(self, **kw):
         return c.arguments("/x/codex", home="/Users/sam", scratch="/tmp/s", **kw)
