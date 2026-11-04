@@ -4,6 +4,7 @@
 // step, so one Undo takes the whole paste back. Edit's page only: a published file has no Settings and no people, and nothing here
 // is in it. The Excel import of work items (the buttons, the box, "Check the import") is not this card's: it follows item 444 and item 449.
 import { useEffect, useRef, useState } from "preact/hooks";
+import { useGrow } from "./useGrow.js";
 import { data, rows as workRows } from "../stores/report.js";
 import { peopleRows, needDetails, countLine, doneLine, readPaste, planLine, toSend, NONE_TO_ADD, NOTHING_NEW } from "../logic/people.js";
 import { readPeople, pastePeople, undoPeople } from "./peopleApi.js";
@@ -21,6 +22,7 @@ export function People() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);             // {text, step, problem}: what the last paste did, with Undo while its step can be taken back
   const pasteBtn = useRef(null), box = useRef(null);
+  useGrow(box, text);
 
   const load = async () => {
     const r = await readPeople();
@@ -77,7 +79,7 @@ export function People() {
       <p class="muted pp-intro">Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.</p>
       <div class="pp-paste" id="ppPaste" hidden={!open}>
         <label for="ppText">Rows from Excel: name, email, organisation, role, separated by tabs</label>
-        <textarea id="ppText" ref={box} rows={5} value={text} placeholder="Sam Rivers[tab]sam@example.com[tab]Supplier[tab]Delivery lead"
+        <textarea id="ppText" class="grow" ref={box} rows={3} value={text} placeholder="Sam Rivers[tab]sam@example.com[tab]Supplier[tab]Delivery lead"
           aria-describedby="ppPlan" onInput={(e) => { setText(e.currentTarget.value); setMsg(""); }} />
         <div id="ppPlan" role="status" aria-live="polite">
           {read ? (

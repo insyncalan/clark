@@ -722,3 +722,11 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .welcome .fld { margin: 0; max-width: none; }
 .welcome .fld-bad { margin: 0; }
 .welcome-acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+
+/* Editors throughout (item 660): one class for every plain text box that sizes itself (useGrow.js). Three lines to start, one blank line
+   always under the last, a corner handle to pull it taller; the script writes the height, this keeps the floor and the handle. */
+textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-height: calc(3lh + 1rem); }
+.ask-form textarea.grow.grow { max-height: 40vh; flex: none; }
+.rt-host { min-height: 6rem; min-height: calc(3lh + 1rem); resize: vertical; overflow: auto; }
+.rt-host .ProseMirror { min-height: 3lh; padding-bottom: 1lh; }
+.de-preview { min-height: calc(3lh + 1.5rem); max-height: 60vh; resize: vertical; }
