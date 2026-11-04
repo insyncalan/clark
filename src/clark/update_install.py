@@ -377,12 +377,20 @@ def hand_over(data_dir, app_dir, staging, stamp, from_version, to_version, insta
     """Write the marker and start the helper; return once it says it is ready, so the server may close and exit.
 
     If the helper does not say so in `wait` seconds, the marker and the staging folder are taken away (nothing in the app
-    folder has changed) and InstallError("helper") is raised; a helper that starts after that finds no marker and stops."""
-    marker = update_helper.begin(data_dir, app_dir, staging, stamp, from_version, to_version, installed_schema, server_pid,
-                                 port, mark_header, mark, backup_dir=str(backup_dir))
-    helper_dir = Path(json.loads(marker.read_text(encoding="utf-8"))["helper_dir"])
-    argv = [str(python or sys.executable), "-I", "-B", str(helper_dir / "update_helper.py"), "--marker", str(marker)]
+    folder has changed) and InstallError("helper") is raised; a helper that starts after that finds no marker and stops.
+    If begin() itself fails it wrote no marker (an earlier one it refused is left alone): a refusal in updates' words is raised
+    as it is, anything else (a damaged record, a full disk, a wrong argument) as InstallError("helper"), so the caller puts the
+    flag down and says so the same way."""
     try:
+        marker = update_helper.begin(data_dir, app_dir, staging, stamp, from_version, to_version, installed_schema, server_pid,
+                                     port, mark_header, mark, backup_dir=str(backup_dir))
+    except (updates.UpdateError, InstallError):
+        raise
+    except Exception as e:
+        raise InstallError("helper", f"{type(e).__name__}: {e}")
+    try:
+        helper_dir = Path(json.loads(marker.read_text(encoding="utf-8"))["helper_dir"])
+        argv = [str(python or sys.executable), "-I", "-B", str(helper_dir / "update_helper.py"), "--marker", str(marker)]
         (start or platform.start_detached)(argv, dict(os.environ), Path(data_dir) / UPDATES / update_helper.LOG_NAME,
                                            cwd=str(helper_dir))
         end = clock() + wait

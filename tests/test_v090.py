@@ -33,6 +33,8 @@ COVERED = [
      "test_update_migration::Migrated::test_undo_puts_the_data_back_as_it_was_and_says_changes_after_the_update_are_lost"),
     ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints",
      "test_update_page::Rows::test_row_58_each_row_has_its_label_at_the_left_and_a_hint_line_under_its_control"),
+    ("#434", "Risks, issues, actions and decisions rows: a status pill, empty sections, editing in place and the ID button",
+     "test_item_rows::EditRows::test_every_part_of_a_row_edits_in_place_and_the_pill_is_the_prototypes"),
     ("#439", "The bar above the page: Week ending is a box in View and in Edit; with no week kept it shows the coming Friday and saves nothing until Enter.",
      "test_report_bar::Bar::test_with_no_week_kept_the_field_shows_the_coming_friday_and_saves_nothing"),
     ("#439", "A typed entry that is not a day keeps the old date and says so.",
@@ -49,21 +51,19 @@ COVERED = [
      "test_work_archived_peek::ArchivedPeek::test_a_row_opens_the_peek_read_only_with_one_restore"),
     ("#450", "Restore puts the item back and leaves the peek open on it, now editable.",
      "test_work_archived_peek::ArchivedPeek::test_restore_puts_it_back_and_leaves_the_peek_open_on_it"),
+    ("#444", "Settings › Data: Import workbook checks the workbook first, then imports it in one step, and Undo this import puts it back.",
+     "test_settings_data_page::Card::test_import_checks_then_imports_in_one_step_and_undo_puts_it_back"),
     ("#611", "A blank client message is turned away in plain words, not a server error.",
      "test_changes_null_message::NullMessage::test_a_null_client_message_is_refused_and_nothing_is_saved"),
+    ("#613", "Settings, About you: typing Jane Doe fills the Alias box with Jane, JD; it is saved beside the name, and a saved or typed Alias is kept when the name changes.",
+     "test_alias_suggest::OnThePage::test_C_jane_doe_is_saved_with_jane_jd_and_a_typed_alias_is_kept_when_the_name_changes"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
     ("#48", "HOLD (the Help wording is the owner's call): Export to Word and Import from Word screens", "PR 475", "page/src/edit/Word.jsx", "export function WordLayer"),
-    ("#434", "Risks, issues, actions and decisions rows: a status pill, empty sections, editing in place and the ID button", "PR 580", "page/src/edit/ItemRowsEdit.jsx", "WORDS_MAX"),
-    ("#449", "Work items: the column width can be changed and reset, with a toast", "PR 462", "page/src/logic/board.js", "COL_MIN"),
-    ("#444", "Settings Data card and Projects table: Import workbook, Reset the demo data, Add and Edit project", "PR 461", "page/src/logic/dataCard.js", "export const DATA"),
-    ("#53", "Where clark's AI providers code comes from (a copy from the other product's branch)", "no pull request yet (issue 53)", "", None),
-    ("#54", "Settings, AI: Claude and OpenAI sign-in for ask clark", "no pull request yet (issue 54)", "", None),
-    ("#446", "Settings, AI card: Connect and Disconnect for Claude, an OpenAI tile that says Later, a model list", "no pull request yet (issue 446)", "", None),
-    ("#613", "Settings: typing a full name suggests an Alias (Jane Doe suggests Jane,JD)", "no pull request yet (issue 613)", "", None),
+    ("#449", "Work items: the column width can be changed and reset, with a toast", "PR 555", "page/src/logic/board.js", "COL_MIN"),
 ]
 
 # (item, check, kind, why, what the person does)

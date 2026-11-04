@@ -71,7 +71,7 @@ class Shape(unittest.TestCase):
         """Start here: five loop steps, five first-ten-minutes steps, twelve jobs, six places, four rules. The prototype's counts."""
         self.assertEqual((len(START["loop"]), len(START["first"]), len(START["jobs"]), len(START["where"]), len(START["rules"])),
                          (5, 5, 12, 6, 4))
-        self.assertEqual((len(STEPS), len(SECTIONS)), (33, 35))   # with the People entries (#454), held
+        self.assertEqual((len(STEPS), len(SECTIONS)), (34, 35))   # with the People entries (#454), held, and the Word entry
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (36, 31))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -248,6 +248,12 @@ class WordingRound(unittest.TestCase):
         jsx = (HELP / "Help.jsx").read_text(encoding="utf-8")
         self.assertNotIn("to come back", jsx)
         self.assertRegex(jsx, r"to open Help; Esc or Back takes you where you were")
+
+    def test_the_import_help_names_the_button_the_import_box_shows(self):                   # LOW (#432)
+        jsx = (HELP.parent / "edit" / "Word.jsx").read_text(encoding="utf-8")
+        self.assertRegex(jsx, r'`Add \$\{count\(n, "item"\)\}`', "the box's button reads Add and the number of items")
+        self.assertIn("until you press the Add button (it reads Add and the number of items you ticked, such as Add 3 items)", self.ALL)
+        self.assertNotIn("until you press Add;", self.ALL)
 
     def test_examples_are_real_dates(self):                                                  # MEDIUM
         self.assertIn("by 12-12-2026", self.ALL)

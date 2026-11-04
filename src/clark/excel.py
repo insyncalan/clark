@@ -898,7 +898,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
     props = wb.properties
     props.created = props.modified = stamp
     props.creator = props.lastModifiedBy = FIXED_NAME
-    props.title = f"{project} work items"
+    props.title = f"{project} work items" if project else "clark import template"
     props.description = INTERNAL_NOTE
     for name, table, cols, locked in SHEETS:
         ws = wb.create_sheet(name)
@@ -939,7 +939,8 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
                     c[0].fill = LOCKED
             blank = field not in YES_NO and (table, field) not in NOT_BLANK
             if field == "project":
-                add_list(ws, col, n_rows, [project], allow_blank=False)
+                if project:         # the import template (project None) is for any project: no code in it, and the cell stays free
+                    add_list(ws, col, n_rows, [project], allow_blank=False)
             elif field in ranges and field not in locked:
                 add_list(ws, col, n_rows, None, allow_blank=True, source=ranges[field])   # the project's own list
             elif field in YES_NO:
@@ -1072,6 +1073,21 @@ def export(path, project, rows_by_table, state_path, on=None, cover=None, brandi
                                   "hash": hashlib.sha256(data).hexdigest(), "imported_hash": None, "project": project,
                                   "export_id": token, "rows": snapshot_rows})
     return {t: len(snapshot[t]) for t in TABLES}
+
+
+TEMPLATE_NAME = "clark import template.xlsx"
+
+
+def template_bytes(on=None):
+    """The import template (#454): the workbook of an export with no rows at all, the same sheets (SHEETS) and column labels,
+    so the import reads it unchanged. It is made from nothing but SHEETS: no store, project, person, item, Cover, History or
+    export id, so it names nothing and records nothing (an import finds no record of it, as of any workbook clark did not
+    export). Returns the .xlsx bytes."""
+    buf = io.BytesIO()
+    wb = workbook(None, {}, on)
+    wb.save(buf)
+    wb.properties.modified = wb.properties.created        # as export(): the stamp is the workbook's own, not the time of saving
+    return fixed_zip(buf.getvalue(), {"docProps/core.xml": tostring(wb.properties.to_tree())})
 
 
 def export_name(project):

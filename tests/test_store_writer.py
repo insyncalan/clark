@@ -362,6 +362,8 @@ def writes_sql(value):
 # database, but only read-only: each sqlite3.connect there must be a `?mode=ro` URI or be followed at once by
 # `PRAGMA query_only = ON`, so a future write through it still fails this test. Its only built SQL is table_stats' SELECTs
 # from a table name it read from sqlite_master and quoted itself with _ident.
+# Approved by the owner on 04-11-2026 (#628) as exception (a), on the condition that a reader checks the helper opens only
+# the file it is given.
 READONLY_HELPER = "clark/update_helper.py"
 READONLY_HELPER_SQL_PARTS = {"_ident(name)"}
 

@@ -15,7 +15,8 @@ were published, so it holds nothing the published file did not. It is written on
 later view (#344's week picker, #346's compare with the publication before) reads it with `read_data`, which checks it against the
 page whose SHA-256 the row holds. An old publication can be archived (`archive`): a marker, `ABC-3.archived`, hides it from the
 list and nothing is removed. Every file here is written once: to a temporary file, then linked into place under its name, which
-refuses a name already there, so a reader never meets half a file and nothing is ever replaced.
+refuses a name already there, so a reader never meets half a file and nothing is ever replaced. #345: Restore removes the archive
+mark (`unarchive`) and nothing else: no page and no data copy is ever removed.
 
 No module of clark is imported here (the store calls `keep` and `archive`, and the past-reports seam calls `read`), so there is no
 cycle. Standard library only, Python 3.9."""
@@ -249,6 +250,25 @@ def archive(data_dir, code, number):
         return False
     folder = _folder(data_dir)
     return folder is not None and _write_once(folder, name, b"")
+
+
+def unarchive(data_dir, code, number):
+    """#345 (Restore): take the archive mark `ABC-3.archived` off, so the list shows the publication again. Only that file goes, and
+    only when it is an ordinary empty file clark wrote (a link, a folder or anything else under that name is left alone): the page and
+    its data are never touched. True when this call removed the mark; False when there was none, it is not one clark made, or it
+    could not be removed."""
+    name = _name(code, number, ARCHIVED)
+    if name is None:
+        return False
+    path = folder_of(data_dir) / name
+    try:
+        info = os.lstat(path)
+        if not stat.S_ISREG(info.st_mode) or info.st_size != 0:
+            return False
+        os.unlink(path)
+        return True
+    except OSError:
+        return False
 
 
 def is_archived(data_dir, code, number):

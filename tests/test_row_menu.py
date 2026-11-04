@@ -587,6 +587,25 @@ class Menu(board.Base):
             self.assertTrue(cdp.js("window.__clip[1]", sid).endswith(f"#work&p=ABC&item={a}"), cdp.js("window.__clip[1]", sid))
             self.assertEqual(self.steps(), before)
 
+    def test_when_the_browser_does_not_copy_the_cmd_c_hint_shows_only_with_a_selection(self):
+        """Item 612: the note says to select the text and press the keys only when there is a selection to copy."""
+        plain, hint = "The browser did not copy it.", "The browser did not copy it. Select the text and press ⌘C instead."
+        toast = "(() => { const t = document.querySelector('.toast[data-kind=note] .toast-text'); return t ? t.textContent : ''; })()"
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Order the laptops")
+            cdp.js("window.__select = false; Object.defineProperty(navigator, 'clipboard', {value: {writeText: () => { getSelection().removeAllRanges();"
+                   " if (window.__select) getSelection().selectAllChildren(document.querySelector('main') || document.body);"
+                   " return Promise.reject(new Error('no')); }}, configurable: true})", sid)
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=copyid]")
+            self.until(cdp, sid, f"{toast} === {plain!r}", "the plain note")
+            self.assertEqual(cdp.js("document.querySelector('#work-live').textContent", sid), plain)
+            cdp.js("window.__select = true", sid)
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=link]")
+            self.until(cdp, sid, f"{toast} === {hint!r}", "the note with the hint")
+
     def test_in_view_every_entry_is_enabled_and_a_choice_writes_one_step_with_its_undo(self):
         # Work items are always editable (View and Edit exist only on the Dashboard, ruled 02-11-2026)
         with chrome() as cdp:

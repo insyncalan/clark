@@ -250,7 +250,7 @@ class Modes(Base):
             sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs'].includes(s.dataset.type))"
             texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet').textContent)"
             self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words")
-            quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"
+            quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet, [data-nothing]').textContent)"
             kinds = p.js(sec + ".map(s => s.dataset.type)")
             want = [f"{k}:{NOTHING if k in ('raid', 'actions', 'decisions') else QUIET}" for k in kinds]       # A-D5: those three draw their rows
             self.assertEqual(p.js(quiet), want, "View: one plain line, the same for every type that draws no rows")
@@ -259,8 +259,10 @@ class Modes(Base):
             p.edit()
             found = edit_elements(cdp, p.sid)
             for what in ("[data-drag]", "[data-options]", "[data-add]", "[contenteditable=plaintext-only]"):
-                self.assertEqual(len([f for f in found if what in f]), 11, what)
-            self.assertEqual(p.js(quiet), want, "Edit: the same line")
+                self.assertEqual(len([f for f in found if what in f]), 11, what)        # a title for each section; the three seeded rows have no client wording to edit
+            sec_other = sec + ".filter(s => !['raid', 'actions', 'decisions'].includes(s.dataset.type))"
+            self.assertEqual(p.js(sec_other + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"), [w for w in want if w.split(':')[0] not in ('raid', 'actions', 'decisions')], "Edit: the same line")
+            self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [True] * 3, "Edit: the three row sections say Showing N of M instead (A-D5)")
             self.assertEqual(p.js(texts), [QUIET] + ["Click to write."] * 3, "Edit: Current state keeps the old line; the three text sections open the editor in place (#220)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
@@ -277,7 +279,9 @@ class Modes(Base):
             self.assertEqual(p.js("document.querySelector('h1').textContent"), "Example Programme")
             p.edit()
             self.assertEqual(p.js("document.querySelectorAll('[data-add]').length"), 1, "an empty report can still get its first section")
-            p.js("window.posts = []; var f = window.fetch; window.fetch = function (u, o) { window.posts.push(String(o && o.body)); return f.apply(this, arguments); };")
+            # Only a request that sends something is counted: the page reads the project again after a change (#188), and that GET
+            # landing between two polls made the count jump from 0 to 2 on a slow runner.
+            p.js("window.posts = []; var f = window.fetch; window.fetch = function (u, o) { if (o && o.body) window.posts.push(String(o.body)); return f.apply(this, arguments); };")
             p.js("document.querySelector('[data-add]').click()")
             # The Add a section box (#96) claims the request, so the button opens it; its Add section then makes a plain text section at the end.
             # (The fallback for a page with no box is tested at the "not claimed" toast below.)
@@ -1308,7 +1312,7 @@ class Published(unittest.TestCase):
     def test_the_published_build_has_no_route_no_edit_control_and_no_edit_button(self):
         text = page.VIEW_PAGE.read_text(encoding="utf-8")
         for never in ("/api/change", "/api/undo", "plaintext-only", "data-edit-only", "data-drag", "contenteditable",
-                      "Add a text section", "Add a section below", "Add a template below", "View (V)", "Edit (E)", "aria-keyshortcuts"):
+                      "Add a text section", "Add a section below", "Add a template below", "Column width reset", "View (V)", "Edit (E)", "aria-keyshortcuts"):
             self.assertNotIn(never, text, never)
         self.assertIn("/api/change", page.PAGE.read_text(encoding="utf-8"), "the served page does have it")
         with tempfile.TemporaryDirectory() as tmp:

@@ -104,14 +104,14 @@
 /* The right-click menu on a work item (#97): the ordinary menu box, placed where the pointer or the row is. An entry that can't be
    used shows its reason under it; the arrow marks an entry that opens a short list. */
 .rowmenu { position: fixed; z-index: 36; }
-.rowmenu .ddmenu { position: static; min-width: 240px; max-width: min(340px, calc(100vw - 16px)); }
-.rowmenu [role="menuitem"] { display: flex; align-items: center; gap: 8px; }
+.rowmenu .ddmenu { position: static; min-width: 240px; max-width: min(340px, calc(100vw - 2 * var(--space-2))); }
+.rowmenu [role="menuitem"] { display: flex; align-items: center; gap: var(--space-2); }
 .rowmenu [role="menuitem"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .rowmenu .rm-t { flex: 1; min-width: 0; }
 .rowmenu .rm-t small { display: block; font-size: var(--size-caption); color: var(--text-muted); }
 .rowmenu .rm-go { flex: none; width: 14px; height: 14px; color: var(--text-muted); }
 .rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
-.rowmenu .ddmenu { max-height: calc(100vh - 16px); overflow-y: auto; }
+.rowmenu .ddmenu { max-height: calc(100vh - 2 * var(--space-2)); overflow-y: auto; }
 
 /* Changing several work items at once (#196): the bar's buttons wrap at 900 px, the "N items" menu, and the question. Tokens only. */
 .selbar { flex-wrap: wrap; row-gap: 6px; }
@@ -508,6 +508,19 @@ textarea.tpl-field { resize: vertical; }
 .tpl-problem { margin: 0; color: var(--status-red-text); font-size: var(--size-caption); }
 .tpl-empty { margin: 0; }
 
+/* The Word boxes (#48): Export to Word and Import from Word. The box itself, its options and its messages are the Publish box's
+   (shell.css); this is only the list of what was read. Tokens only. A ticked item is a ticked box, so it never relies on colour. */
+.wi { width: min(680px, calc(100vw - 32px)); }
+.word-where, .word-ask { margin: 0; font-size: var(--size-small); overflow-wrap: anywhere; }
+.word-ask { color: var(--text); font-size: var(--size-body); }
+.wi-all { display: flex; gap: 16px; margin: 0 0 8px; }
+.wi-all .link:disabled { opacity: .55; cursor: default; }
+.wi-items { display: flex; flex-direction: column; gap: 6px; max-height: 45vh; margin: 0; padding: 0; overflow: auto; border: 0; min-width: 0; }
+.wi-item span { display: block; }
+.wi-item b { margin-right: 6px; font-weight: var(--weight-medium); color: var(--heading); }
+.wi-notes { margin: 12px 0 0; padding-left: 18px; font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
+.wi-notes li { margin: 2px 0; }
+.word-msg p { white-space: pre-line; overflow-wrap: anywhere; }       /* a refusal that lists items puts each on its own line */
 /* Show archived on Work items (B-5): a pill with the count, then muted rows with the word Archived and a Restore button */
 .archived { margin-top: 16px; }
 .arch-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); font: inherit; font-size: var(--size-small); cursor: pointer; white-space: nowrap; }
@@ -517,6 +530,8 @@ textarea.tpl-field { resize: vertical; }
 :root[data-theme=dark] .arch-pill[aria-pressed="true"] { background: var(--brand-blue); border-color: var(--brand-blue); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .arch-pill[aria-pressed="true"] { background: var(--brand-blue); border-color: var(--brand-blue); } }
 .arch-pill em { font-style: normal; }   /* full colour, as the prototype, at the pill's size: the build keeps text at 13 px at least */
+/* :has() is in Chrome and Edge 105+, Safari 15.4+ and Firefox 121+; Chrome is the supported browser. A browser without it drops
+   this one rule only: the bar itself (.wbar, shell.css) still wraps, so the group drops to a line of its own, never sideways. */
 .vctl:has(.arch-pill) { flex-wrap: wrap; }   /* item 450: the pill joins View and the layout switch; at 900 px they wrap, never sideways */
 .arch-h { margin: 8px 0; font-size: var(--size-body); font-weight: 600; }
 .arch-h span { font-weight: 400; font-size: var(--size-small); margin-left: 6px; }
@@ -630,6 +645,45 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .uclink .pick li .type { margin-right: 4px; }
 .uclink .pick li .pill { margin-left: 4px; }
 @media (max-width: 900px) { .ucrow-ed > .ucbar { grid-template-columns: 32px 44px minmax(0, 1fr) minmax(0, 1fr) 96px 96px; } }
+/* Settings › Projects (A-S6) */
+.projects .proj-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.projects .proj-head h2 { margin: 0; }
+.projects .proj-head .btn[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); border-color: var(--brand-blue); }
+.projects table.proj-table { table-layout: auto; }
+.projects table.proj-table td.acts { text-align: right; white-space: nowrap; }
+.projects table.proj-table td.acts .btn + .btn { margin-left: 8px; }
+.projects table.proj-table tr.arch td { color: var(--text-muted); }
+.projects table.proj-table .btn:disabled { opacity: .55; cursor: default; }
+/* Settings › Data and Projects, item 444: the project form and Import workbook. Tokens only; no text under 13 px.
+   The box is the Add a section box's (.ad-scrim, .ad) made narrow. */
+#data-card .row .btn { min-height: 32px; }
+#data-card .dc-note { font-size: var(--size-small); margin: 10px 0 0; }
+.projects .proj-head .sp { flex: 1 1 auto; }
+.ad.dlg { width: min(520px, 100%); max-height: calc(100dvh - 2 * var(--space-6)); }
+.ad.dlg.wide { width: min(760px, 100%); }
+.ad.dlg .dlg-b { padding: var(--space-2) var(--space-5) var(--space-4); overflow: auto; min-height: 0; }
+.ad.dlg .dlg-b p { margin: 0 0 var(--space-2); }
+.ad.dlg .dlg-note { font-size: var(--size-small); }
+.ad.dlg .dlg-small { font-size: var(--size-small); margin: 0; }
+.ad.dlg .dlg-form { display: grid; gap: 6px; }
+.ad.dlg .dlg-form label { font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); margin-top: var(--space-2); }
+.ad.dlg .dlg-field { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--control-border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.ad.dlg .dlg-field:disabled { background: var(--grey-50); color: var(--text-muted); }
+.ad.dlg .dlg-field:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ad.dlg .dlg-code { text-transform: uppercase; }
+.ad.dlg p.error { min-height: 0; margin: var(--space-2) 0 0; color: var(--status-red-text); font-size: var(--size-small); }
+.ad.dlg p.error:empty { display: none; }
+.ad.dlg .tpl-get { margin-right: auto; }
+.ad.dlg .imp-warn { padding: 8px 10px; border-left: 4px solid var(--status-amber); background: var(--status-amber-tint); color: var(--status-amber-text); border-radius: var(--radius-sm); }
+.ad.dlg .imp-note { font-size: var(--size-small); }
+.ad.dlg .imp-cols { margin: var(--space-1) 0 0; font-size: var(--size-small); max-height: 30vh; overflow: auto; }
+.ad.dlg .imp-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; max-height: 40vh; overflow: auto; }
+.ad.dlg .imp-list li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
+.ad.dlg .imp-list label { display: flex; align-items: baseline; gap: 8px; cursor: pointer; }
+.ad.dlg .imp-list input { flex: none; }
+.ad.dlg .imp-detail { margin-left: 26px; font-size: var(--size-small); }
+@media (max-width: 900px) { .ad.dlg, .ad.dlg.wide { width: 100%; } }
+
 /* The AI suggestion card (#72): roles and tokens only; no status colour (each already means something else). */
 .aic { margin: .5rem 0; padding: .75rem .875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
 .aic-h { margin: 0 0 .125rem; font-size: var(--size-body); font-weight: var(--weight-semibold); color: var(--heading); }

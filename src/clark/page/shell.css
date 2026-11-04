@@ -726,6 +726,16 @@ table.items .weye.ro .i { width: 16px; height: 16px; }
 .col-b { all: unset; box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); cursor: pointer; border-top: 3px solid transparent; border-radius: var(--radius-lg) var(--radius-lg) 0 0; color: var(--heading); }
 .col .nd { margin: 0; padding: var(--space-1) var(--space-3) 0; font-size: var(--size-small); }
 .col-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+/* Moving and resizing a column (B-16): a grip on the heading's right edge, and a bar where a dragged heading will land. */
+.col-rz { position: absolute; top: 0; bottom: 0; right: -7px; width: 14px; z-index: 5; cursor: col-resize; touch-action: none; }
+.col-rz::after { content: ""; position: absolute; top: 8px; bottom: 8px; left: 6px; width: 2px; border-radius: 1px; background: transparent; }
+.col-rz:hover::after, .col-rz:focus-visible::after, body.col-resizing .col-rz::after { background: var(--brand-blue); }
+.col-rz:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: var(--radius-sm); }
+body.col-resizing { cursor: col-resize; user-select: none; -webkit-user-select: none; }
+.col.shut .col-rz { display: none; }
+.col.moving { opacity: .6; }
+.col.drop-before { box-shadow: -6px 0 0 -3px var(--brand-blue); }
+.col-b { touch-action: none; }
 .col-b .dot { display: none; width: 9px; height: 9px; border-radius: 50%; background: var(--status-grey); flex: none; }
 .col-b .cn { margin-left: auto; color: var(--text-muted); font-weight: var(--weight-light); }
 .col.tone-blue .col-b { border-top-color: var(--status-blue); color: var(--status-blue-text); } .col.tone-blue .dot { background: var(--status-blue); }
@@ -1098,9 +1108,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pub-msg .info, .pub-msg .note { color: var(--text-muted); }
 /* Publish (issue 130, point 4): a spinner while it works, then a tick with the success line. With reduced motion the ring stays still. */
 .pub-msg .working { display: flex; align-items: center; gap: var(--space-2); color: var(--text-muted); }
-.spin { flex: none; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--brand-blue); border-radius: 50%; }
-/* Ticket 380: the ring turns four times (about 3.6 s) and then rests as the still ring; it never loops. A loop needs the owner's written word (ticket 131); the words "Publishing…" say the work is going on. */
-@media (prefers-reduced-motion: no-preference) { .spin { animation: pub-spin 900ms linear 4 forwards; } }
+.spin { flex: none; width: var(--space-4); height: var(--space-4); border: 2px solid var(--border); border-top-color: var(--brand-blue); border-radius: 50%; }
+/* Item 614 (after ticket 380): the ring turns, calmly, for exactly as long as "Publishing…" shows. It is drawn only while the work is
+   open (Publish.jsx renders it under `working`), so it goes the moment the work ends and nothing turns after the publish. Ticket 380's
+   four turns stopped it at about 3.6 s while the work went on, which read as "finished". The one approved loop (test_motion). */
+@media (prefers-reduced-motion: no-preference) { .spin { animation: pub-spin calc(var(--dur-enter) * 3) linear infinite; } }      /* calm: one even turn in 2.1 s (was 0.9 s) */
 @keyframes pub-spin { to { transform: rotate(360deg); } }
 .pub-msg .success { display: flex; align-items: center; gap: var(--space-2); }
 .pub-tick { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--status-green-text); color: var(--surface); }
@@ -1132,6 +1144,13 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .setting h2 { margin: 0 0 6px; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
 .setting .row { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
 .folder-now { overflow-wrap: anywhere; }
+/* item 647: the pasted folder path, under Choose folder; the box takes the row's room and the button stays beside it. */
+.folder-paste { margin-top: var(--space-3); }
+.folder-paste label { display: block; font-size: var(--size-small); color: var(--text); }
+.folder-paste .row { flex-wrap: nowrap; margin-top: var(--space-1); }
+.folder-paste input { box-sizing: border-box; flex: 1 1 auto; min-width: 0; max-width: 560px; min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.folder-paste input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.folder-paste p { margin: var(--space-1) 0 0; font-size: var(--size-small); }
 .backup-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-4); }
 .backup-list .acts { display: flex; gap: var(--space-2); margin-left: auto; }
 .backup-panel { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
@@ -1156,6 +1175,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pubs td { padding: 9px 10px; border-top: 1px solid var(--grey-100); vertical-align: middle; overflow-wrap: anywhere; }
 .pubs th:first-child, .pubs td:first-child { padding-left: 4px; width: 48px; }
 .pubs td.acts { text-align: right; white-space: nowrap; }
+.pubs td.acts > * + * { margin-left: var(--space-2); }
+.pubs tr.arch-row td { color: var(--text-muted); }
+#pubs .pp-tools { margin: var(--space-2) 0 0; }
 #pubs-note { margin: 8px 0 0; font-size: var(--size-small); }
 /* item 349: Settings > Published reports > Dashboard as at a day, and the banner and dashed tinted frame of the rebuilt Dashboard
    (the design note of item 125, its past view: the prototype's .pv-banner and .pv-frame.asat). */
@@ -1694,6 +1716,23 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
 .ucp-body h2 { margin: 14px 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .ucp-headline { margin: 0 0 8px; }
+/* Printing: a published file printed from the browser (Save as PDF) shows every tab one after another, with no controls, in the light colours, and the page number in the foot. stores/print.js sets html.print-all and draws the stack while the browser prints; the screen never changes. */
+@page { size: A4; margin: 14mm 12mm 18mm; @bottom-right { content: "Page " counter(page); font-family: Arial, sans-serif; font-size: var(--size-caption); } }   /* the bottom-left foot, "Publication N · DD-MM-YYYY", is added by stores/print.js while the browser prints */
+@media print {
+  html.print-all, html.print-all body { background: var(--white); color: var(--text); color-scheme: light; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html.print-all .top, html.print-all .pubfoot, html.print-all .toc, html.print-all .peek, html.print-all .toast, html.print-all .skip, html.print-all .wbar, html.print-all .fbar, html.print-all .factive, html.print-all .vctl, html.print-all .msv-sw, html.print-all .mv-bar, html.print-all .cal-bar, html.print-all .sec-ctl, html.print-all dialog, html.print-all input, html.print-all select, html.print-all textarea { display: none; }
+  html.print-all button, html.print-all [role=button] { border: 0; background: none; box-shadow: none; padding: 0; min-height: 0; cursor: default; color: inherit; font: inherit; }
+  html.print-all main { max-width: none; margin: 0; padding: 0; }
+  html.print-all .frame { box-shadow: none; border: 0; padding: 0; background: var(--white); }
+  html.print-all .print-head { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-caption); }
+  html.print-all .print-tab + .print-tab { break-before: page; }
+  html.print-all .print-tab-title { margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-body); font-weight: 400; color: var(--text-muted); }
+  html.print-all .sec, html.print-all article, html.print-all .tile, html.print-all .fig, html.print-all figure, html.print-all blockquote, html.print-all tr, html.print-all li, html.print-all h1, html.print-all h2, html.print-all h3, html.print-all details { break-inside: avoid; }
+  html.print-all h1, html.print-all h2, html.print-all h3 { break-after: avoid; }
+  html.print-all thead { display: table-header-group; }
+  html.print-all a { color: inherit; text-decoration: none; }
+}
+
 .pk-rating { color: var(--text-muted); }   /* a closed risk keeps its rating word beside its Closed pill */
 /* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
 .pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -1719,3 +1758,19 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.wl-id { display: inline-flex; align-items: center; gap: 4px; }
+.idl { all: unset; box-sizing: border-box; padding: 2px 4px; margin: -2px -4px; border-radius: var(--radius-sm); color: var(--status-blue-text); cursor: pointer; }
+.idl:hover { text-decoration: underline; text-underline-offset: 2px; }
+.idl:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.wl-row.wl-open { cursor: pointer; }
+.wl-row.wl-open:hover { background: var(--grey-50); }
+.wl-add { padding: 9px 0; border-top: 1px solid var(--grey-100); }
+.wl-add .add-in { width: 100%; min-height: 32px; padding: 4px 10px; border: 1px dashed var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.wl-add .add-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-style: solid; }
+.wl-title .cell-ce { display: inline-block; min-width: 4ch; max-width: 100%; border-radius: var(--radius-sm); box-shadow: inset 0 -1px 0 var(--grey-300); }
+.wl-title .cell-ce:hover { background: var(--grey-100); }
+.wl-title .cell-ce:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.item-rows-edit .wl-meta .cell-val { display: flex; align-items: center; gap: 2px var(--space-2); }
+.item-rows-edit .note { color: var(--text-muted); }
+.item-rows-edit .add-from { display: inline-block; margin-top: 6px; }
+.item-rows-edit .picker { margin-top: 10px; }

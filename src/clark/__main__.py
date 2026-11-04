@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, app_settings, as_at, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, updater as clark_updater, use_cases_read, word_route
+from clark import activity_read, app_settings, as_at, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, server, sneak, store as clark_store, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -441,6 +441,8 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                     "people": changes.make_people(store.path, roots, who.who),
                     "people_undo": changes.make_people_undo(store.path, roots, who.who),
                     "people_list": changes.make_people_list(store.path, roots, who.who),
+                    "excel_import": excel_route.make_excel_import(store.path, roots, who.who),     # #444
+                    "project_save": project_route.make_project(store.path, roots, who.who),        # #444
                     "word_import": word_import or word_route.make_word_import(store.path, roots),
                     "word_export": word_export or word_route.make_word_export(store.path, roots)}
         server.set_open_files(appfiles.open_files())
@@ -479,6 +481,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      # prompt (#72 slice 5) AND the real canary exists (#277). Do not pass ai= before both; test_main pins it.
                      activity=activity_read.make_read(store.path, store.data_for),
                      past=past_reports.PastReports(store.path),
+                     publication_mark=changes.make_publication_mark(store.path, roots, by_user=who.who),
                      as_at=as_at.AsAt(store.path),
                      brand_picture=page.brand_picture,
                      updater=updates_seam,
