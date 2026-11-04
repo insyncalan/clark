@@ -202,7 +202,7 @@ class Words(unittest.TestCase):
                                   "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
                                   "The list of projects could not be read. Choose Try again. If it happens again, restart clark. Try again",
                                   "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
-                                  "Export workbook", "Import workbook",        # #444: Export, Import and (for demo data only) Reset the demo data
+                                  "Export workbook", "Import workbook",        # #444: Export and Import
                                   "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases. Export saves this project's as an Excel workbook; "
                                   "your browser saves the file and nothing is sent or published. Import shows what would change before anything is saved.",
                                   "Backups",            # #111: the backups card; this server has no backups to list

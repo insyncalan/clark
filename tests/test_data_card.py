@@ -1,10 +1,10 @@
-"""Prototype parity A-S11 and #444: Settings › Data (Export workbook, Import workbook, Reset the demo data), in a real browser at 1400 and
+"""Prototype parity A-S11 and #444: Settings › Data (Export workbook and Import workbook), in a real browser at 1400 and
 900 px, light and dark. Run: python3 dev/run_tests.py test_data_card
 
-What is asserted: the card is on Settings with its heading and words; it has Export workbook and Import workbook, and no Reset the demo
-data unless clark says its data is the demo data (this server has no demo seam, so it does not); pressing Export asks the server's export
+What is asserted: the card is on Settings with its heading and words; it has Export workbook and Import workbook and no other button;
+pressing Export asks the server's export
 route once and the browser is given a workbook (the page says so); the card never widens the page; the buttons' text meets 4.5:1 in
-light and dark. The Import box and the Reset confirm are in test_settings_data_page.
+light and dark. The Import box is in test_settings_data_page.
 Chrome is required: these tests fail, never skip, without it.
 """
 import unittest
@@ -22,7 +22,7 @@ class DataCard(Base):
         p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
         p.until("!!document.querySelector('#data-card')", "the Data card drew")
 
-    def test_C_the_card_its_words_and_the_export_and_import_buttons_but_no_reset_here(self):
+    def test_C_the_card_its_words_and_the_export_and_import_buttons(self):
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
@@ -31,7 +31,6 @@ class DataCard(Base):
                 self.assertEqual(p.js("document.querySelector('#data-card h2').textContent"), "Data")
                 self.assertEqual(p.js("[...document.querySelectorAll('#data-card button')].map(b => b.textContent)"), ["Export workbook", "Import workbook"])
                 self.assertIn("Excel workbook", p.js("document.querySelector('#data-card p').textContent"))
-                self.assertFalse(p.js("/reset/i.test(document.querySelector('#data-card').innerText)"), "not demo data: no Reset the demo data")
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
 
     def test_C_pressing_export_downloads_one_workbook_and_says_so(self):

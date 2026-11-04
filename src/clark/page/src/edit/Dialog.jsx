@@ -1,4 +1,4 @@
-// A small modal box for Settings (item 444): the project form, Import workbook and the Reset confirm. Edit only (a published file has no
+// A small modal box for Settings (item 444): the project form and Import workbook. Edit only (a published file has no
 // Settings). It follows the Add a section box (AddDialog.jsx): focus starts in `first` (a selector inside it, else the first control), Tab
 // stays inside, Esc closes it, a click on the backdrop closes it, the page behind is `inert` while it is open, and focus goes back to what
 // opened it. The words are the caller's and are drawn as text.

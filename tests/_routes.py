@@ -15,10 +15,10 @@ GET_ROUTES = (
 POST_ROUTES = (
     "/api/ai/stop", "/api/ai/suggest", "/api/ask", "/api/ask-enabled", "/api/ask-folders", "/api/ask/change/apply", "/api/ask/change/dry",
     "/api/ask/stop", "/api/backups/copy-folder", "/api/backups/preview", "/api/backups/restore", "/api/change", "/api/client-folder",
-    "/api/demo", "/api/draft-email", "/api/draft-email/sent", "/api/excel-import", "/api/logging", "/api/logging/open-folder",
+    "/api/draft-email", "/api/draft-email/sent", "/api/excel-import", "/api/logging", "/api/logging/open-folder",
     "/api/page-error", "/api/people", "/api/people/undo", "/api/preview", "/api/profile", "/api/project", "/api/publish",
     "/api/section-file", "/api/section-image", "/api/sneak/read", "/api/undo", "/api/word-export", "/api/word-import",
-)     # #43, #111, #622 (the copy folder), #147, #180, #50, #47, #47e, #42, #96, #72 (the AI suggestion, its Stop and its status), and #48 (the two Word ones); item 444 (demo: reset only the demo folder; excel-import: the workbook, one step, no client folder; project: new and edit)
+)     # #43, #111, #622 (the copy folder), #147, #180, #50, #47, #47e, #42, #96, #72 (the AI suggestion, its Stop and its status), and #48 (the two Word ones); item 444 (excel-import: the workbook, one step, no client folder; project: new and edit)
 
 
 def unplanned(server):

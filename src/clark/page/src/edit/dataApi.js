@@ -1,4 +1,4 @@
-// The calls behind Settings › Data and the project forms (item 444): POST /api/excel-import, /api/project and /api/demo. Edit's page only (a
+// The calls behind Settings › Data and the project forms (item 444): POST /api/excel-import and /api/project. Edit's page only (a
 // published file has no Settings and asks nothing). Each answers { ok, status, body, words }: never a throw, and `words` is the plain
 // sentence to show when it did not work (logic/dataCard.js replyWords). No other file names these routes.
 import { token } from "../stores/report.js";
@@ -19,5 +19,3 @@ export const saveProject = (req) => post("/api/project", req);
 export const checkWorkbook = (project, name, data) => post("/api/excel-import", { op: "check", project, name, data });
 export const applyWorkbook = (project, plan, accept, confirm) => post("/api/excel-import", { op: "apply", project, plan, accept, confirm: !!confirm });
 export const undoWorkbook = (project, applyId) => post("/api/excel-import", { op: "undo", project, apply_id: applyId });
-export const demoState = () => post("/api/demo", { op: "state" });
-export const demoReset = () => post("/api/demo", { op: "reset" });

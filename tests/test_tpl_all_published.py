@@ -39,7 +39,7 @@ class ViewBundleNamesNoRoute(unittest.TestCase):
     Projects table or the Import workbook template: the only routes it names are the two reads it already had."""
     def test_the_view_bundle_holds_no_post_route_and_no_edit_only_route(self):
         text = (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8")
-        for route in routes_expected.POST_ROUTES + ("/api/excel-import", "/api/demo", "/api/project"):
+        for route in routes_expected.POST_ROUTES + ("/api/excel-import", "/api/project"):
             self.assertIsNone(whole_route(route).search(text), f"{route} is in page-view.html")
         self.assertNotIn("template=1", text)
         self.assertNotIn("archived=1", text)

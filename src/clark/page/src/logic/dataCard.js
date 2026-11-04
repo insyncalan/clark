@@ -6,16 +6,7 @@ export const DATA = {
   title: "Data",
   export: "Export workbook",
   import: "Import workbook",
-  reset: "Reset the demo data",
   note: "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases. Export saves this project's as an Excel workbook; your browser saves the file and nothing is sent or published. Import shows what would change before anything is saved.",
-};
-
-export const RESET = {
-  title: "Reset the demo data?",
-  body: "Every change you made here is replaced by the starting demo data.",
-  go: "Reset",
-  done: "The demo data is back as it started.",
-  failed: "The demo data could not be put back. Nothing was changed.",
 };
 
 export const IMPORT = {

@@ -1,8 +1,7 @@
-"""#444 (rows 44): Settings › Data in a real browser against the real routes: Import workbook (the two-step box, one step, Undo this import)
-and Reset the demo data (offered only for demo data, asks first, says so when it fails). Run: python3 dev/run_tests.py test_settings_data_page
+"""#444 (rows 44): Settings › Data in a real browser against the real routes: Import workbook (the two-step box, one step, Undo this import).
+Run: python3 dev/run_tests.py test_settings_data_page
 
-The server is the real one over the #39 plant in a temporary folder (tests/test_publish_route.py Rig) with the real workbook import and the
-real demo seam; the demo seam's rebuild is a recorder, so nothing is replaced. Widths 1400 and 900, light and dark. Chrome is required:
+The server is the real one over the #39 plant in a temporary folder (tests/test_publish_route.py Rig) with the real workbook import. Widths 1400 and 900, light and dark. Chrome is required:
 these tests fail, never skip, without it. The non-browser checks (the published page names none of these routes) need no browser.
 """
 import base64
@@ -15,7 +14,7 @@ from _paths import SRC
 from test_publish_dialog import Base
 from test_server import chrome, wait
 
-from clark import demo_route, excel, excel_route
+from clark import excel, excel_route
 
 WIDTHS = (1400, 900)
 USER = "Test Person"
@@ -41,18 +40,18 @@ def workbook(rig, tmp, new_text):
 class Source(unittest.TestCase):
     def test_the_published_page_names_none_of_these_routes_or_boxes(self):
         view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
-        for needle in ("/api/excel-import", "/api/demo", "Import workbook", "Reset the demo data", "import-box", "reset-box"):
+        for needle in ("/api/excel-import", "Import workbook", "import-box"):
             self.assertNotIn(needle, view, needle)
 
-    def test_only_the_data_files_name_the_three_routes(self):
+    def test_only_the_data_files_name_the_two_routes(self):
         found = {}
         for f in (SRC / "clark" / "page" / "src").rglob("*"):
             if f.is_file() and f.suffix in (".js", ".jsx"):
                 text = f.read_text(encoding="utf-8")
-                for route in ('"/api/excel-import"', '"/api/demo"', '"/api/project"'):
+                for route in ('"/api/excel-import"', '"/api/project"'):
                     if route in text:
                         found.setdefault(route, []).append(f.name)
-        self.assertEqual(found, {'"/api/excel-import"': ["dataApi.js"], '"/api/demo"': ["dataApi.js"], '"/api/project"': ["dataApi.js"]})
+        self.assertEqual(found, {'"/api/excel-import"': ["dataApi.js"], '"/api/project"': ["dataApi.js"]})
 
 
 class Card(Base):
@@ -61,14 +60,6 @@ class Card(Base):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.rig.httpd.excel_import = excel_route.make_excel_import(self.rig.db, [], USER)
-        self.rebuilt = []
-        self.fails = False
-
-        def rebuild(path):
-            if self.fails:
-                raise RuntimeError("no")
-            self.rebuilt.append(str(path))
-        self.rig.httpd.demo = demo_route.make_demo(self.rig.db, self.rig.data_dir, rebuild)
 
     def settle(self, p, expr, what, seconds=20):
         def got():
@@ -89,15 +80,15 @@ class Card(Base):
           const dt = new DataTransfer(); dt.items.add(new File([a], 'PUB work items.xlsx')); const inp = document.querySelector('#import-file');
           inp.files = dt.files; inp.dispatchEvent(new Event('change', {bubbles: true})); })()""" % json.dumps(b64))
 
-    def test_the_card_offers_reset_only_for_demo_data_with_the_prototypes_three_buttons(self):
+    def test_the_card_has_export_and_import_and_nothing_else(self):
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
                 p.width(w)
                 self.open_settings(p)
-                self.settle(p, "document.querySelector('#reset-demo')", "Reset the demo data on the card")
+                self.settle(p, "!!document.querySelector('#import-workbook')", "the Import workbook button")
                 self.assertEqual(p.js("[...document.querySelectorAll('#data-card .row button')].map(b => b.textContent)"),
-                                 ["Export workbook", "Import workbook", "Reset the demo data"])
+                                 ["Export workbook", "Import workbook"])
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
 
     def test_import_checks_then_imports_in_one_step_and_undo_puts_it_back(self):
@@ -173,39 +164,6 @@ class Card(Base):
             p.until("!document.querySelector('#import-box')", "Esc closed it")
             self.settle(p, "document.activeElement && document.activeElement.id === 'import-workbook'", "focus back on Import workbook")
 
-    def test_reset_asks_first_cancel_changes_nothing_and_reset_rebuilds_and_says_so(self):
-        with chrome() as cdp:
-            p = self.page(cdp)
-            self.open_settings(p)
-            self.settle(p, "document.querySelector('#reset-demo')", "the Reset button")
-            p.js("document.querySelector('#reset-demo').click()")
-            p.until("!!document.querySelector('#reset-box')", "the confirm")
-            self.assertEqual(p.js("document.querySelector('#reset-box-t').textContent"), "Reset the demo data?")
-            self.assertIn("Every change you made here is replaced by the starting demo data.", p.js("document.querySelector('#reset-box').innerText"))
-            self.settle(p, "document.activeElement && document.activeElement.id === 'reset-cancel'", "Cancel has focus: Enter does not reset")
-            p.js("document.querySelector('#reset-cancel').click()")
-            p.until("!document.querySelector('#reset-box')", "Cancel closed it")
-            self.assertEqual(self.rebuilt, [])
-            p.js("document.querySelector('#reset-demo').click()")
-            p.until("!!document.querySelector('#reset-go')", "the confirm again")
-            p.js("document.querySelector('#reset-go').click()")
-            self.settle(p, "document.querySelector('#reset-done') && document.querySelector('#reset-done').textContent === 'The demo data is back as it started.'", "the page reloaded and said so")
-            self.assertEqual(self.rebuilt, [str(self.rig.db)])
-
-    def test_a_reset_that_fails_says_so_and_the_box_stays(self):
-        self.fails = True
-        with chrome() as cdp:
-            p = self.page(cdp)
-            self.open_settings(p)
-            self.settle(p, "document.querySelector('#reset-demo')", "the Reset button")
-            p.js("document.querySelector('#reset-demo').click()")
-            p.until("!!document.querySelector('#reset-go')", "the confirm")
-            p.js("document.querySelector('#reset-go').click()")
-            p.until("!!document.querySelector('#reset-problem').textContent", "the refusal")
-            self.assertEqual(p.js("document.querySelector('#reset-problem').textContent"), "The demo data could not be put back. Nothing was changed.")
-            self.assertEqual(demo_route.FAILED, "The demo data could not be put back. Nothing was changed.")
-            self.assertTrue(p.js("!!document.querySelector('#reset-box') && !document.querySelector('#reset-go').disabled"))
-
     def test_the_buttons_and_the_boxes_are_readable_in_light_and_dark(self):
         b64, _, _ = workbook(self.rig, self.tmp.name, "Agree the cut-over plan, again")
         probe = """(sel) => { const b = document.querySelector(sel); const cs = getComputedStyle(b);
@@ -218,8 +176,8 @@ class Card(Base):
                 p = self.page(cdp)
                 p.js(f"document.documentElement.setAttribute('data-theme', '{scheme}')")
                 self.open_settings(p)
-                self.settle(p, "document.querySelector('#reset-demo')", "the Reset button")
-                for sel in ("#export-workbook", "#import-workbook", "#reset-demo"):
+                self.settle(p, "!!document.querySelector('#import-workbook')", "the Import workbook button")
+                for sel in ("#export-workbook", "#import-workbook"):
                     self.assertGreaterEqual(p.js(f"({probe})('{sel}')"), 4.5, sel)
                 p.js("document.querySelector('#import-workbook').click()")
                 p.until("!!document.querySelector('#import-box')", "the box opened")

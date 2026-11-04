@@ -45,6 +45,8 @@ COVERED = [
      "test_work_archived_peek::ArchivedPeek::test_a_row_opens_the_peek_read_only_with_one_restore"),
     ("#450", "Restore puts the item back and leaves the peek open on it, now editable.",
      "test_work_archived_peek::ArchivedPeek::test_restore_puts_it_back_and_leaves_the_peek_open_on_it"),
+    ("#444", "Settings › Data: Import workbook checks the workbook first, then imports it in one step, and Undo this import puts it back.",
+     "test_settings_data_page::Card::test_import_checks_then_imports_in_one_step_and_undo_puts_it_back"),
     ("#611", "A blank client message is turned away in plain words, not a server error.",
      "test_changes_null_message::NullMessage::test_a_null_client_message_is_refused_and_nothing_is_saved"),
 ]
@@ -57,7 +59,6 @@ WAITING = [
     ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 518", "page/src/edit/Update.jsx", "upd-rows"),
     ("#434", "Risks, issues, actions and decisions rows: a status pill, empty sections, editing in place and the ID button", "PR 580", "page/src/edit/ItemRowsEdit.jsx", "WORDS_MAX"),
     ("#449", "Work items: the column width can be changed and reset, with a toast", "PR 462", "page/src/logic/board.js", "COL_MIN"),
-    ("#444", "Settings Data card and Projects table: Import workbook, Reset the demo data, Add and Edit project", "PR 461", "page/src/logic/dataCard.js", "export const DATA"),
     ("#53", "Where clark's AI providers code comes from (a copy from the other product's branch)", "no pull request yet (issue 53)", "", None),
     ("#54", "Settings, AI: Claude and OpenAI sign-in for ask clark", "no pull request yet (issue 54)", "", None),
     ("#446", "Settings, AI card: Connect and Disconnect for Claude, an OpenAI tile that says Later, a model list", "no pull request yet (issue 446)", "", None),
