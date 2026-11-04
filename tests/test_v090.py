@@ -29,6 +29,8 @@ SCHEMA_AT_0_8_0 = 15     # 0.8.0 reads layout 15; a layout step after it makes t
 COVERED = [
     ("#420", "Open About you before clark has read it, type only a name and leave the box: the email saved before is still there.",
      "test_about_you::AboutYou::test_C_a_save_made_before_the_first_read_has_landed_keeps_the_other_box_saved_value"),
+    ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo",
+     "test_update_migration::Migrated::test_undo_puts_the_data_back_as_it_was_and_says_changes_after_the_update_are_lost"),
     ("#434", "Risks, issues, actions and decisions rows: a status pill, empty sections, editing in place and the ID button",
      "test_item_rows::EditRows::test_every_part_of_a_row_edits_in_place_and_the_pill_is_the_prototypes"),
     ("#439", "The bar above the page: Week ending is a box in View and in Edit; with no week kept it shows the coming Friday and saves nothing until Enter.",
@@ -59,8 +61,7 @@ COVERED = [
 # marker None means there is no pull request to look for yet).
 WAITING = [
     ("#48", "HOLD (the Help wording is the owner's call): Export to Word and Import from Word screens", "PR 475", "page/src/edit/Word.jsx", "export function WordLayer"),
-    ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo", "PR 592", "updater.py", "class Updater"),
-    ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 592", "page/src/edit/Update.jsx", "upd-rows"),
+    ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints (the rows join PR 592 on its next push)", "PR 592", "page/src/edit/Update.jsx", "upd-rows"),
     ("#449", "Work items: the column width can be changed and reset, with a toast", "PR 555", "page/src/logic/board.js", "COL_MIN"),
 ]
 

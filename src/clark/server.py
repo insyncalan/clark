@@ -52,6 +52,11 @@ Routes:
 - POST /api/project     a new project, or a project's name, client and added workstreams (#444; project_route.py)
 - POST /api/word-import  a Word file to read into new items, and the choice to add them (#48); the logic is `word_import(req)`
 - POST /api/word-export  the report as a Word file, saved in the report folder, and in the client folder with To client (#48)
+- GET  /api/update       Settings › Version and updates: what is installed, an update in Downloads, the last update (updater.py)
+- POST /api/update/review     {from, reinstall}: check the newest file in Downloads, or one chosen in the system's dialog, and review it
+- POST /api/update/install    {review_id}: install the reviewed update; the server stops after the answer so the helper can swap
+- POST /api/update/arm-undo   {}: arm Undo update for a few seconds; says whether only the app and settings can be put back
+- POST /api/update/undo       {arm_id, app_only}: the armed undo; the server stops after the answer, as for an install
 - POST /api/section-file  {project, section}: the Open dialog, then the file copied into the client folder's "Report files" folder and
                          added to the section in one step (#96; publish_flow.py and section_files.py). The request never names a file
 - POST /csp-report       the browser's reports of what the script policy blocked: local only, rate-limited, small
@@ -78,6 +83,64 @@ from urllib.parse import parse_qs, quote, urlsplit
 LOG = logging.getLogger("clark.server")
 HOST = "127.0.0.1"                    # the only address clark listens on, whatever any setting says
 DEFAULT_PORT = 8766
+CONTAINER_BIND = "0.0.0.0"            # item 427: only inside the shipped container (see container_mode); the Mac publishes the port to 127.0.0.1 only
+
+
+def container_mode():
+    """item 427: True only when CLARK_CONTAINER=1 is set (by docker/compose.yaml, which runs a stock Python image) AND this really is a
+    container (Docker makes /.dockerenv in every container, Podman /run/.containerenv). Never by the setting alone; never on a Mac."""
+    return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
+
+
+def container_gateway():
+    """item 427: the container's default gateway address, the one peer a published port arrives from; None when it can't be read.
+    Why this address and no other: a published port is forwarded by Docker's proxy (docker-proxy on Linux; Docker Desktop's
+    forwarder in its VM on Mac and Windows), which opens a new connection to the container from the host side of the
+    container's network. That side's address is the network's gateway (172.17.0.1 on the default bridge, the compose network's
+    own, such as 172.18.0.1, here), and it is the gateway of the container's default route, read from the kernel's table rather
+    than assumed. Other containers on that network have other addresses in the subnet and are refused, and the LAN cannot
+    reach the port at all (compose publishes it on 127.0.0.1 only). Only a true default route counts: destination and mask
+    both 0.0.0.0, with the gateway flag. The table prints each address as a number in this machine's byte order."""
+    try:
+        with open("/proc/net/route", encoding="utf-8") as table:
+            for line in table.read().splitlines()[1:]:
+                f = line.split()
+                if f[1] == "00000000" and f[7] == "00000000" and int(f[3], 16) & 2:
+                    return ".".join(str(b) for b in int(f[2], 16).to_bytes(4, sys.byteorder))
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
+def local_peer(address):
+    """Whether a request's peer address is this machine, or, in a container only, the container's gateway (item 427)."""
+    if address in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+        return True
+    gateway = container_mode() and container_gateway()
+    return bool(gateway) and address == gateway
+
+
+# item 427 (a reader's finding): a peer refused in container mode is told why in a plain page, and the container's log names it, so
+# a second run in Docker shows which address Docker Desktop really connects from. Addresses only: never a token or a header.
+CONTAINER_REFUSED = "This connection was refused. clark is running in Docker and only answers this computer."
+CONTAINER_REFUSED_PAGE = f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>clark</title></head><body><p>{CONTAINER_REFUSED}</p></body></html>
+"""
+_REFUSED_PEERS = set()          # each refused address is logged once; at most REFUSED_PEERS_KEPT of them, then no more lines
+REFUSED_PEERS_KEPT = 256
+_REFUSED_LOCK = threading.Lock()
+
+
+def note_refused_peer(address):
+    """item 427: one line to the container's log (stderr) the first time `address` is refused, naming it and the gateway that is
+    accepted. Never more than once for an address, and never more than REFUSED_PEERS_KEPT lines in all, so no peer can fill the log."""
+    with _REFUSED_LOCK:
+        if address in _REFUSED_PEERS or len(_REFUSED_PEERS) >= REFUSED_PEERS_KEPT:
+            return
+        _REFUSED_PEERS.add(address)
+    gateway = container_gateway()
+    print(f"Refused a connection from {address}: in Docker only 127.0.0.1 and the container's gateway "
+          f"({gateway or 'not found'}) are accepted.", file=sys.stderr, flush=True)
 TOKEN = secrets.token_urlsafe(24)     # new at every start; the page gets it in GET /
 TOKEN_HEADER = "X-Clark-Token"
 STALE_PAGE = "This page is out of date because clark was restarted. Reload the page and try again."
@@ -103,6 +166,8 @@ MESSAGES = {
     "server_error": "Something went wrong, and nothing was changed. Try again, or restart clark.",
     "no_backups": "Backups can't be shown right now. Restart clark the usual way and try again.",
     "saving_off": "Saving is switched off, so that change was not kept. Restart clark the usual way to turn it on.",
+    "updating": "An update is being installed, so nothing was changed. Wait a minute, then reload the page.",
+    "no_updates": "Updates can't be shown right now. Restart clark the usual way and try again.",
     "item_not_found": f"That item could not be found. {RELOAD}",
     "reading_off": "Changing items with words is not available right now, and nothing was changed. Restart clark the usual way to turn it on.",
 }
@@ -148,6 +213,7 @@ ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/
                      "/api/draft-email": 16 * 1024,                    # #50: the ticked ids and a few short words
                      "/api/draft-email/sent": 4 * 1024,                # #50: the ids, the mode and the day: never the email's words
                      "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024,      # #48
+                     "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024, "/api/update/undo": 1024,
                      "/api/excel-import": (EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,      # #444: a workbook as text, like the Word one
                      "/api/project": 4 * 1024,      # #444: a name, a code, a client and a few workstreams
                      "/api/section-file": 1024}     # #96: names a project and a section only; the file never comes in the request
@@ -320,7 +386,9 @@ def csp_local(handler):
     """Whether a request comes from this machine's own page: a local address and Host, and no other site's Origin. Every
     Origin and Sec-Fetch-Site header counts, not only the first, and an Origin must be this very Host and port (#65: the page
     is served from that one address; a page on another local port is another site). No Origin at all (a plain client) is fine."""
-    if not handler.host_ok() or handler.client_address[0] not in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+    if not handler.host_ok() or not local_peer(handler.client_address[0]):
+        if container_mode() and not local_peer(handler.client_address[0]):
+            note_refused_peer(handler.client_address[0])                 # item 427: the container's log names a refused peer, once
         return False
     get_all = getattr(handler.headers, "get_all", None)                  # a request with no version has no parsed headers (a dict)
     every = (lambda name: get_all(name) or []) if get_all else (lambda name: [v for v in [handler.headers.get(name)] if v])
@@ -829,6 +897,13 @@ def busy():
         return BUSY["n"] > 0
 
 
+def others_busy():
+    """Whether a POST route other than the one asking is running: an update's install or undo (itself a POST) waits for these
+    to finish before it backs up the data."""
+    with BUSY_LOCK:
+        return BUSY["n"] > 1
+
+
 def page_load_is_ours(headers, port):
     """Whether a load of the page counts as "a window is open": the browser says it came from the address bar or this site
     (`Sec-Fetch-Site` absent, none or same-origin) and no foreign Origin is sent. Anything else still gets the page
@@ -884,6 +959,15 @@ p { margin: 0 0 8px; color: #55606e; }
 <p>Go back to clark, open your menu (the circle at the top right) and choose Preview the page in a new tab for a new one.</p>
 </main></body></html>
 """
+
+
+def page_route(handler):
+    """GET /: the page, with this run's token. Run through run_route like every other route, so a page that cannot be made (a
+    copy of clark without its page files that cannot build them) is answered with a 500 in plain words.
+    Before, the error left the handler and the standard library closed the connection with no answer at all."""
+    if page_load_is_ours(handler.headers, handler.server.server_port):
+        mark_here()
+    return handler.send(200, with_boot(handler.server.page_html()), "text/html")
 
 
 def preview_page_route(handler):
@@ -1046,11 +1130,39 @@ def profile_route(method):
     return route
 
 
+def update_route(method):
+    """A route that hands its request to the server's `updater` (updater.Updater), which answers (status, body). Without one: 503.
+    An answer that says "restart" (an install or an undo was handed to the update helper) stops this server once it is sent, so
+    the helper can replace the files; the helper starts the new version."""
+    def route(handler, *req):
+        updater = handler.server.updater
+        if updater is None:
+            return handler.send(503, error_body("no_updates"))
+        status, body = getattr(updater, method)(*req)
+        handler.send(status, body)
+        if status == 200 and body.get("restart") is True:
+            threading.Thread(target=handler.server.shutdown, daemon=True).start()
+        return None
+    return route
+
+
+UPDATE_ROUTES = ("/api/update", "/api/update/review", "/api/update/install", "/api/update/arm-undo", "/api/update/undo")
+
+
+def updating(handler, route):
+    """While an update is being installed every route but the update's own answers 503 in plain words (sent here)."""
+    updater = getattr(handler.server, "updater", None)
+    if updater is None or route in UPDATE_ROUTES or route == HERE_ROUTE or not updater.installing():
+        return False
+    handler.send(503, error_body("updating"))
+    return True
+
+
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
-              "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/diagnostics": logs_route("diagnostics"),
+              "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics"),
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
@@ -1061,6 +1173,9 @@ POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/secti
                 "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply"),
                 "/api/profile": profile_route("save"), "/api/people": people_route("people"), "/api/people/undo": people_route("people_undo"), "/api/page-error": logs_route("page_error"),
                 "/api/logging": logs_route("set_level"), "/api/logging/open-folder": logs_route("open_folder"),     # #110
+                "/api/update/review": update_route("review"),
+                "/api/update/install": update_route("install"), "/api/update/arm-undo": update_route("arm_undo"),
+                "/api/update/undo": update_route("undo"),
                 "/api/publications/archive": publication_mark_route("archive"), "/api/publications/restore": publication_mark_route("restore"),     # #345
                 "/api/draft-email": draft_email_route("draft_email"),
                 "/api/draft-email/sent": draft_email_route("draft_email_sent"),
@@ -1184,6 +1299,8 @@ class Handler(BaseHTTPRequestHandler):
             with BUSY_LOCK:
                 BUSY["n"] += 1
         try:
+            if counted and updating(self, self.path.split("?")[0]):   # the update's flag went up while this request was read
+                return None
             return route(self, *args)
         except CLIENT_LEFT:
             return None
@@ -1206,13 +1323,14 @@ class Handler(BaseHTTPRequestHandler):
             return None
         if not self.host_ok():
             return self.send(403, error_body("not_allowed"))
+        if container_mode() and not local_peer(self.client_address[0]):      # item 427: with the container's 0.0.0.0 bind, the page and /health are for this machine only too
+            note_refused_peer(self.client_address[0])
+            return self.send(403, CONTAINER_REFUSED_PAGE, "text/html")
         route = self.path.split("?")[0]
         if route == "/health":
             return self.send(200, health_answer(self.headers.get(MARK_HEADER)))
         if route == "/":
-            if page_load_is_ours(self.headers, self.server.server_port):
-                mark_here()
-            return self.send(200, with_boot(self.server.page_html()), "text/html")
+            return self.run_route(page_route)
         if route in OPEN_GET_ROUTES:
             return self.run_route(open_route, route)
         if route == PREVIEW_ROUTE:
@@ -1223,7 +1341,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.run_route(brand_picture_route, route[len(BRAND_PREFIX):])
         api = GET_ROUTES.get(route)
         if api or route.startswith("/api/"):
-            if not self.authorised():
+            if not self.authorised() or updating(self, route):
                 return None
             if api:
                 return self.run_route(api)
@@ -1237,7 +1355,7 @@ class Handler(BaseHTTPRequestHandler):
         route = self.path.split("?")[0]
         if route == CSP_REPORT_ROUTE:
             return csp_report_route(self)
-        if not self.authorised():
+        if not self.authorised() or updating(self, route):
             return None
         if (self.headers.get("Content-Type") or "").split(";")[0].strip().lower() != "application/json":
             return self.send(415, error_body("send_json"))
@@ -1268,9 +1386,9 @@ class LocalServer(ThreadingHTTPServer):
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
-                 draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None,
+                 draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, updater=None,
                  people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None):
-        if server_address[0] != HOST:
+        if server_address[0] != HOST and not (container_mode() and server_address[0] == CONTAINER_BIND):
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
         self.projects = projects or (lambda: [])
@@ -1294,6 +1412,7 @@ class LocalServer(ThreadingHTTPServer):
         self.app_settings = app_settings      # app_settings.AppSettings (#47): the ask switch; None: its route answers 404
         self.people, self.people_undo, self.people_list = people, people_undo, people_list      # #115: the person writers, their Undo and the list; None: saving off (503) or not found (404)
         self.ask = ask                        # ask_service.AskService (#47): questions; None: the ask routes answer 404
+        self.updater = updater                # updater.Updater: Settings › Version and updates; None: those routes answer 503
         self.ai = ai                          # ai_service.AiService (#72): AI suggestions, on the ask service's provider; None: 404
         self.past = past                      # past_reports.PastReports (#443): the Published reports list and Open; None: those routes answer 404
         self.publication_mark = publication_mark   # changes.make_publication_mark (#345): archive or restore one publication; None: saving off (503)
@@ -1330,16 +1449,16 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
-          draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None,
+          draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, updater=None,
           people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
-        httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
+        httpd = LocalServer((CONTAINER_BIND if container_mode() else HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, draft_email=draft_email, draft_email_sent=draft_email_sent,
-                            milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, ai=ai,
+                            milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, ai=ai, updater=updater,
                             people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, past=past, as_at=as_at, publication_mark=publication_mark)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:

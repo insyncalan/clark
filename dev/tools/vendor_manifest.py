@@ -24,6 +24,8 @@ LIBRARIES = {
                  "creaite v2.6.9 (db5adb2) system/scripts/vendor/openpyxl/"),
     "et_xmlfile": ("2.0.0", "MIT", "licenses/et_xmlfile-2.0.0-LICENSE.txt",
                    "creaite v2.6.9 (db5adb2) system/scripts/vendor/et_xmlfile/"),
+    "ed25519_verify": ("1", "CC0-1.0", "licenses/ed25519_verify-1-LICENSE.txt",
+                       "written for clark from RFC 8032 section 5.1.7 (verify only; the signer is in dev/tools)"),
 }
 
 

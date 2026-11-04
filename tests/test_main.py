@@ -428,10 +428,11 @@ class InProcess(TempFolder):
         code, out, err, serve = self.run_main("--port", "8123")
         self.assertEqual((code, err), (0, ""))
         (call,) = serve.calls
-        self.assertEqual(sorted(call), ["activity", "app_settings", "as_at", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "excel_import", "logs", "milestones", "movement", "out", "page_html", "past", "people", "people_list", "people_undo", "port", "profile", "project_save", "projects", "publication_mark", "publisher", "safety", "section_image", "sneak", "undo", "use_cases",
-                                        "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route; #443: past (the Published reports list and Open); #349: as_at; #345: publication_mark (Archive and Restore); item 444: excel_import and project_save
+        self.assertEqual(sorted(call), ["activity", "app_settings", "as_at", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "excel_import", "logs", "milestones", "movement", "out", "page_html", "past", "people", "people_list", "people_undo", "port", "profile", "project_save", "projects", "publication_mark", "publisher", "safety", "section_image", "sneak", "undo", "updater", "use_cases",
+                                        "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route; #443: past (the Published reports list and Open); #349: as_at; #282: updater (Settings, Version and updates); #345: publication_mark (Archive and Restore); item 444: excel_import and project_save
         self.assertTrue(callable(call["as_at"].read))
         self.assertTrue(callable(call["past"].listing) and callable(call["past"].visit) and callable(call["past"].take))
+        self.assertTrue(callable(call["updater"].status) and callable(call["updater"].install))
         self.assertTrue(callable(call["change"]) and callable(call["undo"]))
         self.assertTrue(callable(call["word_import"]) and callable(call["word_export"]))
         self.assertTrue(callable(call["excel_import"]) and callable(call["project_save"]))      # #444
@@ -443,6 +444,82 @@ class InProcess(TempFolder):
         self.assertEqual(out.splitlines()[-2:], [f"Open http://127.0.0.1:8123/ to use clark. Leave this window open. "
                                                   f"Press Ctrl+C to stop.", "Stopped."])      # no project yet: no hash
         self.assertNotIn("report editor", out)
+
+    def stopped_update(self, **marker_changes):
+        """A fixture app and data folder with an update's marker in it (nothing swapped yet), changed as asked. (fixture, marker file)"""
+        from test_update_helper import Fixture
+        fx = Fixture(self.tmp)
+        (fx.data / "clark.db").unlink()                      # clark makes a real one on start
+        marker = fx.begin()
+        doc = json.loads(marker.read_text(encoding="utf-8"))
+        doc["started_at"] -= 120       # an old marker: a stopped update, not a hand-over just begun
+        doc.update(marker_changes)
+        marker.write_text(json.dumps(doc), encoding="utf-8")
+        return fx, marker
+
+    def test_a_marker_left_by_a_stopped_update_is_finished_before_clark_starts_by_hand(self):
+        fx, marker = self.stopped_update()
+        code, out, err, serve = self.run_main("--data", str(fx.data), "--port", "8123")
+        self.assertEqual(code, 0, err)
+        self.assertFalse(marker.exists())
+        self.assertIn("The last update stopped part way, so the old version was put back.", err)
+        self.assertEqual(len(serve.calls), 1)
+
+    def test_a_marker_whose_helper_is_still_running_stops_a_start_by_hand(self):
+        fx, marker = self.stopped_update(phase="ready", helper_pid=os.getpid())
+        code, out, err, serve = self.run_main("--data", str(fx.data), "--port", "8123")
+        self.assertEqual(code, 1)
+        self.assertTrue(marker.exists())
+        self.assertIn("An update is still being installed.", err)
+        self.assertEqual(serve.calls, [])
+
+    def test_the_server_the_helper_starts_goes_on_while_the_marker_is_there(self):
+        fx, marker = self.stopped_update(phase="started", helper_pid=os.getpid(),
+                                         helper_ident=__import__("clark.update_helper", fromlist=["x"]).Seams().identity(os.getpid()))
+        code, out, err, serve = self.run_main("--data", str(fx.data), "--port", "8123")
+        self.assertEqual((code, err), (0, ""))
+        self.assertTrue(marker.exists())                     # the helper's to remove, not the server's
+        self.assertEqual(len(serve.calls), 1)
+
+    def test_a_recycled_process_id_is_not_the_helper(self):
+        # LOW 2 of #473: the helper crashed in the started phase and its id now belongs to another program (alive, but not the
+        # helper): a start by hand must finish the update, not skip it
+        fx, marker = self.stopped_update(phase="started", helper_pid=os.getpid(), helper_ident="proc:not-this-process")
+        code, out, err, serve = self.run_main("--data", str(fx.data), "--port", "8123")
+        self.assertEqual(code, 0, err)
+        self.assertFalse(marker.exists())
+        self.assertIn("The last update stopped part way, so the old version was put back.", err)
+
+    def test_a_just_begun_hand_over_is_not_rolled_back_by_a_second_start(self):
+        # LOW 3 of #473, through the launcher path: phase "staged", no helper yet, written a moment ago
+        fx, marker = self.stopped_update()
+        doc = json.loads(marker.read_text(encoding="utf-8"))
+        doc["started_at"] += 120
+        marker.write_text(json.dumps(doc), encoding="utf-8")
+        code, out, err, serve = self.run_main("--data", str(fx.data), "--port", "8123")
+        self.assertEqual(code, 1)
+        self.assertTrue(marker.exists())
+        self.assertIn("An update is still being installed.", err)
+        self.assertEqual(serve.calls, [])
+
+    def test_in_a_container_with_no_built_page_it_stops_at_once_in_one_plain_sentence(self):
+        """item 427: the code is shared in read-only, so a build is never tried; the person is told to use the download."""
+        said = "This copy of clark has no built page. Use the clark download, not a copy of the source code."
+        def missing():
+            raise launcher.page.PageError(said)
+        with mock.patch.object(launcher.platform, "container_mode", lambda: True), mock.patch.object(launcher.page, "ensure_built", missing):
+            with self.assertLogs("clark.main", "ERROR") as logged:
+                code, out, err, serve = self.run_main("--port", "8123")
+        self.assertEqual((code, err.splitlines(), serve.calls), (1, [said], []))
+        self.assertIn(said, logged.output[0])
+
+    def test_outside_a_container_a_missing_page_is_still_said_and_clark_still_starts(self):
+        def missing():
+            raise launcher.page.PageError("The page could not be built (x)")
+        with mock.patch.object(launcher.platform, "container_mode", lambda: False), mock.patch.object(launcher.page, "ensure_built", missing):
+            code, out, err, serve = self.run_main("--port", "8123")
+        self.assertEqual((code, len(serve.calls)), (0, 1))
+        self.assertIn("The page could not be built (x)", err)
 
     def test_the_launchers_own_store_is_closed_before_serving_so_a_restore_can_take_the_file(self):
         """#111: an open connection would make Restore say another program has the data open; data_for opens its own each time."""

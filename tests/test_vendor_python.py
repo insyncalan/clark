@@ -48,12 +48,13 @@ class VendoredFiles(unittest.TestCase):
 
     def test_the_manifest_is_the_pins(self):
         self.assertEqual(MANIFEST, vm.manifest(), "run python3 dev/tools/vendor_manifest.py and commit vendor/")
-        self.assertEqual(set(MANIFEST["libraries"]), {"openpyxl", "et_xmlfile"})
+        self.assertEqual(set(MANIFEST["libraries"]), {"openpyxl", "et_xmlfile", "ed25519_verify"})
         for name, lib in MANIFEST["libraries"].items():
-            self.assertEqual(lib["licence"], "MIT", name)
+            own = name == "ed25519_verify"       # written for clark from RFC 8032, public domain; the others are creaite's copies
+            self.assertEqual(lib["licence"], "CC0-1.0" if own else "MIT", name)
             self.assertEqual(lib["licence_file"], f"licenses/{name}-{lib['version']}-LICENSE.txt")
             self.assertIn(lib["licence_file"], MANIFEST["files"])
-            self.assertIn("v2.6.9 (db5adb2)", lib["from"])
+            self.assertIn("RFC 8032" if own else "v2.6.9 (db5adb2)", lib["from"])
 
     def test_the_versions_are_the_libraries_own(self):
         for name, mod in (("openpyxl", "openpyxl/_constants.py"), ("et_xmlfile", "et_xmlfile/__init__.py")):

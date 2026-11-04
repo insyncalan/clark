@@ -75,6 +75,28 @@ class EnsureBuilt(unittest.TestCase):
             page.ensure_built()
             run.assert_not_called()
 
+    def test_in_a_container_nothing_is_built_and_a_missing_page_is_said_in_one_sentence(self):
+        """item 427: a checkout (the builder is there) shared in read-only: no bundler run, the person is sent to the download."""
+        builder = self.tmp / "build_page.py"
+        builder.write_text("", encoding="utf-8")
+        with mock.patch.object(page, "BUILDER", builder), mock.patch.object(clark_platform, "container_mode", lambda: True), \
+                mock.patch.object(clark_platform.subprocess, "run") as run:
+            with self.assertRaises(page.PageError) as said:
+                page.ensure_built()
+            self.assertEqual(str(said.exception), "This copy of clark has no built page. Use the clark download, not a copy of the source code.")
+            for p in self.pages:
+                p.write_text("<html><body></body></html>", encoding="utf-8")
+            page.ensure_built()
+            self.assertIn('<html data-container="1"', page.page_html())
+            self.assertNotIn("data-container", page.page_html(view=True), "the published page never says it")
+            run.assert_not_called()
+
+    def test_outside_a_container_the_page_carries_no_container_mark(self):
+        for p in self.pages:
+            p.write_text("<html><body></body></html>", encoding="utf-8")
+        with mock.patch.object(page, "BUILDER", self.tmp / "none.py"), mock.patch.object(clark_platform, "container_mode", lambda: False):
+            self.assertNotIn("data-container", page.page_html())
+
     def test_a_source_checkout_builds_a_missing_page_once(self):
         builder = self.tmp / "build_page.py"
         builder.write_text("", encoding="utf-8")
