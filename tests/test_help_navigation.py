@@ -29,8 +29,9 @@ MOCKUP = {
 }
 
 
-GUIDE_JOBS = ["add-a-section-from-a-template", "arrange-the-report"]      # the jobs that open a guide (#642 guides A) rather than a how-to entry
+GUIDE_JOBS = ["add-a-section-from-a-template", "arrange-the-report", "publish-the-report"]      # the jobs that open a guide (#642 guides A and B) rather than a how-to entry
 JOB_PLACES = {i: ("guide-" if i in GUIDE_JOBS else "howto-") + i for i in ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report", "undo-a-mistake"]}
+JOB_PLACES["publish-the-report"] = "guide-publish-to-the-client"      # the Publish guide has its own id
 ENTRIES = ["add-a-work-item", "write-the-weekly-report", "publish-the-report", "undo-a-mistake"]     # written for step 3, shown now
 # Words the owner keeps out of what a person reads (and AI, which is not in this release).
 BANNED = r"(?i)\b(apply|applied|applies|applying|staged|staging|proposal|proposals|sweep|tracker|vault|extract|extracted|extracts|AI)\b|Draft with|Claude"
@@ -192,8 +193,8 @@ class WhatNext(unittest.TestCase):
         r = run_node(fixture_content(), "(() => { const l = HL.tabList('howto'); return { last: l[l.length - 1], n: l.length }; })()")
         self.assertEqual(r["last"], {"group": "", "entries": [{"id": "fixture-guide", "title": "Fixture guide", "place": "guide-fixture-guide"}]})
         self.assertEqual(r["n"], len(shown_content()["howto"]["groups"]) + 1)
-        r = run_node(RAW, "HL.tabList('howto').filter((g) => !g.group).length")
-        self.assertEqual(r, 1, "the shipped guides are one unnamed group at the end")
+        r = run_node(RAW, "HL.tabList('howto').filter((g) => !g.group).map((g) => g.entries.map((e) => e.place))")
+        self.assertEqual(r, [["guide-" + g["id"] for g in RAW["guides"]]], "the shipped guides are the one unnamed group")
 
     def test_a_held_guide_is_in_no_list_and_no_next(self):
         c = copy.deepcopy(fixture_content())

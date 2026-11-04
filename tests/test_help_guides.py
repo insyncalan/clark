@@ -95,11 +95,10 @@ def run_node(content, probe):
 
 
 class ShippedSource(unittest.TestCase):
-    def test_the_two_guides_are_shipped_with_no_picture_yet(self):
-        self.assertEqual([g["id"] for g in RAW["guides"]], ["add-a-section-from-a-template", "arrange-the-report"])
-        self.assertEqual([len(g["steps"]) for g in RAW["guides"]], [6, 7])
-        self.assertEqual(RAW["pictures"], [], "the pictures live on branch v10-pictures; the integration step adds the ids")
-        self.assertFalse([s for g in RAW["guides"] for s in g["steps"] if "pic" in s])
+    def test_the_five_guides_are_shipped_and_hold_the_shape(self):
+        """#642 guides A and B together: the pictures are declared by test_help_pictures (#642 pictures)."""
+        self.assertEqual([g["id"] for g in RAW["guides"]], ["add-a-section-from-a-template", "arrange-the-report", "bring-in-an-excel-workbook", "send-the-workbook-out", "publish-to-the-client"])
+        self.assertEqual([len(g["steps"]) for g in RAW["guides"]], [6, 7, 8, 7, 8])
         self.assertEqual(check_guides(RAW), [])
 
     def test_the_held_list_names_no_guide_that_does_not_exist(self):
@@ -170,9 +169,11 @@ class GuideShape(unittest.TestCase):
         old["guides"], old["pictures"] = [], []
         for e in old["howto"]["tasks"] + old["reference"]["sections"]:
             e.pop("page", None)
-        probe = "(() => { const a = HL.buildIndex().filter((e) => !e.id.startsWith('guide-')); HL.useHeld({}); return { shown: a, all: HL.buildIndex().filter((e) => !e.id.startsWith('guide-')) }; })()"
-        self.assertEqual(run_node(old, probe), run_node(RAW, probe))
-        self.assertTrue(run_node(RAW, probe)["all"])
+        raw = copy.deepcopy(RAW)
+        raw["guides"] = []                 # the shipped guides add their own entries to the index; what else is searched is unchanged
+        probe = "(() => { const a = HL.buildIndex(); HL.useHeld({}); return { shown: a, all: HL.buildIndex() }; })()"
+        self.assertEqual(run_node(old, probe), run_node(raw, probe))
+        self.assertTrue(run_node(raw, probe)["all"])
 
     def test_the_built_page_has_no_held_guide(self):
         """The built Help (held entries left out of the file the page is bundled from) holds no guide id, place or word of a held guide."""
@@ -195,12 +196,9 @@ class GuideShape(unittest.TestCase):
                          " found: HL.search(HL.buildIndex(), 'zebra').length })")
             self.assertEqual(r, {"guides": 0, "places": [], "found": 0})
 
-    def test_the_shipped_page_has_the_same_index_as_before(self):
-        r = run_node(RAW, "(() => ({ guides: HL.guides().map((g) => g.id), pics: HL.pictureIds(), idx: HL.buildIndex().filter((e) => e.id.startsWith('guide-')).length }))()")
-        self.assertEqual(r, {"guides": ["add-a-section-from-a-template", "arrange-the-report"], "pics": [], "idx": 2})
 
 
-SHIPPED = shown_content()["guides"]
+SHIPPED = [g for g in shown_content()["guides"] if g["id"] in ("add-a-section-from-a-template", "arrange-the-report")]      # the two guides of #642 guides A (the others: test_help_guides_excel_publish)
 HELD_PLACES = {"howto-" + i for i in LATER.get("howto", {})} | {"ref-" + i for i in LATER.get("reference", {})} \
     | {"guide-" + i for i in LATER.get("guides", {})} | {"start-" + i for i in LATER.get("start", {})}
 
@@ -261,6 +259,10 @@ class ShippedGuides(unittest.TestCase):
                 self.assertIn(line, r, f"{gid}: '{word}' should find line {line}, found {r}")
         r = run_node(RAW, "(() => ['Add a section from a template', 'Move, hide and delete sections'].map((q) => HL.search(HL.buildIndex(), q).slice(0, 2).map((x) => x.id)))()")
         self.assertEqual([sorted(x) for x in r], [["guide-add-a-section-from-a-template", "howto-add-a-section-from-a-template"], ["guide-arrange-the-report", "howto-arrange-the-report"]])      # the guide and the how-to entry of the same name
+
+    def test_the_shipped_index_holds_one_entry_for_each_guide(self):
+        r = run_node(RAW, "(() => ({ guides: HL.guides().map((g) => g.id), idx: HL.buildIndex().filter((e) => e.id.startsWith('guide-')).length }))()")
+        self.assertEqual(r, {"guides": [g["id"] for g in RAW["guides"]], "idx": 5})
 
 
 def page_values(content):
