@@ -181,6 +181,8 @@ and press Return. It says what is ready and what to fix.
 
 Without Docker, your data is kept in ~/Library/Application Support/clark, not in
 this folder, so you can swap this folder for a newer download without losing anything.
+It is kept outside this folder so an update never touches it, and so it never sits in a
+OneDrive or Downloads folder, where a database can be damaged.
 """
 
 START_HERE_DEMO = """
