@@ -184,7 +184,8 @@ class Browser(unittest.TestCase):
         self.fresh()
         sent = []
         real = changes.make_change(self.store.path, [], "Demo User")
-        s = Running(data_for=self.store.data_for, projects=lambda: self.store.read("projects"), page_html=lambda: testpage.html(),
+        projects = self.store.read("projects")            # read here: the store's connection belongs to this thread, and the server answers on another
+        s = Running(data_for=self.store.data_for, projects=lambda: projects, page_html=lambda: testpage.html(),
                     sneak=sneak.make_read(self.store.data_for), change=lambda req: (sent.append(req), real(req))[1],
                     undo=changes.make_undo(self.store.path, [], "Demo User"))
         self.addCleanup(s.close)
