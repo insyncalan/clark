@@ -41,6 +41,7 @@ ARM_SECONDS = 5
 PENDING = "pending.json"
 NOTICE = "notice.json"
 WATCH_SECONDS = 120
+WRITES_WAIT_SECONDS = 30            # how long an install or undo waits for saves already running before it backs up
 
 MESSAGES = {
     "bad_request": "That could not be read. Reload the page and try again.",
@@ -86,7 +87,8 @@ class Updater:
     """One per server. `choose`, `downloads`, `clock`, `python`, `start` and `server_pid` are seams for the tests."""
 
     def __init__(self, data_dir, db_path, port, app_dir=None, system=None, version=None, schema=None, choose=None,
-                 downloads=None, clock=time.monotonic, python=None, start=None, server_pid=None, home=None, migration_backup=None, open_db=None):
+                 downloads=None, clock=time.monotonic, python=None, start=None, server_pid=None, home=None, migration_backup=None, open_db=None,
+                 writes_running=None, sleep=time.sleep):
         self.data = Path(data_dir)
         self.db = Path(db_path)
         self.port = port
@@ -103,6 +105,8 @@ class Updater:
         self.server_pid = server_pid or os.getpid()
         self.migration_backup = migration_backup           # the copy this start's migration took (store.bring_up_to_date), else None
         self.lock = threading.Lock()
+        self.writes_running = writes_running               # server.others_busy: another POST route is running (None: never)
+        self.sleep = sleep
         self._installing = False
         self.reviewed = None
         self.armed = None
@@ -113,6 +117,19 @@ class Updater:
         return self._installing
 
     # --- helpers ---
+
+    def _writes_done(self):
+        """With the flag up (new requests get 503), wait at most WRITES_WAIT_SECONDS for the writes already running to finish,
+        so the backup is taken after them. False when they are still running: the caller lowers the flag and changes nothing."""
+        if self.writes_running is None:
+            return True
+        end = self.clock() + WRITES_WAIT_SECONDS
+        while self.writes_running():
+            if self.clock() >= end:
+                LOG.info("an update waited for saves still running and was refused")
+                return False
+            self.sleep(0.05)
+        return True
 
     def _downloads(self):
         if self.downloads is not None:
@@ -247,6 +264,10 @@ class Updater:
             if held is None:
                 return reply(409, "review_again")
             self._installing = True
+            if not self._writes_done():
+                self._installing = False
+                self.reviewed = held                  # nothing was done: the same review can be installed again
+                return reply(409, "writes_running", MESSAGES["generic"])
             stamp = ui.stamp_now()
             try:
                 release = ui.read_taken(held["path"], held["digest"], self.system, self.version, self.schema, held["reinstall"])
@@ -318,6 +339,9 @@ class Updater:
             folder, record = ui.last_update(self.data)
             to = record.get("from")
             self._installing = True
+            if not self._writes_done():
+                self._installing = False
+                return reply(409, "writes_running", MESSAGES["generic"])
             stamp = ui.stamp_now()
             restored, began = False, time.time()
             try:

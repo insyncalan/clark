@@ -119,7 +119,12 @@ def finish_update(folder, say=print, run=platform.run_python_check, python=None)
         return True
     updates_folder = update_helper.updates_dir(folder).resolve()
     try:
-        helper_dir = Path(json.loads(marker.read_text(encoding="utf-8")).get("helper_dir") or "").resolve()
+        doc = json.loads(marker.read_text(encoding="utf-8"))
+        helper_dir = Path(doc.get("helper_dir") or "").resolve()
+        wanted = doc.get("helper_sha")
+        if not isinstance(wanted, dict) or any(update_helper.sha256_of(helper_dir / n) != wanted.get(n)
+                                               for n in ("update_helper.py", update_helper.PLATFORM_COPY)):
+            helper_dir = None                       # the copy is not the one that was written: the running copy is used instead
     except (OSError, ValueError, AttributeError):
         helper_dir = None
     helper = helper_dir / "update_helper.py" if helper_dir and helper_dir.parent == updates_folder \

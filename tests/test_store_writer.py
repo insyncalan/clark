@@ -353,6 +353,47 @@ def writes_sql(value):
     return words[0] in SQL_WORDS
 
 
+# A REVIEWED exemption (a change here is a guarded review). update_helper.py is the kept update helper: it runs on its own after
+# clark has stopped, so it must stay standard-library only (test_update_helper) and cannot import store.py. It may open the
+# database, but only read-only: each sqlite3.connect there must be a `?mode=ro` URI or be followed at once by
+# `PRAGMA query_only = ON`, so a future write through it still fails this test. Its only built SQL is table_stats' SELECTs
+# from a table name it read from sqlite_master and quoted itself.
+READONLY_HELPER = "clark/update_helper.py"
+READONLY_HELPER_SQL_PARTS = {"quoted"}
+
+
+def _connect_calls(tree):
+    """[(call, the statement after the one holding it, or None)] for every sqlite3.connect call in `tree`."""
+    out = []
+    for block in ast.walk(tree):
+        for field in ("body", "orelse", "finalbody"):
+            stmts = getattr(block, field, None)
+            if not isinstance(stmts, list):
+                continue
+            for i, stmt in enumerate(stmts):
+                if isinstance(stmt, (ast.Try, ast.If, ast.With, ast.For, ast.While, ast.FunctionDef, ast.ClassDef)):
+                    continue                    # their own blocks are walked on their own
+                for node in ast.walk(stmt):
+                    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "connect" \
+                            and isinstance(node.func.value, ast.Name) and node.func.value.id == "sqlite3":
+                        out.append((node, stmts[i + 1] if i + 1 < len(stmts) else None))
+    return out
+
+
+def _is_readonly_connect(call, after):
+    """A `?mode=ro` URI opened with uri=True, or a connection whose very next statement makes it query_only."""
+    uri = any(k.arg == "uri" and isinstance(k.value, ast.Constant) and k.value.value is True for k in call.keywords)
+    target = call.args[0] if call.args else None
+    if uri and isinstance(target, ast.JoinedStr) and any(isinstance(v, ast.Constant) and "?mode=ro" in str(v.value)
+                                                          for v in target.values):
+        return True
+    if isinstance(after, ast.Expr) and isinstance(after.value, ast.Call):
+        c = after.value
+        return isinstance(c.func, ast.Attribute) and c.func.attr == "execute" and len(c.args) == 1 \
+            and isinstance(c.args[0], ast.Constant) and c.args[0].value == "PRAGMA query_only = ON"
+    return False
+
+
 class OneWriter(unittest.TestCase):
     def modules(self):
         for path in sorted((SRC / "clark").rglob("*.py")):
@@ -369,17 +410,40 @@ class OneWriter(unittest.TestCase):
                     if writes_sql(node.value):
                         problems.append(f"{rel}:{node.lineno}: writes SQL")
                 if isinstance(node, ast.Attribute) and node.attr == "connect" and isinstance(node.value, ast.Name) \
-                        and node.value.id == "sqlite3":
+                        and node.value.id == "sqlite3" and rel != READONLY_HELPER:
                     problems.append(f"{rel}:{node.lineno}: opens a database (only store.py may)")
         self.assertEqual(problems, [])
+
+    def test_the_kept_update_helper_opens_the_database_only_read_only(self):
+        tree = ast.parse((SRC / READONLY_HELPER).read_text(encoding="utf-8"))
+        calls = _connect_calls(tree)
+        every = [n for n in ast.walk(tree) if isinstance(n, ast.Attribute) and n.attr == "connect"
+                 and isinstance(n.value, ast.Name) and n.value.id == "sqlite3"]
+        self.assertEqual(len(calls), len(every))                # every connect was found in a statement list
+        self.assertGreaterEqual(len(calls), 5)
+        problems = [f"{READONLY_HELPER}:{c.lineno}: opens the database for writing" for c, after in calls
+                    if not _is_readonly_connect(c, after)]
+        self.assertEqual(problems, [])
+
+    def test_the_read_only_check_refuses_a_connection_that_can_write(self):
+        tree = ast.parse('import sqlite3\n'
+                         'def a(p):\n    con = sqlite3.connect(f"{p}?mode=ro", uri=True)\n'
+                         'def b(p):\n    con = sqlite3.connect(str(p))\n    con.execute("PRAGMA query_only = ON")\n'
+                         'def c(p):\n    con = sqlite3.connect(str(p))\n    con.execute("SELECT 1")\n'
+                         'def d(p):\n    con = sqlite3.connect(f"{p}?mode=rw", uri=True)\n'
+                         'def e(p):\n    con = sqlite3.connect(f"{p}?mode=ro")\n')
+        self.assertEqual([_is_readonly_connect(c, after) for c, after in _connect_calls(tree)], [True, True, False, False, False])
 
     def test_no_sql_is_built_from_a_name_outside_store_py(self):
         problems = []
         for path, tree in self.modules():
             if path == STORE:
                 continue
+            rel = path.relative_to(SRC).as_posix()
             for line, parts in _sql_fstrings(tree):
-                problems.append(f"{path.relative_to(SRC).as_posix()}:{line}: builds SQL from {parts}")
+                if rel == READONLY_HELPER and set(parts) <= READONLY_HELPER_SQL_PARTS:
+                    continue                    # table_stats' SELECT from a name it quoted itself (the reviewed exemption above)
+                problems.append(f"{rel}:{line}: builds SQL from {parts}")
         self.assertEqual(problems, [])
 
     def test_store_py_builds_sql_only_from_checked_names(self):

@@ -350,6 +350,84 @@ class RoutesTest(Rig):
         self.assertEqual(503, other.call("GET", "/api/projects")[0])
         self.assertEqual(200, other.call("GET", "/api/update")[0])
 
+    def slow_write(self, s):
+        """A POST /api/change that holds until `release` is set, running in a thread; returns (release, its answer list)."""
+        entered, release, answers = threading.Event(), threading.Event(), []
+
+        def change(req):
+            entered.set()
+            release.wait(20)
+            return 200, {"ok": True}
+        s.httpd.change = change
+        t = threading.Thread(target=lambda: answers.append(s.call("POST", "/api/change", {"x": 1})), daemon=True)
+        t.start()
+        self.assertTrue(entered.wait(10))
+        self.addCleanup(release.set)
+        return release, answers, t
+
+    def test_an_install_waits_for_a_write_in_flight_before_it_backs_up(self):
+        self.up = self.make(writes_running=sv.others_busy)
+        s = Served(self, self.up)
+        status, body = s.call("POST", "/api/update/review", {"from": "downloads"})
+        self.assertEqual(200, status)
+        release, answers, writer = self.slow_write(s)
+        order, real = [], ui.back_up
+        with mock.patch.object(ui, "back_up", side_effect=lambda *a, **k: (order.append("backup"), real(*a, **k))[1]):
+            got = []
+            installer = threading.Thread(target=lambda: got.append(s.call("POST", "/api/update/install",
+                                                                          {"review_id": body["review_id"]})), daemon=True)
+            installer.start()
+            deadline = time.monotonic() + 10
+            while not self.up.installing() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue(self.up.installing(), "the flag is up while it waits")
+            self.assertEqual(503, s.call("POST", "/api/change", {"x": 2})[0], "a new write is refused while it waits")
+            time.sleep(0.3)
+            self.assertEqual([], order, "no backup while the write is still running")
+            order.append("write done")
+            release.set()
+            writer.join(10)
+            installer.join(20)
+        self.assertEqual([(200, {"ok": True})], answers, "the write in flight finished and was answered")
+        self.assertEqual(["write done", "backup"], order)
+        self.assertEqual((200, True), (got[0][0], got[0][1]["restart"]))
+
+    def test_an_install_refuses_with_nothing_changed_when_a_write_runs_too_long(self):
+        def sleep(seconds):                       # the wait's clock runs on the fake clock: its full time passes at once
+            self.clock.now += seconds
+        self.up = self.make(writes_running=sv.others_busy, sleep=sleep)
+        s = Served(self, self.up)
+        before = snapshot(self.app)
+        status, body = s.call("POST", "/api/update/review", {"from": "downloads"})
+        self.assertEqual(200, status)
+        release, answers, writer = self.slow_write(s)
+        with mock.patch.object(ui, "back_up") as back_up:
+            status, said = s.call("POST", "/api/update/install", {"review_id": body["review_id"]})
+        self.assertEqual((409, "writes_running", up.MESSAGES["generic"]), (status, said["code"], said["message"]))
+        back_up.assert_not_called()
+        self.assertFalse(self.up.installing())
+        self.assertEqual(before, snapshot(self.app))
+        self.assertFalse(h.marker_path(self.data).exists())
+        self.assertFalse((self.data / "updates" / up.PENDING).exists())
+        self.assertIsNotNone(self.up.reviewed, "the review is still held: Install can be chosen again")
+        release.set()
+        writer.join(10)
+        self.assertEqual([(200, {"ok": True})], answers)
+
+    def test_an_undo_refuses_with_nothing_changed_when_a_write_runs_too_long(self):
+        self.installed()
+        now = self.make(version="0.3.1", writes_running=lambda: True, clock=time.monotonic)
+        now.settle()
+        before = snapshot(self.app)
+        armed = now.arm_undo({})[1]
+        with mock.patch.object(up, "WRITES_WAIT_SECONDS", 0.2), mock.patch.object(ui, "back_up") as back_up:
+            status, said = now.undo({"arm_id": armed["arm_id"]})
+        self.assertEqual((409, "writes_running"), (status, said["code"]))
+        back_up.assert_not_called()
+        self.assertFalse(now.installing())
+        self.assertEqual(before, snapshot(self.app))
+        self.assertFalse(h.marker_path(self.data).exists())
+
     def test_without_an_updater_the_routes_answer_in_plain_words(self):
         s = Served(self, None)
         status, body = s.call("GET", "/api/update")
@@ -413,6 +491,18 @@ class FinishAtLaunchTest(Rig):
         doc["helper_dir"] = str(evil)
         h.write_json(marker, doc)
         ran = []
+        launch.finish_update(self.data, lambda t: None, run=lambda py, code, args, timeout=0: ran.append(args[0]) or (0, ""))
+        self.assertEqual([Path(h.__file__).resolve()], ran)
+
+    def test_a_helper_copy_that_is_not_the_one_written_is_never_run(self):
+        self.stopped_mid_way()
+        doc = json.loads(h.marker_path(self.data).read_text(encoding="utf-8"))
+        copy = Path(doc["helper_dir"]) / "update_helper.py"
+        ran = []
+        launch.finish_update(self.data, lambda t: None, run=lambda py, code, args, timeout=0: ran.append(args[0]) or (0, ""))
+        self.assertEqual([copy.resolve()], ran, "the copy as written is the one run")
+        copy.write_text(copy.read_text(encoding="utf-8") + "\nraise SystemExit(0)\n", encoding="utf-8")
+        ran.clear()
         launch.finish_update(self.data, lambda t: None, run=lambda py, code, args, timeout=0: ran.append(args[0]) or (0, ""))
         self.assertEqual([Path(h.__file__).resolve()], ran)
 

@@ -848,6 +848,23 @@ class SourceTest(unittest.TestCase):
         self.assertFalse({n.split(".")[0] for n in names} & {"subprocess", "ctypes"}, names)      # it starts nothing itself: platform does
         self.assertNotRegex(source, r"\bunittest\b|os\.environ\.get\(.CLARK_FAIL")      # no fault switch is read in a release
 
+    def test_the_in_use_probe_and_the_state_read_cannot_write(self):
+        import sqlite3
+        with tempfile.TemporaryDirectory() as t:
+            db = Path(t) / "clark.db"
+            con = sqlite3.connect(str(db))
+            con.execute("CREATE TABLE meta (k TEXT, v TEXT)")
+            con.execute("INSERT INTO meta VALUES ('schema_version', '3')")
+            con.commit()
+            con.close()
+            probe = h.probe_not_in_use(db)
+            try:
+                with self.assertRaises(sqlite3.OperationalError):
+                    probe.execute("DELETE FROM meta")
+            finally:
+                probe.close()
+            self.assertEqual({"schema": 3, "db_id": None}, h.read_db_state(db))
+
     def test_it_runs_on_its_own_from_another_folder(self):
         with tempfile.TemporaryDirectory() as t:
             copy = Path(t) / "update_helper.py"

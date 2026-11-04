@@ -788,6 +788,13 @@ def busy():
         return BUSY["n"] > 0
 
 
+def others_busy():
+    """Whether a POST route other than the one asking is running: an update's install or undo (itself a POST) waits for these
+    to finish before it backs up the data."""
+    with BUSY_LOCK:
+        return BUSY["n"] > 1
+
+
 def page_load_is_ours(headers, port):
     """Whether a load of the page counts as "a window is open": the browser says it came from the address bar or this site
     (`Sec-Fetch-Site` absent, none or same-origin) and no foreign Origin is sent. Anything else still gets the page
@@ -1154,6 +1161,8 @@ class Handler(BaseHTTPRequestHandler):
             with BUSY_LOCK:
                 BUSY["n"] += 1
         try:
+            if counted and updating(self, self.path.split("?")[0]):   # the update's flag went up while this request was read
+                return None
             return route(self, *args)
         except CLIENT_LEFT:
             return None

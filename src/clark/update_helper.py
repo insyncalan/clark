@@ -422,6 +422,7 @@ def begin(data_dir, app_dir, staging, stamp, from_version, to_version, installed
     }
     updates_dir(data_dir).mkdir(parents=True, exist_ok=True)
     marker["helper_dir"] = str(copy_helper(data_dir, stamp))
+    marker["helper_sha"] = {n: sha256_of(Path(marker["helper_dir"]) / n) for n in ("update_helper.py", PLATFORM_COPY)}
     write_json(marker_path(data_dir), marker)
     return marker_path(data_dir)
 
@@ -588,6 +589,7 @@ def probe_not_in_use(db):
     returned connection is closed. Refused("busy") when something has it open. A file that is not a database passes."""
     try:
         probe = sqlite3.connect(str(db), timeout=0, isolation_level=None)
+        probe.execute("PRAGMA query_only = ON")          # it only holds the lock and reads: it can never write
     except sqlite3.Error as e:
         raise Refused("busy", "can't be opened") from e
     try:

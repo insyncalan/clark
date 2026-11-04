@@ -438,7 +438,8 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         projects = projects_of(store.path, roots)
         log, handler, logs = start_log(store.path.parent, projects, home, scratch)
         LOG.info("started on port %d", port)
-        updates_seam = None if args.demo else clark_updater.Updater(store.path.parent, store.path, port, migration_backup=store.migration_backup, open_db=store)   # demo data is never updated
+        updates_seam = None if args.demo else clark_updater.Updater(store.path.parent, store.path, port, migration_backup=store.migration_backup, open_db=store,
+                                                                       writes_running=server.others_busy)   # demo data is never updated
         if updates_seam is not None:
             updates_seam.watch()              # records how an update or undo that started this server ended, once the helper is done
         try:
