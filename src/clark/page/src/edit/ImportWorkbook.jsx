@@ -1,4 +1,4 @@
-// Import workbook (#444), the prototype's two steps (system/prototype/io.js importExcel): say what is read and choose a file, then Check
+// Import workbook (item 444), the prototype's two steps (system/prototype/io.js importExcel): say what is read and choose a file, then Check
 // the import: the counts, every difference in words with a tick, and Import. Nothing is saved until Import; the server (POST
 // /api/excel-import) reads the workbook, compares it with this project by ID and applies the ticked changes as ONE step, which Undo
 // this import takes back. The workbook is sent once to be checked and not again. `api`, `read` and `tpl` (Get the template: GET /api/export?template=1) are seams for the tests.

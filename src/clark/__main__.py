@@ -207,12 +207,23 @@ def demo_rebuild(path):
     demo_data = demo_module()
     path = Path(path)
     fresh = path.with_name("clark-reset.db")
+    aside = path.with_name("clark-before-reset.db")
+    moved = []
     try:
         demo_data.build(fresh, demo_data.parse_now(os.environ.get("CLARK_NOW")), onedrive_roots=[])
-        for side in demo_data.sidecars(path)[1:]:
+        demo_data.remove_database(aside)
+        # The old file and its -wal and -shm are moved aside whole, not deleted, so a failed swap can put every recent write back.
+        for side, keep in zip(demo_data.sidecars(path), demo_data.sidecars(aside)):
             if side.exists():
-                side.unlink()
+                os.replace(str(side), str(keep))
+                moved.append((keep, side))
         os.replace(str(fresh), str(path))
+    except BaseException:
+        for keep, side in moved:
+            os.replace(str(keep), str(side))
+        raise
+    else:
+        demo_data.remove_database(aside)
     finally:
         demo_data.remove_database(fresh)
 

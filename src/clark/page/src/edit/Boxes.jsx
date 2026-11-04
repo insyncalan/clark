@@ -1,4 +1,4 @@
-// Draws the box Settings opened (boxes.js): the project form, Import workbook or the Reset the demo data confirm (#444). Edit only.
+// Draws the box Settings opened (boxes.js): the project form, Import workbook or the Reset the demo data confirm (item 444). Edit only.
 import { useState } from "preact/hooks";
 import { box, closeBox } from "./boxes.js";
 import { Dialog } from "./Dialog.jsx";

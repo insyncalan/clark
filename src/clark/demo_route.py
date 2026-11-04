@@ -16,7 +16,7 @@ Every message is plain words, "clark" in lower case and never first. Standard li
 import logging
 from pathlib import Path
 
-from clark import changes
+from clark import changes, excel_route
 
 LOG = logging.getLogger("clark.demo")
 
@@ -52,6 +52,7 @@ def make_demo(path, demo_folder=None, rebuild=None):
             return 409, {"ok": False, "code": "busy", "message": BUSY}
         try:
             rebuild(Path(path))
+            excel_route._clear_all()                         # a workbook check made on the old data no longer fits it
         except Exception as e:                               # noqa: BLE001  the builder's own words are never shown; the data is as it was
             LOG.error("demo reset failed (%s)", type(e).__name__)    # the kind of fault only: no path, no content
             return 500, {"ok": False, "code": "reset_failed", "message": FAILED}

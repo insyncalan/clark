@@ -50,7 +50,7 @@ export async function exportRequest(project) {
     return { status: 0, body: null, blob: null, name: "" };
   }
 }
-// The import template (#454): GET /api/export?template=1, an export's workbook with no rows. It asks about no project and the server reads
+// The import template (item 454): GET /api/export?template=1, an export's workbook with no rows. It asks about no project and the server reads
 // nothing for it; `name` is the one the server gave. Never a throw.
 export async function templateRequest() {
   try {

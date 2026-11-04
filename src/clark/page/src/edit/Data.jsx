@@ -1,4 +1,4 @@
-// Settings › Data (prototype parity A-S11, #444): Export workbook, Import workbook and Reset the demo data, as the prototype's card has
+// Settings › Data (prototype parity A-S11, item 444): Export workbook, Import workbook and Reset the demo data, as the prototype's card has
 // them. Edit parts only: a published file has no Settings. Export is the same export as the profile menu's "Export to Excel" (one function,
 // exportExcel, so the two never differ). Import opens the two-step box (ImportWorkbook.jsx) and changes the project in ONE step.
 // Reset the demo data is on the card only when clark says its data is the demo data (POST /api/demo, op "state"), and asks first

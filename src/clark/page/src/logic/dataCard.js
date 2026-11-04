@@ -1,4 +1,4 @@
-// Settings › Data and Settings › Projects' forms (#444): the words, and the plain rules for what the page sends and shows. No DOM and no
+// Settings › Data and Settings › Projects' forms (item 444): the words, and the plain rules for what the page sends and shows. No DOM and no
 // Preact, so a test can run them alone. The words are the prototype's (system/prototype/views.js, io.js), with the build's own where the
 // prototype names its browser database. Nothing here is sent: the server checks every request again.
 
@@ -38,7 +38,7 @@ export const IMPORT = {
   readFailed: "That file could not be read as a spreadsheet.",
   tooBig: "That file is more than 25 MB, more than clark will open. A clark export is far smaller. Check it is the right file.",
   notAnswering: "There was no answer. Check that the window clark runs in is still open, then try again.",
-  stale: "This page is out of date: clark was restarted after you opened it. Reload the page and try again.",
+  stale: "This page is out of date because clark was restarted after you opened it. Reload the page and try again.",
   fallback: "That could not be done. Reload the page. If it happens again, restart clark.",
 };
 

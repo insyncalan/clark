@@ -1,4 +1,4 @@
-// Settings › Projects (prototype parity A-S6, #444): Name, Code, Client, Workstreams and Items for each project, with Open, Edit,
+// Settings › Projects (prototype parity A-S6, item 444): Name, Code, Client, Workstreams and Items for each project, with Open, Edit,
 // Archive and Restore, Show archived and Add project, as the prototype's table has them. Edit's page only: a published file has no
 // Settings. Archive and Restore are one step each with Undo (projectsApi.js); a project's data is never deleted. Archive is on every
 // project, the open one too: archiving the open one opens the first other live project, and when there is none the page says so and

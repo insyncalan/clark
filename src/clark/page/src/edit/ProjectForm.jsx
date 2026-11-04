@@ -1,4 +1,4 @@
-// The project form (#444), the prototype's (system/prototype/views.js C.projectForm): New project (name, short code, client,
+// The project form (item 444), the prototype's (system/prototype/views.js C.projectForm): New project (name, short code, client,
 // workstreams) and Edit (the code stays, greyed). The code is suggested from the name until it is typed in. The server checks it all
 // again and says in words if it will not do (a taken code, a bad name); the box stays open with that line. `api` is a seam for tests.
 import { useState } from "preact/hooks";
