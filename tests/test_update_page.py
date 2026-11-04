@@ -401,34 +401,8 @@ class Rows(InBrowser):
             self.assertTrue(self.val("document.querySelector('#update-file-hint').getBoundingClientRect().right <= innerWidth"))
 
 
-class HelpRows(Base):
-    """Item 445, row 61: Help's Update clark (How do I…) and Updating clark (Reference) are shown, as the prototype has them
-    (system/prototype/help.js), worded for the card the page draws. Each at 1400 and 900, light and dark, on the real page."""
-
-    ENTRIES = (("howto-update-clark", "hp-howto-update-clark", "Update clark", True),
-               ("ref-updating-clark", "hp-ref-updating-clark", "Updating clark", False))
-
-    def test_row_61_update_clark_and_updating_clark_are_shown_and_name_only_the_update_for_this_computer(self):
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            for width in WIDTHS:
-                for theme in THEMES:
-                    with self.subTest(width=width, theme=theme):
-                        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                        p.js(f"document.documentElement.dataset.theme = {lit(theme)}")
-                        for place, el, title, steps in self.ENTRIES:
-                            p.js(f"window.clarkPage.help.open({lit(place)})")
-                            p.until(f"!!document.querySelector('#{el}.hp-found')", f"Help opened at {place}")
-                            text = p.js(f"document.querySelector('#{el}').textContent")
-                            for words in (title, "Version and updates", "Install from a file", "for your computer"):
-                                self.assertIn(words, text)
-                            self.assertIsNone(re.search(r"(?i)source code|zip", text.replace("Choose zip…", "")), text)
-                            if steps:
-                                self.assertEqual(p.js(f"document.querySelectorAll('#{el} li').length"), 5, "five steps")
-                            self.assertGreaterEqual(p.js(f"Math.min(...[...document.querySelectorAll('#{el} li')].map({CONTRAST}))"), 4.5)
-                            self.assertTrue(p.js("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "no sideways scroll")
-                            p.js("window.clarkPage.help.close()")
-                            p.until("!document.querySelector('#help')", "Help closed")
+# The two Help entries for the Update card (item 445, row 61: Update clark and Updating clark) are HELD in helpLater.json until the real release
+# key is pinned (the card says updating is switched off in a copy with the placeholder key); the tests that read them as shown come back with them.
 
 
 class WhereItIsNamed(unittest.TestCase):

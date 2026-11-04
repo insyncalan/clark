@@ -87,8 +87,7 @@ class EveryPrototypeEntryIsAccountedFor(unittest.TestCase):
             self.assertIn(new, shown_ids(), f"{new} replaces the prototype's {old}")
 
     def test_the_prototype_entries_released_here_are_shown(self):
-        want = {"howto-set-the-health", "howto-handle-a-slipped-milestone", "ref-sections", "ref-needs-from-you", "ref-freshness", "ref-milestones-page", "ref-diagnostics",
-                "howto-update-clark", "ref-updating-clark"}      # row 61 (item 445)
+        want = {"howto-set-the-health", "howto-handle-a-slipped-milestone", "ref-sections", "ref-needs-from-you", "ref-freshness", "ref-milestones-page", "ref-diagnostics"}
         self.assertEqual(sorted(want - shown_ids()), [])
         self.assertEqual(sorted(want & held_ids()), [])
 
@@ -98,7 +97,6 @@ COMPUTED = {
     "3 days late": "Due, built from the date (workItems.js dueCell)",
     "In 5 days": "Due, built from the date (workItems.js dueCell)",
     "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
-    "Review X.Y.Z": "the Update row's button, built from the version the server found in Downloads (updater.py: Review and the version)",
 }
 
 
