@@ -13,7 +13,7 @@ Replaces the API-key plan in `readiness-54-providers.md`. The owner's answers ar
 
 1. **Claude models and limits (this one).** `--model` from a fixed alias list, a plain line when the command refuses an alias, a limit result that offers other models and never switches, and a size limit per model. `ai_providers.py` is new and nothing calls it yet.
 2. **Wiring and the card (#446, #617).** The chosen provider and model in settings (no secrets), ask clark and suggestions going through `ai_providers`, `ai_menu.ask_request` taking its production caller, and the Settings AI card from the prototype.
-3. **ChatGPT (#52).** `ask_codex.py` behind the same interface.
+3. **ChatGPT (#52).** `ai_codex.py` behind the same interface, on the card with Claude. Slices 2 and 3 are one PR (619), which replaced 589.
 
 ## Decisions in slice 1
 
@@ -37,7 +37,13 @@ Replaces the API-key plan in `readiness-54-providers.md`. The owner's answers ar
 1. Every tool feature off.
 2. An outer macOS sandbox that clark writes: an allow-list of what may be read, covering Codex itself, its sign-in and an empty working folder. Writes only to Codex's own folder and that working folder.
 
-Also: the native binary, not the npm script; an environment built from nothing, as `ask_claude.child_env` does; `--ignore-user-config`, `--ignore-rules`, `--ephemeral`. A test must plant a file and fail if the run can read it. Still open: the limit shape, whether clark's rules can replace Codex's own prompt, other ways of installing Codex, the plan's terms.
+**Why `(allow default)` is acceptable:** it leaves system files readable (/etc, /Library, /Applications). Those are not the person's data, and Codex can't start without many of them. The wall is for the person's files and secrets, and it denies their home folder by name wherever it is. A home that isn't a real folder, or sits outside /Users and /private/var/folders, refuses the run.
+
+**What the wall doesn't do:** it stops file reads and writes, not the network. A macOS sandbox rule names an address or a port, never a host name, so it can't limit Codex to OpenAI. So the tools-off list stops the rest, and the Codex version is pinned to the tested range: a newer Codex could bring a tool the list doesn't name, so it's refused ("This version of Codex has not been tested with clark: update clark."). A new version means a new release of clark, and a new run of the checks below.
+
+**The hand run still to record on #52:** a real run with planted files in the home and temp folders (neither read), and a request to read ~/.ssh giving no content; Codex answering under the wall; `sandbox-exec` missing makes the run refuse; Stop leaves no stray process.
+
+Also: the native binary, not the npm script; an environment built from nothing, as `ask_claude.child_env` does; `--ignore-user-config`, `--ignore-rules`, `--ephemeral`. A test must plant a file and fail if the run can read it. clark's rules replace Codex's own prompt. The owner confirms the plan's terms allow this. Still open: the limit shape, and other ways of installing Codex.
 
 ## Visible words for the owner to rule on
 
@@ -60,4 +66,4 @@ Slice 2 adds:
 - Refusals: "That could not be read. Reload the page and try again.", "That isn't something clark can connect yet.", "Connect Claude first.", "Your settings couldn't be read, so the AI choice was not changed."
 - Labels: "Model for ask clark", "(recommended)", "Connected", "Not connected", "Later", "Connect", "Disconnect", "OpenAI"
 
-All of these reach a screen with slice 2. The owner has approved only "Claude says that model can't be used with this sign-in. Choose another model in Settings."
+All of these reach a screen with slice 2. The owner approved the whole list on 04-11-2026 ("Approve all of it"), with the two wall sentences. A new sentence still goes through the Head.

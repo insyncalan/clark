@@ -154,8 +154,7 @@ class TheChain(Base):
         self.assertEqual(self.claude.asked, [])
         self.assertEqual(self.chain.status(), {"connected": False, "why": ac.OFF_WORDS})
 
-    def test_stop_reaches_every_provider_and_the_lock_is_the_active_ones(self):
-        self.assertIs(self.chain.lock, self.claude.command.lock)
+    def test_stop_reaches_every_provider(self):
         self.chain.stop("me")
         self.assertEqual((self.claude.stops, self.chatgpt.stops), (["me"], ["me"]))
 
@@ -248,10 +247,34 @@ class Words(Base):
         for words in ("leave this computer", "go to the one you choose", "count against that plan", "No password or key is kept"):
             self.assertIn(words, intro)
 
-    def test_nothing_says_a_key_or_a_password_is_kept_and_no_answer_holds_one(self):
-        self.assertNotIn("key", json.dumps(self.connect.get()[1]["claude"]))
-        for line in (ac.DISCONNECTED, ac.CONNECTED, ac.USING, ac.WEAKER, ac.OFF_WORDS):
-            self.assertNotIn("WORDING", line)
+    def test_no_answer_has_a_field_for_a_key_or_a_password(self):
+        def fields(x):
+            if isinstance(x, dict):
+                return [k for k in x] + [f for v in x.values() for f in fields(v)]
+            return [f for v in x for f in fields(v)] if isinstance(x, list) else []
+        names = fields(self.connect.get()[1])
+        self.assertIn("connected", names, "the walk really walks")
+        for name in names:
+            self.assertNotRegex(name.lower(), "key|token|password|secret", name)
+
+
+class Refusals(Base):
+    def test_a_provider_that_isnt_text_is_refused_not_a_fault(self):
+        for bad in ([], {}, 1, None):
+            self.assertEqual(self.connect.connect({"provider": bad})[0], 400, bad)
+            self.assertEqual(self.connect.disconnect({"provider": bad})[0], 400, bad)
+
+    def test_a_smaller_model_nobody_said_yes_to_isnt_used_even_if_the_file_says_so(self):
+        (self.d / settings.FILE).write_text(json.dumps({settings.AI_MODEL: "haiku"}), encoding="utf-8")
+        self.chain.ask(self.request())
+        self.assertEqual(self.claude.asked, ["sonnet"])
+        (self.d / settings.FILE).write_text(json.dumps({settings.AI_MODEL: "haiku", settings.AI_ACCEPTED: ["haiku"]}), encoding="utf-8")
+        self.chain.ask(self.request())
+        self.assertEqual(self.claude.asked[-1], "haiku")
+
+    def test_every_provider_shares_one_run_lock_so_switching_cant_run_two(self):
+        self.assertIs(self.claude.command.lock, self.chatgpt.command.lock)
+        self.assertIs(self.chain.lock, self.claude.command.lock)
 
 
 if __name__ == "__main__":

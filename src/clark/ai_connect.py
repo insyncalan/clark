@@ -62,7 +62,8 @@ class AiConnect:
         """(provider, model, prefer) for the next question, or None when nothing is connected. `prefer`: the model is only the default."""
         saved = settings.ai_read(self.data_dir)
         owner = self.provider_of(saved["model"])
-        if owner is not None and self.is_on(owner, saved):
+        ok = saved["model"] not in SMALLER or saved["model"] in saved["accepted"]     # a smaller model nobody said yes to (a hand-edited file) isn't a choice
+        if owner is not None and ok and self.is_on(owner, saved):
             return self.providers[owner], saved["model"], False
         for name in (CLAUDE, CHATGPT):
             if self.is_on(name, saved):
@@ -89,7 +90,7 @@ class AiConnect:
 
     @staticmethod
     def named(body):
-        return body["provider"] if isinstance(body, dict) and set(body) == {"provider"} else None
+        return body["provider"] if isinstance(body, dict) and set(body) == {"provider"} and isinstance(body["provider"], str) else None
 
     def connect(self, body):
         name = self.named(body)

@@ -6,6 +6,8 @@ that starts it, through platform.py). The API-key route is a later item (#643). 
 The size of what is sent is limited per model, pinned in code from each model's context, so a change is a reviewed change. A limit never
 switches model by itself: the answer is a `LimitReached` that names the other models, and the person chooses.
 """
+import threading
+
 from clark import ai_codex, ask, ask_claude
 
 # Each model's context window in tokens (the owner's answer on #53, question 6). Characters allowed are half of it: a token is often
@@ -98,14 +100,12 @@ class Chosen(ask.Provider):
 
     def __init__(self, providers, pick, off_words):
         self.providers, self.pick, self.off_words = tuple(providers), pick, off_words
+        self.lock = threading.Lock()       # one run at a time across providers, even if the person switches while a question runs (ai_service.busy reads it)
+        for provider in self.providers:
+            provider.command.lock = self.lock
 
     def _active(self):
         return self.pick() or (None, None, False)
-
-    @property
-    def lock(self):
-        provider = self._active()[0]
-        return (provider or self.providers[0]).command.lock       # one run at a time, shared with a question's run (ai_service.busy reads it)
 
     @property
     def label(self):

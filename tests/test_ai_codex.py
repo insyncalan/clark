@@ -5,8 +5,10 @@ Run: python3 dev/run_tests.py test_ai_codex
 """
 import json
 import os
+import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,6 +26,7 @@ def events(*items, tail=None):
 ANSWER = {"type": "agent_message", "text": "Paris."}
 
 
+@unittest.skipUnless(sys.platform == "darwin", "sandbox-exec is the Mac's; the macOS jobs run these")
 class TheWall(unittest.TestCase):
     """Real sandbox-exec, real files. If this fails, nothing else in this file matters."""
 
@@ -57,6 +60,37 @@ class TheWall(unittest.TestCase):
         self.assertNotEqual(got.returncode, 0)
         self.assertNotIn("ZQ-PLANTED", got.stdout)
 
+    def test_a_link_in_this_runs_own_folder_doesnt_reach_the_home_folder(self):
+        link = os.path.join(self.own, "link")
+        os.symlink(self.plant(self.outside), link)
+        got = self.run_in("/bin/cat", link)
+        self.assertNotEqual(got.returncode, 0)
+        self.assertNotIn("ZQ-PLANTED", got.stdout)
+
+    def test_the_folders_that_hold_secrets_cant_be_listed(self):
+        for name in (".ssh", "Library/Keychains", "Library", "Documents"):
+            path = os.path.join(self.home, name)
+            if os.path.isdir(path):
+                self.assertNotEqual(self.run_in("/bin/ls", path).returncode, 0, name)
+
+    def test_a_name_that_only_starts_like_this_runs_folder_isnt_opened(self):
+        for name in (os.path.basename(self.own) + "-beside", c.PREFIX + "secrets-and-more"):
+            beside = os.path.join(self.scratch, name)
+            os.mkdir(beside)
+            self.addCleanup(shutil.rmtree, beside, True)
+            got = self.run_in("/bin/cat", self.plant(beside))
+            self.assertNotEqual(got.returncode, 0, name)
+            self.assertNotIn("ZQ-PLANTED", got.stdout)
+
+    def test_the_second_folder_a_run_makes_can_be_read_and_written(self):
+        tmp = tempfile.mkdtemp(prefix=c.PREFIX + "tmp-", dir=self.scratch)
+        self.addCleanup(shutil.rmtree, tmp, True)
+        self.assertEqual(self.run_in("/bin/cat", self.plant(tmp)).stdout, "ZQ-PLANTED")
+        self.assertEqual(self.run_in("/usr/bin/touch", os.path.join(tmp, "new")).returncode, 0)
+
+    def test_a_home_outside_the_people_folder_is_denied_by_name_too(self):
+        self.assertIn('(subpath "/opt/sam")', c.wall("/opt/sam", self.program, self.scratch))
+
     def test_this_runs_own_folder_can_be_read_and_written(self):
         self.assertEqual(self.run_in("/bin/cat", self.plant(self.own)).stdout, "ZQ-PLANTED")
         self.assertEqual(self.run_in("/usr/bin/touch", os.path.join(self.own, "new")).returncode, 0)
@@ -65,6 +99,42 @@ class TheWall(unittest.TestCase):
         for folder in (self.outside, self.other_tmp):
             self.assertNotEqual(self.run_in("/usr/bin/touch", os.path.join(folder, "new")).returncode, 0, folder)
             self.assertFalse(os.path.exists(os.path.join(folder, "new")))
+
+
+class FailsClosed(unittest.TestCase):
+    def test_a_home_the_wall_cant_trust_is_a_problem(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertTrue(c.home_problem("/opt/none"), "not a folder")
+            self.assertTrue(c.home_problem("/etc"), "not where homes are")
+            self.assertFalse(c.home_problem(str(Path.home())) if str(Path.home()).startswith("/Users/") else False)
+            self.assertFalse(c.home_problem(os.path.realpath(d)) if os.path.realpath(d).startswith("/private/var/folders/") else False)
+
+    def test_a_path_that_could_change_the_rules_is_refused(self):
+        for bad in ('/Users/a"b', "/Users/a\\b", "/Users/a\nb"):
+            with self.assertRaises(ValueError):
+                c.wall(bad, "/x/codex", "/tmp/s")
+
+    def test_an_odd_home_refuses_before_anything_runs(self):
+        with mock.patch.object(c, "own_home", return_value="/etc"), mock.patch.object(c, "run") as run:
+            self.assertEqual(c.CodexCommand(env={}).command(), (None, c.ODD_HOME))
+        run.assert_not_called()
+
+    def versions(self, version):
+        with mock.patch.object(c, "run", side_effect=[("ok", version, 0), ("ok", b"\n".join(f"  {f} <x>".encode() for f in c.NEEDED_FLAGS), 0)]):
+            p = c.CodexCommand(env={})
+            return p._flags_ok(Path("/x/codex")), p.untested
+
+    def test_only_a_tested_version_will_do(self):
+        self.assertEqual(self.versions(b"codex-cli 0.166.0\n"), (True, False))
+        self.assertEqual(self.versions(b"codex-cli 0.167.0\n"), (False, True))
+        self.assertEqual(self.versions(b"codex-cli 0.165.9\n"), (False, True))
+        self.assertEqual(self.versions(b"codex-cli 1.0.0\n"), (False, True))
+        self.assertEqual(self.versions(b"something\n"), (False, False))
+
+    def test_the_temporary_folder_is_the_real_path_the_sandbox_sees(self):
+        with mock.patch.object(c.platform, "scratch_parent", return_value="/tmp"), mock.patch.object(c, "own_home", return_value="/Users/sam"):
+            rules = c.arguments("/x/codex")[2]
+        self.assertIn(re.escape(os.path.realpath("/tmp")), rules)
 
 
 class TheCommandLine(unittest.TestCase):

@@ -16,6 +16,7 @@ only a sign-in with ChatGPT: an API key is refused (billing per use is a later i
 """
 import json
 import os
+import pwd
 import re
 
 from clark import ask, ask_claude, platform
@@ -36,6 +37,11 @@ SANDBOX = "/usr/bin/sandbox-exec"
 PREFIX = "clark-codex-"
 TMP_NAMES = ("TMPDIR",)
 VERSION = re.compile(rb"^codex-cli (\d+)\.(\d+)\.(\d+)\b")
+# The versions the wall and the tools-off list were tested with. A newer Codex could bring a tool DISABLED doesn't name, and the wall can't limit the network
+# to OpenAI's hosts (a macOS sandbox rule names an address or a port, never a host name), so a new version means a new release of clark.
+TESTED_FROM, TESTED_TO = (0, 166, 0), (0, 166, 999)
+HOME_ROOTS = ("/Users", "/private/var/folders")
+UNSAFE_IN_PATH = ('"', "\\", "\n")           # a path holding one of these could change the meaning of the sandbox rules
 SIGNED_IN = "Logged in using ChatGPT"
 KEY_WORDS = re.compile(r"api key", re.I)
 ALLOWED_ITEMS = ("agent_message", "reasoning", "error")   # anything else in a run's events is a tool, so the answer is dropped
@@ -45,6 +51,8 @@ MODEL_TEXT = re.compile(r"model is not supported|model .{0,60}not supported|unkn
 READY = "ChatGPT is signed in on this computer."
 NOT_INSTALLED = "ChatGPT needs the Codex command, and it isn't on this computer. Install Codex, sign in with ChatGPT, then try again."
 NOT_NATIVE = "The Codex command on this computer can't be used safely. Install it again, then try again."
+UNTESTED = "This version of Codex has not been tested with clark: update clark."
+ODD_HOME = "This computer's home folder isn't in the usual place, so ChatGPT can't be kept away from your files. Nothing was sent."
 CANT_USE = "The Codex command on this computer isn't one clark can use. Update it, then try again."
 NOT_SIGNED_IN = "ChatGPT isn't signed in on this computer. Open Terminal, type codex login, sign in, then try again."
 API_KEY_LOGIN = "Codex is signed in with an API key, which clark doesn't use. Open Terminal, type codex login, sign in with ChatGPT, then try again."
@@ -60,14 +68,33 @@ def quote(text):
     return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def own_home():
+    """The home folder from the system's own record of this user, never from the environment."""
+    return os.path.realpath(pwd.getpwuid(os.getuid()).pw_dir)
+
+
+def home_problem(home):
+    """True when the wall can't be trusted to cover `home`: it isn't a real folder, isn't under the places a Mac keeps them, or holds a character that could
+    change the rules. A run is then refused: fails closed."""
+    real = os.path.realpath(home)
+    if not os.path.isdir(real) or any(c in real for c in UNSAFE_IN_PATH):
+        return True
+    return not any(real.startswith(root + "/") for root in HOME_ROOTS)
+
+
 def wall(home, program, scratch, prefix=PREFIX):
-    """The sandbox rules for one run. Reads are refused under the people's folders, other volumes and the temporary folders, then allowed back only
-    for Codex's own folder, the folder its program is in and this run's own folders. Writes are refused everywhere but Codex's folder and this
-    run's folders. Listing a name is not reading it: Codex needs to look at the folders above the ones it may read."""
-    codex, own = os.path.join(home, ".codex"), re.escape(os.path.join(scratch, prefix))
+    """The sandbox rules for one run. Reads are refused under the person's home, the people's folders, other volumes and the temporary folders, then allowed back
+    only for Codex's own folder, the folder its program is in and this run's own folders. Writes are refused everywhere but Codex's folder and this run's folders.
+    Listing a name is not reading it: Codex needs to look at the folders above the ones it may read. `(allow default)` leaves system files readable (/etc,
+    /Library, /Applications): those are not the person's data, and Codex can't start without many of them. The wall is for the person's files and secrets. It
+    also stops file reads only: the tools-off list and the version pin (TESTED_FROM) are what stop anything else."""
+    if any(c in str(p) for p in (home, program, scratch) for c in UNSAFE_IN_PATH):
+        raise ValueError("path")
+    codex = os.path.join(home, ".codex")
+    own = re.escape(os.path.join(scratch, prefix)) + "(tmp-)?" + "[a-z0-9_]" * 8 + "(/|$)"     # a run's two folders as Python names them, never another name that starts the same
     return "\n".join((
         "(version 1)", "(allow default)",
-        '(deny file-read-data (subpath "/Users") (subpath "/Volumes") (subpath "/private/tmp") (subpath "/private/var/folders") (subpath "/tmp"))',
+        f'(deny file-read-data (subpath "/Users") (subpath {quote(home)}) (subpath "/Volumes") (subpath "/private/tmp") (subpath "/private/var/folders") (subpath "/tmp"))',
         "(deny file-write*)",
         f'(allow file-read-data (literal "/Users") (literal {quote(home)}) (subpath {quote(codex)}) (subpath {quote(os.path.dirname(program))}) (regex #"^{own}"))',
         f'(allow file-write* (subpath {quote(codex)}) (regex #"^{own}") (literal "/dev/null") (literal "/dev/dtracehelper"))'))
@@ -78,8 +105,8 @@ def arguments(path, canary="", system=None, model=None, home=None, scratch=None)
     The question goes on standard input. `model` is None or one of MODELS; anything else raises ValueError."""
     if model is not None and (not isinstance(model, str) or model not in MODELS):
         raise ValueError("model")
-    home = os.path.expanduser("~") if home is None else home
-    scratch = platform.scratch_parent() if scratch is None else scratch
+    home = own_home() if home is None else home
+    scratch = os.path.realpath(platform.scratch_parent()) if scratch is None else scratch     # the sandbox sees real paths: /tmp is /private/tmp
     off = [x for name in DISABLED for x in ("--disable", name)]
     pick = ["--model", model] if model else []
     return [SANDBOX, "-p", wall(home, str(path), scratch), str(path), "exec", "--ignore-user-config", "--ignore-rules", "--ephemeral",
@@ -133,14 +160,25 @@ class CodexCommand(ask_claude.ClaudeCommand):
     def __init__(self, places=PLACES, env=None, limit=ask_claude.TIME_LIMIT, max_out=ask_claude.MAX_OUT, check_limit=ask_claude.CHECK_LIMIT, roots=None, walled=True):
         super().__init__(places, env, limit, max_out, check_limit, roots)
         self.walled = walled                   # False only in tests with a fake script, which the wall would refuse to run
+        self.untested = False                  # the checked command is a version the wall hasn't been tested with
 
     def command(self):
+        if self.walled and home_problem(own_home()):
+            return None, ODD_HOME
         got, why = super().command()
-        return (got, None) if got is not None else (None, {ask_claude.NOT_INSTALLED: NOT_INSTALLED, ask_claude.NOT_NATIVE: NOT_NATIVE, ask_claude.CANT_USE: CANT_USE}.get(why, why))
+        if got is None:
+            return None, {ask_claude.NOT_INSTALLED: NOT_INSTALLED, ask_claude.NOT_NATIVE: NOT_NATIVE,
+                          ask_claude.CANT_USE: UNTESTED if self.untested else CANT_USE}.get(why, why)
+        return got, None
 
     def _flags_ok(self, path):
+        self.untested = False
         status, out, _code = run([str(path), "--version"], b"", self.env, self.check_limit, 4096)
-        if status != "ok" or not VERSION.match(out):
+        found = VERSION.match(out) if status == "ok" else None
+        if not found:
+            return False
+        if not TESTED_FROM <= tuple(int(n) for n in found.groups()) <= TESTED_TO:
+            self.untested = True
             return False
         status, out, _code = run([str(path), "exec", "--help"], b"", self.env, self.check_limit, ask_claude.MAX_HELP)
         if status != "ok":

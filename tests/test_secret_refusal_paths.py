@@ -192,7 +192,7 @@ class EveryRouteThatSendsText(unittest.TestCase):
 
     def test_the_chain_hands_on_the_very_request_it_was_given(self):
         got = []
-        inner = type("P", (), {"name": "x", "ask": lambda self, request, model=None, prefer=False: got.append(request) or "ok"})()
+        inner = type("P", (), {"name": "x", "command": type("C", (), {})(), "ask": lambda self, request, model=None, prefer=False: got.append(request) or "ok"})()
         request = ask.Request(text="q", question="q")
         self.assertEqual(ai_providers.Chosen((inner,), lambda: (inner, "sonnet", True), "off").ask(request), "ok")
         self.assertIs(got[0], request)

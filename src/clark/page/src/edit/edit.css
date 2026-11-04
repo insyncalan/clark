@@ -645,11 +645,10 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .uclink .pick li .type { margin-right: 4px; }
 .uclink .pick li .pill { margin-left: 4px; }
 @media (max-width: 900px) { .ucrow-ed > .ucbar { grid-template-columns: 32px 44px minmax(0, 1fr) minmax(0, 1fr) 96px 96px; } }
-/* Settings › AI: a tile for each provider, the one that is not ready dashed and grey, and the model. */
+/* Settings › AI: a tile for each provider, and the model. */
 .ai-provs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-3); margin-top: var(--space-3); }
 .ai-prov { border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: var(--space-3); }
 .ai-prov.on { border-color: var(--brand-blue); }
-.ai-prov.later { background: var(--grey-50); border-style: dashed; }
 .setting .ai-prov h3 { margin: 0 0 var(--space-1); font-size: var(--size-body); display: flex; gap: var(--space-2); align-items: center; }
 .ai-prov p { font-size: var(--size-caption); margin: 0 0 var(--space-2); }
 .ai-model { margin-top: var(--space-3); }
