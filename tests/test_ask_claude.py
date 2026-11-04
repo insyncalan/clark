@@ -196,8 +196,11 @@ class Arguments(Fake):
             "--max-budget-usd", "1.00", "--system-prompt", ask.RULES])
 
     def test_every_flag_the_run_uses_is_checked_in_the_help_except_the_documented_unlisted_one(self):
-        used = {a for a in ac.arguments("/x/claude")[1:] if a.startswith("--") and a != ask.RULES}
-        self.assertEqual(used, set(ac.NEEDED_FLAGS) | {"--max-turns"})
+        used = {a for a in ac.arguments("/x/claude", model="opus")[1:] if a.startswith("--") and a != ask.RULES}
+        self.assertEqual(used, set(ac.NEEDED_FLAGS) | {"--max-turns"})     # item 54, on purpose: --model is now needed
+        self.assertIn("--model", ac.NEEDED_FLAGS)
+        self.assertNotIn("--model", ac.NEVER_FLAGS)
+        self.assertNotIn("--model", ac.arguments("/x/claude"), "no model chosen: the command's own is used")
         self.assertEqual(ac.UNLISTED_FLAGS, ("--max-turns",))
         self.assertNotIn("--max-turns", ac.NEEDED_FLAGS, "a version whose --help leaves it out is still usable")
 
