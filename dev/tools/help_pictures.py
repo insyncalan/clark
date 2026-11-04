@@ -36,6 +36,7 @@ import socket
 import struct
 import subprocess
 import sys
+import threading
 import time
 import zlib
 from pathlib import Path
@@ -129,20 +130,11 @@ def optimise_png(data):
     """The same picture in fewer bytes: only the chunks a picture needs are kept (no text, time or colour-profile chunks) and the
     pixel data is packed again at the strongest level, which is kept only if it is smaller. The pixels are not changed. Anything
     that is not a plain PNG comes back as it was."""
-    sig = b"\x89PNG\r\n\x1a\n"
-    if not data.startswith(sig):
+    chunks = _chunks(data)
+    if chunks is None:
         return data
-    pos, keep, idat = len(sig), [], []
-    while pos + 8 <= len(data):
-        size, kind = struct.unpack(">I4s", data[pos:pos + 8])
-        body = data[pos + 8:pos + 8 + size]
-        pos += 12 + size
-        if kind == b"IDAT":
-            idat.append(body)
-        elif kind in (b"IHDR", b"PLTE", b"tRNS"):
-            keep.append((kind, body))
-        elif kind == b"IEND":
-            break
+    keep = [(k, body) for k, body in chunks if k in (b"IHDR", b"PLTE", b"tRNS")]
+    idat = [body for k, body in chunks if k == b"IDAT"]
     if not idat or not keep or keep[0][0] != b"IHDR":
         return data
     try:
@@ -150,11 +142,39 @@ def optimise_png(data):
     except zlib.error:
         return data
     best = min((zlib.compress(raw, 9), *(_deflate(raw, strategy) for strategy in (zlib.Z_FILTERED, zlib.Z_DEFAULT_STRATEGY))), key=len)
-    out = [sig]
+    out = [PNG_SIGNATURE]
     for kind, body in keep + [(b"IDAT", best), (b"IEND", b"")]:
         out.append(struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF))
     packed = b"".join(out)
-    return packed if len(packed) < len(data) else data
+    if len(packed) >= len(data):
+        return data
+    again = _chunks(packed)                                   # read back what was made: it must decode to the very same pixel data
+    try:
+        same = again is not None and zlib.decompress(b"".join(body for k, body in again if k == b"IDAT")) == raw
+    except zlib.error:
+        same = False
+    return packed if same else data
+
+
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def _chunks(data):
+    """[(kind, body)] of a PNG up to its IEND, or None if it does not start as a PNG, is cut short, has no IEND or any chunk's
+    check value (CRC) is wrong."""
+    if not data.startswith(PNG_SIGNATURE):
+        return None
+    pos, found = len(PNG_SIGNATURE), []
+    while pos + 12 <= len(data):
+        size, kind = struct.unpack(">I4s", data[pos:pos + 8])
+        body, crc = data[pos + 8:pos + 8 + size], data[pos + 8 + size:pos + 12 + size]
+        if len(body) != size or len(crc) != 4 or struct.unpack(">I", crc)[0] != zlib.crc32(kind + body) & 0xFFFFFFFF:
+            return None
+        found.append((kind, body))
+        pos += 12 + size
+        if kind == b"IEND":
+            return found
+    return None
 
 
 def _deflate(raw, strategy):
@@ -183,16 +203,26 @@ class Clark:
                                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         self.wait_listening()
 
+    LISTEN_SECONDS = 60
+
     def wait_listening(self):
-        end = time.monotonic() + 60
-        while time.monotonic() < end:
-            line = self.proc.stdout.readline()
-            if f"127.0.0.1:{self.port}" in line:
-                return
-            if not line and self.proc.poll() is not None:
-                break
-        self.stop()
-        raise Refused("clark did not start on the demo data, so no pictures were taken.")
+        """Wait up to 60 s for clark's address line. A thread reads clark's output, so the wait cannot hang on a quiet pipe, and it
+        goes on reading (and dropping) what clark says afterwards, so the pipe never fills."""
+        seen = threading.Event()
+
+        def drain():
+            for line in self.proc.stdout:
+                if f"127.0.0.1:{self.port}" in line:
+                    seen.set()
+
+        self.reader = threading.Thread(target=drain, daemon=True)
+        self.reader.start()
+        end = time.monotonic() + self.LISTEN_SECONDS
+        while time.monotonic() < end and not seen.is_set() and self.proc.poll() is None:
+            seen.wait(0.1)
+        if not seen.is_set():
+            self.stop()
+            raise Refused("clark did not start on the demo data, so no pictures were taken.")
 
     def stop(self):
         if self.proc.poll() is None:

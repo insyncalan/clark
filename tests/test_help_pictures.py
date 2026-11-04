@@ -7,7 +7,12 @@ pictures, that the shots list is well formed, and that the script refuses any da
 itself (python3 dev/tools/help_pictures.py, and --check) needs the browser and is a separate, documented step.
 """
 import json
+import importlib
 import re
+import subprocess
+import time
+import types
+from unittest import mock
 import struct
 import sys
 import tempfile
@@ -159,6 +164,93 @@ class OnlyDemoData(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             demo_data.build(Path(d) / "clark.db", datetime(2026, 10, 28, 9, 0), onedrive_roots=[])
             self.assertEqual(hp.check_demo_folder(d), Path(d))
+
+
+def small_png(level=0):
+    """A 40 x 40 grey PNG whose pixel data is packed weakly, so packing it again makes it smaller."""
+    raw = b"".join(b"\x00" + bytes([200]) * 40 for _ in range(40))
+
+    def chunk(kind, body):
+        return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF)
+    return (hp.PNG_SIGNATURE + chunk(b"IHDR", struct.pack(">IIBBBBB", 40, 40, 8, 0, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw, level))
+            + chunk(b"IEND", b"")), raw
+
+
+class Optimiser(unittest.TestCase):
+    def test_a_weakly_packed_picture_gets_smaller_with_the_same_pixels(self):
+        data, raw = small_png()
+        out = hp.optimise_png(data)
+        self.assertLess(len(out), len(data))
+        self.assertEqual(zlib.decompress(b"".join(b for k, b in hp._chunks(out) if k == b"IDAT")), raw)
+
+    def test_a_wrong_check_value_in_the_input_leaves_it_as_it_was(self):
+        data, _ = small_png()
+        bad = bytearray(data)
+        bad[-17] ^= 1                                    # the last byte of the pixel data's check value (before the 12-byte IEND)
+        self.assertEqual(hp.optimise_png(bytes(bad)), bytes(bad))
+        self.assertEqual(hp.optimise_png(data[:-20]), data[:-20], "cut short")
+
+    def test_an_output_that_does_not_decode_to_the_same_pixels_is_not_used(self):
+        data, _ = small_png()
+        with mock.patch.object(hp, "_deflate", return_value=b"x"):      # smaller than anything real, and not a valid stream
+            self.assertEqual(hp.optimise_png(data), data)
+
+
+class ClarkOutput(unittest.TestCase):
+    def clark_with(self, code, seconds):
+        c = hp.Clark.__new__(hp.Clark)
+        c.port = 4321
+        c.LISTEN_SECONDS = seconds
+        c.proc = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        self.addCleanup(c.stop)
+        return c
+
+    def test_a_quiet_clark_is_given_up_on_at_the_limit(self):
+        c = self.clark_with("import time; time.sleep(30)", 1)         # prints nothing: a blocking read would wait the 30 s
+        t0 = time.monotonic()
+        with self.assertRaisesRegex(hp.Refused, "did not start"):
+            c.wait_listening()
+        self.assertLess(time.monotonic() - t0, 10)
+
+    def test_the_output_is_read_on_after_the_address_so_the_pipe_never_fills(self):
+        code = ("import sys\nprint('Open http://127.0.0.1:4321/', flush=True)\n"
+                "for _ in range(5000): sys.stdout.write('y' * 1000 + '\\n')\nsys.stdout.flush()")
+        c = self.clark_with(code, 20)
+        c.wait_listening()
+        self.assertEqual(c.proc.wait(20), 0, "5 MB of output did not stop it")
+
+
+def stub_run_support(start_fails=False):
+    calls = []
+
+    def start(command, to_r, from_w):
+        if start_fails:
+            raise OSError("no")
+        calls.append("started")
+        return "proc"
+    names = {"chrome" + "_path": lambda: "/x", "chrome" + "_command": lambda path, profile: [path], "start" + "_chrome": start,
+             "stop" + "_chrome": lambda proc: calls.append("stopped"), "remove" + "_profile": lambda p: calls.append("profile removed")}
+    return types.SimpleNamespace(**names), calls
+
+
+class BrowserCleanUp(unittest.TestCase):
+    """The browser half is loaded by name, with the stand-in above for run_support: no browser is started."""
+
+    def test_a_failure_after_the_start_stops_it_and_removes_the_profile(self):
+        shoot = importlib.import_module("help_pictures_browser")
+        stub, calls = stub_run_support()
+        with mock.patch.object(shoot, "run_support", stub), mock.patch.object(shoot.Pipe, "call", side_effect=RuntimeError("closed")):
+            with self.assertRaises(RuntimeError):
+                shoot.Browser().__enter__()
+        self.assertEqual(calls, ["started", "stopped", "profile removed"])
+
+    def test_a_failure_to_start_removes_the_profile(self):
+        shoot = importlib.import_module("help_pictures_browser")
+        stub, calls = stub_run_support(start_fails=True)
+        with mock.patch.object(shoot, "run_support", stub):
+            with self.assertRaises(OSError):
+                shoot.Browser().__enter__()
+        self.assertEqual(calls, ["profile removed"])
 
 
 if __name__ == "__main__":

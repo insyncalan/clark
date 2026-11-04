@@ -40,17 +40,31 @@ class Pipe:
 class Browser:
     """One headless Chrome, a fresh profile, one window at the fixed size and the light theme."""
 
+    def __init__(self):
+        self.profile, self.proc, self.fds = None, None, []
+
     def __enter__(self):
+        try:
+            return self._open()
+        except BaseException:
+            self.__exit__(None, None, None)          # a failure part-way must not leave Chrome or its profile behind
+            raise
+
+    def _open(self):
         path = run_support.chrome_path()
         if not path:
             raise Refused("Chrome was not found, so no pictures were taken. Install Google Chrome, or set CLARK_CHROME to its file.")
         to_r, to_w = os.pipe()
         from_r, from_w = os.pipe()
+        self.fds = [to_w, from_r]
+        ends = [to_r, from_w]
         self.profile = tempfile.mkdtemp(prefix="clark-chrome-profile-")
-        self.proc = run_support.start_chrome(run_support.chrome_command(path, self.profile), to_r, from_w)
-        os.close(to_r)
-        os.close(from_w)
-        self.pipe, self.fds = Pipe(to_w, from_r), (to_w, from_r)
+        try:
+            self.proc = run_support.start_chrome(run_support.chrome_command(path, self.profile), to_r, from_w)
+        finally:
+            for fd in ends:
+                os.close(fd)
+        self.pipe = Pipe(to_w, from_r)
         tid = next(t["targetId"] for t in self.pipe.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
         self.sid = self.pipe.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
         self.send("Page.enable")
@@ -59,10 +73,18 @@ class Browser:
         return self
 
     def __exit__(self, *exc):
-        run_support.stop_chrome(self.proc)
-        for fd in self.fds:
-            os.close(fd)
-        run_support.remove_profile(self.profile)
+        try:
+            if self.proc is not None:
+                run_support.stop_chrome(self.proc)
+        finally:
+            for fd in self.fds:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+            self.fds = []
+            if self.profile:
+                run_support.remove_profile(self.profile)
 
     def send(self, method, params=None):
         return self.pipe.call(method, params, self.sid)

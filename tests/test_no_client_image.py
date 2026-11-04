@@ -26,13 +26,23 @@ PINNED = {                                    # clark's own icon set: name to SH
     "clark-icon-maskable-512.png": "e79939ac5b5cd2a0e359ebecd29fd6f110254b96445151b17ca4ce8b88013f61",
     "clark-icon.svg": "11d8526dbc1e91b74e541db82a2cb8ed04784ad702c6279410ad8f1858d8a384",
 }
+HELP_DIR = "src/clark/page/help-pictures/"      # the Help pictures (#642): taken only from the fictional demo data by dev/tools/help_pictures.py
+
+
+def help_names():
+    """The file names the shots list allows in HELP_DIR: one <id>.png for each shot in dev/tools/help_shots.json."""
+    import json
+    shots = json.loads((ROOT / "dev" / "tools" / "help_shots.json").read_text(encoding="utf-8"))["shots"]
+    return {f"{s['id']}.png" for s in shots}
+
+
 SHA = hashlib.sha256
 DATA_B64 = re.compile(r"data:image/[a-z0-9.+-]+;base64,([A-Za-z0-9+/=]{16,})", re.I)
 DATA_RAW = re.compile(r"""data:image/[a-z0-9.+-]+,([^"')\s]{16,})""", re.I)
 TEXT = re.compile(r"\.(css|js|jsx|mjs|html|htm|py|json|md|txt|xml)$", re.I)
 
 
-def problems(files, pinned=PINNED, scope=SCOPE, icon_dir=ICON_DIR):
+def problems(files, pinned=PINNED, scope=SCOPE, icon_dir=ICON_DIR, help_dir=HELP_DIR, help_ok=()):
     """[(path, what)] for {path: bytes}: an image file that is not a pinned icon, or a data:image picture that is not one."""
     ok = set(pinned.values())
     out = []
@@ -40,6 +50,8 @@ def problems(files, pinned=PINNED, scope=SCOPE, icon_dir=ICON_DIR):
         if not path.startswith(scope):
             continue
         if IMAGE_FILE.search(path):
+            if path.startswith(help_dir) and path[len(help_dir):] in help_ok and data.startswith(b"\x89PNG"):
+                continue                      # a listed Help picture (a name from help_shots.json), a real PNG
             if not (path.startswith(icon_dir) and path[len(icon_dir):] in pinned and SHA(data).hexdigest() == pinned[path[len(icon_dir):]]):
                 out.append((path, "an image that is not clark's own icon"))
         elif TEXT.search(path):
@@ -63,7 +75,7 @@ def tracked_files():
 
 class NoClientImage(unittest.TestCase):
     def test_no_client_image_is_committed(self):
-        found = problems(tracked_files())
+        found = problems(tracked_files(), help_ok=help_names())
         self.assertEqual(found, [], "only clark's own icon may be a picture here; a client's logo or picture stays in the folder git ignores")
 
     def test_the_icon_set_on_disk_is_the_pinned_one(self):
@@ -89,6 +101,12 @@ class NoClientImage(unittest.TestCase):
         self.assertEqual(sorted(p for p, _ in found), ["src/b.css", "src/icons/clark-icon-x.png", "src/icons/logo.png", "vendor/a.js"])
         self.assertEqual(problems({"src/icons/clark-icon.svg": icon}, pinned, scope, icons), [])
         self.assertEqual(problems({"src/icons/clark-icon.svg": icon + b"x"}, pinned, scope, icons), [("src/icons/clark-icon.svg", "an image that is not clark's own icon")])
+
+    def test_only_a_listed_help_picture_is_let_through(self):
+        png = b"\x89PNG made-up"
+        files = {"src/h/a.png": png, "src/h/b.png": png, "src/h/c.png": b"not a png", "src/h/sub/a.png": png}
+        found = problems(files, {}, ("src/",), "src/icons/", "src/h/", {"a.png", "c.png"})
+        self.assertEqual(sorted(p for p, _ in found), ["src/h/b.png", "src/h/c.png", "src/h/sub/a.png"])
 
 
 if __name__ == "__main__":
