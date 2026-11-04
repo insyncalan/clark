@@ -31,6 +31,8 @@ COVERED = [
      "test_about_you::AboutYou::test_C_a_save_made_before_the_first_read_has_landed_keeps_the_other_box_saved_value"),
     ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo",
      "test_update_migration::Migrated::test_undo_puts_the_data_back_as_it_was_and_says_changes_after_the_update_are_lost"),
+    ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints",
+     "test_update_page::Rows::test_row_58_each_row_has_its_label_at_the_left_and_a_hint_line_under_its_control"),
     ("#439", "The bar above the page: Week ending is a box in View and in Edit; with no week kept it shows the coming Friday and saves nothing until Enter.",
      "test_report_bar::Bar::test_with_no_week_kept_the_field_shows_the_coming_friday_and_saves_nothing"),
     ("#439", "A typed entry that is not a day keeps the old date and says so.",
@@ -55,7 +57,6 @@ COVERED = [
 # marker None means there is no pull request to look for yet).
 WAITING = [
     ("#48", "HOLD (the Help wording is the owner's call): Export to Word and Import from Word screens", "PR 475", "page/src/edit/Word.jsx", "export function WordLayer"),
-    ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 518", "page/src/edit/Update.jsx", "upd-rows"),
     ("#434", "Risks, issues, actions and decisions rows: a status pill, empty sections, editing in place and the ID button", "PR 580", "page/src/edit/ItemRowsEdit.jsx", "WORDS_MAX"),
     ("#449", "Work items: the column width can be changed and reset, with a toast", "PR 462", "page/src/logic/board.js", "COL_MIN"),
     ("#444", "Settings Data card and Projects table: Import workbook, Reset the demo data, Add and Edit project", "PR 461", "page/src/logic/dataCard.js", "export const DATA"),
