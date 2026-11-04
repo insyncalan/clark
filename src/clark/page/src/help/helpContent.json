@@ -2299,7 +2299,7 @@
      "d": "Press your profile circle and choose **Settings**. Find the **Data** card: it has two buttons, **Export workbook** and **Import workbook**. Press **Import workbook**."
     },
     {
-     "d": "The box **Import from Excel** says what is read: sheets called Actions, Risks and issues (or RAID), Decisions, Milestones and Use cases. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns and no rows, and a line says so."
+     "d": "The box **Import from Excel** says what is read: sheets called Actions, Risks and issues (or RAID), Decisions, Milestones and Use cases. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
     },
     {
      "d": "Press **Choose a file** and pick an .xlsx workbook of up to 25 MB. A macro workbook (.xlsm) is turned away and nothing is saved; save a copy as an ordinary .xlsx workbook and choose that."
@@ -2311,7 +2311,7 @@
      "d": "Read the list under the counts. Each change has a tick and a tag: **New** rows will be added, **Changed** rows will update the item already in clark, and a row tagged Not in the workbook would archive its item. A line under a change says what differs. A change that would be refused says why and cannot be ticked."
     },
     {
-     "d": "Untick any change you do not want. New and changed rows start ticked, and rows tagged Not in the workbook start unticked. If clark has no record of exporting the workbook, it warns you, and the button reads **Import anyway**."
+     "d": "Untick any change you do not want. New and changed rows start ticked, except a change that clashes: a line under it says it changed in clark after the workbook was made, and it starts unticked. Rows tagged Not in the workbook also start unticked. If clark has no record of exporting the workbook, it warns you, and the button reads **Import anyway**."
     },
     {
      "d": "Press the button at the foot, which reads Import and the number you ticked, such as Import 3 changes. The whole import is one step."
@@ -2332,7 +2332,7 @@
    "job": "Save the project as an Excel workbook, know what is in it, and take changes back in.",
    "steps": [
     {
-     "d": "On **Work items**, in View, press the down-arrow icon at the top right of the page. Its tooltip reads **Export to Excel**. The icon is not there in Edit, so use step 2 or 3 instead."
+     "d": "On **Work items**, in View, press the **Export to Excel** icon in the page header, beside the add button. The icon is not there in Edit, so use step 2 or 3 instead."
     },
     {
      "d": "Or press your profile circle and choose **Export to Excel**. It gives the same workbook from any screen."
@@ -2371,7 +2371,7 @@
      "d": "Press your profile circle and choose **Publish…**. The box **Publish the report** opens. The line under its title gives the project, the week ending, the number this publication will have, such as this will be Publication 4, and when and where the last one went."
     },
     {
-     "d": "**Local** is always ticked: the save window opens where you last saved for this project, and you choose the folder and the name. Tick **To client** to copy it to the client folder as well. With no client folder set, that tick is off and a link takes you to Settings, Publishing to set one."
+     "d": "**Local** is always ticked, and the box says you choose the folder and name in the save window. Tick **To client** to copy it to the client folder as well. With no client folder set, that tick is off and a link takes you to Settings, Publishing to set one."
     },
     {
      "d": "If you want them, tick **Also a PDF** (your browser’s print box opens and you choose Save as PDF) and **Also a Word document** (a Word copy of the report, saved in the folder last used for this project)."
