@@ -31,48 +31,28 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "0.10.0"
-SCHEMA_AT_0_9_0 = 11
+SCHEMA_AT_0_9_0 = 12
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
-    ("#429", "Saving the name or the email says so with Undo, and saving the same words again says nothing",
-     "test_about_you::AboutYou::test_C_saving_the_name_or_the_email_says_so_with_undo_and_a_second_save_of_the_same_words_says_nothing"),
-    ("#429", "Undo puts the old value back in the box, the menu and the store",
-     "test_about_you::AboutYou::test_C_undo_puts_the_old_value_back_in_the_box_the_menu_and_the_store"),
-    ("#429", "A save that is turned away shows no toast and no Undo",
-     "test_about_you::AboutYou::test_C_a_refused_save_shows_no_toast_and_no_undo"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo", "PR 513",
-     "updater.py", "class Updater"),
-    ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 518",
-     "page/src/edit/Update.jsx", "upd-rows"),
-    ("#434", "Risks, issues, actions and decisions rows: a status pill, empty sections, editing in place and the ID button", "PR 368",
-     "page/src/edit/ItemRowsEdit.jsx", "A-D5"),
-    ("#449", "Work items: the column width can be changed and reset, with a toast", "PR 462",
-     "page/src/logic/board.js", "COL_MIN"),
-    ("#455", "A new use case is hidden from the client until its eye is turned on (CLIENT-FACING)", "PR 543",
-     "changes.py", "client_visible=0)   # #455"),
-    ("#604", "A publish that loses a race puts its link back without a gap between the check and the move", "PR 477",
-     "publish.py", "def put_link_back"),
-    ("#605", "A link that could not be put back is said plainly in the message", "PR 477",
-     "publish.py", "def put_link_back"),
-    ("#607", "The Word export and import screens say plainly when a list has expired or a file is too big", "PR 475",
-     "word_route.py", "SIZE_TOO_BIG"),
-    ("#640", "The filter line: the field list opens on a click, an x clears the line, core view tabs, a menu and + New view on the tabs, "
-             "no note under the filter (not built yet: the prototype is PR 545)", "PR 545",
-     "page/src/components/FilterLine.jsx", "(#640)"),
+    ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo", "PR 513", "updater.py", "class Updater"),
+    ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 518", "page/src/edit/Update.jsx", "upd-rows"),
+    ("#434", "Risks, issues, actions and decisions rows: a status pill, empty sections, editing in place and the ID button", "PR 368", "page/src/edit/ItemRowsEdit.jsx", "A-D5"),
+    ("#449", "Work items: the column width can be changed and reset, with a toast", "PR 462", "page/src/logic/board.js", "COL_MIN"),
+    ("#604", "A publish that loses a race puts its link back without a gap between the check and the move", "PR 477", "publish.py", "def put_link_back"),
+    ("#605", "A link that could not be put back is said plainly in the message", "PR 477", "publish.py", "def put_link_back"),
+    ("#607", "The Word export and import screens say plainly when a list has expired or a file is too big", "PR 475", "word_route.py", "SIZE_TOO_BIG"),
+    ("#640", "The filter line: the field list opens on a click, an x clears the line, core view tabs, a menu and + New view on the tabs, no note under the filter (not built yet: the prototype is PR 545)", "PR 545", "page/src/components/FilterLine.jsx", "(#640)"),
     ("#53", "Where clark's AI providers code comes from (a copy from the other product's branch)", "no pull request yet (issue 53)", "", None),
     ("#54", "Settings, AI: Claude and OpenAI sign-in for ask clark", "no pull request yet (issue 54)", "", None),
-    ("#174", "The first start asks for your name and details, kept in Settings and used to record who changed what",
-     "no pull request yet (issue 174)", "", None),
-    ("#446", "Settings, AI card: Connect and Disconnect for Claude, an OpenAI tile that says Later, a model list",
-     "no pull request yet (issue 446)", "", None),
-    ("#453", "The prototype review of 01-11-2026 (a record of differences; nothing to build as one item)",
-     "no pull request yet (issue 453)", "", None),
+    ("#174", "The first start asks for your name and details, kept in Settings and used to record who changed what", "no pull request yet (issue 174)", "", None),
+    ("#446", "Settings, AI card: Connect and Disconnect for Claude, an OpenAI tile that says Later, a model list", "no pull request yet (issue 446)", "", None),
+    ("#453", "The prototype review of 01-11-2026 (a record of differences; nothing to build as one item)", "no pull request yet (issue 453)", "", None),
     ("#611", "A blank client message is turned away in plain words, not a server error", "no pull request yet (issue 611)", "", None),
     ("#613", "Settings: typing a full name suggests an Alias (Jane Doe suggests Jane,JD)", "no pull request yet (issue 613)", "", None),
 ]
