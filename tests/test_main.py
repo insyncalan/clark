@@ -428,12 +428,13 @@ class InProcess(TempFolder):
         code, out, err, serve = self.run_main("--port", "8123")
         self.assertEqual((code, err), (0, ""))
         (call,) = serve.calls
-        self.assertEqual(sorted(call), ["activity", "app_settings", "as_at", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "logs", "milestones", "movement", "out", "page_html", "past", "people", "people_list", "people_undo", "port", "profile", "projects", "publication_mark", "publisher", "safety", "section_image", "sneak", "undo", "use_cases",
-                                        "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route; #443: past (the Published reports list and Open); #349: as_at; #345: publication_mark (Archive and Restore)
+        self.assertEqual(sorted(call), ["activity", "app_settings", "as_at", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "excel_import", "logs", "milestones", "movement", "out", "page_html", "past", "people", "people_list", "people_undo", "port", "profile", "project_save", "projects", "publication_mark", "publisher", "safety", "section_image", "sneak", "undo", "use_cases",
+                                        "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route; #443: past (the Published reports list and Open); #349: as_at; #345: publication_mark (Archive and Restore); item 444: excel_import and project_save
         self.assertTrue(callable(call["as_at"].read))
         self.assertTrue(callable(call["past"].listing) and callable(call["past"].visit) and callable(call["past"].take))
         self.assertTrue(callable(call["change"]) and callable(call["undo"]))
         self.assertTrue(callable(call["word_import"]) and callable(call["word_export"]))
+        self.assertTrue(callable(call["excel_import"]) and callable(call["project_save"]))      # #444
         self.assertTrue(callable(call["safety"].listing) and callable(call["safety"].preview) and callable(call["safety"].restore))
         self.assertTrue(callable(call["projects"]))
         self.assertEqual(call["port"], 8123)

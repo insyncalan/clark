@@ -124,7 +124,6 @@ function Import() {
         ) : (
           <>
             <p class="muted dlg-sub">Choose a Word file of up to {WORD_FILE_MB} MB. You will see what it holds first. Nothing is added until you choose.</p>
-            {/* WORDING: owner to rule */}
             <p class="muted dlg-sub" id="word-shown">The rows are shown to the client until you hide them with the eye.</p>
             <label class="pub-field">Word file
               <input type="file" id="word-file" accept=".docx" disabled={busy} onChange={(e) => chooseFile(e.currentTarget.files && e.currentTarget.files[0])} />

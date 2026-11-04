@@ -22,6 +22,7 @@ from test_server import chrome
 WIDTHS = (1400, 900)
 NAME_LINE = "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional."
 EMAIL_LINE = "Optional. Used only to tell which email addresses are your own. Nothing here sends email."
+ALIAS_LINE = "Your first name and your initials, worked out from your full name. You can change it."     # item 613: the Alias box under the name
 
 
 class AboutYou(Base):
@@ -100,8 +101,8 @@ class AboutYou(Base):
                 self.close_menu(p)
                 self.open_settings(p)
                 self.assertEqual(p.js("document.querySelector('[data-about-you] legend').textContent"), "About you")
-                self.assertEqual(p.js("[...document.querySelectorAll('[data-about-you] label')].map(l => l.textContent)"), ["Your name", "Your email"])
-                self.assertEqual(p.js("[...document.querySelectorAll('[data-about-you] small')].map(l => l.textContent)"), [NAME_LINE, EMAIL_LINE])
+                self.assertEqual(p.js("[...document.querySelectorAll('[data-about-you] label')].map(l => l.textContent)"), ["Your name", "Alias", "Your email"])
+                self.assertEqual(p.js("[...document.querySelectorAll('[data-about-you] small')].map(l => l.textContent)"), [NAME_LINE, ALIAS_LINE, EMAIL_LINE])
                 self.assertEqual(p.js("[document.querySelector('#about-name').value, document.querySelector('#about-email').value]"), ["", ""])
                 self.assertEqual(self.saved(), {})
                 self.assertEqual(p.js("Object.keys(localStorage).filter(k => /name|email|profile/i.test(k))"), [], "nothing is kept in the browser")
@@ -114,7 +115,7 @@ class AboutYou(Base):
             self.type_into(p, "email", "sam@example.test")
             p.until("document.querySelector('#about-name').value === 'Sam Lee'", "the box holds it")
             self.handled(p, "Sam Lee", "sam@example.test")
-            self.assertEqual(self.saved(), {"profile_email": "sam@example.test", "profile_name": "Sam Lee"})
+            self.assertEqual(self.saved(), {"profile_email": "sam@example.test", "profile_name": "Sam Lee", "profile_alias": "Sam, SL"})
             self.open_menu(p)
             self.assertEqual(self.top(p), {"name": "Sam Lee", "email": "sam@example.test", "title": "Sam Lee\nsam@example.test"})
             self.assertEqual(p.js("getComputedStyle(document.querySelector('#profile-menu .who b')).fontWeight >= 500"), True)

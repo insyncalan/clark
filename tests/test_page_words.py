@@ -181,7 +181,7 @@ class Words(unittest.TestCase):
                                   "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",
-                                  "No client folder yet.", "Choose folder",
+                                  "No client folder yet.", "Choose folder", "or paste the folder's path", "Use", "A folder on this computer.",
                                   "Published reports · Example Programme",      # #443: the card; the page has no server here, so its list says it could not be read
                                   "Every time you publish, the report gets the next number for this project and a copy of the page is kept. Open shows the copy as it was published. Every copy is kept; this list shows the latest 10.",
                                   "The published reports could not be read. Reload the page and try again. Try again",
@@ -195,6 +195,7 @@ class Words(unittest.TestCase):
                                   "One card", "All the sections in one long card.",
                                   "Appearance", "System", "Follows your Mac's setting.", "Light", "Always light.", "Dark", "Always dark.",      # #179
                                   "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
+                                  "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
                                   "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
@@ -205,6 +206,13 @@ class Words(unittest.TestCase):
                                   "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
                                   "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",
                                   "Open folder", "Copy diagnostics", "The log settings could not be read. Reload the page and try again.",
+                                  "Projects", "Show archived", "Add project",      # A-S6: the projects table comes before the Data card; this server has no list to give (#444: Add project is on it)
+                                  "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
+                                  "The list of projects could not be read. Choose Try again. If it happens again, restart clark. Try again",
+                                  "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
+                                  "Export workbook", "Import workbook",        # #444: Export and Import
+                                  "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases. Export saves this project's as an Excel workbook; "
+                                  "your browser saves the file and nothing is sent or published. Import shows what would change before anything is saved.",
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
