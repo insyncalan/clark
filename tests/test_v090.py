@@ -51,15 +51,63 @@ COVERED = [
      "test_changes_null_message::NullMessage::test_a_null_client_message_is_refused_and_nothing_is_saved"),
     ("#613", "Settings, About you: typing Jane Doe fills the Alias box with Jane, JD; it is saved beside the name, and a saved or typed Alias is kept when the name changes.",
      "test_alias_suggest::OnThePage::test_C_jane_doe_is_saved_with_jane_jd_and_a_typed_alias_is_kept_when_the_name_changes"),
+    ("#343", "A past publication opens read only: a banner with its number and day and Back to now, a tinted frame, nothing to change.",
+     "test_past_view::TheBanner::test_the_words_the_date_the_tint_and_back_to_now"),
+    ("#343", "A kept file that no longer matches its checksum is refused in plain words and not shown.",
+     "test_past_view::TheChecksum::test_a_file_that_no_longer_matches_is_refused_in_plain_words_with_what_to_do"),
+    ("#345", "Each published report row has Archive; an archived one is hidden from the list and the pickers; Show archived lists them with Restore.",
+     "test_past_reports_card::Card::test_each_row_has_archive_and_the_default_list_hides_the_archived"),
+    ("#345", "Archive says \"Publication N archived. Restore it from Show archived.\" and offers no Undo; Restore brings it back.",
+     "test_past_reports_card::Card::test_archive_asks_once_says_the_exact_words_with_no_undo_and_reads_the_list_again"),
+    ("#345", "Show archived lists the archived publications marked Archived, each with Restore.",
+     "test_past_reports_card::Card::test_show_archived_lists_them_marked_with_restore_and_restore_says_its_words"),
+    ("#391", "The High risks and issues tile counts risks and issues only, by one rule, with the same colour on the page and in the published file.",
+     "test_glance_rule::OneRule::test_the_published_file_gives_the_same_colour_as_the_page"),
+    ("#613", "Settings, About you: typing a full name shows the suggested Alias below the name (the first name, then the initials).",
+     "test_alias_suggest::Suggest::test_a_full_name_suggests_the_first_name_then_the_initials"),
+    ("#434", "The risks, issues, actions and decisions rows show a status pill, a heading with a line when empty, edit in place, and an Add line.",
+     "test_item_rows::EditRows::test_every_part_of_a_row_edits_in_place_and_the_pill_is_the_prototypes"),
+    ("#434", "The Add line adds a row with its client wording, and the count follows.",
+     "test_item_rows::EditRows::test_the_add_line_adds_a_row_with_its_wording_and_the_count_follows"),
+    ("#434", "The eye takes a row off the page and Add from your project record puts it back.",
+     "test_item_rows::EditRows::test_the_eye_takes_a_row_off_and_add_from_your_project_record_puts_it_back"),
+    ("#434", "What a client reads has no edit control and nothing internal.",
+     "test_item_rows::EditRows::test_what_a_client_reads_has_no_edit_control_and_nothing_internal"),
+    ("#614", "The ring beside Publishing\u2026 keeps turning, at a calmer pace, for as long as publishing takes; reduced motion shows a still ring.",
+     "test_publish_ring::Ring::test_C_the_ring_still_turns_after_the_old_stop_time_while_publishing"),
+    ("#644", "The Use case summary has no export icon in View or in Edit; the Work items workbook export is unchanged.",
+     "test_uc_row_parity::Reference::test_the_use_case_summary_has_no_export_icon_in_view_or_edit"),
+    ("#612", "In the right-click menu, when the browser does not copy, the select-and-press-copy hint shows only if there is a selection.",
+     "test_row_menu::Menu::test_when_the_browser_does_not_copy_the_cmd_c_hint_shows_only_with_a_selection"),
+    ("#612", "Duplicate with forged label values is refused and writes nothing.",
+     "test_changes_item_eye::Duplicate::test_a_forged_labels_value_on_duplicate_is_refused_and_writes_nothing"),
+    ("#48", "Export to Word saves a file and says where.",
+     "test_word_screens::Export::test_an_export_saves_a_file_and_says_where"),
+    ("#48", "Import from Word shows what it read before anything is added, adds only what is chosen, with one Undo.",
+     "test_word_screens::Import::test_it_shows_what_it_read_before_anything_is_added_then_adds_only_what_is_chosen_with_one_undo"),
+    ("#48", "Import from Word reads only a Word document, on the server as on the page.",
+     "test_word_route::Refusals::test_only_a_docx_is_read_whatever_is_inside"),
+    ("#438", "The Also a PDF tick has the prototype's words.",
+     "test_pdf_print::Words::test_the_tick_has_the_prototypes_words"),
+    ("#438", "A page with the print flag opens the print box once it has drawn.",
+     "test_pdf_print::Browser::test_a_page_with_the_flag_opens_the_print_box_once_it_has_drawn_and_a_page_without_it_does_not"),
+    ("#449", "Add makes an item, opens it, and Undo removes it.",
+     "test_work_add_item::AddMenu::test_each_pick_makes_the_item_opens_it_and_undo_removes_it"),
+    ("#449", "A double-click on the grip resets a column's width, with a toast.",
+     "test_board_columns::Columns::test_a_double_click_on_the_grip_says_column_width_reset_in_a_toast_in_view_and_in_edit"),
+    ("#613", "The Alias box fills in from the name at both widths, light and dark.",
+     "test_alias_suggest::OnThePage::test_C_the_box_is_filled_from_the_name_at_both_widths_light_and_dark"),
+    ("#613", "Jane Doe is saved with Jane, JD, and a typed Alias is kept when the name changes.",
+     "test_alias_suggest::OnThePage::test_C_jane_doe_is_saved_with_jane_jd_and_a_typed_alias_is_kept_when_the_name_changes"),
+    ("#160", "The Not reviewed tile's line says its days and its open items.",
+     "test_glance_not_reviewed::NotReviewed::test_the_count_is_the_list_it_opens_with_the_freshness_filter_on"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#48", "HOLD (the Help wording is the owner's call): Export to Word and Import from Word screens", "PR 475", "page/src/edit/Word.jsx", "export function WordLayer"),
     ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo", "PR 592", "updater.py", "class Updater"),
     ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 592", "page/src/edit/Update.jsx", "upd-rows"),
-    ("#449", "Work items: the column width can be changed and reset, with a toast", "PR 555", "page/src/logic/board.js", "COL_MIN"),
     ("#444", "Settings Data card and Projects table: Import workbook, Add and Edit project", "PR 461", "page/src/logic/dataCard.js", "export const DATA"),
 ]
 
@@ -67,7 +115,7 @@ WAITING = [
 WALK_THROUGH = [
 ]
 
-BANNED_WORDS = ("apply", "applied", "staged", "proposal", "sweep", "tracker", "vault", "extract")
+BANNED_WORDS = ("apply", "applied", "staged", "proposal", "sweep", "tracker", "vault", "extract", "refused")
 
 
 def names_in(path):
