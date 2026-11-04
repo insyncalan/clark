@@ -342,6 +342,7 @@ class ClaudeCommand(ask.Provider):
     """The Claude command as an ask.Provider. `places`, `roots`, `env`, `limit` and `max_out` are seams for the tests (a fake
     command); clark itself uses the defaults."""
     provider = PROVIDER
+    models = MODELS                            # what `model` may be; a command for another provider has its own list
 
     def __init__(self, places=PLACES, env=None, limit=TIME_LIMIT, max_out=MAX_OUT, check_limit=CHECK_LIMIT, roots=None):
         self.places, self.limit, self.max_out, self.check_limit = tuple(places), limit, max_out, check_limit
@@ -447,7 +448,7 @@ class ClaudeCommand(ask.Provider):
 
     def ask(self, request, model=None, prefer=False):
         """`prefer`: the model is only a default, so a command that can't choose one answers with its own instead of refusing."""
-        if model is not None and not (isinstance(model, str) and model in MODELS):
+        if model is not None and not (isinstance(model, str) and model in self.models):
             return ask.Failure(MODEL_REFUSED)    # fails closed, before anything is checked or sent
         with self.guard:                       # #284: registering the run and clearing stop state are one step Stop cannot split
             if not self.lock.acquire(blocking=False):

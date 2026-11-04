@@ -698,12 +698,18 @@ def _scratch_parent():
     return str(parent)
 
 
-def run_stoppable(args, data, env, limit, max_out, stop=None, prefix="clark-run-", tmp_names=("TMPDIR",)):
+def scratch_parent():
+    """The folder run_stoppable's working folders are made in (ai_codex.py names them in its sandbox rules)."""
+    return _scratch_parent()
+
+
+def run_stoppable(args, data, env, limit, max_out, stop=None, prefix="clark-run-", tmp_names=("TMPDIR",), merge_err=False):
     """Run one program from an argument list (never a shell) as the leader of its own process group, in a new empty folder of its
     own (removed afterwards), with exactly `env` as its environment, `data` on standard input, and read at most `max_out` bytes
     of standard output within `limit` seconds. `stop` (a threading.Event) ends it early. Returns (status, out, code): status is
     "ok" (exit code 0), "failed" (any other code, or it could not start), "slow", "too_much" or "stopped"; `out` is empty unless
-    the program finished. Standard error is thrown away (it could hold what it was given). Whatever ends the run, the whole
+    the program finished. Standard error is thrown away (it could hold what it was given), unless `merge_err` asks for it with standard
+    output (a program that says its status there, given nothing to repeat). Whatever ends the run, the whole
     group is ended (anything the program started goes too). Each name in `tmp_names` is set in the program's environment to a
     second new folder of its own (0700, removed afterwards), so its temporary files are never shared with another run. Standard
     input reaches its end as soon as `data` is written; it is fed through a pipe end of clark's own that never blocks, so a
@@ -722,7 +728,7 @@ def run_stoppable(args, data, env, limit, max_out, stop=None, prefix="clark-run-
         try:
             # close_fds and no pass_fds: only 0, 1 and 2 reach the program (nothing clark holds open); umask 077: what it writes is
             # the person's alone
-            proc = subprocess.Popen(list(args), stdin=r, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=work,
+            proc = subprocess.Popen(list(args), stdin=r, stdout=subprocess.PIPE, stderr=subprocess.STDOUT if merge_err else subprocess.DEVNULL, cwd=work,
                                     env=env, close_fds=True, pass_fds=(), start_new_session=True, shell=False, umask=0o077)
         except (OSError, ValueError, subprocess.SubprocessError):
             os.close(w)
