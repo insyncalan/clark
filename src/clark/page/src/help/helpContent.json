@@ -414,7 +414,6 @@
     "go": "work",
     "s": [
      "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks and issues, Decisions, Milestones and Use cases, named after today and the project.",
-     "The Use case summary has its own export icon (in View), for the use cases alone.",
      "**Import**: press the up-arrow icon. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
      "Press **Choose a file** (Excel or CSV). **Check the import** shows how many rows are new, updated or skipped, and the first few. Press **Import** to save them.",
      "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
