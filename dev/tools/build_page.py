@@ -67,6 +67,10 @@ class BuildError(RuntimeError):
     """esbuild refused the source (a syntax error, a missing import or file); the message is esbuild's."""
 
 
+class PictureError(ValueError):
+    """A Help picture is missing, is not pinned, or does not match its pin (dev/tools/help_pins.json); the build is refused."""
+
+
 class FontManifestError(ValueError):
     """A font manifest entry was refused (#236); the message names the manifest and the entry, never a resolved path."""
 
@@ -124,6 +128,45 @@ def help_content_path(held=True):
     return out
 
 
+PICTURES_DIR = PAGE / "help-pictures"
+SHOTS_FILE = HERE / "help_shots.json"
+PINS_FILE = HERE / "help_pins.json"
+MAX_PICTURE_BYTES = 3 * 1024 * 1024      # the owner's budget for all the Help pictures together
+
+
+def help_pictures_path(inline, folder=None, shots=None, pins=None):
+    """The module the editing page's Help imports as `clark-help-pictures`: one object, shot id to the picture as a base64 data:
+    URI. Every listed shot must have its file, the file's SHA-256 must be its pin in help_pins.json, and all together they must
+    fit the budget, or PictureError (the build is refused). With inline=False (the published page, which has no Help) the module
+    is an empty object, so no picture can reach that page. Written to the git-ignored shown/ folder, like Help's words."""
+    folder = PICTURES_DIR if folder is None else Path(folder)
+    shots = SHOTS_FILE if shots is None else Path(shots)
+    pins = PINS_FILE if pins is None else Path(pins)
+    found = {}
+    if inline:
+        ids = [s["id"] for s in json.loads(shots.read_text(encoding="utf-8"))["shots"]]
+        pinned = json.loads(pins.read_text(encoding="utf-8"))
+        total = 0
+        for i in sorted(ids):
+            f = folder / f"{i}.png"
+            if not f.is_file():
+                raise PictureError(f"Help picture {i}.png is missing.")
+            data = f.read_bytes()
+            if pinned.get(f"{i}.png") != hashlib.sha256(data).hexdigest():
+                raise PictureError(f"Help picture {i}.png does not match its pin in help_pins.json.")
+            total += len(data)
+            found[i] = "data:image/png;base64," + base64.b64encode(data).decode("ascii")
+        extra = sorted(set(pinned) - {f"{i}.png" for i in ids})
+        if extra:
+            raise PictureError(f"{extra[0]} is pinned but no shot makes it.")
+        if total > MAX_PICTURE_BYTES:
+            raise PictureError(f"The Help pictures are {total // 1024} KB in all; the budget is 3 MB.")
+    SHOWN_DIR.mkdir(exist_ok=True)
+    out = SHOWN_DIR / ("helpPictures.js" if inline else "helpPicturesNone.js")
+    out.write_text("export default " + json.dumps(found, sort_keys=True) + ";\n", encoding="utf-8")
+    return out
+
+
 def vendor_modules(vendor=None):
     """[(specifier, absolute path)] for the modules in vendor/preact/manifest.json, sorted. The manifest is data (#236): a module's
     path must be one of the manifest's own fingerprinted "files" entries, a plain relative path that stays inside the vendor
@@ -175,12 +218,13 @@ def vendor_modules(vendor=None):
     return out
 
 
-def preact_flags(held=True):
+def preact_flags(held=True, inline_pictures=False):
     """JSX through esbuild (the automatic runtime, from Preact), each library specifier mapped to its vendored file, and Help's words."""
     return ["--jsx=automatic", "--jsx-import-source=preact", "--loader:.jsx=jsx",
             *(f"--alias:{spec}={path}" for spec, path in vendor_modules()),
             f"--alias:tiptap={VENDOR_TIPTAP / 'tiptap.module.js'}",      # the editor (#66); only the Edit entry imports it
-            f"--alias:clark-help-content={help_content_path(held)}"]
+            f"--alias:clark-help-content={help_content_path(held)}",
+            f"--alias:clark-help-pictures={help_pictures_path(inline_pictures)}"]      # the editing page only: see help_pictures_path
 
 
 def bundle(entry=ENTRY):
@@ -189,7 +233,7 @@ def bundle(entry=ENTRY):
         out = Path(tmp) / "page.js"
         args = ["--bundle", "--format=iife", "--minify", "--target=es2020", "--legal-comments=none", "--charset=utf8",
                 "--tsconfig-raw={}",             # a tsconfig.json in a parent folder would add "use strict" and change the bytes (creaite, 13-10-2026)
-                *preact_flags(), entry, f"--outfile={out}"]
+                *preact_flags(inline_pictures=entry in EDIT_ENTRIES), entry, f"--outfile={out}"]
         done = esbuild.run(args, cwd=SRC, capture_output=True, text=True)
         if done.returncode != 0:
             raise BuildError(f"esbuild failed on src/{entry}:\n{done.stderr.strip()}")
@@ -340,7 +384,7 @@ def pages():
 def main(argv):
     try:
         made = pages()          # every page is made before any is written, so a refused font or module leaves the committed pages alone
-    except (FontManifestError, VendorManifestError) as e:
+    except (FontManifestError, VendorManifestError, PictureError) as e:
         print(f"build refused: {e}", file=sys.stderr)
         return 1
     if "--check" in argv:
