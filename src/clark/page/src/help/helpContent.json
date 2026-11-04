@@ -105,7 +105,8 @@
     "publish-the-report",
     "Publish to the client",
     "Check the report, then send the finished copy.",
-    "publish"
+    "publish",
+    "publish-to-the-client"
    ]
   ],
   "where": [
@@ -2463,6 +2464,113 @@
     "guide-add-a-section-from-a-template",
     "howto-undo-a-mistake",
     "howto-publish-the-report"
+   ]
+  },
+  {
+   "id": "bring-in-an-excel-workbook",
+   "t": "Bring in an Excel workbook",
+   "job": "Read a workbook into the project, see every change before anything is saved, and choose which to keep.",
+   "steps": [
+    {
+     "d": "Press your profile circle and choose **Settings**. Find the **Data** card: it has two buttons, **Export workbook** and **Import workbook**. Press **Import workbook**."
+    },
+    {
+     "d": "The box **Import from Excel** says what is read: sheets called Actions, Risks and issues (or RAID), Decisions, Milestones and Use cases. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
+    },
+    {
+     "d": "Press **Choose a file** and pick an .xlsx workbook of up to 25 MB. A macro workbook (.xlsm) is turned away and nothing is saved; save a copy as an ordinary .xlsx workbook and choose that."
+    },
+    {
+     "d": "The box **Check the import** opens. A line gives the counts: how many rows are new, how many changed, how many are no longer in the workbook and how many are unchanged. Unchanged rows are left alone. Nothing has been saved yet."
+    },
+    {
+     "d": "Read the list under the counts. Each change has a tick and a tag: **New** rows will be added, **Changed** rows will update the item already in clark, and a row tagged Not in the workbook would archive its item. A line under a change says what differs. A change that would be refused says why and cannot be ticked."
+    },
+    {
+     "d": "Untick any change you do not want. New and changed rows start ticked, except a change that clashes: a line under it says it changed in clark after the workbook was made, and it starts unticked. Rows tagged Not in the workbook also start unticked. If clark has no record of exporting the workbook, it warns you, and the button reads **Import anyway**."
+    },
+    {
+     "d": "Press the button at the foot, which reads Import and the number you ticked, such as Import 3 changes. The whole import is one step."
+    },
+    {
+     "d": "The box says what was done. Press **Undo this import** to put the project back as it was before, or **Close** to keep it. The project’s pages then show the new and changed items."
+    }
+   ],
+   "result": "The box tells you what was added and updated, the rows you left are untouched, and one press of Undo this import takes the whole import back.",
+   "next": [
+    "guide-send-the-workbook-out",
+    "howto-undo-a-mistake"
+   ]
+  },
+  {
+   "id": "send-the-workbook-out",
+   "t": "Send the workbook out",
+   "job": "Save the project as an Excel workbook, know what is in it, and take changes back in.",
+   "steps": [
+    {
+     "d": "On **Work items**, in View, press the **Export to Excel** icon in the page header, beside the add button. The icon is not there in Edit, so use step 2 or 3 instead."
+    },
+    {
+     "d": "Or press your profile circle and choose **Export to Excel**. It gives the same workbook from any screen."
+    },
+    {
+     "d": "Or choose **Settings** from the profile circle, find the **Data** card and press **Export workbook**. It is the same export again."
+    },
+    {
+     "d": "Your browser saves one .xlsx file, and a message gives its name. Nothing is sent or published: the file is only on your computer."
+    },
+    {
+     "d": "Open the file. It opens on the Cover sheet. The first line is the project name, tagged INTERNAL. Below it come the report’s current state, the health and the at a glance tiles, and the text sections, as the published page shows them. Then comes an About this export block: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs."
+    },
+    {
+     "d": "After the Cover come the sheets of rows: Milestones, Actions, Risks and issues, Decisions and Use cases. Each row is one item, with its ID in the first column. A History sheet follows with the record of changes, read only. Changes made on the Cover are ignored."
+    },
+    {
+     "d": "The workbook includes internal notes and Sensitive items, so never send it to a client. To send changes back, edit the rows on the data sheets, leave every ID as it is, and import the file with **Import workbook**."
+    }
+   ],
+   "result": "A single Excel workbook is saved by your browser, opening on a Cover sheet, with one sheet for each kind of work and one row for each item.",
+   "next": [
+    "guide-bring-in-an-excel-workbook",
+    "ref-work-items"
+   ]
+  },
+  {
+   "id": "publish-to-the-client",
+   "t": "Publish to the client",
+   "job": "Check the report, then save the finished copy locally and, if you choose, send it to the client.",
+   "steps": [
+    {
+     "d": "To look first, press your profile circle and choose **Preview the page in a new tab**. It shows what the client will see, and nothing is saved."
+    },
+    {
+     "d": "Press your profile circle and choose **Publish…**. The box **Publish the report** opens. The line under its title gives the project, the week ending, the number this publication will have, such as this will be Publication 4, and when and where the last one went."
+    },
+    {
+     "d": "**Local** is always ticked, and the box says you choose the folder and name in the save window. Tick **To client** to copy it to the client folder as well. With no client folder set, that tick is off and a link takes you to Settings, Publishing to set one."
+    },
+    {
+     "d": "If you want them, tick **Also a PDF** (your browser’s print box opens and you choose Save as PDF) and **Also a Word document** (a Word copy of the report, saved in the folder last used for this project)."
+    },
+    {
+     "d": "With **To client** ticked, a line says the client will see the page, and the Word report if you ticked it, and only what is shown in View mode. A hidden section or a work item with its eye turned off is not included."
+    },
+    {
+     "d": "If a work item the client would see still has its placeholder title, such as New action, the box warns you with a count. It does not stop you. To fix it, press **Cancel**, rename the item or turn off its eye, and open **Publish…** again."
+    },
+    {
+     "d": "Press the button at the foot, which reads **Publish locally**, or **Publish and send to the client** when To client is ticked. A spinner shows while it works. If the file name is taken, the box asks what to do: **Add a number**, **Rename it** or, where it is allowed, **Overwrite the existing file**."
+    },
+    {
+     "d": "The button turns green and reads Published, with the publication number in brackets, such as Publication 4. Press it to close the box."
+    }
+   ],
+   "result": "The button shows a green tick and Published with its publication number. The saved page is the one the client sees, and the next publication gets the next number.",
+   "next": [
+    "howto-save-as-a-pdf",
+    "howto-word-in-and-out",
+    "howto-find-a-past-publication",
+    "ref-published-reports"
    ]
   }
  ],
