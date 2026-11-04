@@ -50,6 +50,29 @@ export async function exportRequest(project) {
     return { status: 0, body: null, blob: null, name: "" };
   }
 }
+// The import template (item 454): GET /api/export?template=1, an export's workbook with no rows. It asks about no project and the server reads
+// nothing for it; `name` is the one the server gave. Never a throw.
+export async function templateRequest() {
+  try {
+    const r = await fetch("/api/export?template=1", { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    if (r.status === 200) {
+      const given = /filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "");
+      return { status: 200, body: null, blob: await r.blob(), name: given ? given[1] : "" };
+    }
+    return { status: r.status, body: await r.json().catch(() => null), blob: null, name: "" };
+  } catch (e) {
+    return { status: 0, body: null, blob: null, name: "" };
+  }
+}
+// Saves a file the page was given: a download anchor on a blob, which saves a file and does not navigate (only router.js touches
+// history or the address). Returns the name the browser is asked to save it under.
+export function saveBlob(blob, name) {
+  const url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = name; a.hidden = true;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  return a.download;
+}
 // The folders asking may read (#47): GET /api/ask-folders?project= and POST /api/ask-folders {project, action: "add" | "remove",
 // path}; "choose" opens the system's folder window on the server (no path from the page). The server checks a folder and saves it; a server without this route answers 404, which the page says in plain words.
 export const askFoldersRead = (project) => call("GET", `/api/ask-folders?project=${encodeURIComponent(project)}`);

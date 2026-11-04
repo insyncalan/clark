@@ -47,6 +47,8 @@ COVERED = [
      "test_work_archived_peek::ArchivedPeek::test_a_row_opens_the_peek_read_only_with_one_restore"),
     ("#450", "Restore puts the item back and leaves the peek open on it, now editable.",
      "test_work_archived_peek::ArchivedPeek::test_restore_puts_it_back_and_leaves_the_peek_open_on_it"),
+    ("#444", "Settings › Data: Import workbook checks the workbook first, then imports it in one step, and Undo this import puts it back.",
+     "test_settings_data_page::Card::test_import_checks_then_imports_in_one_step_and_undo_puts_it_back"),
     ("#611", "A blank client message is turned away in plain words, not a server error.",
      "test_changes_null_message::NullMessage::test_a_null_client_message_is_refused_and_nothing_is_saved"),
     ("#613", "Settings, About you: typing Jane Doe fills the Alias box with Jane, JD; it is saved beside the name, and a saved or typed Alias is kept when the name changes.",
@@ -60,7 +62,6 @@ WAITING = [
     ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo", "PR 592", "updater.py", "class Updater"),
     ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 592", "page/src/edit/Update.jsx", "upd-rows"),
     ("#449", "Work items: the column width can be changed and reset, with a toast", "PR 555", "page/src/logic/board.js", "COL_MIN"),
-    ("#444", "Settings Data card and Projects table: Import workbook, Add and Edit project", "PR 461", "page/src/logic/dataCard.js", "export const DATA"),
 ]
 
 # (item, check, kind, why, what the person does)
