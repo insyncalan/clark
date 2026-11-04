@@ -67,7 +67,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean, onE
         ? (typeof section.body === "string" && section.body ? <div class="sec-body prose" dangerouslySetInnerHTML={{ __html: section.body }} /> : null)
         : !editing && clean && (section.type === "text" || section.type === "current")
         ? <ViewText html={clean(section.type === "current" ? ((data.value && data.value.project) || {}).current_state : section.body)} />
-        : KINDS[section.type] ? <ItemRows type={section.type} />          // risks and issues, actions, decisions: their rows (A-D5)
+        : KINDS[section.type] ? (editing ? <tools.ItemRowsEdit type={section.type} section={section} /> : <ItemRows type={section.type} />)     // risks and issues, actions, decisions: their rows (A-D5)
         : <p class="quiet">Not shown on this page yet.</p>}
     </article>
   );

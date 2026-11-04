@@ -14,8 +14,8 @@ export const plainTextEditing = (() => {
   } catch (e) { return false; }
 })();
 
-const read = (el) => (plainTextEditing ? el.textContent : el.value);
-const show = (el, text) => { if (plainTextEditing) el.textContent = text; else el.value = text; };
+export const read = (el) => (plainTextEditing ? el.textContent : el.value);
+export const show = (el, text) => { if (plainTextEditing) el.textContent = text; else el.value = text; };
 
 export function Title({ section }) {
   const ref = useRef(null), now = useRef(section.title), cancelled = useRef(false);
