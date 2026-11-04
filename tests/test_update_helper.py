@@ -645,6 +645,43 @@ class KillTest(unittest.TestCase):
                 self.kill_at(point, boom="carry")
 
 
+class CleanupPathTest(unittest.TestCase):
+    def test_cleanup_removes_only_a_staging_folder_inside_the_app_or_updates_folder(self):
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            path = fx.begin()
+            elsewhere = Path(t) / "unrelated"
+            put(elsewhere, "keep.txt", b"not clark's")
+            inside_data = fx.data / h.UPDATES / (h.STAGING_PREFIX + STAMP)
+            put(inside_data, "x", b"x")
+            m = json.loads(path.read_text(encoding="utf-8"))
+            for odd in (elsewhere, fx.app, fx.data, elsewhere / "keep.txt"):
+                with self.subTest(staging=odd.name):
+                    m["staging"] = str(odd)
+                    path.write_text(json.dumps(m), encoding="utf-8")
+                    before = snapshot(Path(t))
+                    h.Run(path, FakeSeams()).r_cleanup()                  # no raise, nothing removed
+                    self.assertEqual(before, snapshot(Path(t)))
+            link = fx.app / (h.STAGING_PREFIX + "link")
+            try:
+                link.symlink_to(elsewhere, target_is_directory=True)
+            except (OSError, NotImplementedError):
+                link = None
+            if link is not None:
+                m["staging"] = str(link)
+                path.write_text(json.dumps(m), encoding="utf-8")
+                h.Run(path, FakeSeams()).r_cleanup()
+                self.assertTrue((elsewhere / "keep.txt").exists())
+            m["staging"] = str(inside_data)
+            path.write_text(json.dumps(m), encoding="utf-8")
+            h.Run(path, FakeSeams()).r_cleanup()
+            self.assertFalse(inside_data.exists())
+            m["staging"] = str(fx.staging)
+            path.write_text(json.dumps(m), encoding="utf-8")
+            h.Run(path, FakeSeams()).r_cleanup()
+            self.assertFalse(fx.staging.exists())
+
+
 class FinishTest(unittest.TestCase, PlainWordsMixin):
     def test_nothing_to_finish_changes_nothing(self):
         with tempfile.TemporaryDirectory() as t:

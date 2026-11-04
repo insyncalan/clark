@@ -1043,8 +1043,16 @@ class Run:
             odd = sorted(set(now) ^ set(self.m["before"]) | {r for r in now if r in self.m["before"] and now[r] != self.m["before"][r]})
             raise StepError("not_restored", "the old files do not match: " + ", ".join(odd[:5]))
 
+    def own_staging(self):
+        """Whether the staging path in the marker is a real folder (not a link) directly inside the app folder or the updates
+        folder, where clark makes them; the marker is a file anyone could have changed, so nothing else is ever removed."""
+        if self.staging.is_symlink() or not self.staging.is_dir():
+            return False
+        parent = os.path.realpath(self.staging.parent)
+        return parent in (os.path.realpath(self.app), os.path.realpath(updates_dir(self.data)))
+
     def r_cleanup(self):
-        if self.staging.exists():
+        if self.staging.exists() and self.own_staging():
             shutil.rmtree(self.staging)
         if self.old.exists():
             try:
