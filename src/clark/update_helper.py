@@ -1022,7 +1022,7 @@ class Run:
             record["data_restore_pending"] = {"reason": REASONS.get(error.key, REASONS["stopped"])}
             write_json(record_file, record)
         except (OSError, ValueError, TypeError, AttributeError):
-            pass                                         # the message still says what to do; the log has the reason
+            self.log("keep_pending", False, 0, "the pending update state could not be saved")   # fixed words: no path, no error text
 
     def data_words(self, message):
         """The sentence for a way back that touched the data (or tried to), else `message` unchanged."""
