@@ -262,14 +262,15 @@ class Peek(Base):
                     p.js("document.activeElement && document.activeElement.blur()")
                     self.open_on_key(p)
                     where = f"{w} {scheme}"
-                    p.until("document.querySelector('#help-peek').getBoundingClientRect().right === innerWidth", f"{w} {scheme}: the slide in has ended")
+                    # the slide in has ended when nothing animates in the peek and its right edge is the edge of the page's own width: a drawn scrollbar (Linux, Windows) takes room from the window, so innerWidth is not that edge there
+                    p.until("document.querySelector('#help-peek').getAnimations({subtree: true}).length === 0 && document.querySelector('#help-peek').getBoundingClientRect().right === document.documentElement.clientWidth", f"{w} {scheme}: the slide in has ended")
                     r = p.js("""(function () {
                       var e = document.querySelector('#help-peek'), b = e.getBoundingClientRect(), t = document.querySelector('header.top').getBoundingClientRect();
                       var btn = document.querySelector('#help-btn').getBoundingClientRect(), hit = document.elementFromPoint(btn.left + btn.width / 2, btn.top + btn.height / 2);
                       var probe = document.createElement('i'); probe.style.background = 'var(--surface)'; document.body.appendChild(probe);
                       var surface = getComputedStyle(probe).backgroundColor; probe.remove();
                       var small = [].filter.call(e.querySelectorAll('*'), function (n) { return n.childNodes.length && [].some.call(n.childNodes, function (c) { return c.nodeType === 3 && c.textContent.trim(); }) && parseFloat(getComputedStyle(n).fontSize) < 13; }).length;
-                      return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, w: b.width, bar: t.bottom, vw: innerWidth, vh: innerHeight, scroll: document.documentElement.scrollWidth,
+                      return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, w: b.width, bar: t.bottom, vw: document.documentElement.clientWidth, vh: innerHeight, scroll: document.documentElement.scrollWidth,
                                hitBtn: hit && hit.closest('#help-btn') ? 1 : 0, bg: getComputedStyle(e).backgroundColor, surface: surface, small: small,
                                cards: e.querySelectorAll('.hpk-cards li').length, foot: e.querySelector('[data-hpk-full]').getBoundingClientRect().bottom };
                     })()""")
