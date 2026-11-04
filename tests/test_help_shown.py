@@ -73,7 +73,7 @@ def strings(o):
 def shown_texts():
     s = SHOWN
     out = list(strings(s["start"]) if s["start"]["parts"] else [])
-    out += list(strings(s["howto"]["tasks"])) + list(strings(s["reference"]["sections"]))
+    out += list(strings(s["howto"]["tasks"])) + list(strings(s["reference"]["sections"])) + list(strings(s["guides"]))
     return out
 
 
@@ -255,6 +255,14 @@ class ReleasedLabels(unittest.TestCase):
         entries = SHOWN["howto"]["tasks"] + SHOWN["reference"]["sections"]
         self.assertEqual(self.missing(entries), [], "a released Help entry names something the page does not have: reword it or hold the entry")
 
+    def test_every_label_in_a_shown_guide_is_on_the_page(self):
+        """#642: the control names in a guide's steps and result line are strings of the page, so a renamed button fails here."""
+        self.assertTrue(SHOWN["guides"])
+        self.assertEqual(self.missing(SHOWN["guides"]), [], "a guide names something the page does not have: reword it or hold the guide")
+        named = {x for g in SHOWN["guides"] for x in labels_of(g)}
+        for want in ("Edit", "Add a section", "Add section", "Move up", "Leave out of the published page", "Include in the published page", "Delete section"):
+            self.assertIn(want, named)
+
     def test_the_check_fails_on_a_made_up_label(self):
         """Mutation check: a label the page does not have, as a bold name, a quoted word and a table row, is each reported."""
         bad = {"id": "x", "b": [["p", "Press **Frobnicate** or see \u201cWidget zone\u201d."], ["tbl", ["A", "B"], [["Gizmo row", "c"]]]]}
@@ -286,7 +294,7 @@ class NeverDelete(unittest.TestCase):
     def test_the_section_button_is_named_as_the_page_names_it(self):
         self.assertIn(f"**{SECTION_DELETE}**", json.dumps(RAW, ensure_ascii=False))
         self.assertIn(f'text: "{SECTION_DELETE}"', (PAGE_SRC / "edit" / "Gutter.jsx").read_text(encoding="utf-8"))
-        self.assertEqual(sum(s.count(SECTION_DELETE) for s in self.user_text()), 1)
+        self.assertEqual(sum(s.count(SECTION_DELETE) for s in self.user_text()), 2)      # the how-to entry and the Move, hide and delete sections guide (#642)
 
     def test_archive_says_what_it_does(self):
         text = " ".join(self.user_text())

@@ -91,13 +91,15 @@
     "add-a-section-from-a-template",
     "Add a section from a template",
     "Start a new section from a ready-made layout.",
-    "dashboard+edit"
+    "dashboard+edit",
+    "add-a-section-from-a-template"
    ],
    [
     "arrange-the-report",
     "Move, hide and delete sections",
     "Change the order of the report, or take parts out.",
-    "dashboard+edit"
+    "dashboard+edit",
+    "arrange-the-report"
    ],
    [
     "publish-the-report",
@@ -2288,6 +2290,72 @@
    ]
   ]
  },
- "guides": [],
+ "guides": [
+  {
+   "id": "add-a-section-from-a-template",
+   "t": "Add a section from a template",
+   "job": "Start a new section from a ready-made layout, in the place you choose.",
+   "steps": [
+    {
+     "d": "On the **Dashboard**, press **Edit**. Each section now has a control at the left of its card: a move button and, under it, a **+**."
+    },
+    {
+     "d": "Point at the section you want the new one to follow and press its **+**. Or click the move button to open the section’s menu and choose **Add a template below…**."
+    },
+    {
+     "d": "The **Add a section** box opens with the cursor in **Search templates**. On the left, pick a kind: **All templates**, **Text and pictures**, **Figures**, **Work items**, **Files and links**, **People and dates** or **Notes**. Or type a word to find a template by name."
+    },
+    {
+     "d": "Choose a template in the list, such as **Key figures, four** or **Callout**. [[Up]] and [[Down]] move through them. The box on the right says what the chosen one is for and what it **Holds**."
+    },
+    {
+     "d": "Under **Where it goes**, choose **On its own row**, or **Beside** the section above, which gives each of the two half the width. **Beside** is greyed out, with the reason under it, when the template cannot be half width or the section above is not on a row of its own."
+    },
+    {
+     "d": "Press **Add section**, or press [[Enter]]. Press **Cancel**, or [[Esc]], to close the box and add nothing."
+    }
+   ],
+   "result": "The new section sits below the one you chose, with its heading ready to rename. It starts empty, and an empty section is left out of what the client sees until you fill it. One **Undo** takes it away again.",
+   "next": [
+    "guide-arrange-the-report",
+    "ref-section-templates",
+    "howto-publish-the-report"
+   ]
+  },
+  {
+   "id": "arrange-the-report",
+   "t": "Move, hide and delete sections",
+   "job": "Change the order of the report, put two sections side by side, or take parts out.",
+   "steps": [
+    {
+     "d": "On the **Dashboard**, press **Edit**. Each section has a move button at the left of its card (in the margin on a wide window, inside the card on a narrow one). It is faint until you point at the section or tab to it."
+    },
+    {
+     "d": "To move a section, drag its move button and drop it. A line between two rows puts it on a row of its own. The cover stays at the top. Without a mouse, focus the button and press [[Alt+Up]] or [[Alt+Down]]."
+    },
+    {
+     "d": "Click the move button, or press [[Enter]] or [[Space]] on it, to open the section’s menu. It is headed **Options for** the section’s name."
+    },
+    {
+     "d": "To move one step, choose **Move up** or **Move down**. A choice that cannot be used is greyed out, with the reason under it."
+    },
+    {
+     "d": "To put a section beside another, choose **Place beside the next section**. Each takes half the width, and a row never holds more than two. For a section already in a pair the menu says **Full width** instead; choose it to give the section a row of its own."
+    },
+    {
+     "d": "To keep a section out of the client’s copy, choose **Leave out of the published page**. It stays in Edit, greyed, with a small eye mark under its **+** and the tag **Left out of the published page**. Choose **Include in the published page** to bring it back."
+    },
+    {
+     "d": "A text section, and the Needs from you section, also have **Delete section** in the menu. It removes the section from the report."
+    }
+   ],
+   "result": "Edit shows the sections in their new order, and the published page follows it. A section you left out is greyed in Edit and gone from View and from the published page. **Undo** puts back a move, a section left out or a section removed.",
+   "next": [
+    "guide-add-a-section-from-a-template",
+    "howto-undo-a-mistake",
+    "howto-publish-the-report"
+   ]
+  }
+ ],
  "pictures": []
 }

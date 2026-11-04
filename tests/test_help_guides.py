@@ -2,8 +2,9 @@
 
 Run: python3 dev/run_tests.py test_help_guides
 Quick tier: no browser. The page's own pure functions are bundled by the pinned esbuild and run in node (the tests skip when node
-is not on the machine). The shipped source holds NO guide yet: the fixture guide below exists only here, added in memory to a copy
-of the real source and bundled in its place, so the loader, the search and the shape rules are tested without any visible wording.
+is not on the machine). The shipped source holds the two guides of #642 guides A (add a section from a template; move, hide and delete sections).
+The fixture guide below exists only here, added in memory to a copy of the real source and bundled in its place, so the loader, the
+search and the shape rules are tested without depending on any shipped wording.
 The words of the entries are tested in test_help_content.py, the held list in test_help_shown.py.
 """
 import copy
@@ -94,9 +95,11 @@ def run_node(content, probe):
 
 
 class ShippedSource(unittest.TestCase):
-    def test_no_guide_is_shipped_yet(self):
-        self.assertEqual(RAW["guides"], [])
-        self.assertEqual(RAW["pictures"], [])
+    def test_the_two_guides_are_shipped_with_no_picture_yet(self):
+        self.assertEqual([g["id"] for g in RAW["guides"]], ["add-a-section-from-a-template", "arrange-the-report"])
+        self.assertEqual([len(g["steps"]) for g in RAW["guides"]], [6, 7])
+        self.assertEqual(RAW["pictures"], [], "the pictures live on branch v10-pictures; the integration step adds the ids")
+        self.assertFalse([s for g in RAW["guides"] for s in g["steps"] if "pic" in s])
         self.assertEqual(check_guides(RAW), [])
 
     def test_the_held_list_names_no_guide_that_does_not_exist(self):
@@ -164,10 +167,10 @@ class GuideShape(unittest.TestCase):
     def test_the_index_is_what_it_was_without_guides_pictures_and_page_keys(self):
         """The new keys add nothing to what is searched: the source without them gives the identical index, held list or not."""
         old = copy.deepcopy(RAW)
-        old.pop("guides"), old.pop("pictures")
+        old["guides"], old["pictures"] = [], []
         for e in old["howto"]["tasks"] + old["reference"]["sections"]:
             e.pop("page", None)
-        probe = "(() => { const a = HL.buildIndex(); HL.useHeld({}); return { shown: a, all: HL.buildIndex() }; })()"
+        probe = "(() => { const a = HL.buildIndex().filter((e) => !e.id.startsWith('guide-')); HL.useHeld({}); return { shown: a, all: HL.buildIndex().filter((e) => !e.id.startsWith('guide-')) }; })()"
         self.assertEqual(run_node(old, probe), run_node(RAW, probe))
         self.assertTrue(run_node(RAW, probe)["all"])
 
@@ -193,8 +196,71 @@ class GuideShape(unittest.TestCase):
             self.assertEqual(r, {"guides": 0, "places": [], "found": 0})
 
     def test_the_shipped_page_has_the_same_index_as_before(self):
-        r = run_node(RAW, "(() => ({ guides: HL.guides(), pics: HL.pictureIds(), idx: HL.buildIndex().filter((e) => e.id.startsWith('guide-')).length }))()")
-        self.assertEqual(r, {"guides": [], "pics": [], "idx": 0})
+        r = run_node(RAW, "(() => ({ guides: HL.guides().map((g) => g.id), pics: HL.pictureIds(), idx: HL.buildIndex().filter((e) => e.id.startsWith('guide-')).length }))()")
+        self.assertEqual(r, {"guides": ["add-a-section-from-a-template", "arrange-the-report"], "pics": [], "idx": 2})
+
+
+SHIPPED = shown_content()["guides"]
+HELD_PLACES = {"howto-" + i for i in LATER.get("howto", {})} | {"ref-" + i for i in LATER.get("reference", {})} \
+    | {"guide-" + i for i in LATER.get("guides", {})} | {"start-" + i for i in LATER.get("start", {})}
+
+
+class ShippedGuides(unittest.TestCase):
+    """The two guides as shipped (#642 guides A): their shape, their links, the names they use and that search finds them."""
+
+    def test_each_guide_has_five_to_eight_numbered_steps_a_result_and_next_links(self):
+        self.assertEqual(len(SHIPPED), 2)
+        for g in SHIPPED:
+            self.assertTrue(5 <= len(g["steps"]) <= 8, g["id"])
+            self.assertTrue(g["job"].strip() and g["result"].strip() and g["next"], g["id"])
+        r = run_node(RAW, "HL.guides().map((g) => [g.id, g.steps.map((s) => s.n), HL.nextLinks(g.id).map((n) => n.known)])")
+        for gid, numbers, known in r:
+            self.assertEqual(numbers, list(range(1, len(numbers) + 1)), gid)
+            self.assertTrue(known and all(known), f"{gid}: a next link goes nowhere")
+
+    def test_every_next_link_is_a_shown_place_and_a_held_place_is_never_linked(self):
+        shown = {"howto-" + t["id"] for t in shown_content()["howto"]["tasks"]} | {"ref-" + s["id"] for s in shown_content()["reference"]["sections"]} \
+            | {"guide-" + g["id"] for g in SHIPPED}
+        self.assertTrue(HELD_PLACES)
+        for g in SHIPPED:
+            for p in g["next"]:
+                self.assertIn(p, shown, f"{g['id']}: {p}")
+                self.assertNotIn(p, HELD_PLACES, f"{g['id']}: {p} is held")
+            self.assertNotIn(("guide-" + g["id"]), g["next"], "a guide does not link to itself")
+        # and the page itself, with a held list that holds everything the guides link to, shows none of those links
+        held = {"howto": {"publish-the-report": "later", "undo-a-mistake": "later"}, "reference": {"section-templates": "later"}, "guides": {"arrange-the-report": "later"}}
+        r = run_node(RAW, "(() => { HL.useHeld(%s); return HL.guides().map((g) => [g.id, HL.nextOf(g.next).map((n) => n.place)]); })()" % json.dumps(held))
+        self.assertEqual(r, [["add-a-section-from-a-template", []]])
+
+    def test_the_two_start_jobs_open_the_guides_and_the_how_to_entries_stay_reachable(self):
+        r = run_node(RAW, "(() => ({ jobs: HL.jobs().map((j) => [j.id, j.place]), howto: HL.tabList('howto').flatMap((g) => g.entries.map((e) => e.place)),"
+                     " more: HL.tabList('start').filter((g) => g.group === 'Also under How do I...').flatMap((g) => g.entries.map((e) => e.place)) }))()")
+        places = dict(r["jobs"])
+        self.assertEqual(places["add-a-section-from-a-template"], "guide-add-a-section-from-a-template")
+        self.assertEqual(places["arrange-the-report"], "guide-arrange-the-report")
+        for i in ("add-a-section-from-a-template", "arrange-the-report"):
+            self.assertIn("howto-" + i, r["howto"])
+            self.assertIn("howto-" + i, r["more"])
+        # a job whose guide is held opens its how-to entry instead
+        r = run_node(RAW, "(() => { HL.useHeld({ guides: { 'arrange-the-report': 'later' } }); return HL.jobs().map((j) => [j.id, j.place]); })()")
+        self.assertEqual(dict(r)["arrange-the-report"], "howto-arrange-the-report")
+        self.assertEqual(dict(r)["add-a-section-from-a-template"], "guide-add-a-section-from-a-template")
+
+    def test_the_words_the_guides_use_for_the_templates_are_the_templates_names(self):
+        templates = (SRC / "clark" / "page" / "src" / "logic" / "templates.js").read_text(encoding="utf-8")
+        text = " ".join(s["d"] for g in SHIPPED for s in g["steps"])
+        for name in re.findall(r"\*\*(Key figures, four|Callout|Text and pictures|Figures|Work items|Files and links|People and dates|Notes)\*\*", text):
+            self.assertIn(f'"{name}"', templates, name)
+
+    def test_search_finds_each_guide_and_its_steps(self):
+        probes = {"add-a-section-from-a-template": [("ready-made layout", 0), ("search templates", 3), ("where it goes", 5), ("cancel", 6), ("empty section", 7)],
+                  "arrange-the-report": [("drag its move button", 2), ("full width", 5), ("eye mark", 6), ("needs from you", 7), ("gone from view", 8)]}
+        for gid, rows in probes.items():
+            for word, line in rows:
+                r = run_node(RAW, "(() => HL.search(HL.buildIndex(), %s).filter((x) => x.id === 'guide-%s').map((x) => x.line))()" % (json.dumps(word), gid))
+                self.assertIn(line, r, f"{gid}: '{word}' should find line {line}, found {r}")
+        r = run_node(RAW, "(() => ['Add a section from a template', 'Move, hide and delete sections'].map((q) => HL.search(HL.buildIndex(), q).slice(0, 2).map((x) => x.id)))()")
+        self.assertEqual([sorted(x) for x in r], [["guide-add-a-section-from-a-template", "howto-add-a-section-from-a-template"], ["guide-arrange-the-report", "howto-arrange-the-report"]])      # the guide and the how-to entry of the same name
 
 
 def page_values(content):
