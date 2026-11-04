@@ -712,8 +712,8 @@ class Export(unittest.TestCase):
         with mock.patch.object(type(self.store), "log_publication", side_effect=word_route.Invalid("busy")):
             status, got = self.post()
         self.assertEqual((status, got["seq"]), (200, None))
-        self.assertIn("The file is saved and is fine. clark could not note it in the project's list of reports, so the Dashboard may not show it. Do not save it again.", got["message"])
-        self.assertNotIn("busy", got["message"], "the store's own words are left out")
+        self.assertIn(word_route.NOT_RECORDED_FILE.format(reason="busy"), got["message"])
+        self.assertIn("The file is fine, but clark could not record it (busy); save it again to record it.", got["message"])
         self.assertTrue((self.local / self.name).is_file())
 
     def test_a_request_never_names_a_folder_or_a_file(self):

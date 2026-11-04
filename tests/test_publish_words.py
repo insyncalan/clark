@@ -29,8 +29,13 @@ class TheWarning(unittest.TestCase):
     def test_the_dialog_model_and_the_page_say_both_sentences(self):
         self.assertEqual(to_client.MESSAGES["client_sees"], WARNING)
         jsx = src("edit/Publish.jsx")
-        self.assertIn(f'"{WARNING}"', jsx)
-        self.assertIn(f'"The client will see this page and the PDF. {SECOND}"', jsx, "the PDF line keeps the second sentence too")
+        # the warning is built from the ticks (the PDF, the Word report), and the second sentence follows whichever was built, once
+        for first in ("The client will see this page.", "The client will see this page and the PDF.",
+                      "The client will see this page and the Word report.", "The client will see this page, the PDF and the Word report."):
+            self.assertIn(f'"{first}"', jsx)
+        self.assertEqual(jsx.count(SECOND), 1, "the second sentence is written once")
+        self.assertIn(f'"The client will see this page."}} {SECOND}</p>', jsx, "every variant keeps the second sentence")
+        self.assertIn('s.phase !== "clash" && s.phase !== "wordclash" && s.ticked', jsx, "the warning is hidden while either question is asked")
         ticked = to_client.dialog_step(to_client.new_dialog_state("/x/Harbour Bridge"), "tick", True)
         self.assertEqual(to_client.to_client_dialog(ticked)["line"], WARNING)
 
@@ -52,7 +57,9 @@ class TheFinishedState(unittest.TestCase):
     def test_the_note_is_the_menus_and_has_no_undo(self):
         state, note = src("edit/publishState.js"), src("edit/menuNote.js")
         self.assertIn('import { say } from "./menuNote.js";', state)
-        self.assertRegex(state, r'say\(b\.pdf_saved === false \? "note" : "done", said\)')
+        self.assertRegex(state, r'say\(message\.kind === "error" \? "problem" : message\.kind === "info" \? "note" : "done", message\.text\)')
+        self.assertRegex(state, r'finish\(\{ kind: b\.pdf_saved === false \? "info" : "success", text: said', "the web page's end")
+        self.assertEqual(len(re.findall(r"finish\(\{ kind:", state)), 4, "the web page and the three ends of the Word step all finish the same way")
         self.assertRegex(note, r"export function say\(kind, text\)", "the menu's note takes no Undo")
         self.assertNotIn("undo", re.sub(r"//.*", "", note).lower())
 
