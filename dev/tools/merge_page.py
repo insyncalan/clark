@@ -30,6 +30,7 @@ TRUST: the whole repository is the trust boundary, so the driver works from an A
   - the build runs as python3 -I -B with a scrubbed environment (no PYTHONPATH, PYTHONDONTWRITEBYTECODE=1, PYTHONNOUSERSITE=1);
   - the pinned esbuild in the clone's dev/.cache is COPIED into the temporary folder, never linked, so nothing the build writes
     reaches the real dev/.cache.
+A branch that changes a Help picture, dev/tools/help_shots.json or help_pins.json is refused with the plain message in PICTURE_REFUSAL (exit 1, markers).
 A branch that changes only page data resolves by itself. Before merging a branch you do not know, look at what it changes:
     git diff HEAD...<branch> -- src dev vendor
 UNDO (remove the driver): python3 dev/tools/install_merge_driver.py --uninstall, or by hand:
@@ -101,6 +102,11 @@ BUILD_INPUTS = ("vendor/preact/", "vendor/tiptap/", "vendor/fonts/", "src/clark/
 GUARDED = ("src/", "dev/tools/", "dev/.cache/", "vendor/")
 CODE_SUFFIXES = (".py", ".pyc", ".pyo", ".pyd", ".so", ".dylib", ".dll", ".pth")
 REGULAR = ("100644", "100755")
+# The Help pictures, the list of shots and the pins: build inputs a merge may not change by itself (a retake is rebuilt by hand).
+PICTURE_INPUTS = ("src/clark/page/help-pictures/", "dev/tools/help_shots.json", "dev/tools/help_pins.json")
+PICTURE_REFUSAL = ("the merge changes a Help picture, the list of shots or the pins ({path}), so the merge driver does not rebuild the page. "
+                   "The page is left with conflict markers on purpose. Run python3 dev/tools/build_page.py, then "
+                   "python3 dev/tools/help_pictures.py --check, and commit the rebuilt pins together with the pictures")
 
 
 class Refused(Exception):
@@ -134,6 +140,8 @@ def refusal(tree):
         if page_data(path):
             if new_mode not in REGULAR + ("000000",):
                 return f"the merge makes {path} something other than a plain file"
+        elif path.startswith(PICTURE_INPUTS):
+            return PICTURE_REFUSAL.format(path=path)
         elif path.lower().startswith(GUARDED):
             return f"the merge changes {path}, which is not page data"
     return None
@@ -261,6 +269,8 @@ def merge(mine, theirs_file, path):
     if tree is None:
         return 1, "the sources conflict, or this is not a merge it can read: resolve them, then run python3 dev/tools/build_page.py"
     why = refusal(tree)
+    if why and why.startswith("the merge changes a Help picture"):
+        return 1, why                               # already says what refused, why, and the command to run
     if why:
         return 1, (f"{why}, and the driver will not run code from the branch being merged or build from anything but page "
                    "data: read the change (git diff HEAD...<branch> -- src dev vendor), then run python3 dev/tools/build_page.py")

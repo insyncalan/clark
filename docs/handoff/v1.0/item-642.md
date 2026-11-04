@@ -44,6 +44,9 @@ Status: design only, written 04-11-2026. Nothing is built. Size of the whole ite
 - No dead link: a test follows every link in every guide.
 - Hand check (recorded in the release sheet): a person who has not seen the screens before follows each guide.
 
+### Note for the loop owner: a picture retake arriving through a merge
+The merge driver (dev/tools/merge_page.py) does not rebuild the page when a merge changes a Help picture, dev/tools/help_shots.json or dev/tools/help_pins.json. It refuses aloud: exit 1, conflict markers in the page, and a message on stderr naming the path. Then: run python3 dev/tools/build_page.py, then python3 dev/tools/help_pictures.py --check; commit the rebuilt pins together with the pictures.
+
 ## 5. New visible wording needing the owner's sign-off
 Not final copy; the owner writes or signs all of it.
 - Start page: heading, introduction, and the names of the jobs ("Write this week's report", "Publish to the client", "Bring in my Excel workbook", "Undo a mistake" are the owner's phrasing to confirm).
