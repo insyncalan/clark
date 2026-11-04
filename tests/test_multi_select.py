@@ -408,6 +408,19 @@ class Page(Base):
             self.until(cdp, sid, "!clarkPage.help.peek.isOpen()", "Esc closed the peek")
             self.assertEqual(len(self.picked(cdp, sid)), 2, "and left the selection")
 
+    def test_a_click_inside_the_help_peek_keeps_the_selection(self):
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = cdp.js(self.ROWS, sid)
+            tap(cdp, sid, self.rsel(rows[0]))
+            tap(cdp, sid, self.rsel(rows[1]), MOD)
+            cdp.js("document.activeElement.blur()", sid)
+            cdp.js("window.clarkPage.help.peek.open('work')", sid)
+            self.until(cdp, sid, "!!document.querySelector('#help-peek h2')", "the Help peek is open on Work items")
+            tap(cdp, sid, "#help-peek h2")
+            self.assertEqual(len(self.picked(cdp, sid)), 2, "a click inside the peek left the selection")
+            self.assertTrue(cdp.js("!!document.querySelector('#help-peek')", sid), "and the peek stays")
+
     def test_esc_with_the_ask_panel_open_closes_it_first_and_keeps_the_selection(self):
         with chrome() as cdp:
             sid = self.load(cdp)
