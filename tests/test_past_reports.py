@@ -21,7 +21,7 @@ from pathlib import Path
 import _paths  # noqa: F401
 import _publish_fixture as fx
 from _demo import USER
-from clark import past_reports, publish, published_copies
+from clark import changes, past_banner, past_reports, publish, published_copies
 from clark import server as sv
 from clark.store import open_store
 from test_publish_route import DAY, EMPTY_BRANDING, Rig as PublishRig
@@ -180,7 +180,7 @@ class Seam(Base):
         self.assertEqual((body["total"], body["shown"], body["limit"]), (12, 10, 10))
         self.assertEqual([p["number"] for p in body["publications"]], list(range(12, 2, -1)), "newest first")
         row = body["publications"][0]
-        self.assertEqual(set(row), {"number", "when", "where", "who", "word", "kept", "week", "day"})   # week and day: #344's picker
+        self.assertEqual(set(row), {"number", "when", "where", "who", "word", "kept", "week", "day", "archived"})   # week and day: #344's picker
         self.assertRegex(row["day"], r"^\d{4}-\d\d-\d\d$")
         self.assertTrue(row["week"] is None or re.fullmatch(r"\d{4}-\d\d-\d\d", row["week"]), row["week"])
         self.assertEqual((row["where"], row["who"], row["kept"], row["word"]), ("Local", USER, True, False))
@@ -191,6 +191,20 @@ class Seam(Base):
         shas = [r[0] for r in self.store.con.execute("SELECT file_sha256 FROM publications")]
         for s in shas:
             self.assertNotIn(s, text)
+
+    def test_show_archived_lists_the_archived_ones_too_marked_and_the_default_hides_them(self):
+        for i in range(3):
+            self.publish(now=f"2026-11-{i + 1:02d}")
+        self.store.archive_publication("PUB", 2)
+        status, body = self.past.listing("PUB")
+        self.assertEqual([p["number"] for p in body["publications"]], [3, 1], "hidden by default")
+        self.assertEqual((body["total"], body["archived"]), (2, 1))
+        self.assertEqual([p["archived"] for p in body["publications"]], [False, False])
+        status, body = self.past.listing("PUB", archived=True)
+        self.assertEqual([(p["number"], p["archived"]) for p in body["publications"]], [(3, False), (2, True), (1, False)])
+        self.assertEqual((body["total"], body["archived"]), (3, 1))
+        self.store.unarchive_publication("PUB", 2)
+        self.assertEqual([p["number"] for p in self.past.listing("PUB")[1]["publications"]], [3, 2, 1], "Restore brings it back")
 
     def test_the_old_ones_stay_kept_though_the_list_does_not_show_them(self):
         for i in range(11):
@@ -214,7 +228,7 @@ class Seam(Base):
         self.assertEqual([(r["number"], r["word"], r["kept"]) for r in rows], [(done["number"], False, True), (done["number"], True, False)])
         status, got = self.past.visit("PUB", done["number"])
         self.assertEqual((status, got["ok"]), (200, True), got)
-        self.assertEqual(self.past.take(got["url"].split("=")[1]), body)
+        self.assertEqual(past_banner.unframe(self.past.take(got["url"].split("=")[1])), body)
 
     def test_a_project_with_nothing_published_has_an_empty_list(self):
         status, body = self.past.listing("PUB")
@@ -233,7 +247,7 @@ class Seam(Base):
         self.assertRegex(got["url"], r"^/past\?id=[A-Za-z0-9_-]{16,64}$")
         self.assertEqual(set(got), {"ok", "code", "message", "number", "url"})
         nonce = got["url"].split("=")[1]
-        self.assertEqual(self.past.take(nonce), body)
+        self.assertEqual(past_banner.unframe(self.past.take(nonce)), body)
         self.assertIsNone(self.past.take(nonce), "once")
 
     def test_open_says_plainly_when_there_is_no_copy_or_the_copy_changed_or_there_is_no_such_publication(self):
@@ -286,7 +300,7 @@ class Seam(Base):
         done, body = self.publish()
         status, got = self.past.visit("PUB", done["number"])
         served = self.past.take(got["url"].split("=")[1])
-        self.assertEqual(served, body)
+        self.assertEqual(past_banner.unframe(served), body)
         text = served.decode("utf-8")
         for where, marker in self.plant["markers"].items():
             for spelling in fx.spellings(marker):
@@ -302,7 +316,8 @@ class TheRoutes(Base):
     def setUp(self):
         super().setUp()
         self.past = past_reports.PastReports(self.db)
-        self.httpd = sv.LocalServer((sv.HOST, 0), data_for=self.store.data_for, projects=lambda: [], past=self.past)
+        self.httpd = sv.LocalServer((sv.HOST, 0), data_for=self.store.data_for, projects=lambda: [], past=self.past,
+                                    publication_mark=changes.make_publication_mark(self.db, [], by_user="Sam Example"))
         self.httpd.handle_error = lambda *a: None
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         self.addCleanup(self.close)
@@ -338,6 +353,79 @@ class TheRoutes(Base):
                 with self.subTest(path=path, kw=kw):
                     self.assertEqual(self.get(path, **kw)[0], 403)
 
+    def post(self, path, body, token=True, headers=None, raw=None):
+        conn = http.client.HTTPConnection(sv.HOST, self.httpd.server_port, timeout=20)
+        try:
+            h = {"Host": f"127.0.0.1:{self.httpd.server_port}", "Content-Type": "application/json", **(headers or {})}
+            if token:
+                h[sv.TOKEN_HEADER] = sv.TOKEN
+            data = raw if raw is not None else json.dumps(body).encode()
+            conn.request("POST", path, data, h)
+            r = conn.getresponse()
+            return r.status, json.loads(r.read() or b"null")
+        finally:
+            conn.close()
+
+    def test_archive_and_restore_over_http_hide_and_show_one_publication(self):
+        for i in range(3):
+            self.publish(now=f"2026-11-{i + 1:02d}")
+        status, got = self.post("/api/publications/archive", {"project": "PUB", "number": 2})
+        self.assertEqual((status, got["ok"], got["code"]), (200, True, "archived"))
+        self.assertNotIn("step", got)
+        self.assertNotIn("apply_id", got, "no Undo is offered")
+        self.assertEqual([p["number"] for p in self.json("/api/publications?project=PUB")[1]["publications"]], [3, 1])
+        status, shown = self.json("/api/publications?project=PUB&archived=1")
+        self.assertEqual([(p["number"], p["archived"]) for p in shown["publications"]], [(3, False), (2, True), (1, False)])
+        status, got = self.post("/api/publications/restore", {"project": "PUB", "number": 2})
+        self.assertEqual((status, got["code"]), (200, "restored"))
+        self.assertEqual([p["number"] for p in self.json("/api/publications?project=PUB")[1]["publications"]], [3, 2, 1])
+
+    def test_archive_and_restore_say_so_in_plain_words_when_they_cannot(self):
+        self.publish()
+        self.assertEqual(self.post("/api/publications/restore", {"project": "PUB", "number": 1})[0], 409, "not archived")
+        self.assertEqual(self.post("/api/publications/archive", {"project": "PUB", "number": 1})[0], 200)
+        status, got = self.post("/api/publications/archive", {"project": "PUB", "number": 1})
+        self.assertEqual((status, got["ok"], got["message"]), (409, False, "Publication 1 is already archived. Nothing was changed."))
+        status, got = self.post("/api/publications/restore", {"project": "PUB", "number": 7})
+        self.assertEqual((status, got["message"]), (400, "There is no Publication 7 for PUB. Nothing was changed."))
+        self.assertEqual(self.post("/api/publications/restore", {"project": "PUB", "number": 1})[0], 200)
+        status, got = self.post("/api/publications/restore", {"project": "PUB", "number": 1})
+        self.assertEqual((status, got["message"]), (409, "Publication 1 is not archived. Nothing was changed."))
+
+    def test_the_body_is_exactly_a_project_and_a_number(self):
+        self.publish()
+        for body in ({}, {"project": "PUB"}, {"number": 1}, {"project": "PUB", "number": 1, "x": 1}, {"project": "PUB", "number": "1"},
+                     {"project": "PUB", "number": True}, {"project": "PUB", "number": 0}, {"project": "PUB", "number": 1000000},
+                     {"project": "PUB", "number": 1.0}, {"project": "pub", "number": 1}, {"project": "../x", "number": 1}, {"project": 7, "number": 1},
+                     [], "PUB", None):
+            for action in ("archive", "restore"):
+                with self.subTest(body=body, action=action):
+                    self.assertEqual(self.post("/api/publications/" + action, body)[0], 400)
+        self.assertEqual(self.post("/api/publications/archive", None, raw=b"{")[0], 400)
+        self.assertEqual(self.store.con.execute("SELECT count(*) FROM change_log WHERE tbl = 'publications'").fetchone()[0], 0)
+        self.assertEqual(list(self.copies.glob("*.archived")), [])
+
+    def test_a_body_over_the_routes_limit_is_refused_and_the_route_needs_the_token_and_this_machine(self):
+        self.publish()
+        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/publications/archive"], 1024)
+        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/publications/restore"], 1024)
+        big = {"project": "PUB", "number": 1, "pad": "x" * 2000}
+        self.assertEqual(self.post("/api/publications/archive", big)[0], 400)
+        for action in ("archive", "restore"):
+            for kw in ({"token": False}, {"headers": {"Host": "evil.example"}}, {"headers": {"Origin": "http://evil.example"}},
+                       {"headers": {"Sec-Fetch-Site": "cross-site"}}):
+                with self.subTest(action=action, kw=kw):
+                    self.assertEqual(self.post("/api/publications/" + action, {"project": "PUB", "number": 1}, **kw)[0], 403)
+        self.assertEqual(list(self.copies.glob("*.archived")), [])
+
+    def test_get_takes_archived_one_only(self):
+        self.publish()
+        for path in ("/api/publications?project=PUB&archived=0", "/api/publications?project=PUB&archived=", "/api/publications?project=PUB&archived=1&archived=1",
+                     "/api/publications?project=PUB&archived=yes", "/api/past-report?project=PUB&number=1&archived=1"):
+            with self.subTest(path=path):
+                self.assertEqual(self.get(path)[0], 400)
+        self.assertEqual(self.get("/api/publications?project=PUB&archived=1")[0], 200)
+
     def test_the_list_over_http(self):
         done, body = self.publish()
         status, got = self.json("/api/publications?project=PUB")
@@ -363,7 +451,7 @@ class TheRoutes(Base):
         status, got = self.json(f"/api/past-report?project=PUB&number={done['number']}")
         self.assertEqual((status, got["ok"]), (200, True))
         status, resp, raw = self.get(got["url"], token=False)                 # a new tab sends no token
-        self.assertEqual((status, raw), (200, body))
+        self.assertEqual((status, past_banner.unframe(raw)), (200, body))
         self.assertTrue(resp.getheader("Content-Type").startswith("text/html"))
         self.assertIn("script-src", resp.getheader("Content-Security-Policy"))
         self.assertEqual(resp.getheader("X-Frame-Options"), "DENY")
@@ -385,7 +473,7 @@ class TheRoutes(Base):
         done, body = self.publish()
         url = self.json(f"/api/past-report?project=PUB&number={done['number']}")[1]["url"]
         status, resp, raw = self.get(url, token=False)
-        self.assertEqual((status, raw), (200, body), "the sandbox changes the headers, never the bytes")
+        self.assertEqual((status, past_banner.unframe(raw)), (200, body), "the sandbox changes the headers, never the published bytes")
         csp = self.directives(resp)
         self.assertEqual(csp.get("sandbox"), "allow-scripts", "scripts only: a null origin")
         for flag in ("allow-same-origin", "allow-top-navigation", "allow-popups", "allow-forms", "allow-modals"):
@@ -440,6 +528,12 @@ class TheRoutes(Base):
         self.addCleanup(httpd.server_close)
         threading.Thread(target=httpd.serve_forever, daemon=True).start()
         self.addCleanup(httpd.shutdown)
+        for action in ("archive", "restore"):                     # #345: without the seam, saving is off
+            conn = http.client.HTTPConnection(sv.HOST, httpd.server_port, timeout=10)
+            conn.request("POST", "/api/publications/" + action, json.dumps({"project": "PUB", "number": 1}),
+                         {"Host": f"127.0.0.1:{httpd.server_port}", sv.TOKEN_HEADER: sv.TOKEN, "Content-Type": "application/json"})
+            self.assertEqual(conn.getresponse().status, 503, action)
+            conn.close()
         for path, token in (("/api/publications?project=PUB", True), ("/api/past-report?project=PUB&number=1", True), ("/past?id=x", False)):
             conn = http.client.HTTPConnection(sv.HOST, httpd.server_port, timeout=10)
             headers = {"Host": f"127.0.0.1:{httpd.server_port}"}
@@ -454,6 +548,9 @@ class TheRoutes(Base):
         self.assertIn("/api/past-report", sv.GET_ROUTES)
         self.assertNotIn("/api/publications", sv.POST_ROUTES)
         self.assertNotIn("/api/past-report", sv.POST_ROUTES)
+        self.assertIn("/api/publications/archive", sv.POST_ROUTES)       # #345
+        self.assertIn("/api/publications/restore", sv.POST_ROUTES)
+        self.assertNotIn("/api/publications/archive", sv.GET_ROUTES)
         self.assertEqual(sv.PAST_ROUTE, "/past")
 
 

@@ -330,7 +330,8 @@ class Saving(ServerTest):
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
                                                 "/api/section-file": 1024,
                                                 "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,     # #72
-                                                "/api/people": sv.PEOPLE_BODY_LIMIT, "/api/people/undo": 1024})     # #96: a project and a section only; #454: /api/people takes a paste of up to 500 rows (worked out in server.py)
+                                                "/api/people": sv.PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,
+                                            "/api/publications/archive": 1024, "/api/publications/restore": 1024})     # #345: a project code and a number     # #96: a project and a section only; #454: /api/people takes a paste of up to 500 rows (worked out in server.py)
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
 
@@ -1126,6 +1127,18 @@ class ProjectList(ServerTest):
             {"code": "DEMO", "name": "Demo programme"}, {"code": "ABC", "name": "ABC"}]}))
         self.assertNotIn(b"client_name", data)
         self.assertEqual(msg.get_all("Cache-Control"), ["no-store"])
+
+    def test_an_open_count_passes_through_only_as_a_plain_count(self):
+        """#439: the switcher says how many work items are open. A count the list gives (a whole number, 0 or more) is passed on; anything
+        else (text, a negative, a float, a bool) is left out, and nothing else of the row goes."""
+        rows = [{"code": "AAA", "name": "A", "open": 3, "client_name": "no"}, {"code": "BBB", "name": "B", "open": 0},
+                {"code": "CCC", "name": "C", "open": "7"}, {"code": "DDD", "name": "D", "open": -1}, {"code": "EEE", "name": "E", "open": 2.5},
+                {"code": "FFF", "name": "F", "open": True}]
+        s = Running(projects=lambda: rows)
+        self.addCleanup(s.close)
+        self.assertEqual(json.loads(s.api("GET", "/api/projects")[2])["projects"],
+                         [{"code": "AAA", "name": "A", "open": 3}, {"code": "BBB", "name": "B", "open": 0}, {"code": "CCC", "name": "C"},
+                          {"code": "DDD", "name": "D"}, {"code": "EEE", "name": "E"}, {"code": "FFF", "name": "F"}])
 
     def test_it_needs_the_token_and_this_machine(self):
         self.assertEqual(self.s.ask("GET", "/api/projects")[0], 403)

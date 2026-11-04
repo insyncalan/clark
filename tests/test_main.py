@@ -428,8 +428,8 @@ class InProcess(TempFolder):
         code, out, err, serve = self.run_main("--port", "8123")
         self.assertEqual((code, err), (0, ""))
         (call,) = serve.calls
-        self.assertEqual(sorted(call), ["activity", "app_settings", "as_at", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "logs", "milestones", "movement", "out", "page_html", "past", "people", "people_list", "people_undo", "port", "profile", "projects", "publisher", "safety", "section_image", "sneak", "undo", "use_cases",
-                                        "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route; #443: past (the Published reports list and Open); #349: as_at
+        self.assertEqual(sorted(call), ["activity", "app_settings", "as_at", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "logs", "milestones", "movement", "out", "page_html", "past", "people", "people_list", "people_undo", "port", "profile", "projects", "publication_mark", "publisher", "safety", "section_image", "sneak", "undo", "use_cases",
+                                        "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route; #443: past (the Published reports list and Open); #349: as_at; #345: publication_mark (Archive and Restore)
         self.assertTrue(callable(call["as_at"].read))
         self.assertTrue(callable(call["past"].listing) and callable(call["past"].visit) and callable(call["past"].take))
         self.assertTrue(callable(call["change"]) and callable(call["undo"]))
@@ -484,7 +484,7 @@ class InProcess(TempFolder):
         t.start()
         t.join(10)
         self.assertEqual(errors, [])
-        self.assertEqual(found, [{"code": "AAA", "name": "First programme"}, {"code": "ZZZ", "name": "Last programme"}])
+        self.assertEqual(found, [{"code": "AAA", "name": "First programme", "open": 0}, {"code": "ZZZ", "name": "Last programme", "open": 0}])
         self.assertEqual(projects(), found, "and again in this thread, after the other")
 
     def test_the_projects_function_is_not_the_stores_own_read(self):
