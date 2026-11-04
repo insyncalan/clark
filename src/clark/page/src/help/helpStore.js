@@ -109,7 +109,7 @@ export function follow(place) {
 }
 
 function arrive(p) {
-  landing.at = Date.now();
+  landing.at = performance.now();
   helpTab.value = p.tab;
   rememberTab(p.tab);
   helpQuery.value = "";

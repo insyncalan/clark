@@ -257,7 +257,7 @@
     "s": [
      "Press your profile circle at the top right and choose **Publish…**.",
      "**Local** is always ticked: the save window opens where you last saved for this project, and you choose the folder and the name. Tick **To client** to send it to the client folder set in Settings as well. With no folder set, the box is off and says so.",
-     "Tick **Also a PDF** for the page as it prints: your browser’s print box opens, and you choose Save as PDF. Tick **Also a Word document** for a Word copy in the folder last used for this project.",
+     "Tick **Also a PDF** for the page as it prints: your browser’s print box opens, and you choose Save as PDF. Tick **Also a Word document** for a Word copy in the folder last used for this project. If a Word file with that name is already in the folder, you are asked whether to add a number or replace it. A copy already in the client folder is never replaced: the new one gets a number.",
      "A line reminds you that the client will see the page, and only what is shown in View. If a work item shown to the client still has its placeholder title, the box warns you; it does not stop you, so rename the item or turn off its eye first.",
      "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”; press it to close the box. If the name is already taken, a box asks what to do.",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
@@ -802,16 +802,16 @@
     "w": "Terminal · Docker Desktop",
     "go": "",
     "s": [
-     "What Docker does here. These steps are for a Mac, and you only need Docker and Chrome. If your Mac will not open clark.command (a work Mac often will not), or you already use Docker, use Docker instead. It replaces the Terminal window that runs clark's web server. You open http://localhost:8766 in Chrome and see clark, as before. Only the web server runs in Docker. clark's own files and your project data stay in folders on your computer, shared into Docker. The first start downloads a stock Python image once and keeps it; nothing of clark is in it. Nothing else is installed. clark can only be reached from this computer: another device is told \"This connection was refused. clark is running in Docker and only answers this computer.\"",
+     "What Docker does here. These steps are for a Mac, and you only need Docker and Chrome. If your Mac will not open clark.command (a work Mac often will not), or you already use Docker, use Docker instead. It replaces the Terminal window that runs clark's web server. You open localhost:8766 in Chrome and see clark, as before. Only the web server runs in Docker. Your project data and clark's own files stay in folders on your computer, shared into Docker. The first start downloads a stock Python image once and keeps it; nothing of clark is in it. Nothing else is installed. It can only be reached from this computer: another device is told \"This connection was refused\" and that clark is running in Docker and only answers this computer.",
      "Before the first start. Install Docker Desktop and open it first. Wait until it says it is running. If you start clark before that, Terminal says it cannot connect to the Docker API: open Docker Desktop, wait, and type the command again.",
      "Use the clark download. Start clark from the download (the zip file), not from a copy of the source code. A copy of the source has no built pages, and clark is shared into Docker read-only, so it cannot build them: it will say that the page could not be built. The message is: \"This copy of clark has no built page. Use the clark download, not a copy of the source code.\" Docker then stops.",
-     "Start. Every command below must be typed inside the clark folder: first cd into it. Open Terminal, type cd and a space, drag the unzipped clark folder into the Terminal window and press Return. Then type `docker compose -f docker/compose.yaml up -d` and press Return. The first time takes a few minutes. Then open http://localhost:8766 in Chrome. This start keeps its data in a folder called data beside the clark files, so on a first start it holds a new, empty set of projects. The Dashboard then says \"No project open\" and \"There are no projects yet.\" Your data is the data folder beside the clark files: keep it when you swap this folder for a newer download.",
+     "Start. Every command below must be typed inside the clark folder: first cd into it. Open Terminal, type cd and a space, drag the unzipped clark folder into the Terminal window and press Return. Then type `docker compose -f docker/compose.yaml up -d` and press Return. The first time takes a few minutes. Then open localhost:8766 in Chrome. This start keeps its data in a folder called data beside the clark files, so on a first start it holds a new, empty set of projects. The Dashboard then says \"No project open\" and \"There are no projects yet.\" Your data is the data folder beside the clark files: keep it when you swap this folder for a newer download.",
      "Use the projects you already have. To start with the data you keep for the Terminal route, put its folder in front of the command: `CLARK_DATA_DIR=\"$HOME/Library/Application Support/clark\" docker compose -f docker/compose.yaml up -d`. Use the same line every time you start. To use another folder, put its full path in quotes. A folder inside OneDrive cannot be used by clark.",
-     "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d`, then open http://localhost:8800. It is still reachable only from this computer.",
+     "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d`, then open localhost:8800. It is still reachable only from this computer.",
      "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window.",
      "See what clark is doing. To see what Docker has said, type this in the same folder: `docker compose -f docker/compose.yaml logs --tail 50`",
-     "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command's window before you start Docker. clark cannot always tell that the other route is already using the folder.",
-     "If the page will not open. Check that Docker Desktop says it is running. Check that the address is exactly http://localhost:8766 (or your own port).",
+     "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command's window before you start Docker. Neither route can always tell that the other is already using the folder.",
+     "If the page will not open. Check that Docker Desktop says it is running. Check that the address is exactly localhost:8766 (or your own port).",
      "If it says port 8766 is already used. Another clark is open: close it, or stop it with the Stop line above, then try again.",
      "If it says it cannot connect to Docker. Docker Desktop is not running yet. Open it and wait until it says it is running.",
      "If an installed clark window says clark is not running. The window is titled \"Start clark to use this window\" and says: \"Nothing is running at this address. Start it the way you started it: double-click clark.command in your clark folder, or, if you use Docker, open Terminal in that folder and type:\" then the start command, then \"Closing the last clark window stops clark after a minute. Docker keeps running until you stop it with:\" and the stop command, and a button Check again. With Docker, type the start command and choose Check again.",
@@ -2693,7 +2693,7 @@
      "d": "Open the **Dashboard**. Beside **Week ending** on the report bar there is a drop-down that reads **Published weeks**. It is there in View and in Edit, and only once the project has a publication."
     },
     {
-     "d": "To look at a week you published, pick it from the list. Each line reads like 28-10-2026 · Publication 3, newest first. A page that was kept opens in a new browser tab exactly as it was published."
+     "d": "To look at a week you published, pick it from the list. Each line reads like DD-MM-YYYY · Publication 3, newest first. A page that was kept opens in a new browser tab exactly as it was published."
     },
     {
      "d": "A line that ends in rebuilt has no kept page. Picking it shows the Dashboard as it stood on the day that publication was made, rebuilt from the change history, in this same tab."
@@ -2702,7 +2702,7 @@
      "d": "To choose any other day, pick **Dashboard as at a day…** at the foot of the list. Settings opens at **Published reports**, and the day box in the **Dashboard as at a day** card is ready for you."
     },
     {
-     "d": "Type the day as DD-MM-YYYY, for example 21-10-2026, and press **Show**. A day that has not happened yet, or from before the project existed, is turned away with a line saying so. Pick another day."
+     "d": "Type the day as DD-MM-YYYY and press **Show**. A day that has not happened yet, or from before the project existed, is turned away with a line saying so. Pick another day."
     },
     {
      "d": "The Dashboard now shows the project as it stood at the end of that day. A banner at the top reads “You are looking at the dashboard as at” and the day, and under it “Read only · this was not published in this form”. Due dates and overdue marks are worked out as at that day."
@@ -2742,7 +2742,7 @@
      "d": "If the box says the backup is of a different database, it cannot be put back over yours and there is no **Restore** button. Press **Close** to leave it."
     },
     {
-     "d": "To put a copy back, press **Restore** on its row, or on the preview box. The box asks, for example, “Put back the backup from 04-11-2026 09:30? What you have now is kept first.” Your current data is replaced by the copy, so everything you saved after that copy was made is no longer in your pages. clark keeps a copy of what you have now before it swaps, and it shows in the list as Before a restore."
+     "d": "To put a copy back, press **Restore** on its row, or on the preview box. The box asks, for example, “Put back the backup from DD-MM-YYYY 09:30? What you have now is kept first.” Your current data is replaced by the copy, so everything you saved after that copy was made is no longer in your pages. Before it swaps, clark keeps a copy of what you have now, and it shows in the list as Before a restore."
     },
     {
      "d": "Press **Put it back** to go ahead, or **Cancel** to stop with nothing changed. If your data changed after you pressed **Preview**, clark refuses and asks you to look at the backup again."

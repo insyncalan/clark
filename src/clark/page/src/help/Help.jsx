@@ -267,7 +267,7 @@ export function Help() {
     if (!t) { window.scrollTo(0, 0); return; }
     const el = document.getElementById("hp-" + t);
     if (!el) return;
-    landedAt = Date.now();
+    landedAt = performance.now();
     el.scrollIntoView({ block: "start" });
     el.classList.add("hp-found");
     const timer = setTimeout(() => el.classList.remove("hp-found"), 2400);
@@ -279,7 +279,7 @@ export function Help() {
     let raf = 0;
     const pick = () => {
       raf = 0;
-      const wait = 800 - (Date.now() - Math.max(landedAt, landing.at));
+      const wait = 800 - (performance.now() - Math.max(landedAt, landing.at));
       if (wait > 0) { raf = -1; setTimeout(() => { raf = 0; on(); }, wait + 20); return; }      // a link's own scroll is not the reader reading on; look again once it is done
       const els = [...document.querySelectorAll("#hpPane [data-k]")];
       if (!els.length) return;

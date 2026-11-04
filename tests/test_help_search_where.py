@@ -95,7 +95,7 @@ class Logic(unittest.TestCase):
 
     def test_the_lead_names_the_guide_so_it_is_shown_only_when_a_guide_ships(self):
         self.assertEqual(self.shipped["kind"], "results")
-        self.assertIsNone(self.shipped["lead"], "no guide ships, so no sentence that says 'the guide'")
+        self.assertEqual(self.shipped["lead"], LEAD if RAW["guides"] else None, "the sentence that says 'the guide' is shown when guides ship (nine do)")
         self.assertEqual(self.r["wombat"]["lead"], LEAD)
 
     def test_the_count_line_and_the_lead_are_the_signed_words(self):
