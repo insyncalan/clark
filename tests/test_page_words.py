@@ -174,7 +174,7 @@ class Words(unittest.TestCase):
                                   "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",
-                                  "No client folder yet.", "Choose folder",
+                                  "No client folder yet.", "Choose folder", "or paste the folder's path", "Use", "A folder on this computer.",
                                   "Published reports · Example Programme",      # #443: the card; the page has no server here, so its list says it could not be read
                                   "Every time you publish, the report gets the next number for this project and a copy of the page is kept. Open shows the copy as it was published. Every copy is kept; this list shows the latest 10.",
                                   "The published reports could not be read. Reload the page and try again. Try again",

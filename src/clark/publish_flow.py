@@ -7,8 +7,10 @@ One class, Publisher, with three public methods (each returns (status, body) for
   that was meant to be left out). Then the system's Save dialog chooses the Local file, Local is written and read back, the same
   bytes are copied into the client folder and read back (to_client.copy_to_client), and one `publications` row records it.
   The request never names a folder or a file: the client folder is the one saved in Settings (projects.publish_client).
-- client_folder(body): POST /api/client-folder {project, action: "choose" | "clear"}. Saves or clears that folder as an
-  ordinary step (so it is in history and can be undone). It never writes into the folder.
+- client_folder(body): POST /api/client-folder {project, action: "choose" | "clear" | "paste", value (paste only)}. Saves or
+  clears that folder as an ordinary step (so it is in history and can be undone). It never writes into the folder. A pasted
+  folder (item 647) is a path on this computer (pasted_folder); it must be inside a OneDrive root and then gets exactly the
+  checks a chosen one gets. A pasted link is refused by its form alone: it is never opened or matched to a folder.
 - latest(code): GET /api/publication?project=. The date and kind of the latest publication, for the report bar; no path.
 
 This is the only module besides to_client.py that may reach a client-folder writer (a test pins it). It opens its own short-lived
@@ -25,6 +27,7 @@ import shutil
 import tempfile
 import threading
 import time
+import unicodedata
 from pathlib import Path
 
 from clark import changes, milestones, page, platform, publish, publish_pdf, section_files, to_client
@@ -39,6 +42,10 @@ PICK_PROMPT = "Choose the folder OneDrive syncs for the client"
 SAVE_PROMPT = "Save the report"
 PREVIEW_KEEP = 4                     # previews waiting to be opened; the oldest goes first
 PREVIEW_SECONDS = 120                # a preview that is not opened in this time is dropped
+MAX_PASTE = 2000                     # a pasted folder or link longer than this is refused unread
+# A pasted link, by its form only (item 647): a scheme (https://, http://, file://, ...) or a web host name before a slash, such as
+# a SharePoint, OneDrive or 1drv.ms address without its https://. It is never opened or matched to a folder.
+LINK_FORM = re.compile(r"(?i)[a-z][a-z0-9+.-]*://|(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?[/?#]")
 
 # What the route says, by stable `code`. The words are the product's (RULES.md): plain, "clark" in lower case. The messages of
 # to_client.MESSAGES (the catalogue of the spec) are used as they are for everything that module decides.
@@ -64,6 +71,9 @@ MESSAGES = {
     "folder_cleared": "The client folder is cleared.",
     "folder_unchanged": "That is already the client folder.",
     "bad_action": "Say whether to choose a folder or clear it.",
+    "paste_unknown": "That isn't a folder clark can find. Choose folder picks it for you.",
+    "paste_not_synced": "That folder isn't one OneDrive syncs on this computer. Choose folder picks it for you.",
+    "paste_link": "A link can't be used here. Choose folder picks the folder on this computer. Nothing was saved.",
     "client_folder_refused": "{reason}",
     "settings_failed": "The client folder could not be saved. Nothing was changed. Try again.",
     "brand_styling": "The brand's styling file has a web link in it, so the report can't go out. Ask whoever looks after the brand to remove it.",
@@ -428,7 +438,8 @@ class Publisher:
         code, action = body.get("project"), body.get("action")
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
-        if set(body) - {"project", "action"} or action not in ("choose", "clear"):
+        allowed = {"project", "action", "value"} if action == "paste" else {"project", "action"}
+        if set(body) - allowed or action not in ("choose", "clear", "paste") or (action == "paste" and not isinstance(body.get("value"), str)):
             return 400, self.fail("bad_action")
         with self.lock:
             store = self.store()
@@ -439,14 +450,19 @@ class Publisher:
                 saved = row.get("publish_client") or None
                 if action == "clear":
                     return self.save_folder(store, code, saved, None)
-                try:
-                    start = saved or next(iter(self.onedrive_roots), None)
-                    picked = self.choose_folder(PICK_PROMPT, start=start)
-                except platform.PlatformError as e:
-                    return 409, self.fail("dialog_failed", MESSAGES["dialog_failed"].format(reason=str(e).rstrip()).replace(
-                        " Nothing was published.", ""))
-                if picked is None:
-                    return 200, {"ok": True, "changed": False, "folder": saved}
+                if action == "paste":
+                    picked, refused = self.pasted_folder(body["value"])
+                    if refused:
+                        return 409, self.fail(refused)
+                else:
+                    try:
+                        start = saved or next(iter(self.onedrive_roots), None)
+                        picked = self.choose_folder(PICK_PROMPT, start=start)
+                    except platform.PlatformError as e:
+                        return 409, self.fail("dialog_failed", MESSAGES["dialog_failed"].format(reason=str(e).rstrip()).replace(
+                            " Nothing was published.", ""))
+                    if picked is None:
+                        return 200, {"ok": True, "changed": False, "folder": saved}
                 checked = to_client.preflight(self.fs, str(picked), data_dir=self.data_dir, onedrive_roots=self.onedrive_roots,
                                               local_folder=store.last_publish_folder(code) or row.get("publish_local"),
                                               backups_dir=self.backups_dir)
@@ -455,6 +471,34 @@ class Publisher:
                 return self.save_folder(store, code, saved, checked["folder"], checked.get("warning"))
             finally:
                 store.close()
+
+    # ----- a pasted client folder (item 647) -----
+    def pasted_folder(self, value):
+        """A pasted path as (the folder it names, resolved, None) or (None, the MESSAGES code of the refusal). The folder must
+        already exist and be inside one of the OneDrive roots; client_folder then checks it exactly as a chosen one. Anything with
+        the form of a link (LINK_FORM) is refused as one: it is never opened, and no folder is guessed from its words."""
+        text = value.strip()
+        if not text or len(text) > MAX_PASTE or any(unicodedata.category(ch) in ("Cc", "Cf") for ch in text):
+            return None, "paste_unknown"
+        if LINK_FORM.match(text):
+            return None, "paste_link"
+        if text.startswith("/") or text == "~" or text.startswith("~/"):
+            return self.synced_folder(Path(text).expanduser())
+        return None, "paste_unknown"            # a relative path, ~name and every other kind of text
+
+    def synced_folder(self, path):
+        if not path.is_absolute() or ".." in path.parts:
+            return None, "paste_unknown"
+        try:
+            real = path.resolve(strict=True)    # links followed: where the folder really is is what must be inside a root
+            if not real.is_dir():
+                return None, "paste_unknown"
+            roots = [Path(r).resolve() for r in self.onedrive_roots]
+        except (OSError, RuntimeError, ValueError):
+            return None, "paste_unknown"
+        if not any(real == r or r in real.parents for r in roots):
+            return None, "paste_not_synced"
+        return real, None
 
     def save_folder(self, store, code, saved, folder, warning=None):
         if folder == saved:
