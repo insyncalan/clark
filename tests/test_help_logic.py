@@ -240,9 +240,9 @@ class Logic(unittest.TestCase):
         self.assertEqual([g["tab"] for g in v["groups"]], ["howto", "reference", "start"])
         self.assertEqual([g["name"] for g in v["groups"]], ["How do I…", "Reference", "Start here"])
         self.assertEqual(v["count"], sum(len(g["results"]) for g in v["groups"]))
-        self.assertEqual(v["line"], f"{v['count']} results")
+        self.assertEqual(v["line"], f"{v['count']} results for “undo”")
         one = self.r["view"]["keys"]
-        self.assertIn(one["line"], (f"{one['count']} results", "1 result"))
+        self.assertIn(one["line"], (f"{one['count']} results for “keys”", "1 result for “keys”"))
 
     def test_a_part_the_page_fills_in_is_searched_when_the_page_gives_its_lines(self):
         self.assertEqual(self.r["dyn"], ["ref-icons"])
