@@ -33,12 +33,12 @@ class Folder(unittest.TestCase):
 
 class Settings(Folder):
     def test_a_fresh_folder_has_neither(self):
-        self.assertEqual(settings.profile(self.dir), {"name": "", "email": ""})
+        self.assertEqual(settings.profile(self.dir), {"name": "", "email": "", "alias": ""})
 
     def test_both_are_saved_beside_the_backups_number_which_is_kept(self):
         settings.set_backups_kept(self.dir, 21)
         saved = settings.set_profile(self.dir, "Sam Lee", "sam@example.test")
-        self.assertEqual(saved, {"name": "Sam Lee", "email": "sam@example.test"})
+        self.assertEqual(saved, {"name": "Sam Lee", "email": "sam@example.test", "alias": ""})
         self.assertEqual(settings.profile(self.dir), saved)
         self.assertEqual(settings.backups_kept(self.dir), 21)
         self.assertEqual(json.loads(self.disk()), {"backups_kept": 21, "profile_email": "sam@example.test", "profile_name": "Sam Lee"})
@@ -47,9 +47,9 @@ class Settings(Folder):
 
     def test_each_may_be_empty_and_emptying_clears_it(self):
         settings.set_profile(self.dir, "Sam Lee", "sam@example.test")
-        self.assertEqual(settings.set_profile(self.dir, "", "sam@example.test"), {"name": "", "email": "sam@example.test"})
-        self.assertEqual(settings.set_profile(self.dir, "Sam", ""), {"name": "Sam", "email": ""})
-        self.assertEqual(settings.set_profile(self.dir, "  ", None), {"name": "", "email": ""})
+        self.assertEqual(settings.set_profile(self.dir, "", "sam@example.test"), {"name": "", "email": "sam@example.test", "alias": ""})
+        self.assertEqual(settings.set_profile(self.dir, "Sam", ""), {"name": "Sam", "email": "", "alias": ""})
+        self.assertEqual(settings.set_profile(self.dir, "  ", None), {"name": "", "email": "", "alias": ""})
 
     def test_sixty_characters_are_kept_and_sixty_one_are_refused_in_the_words_settings_shows(self):
         self.assertEqual(settings.set_profile(self.dir, "N" * 60, "")["name"], "N" * 60)
@@ -94,9 +94,51 @@ class Settings(Folder):
 
     def test_a_value_in_the_file_that_is_not_plain_is_read_as_empty(self):
         (self.dir / settings.FILE).write_text(json.dumps({"profile_name": "N" * 80, "profile_email": "not an address"}), encoding="utf-8")
-        self.assertEqual(settings.profile(self.dir), {"name": "", "email": ""})
+        self.assertEqual(settings.profile(self.dir), {"name": "", "email": "", "alias": ""})
         (self.dir / settings.FILE).write_text(json.dumps({"profile_name": 7, "profile_email": None}), encoding="utf-8")
-        self.assertEqual(settings.profile(self.dir), {"name": "", "email": ""})
+        self.assertEqual(settings.profile(self.dir), {"name": "", "email": "", "alias": ""})
+
+
+class Alias(Folder):
+    """item 613: the Alias, kept beside the name and the email and checked as the name is."""
+
+    def test_it_is_saved_trimmed_and_read_back(self):
+        saved = settings.set_profile(self.dir, "Jane Doe", "", "  Jane,   JD ")
+        self.assertEqual(saved, {"name": "Jane Doe", "email": "", "alias": "Jane, JD"})
+        self.assertEqual(settings.profile(self.dir), saved)
+        self.assertEqual(json.loads(self.disk())["profile_alias"], "Jane, JD")
+        self.assertEqual(settings.set_profile(self.dir, "Jane Doe", "", "")["alias"], "", "emptying clears it")
+
+    def test_left_out_it_keeps_the_one_saved(self):
+        settings.set_profile(self.dir, "Jane Doe", "", "JD")
+        self.assertEqual(settings.set_profile(self.dir, "Jane Roe", "jane@example.test"), {"name": "Jane Roe", "email": "jane@example.test", "alias": "JD"})
+        self.assertEqual(settings.profile(self.dir)["alias"], "JD")
+
+    def test_sixty_characters_are_kept_and_sixty_one_are_refused_in_the_names_style(self):
+        self.assertEqual(settings.set_profile(self.dir, "", "", "A" * 60)["alias"], "A" * 60)
+        before = self.disk()
+        with self.assertRaises(ValueError) as caught:
+            settings.set_profile(self.dir, "Jane", "", "A" * 61)
+        self.assertEqual(str(caught.exception), "Your Alias is too long. Use 60 characters or fewer. Nothing was saved.")
+        self.assertEqual(self.disk(), before, "nothing was written")
+
+    def test_a_control_or_invisible_character_is_refused_and_nothing_is_written(self):
+        settings.set_profile(self.dir, "Jane", "", "JD")
+        before = self.disk()
+        for bad in ("Jane\nJD", "Jane\u0000JD", "Jane‮JD", "Jane​JD", "Jane\tJD", "Jane JD"):
+            with self.assertRaises(ValueError, msg=repr(bad)) as caught:
+                settings.set_profile(self.dir, "Jane", "", bad)
+            self.assertEqual(str(caught.exception), settings.ALIAS_BAD, repr(bad))
+        self.assertTrue(settings.ALIAS_BAD.endswith("Nothing was saved."))
+        with self.assertRaises(ValueError):
+            settings.set_profile(self.dir, "Jane", "", 5)
+        self.assertEqual(self.disk(), before)
+
+    def test_one_in_the_file_that_is_not_plain_is_read_as_empty(self):
+        (self.dir / settings.FILE).write_text(json.dumps({"profile_alias": "A" * 80}), encoding="utf-8")
+        self.assertEqual(settings.profile(self.dir)["alias"], "")
+        (self.dir / settings.FILE).write_text(json.dumps({"profile_alias": ["JD"]}), encoding="utf-8")
+        self.assertEqual(settings.profile(self.dir)["alias"], "")
 
 
 class Seam(Folder):
@@ -105,8 +147,8 @@ class Seam(Folder):
         self.p = profile_settings.Profile(self.dir)
 
     def test_get_and_save(self):
-        self.assertEqual(self.p.get(), (200, {"ok": True, "name": "", "email": ""}))
-        self.assertEqual(self.p.save({"name": "Sam Lee", "email": "sam@example.test"}), (200, {"ok": True, "name": "Sam Lee", "email": "sam@example.test"}))
+        self.assertEqual(self.p.get(), (200, {"ok": True, "name": "", "email": "", "alias": ""}))
+        self.assertEqual(self.p.save({"name": "Sam Lee", "email": "sam@example.test"}), (200, {"ok": True, "name": "Sam Lee", "email": "sam@example.test", "alias": ""}))
         self.assertEqual(self.p.get()[1]["name"], "Sam Lee")
 
     def test_a_wrong_shape_is_refused_and_writes_nothing(self):
@@ -172,7 +214,7 @@ class Route(Folder):
             conn.close()
 
     def test_get_and_post(self):
-        self.assertEqual(self.ask("GET"), (200, {"ok": True, "name": "", "email": ""}))
+        self.assertEqual(self.ask("GET"), (200, {"ok": True, "name": "", "email": "", "alias": ""}))
         status, body = self.ask("POST", {"name": "Sam Lee", "email": "sam@example.test"})
         self.assertEqual((status, body["name"], body["email"]), (200, "Sam Lee", "sam@example.test"))
         self.assertEqual(self.ask("GET")[1]["email"], "sam@example.test")
@@ -192,6 +234,24 @@ class Route(Folder):
         status, body = self.ask("POST", {"name": "Sam", "email": "nope"})
         self.assertEqual((status, body["message"]), (400, settings.EMAIL_BAD))
         self.assertIsNone(self.disk())
+
+    def test_the_alias_round_trips_and_left_out_keeps_the_old_one(self):
+        status, body = self.ask("POST", {"name": "Jane Doe", "email": "", "alias": "Jane, JD"})
+        self.assertEqual((status, body), (200, {"ok": True, "name": "Jane Doe", "email": "", "alias": "Jane, JD"}))
+        self.assertEqual(self.ask("GET"), (200, {"ok": True, "name": "Jane Doe", "email": "", "alias": "Jane, JD"}))
+        status, body = self.ask("POST", {"name": "Jane Roe", "email": ""})
+        self.assertEqual((status, body["alias"]), (200, "Jane, JD"), "a save without an Alias keeps the old one")
+        self.assertEqual(self.ask("GET")[1]["alias"], "Jane, JD")
+
+    def test_a_bad_alias_is_refused_under_its_box_and_nothing_is_written(self):
+        self.ask("POST", {"name": "Jane Doe", "email": "", "alias": "JD"})
+        before = self.disk()
+        for alias, words in (("A" * 61, settings.ALIAS_TOO_LONG), ("Jane\nJD", settings.ALIAS_BAD), ("Jane\u0007JD", settings.ALIAS_BAD)):
+            status, body = self.ask("POST", {"name": "Jane Doe", "email": "", "alias": alias})
+            self.assertEqual((status, body["code"], body["message"], body["field"]), (400, "refused", words, "alias"), repr(alias))
+        status, body = self.ask("POST", {"name": "Jane Doe", "email": "", "alias": 5})
+        self.assertEqual((status, body["code"]), (400, "bad_request"))
+        self.assertEqual(self.disk(), before)
 
     def test_no_seam_is_404(self):
         bare = sv.LocalServer((sv.HOST, 0))

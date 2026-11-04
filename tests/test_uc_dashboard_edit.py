@@ -155,6 +155,8 @@ class Edit(Setup):
                     off = p.js("document.querySelector('[data-uc-back]').textContent")
                     self.click(p, "#ucAdd")
                     p.until("!!document.querySelector('#ucF')", "the box")
+                    # focus is in ID as soon as the box is there, not a paint later: a late focus pulled the typing from Use case back to ID
+                    self.assertEqual(p.js("document.activeElement && document.activeElement.id"), "ucI", "focus is in ID when the box opens")
                     self.type_in(p, "#ucI", ref)
                     self.type_in(p, "#ucT", f"Hidden {ref}")
                     p.js("document.querySelector('#ucF').requestSubmit()")
@@ -300,6 +302,22 @@ class Edit(Setup):
             p.saved()
             made = [r for r in self.store.read("actions", "ABC") if r["description"] == "Order the new cables"]
             self.assertEqual((len(made), made[0]["owner"]), (1, "TBC"))
+
+    def test_the_box_is_inert_behind_and_gives_the_focus_back_even_when_the_page_is_slow_to_run_after_paint_work(self):
+        """macOS CI saw the box drawn with <main> not yet inert, and Esc not giving the focus back: the page's after-paint work (Preact's
+        useEffect) had not run yet. With the frame callback held back, that work waits for its tenth-of-a-second timer; the box must
+        already be modal in the step that draws it, and an Esc straight away must still hand the focus back."""
+        with chrome() as cdp:
+            p = self.edit(cdp)
+            p.js("window.requestAnimationFrame = () => 0")
+            self.click(p, "#ucAdd")
+            p.until("!!document.querySelector('#ucF')", "the box")
+            self.assertEqual(p.js("document.querySelector('#main').inert && document.activeElement.id === 'ucI'"), True,
+                             "inert behind and the focus in the ID field, as the box is drawn")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#ucF')", "Esc closed the box")
+            self.assertEqual(p.js("document.activeElement.id === 'ucAdd' && !document.querySelector('#main').inert"), True,
+                             "the focus is back on the + button and <main> is live, as the box closes")
 
     def test_a_step_with_a_colon_but_no_person_keeps_all_its_words_and_no_owner(self):
         """"Fix: the loader cables" names nobody: "Fix" is not taken as the owner, and the whole text is the step."""
