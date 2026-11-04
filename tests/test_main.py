@@ -452,7 +452,7 @@ class InProcess(TempFolder):
                 code, out, err, serve = self.run_main("--port", "8766")
             return out
         self.assertIn("Open http://127.0.0.1:8800/ to use clark.", line(True, {"CLARK_PUBLISHED_PORT": "8800"}))
-        for bad in ("", "x", "0", "70000", "-5", "88 00"):
+        for bad in ("", "x", "0", "70000", "-5", "88 00", "9" * 5000, "0" * 5000 + "8800"):
             self.assertIn("Open http://127.0.0.1:8766/ to use clark.", line(True, {"CLARK_PUBLISHED_PORT": bad}), bad)
         self.assertIn("Open http://127.0.0.1:8766/ to use clark.", line(True, {}))
         self.assertIn("Open http://127.0.0.1:8766/ to use clark.", line(False, {"CLARK_PUBLISHED_PORT": "8800"}), "the Mac's line is unchanged")

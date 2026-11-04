@@ -154,7 +154,7 @@ def shown_port(port):
     (CLARK_PUBLISHED_PORT, from CLARK_PORT). Outside the container, or without a usable number, the port as given."""
     if platform.container_mode():
         text = os.environ.get("CLARK_PUBLISHED_PORT", "")
-        if text.isascii() and text.isdigit() and 1 <= int(text) <= 65535:
+        if len(text) <= 5 and text.isascii() and text.isdigit() and 1 <= int(text) <= 65535:
             return int(text)
     return port
 

@@ -122,6 +122,7 @@ already use Docker, use Docker instead. You only need Docker and Chrome.
         docker compose -f docker/compose.yaml down
 Use the clark download, not a copy of the source code: a copy of the source
 has no built page, and Docker stops with a message saying so.
+Start Docker from the clark folder.
 To see what Docker has said, type this in the same folder:
         docker compose -f docker/compose.yaml logs --tail 50
 With Docker, your data is kept in the data folder beside the clark files, made
@@ -129,7 +130,7 @@ at the first start. Keep that data folder when you swap this folder for a newer
 download. To use the data clark.command uses instead, type this in step 3:
         CLARK_DATA_DIR="$HOME/Library/Application Support/clark" docker compose -f docker/compose.yaml up -d
 To use another folder, put its full path in CLARK_DATA_DIR the same way.
-As a rule, clark will not use a folder inside OneDrive.
+A folder inside OneDrive cannot be used by clark.
 Never open the same data from clark.command and from Docker at the same time:
 stop one before you start the other.
 To use another port, put it in front of the command, for example:
