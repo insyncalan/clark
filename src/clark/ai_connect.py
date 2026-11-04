@@ -50,9 +50,12 @@ class AiConnect:
     def on(self):
         return not settings.ai_read(self.data_dir)["claude_off"]
 
-    def model(self):
+    def saved_model(self):
         saved = settings.ai_read(self.data_dir)["model"]
-        return saved if saved in ask_claude.MODELS else RECOMMENDED
+        return saved if saved in ask_claude.MODELS else None
+
+    def model(self):
+        return self.saved_model() or RECOMMENDED
 
     # ----- the card -----
     def view(self, message=""):
@@ -113,4 +116,4 @@ def chain(data_dir, claude=None):
     """(AiConnect, the provider ask clark uses): the Claude subscription, with the choice in Settings › AI applied to every question."""
     claude = claude if claude is not None else ai_providers.ClaudeSubscription()
     connect = AiConnect(data_dir, claude)
-    return connect, ai_providers.Chosen(claude, connect.on, connect.model, OFF_WORDS)
+    return connect, ai_providers.Chosen(claude, connect.on, connect.saved_model, RECOMMENDED, OFF_WORDS)

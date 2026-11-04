@@ -76,6 +76,16 @@ class Models(Fake):
         self.assertEqual(self.provider.ask(self.request()), ANSWER)
         self.assertNotIn("--model", self.seen()["args"])
 
+    def test_a_default_model_on_a_command_without_the_flag_answers_with_the_commands_own(self):
+        self.put("help", "\n".join(f"  {f} <x>" for f in ac.NEEDED_FLAGS))
+        self.assertEqual(self.provider.ask(self.request(), "sonnet", prefer=True), ANSWER)
+        self.assertNotIn("--model", self.seen()["args"])
+
+    def test_a_default_model_is_sent_on_a_command_with_the_flag(self):
+        self.assertEqual(self.provider.ask(self.request(), "sonnet", prefer=True), ANSWER)
+        args = self.seen()["args"]
+        self.assertEqual(args[args.index("--model") + 1], "sonnet")
+
     def test_a_command_without_the_flag_says_so_when_a_model_is_asked_for_and_sends_nothing(self):
         self.put("help", "\n".join(f"  {f} <x>" for f in ac.NEEDED_FLAGS))
         self.assertEqual(self.provider.ask(self.request(), "opus"), ask.Failure(ac.MODEL_NOT_OFFERED))

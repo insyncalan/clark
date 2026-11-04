@@ -445,7 +445,8 @@ class ClaudeCommand(ask.Provider):
         from clark import ai_menu                    # here, not at the top: ai_menu is the page-facing module and imports ask
         return isinstance(system, str) and len(system) <= MAX_SYSTEM and system in (ask.RULES, ai_menu.SUGGEST_RULES)
 
-    def ask(self, request, model=None):
+    def ask(self, request, model=None, prefer=False):
+        """`prefer`: the model is only a default, so a command that can't choose one answers with its own instead of refusing."""
         if model is not None and not (isinstance(model, str) and model in MODELS):
             return ask.Failure(MODEL_REFUSED)    # fails closed, before anything is checked or sent
         with self.guard:                       # #284: registering the run and clearing stop state are one step Stop cannot split
@@ -465,7 +466,9 @@ class ClaudeCommand(ask.Provider):
             if path is None:
                 return ask.Failure(why)
             if model is not None and not self.model_listed:
-                return ask.Failure(MODEL_NOT_OFFERED)      # nothing is sent, and a question with no model is unaffected
+                if not prefer:
+                    return ask.Failure(MODEL_NOT_OFFERED)  # nothing is sent, and a question with no model is unaffected
+                model = None
             return self.answer(path, self.envelope(request.text), request.canary, system, model)
         finally:
             with self.guard:

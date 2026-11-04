@@ -5,6 +5,7 @@ export const OFF_LINE = "Asking is off. Turn it on in Settings.";               
 export const OFF_LINK = "Open Settings";
 export const SIGNED_OUT_LINE = "Claude is not signed in on this computer, so there is nothing to ask yet. Sign in to Claude on this computer, then open this panel again.";
 export const SETTINGS_LINK = "Open Settings";
+export const DISCONNECTED_LINE = "Claude isn't connected in Settings. Connect it there to use this.";   // the server's status words, ai_connect.OFF_WORDS
 // #47a: the connect box says where the words go and who pays for them.
 export const SENT_LINE = "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.";
 export const CHECKING_LINE = "Checking whether you can ask…";

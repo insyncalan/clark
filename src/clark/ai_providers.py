@@ -51,23 +51,24 @@ class ClaudeSubscription(Provider):
     def status(self):
         return self.command.status()
 
-    def ask(self, request, model=None):
+    def ask(self, request, model=None, prefer=False):
         if model is not None and not (isinstance(model, str) and model in self.models()):
             return ask.Failure(ask_claude.MODEL_REFUSED)
         if len(request.text) > most_chars(model):
             return ask.Failure(TOO_BIG.format(model=ask_claude.MODEL_NAMES.get(model, "this model")))
-        return self.command.ask(request, model)
+        return self.command.ask(request, model, prefer=prefer) if prefer else self.command.ask(request, model)
 
     def stop(self, owner=None):
         return self.command.stop(owner)
 
 
 class Chosen(ask.Provider):
-    """What ask clark and the suggestions are given: `provider` with the choice in Settings › AI applied. `on` and `model` are read for
-    every question, so a change in Settings counts at once. While it is off nothing is asked and the status says why."""
+    """What ask clark and the suggestions are given: `provider` with the choice in Settings › AI applied. `on` and `saved` are read for
+    every question, so a change in Settings counts at once. A model the person chose must be used or refused; `default` is only preferred,
+    so an older command that can't choose a model still answers. While it is off nothing is asked and the status says why."""
 
-    def __init__(self, provider, on, model, off_words):
-        self.provider, self.on, self.model, self.off_words = provider, on, model, off_words
+    def __init__(self, provider, on, saved, default, off_words):
+        self.provider, self.on, self.saved, self.default, self.off_words = provider, on, saved, default, off_words
         self.name = provider.name
 
     @property
@@ -77,10 +78,11 @@ class Chosen(ask.Provider):
     def status(self):
         return self.provider.status() if self.on() else {"connected": False, "why": self.off_words}
 
-    def ask(self, request, model=None):
+    def ask(self, request):
         if not self.on():
             return ask.Failure(self.off_words)
-        return self.provider.ask(request, self.model() if model is None else model)
+        chosen = self.saved()
+        return self.provider.ask(request, chosen or self.default, prefer=chosen is None)
 
     def stop(self, owner=None):
         return self.provider.stop(owner)

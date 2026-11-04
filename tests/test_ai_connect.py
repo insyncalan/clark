@@ -20,14 +20,16 @@ class FakeClaude:
     def __init__(self, signed_in=True):
         self.signed_in = signed_in
         self.asked = []
+        self.preferred = []
         self.stops = []
         self.command = type("C", (), {"lock": threading.Lock()})()
 
     def status(self):
         return {"connected": self.signed_in, "why": "" if self.signed_in else "Open Terminal, type claude and sign in."}
 
-    def ask(self, request, model=None):
+    def ask(self, request, model=None, prefer=False):
         self.asked.append(model)
+        self.preferred.append(prefer)
         return "answer"
 
     def stop(self, owner=None):
@@ -131,6 +133,11 @@ class TheChain(Base):
         self.connect.choose({"model": "fable"})
         self.chain.ask(self.request())
         self.assertEqual(self.claude.asked, ["sonnet", "fable"])
+        self.assertEqual(self.claude.preferred, [True, False], "the default is only preferred; a choice is not")
+
+    def test_the_panels_line_for_disconnected_is_these_words(self):
+        words = (Path(SRC) / "clark" / "page" / "src" / "edit" / "askWords.js").read_text(encoding="utf-8")
+        self.assertIn(f'DISCONNECTED_LINE = "{ac.OFF_WORDS}"', words)
 
     def test_while_disconnected_nothing_is_asked_and_the_status_says_so(self):
         self.connect.disconnect({"provider": "claude"})

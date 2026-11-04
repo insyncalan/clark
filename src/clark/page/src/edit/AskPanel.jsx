@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { project, show, token } from "../stores/report.js";
 import { words } from "./publishApi.js";
-import { panelOpen, panelState, panelModel, panelWidth, panelFocus, turns, pending, closePanel, newChat, setWidth, clampWidth, nextQuip, quipDelay } from "./askPanelState.js";
+import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, closePanel, newChat, setWidth, clampWidth, nextQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 
@@ -128,7 +128,7 @@ export function AskPanel() {
         <p class="ask-off" id="ask-off">{W.OFF_LINE} <a href="#settings" data-ask-settings onClick={toSettings}>{W.OFF_LINK}</a></p>
       ) : null}
       {state === "signed-out" ? (
-        <p class="ask-off" id="ask-signed-out">{W.SIGNED_OUT_LINE} <a href="#settings" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
+        <p class="ask-off" id="ask-signed-out">{panelDisconnected.value ? W.DISCONNECTED_LINE : W.SIGNED_OUT_LINE} <a href="#settings" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
       ) : null}
       <div class="ask-log" id="ask-log" role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>
         {list.map((t, i) => (
