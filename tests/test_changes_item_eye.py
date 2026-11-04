@@ -298,6 +298,24 @@ class Duplicate(unittest.TestCase):
                 self.assertNotEqual(copy["id"], src)
                 self.assertFalse(self.hidden(body["ref"]), "a shown item's copy with a latest update or reasoning stays shown, as the item is")
 
+    def test_a_forged_labels_value_on_duplicate_is_refused_and_writes_nothing(self):
+        """Item 612: the copy's labels are the stored item's only. A request that sends labels (to drop Sensitive, or to add one), or
+        a label's reason, in the values or beside them, is refused, and nothing is written."""
+        src = self.make("actions", "ZQFORGED")
+        self.label(src, "Sensitive")
+        actions, labels = len(self.s.read("actions")), len(self.s.read("item_labels"))
+        forged = [{"labels": v} for v in ([], ["Urgent"], "Urgent", "", None)] + [{"label_reason": "x"}, {"label_suggested": 1}]
+        for extra in forged:
+            for where in ("values", "request"):
+                with self.subTest(extra=extra, where=where):
+                    values = {"description": "x", **(extra if where == "values" else {})}
+                    req = {"project": "ABC", "kind": "actions", "op": "new", "values": values, "copy_of": src, "place": "menu",
+                           **(extra if where == "request" else {})}
+                    status, body = self.change(req)
+                    self.assertNotEqual(status, 200, body)
+        self.assertEqual((len(self.s.read("actions")), len(self.s.read("item_labels"))), (actions, labels), "a refusal writes nothing")
+        self.assertEqual(self.labels(src), ["Sensitive"])
+
     def test_a_long_title_still_ends_with_copy_and_fits(self):
         src = self.make("actions", "x" * 200)
         status, body = self.change({"project": "ABC", "kind": "actions", "op": "new", "values": {"description": "x (copy)"}, "copy_of": src, "place": "menu"})

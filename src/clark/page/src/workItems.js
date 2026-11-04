@@ -12,7 +12,13 @@ const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DAY = 86400000;
 const DASH = "—";
 
+// item 349: while the Dashboard is shown as at a day, rebuilt from the change history, "today" is that day, so due dates and Overdue
+// read as they did then. Only the report store sets it (stores/report.js showAsAt and backToNow); "" reads the clock.
+let pinned = "";
+export function pinToday(iso) { pinned = /^\d{4}-\d\d-\d\d$/.test(iso || "") ? iso : ""; }
+
 export function todayIso() {
+  if (pinned) return pinned;
   const t = new Date();
   return `${String(t.getFullYear()).padStart(4, "0")}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
 }
@@ -107,7 +113,8 @@ export function rowsOf(data) {
     uc: r.use_case && ucs[r.use_case] ? `Use case ${ucs[r.use_case]}` : "", milestone: (r.milestone && ms[r.milestone]) || "", workstream: r.workstream || "" });
   const rows = [];
   for (const r of data.actions || []) rows.push({ ...common(r), kind: "action", title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed });
-  for (const r of data.raid || []) rows.push({ ...common(r), kind: String(r.type).toLowerCase(), title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed });
+  for (const r of data.raid || []) rows.push({ ...common(r), kind: String(r.type).toLowerCase(), title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed,
+    impact: r.impact || null, likelihood: r.likelihood || null });   // item 210: the two a risk's or issue's priority follows from
   for (const r of data.decisions || []) rows.push({ ...common(r), kind: "decision", title: r.decision, owner: r.made_by, priority: null, needed_by: r.needed_by, date: r.date, workstream: "", milestone: "" });
   return rows;
 }

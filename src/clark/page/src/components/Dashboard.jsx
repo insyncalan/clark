@@ -4,11 +4,12 @@
 // `tools` from edit/) draws every section, a hidden one dimmed, with those parts. A published file passes no tools and is never Edit.
 import { useEffect } from "preact/hooks";
 import { armHint } from "../stores/motion.js";
-import { data, mode, fromFile, dropAt } from "../stores/report.js";
+import { data, mode, fromFile, dropAt, rebuilt } from "../stores/report.js";
 import { Section } from "./Section.jsx";
 import { Minimap } from "./Minimap.jsx";
 import { scrollTargets, entries, countOf } from "../logic/minimap.js";
 import { todayIso } from "../workItems.js";
+import { coverLine } from "../logic/cover.js";
 import { slots as slotsOf } from "../logic/placement.js";
 import { emptyBody } from "../logic/emptyBody.js";
 export { emptyBody };
@@ -47,7 +48,7 @@ export function Dashboard({ tools }) {
   // does not draw yet (only text bodies are drawn, #74). Rows are read from every section first (#95), so a section whose partner
   // is left out takes the full row and never pairs with the next one. The page clark serves is unchanged.
   // The file draws a text section with a body, the At a glance section when it carries tiles and the use case summary when it
-  // carries use cases (#45), Risks and issues, Open actions and Decisions when they have a row to show (A-D5), and a 'Needs from you' section that has a row to show (#121); the other types are left out until they are drawn.
+  // carries use cases (item 45), Risks and issues, Open actions and Decisions only when they have a row to show (A-D5: an empty one is left out of the file, heading and all; View says it has nothing to show), and a 'Needs from you' section that has a row to show (item 121); the other types are left out until they are drawn.
   // A section template (#96) is drawn in the file and in the served View alike only while it has something to show (its isEmpty,
   // FR-11: View is what the client sees), so an empty template or a stub is in neither.
   const hasNeeds = (s) => shownRows(rowsOf(s, fromFile.value)).length > 0;       // a 'Needs from you' section with no row to show is left out (a left-out row is absent)
@@ -67,12 +68,14 @@ export function Dashboard({ tools }) {
   return (
     <>
     {Bar ? <Bar /> : null}
-    <section class="frame report" id="report" data-mode={editing ? "edit" : "view"}>
-      <p class="crumbs">{d.project.client_name || "Report"}</p>
-      <h1>{d.project.name}</h1>
+    <section class={`frame report${rebuilt.value ? " asat-frame" : ""}`} id="report" data-mode={editing ? "edit" : "view"} inert={rebuilt.value ? true : undefined}>{/* item 349: as at a day, nothing in it can be focused or clicked */}
+      <header class="cover" id="cover">
+        <h1>{d.project.name}</h1>
+        <p class="cover-line"><b class="cover-kind">Weekly report</b>{coverLine(d.project, fromFile.value || rebuilt.value ? "" : todayIso()).map((t) => <span key={t}>{t}</span>)}</p>
+      </header>
       {list.length === 0 ? <p class="muted" id="no-sections">{emptyWhy}</p> : null}
       <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" ? " drop-end" : ""}`}>
-        {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} onExport={!editing && !fromFile.value && tools && tools.exportExcel ? tools.exportExcel : null} />)}
+        {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} />)}
       </div>
       {editing && list.length === 0 ? <tools.Add /> : null}
       <Minimap sections={list} onJump={jump} stickyHeight={topBarHeight()} counts={counts} />

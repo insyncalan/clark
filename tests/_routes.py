@@ -7,18 +7,18 @@ appears or disappears without this file being changed fails the comparison, so a
 """
 # Each route says which piece of work added it.
 GET_ROUTES = (
-    "/api/activity", "/api/ai/status", "/api/ask-enabled", "/api/ask-folders", "/api/ask/status", "/api/backups", "/api/data", "/api/diagnostics",
+    "/api/activity", "/api/ai/status", "/api/as-at", "/api/ask-enabled", "/api/ask-folders", "/api/ask/status", "/api/backups", "/api/data", "/api/diagnostics",
     "/api/export", "/api/milestones", "/api/movement", "/api/past-report", "/api/people", "/api/profile", "/api/projects",
     "/api/publication", "/api/publications", "/api/use-cases",
-)     # #147: export; #136: movement; #180: profile; #47: asking; #42: activity; #443: the Published reports list and Open (neither writes anything)
+)     # #147: export; #136: movement; #180: profile; #47: asking; #42: activity; #443: the Published reports list and Open (neither writes anything); #349: as-at, rebuilt in a copy (writes nothing)
 
 POST_ROUTES = (
     "/api/ai/stop", "/api/ai/suggest", "/api/ask", "/api/ask-enabled", "/api/ask-folders", "/api/ask/change/apply", "/api/ask/change/dry", "/api/ask/stop",
-    "/api/backups/preview", "/api/backups/restore", "/api/change", "/api/client-folder", "/api/draft-email",
-    "/api/draft-email/sent", "/api/logging", "/api/logging/open-folder", "/api/page-error", "/api/people", "/api/people/undo",
-    "/api/preview", "/api/profile", "/api/publish", "/api/section-file", "/api/section-image", "/api/sneak/read", "/api/undo",
+    "/api/backups/copy-folder", "/api/backups/preview", "/api/backups/restore", "/api/change", "/api/client-folder", "/api/draft-email",
+    "/api/draft-email/sent", "/api/excel-import", "/api/logging", "/api/logging/open-folder", "/api/page-error", "/api/people", "/api/people/undo",
+    "/api/preview", "/api/profile", "/api/project", "/api/publications/archive", "/api/publications/restore", "/api/publish", "/api/section-file", "/api/section-image", "/api/sneak/read", "/api/undo",
     "/api/word-export", "/api/word-import",
-)     # #43, #111, #147, #180, #50, #47, #47e, #42, #96, #72 (the AI suggestion, its Stop and its status), and #48 (the two Word ones)
+)     # #345 (Archive and Restore of one publication), #43, #111, #622 (the copy folder), #147, #180, #50, #47, #47e, #42, #96, #72 (the AI suggestion, its Stop and its status), and #48 (the two Word ones); item 444 (excel-import: the workbook, one step, no client folder; project: new and edit)
 
 
 def unplanned(server):

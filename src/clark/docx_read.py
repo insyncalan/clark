@@ -90,17 +90,18 @@ def _mb(n):
 
 # ===== The plain-words messages (design-48-word.md section 6) =====
 def _damaged(name):
-    return WordRefused(f"{name} can't be opened as a Word document. It may be damaged or cut short. Open it in Word, save it "
-                       "again as a .docx and try again.")
+    return WordRefused(f"{name} could not be opened. It may be damaged, or it may not be a Word file. Open it in Word and save a "
+                       "copy, then choose it again.")
 
 
 def _password(name):
-    return WordRefused(f"{name} is password protected, or is an older kind of Word file. Open it in Word, remove the password, "
-                       "save a copy as a .docx and try again.")
+    return WordRefused(f"{name} is password protected, or is an older kind of Word file. Open it in Word, remove the password "
+                       "and save a copy as a Word document, then choose it again.")
 
 
-def _unsafe_text(name):
-    return WordRefused(f"{name} has text clark can't read safely. Open it in Word, save a copy and try again.")
+def _not_safe(name):
+    """One text for the three files that cannot be read safely (an odd packing, text clark can't read, something inside it)."""
+    return WordRefused(f"{name} could not be read safely, so it was not opened. Open it in Word, save a copy, and choose the copy.")
 
 
 def _too_big(name, kind, got, most):
@@ -111,18 +112,8 @@ def _too_big(name, kind, got, most):
                        "Remove large pictures or split it, then try again.")
 
 
-def _too_packed(name):
-    return WordRefused(f"{name} looks packed in an unusual way, so it was not read. Open it in Word, save a copy and try again.")
-
-
 def _too_complex(name):
     return WordRefused(f"{name} is too complex for clark to read, so it was not read. Save a simpler copy and try again.")
-
-
-def _unsafe_inside(name):
-    return WordRefused(f"{name} has something inside it clark can't open safely, so it was not read. Open it in Word, save a copy "
-                       "and try again.")
-
 
 
 # ===== The zip =====
@@ -136,10 +127,10 @@ def _check_names_and_sizes(name, infos):
         parts = n.split("/")
         if (not n or "\\" in n or n.startswith("/") or re.match(r"[A-Za-z]:", n) or ".." in parts or len(n) > 255
                 or any(ord(c) < 32 or ord(c) == 127 for c in n)):
-            raise _unsafe_inside(name)
+            raise _not_safe(name)
         key = n.casefold()
         if key in seen:
-            raise _unsafe_inside(name)
+            raise _not_safe(name)
         seen.add(key)
         if i.flag_bits & 0x1 or i.flag_bits & 0x40:
             raise _password(name)
@@ -148,7 +139,7 @@ def _check_names_and_sizes(name, infos):
         if i.file_size > MAX_PART_BYTES:
             raise _too_big(name, "part", i.file_size, MAX_PART_BYTES)
         if i.file_size > RATIO_FROM and i.file_size > MAX_RATIO * max(i.compress_size, 1):
-            raise _too_packed(name)
+            raise _not_safe(name)
         total += i.file_size
     if total > MAX_UNPACKED_BYTES:
         raise _too_big(name, "all", total, MAX_UNPACKED_BYTES)
@@ -191,21 +182,21 @@ def _run(name, raw, start=None, end=None, text=None):
     try:
         decoded = raw.decode("utf-8")
     except UnicodeDecodeError:
-        raise _unsafe_text(name) from None
+        raise _not_safe(name) from None
     m = ENCODING.match(decoded[:300])
     if (m and m.group(1).lower().replace("_", "-") not in ("utf-8", "utf8")) or DOCTYPE.search(decoded) or "\x00" in decoded:
-        raise _unsafe_text(name)
+        raise _not_safe(name)
     state = {"depth": 0, "elements": 0}
     p = expat.ParserCreate(namespace_separator="|")
 
     def refuse(*_args):
-        raise _Stop(_unsafe_text(name))
+        raise _Stop(_not_safe(name))
 
     def on_start(tag, attrs):
         state["depth"] += 1
         state["elements"] += 1
         if state["depth"] > MAX_DEPTH or state["elements"] > MAX_ELEMENTS:
-            raise _Stop(_unsafe_text(name))
+            raise _Stop(_not_safe(name))
         if start:
             start(tag, attrs, state["depth"])
 
@@ -234,7 +225,7 @@ def _run(name, raw, start=None, end=None, text=None):
     except expat.ExpatError:
         raise _damaged(name) from None
     except (RecursionError, MemoryError):
-        raise _unsafe_text(name) from None
+        raise _not_safe(name) from None
 
 
 # ===== The small parts: content types, relationships, styles, numbering =====
@@ -260,8 +251,8 @@ def _check_types(name, raw):
 def _macros_or_objects(name, what):
     w = what.lower()
     if "macro" in w or "vba" in w:
-        return WordRefused(f"{name} has macros in it. clark never opens macros. Save a copy as a plain .docx (not .docm) and "
-                           "try again.")
+        return WordRefused(f"{name} has macros in it, and clark never opens macros. Open it in Word and save a copy as an ordinary "
+                           "Word document (the type that cannot hold macros), then choose it again.")
     return WordRefused(f"{name} has a file or object inside it (such as a spreadsheet). clark won't open it. Remove it in Word "
                        "and save a copy.")
 
@@ -387,8 +378,8 @@ class _Body:
         self.body_seen = False
 
     def refuse_long(self):
-        return WordRefused(f"A paragraph in {self.name} is longer than {MAX_PARAGRAPH:,} characters, so it was not read. "
-                           "Split it into smaller documents and try again.")
+        return WordRefused(f"One paragraph in {self.name} is far too long (over {MAX_PARAGRAPH:,} characters), so the file was not "
+                           "read. Break that paragraph into shorter ones, then choose the file again.")
 
     def add(self, s):
         if self.skip or not self.in_run or self.para is None or not s:
@@ -401,7 +392,7 @@ class _Body:
             raise _Stop(self.refuse_long())
         if self.total > MAX_TEXT:
             raise _Stop(WordRefused(f"{self.name} holds more text than clark will read, so it was not read. "
-                                    "Split it into smaller documents and try again."))
+                                    "Remove some text, or put part of it in a second file."))
         self.para["text"].append(s)
 
     def start(self, tag, attrs, depth):
@@ -502,7 +493,7 @@ class _Body:
         self.blocks.append(block)
         if len(self.blocks) > MAX_BLOCKS:
             raise _Stop(WordRefused(f"{self.name} holds more than {MAX_BLOCKS:,} paragraphs and rows, so it was not read. "
-                                    "Split it into smaller documents and try again."))
+                                    "Remove some text, or put part of it in a second file."))
 
     def style_chain(self, style_id):
         """The paragraph's style and what it is based on, nearest first (at most ten, so a loop cannot hang)."""
@@ -600,10 +591,10 @@ def read(data, name="This file"):
             if EMBED_NAME.search(n):
                 raise _macros_or_objects(name, "oleobject")
         if "[Content_Types].xml" not in names or "word/document.xml" not in names:
-            raise WordRefused(f"{name} is not a Word document: it has no main text.")
+            raise WordRefused(f"{name} does not look like a Word document, so it was not read. Choose a Word file.")
         main = _check_types(name, _part(z, name, "[Content_Types].xml", SMALL_PART_BYTES))
         if "wordprocessingml" not in main.lower():
-            raise WordRefused(f"{name} is not a Word document: it has no main text.")
+            raise WordRefused(f"{name} does not look like a Word document, so it was not read. Choose a Word file.")
         for n in sorted(names):
             if n.endswith(".rels"):
                 _check_rels(name, _part(z, name, n, SMALL_PART_BYTES))
@@ -614,7 +605,7 @@ def read(data, name="This file"):
         _run(name, _part(z, name, "word/document.xml"), body.start, body.end, body.text)
         comments = "word/comments.xml" in names
     if not body.body_seen:
-        raise WordRefused(f"{name} is not a Word document: it has no main text.")
+        raise WordRefused(f"{name} does not look like a Word document, so it was not read. Choose a Word file.")
     c, notes = body.counts, []
     if c["hidden"]:
         notes.append(f"Text marked as hidden in Word ({c['hidden']} {_plural(c['hidden'], 'place', 'places')}) was not read.")

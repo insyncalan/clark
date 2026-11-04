@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_word_import
 Every file is made in the test from made-up text. What is asserted: only NEW actions, risks and issues, and decisions are staged;
-nothing is accepted for the person; text from the file stays plain text; every row starts hidden from the client; an existing item
+nothing is accepted for the person; text from the file stays plain text; every row starts shown to the client; an existing item
 (a line with an ID) is never changed; the same content twice makes the rows once; a bad line names itself and is not staged; the
 text is read through docx_read, so a hostile file stages nothing; every message is plain; the module touches no disk, network or
 process. The guarded step that writes accepted rows (one step, one Undo, the history row) is not here.
@@ -74,7 +74,7 @@ class WhatIsStaged(unittest.TestCase):
     def test_an_empty_file_says_what_to_do(self):
         p = plan([H("Hello"), para("Nothing here.")])
         self.assertEqual(p.items, [])
-        self.assertTrue(any("Nothing new was found" in n for n in p.notes))
+        self.assertEqual((p.problems, p.already_created), ([], 0), "the box says it, once, from these counts")
 
     def test_a_table_is_read_by_its_headings(self):
         t = table(["Action", "Owner", "Priority", "Due", "Status", "Weight"],
@@ -102,7 +102,7 @@ class WhatIsStaged(unittest.TestCase):
     def test_a_table_with_no_description_column_or_no_lines_is_noted(self):
         p = plan([H("Actions"), table(["Owner", "Due"], ["Sam", "05-11-2026"]), table(["Action"])])
         self.assertEqual(p.items, [])
-        self.assertEqual(len(p.notes), 3)       # two tables, and the nothing-found note
+        self.assertEqual(len(p.notes), 2)       # two tables (nothing found is said by the box, from the counts)
 
     def test_the_numbers_stay_in_order_across_tables_and_text(self):
         p = plan([H("Actions"), table(["Action"], ["One"], ["Two"]), item("Three")])
@@ -151,9 +151,9 @@ class NothingIsDecidedForThePerson(unittest.TestCase):
     def test_every_row_starts_hidden_from_the_client_and_says_so(self):
         p = plan([H("Actions"), item("One"), H("Risks"), item("Two"), H("Decisions"), item("Three")])
         for i in p.items:
-            self.assertEqual(i.values["client_visible"], 0)
-            self.assertIn("Not shown to the client until you turn it on.", i.describe())
-        self.assertIn("Not shown to the client until you turn it on.", p.report())
+            self.assertEqual(i.values["client_visible"], 1)
+            self.assertIn("Shown to the client unless you hide it with the eye.", i.describe())
+        self.assertIn("Shown to the client unless you hide it with the eye.", p.report())
 
     def test_the_source_names_the_file_the_day_and_the_heading(self):
         p = plan([H("Next steps"), item("One")])
@@ -225,7 +225,7 @@ class ABadLineNamesItself(unittest.TestCase):
         p = plan([H("Actions"), table(["Action", "Owner"], ["", "Sam"])])
         self.assertTrue(p.problems[0].message.endswith("Add a description and import again."))
         p = plan([H("Decisions"), table(["Decision", "Status", "Date"], ["Choose", "Made", ""])])
-        self.assertTrue(p.problems[0].message.endswith("Add the date it was made and import again."))
+        self.assertTrue(p.problems[0].message.endswith("so this one cannot be added. Add the date in the Word file and choose the file again."))
         p = plan([H("Actions"), item("x" * (word_import.MAX_VALUE + 1))])
         self.assertTrue(p.problems[0].message.endswith("Shorten it and import again."))
         p = plan([H("Actions"), table(["Action", "Owner"])])
@@ -274,7 +274,7 @@ class TextFromAFileIsOnlyText(unittest.TestCase):
                    "source"}
         for i in p.items:
             self.assertLessEqual(set(i.values), allowed)
-            self.assertEqual(i.values["client_visible"], 0)
+            self.assertEqual(i.values["client_visible"], 1)
             self.assertNotIn("client_message", i.values)
             self.assertTrue(i.values["source"].startswith("Word import,"))
 

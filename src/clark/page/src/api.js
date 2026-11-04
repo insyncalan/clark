@@ -172,7 +172,8 @@ export async function getProfile() {
   try {
     const r = await fetch("/api/profile", { headers: { "X-Clark-Token": token() }, cache: "no-store" });
     const body = await r.json().catch(() => null);
-    return r.ok && body && body.ok === true && typeof body.name === "string" && typeof body.email === "string" ? { name: body.name, email: body.email } : null;
+    return r.ok && body && body.ok === true && typeof body.name === "string" && typeof body.email === "string"
+      ? { name: body.name, email: body.email, alias: typeof body.alias === "string" ? body.alias : "" } : null;
   } catch (e) {
     return null;
   }
@@ -191,15 +192,17 @@ export async function readPeople() {
   }
 }
 
-export async function saveProfile(name, email) {
+// The Alias (item 613) is sent only when it is given: left out, clark keeps the one it has.
+export async function saveProfile(name, email, alias) {
   try {
     const r = await fetch("/api/profile", {
-      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify({ name, email }), cache: "no-store",
+      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify(typeof alias === "string" ? { name, email, alias } : { name, email }), cache: "no-store",
     });
     const reply = await r.json().catch(() => null);
-    if (r.ok && reply && reply.ok === true) return { ok: true, name: String(reply.name || ""), email: String(reply.email || "") };
+    if (r.ok && reply && reply.ok === true) return { ok: true, name: String(reply.name || ""), email: String(reply.email || ""), alias: String(reply.alias || "") };
     const said = reply && typeof reply.message === "string" && reply.message.length <= 240 ? reply.message : "";
-    if (r.status === 400 && said) return { ok: false, message: said, field: reply.field === "name" || reply.field === "email" ? reply.field : "" };
+    if (r.status === 400 && said) return { ok: false, message: said, field: ["name", "email", "alias"].includes(reply.field) ? reply.field : "" };
     return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };
   } catch (e) {
     return { ok: false, message: plainChange(0) };
@@ -315,4 +318,43 @@ export async function readArchivedUseCase(project, id) {
   const r = await get(`/api/data?project=${encodeURIComponent(project)}&archived=only`);
   const list = r.ok && r.body.data && Array.isArray(r.body.data.use_cases) ? r.body.data.use_cases : null;
   return list ? { ok: true, row: list.find((u) => u && (u.id === id || u.ref === id)) || null } : { ok: false };
+}
+
+// B-5: the archived work items of a project (the archived read of /api/data) and Restore of one. {ok: true, data} or {ok: false};
+// Restore answers {ok: true, reply} or {ok: false, message}.
+export async function getArchived(project) {
+  const r = await get(`/api/data?project=${encodeURIComponent(project)}&archived=only`);
+  return r.ok && r.body.data ? { ok: true, data: r.body.data } : { ok: false };
+}
+
+export async function sendRestore(project, table, id) {
+  try {
+    const r = await fetch("/api/change", {
+      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify({ project, kind: table, op: "restore", id, place: "menu" }), cache: "no-store",
+    });
+    const reply = await r.json().catch(() => null);
+    if (r.ok && reply && reply.ok === true) return { ok: true, reply };
+    const said = reply && typeof reply.message === "string" ? reply.message : "";
+    const mine = (r.status === 400 || r.status === 409) && said && said.length <= 200 && !/[\u0000-\u001f]/.test(said);
+    return { ok: false, message: mine ? said : plainChange(r.ok ? 500 : r.status, reply) };
+  } catch (e) {
+    return { ok: false, message: plainChange(0) };
+  }
+}
+
+// {ok: true, applyId} or {ok: false, message}: never a throw. `op` is "archive" or "restore".
+export async function sendProjectArchive(code, op) {
+  try {
+    const r = await fetch("/api/change", {
+      method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify({ project: code, kind: "projects", op, id: code }), cache: "no-store",
+    });
+    const reply = await r.json().catch(() => null);
+    if (r.ok && reply && reply.ok === true) return { ok: true, applyId: reply.apply_id || null };
+    const said = reply && typeof reply.message === "string" && reply.message.length <= 240 && (r.status === 400 || r.status === 409) ? reply.message : "";
+    return { ok: false, message: said || plainChange(r.ok ? 500 : r.status, reply) };
+  } catch (e) {
+    return { ok: false, message: plainChange(0) };
+  }
 }

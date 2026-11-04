@@ -23,13 +23,8 @@
   },
   {
    "where": "howto-set-your-profile note",
-   "text": "Your profile is kept on this computer only. Reset demo data keeps it.",
-   "why": "names the demo data; waits for the real reset behaviour"
-  },
-  {
-   "where": "howto-undo-a-mistake step 5",
-   "text": "**Reset demo data**, at the foot of the page or in Settings › Data, puts the prototype back as it started.",
-   "why": "demo data and prototype"
+   "text": "Your profile is kept on this computer only.",
+   "why": "prototype behaviour"
   },
   {
    "where": "howto-update-clark step 2 (last sentence)",
@@ -38,7 +33,7 @@
   },
   {
    "where": "ref-top-bar paragraph",
-   "text": "A bar at the foot of every page says this is a prototype with demo data, kept in this browser’s database, with **Reset demo data**.",
+   "text": "A bar at the foot of every page says this is a prototype with demo data, kept in this browser’s database.",
    "why": "prototype banner and demo data"
   },
   {
@@ -50,11 +45,6 @@
    "where": "ref-ask-clark paragraph",
    "text": "In this prototype, answers are worked out by rules from the project’s data, and folders are not read.",
    "why": "prototype behaviour of ask clark"
-  },
-  {
-   "where": "ref-settings row text",
-   "text": "and Reset the demo data",
-   "why": "demo data"
   },
   {
    "where": "ref-updating-clark bullet",
@@ -73,7 +63,7 @@
   },
   {
    "where": "start footer (second sentence)",
-   "text": "This is a prototype with demo data, kept in this browser’s database: **Reset demo data** at the foot of the page puts it back as it started.",
+   "text": "This is a prototype with demo data, kept in this browser’s database.",
    "why": "prototype and demo data"
   },
   {
@@ -133,11 +123,6 @@
    "fr": "FR-4",
    "feature": "One Boxed report layout (check the Layouts section says it is the only layout)",
    "suggest": "the review to check the layouts section"
-  },
-  {
-   "fr": "FR-5",
-   "feature": "Reset demo data (demo builds only)",
-   "suggest": "stays out of shipped Help; see the held text above"
   },
   {
    "fr": "FR-122",

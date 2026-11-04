@@ -6,15 +6,19 @@
 # CHEAP PATH (an ordinary pull request): ONE Ubuntu 24.04 job on the newest Python ("3.x"): the pages build, then
 # `dev/run_tests.py --push origin/<base>` (the quick tier plus the browser files the change reaches, which is `--changed`
 # plus the quick tier). No Python 3.9 and no macOS. The full suite is only for the release gate.
-# FULL MATRIX (the `plan` job decides, from the event, the branch and the labels): Ubuntu 3.x with EVERY file, Ubuntu 3.9 on
-# the quick tier (`--quick`), and macOS (the newest Python, every file, two shards: #274) on a push to main, on a release
-# branch (release-X.Y.Z, and the Head's v*-release* line, read from the pull request's head branch), on a pull request that
-# carries the label `full-ci` (guarded PRs get it; adding or removing the label starts a new run), and by hand (3.x and 3.9;
-# macOS only with macos=true). macOS is REQUIRED whenever it runs: clark is Mac first. A macOS runner that fails to start is
-# re-run once before anyone calls it a failure.
+# FULL MATRIX (the `plan` job decides, from the event, the branch and the labels): Ubuntu 3.x with EVERY file and Ubuntu 3.9 on
+# the quick tier (`--quick`) on a push to main, on a release branch, on a pull request that changes a guarded file, on the
+# label `full-ci`, and by hand. macOS (the newest Python, every file, FOUR shards) runs at the RELEASE GATE and on a few other
+# events, not on every push of a guarded pull request: on a push to main, on a release branch (release-X.Y.Z, and the Head's
+# v*-release* line, read from the pull request's head branch), on a pull request that changes Mac-specific code (platform.py,
+# updates.py, the launcher and the package files), on a pull request that carries the label `full-ci` (adding or removing the
+# label starts a new run), and by hand (macos=true). A guarded pull request that is not Mac-specific gets the full Ubuntu matrix
+# and no macOS until it is on a release branch. macOS is REQUIRED whenever it runs: clark is Mac first. A macOS runner that
+# fails to start is re-run once before anyone calls it a failure.
 #
-# macOS shards: one job with a matrix, so `needs.macos.result` is ONE value for the whole matrix (success only if both shards
-# pass; skipped when the job's `if` is false). The gate reads that result, so it never depends on a shard's name.
+# macOS shards: one job with a matrix of four, so `needs.macos.result` is ONE value for the whole matrix (success only if all four
+# shards pass; skipped when the job's `if` is false). Each runs two test files at a time (JOBS 2): three Chrome tests at once on the
+# 3-vCPU, 7 GB runner starved each other, which made the flake. The gate reads that result, so it never depends on a shard's name.
 #
 # The gate: "Tests passed" is the one result to require. A gate row can be absent because a job with `needs` has no check run
 # until its needs finish (so it is missing while a needed job still runs). A stale red gate appeared when concurrency cancelled a
@@ -28,7 +32,7 @@
 # takes seconds, so nothing is saved by skipping it.
 #
 # Shards (`--shard I/N`, balanced by the real per-file times in dev/tools/shard_times.txt): Ubuntu 3.x has three on both paths,
-# macOS two, Python 3.9 one; add shards when the slowest job passes 10 minutes. Every test file is in exactly one shard (tests/test_run_tests.py proves it).
+# macOS four, Python 3.9 one; add shards when the slowest job passes 10 minutes. Every test file is in exactly one shard (tests/test_run_tests.py proves it).
 # `--max-fail 8` stops a shard that has plainly gone wrong after 8 failed files.
 on:
   workflow_dispatch:
@@ -73,6 +77,7 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           BRANCH: ${{ github.head_ref || github.ref_name }}
+          BASE_REF: ${{ github.base_ref }}
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
           MACOS_INPUT: ${{ github.event.inputs.macos }}
           GH_TOKEN: ${{ github.token }}
@@ -87,10 +92,15 @@ jobs:
           case "$BRANCH" in
             release-*|v*-release*) FULL=1; MACOS=1 ;;
           esac
+          # A pull request that TARGETS a release branch is part of the release line too (its base, not only its head branch).
+          case "$BASE_REF" in
+            release-*|v*-release*) FULL=1; MACOS=1 ;;
+          esac
           case ",$LABELS," in
             *,full-ci,*) FULL=1; MACOS=1 ;;
           esac
-          # A pull request that changes a guarded file is the full matrix without the label. A file moved away from a guarded path counts too (#593):
+          # A pull request that changes a guarded file is the full Ubuntu matrix without the label, and macOS only when the file is
+          # Mac-specific (platform, updates, the launcher and the package files); the release gate runs macOS on everything else. A file moved away from a guarded path counts too (#593):
           # the API gives the old name as previous_filename, so both names are listed. The changed files come from the API
           # (nothing from the pull request is checked out); if the call fails the answer is full (fail safe). Exact names or
           # anchored prefixes in `case`, never eval. The list is dev/run_tests.py GUARDED plus the publishing, secret-screen,
@@ -99,10 +109,11 @@ jobs:
             if CHANGED="$(gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')"; then
               while IFS= read -r F; do
                 case "$F" in
-                  src/clark/store.py|src/clark/schema.sql|src/clark/history.py|src/clark/server.py) FULL=1; MACOS=1 ;;
-                  src/clark/publish.py|src/clark/publish_flow.py|src/clark/secret_screen.py) FULL=1; MACOS=1 ;;
-                  src/clark/updates.py|src/clark/platform.py) FULL=1; MACOS=1 ;;
-                  .github/*) FULL=1; MACOS=1 ;;
+                  src/clark/store.py|src/clark/schema.sql|src/clark/history.py|src/clark/server.py) FULL=1 ;;
+                  src/clark/publish.py|src/clark/publish_flow.py|src/clark/secret_screen.py) FULL=1 ;;
+                  src/clark/updates.py|src/clark/platform.py) FULL=1; MACOS=1 ;;      # Mac-specific code: tested on a Mac at the pull request
+                  clark.command|clark/__main__.py|clark/launch.py|clark/doctor.py|src/clark/launch.py|src/clark/doctor.py|src/clark/release_files.py|dev/tools/package.py) FULL=1; MACOS=1 ;;      # the launcher (clark/launch.py is what clark.command runs) and the package: Mac-specific too
+                  .github/*) FULL=1 ;;
                 esac
               done <<< "$CHANGED"
             else
@@ -213,8 +224,8 @@ jobs:
         run: python3 dev/run_tests.py -j "$JOBS" --quick --shard "1/1" --max-fail 8 $FILES
 
   macos:
-    # macOS (the newest Python, every file) when the plan says so: a push to main, a release branch, the full-ci label, or a
-    # hand-started run with macos=true (gh workflow run Tests --ref <branch> -f macos=true). Required when it runs.
+    # macOS (the newest Python, every file, four shards) when the plan says so: a push to main, a release branch, a pull request
+    # that changes Mac-specific code, the full-ci label, or a hand-started run with macos=true (gh workflow run Tests --ref <branch> -f macos=true). Required when it runs.
     if: ${{ needs.plan.outputs.macos == '1' }}
     name: macos-latest · Python 3.x · shard ${{ matrix.shard }}/${{ matrix.shards }}      # skipped: shown unresolved; the gate reads needs.macos.result, never this name
     needs: plan
@@ -224,8 +235,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {shard: 1, shards: 2}
-          - {shard: 2, shards: 2}
+          - {shard: 1, shards: 4}
+          - {shard: 2, shards: 4}
+          - {shard: 3, shards: 4}
+          - {shard: 4, shards: 4}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -254,7 +267,7 @@ jobs:
       - name: Tests
         env:
           FILES: ${{ github.event.inputs.files }}
-          JOBS: 3
+          JOBS: 2
           SHARD: ${{ matrix.shard }}
           SHARDS: ${{ matrix.shards }}
         run: python3 dev/run_tests.py -j "$JOBS" --shard "$SHARD/$SHARDS" --max-fail 8 $FILES

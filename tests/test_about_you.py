@@ -13,6 +13,7 @@ import json
 import time
 import unittest
 
+from clark.settings import EMAIL_BAD, NAME_TOO_LONG    # the one place the refusal sentences are written; test_profile_settings pins their words
 from _new_page import reload_to_new_page
 from _paths import SRC
 from test_publish_dialog import Base, PAGE_SRC
@@ -21,6 +22,7 @@ from test_server import chrome
 WIDTHS = (1400, 900)
 NAME_LINE = "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional."
 EMAIL_LINE = "Optional. Used only to tell which email addresses are your own. Nothing here sends email."
+ALIAS_LINE = "Your first name and your initials, worked out from your full name. You can change it."     # item 613: the Alias box under the name
 
 
 class AboutYou(Base):
@@ -99,8 +101,8 @@ class AboutYou(Base):
                 self.close_menu(p)
                 self.open_settings(p)
                 self.assertEqual(p.js("document.querySelector('[data-about-you] legend').textContent"), "About you")
-                self.assertEqual(p.js("[...document.querySelectorAll('[data-about-you] label')].map(l => l.textContent)"), ["Your name", "Your email"])
-                self.assertEqual(p.js("[...document.querySelectorAll('[data-about-you] small')].map(l => l.textContent)"), [NAME_LINE, EMAIL_LINE])
+                self.assertEqual(p.js("[...document.querySelectorAll('[data-about-you] label')].map(l => l.textContent)"), ["Your name", "Alias", "Your email"])
+                self.assertEqual(p.js("[...document.querySelectorAll('[data-about-you] small')].map(l => l.textContent)"), [NAME_LINE, ALIAS_LINE, EMAIL_LINE])
                 self.assertEqual(p.js("[document.querySelector('#about-name').value, document.querySelector('#about-email').value]"), ["", ""])
                 self.assertEqual(self.saved(), {})
                 self.assertEqual(p.js("Object.keys(localStorage).filter(k => /name|email|profile/i.test(k))"), [], "nothing is kept in the browser")
@@ -113,7 +115,7 @@ class AboutYou(Base):
             self.type_into(p, "email", "sam@example.test")
             p.until("document.querySelector('#about-name').value === 'Sam Lee'", "the box holds it")
             self.handled(p, "Sam Lee", "sam@example.test")
-            self.assertEqual(self.saved(), {"profile_email": "sam@example.test", "profile_name": "Sam Lee"})
+            self.assertEqual(self.saved(), {"profile_email": "sam@example.test", "profile_name": "Sam Lee", "profile_alias": "Sam, SL"})
             self.open_menu(p)
             self.assertEqual(self.top(p), {"name": "Sam Lee", "email": "sam@example.test", "title": "Sam Lee\nsam@example.test"})
             self.assertEqual(p.js("getComputedStyle(document.querySelector('#profile-menu .who b')).fontWeight >= 500"), True)
@@ -188,7 +190,7 @@ class AboutYou(Base):
             self.type_into(p, "name", "N" * 61)
             p.until("document.querySelector('#about-name-line').parentElement.querySelector('.fld-bad').textContent !== ''", "the refusal shows")
             self.assertEqual(p.js("document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"),
-                             "Your name is too long. Use 60 characters or fewer. Nothing was saved.")
+                             NAME_TOO_LONG)
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61, "what was typed stays in the box")
             self.assertEqual(self.saved(), before, "nothing was written")
             self.type_into(p, "name", "Sam Lee")
@@ -196,9 +198,25 @@ class AboutYou(Base):
             self.type_into(p, "email", "nope")
             p.until("document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent !== ''", "the email refusal shows")
             self.assertEqual(p.js("document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent"),
-                             "That email address is not complete. Check it, or leave it empty. Nothing was saved.")
+                             EMAIL_BAD)
             self.assertEqual(self.saved(), before)
             self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
+
+    def test_C_a_refusal_is_the_servers_own_sentence_so_a_reworded_one_reaches_the_box(self):
+        """#496: the page shows the sentence clark sends, not a copy of its own. The route's sentence is changed for this test only."""
+        import clark.settings as settings
+        reworded = "Your name is longer than 60 characters, so it was left as it was. Nothing was saved."
+        self.assertNotEqual(reworded, NAME_TOO_LONG)
+        old = settings.NAME_TOO_LONG
+        settings.NAME_TOO_LONG = reworded
+        self.addCleanup(setattr, settings, "NAME_TOO_LONG", old)
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "N" * 61)
+            bad = "document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"
+            p.until(f"{bad} !== ''", "the refusal shows")
+            self.assertEqual(p.js(bad), reworded)
 
     def test_C_the_menu_still_opens_when_the_first_click_is_lost(self):
         """The helper that opens the menu must survive a click the page never took (a slow computer right after a load): the first click is
@@ -225,7 +243,7 @@ class AboutYou(Base):
             p.until("document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent !== ''", "still under the email")
             time.sleep(1)
             self.assertEqual(self.refused_under(p, "name"), "", "nothing under the name box")
-            self.assertEqual(self.refused_under(p, "email"), "That email address is not complete. Check it, or leave it empty. Nothing was saved.")
+            self.assertEqual(self.refused_under(p, "email"), EMAIL_BAD)
             self.assertEqual(p.js("[document.querySelector('#about-name').value, document.querySelector('#about-email').value]"), ["Sam Lee", "nope"])
             self.assertEqual(self.saved(), {})
 
@@ -238,7 +256,7 @@ class AboutYou(Base):
             self.type_into(p, "email", "sam@example.test")
             time.sleep(1)
             self.assertEqual(self.refused_under(p, "email"), "", "nothing under the email box")
-            self.assertEqual(self.refused_under(p, "name"), "Your name is too long. Use 60 characters or fewer. Nothing was saved.")
+            self.assertEqual(self.refused_under(p, "name"), NAME_TOO_LONG)
             self.assertEqual(p.js("[document.querySelector('#about-name').value, document.querySelector('#about-email').value]"), ["N" * 61, "sam@example.test"])
             self.assertEqual(self.saved(), {})
 
@@ -276,7 +294,7 @@ class AboutYou(Base):
             p.until("window.__answered >= 2", "the older good save was answered too")
             self.handled(p, "Sam Lee")                               # the page has taken the good answer
             p.until("window.__handled >= 2", "the late answer has been taken in")
-            self.assertEqual(p.js(bad), "Your name is too long. Use 60 characters or fewer. Nothing was saved.", "the refusal is still shown")
+            self.assertEqual(p.js(bad), NAME_TOO_LONG, "the refusal is still shown")
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61, "what was typed is still in the box")
             self.assertEqual(p.js("document.querySelector('#about-name').getAttribute('aria-invalid')"), "true")
             self.assertEqual(self.saved().get("profile_name"), "Sam Lee", "the store holds the name that was saved, not the refused one")
@@ -505,12 +523,32 @@ class AboutYou(Base):
             p = self.page(cdp)
             self.hold_the_read(cdp, p)
             self.open_settings(p)
+            self.type_into(p, "email", "sam@example.test", leave="none")      # both boxes typed in: the save has nothing to wait for the read for (#420)
             self.type_into(p, "name", "Sam Lee")
-            self.handled(p, "Sam Lee")
+            self.handled(p, "Sam Lee", "sam@example.test")
             self.assertEqual(self.saved().get("profile_name"), "Sam Lee")
             (self.rig.data_dir / "settings.json").write_text(json.dumps({**self.saved(), "profile_name": "Other Name"}), encoding="utf-8")
             p.js("window.__release()")
             p.until("document.querySelector('#about-name').value === 'Other Name'", "the late read filled the saved, untouched box")
+
+    def test_C_a_save_made_before_the_first_read_has_landed_keeps_the_other_box_saved_value(self):
+        """#420: clark holds a name and an email; the page's read of them is held back, and the person saves the name first. The email box has
+        only the empty draw then, so the save must not send it as empty: the saved email is kept and the saved name is the new one."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            (self.rig.data_dir / "settings.json").write_text(
+                json.dumps({**self.saved(), "profile_name": "Old Name", "profile_email": "old@example.com"}), encoding="utf-8")
+            self.hold_the_read(cdp, p)
+            self.open_settings(p)
+            self.assertEqual(p.js("document.querySelector('#about-email').value"), "", "the read has not landed: the box is the empty draw")
+            self.type_into(p, "name", "Sam Lee")
+            time.sleep(0.5)
+            p.js("window.__release()")
+            deadline = time.time() + 10
+            while time.time() < deadline and self.saved().get("profile_name") != "Sam Lee":
+                time.sleep(0.1)
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee")
+            self.assertEqual(self.saved().get("profile_email"), "old@example.com", "the other box's saved value is kept")
 
     def test_C_a_late_read_does_not_fill_a_box_typed_in_since_it_was_saved(self):
         """The same, with more typed after the save and not yet left: that box stays as typed."""
@@ -518,8 +556,9 @@ class AboutYou(Base):
             p = self.page(cdp)
             self.hold_the_read(cdp, p)
             self.open_settings(p)
+            self.type_into(p, "email", "sam@example.test", leave="none")      # both boxes typed in: the save has nothing to wait for the read for (#420)
             self.type_into(p, "name", "Sam Lee")
-            self.handled(p, "Sam Lee")
+            self.handled(p, "Sam Lee", "sam@example.test")
             self.type_into(p, "name", "Sam Lee and more", leave="none")
             (self.rig.data_dir / "settings.json").write_text(json.dumps({**self.saved(), "profile_name": "Other Name"}), encoding="utf-8")
             p.js("window.__release()")
@@ -555,7 +594,7 @@ class AboutYou(Base):
             p.until("window.__answered >= 1", "the refusal was answered")
             bad = "document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"
             p.until(f"{bad} !== ''", "the refusal shows")
-            self.assertEqual(p.js(bad), "Your name is too long. Use 60 characters or fewer. Nothing was saved.")
+            self.assertEqual(p.js(bad), NAME_TOO_LONG)
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61)
             self.assertEqual(self.saved().get("profile_name"), None, "nothing was written")
 
@@ -575,7 +614,7 @@ class AboutYou(Base):
             p.until(f"{bad} !== ''", "the refusal shows")
             p.until("window.__answered >= 2", "the older good save was answered too")
             time.sleep(0.5)
-            self.assertEqual(p.js(bad), "That email address is not complete. Check it, or leave it empty. Nothing was saved.", "the refusal is still shown")
+            self.assertEqual(p.js(bad), EMAIL_BAD, "the refusal is still shown")
             self.assertEqual(p.js("document.querySelector('#about-email').value"), "nope", "what was typed is still in the box")
             self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "Old Name", "the name box is as it was")

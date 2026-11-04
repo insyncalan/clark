@@ -5,28 +5,39 @@
 //   Headline the headline on each row, changed in place
 //   Name     the name in the opened row, changed in place
 //   FromRecord  "+ Add a use case from your project record (N)": the picker of the use cases that are not on the dashboard
-// The two boxes (Add a use case, the picker) are NOT drawn where their buttons are: those sit inside <main>, and a box makes <main> inert,
+//   Eye      (#485) the eye on each row: take the use case off the page (Undo puts it back)
+//   Standing (#485) "Where it stands" in the opened row, changed in place with the same editor as the use case's own page
+//   NextStep (#485) "+ Add a next step: “Owner: what it is”, then Enter" in the opened row: a new action that names the use case
+//   LinkButton (#485) "+ Link an existing work item": the box that links open work items to the use case
+// The three boxes (Add a use case, the picker, the link box) are NOT drawn where their buttons are: those sit inside <main>, and a box makes <main> inert,
 // so a box drawn there could not take focus, typing or a click. The buttons only set the signal `box`; `Boxes` draws them, and App.jsx
 // mounts `Boxes` beside <main> the way it mounts AddDialog.
 // Each is ONE change through stores/changes.js (kind use_cases: update, new; or report_hidden: pick). A new use case has no Undo
-// (a use case is archived, never deleted: its toast says so), the rest keep theirs.
+// (a use case is archived, never deleted: its toast says so), the rest keep theirs. A new use case starts hidden from the client (eye off,
+// the owner, 03-11-2026): it is counted in "from your project record (N)" and on the Use cases page until its eye is turned on.
 import { signal } from "@preact/signals";
-import { useEffect, useRef, useState } from "preact/hooks";
-import { data, mode } from "../stores/report.js";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
+import { data, mode, rows } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
 import { NewTile } from "../components/NewTile.jsx";
 import { Menu } from "../components/Menu.jsx";
 import { Picker } from "../components/Picker.jsx";
+import { Icon } from "../components/Icon.jsx";
 import { Line, NAME_MAX, HEAD_MAX } from "../components/UseCaseDetail.jsx";
+import { RichField } from "./RichField.jsx";
+import { KIND_WORDS, todayIso } from "../workItems.js";
+import { splitStep, knownNames, stepValues, linkable, narrow, KINDS, linkedWords } from "../logic/ucRow.js";
+import { peopleList } from "../stores/handover.js";
 
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
 const REF_MAX = 20;                                           // changes.py UC_REF_LIMIT
 const name = (u) => u.ref || u.id;                            // "Use case 1.1" as the prototype's toasts say it
 
-/** Which box is open: null, or { kind: "add" | "pick", opener } (opener is the element that had focus, so Esc gives it back). */
+/** Which box is open: null, or { kind: "add" | "pick" | "link", opener, uc } (opener is the element that had focus, so Esc gives it back;
+ * uc is the use case the link box is for). */
 const box = signal(null);
-const openBox = (kind) => { box.value = { kind, opener: document.activeElement && document.activeElement !== document.body ? document.activeElement : null }; };
+const openBox = (kind, uc = "") => { box.value = { kind, uc, opener: document.activeElement && document.activeElement !== document.body ? document.activeElement : null }; };
 const closeBox = () => { box.value = null; };
 
 /** The id of the use case just added: the summary opens its row (UseCases.jsx reads it once and clears it). */
@@ -40,7 +51,10 @@ const BEHIND = ["#main", ".top"];                             // made inert whil
 // A modal box: the page behind is inert, Esc and a click on the backdrop close it, Tab stays inside, focus goes back to what opened it.
 function Modal({ onClose, opener, children }) {
   const root = useRef(null);
-  useEffect(() => {
+  // A layout effect, not useEffect: the page goes inert, and the opener is held for the way back, in the step that draws the box (where the
+  // box also takes its focus). useEffect runs a paint later, or up to a tenth of a second on a slow runner: a box shut by Esc before then
+  // never ran its clean-up, so the focus did not go back, and until then the box showed with the page behind it still live.
+  useLayoutEffect(() => {
     const held = BEHIND.map((q) => document.querySelector(q)).filter(Boolean);
     held.forEach((el) => el.setAttribute("inert", ""));
     return () => {
@@ -64,7 +78,10 @@ function Modal({ onClose, opener, children }) {
 // "Add a use case": the prototype's box and words. The ID is the reference the project writes ("3.1"); clark gives the id itself.
 function AddBox({ onClose, opener }) {
   const first = useRef(null), [busy, setBusy] = useState(false);
-  useEffect(() => { if (first.current) first.current.focus(); }, []);
+  // Focus goes to the ID field in the same step that draws the box. useEffect runs after the paint, so a person (or a test) who had
+  // already clicked into Use case could have the late focus pull them back to ID mid-typing: the name then landed in ID, Use case
+  // stayed empty, and Add was refused without a word.
+  useLayoutEffect(() => { if (first.current) first.current.focus(); }, []);
   const submit = async (e) => {
     e.preventDefault();
     const f = e.currentTarget, ref = f.ucI.value.trim(), title = f.ucT.value.trim();
@@ -77,7 +94,7 @@ function AddBox({ onClose, opener }) {
     if (!reply) return;                                             // the toast says why; the box stays, nothing was added
     added.value = reply.ref;
     onClose(true);
-    say("done", `Use case ${ref} added. Archive it from the Use cases page if it is not wanted.`);
+    say("done", `Use case ${ref} added, hidden from the client until its eye is turned on. Archive it from the Use cases page if it is not wanted.`);   // #455: a new use case starts with its eye off
   };
   return (
     <Modal onClose={() => onClose(false)} opener={opener}>
@@ -165,12 +182,121 @@ export function FromRecord({ n }) {
   return <button type="button" class="link add-from" data-uc-back data-edit-only onClick={() => openBox("pick")}>{`+ Add a use case from your project record (${n})`}</button>;
 }
 
+/** The eye on a row: takes the use case off the page. It is the use case's own switch (the same change as the eye on the Use cases page);
+ * one step, one Undo, and the row leaves the dashboard (it stays on the Use cases page, and "Add a use case from your project record" brings it back). */
+export function Eye({ u }) {
+  const take = async (e) => {
+    e.stopPropagation();
+    const btn = e.currentTarget, eyes = Array.from(document.querySelectorAll(".uc .ucrow [data-uc-eye]")), at = eyes.indexOf(btn);
+    const reply = await change({ kind: "use_cases", op: "update", id: u.id, changes: { client_visible: 0 }, place: "eye" }, `Use case ${name(u)} taken off the page.`);
+    if (!reply) return;
+    setTimeout(() => {          // the row has left: the focus goes to the next row's eye, else the one before, else the way back to the record
+      const now = Array.from(document.querySelectorAll(".uc .ucrow [data-uc-eye]"));
+      const to = now[at] || now[at - 1] || document.querySelector("[data-uc-back], #ucAdd");
+      if (to && to.focus) to.focus({ preventScroll: true });
+    }, 60);
+  };
+  return <button type="button" class="uceye" data-uc-eye={u.id} data-edit-only aria-label={`Take use case ${name(u)} off the page`} title="Take it off the page" onClick={take}><Icon name="eye" /></button>;
+}
+
+/** "Where it stands" in an opened row: the text is changed in place, as on the use case's own page (the same editor, one change with one Undo). */
+export function Standing({ u }) {
+  return <RichField field="standing" id={u.id} value={u.standing} label={`where ${name(u)} stands`} empty="Not written yet. Click to write."
+    save={(html) => send(u, { standing: html }, `Use case ${name(u)} saved.`)} />;
+}
+
+/** "+ Add a next step: “Owner: what it is”, then Enter": a new action that names the use case, in one step with one Undo. The words before
+ * the first colon are the owner when they are a person ("Fix: the loader" has none); the step is due a week from today, as in the prototype. A step that is refused stays in the box. */
+export function NextStep({ u }) {
+  const busy = useRef(false);
+  const keys = async (e) => {
+    if (e.key !== "Enter" || e.isComposing) return;
+    e.preventDefault();
+    const input = e.currentTarget, parts = splitStep(input.value, knownNames(data.value, peopleList.value));
+    if (!parts || busy.current) return;
+    busy.current = true;
+    const reply = await change({ kind: "actions", op: "new", values: stepValues(parts, u.id, todayIso()), place: "report" }, `Next step added to use case ${name(u)}.`);
+    busy.current = false;
+    if (reply) { input.value = ""; input.focus(); }
+  };
+  return (
+    <div class="ucx-step" data-edit-only>
+      <input class="field" data-uc-step={u.id} placeholder="+ Add a next step: “Owner: what it is”, then Enter" aria-label="Add a next step" autocomplete="off" onKeyDown={keys} />
+    </div>
+  );
+}
+
+/** "+ Link an existing work item": opens the box of the open work items that are not yet linked to this use case. */
+export function LinkButton({ u }) {
+  return <button type="button" class="link add-from" data-uc-link={u.id} data-edit-only onClick={() => openBox("link", u.id)}>+ Link an existing work item</button>;
+}
+
+// The box that links work items to a use case, in the prototype's words: the open ones not yet linked, searched by name, ID, owner or use
+// case, narrowed to a kind, several chosen at once. The link is ONE change for all of them, with one Undo.
+function LinkBox({ uc, onClose, opener }) {
+  const d = data.value, u = (d && d.use_cases || []).find((x) => x.id === uc);
+  const [query, setQuery] = useState(""), [kind, setKind] = useState(""), [chosen, setChosen] = useState([]);
+  const search = useRef(null), list = useRef(null);
+  useLayoutEffect(() => { if (search.current) search.current.focus(); }, []);    // as the Add box: focus is in the search field before the box is drawn
+  if (!u) return null;
+  const items = linkable(d, rows.value, uc, todayIso()), shown = narrow(items, kind, query);
+  const picked = chosen.filter((id) => items.some((i) => i.id === id)), n = picked.length;
+  const toggle = (id) => setChosen(chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id]);
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!n) return;
+    onClose(true);
+    await change({ kind: "use_cases", op: "link", id: uc, ids: picked, place: "report" }, linkedWords(n, name(u)));
+  };
+  const typed = (e) => {
+    if (e.key === "Enter") { e.preventDefault(); if (shown.length === 1 && !chosen.includes(shown[0].id)) setChosen([...chosen, shown[0].id]); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); const first = list.current && list.current.querySelector("input"); if (first) first.focus(); }
+  };
+  const title = `Link work items to use case ${name(u)}`;
+  return (
+    <Modal onClose={() => onClose(false)} opener={opener}>
+      <form class="picker uclink" role="dialog" aria-modal="true" aria-label={title} onSubmit={submit}>
+        <div class="pk-head"><h2>{title}</h2><p class="muted">Open work items not linked to this use case yet</p></div>
+        <div class="pk-search">
+          <label class="pk-q"><span class="sr">Search</span>
+            <input ref={search} type="search" placeholder="Search by name, ID, owner or use case" autocomplete="off" value={query} onInput={(e) => setQuery(e.currentTarget.value)} onKeyDown={typed} />
+          </label>
+          <div class="seg" role="group" aria-label="Kind">
+            <button type="button" data-t="" aria-pressed={kind === "" ? "true" : "false"} onClick={() => setKind("")}>All</button>
+            {KINDS.map(([k, words]) => <button type="button" key={k} data-t={k} aria-pressed={kind === k ? "true" : "false"} onClick={() => setKind(k)}>{words}</button>)}
+          </div>
+          <button type="button" class="pk-btn" data-all disabled={!shown.length} onClick={() => setChosen([...chosen, ...shown.map((i) => i.id).filter((id) => !chosen.includes(id))])}>Select all shown</button>
+        </div>
+        <div class="pk-body">
+          <ul class="pick" ref={list}>
+            {shown.map((i) => (
+              <li key={i.id}>
+                <label>
+                  <input type="checkbox" value={i.id} checked={chosen.includes(i.id)} onChange={() => toggle(i.id)} />
+                  <span class="pk-text"><span class={`type k-${i.kind}`}>{KIND_WORDS[i.kind] || i.kind}</span> {i.title}<br /><span class="muted">{i.meta}</span> <span class={`pill ${i.pill.class}`}>{i.pill.text}</span></span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          {!shown.length ? <p class="muted pk-none" data-none>{items.length ? "Nothing matches." : "Every open work item is linked to this use case already."}</p> : null}
+        </div>
+        <div class="pk-foot">
+          <span class="muted pk-count" aria-live="polite">{n ? `${n} selected` : "None selected"}</span>
+          <button type="button" class="pk-btn" data-cancel onClick={() => onClose(false)}>Cancel</button>
+          <button type="submit" class="pk-btn pri" disabled={!n}>{n ? `Add ${n}` : "Add selected"}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 /** The open box, drawn beside <main> (App.jsx), so the page it makes inert does not hold it. */
 export function Boxes() {
   const b = box.value;
   if (!b || mode.value !== "edit") return null;
+  if (b.kind === "link") return <LinkBox key={`link-${b.uc}`} uc={b.uc} opener={b.opener} onClose={closeBox} />;
   return b.kind === "add" ? <AddBox key="add" opener={b.opener} onClose={closeBox} /> : <Pick key="pick" opener={b.opener} onClose={closeBox} />;
 }
 
 /** The Edit parts as one object, `tools.ucEdit`. */
-export const UCEDIT = { Add, Status, Headline, Name, FromRecord, Boxes, added };
+export const UCEDIT = { Add, Status, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, Boxes, added };
