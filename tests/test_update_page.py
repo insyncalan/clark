@@ -21,6 +21,7 @@ import esbuild  # noqa: E402
 
 from clark import server as sv, update_install as ui, updater as up, updates  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
+from test_report_editor import Base  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 DEMO = ROOT / "tests" / "fixtures" / "update_demo.jsx"
@@ -145,7 +146,8 @@ class Logic(InBrowser):
     def test_every_word_is_plain_and_none_starts_with_the_product_name(self):
         every = self.val("[...Object.values(T.logic.WORDS), T.logic.GENERIC, T.logic.NOT_ANSWERING, T.logic.STALE, T.logic.LOADING, "
                          "T.logic.TITLE, T.logic.INTRO, T.logic.CANCELLED, T.logic.COPIED, T.logic.NOT_COPIED, T.logic.SLOW, "
-                         "T.logic.DISARMED, ...Object.values(T.logic.LABELS)]")
+                         "T.logic.DISARMED, ...Object.values(T.logic.LABELS), ...Object.values(T.logic.ROWS), T.logic.HINTS.upToDate, "
+                         "T.logic.HINTS.file, T.logic.HINTS.ready('1.2.3')]")
         for text in every:
             self.assertIsNone(re.search(r"(?i)\b(zip|manifest|sha|path|token|json|database|stale)\b", text.replace("Choose zip…", "")), text)
             self.assertFalse(text.startswith(("clark", "Clark")), text)
@@ -257,7 +259,7 @@ class Card(InBrowser):
         self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": up.ARMED_FULL.format(to="0.3.0")}),
                      undo=OK({"ok": True, "restart": True, "message": up.UNDOING.format(to="0.3.0")}))
         self.mount()
-        self.assertIn("Last update: 0.3.0", self.text("#update-last"))
+        self.assertIn("0.3.0 → 0.3.1 on 01-11-2026.", self.text("#update-last"), "the row's label says Last update, so the line does not")
         self.click("[data-undo]")
         self.assertEqual(self.calls(), ["status", "arm"], "the first click only arms")
         self.assertEqual(self.text("#update-armed"), up.ARMED_FULL.format(to="0.3.0"))
@@ -321,6 +323,86 @@ class Card(InBrowser):
                     worst = self.val(f"Math.min(...[...document.querySelectorAll('#update p, #update li, #update pre, #update summary, #update h2')]"
                                      f".filter(e => e.textContent.trim()).map({CONTRAST}))")
                     self.assertGreaterEqual(worst, 4.5)
+
+
+WIDTHS = (1400, 900)
+THEMES = ("light", "dark")
+LAST = {"from": "0.3.0", "to": "0.3.1", "line": "Last update: 0.3.0 → 0.3.1 on 01-11-2026."}
+UP_TO_DATE = {**STATUS, "available": None, "line": up.UP_TO_DATE, "last": LAST}
+
+
+class Rows(InBrowser):
+    """Item 445, rows 58 to 60: the card as the prototype draws it (system/prototype/views.js updCard): a label at the left of each row,
+    the control at its right, and a hint line under the Update and Install from a file controls. Each at 1400 and 900, light and dark."""
+
+    def each(self, status):
+        for width in WIDTHS:
+            for theme in THEMES:
+                with self.subTest(width=width, theme=theme):
+                    self.load(width=width, theme=theme)
+                    self.replies(status=OK(status))
+                    self.mount()
+                    yield width, theme
+
+    def readable(self, selector):
+        self.assertGreaterEqual(self.val(f"{CONTRAST}(document.querySelector({lit(selector)}))"), 4.5, selector)
+
+    def below(self, upper, lower):
+        self.assertTrue(self.val(f"document.querySelector({lit(lower)}).getBoundingClientRect().top >= "
+                                 f"document.querySelector({lit(upper)}).getBoundingClientRect().bottom - 1"), f"{lower} is under {upper}")
+
+    def test_row_58_each_row_has_its_label_at_the_left_and_a_hint_line_under_its_control(self):
+        for _ in self.each({**STATUS, "last": LAST}):
+            self.assertEqual(self.val("[...document.querySelectorAll('#update .upd-l')].map(e => e.textContent)"),
+                             ["Installed", "Update", "Install from a file", "Last update"])
+            rows = self.val("[...document.querySelectorAll('#update .upd-l')].map(l => { const c = l.nextElementSibling, a = l.getBoundingClientRect(), "
+                            "b = c.getBoundingClientRect(); return [c.getAttribute('aria-labelledby') === l.id, a.right <= b.left, Math.abs(a.top - b.top) < 8]; })")
+            self.assertEqual(rows, [[True, True, True]] * 4, "each control is named by its label, which sits at its left on the same line")
+            self.assertEqual(self.text("#update-installed"), "Version 0.3.0, released 20-10-2026.")
+            self.assertEqual(self.text("#update-last p"), "0.3.0 → 0.3.1 on 01-11-2026.")
+            self.assertTrue(self.present("#update-last [data-undo]"))
+            self.below("[data-review]", "#update-hint")
+            self.below("[data-choose]", "#update-file-hint")
+            for sel in ("#update-installed-l", "#update-row-l", "#update-file-l", "#update-last-l", "#update-hint", "#update-file-hint"):
+                self.readable(sel)
+            self.assertTrue(self.val("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "no sideways scroll")
+
+    def test_row_58_a_copy_that_cannot_update_itself_keeps_the_installed_and_update_rows_only(self):
+        for _ in self.each({**STATUS, "available": None, "blocked": updates.MESSAGES["git"]}):
+            self.assertEqual(self.val("[...document.querySelectorAll('#update .upd-l')].map(e => e.textContent)"), ["Installed", "Update"])
+            self.assertEqual(self.text("#update-row"), updates.MESSAGES["git"])
+            self.readable("#update-blocked")
+
+    def test_row_59_up_to_date_has_its_hint_and_a_newer_update_says_it_is_ready(self):
+        for _ in self.each(UP_TO_DATE):
+            self.assertEqual(self.text("#update-line"), "Up to date.")
+            self.assertEqual(self.text("#update-hint"), self.val("T.logic.HINTS.upToDate"))
+            self.assertEqual(self.text("#update-hint"), "Download the new version from the clark releases page, then choose it below.")
+            self.below("#update-line", "#update-hint")
+            self.readable("#update-line")
+            self.readable("#update-hint")
+        for _ in self.each(STATUS):
+            self.assertEqual(self.text("[data-review]"), "Review 0.3.1")
+            self.assertEqual(self.text("#update-hint"), "Version 0.3.1 is ready to install.")
+            self.assertEqual(self.val("document.querySelector('[data-review]').getAttribute('aria-describedby')"), "update-hint")
+            self.below("[data-review]", "#update-hint")
+            self.readable("#update-hint")
+
+    def test_row_60_the_choose_hint_names_the_update_for_this_computer_and_never_the_file_type_or_the_source_code(self):
+        for _ in self.each(UP_TO_DATE):
+            hint = self.text("#update-file-hint")
+            self.assertEqual(hint, "The update attached to the release for your computer. Keep its .sig file in the same folder.")
+            self.assertIsNone(re.search(r"(?i)zip|source|manifest|sha", hint), hint)
+            self.assertFalse(hint.startswith(("clark", "Clark")))
+            self.assertEqual(self.text("[data-choose]"), "Choose zip…")
+            self.assertEqual(self.val("document.querySelector('[data-choose]').getAttribute('aria-describedby')"), "update-file-hint")
+            self.below("[data-choose]", "#update-file-hint")
+            self.readable("#update-file-hint")
+            self.assertTrue(self.val("document.querySelector('#update-file-hint').getBoundingClientRect().right <= innerWidth"))
+
+
+# The two Help entries for the Update card (item 445, row 61: Update clark and Updating clark) are HELD in helpLater.json until the real release
+# key is pinned (the card says updating is switched off in a copy with the placeholder key); the tests that read them as shown come back with them.
 
 
 class WhereItIsNamed(unittest.TestCase):

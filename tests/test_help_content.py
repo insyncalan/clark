@@ -27,7 +27,8 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
 # 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) is read on the page itself; the prototype words it differently. 'Shown to client' left this list with the tag on a work item row (#456: the eye column says it, and Help no longer bolds it)
 # 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
-CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
+# 'Show the files' and 'Put back the app and settings only' are the update card's own buttons (logic/update.js LABELS, item 445); the prototype has neither.
+CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]

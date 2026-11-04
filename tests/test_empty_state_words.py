@@ -26,7 +26,8 @@ class EmptyStateWordsTest(unittest.TestCase):
         self.assertIn('<p class="muted">Not written yet.</p>', read(COMPONENTS / "UseCaseDetail.jsx"))
 
     def test_use_case_detail_edit_says_how_to_add_text(self):
-        self.assertIn('empty="Not written yet. Click to write."', read(COMPONENTS / "UseCaseDetail.jsx"))
+        self.assertIn("empty={STANDING_PROMPT}", read(COMPONENTS / "UseCaseDetail.jsx"))
+        self.assertIn('STANDING_PROMPT = "What is done, what is happening now, and what is next. Add anything that is blocked or at risk."', read(COMPONENTS / "UseCaseDetail.jsx"))
 
     def test_old_words_are_gone_from_the_source(self):
         for name in ("UseCaseDetail.jsx", "UseCases.jsx"):
@@ -44,7 +45,11 @@ class EmptyStateWordsTest(unittest.TestCase):
             # the phrase anywhere.
             for old in ('||"Nothing written yet."', 'class:"muted",children:"Nothing written yet."', 'empty:"Nothing written yet. Click to write."'):
                 self.assertNotIn(old, text, built.name)
-        self.assertIn("Not written yet. Click to write.", read(page.PAGE))
+        self.assertIn("What is done, what is happening now, and what is next. Add anything that is blocked or at risk.", read(page.PAGE))
+        self.assertIn("Today's position, in one line", read(page.PAGE))
+        for old in ("One line on where", "Where the use case stands", "Not written yet. Click to write."):
+            self.assertNotIn(old, read(page.PAGE))
+            self.assertNotIn(old, read(page.VIEW_PAGE))
 
     def test_prototype_says_not_written_yet_for_use_cases(self):
         text = read(ROOT / "system/prototype/usecases.js")
