@@ -60,7 +60,7 @@ class Logic(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.r = run_node(fixture_content(), PROBE)
-        cls.shipped = run_node(RAW, "(() => { const v = HL.resultsView(HL.buildIndex(), 'undo'); return { kind: v.kind, lead: v.lead }; })()")
+        cls.shipped = run_node(RAW, "(() => { const v = HL.resultsView(HL.buildIndex(), 'undo'); return { kind: v.kind, lead: v.lead, guides: HL.guides().length }; })()")
 
     def row(self, q, gid):
         return next(x for x in self.r[q]["rows"] if x["id"] == gid)
@@ -95,7 +95,10 @@ class Logic(unittest.TestCase):
 
     def test_the_lead_names_the_guide_so_it_is_shown_only_when_a_guide_ships(self):
         self.assertEqual(self.shipped["kind"], "results")
-        self.assertIsNone(self.shipped["lead"], "no guide ships, so no sentence that says 'the guide'")
+        if self.shipped["guides"]:
+            self.assertEqual(self.shipped["lead"], LEAD, "guides ship, so the sentence that says 'the guide' is shown")
+        else:
+            self.assertIsNone(self.shipped["lead"], "no guide ships, so no sentence that says 'the guide'")
         self.assertEqual(self.r["wombat"]["lead"], LEAD)
 
     def test_the_count_line_and_the_lead_are_the_signed_words(self):

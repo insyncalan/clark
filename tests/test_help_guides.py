@@ -89,7 +89,9 @@ def run_node(content, probe):
         raise unittest.SkipTest("no node")
     with tempfile.TemporaryDirectory() as tmp:
         code = bundle(content, tmp) + ";\nconsole.log(JSON.stringify(" + probe + "));"
-        done = subprocess.run([node, "-e", code], capture_output=True, text=True)
+        script = Path(tmp) / "probe.js"                     # a file, not `node -e`: the whole Help bundle is over Linux's 128 KB limit for ONE argument
+        script.write_text(code, encoding="utf-8")
+        done = subprocess.run([node, str(script)], capture_output=True, text=True)
         assert done.returncode == 0, done.stderr
         return json.loads(done.stdout)
 
