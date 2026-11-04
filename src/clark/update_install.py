@@ -280,12 +280,24 @@ def note_installed(backup_dir, db_path, migration_backup=None):
     if isinstance(before, int) and before < store.SCHEMA_VERSION:
         name = Path(migration_backup).name if migration_backup else None
         if name is None:
-            found = [e for e in backup.entries(Path(db_path).parent / "backups") if e.tag == "migrate"]
-            name = Path(found[-1].path).name if found else None
+            name = _newest_migrate_copy(Path(db_path).parent / "backups", before)
         record["migration"] = {"backup": name, "from": before, "to": store.SCHEMA_VERSION}
     record["db_after"] = summary_of(db_path)
     record["installed"] = True
     update_helper.write_json(Path(backup_dir) / RECORD, record)
+
+
+def _newest_migrate_copy(folder, before):
+    """The name of the newest `migrate` copy in `folder` that is at the layout `before` (the set's own copy of the database was at
+    that layout, so the copy this update's migration took is too), or None. A copy of another layout, or one that cannot be read,
+    is never taken, so the undo cannot put back the wrong data (#386); with none, the undo is refused (data_gone) rather than guess."""
+    for e in reversed([e for e in backup.entries(folder) if e.tag == "migrate"]):
+        try:
+            if store.check_copy(e.path)["schema_version"] == before:
+                return Path(e.path).name
+        except store.Invalid:
+            continue
+    return None
 
 
 def summary_of(db_path):

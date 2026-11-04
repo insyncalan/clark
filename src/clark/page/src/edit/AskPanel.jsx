@@ -2,6 +2,7 @@
 // is #102's light panel with a soft wash (#214), built from the page's own tokens (edit.css). The reply is drawn as text only: it is
 // never read as markup. Nothing is sent while asking is off.
 import { useEffect, useRef, useState } from "preact/hooks";
+import { useGrow } from "./useGrow.js";
 import { project, show, token } from "../stores/report.js";
 import { words } from "./publishApi.js";
 import { panelOpen, panelState, panelModel, panelWidth, panelFocus, turns, pending, closePanel, newChat, setWidth, clampWidth, nextQuip, quipDelay } from "./askPanelState.js";
@@ -24,6 +25,7 @@ export function AskPanel() {
   const [note, setNote] = useState("");
   const [quip, setQuip] = useState("");
   const box = useRef(null), log = useRef(null);
+  useGrow(box, open ? text : null);
 
   useEffect(() => { if (open && state === "ready" && box.current) box.current.focus(); else if (open) { const c = document.getElementById("ask-panel"); if (c) c.focus(); } }, [open, state, panelFocus.value]);
   useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [list.length, busy]);
@@ -151,7 +153,7 @@ export function AskPanel() {
       {state === "ready" || state === "signed-out" ? <p class="ask-sent" id="ask-sent">{W.SENT_LINE}</p> : null}
       <p class="ask-note" id="ask-note" role="status" aria-live="polite">{note}</p>
       <form class="ask-form" onSubmit={send}>
-        <textarea ref={box} id="ask-box" rows="2" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready"}
+        <textarea ref={box} id="ask-box" class="grow" rows="3" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready"}
           onInput={(e) => setText(e.currentTarget.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e); }} />
         <div class="ask-actions">
