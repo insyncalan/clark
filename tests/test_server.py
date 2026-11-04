@@ -329,7 +329,7 @@ class Saving(ServerTest):
                                                 "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024,
                                                 "/api/excel-import": (sv.EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #444: a workbook as text
                                                 "/api/project": 4 * 1024,                                               # #444
-                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024,
+                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024,
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
                                                 "/api/section-file": 1024,

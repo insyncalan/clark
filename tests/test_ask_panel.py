@@ -21,6 +21,11 @@ WORDS = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "askWords.js").read_
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bUC\b|!|\bAPI\b|\bHTTP\b")
 
 
+from clark import ai_connect  # noqa: E402
+
+W_DISCONNECTED = ai_connect.OFF_WORDS
+
+
 class Stub:
     """What the server's `ask` is in these tests: answers as it is told, and keeps what it was asked."""
 
@@ -32,12 +37,15 @@ class Stub:
         self.status_hold = threading.Event()
         self.status_hold.set()
         self.answer = "The pilot goes live in March."
+        self.provider, self.why = "", ""         # #54: who the server says a question goes to, and its reason when nothing can answer
         self.stopped = False
 
     def status(self, *_):
         self.calls.append(("status", None))
         self.status_hold.wait(20)
-        body = {"ok": True, "ask_enabled": self.enabled, "connected": self.connected and self.enabled, "why": ""}
+        body = {"ok": True, "ask_enabled": self.enabled, "connected": self.connected and self.enabled, "why": self.why}
+        if self.provider:
+            body["provider"] = self.provider
         if self.model:
             body["model"] = self.model
         return 200, body
@@ -246,6 +254,35 @@ class Panel(Base):
             self.assertTrue(p.js("document.querySelector('#ask-box').disabled"))
             self.assertEqual(p.js("document.querySelectorAll('#ask-signed-out a[data-ask-settings]').length"), 1)
             self.assertEqual(self.stub.count("ask"), 0)
+
+    def test_with_chatgpt_in_use_the_panel_says_so_and_never_names_claude(self):
+        """#54: what the panel says about where text goes has to be true for the provider in use."""
+        self.stub.provider = "ChatGPT"
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            p.until("document.querySelector('#ask-sent').textContent.includes('ChatGPT, which OpenAI runs')", "the line follows the provider")
+            said = p.js("document.querySelector('#ask-sent').textContent")
+            self.assertEqual(said, "Your question and the passages it needs go to ChatGPT, which OpenAI runs, and are billed to the ChatGPT account signed in on this computer.")
+            self.assertNotIn("Claude", said)
+            self.assertNotIn("Anthropic", said)
+
+    def test_chatgpt_not_signed_in_names_chatgpt(self):
+        self.stub.provider, self.stub.connected = "ChatGPT", False
+        with chrome() as cdp:
+            p = self.opened(cdp, ready=False)
+            p.until("!!document.querySelector('#ask-signed-out')", "the sign-in line")
+            self.assertTrue(p.js("document.querySelector('#ask-signed-out').textContent").startswith("ChatGPT is not signed in on this computer"))
+
+    def test_after_disconnect_it_says_nothing_is_connected_not_that_nobody_is_signed_in(self):
+        self.stub.connected = False
+        self.stub.why = W_DISCONNECTED
+        with chrome() as cdp:
+            p = self.opened(cdp, ready=False)
+            p.until("!!document.querySelector('#ask-signed-out')", "the line")
+            said = p.js("document.querySelector('#ask-signed-out').textContent")
+            self.assertTrue(said.startswith(W_DISCONNECTED), said)
+            self.assertNotIn("not signed in", said)
+            self.assertEqual(p.js("document.querySelectorAll('#ask-signed-out a[data-ask-settings]').length"), 1)
 
     def test_the_panel_says_where_a_question_goes_and_who_pays(self):
         """#47a: the connect box says the passages go to Claude and are billed to the signed-in account; off, it says nothing of it."""

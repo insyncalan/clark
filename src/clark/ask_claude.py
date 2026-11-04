@@ -342,6 +342,7 @@ class ClaudeCommand(ask.Provider):
     """The Claude command as an ask.Provider. `places`, `roots`, `env`, `limit` and `max_out` are seams for the tests (a fake
     command); clark itself uses the defaults."""
     provider = PROVIDER
+    models = MODELS                            # what `model` may be; a command for another provider has its own list
 
     def __init__(self, places=PLACES, env=None, limit=TIME_LIMIT, max_out=MAX_OUT, check_limit=CHECK_LIMIT, roots=None):
         self.places, self.limit, self.max_out, self.check_limit = tuple(places), limit, max_out, check_limit
@@ -445,8 +446,9 @@ class ClaudeCommand(ask.Provider):
         from clark import ai_menu                    # here, not at the top: ai_menu is the page-facing module and imports ask
         return isinstance(system, str) and len(system) <= MAX_SYSTEM and system in (ask.RULES, ai_menu.SUGGEST_RULES)
 
-    def ask(self, request, model=None):
-        if model is not None and not (isinstance(model, str) and model in MODELS):
+    def ask(self, request, model=None, prefer=False):
+        """`prefer`: the model is only a default, so a command that can't choose one answers with its own instead of refusing."""
+        if model is not None and not (isinstance(model, str) and model in self.models):
             return ask.Failure(MODEL_REFUSED)    # fails closed, before anything is checked or sent
         with self.guard:                       # #284: registering the run and clearing stop state are one step Stop cannot split
             if not self.lock.acquire(blocking=False):
@@ -465,7 +467,9 @@ class ClaudeCommand(ask.Provider):
             if path is None:
                 return ask.Failure(why)
             if model is not None and not self.model_listed:
-                return ask.Failure(MODEL_NOT_OFFERED)      # nothing is sent, and a question with no model is unaffected
+                if not prefer:
+                    return ask.Failure(MODEL_NOT_OFFERED)  # nothing is sent, and a question with no model is unaffected
+                model = None
             return self.answer(path, self.envelope(request.text), request.canary, system, model)
         finally:
             with self.guard:

@@ -5,13 +5,14 @@ import { signal, effect } from "@preact/signals";
 import { view, project, peek } from "../stores/report.js";
 import { token } from "../stores/report.js";
 import { helpOpen } from "../help/helpStore.js";
-import { askOn } from "./askState.js";
-import { QUIPS } from "./askWords.js";
+import { askOn, askProvider } from "./askState.js";
+import { QUIPS, DISCONNECTED_LINE } from "./askWords.js";
 
 const MIN = 320, DEFAULT = 420;
 const KEY = "clark.askWidth";
 
 export const panelOpen = signal(false);
+export const panelDisconnected = signal(false);      // #54: Disconnect was pressed in Settings, so "not signed in" would be untrue
 export const panelState = signal("checking");        // "checking" | "off" | "signed-out" | "ready"
 export const panelModel = signal("");                 // the model's name when the status route gives one
 export const panelWidth = signal(initialWidth());
@@ -53,6 +54,8 @@ async function readStatus() {
   if (!b || b.ok !== true || b.ask_enabled !== true) { panelState.value = "off"; panelModel.value = ""; if (b && b.ask_enabled === false) askOn.value = false; return; }
   askOn.value = true;
   panelModel.value = typeof b.model === "string" ? b.model.slice(0, 60) : "";
+  panelDisconnected.value = b.why === DISCONNECTED_LINE;
+  if (typeof b.provider === "string") askProvider.value = b.provider;
   panelState.value = b.connected === true ? "ready" : "signed-out";
 }
 

@@ -26,7 +26,7 @@ MESSAGES = {
     "cant_save": "That could not be saved. Wait a moment and try again; if it keeps happening, close clark and start it again. Nothing was changed.",
     "busy": "The saved data could not be opened just now. Wait a moment and try again.",
     "asking_on": "Asking is on.",
-    "asking_off": "Asking is off. Nothing is sent to Claude.",
+    "asking_off": "Asking is off. Nothing is sent.",
     "same": "That is the setting already in use.",
     "undone": "Undone.",
 }

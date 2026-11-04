@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, app_settings, as_at, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, server, sneak, store as clark_store, updater as clark_updater, use_cases_read, word_route
+from clark import activity_read, ai_connect, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, server, sneak, store as clark_store, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -474,6 +474,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                 print(str(e), file=err or sys.stderr, flush=True)
                 return 1
             print(str(e), file=err or sys.stderr)
+        connect, asker = ai_connect.chain(store.path.parent)       # #54: Settings › AI; asking goes through it
         done = serve(port=port, data_for=store.data_for, page_html=page.page_html,
                      projects=projects, out=shown,
                      err=err,
@@ -490,7 +491,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      safety=safety.Safety(store.path, roots), logs=logs,
                      ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent),
                      app_settings=app_settings.AppSettings(store.path, roots),
-                     ask=ask_service.AskService(store.path, ask_claude.ClaudeCommand(), roots),
+                     ask=ask_service.AskService(store.path, asker, roots), ai_connect=connect,      # #54: Settings › AI applies to every question
                      # No ai= here on purpose: the /api/ai/* routes answer 404 until suggestions run under their own system
                      # prompt (#72 slice 5) AND the real canary exists (#277). Do not pass ai= before both; test_main pins it.
                      activity=activity_read.make_read(store.path, store.data_for),
