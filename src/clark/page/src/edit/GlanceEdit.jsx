@@ -93,7 +93,7 @@ function Cell({ tile, order, children }) {
   );
 }
 
-// Not reviewed (#160): the same eye, but it turns the tile on or off on the Dashboard, for this project in this browser. It has no grip
+// Not reviewed (item 160): the same eye, but it turns the tile on or off on the Dashboard, for this project in this browser. It has no grip
 // and no colour menu (it is always last and keeps its own colour), and it is never in the published report, so its tag says so.
 function StaleCell({ tile, onEye, children }) {
   return (

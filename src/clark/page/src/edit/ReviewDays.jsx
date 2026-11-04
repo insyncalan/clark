@@ -1,4 +1,4 @@
-// Settings › Freshness (#160): "Not reviewed after (days)", the project's own number (projects.review_after_days, #171). Saved when
+// Settings › Freshness (item 160): "Not reviewed after (days)", the project's own number (projects.review_after_days, item 171). Saved when
 // the box is left or on Enter, as one change with Undo and a line in the history. A value that is not a whole number from 1 to 365
 // is refused here in plain words, the box goes back to the number in use and nothing is sent. After a save the page reads the
 // project again, so the peek's chip, the Freshness filter's words and the Not reviewed tile all follow at once. Edit parts only.

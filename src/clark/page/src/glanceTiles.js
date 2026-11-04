@@ -91,7 +91,7 @@ export function stepTile(order, key, dir) {
   return { before: dir < 0 ? order[j] : order[j + 1] || null };
 }
 
-// ── Not reviewed (#160): an optional tile, off until the eye turns it on ─────────────────────────────────────────────────
+// ── Not reviewed (item 160): an optional tile, off until the eye turns it on ─────────────────────────────────────────────────
 // It counts the open items the Freshness filter calls "Not reviewed in N days" (filters.js notReviewed, N being the project's own
 // review_after_days), with that same filter state, so the number is the list it opens. It is the editor's alone: the published file
 // carries no freshness (no Freshness filter, no is:quiet), so the tile is never in it. Whether it shows is remembered per project in

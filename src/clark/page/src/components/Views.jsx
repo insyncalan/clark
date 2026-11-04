@@ -175,7 +175,7 @@ export function Settings({ tools }) {
   const ClientFolder = tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
   const PublishedReports = tools && tools.PublishedReports;      // the list of publications, with Open (#443); Edit's page only
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
-  const ReviewDays = tools && tools.ReviewDays;          // Freshness (#160): the project's "Not reviewed after (days)"
+  const ReviewDays = tools && tools.ReviewDays;          // Freshness (item 160): the project's "Not reviewed after (days)"
   const Diagnostics = tools && tools.Diagnostics;        // logs and diagnostics (#110)
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
   const cards = CARDS.filter(([tool]) => tools && tools[tool]);

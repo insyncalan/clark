@@ -44,7 +44,7 @@ function Health({ t, tools, editing }) {
   );
 }
 
-// Not reviewed (#160): the optional tile after the stored ones. Off by default; the eye in Edit turns it on for this project, in this
+// Not reviewed (item 160): the optional tile after the stored ones. Off by default; the eye in Edit turns it on for this project, in this
 // browser. It is offered only where the Freshness filter is (some row carries a date to count from), and never in a published file.
 function staleFor(editing, code, shown) {
   if (fromFile.value || !hasReviewDates(rows.value)) return null;
