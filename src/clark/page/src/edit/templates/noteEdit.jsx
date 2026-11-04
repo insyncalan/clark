@@ -2,6 +2,7 @@
 // Edit only (this folder is never in a published file). A field keeps its own draft and saves when it is left (or on Enter in a
 // one-line field); Esc puts the saved words back. Every save is one change(): one step, one Undo, place "report".
 import { useEffect, useRef, useState } from "preact/hooks";
+import { useGrow } from "../useGrow.js";
 import { change } from "../../stores/changes.js";
 
 // Write a section's content (an object) as its body. Resolves to the reply, or null when it failed (the toast says why).
@@ -28,6 +29,8 @@ export function useSaver(section, saved, done) {
 // A plain text field (one line, or several in a text area). `value` is what is saved; `onCommit(text)` is told the new words only when they differ.
 export function Field({ value, onCommit, label, multiline = false, max, cls = "" }) {
   const [draft, setDraft] = useState(value);
+  const area = useRef(null);
+  useGrow(area, draft);
   const focused = useRef(false), cancelled = useRef(false), latest = useRef(value);
   latest.current = value;
   useEffect(() => { if (!focused.current) setDraft(value); }, [value]);
@@ -52,5 +55,5 @@ export function Field({ value, onCommit, label, multiline = false, max, cls = ""
     if (e.key === "Escape") { e.preventDefault(); cancelled.current = true; e.currentTarget.blur(); }
     else if (e.key === "Enter" && !multiline) { e.preventDefault(); e.currentTarget.blur(); }
   };
-  return multiline ? <textarea {...common} rows={3} onKeyDown={keys} /> : <input {...common} type="text" onKeyDown={keys} />;
+  return multiline ? <textarea {...common} class={`${common.class} grow`} ref={area} rows={3} onKeyDown={keys} /> : <input {...common} type="text" onKeyDown={keys} />;
 }
