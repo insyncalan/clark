@@ -546,6 +546,9 @@ class ThroughThePublisher(unittest.TestCase):
         finally:
             os.symlink, publish.platform.move_unless_exists = real_sym, real_move
         self.assertIn("Another publication was made", str(caught.exception), "the refusal is still given")
+        self.assertIn("The old report could not be put back in the folder. It is still there under a hidden name.",
+                      str(caught.exception), "the owner's sentence (A), verbatim")
+        self.assertNotIn(".aside", str(caught.exception), "no hidden name or path in the message")
         names = [p.name for p in folder.iterdir()]
         self.assertEqual(len(names), 1)
         self.assertTrue(names[0].endswith(".aside"), "the report is kept under its aside name, not lost")
@@ -602,8 +605,12 @@ class ThroughThePublisher(unittest.TestCase):
         os.unlink = refuse
         try:
             dest.write_bytes(b"ours")
-            with self.assertRaises(publish.PublishError):
+            with self.assertRaises(publish.PublishError) as caught:
                 publish.put_link_back(dest, folder / "x.html", digest)
+            self.assertEqual(str(caught.exception), "The old copy could not be cleared.", "the owner's sentence (B), verbatim")
+            self.assertNotIn("Permission", str(caught.exception))
+            self.assertNotIn(dest.name, str(caught.exception))
+            self.assertIsInstance(caught.exception.__cause__, OSError, "the os error stays on the cause")
             self.assertTrue(os.path.islink(dest), "the link is in place")
             real_unlink(dest)
             dest.write_bytes(b"ours")

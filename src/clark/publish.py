@@ -1215,8 +1215,8 @@ def put_link_back(dest, target, digest):
     def drop_aside():                                   # a failing unlink is raised as PublishError, never a bare OSError, never swallowed
         try:
             os.unlink(aside)
-        except OSError as e:                            # WORDING: owner to rule (the neighbouring "could not be saved" text is reused)
-            raise PublishError(f"{dest.name} could not be saved ({e.strerror or e}).") from e
+        except OSError as e:                            # the os error stays on __cause__ only; the user sees the owner's sentence
+            raise PublishError("The old copy could not be cleared.") from e
 
     try:
         os.rename(dest, aside)
@@ -1224,7 +1224,7 @@ def put_link_back(dest, target, digest):
         return "kept" if still_ours(dest, digest) else "other"
     if not still_ours(aside, digest):
         if back() is None:                              # their file could not be put back: it is under its aside name, dest is empty
-            return "aside"                              # WORDING: owner to rule (no sentence is added for this state yet)
+            return "aside"                              # the caller says so
         return "other"                                  # put back, or the name was taken meanwhile (theirs is left, never deleted)
     try:
         os.symlink(target, dest)
@@ -1235,7 +1235,7 @@ def put_link_back(dest, target, digest):
         if placed is False:                             # the name was taken meanwhile: ours is the extra copy
             drop_aside()
             return "other"
-        return "aside"                                  # None: the report is under its aside name; WORDING: owner to rule
+        return "aside"                                  # None: the report is under its aside name
     drop_aside()
     return "linked"
 
@@ -1300,9 +1300,12 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
                 except (OSError, platform.PlatformError):
                     pass
         elif earlier_link is not None:
-            if put_link_back(dest, earlier_link, digest) == "kept":      # #605: said plainly, not swallowed
+            placed = put_link_back(dest, earlier_link, digest)
+            if placed == "kept":                                         # #605: said plainly, not swallowed
                 raise PublishError(f"{e} The link that was at {dest.name} could not be put back, so this report is still there "
                                    "under that name.") from e
+            if placed == "aside":                                        # said the same way as "kept"
+                raise PublishError(f"{e} The old report could not be put back in the folder. It is still there under a hidden name.") from e
         else:
             take_back(dest, digest)
         raise PublishError(str(e)) from e
