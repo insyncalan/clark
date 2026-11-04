@@ -149,7 +149,7 @@ class Browser(unittest.TestCase):
                     cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.port}/"}, sid)
                     self.assertTrue(wait(lambda: cdp.js("document.title", sid) == "Not running", 10), "the offline page did not show")
                     text = cdp.js("document.body.innerText", sid)
-                    for words in ("Start clark to use this window", "Double-click clark.command in your clark folder", "./clark.command", "Check again"):
+                    for words in ("Start clark to use this window", "clark is not running. Start it the way you started it: double-click clark.command in your clark folder; or, if you use Docker,", "docker compose -f docker/compose.yaml up -d", "docker compose -f docker/compose.yaml down", "clark.command stops by itself a minute after the last window closes; Docker keeps running until you stop it with:", "Check again"):
                         self.assertIn(words, text)
                     self.assertEqual(cdp.js("getComputedStyle(document.body).backgroundColor", sid), colour)
                     self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "scrolls sideways")

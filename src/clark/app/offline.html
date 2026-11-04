@@ -20,9 +20,10 @@
 <body>
 <main>
   <h1>Start clark to use this window</h1>
-  <p>This window needs clark to be running on this computer. Double-click <b>@LAUNCHER@</b> in your clark folder, or open Terminal in that folder and type:</p>
-  <code>@COMMAND@</code>
-  <p>A minute after the last window closes, clark stops by itself. Nothing is lost: your data stays on this computer.</p>
+  <p>clark is not running. Start it the way you started it: double-click <b>@LAUNCHER@</b> in your clark folder; or, if you use Docker, open Terminal in that folder and type:</p>
+  <code>docker compose -f docker/compose.yaml up -d</code>
+  <p>@LAUNCHER@ stops by itself a minute after the last window closes; Docker keeps running until you stop it with:</p>
+  <code>docker compose -f docker/compose.yaml down</code>
   <button type="button" id="again">Check again</button>
   <p id="msg" role="status"></p>
 </main>

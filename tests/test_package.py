@@ -184,6 +184,8 @@ class MacZipTest(unittest.TestCase):
         self.assertIn("These steps are for a Mac.", flat)
         self.assertIn("With Docker, your data is kept in the data folder beside the clark files", flat)
         self.assertIn('CLARK_DATA_DIR="$HOME/Library/Application Support/clark" docker compose -f docker/compose.yaml up -d', flat)
+        self.assertIn("Use the clark download (the zip), not a copy of the source", flat)
+        self.assertIn("docker compose -f docker/compose.yaml logs --tail 50", flat)
         self.assertIn("Never open the same data from clark.command and from Docker at the same time: stop one before you start the other.", flat)
         self.assertIn("CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d then open http://localhost:8800 instead.", flat)
         self.assertLess(flat.index("With Docker, your data"), flat.index("Without Docker:"))
