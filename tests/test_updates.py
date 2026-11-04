@@ -973,6 +973,66 @@ class ReadOnceTest(Base):
         self.assertEqual(hashlib.sha256(r.data).hexdigest(), r.zip_sha256)
 
 
+from unittest import mock
+
+
+class NoNofollowPlatformTest(Base):
+    """Where the platform has no O_NOFOLLOW the open still never follows a link (a look first, then the open file is compared)."""
+
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.object(os, "O_NOFOLLOW", 0, create=True)
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.real = Path(tempfile.mkdtemp(dir=self.tmp)) / "real.bin"
+        self.real.write_bytes(b"the real file")
+        self.link = self.real.with_name("link.bin")
+        try:
+            os.symlink(self.real, self.link)
+        except (OSError, NotImplementedError):
+            self.skipTest("no symbolic links here")
+
+    def test_a_regular_file_opens_and_a_link_to_it_is_refused(self):
+        fd = updates.open_no_follow(self.real)
+        try:
+            self.assertEqual(b"the real file", os.read(fd, 100))
+        finally:
+            os.close(fd)
+        with self.assertRaises(OSError):
+            updates.open_no_follow(self.link)
+
+    def test_a_link_swapped_in_between_the_look_and_the_open_is_refused(self):
+        other = self.real.with_name("other.bin")
+        other.write_bytes(b"another file")
+        real_open = os.open
+
+        def swapping(path, *a, **kw):
+            if str(path) == str(self.real):
+                os.unlink(self.real)
+                os.symlink(other, self.real)
+            return real_open(path, *a, **kw)
+        with mock.patch.object(os, "open", swapping):
+            with self.assertRaises(OSError):
+                updates.open_no_follow(self.real)
+
+    def test_the_readers_refuse_a_link_with_their_own_sentences(self):
+        with self.assertRaises(UpdateError) as said:
+            updates.read_once(self.link)
+        self.assertEqual("unreadable", said.exception.key)
+        beside = self.real.with_name("x.zip")
+        os.symlink(self.real, str(beside) + ".sig")
+        self.assertEqual(b"", updates.read_signature(beside))
+
+    def test_take_in_refuses_a_link_to_an_update_file(self):
+        from clark import update_install
+        folder = Path(self.fresh())
+        link = folder / "clark-0.3.1-mac.zip"
+        os.symlink(make_zip(self.fresh()), link)
+        with self.assertRaises(UpdateError) as said:
+            update_install.take_in(link, self.fresh(), SYSTEM)
+        self.assertEqual("unreadable", said.exception.key)
+
+
 class SentenceFixesTest(Base):
     def test_the_name_sentences_name_this_systems_ending(self):
         for system, ending in (("windows", "windows"), ("linux", "linux")):

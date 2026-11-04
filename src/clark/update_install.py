@@ -111,9 +111,8 @@ def take_in(source, data_dir, system, chosen=False, max_bytes=updates.MAX_ZIP_BY
     folder = platform.private_folder(Path(data_dir) / RELEASES)
     name = f"clark-{version}-{system}.zip"
     part = folder / f".{name}.{os.getpid()}.part"
-    flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
     try:
-        fd = os.open(str(source), flags)
+        fd = updates.open_no_follow(str(source))
     except OSError:
         raise updates.UpdateError("unreadable", "the file can't be opened (missing, or a link)")
     h, got = hashlib.sha256(), 0

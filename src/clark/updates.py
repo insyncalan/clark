@@ -32,6 +32,7 @@ Standard library only, Python 3.9. A sentence a person reads never starts with t
 database text or the words zip, manifest or SHA.
 """
 import collections
+import errno
 import hashlib
 import io
 import json
@@ -343,6 +344,28 @@ def _check_structure(infos, max_total):
         raise UpdateError("damaged", f"declared size {total} is over the cap")
 
 
+def open_no_follow(path):
+    """A read-only file descriptor for `path` that never follows a link. Where the platform has O_NOFOLLOW that flag does it;
+    where it has none, the name is looked at first (a link is refused) and the open file must be the same file (device and
+    number) the name was, so a link put in its place after the look is refused too. Raises OSError."""
+    flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    if nofollow:
+        return os.open(path, flags | nofollow)
+    before = os.lstat(path)
+    if stat.S_ISLNK(before.st_mode):
+        raise OSError(errno.ELOOP, "a link")
+    fd = os.open(path, flags)
+    try:
+        now = os.fstat(fd)
+        if (now.st_dev, now.st_ino) != (before.st_dev, before.st_ino):
+            raise OSError(errno.ELOOP, "changed between looking and opening")
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
 def read_once(path, max_zip=MAX_ZIP_BYTES):
     """The whole file at `path` as bytes, from one open that never follows a link: the open file itself must be a regular
     file no bigger than `max_zip`, and the same file the name pointed to a moment before (not swapped in between)."""
@@ -354,9 +377,8 @@ def read_once(path, max_zip=MAX_ZIP_BYTES):
         raise UpdateError("unreadable", "not a regular file (a link or folder)")
     if before.st_size > max_zip:
         raise UpdateError("damaged", f"file is {before.st_size} bytes, over the cap")
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
     try:
-        fd = os.open(path, flags)
+        fd = open_no_follow(path)
     except OSError:
         raise UpdateError("unreadable", "the file can't be opened (a link put in its place?)")
     out, got = [], 0
@@ -386,9 +408,8 @@ def read_signature(path):
     sig = Path(str(path) + SIGNATURE_SUFFIX)
     if not os.path.lexists(sig):
         return None
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
     try:
-        with os.fdopen(os.open(sig, flags), "rb") as f:
+        with os.fdopen(open_no_follow(sig), "rb") as f:
             if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
                 return b""
             return f.read(SIGNATURE_BYTES + 1)
@@ -650,9 +671,8 @@ def _sha256_of(app, rel):
     """The SHA-256 of one app file; a refusal names it by `rel`, never by its full place on the disk."""
     path = Path(app) / rel
     h = hashlib.sha256()
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
     try:
-        with os.fdopen(os.open(path, flags), "rb") as f:
+        with os.fdopen(open_no_follow(path), "rb") as f:
             if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):          # a pipe or device would wait for ever
                 raise UpdateError("folder", f"not a regular file: {rel}")
             for chunk in iter(lambda: f.read(CHUNK), b""):
