@@ -716,8 +716,8 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 
 /* Editors throughout (item 660): one class for every plain text box that sizes itself (useGrow.js). Three lines to start, one blank line
    always under the last, a corner handle to pull it taller; the script writes the height, this keeps the floor and the handle. */
-textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 96px; min-height: calc(3lh + 16px); }
+textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-height: calc(3lh + 1rem); }
 .ask-form textarea.grow.grow { max-height: 40vh; flex: none; }
-.rt-host { min-height: 96px; min-height: calc(3lh + 16px); resize: vertical; overflow: auto; }
+.rt-host { min-height: 6rem; min-height: calc(3lh + 1rem); resize: vertical; overflow: auto; }
 .rt-host .ProseMirror { min-height: 3lh; padding-bottom: 1lh; }
-.de-preview { min-height: calc(3lh + 24px); max-height: 60vh; resize: vertical; }
+.de-preview { min-height: calc(3lh + 1.5rem); max-height: 60vh; resize: vertical; }
