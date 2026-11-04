@@ -309,7 +309,7 @@ class ContextText(unittest.TestCase):
         self.assertEqual(set(titles), want)
         for t, k in titles.items():
             self.assertTrue(k["line"].strip().endswith("."), t)
-            self.assertLess(len(k["line"]), 111, f"{t}: one short line")   # 111: the Version and updates line is 110 characters
+            self.assertLess(len(k["line"]), 110, f"{t}: one short line")
         ids = [k["card"] for k in self.CTX["settings"]["cards"]]
         self.assertEqual(len(ids), len(set(ids)))
         for page, c in self.CTX.items():

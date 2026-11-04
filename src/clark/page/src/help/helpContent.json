@@ -2392,7 +2392,7 @@
     {
      "card": "update",
      "title": "Version and updates",
-     "line": "Which version of clark is installed, an update to review and install, and Undo update to put the old one back."
+     "line": "The installed version of clark, an update to review and install, and Undo update to put the old one back."
     }
    ]
   }
