@@ -13,6 +13,7 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _paths import SRC
 
@@ -520,6 +521,17 @@ class WhatIsSent(Base):
         self.assertEqual((a.system, b.system), (ai_menu.SUGGEST_RULES, ai_menu.SUGGEST_RULES))
         self.assertTrue(a.canary and b.canary and a.canary != b.canary)
         self.assertNotIn(a.canary, a.text)
+
+    def test_the_service_builds_its_request_with_ai_menus_own_builder(self):
+        """#617: one builder, so a rule added to ask_request reaches the real route. Its owner and stop event are the service's own."""
+        with mock.patch.object(ai_menu, "ask_request", wraps=ai_menu.ask_request) as built:
+            self.suggest()
+        built.assert_called_once()
+        self.assertIs(built.call_args.kwargs["owner"], self.s.httpd.ai.owner)
+        self.assertIs(built.call_args.kwargs["cancel"], self.s.httpd.ai.stopped)
+        self.assertTrue(built.call_args.kwargs["canary"])
+        self.assertIs(self.provider.requests[0].owner, self.s.httpd.ai.owner)
+        self.assertEqual(self.provider.requests[0].canary, built.call_args.kwargs["canary"])
 
     def test_a_reply_that_holds_the_canary_is_dropped(self):
         class Leaky(Fake):
