@@ -1732,3 +1732,15 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.vt { display: inline-flex; align-items: center; gap: 2px; }
+.vtabmenu { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; color: var(--text-muted); }
+.vtabmenu:hover { background: var(--grey-100); color: var(--text); }
+.vtabmenu:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.vtabmenu .nch { width: 14px; height: 14px; }
+.vnew { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; padding: 3px 10px; border-radius: var(--radius-pill); cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.vnew:hover { background: var(--grey-100); color: var(--text); }
+.vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.fline:has(.fx) { padding-right: 38px; }
+.fx { all: unset; box-sizing: border-box; position: absolute; right: 7px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: 18px; line-height: 1; }
+.fx:hover { background: var(--grey-100); color: var(--text); }
+.fx:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }

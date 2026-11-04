@@ -348,7 +348,7 @@
     "w": "Work items › View",
     "go": "work",
     "s": [
-     "The **View** menu beside the saved views holds the layout, the grouping and the saved views. **Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
+     "The **View** menu beside the saved views holds the layout and the grouping. **Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
      "**Layout** in the View menu switches between **Table** and **Board**. The board’s columns follow Group by (Status when it is Nothing).",
      "On the board, **Swimlanes** in the View menu adds rows across it: No lanes, Workstream lanes or Type lanes.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
@@ -1056,7 +1056,7 @@
     "b": [
      [
       "p",
-      "From the top: the type switch; **Open**, **Closed** and **All** with counts; the saved views with **Freshness** and the **View** menu (Layout, Group by, Swimlanes and the saved-view actions); then the filter line."
+      "From the top: the type switch; **Open**, **Closed** and **All** with counts; the saved views with **Freshness** and the **View** menu (Layout, Group by and Swimlanes); then the filter line."
      ],
      [
       "tbl",

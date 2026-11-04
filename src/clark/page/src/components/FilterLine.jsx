@@ -4,8 +4,9 @@
 // chips while the line is focused, saved views as tabs and one View menu. Keys: arrows choose, Enter accepts,
 // Backspace in an empty box removes the last chip, Esc closes the open list. The line is reached by a click or Tab: the page shows no
 // "Press /" hint, because "/" opens ask clark (#286).
-// The View menu (#287, the prototype's one View menu, gap list B-2 and B-17) holds Layout (Table or Board), Group by, the board's
-// swimlanes and the saved-view actions: nothing of these sits beside the line any more.
+// The View menu (#287, the prototype's one View menu, gap list B-2 and B-17) holds Layout (Table or Board), Group by and the board's
+// swimlanes: nothing of these sits beside the line any more. The saved-view actions (#640) are on the open tab's own arrow and on "+ New view".
+// An empty box opens the list of fields, and an x inside the box puts the line back to the starting line (#640).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { rows as allRows, project, filterCtx, fromFile, peek } from "../stores/report.js";
@@ -143,34 +144,45 @@ function SavedViews({ board }) {
     return () => clearTimeout(t);
   }, [form && form.mode]);
   const lay = layoutItems(work.value, !!board);
-  const items = [...lay.items, { id: "sep-views", sep: true }, { id: "lab-views", lab: "Saved views" }];
-  if (active && dirty) items.push({ id: "save", name: `Save changes to ${active.name}` });
-  items.push({ id: "saveas", name: "Save this line as a new view…" });
-  if (active) { items.push({ id: "rename", name: `Rename ${active.name}…` }); items.push({ id: "archive", name: `Archive ${active.name}` }); }
-  for (const v of FL.archivedViews(all).filter((v) => !FL.heldBack(v, rows, ctx))) items.push({ id: `restore:${v.id}`, name: `Bring back ${v.name}${trouble(v) ? " (cannot be used now)" : ""}` });
+  // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Archive never on a core view.
+  const core = !!active && FL.isCoreView(active);
+  const tabItems = [];
+  if (active && dirty && !core) tabItems.push({ id: "save", name: "Save changes" });
+  tabItems.push({ id: "saveas", name: "Save as a new view…" });
+  if (active && !core) { tabItems.push({ id: "rename", name: "Rename…" }); tabItems.push({ id: "archive", name: "Archive" }); }
+  // A view that was archived can be brought back from the open tab's menu, or from the + New view box when no tab is open.
+  const archived = FL.archivedViews(all).filter((v) => !FL.heldBack(v, rows, ctx));
+  for (const v of archived) tabItems.push({ id: `restore:${v.id}`, name: `Bring back ${v.name}${trouble(v) ? " (cannot be used now)" : ""}` });
   return (
     <div class="fviews">
       <div class="vtabs" role="group" aria-label="Saved views">
         {shown.map((v) => {
           const on = !!active && active.id === v.id, dot = on && dirty, bad = trouble(v);
+          // the small arrow sits right beside the open tab's name
+          const arrow = on && !fromFile.value ? <Menu label="" ariaLabel={`Options for ${v.name}`} id="viewTabMenu" btnCls="vtabmenu" menuId="viewTabMenuList" menuLabel={`Options for ${v.name}`} items={tabItems} onPick={act} /> : null;
           if (bad) {          // no count: the line is not applied, so there is nothing to count
             return (
-              <button type="button" key={v.id} class="vtab" data-view-id={v.id} data-broken="true" aria-pressed={on ? "true" : "false"} title={bad} onClick={() => pick(v)}
-                aria-label={`${v.name}, cannot be used any more`}>
-                <span>{v.name}</span>
-              </button>
+              <span class="vt" key={v.id}>
+                <button type="button" class="vtab" data-view-id={v.id} data-broken="true" aria-pressed={on ? "true" : "false"} title={bad} onClick={() => pick(v)}
+                  aria-label={`${v.name}, cannot be used any more`}>
+                  <span>{v.name}</span>
+                </button>{arrow}
+              </span>
             );
           }
           return (
-            <button type="button" key={v.id} class="vtab" data-view-id={v.id} aria-pressed={on ? "true" : "false"} onClick={() => pick(v)}
-              aria-label={`${v.name}, ${FL.viewCount(v, rows, ctx)} items${dot ? ", the line has changes you have not saved" : ""}`}>
-              <span>{v.name}</span><em class="num">{FL.viewCount(v, rows, ctx)}</em>{dot ? <i class="fdot" data-dot aria-hidden="true"></i> : null}
-            </button>
+            <span class="vt" key={v.id}>
+              <button type="button" class="vtab" data-view-id={v.id} aria-pressed={on ? "true" : "false"} onClick={() => pick(v)}
+                aria-label={`${v.name}, ${FL.viewCount(v, rows, ctx)} items${dot ? ", the line has changes you have not saved" : ""}`}>
+                <span>{v.name}</span><em class="num">{FL.viewCount(v, rows, ctx)}</em>{dot ? <i class="fdot" data-dot aria-hidden="true"></i> : null}
+              </button>{arrow}
+            </span>
           );
         })}
+        {fromFile.value ? null : <button type="button" class="vnew" id="viewNew" onClick={() => act("saveas")}>{"+ New view"}</button>}
       </div>
       <FreshnessMenu />
-      {fromFile.value ? null : <Menu label="View" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={items} onPick={act} />}
+      {fromFile.value ? null : <Menu label="View" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={lay.items} onPick={act} />}
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setForm(null); } }}>
           {form.mode === "note" ? null : (
@@ -181,6 +193,7 @@ function SavedViews({ board }) {
             </>
           )}
           <button type="button" class="btn sm" onClick={() => setForm(null)}>{form.mode === "note" ? "Close" : "Cancel"}</button>
+          {form.mode === "saveas" ? archived.map((v) => <button type="button" class="btn sm" key={v.id} data-restore={v.id} onClick={() => { setForm(null); act(`restore:${v.id}`); }}>{`Bring back ${v.name}${trouble(v) ? " (cannot be used now)" : ""}`}</button>) : null}
           <span class="vmsg" role="status">{form.error}</span>
         </form>
       ) : null}
@@ -190,12 +203,13 @@ function SavedViews({ board }) {
 }
 
 export function FilterLine({ board }) {
-  const rows = allRows.value, ctx = filterCtx(), line = lineText.value, parsed = FL.parse(line, rows, ctx);
+  const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value, parsed = FL.parse(line, rows, ctx);
   const [draft, setDraft] = useState("");
   const [focused, setFocused] = useState(false);
   const [active, setActive] = useState(-1);
   const [closed, setClosed] = useState(false);               // Esc closed the list; typing opens it again
-  const [forced, setForced] = useState(false);               // the list was asked for with the arrow keys on an empty box
+  const [forced, setForced] = useState(false);               // the list was asked for on an empty box: by a click or Tab into it, or by the arrow keys
+  const quiet = useRef(false);                               // focus put back on the box by the page itself does not open the list
   const [said, setSaid] = useState([]);
   const box = useRef(null), input = useRef(null);
   const options = focused ? FL.suggest(lastWord(draft), rows, ctx) : [];
@@ -210,7 +224,17 @@ export function FilterLine({ board }) {
     setSaid(r.said);
     setActive(-1); setClosed(false); setForced(false);
   };
-  const remove = (i) => { setSaid([]); apply(dropAt(line, i, rows, ctx)); if (input.current) input.current.focus(); };
+  const putFocus = () => { quiet.current = true; if (input.current) input.current.focus(); quiet.current = false; };
+  const remove = (i) => { setSaid([]); apply(dropAt(line, i, rows, ctx)); putFocus(); };
+  // The x inside the box: the whole line back to the starting line (the same as Clear all); the focus stays in the box.
+  const canX = FL.canClear(line, rows, ctx) || draft.trim() !== "";
+  const clearLine = () => {
+    chosen.value = { ...chosen.value, [code]: "" };
+    apply(FL.BASE); setDraft(""); setActive(-1); setClosed(false); setForced(false); setSaid(["Filter cleared"]);
+    putFocus();
+  };
+  // A click or Tab into the box when no word is being typed opens the list of fields.
+  const openFields = () => { if (!quiet.current && !lastWord(draft)) { setClosed(false); setForced(true); setActive(-1); } };
   const accept = (o) => {
     const base = !draft || /\s$/.test(draft) ? draft : FL.settled(draft);
     if (o.kind === "field") { setDraft(base + o.ins); setActive(-1); setSaid([]); if (input.current) input.current.focus(); }
@@ -259,11 +283,12 @@ export function FilterLine({ board }) {
       <SavedViews board={board} />
       <div class={`fline${focused ? " on" : ""}`} data-fline>
         <Chips parsed={parsed} onRemove={remove} />
-        <input ref={input} id="fline-input" type="text" role="combobox" autocomplete="off" spellcheck={false}
+        <input ref={input} id="fline-input" type="text" role="combobox" autocomplete="off" spellcheck={false} onFocus={openFields} onClick={openFields}
           aria-label="Filter work items" aria-autocomplete="list" aria-expanded={listed ? "true" : "false"} aria-controls={listed ? "fline-list" : undefined}
           aria-activedescendant={listed && active >= 0 ? `fo-${active}` : undefined} aria-describedby="fline-msg"
           placeholder={parsed.chips.length || parsed.words.length ? "" : FL.PLACEHOLDER} value={draft}
           onInput={(e) => { setDraft(e.target.value); setActive(-1); setClosed(false); setSaid([]); }} onKeyDown={onKeyDown} />
+        {canX ? <button type="button" class="fx" id="fline-x" aria-label="Clear the filter" title="Clear the filter" onMouseDown={(e) => e.preventDefault()} onClick={clearLine}>{"×"}</button> : null}
         {listed ? (
           <ul class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
             {options.map((o, i) => (
@@ -279,7 +304,8 @@ export function FilterLine({ board }) {
       </div>
       {
         // Always drawn, hidden unless the line is focused: the room stays, so a click that moves focus away from the line does not shift the page under the pointer.
-        <div class={`fhints${focused ? " on" : ""}`} role="group" aria-label="Examples" aria-hidden={focused ? undefined : "true"}>
+        // The examples and the list of suggestions are never shown together: while the list is open the examples keep their room but are hidden.
+        <div class={`fhints${focused && !listed ? " on" : ""}`} role="group" aria-label="Examples" aria-hidden={focused && !listed ? undefined : "true"}>
           <span class="fhl">Try</span>
           {hints.map((h) => <button type="button" key={h.text} class="fhint" title={h.gloss} onMouseDown={(e) => e.preventDefault()} onClick={() => useHint(h)}>{h.text}</button>)}
         </div>
