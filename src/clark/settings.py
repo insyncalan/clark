@@ -220,3 +220,39 @@ def set_backup_copy_folder(data_dir, text):
         current[BACKUP_COPY_FOLDER] = str(path)
     platform.write_file(file, json.dumps(current, indent=2, sort_keys=True) + "\n")
     return path
+
+
+# ===== AI (#54, Settings › AI) =====
+# Ordinary words only: there is no key or password in clark (the provider is the person's own signed-in command). A value of the wrong
+# type reads as not set, so a bad file never turns anything on or chooses anything. ai_connect.py checks the words themselves.
+AI_MODEL = "ai_model"
+AI_CLAUDE_OFF = "ai_claude_off"
+AI_ACCEPTED = "ai_accepted"
+AI_UNREADABLE = "Your settings couldn't be read, so the AI choice was not changed."
+
+
+def ai_read(data_dir):
+    """{"model": str or "", "claude_off": bool, "accepted": [str]}: the AI choices saved for this data folder."""
+    saved = read(data_dir)
+    model, off, accepted = saved.get(AI_MODEL), saved.get(AI_CLAUDE_OFF), saved.get(AI_ACCEPTED)
+    return {"model": model if isinstance(model, str) else "", "claude_off": off is True,
+            "accepted": [m for m in accepted if isinstance(m, str)] if isinstance(accepted, list) else []}
+
+
+def ai_write(data_dir, changes):
+    """Save any of model, claude_off and accepted, leaving every other setting as it is. Raises ValueError, and writes nothing, for a
+    settings file that can't be read: it is never replaced."""
+    data_dir = Path(data_dir)
+    current = read(data_dir)
+    file = data_dir / FILE
+    if not current and (file.is_symlink() or file.exists()):
+        try:
+            readable = (not file.is_symlink() and file.is_file() and file.stat().st_size <= LIMIT
+                        and isinstance(json.loads(file.read_text(encoding="utf-8")), dict))
+        except (OSError, ValueError, RecursionError):
+            readable = False
+        if not readable:
+            raise ValueError(AI_UNREADABLE)
+    keys = {"model": AI_MODEL, "claude_off": AI_CLAUDE_OFF, "accepted": AI_ACCEPTED}
+    current.update({keys[k]: v for k, v in changes.items()})
+    platform.write_file(file, json.dumps(current, indent=2, sort_keys=True) + "\n")

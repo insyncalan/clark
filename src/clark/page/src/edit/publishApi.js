@@ -52,6 +52,11 @@ export async function exportRequest(project) {
 }
 // The folders asking may read (#47): GET /api/ask-folders?project= and POST /api/ask-folders {project, action: "add" | "remove",
 // path}; "choose" opens the system's folder window on the server (no path from the page). The server checks a folder and saves it; a server without this route answers 404, which the page says in plain words.
+// Settings › AI (#54): whether Claude is connected and the model asking uses. Words and true or false only: clark holds no key or password.
+export const aiConnectRead = () => call("GET", "/api/ai-connect");
+export const aiConnectSend = (provider) => call("POST", "/api/ai-connect", { provider });
+export const aiDisconnectSend = (provider) => call("POST", "/api/ai-disconnect", { provider });
+export const aiModelSend = (model, accept) => call("POST", "/api/ai-model", accept ? { model, accept: true } : { model });
 export const askFoldersRead = (project) => call("GET", `/api/ask-folders?project=${encodeURIComponent(project)}`);
 export const askFoldersChoose = (project) => call("POST", "/api/ask-folders", { project, action: "choose" });
 export const askFoldersChange = (project, action, path) => call("POST", "/api/ask-folders", { project, action, path });

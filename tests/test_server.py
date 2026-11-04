@@ -325,7 +325,7 @@ class Saving(ServerTest):
                                                  "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
                                                 "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024,
-                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024,
+                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ai-connect": 1024, "/api/ai-disconnect": 1024, "/api/ai-model": 1024,
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
                                                 "/api/section-file": 1024,

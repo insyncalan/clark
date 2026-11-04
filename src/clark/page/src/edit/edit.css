@@ -652,3 +652,15 @@ textarea.tpl-field { resize: vertical; }
 .welcome .fld { margin: 0; max-width: none; }
 .welcome .fld-bad { margin: 0; }
 .welcome-acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+
+/* Settings › AI: a tile for each provider, the one that is not ready dashed and grey, and the model. */
+.ai-provs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+.ai-prov { border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: 12px 14px; }
+.ai-prov.on { border-color: var(--brand-blue); }
+.ai-prov.later { background: var(--grey-50); border-style: dashed; }
+.setting .ai-prov h3 { margin: 0 0 4px; font-size: var(--size-body); display: flex; gap: 8px; align-items: center; }
+.ai-prov p { font-size: var(--size-caption); margin: 0 0 10px; }
+.ai-model { margin-top: 12px; }
+.ai-model select { min-height: 36px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.ai-model select:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.ai-msg { margin: 8px 0 0; min-height: 1.4em; font-size: var(--size-small); }

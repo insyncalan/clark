@@ -62,6 +62,30 @@ class ClaudeSubscription(Provider):
         return self.command.stop(owner)
 
 
+class Chosen(ask.Provider):
+    """What ask clark and the suggestions are given: `provider` with the choice in Settings › AI applied. `on` and `model` are read for
+    every question, so a change in Settings counts at once. While it is off nothing is asked and the status says why."""
+
+    def __init__(self, provider, on, model, off_words):
+        self.provider, self.on, self.model, self.off_words = provider, on, model, off_words
+        self.name = provider.name
+
+    @property
+    def lock(self):
+        return self.provider.command.lock       # one run at a time, shared with a question's run (ai_service.busy reads it)
+
+    def status(self):
+        return self.provider.status() if self.on() else {"connected": False, "why": self.off_words}
+
+    def ask(self, request, model=None):
+        if not self.on():
+            return ask.Failure(self.off_words)
+        return self.provider.ask(request, self.model() if model is None else model)
+
+    def stop(self, owner=None):
+        return self.provider.stop(owner)
+
+
 def provider_for(name, **seams):
     """The provider called `name`, or None."""
     return ClaudeSubscription(**seams) if name == ask_claude.PROVIDER else None
