@@ -78,7 +78,8 @@ CONTAINER_BIND = "0.0.0.0"            # item 427: only inside the shipped contai
 
 
 def container_mode():
-    """item 427: True only when CLARK_CONTAINER=1 is set (by the shipped Dockerfile) AND this really is a container. Never on a Mac."""
+    """item 427: True only when CLARK_CONTAINER=1 is set (by docker/compose.yaml, which runs a stock Python image) AND this really is a
+    container (Docker makes /.dockerenv in every container, Podman /run/.containerenv). Never by the setting alone; never on a Mac."""
     return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
 
 
@@ -892,7 +893,7 @@ p { margin: 0 0 8px; color: #55606e; }
 
 def page_route(handler):
     """GET /: the page, with this run's token. Run through run_route like every other route, so a page that cannot be made (a
-    copy of clark built without its page files, as an image built from a checkout is) is answered with a 500 in plain words.
+    copy of clark without its page files that cannot build them) is answered with a 500 in plain words.
     Before, the error left the handler and the standard library closed the connection with no answer at all."""
     if page_load_is_ours(handler.headers, handler.server.server_port):
         mark_here()

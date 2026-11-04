@@ -137,22 +137,45 @@ class Compose(unittest.TestCase):
         for port in ports:
             self.assertTrue(port.startswith("127.0.0.1:"), port)
 
-    def test_the_image_sets_the_container_setting_and_runs_as_a_user_that_is_not_root(self):
-        text = (ROOT / "docker" / "Dockerfile").read_text(encoding="utf-8")
-        self.assertIn("CLARK_CONTAINER=1", text)
-        self.assertRegex(text, r"(?m)^USER clark$")
+    def service(self):
+        return (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8")
 
-    def test_the_image_is_not_built_without_its_pages(self):
-        text = (ROOT / "docker" / "Dockerfile").read_text(encoding="utf-8")
-        self.assertRegex(text, r"(?m)^RUN test -s src/clark/page/page\.html && test -s src/clark/page/page-view\.html$")
-        self.assertLess(text.index("COPY src/clark/"), text.index("RUN test -s"))
+    def test_it_runs_a_stock_python_image_pinned_by_tag_and_builds_nothing(self):
+        """The owner's direction (item 427): only a stock Python image runs in Docker; nothing of clark is built into an image."""
+        text = self.service()
+        self.assertRegex(text, r"(?m)^    image: python:3\.\d+\.\d+-slim-bookworm$")
+        for word in ("build:", "dockerfile", "pull_policy", "clark:local"):
+            self.assertNotIn(word, text.lower(), word)
+        self.assertFalse((ROOT / "docker" / "Dockerfile").exists(), "no image of clark's own")
+        self.assertNotRegex(text, r"(?m)^version:")
 
-    def test_the_local_image_is_built_never_pulled(self):
-        """clark:local is in no registry, so a pull before the build only printed "pull access denied"."""
-        text = (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8")
-        self.assertRegex(text, r"(?m)^    pull_policy: build$")
-        self.assertRegex(text, r"(?m)^    build:$")
-        self.assertNotRegex(text, r"(?m)^version:")                       # the Compose Specification, where pull_policy: build is defined
+    def test_the_whole_local_folder_is_bind_mounted_and_the_data_is_kept_in_it(self):
+        """clark's code and its data stay in the unzipped folder on the computer: nothing is kept only inside the container."""
+        text = self.service()
+        self.assertIn("      - type: bind\n        source: ..\n        target: /clark\n        read_only: true\n", text)
+        self.assertIn("      - type: bind\n        source: ../data\n        target: /clark/data\n        bind:\n"
+                      "          create_host_path: true\n", text)
+        self.assertRegex(text, r"(?m)^    working_dir: /clark$")
+        self.assertEqual(len(re.findall(r"(?m)^\s*target:", text)), 2, "the code (read-only) and its data folder, nothing else")
+        self.assertEqual(text.count("read_only: true"), 2, "the code mount and the container itself; the data mount is the one written")
+
+    def test_it_runs_as_an_ordinary_user_not_root(self):
+        """item 462: a stock image runs as root, and would write the owner's folder as root."""
+        text = self.service()
+        self.assertRegex(text, r'(?m)^    user: "\$\{UID:-1000\}:\$\{GID:-1000\}"$')
+        self.assertNotIn("CLARK_DATA:", text, "the mount fixes the data folder; CLARK_DATA_SOURCE only names it")
+        self.assertNotRegex(text, r"(?m)^volumes:", "no named volume at the top level")
+
+    def test_the_command_starts_clark_as_the_terminal_does_with_the_mounted_data(self):
+        """python3 -m clark builds the pages (page.ensure_built, item 495) before it serves, as on the Terminal route."""
+        text = self.service()
+        self.assertIn('    command: ["python3", "-m", "clark", "--data", "/clark/data", "--port", "8766"]', text)
+        self.assertTrue((ROOT / "clark" / "__main__.py").is_file(), "the stand-in that python3 -m clark runs from /clark")
+        main = (ROOT / "src" / "clark" / "__main__.py").read_text(encoding="utf-8")
+        self.assertLess(main.index("page.ensure_built()"), main.index("done = serve("))
+
+    def test_the_container_setting_is_set_in_the_compose_file(self):
+        self.assertRegex(self.service(), r'(?m)^      CLARK_CONTAINER: "1"$')
 
 
 class ComposeIsLanSafe(unittest.TestCase):

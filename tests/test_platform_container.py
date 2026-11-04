@@ -228,7 +228,7 @@ class ContainerOneDrive(unittest.TestCase):
 
     def test_an_ordinary_folder_and_a_name_that_only_contains_onedrive_are_let_through(self):
         for path in ("/Users/sam/Library/Application Support/clark", "/Users/sam/clark-data", "/Users/sam/Documents/not-OneDrive-really/clark",
-                     "/Users/sam/Library/CloudStorage/Dropbox/clark"):
+                     "/Users/sam/Library/CloudStorage/Dropbox/clark", "/data"):
             with self.subTest(path):
                 a, b = self.host(path)
                 with a, b:
@@ -250,9 +250,9 @@ class ContainerOneDrive(unittest.TestCase):
 
     def test_the_compose_file_hands_the_same_setting_to_clark_as_it_shares_in(self):
         text = (Path(__file__).resolve().parents[1] / "docker" / "compose.yaml").read_text(encoding="utf-8")
-        default = "${CLARK_DATA:-${HOME}/Library/Application Support/clark}"
-        self.assertIn(f"source: {default}", text)
-        self.assertIn(f'CLARK_DATA_SOURCE: "{default}"', text)
+        self.assertIn("source: ..", text)                                     # the folder compose is started in, with the data in its data folder
+        self.assertIn('--data", "/clark/data"', text)
+        self.assertIn('CLARK_DATA_SOURCE: "${PWD:-}/data"', text)               # no PWD (PowerShell) gives "/data": nothing is known, nothing refused
 
 
 if __name__ == "__main__":

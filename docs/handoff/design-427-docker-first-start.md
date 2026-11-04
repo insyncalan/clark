@@ -2,6 +2,8 @@
 
 Status: design plus a first slice (a draft pull request). The change to `src/clark/server.py` (guarded) goes to the owner before it is merged.
 
+**New direction (the owner, on the plan):** Docker replaces the Terminal's Python web server, nothing else. Only a stock Python image runs (`python:3.12.12-slim-bookworm`, pinned by tag); there is no Dockerfile and no image of clark's own. `docker/compose.yaml` bind-mounts the unzipped clark folder (`..`) read-only at `/clark` and only its `data` folder read-write at `/clark/data`, runs as `${UID:-1000}:${GID:-1000}` (not root), runs `python3 -m clark --data /clark/data --port 8766` there (the same start as the Terminal route, so missing pages are built first, item 495), sets `CLARK_CONTAINER=1`, and publishes `127.0.0.1:8766:8766` only. The data lives in the folder's `data` folder on the computer, never only in the container. Where this file below speaks of the Dockerfile, user 10001, `/data` or `~/Library/Application Support/clark` as the shared folder, it is superseded by this paragraph.
+
 ## The problem
 
 clark listens on 127.0.0.1 only, and refuses any request whose peer address is not 127.0.0.1 or ::1 (`csp_local`), whose Host is not this machine, or whose Origin or Sec-Fetch-Site is another site's. In a container with a published port, the browser's request does not arrive from 127.0.0.1. It arrives from the container network's gateway address, so clark would refuse every request.

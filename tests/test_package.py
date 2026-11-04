@@ -144,7 +144,7 @@ class MacZipTest(unittest.TestCase):
 
     def test_start_here_leads_with_docker_in_typed_commands_and_the_zip_holds_what_it_needs(self):
         """item 427: a computer that will not open clark.command uses Docker and Chrome only. The guide says it first, as commands to
-        type (never a .command file), and the download holds the Dockerfile and the compose file it names."""
+        type (never a .command file), and the download holds the compose file it names."""
         text = package.start_here("mac")
         up = "docker compose -f docker/compose.yaml up -d"
         self.assertIn(up, text)
@@ -163,8 +163,8 @@ class MacZipTest(unittest.TestCase):
         self.assertNotIn("Control-click", text, "that way stopped working for an unsigned download on current macOS")
         with zipfile.ZipFile(self.zip) as z:
             names = set(z.namelist())
-        for need in ("docker/compose.yaml", "docker/Dockerfile", "docker/Dockerfile.dockerignore"):
-            self.assertIn(f"{self.top}/{need}", names, need)
+        self.assertIn(f"{self.top}/docker/compose.yaml", names)
+        self.assertNotIn(f"{self.top}/docker/Dockerfile", names, "item 427: a stock Python image, no image of clark's own")
 
     def test_the_default_build_says_what_is_true_of_the_tree_it_was_built_from(self):
         """This checkout is what is published on the public repository (#463): it tracks no private-only path, so the zip

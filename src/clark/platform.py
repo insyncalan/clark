@@ -59,7 +59,7 @@ def system():
 
 
 def container_mode():
-    """item 427: True only when CLARK_CONTAINER=1 is set (by the shipped Dockerfile) AND this really is a container (Docker's
+    """item 427: True only when CLARK_CONTAINER=1 is set (by docker/compose.yaml) AND this really is a container (Docker's
     /.dockerenv or Podman's /run/.containerenv exists). Never true by the setting alone, or by a marker file alone."""
     return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
 
