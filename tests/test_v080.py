@@ -36,19 +36,10 @@ COVERED = [
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#280", "An update that migrates and then does not answer in 15 seconds puts the database back too", "PR 544", "update_helper.py", "MARKER_NAME"),
     ("#368", "A web page and its Word copy share one publication number (a data layout step)", "PR 516", "store.py", "migrate_publication_shared_number"),
     ("#344", "A week picker beside Week ending lists the published weeks and opens one", "PR 529", "page/src/edit/WeekPicker.jsx", "export function WeekPicker"),
     ("#349", "The dashboard as at a chosen day, rebuilt from the change history", "PR 526", "as_at.py", "def cutoff"),
-    ("#326", "An overwrite of a file over 64 MB is refused in plain words, not put back cut short", "PR 456", "publish.py", "EARLIER_TOO_BIG"),
-    ("#460", "The update helper's staging folder is owner only and its copy is hash-checked before it runs", "PR 506", "update_helper.py", "marker[\"helper_sha\"]"),
-    ("#461", "The update helper copy is hash-checked before finish and an old signature is pruned", "PR 506", "update_install.py", "os.unlink(e.path + updates.SIGNATURE_SUFFIX)"),
-    ("#417", "Three small leftovers of the Word screens", "no pull request yet (issue 417)", "", None),
-    ("#432", "Five small leftovers of the Word screens", "no pull request yet (issue 432)", "", None),
-    ("#420", "About you saves one box without blanking the other", "no pull request yet (issue 420)", "", None),
-    ("#462", "Docker first start: three small leftovers", "no pull request yet (issue 462)", "", None),
     ("#171", "Each project keeps its own not-reviewed-after-days number (a data layout step)", "PR 472", "schema.sql", "review_after_days"),
-    ("#427", "Install and first start: the Docker route (clark in a container, opened at 127.0.0.1)", "PR 252", "platform.py", "def container_mode():"),
     ("#160", "Settings has a 'Not reviewed after (days)' setting, and the At a glance row can show an optional Not reviewed tile (needs #171)", "PR 523", "page/src/edit/ReviewDays.jsx", "Settings \u203a Freshness (#160)"),
     ("#269", "The publications row names the PDF file saved with it (a data layout step)", "PR 521",
      "store.py", "def record_pdf_name"),
