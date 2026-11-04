@@ -83,7 +83,9 @@ class TheNumber(Base):
     def test_the_step_changes_no_other_table_index_or_trigger(self):
         path = make_at(self.dir, STEP - 1)
         before = {k: v for k, v in schema_of(path).items() if k != ("table", "projects")}
-        open_store(path, onedrive_roots=[]).close()
+        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP), \
+                mock.patch.object(store_module, "MIGRATIONS", tuple(m for m in store_module.MIGRATIONS if m[0] <= STEP)):
+            open_store(path, onedrive_roots=[]).close()          # this step only: a later step (#269, 15) changes publications
         after = {k: v for k, v in schema_of(path).items() if k != ("table", "projects")}
         self.assertEqual(after, before)
 
