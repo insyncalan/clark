@@ -12,6 +12,7 @@ What is asserted, and what each safety test guards:
   read back and compared, the same retention (the number kept), and only clark's own backup names are ever removed in that folder;
 - failure: a missing, unwritable or full folder, or one the settings file points at the data folder, is a plain warning, the backup here
   and the save still succeed, a hung folder holds a save up for COPY_WAIT only, and a good copy clears the warning;
+- kept publications (#347): copied once into the copy folder, never again, never replaced; a restore never removes one;
 - restore: a copy is read from the folder onto a clean data folder, a corrupt, foreign or forged file there is refused, and a restore writes
   nothing into that folder; the live data folder in OneDrive is still refused, in words that say what to do.
 """
@@ -31,7 +32,7 @@ from unittest import mock
 
 import _paths  # noqa: F401
 from _demo import DemoStore
-from clark import __main__ as launcher, backup, platform as pl, safety, settings, store as cs
+from clark import __main__ as launcher, backup, platform as pl, published_copies, safety, settings, store as cs
 from clark.store import Invalid, open_store
 
 ROOT = os.geteuid() == 0 if hasattr(os, "geteuid") else False
@@ -628,6 +629,97 @@ class TheRoute(Rig):
         found = safety.Safety(self.s.path, [od]).listing()[1]["copy_suggestions"]
         self.assertEqual(found, [str(od / "clark backups")])
         self.assertEqual(self.safety.listing()[1]["copy_suggestions"], [])
+
+
+def published_copies_folder(data):
+    return published_copies.folder_of(data)
+
+
+class KeptPublications(Rig):
+    """#347: each kept publication is copied once into the copy folder, not again each day; a restore never removes one."""
+
+    PAGE = b'<html><body><script type="application/json" id="clark-data">{"a": 1}</script>\n</body></html>'
+
+    def keep(self, number):
+        page = self.PAGE + b"<!-- %d -->" % number
+        src = self.tmp / f"src-{number}.html"
+        src.write_bytes(page)
+        self.assertTrue(published_copies.keep(self.data, "ABC", number, src, hashlib.sha256(page).hexdigest()))
+        return page
+
+    def kept_there(self):
+        return self.copy / "published-copies"
+
+    def test_a_backup_copies_each_kept_publication_once_and_not_again(self):
+        self.on()
+        page1 = self.keep(1)
+        made = backup.take(self.s, "undo")
+        self.assertEqual(self.names(self.kept_there()), ["ABC-1.html", "ABC-1.json"])
+        self.assertEqual((self.kept_there() / "ABC-1.html").read_bytes(), page1)
+        reads = []
+        real = backup._copy_checked
+        with mock.patch.object(backup, "_copy_checked", lambda a, b: (reads.append(Path(a).name), real(a, b))[1]):
+            backup.copy_out(self.data, made)                     # the next day's backup: nothing new, so nothing is copied again
+            self.assertEqual([n for n in reads if n.startswith("ABC")], [])
+            self.keep(2)
+            backup.copy_out(self.data, made)
+        self.assertEqual(sorted(n for n in reads if n.startswith("ABC")), ["ABC-2.html", "ABC-2.json"])
+        self.assertEqual(self.names(self.kept_there()), ["ABC-1.html", "ABC-1.json", "ABC-2.html", "ABC-2.json"])
+        self.assertIsNone(backup.copy_warning)
+
+    def test_a_kept_file_already_there_is_never_replaced_and_retention_never_removes_one(self):
+        self.on()
+        self.keep(1)
+        self.kept_there().mkdir()
+        (self.kept_there() / "ABC-1.html").write_bytes(b"someone else's file")
+        backup.take(self.s, "undo")
+        for _ in range(3):
+            backup.prune(self.copy, 1, True)
+        self.assertEqual((self.kept_there() / "ABC-1.html").read_bytes(), b"someone else's file")
+        self.assertTrue((self.kept_there() / "ABC-1.json").exists())
+
+    def test_only_ordinary_files_with_a_kept_name_are_copied_and_no_folder_is_made_when_nothing_is_kept(self):
+        self.on()
+        backup.take(self.s, "undo")
+        self.assertFalse(self.kept_there().exists())
+        self.keep(1)
+        folder = published_copies_folder(self.data)
+        (folder / "notes.txt").write_text("x")
+        (folder / ".ABC-1.html.1.tmp").write_text("x")
+        (folder / "ABC-9.html").symlink_to(self.tmp / "src-1.html")
+        backup.take(self.s, "undo")
+        self.assertEqual(self.names(self.kept_there()), ["ABC-1.html", "ABC-1.json"])
+
+    def test_a_copy_folder_that_fails_for_kept_files_is_a_warning_and_the_backup_still_stands(self):
+        self.on()
+        self.keep(1)
+        real = backup.platform.private_folder
+
+        def refuse(path):
+            if Path(path).name == "published-copies":
+                raise OSError(28, "No space left on device")
+            return real(path)
+
+        with mock.patch.object(backup.platform, "private_folder", refuse):
+            made = backup.take(self.s, "undo")
+        self.assertTrue(made.exists())
+        self.assertIsNotNone(backup.copy_warning)
+
+    def test_a_restore_never_removes_a_kept_publication(self):
+        self.on()
+        self.keep(1)
+        self.keep(2)
+        self.assertTrue(published_copies.archive(self.data, "ABC", 2))
+        chosen = backup.take(self.s, "daily")
+        self.keep(3)                                              # kept after that backup was taken
+        before = {p.name: p.read_bytes() for p in published_copies_folder(self.data).iterdir()}
+        there = {p.name: p.read_bytes() for p in self.kept_there().iterdir()}
+        self.s.close()
+        backup.restore_path(self.s.path, chosen.name, folder=self.s.backups_dir, onedrive_roots=[])
+        self.assertEqual({p.name: p.read_bytes() for p in published_copies_folder(self.data).iterdir()}, before)
+        self.assertIn("ABC-3.html", before)
+        now = {p.name: p.read_bytes() for p in self.kept_there().iterdir()}
+        self.assertEqual({n: now.get(n) for n in there}, there)           # the copies already in the copy folder stay as they were
 
 
 if __name__ == "__main__":
