@@ -29,6 +29,7 @@ Your data stays on your computer, in `~/Library/Application Support/clark/`. Tha
 
 - **Keep it out of OneDrive, Dropbox and any other synced folder.** They can damage a database that is open.
 - **Safety copies** are made before every Undo, before every Excel import and once a day. The newest 14 are kept. Settings › Safety lists them and puts one back. If clark will not start, close it and type `python3 -m clark restore` in Terminal to see them.
+- **A copy off this computer.** In Settings › Backups, type a folder into **Copy my backups to** (a folder in OneDrive is fine). Each finished backup is also put there, and the same number is kept. It is off until you choose one. To read from it, close clark and type `python3 -m clark restore --from FOLDER` in Terminal.
 
 To keep your data somewhere else, start clark with `python3 -m clark --data FOLDER`.
 

@@ -321,9 +321,9 @@ class RealBrowser(unittest.TestCase):
             order = [r["id"] for r in self.rows(cdp, sid)]
             self.assertEqual(order[0], "TUL-A-002", "the oldest open date comes first")
             late = rows["TUL-010"]                                    # an open Urgent issue due 25-10-2026
-            self.assertEqual((late["words"], late["late"], late["pill"]), ("3 days late", True, "Open"))   # #442: the status cell shows the item's own status, as in Edit
+            self.assertEqual((late["words"], late["late"], late["pill"]), ("3 days late", True, "Red"))   # #448: the status cell shows the live look, as in Edit: an open Urgent issue reads its rating word
             self.assertIn("25-10-2026", late["text"])
-            self.assertEqual(rows["TUL-A-002"]["pill"], "Delayed")    # the item's own status; its lateness shows in the due words
+            self.assertEqual(rows["TUL-A-002"]["pill"], "Overdue")    # #448: the live look: a late action reads Overdue (its status, Delayed, is in the picker)
             closed = rows["TUL-A-003"]                                # closed: its date, no words
             self.assertIsNone(closed.get("words"))
             self.assertIn("13-10-2026", closed["text"])

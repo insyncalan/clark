@@ -328,6 +328,8 @@ NOT_AS_MADE = "{name} was not saved as it was made (the folder may be syncing), 
 NOT_AS_MADE_REPLACED = "{name} was replaced, but what was saved did not match what clark made (the folder may be syncing). Save it again."
 SAVED = "Saved “{name}” in {folder}."
 SAVED_CLIENT = " It was also copied to the client folder as “{name}”. OneDrive uploads it from there; clark can't see when that finishes."
+APPEARED_CLIENT = (" It was not copied to the client folder, because a file called “{name}” appeared there while clark was working."
+                   " Nothing was added to the client folder. Export again to choose what to do.")
 CLIENT_FAILED = " It was not copied to the client folder: {reason} Nothing was added to the client folder."
 NOT_RECORDED_FILE = " The file is fine, but clark could not record it ({reason}); save it again to record it."
 CANCELLED = "Cancelled. Nothing was saved."
@@ -548,15 +550,15 @@ def _do_export(store, who, req, today, chosen, roots):
         target = client / names["client"]
         try:
             if not _write_new(target, data):
-                failed = APPEARED.format(name=target.name, where=where["client"])
+                failed = APPEARED_CLIENT.format(name=target.name)
             elif not _verified(target, digest):
                 _take_back(target)
-                failed = "what was copied did not match the report, so it was taken back."
+                failed = CLIENT_FAILED.format(reason="What was copied did not match the report, so it was taken back.")
             else:
                 copy = target
         except (OSError, platform.PlatformError) as e:
-            failed = f"{getattr(e, 'strerror', None) or e}."
-        words += SAVED_CLIENT.format(name=names["client"]) if copy else CLIENT_FAILED.format(reason=failed)
+            failed = CLIENT_FAILED.format(reason=f"{getattr(e, 'strerror', None) or e}.")
+        words += SAVED_CLIENT.format(name=names["client"]) if copy else failed     # #607: `failed` is the whole sentence, built once
     seq, number = None, None
     try:
         seq = store.log_publication(code, dest, week, digest, who, word=1, client_path=copy)
