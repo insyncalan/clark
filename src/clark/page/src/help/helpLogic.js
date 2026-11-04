@@ -10,6 +10,7 @@ import RAW from "clark-help-content";      // helpContent.json; the build aliase
 import LATER from "./helpLater.json";
 
 const PREFIX = { howto: "howto-", reference: "ref-", start: "start-" };
+const GUIDE = "guide-";     // a step-by-step guide (#642): its place sits under the How do I… tab
 export const START_PARTS = ["top", "loop", "first", "jobs", "where", "rules", "foot"];
 // What each held part of Start here takes with it: the source's fields, emptied while the part is held.
 const START_FIELDS = {
@@ -40,6 +41,7 @@ export function shownContent(raw, later) {
   }
   c.howto.tasks = c.howto.tasks.filter((x) => !(x.id in (L.howto || {})));
   c.reference.sections = c.reference.sections.filter((x) => !(x.id in (L.reference || {})));
+  c.guides = (c.guides || []).filter((x) => !(x.id in (L.guides || {})));
   c.howto.groups = c.howto.groups.filter((g) => c.howto.tasks.some((x) => x.g === g));
   c.reference.groups = c.reference.groups.filter((g) => c.reference.sections.some((x) => x.g === g));
   const heldKeys = new Set((L.keys || []).map((k) => k.at));
@@ -94,6 +96,34 @@ function startTitle(part) {
   return { top: CONTENT.start.hero.title, loop: t.loop_title, first: t.first_title, jobs: t.jobs_title, where: t.where_title, rules: t.rules_title, foot: "Start here" }[part];
 }
 
+// ---------- the guides (#642 step 2) ----------
+// A guide: { id, t (title), job (one line: what it gets done), steps: [{ d (what to do), pic? (a picture id) }], result (what you
+// should see), next: [places] }, in content.guides; the pictures it may show are declared once in content.pictures ([{ id, alt }]).
+// The numbers are the steps' order. A guide with a `page` list is context for that screen too (contextFor).
+/** The guides as the panel needs them: the steps numbered from 1, the text with its markup taken off in `text`. */
+export const guides = () => (CONTENT.guides || []).map((g) => ({
+  id: g.id, place: GUIDE + g.id, title: g.t, job: g.job, result: g.result, next: (g.next || []).slice(), page: (g.page || []).slice(),
+  steps: (g.steps || []).map((s, i) => ({ n: i + 1, d: s.d, text: plain(s.d), pic: s.pic || null })),
+}));
+/** One guide by id (null when there is none). */
+export const guide = (id) => guides().find((g) => g.id === id) || null;
+/** The ids of the pictures declared for the guides. */
+export const pictureIds = () => (CONTENT.pictures || []).map((p) => p.id);
+
+/** The title of a place in Help, or null when the place does not exist. */
+export function placeTitle(place) {
+  const w = String(place);
+  const by = (list, pre, title) => { const x = list.find((e) => pre + e.id === w); return x ? title(x) : null; };
+  if (w.startsWith(PREFIX.start)) return CONTENT.start.parts.includes(w.slice(PREFIX.start.length)) ? startTitle(w.slice(PREFIX.start.length)) : null;
+  return by(tasks(), PREFIX.howto, (x) => x.t) || by(sections(), PREFIX.reference, (x) => x.t) || by(guides(), GUIDE, (x) => x.title);
+}
+
+/** The "what next" links of a guide: [{ place, title, known }]. A link to a place that does not exist is known: false, title null. */
+export function nextLinks(id) {
+  const g = guide(id), known = new Set(placeIds());
+  return g ? g.next.map((place) => ({ place, known: known.has(place), title: known.has(place) ? placeTitle(place) : null })) : [];
+}
+
 // ---------- the keys and the icons ----------
 /** The keys table: what to press (plain, with ⌘ on a Mac) and what it does. */
 export const keysList = (mac = false) => CONTENT.reference.keys.map(([k, d]) => ({ keys: plain(k, mac), does: plain(d, mac) }));
@@ -106,7 +136,7 @@ export const milestoneMarks = () => CONTENT.reference.milestone_states.concat(CO
 /** Every place Help can open at: "start-top", "howto-publish-the-report", "ref-keys" and so on. */
 export function placeIds() {
   return CONTENT.start.parts.map((p) => PREFIX.start + p)
-    .concat(tasks().map((x) => PREFIX.howto + x.id), sections().map((x) => PREFIX.reference + x.id));
+    .concat(tasks().map((x) => PREFIX.howto + x.id), sections().map((x) => PREFIX.reference + x.id), guides().map((g) => g.place));
 }
 
 /**
@@ -118,7 +148,7 @@ export function placeOf(where, lastTab = "start") {
   const w = typeof where === "string" ? where.trim() : "";
   if (!w) return { tab: last, target: null, known: true };
   if (TAB_KEYS.includes(w)) return { tab: w, target: null, known: true };
-  const tab = TAB_KEYS.find((t) => w.startsWith(PREFIX[t]));
+  const tab = w.startsWith(GUIDE) ? "howto" : TAB_KEYS.find((t) => w.startsWith(PREFIX[t]));
   if (!tab) return { tab: last, target: null, known: false };
   return placeIds().includes(w) ? { tab, target: w, known: true } : { tab, target: null, known: false };
 }
@@ -145,6 +175,24 @@ export function linksIn() {
   for (const w of CONTENT.start.where) if (w[2]) screens.add(w[2]);
   inside.add("ref-keys");   // the Start here key line links to it
   return { inside: [...inside], screens: [...screens] };
+}
+
+// ---------- context for a screen (#645 step 1) ----------
+/**
+ * What Help has for a screen: [{ tab, id, title, place }], the how-to entries first, then the reference sections, then the guides,
+ * each in the order of the source. `page` is a screen of LIVE_SCREENS (helpStore.js) or a Settings card ("settings#personal"); an
+ * entry names its screens in its `page` list. A screen includes the entries of its cards; a card includes its own entries and the
+ * ones for the whole screen. Held entries are not in CONTENT, so they are never returned. A screen nothing names gives [].
+ */
+export function contextFor(page) {
+  const w = String(page == null ? "" : page), screen = w.split("#")[0];
+  const on = (x) => (x.page || []).some((p) => p === w || (p.split("#")[0] === screen && (w === screen || p === screen)));
+  const row = (tab, pre, id, title) => ({ tab, id, title, place: pre + id });
+  return [
+    ...tasks().filter(on).map((x) => row("howto", PREFIX.howto, x.id, x.t)),
+    ...sections().filter(on).map((x) => row("reference", PREFIX.reference, x.id, x.t)),
+    ...(CONTENT.guides || []).filter(on).map((g) => row("howto", GUIDE, g.id, g.t)),
+  ];
 }
 
 // ---------- search ----------
@@ -191,6 +239,7 @@ export function buildIndex(dynamic = null) {
   if (on("foot")) add("start", "start-foot", "Start here", [T.foot, T.foot_link]);
   tasks().forEach((x) => add("howto", PREFIX.howto + x.id, x.t, ["Where: " + x.w, ...x.s, ...(x.n ? [x.n] : []), ...(x.say ? ["Or ask clark: " + x.say.join(" ")] : [])]));
   sections().forEach((x) => add("reference", PREFIX.reference + x.id, x.t, refLines(x, dynamic)));
+  guides().forEach((g) => add("howto", g.place, g.title, [g.job, ...g.steps.map((s) => `${s.n}. ${s.d}`), g.result ? "What you should see: " + g.result : ""]));
   return idx;
 }
 

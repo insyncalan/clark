@@ -37,6 +37,7 @@ def shown_content(raw=RAW, later=LATER):
                 c["start"][k] = copy.deepcopy(v)
     c["howto"]["tasks"] = [x for x in c["howto"]["tasks"] if x["id"] not in (later.get("howto") or {})]
     c["reference"]["sections"] = [x for x in c["reference"]["sections"] if x["id"] not in (later.get("reference") or {})]
+    c["guides"] = [x for x in c.get("guides", []) if x["id"] not in (later.get("guides") or {})]
     c["howto"]["groups"] = [g for g in c["howto"]["groups"] if any(x["g"] == g for x in c["howto"]["tasks"])]
     c["reference"]["groups"] = [g for g in c["reference"]["groups"] if any(x["g"] == g for x in c["reference"]["sections"])]
     held_keys = {k["at"] for k in later.get("keys") or []}

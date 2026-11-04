@@ -110,6 +110,7 @@ def help_content_path(held=True):
     raw = json.loads(whole.read_text(encoding="utf-8"))
     raw["howto"]["tasks"] = [t for t in raw["howto"]["tasks"] if t["id"] not in later.get("howto", {})]
     raw["reference"]["sections"] = [s for s in raw["reference"]["sections"] if s["id"] not in later.get("reference", {})]
+    raw["guides"] = [g for g in raw.get("guides", []) if g["id"] not in later.get("guides", {})]
     SHOWN_DIR.mkdir(exist_ok=True)
     out = SHOWN_DIR / "helpContent.json"
     out.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
