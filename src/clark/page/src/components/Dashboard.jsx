@@ -71,7 +71,7 @@ export function Dashboard({ tools }) {
     <section class={`frame report${rebuilt.value ? " asat-frame" : ""}`} id="report" data-mode={editing ? "edit" : "view"} inert={rebuilt.value ? true : undefined}>{/* item 349: as at a day, nothing in it can be focused or clicked */}
       <header class="cover" id="cover">
         <h1>{d.project.name}</h1>
-        <p class="cover-line"><b class="cover-kind">Weekly report</b>{coverLine(d.project).map((t) => <span key={t}>{t}</span>)}</p>
+        <p class="cover-line"><b class="cover-kind">Weekly report</b>{coverLine(d.project, fromFile.value || rebuilt.value ? "" : todayIso()).map((t) => <span key={t}>{t}</span>)}</p>
       </header>
       {list.length === 0 ? <p class="muted" id="no-sections">{emptyWhy}</p> : null}
       <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" ? " drop-end" : ""}`}>
