@@ -456,6 +456,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      # prompt (#72 slice 5) AND the real canary exists (#277). Do not pass ai= before both; test_main pins it.
                      activity=activity_read.make_read(store.path, store.data_for),
                      past=past_reports.PastReports(store.path),
+                     publication_mark=changes.make_publication_mark(store.path, roots, by_user=who.who),
                      as_at=as_at.AsAt(store.path),
                      brand_picture=page.brand_picture,
                      **handlers)
