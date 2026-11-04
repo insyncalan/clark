@@ -4,7 +4,7 @@ Run: python3 dev/run_tests.py test_ib_scope
 Why: the Work items board (#68) styled its icon buttons with a class called `ib` (34 x 32), while the Milestones page (#44) already
 used `ib` for its Earlier, Later and view-switch buttons (28 x 28). Two rules with one name made the board's look win on the
 Milestones toolbar. The board now uses `bib`. This test checks, in headless Chrome (required: it fails, never skips, without it), at
-1400 and 900 px in light and dark: the board's buttons measure 34 x 32 and keep their pressed look; no rule in the page's style
+1400 and 900 px in light and dark: the board's buttons measure 34 x 32 (the layout icons moved into the View menu, #287); no rule in the page's style
 sheets gives an `.ib` button the board's size; and, where the Milestones page is in this build, its buttons measure 28 x 28.
 Desktop widths only.
 """
@@ -40,7 +40,7 @@ def themes(cdp, sid, theme):
 
 
 class BoardButtons(Base):
-    def test_the_boards_buttons_are_34_by_32_and_keep_the_pressed_look(self):
+    def test_the_boards_buttons_are_34_by_32(self):
         for width in (1400, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
@@ -49,15 +49,10 @@ class BoardButtons(Base):
                     self.board(cdp, sid)
                     themes(cdp, sid, theme)
                     got = cdp.js(MEASURE % json.dumps(".bib"), sid)
-                    self.assertGreaterEqual(len(got), 3, "the two layout buttons and full screen")
+                    self.assertGreaterEqual(len(got), 1, "full screen (Layout is in the View menu since #287)")
                     for b in got:
                         self.assertEqual((b["w"], b["h"]), (34, 32), b)
-                    layout = cdp.js(MEASURE % json.dumps("[data-layout]"), sid)
-                    on = [b for b in layout if b["pressed"] == "true"]
-                    off = [b for b in layout if b["pressed"] == "false"]
-                    self.assertEqual((len(on), len(off)), (1, 1))
-                    self.assertNotEqual(on[0]["bg"], off[0]["bg"], "the pressed button has its own background")
-                    self.assertNotEqual(on[0]["border"], off[0]["border"], "and its own border")
+                    self.assertEqual(cdp.js(MEASURE % json.dumps("[data-layout]"), sid), [], "no layout icons beside the line (#287)")
                     self.assertEqual(cdp.js("document.querySelectorAll('.ib').length", sid), 0, "the board no longer uses the shared name")
 
     def test_no_rule_gives_an_ib_button_the_boards_size(self):
