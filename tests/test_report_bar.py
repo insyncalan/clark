@@ -255,5 +255,20 @@ class Bar(Base):
         self.assertIsNone(re.search(r"Editing · each change saves", html))
 
 
+class HookOrder(unittest.TestCase):
+    """#534: the bar returns null while the project has not loaded, so a hook after that return would be called on some renders and not
+    others (rules of hooks). Every hook sits above the first return, so the loading render and the loaded render call the same ones."""
+
+    def test_no_hook_comes_after_the_early_return_null(self):
+        src = (PAGE / "src" / "edit" / "ReportBar.jsx").read_text(encoding="utf-8")
+        body = src[src.index("export function ReportBar()"):]
+        early = body.index("return null")
+        self.assertGreater(early, 0)
+        hooks = list(re.finditer(r"\buse[A-Z]\w*\(", body))
+        self.assertTrue(hooks, "the bar still has its effects")
+        for h in hooks:
+            self.assertLess(h.start(), early, f"{h.group()} is called after the early return null")
+
+
 if __name__ == "__main__":
     unittest.main()
