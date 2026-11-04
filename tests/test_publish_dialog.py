@@ -17,9 +17,7 @@ from test_publish_route import Rig, WANTED
 from test_server import chrome, wait
 import _testpage as testpage
 
-from unittest import mock
-
-from clark import page, pdf, publish_pdf, to_client
+from clark import page, to_client
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 NO_FOLDER = "No client folder yet. Set it in Settings, Publishing."
@@ -94,20 +92,20 @@ class Dialog(Base):
                 self.assertEqual(p.js("document.querySelector('#pub-to-set')"), None, "with a folder set there is nothing to set, so no link")
                 self.assertIn("Publish locally", text)
                 self.assertNotIn("The client will see this page.", text)
-                self.assertNotIn("Word", text, "no Word tick in v0.2")
+                self.assertIn("Also a Word document", text, "the Word tick (#48)")
+                self.assertEqual(p.js("[document.querySelector('#pub-word').checked, document.querySelector('#pub-word').disabled]"), [False, False], "Also a Word document is unticked, and can be ticked")
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('#publish-dialog')", "the dialog closed")
 
     def test_C_pdf_tick_is_there_unticked_and_never_remembered(self):
-        with mock.patch.object(pdf, "find_chrome", return_value="/chrome"), chrome() as cdp:
+        with chrome() as cdp:
             p = self.page(cdp)
             for w in WIDTHS:
                 p.width(w)
                 p.open_publish()
                 self.assertEqual(p.js("[document.querySelector('#pub-pdf').checked, document.querySelector('#pub-pdf').disabled]"),
-                                 [False, False], "PDF is unticked and can be ticked: Chrome is here")
-                self.assertEqual(p.js("document.querySelector('#pub-pdf').closest('label').querySelector('b').innerText"), "Also a PDF",
-                                 "#453: the tick reads as the prototype's does")
+                                 [False, False], "PDF is unticked and can be ticked: it needs nothing but the browser")
+                self.assertEqual(p.js("document.querySelector('#pub-pdf').closest('label').querySelector('b').innerText"), "Also a PDF", "#453: the tick reads as the prototype's does")
                 p.js("document.querySelector('#pub-pdf').click()")
                 p.until("document.querySelector('#pub-pdf').checked", "ticked")
                 p.js("document.querySelector('[data-cancel]').click()")
@@ -116,28 +114,30 @@ class Dialog(Base):
             self.assertFalse(p.js("document.querySelector('#pub-pdf').checked"), "reopened: unticked")
             self.assertEqual(p.js("localStorage.length + sessionStorage.length"), 0)
 
-    def test_C_pdf_tick_is_greyed_with_one_line_without_chrome(self):
-        with mock.patch.object(pdf, "find_chrome", return_value=None), chrome() as cdp:
+    def test_C_pdf_tick_has_no_chrome_wording_and_is_never_greyed(self):
+        with chrome() as cdp:
             p = self.page(cdp)
             for w in WIDTHS:
                 p.width(w)
                 p.open_publish()
-                self.assertEqual(p.js("document.querySelector('#pub-pdf').disabled"), True)
+                self.assertFalse(p.js("document.querySelector('#pub-pdf').closest('label').classList.contains('off')"))
+                self.assertNotIn("Chrome", p.dialog_text())
                 self.assertEqual(p.js("document.querySelector('#pub-pdf').closest('label').innerText.replace(/\\s+/g, ' ')"),
-                                 "Also a PDF " + publish_pdf.NO_CHROME_LINE)
+                                 "Also a PDF The page as it prints: the tabs one after another, no controls, with the publication number in the foot")
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('#publish-dialog')", "closed")
 
-    def test_C_pdf_words_follow_the_ticks(self):
-        with mock.patch.object(pdf, "find_chrome", return_value="/chrome"), chrome() as cdp:
+    def test_C_pdf_words_follow_the_ticks_and_the_client_line_never_names_the_pdf(self):
+        with chrome() as cdp:
             p = self.page(cdp)
             p.open_publish()
-            self.assertIn("A PDF of the report, saved next to the report file. With To client ticked, it is copied to the client folder too.", p.dialog_text())
+            self.assertEqual(p.js("!!document.querySelector('#pub-pdf-note')"), False, "no note until the PDF is ticked")
             p.js("document.querySelector('#pub-client').click()")
             p.until("!!document.querySelector('#pub-warn')", "the line about the client")
-            self.assertEqual(p.js("document.querySelector('#pub-warn').innerText"), to_client.MESSAGES["client_sees"])
             p.js("document.querySelector('#pub-pdf').click()")
-            p.until("document.querySelector('#pub-warn').innerText === 'The client will see this page and the PDF. Only what is shown in View mode is included.'", "the line names the PDF")
+            p.until("!!document.querySelector('#pub-pdf-note')", "the note about the print box")
+            self.assertEqual(p.js("document.querySelector('#pub-warn').innerText"), to_client.MESSAGES["client_sees"])
+            self.assertIn("untick Headers and footers", p.js("document.querySelector('#pub-pdf-note').innerText"))
 
     def test_C_tick_changes_button_and_line(self):
         with chrome() as cdp:
@@ -158,7 +158,9 @@ class Dialog(Base):
             p.key(" ", code="Space", vk=32)
             p.until("document.querySelector('#pub-client').checked", "Space ticks it")
             p.key("Tab", code="Tab", vk=9)
-            self.assertEqual(p.js("document.activeElement.id"), "pub-pdf", "Tab goes to the PDF tick (Chrome is here), then Cancel")
+            self.assertEqual(p.js("document.activeElement.id"), "pub-pdf", "Tab goes to the PDF tick, then the Word tick")
+            p.key("Tab", code="Tab", vk=9)
+            self.assertEqual(p.js("document.activeElement.id"), "pub-word", "Tab goes to the Word tick, then Cancel")
             p.key("Tab", code="Tab", vk=9)
             self.assertEqual(p.js("document.activeElement.hasAttribute('data-cancel')"), True, "then to the button")
             p.key("Tab", code="Tab", vk=9)
