@@ -165,8 +165,10 @@ class NotReviewed(Setup):
                 p.js("location.hash = '#dashboard&p=ABC'")
                 p.until(f"document.querySelector('[data-fig=stale] .dd') && document.querySelector('[data-fig=stale] .dd').textContent === 'Not reviewed for more than 1 day, of {self.open_items()} open items'", "one day is singular")
                 self.set_days(p, "7")
-                p.saved()
+                p.saved()                     # the Undo toast of the save to 1 may still be up, so this alone does not mean 7 has landed:
                 p.js("location.hash = '#dashboard&p=ABC'")
+                p.until(f"document.querySelector('[data-fig=stale] .dd') && document.querySelector('[data-fig=stale] .dd').textContent === 'Not reviewed for more than 7 days, of {self.open_items()} open items'", "the page has the new number before the tile is clicked")
+                self.assertEqual(self.project()["review_after_days"], 7)
                 p.js("document.querySelector('[data-fig=stale]').click()")
                 p.until("!!document.querySelector('#freshMenu')", "Work items with the Freshness filter")
                 p.js("document.querySelector('#freshMenu').click()")
