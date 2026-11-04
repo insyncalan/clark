@@ -164,7 +164,8 @@ NOT_NETWORK = {"urllib.parse", "urllib.error"}          # text handling only
 # A new entry here is a reviewed change; a new provider goes in ai_providers.py, never here.
 # update_helper.py (items 280 and 282): loopback only. It checks that the update's local port is free (a socket bound to 127.0.0.1) and
 # asks the local clark it just started for /health on 127.0.0.1. It reaches no other host.
-KNOWN = {"platform.py", "ai_providers.py", "server.py", "pdf.py", "launch.py", "__main__.py", "update_helper.py"}
+# ai_https.py (#643 slice 1): the one place the key route will call out (pinned below to exactly three modules).
+KNOWN = {"platform.py", "ai_providers.py", "server.py", "pdf.py", "launch.py", "__main__.py", "update_helper.py", "ai_https.py"}
 
 
 def network_imports(source):
@@ -188,6 +189,13 @@ class Imports(unittest.TestCase):
             if got:
                 bad[str(path.relative_to(ROOT))] = got
         self.assertEqual(bad, {})
+
+    def test_the_one_outbound_module_for_a_key_imports_only_what_it_needs(self):
+        """#643: ai_https.py is let in by KNOWN above, so what it may import is pinned here: the HTTPS client, its sockets and TLS, nothing
+        else (no subprocess, no urllib, no requests). The Keychain module imports nothing of this kind: it runs `security` through platform."""
+        self.assertEqual(sorted(network_imports((ROOT / "src" / "clark" / "ai_https.py").read_text(encoding="utf-8"))),
+                         ["http.client", "socket", "ssl"])
+        self.assertEqual(network_imports((ROOT / "src" / "clark" / "ai_keychain.py").read_text(encoding="utf-8")), [])
 
     def test_the_two_provider_modules_start_nothing_themselves(self):
         for name in ("ai_providers.py", "ask_claude.py"):
