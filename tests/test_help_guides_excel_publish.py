@@ -4,7 +4,7 @@ Run: python3 dev/run_tests.py test_help_guides_excel_publish
 Quick tier: no browser. The page's pure functions run in node (skips with no node), as in test_help_guides.py.
 The guides name only real controls: every bold name must be a string in the page's own source (test_help_shown's check), the words the
 owner keeps out do not appear, there is no AI and no date written with slashes. Excel is not a Start here job; the Publish job opens
-its guide. Pictures are not declared here (they live on another branch); the shots each step will use are listed in the report.
+its guide. The pictures its steps draw are checked in test_help_guide_pictures.
 """
 import json
 import re
@@ -33,14 +33,14 @@ class TheThreeGuides(unittest.TestCase):
             self.assertTrue(all(s["d"].strip() for s in g["steps"]), i)
         r = run_node(RAW, "HL.guides().map((g) => [g.id, g.steps.map((s) => s.n)])")
         for i, nums in r:
-            self.assertEqual(nums, list(range(1, STEPS[i] + 1)), i)
+            if i in STEPS:
+                self.assertEqual(nums, list(range(1, STEPS[i] + 1)), i)
 
-    def test_each_has_a_result_line_and_shape_and_no_picture_yet(self):
+    def test_each_has_a_result_line_and_shape(self):
         self.assertEqual(check_guides(RAW), [])
         for i, g in GUIDES.items():
             self.assertTrue(g["result"].strip(), i)
             self.assertTrue(g["job"].strip(), i)
-            self.assertTrue(all("pic" not in s for s in g["steps"]), f"{i}: pictures are added on the pictures branch")
 
     def test_every_next_link_goes_to_a_shown_place_and_never_to_a_held_one(self):
         r = run_node(RAW, "(() => { const o = {}; for (const g of HL.guides()) o[g.id] = [g.next, HL.nextLinks(g.id), HL.nextOf(g.next).map((n) => n.place)]; return o; })()")
@@ -128,7 +128,7 @@ class TheStartJobs(unittest.TestCase):
         r = run_node(RAW, "HL.jobs().map((j) => [j.id, j.place])")
         self.assertEqual(dict(r)["publish-the-report"], "guide-publish-to-the-client")
         for i, place in r:
-            if i != "publish-the-report":
+            if i not in ("publish-the-report", "add-a-section-from-a-template", "arrange-the-report"):      # the other two jobs open their own guides (guides A)
                 self.assertEqual(place, "howto-" + i)
         job = next(j for j in RAW["start"]["jobs"] if j[0] == "publish-the-report")
         self.assertEqual((job[1], job[4]), ("Publish to the client", "publish-to-the-client"))

@@ -135,6 +135,16 @@ export const guides = () => (CONTENT.guides || []).map((g) => ({
 export const guide = (id) => guides().find((g) => g.id === id) || null;
 /** The ids of the pictures declared for the guides. */
 export const pictureIds = () => (CONTENT.pictures || []).map((p) => p.id);
+/**
+ * What a step draws for its picture: { src, alt }, or null (the step draws no picture at all) when it has none, the picture is not
+ * declared, or `urlOf` (the page's pictureUrl) has no picture for the id. Never a broken image.
+ */
+export function stepPicture(step, urlOf) {
+  if (!step || !step.pic) return null;
+  const decl = (CONTENT.pictures || []).find((p) => p.id === step.pic);
+  const src = decl && typeof urlOf === "function" ? urlOf(step.pic) : null;
+  return src ? { src, alt: decl.alt || "" } : null;
+}
 
 /** The title of a place in Help, or null when the place does not exist. */
 export function placeTitle(place) {
