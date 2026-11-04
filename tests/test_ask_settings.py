@@ -172,14 +172,14 @@ class Settings(unittest.TestCase):
             sid = navigate(cdp, self.s.port, "#dashboard&p=ABC")
             js = lambda e: cdp.js(e, sid)          # noqa: E731
             self.assertTrue(wait(lambda: js("!!document.querySelector('#report')"), 20))
-            js("""window.__held = null; const real = window.fetch;
-                  window.fetch = function (url) { if (String(url).indexOf('/api/ask-enabled') >= 0) { const a = arguments; return new Promise((r) => { window.__held = () => r(real.apply(window, a)); }); }
+            js("""window.__pending = []; window.__held = () => window.__pending.splice(0).forEach((f) => f()); const real = window.fetch;
+                  window.fetch = function (url) { if (String(url).indexOf('/api/ask-enabled') >= 0) { const a = arguments; return new Promise((r) => { window.__pending.push(() => r(real.apply(window, a))); }); }
                                                   return real.apply(this, arguments); };
                   location.hash = '#settings&p=ABC'""")
             self.assertTrue(wait(lambda: js("(document.querySelector('#ask-state') || {}).innerText") == CHECKING, 10))
             self.assertEqual(js("document.querySelector('[data-ask-switch]').disabled"), True)
-            js("window.__held()")
-            self.assertTrue(wait(lambda: js("document.querySelector('#ask-state').innerText") == ON, 10))
+            # Release whatever the page has asked so far on every poll, until the answer is on screen (it asks after it draws the words).
+            self.assertTrue(wait(lambda: js("window.__held(), document.querySelector('#ask-state').innerText") == ON, 20))
             self.assertEqual(js("document.querySelector('[data-ask-switch]').disabled"), False)
 
     def test_a_file_that_cannot_keep_the_switch_reads_as_off_and_turning_it_on_is_refused_in_plain_words(self):
