@@ -7,7 +7,7 @@ import { data, project } from "../stores/report.js";
 import { Icon } from "../components/Icon.jsx";
 import { showDate } from "../workItems.js";
 import { dialogLine } from "./publishLine.js";
-import { dialog, latest, next, pdfInfo, NO_FOLDER_LEAD, NO_FOLDER_LINK, toPublishingCard, folderName, open, close, tick, tickPdf, tickWord, wordPick, wordConfirm, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
+import { dialog, latest, next, NO_FOLDER_LEAD, NO_FOLDER_LINK, toPublishingCard, folderName, open, close, tick, tickPdf, tickWord, wordPick, wordConfirm, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
 import { WordClash } from "./WordClash.jsx";
 import { WordLayer } from "./Word.jsx";
 
@@ -82,16 +82,18 @@ function Dialog() {
               <span><b>Local</b><small>Always. You choose the folder and name in the save window.</small></span></label>
             <label class={`pubopt${s.saved ? "" : " off"}`}><input type="checkbox" id="pub-client" checked={s.ticked} disabled={!s.saved || working} onChange={(e) => tick(e.currentTarget.checked)} />
               <span><b>To client</b><small>{s.saved ? `Copied to the client folder: ${folderName(s.saved)}` : <>{NO_FOLDER_LEAD}<button type="button" class="link" id="pub-to-set" disabled={working} onClick={toPublishingCard}>{NO_FOLDER_LINK}</button>.</>}</small></span></label>
-            <label class={`pubopt${pdfInfo.value.ok ? "" : " off"}`}><input type="checkbox" id="pub-pdf" checked={s.pdf && pdfInfo.value.ok} disabled={!pdfInfo.value.ok || working} onChange={(e) => tickPdf(e.currentTarget.checked)} />
-              <span><b>Also a PDF</b><small>{pdfInfo.value.ok ? "A PDF of the report, saved next to the report file. With To client ticked, it is copied to the client folder too." : pdfInfo.value.note}</small></span></label>
+            {/* the prototype's words (system/prototype/io.js:348); the note under the tick (WORDING: owner to rule) */}
+            <label class="pubopt"><input type="checkbox" id="pub-pdf" checked={s.pdf} disabled={working} onChange={(e) => tickPdf(e.currentTarget.checked)} />
+              <span><b>Also a PDF</b><small>The page as it prints: the tabs one after another, no controls, with the publication number in the foot</small>
+                {s.pdf ? <small id="pub-pdf-note">Your browser’s print box opens; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address.</small> : null}</span></label>
             <label class="pubopt"><input type="checkbox" id="pub-word" checked={s.word} disabled={working} onChange={(e) => tickWord(e.currentTarget.checked)} />
               <span><b>Also a Word document</b><small>A Word copy of the report, saved in the folder last used for this project.</small></span></label>
           </div>
         )}
         {/* item 437 rows 29 and 56: the second sentence is the prototype's (io.js, #pubWarn) */}
-        {s.phase !== "clash" && s.phase !== "wordclash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">{s.pdf && pdfInfo.value.ok ? (s.word ? "The client will see this page, the PDF and the Word report. Only what is shown in View mode is included." : "The client will see this page and the PDF. Only what is shown in View mode is included.") : s.word ? "The client will see this page and the Word report. Only what is shown in View mode is included." : "The client will see this page. Only what is shown in View mode is included."}</p> : null}
+        {s.phase !== "clash" && s.phase !== "wordclash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">{s.word ? "The client will see this page and the Word report. Only what is shown in View mode is included." : "The client will see this page. Only what is shown in View mode is included."}</p> : null}
         <div class="pub-msg" id="pub-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
-          {working ? <p class="working">{s.step === "word" ? "Saving the Word report…" : s.pdf && pdfInfo.value.ok ? "Making the PDF…" : "Publishing…"}</p>
+          {working ? <p class="working">{s.step === "word" ? "Saving the Word report…" : "Publishing…"}</p>
             : s.message ? <p class={s.message.kind}><span>{doneWords(s.message)}</span></p> : null}
         </div>
         <div class="dlg-f">

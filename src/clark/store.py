@@ -2803,21 +2803,37 @@ class Store:
         except Exception:        # noqa: BLE001  never let a copy that could not be kept undo a publication that was made
             return False
 
-    def archive_publication(self, code, number):
+    def archive_publication(self, code, number, by_user=None):
         """#342: archive Publication `number` of `code`: the list leaves it out, and nothing is removed or changed (its row, its kept
         page and its data copy stay as they are; FR-43c, archive never delete). The mark is written once beside the kept copies
-        (published_copies.archive); like a publication it is a record, not an edit, so there is no step and no Undo. Refused in plain
-        words when there is no such publication or it is archived already. True when archived."""
+        (published_copies.archive). #345: it is a plain write through this writer, logged as a history line (Archived) under a step of
+        its own, and no Undo is offered for it (the log line names the publications table, which an Undo never puts back): Restore
+        (`unarchive_publication`) is the way back. Refused in plain words when there is no such publication or it is archived
+        already. True when archived."""
+        return self._mark_publication(code, number, by_user, True)
+
+    def unarchive_publication(self, code, number, by_user=None):
+        """#345: take the archive mark off Publication `number` of `code` (Restore): the list shows it again. Nothing else is touched.
+        Logged as a history line (Restored) and, as for archive, no Undo. Refused in plain words when there is no such publication
+        or it is not archived. True when restored."""
+        return self._mark_publication(code, number, by_user, False)
+
+    def _mark_publication(self, code, number, by_user, on):
         if published_copies.file_name(code, number) is None:
             raise Invalid("Give the project's code and the publication's number.")
         if str(self.path) == ":memory:":
             raise Invalid("A publication can't be archived in a database that is not saved to a file.")
         if not self.con.execute("SELECT 1 FROM publications WHERE project = ? AND number = ?", (code, number)).fetchone():
             raise Invalid(f"There is no Publication {number} for {code}. Nothing was changed.")
-        if published_copies.is_archived(self.path.parent, code, number):
-            raise Invalid(f"Publication {number} is already archived. Nothing was changed.")
-        if not published_copies.archive(self.path.parent, code, number):
-            raise Invalid(f"Publication {number} could not be archived. Nothing was changed. Try again.")
+        if published_copies.is_archived(self.path.parent, code, number) == on:
+            raise Invalid(f"Publication {number} is already archived. Nothing was changed." if on
+                          else f"Publication {number} is not archived. Nothing was changed.")
+        # the line is written first, in a step the file change cannot outrun: a file that could not be changed rolls the line back
+        with self.step("dashboard", by_user or platform.login_name(), place="report") as st:
+            log(self.con, st, "publications", f"{code}-{number}", "archived", "0" if on else "1", "1" if on else "0", "update")
+            if not (published_copies.archive if on else published_copies.unarchive)(self.path.parent, code, number):
+                raise Invalid(f"Publication {number} could not be archived. Nothing was changed. Try again." if on
+                              else f"Publication {number} could not be restored. Nothing was changed. Try again.")
         return True
 
     def next_publication(self, code):

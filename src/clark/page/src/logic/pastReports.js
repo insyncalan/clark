@@ -14,7 +14,11 @@ export const NONE = "Nothing published yet. Each publish is listed here with its
 export const LOADING = "Looking for the published reports.";
 export const NOT_KEPT = "Not kept";
 export const TIMES = "Times are shown as UTC.";
-export const LABELS = { open: "Open", tryAgain: "Try again" };
+export const LABELS = { open: "Open", tryAgain: "Try again", archive: "Archive", restore: "Restore", showArchived: "Show archived" };
+export const ARCHIVED_TAG = "Archived";
+export const ALL_ARCHIVED = "Every publication is archived. Show archived brings them back.";
+export const archivedToast = (n) => `Publication ${n} archived. Restore it from Show archived.`;
+export const restoredToast = (n) => `Publication ${n} restored. Archive it again if you want it out of the list.`;
 export const LIST_FAILED = "The published reports could not be read. Reload the page and try again.";
 export const OPEN_FAILED = "That report could not be opened. Try again; if it keeps happening, restart clark.";
 export const BLOCKED = "The report could not be opened. Allow pop-ups for this page, then try again.";
@@ -42,11 +46,19 @@ export function openWords(status, body) {
   return OPEN_FAILED;
 }
 
+// {status, body} of Archive or Restore → one sentence. A refusal the server worded (400 or 409, a short plain sentence) is shown as written.
+export function markWords(status, body) {
+  if (status === 0) return NOT_ANSWERING;
+  if (status === 403) return STALE;
+  if ((status === 400 || status === 409) && sentence(body) && body.message.length <= 200 && !/[\u0000-\u001f]/.test(body.message)) return body.message;
+  return LIST_FAILED;
+}
+
 // Under the table: how many are shown of how many, when the list is cut.
 export const cutLine = (total, shown) => (total > shown ? `Showing the latest ${shown} of ${total}. The older ones are kept.` : "");
 
 // A list row as it is drawn.
-export const rowView = (p) => ({ number: p.number, when: p.when, where: p.where, who: p.who, kept: p.kept === true });
+export const rowView = (p) => ({ number: p.number, when: p.when, where: p.where, who: p.who, kept: p.kept === true, archived: p.archived === true });
 
 // Whether a reply is a list the card can draw.
 export const isList = (b) => !!b && b.ok === true && Array.isArray(b.publications) && Number.isInteger(b.total);

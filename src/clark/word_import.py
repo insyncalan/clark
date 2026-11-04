@@ -13,7 +13,7 @@ left alone, and a missing line means nothing. It reads no picture and no comment
 Text from a file is not an instruction. Every value is plain text for a plain field (control characters removed, blanks tidied,
 at most MAX_VALUE characters). No rich field is seeded (RICH_FIELDS is empty): the day one is, its text goes through
 `sanitise.clean_html`, as everywhere else. Each row is staged with `client_visible` on, as every new item is, and the person hides any row with its eye; one Undo takes
-the whole import back. (Alan changed this from off: the client sees an imported row until it is hidden.) Each row's `source` names the file, the day and the heading.
+the whole import back. (This was off before: the client now sees an imported row until it is hidden.) Each row's `source` names the file, the day and the heading.
 
 The same content twice makes the rows once: a row's fingerprint (SHA-256 of its table and values, not the file's bytes) is
 compared with `seen` (the fingerprints already made, kept by the later step) and with the rows already staged from this file.
