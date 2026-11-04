@@ -225,6 +225,9 @@ class _file_lock:
             self.f.close()          # closing releases the lock
 
 
+NO_BUILT_PAGE = "This copy of clark has no built page. Use the clark download, not a copy of the source code."
+
+
 def ensure_built():
     """Make sure both generated pages exist and match their sources. In a source checkout (dev/tools/build_page.py is there) a
     missing page, or one built from other sources (the stamp differs: see source_stamp), is built with the pinned bundler.
@@ -239,6 +242,11 @@ def ensure_built():
     down); if a page is missing, PageError is raised, every time, with the first failure's reason. A source edited while a server runs is not rebuilt: restart the server."""
     global _checked
     pages = (PAGE, VIEW_PAGE)
+    from clark import platform as _platform         # here, not at the top (see below)
+    if _platform.container_mode():          # item 427: the code is shared in read-only, so a build is never tried
+        if not all(p.is_file() for p in pages):
+            raise PageError(NO_BUILT_PAGE)
+        return
     if not BUILDER.is_file():
         if not all(p.is_file() for p in pages):
             raise PageError("This copy of clark is missing its page files and cannot make them. Download clark again.")
@@ -297,6 +305,10 @@ def page_html(branding=None, view=False):
     page (page-view.html) in place of the served one."""
     ensure_built()
     html = (VIEW_PAGE if view else PAGE).read_text(encoding="utf-8")
+    if not view:
+        from clark import platform      # here, not at the top (see ensure_built)
+        if platform.container_mode():   # item 427: the page learns it is in the container; the published page never says so
+            html = html.replace("<html", '<html data-container="1"', 1)
     css = local_tokens(branding)
     if css is None:
         return html

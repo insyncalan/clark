@@ -289,7 +289,9 @@ class Modes(Base):
             self.assertEqual(p.js("window.posts.length"), 0, "opening sends nothing")
             p.until("!!document.querySelector('button[data-place]:not([disabled])')", "the box offers its Add section button, enabled (a click on a disabled one does nothing)")
             p.js("document.querySelector('button[data-place]').click()")
-            p.until("window.posts.length === 1", "Add section asks for a plain text section")
+            p.until("window.posts.length >= 1", "Add section asks for a plain text section")   # a slow runner may poll late: wait for the first
+            time.sleep(0.3)        # let a double send show itself (a bounded wait for something that must NOT happen)
+            self.assertEqual(p.js("window.posts.length"), 1, "one press sends one request, not two")
             sent = json.loads(p.js("window.posts[0]"))
             self.assertEqual(sent.get("values"), {"type": "text", "title": "New section"})
             self.assertIsNone(sent.get("after"), "at the end")
