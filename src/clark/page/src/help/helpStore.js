@@ -49,6 +49,9 @@ export function openHelp(where) {
 // outside the page (the top bar) is the same element still.
 let opener = null;
 function locate(el) {
+  // A menu item that opens Help is about to go (the menu closes as it is picked): the opener is the button that opened the menu.
+  const dd = el && el.closest && el.closest("[role=menu]") ? el.closest(".dd") : null;
+  if (dd) el = dd.querySelector("button[aria-haspopup=menu]") || el;
   if (!el || el === document.body || el === document.documentElement || !el.parentElement) return null;
   const main = document.getElementById("main");
   if (!main || !main.contains(el) || el === main) return { node: el };
