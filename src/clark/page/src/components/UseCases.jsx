@@ -9,7 +9,6 @@ import { format } from "../router.js";
 import { isOn, liveOf } from "../logic/useCasesList.js";
 import { isOpen, dueField, showDate, ownerOf } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
-import { Icon } from "./Icon.jsx";
 
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];     // Done is grey: finished, and always said in its word
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -93,7 +92,7 @@ function More({ n }) {
   return <p class="ucmore"><a href={format({ view: "usecases", project: project.value })} data-uc-more onClick={go}>{n === 1 ? "1 more on the Use cases page" : `${n} more on the Use cases page`}</a></p>;
 }
 
-export function UseCases({ onExport, tools }) {
+export function UseCases({ tools }) {
   const d = data.value, [open, setOpen] = useState(() => new Set());
   const ed = tools && tools.ucEdit && !fromFile.value && mode.value === "edit" ? tools.ucEdit : null;       // Edit's parts (#455, #485): only in Edit; View and a published file have none
   const list = summary(d, rows.value), off = fromFile.value ? 0 : liveOf(d).filter((u) => !isOn(u)).length;
@@ -114,7 +113,6 @@ export function UseCases({ onExport, tools }) {
         <span class="meter" role="img" aria-label={STATUSES.filter(([k]) => counts[k]).map(([k]) => `${counts[k]} ${k}`).join(", ")}>
           {STATUSES.flatMap(([k, c]) => Array.from({ length: counts[k] || 0 }, (_, n) => <i key={k + n} class={`m-${c}`}></i>))}
         </span>
-        {onExport ? <button type="button" class="bib ucexport" data-uc-export data-tip="Export to Excel (the use cases are one sheet of it)" aria-label="Export to Excel. The use cases are one sheet of the workbook." onClick={onExport}><Icon name="dl" /></button> : null}
       </div>
       <ul class="ucrows plain">{list.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
       {ed ? <ed.FromRecord n={off} /> : null}

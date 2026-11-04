@@ -77,6 +77,7 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           BRANCH: ${{ github.head_ref || github.ref_name }}
+          BASE_REF: ${{ github.base_ref }}
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
           MACOS_INPUT: ${{ github.event.inputs.macos }}
           GH_TOKEN: ${{ github.token }}
@@ -89,6 +90,10 @@ jobs:
             workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;
           esac
           case "$BRANCH" in
+            release-*|v*-release*) FULL=1; MACOS=1 ;;
+          esac
+          # A pull request that TARGETS a release branch is part of the release line too (its base, not only its head branch).
+          case "$BASE_REF" in
             release-*|v*-release*) FULL=1; MACOS=1 ;;
           esac
           case ",$LABELS," in
@@ -107,7 +112,7 @@ jobs:
                   src/clark/store.py|src/clark/schema.sql|src/clark/history.py|src/clark/server.py) FULL=1 ;;
                   src/clark/publish.py|src/clark/publish_flow.py|src/clark/secret_screen.py) FULL=1 ;;
                   src/clark/updates.py|src/clark/platform.py) FULL=1; MACOS=1 ;;      # Mac-specific code: tested on a Mac at the pull request
-                  clark.command|src/clark/launch.py|src/clark/doctor.py|src/clark/release_files.py|dev/tools/package.py) FULL=1; MACOS=1 ;;      # the launcher and the package: Mac-specific too
+                  clark.command|clark/__main__.py|clark/launch.py|clark/doctor.py|src/clark/launch.py|src/clark/doctor.py|src/clark/release_files.py|dev/tools/package.py) FULL=1; MACOS=1 ;;      # the launcher (clark/launch.py is what clark.command runs) and the package: Mac-specific too
                   .github/*) FULL=1 ;;
                 esac
               done <<< "$CHANGED"

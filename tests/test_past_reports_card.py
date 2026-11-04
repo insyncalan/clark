@@ -31,7 +31,8 @@ ROWS = [
     {"number": 2, "when": "21-10-2026 08:15", "where": "Local · Word", "who": "Sam Example", "word": True, "kept": False},
     {"number": 1, "when": "14-10-2026 16:40", "where": "Local", "who": "Not recorded", "word": False, "kept": False},
 ]
-LIST = {"ok": True, "project": "PDF", "total": 3, "shown": 3, "limit": 10, "publications": ROWS}
+LIST = {"ok": True, "project": "PDF", "total": 3, "shown": 3, "limit": 10, "archived": 1, "publications": ROWS}
+SHOWING = {**LIST, "publications": [ROWS[0], {**ROWS[1], "archived": True}, ROWS[2]]}      # Show archived: Publication 2 is archived
 OK = lambda body, status=200: {"status": status, "body": body}  # noqa: E731
 _PAGE = {}
 
@@ -85,12 +86,21 @@ class Static(unittest.TestCase):
                 self.assertNotRegex(low, r"\b" + jargon, code)
             self.assertFalse(past_reports.MESSAGES[code].startswith(("clark", "Clark")), code)
 
+    def test_the_archive_words_are_the_owners_ruling_and_the_prototypes_and_no_undo_is_in_them(self):
+        text = self.logic()
+        self.assertIn("export const archivedToast = (n) => `Publication ${n} archived. Restore it from Show archived.`;", text)
+        self.assertIn("export const restoredToast = (n) => `Publication ${n} restored. Archive it again if you want it out of the list.`;", text)
+        self.assertIn('archive: "Archive", restore: "Restore", showArchived: "Show archived"', text)
+        self.assertIn('export const ARCHIVED_TAG = "Archived";', text)
+        self.assertIn('export const ALL_ARCHIVED = "Every publication is archived. Show archived brings them back.";', text)
+        self.assertNotRegex(text, r"(?i)\bundo\b")
+
     def test_the_card_is_edits_own_and_a_published_file_has_no_way_to_it(self):
         view = (PAGE / "page-view.html").read_text(encoding="utf-8")
         for name in ("/api/publications", "/api/past-report", "pastReportsApi", 'id="pubs"'):
             self.assertNotIn(name, view)
         editor = (PAGE / "page.html").read_text(encoding="utf-8")
-        for name in ("/api/publications", "/api/past-report"):
+        for name in ("/api/publications", "/api/past-report", "/api/publications/"):
             self.assertIn(name, editor)
         for path in PAGE_SRC.rglob("*.js*"):
             if path.name == "pastReportsApi.js" or "node_modules" in path.parts:
@@ -163,6 +173,7 @@ class InBrowser(unittest.TestCase):
 class Words(InBrowser):
     def test_every_word_is_plain_and_none_starts_with_the_product_name(self):
         every = self.val("[T.logic.TITLE, T.logic.INTRO, ...T.logic.COLUMNS, T.logic.NONE, T.logic.LOADING, T.logic.NOT_KEPT, T.logic.TIMES, "
+                         "T.logic.ARCHIVED_TAG, T.logic.ALL_ARCHIVED, T.logic.archivedToast(3), T.logic.restoredToast(3), "
                          "T.logic.LIST_FAILED, T.logic.OPEN_FAILED, T.logic.BLOCKED, T.logic.NOT_ANSWERING, T.logic.STALE, ...Object.values(T.logic.LABELS)]")
         for text in every:
             low = text.lower()
@@ -196,7 +207,7 @@ class Card(InBrowser):
         self.assertEqual(self.text("#pubs h2"), "Published reports · Example Programme")
         self.assertEqual(self.val("[...document.querySelectorAll('#pubs thead th')].map(th => th.textContent.replace('Open', '').trim())"), ["#", "Date and time", "Where", "Who", ""])
         rows = self.val("[...document.querySelectorAll('#pubs tbody tr')].map(tr => [...tr.cells].map(c => c.textContent).join('|'))")
-        self.assertEqual(rows, ["3|28-10-2026 09:30|Local and to client|Sam Example|Open", "2|21-10-2026 08:15|Local · Word|Sam Example|Not kept", "1|14-10-2026 16:40|Local|Not recorded|Not kept"])
+        self.assertEqual(rows, ["3|28-10-2026 09:30|Local and to client|Sam Example|OpenArchive", "2|21-10-2026 08:15|Local · Word|Sam Example|Not keptArchive", "1|14-10-2026 16:40|Local|Not recorded|Not keptArchive"])
         self.assertIn("Every copy is kept; this list shows the latest 10.", self.text("#pubs"))
         self.assertEqual(self.val("T.calls[0]"), ["list", "PDF"])
 
@@ -227,8 +238,68 @@ class Card(InBrowser):
         self.assertEqual(self.text(".pub-msg"), self.val("T.logic.BLOCKED"))
         self.assertEqual(self.val("T.calls[1]"), ["ready", {"code": "PDF", "n": 3}], "the real tab helper asks for the address either way")
 
+    def test_each_row_has_archive_and_the_default_list_hides_the_archived(self):
+        self.mount()
+        self.assertEqual(self.val("[...document.querySelectorAll('[data-pubarchive]')].map(b => b.dataset.pubarchive)"), ["3", "2", "1"])
+        self.assertEqual(self.val("document.querySelector('[data-pubarchive]').getAttribute('aria-label')"), "Archive Publication 3")
+        self.assertFalse(self.present("[data-pubrestore]"))
+        self.assertEqual(self.val("T.calls[0]"), ["list", "PDF"], "the default list does not ask for the archived ones")
+        self.assertEqual(self.text("#pubs-archived"), "Show archived 1")
+        self.assertEqual(self.val("document.querySelector('#pubs-archived').getAttribute('aria-pressed')"), "false")
+
+    def test_archive_asks_once_says_the_exact_words_with_no_undo_and_reads_the_list_again(self):
+        self.replies(archive=OK({"ok": True, "code": "archived", "project": "PDF", "number": 3}))
+        self.mount()
+        self.replies(list=OK({**LIST, "total": 2, "shown": 2, "archived": 2, "publications": ROWS[1:]}))
+        self.click("[data-pubarchive='3']")
+        self.assertEqual(self.val("T.calls[1]"), ["archive", {"code": "PDF", "n": 3}])
+        self.assertEqual(self.val("T.toasts"), [["done", "Publication 3 archived. Restore it from Show archived.", None]])
+        self.assertEqual(self.val("T.calls[2]"), ["list", "PDF"])
+        self.assertEqual(self.val("[...document.querySelectorAll('#pubs tbody tr')].map(tr => tr.dataset.pub)"), ["2", "1"])
+        self.assertEqual(self.text("#pubs-archived"), "Show archived 2")
+        self.assertEqual(self.text(".pub-msg"), "")
+
+    def test_show_archived_lists_them_marked_with_restore_and_restore_says_its_words(self):
+        self.replies(restore=OK({"ok": True, "code": "restored", "project": "PDF", "number": 2}))
+        self.js("T.replies.list = (x) => (x && x.archived) ? " + lit(OK(SHOWING)) + " : " + lit(OK(LIST)))
+        self.mount()
+        self.click("#pubs-archived")
+        self.assertEqual(self.val("T.calls[1]"), ["list", {"code": "PDF", "archived": True}])
+        self.assertEqual(self.val("document.querySelector('#pubs-archived').getAttribute('aria-pressed')"), "true")
+        self.assertEqual(self.val("[...document.querySelectorAll('#pubs tbody tr')].map(tr => tr.dataset.pub)"), ["3", "2", "1"])
+        self.assertEqual(self.text("tr[data-pub='2'] .tag"), "Archived")
+        self.assertEqual(self.val("[...document.querySelectorAll('[data-pubrestore]')].map(b => b.dataset.pubrestore)"), ["2"])
+        self.assertEqual(self.val("document.querySelector('[data-pubrestore]').getAttribute('aria-label')"), "Restore Publication 2")
+        self.assertEqual(self.val("[...document.querySelectorAll('[data-pubarchive]')].map(b => b.dataset.pubarchive)"), ["3", "1"])
+        self.click("[data-pubrestore='2']")
+        self.assertEqual(self.val("T.calls[2]"), ["restore", {"code": "PDF", "n": 2}])
+        self.assertEqual(self.val("T.toasts"), [["done", "Publication 2 restored. Archive it again if you want it out of the list.", None]])
+        self.assertEqual(self.val("T.calls[3]"), ["list", {"code": "PDF", "archived": True}], "still showing the archived ones")
+        self.click("#pubs-archived")
+        self.assertEqual(self.val("T.calls[4]"), ["list", "PDF"])
+
+    def test_a_refusal_is_said_in_the_servers_words_and_no_toast_is_made(self):
+        said = "Publication 3 is already archived. Nothing was changed."
+        self.replies(archive=OK({"ok": False, "code": "already", "message": said}, 409))
+        self.mount()
+        self.click("[data-pubarchive='3']")
+        self.assertEqual(self.text(".pub-msg"), said)
+        self.assertEqual(self.val("T.toasts"), [])
+        self.replies(archive={"status": 0, "body": None})
+        self.click("[data-pubarchive='3']")
+        self.assertEqual(self.text(".pub-msg"), self.val("T.logic.NOT_ANSWERING"))
+        self.replies(archive=OK({"ok": False, "code": "server_error", "message": "Traceback (most recent call last)"}, 500))
+        self.click("[data-pubarchive='3']")
+        self.assertEqual(self.text(".pub-msg"), self.val("T.logic.LIST_FAILED"))
+
+    def test_every_publication_archived_says_so_and_show_archived_brings_them_back(self):
+        self.replies(list=OK({**LIST, "total": 0, "shown": 0, "archived": 3, "publications": []}))
+        self.mount()
+        self.assertEqual(self.text("#pubs-none"), "Every publication is archived. Show archived brings them back.")
+        self.assertFalse(self.present("#pubs-table"))
+
     def test_nothing_published_says_so(self):
-        self.replies(list=OK({**LIST, "total": 0, "shown": 0, "publications": []}))
+        self.replies(list=OK({**LIST, "total": 0, "shown": 0, "archived": 0, "publications": []}))
         self.mount()
         self.assertEqual(self.text("#pubs-none"), "Nothing published yet. Each publish is listed here with its number.")
         self.assertFalse(self.present("#pubs-table"))
@@ -260,8 +331,9 @@ class Card(InBrowser):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme):
                     self.load(width=width, theme=theme)
-                    self.replies(list=OK(LIST), tab=True)
+                    self.replies(list=OK(SHOWING), tab=True)
                     self.mount()
+                    self.assertTrue(self.val("!!document.querySelector('[data-pubrestore]') && !!document.querySelector('[data-pubarchive]')"))
                     self.assertTrue(self.val("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "no sideways scroll")
                     self.assertTrue(self.val("[...document.querySelectorAll('#pubs button, #pubs td')].every(b => b.getBoundingClientRect().right <= innerWidth)"))
                     self.assertTrue(self.val("(() => { const c = getComputedStyle(document.querySelector('#pubs td')).color; return c !== getComputedStyle(document.body).backgroundColor; })()"))
