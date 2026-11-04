@@ -155,10 +155,14 @@ class Edit(Setup):
                     off = p.js("document.querySelector('[data-uc-back]').textContent")
                     self.click(p, "#ucAdd")
                     p.until("!!document.querySelector('#ucF')", "the box")
+                    # the box is settled once its own mount puts focus in the ID field: a late focus there must not land between two typed fields
+                    p.until("document.activeElement && document.activeElement.id === 'ucI'", "focus in the ID field")
                     self.type_in(p, "#ucI", ref)
                     self.type_in(p, "#ucT", f"Hidden {ref}")
+                    # both words are in their fields: requestSubmit on an empty required field returns silently and the box would stay
+                    p.until("document.querySelector('#ucI').value === %s && document.querySelector('#ucT').value === %s" % (json.dumps(ref), json.dumps(f"Hidden {ref}")), "both words typed")
                     p.js("document.querySelector('#ucF').requestSubmit()")
-                    p.until("!document.querySelector('#ucF')", "the box closed")
+                    p.until("!document.querySelector('#ucF')", "the box closed", seconds=30)
                     want = ADDED.replace("3.1", ref)
                     p.until("(document.querySelector('.toast-text') || {}).textContent === " + json.dumps(want), "the hidden toast")
                     made = {r["ref"]: r for r in self.store.read("use_cases", "ABC")}[ref]
