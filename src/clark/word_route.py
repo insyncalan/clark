@@ -28,17 +28,20 @@ Every message is plain words (no file-format terms), "clark" in lower case and n
 import base64
 import binascii
 import hashlib
+import html
+import io
 import json
 import os
 import re
 import secrets
 import threading
 import time
+import zipfile
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-from clark import docx_build, docx_read, milestones, platform, publish, to_client, word_import
+from clark import docx_build, docx_read, milestones, platform, publish, publish_flow, to_client, word_import
 from clark import store as clark_store
 from clark.changes import Refused, _call, _shown
 from clark.store import Invalid
@@ -307,7 +310,7 @@ def make_word_import(path, onedrive_roots=None, by_user=None, today=None, clock=
 
 # ── The export ────────────────────────────────────────────────────────────────
 
-EXPORT_KEYS = ("project", "to_client", "on_clash", "confirmed")
+EXPORT_KEYS = ("project", "to_client", "on_clash", "confirmed", "publication")
 CLASHES = ("number", "overwrite", "cancel")
 ALREADY_ASKING = "A window asking where to save is already open. Choose a folder there, or close it, then try again."
 CHOOSE_FOLDER = "Choose the folder for the Word report"
@@ -325,6 +328,8 @@ NOT_AS_MADE = "{name} was not saved as it was made (the folder may be syncing), 
 NOT_AS_MADE_REPLACED = "{name} was replaced, but what was saved did not match what clark made (the folder may be syncing). Save it again."
 SAVED = "Saved “{name}” in {folder}."
 SAVED_CLIENT = " It was also copied to the client folder as “{name}”. OneDrive uploads it from there; clark can't see when that finishes."
+APPEARED_CLIENT = (" It was not copied to the client folder, because a file called “{name}” appeared there while clark was working."
+                   " Nothing was added to the client folder. Export again to choose what to do.")
 CLIENT_FAILED = " It was not copied to the client folder: {reason} Nothing was added to the client folder."
 NOT_RECORDED_FILE = " The file is fine, but clark could not record it ({reason}); save it again to record it."
 CANCELLED = "Cancelled. Nothing was saved."
@@ -369,6 +374,9 @@ def _export_shape(req):
         raise Refused(BAD_CLASH)
     if clash == "overwrite" and req.get("confirmed") is not True:
         raise Refused(OVERWRITE_UNCONFIRMED)
+    page = req.get("publication")
+    if page is not None and (type(page) is not int or page < 1):
+        raise Refused("The publication number must be a whole number, 1 or more.", code="bad_publication")
     return project, req.get("to_client", False), clash
 
 
@@ -408,12 +416,82 @@ def _take_back(dest):
         pass
 
 
+def _file_text(data):
+    """#607: what a reader of the finished .docx sees, as UTF-8 bytes for to_client.markers_found: the text of every XML part
+    (the document, its footer, the document properties; tags dropped, entities read, a paragraph end as a line break, a tab or
+    line break as a space: docx_build writes those as tags, so the words either side would join) and the
+    address every relationship points at (a hyperlink's target is not in the text). The raw bytes are a zip, so the web
+    publish's check cannot read them as they are. Raises BadZipFile (or KeyError, ValueError) for a file that is not one."""
+    out = []
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        for name in z.namelist():
+            if not name.endswith((".xml", ".rels")):
+                continue
+            xml = z.read(name).decode("utf-8")
+            if name.endswith(".rels"):
+                out += [html.unescape(t) for t in re.findall(r'\bTarget="([^"]*)"', xml)]
+            else:
+                out.append(html.unescape(re.sub(r"<[^>]*>", "", re.sub(r"<w:(?:tab|br)/>", " ", re.sub(r"</w:p>", "\n", xml)))))
+    return "\n".join(out).encode("utf-8")
+
+
+def _held_back(store, code, published, data, client_folder):
+    """#607: the web publish's second look (publish_flow, client_plan) on the Word file for the client: "" when it is clean, else
+    the web publish's own words (and the items to look at). Same markers (text of every row select() left out, every row's
+    working notes, a left-out document's address) and the same client-folder-path check, on the text the file shows. Not
+    to_client.check_copy: its outside-address scan reads HTML markup (src=, href=, <link>), which this file has none of, and
+    it would refuse a typed address in a row's text that a reader of the web file also sees. No bare page, so no note is
+    exempted (template ""). Writes nothing."""
+    def say(what):                                   # #618: a Word file is not a publish, so not "Nothing was published."
+        return to_client.MESSAGES["held_back"].format(what=what).replace("Nothing was published. ", "", 1)
+    try:
+        text = _file_text(data)
+    except (zipfile.BadZipFile, KeyError, ValueError):
+        return say("a file clark could not check")
+    markers = publish_flow.markers_for(store, code, published)
+    where = getattr(markers, "where", None) or {}
+    # #618: two looks, a hit in either refuses. (1) The source text: what the web page carries (every row select() kept, in its
+    # JSON-escaped spelling), where a note with a tab, a blank line or a CRLF is found as the web publish finds it, because the
+    # .docx drops or rewrites that whitespace (docx_build.run, text_paras). (2) The file's own text with every run of white
+    # space made one space, on both sides, so spacing the Word file changes cannot hide a marker.
+    source = json.dumps({"data": published["data"], "sections": published["sections"]}, default=str, ensure_ascii=False)
+    hits = [where.get(m) for m in to_client.markers_found(source.encode("utf-8"), markers)]
+    squash = {}                                      # each marker with its white space squashed -> the item it came from
+    for m in markers:
+        squash.setdefault(" ".join(m.split()), where.get(m))
+    squashed = " ".join(text.decode("utf-8").split()).encode("utf-8")
+    squash_hits = to_client.markers_found(squashed, list(squash))
+    found = bool(hits or squash_hits)
+    hits += [squash[m] for m in squash_hits]
+    problems = []
+    if client_folder and to_client._key(client_folder) in to_client._key(text.decode("utf-8")):
+        problems.append("the location of the client folder")
+    if found:
+        problems.append("text that was meant to be left out")
+    if not problems:
+        return ""
+    ids = []
+    for item in hits:                                # the same " Look at: ID, ID." as the web publish (Publisher.which_items)
+        if item and item not in ids:
+            ids.append(item)
+    return say(to_client.held_words(problems)) + \
+        (publish_flow.MESSAGES["look_at"].format(items=", ".join(ids[:10])) if ids else "")
+
+
 def _do_export(store, who, req, today, chosen, roots):
     code, want_client, clash = _export_shape(req)
     row = store.read("projects", ref=code)
     if row is None:
         raise Refused("There is no project with that code. Check the code in the address, or choose a project from the list.",
                       404, "project_not_found")
+    same_as = None
+    if req.get("publication") is not None:         # #368: this is the Word copy of web publication N, so it takes N and no new number
+        same_as = store.web_publication_seq(code, req["publication"])
+        if same_as is None:
+            raise Refused(f"Publication {req['publication']} is not a web page of this project, so a Word copy can't share its number.",
+                          409, "no_such_publication")
+        if store.word_copy_exists(code, req["publication"]):
+            raise Refused(f"Publication {req['publication']} already has its Word file. Nothing was saved.", 409, "word_copy_exists")
     as_at = today()
     try:
         published = publish.select(publish.read_inputs(store, code, as_at))
@@ -439,6 +517,9 @@ def _do_export(store, who, req, today, chosen, roots):
         if not checked["ok"]:
             raise Refused(checked["message"] + " Nothing was saved.", 400, "client_folder")
         client = Path(checked["folder"])
+        held = _held_back(store, code, published, data, saved)          # #607: before any write, the Local copy included
+        if held:
+            raise Refused(held + " Nothing was saved.", 409, "refused")
     try:
         listing = {"here": _names_in(local), **({"client": _names_in(client)} if client else {})}
     except OSError as e:
@@ -480,19 +561,19 @@ def _do_export(store, who, req, today, chosen, roots):
         target = client / names["client"]
         try:
             if not _write_new(target, data):
-                failed = APPEARED.format(name=target.name, where=where["client"])
+                failed = APPEARED_CLIENT.format(name=target.name)
             elif not _verified(target, digest):
                 _take_back(target)
-                failed = "what was copied did not match the report, so it was taken back."
+                failed = CLIENT_FAILED.format(reason="What was copied did not match the report, so it was taken back.")
             else:
                 copy = target
         except (OSError, platform.PlatformError) as e:
-            failed = f"{getattr(e, 'strerror', None) or e}."
-        words += SAVED_CLIENT.format(name=names["client"]) if copy else CLIENT_FAILED.format(reason=failed)
+            failed = CLIENT_FAILED.format(reason=f"{getattr(e, 'strerror', None) or e}.")
+        words += SAVED_CLIENT.format(name=names["client"]) if copy else failed     # #607: `failed` is the whole sentence, built once
     seq, number = None, None
     try:
-        seq = store.log_publication(code, dest, week, digest, who, word=1, client_path=copy)
-        number = store.number_of(seq)               # #120: the Word copy takes the next number of the project's one counter
+        seq = store.log_publication(code, dest, week, digest, who, word=1, client_path=copy, same_as=same_as)
+        number = store.number_of(seq)               # #120: the Word copy takes the next number of the project's one counter, or (#368) its web page's
         words += f" It is Publication {number}."
     except Invalid as e:
         words += NOT_RECORDED_FILE.format(reason=str(e))

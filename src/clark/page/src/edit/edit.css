@@ -42,8 +42,14 @@
 .ma-name { grid-column: 1; overflow-wrap: anywhere; }
 .ma-row .tag { grid-column: 1; justify-self: start; }
 .ma-meta { grid-column: 1; font-size: var(--size-small); }
-.ma-restore { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
-.ma-note { margin: 4px 0 0; font-size: var(--size-small); }
+.ma-name.link { justify-self: start; text-align: left; font-size: var(--size-body); }
+/* An archived milestone in the peek (edit/ArchivedPeek.jsx): the page's own peek, read only, with one note and Restore. Tokens only. */
+.pk-archnote { margin: 0 0 var(--space-3); padding: 10px var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
+.pk-archnote p { margin: 0 0 var(--space-2); }
+.pk-archnote p:last-child, .pk-archnote .btn:last-child { margin-bottom: 0; }
+.pk-bar .tag { margin-left: 4px; }
+/* The Dashboard's line under the Milestones block that brings a milestone back (edit/MsAddBack.jsx). */
+.ms-addback { margin: var(--space-2) 0 0 4px; }
 .mv-en-why { flex-basis: 100%; font-size: var(--size-small); color: var(--text-muted); }
 .mvm-help { margin: 0 0 var(--space-2); }
 .mvm-actions { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); margin-top: var(--space-2); }
@@ -64,6 +70,27 @@
 .pk-tab { min-height: 32px; padding: var(--space-1) var(--space-3); border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-muted); font: inherit; font-size: var(--size-caption); cursor: pointer; }
 .pk-tab.on { color: var(--text); border-bottom-color: var(--brand-blue); font-weight: var(--weight-medium); }
 .pk-tab:focus-visible, .pk-activity:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* The peek's warning bar, Latest update with Draft, and the Last updated stamp (Edit only). Tokens only; wraps at 900 px. */
+.pk-warnbar { margin: 10px 0 0; padding: 8px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--status-amber-tint); }
+.pk-warn { margin: 0; display: flex; align-items: flex-start; gap: 6px; font-size: var(--size-small); color: var(--status-amber-text); overflow-wrap: anywhere; }
+.pk-warn .i { margin-top: 2px; }
+.pk-fix { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.pk-fix button { min-height: 28px; padding: 3px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--surface); color: var(--status-amber-text); font: inherit; font-size: var(--size-small); font-weight: var(--weight-medium); cursor: pointer; }
+.pk-fix button:hover { background: var(--status-amber-tint); }
+.pk-fix button:focus-visible, .pk-draft:focus-visible, .pk-latest-text:focus-visible, .pk-latest-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-latest { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--grey-100); }
+.pk-lab { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; color: var(--text); font-size: var(--size-small); }
+.pk-latest-client { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--text-muted); font-size: var(--size-small); }
+.pk-draft { display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 2px 10px; border: 1px solid var(--grey-300); border-radius: 999px; background: var(--surface); color: var(--status-blue-text); font: inherit; font-size: var(--size-small); cursor: pointer; }
+.pk-draft:hover { background: var(--brand-blue-tint); }
+.pk-latest-text, .pk-latest-in { display: block; box-sizing: border-box; width: 100%; min-height: 64px; margin: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pk-latest-text { cursor: text; }
+.pk-latest-text:hover { border-color: var(--grey-200); }
+.pk-latest-in { resize: vertical; border-color: var(--brand-blue); background: var(--surface); }
+.pk-latest-hint, .pk-latest-err { margin: 4px 0 0; font-size: var(--size-small); }
+.pk-latest-hint { color: var(--text-muted); }
+.pk-latest-err { color: var(--status-red-text); }
+.pk-last { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px; color: var(--text-muted); font-size: var(--size-small); }
 .pa-list { list-style: none; margin: 0; padding: 0; }
 .pa-row { padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); }
 .pa-meta { margin: 0; font-size: var(--size-caption); color: var(--text-muted); }
@@ -74,10 +101,22 @@
 .pa-what ins { color: var(--status-green-text); text-decoration: underline; }
 .pa-none { padding: var(--space-3) 0; margin: 0; }
 
+/* The right-click menu on a work item (#97): the ordinary menu box, placed where the pointer or the row is. An entry that can't be
+   used shows its reason under it; the arrow marks an entry that opens a short list. */
+.rowmenu { position: fixed; z-index: 36; }
+.rowmenu .ddmenu { position: static; min-width: 240px; max-width: min(340px, calc(100vw - 16px)); }
+.rowmenu [role="menuitem"] { display: flex; align-items: center; gap: 8px; }
+.rowmenu [role="menuitem"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.rowmenu .rm-t { flex: 1; min-width: 0; }
+.rowmenu .rm-t small { display: block; font-size: var(--size-caption); color: var(--text-muted); }
+.rowmenu .rm-go { flex: none; width: 14px; height: 14px; color: var(--text-muted); }
+.rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
+.rowmenu .ddmenu { max-height: calc(100vh - 16px); overflow-y: auto; }
+
 /* Changing several work items at once (#196): the bar's buttons wrap at 900 px, the "N items" menu, and the question. Tokens only. */
 .selbar { flex-wrap: wrap; row-gap: 6px; }
 .sb-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.sb-a { padding: 3px 10px; min-height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: 13px; cursor: pointer; }
+.sb-a { padding: 3px 10px; min-height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-caption); cursor: pointer; }
 .sb-a:hover { border-color: var(--grey-500); }
 .sb-a:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .sb-a[aria-disabled="true"] { color: var(--text-muted); border-style: dashed; cursor: default; }
@@ -125,7 +164,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-head { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex: none; height: 60px; padding: 0 14px 0 20px; color: var(--white); background-color: var(--brand-navy); background-image: linear-gradient(90deg, var(--brand-navy), var(--bar-end)); }
 .ask-head::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--image-cover) center top / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .9; }
 .ask-head-btns { display: flex; gap: 8px; }
-.ask-head h2 { margin: 0; font-size: 18px; font-weight: var(--weight-medium); letter-spacing: .01em; color: var(--white); }
+.ask-head h2 { margin: 0; font-size: var(--size-h3); font-weight: var(--weight-medium); letter-spacing: .01em; color: var(--white); }
 .ask-head .btn { background: transparent; color: var(--white); border-color: color-mix(in srgb, var(--white) 70%, transparent); }
 .ask-head .btn:hover { background: color-mix(in srgb, var(--white) 14%, transparent); border-color: var(--white); }
 .ask-head .btn:focus-visible { outline-color: var(--white); }
@@ -287,6 +326,12 @@ table.items td.c-pick { vertical-align: middle; }
   .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .top .tabs::-webkit-scrollbar { display: none; }
   .top .tab { flex: none; white-space: nowrap; }
+}
+@media (max-width: 900px) {      /* the project switcher (A-D25) adds a name beside the tabs: they scroll in their own bar, the name shortens, and the mode switch stays in the window */
+  .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .top .tabs::-webkit-scrollbar { display: none; }
+  .top .tab { flex: none; white-space: nowrap; }
+  .top .proj, .top .projbtn { min-width: 0; flex: 0 1 auto; max-width: 160px; }
 }
 
 /* Use cases page: detail */
@@ -473,6 +518,25 @@ textarea.tpl-field { resize: vertical; }
 .projects table.proj-table tr.arch td { color: var(--text-muted); }
 .projects table.proj-table .btn:disabled { opacity: .55; cursor: default; }
 
+/* Show archived on Work items (B-5): a pill with the count, then muted rows with the word Archived and a Restore button */
+.archived { margin-top: 16px; }
+.arch-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); font: inherit; font-size: var(--size-small); cursor: pointer; white-space: nowrap; }
+.arch-pill:hover { color: var(--text); }
+.arch-pill:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.arch-pill[aria-pressed="true"] { background: var(--brand-navy); border-color: var(--brand-navy); color: var(--white); }
+:root[data-theme=dark] .arch-pill[aria-pressed="true"] { background: var(--brand-blue); border-color: var(--brand-blue); }
+.arch-box { margin-top: 8px; border: 1px solid var(--grey-200); border-radius: var(--radius); padding: 4px 12px; background: var(--surface); }
+.arch-rows { list-style: none; margin: 0; padding: 0; }
+.arch-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: start; padding: 8px 0; border-top: 1px solid var(--grey-100); color: var(--text-muted); }
+.arch-row:first-child { border-top: 0; }
+.arch-open { all: unset; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; cursor: pointer; font-size: var(--size-small); color: var(--text-muted); }
+.arch-open:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 3px; }
+.arch-open .meta { font-size: var(--size-caption); }
+.arch-read { grid-column: 1 / -1; display: grid; grid-template-columns: 90px 1fr; gap: 2px 12px; margin: 4px 0 0; font-size: var(--size-small); }
+.arch-read dt { color: var(--text-muted); }
+.arch-read dd { margin: 0; }
+.arch-restore { grid-row: 1; grid-column: 2; }
+
 /* #74 Supporting documents in Edit: each link's buttons, the add or edit form, and "Add back a document". Tokens only. */
 .docs-edit { gap: var(--space-2); margin: var(--space-2) 0; }
 .docs-edit .docs-list { margin: 0; }
@@ -487,12 +551,17 @@ textarea.tpl-field { resize: vertical; }
 .docs-left summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 .docs-left-list { list-style: none; margin: var(--space-1) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .docs-left-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
+.docs-arch-text { min-width: 0; }                 /* #455: an archived document's title and its "Archived · kind · date" line */
+.docs-arch-text .tpl-facts { color: var(--text-muted); }
 
 /* The bar above the page (A-D2): the week, where the report stands, and in Edit the notes. Tokens only. */
 .rbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 12px; font-size: var(--size-small); color: var(--text-muted); }
 .rbar-week { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); }
 .rbar-week input { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); padding: 3px 8px; min-height: 28px; }
 .rbar-week input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+/* item 344: the week picker beside Week ending (the prototype's #wkPast), in View and Edit; picking only opens, it changes nothing */
+.rbar-past { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); padding: 3px 8px; min-height: 28px; width: auto; max-width: min(260px, 100%); box-sizing: border-box; }
+.rbar-past:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .rbar-state { padding: 2px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); }
 .rbar-hint { color: var(--text-muted); }
 
@@ -515,14 +584,14 @@ textarea.tpl-field { resize: vertical; }
 .tracker-edit .t-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px 10px; margin: 0 0 8px; }
 .tracker-edit .t-f-text { grid-column: span 2; }
 .tracker-edit .t-f { display: flex; flex-direction: column; gap: 2px; margin: 0; }
-.tracker-edit .t-fl { font-size: 13px; color: var(--text-muted); }
+.tracker-edit .t-fl { font-size: var(--size-caption); color: var(--text-muted); }
 .tracker-edit .t-f input, .tracker-edit .t-f select { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .tracker-edit .t-f input:focus-visible, .tracker-edit .t-f select:focus-visible, .tracker-edit .t-check input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .tracker-edit .t-overall-edit { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin: 0 0 14px; }
 .tracker-edit .t-overall-edit .t-f { width: 140px; }
 .tracker-edit .t-overall-edit .t-f-note { width: 280px; max-width: 100%; }
 .tracker-edit .t-cols { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
-.tracker-edit .t-check { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; }
+.tracker-edit .t-check { display: inline-flex; align-items: center; gap: 4px; font-size: var(--size-small); }
 .tracker-edit .t-err { margin: 4px 0; font-size: var(--size-small); color: var(--status-red-text); }
 .tracker-edit .t-name-form { display: inline-flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 10px; }
 .tracker-edit .t-name-form .t-f, .tracker-edit .t-new-group .t-f { width: 260px; max-width: 100%; }
@@ -548,6 +617,22 @@ textarea.tpl-field { resize: vertical; }
 .ucm .ad-foot { justify-content: flex-end; }
 @media (max-width: 900px) { .ucm-form { grid-template-columns: minmax(0, 1fr); } }
 
+/* The Dashboard's use case row in Edit, part two: the eye on the row, "Where it stands" changed in place, the box that adds a next step
+   and the link to the box that links work items. Tokens only; no text under 13 px. */
+.ucrow-ed > .ucbar { grid-template-columns: 32px minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 104px 112px; }
+.uceye { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
+.uceye:hover { background: var(--grey-200); color: var(--text); }
+.uceye:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+.uceye .i, .uceye svg { width: 18px; height: 18px; }
+.ucdetail .rt-view { margin: 0 0 6px; }
+.ucx-step { margin: 6px 0 2px; }
+.ucx-step .field { box-sizing: border-box; width: 100%; max-width: 560px; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.ucx-step .field:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ucdetail .add-from { display: inline-flex; align-items: center; min-height: 24px; margin: 4px 0 0; }
+.uclink .pk-search .seg { flex: 0 1 auto; }
+.uclink .pick li .type { margin-right: 4px; }
+.uclink .pick li .pill { margin-left: 4px; }
+@media (max-width: 900px) { .ucrow-ed > .ucbar { grid-template-columns: 32px 44px minmax(0, 1fr) minmax(0, 1fr) 96px 96px; } }
 /* The AI suggestion card (#72): roles and tokens only; no status colour (each already means something else). */
 .aic { margin: .5rem 0; padding: .75rem .875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
 .aic-h { margin: 0 0 .125rem; font-size: var(--size-body); font-weight: var(--weight-semibold); color: var(--heading); }
@@ -569,3 +654,11 @@ textarea.tpl-field { resize: vertical; }
 .aic-btn:hover { background: var(--grey-100); }
 .aic-link { all: unset; box-sizing: border-box; min-height: 2rem; display: inline-flex; align-items: center; padding: 0 .375rem; color: var(--link); text-decoration: underline; cursor: pointer; font-size: var(--size-body); }
 
+
+/* The first-run welcome (issue 174). A card at the bottom right, over the page but never blocking it (the toasts are at the bottom left). */
+.welcome { position: fixed; right: var(--space-4); bottom: var(--space-4); z-index: 39; width: min(24rem, calc(100vw - var(--space-6))); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.welcome h2 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
+.welcome p { margin: 0 0 var(--space-3); font-size: var(--size-body); }
+.welcome .fld { margin: 0; max-width: none; }
+.welcome .fld-bad { margin: 0; }
+.welcome-acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }

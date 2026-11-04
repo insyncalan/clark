@@ -1,5 +1,6 @@
 // The Work items list (#36, read only; #64a filters and Add): one project's actions, risks, issues, assumptions, dependencies and
-// decisions from GET /api/data, one flat table: type, item, owner, due date in words, priority, status. The list rules are in
+// decisions from GET /api/data, as tables in bordered group cards (#456): item (a letter badge for its kind, title, id), owner, due date in
+// words, priority, status, and in the page clark serves the Client-visible eye. The list rules are in
 // ../workItems.js, the filter rules in ../filters.js. A filter change redraws the list region and the switches' words only.
 // In View and in Edit (#80, #442: the owner's ruling on gap B-9), the Owner, Due, Priority and Status cells change in place
 // (tools.Cell, edit/cells/): each opens its own picker. A published file has no tools, so no pickers.
@@ -21,7 +22,7 @@ import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnO
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
 import { itemRows } from "../stores/work.js";
 import { handing, ticks } from "../stores/handover.js";
-import { KIND_WORDS, sortRows, dueCell, pillOf, ownerOf, metaOf, isOpen, todayIso } from "../workItems.js";
+import { KIND_WORDS, kindLetter, sortRows, dueCell, pillOf, ownerOf, metaOf, isOpen, todayIso } from "../workItems.js";
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
 import { lineApi } from "../stores/lineSlot.js";
@@ -51,10 +52,15 @@ function Owner({ name }) {
 
 const active = cursor;                          // the id of the row that is the table's one tab stop (listKeys.js)
 
+// A cell the arrows reach: a picker's button (Edit) or the Client-visible eye's button (Edit). `field` names it for "the same cell of the next row".
+const CELLS = "[data-cell], button.weye";
+const fieldOf = (c) => (c ? (c.dataset.cell ? c.dataset.cell.slice(c.dataset.cell.lastIndexOf(":") + 1) : "client") : "");
+const cellIn = (r, field) => (field === "client" ? r.querySelector("button.weye") : field ? r.querySelector(`[data-cell$=":${field}"]`) : null);
+
 // The arrow keys inside the table. Only a key on a row or on a cell's own button: never one meant for an open picker.
 function keys(e, row) {
   const tr = e.currentTarget, t = e.target;
-  const cell = t !== tr && t.matches && t.matches("[data-cell]") ? t : null;
+  const cell = t !== tr && t.matches && t.matches(CELLS) ? t : null;
   if (t !== tr && !cell) return;
   if (handing()) {                                                                 // #199: Space only ticks; Enter opens nothing; the arrows still move
     if (e.key === " " && !cell && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); if (isOpen(row)) ticks.toggle(row.id); return; }
@@ -65,13 +71,12 @@ function keys(e, row) {
     if (!cell && (e.key === "Enter" || (e.key === "ArrowRight" && mode.value !== "edit"))) { e.preventDefault(); openPeek(row.id, "item"); return; }   // Right opens the peek in View; in Edit it walks the cells
     if (!cell && e.key === "ArrowLeft" && mode.value !== "edit" && peek.value) { e.preventDefault(); closePeek(); return; }   // Left from a row closes an open peek; only a key on the row itself (never one inside the peek)
   }
-  const rows = Array.from(tr.closest("table").querySelectorAll("tr[data-id]")), at = rows.indexOf(tr);   // across the groups, never a group heading
-  const cells = Array.from(tr.querySelectorAll("[data-cell]")), c = cells.indexOf(cell);
-  const field = cell ? cell.dataset.cell.slice(cell.dataset.cell.lastIndexOf(":") + 1) : "";
+  const rows = Array.from(tr.closest("#work-list").querySelectorAll("tr[data-id]")), at = rows.indexOf(tr);   // across the groups (each its own card and table), never a group heading
+  const cells = Array.from(tr.querySelectorAll(CELLS)), c = cells.indexOf(cell);
+  const field = fieldOf(cell);
   const toRow = (j) => {
     const r = rows[Math.max(0, Math.min(rows.length - 1, j))];
-    const same = field ? r.querySelector(`[data-cell$=":${field}"]`) : null;
-    (same || r).focus();
+    (cellIn(r, field) || r).focus();
   };
   const vert = e.key === "ArrowDown" || e.key === "ArrowUp" || (!cell && (e.key === "Home" || e.key === "End"));
   if (vert) toRow(moveTo(e.key, at, rows.length, ["ArrowUp", "ArrowDown", "Home", "End"]));
@@ -83,14 +88,12 @@ function keys(e, row) {
 
 // Shift+Up or Shift+Down moved the cursor: the keyboard goes to that row (to the same cell when it was on one).
 function focusRow(tr, id, cell) {
-  const r = tr.closest("table").querySelector(`tr[data-id="${CSS.escape(id)}"]`);
+  const r = tr.closest("#work-list").querySelector(`tr[data-id="${CSS.escape(id)}"]`);
   if (!r) return;
-  const field = cell ? cell.dataset.cell.slice(cell.dataset.cell.lastIndexOf(":") + 1) : "";
-  const same = field ? r.querySelector(`[data-cell$=":${field}"]`) : null;
-  (same || r).focus();
+  (cellIn(r, fieldOf(cell)) || r).focus();
 }
 
-function Row({ row, today, Cell, stop, pos, size }) {
+function Row({ row, today, Cell, Eye, stop, pos, size }) {
   const due = dueCell(row, today), pill = pillOf(row, today);
   const cell = (field, said, content) => (Cell ? <Cell row={row} field={field} said={said}>{content}</Cell> : content);
   const hand = handing(), can = isOpen(row), ticked = hand && ticks.ids.value.includes(row.id);
@@ -103,7 +106,7 @@ function Row({ row, today, Cell, stop, pos, size }) {
   };
   const dbl = (e) => { if (on && ownClick(e.target, e.currentTarget)) pickOpen(row.id); };
   return (
-    <tr data-id={row.id} data-kind={row.kind} data-changed={isChanged(row.id) ? "1" : undefined} class={`${can ? "" : "done"}${picked || ticked ? " picked" : ""}${isChanged(row.id) ? " changed" : ""}`.trim()} tabIndex={stop ? 0 : -1} aria-posinset={pos} aria-setsize={size}
+    <tr data-id={row.id} data-kind={row.kind} data-changed={isChanged(row.id) ? "1" : undefined} class={`${can ? "" : "done"}${picked || ticked ? " picked" : ""}${isChanged(row.id) ? " changed" : ""}${Eye ? " has-eye" : ""}`.trim()} tabIndex={stop ? 0 : -1} aria-posinset={pos} aria-setsize={size}
       aria-label={hand ? (can ? `Tick ${row.id}` : `${row.id}, closed, not offered`) : on ? `Select or open ${row.id}` : `Open ${row.id}`}
       aria-selected={on ? (picked ? "true" : "false") : hand && can ? (ticked ? "true" : "false") : undefined}
       onFocusIn={() => { active.value = row.id; if (on) sel.moveCursor(row.id); }} onKeyDown={(e) => keys(e, row)} onMouseDown={on ? noTextRange : undefined} onClick={click} onDblClick={dbl}>
@@ -114,58 +117,87 @@ function Row({ row, today, Cell, stop, pos, size }) {
           </label> : null}
         </td>
       ) : null}
-      <td class="c-type"><span class={`type k-${row.kind}`}>{KIND_WORDS[row.kind] || row.kind}</span></td>
       <td class="c-item">
-        {picked ? <span class="tick" aria-hidden="true"><Icon name="check" /></span> : null}
-        <span class="t">{row.title}</span>
-        <span class="meta">{metaOf(row)}{row.client && !fromFile.value ? <span class="tag cl">Shown to client</span> : null}{isChanged(row.id) ? <span class="tag chg">{WORD}</span> : null}</span>
+        <div class="tcell">
+          <span class={`kb k-${row.kind}`} role="img" aria-label={KIND_WORDS[row.kind] || row.kind} title={KIND_WORDS[row.kind] || row.kind}>{kindLetter(row.kind)}</span>
+          <span class="tx">
+            {picked ? <span class="tick" aria-hidden="true"><Icon name="check" /></span> : null}
+            <span class="t">{row.title}</span>
+            <span class="meta">{metaOf(row)}{isChanged(row.id) ? <span class="tag chg">{WORD}</span> : null}</span>
+          </span>
+        </div>
       </td>
       <td class="c-owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td>
       <td class="c-due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td>
       <td class="c-prio">{cell("priority", row.priority || "none", row.priority || <span class="muted">{"—"}</span>)}</td>
-      <td class="c-status">{cell("status", row.status, <span class={`pill ${pill.class}`}>{pill.text}</span>)}</td>
+      <td class="c-status">{cell("status", pill.text, <span class={`pill ${pill.class}`}>{pill.text}</span>)}</td>
+      {Eye ? <td class="c-eye"><Eye row={row} /></td> : null}
     </tr>
   );
 }
 
-// The table, in groups (Group by): a heading row with the name and the count that opens and shuts the group, then its rows.
-// "Nothing" is the flat list. A group with no rows is not drawn here (the board draws every column).
-// The table's one tab stop (#80) is the row last focused while it is drawn, else the first row drawn.
-function Table({ rows, today, type, Cell }) {
+// The table, in groups (Group by): each group is its own bordered card (#456, prototype `.group`) with a heading bar (the name and the
+// count that opens and shuts the group) and its own table: the column names, then its rows. "Nothing" is one card with no heading bar.
+// The columns are Item (a letter badge, the title, then the id and links), Owner, Due, Priority, Status and, in the page clark serves,
+// the Client-visible eye. A published file has no eye column, and its code holds none of the eye's words: the client is shown nothing about what is internal.
+// A group with no rows is not drawn here (the board draws every column). The table's one tab stop (#80) is the row last focused
+// while it is drawn, else the first row drawn.
+const COLS = ["c-item", "c-owner", "c-due", "c-prio", "c-status"];
+function Heads({ eye, hand }) {
+  return (
+    <>
+      {hand ? <th class="c-pick"><span class="sr">Hand over</span></th> : null}
+      <th class="c-item">Item</th><th class="c-owner">Owner</th><th class="c-due">Due</th><th class="c-prio">Priority</th><th class="c-status">Status</th>
+      {eye ? <th class="c-eye"><span class="sr">{eye.heading}</span></th> : null}
+    </>
+  );
+}
+function Cols({ eye, hand }) { return <colgroup>{(hand ? ["c-pick"] : []).concat(COLS, eye ? ["c-eye"] : []).map((c) => <col key={c} class={c} />)}</colgroup>; }
+
+function Table({ rows, today, type, Cell, Eye }) {
   const hand = handing(), st = work.value, g = st.group, on = selecting(), grid = on ? { role: "grid", "aria-multiselectable": "true", "aria-label": hand ? "Work items to hand over" : "Work items" } : {};
-  const head = <thead><tr>{hand ? <th class="c-pick"><span class="sr">Hand over</span></th> : null}<th class="c-type">Type</th><th class="c-item">Item</th><th class="c-owner">Owner</th><th class="c-due">Due</th><th class="c-prio">Priority</th><th class="c-status">Status</th></tr></thead>;
+  const n = COLS.length + (Eye ? 1 : 0) + (hand ? 1 : 0);
   const stopOf = (drawn) => stopOfIds(drawn.map((r) => r.id));
   let order = [];                                  // the rows drawn, in order: each one's place for a screen reader ("3 of 12")
-  const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} stop={r.id === stop} pos={order.indexOf(r.id) + 1} size={order.length} />;
-  if (g === "nothing") { const flat = sortRows(rows, today), stop = stopOf(flat); order = flat.map((r) => r.id); return <table class="items" {...grid}>{head}<tbody>{flat.map((r) => row(r, stop))}</tbody></table>; }
+  const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} Eye={Eye} stop={r.id === stop} pos={order.indexOf(r.id) + 1} size={order.length} />;
+  if (g === "nothing") {
+    const flat = sortRows(rows, today), stop = stopOf(flat);
+    order = flat.map((r) => r.id);
+    return <div class="wgroup"><table class="items" {...grid}><Cols eye={Eye} hand={hand} /><thead><tr><Heads eye={Eye} hand={hand} /></tr></thead><tbody>{flat.map((r) => row(r, stop))}</tbody></table></div>;
+  }
   const ctx = contextFor(today, type);
   const groups = columnsFor(g, rows, ctx).map((c) => ({ ...c, rows: sortRows(rows.filter((r) => cellOf(g, r, ctx) === c.key), today) })).filter((c) => c.rows.length > 0)
     .map((c) => ({ ...c, shut: isCollapsed(st, g, c.key) }));
   const shown = groups.flatMap((c) => (c.shut ? [] : c.rows)), stop = stopOf(shown);
   order = shown.map((r) => r.id);
   return (
-    <table class="items grouped" {...grid}>
-      {head}
+    <>
       {groups.map((c) => {
         const shut = c.shut;
         return (
-          <tbody key={c.key} data-group={c.key}>
-            <tr class="grp"><th colspan={hand ? 7 : 6} scope="colgroup">
-              {hand ? <GroupTick sel={ticks} ids={c.rows.filter((r) => isOpen(r)).map((r) => r.id)} label={c.label} shut={shut} />
-                : on ? <GroupTick ids={c.rows.map((r) => r.id)} label={c.label} shut={shut} /> : null}
-              <button type="button" class="grp-b" aria-expanded={shut ? "false" : "true"} onClick={() => setWork(toggleCollapsed(work.value, g, c.key))}>
-                <Icon name="chevdown" cls={shut ? "turn" : ""} /><span class="gl">{c.label}</span><span class="gc num">{c.rows.length}</span>
-              </button>
-            </th></tr>
-            {shut ? null : c.rows.map((r) => row(r, stop))}
-          </tbody>
+          <div class="wgroup" key={c.key}>
+            <table class="items grouped" {...grid}>
+              <Cols eye={Eye} hand={hand} />
+              <tbody data-group={c.key}>
+                <tr class="grp"><th colspan={n} scope="colgroup">
+                  {hand ? <GroupTick sel={ticks} ids={c.rows.filter((r) => isOpen(r)).map((r) => r.id)} label={c.label} shut={shut} />
+                    : on ? <GroupTick ids={c.rows.map((r) => r.id)} label={c.label} shut={shut} /> : null}
+                  <button type="button" class="grp-b" aria-expanded={shut ? "false" : "true"} onClick={() => setWork(toggleCollapsed(work.value, g, c.key))}>
+                    <Icon name="chevdown" cls={shut ? "turn" : ""} /><span class="gl">{c.label}</span><span class="gc num">{c.rows.length} {c.rows.length === 1 ? "item" : "items"}</span>
+                  </button>
+                </th></tr>
+                {shut ? null : <tr class="colh"><Heads eye={Eye} hand={hand} /></tr>}
+                {shut ? null : c.rows.map((r) => row(r, stop))}
+              </tbody>
+            </table>
+          </div>
         );
       })}
-    </table>
+    </>
   );
 }
 
-// Group by, the swimlanes' neighbour: a menu button reading "Group by: Status". On the board "Nothing" is not offered.
+// The published file's Group by (the app's is in the filter line's View menu, #287): a menu button reading "Group by: Status".
 function GroupBy({ board }) {
   const g = work.value.group, shown = board ? boardGroup(g) : g;
   return (
@@ -186,7 +218,7 @@ function SearchBox() {
 
 // The published file's list (#69): the older filter bar's chips, search, as-at day. The filter line is the app's only (#153).
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
-function PublishedList({ Board, Cell, Bulk }) {
+function PublishedList({ Board, Cell, Eye, Bulk }) {
   const st = filterState.value, today = fromFile.value && asAt.value ? asAt.value : todayIso();
   const filtered = applyFilters(itemRows.value, st, today);
   const cs = chips(st);
@@ -214,13 +246,13 @@ function PublishedList({ Board, Cell, Bulk }) {
       </div>
       {filtered.length === 0
         ? <div class="empty"><p class="muted">No items match these filters.</p>{canClearAll ? <button type="button" class="btn" id="clearAll2" onClick={clear}>Clear all</button> : null}</div>
-        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={Cell} />}
+        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={Cell} Eye={Eye} />}
     </div>
   );
 }
 
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
-function List({ Board, Cell, Bulk, HandOver, L }) {
+function List({ Board, Cell, Eye, Bulk, HandOver, L }) {
   const today = todayIso(), v = L.view(itemRows.value, filterCtx());
   const st = v.state, filtered = v.rows, clear = v.clear, can = v.can;
   const hand = handing() && !!HandOver, board = !!Board && work.value.view === "board" && !hand;      // #199: Hand over is drawn as the table
@@ -238,17 +270,17 @@ function List({ Board, Cell, Bulk, HandOver, L }) {
       </div>
       {filtered.length === 0
         ? <div class="empty"><p class="muted">No items match these filters.</p>{can ? <button type="button" class="btn" id="clearAll2" onClick={clear}>Clear all</button> : null}</div>
-        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} />}
+        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} />}
     </div>
   );
 }
 
 export function WorkItems({ tools }) {
   useEffect(() => { if (selecting()) installSelectionRules(); if (tools && tools.Bulk) tools.Bulk.install(); if (tools && tools.HandOver) tools.HandOver.install(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
-  // The filter line is the app's only (#153): its code is handed over at start-up (lineSlot.js), never loaded by the published file.
   const L = fromFile.value ? null : lineApi.current, FilterLine = L && L.FilterLine;
   const d = data.value, plan = addPlan(L ? L.toState(allRows.value, filterCtx()).type : filterState.value.type), Board = tools && tools.Board;
   const Cell = tools && tools.Cell && !fromFile.value ? tools.Cell : null;
+  const Eye = tools && tools.Eye && !fromFile.value ? tools.Eye : null;      // the Client-visible column: the page clark serves, never a published file
   const board = !!Board && work.value.view === "board";
   // Coming back to Work items: the project's line is the one kept in this session (the address holds the older form of it).
   useEffect(() => { if (L) L.restore(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -276,16 +308,17 @@ export function WorkItems({ tools }) {
         : <>
             {!L
               ? <>
-                  <Switches><GroupBy board={board} /><SearchBox />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
+                  <Switches><GroupBy board={board} /><SearchBox /></Switches>
                   <FilterBar />
-                  <PublishedList Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} />
+                  <PublishedList Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} />
                 </>
               : <>
-                  <Switches L={L}><GroupBy board={board} />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
-                  <FilterLine />
-                  <List Board={Board} Cell={Cell} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />
+                  <Switches L={L} />   {/* #287: Layout, Group by and the swimlanes are in the filter line's one View menu */}
+                  <FilterLine board={!!Board} />
+                  <List Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />
                 </>}
           </>}
+      {tools && tools.ArchivedItems && !fromFile.value ? <tools.ArchivedItems /> : null}   {/* B-5: Edit parts only; a published file carries no archived row */}
     </section>
   );
 }

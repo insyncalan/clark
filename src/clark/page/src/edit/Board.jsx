@@ -1,5 +1,6 @@
 // The Work items board (#68) and its full screen (#81): columns for Group by, one level of swimlanes, cards, and moving a card by
-// dragging it or by its "Move to..." menu. Spec: docs/handoff/design-68-81-board.md. Every rule (which column a card is in, what a
+// dragging it or by its "Move to..." menu. Layout, Group by and the swimlanes are chosen in the filter line's View menu (#287).
+// Spec: docs/handoff/design-68-81-board.md. Every rule (which column a card is in, what a
 // move asks the server for, why it is refused) is in ../logic/board.js; this file draws it and sends what moveFor gives, through
 // stores/changes.js. It is an Edit part (edit/index.js): the published page has no board. Cards move only in Edit; in View they
 // can be read and opened. Nothing here removes an item: a card moves, and closing is a status.
@@ -7,10 +8,10 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { item, openPeek } from "../stores/report.js";
 import { work, setWork, full, announce, contextFor } from "../stores/work.js";
 import { changeItem, say } from "../stores/changes.js";
-import { build, moveFor, dateMove, movedWords, boardGroup, isCollapsed, toggleCollapsed, groupLabel, LANE_GROUPS,
+import { build, moveFor, dateMove, movedWords, boardGroup, isCollapsed, toggleCollapsed, groupLabel,
   orderedColumns, moveColumn, stepColumn, widthOf, setColumnWidth, clampWidth, COL_MIN, COL_MAX, COL_DEFAULT, COL_STEP } from "../logic/board.js";
 import { createDrag } from "../logic/dragCore.js";
-import { Menu, MenuPanel } from "../components/Menu.jsx";
+import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { cursor, stopOf, cardKeys } from "../listKeys.js";
 import { GroupTick } from "../components/SelectBar.jsx";
@@ -106,21 +107,6 @@ function Confirm({ onYes, onCancel }) {
     <div class="dpick" role="dialog" aria-label="Record this decision" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onCancel(); } }}>
       <p>Record this decision as made today? A made decision can't go back to Pending. If it changes, record a new one.</p>
       <div class="dp-act"><button type="button" class="btn sm" data-yes ref={yes} onClick={onYes}>Record it</button><button type="button" class="btn sm" data-cancel onClick={onCancel}>Cancel</button></div>
-    </div>
-  );
-}
-
-// The table or board icon switch (remembered), shown only where there is a board to show (the page clark serves).
-export function LayoutSwitch() {
-  const set = (view) => { setWork({ view }); announce.value = view === "board" ? `Showing the board, grouped by ${groupLabel(boardGroup(work.value.group))}.` : "Showing the table."; };
-  const v = work.value.view;
-  return (
-    <div class="seg icons" role="group" aria-label="Layout">
-      {["table", "board"].map((k) => (
-        <button type="button" key={k} class="bib" data-layout={k} aria-pressed={v === k ? "true" : "false"} aria-label={k === "table" ? "Table" : "Board"} data-tip={k === "table" ? "Table" : "Board"} onClick={() => set(k)}>
-          <Icon name={k} />
-        </button>
-      ))}
     </div>
   );
 }
@@ -322,8 +308,6 @@ export function Board({ rows, today, type }) {
   };
 
   const toned = TONED.includes(g);
-  const laneItems = [{ id: "none", name: "None" }].concat(LANE_GROUPS.filter((x) => x !== g).map((x) => ({ id: x, name: LANE_WORDS[x] })));
-  const laneNow = b.lane ? LANE_WORDS[b.lane] : "None";
   const sendMenu = (id, pick) => {                    // a Move to... choice
     setMenu(null);
     const L = live.current, row = L.byId[id];
@@ -385,8 +369,6 @@ export function Board({ rows, today, type }) {
   return (
     <div class="board" id="work-board" data-full={isFull ? "1" : "0"} data-editing={editing ? "1" : "0"}>
       <div class="lanebar" role="group" aria-label="Board view">
-        <Menu label={`Swimlanes: ${laneNow}`} ariaLabel={`Swimlanes: ${laneNow}`} id="swimlanes" btnCls="btn gb" menuLabel="Swimlanes" left items={laneItems}
-          onPick={(id) => setWork({ lane: id === "none" ? null : id })} />
         <button type="button" class="bib fs" id="board-full" ref={fsBtn} aria-pressed={isFull ? "true" : "false"} aria-label={isFull ? "Leave full screen" : "View full screen"}
           data-tip={isFull ? "Leave full screen (Esc)" : "View full screen"} onClick={toggleFull}>
           <Icon name={isFull ? "shrink" : "expand"} />

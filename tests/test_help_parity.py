@@ -31,8 +31,6 @@ WAITS = {
     "howto-check-before-you-publish": ("the stale and incomplete notes with Show them in the Publish box", r"Show them"),
     "howto-start-from-last-report": ("Start from last week's report", r"Start from last"),
     "ref-since-last-report": ("the Since the last report panel", r"Since the last report"),
-    "howto-add-people-details": ("the People card in Settings", r"[\"'>]People[\"'<]"),
-    "ref-people": ("the People card in Settings", r"[\"'>]People[\"'<]"),
     "howto-word-in-and-out": ("Export to Word and Import from Word on the page", r"Import from Word"),
     "howto-excel-file-layout": ("the Excel file layout with drop-downs and locked IDs (drawn in the prototype only)", r"Excel file layout"),
 }
@@ -76,6 +74,14 @@ class EveryPrototypeEntryIsAccountedFor(unittest.TestCase):
             self.assertNotIn(place, source, f"{place} is written: take it out of WAITS and hold or show it")
             code = read(*where[0]) if where else PAGE          # one file, or all the page's code
             self.assertNotRegex(code, marker, f"{feature} is on the page now: write {place} from the prototype's words, for what the page does")
+
+    def test_helpLater_records_each_waiting_and_renamed_entry(self):
+        """helpLater.json's "missing" (entries the prototype has and the source does not, with what each waits for) and "renamed" mirror WAITS and REPLACED."""
+        self.assertEqual(sorted(LATER["missing"]), sorted(WAITS))
+        self.assertEqual(LATER["renamed"], REPLACED)
+        for place, why in LATER["missing"].items():
+            self.assertTrue(why.strip(), place)
+            self.assertNotIn(place, held_ids() | shown_ids())
 
     def test_a_replaced_entry_is_shown(self):
         for old, new in REPLACED.items():
