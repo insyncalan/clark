@@ -101,7 +101,7 @@ function Contents({ tab }) {
   return (
     <nav class="hp-idx" aria-label="In this part" onKeyDown={onKey}>
       {lists.map((g, n) => (
-        <div key={g.group || n}>
+        <div key={n}>
           {g.group ? <div class="hp-ig">{g.group}</div> : null}
           <ul>{g.entries.map((e) => (
             <li key={e.place}><a href="#" data-hlink={e.place} class={e.place === here ? "cur" : ""} aria-current={e.place === here ? "true" : undefined} tabIndex={e.place === stop ? 0 : -1}

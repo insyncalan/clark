@@ -99,6 +99,17 @@ class TheFiveJobs(unittest.TestCase):
         self.assertIn("howto-arrange-the-report", r)
 
 
+class ContentsKeys(unittest.TestCase):
+    def test_a_contents_group_is_keyed_by_its_place_in_the_list_not_its_name(self):
+        """With more Start parts released, several groups share the name "Start here" (or have none, as guides do): a name as the key would clash."""
+        names = [g["group"] for g in run_node(RAW, "(() => { HL.useHeld({}); return HL.tabList('start'); })()")]
+        self.assertGreater(len(names) - len(set(names)), 0, "the whole source has groups with the same name")
+        from _paths import SRC
+        jsx = (SRC / "clark" / "page" / "src" / "help" / "Help.jsx").read_text(encoding="utf-8")
+        self.assertIn("<div key={n}>", jsx)
+        self.assertNotIn("g.group || n", jsx)
+
+
 class TheNewEntries(unittest.TestCase):
     """The four entries written for step 3: add a work item, write this week's report, publish the report, undo a mistake."""
     def entry(self, i):
