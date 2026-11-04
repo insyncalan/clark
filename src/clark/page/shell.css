@@ -23,7 +23,10 @@ a { color: var(--status-blue-text); }
 .projbtn:hover { background: rgba(255,255,255,.14); }
 .projbtn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .projbtn .nch { width: 14px; height: 14px; }
-.top .projbtn { display: inline-flex; max-width: 260px; }
+.top .projbtn { display: inline-flex; max-width: 260px; min-width: 0; }
+@media (max-width: 1000px) { .top { gap: 10px; } }
+.top .modes { flex: none; }   /* View and Edit keep their width: the bar's other items give way, not these */
+.top .dd:has(> .projbtn) { min-width: 0; }   /* the project name gives way (its ellipsis) before the bar runs past a 901 px window, now the wordmark is 24 px */
 .projbtn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabs { display: flex; height: 100%; }
 .pubfoot { max-width: 1200px; margin: 24px auto 16px; padding: 0 16px; font-size: var(--size-small); color: var(--text-muted); }   /* item 120 */
