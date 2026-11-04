@@ -2347,7 +2347,8 @@
     "Milestones shows every milestone for the project, including internal ones.",
     "Switch between **Timeline** and **Calendar** at the top right.",
     "The **Legend** explains the marks, and a milestone that is not shown to the client has the tag **Internal only**.",
-    "In Edit, use **Add milestone** to add one, and **Movement** under the list to see which are behind their agreed date."
+    "In Edit, use **Add milestone** to add one.",
+    "Use the **Movement** switch next to **Plan** to see which are behind their agreed date."
    ],
    "full": "ref-milestones-page"
   },
@@ -2389,7 +2390,7 @@
     {
      "card": "projects",
      "title": "Projects",
-     "line": "Every project, with Open, Edit and Archive; Show archived brings one back."
+     "line": "Every project, with Open, Edit and Archive; Show archived lists archived projects, each with Restore."
     },
     {
      "card": "data",
