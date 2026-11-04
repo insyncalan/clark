@@ -319,6 +319,24 @@ class Edit(Setup):
             self.assertEqual(p.js("document.activeElement.id === 'ucAdd' && !document.querySelector('#main').inert"), True,
                              "the focus is back on the + button and <main> is live, as the box closes")
 
+    def test_a_toast_that_arrives_while_the_box_is_open_is_inert_and_is_released_on_close(self):
+        """#425 for the use case boxes: they hold the page through inertBehind, so a toast added while one is open (it has Undo and
+        Close buttons) is made inert at once, and live again when the box closes; a toast after the close is live too."""
+        add = ("(() => { const t = document.createElement('div'); t.className = 'toast'; t.id = %s; t.innerHTML = '<button type=\"button\">x</button>';"
+               " document.querySelector('.toasts').appendChild(t); })()")
+        with chrome() as cdp:
+            p = self.edit(cdp)
+            self.click(p, "#ucAdd")
+            p.until("!!document.querySelector('#ucF')", "the box")
+            p.js(add % "'late-1'")
+            p.until("document.getElementById('late-1').hasAttribute('inert')", "the late toast is inert while the box is open")
+            self.assertEqual(p.js("document.querySelector('.toasts').hasAttribute('inert')"), False, "the toast region itself stays live")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#ucF')", "Esc closed the box")
+            self.assertEqual(p.js("document.getElementById('late-1').hasAttribute('inert')"), False, "released on close")
+            p.js(add % "'late-2'")
+            self.assertEqual(p.js("document.getElementById('late-2').hasAttribute('inert')"), False, "a toast after the close is live")
+
     def test_a_step_with_a_colon_but_no_person_keeps_all_its_words_and_no_owner(self):
         """"Fix: the loader cables" names nobody: "Fix" is not taken as the owner, and the whole text is the step."""
         with chrome() as cdp:
