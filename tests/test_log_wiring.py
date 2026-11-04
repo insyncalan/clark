@@ -51,7 +51,7 @@ class Rig(unittest.TestCase):
 
     def start(self, logs):
         self.httpd = sv.LocalServer((sv.HOST, 0), page_html=page.page_html, logs=logs, data_for=DATA.get,
-                                    projects=lambda: [{"code": "ABC", "name": "Example Programme"}])
+                                    projects=lambda archived=False: [{"code": "ABC", "name": "Example Programme"}])
         self.httpd.handle_error = lambda *a: None
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         self.addCleanup(self.stop)
@@ -475,7 +475,7 @@ class RealServerFailures(Rig):
         self.log, handler, self.logs = launcher.start_log(self.tmp / "data", lambda: [], scratch=self.tmp)
         self.addCleanup(logging.getLogger("clark").removeHandler, handler)
         self.httpd = sv.LocalServer((sv.HOST, 0), page_html=page.page_html, logs=self.logs, data_for=broken, change=broken,
-                                    projects=lambda: [])
+                                    projects=lambda archived=False: [])
         self.httpd.handle_error = lambda *a: None
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         self.addCleanup(self.stop)

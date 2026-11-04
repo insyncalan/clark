@@ -22,7 +22,7 @@ class Running:
     """A server on a free port in a thread (the same Handler and routes as the real one), with the change seam it is given."""
 
     def __init__(self, change, undo):
-        self.httpd = sv.LocalServer((sv.HOST, 0), data_for={}.get, page_html=None, projects=lambda: [], change=change, undo=undo)
+        self.httpd = sv.LocalServer((sv.HOST, 0), data_for={}.get, page_html=None, projects=lambda archived=False: [], change=change, undo=undo)
         self.port = self.httpd.server_port
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
 

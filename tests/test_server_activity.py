@@ -18,7 +18,7 @@ class Rig:
         case.addCleanup(self.demo.close)
         store = self.demo.store
         read = activity_read.make_read(store.path, store.data_for)
-        self.httpd = sv.LocalServer((sv.HOST, 0), data_for=store.data_for, projects=lambda: [], activity=read if activity else None)
+        self.httpd = sv.LocalServer((sv.HOST, 0), data_for=store.data_for, projects=lambda archived=False: [], activity=read if activity else None)
         self.httpd.handle_error = lambda *a: None
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         case.addCleanup(self.close)

@@ -36,7 +36,7 @@ class Running:
     """A real server on a free port in a thread (the same LocalServer test_server runs), stopped by close()."""
 
     def __init__(self, data_for, change, undo):
-        self.httpd = sv.LocalServer((sv.HOST, 0), data_for=data_for, page_html=None, projects=lambda: [], change=change,
+        self.httpd = sv.LocalServer((sv.HOST, 0), data_for=data_for, page_html=None, projects=lambda archived=False: [], change=change,
                                     undo=undo)
         self.port = self.httpd.server_port
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()

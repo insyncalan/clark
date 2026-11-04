@@ -161,7 +161,7 @@ class OverHttp(Base):
     def setUp(self):
         super().setUp()
         self.past = past_reports.PastReports(self.db)
-        self.httpd = sv.LocalServer((sv.HOST, 0), data_for=self.store.data_for, projects=lambda: [], past=self.past)
+        self.httpd = sv.LocalServer((sv.HOST, 0), data_for=self.store.data_for, projects=lambda archived=False: [], past=self.past)
         self.httpd.handle_error = lambda *a: None
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         self.addCleanup(self.httpd.server_close)

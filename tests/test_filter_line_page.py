@@ -37,7 +37,7 @@ class Line(unittest.TestCase):
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
     def serve(self):
-        s = Running(data_for=lambda code: copy.deepcopy(self.data.get(code)), projects=lambda: self.projects,
+        s = Running(data_for=lambda code: copy.deepcopy(self.data.get(code)), projects=lambda archived=False: self.projects,
                     page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         return s
@@ -483,7 +483,7 @@ class Line(unittest.TestCase):
         pool = data["TUL"]["actions"] + data["TUL"]["raid"]
         for i, o in enumerate(owners):
             pool[i]["owner"] = o
-        s = Running(data_for=lambda code: copy.deepcopy(data.get(code)), projects=lambda: self.projects, page_html=lambda: testpage.html())
+        s = Running(data_for=lambda code: copy.deepcopy(data.get(code)), projects=lambda archived=False: self.projects, page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         with chrome() as cdp:
             sid = self.load(cdp, s.port)

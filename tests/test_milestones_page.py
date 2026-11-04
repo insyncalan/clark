@@ -168,7 +168,7 @@ class RealBrowser(unittest.TestCase):
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
     def serve(self):
-        s = Running(data_for=self.store.data_for, projects=lambda: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         return s.port
 
@@ -947,7 +947,7 @@ class Crowded(unittest.TestCase):
         self.assertTrue(got["inside"], where)
 
     def test_in_the_app_at_1400_900_and_390_px(self):
-        s = Running(data_for=self.store.data_for, projects=lambda: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         for font, width in self.VARIANTS:
             with self.subTest(font=font, width=width), chrome() as cdp:
@@ -969,7 +969,7 @@ class Crowded(unittest.TestCase):
         with store.step("dashboard", USER) as step:
             for name, base, fc in extra:
                 step.create("milestones", {"project": "TUL", "name": name, "baseline_date": base, "forecast_date": fc, "client_visible": 1, "source": "demo"})
-        s = Running(data_for=store.data_for, projects=lambda: store.read("projects"), page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=store.data_for, projects=lambda archived=False: store.read("projects"), page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         self.FONTS["wider"] = ".mv-lab, .mv-month, .mv-today { font-family: 'Courier New', 'DejaVu Sans Mono', monospace !important; letter-spacing: 0.2em !important; }"
         self.addCleanup(self.FONTS.pop, "wider", None)

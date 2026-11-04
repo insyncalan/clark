@@ -156,14 +156,14 @@ class Words(unittest.TestCase):
             self.shown(cdp, sid, ["That project isn't here", "Check the project's code."])
 
     def test_the_empty_pages_say_what_is_happening_or_coming(self):
-        none = Running(data_for=self.fake, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda: [])   # #36: no projects yet
+        none = Running(data_for=self.fake, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda archived=False: [])   # #36: no projects yet
         self.addCleanup(none.close)
         with chrome() as cdp:
             sid = navigate(cdp, none.port, "#dashboard")
             self.shown(cdp, sid, ["No project open", "There are no projects yet.",
                                   "To look around with made-up projects, close clark and start it again with python3 -m clark --demo."])
         # item 427: in the container the Docker route has no --demo flag, so the page leaves that sentence out
-        boxed = Running(data_for=self.fake, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda: [])
+        boxed = Running(data_for=self.fake, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda archived=False: [])
         self.addCleanup(boxed.close)
         with mock.patch.object(clark_platform, "container_mode", lambda: True), chrome() as cdp:
             sid = navigate(cdp, boxed.port, "#dashboard")

@@ -81,7 +81,7 @@ class Rows(unittest.TestCase):
         return sid
 
     def test_the_second_line_is_one_line_at_1400_and_nothing_overflows_at_1400_and_900(self):
-        s = Running(data_for=self.store.data_for, projects=lambda: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         for code in ("TUL", "MOSS"):
             for scheme in ("light", "dark"):
@@ -111,7 +111,7 @@ class Rows(unittest.TestCase):
                             self.assertTrue(long, f"{where}: the very long name wraps in its own cell")
 
     def test_the_cells_stack_in_two_columns_only_at_800_px_and_below(self):
-        s = Running(data_for=self.store.data_for, projects=lambda: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         for width, cols in ((901, 4), (900, 4), (801, 4), (800, 2), (700, 2)):
             with self.subTest(width=width), chrome() as cdp:
@@ -133,7 +133,7 @@ class Rows(unittest.TestCase):
                 self.assertEqual(m.group(1), "800", "the rule that stacks the list cells is the 800 px one, not 900")
 
     def test_the_words_are_the_products_with_the_middle_dot(self):
-        s = Running(data_for=self.store.data_for, projects=lambda: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         with chrome() as cdp:
             sid = self.open_page(cdp, s.port, 1400, "light", "TUL")

@@ -355,7 +355,7 @@ class RealBrowser(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
 
     def test_no_projects_says_so_and_how_to_look_around(self):
-        s = self.serve(projects=lambda: [])
+        s = self.serve(projects=lambda archived=False: [])
         with chrome() as cdp:
             sid = self.load_page(cdp, s.port, 1400, "#work")
             self.assertTrue(wait(lambda: "There are no projects yet." in (cdp.js("document.querySelector('main').innerText", sid) or "")))

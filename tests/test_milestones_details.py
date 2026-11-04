@@ -58,7 +58,7 @@ class Details(unittest.TestCase):
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
     def serve(self):
-        s = Running(data_for=self.store.data_for, projects=lambda: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         return s.port
 

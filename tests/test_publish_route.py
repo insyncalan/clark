@@ -53,7 +53,7 @@ class Rig:
                                                 choose_folder=self.folder_dialog, today=lambda: DAY, by_user=lambda: USER,
                                                 data_dir=self.data_dir, branding=branding)
         self.httpd = sv.LocalServer((sv.HOST, 0), data_for=self.store.data_for, page_html=page_html or (lambda: page.page_html(branding)),
-                                    projects=lambda: [{"code": "PUB", "name": "Harbour Bridge Programme"}], publisher=self.publisher,
+                                    projects=lambda archived=False: [{"code": "PUB", "name": "Harbour Bridge Programme"}], publisher=self.publisher,
                                     change=changes.make_change(self.db, [], USER), undo=changes.make_undo(self.db, [], USER),
                                     profile=profile_settings.Profile(self.data_dir))
         self.httpd.handle_error = lambda *a: None
