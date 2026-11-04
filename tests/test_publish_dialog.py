@@ -518,6 +518,70 @@ class Settings(Base):
             self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"))
 
 
+PLACEHOLDER_ONE = "1 work item still has a placeholder title ({t}) and will be shown to the client. Rename it or turn off its eye first."
+PLACEHOLDER_MANY = ("{n} work items still have a placeholder title (such as {t}) and will be shown to the client. "
+                    "Rename them or turn off their eye first.")
+
+
+class Placeholder(Base):
+    """Item 449: every work item is client-visible by default (D-3), so the dialog warns while one the client would see still has
+    the title Add gave it. A warning, not a block: Publish still works."""
+
+    def change(self, body):
+        status, reply = self.rig.call("POST", "/api/change", {"project": "PUB", "place": "menu", **body})
+        self.assertEqual(status, 200, reply)
+        return reply
+
+    def page(self, cdp, hash_="#dashboard&p=PUB"):
+        p = super().page(cdp, hash_)
+        p.js("window.__before449 = 1")
+        cdp.call("Page.reload", {"ignoreCache": True}, p.sid)                           # the same address again is only a hash change: load the data afresh
+        p.until("!window.__before449 && document.readyState === 'complete' && !!document.querySelector('#profile-btn')", "the page loaded again")
+        return p
+
+    def add(self, table, values):
+        return str(self.change({"kind": table, "op": "new", "values": values})["ref"])
+
+    def warning(self, p, w, scheme):
+        p.width(w)
+        self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, p.sid)
+        p.open_publish()
+        found = p.js("(function(){var e=document.querySelector('#pub-placeholder');return e ? [e.innerText, e.dataset.count] : null})()")
+        self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"))
+        p.js("document.querySelector('[data-cancel]').click()")
+        p.until("!document.querySelector('#publish-dialog')", "the dialog closed")
+        return found
+
+    def each(self, cdp, expected):
+        for w in WIDTHS:
+            for scheme in ("light", "dark"):
+                with self.subTest(width=w, scheme=scheme):
+                    p = self.page(cdp)
+                    self.assertEqual(self.warning(p, w, scheme), expected)
+
+    def test_the_warning_counts_placeholder_items_the_client_would_see_and_goes_when_renamed_or_hidden(self):
+        with chrome() as cdp:
+            self.cdp = cdp
+            self.each(cdp, None)                                                           # the plant has none
+            a = self.add("actions", {"description": "New action"})
+            r = self.add("raid", {"type": "Risk", "description": "New risk"})
+            self.add("raid", {"type": "Issue", "description": "New risk"})                # an issue called New risk is a real title
+            self.each(cdp, [PLACEHOLDER_MANY.format(n=2, t="New action"), "2"])
+            self.change({"kind": "actions", "op": "update", "id": a, "changes": {"description": "Order the steel"}})
+            self.each(cdp, [PLACEHOLDER_ONE.format(t="New risk"), "1"])
+            self.change({"kind": "raid", "op": "update", "id": r, "changes": {"client_visible": 0}})
+            self.each(cdp, None)
+            # the warning never blocks Publish
+            self.change({"kind": "raid", "op": "update", "id": r, "changes": {"client_visible": 1}})
+            p = self.page(cdp)
+            p.open_publish()
+            self.assertEqual(p.js("document.querySelector('#pub-placeholder').innerText"), PLACEHOLDER_ONE.format(t="New risk"))
+            self.assertFalse(p.js("document.querySelector('[data-go]').disabled"))
+            p.go()
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published with the warning shown")
+            self.assertEqual(len(self.rig.rows()), 1)
+
+
 class Published(unittest.TestCase):
     def test_the_published_page_names_no_publish_route_and_holds_no_dialog(self):
         text = page.VIEW_PAGE.read_text(encoding="utf-8")

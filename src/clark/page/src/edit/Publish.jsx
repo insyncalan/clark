@@ -6,7 +6,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { data, project } from "../stores/report.js";
 import { Icon } from "../components/Icon.jsx";
 import { dialogLine } from "./publishLine.js";
-import { dialog, latest, next, pdfInfo, NO_FOLDER_LEAD, NO_FOLDER_LINK, toPublishingCard, folderName, open, close, tick, tickPdf, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
+import { dialog, latest, next, pdfInfo, NO_FOLDER_LEAD, NO_FOLDER_LINK, toPublishingCard, folderName, placeholderItems, placeholderWarning, open, close, tick, tickPdf, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
 
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 export const lastLine =(l) => (l ? `Published ${shownDate(l.at)} ${l.to_client ? "to the client" : "locally"}` : "");
@@ -38,6 +38,7 @@ function Dialog() {
     if (target) target.focus();
   }, [s.phase, s.phase === "clash" ? s.choice : ""]);
   const working = s.phase === "working", clash = s.clash;
+  const placeholders = placeholderItems(d);
   return (
     <dialog id="publish-dialog" class="dlg" aria-labelledby="pub-title" ref={el} onCancel={(e) => { e.preventDefault(); cancel(); }}>
       <form class="dlg-form" onSubmit={(e) => { e.preventDefault(); go(); }}>
@@ -81,6 +82,8 @@ function Dialog() {
         )}
         {/* #437 rows 29 and 56: the second sentence is the prototype's (io.js, #pubWarn) */}
         {s.phase !== "clash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">{s.pdf && pdfInfo.value.ok ? "The client will see this page and the PDF. Only what is shown in View mode is included." : "The client will see this page. Only what is shown in View mode is included."}</p> : null}
+        {/* item 449: a warning, not a block: client-visible work items whose title is still the one Add gave them */}
+        {s.phase !== "clash" && placeholders.length ? <p class="dlg-warn" id="pub-placeholder" data-count={String(placeholders.length)}>{placeholderWarning(placeholders)}</p> : null}
         <div class="pub-msg" id="pub-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
           {working ? <p class="working">{s.pdf && pdfInfo.value.ok ? "Making the PDF…" : "Publishing…"}</p>
             : s.message ? <p class={s.message.kind}><span>{doneWords(s.message)}</span></p> : null}

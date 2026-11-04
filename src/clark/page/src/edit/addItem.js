@@ -4,7 +4,9 @@
 // the id, the project, the day it was raised, its status, its source and its owner (TBC); the page sends only a working title, a
 // due date (a week from today; a decision is needed today, as the prototype has it), an action's or a risk's workstream (the one
 // filtered on, else the first active one, as the prototype has it) and an action's priority. Whether the item is
-// shown to the client is the store's default (every work item is client-visible by default, D-3); the eye hides it.
+// shown to the client is the store's default (every work item is client-visible by default, D-3); the eye hides it. The working
+// titles are PLACEHOLDER_TITLES (logic/placeholders.js, the one place they are kept): the Publish dialog warns while a
+// client-visible item still has one, so a placeholder never reaches the client unnoticed.
 // #449: the prototype adds in View, so a pick made in View stays in View: the item is made, the toast with its Undo is drawn in View
 // too (Toast.jsx), and the panel opens as View draws it (read only: there is no title to take the keyboard). As in the prototype, the list is then set so the new row is drawn: the Open, Closed, All switch, the type,
 // every filter and the search are cleared, and the item's group is opened; the panel opens and its title takes the keyboard.
@@ -14,10 +16,11 @@ import { work, setWork, contextFor } from "../stores/work.js";
 import { cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
 import { initial } from "../filters.js";
 import { todayIso, dayNumber } from "../workItems.js";
+import { PLACEHOLDER_TITLES } from "../logic/placeholders.js";
 
 const DAY = 86400000;
 export const ADDABLE = ["action", "risk", "issue", "decision"];
-const TITLE = { action: "New action", risk: "New risk", issue: "New issue", decision: "New decision" };
+const TITLE = PLACEHOLDER_TITLES;
 
 /** `iso` (YYYY-MM-DD) moved on by `days`, as YYYY-MM-DD; null for anything that isn't a real day. */
 export function addDays(iso, days) {
