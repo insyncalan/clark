@@ -85,7 +85,7 @@ export function ArchivedItems({ pill }) {
     <div class="archived" id="archived" data-edit-only>
       {pill ? <div class="wbar"><ArchivedPill /></div> : null}   {/* no live items, so no bar: the pill stands on its own */}
       {on ? (
-        <div id="archived-list" class="arch-box" role="region" aria-label="Archived work items">
+        <div id="archived-list" class="arch-box" tabIndex={-1} role="region" aria-label="Archived work items">
           <h2 class="arch-h">Archived <span class="muted">{`${n} item${n === 1 ? "" : "s"}`}</span></h2>
           {n === 0 ? <p class="muted">No archived work items.</p> : (
             <table class="items arch">
@@ -121,10 +121,16 @@ function ArchivedPeek({ row }) {
     const id = openId.value;
     openId.value = "";
     if (!focus) return;
+    // Its row; if that row has gone, the opener; then the list's first row, the Show archived pill, the list itself. Never the body.
     setTimeout(() => {
-      const r = document.querySelector(`#archived-list tr[data-arch-id="${CSS.escape(id)}"]`);
-      const el = r || (back.current && back.current.isConnected ? back.current : null);
-      if (el && el.focus) el.focus();
+      const opener = back.current && back.current.isConnected && back.current !== document.body ? back.current : null;
+      const to = [document.querySelector(`#archived-list tr[data-arch-id="${CSS.escape(id)}"]`), opener,
+        document.querySelector("#archived-list tr.arch-row"), document.querySelector("#showArchived"), document.querySelector("#archived-list")];
+      for (const el of to) {
+        if (!el || !el.focus) continue;
+        el.focus();
+        if (document.activeElement === el) return;
+      }
     }, 0);
   };
   useEffect(() => {                                     // focus goes in on opening and on every other row
