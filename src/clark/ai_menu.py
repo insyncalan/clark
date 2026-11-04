@@ -736,14 +736,15 @@ SUGGEST_RULES = """You rewrite a piece of the user's own text for an editor. Fol
 7. Do not repeat any password, key or private address you may find."""
 
 
-def ask_request(option, text, place, instruction="", *, owner, cancel=None):
+def ask_request(option, text, place, instruction="", *, owner, cancel=None, canary=""):
     """The one request a suggestion sends to an ask provider: the prompt from build_prompt as the text, and SUGGEST_RULES as the
     system prompt. Takes the same four things build_prompt does, so nothing else can be in it. `owner` (required, #606) is the
-    asking service's own token, so its Stop can end this run (and no other); `cancel` is that service's stop event."""
+    asking service's own token, so its Stop can end this run (and no other); `cancel` is that service's stop event; `canary` (#277) is
+    this request's private marker, when the caller checks the reply itself (ai_service does)."""
     if owner is None:
         raise TypeError("a suggestion request needs an owner, or Stop cannot end it")
     built = build_prompt(option, text, place, instruction)
-    return ask.Request(text=built["prompt"], question="", system=SUGGEST_RULES, owner=owner, cancel=cancel)
+    return ask.Request(text=built["prompt"], question="", system=SUGGEST_RULES, canary=canary, owner=owner, cancel=cancel)
 
 
 def sends_notice(provider=DEFAULT_PROVIDER):
