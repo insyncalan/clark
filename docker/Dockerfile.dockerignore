@@ -1,0 +1,15 @@
+# Only what the Dockerfile copies is sent to the build at all: clark's own files, as in the download. No .git, tests, tools or data.
+*
+!clark
+!src/clark
+!vendor/README.md
+!vendor/manifest.json
+!vendor/et_xmlfile
+!vendor/fonts
+!vendor/licenses
+!vendor/openpyxl
+**/__pycache__
+**/*.pyc
+**/*.db
+**/*.log
+**/.DS_Store
