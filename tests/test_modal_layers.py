@@ -127,6 +127,17 @@ class Layers(InBrowser):
         self.js(f"T.release({a})")                             # a second release does nothing (no error, nothing re-set)
         self.assertFalse(any(self.states().values()))
 
+    def test_a_toast_that_arrives_while_the_box_is_open_is_inert_and_is_released_on_close(self):
+        self.open_draft()
+        self.js("T.toast('late-b')")
+        self.assertTrue(wait(lambda: self.js("document.getElementById('late-b').closest('.toast').hasAttribute('inert')")), "the late toast is inert")
+        self.assertFalse(self.inert(".toasts"))
+        self.js("T.removeToast('late-b')")
+        self.js("T.closeDraft()")
+        self.assertFalse(any(self.states().values()), f"nothing is inert any more: {self.states()}")
+        self.js("T.toast('after-b')")                          # after close the observer is gone: a new toast is live
+        self.assertFalse(self.js("document.getElementById('after-b').closest('.toast').hasAttribute('inert')"))
+
     def test_the_last_dialog_to_close_releases_the_page(self):
         a = self.js("T.hold('main')")
         b = self.js("T.hold('peek')")
