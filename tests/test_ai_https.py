@@ -122,6 +122,39 @@ class Refusals(unittest.TestCase):
         for where in ("request", "getresponse"):
             self.assertEqual(self.code(Conn(error=socket.timeout("slow " + KEY), where=where)).code, "timeout")
 
+    def test_a_timeout_while_connecting_is_the_timeout_code(self):
+        def connect(host, timeout):
+            raise socket.timeout("slow " + KEY)
+        with self.assertRaises(h.HttpsError) as caught:
+            h.post_json("api.anthropic.com", PATH, HEADERS, b"{}", connect=connect)
+        self.assertEqual(caught.exception.code, "timeout")
+
+    def test_a_timeout_while_reading_the_reply_is_the_timeout_code(self):
+        reply = mock.Mock(status=200)
+        reply.read.side_effect = [b"a" * 10, socket.timeout("slow")]
+        self.assertEqual(self.code(Conn(reply)).code, "timeout")
+
+    def test_the_timeout_classes_cover_a_python_39_socket_timeout(self):
+        self.assertIn(socket.timeout, h.TIMEOUTS)            # on 3.9 this is a different class from TimeoutError
+        self.assertIn(TimeoutError, h.TIMEOUTS)
+
+    def test_the_reply_cap_is_exact_no_read_asks_for_more_than_one_byte_past_it(self):
+        reply = mock.Mock(status=200)
+        reply.read.side_effect = lambda n: b"x" * n
+        with self.assertRaises(h.HttpsError) as caught:
+            h.post_json("api.openai.com", PATH, HEADERS, b"{}", max_reply=100_000, connect=seam(Conn(reply)))
+        self.assertEqual(caught.exception.code, "too_big")
+        self.assertEqual([c.args[0] for c in reply.read.call_args_list], [h.CHUNK, 100_000 - h.CHUNK + 1])
+
+    def test_the_overall_deadline_ends_a_slow_trickle_with_the_timeout_code(self):
+        ticks = iter([0, 1, 2, 3, 99, 100, 101])              # the clock: start, then a check before each chunk
+        reply = mock.Mock(status=200)
+        reply.read.side_effect = lambda n: b"x"
+        with self.assertRaises(h.HttpsError) as caught:
+            h.post_json("api.openai.com", PATH, HEADERS, b"{}", deadline=10, clock=lambda: next(ticks), connect=seam(Conn(reply)))
+        self.assertEqual(caught.exception.code, "timeout")
+        self.assertEqual(reply.read.call_count, 3)
+
     def test_every_other_failure_is_the_connection_code(self):
         for error in (ConnectionRefusedError("no"), ssl.SSLCertVerificationError("bad cert api.anthropic.com"), OSError("x"), ValueError("y")):
             self.assertEqual(self.code(Conn(error=error)).code, "connection")
