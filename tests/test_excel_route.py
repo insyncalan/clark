@@ -246,18 +246,22 @@ class Apply(Base):
         self.assertEqual((status, done["counts"]["changed"]), (200, 1), done)
         self.assertEqual(self.apply(got["plan"], "all", confirm="yes")[0], 400)
 
-    def test_a_row_that_breaks_a_rule_is_named_and_nothing_is_written(self):
+    def test_a_row_that_breaks_a_rule_refuses_the_whole_file_at_the_check_and_nothing_waits(self):
         self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
         self.edit("Actions", self.a2, **{"Status": "Not a status"})
-        got = self.check()[1]
-        bad = [i for i in got["items"] if i["problem"]]
-        self.assertEqual(len(bad), 1)
         before = self.steps()
-        status, refused = self.apply(got["plan"], [i["n"] for i in got["items"]])
-        self.assertEqual((status, refused["code"]), (400, "rolled_back"), refused)
-        self.assertIn(self.a2, refused["message"])
+        status, got = self.check()
+        self.assertEqual((status, got["plan"]), (200, None), got)
+        self.assertEqual(len(got["refused"]), 1)
+        self.assertIn(self.a2, got["refused"][0]["name"])
+        self.assertTrue(got["refused"][0]["why"])
+        self.assertEqual(excel_route.PLANS, {})
         self.assertEqual(self.steps(), before)
         self.assertEqual(self.description_of(self.a1), "Draft the cut-over plan")
+
+    def test_a_check_with_no_broken_row_has_an_empty_refused_list(self):
+        self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
+        self.assertEqual(self.check()[1]["refused"], [])
 
     def test_an_old_plan_a_wrong_project_a_bad_accept_and_a_missing_number_are_refused(self):
         self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")

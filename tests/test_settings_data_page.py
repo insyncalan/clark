@@ -109,8 +109,10 @@ class Card(Base):
                 self.choose(p, b64)
                 p.until("!!document.querySelector('#import-summary')", "the check")
                 self.assertEqual(p.js("document.querySelector('#import-box-t').textContent"), "Check the import")
-                self.assertIn("1 changed", p.js("document.querySelector('#import-summary').textContent"))
+                self.assertIn("1 updated", p.js("document.querySelector('#import-summary').textContent"))
                 self.assertIn(action, p.js("document.querySelector('.imp-list li').innerText"))
+                self.assertEqual(p.js("[...document.querySelectorAll('.imp-list li:first-child input')].map(i => i.type + ':' + i.checked)"), ["radio:true", "radio:false"], "Accept is chosen, Reject is not")
+                self.assertEqual(p.js("[...document.querySelectorAll('.st-bar button')].map(b => b.textContent)"), ["Accept all", "Reject all"])
                 self.assertEqual(self.rig.store.read("actions", ref=action)["description"], old, "a check writes nothing")
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
                 steps = self.rig.store.con.execute("SELECT count(*) FROM applies").fetchone()[0]

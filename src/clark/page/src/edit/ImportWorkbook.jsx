@@ -94,34 +94,55 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
     );
   }
   const p = step.plan, items = p.items, shown = items.slice(0, SHOWN), count = L.acceptedNumbers(items, ticks).length;
+  const refused = p.refused || [];
+  if (refused.length) {                                  // one row that breaks a rule refuses the whole file (the prototype's, io.js)
+    const k = refused.length;
+    return (
+      <Dialog key="refused" id="import-box" opener={opener} title={T.checkTitle} onClose={onClose} first="#import-close"
+        foot={<button type="button" class="btn pri" id="import-close" data-close onClick={onClose}>{T.close}</button>}>
+        <p class="muted">{p.file} into {projectName}</p>
+        <div class="imp-refused" id="import-refused" role="status">
+          <b>{L.refusedHead(k)}</b>
+          <ul>{refused.map((x, n) => <li key={n}>{x.name}: {x.why}</li>)}</ul>
+          <p class="imp-after">{L.refusedFoot(k)}</p>
+        </div>
+      </Dialog>
+    );
+  }
   const empty = p.already_imported || !items.length;
+  const setAll = (on) => { const t = {}; for (const i of items) t[i.n] = on && !!i.default && !i.problem; setTicks(t); };
+  const isOn = (i) => !!(Object.prototype.hasOwnProperty.call(ticks, i.n) ? ticks[i.n] : i.default) && !i.problem;
   return (
     <Dialog key="plan" id="import-box" opener={opener} title={T.checkTitle} onClose={onClose} wide first={empty ? "#import-close" : "#import-go"}
       foot={<>{cancel}{empty ? <button type="button" class="btn pri" id="import-close" onClick={onClose}>{T.close}</button>
         : <button type="button" class="btn pri" id="import-go" disabled={!count || step.at === "applying"} onClick={doImport}>{p.unrecorded ? T.anyway : `Import ${count} ${count === 1 ? "change" : "changes"}`}</button>}</>}>
       <p class="muted">{p.file} into {projectName}</p>
-      <p id="import-summary"><b>{L.summaryLine(p)}</b></p>
+      <div class="stat" id="import-summary">{L.countsRow(p).map(([n, w]) => <span key={w}><b>{n}</b> {w}</span>)}</div>
+      <p id="import-sheets">{L.sheetLine(p)}</p>
       {p.already_imported ? <p id="import-already">{T.already}</p> : !items.length ? <p id="import-none">{T.none}</p> : null}
       {p.unrecorded && items.length ? <p class="imp-warn" id="import-unrecorded">{T.unrecorded}</p> : null}
       {p.problems.map((t, i) => <p class="imp-note" key={`p${i}`}>Not imported: {t}</p>)}
       {p.notes.map((t, i) => <p class="muted imp-note" key={`n${i}`}>{t}</p>)}
       {empty ? null : (
-        <ul class="imp-list" aria-label="Changes in this workbook">
-          {shown.map((i) => (
-            <li key={i.n} class={i.problem ? "bad" : ""} data-change={i.n}>
-              <label>
-                <input type="checkbox" checked={!!(Object.prototype.hasOwnProperty.call(ticks, i.n) ? ticks[i.n] : i.default) && !i.problem} disabled={!!i.problem}
-                  onChange={(e) => setTicks({ ...ticks, [i.n]: e.currentTarget.checked })} />
-                <span class="tag">{L.KIND_WORD[i.kind] || i.kind}</span> <span>{i.text}</span>
-              </label>
-              {i.detail ? <div class="muted imp-detail">{i.detail}</div> : null}
-              {i.clash ? <div class="muted imp-detail">It changed in clark after the workbook was made.</div> : null}
-              {i.problem ? <div class="imp-detail error">Would be refused: {i.problem}</div> : null}
-            </li>
-          ))}
-        </ul>
+        <>
+          <div class="st-bar"><span class="muted">{T.changesToCheck}</span><span><button type="button" class="link" id="import-accept-all" onClick={() => setAll(true)}>{T.acceptAll}</button> · <button type="button" class="link" id="import-reject-all" onClick={() => setAll(false)}>{T.rejectAll}</button></span></div>
+          <ul class="imp-list" aria-label="Changes in this workbook">
+            {shown.map((i) => (
+              <li key={i.n} data-change={i.n}>
+                <div class="imp-main"><span class="tag">{L.KIND_WORD[i.kind] || i.kind}</span> <span>{i.text}</span></div>
+                {i.detail ? <div class="muted imp-detail">{i.detail}</div> : null}
+                {i.kind === "removed" ? <div class="muted imp-detail">{T.acceptNote}</div> : null}
+                {i.clash ? <div class="muted imp-detail">It changed in clark after the workbook was made.</div> : null}
+                <div class="st-act" role="radiogroup" aria-label={i.text}>
+                  <label><input type="radio" name={`st${i.n}`} value="1" checked={isOn(i)} onChange={() => setTicks({ ...ticks, [i.n]: true })} />{T.accept}</label>
+                  <label><input type="radio" name={`st${i.n}`} value="0" checked={!isOn(i)} onChange={() => setTicks({ ...ticks, [i.n]: false })} />{T.reject}</label>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
-      {items.length > SHOWN ? <p class="muted">and {items.length - SHOWN} more, taken as the ticks above are for the rest: new and changed rows with no problem.</p> : null}
+      {items.length > SHOWN ? <p class="muted">and {items.length - SHOWN} more, taken as Accept all is for the rest: new and changed rows with no problem.</p> : null}
       <p class="error" role="alert" id="import-problem">{problem}</p>
     </Dialog>
   );
