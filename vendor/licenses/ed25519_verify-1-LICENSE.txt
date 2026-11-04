@@ -1,0 +1,4 @@
+ed25519_verify 1
+
+Written for clark from RFC 8032 (section 5.1.7, Ed25519 verification). Dedicated to the public domain under CC0 1.0 Universal:
+https://creativecommons.org/publicdomain/zero/1.0/ . No warranty of any kind.
