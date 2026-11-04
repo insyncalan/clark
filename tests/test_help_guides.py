@@ -231,25 +231,6 @@ class PageKey(unittest.TestCase):
             else:
                 self.assertNotIn("page", t, f"{t['id']}: go is {go!r}, not a screen Help can open")
 
-    def test_the_context_for_each_screen_today_is_recorded(self):
-        """INFORMATION, not a rule: how many entries have context for each screen (and Settings card) today. It does not fail on a zero, only on a
-        change from these numbers; the step that writes the context text adds the rule that every screen has some (#645 section 8)."""
-        shown = shown_content()
-        counts = {s: 0 for s in LIVE_SCREENS}
-        cards = {}
-        for kind, key in (("howto", "tasks"), ("reference", "sections")):
-            for e in shown[kind][key]:
-                for s in {p.split("#")[0] for p in e.get("page", [])}:
-                    counts[s] += 1
-                for p in e.get("page", []):
-                    if "#" in p:
-                        cards[p] = cards.get(p, 0) + 1
-        print("\nHelp context per screen:", ", ".join(f"{s}={n}" for s, n in counts.items()), "| cards:", cards or "none")
-        # The counts recorded when the key was added; the step that writes the context text raises them (and adds the rule that
-        # none is zero), so it changes these numbers with it.
-        self.assertEqual(counts, {"dashboard": 0, "dashboard+edit": 8, "work": 1, "milestones": 1, "settings": 2})
-        self.assertEqual(cards, {"settings#pubs": 1})
-
     def test_context_for_agrees_with_the_source_on_every_screen_and_card_and_never_returns_a_held_entry(self):
         cards = sorted({p for _, _, p in page_values(RAW) if "#" in p})
         probe = "(() => { const o = {}; for (const p of %s) o[p] = HL.contextFor(p).map((e) => e.place); return o; })()" % json.dumps(LIVE_SCREENS + cards + ["publish", "nothing", ""])
@@ -278,6 +259,107 @@ class PageKey(unittest.TestCase):
         order = [t["id"] for t in c["howto"]["tasks"]]
         ids = [p[len("howto-"):] for p in r["a"] if p.startswith("howto-")]
         self.assertEqual(ids, sorted(ids, key=order.index))
+
+
+# The Settings cards on the page, by the part that draws each (components/Views.jsx, Settings): the visible title of the card.
+# A part the page adds that is not here fails the rule below, so the new card's line is written with it.
+# Asking is left out on purpose: it is the ask clark switch, and Help holds every entry about ask clark (helpLater.json).
+SETTINGS_PARTS = {"ClientFolder": "Publishing", "PublishedReports": "Published reports", "Personal": "Personal", "ReviewDays": "Freshness",
+                  "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People"}
+SETTINGS_LEFT_OUT = {"AskSettings"}
+# Cards main has that this branch's tree does not hold yet (Data and Projects merged to main after this branch was cut): their
+# lines are written from main's source and are checked by title only. Remove them from here when the tree has them.
+SETTINGS_ON_MAIN_ONLY = {"Projects": "Projects", "Data": "Data"}
+PAGE_SRC = HELP.parent
+WORDS_NOT_USED = re.compile(r"\b(apply|applied|staged|proposal|sweep|tracker|vault|extract)\b", re.I)
+
+
+def settings_parts():
+    code = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
+    body = code[code.index("export function Settings"):]
+    body = body[:body.index("\n}\n")]
+    return set(re.findall(r"\{(\w+) \? <\1 />", body))
+
+
+class ContextText(unittest.TestCase):
+    """#645 step 2: the words the peek shows for each screen. A rule, not a count: a screen with no text fails (#645 section 8)."""
+    CTX = {c["page"]: c for c in RAW["context"]}
+
+    @classmethod
+    def shown_places(cls):
+        s = shown_content()
+        return {"howto-" + t["id"] for t in s["howto"]["tasks"]} | {"ref-" + t["id"] for t in s["reference"]["sections"]}
+
+    def test_every_screen_has_context_text(self):
+        self.assertEqual(sorted(self.CTX), sorted(LIVE_SCREENS), "every screen of LIVE_SCREENS needs its text, and no other screen has one")
+        self.assertEqual(len(RAW["context"]), len(LIVE_SCREENS))
+        for page, c in self.CTX.items():
+            self.assertTrue(c["title"].strip() and "\n" not in c["title"], page)
+            self.assertGreaterEqual(len(c["s"]), 2, f"{page}: at least two sentences")
+            self.assertLessEqual(len(c["s"]), 5, f"{page}: at most five sentences")
+            for line in c["s"]:
+                self.assertTrue(line.strip().endswith("."), f"{page}: {line!r} is not a sentence")
+                self.assertLess(len(line), 160, f"{page}: {line!r} is not short")
+            self.assertIn(c["full"], self.shown_places(), f"{page}: full is a held or unknown place")
+
+    def test_the_settings_text_has_a_line_for_every_settings_card_on_the_page(self):
+        found = settings_parts()
+        self.assertTrue(found, "the page's own list of Settings cards was not read")
+        unknown = found - set(SETTINGS_PARTS) - SETTINGS_LEFT_OUT
+        self.assertEqual(unknown, set(), "the page has a Settings card with no title here: add it to SETTINGS_PARTS and write its line")
+        titles = {k["title"]: k for k in self.CTX["settings"]["cards"]}
+        want = {SETTINGS_PARTS[p] for p in found if p in SETTINGS_PARTS} | set(SETTINGS_ON_MAIN_ONLY.values())
+        self.assertEqual(set(titles), want)
+        for t, k in titles.items():
+            self.assertTrue(k["line"].strip().endswith("."), t)
+            self.assertLess(len(k["line"]), 110, f"{t}: one short line")
+        ids = [k["card"] for k in self.CTX["settings"]["cards"]]
+        self.assertEqual(len(ids), len(set(ids)))
+        for page, c in self.CTX.items():
+            if page != "settings":
+                self.assertNotIn("cards", c, page)
+
+    def test_each_card_title_is_a_title_the_page_shows(self):
+        names = ("ClientFolder.jsx", "Personal.jsx", "ReviewDays.jsx", "Diagnostics.jsx", "People.jsx", "Safety.jsx", "PublishedReports.jsx")
+        code = " ".join((PAGE_SRC / "edit" / f).read_text(encoding="utf-8") for f in names)
+        code += " " + (PAGE_SRC / "logic" / "safety.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "pastReports.js").read_text(encoding="utf-8")
+        for title in SETTINGS_PARTS.values():
+            self.assertIn(title, code, title)
+
+    def test_the_bold_names_are_on_the_page(self):
+        code = "\n".join(f.read_text(encoding="utf-8") for f in PAGE_SRC.rglob("*.js*") if f.parent != HELP).replace("’", "'")
+        gone = sorted({b for c in RAW["context"] for ln in c["s"] for b in re.findall(r"\*\*(.+?)\*\*", ln)
+                       if not re.search(r"(?<![\w])" + re.escape(b.strip(" .,:;")) + r"(?![\w])", code)})
+        self.assertEqual(gone, [], "context text names a control the page does not have")
+
+    def test_the_words_follow_the_house_rules(self):
+        every = []
+        for c in RAW["context"]:
+            every += [c["title"]] + c["s"] + [k["title"] + " " + k["line"] for k in c.get("cards", [])]
+        for t in every:
+            self.assertIsNone(WORDS_NOT_USED.search(t), t)
+            self.assertIsNone(re.search(r"\bask clark\b", t), f"{t!r}: ask clark is not named in the context text")
+            self.assertNotRegex(t, r"^clark\b")
+            self.assertNotRegex(t, r"\d{4}-\d{2}-\d{2}")
+
+    def test_context_text_reaches_the_peek_by_screen_and_never_targets_a_held_place(self):
+        pages = LIVE_SCREENS + ["settings#pubs", "publish", "", "nothing"]
+        probe = ("(() => { const o = {}; for (const p of %s) { const t = HL.contextText(p); o[p] = t && { title: t.title, full: t.full, "
+                 "fullTitle: t.fullTitle, cards: t.cards.length, plain: t.lines.join(' ') }; } return o; })()") % json.dumps(pages)
+        r = run_node(RAW, probe)
+        for s in LIVE_SCREENS:
+            self.assertEqual(r[s]["title"], self.CTX[s]["title"])
+            self.assertEqual(r[s]["full"], self.CTX[s]["full"])
+            self.assertTrue(r[s]["fullTitle"])
+            self.assertNotIn("**", r[s]["plain"])
+        self.assertEqual(r["settings"]["cards"], len(self.CTX["settings"]["cards"]))
+        self.assertEqual(r["work"]["cards"], 0)
+        self.assertEqual(r["settings#pubs"]["title"], "Settings")
+        self.assertEqual((r["publish"], r[""], r["nothing"]), (None, None, None))
+        # A place held later is never a target: the text then has no link rather than a link to a part that is not built.
+        full = self.CTX["work"]["full"]
+        h = run_node(RAW, "(() => { HL.useHeld({ reference: { '" + full[4:] + "': 'later' } }); const t = HL.contextText('work'); return { full: t.full, fullTitle: t.fullTitle }; })()")
+        self.assertEqual(h, {"full": None, "fullTitle": None})
 
 
 def matches(e, page, screen):
