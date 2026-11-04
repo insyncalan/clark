@@ -16,7 +16,7 @@ slide-out (#450), the calendar's keys (#481), the dashboard's use cases in Edit 
 prototype and the Publish and Preview words (#459), the AI card in Settings (#72), the About you path (#422), saved views that stay
 listed (#589), "Not written yet." (#375), the documents link check (#594), the short value after "api key" (#583, #527), a lost
 number race (#388), a null character in the logo rule (#493), the right-click menu (#97), hand over (#199) and the Word client copy's
-held-back check (#618) and the unknown-kind document (#595). Not merged, so WAITING: #622 (PR 542).
+held-back check (#618) and the unknown-kind document (#595). Not merged, so WAITING: nothing: every row is on main at the cut commit.
 #220, #171, #160, #269 and #427 are not in this cut: they go to 0.8.
 The cut checks (version, release notes, hand-check sheet) skip until the cut commit sets 0.7.0, then fail if they are wrong.
 The notes' own rules (title, the Beta line, plain words, the data-layout paragraph) are read from the tree now.
@@ -256,13 +256,31 @@ COVERED = [
      "test_publication_numbers::TheTriggerStepTwelve::test_a_file_at_step_10_or_11_with_the_narrow_trigger_is_upgraded_and_refuses_a_client_path_update"),
     ("#325", "The data layout step is safe to repeat",
      "test_publication_numbers::TheTriggerStepTwelve::test_the_step_is_safe_to_repeat"),
+    ("#622", "Backups are off the shared copy folder by default and the setting is saved with the others",
+     "test_backup_copy::TheSetting::test_off_by_default_and_saved_beside_the_other_settings"),
+    ("#622", "Each backup is also copied to the chosen folder as a finished single file under the same name",
+     "test_backup_copy::TheCopy::test_each_backup_is_also_a_finished_single_file_under_the_same_name"),
+    ("#622", "A missing or unwritable copy folder is a plain warning, and the backup and the save still work",
+     "test_backup_copy::WhenItFails::test_a_missing_folder_is_a_plain_warning_and_the_backup_and_the_save_still_succeed"),
+    ("#622", "The copy folder may be in OneDrive; the live data folder still may not",
+     "test_backup_copy::OneDrive::test_the_copy_folder_may_be_in_onedrive_and_the_live_folder_still_may_not"),
+    ("#622", "A copy is restored from the folder onto a clean data folder",
+     "test_backup_copy::Restoring::test_a_copy_is_restored_from_the_folder_onto_a_clean_data_folder"),
+    ("#436", "An archived milestone opens read only in the peek, with Restore there",
+     "test_milestones_archived::Archived::test_the_name_opens_the_milestone_read_only_in_the_peek_with_restore_there"),
+    ("#436", "Restore puts the milestone back with one Undo",
+     "test_milestones_archived::Archived::test_restore_puts_the_milestone_back_with_one_undo_and_focus_goes_to_the_button"),
+    ("#436", "A press on the eye takes a milestone off the dashboard with one Undo",
+     "test_milestones_eye::Editor::test_a_press_takes_it_off_the_dashboard_with_one_change_and_one_undo_puts_it_back"),
+    ("#436", "A published file has no eye, no mark and not the left-out milestone",
+     "test_milestones_eye::Editor::test_the_published_file_has_no_eye_no_mark_and_not_the_left_out_milestone"),
+    ("#436", "A milestone row's second line is one line at 1400 px and stacks in two columns only at 800 px and below",
+     "test_milestones_oneline::Rows::test_the_cells_stack_in_two_columns_only_at_800_px_and_below"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#622", "Settings, Backups: an optional 'Copy my backups to' folder (OneDrive allowed)", "PR 542",
-     "settings.py", "# ===== Copy my backups to (#622, Settings"),
 ]
 # (item, check, kind, why, what the person does)
 WALK_THROUGH = [
