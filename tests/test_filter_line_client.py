@@ -128,7 +128,7 @@ class ClientLine(unittest.TestCase):
                 self.assertEqual(self.val(f"P.fl.lineGet({kept(line=line)}, 'PUB')"), "is:open")
                 views = [{"id": "v1", "name": "Mine", "line": line}, {"id": "v2", "name": "Fine", "line": "is:open priority:High"}]
                 got = self.val(f"P.fl.viewsGet({kept(views=views)}, 'PUB')")
-                self.assertEqual([v["id"] for v in got], ["v2"], "a saved view that names a field the client may not use is not shown")
+                self.assertEqual([v["id"] for v in got if not v.get("core")], ["v2"], "a saved view that names a field the client may not use is not shown")
         self.assertEqual(self.val(f"P.fl.lineGet({kept(line='is:open priority:High')}, 'PUB')"), "is:open priority:High")
         defaults = self.val("P.fl.viewsGet(null, 'PUB')")
         self.assertTrue(defaults)

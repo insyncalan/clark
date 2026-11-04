@@ -502,6 +502,25 @@ class InProcess(TempFolder):
         self.assertIn("An update is still being installed.", err)
         self.assertEqual(serve.calls, [])
 
+    def test_in_a_container_with_no_built_page_it_stops_at_once_in_one_plain_sentence(self):
+        """item 427: the code is shared in read-only, so a build is never tried; the person is told to use the download."""
+        said = "This copy of clark has no built page. Use the clark download, not a copy of the source code."
+        def missing():
+            raise launcher.page.PageError(said)
+        with mock.patch.object(launcher.platform, "container_mode", lambda: True), mock.patch.object(launcher.page, "ensure_built", missing):
+            with self.assertLogs("clark.main", "ERROR") as logged:
+                code, out, err, serve = self.run_main("--port", "8123")
+        self.assertEqual((code, err.splitlines(), serve.calls), (1, [said], []))
+        self.assertIn(said, logged.output[0])
+
+    def test_outside_a_container_a_missing_page_is_still_said_and_clark_still_starts(self):
+        def missing():
+            raise launcher.page.PageError("The page could not be built (x)")
+        with mock.patch.object(launcher.platform, "container_mode", lambda: False), mock.patch.object(launcher.page, "ensure_built", missing):
+            code, out, err, serve = self.run_main("--port", "8123")
+        self.assertEqual((code, len(serve.calls)), (0, 1))
+        self.assertIn("The page could not be built (x)", err)
+
     def test_the_launchers_own_store_is_closed_before_serving_so_a_restore_can_take_the_file(self):
         """#111: an open connection would make Restore say another program has the data open; data_for opens its own each time."""
         import sqlite3
