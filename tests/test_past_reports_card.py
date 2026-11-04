@@ -196,7 +196,7 @@ class Card(InBrowser):
         self.assertEqual(self.text("#pubs h2"), "Published reports · Example Programme")
         self.assertEqual(self.val("[...document.querySelectorAll('#pubs thead th')].map(th => th.textContent.replace('Open', '').trim())"), ["#", "Date and time", "Where", "Who", ""])
         rows = self.val("[...document.querySelectorAll('#pubs tbody tr')].map(tr => [...tr.cells].map(c => c.textContent).join('|'))")
-        self.assertEqual(rows, ["3|28-10-2026 09:30|Local and to client|Sam Example|Open", "2|21-10-2026 08:15|Local · Word|Sam Example|Not kept", "1|14-10-2026 16:40|Local|Not recorded|Not kept"])
+        self.assertEqual(rows, ["3|28-10-2026 09:30|Local and to client|Sam Example|OpenArchive", "2|21-10-2026 08:15|Local · Word|Sam Example|Not keptArchive", "1|14-10-2026 16:40|Local|Not recorded|Not keptArchive"])
         self.assertIn("Every copy is kept; this list shows the latest 10.", self.text("#pubs"))
         self.assertEqual(self.val("T.calls[0]"), ["list", "PDF"])
 
@@ -266,6 +266,83 @@ class Card(InBrowser):
                     self.assertTrue(self.val("[...document.querySelectorAll('#pubs button, #pubs td')].every(b => b.getBoundingClientRect().right <= innerWidth)"))
                     self.assertTrue(self.val("(() => { const c = getComputedStyle(document.querySelector('#pubs td')).color; return c !== getComputedStyle(document.body).backgroundColor; })()"))
                     self.assertTrue(self.val("(() => { const c = getComputedStyle(document.querySelector('#pubs')).backgroundColor; return c !== 'rgba(0, 0, 0, 0)'; })()"))
+
+
+class Archiving(InBrowser):
+    """Item 345: Archive, Restore and Show archived, with no Undo."""
+
+    def setUp(self):
+        super().setUp()
+        self.replies(list=OK({**LIST, "archived": 0, "publications": [{**r, "archived": False} for r in ROWS]}), archive=OK({"ok": True}))
+
+    def test_every_row_has_archive_and_a_row_has_no_undo(self):
+        self.mount()
+        self.assertEqual(self.val("[...document.querySelectorAll('[data-pbarch]')].map(b => b.dataset.pbarch)"), ["3", "2", "1"])
+        self.assertFalse(self.present("[data-pbrest]"))
+        self.assertFalse(self.present("#pubs-arch"), "no Show archived while nothing is archived")
+        self.assertFalse(self.val("[...document.querySelectorAll('#pubs button')].some(b => /undo/i.test(b.textContent))"))
+
+    def test_archive_posts_once_says_the_toast_and_reads_the_list_again(self):
+        self.mount()
+        self.click("[data-pbarch='3']")
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'archive')"), [["archive", {"code": "PDF", "n": 3, "on": True}]])
+        self.assertEqual(self.val("T.toasts"), [["done", "Publication 3 archived. Restore it from Show archived."]])
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'list').length"), 2, "the list is read again")
+
+    def test_show_archived_lists_them_with_the_tag_and_restore(self):
+        rows = [{**ROWS[0], "archived": False}, {**ROWS[2], "archived": True}]
+        self.replies(list=OK({**LIST, "total": 2, "shown": 2, "archived": 1, "publications": rows}))
+        self.mount()
+        self.assertEqual(self.text("#pubs-arch").strip(), "Show archived 1")
+        self.assertEqual(self.val("document.querySelector('#pubs-arch').getAttribute('aria-pressed')"), "false")
+        self.click("#pubs-arch")
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'list').map(c => c[1])"), ["PDF", {"code": "PDF", "archived": True}])
+        self.assertEqual(self.val("document.querySelector('#pubs-arch').getAttribute('aria-pressed')"), "true")
+        self.assertEqual(self.val("[...document.querySelectorAll('tr.arch-row')].map(tr => tr.dataset.pub)"), ["1"])
+        self.assertIn("Archived", self.text("tr.arch-row"))
+        self.assertEqual(self.val("[...document.querySelectorAll('[data-pbrest]')].map(b => b.dataset.pbrest)"), ["1"])
+        self.click("[data-pbrest='1']")
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'archive')"), [["archive", {"code": "PDF", "n": 1, "on": False}]])
+        self.assertEqual(self.val("T.toasts"), [["done", "Publication 1 restored. Archive it again if you want it out of the list."]])
+
+    def test_every_one_archived_says_so(self):
+        self.replies(list=OK({**LIST, "total": 0, "shown": 0, "archived": 3, "publications": []}))
+        self.mount()
+        self.assertEqual(self.text("#pubs-none"), "Every publication is archived. Show archived brings them back.")
+
+    def test_a_refused_archive_is_said_plainly_and_no_toast_is_made(self):
+        self.replies(archive=OK({"ok": False, "code": "refused", "message": "Publication 3 is already archived. Nothing was changed."}, 400))
+        self.mount()
+        self.click("[data-pbarch='3']")
+        self.assertEqual(self.text(".pub-msg"), "Publication 3 is already archived. Nothing was changed.")
+        self.assertEqual(self.val("T.toasts"), [])
+        self.replies(archive=OK({"ok": False, "code": "server_error", "message": "Traceback"}, 500))
+        self.click("[data-pbarch='3']")
+        self.assertEqual(self.text(".pub-msg"), self.val("T.logic.ARCHIVE_FAILED"))
+        self.replies(archive={"status": 0, "body": None})
+        self.click("[data-pbarch='3']")
+        self.assertEqual(self.text(".pub-msg"), self.val("T.logic.NOT_ANSWERING"))
+
+    def test_the_words_are_the_prototypes_and_the_toast_is_the_rulings(self):
+        self.assertEqual(self.val("T.logic.archivedToast(7)"), "Publication 7 archived. Restore it from Show archived.")
+        self.assertEqual(self.val("[T.logic.ARCH_LABELS.archive, T.logic.ARCH_LABELS.restore, T.logic.ARCH_LABELS.show, T.logic.ARCH_LABELS.tag]"),
+                         ["Archive", "Restore", "Show archived", "Archived"])
+        for text in self.val("[T.logic.ARCHIVE_NOTE, T.logic.ALL_ARCHIVED, T.logic.archivedToast(1), T.logic.restoredToast(1), T.logic.ARCHIVE_FAILED]"):
+            self.assertFalse(re.search(r"\b(sql|token|json|sha|hash)", text.lower()), text)
+            self.assertFalse(text.startswith(("clark", "Clark")), text)
+
+    def test_nothing_runs_sideways_at_1400_and_900_in_light_and_dark_with_archived_shown(self):
+        rows = [{**ROWS[0], "archived": False}, {**ROWS[2], "archived": True}]
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme):
+                    self.load(width=width, theme=theme)
+                    self.replies(list=OK({**LIST, "total": 2, "shown": 2, "archived": 1, "publications": rows}))
+                    self.mount()
+                    self.click("#pubs-arch")
+                    self.assertTrue(self.val("document.documentElement.scrollWidth <= document.documentElement.clientWidth"))
+                    self.assertTrue(self.val("[...document.querySelectorAll('#pubs button, #pubs td')].every(b => b.getBoundingClientRect().right <= innerWidth)"))
+                    self.assertTrue(self.val("getComputedStyle(document.querySelector('tr.arch-row td')).color !== getComputedStyle(document.body).backgroundColor"))
 
 
 if __name__ == "__main__":

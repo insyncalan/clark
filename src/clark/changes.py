@@ -2641,6 +2641,23 @@ def _do_people_list(store, by_user, req):
     return 200, {"ok": True, "people": store.people(archived=None)}
 
 
+def _do_publication_archive(store, by_user, req):
+    """Archive or restore one publication: req is (code, number, archived). Only its archive mark is written or removed."""
+    code, number, archived = req
+    if archived:
+        store.archive_publication(code, number)
+    else:
+        store.unarchive_publication(code, number)
+    return 200, {"ok": True, "project": code, "number": number, "archived": archived}
+
+
+def make_publication_archive(path, onedrive_roots=None, by_user=None):
+    """The seam behind POST /api/publications/archive: archive or restore one publication of the Published reports list."""
+    def publication_archive(code, number, archived):
+        return _call(path, onedrive_roots, by_user, _do_publication_archive, (code, number, archived))
+    return publication_archive
+
+
 def make_people(path, onedrive_roots=None, by_user=None):
     """The `people` seam for POST /api/people, for the database at `path` (see make_change)."""
     def people(req):

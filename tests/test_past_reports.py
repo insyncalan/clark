@@ -180,7 +180,7 @@ class Seam(Base):
         self.assertEqual((body["total"], body["shown"], body["limit"]), (12, 10, 10))
         self.assertEqual([p["number"] for p in body["publications"]], list(range(12, 2, -1)), "newest first")
         row = body["publications"][0]
-        self.assertEqual(set(row), {"number", "when", "where", "who", "word", "kept", "week", "day"})   # week and day: #344's picker
+        self.assertEqual(set(row), {"number", "when", "where", "who", "word", "kept", "week", "day", "archived"})   # week and day: #344's picker
         self.assertRegex(row["day"], r"^\d{4}-\d\d-\d\d$")
         self.assertTrue(row["week"] is None or re.fullmatch(r"\d{4}-\d\d-\d\d", row["week"]), row["week"])
         self.assertEqual((row["where"], row["who"], row["kept"], row["word"]), ("Local", USER, True, False))

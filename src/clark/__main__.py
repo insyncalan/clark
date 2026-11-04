@@ -441,7 +441,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      # No ai= here on purpose: the /api/ai/* routes answer 404 until suggestions run under their own system
                      # prompt (#72 slice 5) AND the real canary exists (#277). Do not pass ai= before both; test_main pins it.
                      activity=activity_read.make_read(store.path, store.data_for),
-                     past=past_reports.PastReports(store.path),
+                     past=past_reports.PastReports(store.path, archiver=changes.make_publication_archive(store.path, roots, who.who)),
                      as_at=as_at.AsAt(store.path),
                      brand_picture=page.brand_picture,
                      **handlers)

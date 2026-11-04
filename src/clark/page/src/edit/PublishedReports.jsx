@@ -7,11 +7,12 @@ import { useEffect, useState } from "preact/hooks";
 import { data, project, show } from "../stores/report.js";
 import { openInNewTab } from "../router.js";
 import { dialog } from "./publishState.js";
-import { listPublications, readyPast } from "./pastReportsApi.js";
+import { listPublications, readyPast, archivePublication } from "./pastReportsApi.js";
+import { say } from "../stores/changes.js";
 import * as L from "../logic/pastReports.js";
 import { AsAtPick } from "./AsAtPick.jsx";            // item 349: the Dashboard as at a day, under the list
 
-const REAL = { list: listPublications, ready: readyPast };
+const REAL = { list: listPublications, ready: readyPast, archive: archivePublication };
 
 // The profile menu's "Published reports": Settings, with the card brought to the top (smoothly unless the person asked for less motion).
 export function showPublished() {
@@ -25,21 +26,22 @@ export function showPublished() {
   }, 60);
 }
 
-export function PublishedReports({ api = REAL, openTab = openInNewTab, code = project.value, name, withAsAt = true }) {
+export function PublishedReports({ api = REAL, openTab = openInNewTab, tell = say, code = project.value, name, withAsAt = true }) {
   const [state, setState] = useState({ phase: "loading", list: null, message: "" });
   const [msg, setMsg] = useState(null);                      // {kind: "error" | "note", text}
   const [busy, setBusy] = useState(0);                       // the number being opened, or 0
+  const [showArch, setShowArch] = useState(false);          // Show archived is on (item 345); kept for the visit only
   const d = data.value;
   const title = name || (d && d.project && d.project.name) || code;
   const publishing = dialog.value !== null;                  // the list is read again when the Publish box closes
 
   async function load() {
     setState((s) => ({ ...s, phase: s.list ? "ready" : "loading" }));
-    const r = await api.list(code);
+    const r = await api.list(code, showArch);
     if (r.status === 200 && L.isList(r.body)) setState({ phase: "ready", list: r.body, message: "" });
     else setState({ phase: "failed", list: null, message: L.listWords(r.status, r.body) });
   }
-  useEffect(() => { if (!publishing) load(); }, [code, publishing]);
+  useEffect(() => { if (!publishing) load(); }, [code, publishing, showArch]);
 
   // The tab is opened first, while the click still counts (a browser blocks one opened after a wait), then pointed at the kept page.
   async function open(number) {
@@ -56,27 +58,46 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
     setMsg({ kind: "error", text: r && r.status === 200 ? L.BLOCKED : L.openWords(r ? r.status : 0, r ? r.body : null) });
   }
 
+  // Archive or Restore (item 345): one step, no Undo. The list is read again after, and the toast says how to go back.
+  async function archive(number, on) {
+    if (busy) return;
+    setBusy(number);
+    setMsg(null);
+    const r = await api.archive(code, number, on);
+    setBusy(0);
+    if (r.status === 200 && r.body && r.body.ok === true) {
+      tell("done", on ? L.archivedToast(number) : L.restoredToast(number));
+      load();
+    } else {
+      setMsg({ kind: "error", text: L.archiveWords(r.status, r.body) });
+    }
+  }
+
   const list = state.list;
+  const nArch = list && Number.isInteger(list.archived) ? list.archived : 0;
   const rows = list ? list.publications.map(L.rowView) : [];
   return (
     <section class="frame setting" id="pubs">
       <h2>{L.TITLE} · {title}</h2>
-      <p class="muted">{L.INTRO}</p>
+      <p class="muted">{L.INTRO} {L.ARCHIVE_NOTE}</p>
+      {list && (nArch > 0 || showArch) ? <p><button type="button" class="arch-pill" id="pubs-arch" aria-pressed={showArch ? "true" : "false"} onClick={() => setShowArch(!showArch)}>{L.ARCH_LABELS.show} <em>{nArch}</em></button></p> : null}
       {state.phase === "loading" ? <p class="muted" id="pubs-loading">{L.LOADING}</p> : null}
       {state.phase === "failed" ? <p class="error" role="alert">{state.message} <button type="button" class="btn sm" data-pubs-again onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
-      {list && !rows.length ? <p class="muted" id="pubs-none">{L.NONE}</p> : null}
+      {list && !rows.length ? <p class="muted" id="pubs-none">{nArch > 0 && !showArch ? L.ALL_ARCHIVED : L.NONE}</p> : null}
       {rows.length ? (
         <>
           <table class="pubs" id="pubs-table">
             <thead><tr>{L.COLUMNS.map((c, i) => <th scope="col" key={i}>{c || <span class="sr">Open</span>}</th>)}</tr></thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.number} data-pub={r.number}>
-                  <td class="num"><b>{r.number}</b></td>
+                <tr key={r.number} data-pub={r.number} class={r.archived ? "arch-row" : undefined}>
+                  <td class="num"><b>{r.number}</b>{r.archived ? <> <span class="tag arch">{L.ARCH_LABELS.tag}</span></> : null}</td>
                   <td class="num">{r.when}</td>
                   <td>{r.where}</td>
                   <td>{r.who}</td>
-                  <td class="acts">{r.kept ? <button type="button" class="btn sm" data-pubopen={r.number} aria-label={`Open Publication ${r.number}`} disabled={!!busy} onClick={() => open(r.number)}>{L.LABELS.open}</button> : <span class="muted">{L.NOT_KEPT}</span>}</td>
+                  <td class="acts">{r.kept ? <button type="button" class="btn sm" data-pubopen={r.number} aria-label={`Open Publication ${r.number}`} disabled={!!busy} onClick={() => open(r.number)}>{L.LABELS.open}</button> : <span class="muted">{L.NOT_KEPT}</span>}{r.archived
+                    ? <button type="button" class="btn sm" data-pbrest={r.number} aria-label={`Restore Publication ${r.number}`} disabled={!!busy} onClick={() => archive(r.number, false)}>{L.ARCH_LABELS.restore}</button>
+                    : <button type="button" class="btn sm" data-pbarch={r.number} aria-label={`Archive Publication ${r.number}`} disabled={!!busy} onClick={() => archive(r.number, true)}>{L.ARCH_LABELS.archive}</button>}</td>
                 </tr>
               ))}
             </tbody>

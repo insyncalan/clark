@@ -2820,6 +2820,23 @@ class Store:
             raise Invalid(f"Publication {number} could not be archived. Nothing was changed. Try again.")
         return True
 
+    def unarchive_publication(self, code, number):
+        """Restore Publication `number` of `code` that was archived: the list shows it again. Only its archive mark is removed
+        (published_copies.unarchive); the row, the kept page and the data copy are never touched. Like archive_publication it is a
+        record, not an edit: no step and no Undo (archive it again to go back). Refused in plain words when there is no such
+        publication or it is not archived. True when restored."""
+        if published_copies.file_name(code, number) is None:
+            raise Invalid("Give the project's code and the publication's number.")
+        if str(self.path) == ":memory:":
+            raise Invalid("A publication can't be restored in a database that is not saved to a file.")
+        if not self.con.execute("SELECT 1 FROM publications WHERE project = ? AND number = ?", (code, number)).fetchone():
+            raise Invalid(f"There is no Publication {number} for {code}. Nothing was changed.")
+        if not published_copies.is_archived(self.path.parent, code, number):
+            raise Invalid(f"Publication {number} is not archived. Nothing was changed.")
+        if not published_copies.unarchive(self.path.parent, code, number):
+            raise Invalid(f"Publication {number} could not be restored. Nothing was changed. Try again.")
+        return True
+
     def next_publication(self, code):
         """The number the next publication of `code` will have (#120), to be put in the file before it is made. Nothing is reserved:
         log_publication refuses if it is no longer the next one. Every row counts, whatever its kind. Read-only."""

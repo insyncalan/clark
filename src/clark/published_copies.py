@@ -251,6 +251,20 @@ def archive(data_dir, code, number):
     return folder is not None and _write_once(folder, name, b"")
 
 
+def unarchive(data_dir, code, number):
+    """Restore a publication that was archived: its mark, `ABC-3.archived`, is removed and the list shows the publication again. Only
+    the mark is removed (the page and its data copy are never touched). True when this call removed it; False when there was no mark,
+    the name is not one clark makes, or the mark could not be removed. A link under that name is removed as a link, never followed."""
+    name = _name(code, number, ARCHIVED)
+    if name is None:
+        return False
+    try:
+        os.unlink(folder_of(data_dir) / name)
+        return True
+    except OSError:
+        return False
+
+
 def is_archived(data_dir, code, number):
     """Whether the publication has its archive mark (anything under that name counts: it is never followed or read)."""
     name = _name(code, number, ARCHIVED)

@@ -12,5 +12,20 @@ async function call(path) {
   }
 }
 
-export const listPublications = (project) => call(`/api/publications?project=${encodeURIComponent(project)}`);
+export const listPublications = (project, archived = false) => call(`/api/publications?project=${encodeURIComponent(project)}${archived ? "&archived=show" : ""}`);
+
+// Archive (true) or Restore (false) one publication (item 345): POST /api/publications/archive. Only its mark changes; no Undo.
+export async function archivePublication(project, number, archived) {
+  try {
+    const r = await fetch("/api/publications/archive", {
+      method: "POST",
+      headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
+      body: JSON.stringify({ project, number, archived }),
+      cache: "no-store",
+    });
+    return { status: r.status, body: await r.json().catch(() => null) };
+  } catch (e) {
+    return { status: 0, body: null };
+  }
+}
 export const readyPast = (project, number) => call(`/api/past-report?project=${encodeURIComponent(project)}&number=${encodeURIComponent(number)}`);

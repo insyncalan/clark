@@ -46,7 +46,23 @@ export function openWords(status, body) {
 export const cutLine = (total, shown) => (total > shown ? `Showing the latest ${shown} of ${total}. The older ones are kept.` : "");
 
 // A list row as it is drawn.
-export const rowView = (p) => ({ number: p.number, when: p.when, where: p.where, who: p.who, kept: p.kept === true });
+export const rowView = (p) => ({ number: p.number, when: p.when, where: p.where, who: p.who, kept: p.kept === true, archived: p.archived === true });
+
+// Archive and Restore (item 345), as the prototype (system/prototype/past.js) words them. No Undo: the other button is the way back.
+export const ARCHIVE_NOTE = "Archive hides an old one from this list; it is never deleted. Archive and Restore have no Undo: press the other one to go back.";
+export const ARCH_LABELS = { archive: "Archive", restore: "Restore", show: "Show archived", tag: "Archived" };
+export const ALL_ARCHIVED = "Every publication is archived. Show archived brings them back.";
+export const archivedToast = (n) => `Publication ${n} archived. Restore it from Show archived.`;
+export const restoredToast = (n) => `Publication ${n} restored. Archive it again if you want it out of the list.`;
+export const ARCHIVE_FAILED = "That could not be saved. Try again; if it keeps happening, restart clark.";
+
+// {status, body} of Archive or Restore → one sentence when it failed. The server's own refusal (a plain sentence, 400) is shown as written.
+export function archiveWords(status, body) {
+  if (status === 0) return NOT_ANSWERING;
+  if (status === 403) return STALE;
+  if (status === 400 && body && body.code === "refused" && sentence(body)) return sentence(body);
+  return ARCHIVE_FAILED;
+}
 
 // Whether a reply is a list the card can draw.
 export const isList = (b) => !!b && b.ok === true && Array.isArray(b.publications) && Number.isInteger(b.total);

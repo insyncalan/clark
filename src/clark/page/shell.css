@@ -1143,6 +1143,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pubs td { padding: 9px 10px; border-top: 1px solid var(--grey-100); vertical-align: middle; overflow-wrap: anywhere; }
 .pubs th:first-child, .pubs td:first-child { padding-left: 4px; width: 48px; }
 .pubs td.acts { text-align: right; white-space: nowrap; }
+.pubs tr.arch-row td { color: var(--text-muted); }
 #pubs-note { margin: 8px 0 0; font-size: var(--size-small); }
 /* item 349: Settings > Published reports > Dashboard as at a day, and the banner and dashed tinted frame of the rebuilt Dashboard
    (the design note of item 125, its past view: the prototype's .pv-banner and .pv-frame.asat). */

@@ -25,6 +25,7 @@ Routes:
 - GET  /api/export       ?project=<CODE>: the project's workbook as a download named <CODE>-<date>.xlsx (publish_flow.py)
 - GET  /api/publications ?project=<CODE>: the newest 10 publications with number, time, where and who (#443; past_reports.py); no path, no hash
 - GET  /api/past-report  ?project=<CODE>&number=<N>: checks that publication's kept copy and answers a one-visit address (#443)
+- POST /api/publications/archive {project, number, archived}: archive or restore one publication (item 345; past_reports.set_archived)
 - GET  /past             ?id=<from /api/past-report>: that kept page as it was published, once, local only (#443)
 - GET  /api/as-at        ?project=<CODE>&date=<YYYY-MM-DD>: the project's data as at the end of that day, rebuilt from the change
                          history in a copy, read only, never published (#349; as_at.py); without the seam, not found
@@ -136,7 +137,7 @@ ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
-                     "/api/people": PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #115: a person's few short fields; #454: or one paste of up to 500 rows; a step number
+                     "/api/people": PEOPLE_BODY_LIMIT, "/api/people/undo": 1024, "/api/publications/archive": 1024,     # #115: a person's few short fields; #454: or one paste of up to 500 rows; a step number
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
                      "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                      "/api/draft-email": 16 * 1024,                    # #50: the ticked ids and a few short words
@@ -584,13 +585,16 @@ def past_route(method):
             return handler.send(400, error_body("bad_request"))
         query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
         want = {"project"} if method == "listing" else {"project", "number"}
-        if set(query) != want or any(len(v) != 1 for v in query.values()):
+        show = method == "listing" and set(query) == {"project", "archived"}      # item 345: ?archived=show lists the archived ones too
+        if show and query["archived"] != ["show"]:
+            return handler.send(400, error_body("bad_request"))
+        if (set(query) != want and not show) or any(len(v) != 1 for v in query.values()):
             return handler.send(400, error_body("bad_request"))
         code = query["project"][0]
         if not PROJECT_CODE.fullmatch(code):
             return handler.send(400, error_body("bad_project_code"))
         if method == "listing":
-            status, body = seam.listing(code)
+            status, body = seam.listing(code, show_archived=show)
         else:
             number = query["number"][0]
             if not PUBLICATION_NUMBER.fullmatch(number):
@@ -598,6 +602,23 @@ def past_route(method):
             status, body = seam.visit(code, int(number))
         return handler.send(status, body)
     return route
+
+
+def past_archive_route(handler, req):
+    """POST /api/publications/archive (item 345): {project, number, archived} archives (true) or restores (false) one publication of the
+    Published reports list. The token, the Host, the Origin, JSON only and the length are checked before this runs. The keys are exactly
+    those three: a code of the stored shape, a plain whole number (not a bool) and a bool (400 otherwise). The seam (past.set_archived)
+    writes or removes the publication's archive mark and nothing else; no path from the request reaches the disk. Without the seam
+    the route is not there (404). There is no Undo: the other button is the way back."""
+    seam = getattr(handler.server, "past", None)
+    if seam is None or getattr(seam, "archiver", None) is None:
+        return handler.send(404, error_body("not_found"))
+    ok = isinstance(req, dict) and set(req) == {"project", "number", "archived"}
+    code, number, archived = (req.get(k) for k in ("project", "number", "archived")) if ok else (None, None, None)
+    if not (isinstance(code, str) and PROJECT_CODE.fullmatch(code) and type(number) is int and 1 <= number <= 999999 and type(archived) is bool):
+        return handler.send(400, error_body("bad_request"))
+    status, body = seam.set_archived(code, number, archived)
+    return handler.send(status, body)
 
 
 def as_at_route(handler):
@@ -1005,7 +1026,7 @@ POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/secti
                 "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
                 "/api/ai/suggest": ask_route("suggest", "ai"), "/api/ai/stop": ask_route("stop", "ai"),
                 "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply"),
-                "/api/profile": profile_route("save"), "/api/people": people_route("people"), "/api/people/undo": people_route("people_undo"), "/api/page-error": logs_route("page_error"),
+                "/api/profile": profile_route("save"), "/api/people": people_route("people"), "/api/people/undo": people_route("people_undo"), "/api/publications/archive": past_archive_route, "/api/page-error": logs_route("page_error"),
                 "/api/logging": logs_route("set_level"), "/api/logging/open-folder": logs_route("open_folder"),     # #110
                 "/api/draft-email": draft_email_route("draft_email"),
                 "/api/draft-email/sent": draft_email_route("draft_email_sent"),

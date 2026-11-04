@@ -53,10 +53,11 @@ def local_day(at):
 
 
 class PastReports:
-    def __init__(self, db_path, clock=time.monotonic):
+    def __init__(self, db_path, clock=time.monotonic, archiver=None):
         self.db_path = Path(db_path)
         self.data_dir = self.db_path.parent          # the kept copies are in `published-copies` beside clark.db
         self.clock = clock
+        self.archiver = archiver                     # item 345: (code, number, archived) -> (status, body); None: Archive and Restore answer 404
         self.visits, self.lock = {}, threading.Lock()      # {nonce: (bytes, time made)}: in memory only
 
     def fail(self, code, **fill):
@@ -65,7 +66,7 @@ class PastReports:
     def _con(self):
         return connect(self.db_path, readonly=True)
 
-    def listing(self, code):
+    def listing(self, code, show_archived=False):
         if not isinstance(code, str) or not published_copies.PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
         try:
@@ -79,7 +80,8 @@ class PastReports:
                 con.close()
         except Exception:
             return 500, self.fail("db_unreadable")
-        listed = [r for r in rows if not published_copies.is_archived(self.data_dir, code, r["number"])]   # #342: archived ones are hidden
+        marks = {r["number"]: published_copies.is_archived(self.data_dir, code, r["number"]) for r in rows}
+        listed = [r for r in rows if show_archived or not marks[r["number"]]]   # #342: archived ones are hidden; item 345: Show archived lists them
         total, out = len(listed), []
         for r in listed[:SHOWN]:
             word = bool(r["word"])
@@ -88,9 +90,14 @@ class PastReports:
                         "who": (r["by_user"] or "").strip() or NOT_RECORDED, "word": word,
                         "kept": not word and published_copies.is_kept(self.data_dir, code, r["number"]),
                         "week": r["week_ending"] if isinstance(r["week_ending"], str) and DAY.fullmatch(r["week_ending"]) else None,
-                        "day": local_day(r["at"])})
-        return 200, {"ok": True, "project": code, "total": total, "shown": len(out), "limit": SHOWN, "archived": len(rows) - total,
+                        "day": local_day(r["at"]), "archived": marks[r["number"]]})
+        return 200, {"ok": True, "project": code, "total": total, "shown": len(out), "limit": SHOWN, "archived": sum(1 for r in rows if marks[r["number"]]),
                      "publications": out}
+
+    def set_archived(self, code, number, archived):
+        """Item 345: POST /api/publications/archive. Archive (True) or Restore (False) one publication; the store writes or removes its
+        mark only. No Undo. The server has checked the shapes; the store checks the publication is there."""
+        return self.archiver(code, number, archived)
 
     def visit(self, code, number):
         if not isinstance(code, str) or not published_copies.PROJECT_CODE.fullmatch(code):
