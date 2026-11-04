@@ -96,7 +96,7 @@ class TheFiveJobs(unittest.TestCase):
 
     def test_the_jobs_part_is_searchable_by_its_words(self):
         r = run_node(RAW, "(() => HL.search(HL.buildIndex(), 'ready-made').map((x) => x.id))()")
-        self.assertIn("start-jobs", r[:2])
+        self.assertEqual(r[0], "start-jobs")
         r = run_node(RAW, "(() => HL.search(HL.buildIndex(), 'delete sections').map((x) => x.id))()")
         self.assertIn("start-jobs", r)
         self.assertIn("howto-arrange-the-report", r)

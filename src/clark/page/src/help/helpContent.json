@@ -2294,7 +2294,7 @@
   {
    "id": "add-a-section-from-a-template",
    "t": "Add a section from a template",
-   "job": "Start a new section from a ready-made layout, in the place you choose.",
+   "job": "Start a new section from a layout, in the place you choose.",
    "steps": [
     {
      "d": "On the **Dashboard**, press **Edit**. Each section now has a control at the left of its card: a move button and, under it, a **+**."
@@ -2334,7 +2334,7 @@
      "d": "To move a section, drag its move button and drop it. A line between two rows puts it on a row of its own. The cover stays at the top. Without a mouse, focus the button and press [[Alt+Up]] or [[Alt+Down]]."
     },
     {
-     "d": "Click the move button, or press [[Enter]] or [[Space]] on it, to open the section’s menu. It is headed **Options for** the section’s name."
+     "d": "Click the move button, or press [[Enter]] or [[Space]] on it, to open the section’s menu."
     },
     {
      "d": "To move one step, choose **Move up** or **Move down**. A choice that cannot be used is greyed out, with the reason under it."

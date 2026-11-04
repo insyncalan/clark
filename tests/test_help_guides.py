@@ -253,7 +253,7 @@ class ShippedGuides(unittest.TestCase):
             self.assertIn(f'"{name}"', templates, name)
 
     def test_search_finds_each_guide_and_its_steps(self):
-        probes = {"add-a-section-from-a-template": [("ready-made layout", 0), ("search templates", 3), ("where it goes", 5), ("cancel", 6), ("empty section", 7)],
+        probes = {"add-a-section-from-a-template": [("place you choose", 0), ("search templates", 3), ("where it goes", 5), ("cancel", 6), ("empty section", 7)],
                   "arrange-the-report": [("drag its move button", 2), ("full width", 5), ("eye mark", 6), ("needs from you", 7), ("gone from view", 8)]}
         for gid, rows in probes.items():
             for word, line in rows:
