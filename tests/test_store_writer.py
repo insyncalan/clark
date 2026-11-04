@@ -324,8 +324,9 @@ def _is_sql(literal):
     return any(re.search(rf"\b{w}\b", literal) for w in SQL_WORDS + ("SELECT", "PRAGMA", "WHERE"))
 
 
-def _sql_fstrings(tree):
-    """(line, [formatted expressions]) for every f-string or % / .format string in `tree` that holds an SQL word."""
+def _sql_fstrings(tree, joined=False):
+    """(line, [formatted expressions]) for every f-string or % / .format string in `tree` that holds an SQL word; with `joined`,
+    also every SQL string joined with + (the part after the +)."""
     out = []
     for node in ast.walk(tree):
         if isinstance(node, ast.JoinedStr):
@@ -335,6 +336,9 @@ def _sql_fstrings(tree):
         elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mod) and isinstance(node.left, ast.Constant) \
                 and isinstance(node.left.value, str) and _is_sql(node.left.value):
             out.append((node.lineno, ["%"]))
+        elif joined and isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add) and isinstance(node.left, ast.Constant) \
+                and isinstance(node.left.value, str) and _is_sql(node.left.value):
+            out.append((node.lineno, [ast.unparse(node.right)]))
         elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "format" \
                 and isinstance(node.func.value, ast.Constant) and isinstance(node.func.value.value, str) \
                 and _is_sql(node.func.value.value):
@@ -357,9 +361,9 @@ def writes_sql(value):
 # clark has stopped, so it must stay standard-library only (test_update_helper) and cannot import store.py. It may open the
 # database, but only read-only: each sqlite3.connect there must be a `?mode=ro` URI or be followed at once by
 # `PRAGMA query_only = ON`, so a future write through it still fails this test. Its only built SQL is table_stats' SELECTs
-# from a table name it read from sqlite_master and quoted itself.
+# from a table name it read from sqlite_master and quoted itself with _ident.
 READONLY_HELPER = "clark/update_helper.py"
-READONLY_HELPER_SQL_PARTS = {"quoted"}
+READONLY_HELPER_SQL_PARTS = {"_ident(name)"}
 
 
 def _connect_calls(tree):
@@ -440,11 +444,18 @@ class OneWriter(unittest.TestCase):
             if path == STORE:
                 continue
             rel = path.relative_to(SRC).as_posix()
-            for line, parts in _sql_fstrings(tree):
+            for line, parts in _sql_fstrings(tree, joined=rel == READONLY_HELPER):
                 if rel == READONLY_HELPER and set(parts) <= READONLY_HELPER_SQL_PARTS:
-                    continue                    # table_stats' SELECT from a name it quoted itself (the reviewed exemption above)
+                    continue                    # table_stats' SELECT from a name _ident quoted (the reviewed exemption above)
                 problems.append(f"{rel}:{line}: builds SQL from {parts}")
         self.assertEqual(problems, [])
+
+    def test_the_helpers_only_built_sql_is_table_stats_from_a_quoted_name(self):
+        tree = ast.parse((SRC / READONLY_HELPER).read_text(encoding="utf-8"))
+        built = _sql_fstrings(tree, joined=True)
+        self.assertEqual(2, len(built))                         # the exemption still matches table_stats' two SELECTs
+        self.assertEqual([], [(line, parts) for line, parts in built if set(parts) - READONLY_HELPER_SQL_PARTS])
+        self.assertEqual([(1, ["name"])], _sql_fstrings(ast.parse('"SELECT 1 FROM " + name'), joined=True))
 
     def test_store_py_builds_sql_only_from_checked_names(self):
         tree = ast.parse(STORE.read_text(encoding="utf-8"))

@@ -111,7 +111,7 @@ def take_in(source, data_dir, system, chosen=False, max_bytes=updates.MAX_ZIP_BY
     folder = platform.private_folder(Path(data_dir) / RELEASES)
     name = f"clark-{version}-{system}.zip"
     part = folder / f".{name}.{os.getpid()}.part"
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
+    flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
     try:
         fd = os.open(str(source), flags)
     except OSError:
@@ -311,7 +311,7 @@ def stage(release, app_dir, stamp, fault=None):
     try:
         if not release.data:
             raise InstallError("staging", "no checked bytes to stage from")          # never the file on disk again
-        folder.mkdir()
+        folder.mkdir(mode=0o700)         # owner-only whatever the umask is: nobody else can swap a file between the check and the swap
         with zipfile.ZipFile(io.BytesIO(release.data)) as zf:      # the bytes that were signed and checked
             infos = {i.filename: i for i in zf.infolist()}
             for rel in sorted(release.files):
@@ -490,7 +490,7 @@ def stage_undo(backup_dir, app_dir, stamp):
         raise InstallError("backup_damaged", "unsafe names in the kept record")
     folder = staging_dir(app_dir, stamp)
     try:
-        folder.mkdir()
+        folder.mkdir(mode=0o700)         # owner-only, as in stage()
         for rel, row in sorted(old_release["files"].items()):
             source = backup_dir / APP / rel
             if record["app_files"].get(rel) != row.get("sha256") or not source.is_file() or source.is_symlink():
@@ -549,5 +549,9 @@ def prune(data_dir, installed_version, system, keep=KEEP):
     for _, e in releases[:-keep] if keep > 0 else []:
         if e.name != installed:
             os.unlink(e.path)
+            try:
+                os.unlink(e.path + updates.SIGNATURE_SUFFIX)       # its signature goes with it
+            except OSError:
+                pass
             gone.append(e.name)
     return gone
