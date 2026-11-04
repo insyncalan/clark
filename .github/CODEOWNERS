@@ -15,3 +15,4 @@
 /clark.command @insyncalan
 /src/clark/__main__.py @insyncalan
 /src/clark/update_helper.py @insyncalan
+/src/clark/updates.py @insyncalan
