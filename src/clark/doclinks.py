@@ -40,7 +40,12 @@ KINDS = ("Minutes", "Actions list", "Report", "Slides", "Plan", "Other")
 
 
 class LinkError(ValueError):
-    """A link that can't be used; the message is in plain words for the person adding it."""
+    """A link that can't be used; the message is in plain words for the person adding it. `reason` is a short fixed code for the
+    log (never the link): DOCUMENTATION_RANGE for an address in a range kept for documents (#610), else None."""
+    reason = None
+
+
+DOCUMENTATION_RANGE = "documentation range"
 
 
 _SCHEME = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*):")
@@ -118,6 +123,23 @@ def _private_address(labels):
             or (a == 192 and b == 88 and c == 99))
 
 
+def _documentation(labels):
+    """True for a plain four-part number in a range kept for documents and tunnels (the #594 ranges)."""
+    if len(labels) != 4 or not all(label.isdigit() for label in labels):
+        return False
+    a, b, c = int(labels[0]), int(labels[1]), int(labels[2])
+    return ((a == 192 and b == 0 and c == 2) or (a == 198 and b == 51 and c == 100) or (a == 203 and b == 0 and c == 113)
+            or (a == 192 and b == 88 and c == 99))
+
+
+def _refuse_internal(host):
+    """Raise the refusal for an address that only works inside a network; its `reason` says when it is a documentation range."""
+    error = LinkError(INTERNAL)
+    if _documentation(host.lower().rstrip(".").split(".")):
+        error.reason = DOCUMENTATION_RANGE
+    raise error
+
+
 def _internal(host):
     """True when `host` (already checked by _host) can only be reached from inside a network or from this computer."""
     labels = host.lower().rstrip(".").split(".")
@@ -149,7 +171,7 @@ def _parse(text):
             raise LinkError(BAD_EMAIL)
         domain = _host(domain)
         if _internal(domain):
-            raise LinkError(INTERNAL)
+            _refuse_internal(domain)
         return f"mailto:{local}@{domain}", domain, f"{local}@{domain}".lower()
 
     if not rest.startswith("//"):                                       # "https:example.com" is read as a site by browsers
@@ -162,7 +184,7 @@ def _parse(text):
     host, colon, port = authority.partition(":")
     host = _host(host)                                                  # first, so "[::1]" is a site problem, not a number one
     if _internal(host):
-        raise LinkError(INTERNAL)
+        _refuse_internal(host)
     if colon:
         if not (_PORT.fullmatch(port) and 1 <= int(port) <= 65535):
             raise LinkError(BAD_PORT)

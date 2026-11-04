@@ -33,6 +33,7 @@ import heapq
 from datetime import date
 import html as htmllib
 import json
+import logging
 import os
 import re
 import secrets
@@ -46,6 +47,7 @@ from clark import doclinks, milestones, page, platform, section_bodies
 from clark.store import Invalid as StoreInvalid, NumberTaken, check_section_body, excluded_label_names, open_store
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
 
+LOG = logging.getLogger("clark.publish")
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused
 VERSION = 1                               # the data block's shape; the page refuses another
 KINDS = ("milestones", "actions", "raid", "decisions", "use_cases")
@@ -273,7 +275,9 @@ def _document(row):
         title = doclinks.link_label(row.get("title"), url) if str(row.get("title") or "").strip() else ""
         if not title or doclinks.looks_like_other_place(title, url):
             return None
-    except doclinks.LinkError:
+    except doclinks.LinkError as e:
+        if e.reason:            # #610: a stored link left out of the file is logged by id and reason code only, never its text
+            LOG.info("document link left out of the published file id=%s reason=%s", row.get("id"), e.reason)
         return None
     day = row.get("date")
     try:
