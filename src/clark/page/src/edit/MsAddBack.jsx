@@ -6,14 +6,9 @@
 import { useRef } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { data } from "../stores/report.js";
-import { pickable, idsOf } from "../logic/picker.js";
+import { pickable, idsOf, leftOutIds } from "../logic/picker.js";
 
 export const pickerFrom = signal(null);          // null, or the button that opened the picker (focus goes back to it)
-
-// The ids the eye has left out of the published page, from the data's `report_hidden`.
-export function leftOutIds(d) {
-  return (d && Array.isArray(d.report_hidden) ? d.report_hidden : []).map((h) => (h && h.item_id) || h);
-}
 
 // The milestones off the page, as the picker offers them: { milestones } only, so the picker lists no other kind.
 export function offThePage(d) {
