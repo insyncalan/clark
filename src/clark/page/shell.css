@@ -19,6 +19,12 @@ a { color: var(--status-blue-text); }
 .logo .wm { font-weight: var(--weight-medium); font-size: var(--size-h3); letter-spacing: .02em; }
 .top .divider { width: 1px; height: 26px; background: rgba(255,255,255,.2); }
 .proj { font-size: var(--size-small); color: rgba(255,255,255,.85); }
+.projbtn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: var(--space-1) var(--space-2); border-radius: var(--radius); cursor: pointer; font-size: var(--size-small); color: rgba(255,255,255,.85); }
+.projbtn:hover { background: rgba(255,255,255,.14); }
+.projbtn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.projbtn .nch { width: 14px; height: 14px; }
+.top .projbtn { display: inline-flex; max-width: 260px; }
+.projbtn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabs { display: flex; height: 100%; }
 .pubfoot { max-width: 1200px; margin: 24px auto 16px; padding: 0 16px; font-size: var(--size-small); color: var(--text-muted); }   /* item 120 */
 .asat { margin-left: auto; font-size: var(--size-caption); color: rgba(255,255,255,.75); }
@@ -33,8 +39,17 @@ a { color: var(--status-blue-text); }
 main { position: relative; max-width: var(--max-width); margin: 0 auto; padding: 28px var(--space-5) 96px; }
 .frame { width: 100%; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: var(--space-5) 28px; }
 .frame h1 { margin: 0 0 var(--space-3); font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
-.crumbs { margin: 0 0 2px; font-size: var(--size-caption); color: var(--text-muted); }
-.glance { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-3); }
+/* The report's cover band (A-D1): navy, full width of the frame, the name, the kind of report, the week and the client. */
+.cover { margin: -24px -28px 20px; padding: var(--space-5) 28px 20px; background: var(--brand-navy); color: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.frame .cover h1 { margin: 0 0 6px; color: var(--white); }
+.cover-line { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) 10px; font-size: var(--size-small); color: var(--white); }
+.cover-line span + span::before, .cover-kind + span::before { content: "\00b7"; margin-right: 10px; }
+.cover-kind { font-weight: var(--weight-medium); letter-spacing: .08em; text-transform: uppercase; color: var(--brand-cyan); }
+@media (max-width: 900px) { .cover { margin: -18px -16px 16px; padding: 18px var(--space-4) var(--space-4); } }
+html:not([data-secstyle="card"]) .frame.report .cover { margin-top: 0; }      /* the report frame has only 4 px of top padding here, so the band starts at the frame, not 20 px above it */
+@media (max-width: 900px) { html:not([data-secstyle="card"]) .frame.report .cover { margin: 0 0 16px; } }      /* the report frame has no side padding here, so the band is the frame's width, not wider */
+.crumbs { margin: 0 0 2px; font-size: var(--size-small); color: var(--text-muted); }
+.glance { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: 12px; }
 .tile { display: flex; flex-direction: column; }
 .tile .n { font-size: 22px; font-weight: var(--weight-medium); color: var(--heading); }
 .tile .l { font-size: var(--size-caption); color: var(--text-muted); }
@@ -89,7 +104,7 @@ button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; fo
    A hidden tile has its tag (up to two lines, 41 px, 6 px off the bottom) at the bottom, so it keeps 54 px under its last line. Both are Edit only; View and the published page do not change. */
 #report[data-mode="edit"] .glance { --tile-ctl: 41px; --tile-tag: 54px; }
 #report[data-mode="edit"] .glance .fig .k { padding-right: var(--tile-ctl); }
-#report[data-mode="edit"] .glance .tcell.is-hidden .fig { padding-bottom: var(--tile-tag); }
+#report[data-mode="edit"] .glance .tcell.is-hidden .fig, #report[data-mode="edit"] .glance .tcell[data-tile="stale"] .fig { padding-bottom: var(--tile-tag); }   /* item 160: the Not reviewed tile carries its tag on or off */
 .tcell.drop-left::before, .tcell.drop-right::before { content: ""; position: absolute; top: 0; bottom: 0; width: 3px; background: var(--brand-cyan); z-index: 3; }
 .tcell.drop-left::before { left: -8px; } .tcell.drop-right::before { right: -8px; }
 .tilemenu { top: 30px; right: auto; left: 0; }
@@ -180,7 +195,7 @@ table.items th { text-align: left; font-weight: var(--weight-regular); font-size
 table.items td { padding: 9px 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
 .sec:focus { outline: none; }
 table.items th:first-child, table.items td:first-child { padding-left: var(--space-1); }
-table.items .c-type { width: 116px; }
+table.items .c-eye { width: 44px; }
 table.items .c-owner { width: 170px; }
 table.items .c-due { width: 134px; }
 table.items .c-prio { width: 104px; }
@@ -225,9 +240,16 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .type.k-risk { background: var(--status-amber-tint); color: var(--status-amber-text); }
 .type.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
 .type.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
-@media (max-width: 900px) { table.items .c-type { width: 116px; } table.items .c-due { width: 134px; } }
-/* A Type badge is one word and stays on one line: never "Dependenc / y". Above the phone layout only (there the cell is a card and the word may wrap). */
-@media (min-width: 641px) { table.items .type { white-space: nowrap; overflow-wrap: normal; } }
+@media (max-width: 900px) { table.items .c-due { width: 134px; } }
+/* The letter badge before an item's title (prototype `.type` in a work item row): one letter, so no word can break in it ("Dependency" no
+   longer sits in a column of its own). The words are its tooltip and its spoken name. Colours as the board card's word badge. */
+.kb { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: var(--size-caption); font-weight: var(--weight-regular); flex: none; background: var(--grey-100); color: var(--grey-700); }
+.kb.k-action { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.kb.k-risk { background: var(--status-amber-tint); color: var(--status-amber-text); }
+.kb.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
+.kb.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
+.tcell { display: flex; align-items: center; gap: 10px; }
+.tcell .tx { min-width: 0; }
 
 /* Work items controls and the Add button (item 64, part a). Colours from the tokens only, so dark mode follows. */
 .head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
@@ -293,9 +315,6 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
 .fline input { all: unset; box-sizing: border-box; flex: 1 1 160px; min-width: 120px; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: var(--text); }
 .fline input::placeholder { color: var(--text-muted); }
-.fkey { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
-.fkey kbd { font: inherit; padding: 0 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--grey-50); }
-.fline.on .fkey { display: none; }
 .fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 2px 0 10px; min-height: 26px; border-radius: var(--radius-pill); background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: var(--size-small); }
 .fchip.word { background: var(--grey-100); color: var(--text); }
 .fchip button { all: unset; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
@@ -321,7 +340,6 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 /* Work items on a phone (item 130, point 5): compact controls, and each row is a small card that shows Status, Due and Priority under the
    item, so nothing scrolls sideways. 640 px and below only; the 900 and 1400 px table is unchanged. */
 @media (max-width: 640px) {
-  .fkey { display: none; }
   .top { gap: 6px; padding: 0 6px; }
   .top .logo-icon { margin-right: var(--space-1); }
   .top .divider { display: none; }
@@ -339,19 +357,21 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
   table.items thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   table.items tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); gap: 6px var(--space-3); padding: 10px var(--space-1); border-top: 1px solid var(--grey-100); }
   table.items td, table.items td:first-child { display: block; min-width: 0; width: auto; padding: 0; border-top: 0; }
-  table.items .c-type { grid-column: 1 / 2; grid-row: 1; }
-  table.items .c-owner { grid-column: 2 / 4; grid-row: 1; }
-  table.items .c-item { grid-column: 1 / 4; grid-row: 2; }
+  table.items .c-item { grid-column: 1 / 4; grid-row: 1; }
+  table.items .c-owner { grid-column: 1 / -1; grid-row: 2; }
+  /* The eye has a grid cell of its own beside the item (a fourth column), so it never lies over the item's box. */
+  table.items tr.has-eye { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr) 28px; }
+  table.items tr.has-eye td.c-eye { grid-column: 4; grid-row: 1; justify-self: end; align-self: start; width: 28px; padding: 0; }
+  table.items tr.colh { display: none; }
   table.items .c-status { grid-column: 1; grid-row: 3; }
   table.items .c-due { grid-column: 2; grid-row: 3; }
   table.items .c-prio { grid-column: 3; grid-row: 3; }
-  table.items td.c-type, table.items td.c-item, table.items td.c-owner, table.items td.c-due, table.items td.c-prio, table.items td.c-status { width: auto; overflow-wrap: anywhere; }
+  table.items td.c-item, table.items td.c-owner, table.items td.c-due, table.items td.c-prio, table.items td.c-status { width: auto; overflow-wrap: anywhere; }
   table.items td.c-status .pill { white-space: normal; max-width: 100%; }
   table.items td .cell-pick[data-cell], table.items td .cell-pick[data-cell] .cell-val { white-space: normal; min-width: 0; max-width: 100%; flex: 0 1 auto; overflow-wrap: anywhere; }   /* issue 442: the pickers now show in View too: in a card they wrap by word and never leave it, even in a very wide font */
-  table.items tr.grp { display: block; padding: var(--space-2) var(--space-1); }
+  table.items tr.grp { display: block; padding: 0; }
   table.items tr.grp th { display: block; min-width: 0; width: auto; padding: 0; text-align: left; overflow-wrap: anywhere; }
-  table.items td.c-type::before, table.items td.c-owner::before, table.items td.c-status::before, table.items td.c-due::before, table.items td.c-prio::before { display: block; font-size: var(--size-small); color: var(--text-muted); }
-  table.items td.c-type::before { content: "Type"; }
+  table.items td.c-owner::before, table.items td.c-status::before, table.items td.c-due::before, table.items td.c-prio::before { display: block; font-size: var(--size-small); color: var(--text-muted); }
   table.items td.c-owner::before { content: "Owner"; }
   table.items td.c-status::before { content: "Status"; }
   table.items td.c-due::before { content: "Due"; }
@@ -389,12 +409,21 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 
 /* The Dashboard's sections (#65). A grid of two columns: a section takes the whole row, or shares it with the next one when it is
    set beside it. One column at 900 px and below. min-width: 0 keeps a long title from pushing the page sideways. */
-.secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4) var(--space-5); margin-top: var(--space-4); }
-.sec { position: relative; min-width: 0; padding: var(--space-3) 0 var(--space-1); border-top: 1px solid var(--grey-200); }
+/* The section look (A-D3): by default each section is its own card, with a small coloured square before its heading, and a slim gap
+   between the cards. The side gap stays 24 px so a right-hand section's control (Edit) has room beside the left card. The Settings ›
+   Personal style (html[data-secstyle], at the end of this file) changes the gaps (Roomy), puts the heading on a grey band (Grey
+   headers) or takes the cards away for one card round every section (One card). Shared: the published page follows the same rules. */
+.secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3) var(--space-5); margin-top: 16px; }
+.sec { --sec-px: 20px; position: relative; min-width: 0; padding: 14px var(--sec-px) 10px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+/* In these styles the sections are cards on the page, so the report's own frame steps back (its side room is kept for Edit's control). */
+html:not([data-secstyle="card"]) .frame.report { padding: var(--space-1) 28px 0; background: transparent; border: 0; box-shadow: none; }
+@media (max-width: 900px) { html:not([data-secstyle="card"]) .frame.report { padding: 4px 0 0; } }      /* Edit's control sits inside the card from here down */
 .slot-full { grid-column: 1 / -1; }
 .slot-left { grid-column: 1; }
 .slot-right { grid-column: 2; }
 .sec-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+/* The coloured square: --brand-blue is at least 3:1 against the card, and against the grey band, in light and in dark. */
+.sec-head::before { content: ""; flex: none; width: 10px; height: 10px; margin-right: 2px; background: var(--brand-blue); }
 .sec-h { flex: 1; min-width: 0; margin: 0; font-size: var(--size-h2); line-height: 1.3; font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
 .quiet { margin: 6px 0 var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
 /* A text section's body in a published file (#74): the editor's own words, read-only. Nothing in it may push the page sideways. */
@@ -423,17 +452,29 @@ table.needs .n-over { margin-left: 2px; }
 /* 'Progress tracker' (item 189): the overall bar, then each group of lines. Only tokens; "behind plan" is never colour alone (▼ and words). */
 .sec-tracker { margin: 8px 0 8px; min-width: 0; }
 .tr-overall { margin: 0 0 16px; }
-.tr-figs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 28px; }
-.tr-fig { display: flex; flex-direction: column; }
+.tr-tiles { display: flex; flex-wrap: wrap; gap: 12px; }
+.tr-tile { flex: 1 1 150px; display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 12px 16px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }
+.tr-tile-health { flex: 2 1 260px; }
 .tr-k { font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
 .tr-v { font-family: var(--font-head); font-size: 34px; line-height: 1.1; color: var(--heading); }
-.tr-health { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding-bottom: 4px; }
+.tr-d { font-size: var(--size-small); color: var(--text-muted); }
+.tr-hrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 4px; min-width: 0; }
+.tr-reason { color: var(--text); font-size: var(--size-small); min-width: 0; overflow-wrap: anywhere; }
 .tr-note { color: var(--text); font-size: var(--size-small); }
-.tr-bar { position: relative; height: 14px; margin: 10px 0 4px; border-radius: 999px; background: var(--grey-200); box-shadow: inset 0 0 0 1px var(--grey-500); overflow: visible; }
-.tr-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--brand-blue); min-width: 0; }
-.tr-mark { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--heading); box-shadow: 0 0 0 1px var(--surface); }
-.tr-behindline { margin: 4px 0 0; font-size: var(--size-small); color: var(--status-red-text); }
-.tr-behind { margin-left: 6px; font-size: var(--size-caption); color: var(--status-red-text); white-space: nowrap; }
+.tr-barw { margin: 36px 0 0; }
+.tr-bar { position: relative; height: 16px; border-radius: 999px; background: var(--grey-200); box-shadow: inset 0 0 0 1px var(--grey-500); overflow: visible; }
+.tr-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: linear-gradient(90deg, var(--data-1), var(--data-2)); min-width: 0; }
+.tr-mark { position: absolute; top: -6px; bottom: -6px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--heading); box-shadow: 0 0 0 1px var(--surface); }
+.tr-mark-label { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 4px; font-size: var(--size-caption); font-weight: var(--weight-medium); white-space: nowrap; color: var(--heading); }
+.tr-mark-label.tr-edge-start { left: 0; transform: none; }
+.tr-mark-label.tr-edge-end { left: auto; right: 0; transform: none; }
+.tr-scale { display: flex; justify-content: space-between; margin-top: 6px; font-size: var(--size-caption); color: var(--text-muted); }
+.tr-behindline { color: var(--status-red-text); }
+.tr-behind { margin-left: 6px; padding: 0 7px; border-radius: 999px; background: var(--status-red-tint); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--status-red-text); white-space: nowrap; }
+.tr-ach { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; max-width: 100%; }
+.tr-ach b { font-weight: var(--weight-medium); min-width: 34px; text-align: right; }
+.tr-pbar { flex: 0 0 48px; height: 8px; border-radius: 999px; background: var(--grey-200); overflow: hidden; }
+.tr-pbar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--data-1), var(--data-2)); }
 .pill.v { background: var(--grey-100); color: var(--text); }
 .pill.v::before { background: var(--data-1); }
 table.tracker { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--size-small); margin: 0 0 18px; }
@@ -441,11 +482,12 @@ table.tracker caption.tr-cap, .tr-half .tr-cap { text-align: left; font-family: 
 table.tracker th { text-align: left; font-weight: 400; font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: 8px 8px; border-top: 1px solid var(--grey-200); }
 table.tracker td { padding: 8px 8px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
 table.tracker th:first-child, table.tracker td:first-child { padding-left: 4px; }
-/* Description takes what the fixed columns leave: 15% at the least (Edit with all three counts), 42% in View without them. */
+/* Description takes what the fixed columns leave: 11% at the least (Edit with all three counts), 38% in View without them. */
 table.tracker .t-no { width: 5%; }
 table.tracker .t-date { width: 9%; }
 table.tracker .t-status { width: 11%; }
 table.tracker .t-n { width: 8%; text-align: right; }
+table.tracker .t-ach { width: 12%; }
 table.tracker .t-count { width: 5%; }
 table.tracker tr.tr-total th, table.tracker tr.tr-total td { border-top: 1px solid var(--grey-300); color: var(--heading); font-weight: var(--weight-medium); text-transform: none; letter-spacing: 0; font-size: var(--size-small); }
 table.tracker tr.tr-none td { text-align: left; }
@@ -457,14 +499,16 @@ table.tracker tr.tr-none td { text-align: left; }
 .tr-weights { margin: 4px 0 0; }
 @media (max-width: 900px) {
   table.tracker .t-n { width: 11%; }
+  table.tracker .t-ach { width: 20%; }
+  .tr-pbar { flex-basis: 36px; }
   table.tracker .t-status { width: 15%; }
   table.tracker .t-no { width: 6%; }
 }
-@media print { .tr-bar, .tr-fill, .tr-mark { print-color-adjust: exact; -webkit-print-color-adjust: exact; } .tr-v { font-size: 26px; } }
+@media print { .tr-bar, .tr-fill, .tr-mark, .tr-pbar, .tr-pbar i, .tr-behind, .tr-tile { print-color-adjust: exact; -webkit-print-color-adjust: exact; } .tr-v { font-size: 26px; } }
 
 /* A hidden section's words are dimmed, not the section: its control keeps its own rest strength (issue 101). */
-.sec.is-hidden { border-top-style: dashed; }
-.sec.is-hidden > :not(.sec-ctl) { opacity: .65; }
+.sec.is-hidden { border-style: dashed; }
+.sec.is-hidden > :not(.sec-ctl):not(.sec-head), .sec.is-hidden .sec-h { opacity: .75; }      /* the title and body dim; the square and the tag keep their strength */
 .tag.hid { flex: none; }
 .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-cyan); }
 .secs.drop-end { box-shadow: 0 3px 0 var(--brand-cyan); }
@@ -494,14 +538,14 @@ table.tracker tr.tr-none td { text-align: left; }
    it never moves or narrows it. Faint at rest; clear when the section is hovered or has focus, and while its menu is open; always
    clear on a touch screen. The right half of a pair has the 24 px gap between the columns to itself, so it covers no content. */
 .sec-ctl { position: absolute; top: 6px; left: -26px; z-index: 2; display: flex; flex-direction: column; align-items: center; width: 24px; opacity: var(--sh-rest, .3);      /* --sh-rest: how clear at rest, from brand/tokens.css (.3 light, .75 dark) */ transition: opacity var(--dur-instant) var(--ease-out); }
-.sec.slot-right > .sec-ctl { left: -24px; }
+.sec.slot-right > .sec-ctl { left: -25px; }      /* the card's 1 px border is outside the padding box this is measured from */
 .sec:hover > .sec-ctl, .sec:focus-within > .sec-ctl, .sec-ctl.open, .sec-ctl:hover { opacity: 1; }
 /* an open menu is above the next section's control */
 .sec-ctl.open { z-index: 20; }
 @media (hover: none) { .sec-ctl { opacity: 1; } }
 /* At 900 px and below the frame's side padding is only 16 px, so the control would hang outside the card (issue 139). In Edit the section keeps
    room for it inside its own padding (32 px: the 24 px control and a 4 px gap each side); the box itself, its left edge and width, do not change. */
-@media (max-width: 900px) { #report[data-mode="edit"] .sec { padding-left: var(--space-6); } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; --sh-rest: var(--sh-rest-narrow, .85); } }      /* in the padding it is clearer at rest (issue 130, point 2): .85 in light, .75 in dark; --sh-rest-narrow is in brand/tokens.css */
+@media (max-width: 900px) { #report[data-mode="edit"] .sec { --sec-px: 32px; padding-left: 32px; } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; --sh-rest: var(--sh-rest-narrow, .85); } }      /* in the padding it is clearer at rest (issue 130, point 2): .85 in light, .75 in dark; --sh-rest-narrow is in brand/tokens.css */
 @media (prefers-reduced-motion: reduce) { .sec-ctl { transition: none; } }      /* after the rule above, so it wins */
 .sec-title { display: inline-block; min-width: 4ch; max-width: 100%; padding: 0 var(--space-1); margin: 0 -4px 0 0; border-radius: var(--radius-sm); font: inherit; color: inherit; background: transparent; border: 1px solid transparent; overflow-wrap: anywhere; cursor: text; }
 .sec-title:hover { border-color: var(--grey-300); }
@@ -591,7 +635,7 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 .selbar .sb-x[data-tip]:hover::after, .selbar .sb-x[data-tip]:focus-visible::after { right: 0; }
 .sel-note { margin: var(--space-1) 0 0; font-size: var(--size-caption); }
 @media (prefers-reduced-motion: no-preference) { table.items tbody tr { transition: background-color var(--dur-instant) var(--ease-out); } }
-.cpop { position: fixed; z-index: 35; min-width: 180px; max-width: min(320px, calc(100vw - 16px)); padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: var(--size-body); cursor: default; }
+.cpop { position: fixed; z-index: 41;   /* one above .toasts (40): a cell picker opened low on the page stays clickable while a toast shows; still under the Ask panel (45) and scrims (50) */  min-width: 180px; max-width: min(320px, calc(100vw - 16px)); padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: var(--size-body); cursor: default; }
 .cpop.cmenu { display: block; }
 .cpop.cmenu > div { display: flex; flex-direction: column; }
 .cpop [role="menuitemradio"] { display: flex; align-items: center; }
@@ -600,6 +644,9 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 .cpop .mi-note { flex-basis: 100%; order: 2; font-size: var(--size-caption); color: var(--text-muted); }
 .cpop [role="menuitemradio"][aria-checked="true"]::after { content: "✓"; margin-left: auto; padding-left: 14px; color: var(--status-blue-text); }
 .cpop .menu-item:focus-visible, .cpop button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+.cpop.rpick [role="group"] { display: flex; flex-direction: column; }   /* item 210: a risk's Priority picker, Impact then Likelihood */
+.cpop .rp-head { padding: 6px 12px 2px; font-size: var(--size-small); color: var(--text-muted); }
+.cpop.rpick [role="group"] + [role="group"] { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 2px; }
 .cowner { width: 260px; padding: 6px; }
 .cp-l { display: block; }
 .cp-in { box-sizing: border-box; width: 100%; min-height: 32px; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
@@ -642,7 +689,17 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 .seg.icons button:focus-visible, .bib:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .bib .i, .seg.icons .i { width: 18px; height: 18px; }
 [data-tip]:hover::after, [data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--brand-navy); color: var(--white); font-size: var(--size-small); line-height: 1.4; white-space: nowrap; pointer-events: none; }
-table.items.grouped tr.grp th { padding: 10px var(--space-1) 6px; border-top: 1px solid var(--grey-200); text-transform: none; letter-spacing: 0; font-size: var(--size-small); color: var(--heading); background: var(--surface); }
+/* Each group is its own bordered card (prototype `.group`): a grey heading bar, then the column names and the rows. */
+.wgroup { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); margin-bottom: var(--space-3); overflow: hidden; }
+.wgroup table.items { margin-top: 0; }
+.wgroup table.items th:first-child, .wgroup table.items td:first-child { padding-left: var(--space-4); }
+table.items.grouped tr.grp th { padding: 10px var(--space-4); border-top: 0; text-transform: none; letter-spacing: 0; font-size: var(--size-small); color: var(--heading); background: var(--grey-50); }
+table.items tbody tr.grp, table.items tbody tr.colh { cursor: default; }
+table.items td.c-eye, table.items th.c-eye { padding-left: 0; padding-right: var(--space-2); text-align: center; vertical-align: middle; }
+table.items .weye { width: 28px; height: 28px; }
+table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--status-blue-text); }
+table.items .weye.ro { display: inline-grid; place-items: center; color: var(--grey-500); cursor: default; }
+table.items .weye.ro .i { width: 16px; height: 16px; }
 .grp-b { all: unset; box-sizing: border-box; min-height: 24px; display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; font-weight: var(--weight-medium); }
 .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .grp-b .i { width: 14px; height: 14px; transition: transform var(--dur-instant) var(--ease-out); }
@@ -669,6 +726,16 @@ table.items.grouped tr.grp th { padding: 10px var(--space-1) 6px; border-top: 1p
 .col-b { all: unset; box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); cursor: pointer; border-top: 3px solid transparent; border-radius: var(--radius-lg) var(--radius-lg) 0 0; color: var(--heading); }
 .col .nd { margin: 0; padding: var(--space-1) var(--space-3) 0; font-size: var(--size-small); }
 .col-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+/* Moving and resizing a column (B-16): a grip on the heading's right edge, and a bar where a dragged heading will land. */
+.col-rz { position: absolute; top: 0; bottom: 0; right: -7px; width: 14px; z-index: 5; cursor: col-resize; touch-action: none; }
+.col-rz::after { content: ""; position: absolute; top: 8px; bottom: 8px; left: 6px; width: 2px; border-radius: 1px; background: transparent; }
+.col-rz:hover::after, .col-rz:focus-visible::after, body.col-resizing .col-rz::after { background: var(--brand-blue); }
+.col-rz:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: var(--radius-sm); }
+body.col-resizing { cursor: col-resize; user-select: none; -webkit-user-select: none; }
+.col.shut .col-rz { display: none; }
+.col.moving { opacity: .6; }
+.col.drop-before { box-shadow: -6px 0 0 -3px var(--brand-blue); }
+.col-b { touch-action: none; }
 .col-b .dot { display: none; width: 9px; height: 9px; border-radius: 50%; background: var(--status-grey); flex: none; }
 .col-b .cn { margin-left: auto; color: var(--text-muted); font-weight: var(--weight-light); }
 .col.tone-blue .col-b { border-top-color: var(--status-blue); color: var(--status-blue-text); } .col.tone-blue .dot { background: var(--status-blue); }
@@ -982,7 +1049,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .cal-list h4 { margin: 0 0 var(--space-2); color: var(--heading); font-weight: var(--weight-medium); }
 .cal-list ul { list-style: none; margin: 0; padding: 0; } .cal-list li { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; padding: var(--space-1) 0; border-bottom: 1px solid var(--grey-200); }
 .cal-ld { color: var(--text-muted); min-width: 6.5em; } .cal-ln { font-weight: var(--weight-medium); }
-@media (max-width: 900px) { .cal-d { min-height: 64px; } .cal-q { grid-template-columns: 1fr; } .msl-cells { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 900px) { .cal-d { min-height: 64px; } .cal-q { grid-template-columns: 1fr; } }
+/* C-M11 (row 24): a list row keeps its columns (date, name, state, progress) down to 801 px, as the prototype's does (app.css:849);
+   only at 800 px and below do the cells stack in two columns (app.css:875). */
+@media (max-width: 800px) { .msl-cells { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 700px) { .cal-list { display: block; } .cal-ms span { display: none; } .cal-ms { justify-content: center; } }   /* the cells keep their marks, the names go, the period is listed under the month */
 .mlg { position: relative; display: flex; justify-content: flex-end; margin: 6px 0 2px; }
 .mlg-b { all: unset; display: inline-flex; align-items: center; box-sizing: border-box; min-height: 28px; min-width: 28px; gap: var(--space-1); font-size: var(--size-caption); color: var(--text-muted); cursor: help; padding: 2px var(--space-1); border-radius: var(--radius-sm); }
@@ -1038,9 +1108,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pub-msg .info, .pub-msg .note { color: var(--text-muted); }
 /* Publish (issue 130, point 4): a spinner while it works, then a tick with the success line. With reduced motion the ring stays still. */
 .pub-msg .working { display: flex; align-items: center; gap: var(--space-2); color: var(--text-muted); }
-.spin { flex: none; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--brand-blue); border-radius: 50%; }
-/* Ticket 380: the ring turns four times (about 3.6 s) and then rests as the still ring; it never loops. A loop needs the owner's written word (ticket 131); the words "Publishing…" say the work is going on. */
-@media (prefers-reduced-motion: no-preference) { .spin { animation: pub-spin 900ms linear 4 forwards; } }
+.spin { flex: none; width: var(--space-4); height: var(--space-4); border: 2px solid var(--border); border-top-color: var(--brand-blue); border-radius: 50%; }
+/* Item 614 (after ticket 380): the ring turns, calmly, for exactly as long as "Publishing…" shows. It is drawn only while the work is
+   open (Publish.jsx renders it under `working`), so it goes the moment the work ends and nothing turns after the publish. Ticket 380's
+   four turns stopped it at about 3.6 s while the work went on, which read as "finished". The one approved loop (test_motion). */
+@media (prefers-reduced-motion: no-preference) { .spin { animation: pub-spin calc(var(--dur-enter) * 3) linear infinite; } }      /* calm: one even turn in 2.1 s (was 0.9 s) */
 @keyframes pub-spin { to { transform: rotate(360deg); } }
 .pub-msg .success { display: flex; align-items: center; gap: var(--space-2); }
 .pub-tick { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--status-green-text); color: var(--surface); }
@@ -1058,9 +1130,15 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn:disabled { cursor: default; opacity: .6; }
 .setting { margin-top: var(--space-4); }
 .set-head p { margin: 0; }
-.set-nav { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* The chips' bar (item 440, S2): it stays under the top bar as you scroll, on the page's own ground (carried out to both edges), and the
+   chip of the card in view is marked. Its height is kept clear when a card or a box is scrolled into view (--set-bar, Views.jsx). */
+.set-bar { position: sticky; top: var(--topbar); z-index: 15; margin-top: var(--space-3); padding: var(--space-2) 0; background: var(--grey-50); box-shadow: 0 0 0 100vmax var(--grey-50); clip-path: inset(0 -100vmax); }
+:root:has(.set-bar) { scroll-padding-top: var(--set-bar, 0px); }
+.set-bar + .setting { margin-top: var(--space-2); }
+.set-nav { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .set-chip { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 28px; padding: 3px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out); }      /* no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
 .set-chip:hover { border-color: var(--text-muted); background: var(--brand-blue-tint); }
+.set-chip[aria-current], .set-chip[aria-current]:hover { border-color: var(--brand-blue); background: var(--brand-blue); color: var(--text-on-brand); }      /* the same weight, so marking a chip never moves the row */
 .set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
 .setting h2 { margin: 0 0 6px; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
@@ -1077,7 +1155,21 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pubs td { padding: 9px 10px; border-top: 1px solid var(--grey-100); vertical-align: middle; overflow-wrap: anywhere; }
 .pubs th:first-child, .pubs td:first-child { padding-left: 4px; width: 48px; }
 .pubs td.acts { text-align: right; white-space: nowrap; }
+.pubs td.acts > * + * { margin-left: var(--space-2); }
+.pubs tr.arch-row td { color: var(--text-muted); }
+#pubs .pp-tools { margin: var(--space-2) 0 0; }
 #pubs-note { margin: 8px 0 0; font-size: var(--size-small); }
+/* item 349: Settings > Published reports > Dashboard as at a day, and the banner and dashed tinted frame of the rebuilt Dashboard
+   (the design note of item 125, its past view: the prototype's .pv-banner and .pv-frame.asat). */
+.asat-pick { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--grey-200); }
+.asat-pick h3 { margin: 0 0 4px; font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--heading); }
+.asat-pick p.muted { margin: 0 0 8px; }
+.asat-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.asat-row input { width: 9em; max-width: 100%; box-sizing: border-box; min-height: 32px; padding: 4px 8px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.pv-banner { display: flex; gap: 10px; align-items: flex-start; background: var(--status-amber-tint); color: var(--text); border: 1px solid var(--status-amber); border-radius: var(--radius-lg); padding: 10px 14px; margin: 0 0 12px; position: sticky; top: calc(var(--topbar) + 8px); z-index: 5; overflow-wrap: anywhere; }
+.pv-banner p { margin: 0; font-size: var(--size-small); } .pv-banner b { font-weight: var(--weight-medium); } .pv-banner small { color: var(--text-muted); font-size: var(--size-caption); }
+.pv-banner .link { display: inline-flex; align-items: center; min-height: 24px; box-sizing: border-box; }
+.report.asat-frame, html:not([data-secstyle="card"]) .frame.report.asat-frame { border: 3px dashed var(--status-amber); background: var(--status-amber-tint); }      /* the second selector outranks the flat style's border: 0 on .frame.report */
 @media (max-width: 900px) { .pubnote { display: none; } .dlg-form { padding: var(--space-4); } }
 /* #43: on a phone the Publish button must not push the top bar wider than the window; only top-bar rules, after the phone card rules. */
 @media (max-width: 640px) { .pubbar { gap: var(--space-1); } .pubbtn { padding: 0 var(--space-2); font-size: var(--size-small); } .top:has(.pubbar) .logo .wm { display: none; } }   /* the Edit top bar only: the logo keeps its icon (its aria-label names it) */
@@ -1097,13 +1189,13 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucbar:hover, .ucrow.open > .ucbar { background: var(--grey-100); }
 .ucbar:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .ucref { justify-self: start; padding: 2px var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-caption); font-weight: var(--weight-medium); white-space: nowrap; }
-.ucstrip .ucexport { margin-left: auto; }
 .uctitle { font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
 .uchead { color: var(--text-muted); overflow-wrap: anywhere; }
 .ucword { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
-.ucsteps { color: var(--text-muted); font-size: var(--size-caption); }
+.ucsteps { color: var(--text-muted); font-size: var(--size-small); }
 .ucdetail { padding: var(--space-1) var(--space-1) var(--space-3) 72px; }
-.ucdetail h3 { margin: var(--space-2) 0 2px; font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
+.ucdetail h3 { margin: var(--space-2) 0 2px; font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
+.ucdcols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
 .ucdetail p { margin: 0 0 6px; }
 .ucdetail ul.plain li { border-top: 0; padding: 2px 0; }
 .ucdetail ul.ucstepl li { display: flex; align-items: center; gap: 8px; }
@@ -1147,14 +1239,60 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .fld input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .fld input[aria-invalid="true"] { border-color: var(--status-red-text); }
 .fld small { color: var(--text-muted); font-size: var(--size-caption); }
+.fld.copy-fld { max-width: 640px; }
 .fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-caption); }
 .fld-bad:empty { display: none; }
-.stylepick small { display: block; color: var(--text-muted); font-size: var(--size-caption); }
-html[data-secstyle="roomy"] .secs { gap: 36px var(--space-6); margin-top: 28px; }
-html[data-secstyle="roomy"] .sec { padding: 20px 0 var(--space-2); }
-html[data-secstyle="grey"] .sec { border-top: 0; padding-top: 0; }
-html[data-secstyle="grey"] .sec-head { padding: 6px 10px; border-radius: var(--radius-sm); background: var(--grey-100); }
-html[data-secstyle="card"] .secs { padding: var(--space-1) 20px var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); }
+/* Settings › People (item 454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
+.pp-h { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; }
+.pp-h h2 { margin: 0; flex: 1; }
+.pp-intro { font-size: var(--size-small); margin: 0 0 12px; }
+.pp-paste { margin: 0 0 14px; }
+.pp-paste[hidden] { display: none; }
+.pp-paste label { display: block; font-size: var(--size-small); color: var(--text-muted); margin-bottom: 6px; }
+.pp-paste textarea { width: 100%; box-sizing: border-box; min-height: 70px; padding: 6px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font-family: ui-monospace, Menlo, monospace; font-size: var(--size-caption); line-height: 1.5; resize: vertical; }
+.pp-paste textarea:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.pp-acts { display: flex; align-items: center; gap: 12px; margin-top: 8px; font-size: var(--size-small); }
+.pp-done { margin: 0 0 10px; font-size: var(--size-body); }
+.pp-done[hidden] { display: none; }
+.pp-done.error { color: var(--status-red-text); }
+.pp-plan { margin: 8px 0 0; font-size: var(--size-body); }
+.pp-bad { margin: 8px 0 0; padding-left: 18px; color: var(--status-red-text); font-size: var(--size-small); }
+.pp-sum { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 10px; font-size: var(--size-body); }
+.pp-sum .link { display: inline-flex; align-items: center; min-height: 24px; }
+table.pp-table, table.pp-prev { width: 100%; border-collapse: collapse; font-size: var(--size-small); margin-top: 8px; }
+table.pp-table th, table.pp-prev th { text-align: left; font-weight: 400; font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: 8px 10px; border-bottom: 1px solid var(--grey-200); }
+table.pp-table td, table.pp-prev td { padding: 10px; border-bottom: 1px solid var(--grey-100); vertical-align: middle; overflow-wrap: anywhere; }
+table.pp-table td.nm b { font-weight: var(--weight-medium); }
+table.pp-prev { font-size: var(--size-caption); }
+table.pp-prev td { padding: 6px 10px; }
+table.pp-prev tr.bad td { color: var(--status-red-text); }
+.stylepick small { display: block; color: var(--text-muted); font-size: var(--size-small); }
+/* The section style (#45). Slim gaps is the card look above. Each style changes one thing, so a square or a border is never drawn twice. */
+html[data-secstyle="roomy"] .secs { gap: 28px var(--space-6); margin-top: 28px; }
+html[data-secstyle="roomy"] .sec { padding: 20px var(--sec-px) 14px; }
+html[data-secstyle="grey"] .sec { padding-top: 0; }
+html[data-secstyle="grey"] .sec-head { margin: 0 calc(var(--sec-px) * -1) 4px; padding: 10px var(--sec-px); border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0; background: var(--grey-100); }
+/* One card: the report's own frame is the only card (its one border); the sections inside it are flat, divided by thin lines (the square
+   stays). The frame's side padding is Edit's gutter for the grip and +, so neither sits on a border. */
+html[data-secstyle="card"] .secs { padding: var(--space-1) 0 var(--space-3); border: 0; border-radius: 0; background: transparent; }
+html[data-secstyle="card"] .sec { --sec-px: 0px; padding: var(--space-3) 0 var(--space-1); background: transparent; border: 0; border-top: 1px solid var(--grey-200); border-radius: 0; box-shadow: none; }
+html[data-secstyle="card"] .sec.is-hidden { border-top-style: dashed; }
+html[data-secstyle="card"] .secs > .sec:first-child, html[data-secstyle="card"] .secs > .sec.slot-left:first-child + .sec.slot-right { border-top: 0; }      /* the first row has no line, for either half of a pair */
+/* A pair's right half reaches back across the 24 px column gap (its own padding gives the room back), so the line above the pair is one
+   unbroken line, and the right half's control sits in that gap, inside its own box, clear of every border. */
+@media (min-width: 901px) {
+  html[data-secstyle="card"] .sec.slot-right { margin-left: -24px; padding-left: 24px; }
+  html[data-secstyle="card"] .sec.slot-right > .sec-ctl { left: 0; }
+  html[data-secstyle="card"] .sec.drop-right::after { width: calc((100% - 24px) / 2); }
+}
+/* At 900 px and below the frame has 16 px side padding: in Edit it widens to 36 px for the control (24 px and a 6 px gap each side), so the
+   sections keep their full width and the control still sits in the frame's padding, not on its border. */
+@media (max-width: 900px) {
+  html[data-secstyle="card"] #report[data-mode="edit"] { padding-left: 36px; }
+  html[data-secstyle="card"] #report[data-mode="edit"] .sec { --sec-px: 0px; padding-left: 0; }
+  html[data-secstyle="card"] #report[data-mode="edit"] .sec > .sec-ctl, html[data-secstyle="card"] #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: -30px; }
+}
+html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-cyan); }      /* the flat sections keep the drag drop-line */
 
 /* The rich editor (#66). Colours from the tokens only, so dark mode follows. The editor adds no <style> of its own (injectCSS is
    false), so the rules ProseMirror needs are here. */
@@ -1558,6 +1696,24 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
 .ucp-body h2 { margin: 14px 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .ucp-headline { margin: 0 0 8px; }
+/* Printing: a published file printed from the browser (Save as PDF) shows every tab one after another, with no controls, in the light colours, and the page number in the foot. stores/print.js sets html.print-all and draws the stack while the browser prints; the screen never changes. */
+@page { size: A4; margin: 14mm 12mm 18mm; @bottom-right { content: "Page " counter(page); font-family: Arial, sans-serif; font-size: var(--size-caption); } }   /* the bottom-left foot, "Publication N · DD-MM-YYYY", is added by stores/print.js while the browser prints */
+@media print {
+  html.print-all, html.print-all body { background: var(--white); color: var(--text); color-scheme: light; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html.print-all .top, html.print-all .pubfoot, html.print-all .toc, html.print-all .peek, html.print-all .toast, html.print-all .skip, html.print-all .wbar, html.print-all .fbar, html.print-all .factive, html.print-all .vctl, html.print-all .msv-sw, html.print-all .mv-bar, html.print-all .cal-bar, html.print-all .sec-ctl, html.print-all dialog, html.print-all input, html.print-all select, html.print-all textarea { display: none; }
+  html.print-all button, html.print-all [role=button] { border: 0; background: none; box-shadow: none; padding: 0; min-height: 0; cursor: default; color: inherit; font: inherit; }
+  html.print-all main { max-width: none; margin: 0; padding: 0; }
+  html.print-all .frame { box-shadow: none; border: 0; padding: 0; background: var(--white); }
+  html.print-all .print-head { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-caption); }
+  html.print-all .print-tab + .print-tab { break-before: page; }
+  html.print-all .print-tab-title { margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-body); font-weight: 400; color: var(--text-muted); }
+  html.print-all .sec, html.print-all article, html.print-all .tile, html.print-all .fig, html.print-all figure, html.print-all blockquote, html.print-all tr, html.print-all li, html.print-all h1, html.print-all h2, html.print-all h3, html.print-all details { break-inside: avoid; }
+  html.print-all h1, html.print-all h2, html.print-all h3 { break-after: avoid; }
+  html.print-all thead { display: table-header-group; }
+  html.print-all a { color: inherit; text-decoration: none; }
+}
+
+.pk-rating { color: var(--text-muted); }   /* a closed risk keeps its rating word beside its Closed pill */
 /* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
 .pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .pk-val .i { width: 16px; height: 16px; }
@@ -1582,3 +1738,19 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.wl-id { display: inline-flex; align-items: center; gap: 4px; }
+.idl { all: unset; box-sizing: border-box; padding: 2px 4px; margin: -2px -4px; border-radius: var(--radius-sm); color: var(--status-blue-text); cursor: pointer; }
+.idl:hover { text-decoration: underline; text-underline-offset: 2px; }
+.idl:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.wl-row.wl-open { cursor: pointer; }
+.wl-row.wl-open:hover { background: var(--grey-50); }
+.wl-add { padding: 9px 0; border-top: 1px solid var(--grey-100); }
+.wl-add .add-in { width: 100%; min-height: 32px; padding: 4px 10px; border: 1px dashed var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.wl-add .add-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-style: solid; }
+.wl-title .cell-ce { display: inline-block; min-width: 4ch; max-width: 100%; border-radius: var(--radius-sm); box-shadow: inset 0 -1px 0 var(--grey-300); }
+.wl-title .cell-ce:hover { background: var(--grey-100); }
+.wl-title .cell-ce:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.item-rows-edit .wl-meta .cell-val { display: flex; align-items: center; gap: 2px var(--space-2); }
+.item-rows-edit .note { color: var(--text-muted); }
+.item-rows-edit .add-from { display: inline-block; margin-top: 6px; }
+.item-rows-edit .picker { margin-top: 10px; }

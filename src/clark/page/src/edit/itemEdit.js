@@ -2,8 +2,8 @@
 // today). Each cell (owner, due, priority, status) has its own picker in ./cells/, and the peek (#42) can use the same pickers
 // later. A change is sent through api.js as kind actions, raid or decisions, op update (clark/changes.py, #68): only
 // the fields it accepts are named here. A RAID item's priority comes from its impact and likelihood and a decision has none, so
-// their Priority cell is not a picker.
-import { dueField, showDate, dayNumber, colourOf } from "../workItems.js";
+// a decision's Priority cell is not a picker; a risk's or issue's opens a picker for its impact and likelihood (item 210, option C).
+import { dueField, showDate, dayNumber, colourOf, pillOf } from "../workItems.js";
 
 export const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
 const STATUSES = {
@@ -12,6 +12,7 @@ const STATUSES = {
   decision: ["Pending", "Made", "Withdrawn"],
 };
 export const FIELDS = ["owner", "due", "priority", "status"];
+export const LEVELS = ["High", "Medium", "Low"];           // item 210: a risk's or issue's impact and likelihood (the store's own list)
 const DAY = 86400000;
 // A character no one can see or that breaks a line (control, format such as a zero-width space or a right-to-left override,
 // surrogate, private use, line and paragraph separators): clark/changes.py refuses a name with one (ITEM_BAD_KINDS), so the
@@ -25,13 +26,20 @@ export function tableOf(row) {
 
 /** Whether a cell of this row opens a picker. */
 export function canPick(row, field) {
-  if (field === "priority") return row.kind === "action";
+  if (field === "priority") return row.kind === "action" || RATED.includes(row.kind);
   return FIELDS.includes(field);
 }
 
-/** Why a cell that is not a picker can't be changed here, for its tooltip: a RAID item's priority comes from its impact and likelihood. */
+/** Why a cell that is not a picker can't be changed here, for its tooltip: an assumption's or dependency's priority comes from its impact and likelihood. */
 export function whyFixed(row, field) {
-  return field === "priority" && tableOf(row) === "raid" ? "Set from impact and likelihood" : "";
+  return field === "priority" && tableOf(row) === "raid" && !RATED.includes(row.kind) ? "Set from impact and likelihood" : "";
+}
+
+/** Item 210: the Priority picker of a risk or issue: its impact and likelihood, each High, Medium or Low, sent as `impact:High`. */
+export function ratingGroups(row) {
+  if (!RATED.includes(row.kind)) return [];
+  return [["impact", "Impact"], ["likelihood", "Likelihood"]].map(([f, t]) => ({ field: f, heading: t, current: row[f] || null,
+    choices: LEVELS.map((v) => ({ value: `${f}:${v}`, text: v })) }));
 }
 
 /** The statuses a row may be given. A made decision can't go back to Pending, so Pending is not offered then. */
@@ -40,24 +48,20 @@ export function statusChoices(row) {
   return row.kind === "decision" && row.status === "Made" ? all.filter((s) => s !== "Pending") : all.slice();
 }
 
-// The Status cell in Edit shows the status itself, the word its picker offers, so a pick and the cell always say the same:
-// Open and Pending blue, Delayed amber, Made green, Closed, Cancelled and Withdrawn grey. (View keeps #36's pills, where a late
-// action reads Overdue and an open risk its colour.)
-const STATUS_TONE = { Open: "b", Pending: "b", Delayed: "a", Made: "g", Closed: "n", Cancelled: "n", Withdrawn: "n" };
+// #448 (row 54): the Status cell in Edit shows the live look, as the prototype's C.look does and View's pill does: a pick redraws it
+// from the reply at once. An open risk or issue reads its colour (Red, Amber, Green), a late action Overdue, Delayed amber, Made
+// green; Closed, Cancelled and Withdrawn are grey. The picker still offers, and its toast still says, the status words.
 
-/** The Status cell's pill in Edit: {text, class}, with the item's own status as its word. */
-export function statusPill(row) {
-  const s = String(row.status == null ? "" : row.status);
-  return { text: s, class: STATUS_TONE[s] || "n" };
-}
+/** The Status cell's pill in Edit: {text, class}, the item's live look (the same as View's). `today` is YYYY-MM-DD. */
+export function statusPill(row, today) { return pillOf(row, today); }
 
 // D-12: a risk's or issue's rating is worked out from its impact and likelihood, so a colour is picked by setting those two:
 // Red is High impact with Medium likelihood (High priority), Amber Medium and Medium, Green Low and Low.
 export const RATINGS = { Red: { impact: "High", likelihood: "Medium" }, Amber: { impact: "Medium", likelihood: "Medium" }, Green: { impact: "Low", likelihood: "Low" } };
 
-/** The Rating section of an open risk's or issue's status picker: the three colours, or none for any other item (an assumption,
- * a dependency, a closed or cancelled one), as clark/changes.py refuses. */
-export function ratingChoices(row) { return RATED.includes(row.kind) && row.status === "Open" ? Object.keys(RATINGS) : []; }
+/** The Rating section of a risk's or issue's status picker: the three colours, whatever its status (#448, as the prototype), or
+ * none for any other item (an action, a decision, an assumption, a dependency), as clark/changes.py refuses. */
+export function ratingChoices(row) { return RATED.includes(row.kind) ? Object.keys(RATINGS) : []; }
 const RATED = ["risk", "issue"];
 
 /** The field a pick belongs to: the picker's Rating entries are sent as `rating:Red`, `rating:Amber` or `rating:Green`. */
@@ -116,6 +120,15 @@ export function changeFor(row, field, value, today) {
     if (iso === was) return null;
     const back = was ? `${name} of ${row.id} is back to ${showDate(was)}.` : `${name} of ${row.id} is blank again.`;
     return { changes: { [dueColumn(row)]: iso }, words: iso ? `${name} of ${row.id} changed to ${showDate(iso)}.` : `${name} of ${row.id} cleared.`, back };
+  }
+  if (field === "priority" && RATED.includes(row.kind)) {
+    // Item 210: a risk's or issue's priority follows from its impact and likelihood, so its cell changes one of those two. The update
+    // op doesn't take them, so it is sent as a bulk change of this one item (one step, one Undo; clark checks the value).
+    const m = /^(impact|likelihood):(.*)$/.exec(String(value == null ? "" : value));
+    if (!m || !LEVELS.includes(m[2])) return { error: "Impact and likelihood are each High, Medium or Low, so nothing was changed. Pick one from the list." };
+    const [, f, v] = m, what = f === "impact" ? "Impact" : "Likelihood", was = row[f] || null;
+    if (v === was) return null;
+    return { changes: { [f]: v }, words: `${what} of ${row.id} changed to ${v}.`, back: was ? `${what} of ${row.id} is back to ${was}.` : `${what} of ${row.id} is blank again.`, one: true };
   }
   if (field === "priority") {
     if (tableOf(row) === "raid") return { error: "A risk's or issue's priority is set from its impact and likelihood, so nothing was changed." };

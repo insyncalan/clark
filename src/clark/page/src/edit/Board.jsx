@@ -1,15 +1,17 @@
 // The Work items board (#68) and its full screen (#81): columns for Group by, one level of swimlanes, cards, and moving a card by
-// dragging it or by its "Move to..." menu. Spec: docs/handoff/design-68-81-board.md. Every rule (which column a card is in, what a
+// dragging it or by its "Move to..." menu. Layout, Group by and the swimlanes are chosen in the filter line's View menu (#287).
+// Spec: docs/handoff/design-68-81-board.md. Every rule (which column a card is in, what a
 // move asks the server for, why it is refused) is in ../logic/board.js; this file draws it and sends what moveFor gives, through
 // stores/changes.js. It is an Edit part (edit/index.js): the published page has no board. Cards move only in Edit; in View they
 // can be read and opened. Nothing here removes an item: a card moves, and closing is a status.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { item, openPeek } from "../stores/report.js";
 import { work, setWork, full, announce, contextFor } from "../stores/work.js";
-import { changeItem, say } from "../stores/changes.js";
-import { build, moveFor, dateMove, movedWords, boardGroup, isCollapsed, toggleCollapsed, groupLabel, LANE_GROUPS } from "../logic/board.js";
+import { changeItem, say, toast } from "../stores/changes.js";
+import { build, moveFor, dateMove, movedWords, boardGroup, isCollapsed, toggleCollapsed, groupLabel,
+  orderedColumns, moveColumn, stepColumn, widthOf, setColumnWidth, clampWidth, COL_MIN, COL_MAX, COL_DEFAULT, COL_STEP } from "../logic/board.js";
 import { createDrag } from "../logic/dragCore.js";
-import { Menu, MenuPanel } from "../components/Menu.jsx";
+import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { cursor, stopOf, cardKeys } from "../listKeys.js";
 import { GroupTick } from "../components/SelectBar.jsx";
@@ -105,21 +107,6 @@ function Confirm({ onYes, onCancel }) {
     <div class="dpick" role="dialog" aria-label="Record this decision" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onCancel(); } }}>
       <p>Record this decision as made today? A made decision can't go back to Pending. If it changes, record a new one.</p>
       <div class="dp-act"><button type="button" class="btn sm" data-yes ref={yes} onClick={onYes}>Record it</button><button type="button" class="btn sm" data-cancel onClick={onCancel}>Cancel</button></div>
-    </div>
-  );
-}
-
-// The table or board icon switch (remembered), shown only where there is a board to show (the page clark serves).
-export function LayoutSwitch() {
-  const set = (view) => { setWork({ view }); announce.value = view === "board" ? `Showing the board, grouped by ${groupLabel(boardGroup(work.value.group))}.` : "Showing the table."; };
-  const v = work.value.view;
-  return (
-    <div class="seg icons" role="group" aria-label="Layout">
-      {["table", "board"].map((k) => (
-        <button type="button" key={k} class="bib" data-layout={k} aria-pressed={v === k ? "true" : "false"} aria-label={k === "table" ? "Table" : "Board"} data-tip={k === "table" ? "Table" : "Board"} onClick={() => set(k)}>
-          <Icon name={k} />
-        </button>
-      ))}
     </div>
   );
 }
@@ -255,9 +242,78 @@ export function Board({ rows, today, type }) {
   }
   const toggleFull = () => { if (isFull) leave(false); else { full.value = true; announce.value = "Full screen on."; } };
 
+  // Moving and resizing a column (B-16): the viewer's own layout, kept with the other view choices (stores/work.js), in View and in Edit.
+  const [colDrag, setColDrag] = useState(null);       // { key, before } while a heading is dragged: the column it will go before
+  const colsOf = (ln) => orderedColumns(work.value, g, ln.columns);
+  const refocus = (key, lane) => setTimeout(() => {
+    const el = document.querySelector(`.lane[data-lane="${CSS.escape(lane)}"] .col[data-col="${CSS.escape(key)}"] .col-b`);
+    if (el) el.focus();
+  }, 0);
+  function stepCol(c, ln, dir) {
+    const r = stepColumn(work.value, g, ln.columns, c.key, dir);
+    if (!r.moved) { announce.value = `${c.label} is already the ${dir < 0 ? "first" : "last"} column.`; return; }
+    setWork(r.state);
+    announce.value = `${c.label} moved to place ${r.index} of ${r.count}.`;
+    refocus(c.key, ln.key == null ? "" : ln.key);
+  }
+  const headDown = (e, c, ln) => {
+    if (e.button !== 0) return;
+    const x0 = e.clientX, lane = ln.key == null ? "" : ln.key;
+    let on = false, before = null;
+    const target = (ev) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY), col = el && el.closest ? el.closest(".col[data-col]") : null;
+      if (!col || (col.dataset.lane || "") !== lane) return before;
+      const r = col.getBoundingClientRect(), keys = orderedColumns(work.value, g, ln.columns).map((x) => x.key), i = keys.indexOf(col.dataset.col);
+      return ev.clientX < r.left + r.width / 2 ? col.dataset.col : (keys[i + 1] === undefined ? null : keys[i + 1]);
+    };
+    const move = (ev) => {
+      if (!on && Math.abs(ev.clientX - x0) < 5) return;
+      on = true; before = target(ev); setColDrag({ key: c.key, lane, before });
+    };
+    const off = () => { document.removeEventListener("pointermove", move, true); document.removeEventListener("pointerup", done, true); document.removeEventListener("pointercancel", stop, true); };
+    const done = () => {
+      off(); setColDrag(null);
+      if (!on) return;
+      colMoved.current = performance.now();
+      const was = work.value, next = moveColumn(was, g, ln.columns, c.key, before);
+      if (next !== was) { setWork(next); announce.value = `${c.label} moved.`; }
+    };
+    const stop = () => { off(); setColDrag(null); };
+    document.addEventListener("pointermove", move, true); document.addEventListener("pointerup", done, true); document.addEventListener("pointercancel", stop, true);
+  };
+  const colMoved = useRef(-1e9);                      // the click that ends a heading drag must not collapse the column
+  const headClick = (c) => { if (performance.now() - colMoved.current < 400) return; setWork(toggleCollapsed(work.value, g, c.key)); };
+  const headKey = (e, c, ln) => {
+    if (!e.altKey || e.ctrlKey || e.metaKey || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+    e.preventDefault(); stepCol(c, ln, e.key === "ArrowLeft" ? -1 : 1);
+  };
+  const setWidth = (c, w) => { setWork(setColumnWidth(work.value, g, c.key, w)); };
+  const sayWidth = (c, w) => { announce.value = `${c.label} column ${w === COL_DEFAULT ? "back to its usual width" : `${w} pixels wide`}.`; };
+  // #449 (row 48): a double-click says "Column width reset" in a toast, as the prototype does. A width is never saved, so it has no
+  // Undo; a toast that still offers one (a move just made) is kept, and the reset is said to a screen reader instead.
+  const sayReset = (c) => {
+    if (toast.value && toast.value.undo) sayWidth(c, COL_DEFAULT);
+    else say("done", "Column width reset");
+  };
+  const sepDown = (e, c) => {
+    if (e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    const col = e.currentTarget.closest(".col"), x0 = e.clientX, w0 = col.getBoundingClientRect().width;
+    document.body.classList.add("col-resizing");
+    const move = (ev) => setWidth(c, w0 + ev.clientX - x0);
+    const off = () => { document.body.classList.remove("col-resizing"); document.removeEventListener("pointermove", move, true); document.removeEventListener("pointerup", off, true); document.removeEventListener("pointercancel", off, true); };
+    document.addEventListener("pointermove", move, true); document.addEventListener("pointerup", off, true); document.addEventListener("pointercancel", off, true);
+  };
+  const sepKey = (e, c) => {
+    const now = widthOf(work.value, g, c.key) || COL_DEFAULT;
+    let w = null;
+    if (e.key === "ArrowRight") w = now + COL_STEP; else if (e.key === "ArrowLeft") w = now - COL_STEP;
+    else if (e.key === "Home") w = COL_MIN; else if (e.key === "End") w = COL_MAX; else if (e.key === "Enter") w = COL_DEFAULT;
+    if (w === null) return;
+    e.preventDefault(); w = clampWidth(w); setWidth(c, w); sayWidth(c, w);
+  };
+
   const toned = TONED.includes(g);
-  const laneItems = [{ id: "none", name: "None" }].concat(LANE_GROUPS.filter((x) => x !== g).map((x) => ({ id: x, name: LANE_WORDS[x] })));
-  const laneNow = b.lane ? LANE_WORDS[b.lane] : "None";
   const sendMenu = (id, pick) => {                    // a Move to... choice
     setMenu(null);
     const L = live.current, row = L.byId[id];
@@ -319,8 +375,6 @@ export function Board({ rows, today, type }) {
   return (
     <div class="board" id="work-board" data-full={isFull ? "1" : "0"} data-editing={editing ? "1" : "0"}>
       <div class="lanebar" role="group" aria-label="Board view">
-        <Menu label={`Swimlanes: ${laneNow}`} ariaLabel={`Swimlanes: ${laneNow}`} id="swimlanes" btnCls="btn gb" menuLabel="Swimlanes" left items={laneItems}
-          onPick={(id) => setWork({ lane: id === "none" ? null : id })} />
         <button type="button" class="bib fs" id="board-full" ref={fsBtn} aria-pressed={isFull ? "true" : "false"} aria-label={isFull ? "Leave full screen" : "View full screen"}
           data-tip={isFull ? "Leave full screen (Esc)" : "View full screen"} onClick={toggleFull}>
           <Icon name={isFull ? "shrink" : "expand"} />
@@ -331,18 +385,25 @@ export function Board({ rows, today, type }) {
           <div class={`lane${b.lane ? " has" : ""}`} key={ln.key == null ? "all" : ln.key} data-lane={ln.key == null ? "" : ln.key}>
             {b.lane ? <div class="lane-h" role="heading" aria-level="3"><span class="lh-in"><span class="ll">{ln.label}</span><span class="lc num">{ln.count}</span></span></div> : null}
             <div class="cols">
-              {ln.columns.map((c) => {
-                const shut = isCollapsed(st, g, c.key), key = cellKey(ln.key, c.key);
+              {colsOf(ln).map((c) => {
+                const shut = isCollapsed(st, g, c.key), key = cellKey(ln.key, c.key), wd = widthOf(st, g, c.key);
+                const cdrag = colDrag && colDrag.lane === (ln.key == null ? "" : ln.key) ? colDrag : null;
                 const tone = toned && c.tone ? ` tone-${c.tone}` : "";
                 return (
-                  <section class={`col${shut ? " shut" : ""}${tone}${over === key ? " over" : ""}${c.nodrop ? " nodrop" : ""}`} key={c.key}
+                  <section class={`col${shut ? " shut" : ""}${tone}${over === key ? " over" : ""}${c.nodrop ? " nodrop" : ""}${cdrag && cdrag.key === c.key ? " moving" : ""}${cdrag && cdrag.before === c.key && cdrag.key !== c.key ? " drop-before" : ""}`} key={c.key}
+                    style={wd && !shut ? { flexBasis: wd + "px", width: wd + "px" } : undefined}
                     data-cell="1" data-col={c.key} data-lane={ln.key == null ? "" : ln.key} data-count={c.count} aria-label={`${c.label}, ${c.count}`} aria-disabled={c.nodrop ? "true" : undefined}>
                     <h4 class="col-h">
                       <GroupTick ids={c.cards.map((cd) => cd.id)} label={b.lane ? `${c.label} in ${ln.label || "No " + LANE_WORDS[b.lane].toLowerCase()}` : c.label} shut={shut || c.cards.length === 0} />
                       <button type="button" class="col-b" aria-expanded={shut ? "false" : "true"} aria-label={`${c.label}, ${c.count}${shut ? ", collapsed" : ""}`} data-toggle={c.key}
-                        onClick={() => setWork(toggleCollapsed(work.value, g, c.key))}>
+                        aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight" title="Drag to move the column, or hold Alt and press the left or right arrow."
+                        onPointerDown={(e) => headDown(e, c, ln)} onKeyDown={(e) => headKey(e, c, ln)} onClick={() => headClick(c)}>
                         <span class="dot" aria-hidden="true"></span><span class="cl">{c.label}</span><span class="cn num">{c.count}</span>
                       </button>
+                      {shut ? null : <span class="col-rz" role="separator" tabIndex={0} aria-orientation="vertical" data-resize={c.key}
+                        aria-label={`Resize the ${c.label} column`} aria-valuemin={COL_MIN} aria-valuemax={COL_MAX} aria-valuenow={wd || COL_DEFAULT}
+                        aria-keyshortcuts="ArrowLeft ArrowRight Home End Enter" title="Drag to resize; double-click for the usual width"
+                        onPointerDown={(e) => sepDown(e, c)} onKeyDown={(e) => sepKey(e, c)} onDblClick={() => { setWidth(c, COL_DEFAULT); sayReset(c); }} />}
                     </h4>
                     {c.nodrop && !shut ? <p class="muted nd">{c.key === "overdue" ? "Can't drop here. Use This week, Next week or Later." : "Can't drop here"}</p> : null}
                     {shut ? null : (

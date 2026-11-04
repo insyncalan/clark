@@ -8,6 +8,7 @@ or names creaite is in helpHeld.json, which the page never loads, and none of it
 """
 import json
 import re
+import pathlib
 import unittest
 
 from _paths import ROOT
@@ -24,9 +25,9 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # 'Source folders for ask clark' is the name the product's Settings card still has; the prototype's card is now "Asking" (#170),
 # and the product build renames it (#47).
 # 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
-# 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) and 'Shown to client' (the tag on a work item row, components/WorkItems.jsx) are read on the page itself; the prototype words them differently
+# 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) is read on the page itself; the prototype words it differently. 'Shown to client' left this list with the tag on a work item row (#456: the eye column says it, and Help no longer bolds it)
 # 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
-CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'Shown to client', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
+CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -69,7 +70,7 @@ class Shape(unittest.TestCase):
         """Start here: five loop steps, five first-ten-minutes steps, twelve jobs, six places, four rules. The prototype's counts."""
         self.assertEqual((len(START["loop"]), len(START["first"]), len(START["jobs"]), len(START["where"]), len(START["rules"])),
                          (5, 5, 12, 6, 4))
-        self.assertEqual((len(STEPS), len(SECTIONS)), (32, 34))
+        self.assertEqual((len(STEPS), len(SECTIONS)), (34, 35))   # with the People entries (#454), held, and the Word entry
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (36, 31))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -247,6 +248,12 @@ class WordingRound(unittest.TestCase):
         self.assertNotIn("to come back", jsx)
         self.assertRegex(jsx, r"to open Help; Esc or Back takes you where you were")
 
+    def test_the_import_help_names_the_button_the_import_box_shows(self):                   # LOW (#432)
+        jsx = (HELP.parent / "edit" / "Word.jsx").read_text(encoding="utf-8")
+        self.assertRegex(jsx, r'`Add \$\{count\(n, "item"\)\}`', "the box's button reads Add and the number of items")
+        self.assertIn("until you press the Add button (it reads Add and the number of items you ticked, such as Add 3 items)", self.ALL)
+        self.assertNotIn("until you press Add;", self.ALL)
+
     def test_examples_are_real_dates(self):                                                  # MEDIUM
         self.assertIn("by 12-12-2026", self.ALL)
         self.assertIn("forecast 12-12-2026", self.ALL)
@@ -330,10 +337,10 @@ class LowWordsRound(unittest.TestCase):
             self.assertIn(line, card, f"{name}: Help's line is the one Settings shows")
 
     def test_use_case_help_says_what_the_page_says(self):
-        """The page's button reads "See all N open work items" and a use case has four statuses, Done included (UseCases.jsx; #412)."""
+        """The page's button reads "See all N work items for <ref>" (every linked item, as the prototype's views.js) and a use case has four statuses, Done included (UseCases.jsx; #412)."""
         page = (ROOT / "src" / "clark" / "page" / "src" / "components" / "UseCases.jsx").read_text(encoding="utf-8")
-        self.assertIn("See all ${n} open work", page)
-        self.assertEqual(self.ALL.count("it reads “See all N open work items”") + self.ALL.count("which reads “See all N open work items”"), 2)
+        self.assertIn('`See all ${n} work ${n === 1 ? "item" : "items"} for ${u.ref}`', page)
+        self.assertEqual(self.ALL.count("it reads “See all N work items” and the use case's reference") + self.ALL.count("which reads “See all N work items” and the use case's reference"), 2)
         self.assertNotIn("See all work items", self.ALL)
         self.assertIn('export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];', page)
         self.assertIn("Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey).", self.ALL)
@@ -391,11 +398,45 @@ class HelpMatchesThePage(unittest.TestCase):
         self.assertNotIn("Back returns", line)
         self.assertNotIn("**Back**", line)       # the page has no button called Back
 
+    def test_every_line_that_lists_milestone_states_lists_fr50s(self):
+        """#453: FR-50's states are Achieved, On track, At risk, Slipped, Overdue and Forecast; no Help line may leave one out."""
+        brd = (ROOT / "docs" / "BRD.md").read_text(encoding="utf-8")
+        self.assertIn("(Achieved, On track, At risk, Slipped, Overdue) plus Forecast", brd)
+        fr50 = {"Achieved", "On track", "At risk", "Slipped", "Overdue", "Forecast"}
+        self.assertEqual({r[0] for r in SRC["reference"]["milestone_states"]}, fr50, "the legend")
+        states = next(sec for sec in SECTIONS if sec["id"] == "milestone-states")
+        follow = next(b[1] for b in states["b"] if b[0] == "p" and b[1].startswith("A state follows the dates"))
+        edit = next(s for _, s in words() if s.startswith("**State**: "))
+        for name, line in (("Milestone states and marks", follow), ("the State chip", edit)):
+            for st in fr50:
+                self.assertIn(st, line, f"{name} names {st}")
+
+    def test_help_names_the_tile_menu_as_the_page_does(self):
+        """#453: the tile's right-click menu is headed 'Outline colour' (edit/GlanceEdit.jsx); Help calls it that everywhere."""
+        glance = (self.SRC / "edit" / "GlanceEdit.jsx").read_text(encoding="utf-8")
+        self.assertIn('<div class="lab" role="presentation">Outline colour</div>', glance)
+        self.assertNotIn("**Tile colour**", self.ALL)
+        self.assertGreaterEqual(self.ALL.count("right-click for **Outline colour**") + self.ALL.count("Right-click a tile in Edit for **Outline colour**"), 2)
+
     def test_delete_section_is_said_for_both_kinds_that_have_it(self):
         gutter = (self.SRC / "edit" / "Gutter.jsx").read_text(encoding="utf-8")
         self.assertIn('DELETABLE = ["text", "needs"]', gutter)
         arrange = next(t for t in STEPS if t["id"] == "arrange-the-report")
         self.assertIn("for a text section or the Needs from you section, **Delete section**", " ".join(arrange["s"]))
+
+
+class CalendarKeysHelp(unittest.TestCase):
+    """#481: the Milestones entry names the calendar's keys, and each one is a key the calendar handles (so Help says only what the page does)."""
+
+    def test_the_calendar_line_names_the_keys_the_page_handles(self):
+        ROOT = pathlib.Path(__file__).resolve().parent.parent
+        code = (ROOT / "src" / "clark" / "page" / "src" / "components" / "MsCalendar.jsx").read_text(encoding="utf-8")
+        task = next(t for t in STEPS if t["t"] == "Read the timeline and calendar")
+        line = next(x for x in task["s"] if x.startswith("With the keyboard, [[Tab]] reaches the calendar"))
+        for key, handled in (("[[Left]]", "ArrowLeft"), ("[[Right]]", "ArrowRight"), ("[[Up]]", "ArrowUp"), ("[[Down]]", "ArrowDown"),
+                             ("[[Enter]]", "Enter"), ("[[Esc]]", "Escape"), ("[[Shift+Tab]]", "shiftKey")):
+            self.assertIn(key, line)
+            self.assertIn(handled, code, f"Help names {key} but the calendar does not handle {handled}")
 
 
 if __name__ == "__main__":

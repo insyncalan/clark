@@ -215,7 +215,7 @@
 
   /* ═════════ 2. Export to Word, and the person's own template ═════════ */
   const TPL = () => C.store.get('wordTpl.' + (C.P() || {}).code, null);
-  C.wordTplLine = () => { const t = TPL(); return t ? `Your Word template “${esc(t.name)}” is used. Change it in Settings, Publishing.` : ''; };
+  C.wordTplLine = () => { const t = TPL(); return t ? `Your Word template “${esc(t.name)}” is used.` : ''; };
   const VOCAB = ['PROJECT_NAME', 'PROJECT_CODE', 'CLIENT_NAME', 'SPONSOR', 'PHASE', 'WEEK_ENDING', 'AS_AT', 'HEALTH', 'HEALTH_REASON', 'CURRENT_STATE', 'GLANCE', 'USE_CASES', 'MILESTONES', 'RISKS', 'ACTIONS', 'DECISIONS', 'SECTIONS'];
   const tplValues = p => { const g = C.glanceData(p), week = p.week || D.friday(); return { PROJECT_NAME: p.name, PROJECT_CODE: p.code, CLIENT_NAME: p.client || '', SPONSOR: '', PHASE: '', WEEK_ENDING: D.fd(week), AS_AT: D.fd(D.TODAY), HEALTH: HN[p.health], HEALTH_REASON: p.reason || '', CURRENT_STATE: plain(p.current),
     GLANCE: Object.values(g).filter(x => x.v !== undefined).map(x => `${x.k}: ${x.v}`).join(', '), USE_CASES: `${D.S.usecases.filter(u => u.code === p.code && u.client && !u.archived).length} use cases (a table)`, MILESTONES: `${C.mss().filter(m => m.client).length} milestones (a table)`,
@@ -246,8 +246,8 @@
       C.$('#wtFile', d).addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; if (!/\.(docx|dotx)$/i.test(f.name)) { res = { ok: false, key: 'not_word', text: MSG.not_word(f.name) }; draw(); return; } if (f.size > MB * 1048576) { res = { ok: false, key: 'too_big', text: MSG.too_big(f.name) }; draw(); return; } run(f.name, { file: f }); });
       C.$$('[data-wt]', d).forEach(b => b.addEventListener('click', () => { const k = b.dataset.wt, nm = { good: 'weekly report template.docx', unknown: 'branded template.docx', header: 'letterhead template.docx', macros: 'old template.docm' }[k];
         run(nm, { demo: { good: { main: ['PROJECT_NAME', 'WEEK_ENDING', 'HEALTH', 'HEALTH_REASON', 'CURRENT_STATE', 'MILESTONES', 'ACTIONS'] }, unknown: { main: ['PROJECT_NAME', 'CLIENT_LOGO'] }, header: { main: ['PROJECT_NAME'], stray: ['PROJECT_CODE'] }, macros: { macros: true } }[k] }); }));
-      C.$('#wtOwn', d)?.addEventListener('click', () => { C.store.set('wordTpl.' + p.code, null); d.close(); C.toast('Word reports use clark’s own layout'); if (UI.view === 'settings') C.render(); after && after(); });
-      C.$('#wtUse', d)?.addEventListener('click', e => { e.preventDefault(); C.store.set('wordTpl.' + p.code, { name: res.name }); d.close(); C.toast(`Word reports use your template “${res.name}”`); if (UI.view === 'settings') C.render(); after && after(); });
+      C.$('#wtOwn', d)?.addEventListener('click', () => { C.store.set('wordTpl.' + p.code, null); d.close(); C.toast('Word reports use clark’s own layout'); after && after(); });
+      C.$('#wtUse', d)?.addEventListener('click', e => { e.preventDefault(); C.store.set('wordTpl.' + p.code, { name: res.name }); d.close(); C.toast(`Word reports use your template “${res.name}”`); after && after(); });
     });
     draw();
   };
@@ -297,9 +297,6 @@
     if (replace) C.toast(`Replaced “${name}”`);
     C.$('#wxGo')?.focus();
   }
-  /* Settings, Publishing: the Word template row (#219) */
-  C.wordTplRowHtml = () => { const t = TPL(); return `<label>Word template</label><div class="fc"><div class="pf-tpl" id="pubTplRow"><span id="pubTplName">${t ? esc(t.name) : 'clark’s own layout'}</span> <button type="button" class="btn sm" id="pubTplBtn">${t ? 'Change' : 'Choose a template…'}</button>${t ? ' <button type="button" class="btn sm quiet" id="pubTplOwn">Use clark’s own layout</button>' : ''}</div><small>Your own Word file with {{NAME}} where a value goes. Word reports use it instead of clark’s layout.</small></div>`; };
-  document.addEventListener('click', e => { const b = e.target.closest('#pubTplBtn'); if (b) C.wordTemplateDialog(); if (e.target.closest('#pubTplOwn')) { C.store.set('wordTpl.' + (C.P() || {}).code, null); C.toast('Word reports use clark’s own layout'); C.render(); } });
 
   /* ═════════ 4. the client's comment on the published page: the same few lines run inside the page, so they use no app code (#120) ═════════
      A comment names the project, the publication and the item. It stays in the client's browser, kept under the project and the publication number so two

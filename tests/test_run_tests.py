@@ -301,13 +301,38 @@ class Changed(unittest.TestCase):
         # #31 and #33 land these; a change to any of them runs everything (as creaite's guarded set does), so a change
         # to src/clark/server.py runs tests/test_server.py and all the rest
         every = sorted(f.name for f in self.files)
-        self.assertEqual(set(run_tests.GUARDED), {"src/clark/store.py", "src/clark/schema.sql", "src/clark/history.py",
-                                                   "src/clark/server.py", ".github/workflows/tests.yml"})
+        self.assertLessEqual({"src/clark/store.py", "src/clark/schema.sql", "src/clark/history.py",
+                              "src/clark/server.py", ".github/workflows/tests.yml", ".github/workflows/"},
+                             set(run_tests.GUARDED))
         for p in run_tests.GUARDED:
+            with self.subTest(p):
+                self.assertEqual(self.chosen([p]), every)
+        # #592: the files our rules name, ask*.py by prefix
+        for p in ("src/clark/changes.py", "src/clark/word_route.py", "src/clark/section_bodies.py", "src/clark/ai_service.py",
+                  "src/clark/doclinks.py", "src/clark/ask_service.py", "src/clark/ask.py", "src/clark/publish.py",
+                  "src/clark/secret_screen.py", "src/clark/update.py", "src/clark/updates.py", "src/clark/update_helper.py",
+                  "src/clark/publish_flow.py", "src/clark/publish_pdf.py", "src/clark/platform.py",
+                  ".github/workflows/release.yml"):
             with self.subTest(p):
                 self.assertEqual(self.chosen([p]), every)
         _, why = run_tests.choose(self.files, ["src/clark/server.py"], repo=self.repo)
         self.assertIn("can reach any test", why)
+
+    def test_a_rename_away_from_a_guarded_path_is_seen(self):
+        # #593: git diff must list the old name of a rename, so moving store.py away still runs everything
+        def git(*a):
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", *a], cwd=d, check=True,
+                           capture_output=True)
+        with tempfile.TemporaryDirectory() as d:
+            git("init", "-q")
+            (Path(d) / "src" / "clark").mkdir(parents=True)
+            (Path(d) / "src/clark/store.py").write_text("x = 1\n" * 50, encoding="utf-8")
+            git("add", ".")
+            git("commit", "-qm", "a")
+            git("mv", "src/clark/store.py", "src/clark/other.py")
+            with mock.patch.object(run_tests, "REPO", Path(d)):
+                paths = run_tests.changed_paths("HEAD")
+        self.assertIn("src/clark/store.py", paths)
 
     def test_the_real_repo(self):
         files, why = run_tests.choose(everything(), ["src/clark/milestones.py"])
@@ -560,6 +585,67 @@ class RemoveProfile(unittest.TestCase):
             self.assertFalse(support.remove_profile(d, tries=4, wait=0))
         self.assertEqual(len(calls), 5)            # 4 tries, then one last forced attempt: bounded
         self.assertIn(str(d), err.getvalue())
+
+
+class SuiteSlots(unittest.TestCase):
+    """A shared box's limit on full runs (support.take_slot). Real locks in a temporary folder; nothing waits long."""
+
+    def setUp(self):
+        self.d = tempfile.TemporaryDirectory()
+        self.addCleanup(self.d.cleanup)
+        self.said = []
+
+    def take(self, runs=50, jobs=8, slots=2, **kw):
+        return run_tests.support.take_slot(runs, jobs, slots=slots, folder=self.d.name, environ=kw.pop("environ", {}), pause=0.01,
+                                           say=lambda text, flush=True: self.said.append(text), **kw)
+
+    def test_a_computer_with_no_limit_is_not_touched(self):
+        self.assertEqual(self.take(slots=0), (None, 8))
+        self.assertEqual(os.listdir(self.d.name), [])
+
+    def test_the_file_says_the_limit_and_rubbish_is_no_limit(self):
+        path = Path(self.d.name) / "slots"
+        for text, want in (("2\n", 2), ("x", 0), ("", 0), ("\u00b2", 0)):       # a superscript counts as a digit to isdigit, and int() refuses it
+            path.write_text(text, encoding="utf-8")
+            self.assertEqual(run_tests.support.box_slots(path), want)
+        self.assertEqual(run_tests.support.box_slots(Path(self.d.name) / "none"), 0)
+
+    def test_two_runs_get_slots_and_files_at_once_are_capped(self):
+        a, jobs = self.take()
+        b, _ = self.take()
+        self.addCleanup(os.close, a)
+        self.addCleanup(os.close, b)
+        self.assertIsNotNone(a)
+        self.assertIsNotNone(b)
+        self.assertEqual(jobs, run_tests.support.BOX_JOBS)
+
+    def test_a_third_waits_says_so_and_starts_anyway_in_the_end(self):
+        held = [self.take()[0], self.take()[0]]
+        for fd in held:
+            self.addCleanup(os.close, fd)
+        got, jobs = self.take(max_wait=0.05)
+        self.assertIsNone(got, "it runs without a slot rather than never")
+        self.assertEqual(jobs, run_tests.support.BOX_JOBS)
+        self.assertIn("Nothing is wrong", self.said[0])
+        self.assertIn("starting anyway", self.said[-1])
+
+    def test_a_slot_comes_free_when_its_holder_closes(self):
+        a = self.take()[0]
+        b = self.take()[0]
+        self.addCleanup(os.close, b)
+        os.close(a)
+        c = self.take(max_wait=0.05)[0]
+        self.addCleanup(os.close, c)
+        self.assertIsNotNone(c)
+        self.assertEqual(self.said, [])
+
+    def test_a_small_run_and_a_run_under_the_wrapper_need_no_slot(self):
+        self.assertEqual(self.take(runs=run_tests.support.SMALL_RUN), (None, run_tests.support.BOX_JOBS))
+        self.assertEqual(self.take(environ={run_tests.support.SLOT_HELD: "1"}), (None, run_tests.support.BOX_JOBS))
+        self.assertEqual(os.listdir(self.d.name), [])
+
+    def test_a_folder_that_cannot_be_made_is_no_limit(self):
+        self.assertEqual(run_tests.support.take_slot(50, 8, slots=2, folder="/dev/null/x", environ={})[0], None)
 
 
 if __name__ == "__main__":

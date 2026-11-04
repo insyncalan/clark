@@ -80,6 +80,38 @@ class StartHere(unittest.TestCase):
         self.assertNotIn("restart", flat.lower())
 
 
+class TheFirstRunDialog(unittest.TestCase):
+    """#615: this macOS says the file was not opened, with only Move to Trash and Done and no Open button. Step 2 leads with
+    Privacy & Security and Open Anyway, names Move to Trash as the one not to choose, and keeps Control-click only as the older way."""
+
+    def step_two(self):
+        text = package.START_HERE_MAC
+        return " ".join(text[text.index("\n2. "):text.index("\n3. ")].split())
+
+    def test_the_step(self):
+        self.assertEqual(self.step_two(), "2. The first time, your Mac may say the file was not opened because Apple could not check it "
+                                          "for malware, and offer only Move to Trash and Done. This is expected. Choose Done. Do not choose "
+                                          "Move to Trash. Then open System Settings, choose Privacy & Security, scroll down and choose Open "
+                                          "Anyway beside clark.command. If your Mac asks again, choose Open Anyway, and type your Mac "
+                                          "password if it asks for it. On older versions of macOS you may see an Open button instead. If "
+                                          "so, Control-click clark.command, choose Open, then choose Open again.")
+
+    def test_privacy_and_security_and_open_anyway_come_before_any_control_click(self):
+        text = " ".join(package.START_HERE_MAC.split())
+        click = text.index("Control-click")
+        self.assertLess(text.index("Privacy & Security"), click)
+        self.assertLess(text.index("Open Anyway"), click)
+
+    def test_move_to_trash_is_named_as_the_one_not_to_choose(self):
+        self.assertIn("Do not choose Move to Trash.", self.step_two())
+
+    def test_releasing_step_15_says_the_dialog_is_expected(self):
+        text = (ROOT / "dev" / "RELEASING.md").read_text(encoding="utf-8")
+        step = [line for line in text.splitlines() if line.startswith("15. ")][0]
+        for words in ("is expected", "Apple could not verify it is free of malware", "never Move to Trash", "Privacy & Security", "Open Anyway"):
+            self.assertIn(words, step)
+
+
 class TheyAgree(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

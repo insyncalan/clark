@@ -18,7 +18,7 @@ import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { people, tableOf, canClearDue } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
-import { draftEntry, eyeChange, draftRequest, draftState, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
+import { draftEntry, eyeChange, draftRequest, draftState, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
 import { openCard } from "./Board.jsx";
 import { workSelection } from "../stores/selection.js";
 
@@ -72,7 +72,11 @@ function useOpeners() {
 
 const copied = (text, said) => {
   const done = () => { announce.value = said; say("done", said); };
-  const fail = () => { announce.value = "The browser did not copy it."; say("note", "The browser did not copy it. Select the text and press ⌘C instead."); };
+  const fail = () => {                          // item 612: the ⌘C hint only when there is a selection to copy
+    const sel = typeof window.getSelection === "function" ? String(window.getSelection() || "") : "";
+    announce.value = "The browser did not copy it.";
+    say("note", sel.trim() ? "The browser did not copy it. Select the text and press ⌘C instead." : "The browser did not copy it.");
+  };
   try { navigator.clipboard.writeText(text).then(done, fail); } catch (e) { fail(); }
 };
 
@@ -163,7 +167,8 @@ function Panel({ s }) {
     if (id === "dup") {
       const raw = rawOf(d, row);
       if (!raw) return undefined;
-      return record(duplicateRequest(raw, tableOf(row)), { text: `Copy of ${row.id} added.`, back: "" });
+      return record(duplicateRequest(raw, tableOf(row)), (reply) => duplicateWords(row, reply.ref))
+        .then((r) => { if (r && r.ref) openCard(r.ref); });              // #442: the copy opens, as in the prototype
     }
     return undefined;
   };

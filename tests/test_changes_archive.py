@@ -164,23 +164,23 @@ class Routes(unittest.TestCase):
         self.assertEqual(self.flag("projects", "ABC"), 1)
 
     def test_undo_still_refuses_a_step_that_edited_a_title_in_these_tables(self):
-        edit = self.demo.update("actions", self.action, {"client_message": "Changed"})
+        edit = self.demo.update("actions", self.action, {"raised": "2026-09-30"})
         status, body = self.undo({"project": "ABC", "apply_id": edit})
         self.assertEqual((status, body["message"]), (400, changes.NO_UNDO))
         ms = self.demo.update("milestones", self.demo.milestone, {"name": "Renamed"})
         self.assertEqual(self.undo({"project": "ABC", "apply_id": ms})[1]["message"], changes.NO_UNDO)
         proj = self.demo.update("projects", "ABC", {"name": "Renamed Programme"})
         self.assertEqual(self.undo({"project": "ABC", "apply_id": proj})[1]["message"], changes.NO_UNDO)
-        self.assertEqual(self.s.read("actions", ref=self.action)["client_message"], "Changed")
+        self.assertEqual(self.s.read("actions", ref=self.action)["raised"], "2026-09-30")
 
     def test_eligibility_checks_the_field_and_the_dash(self):
         row = lambda table, key, field, via="dashboard": {"table": table, "key": key, "field": field, "via": via}   # noqa: E731
         ok = changes._eligible
         self.assertTrue(ok([row("actions", "ABC-A-001", "archived")], "ABC"))
-        self.assertFalse(ok([row("actions", "ABC-A-001", "client_message")], "ABC"))
+        self.assertFalse(ok([row("actions", "ABC-A-001", "raised")], "ABC"))
         self.assertTrue(ok([row("actions", "ABC-A-001", "archived"), row("actions", "ABC-A-001", "updated_at")], "ABC"))
         self.assertFalse(ok([row("actions", "ABC-A-001", "updated_at")], "ABC"))                 # a stamp alone is some other edit
-        self.assertFalse(ok([row("actions", "ABC-A-001", "client_message"), row("actions", "ABC-A-001", "updated_at")], "ABC"))
+        self.assertFalse(ok([row("actions", "ABC-A-001", "raised"), row("actions", "ABC-A-001", "updated_at")], "ABC"))
         self.assertFalse(ok([row("actions", "ABC-A-001", "archived"), row("actions", "ABC-A-002", "updated_at")], "ABC"))
         self.assertFalse(ok([row("actions", "ABCD-A-001", "archived")], "ABC"))
         self.assertFalse(ok([row("documents", "ABCD|d1", "archived")], "ABC"))

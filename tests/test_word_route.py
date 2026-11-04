@@ -2,7 +2,7 @@
 server. Fictional data only. Run: python3 dev/run_tests.py test_word_route
 
 What is asserted, for the import: a check writes nothing; an apply is ONE step by the "word" route with ONE Undo; the history of
-each item says "Added from Word (<file name>)" under the person's name; items are new, hidden from the client, never changed or
+each item says "Added from Word (<file name>)" under the person's name; items are new, shown to the client until hidden, never changed or
 removed; the same content twice makes the items once (and again after an Undo); a bad row names itself and the whole step rolls
 back with nothing written; a hostile file, a wrong request and an old plan are refused in plain words; no message has jargon.
 """
@@ -77,7 +77,7 @@ class Check(Base):
         self.assertEqual(status, 200, got)
         self.assertEqual([(i["n"], i["table"]) for i in got["items"]],
                          [(1, "actions"), (2, "actions"), (3, "raid"), (4, "decisions")])
-        self.assertIn("Not shown to the client until you turn it on.", got["items"][0]["text"])
+        self.assertIn("Shown to the client unless you hide it with the eye.", got["items"][0]["text"])
         self.assertEqual(self.counts(), before)
         self.assertFalse(self.state().exists())
 
@@ -112,8 +112,54 @@ class Apply(Base):
         self.assertEqual([(x["type"], x["description"]) for x in r], [("Risk", "Supplier may slip the delivery")])
         self.assertEqual([x["decision"] for x in d], ["Move go-live to December"])
         for x in a + r + d:
-            self.assertEqual(x["client_visible"], 0, "hidden from the client until the person turns it on")
+            self.assertEqual(x["client_visible"], 1, "shown to the client until the person hides it")
             self.assertTrue(x["source"].startswith("Word import, 29-10-2026, week 43 notes.docx, under"))
+
+    def test_the_success_words_say_what_was_added_and_how_to_take_it_back(self):
+        _, got = self.go()
+        self.assertEqual(got["message"], "Added 4 new items from week 43 notes.docx. They are shown to the client until you hide them with the eye. "
+                                         "Press Undo to take them all back.")
+        self.assertNotRegex(got["message"], r"\(s\)|one step|content")
+
+    def test_one_undo_takes_the_whole_import_back(self):
+        """Ruling: several imported rows, one step, one Undo removes every one of them (and puts nothing else back)."""
+        before = self.counts()
+        status, got = self.go()
+        self.assertEqual((status, len(got["added"])), (200, 4), got)
+        self.assertNotEqual(self.counts(), before)
+        status, undone = self.post(op="undo", project="ABC", apply_id=got["apply_id"])
+        self.assertEqual(status, 200, undone)
+        self.assertEqual(undone["message"], "Undone. 4 items from the Word import were removed.")
+        after = self.counts()
+        self.assertEqual({t: after[t] for t in ("actions", "raid", "decisions")}, {t: before[t] for t in ("actions", "raid", "decisions")},
+                         "the one Undo removed all four rows")
+
+    def test_some_that_were_added_a_moment_ago_are_said_in_plain_words(self):
+        _, first = self.check()
+        _, second = self.check()
+        self.assertEqual(self.apply(first["plan"], [1])[0], 200)
+        status, got = self.apply(second["plan"], "all")
+        self.assertEqual(status, 200, got)
+        self.assertEqual(got["message"], "Added 3 new items from week 43 notes.docx. They are shown to the client until you hide them with the eye. "
+                                         "Press Undo to take them all back. 1 item from this file was added before, so it was not added again.")
+
+    def test_undo_says_which_were_left_as_they_are(self):
+        _, got = self.go()
+        row = self.rows("actions")[0]
+        self.demo.update("actions", row["id"], {"owner": "Someone Else"})
+        status, undone = self.post(op="undo", project="ABC", apply_id=got["apply_id"])
+        self.assertEqual(status, 200, undone)
+        self.assertEqual(undone["message"], "Undone. 3 items from the Word import were removed. 1 item was left as it is, because it was "
+                                            "changed after the import.")
+        self.assertNotIn("Put back", undone["message"])
+
+    def test_the_refusals_about_an_import_that_cannot_be_undone_or_has_expired_say_that_nothing_changed(self):
+        self.assertEqual(word_route.NO_UNDO, "That import can't be undone from here. Nothing was changed.")
+        self.assertEqual(word_route.UNDONE, "That import has already been undone. Nothing was changed.")
+        self.assertEqual(word_route.EXPIRED, "The list from that file has expired. Nothing was added. Choose the Word file again.")
+        _, got = self.go()
+        self.post(op="undo", project="ABC", apply_id=got["apply_id"])
+        self.assertEqual(self.post(op="undo", project="ABC", apply_id=got["apply_id"])[1]["message"], word_route.UNDONE)
 
     def test_each_items_history_says_how_it_came_in_under_the_persons_name(self):
         _, got = self.go()
@@ -129,7 +175,7 @@ class Apply(Base):
         status, undone = self.post(op="undo", project="ABC", apply_id=got["apply_id"])
         self.assertEqual(status, 200, undone)
         self.assertEqual({t: len(self.rows(t)) for t in ("actions", "raid", "decisions")}, before)
-        self.assertIn("4 item(s)", undone["message"])
+        self.assertEqual(undone["message"], "Undone. 4 items from the Word import were removed.")
         status, again = self.post(op="undo", project="ABC", apply_id=got["apply_id"])
         self.assertEqual((status, again["code"]), (409, "undone"))
 
@@ -189,8 +235,12 @@ class Apply(Base):
         word_route.PLANS[plan["plan"]]["plan"].items[1].values["priority"] = "Whenever"      # the rule the store checks
         status, got = self.apply(plan["plan"])
         self.assertEqual((status, got["code"]), (400, "rolled_back"))
-        self.assertIn("Nothing was added", got["message"])
-        self.assertIn("new action (table 1, line 1 under", got["message"])
+        lines = got["message"].split("\n")
+        self.assertEqual(lines[0], "Nothing was added. 1 item could not be added:")
+        self.assertIn("new action (table 1, line 1 under", lines[1])
+        self.assertEqual(lines[-1], "Untick them, or fix them in the Word file and read it again.")
+        self.assertEqual(len(lines), 3, "each item on its own line")
+        self.assertNotIn("break a rule", got["message"])
         self.assertEqual(self.counts(), before, "the whole step rolled back")
         self.assertFalse(self.state().exists())
         self.assertIn(plan["plan"], word_route.PLANS, "the person can choose fewer items and try again")
@@ -211,7 +261,8 @@ class Apply(Base):
         self.state().mkdir()                                        # a folder where the file should go
         _, got = self.go()
         self.assertEqual(self.counts()["actions"], 2)
-        self.assertIn("could not note that", got["message"])
+        self.assertIn("so do not import the same file again: it may add the same items twice.", got["message"])
+        self.assertNotIn(" was added, but", got["message"])
 
     def test_undo_will_not_reverse_a_step_that_is_not_a_word_import(self):
         step = self.demo.last_step()
@@ -244,14 +295,14 @@ class Refusals(Base):
             self.assertIn(words, got["message"])
             self.assertIn(NAME, got["message"])
         got = self.refused(op="check", project="ABC", name=NAME, data=encoded(b"not a word file"))
-        self.assertIn("can't be opened as a Word document", got["message"])
+        self.assertIn("could not be opened. It may be damaged, or it may not be a Word file.", got["message"])
 
     def test_a_file_with_no_table_or_nothing_to_read_stages_nothing_and_says_what_to_do_next(self):
         for raw in (docx(P("Just a paragraph and nothing else")), docx(P("Weekly notes", style="Heading1"))):
             before = self.counts()
             status, got = self.check(data=raw)
             self.assertEqual((status, got["items"]), (200, []))
-            self.assertTrue(any(n.endswith("Put actions, risks, issues or decisions under a heading with that name.") for n in got["notes"]), got["notes"])
+            self.assertEqual((got["problems"], got["already_added"]), ([], 0), "the box says there was nothing to find, and what to do next")
             self.assertNotRegex(got["report"], JARGON)
             self.assertEqual(self.counts(), before)
             status, again = self.apply(got["plan"])                      # accepting a plan with nothing in it adds nothing
@@ -270,8 +321,20 @@ class Refusals(Base):
 
     def test_a_file_that_is_not_a_word_file_is_refused_with_what_to_do_next(self):
         for raw in (b"plain text, not a Word file", b"PK\x03\x04 cut short"):
-            got = self.refused(op="check", project="ABC", name="notes.txt", data=encoded(raw))
-            self.assertIn("Open it in Word, save it again as a .docx and try again.", got["message"])
+            got = self.refused(op="check", project="ABC", name="notes.docx", data=encoded(raw))
+            self.assertIn("Open it in Word and save a copy, then choose it again.", got["message"])
+
+    def test_only_a_docx_is_read_whatever_is_inside(self):
+        """Ruling: .docx only. A good Word file under any other name (an older .doc, a template, a macro file, a PDF, a text file, no
+        extension) is refused in the page's own words, and nothing is staged or written."""
+        before = self.counts()
+        for name in ("notes.doc", "notes.dotx", "notes.docm", "notes.pdf", "notes.txt", "notes", "notes.docx.exe", "dir.docx/notes.rtf"):
+            got = self.refused(op="check", project="ABC", name=name, data=encoded(docx(body())))
+            shown = word_route.word_import.file_label(name)
+            self.assertEqual(got["message"], f"{shown} is not a Word file. Choose a Word file.", name)
+        self.assertEqual(word_route.PLANS, {})
+        self.assertEqual(self.counts(), before)
+        self.assertEqual(self.check(name="NOTES.DOCX")[0], 200, "the extension is not case sensitive")
 
     def test_a_file_that_unpacks_too_big_is_refused(self):
         import zipfile
@@ -281,12 +344,11 @@ class Refusals(Base):
             z.writestr("[Content_Types].xml", "<Types/>")
             z.writestr("word/document.xml", b"0" * (60 * 1024 * 1024))                # about 60 KB packed, 60 MB unpacked
         got = self.refused(op="check", project="ABC", name=NAME, data=encoded(big.getvalue()))
-        self.assertIn("MB", got["message"])
+        self.assertEqual(got["message"], str(word_route.docx_read._too_big(NAME, "part", 60 * 1024 * 1024, word_route.docx_read.MAX_PART_BYTES)))
 
     def test_an_oversize_request_is_refused_before_it_is_decoded(self):
         got = self.refused(op="check", project="ABC", name=NAME, data="A" * (word_route.docx_read.MAX_FILE_BYTES * 4 // 3 + 1000))
-        self.assertIn("more than clark will open", got["message"])
-        self.assertIn("then choose it again", got["message"])
+        self.assertEqual(got["message"], f"{NAME} is bigger than the 25 MB that clark can open. Save a smaller copy (for example without big pictures), then choose it again. Nothing was added.")
 
     def test_requests_that_are_not_what_they_should_be(self):
         for req, words in (({"op": "check", "project": "ABC", "name": NAME}, word_route.NO_FILE),
@@ -344,7 +406,8 @@ class WhatTheModuleCanDo(unittest.TestCase):
         for name in ("NOT_JSON_OBJECT", "BAD_OP", "NO_FILE", "BAD_NAME", "BAD_FILE", "EXPIRED", "BAD_ACCEPT", "NOTHING_ACCEPTED",
                      "NO_UNDO", "UNDONE", "NOT_RECORDED", "ALL_SEEN", "SOME_SEEN", "CHOOSE_FOLDER", "BAD_FLAG", "BAD_CLASH",
                      "NO_CLIENT_FOLDER", "OVERWRITE_UNCONFIRMED", "NAME_TAKEN", "APPEARED", "FOLDER_GONE", "FOLDER_DATA", "NOT_SAVED",
-                     "NOT_AS_MADE", "NOT_AS_MADE_REPLACED", "SAVED", "SAVED_CLIENT", "CLIENT_FAILED", "NOT_RECORDED_FILE", "CANCELLED"):
+                     "NOT_AS_MADE", "NOT_AS_MADE_REPLACED", "SAVED", "SAVED_CLIENT", "CLIENT_FAILED", "NOT_RECORDED_FILE", "CANCELLED",
+                     "APPEARED_CLIENT"):
             text = getattr(word_route, name)
             self.assertNotRegex(text, JARGON, name)
             self.assertFalse(text.lower().startswith("clark"), name)
@@ -387,6 +450,8 @@ class Export(unittest.TestCase):
     def test_a_first_export_asks_for_a_folder_writes_the_file_reads_it_back_and_records_it(self):
         status, got = self.post()
         self.assertEqual((status, got["ok"], got["name"], self.asked), (200, True, self.name, [word_route.CHOOSE_FOLDER]), got)
+        self.assertEqual(got["number"], 1, got)
+        self.assertIn("It is Publication 1.", got["message"])
         data = (self.local / self.name).read_bytes()
         self.assertEqual(hashlib.sha256(data).hexdigest(), got["sha256"])
         self.assertEqual(self.files(self.local), [self.name], "no temporary file is left")
@@ -455,7 +520,8 @@ class Export(unittest.TestCase):
         status, got = self.post()
         self.assertEqual((status, got["code"], got["taken"], got["choices"]), (409, "name_taken", {"here": self.name},
                                                                                ["number", "overwrite", "cancel"]))
-        self.assertIn(self.name, got["message"])
+        self.assertEqual(got["message"], f"A file called “{self.name}” is already in “{self.local.name}”. The Word report has not been saved yet. "
+                                         "Choose Add a number, Replace it or Cancel.")
         self.assertEqual((self.files(self.local), len(self.publications())), before)
 
     def test_add_a_number_keeps_the_old_file(self):
@@ -528,15 +594,123 @@ class Export(unittest.TestCase):
         self.post(to_client=True, on_clash="overwrite", confirmed=True)       # replace is for the local file only
         self.assertEqual((self.client / self.name).read_bytes(), b"the client's own")
 
+    def test_a_name_taken_only_in_the_client_folder_does_not_offer_replace(self):
+        self.save_client_folder()
+        (self.client / self.name).write_bytes(b"the client's own")
+        _, got = self.post(to_client=True)
+        self.assertEqual(got["message"], f"A file called “{self.name}” is already in the client folder. The Word report has not been saved yet. "
+                                         "Choose Add a number or Cancel.")
+        self.assertFalse(got["can_replace"])
+
+    def test_a_name_taken_in_both_says_the_report_is_not_saved_once(self):
+        self.save_client_folder()
+        self.post()
+        (self.client / self.name).write_bytes(b"the client's own")
+        _, got = self.post(to_client=True)
+        self.assertEqual(got["message"].count("has not been saved"), 1, got["message"])
+        self.assertEqual(got["message"].count("is already in"), 2)
+        self.assertTrue(got["message"].endswith("Choose Add a number, Replace it or Cancel."))
+
+    def test_a_name_that_appears_in_the_client_folder_meanwhile_says_the_report_was_saved(self):
+        self.save_client_folder()
+        real = word_route._write_new
+        with mock.patch.object(word_route, "_write_new", lambda dest, data: False if dest.parent == self.client else real(dest, data)):
+            status, got = self.post(to_client=True)
+        self.assertEqual(status, 200, got)
+        # the whole message, with the failure sentence once, after its own one space
+        self.assertEqual(got["message"], word_route.SAVED.format(name=self.name, folder=f"“{self.local.name}”") + word_route.APPEARED_CLIENT.format(name=self.name)
+                         + f" It is Publication {got['number']}.")
+        self.assertEqual(got["message"].count("not copied to the client folder"), 1)
+        self.assertNotIn("Nothing was saved", got["message"], "the report folder copy WAS saved")
+
+    def test_a_client_copy_that_cannot_be_written_says_why_once(self):
+        self.save_client_folder()
+        real = word_route._write_new
+        def write(dest, data):
+            if dest.parent == self.client:
+                raise OSError(13, "Permission denied")
+            return real(dest, data)
+        with mock.patch.object(word_route, "_write_new", write):
+            status, got = self.post(to_client=True)
+        self.assertEqual((status, got["client_failed"]), (200, True), got)
+        self.assertEqual(got["message"], word_route.SAVED.format(name=self.name, folder=f"“{self.local.name}”") + word_route.CLIENT_FAILED.format(
+            reason="Permission denied.") + f" It is Publication {got['number']}.")
+
+    def test_a_client_folder_that_changed_says_try_again_not_publish_again(self):
+        self.save_client_folder()
+        said = {"ok": False, "message": word_route.to_client.MESSAGES["folder_changed"]}
+        with mock.patch.object(word_route.to_client, "preflight", return_value=said):
+            status, got = self.post(to_client=True)
+        self.assertEqual(got["message"], word_route.MESSAGES["folder_changed"], "taken from this module's table, by the key")
+        self.assertIn("then try again.", got["message"])
+        self.assertNotIn("publish again", got["message"])
+        other = {"ok": False, "message": word_route.to_client.MESSAGES["is_local"]}
+        with mock.patch.object(word_route.to_client, "preflight", return_value=other):
+            self.assertEqual(self.post(to_client=True)[1]["message"], word_route.to_client.MESSAGES["is_local"] + " Nothing was saved.")
+        self.assertNotIn(".replace(", Path(word_route.__file__).read_text(encoding="utf-8"), "no message is made by editing another module's words")
+
+    def test_the_words_that_come_from_the_publisher_never_reach_the_screen(self):
+        from clark import publish
+        for text in ("The page clark builds has changed shape, so no report could be made from it. Rebuild the page (python3 dev/tools/build_page.py).",
+                     "The brand's tokens.css uses @import, which would reach outside the file.", "The page has a server token in it.",
+                     "The database could not be read (disk I/O error).", "Give the project's code (3 to 7 capital letters or digits)."):
+            with mock.patch.object(publish, "select", side_effect=publish.PublishError(text)):
+                status, got = self.post()
+            self.assertEqual(got["message"], word_route.NOT_MADE, text)
+            self.assertNotRegex(got["message"], r"(?i)token|build_page|@import|body|database")
+        self.assertEqual(word_route.NOT_MADE, "The Word report could not be made. Nothing was saved. Restart clark and try again. If it happens again, tell whoever looks after clark.")
+        with mock.patch.object(publish, "select", side_effect=publish.PublishError("An archived project can't be published. Restore it first.")):
+            self.assertEqual(self.post()[1]["message"], "An archived project can't be exported. Restore it first. Nothing was saved.")
+        big = word_route.docx_build.WordError("The report is 31.0 MB, which is over the 30 MB limit. Leave out some sections or pictures and try again.")
+        with mock.patch.object(word_route.docx_build, "build", side_effect=big):
+            self.assertEqual(self.post()[1]["message"], str(big))
+        self.assertEqual((self.files(self.local), self.publications()), ([], []))
+
+    def test_every_refusal_that_saves_nothing_says_so_in_the_same_words(self):
+        for text in (word_route.FOLDER_GONE, word_route.FOLDER_DATA, word_route.NO_CLIENT_FOLDER):
+            self.assertIn("Nothing was saved.", text)
+            self.assertNotIn("written", text)
+        # a Word-file refusal says "written" (main's wording, the file was not written)
+        self.assertIn("Nothing was written.", word_route.NOT_SAVED)
+        self.assertNotIn("saved.", word_route.NOT_SAVED)
+        self.assertEqual(word_route.FOLDER_DATA, "That folder is inside clark's own data folder. Nothing was saved. Press Save again and choose a different folder.")
+        self.assertEqual(word_route.NOT_AS_MADE, "{name} did not save correctly (the folder may be syncing), so clark removed it. Nothing was kept. Try again.")
+
     def test_a_client_copy_that_does_not_match_is_taken_back_and_the_local_file_stays(self):
         self.save_client_folder()
         real = word_route._verified
         with mock.patch.object(word_route, "_verified", lambda dest, digest: real(dest, digest) if dest.parent == self.local else False):
             status, got = self.post(to_client=True)
         self.assertEqual((status, got["client_failed"], got["client_name"]), (200, True, None))
-        self.assertIn("It was not copied to the client folder", got["message"])
+        self.assertEqual(got["message"], self.client_failed_words(got, "It was not copied to the client folder: What was copied did not "
+                                                                       "match the report, so it was taken back. Nothing was added to the "
+                                                                       "client folder."))
         self.assertEqual((self.files(self.local), self.files(self.client)), ([self.name], []))
         self.assertIsNone(self.publications()[0]["client_path"])
+
+    def client_failed_words(self, got, sentence):
+        return f"Saved “{self.name}” in “{self.local.name}”. {sentence} It is Publication {got['number']}."
+
+    def test_a_client_copy_failure_says_it_once_and_plainly(self):
+        # #607: the failure sentence is built once, after one space, and never says "Nothing was saved" of a saved report
+        self.save_client_folder()
+        real = word_route._write_new
+        appeared = lambda dest, data: False if dest.parent == self.client else real(dest, data)
+        cases = ((appeared, f"It was not copied to the client folder, because a file called “{self.name}” appeared there while clark "
+                            "was working. Nothing was added to the client folder. Export again to choose what to do."),
+                 (OSError(13, "Permission denied"), "It was not copied to the client folder: Permission denied. Nothing was added to "
+                                                    "the client folder."))
+        for how, sentence in cases:
+            for f in self.files(self.local):
+                os.unlink(self.local / f)
+            fake = how if callable(how) else (lambda dest, data, e=how: real(dest, data) if dest.parent == self.local else (_ for _ in ()).throw(e))
+            with mock.patch.object(word_route, "_write_new", fake):
+                status, got = self.post(to_client=True)
+            self.assertEqual((status, got["client_failed"], got["client_name"]), (200, True, None), got)
+            self.assertEqual(got["message"], self.client_failed_words(got, sentence))
+            self.assertEqual(got["message"].count("client folder"), 2, got["message"])
+            self.assertNotIn("Nothing was saved", got["message"])
+            self.assertEqual(self.files(self.client), [])
 
     def test_a_local_file_that_does_not_match_is_taken_back_and_nothing_is_recorded(self):
         self.post()                                                 # remember the folder
@@ -563,7 +737,8 @@ class Export(unittest.TestCase):
         with mock.patch.object(type(self.store), "log_publication", side_effect=word_route.Invalid("busy")):
             status, got = self.post()
         self.assertEqual((status, got["seq"]), (200, None))
-        self.assertIn("could not record it", got["message"])
+        self.assertIn(word_route.NOT_RECORDED_FILE.format(reason="busy"), got["message"])
+        self.assertIn("The file is fine, but clark could not record it (busy); save it again to record it.", got["message"])
         self.assertTrue((self.local / self.name).is_file())
 
     def test_a_request_never_names_a_folder_or_a_file(self):
@@ -785,7 +960,7 @@ class WholeJourney(unittest.TestCase):
             z.writestr("word/document.xml", b"0" * (60 * 1024 * 1024))
         status, got = self.post("/api/word-import", {"op": "check", "project": "ABC", "name": NAME, "data": encoded(bomb.getvalue())})
         self.assertEqual(status, 400)
-        self.assertRegex(got["message"], r"MB")
+        self.assertEqual(got["message"], str(word_route.docx_read._too_big(NAME, "part", 60 * 1024 * 1024, word_route.docx_read.MAX_PART_BYTES)))
         self.assertNotRegex(got["message"], JARGON)
         self.assertEqual(self.demo.store.read("actions", "ABC"), [])
 
