@@ -221,18 +221,38 @@ class Workflow(unittest.TestCase):
         for job, body in self.jobs.items():
             self.assertNotIn("continue-on-error", body, job)
 
+    MAC_FILES = ("platform.py", "updates.py", "clark.command", "launch.py", "doctor.py", "release_files.py", "package.py", "__main__.py")
+
     def test_macos_runs_for_mac_specific_files_not_for_every_guarded_file(self):
         """The owner, 04-11-2026: macOS runs at the release gate, not on every push of a guarded pull request. A guarded file is the full Ubuntu
-        matrix (FULL=1) and no macOS; only the Mac-specific code (platform, updates, the launcher and the package files) also asks for macOS."""
+        matrix (FULL=1) and no macOS; only the Mac-specific code (platform, updates, the launcher and the package files) also asks for macOS.
+        Each pattern is judged on its own: a Mac file must be in a MACOS=1 line, and no other pattern may share one."""
         plan = self.jobs["plan"]
+        seen = {}
         for ln in plan.splitlines():
             m = re.match(r"^\s*([A-Za-z0-9_./*|-]+)\)\s+(FULL=1[^#]*)", ln)
             if not m or "/" not in m.group(1):
                 continue
             macos = "MACOS=1" in m.group(2)
-            mac_specific = any(p in m.group(1) for p in ("platform.py", "updates.py", "clark.command", "launch.py", "package.py"))
-            self.assertEqual(macos, mac_specific, f"{m.group(1)}: macOS only for Mac-specific files")
+            for pattern in m.group(1).split("|"):
+                is_mac = pattern.rsplit("/", 1)[-1] in self.MAC_FILES and pattern != "clark/__init__.py"
+                self.assertEqual(macos, is_mac, f"{pattern}: macOS only for a Mac-specific file, and a Mac file only on a MACOS=1 line")
+                seen[pattern.rsplit("/", 1)[-1]] = macos
+        for name in self.MAC_FILES:
+            self.assertTrue(seen.get(name), f"{name} must be in the plan's Mac-specific list")
         self.assertIn(".github/*) FULL=1 ;;", plan)
+
+    def test_a_pull_request_that_targets_a_release_branch_gets_macos_too(self):
+        plan = self.jobs["plan"]
+        self.assertIn("BASE_REF: ${{ github.base_ref }}", plan)
+        self.assertRegex(plan, r'case "\$BASE_REF" in\s+release-\*\|v\*-release\*\) FULL=1; MACOS=1 ;;')
+
+    def test_the_macos_job_runs_two_files_at_a_time(self):
+        """Three Chrome tests at once on the 3-vCPU, 7 GB macOS runner starve each other: that was the flake."""
+        mac = self.jobs["macos"]
+        self.assertIn("JOBS: 2", mac)
+        self.assertNotIn("JOBS: 3", mac)
+        self.assertIn('python3 dev/run_tests.py -j "$JOBS" --shard "$SHARD/$SHARDS" --max-fail 8 $FILES', mac)
 
     def test_the_guarded_list_in_the_plan_job_matches_run_tests_guarded(self):
         """The plan job's case patterns are dev/run_tests.py GUARDED (source files) plus the documented extras and `.github/*`."""
@@ -249,7 +269,8 @@ class Workflow(unittest.TestCase):
         sources = {g for g in guarded if not g.startswith(".github/")}
         extras = {"src/clark/publish.py", "src/clark/publish_flow.py", "src/clark/secret_screen.py",
                   "src/clark/platform.py", "src/clark/updates.py", ".github/*",
-                  "clark.command", "src/clark/launch.py", "src/clark/doctor.py", "src/clark/release_files.py", "dev/tools/package.py"}
+                  "clark.command", "clark/__main__.py", "clark/launch.py", "clark/doctor.py", "src/clark/launch.py", "src/clark/doctor.py",
+                  "src/clark/release_files.py", "dev/tools/package.py"}
         self.assertTrue(sources, "no source file found in run_tests.GUARDED")
         self.assertIn(".github/*", listed, "the plan job must treat .github/* (the workflows) as guarded")
         missing = sorted(sources - listed)

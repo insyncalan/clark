@@ -27,7 +27,7 @@ from _paths import SRC  # noqa: F401
 
 from clark import ask, ask_claude as ac, platform
 
-HELP = "\n".join(f"  {f} <x>   something" for f in ac.NEEDED_FLAGS)
+HELP = "\n".join(f"  {f} <x>   something" for f in (*ac.NEEDED_FLAGS, ac.MODEL_FLAG))
 SIGNED_IN = json.dumps({"loggedIn": True, "authMethod": "claude.ai", "apiProvider": "firstParty"})
 ANSWER = "The plan is on track.\nCITE: P1"
 
@@ -197,8 +197,8 @@ class Arguments(Fake):
 
     def test_every_flag_the_run_uses_is_checked_in_the_help_except_the_documented_unlisted_one(self):
         used = {a for a in ac.arguments("/x/claude", model="opus")[1:] if a.startswith("--") and a != ask.RULES}
-        self.assertEqual(used, set(ac.NEEDED_FLAGS) | {"--max-turns"})     # item 54, on purpose: --model is now needed
-        self.assertIn("--model", ac.NEEDED_FLAGS)
+        self.assertEqual(used, set(ac.NEEDED_FLAGS) | {"--max-turns", ac.MODEL_FLAG})
+        self.assertNotIn("--model", ac.NEEDED_FLAGS, "#54, on purpose: only a run that asks for a model needs it")
         self.assertNotIn("--model", ac.NEVER_FLAGS)
         self.assertNotIn("--model", ac.arguments("/x/claude"), "no model chosen: the command's own is used")
         self.assertEqual(ac.UNLISTED_FLAGS, ("--max-turns",))

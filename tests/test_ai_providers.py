@@ -70,10 +70,16 @@ class Models(Fake):
         self.assertEqual(self.calls(), [], "the command was never started")
         self.assertIsNone(self.seen())
 
-    def test_a_help_without_model_is_unusable(self):
-        self.put("help", "\n".join(f"  {f} <x>" for f in ac.NEEDED_FLAGS if f != "--model"))
-        got = self.provider.ask(self.request())
-        self.assertEqual(got, ask.Failure(ac.CANT_USE))
+    def test_a_command_without_the_flag_still_answers_when_no_model_is_asked_for(self):
+        self.put("help", "\n".join(f"  {f} <x>" for f in ac.NEEDED_FLAGS))
+        self.assertTrue(self.provider.status()["connected"], "an older install stays usable")
+        self.assertEqual(self.provider.ask(self.request()), ANSWER)
+        self.assertNotIn("--model", self.seen()["args"])
+
+    def test_a_command_without_the_flag_says_so_when_a_model_is_asked_for_and_sends_nothing(self):
+        self.put("help", "\n".join(f"  {f} <x>" for f in ac.NEEDED_FLAGS))
+        self.assertEqual(self.provider.ask(self.request(), "opus"), ask.Failure(ac.MODEL_NOT_OFFERED))
+        self.assertEqual([c for c in self.calls() if "--print" in c["args"]], [])
 
 
 class Limits(Fake):
@@ -136,7 +142,7 @@ class ModelGone(Fake):
 
 class Wording(unittest.TestCase):
     def test_no_line_carries_a_placeholder_and_the_offer_uses_the_models_names(self):
-        for line in (ac.MODEL_REFUSED, ac.MODEL_UNAVAILABLE, ac.LIMIT_REACHED, ac.LIMIT_OFFER, ai_providers.TOO_BIG):
+        for line in (ac.MODEL_REFUSED, ac.MODEL_NOT_OFFERED, ac.MODEL_UNAVAILABLE, ac.LIMIT_REACHED, ac.LIMIT_OFFER, ai_providers.TOO_BIG):
             self.assertNotIn("WORDING", line)
         self.assertIn("Sonnet, Haiku, Fable", ac.limit_failure("opus").message)
 
