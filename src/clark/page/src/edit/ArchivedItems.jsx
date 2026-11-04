@@ -10,7 +10,7 @@
 // ArchivedPill, in the bar, shows its count. The rows stay in this file's own state, never in the page's data, so an archived row
 // cannot reach the Plan, the published file, the export or Ask; the archived peek is drawn from that state too.
 import { signal } from "@preact/signals";
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { project, data, peek, openPeek, closePeek } from "../stores/report.js";
 import { width, wide } from "../stores/peekState.js";
 import { getArchived } from "../api.js";
@@ -140,7 +140,7 @@ function ArchivedPeek({ row }) {
     return () => clearTimeout(t);
   }, [row.id, blocked]);                                // eslint-disable-line react-hooks/exhaustive-deps
   const was = useRef(blocked);
-  useEffect(() => {                                     // a live peek opened over it (a row of the list): this one is gone
+  useLayoutEffect(() => {                               // (in the step that draws the live peek, not a frame later) a live peek opened over it (a row of the list): this one is gone
     if (peek.value && !was.current) openId.value = "";
     was.current = !!peek.value;
   }, [!!peek.value]);                                   // eslint-disable-line react-hooks/exhaustive-deps

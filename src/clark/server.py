@@ -43,8 +43,8 @@ Routes:
 - POST /api/ask/change/apply  {project, offer, confirm?}: one offer saved as one undoable step (#47e; ask_apply.py, changes.make_ask_change)
 - GET  /assets/<name>    the brand's picture (#98): only cover.png, cover.jpg, cover.jpeg and cover.webp, from the local brand folder; no
                          token (an <img> can't send one), but the Host, Origin and Sec-Fetch-Site are checked; 404 when there is none
-- GET  /api/profile      the name and email typed in Settings › Personal (#180), from the data folder's settings.json; without the seam, not found
-- POST /api/profile      save them: {name, email}, both text; a refusal is in plain words and writes nothing (profile_settings.py)
+- GET  /api/profile      the name, email and Alias typed in Settings › Personal (#180, #613), from the data folder's settings.json; without the seam, not found
+- POST /api/profile      save them: {name, email, alias}, all text, alias optional (left out, the saved one is kept); a refusal is in plain words and writes nothing (profile_settings.py)
 - GET  /api/people       the people list, archived too (#115; changes.make_people_list); without the seam, not found
 - POST /api/people       one person writer: {op: add | edit | rename | merge | archive | restore | paste, ...}, one undoable step (#115; changes.make_people)
 - POST /api/people/undo  {apply_id}: reverse one people step (#115; changes.make_people_undo)

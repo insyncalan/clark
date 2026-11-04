@@ -188,6 +188,7 @@ class Words(unittest.TestCase):
                                   "One card", "All the sections in one long card.",
                                   "Appearance", "System", "Follows your Mac's setting.", "Light", "Always light.", "Dark", "Always dark.",      # #179
                                   "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
+                                  "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
                                   "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
