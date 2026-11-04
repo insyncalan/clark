@@ -25,7 +25,7 @@ Routes:
 - GET  /api/export       ?project=<CODE>: the project's workbook as a download named <CODE>-<date>.xlsx (publish_flow.py)
 - GET  /api/publications ?project=<CODE>: the newest 10 publications with number, time, where and who (#443; past_reports.py); no path, no hash
 - GET  /api/past-report  ?project=<CODE>&number=<N>: checks that publication's kept copy and answers a one-visit address (#443)
-- GET  /past             ?id=<from /api/past-report>: that kept page as it was published, once, local only (#443)
+- GET  /past             ?id=<from /api/past-report>: that kept page as it was published, with the read-only banner added (#343), once, local only (#443)
 - GET  /api/as-at        ?project=<CODE>&date=<YYYY-MM-DD>: the project's data as at the end of that day, rebuilt from the change
                          history in a copy, read only, never published (#349; as_at.py); without the seam, not found
 - GET  /api/backups      the backups newest first, a status line, the daily-copy warning (#111; safety.py)
