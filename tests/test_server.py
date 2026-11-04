@@ -24,7 +24,7 @@ from unittest import mock
 import _routes as routes_expected
 from _paths import ROOT, SRC
 
-from clark import appfiles, idle, page, server as sv
+from clark import appfiles, idle, page, people as people_rules, server as sv
 from run_support import chrome_command, chrome_path, remove_profile, start_chrome, stop_chrome
 
 PROJECTS = [{"code": "DEMO", "name": "Demo programme", "client_name": "Not for the page", "week_ending": "2026-10-30"},
@@ -321,7 +321,7 @@ class Saving(ServerTest):
         self.assertEqual(sv.POST_ROUTES["/api/section-image"], sv.section_image_route)
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page
                                                 "/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
-                                                "/api/backups/restore": 1024, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
+                                                "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                                                  "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
                                                 "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024,
@@ -330,9 +330,22 @@ class Saving(ServerTest):
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
                                                 "/api/section-file": 1024,
                                                 "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,     # #72
-                                                "/api/people": 4 * 1024, "/api/people/undo": 1024})     # #96: a project and a section only
+                                                "/api/people": sv.PEOPLE_BODY_LIMIT, "/api/people/undo": 1024})     # #96: a project and a section only; #454: /api/people takes a paste of up to 500 rows (worked out in server.py)
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
+
+    def test_the_people_body_limit_is_worked_out_from_the_field_caps_not_a_bare_number(self):
+        """#454: the paste's limit is the 500-row cap times the worst row (every character a six-byte JSON escape), plus the request's
+        envelope. The server copies the caps (it imports nothing from clark); they must stay equal to people.py's."""
+        self.assertEqual((sv.PEOPLE_ROW_MAX, sv.PEOPLE_NAME_MAX, sv.PEOPLE_EMAIL_MAX, sv.PEOPLE_CELL_MAX),
+                         (people_rules.ROW_LIMIT, people_rules.NAME_MAX, people_rules.EMAIL_MAX, people_rules.CELL_MAX))
+        worst_row = (120 + 254 + 100 + 100) * 6 + 64
+        self.assertEqual(sv.PEOPLE_ROW_BYTES, worst_row)
+        self.assertEqual(sv.PEOPLE_BODY_LIMIT, 500 * worst_row + sv.REQUEST_ENVELOPE)
+        self.assertEqual(sv.PEOPLE_BODY_LIMIT, 1758096)
+        self.assertLess(sv.PEOPLE_BODY_LIMIT, sv.BODY_LIMIT)
+        row = json.dumps({"name": "", "email": "", "organisation": "", "role": ""}) + ", "
+        self.assertLessEqual(len(row), sv.PEOPLE_ROW_ENVELOPE)                       # the envelope covers a spaced writer too
 
     def test_no_seam_is_503(self):
         for route in ("/api/change", "/api/undo"):
@@ -1113,6 +1126,18 @@ class ProjectList(ServerTest):
             {"code": "DEMO", "name": "Demo programme"}, {"code": "ABC", "name": "ABC"}]}))
         self.assertNotIn(b"client_name", data)
         self.assertEqual(msg.get_all("Cache-Control"), ["no-store"])
+
+    def test_an_open_count_passes_through_only_as_a_plain_count(self):
+        """#439: the switcher says how many work items are open. A count the list gives (a whole number, 0 or more) is passed on; anything
+        else (text, a negative, a float, a bool) is left out, and nothing else of the row goes."""
+        rows = [{"code": "AAA", "name": "A", "open": 3, "client_name": "no"}, {"code": "BBB", "name": "B", "open": 0},
+                {"code": "CCC", "name": "C", "open": "7"}, {"code": "DDD", "name": "D", "open": -1}, {"code": "EEE", "name": "E", "open": 2.5},
+                {"code": "FFF", "name": "F", "open": True}]
+        s = Running(projects=lambda: rows)
+        self.addCleanup(s.close)
+        self.assertEqual(json.loads(s.api("GET", "/api/projects")[2])["projects"],
+                         [{"code": "AAA", "name": "A", "open": 3}, {"code": "BBB", "name": "B", "open": 0}, {"code": "CCC", "name": "C"},
+                          {"code": "DDD", "name": "D"}, {"code": "EEE", "name": "E"}, {"code": "FFF", "name": "F"}])
 
     def test_it_needs_the_token_and_this_machine(self):
         self.assertEqual(self.s.ask("GET", "/api/projects")[0], 403)

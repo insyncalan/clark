@@ -467,7 +467,7 @@ class Restoring(Base):
 
 
 class WhoMayCall(Base):
-    ROUTES = (("GET", "/api/backups"), ("POST", "/api/backups/preview"), ("POST", "/api/backups/restore"))
+    ROUTES = (("GET", "/api/backups"), ("POST", "/api/backups/preview"), ("POST", "/api/backups/restore"), ("POST", "/api/backups/copy-folder"))     # #622
 
     def body(self, method):
         return {"name": self.rig.first, "last_step": 1} if method == "POST" else None
@@ -492,6 +492,12 @@ class WhoMayCall(Base):
             self.assertEqual(r.call("POST", path, {"name": r.first}, ctype="text/plain")[0], 415)
             self.assertEqual(r.call("POST", path, raw=b'{"name": "' + b"a" * 2000 + b'"}')[0], 400)
             self.assertEqual(r.call("POST", path, raw=b"{not json")[0], 400)
+        path = "/api/backups/copy-folder"                      # #622: the same refusals, and its own 4 KiB limit
+        self.assertEqual(r.call("POST", path, {"folder": "/x"}, ctype="text/plain")[0], 415)
+        self.assertEqual(r.call("POST", path, raw=b'{"folder": "' + b"a" * 5000 + b'"}')[0], 400)
+        self.assertEqual(r.call("POST", path, raw=b"{not json")[0], 400)
+        self.assertEqual(r.call("POST", path, {"folder": "relative"})[0], 400, "and a refusal over the real route is plain words")
+        self.assertEqual(r.call("POST", path, {"folder": "relative"})[1]["code"], "refused")
         
     def test_the_server_module_names_no_store(self):
         text = (Path(sv.__file__)).read_text(encoding="utf-8")

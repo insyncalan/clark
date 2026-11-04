@@ -31,7 +31,8 @@ ROWS = [
     {"name": "clark-20301001T101500Z-undo.db", "tag": "undo", "kind": "before an undo", "kind_label": "Before an undo", "when": "01-10-2030 10:15", "size": 1572864, "size_text": "1.5 MB"},
 ]
 LIST = {"ok": True, "backups": ROWS, "status": "Latest backup: 02-10-2030 09:14. A daily backup is always made.", "newest_ok": True,
-        "warning": None, "keep": 14, "keep_label": "How many backups to keep", "keep_help": "This many are kept."}
+        "warning": None, "keep": 14, "keep_label": "How many backups to keep", "keep_help": "This many are kept.",
+        "copy_folder": "", "copy_warning": None, "copy_label": safety.FOLDER_LABEL, "copy_help": safety.FOLDER_HELP, "copy_suggestions": []}
 PREVIEW = {"ok": True, "name": ROWS[0]["name"], "when": "02-10-2030 09:14", "kind_label": "Daily", "copy": {"projects": 3, "work_items": 212, "milestones": 41},
            "now": {"projects": 3, "work_items": 230, "milestones": 41}, "last_step": 17, "same_database": True, "older": False, "older_note": None}
 OK = lambda body, status=200: {"status": status, "body": body}  # noqa: E731
@@ -211,6 +212,69 @@ class Card(InBrowser):
         self.assertEqual(self.val("T.reloads"), 0)
         self.assertFalse(self.present("#backup-panel"))
 
+    def type_in(self, text):
+        self.js(f"(() => {{ const b = document.querySelector('#safety-copy-box'); b.value = {lit(text)}; b.dispatchEvent(new Event('input', {{bubbles: true}})); }})()")
+        self.settle()
+
+    def test_the_copy_folder_box_is_labelled_empty_by_default_and_saves_what_is_typed(self):             # #622
+        self.replies(copy=OK({"ok": True, "folder": "/Users/demo/OneDrive-DemoOrg/clark backups", "message": safety.FOLDER_ON}))
+        self.mount()
+        self.assertEqual(self.text("label[for=safety-copy-box]"), "Copy my backups to")
+        self.assertEqual(self.val("document.querySelector('#safety-copy-box').value"), "")
+        self.assertEqual(self.text("#safety-copy-line"), safety.FOLDER_HELP)
+        self.type_in("/Users/demo/OneDrive-DemoOrg/clark backups")
+        self.click("[data-copy-save]")
+        self.assertEqual(self.val("T.calls[T.calls.length - 1]"), ["copy", "/Users/demo/OneDrive-DemoOrg/clark backups"])
+        self.assertEqual(self.text("#safety-copy-said"), safety.FOLDER_ON)
+        self.assertEqual(self.val("document.querySelector('#safety-copy-box').value"), "/Users/demo/OneDrive-DemoOrg/clark backups")
+
+    def test_the_copy_folder_is_saved_by_enter_and_not_by_leaving_the_box(self):
+        self.replies(copy=OK({"ok": True, "folder": "", "message": safety.FOLDER_OFF}))
+        self.mount()
+        self.type_in("/Users/demo/x")
+        self.js("document.querySelector('#safety-copy-box').dispatchEvent(new Event('blur'))")
+        self.js("document.querySelector('#safety-copy-box').blur()")
+        self.settle()
+        self.assertEqual([c[0] for c in self.val("T.calls")], ["list"], "leaving the box saves nothing")
+        self.js("document.querySelector('#safety-copy-box').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}))")
+        self.settle()
+        self.assertEqual(self.val("T.calls[T.calls.length - 1]"), ["copy", "/Users/demo/x"])
+
+    def test_an_empty_box_turns_it_off_and_says_so(self):
+        self.replies(list=OK({**LIST, "copy_folder": "/Users/demo/copies"}), copy=OK({"ok": True, "folder": "", "message": safety.FOLDER_OFF}))
+        self.mount()
+        self.assertEqual(self.val("document.querySelector('#safety-copy-box').value"), "/Users/demo/copies")
+        self.type_in("")
+        self.click("[data-copy-save]")
+        self.assertEqual(self.val("T.calls[T.calls.length - 1]"), ["copy", ""])
+        self.assertEqual(self.text("#safety-copy-said"), safety.FOLDER_OFF)
+
+    def test_a_refusal_shows_under_the_box_and_what_was_typed_stays(self):
+        self.replies(copy=OK({"ok": False, "code": "refused", "message": "That is a file, not a folder. Choose a folder. Nothing was changed."}, 400))
+        self.mount()
+        self.type_in("/Users/demo/a-file")
+        self.click("[data-copy-save]")
+        self.assertEqual(self.text("#safety-copy-said"), "That is a file, not a folder. Choose a folder. Nothing was changed.")
+        self.assertEqual(self.val("document.querySelector('#safety-copy-box').value"), "/Users/demo/a-file")
+        self.assertEqual(self.val("document.querySelector('#safety-copy-box').getAttribute('aria-invalid')"), "true")
+        self.assertEqual(self.val("document.querySelector('#safety-copy-said').getAttribute('role')"), "alert")
+
+    def test_a_server_that_does_not_answer_while_saving_the_folder_says_so(self):
+        self.replies(copy={"status": 0, "body": None})
+        self.mount()
+        self.type_in("/Users/demo/x")
+        self.click("[data-copy-save]")
+        self.assertEqual(self.text("#safety-copy-said"), self.val("T.logic.NOT_ANSWERING"))
+
+    def test_onedrive_folders_found_are_offered_and_fill_the_box_and_the_copy_warning_shows(self):
+        self.replies(list=OK({**LIST, "copy_folder": "/x", "copy_warning": "Your backup was made, but the copy in ~/x could not be made.",
+                              "copy_suggestions": ["/Users/demo/OneDrive-DemoOrg/clark backups"]}))
+        self.mount()
+        self.assertEqual(self.text("#safety-copy-warning"), "Your backup was made, but the copy in ~/x could not be made.")
+        self.click("[data-copy-suggestion]")
+        self.assertEqual(self.val("document.querySelector('#safety-copy-box').value"), "/Users/demo/OneDrive-DemoOrg/clark backups")
+        self.assertEqual([c[0] for c in self.val("T.calls")], ["list"], "choosing it saves nothing yet")
+
     def test_a_server_that_does_not_answer_says_so_and_offers_try_again(self):
         self.replies(list={"status": 0, "body": None})
         self.mount()
@@ -252,6 +316,7 @@ class Card(InBrowser):
                     self.click("[data-backup] [data-preview]")
                     self.assertTrue(self.val("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "no sideways scroll")
                     self.assertTrue(self.val("[...document.querySelectorAll('#safety button')].every(b => b.getBoundingClientRect().right <= innerWidth)"))
+                    self.assertTrue(self.val("(() => { const b = document.querySelector('#safety-copy-box').getBoundingClientRect(); return b.width > 200 && b.right <= innerWidth; })()"), "the box is wide enough to read a path")
                     self.assertTrue(self.val("(() => { const c = getComputedStyle(document.querySelector('#safety .when')).color; return c !== getComputedStyle(document.body).backgroundColor; })()"))
 
 

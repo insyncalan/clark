@@ -404,7 +404,7 @@ class Numbers120(unittest.TestCase):
         schema = read(SRC / "clark" / "schema.sql")
         for name in ("publications_no_delete", "publications_number_fixed", "publications_never_replaced"):
             self.assertRegex(schema, rf"CREATE TRIGGER IF NOT EXISTS {name}\b", name)
-        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = 11\b")      # 11 since PR 310 (#412, a use case can be Done); step 10 is this item\'s
+        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = 15\b")      # 15 since step 15 (#269, publications.pdf_name); 14 was #171 (review_after_days); 13 was #368 (a web page and its Word copy share a number); 12 was #325 (the trigger guards client_path); step 10 is this item\'s
 
     def test_120_2_a_number_is_fixed_and_never_reused(self):
         schema = read(SRC / "clark" / "schema.sql")
@@ -472,7 +472,8 @@ class GeneratedPages495(unittest.TestCase):
         self.need()
         src = read(self.INIT)
         self.assertIn("class _file_lock", src)
-        self.assertIn("fcntl.flock(self.f, fcntl.LOCK_EX)", src)
+        self.assertIn("fcntl.flock(self.f, fcntl.LOCK_EX | fcntl.LOCK_NB)", src, "the wait is bounded: it polls")
+        self.assertIn("LOCK_WAIT", src)
         self.assertIn("_build_lock = threading.Lock()", src)
         body = src[src.index("def ensure_built"):]
         body = body[:body.index("DEMO_OPEN")]

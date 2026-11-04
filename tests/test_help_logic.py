@@ -120,14 +120,14 @@ class Logic(unittest.TestCase):
         lst = self.r["lists"]["howto"]
         self.assertEqual([g["group"] for g in lst], CONTENT["howto"]["groups"])
         self.assertEqual(sum(len(g["entries"]) for g in lst), len(TASKS))
-        self.assertEqual(sum(len(g["entries"]) for g in lst), 32)
+        self.assertEqual(sum(len(g["entries"]) for g in lst), 33)   # with the People entry (#454)
         first = lst[0]["entries"][0]
         self.assertEqual(first, {"id": TASKS[0]["id"], "title": TASKS[0]["t"], "place": "howto-" + TASKS[0]["id"]})
 
     def test_reference_lists_every_section_under_its_group(self):
         lst = self.r["lists"]["reference"]
         self.assertEqual([g["group"] for g in lst], CONTENT["reference"]["groups"])
-        self.assertEqual(sum(len(g["entries"]) for g in lst), 34)
+        self.assertEqual(sum(len(g["entries"]) for g in lst), 35)   # with the People entry (#454)
         self.assertTrue(all(e["place"].startswith("ref-") for g in lst for e in g["entries"]))
 
     def test_start_here_lists_its_seven_parts_and_an_unknown_tab_lists_nothing(self):
@@ -164,7 +164,7 @@ class Logic(unittest.TestCase):
     def test_every_place_is_unique_and_the_count_is_right(self):
         p = self.r["places"]
         self.assertEqual(len(p), len(set(p)))
-        self.assertEqual(len(p), 7 + 32 + 34)
+        self.assertEqual(len(p), 7 + 33 + 35)   # with the People entries (#454)
 
     # ---- search ----
     def test_search_finds_every_entry_by_its_title(self):
@@ -328,7 +328,7 @@ class Shown(unittest.TestCase):
         self.assertEqual(s["q"]["peek"], ["ref-freshness"], "no peek entry of its own is shown; Freshness says where the peek shows Raised and Last reviewed")
         self.assertEqual(s["q"]["movement"][:2], ["ref-milestones-page", "howto-handle-a-slipped-milestone"], "a search for movement finds the Movement entries")
         self.assertEqual(s["q"]["diagnostics"][0], "ref-diagnostics", "a search for diagnostics finds the Diagnostics entry")
-        self.assertEqual(s["q"]["publish"], ["ref-published-reports", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-archive-restore",
+        self.assertEqual(s["q"]["publish"], ["ref-published-reports", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-freshness", "ref-archive-restore",
                                              "ref-layouts", "ref-milestones-page", "ref-status-words", "ref-milestone-states"],
                          "the Published reports entries, then the entries that say what is or is not on the published page; only entries about Publish that are shown")
         self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "ref-section-templates"])
