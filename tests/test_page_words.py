@@ -216,6 +216,10 @@ class Words(unittest.TestCase):
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "Version and updates",      # Settings › Version and updates: with no updater the server says so
+                                  "Install a newer version from a file you downloaded from the clark releases page. Your projects, "
+                                  "settings and published reports are kept.",
+                                  "Updates can't be shown right now. Restart clark the usual way and try again. Try again",
                                   "People", "Paste from Excel",             # #454: the People card; this server has no people routes, so the list can't be read
                                   "Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.",
                                   "The people list could not be read. Reload the page. If it happens again, restart clark. Try again",

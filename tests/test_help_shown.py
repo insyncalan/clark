@@ -201,7 +201,8 @@ class AgainstThePage(unittest.TestCase):
         # 44 with the first-run welcome (#174): its Not now button and its words put two more of Help's bold names on the page (46 fails)
         # 42 measured on the merge of main into this branch (44 on each side alone): the first-run welcome (#174) and Latest update with Move to Friday together put two more names on the page (43 fails)
         # 41 measured on the merge of main (42) into the #436 milestones finish (43): both sides' names on the page together (42 fails)
-        # 40 measured with the project switcher's menu (item 439) on main: Project settings is on the page, so that bold name left the absent list (41 fails)
+        # 44 measured on the merge of the Version and updates card (#282, PR 288) into main (46 there): Updates, Choose zip… and Undo update name things the page now draws
+        # 39 measured on the refresh of the Version and updates card onto main (41 there): both sides' names on the page together (40 fails)
         # 41 measured on the take-over of PR 457 (#454) merged with main (42 there): the People card's Organisation column takes one more name off the absent list (42 fails)
         # 40 measured on the rebuild of item 454 on main (main is 41): the People card's Organisation column takes one more name off the absent list (41 fails)
         # 39 measured on the rebuild of item 434 on main (main is 40): the report rows' Edit parts put Help's bold Add from your project record on the page (40 fails)
@@ -211,7 +212,12 @@ class AgainstThePage(unittest.TestCase):
         # 33 measured on the merge of main (37) into the Settings Data card and Projects table (item 444, 34 on the earlier main): both sides' names on the page together (34 fails)
         # 36 measured on the merge of main (37) into item 434 (38): both sides' names on the page together (37 fails)
         # 32 measured on the merge of main (36) into the Settings Data card and Projects table (item 444, 33): both sides' names on the page together (33 fails)
-        self.assertGreaterEqual(len(names), 32)
+        # 38 measured on the merge of main (40 there, the People card) into the refreshed Version and updates card: both sides' names on the page together (39 fails)
+        # 40 measured with the project switcher's menu (item 439) on main: Project settings is on the page, so that bold name left the absent list (41 fails)
+        # 37 measured on the merge of main (39 there, the project switcher's menu) into the refreshed Version and updates card (38): both sides' names on the page together (38 fails)
+        # 35 measured on the merge of main (37 there, the Word screens) into the refreshed Version and updates card (37): both sides' names on the page together (36 fails)
+        # 30 measured on the merge of main (32 there, the Settings Data card and Projects table) into the refreshed Version and updates card (35): both sides' names on the page together (31 fails)
+        self.assertGreaterEqual(len(names), 30)
         # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
         # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
         # 56 measured on the merged tree after the next main merge (names printed): the milestone details toggle (C-M6) leaves the list on top of the Supporting documents section
