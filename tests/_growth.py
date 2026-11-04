@@ -12,7 +12,7 @@ runner reads a healthy scan above 5, raise the limit there rather than loosening
 import time
 
 GROWTH_STEP = 4         # the larger run is GROWTH_STEP times the size of the smaller one
-GROWTH_LIMIT = 5        # t(4n) / t(n): linear is 4, n to the power 1.5 is 8, quadratic is 16, cubic is 64. Above 5 means the work is growing faster than n to the power 1.16; healthy scans measured up to 4.29 on a quiet Mac (#651).
+GROWTH_LIMIT = 6.5      # t(4n) / t(n): linear is 4, n to the power 1.5 is 8, quadratic is 16, cubic is 64. Above 6.5 means the work is growing faster than n to the power 1.35; healthy scans measured up to 4.29 on a quiet Mac (#651) and up to 5.29 on the hosted macOS runners (04-11-2026: 5.05, 5.29 failed a limit of 5), so the limit sits between those and n to the power 1.5 (8).
 GROWTH_FLOOR = 0.01     # CPU seconds; a faster t(n) than this is raised to it, so timer noise cannot fail a very quick run
 ABSOLUTE_CAP = 400      # CPU seconds for the larger run. Only a backstop for a scan that stays linear but gets a hundred times slower: the quietest-box t(4n) of the slowest test is about 36 s (test_secret_screen), so this is ten times that and a loaded box (CPU time inflates under contention) cannot trip it. The ratio above is the real guard.
 

@@ -5,6 +5,7 @@
 // - A picture is made smaller on a canvas (shrink.js) and sent on its own to POST /api/section-image: one slot, one step, one Undo.
 // - Under each picture template, the running total of the pictures in the report against the 5 MB a published page can hold.
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useGrow } from "../useGrow.js";
 import { data, project, reread, token, plainChange } from "../../stores/report.js";
 import { change, say } from "../../stores/changes.js";
 import { stored, PICTURE_TYPES } from "../../templates/pictures.jsx";
@@ -99,6 +100,7 @@ export function LineField({ section, field, label, value, max, hint, words, chec
 export function WordsField({ section, field, label, value, max, hint, words }) {
   const ref = useRef(null), esc = useRef(false);
   const joined = (value || []).join("\n");
+  useGrow(ref, joined);
   useLayoutEffect(() => { if (ref.current && document.activeElement !== ref.current) ref.current.value = joined; }, [joined]);
   const commit = () => {
     if (esc.current) { esc.current = false; return; }
@@ -113,7 +115,7 @@ export function WordsField({ section, field, label, value, max, hint, words }) {
   return (
     <div class="tpl-pic-field">
       <label for={id}>{label}</label>
-      <textarea id={id} ref={ref} rows={4} maxLength={max} placeholder={hint || ""} defaultValue={joined} onBlur={commit} onKeyDown={onKeyDown} />
+      <textarea id={id} class="grow" ref={ref} rows={3} maxLength={max} placeholder={hint || ""} defaultValue={joined} onBlur={commit} onKeyDown={onKeyDown} />
     </div>
   );
 }

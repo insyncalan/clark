@@ -32,12 +32,12 @@ def cubic(n):
 
 
 class TheGrowthCheckTellsLinearFromQuadratic(unittest.TestCase):
-    # Linear measures 4 and quadratic 16 (the step is 4n), the limit is 5 (#651): above linear with room for noise, and below a cost of
+    # Linear measures 4 and quadratic 16 (the step is 4n), the limit is 6.5 (#651, raised from 5 after the hosted macOS runners read healthy ratios of 5.05 and 5.29): above linear with room for noise, and below a cost of
     # n to the power 1.5 (8). The margins asserted here are looser (linear within the limit, quadratic over one and a half times it) so a
-    # busy machine does not fail this test, but a limit moved back up to 8 would still be caught.
+    # busy machine does not fail this test, but a limit moved back up to 8 would still be caught (it must stay below 8).
     def test_the_limit_sits_above_linear_and_below_n_to_the_power_one_and_a_half(self):
         self.assertEqual(GROWTH_STEP, 4)
-        self.assertEqual(GROWTH_LIMIT, 5)
+        self.assertEqual(GROWTH_LIMIT, 6.5)
         self.assertGreater(GROWTH_LIMIT, GROWTH_STEP)
         self.assertLess(GROWTH_LIMIT, GROWTH_STEP ** 1.5)
 
