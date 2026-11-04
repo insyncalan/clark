@@ -99,7 +99,7 @@ class Held(unittest.TestCase):
         self.assertEqual(task["s"][4], "Disconnected. You're still signed in to Claude or ChatGPT on this computer, but clark won't use it.")
         self.assertIn("Disconnected. You're still signed in to {name} on this computer, but clark won't use it.", src)
         self.assertIn("settings", LATER["reference"])
-        self.assertIn("clark keeps no password or key: it uses the sign-in already on this computer.", json.dumps(RAW["reference"]["sections"]))
+        self.assertIn("No password or key is kept: the sign-in already on this computer is used.", json.dumps(RAW["reference"]["sections"]))
 
     def test_the_held_list_is_indented_evenly(self):
         """Every held id sits two spaces in, like its neighbours (a stray space once crept onto one line)."""
