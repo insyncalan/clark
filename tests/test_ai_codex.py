@@ -119,6 +119,16 @@ class FailsClosed(unittest.TestCase):
             self.assertEqual(c.CodexCommand(env={}).command(), (None, c.ODD_HOME))
         run.assert_not_called()
 
+    def test_an_odd_home_is_refused_when_asking_and_nothing_starts(self):
+        """#52: the same refusal through ask(), the way the server's route reaches it. The home lookup is faked, so it holds on any machine."""
+        ours = ask.Request(text="a question nobody may see", question="q", system=ask.RULES)
+        with mock.patch.object(c, "own_home", return_value="/home/sam"), mock.patch.object(c.platform.subprocess, "Popen") as popen, \
+                mock.patch.object(c.platform, "run_stoppable") as stoppable, mock.patch.object(c, "run") as run:
+            got = c.CodexCommand(env={}).ask(ours)
+        self.assertEqual(got, ask.Failure("This computer's home folder isn't in the usual place, so ChatGPT can't be kept away from your files. Nothing was sent."))
+        for started in (popen, stoppable, run):
+            started.assert_not_called()
+
     def versions(self, version):
         with mock.patch.object(c, "run", side_effect=[("ok", version, 0), ("ok", b"\n".join(f"  {f} <x>".encode() for f in c.NEEDED_FLAGS), 0)]):
             p = c.CodexCommand(env={})
