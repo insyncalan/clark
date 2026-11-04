@@ -154,16 +154,19 @@ def shown(path):
 def check_data_dir(path, roots=None, what="data"):
     """`path`, resolved, if clark may keep its database there. A folder inside OneDrive is refused with the reason:
     OneDrive syncs a database part-way through a write and can't lock it, so the data would be damaged. `what="backups"`
-    words the refusal for the backups folder (#86), where "backups can still go to OneDrive" would read wrongly."""
+    words the refusal for the backups folder (#86), where "backups can still go to OneDrive" would read wrongly. The way to have copies in
+    OneDrive is the separate copy folder (#622), which is never checked here: finished single files are safe there, a live database is not."""
     root = inside_onedrive(path, roots)
     if root is not None:
         if what == "backups":
             raise PlatformError(f"Backups can't be kept in {shown(path)} because it is inside OneDrive ({root.name}). OneDrive "
                                 "copies files while they are being written, which damages a database. Keep them beside the "
-                                "database on this computer; a copy somewhere else is a separate, later feature.")
+                                "database on this computer. To have a copy in OneDrive, choose it in Settings › Backups › Copy my "
+                                "backups to.")
         raise PlatformError(f"Your data can't be kept in {shown(path)} because it is inside OneDrive ({root.name}). OneDrive "
                             "copies files while they are being written, which damages the database. Choose a folder on "
-                            "this computer that OneDrive doesn't sync; backups can still go to OneDrive.")
+                            "this computer that OneDrive doesn't sync, and choose a backup folder in OneDrive instead (Settings › "
+                            "Backups › Copy my backups to): backups can still go to OneDrive.")
     return Path(path).expanduser().resolve()
 
 
@@ -266,6 +269,13 @@ def data_lock_held(folder):
 
 
 # Opening files and the system's own dialogs
+
+def run_program(args, cwd=None, run=None):
+    """Run a program from an argument list (never through a shell), wait, and return the finished process with its output
+    as text. The page build uses it to run dev/tools/build_page.py in a source checkout."""
+    return (run or subprocess.run)([str(a) for a in args], cwd=None if cwd is None else str(cwd), capture_output=True,
+                                   text=True, check=False)
+
 
 def _run(args, run=None):
     """Start a program from an argument list (never through a shell) and return the finished process."""
@@ -560,7 +570,7 @@ def start_detached(argv, env, log_path, cwd=None, popen=None, on=None):
             return (popen or subprocess.Popen)(list(argv), cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
                                                start_new_session=True)
     except OSError as e:
-        raise PlatformError(f"The app could not start. Try again; if it keeps happening, send the file {with_tilde(log_path)} to the clark team.") from e
+        raise PlatformError(f"Nothing was started, because this Mac would not run clark. Close this window and try again. If it keeps happening, send the file {with_tilde(log_path)} to the clark team.") from e
 
 
 def open_app_window(url, chrome, popen=None, on=None):
@@ -573,7 +583,7 @@ def open_app_window(url, chrome, popen=None, on=None):
         (popen or subprocess.Popen)([str(chrome), "--app=" + url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL, start_new_session=True)
     except OSError as e:
-        raise PlatformError("The window could not be opened.") from e
+        raise PlatformError("Chrome could not be started, so clark's window did not open.") from e
 
 
 # The Claude command (ask clark). Found on the PATH and started from an argument list. A .cmd or .bat is refused on every

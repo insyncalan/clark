@@ -7,18 +7,15 @@ file from file:// and check what is in its bytes. The clock needs no fixing: eve
 """
 import json
 import re
-import shutil
-import tempfile
 import time
 import unittest
-from pathlib import Path
 
 from _demo import USER
 from _paths import ROOT, SRC
-from test_report_editor import ALT, EMPTY_BRANDING, Base, Pg, tearDownModule  # noqa: F401
+from _new_page import reload_to_new_page
+from _publish import PublishedFile
+from test_report_editor import ALT, Base, Pg, tearDownModule  # noqa: F401
 from test_server import chrome, wait
-
-from clark import page, publish
 
 LONG = "2020-01-01"
 
@@ -334,6 +331,19 @@ class EditTiles(Setup):
             self.undo(p)
             self.assertEqual(self.rows()["overdue"]["outline"], "")
 
+    def test_edit_says_under_the_tiles_what_a_tile_can_do_and_view_says_nothing(self):
+        want = ("Drag a tile to move it, or hold Alt and press an arrow key. Use the eye to hide or show a tile. Right-click a tile to change its colour. "
+                "Hidden tiles are left out of the published page.")
+        for width in (1400, 900):
+            for dark in (False, True):
+                with chrome() as cdp:
+                    p = self.show(cdp, width=width, dark=dark)
+                    self.assertEqual(p.js("document.querySelectorAll('[data-glance-hint]').length"), 0, "View has no hint")
+                    p.edit()
+                    self.assertEqual(p.js("(document.querySelector('[data-glance-hint]') || {}).textContent"), want)
+                    self.assertEqual(p.js("document.querySelector('[data-glance-hint]').previousElementSibling.matches('[data-glance]')"), True, "it sits right under the tiles")
+                    self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True)
+
     def test_view_has_no_tile_control(self):
         with chrome() as cdp:
             p = self.show(cdp)
@@ -359,17 +369,33 @@ class UseCases(Setup):
                     for word in ("1.1", "Invoice matching", "Matching is live", "On track", "3 next steps"):
                         self.assertIn(word, first)
 
-    def test_see_all_counts_only_the_open_items_and_opens_that_same_list(self):
+    def test_done_has_its_word_its_count_and_a_grey_mark_in_the_meter(self):
+        """#412: a Done use case on the dashboard: the word Done in its row, a "1 Done" count after the others and a grey meter mark."""
+        with self.store.step("dashboard", USER) as st:
+            st.update("use_cases", self.uc2, {"status": "Done"})
+        for width, dark in ((1400, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.show(cdp, width, dark)
+                self.assertEqual(p.js("[...document.querySelectorAll('.ucn')].map(e => e.dataset.count + ':' + e.textContent.trim() + ':' + e.className)"),
+                                 ["On track:1 On track:ucn rag-g", "Done:1 Done:ucn rag-n"])
+                self.assertEqual(p.js("[...document.querySelectorAll('.meter i')].map(e => e.className)"), ["m-g", "m-n"])
+                self.assertEqual(p.js("document.querySelector('.meter').getAttribute('aria-label')"), "1 On track, 1 Done")
+                grey = p.js("(() => { const i = document.createElement('i'); i.style.color = 'var(--status-grey)'; document.body.append(i); "
+                            "const c = getComputedStyle(i).color; i.remove(); return c; })()")
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('.meter .m-n')).backgroundColor"), grey)
+                self.assertEqual(p.js("[...document.querySelectorAll('.ucrow [data-word]')].map(e => e.textContent)"), ["On track", "Done"])
+
+    def test_see_all_counts_every_linked_item_and_opens_that_same_list(self):
         with self.store.step("dashboard", USER) as st:
             st.update("actions", self.a_open, {"status": "Closed"})
         with chrome() as cdp:
             p = self.show(cdp)
             p.js("document.querySelector('.ucrow .ucbar').click()")
             p.until("!!document.querySelector('[data-seeall]')", "the row opened")
-            self.assertEqual(p.js("document.querySelector('[data-seeall]').textContent"), "See all 2 open work items", "the closed action is not counted")
+            self.assertEqual(p.js("document.querySelector('[data-seeall]').textContent"), "See all 3 work items for 1.1", "the closed action is counted too")
             p.js("document.querySelector('[data-seeall]').click()")
             p.until("location.hash.startsWith('#work&p=ABC&f=')", "Work items opened")
-            p.until("document.querySelectorAll('#work tbody tr[data-id]').length === 2", "the list holds the two the link counted")
+            p.until("document.querySelectorAll('#work tbody tr[data-id]').length === 3", "the list holds the three the link counted, the closed one too")
 
     def test_a_row_opens_in_place_with_where_it_stands_the_next_steps_and_see_all(self):
         with chrome() as cdp:
@@ -380,13 +406,40 @@ class UseCases(Setup):
             text = p.js("document.querySelector('.ucdetail').innerText")
             self.assertIn("Live for two suppliers.", text)
             self.assertIn("Pat Demo: Chase the supplier file", text)
-            self.assertIn("See all 3 open work items", text, "all three linked items are open")
+            self.assertIn("See all 3 work items for 1.1", text, "all three linked items")
+            self.assertIn("NEXT STEPS \u00b7 3", text.upper().replace("\u00b7", "\u00b7"))
+            self.assertRegex(text, r"Pat Demo: Chase the supplier file\s+[A-Z]+-[A-Z]-\d+")
+            self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucdcols > div').length"), 2, "two columns")
+            self.assertEqual(p.js("document.querySelectorAll('.ucdetail [data-stepid]').length"), 3, "each step carries its id as a link")
+            left = p.js("[...document.querySelectorAll('.ucdetail .ucdcols > div')].map(e => e.getBoundingClientRect().left)")
+            self.assertGreater(left[1] - left[0], 100, "the columns sit side by side")
             self.assertEqual(p.js("document.querySelector('.ucbar').getAttribute('aria-expanded')"), "true")
             p.js("document.querySelector('[data-seeall]').click()")
             p.until("location.hash.startsWith('#work&p=ABC&f=')", "Work items opened")
             p.until("document.querySelectorAll('#work tbody tr[data-id]').length === 3", "filtered to the use case")
             p.js("history.back()")
             p.until("!!document.querySelector('.ucrow')", "back on the Dashboard")
+
+    def test_next_steps_are_every_open_item_in_the_client_wording_with_the_owner_in_a_circle(self):
+        """#441: a risk and a decision linked to the use case are next steps too; an item with client wording shows that, not its title."""
+        uc = self.demo.use_case
+        with self.store.step("dashboard", USER) as st:
+            st.update("actions", self.a_open, {"client_message": "We will chase the supplier file this week"})
+            st.create("raid", {"project": "ABC", "type": "Risk", "description": "ZQ-risk own title", "raised": "2026-10-01", "source": "demo", "owner": "Sam Demo", "use_case": uc})
+            st.create("decisions", {"project": "ABC", "decision": "ZQ-decision own title", "source": "demo", "status": "Pending", "use_case": uc,
+                                    "made_by": "Lee Demo", "client_message": "A choice of shared drive is due"})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.assertIn("5 next steps", p.js("document.querySelector('.ucrow .ucbar').innerText"))
+            p.js("document.querySelector('.ucrow .ucbar').click()")
+            p.until("!!document.querySelector('.ucdetail')", "the row opened")
+            text = p.js("document.querySelector('.ucdetail').innerText")
+            self.assertIn("Pat Demo: We will chase the supplier file this week", text)
+            self.assertNotIn("Chase the supplier file", text, "the item's own title is not shown beside its client wording")
+            self.assertIn("ZQ-risk own title", text, "an open risk is a next step; with no client wording its own title shows")
+            self.assertIn("Lee Demo: A choice of shared drive is due", text)
+            self.assertNotIn("ZQ-decision own title", text)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-step-av]')].map(e => e.textContent).sort()"), ["LD", "LD", "PD", "SD", "SD"])
 
 
 class Styles(Setup):
@@ -400,7 +453,7 @@ class Styles(Setup):
                 p.js(f"document.querySelector('input[name=secstyle][value={value}]').click()")
                 p.until(f"document.documentElement.dataset.secstyle === '{value}'", f"{value} applied")
             p.js("document.querySelector('input[name=secstyle][value=grey]').click()")
-            p.js("location.reload()")
+            reload_to_new_page(p.js)
             p.until("document.documentElement.dataset.secstyle === 'grey'", "remembered after a reload")
             gap = []
             for value in ("slim", "roomy"):
@@ -411,24 +464,7 @@ class Styles(Setup):
             self.assertGreater(gap[1], gap[0], "Roomy gaps are roomier than Slim gaps")
 
 
-class Published(Setup):
-    def publish(self):
-        self.out = tempfile.mkdtemp(prefix="clark-45-")
-        self.addCleanup(shutil.rmtree, self.out, ignore_errors=True)
-        done = publish.publish(self.store, "ABC", self.out, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
-        return Path(done["path"])
-
-    def draw(self, cdp, path, width=1400, dark=False):
-        tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
-        sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
-        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, sid)
-        cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
-        p = Pg(self, cdp, sid)
-        p.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('h1')", "the file drew")
-        if dark:
-            p.js("document.documentElement.dataset.theme = 'dark'")
-        return p
-
+class Published(PublishedFile, Setup):
     def test_the_file_draws_both_sections_view_only_with_the_files_own_figures(self):
         path = self.publish()
         for width, dark in ((1400, False), (900, True)):
@@ -442,6 +478,18 @@ class Published(Setup):
                 health, overdue = (p.js(f"document.querySelector('[data-tile={t}]').getBoundingClientRect().width") for t in ("health", "overdue"))
                 self.assertAlmostEqual(health, 2 * overdue + 12, delta=1.5)
 
+    def test_the_file_draws_done_with_its_word_count_and_grey_mark(self):
+        """#412: the published page shows a Done use case as the dashboard does, from the file's own figures."""
+        with self.store.step("dashboard", USER) as st:
+            st.update("use_cases", self.uc2, {"status": "Done"})
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucn')].map(e => e.dataset.count + ':' + e.textContent.trim())"),
+                             ["On track:1 On track", "Done:1 Done"])
+            self.assertEqual(p.js("[...document.querySelectorAll('.meter i')].map(e => e.className)"), ["m-g", "m-n"])
+            self.assertIn("Done", p.js("[...document.querySelectorAll('.ucrow [data-word]')].map(e => e.textContent)"))
+
     def test_a_use_case_lists_only_linked_items_that_are_client_flagged_and_not_hidden(self):
         path = self.publish()
         text = path.read_text(encoding="utf-8")
@@ -454,7 +502,7 @@ class Published(Setup):
             shown = p.js("document.querySelector('.ucdetail').innerText")
             self.assertIn("Pat Demo: Chase the supplier file", shown)
             self.assertNotIn("ZQ-", shown)
-            self.assertIn("See all 1 open work item", shown, "the one item the file keeps")
+            self.assertIn("See all 1 work item for", shown, "the one item the file keeps")
             self.assertNotIn("Sam Demo", shown)
             self.assertNotIn("Lee Demo", shown)
 
@@ -485,7 +533,7 @@ class Published(Setup):
 class PublishedPage(unittest.TestCase):
     def test_page_view_html_holds_nothing_that_only_the_owner_has(self):
         text = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
-        for owner_only in ("data-tile-grip", "data-tile-eye", "data-reason", "health-pill", "/api/change", "Hide from the published report", "Section style", "Dashboard sections", "Slim gaps"):
+        for owner_only in ("data-tile-grip", "data-tile-eye", "data-reason", "health-pill", "/api/change", "Hide from the published report", "Section style", "Dashboard sections", "data-glance-hint", "Slim gaps"):
             self.assertNotIn(owner_only, text, owner_only)
 
 

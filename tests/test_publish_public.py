@@ -2328,18 +2328,25 @@ GROWTH_FLOOR = 0.01     # CPU seconds; a faster t(n) than this is raised to it, 
 
 def growth_ratio(work, n, tries=3):
     """Time work(n) and work(2 * n) in CPU time (time.process_time, so a busy machine does not count against it), best of
-    `tries` for each, and return (t(n), t(2n), t(2n) / max(t(n), GROWTH_FLOOR))."""
+    `tries` for each, and return (t(n), t(2n), t(2n) / max(t(n), GROWTH_FLOOR)).
+
+    PR 511: a loaded runner measured 3.58 for long lines that measure 2.00 alone, because all the n runs came first and a burst of load
+    then landed on the 2n runs only. So the two sizes are timed in turns (n, 2n, n, 2n, ...), and a ratio over GROWTH_LIMIT earns up to
+    `tries` more rounds before it is returned. More rounds can only lower each best time, so this out-waits a burst on one size but not
+    a real blow-up: the best t(2n) of a square stays four times its best t(n) however many rounds are timed. The limit is unchanged."""
     import time
 
-    def best(size):
-        found = None
-        for _ in range(tries):
-            start = time.process_time()
-            work(size)
-            spent = time.process_time() - start
-            found = spent if found is None else min(found, spent)
-        return found
-    small, big = best(n), best(2 * n)
+    def once(size):
+        start = time.process_time()
+        work(size)
+        return time.process_time() - start
+    small = big = None
+    for round_ in range(2 * tries):
+        if round_ >= tries and big / max(small, GROWTH_FLOOR) <= GROWTH_LIMIT:
+            break
+        a, b = once(n), once(2 * n)
+        small = a if small is None else min(small, a)
+        big = b if big is None else min(big, b)
     return small, big, big / max(small, GROWTH_FLOOR)
 
 

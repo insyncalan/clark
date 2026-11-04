@@ -128,12 +128,12 @@ def with_print_css(html, orientation="portrait"):
 
 def stack_script():
     """The script that stacks the page's tabs for printing, run in the page once it has loaded. It opens each tab in turn with
-    its own tab button, copies what the tab draws into a section under the tab's name, then marks the page printed-stacked
+    its own tab button, copies what the tab draws into a section under the tab's full name (a button on a narrow window also holds a short name: only the full one is used), then marks the page printed-stacked
     (print_css hides the live page). It returns the number of tabs stacked (0 when the page has no tabs: then it is printed as it is)."""
     return """(async function(){
   var wait=function(ms){return new Promise(function(r){setTimeout(r,ms)})};
   var frame=function(){return new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(r)})})};
-  var tabs=[].map.call(document.querySelectorAll('.tabs .tab[data-view]'),function(b){return [b.getAttribute('data-view'),b.textContent.trim()]});
+  var tabs=[].map.call(document.querySelectorAll('.tabs .tab[data-view]'),function(b){var full=b.querySelector('.tl-full'); return [b.getAttribute('data-view'),(full||b).textContent.trim()]});
   var go=function(v){var b=document.querySelector('.tabs .tab[data-view="'+v+'"]'); if(b) b.click();};
   var main=document.getElementById('main');
   if(!tabs.length||!main) return 0;

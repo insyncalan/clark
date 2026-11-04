@@ -1,4 +1,4 @@
-"""#269: the publications row names the PDF file saved with it (schema version 11, `publications.pdf_name`). The step adds the
+"""#269: the publications row names the PDF file saved with it (schema version 15, `publications.pdf_name`). The step adds the
 column to a version 10 file and keeps every row; a publish that saves a PDF puts its name on its own row once the PDF is saved;
 a publish with no PDF, or whose PDF was not saved, leaves it empty. Fictional data only.
 
@@ -47,12 +47,12 @@ class TheColumnAndTheStep(unittest.TestCase):
         con.close()
         return path
 
-    def test_the_step_is_number_11_and_follows_step_10(self):
-        self.assertEqual(store_module.SCHEMA_VERSION, 11)
+    def test_the_step_is_number_15_and_follows_step_14(self):
+        self.assertEqual(store_module.SCHEMA_VERSION, 15)
         steps = [n for n, _ in store_module.MIGRATIONS]
-        self.assertEqual(steps, list(range(2, 12)))
-        self.assertEqual(store_module.MIGRATIONS[-2], (10, store_module.migrate_publication_numbers))
-        self.assertEqual(store_module.MIGRATIONS[-1], (11, store_module.migrate_publication_pdf_name))
+        self.assertEqual(steps, list(range(2, 16)))
+        self.assertEqual(store_module.MIGRATIONS[-2], (14, store_module.migrate_review_after_days))
+        self.assertEqual(store_module.MIGRATIONS[-1], (15, store_module.migrate_publication_pdf_name))
 
     def test_a_version_10_file_gets_the_column_keeps_every_row_and_is_copied_first(self):
         path = self.make_v10()
@@ -61,7 +61,7 @@ class TheColumnAndTheStep(unittest.TestCase):
         con.close()
         s = open_store(path, onedrive_roots=[])
         self.addCleanup(s.close)
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "11")
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "15")
         self.assertEqual([tuple(r) for r in s.con.execute("SELECT number, local_path, pdf_name FROM publications ORDER BY seq")],
                          [(1, "/x/1.html", None), (2, "/x/2.html", None)])
         self.assertTrue(list((Path(path).parent / "backups").glob("*")), "a safety copy was taken before the step")
@@ -100,7 +100,7 @@ class TheColumnAndTheStep(unittest.TestCase):
         con = sqlite3.connect(path)
         before = list(con.iterdump())
         con.close()
-        steps = store_module.MIGRATIONS[:-1] + ((11, lambda c: (c.execute("ALTER TABLE publications ADD COLUMN pdf_name TEXT"),
+        steps = store_module.MIGRATIONS[:-1] + ((15, lambda c: (c.execute("ALTER TABLE publications ADD COLUMN pdf_name TEXT"),
                                                                     c.execute("SELECT nonsense FROM nowhere"))),)
         with mock.patch.object(store_module, "MIGRATIONS", steps):
             with self.assertRaises(Invalid):

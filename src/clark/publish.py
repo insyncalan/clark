@@ -12,7 +12,8 @@ choice is "exclude" (Sensitive always, names compared without case). Each table 
 view shows, and nothing else is ever copied, so internal_note, movement, source and the project's folders are not in the file.
 select(), clean_html(), render(), csp_meta() and file_name() are pure; read_inputs() reads the database once, read-only.
 
-- Q1 yes: a hidden section of type actions, raid, decisions, milestones or usecases drops that kind's rows and its tab.
+- Q1 yes: a hidden section of type actions, raid, decisions, milestones or usecases drops that kind's rows and its tab (a hidden
+  Milestones section also drops the Client Requested Report View's tab, whose figures are the milestones).
 - Q2 yes (Head ruling on #39): publish() records the verified file with Store.log_publication, once, after the write is read
   back and compared: a `publications` row with the file's SHA-256 and nothing else (no step, no write to the project row). The
   folder to offer next time is read back from the latest publication (Store.last_publish_folder).
@@ -25,6 +26,7 @@ Standard library only, Python 3.9.
 """
 import argparse
 import base64
+import bisect
 import getpass
 import hashlib
 import heapq
@@ -33,14 +35,15 @@ import html as htmllib
 import json
 import os
 import re
+import secrets
 import stat
 import sys
 import unicodedata
 from html.parser import HTMLParser
 from pathlib import Path
 
-from clark import milestones, page, platform, section_bodies
-from clark.store import Invalid as StoreInvalid, NumberTaken, check_section_body, open_store
+from clark import doclinks, milestones, page, platform, section_bodies
+from clark.store import Invalid as StoreInvalid, NumberTaken, check_section_body, excluded_label_names, open_store
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
 
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused
@@ -55,8 +58,8 @@ DEFAULT_SECTIONS = tuple({"id": f"s-{t}", "type": t, "title": title, "body": "",
                                                          ("usecases", "Use cases"), ("milestones", "Milestones"),
                                                          ("raid", "Risks and issues"), ("actions", "Actions"),
                                                          ("decisions", "Decisions")), 1))
-SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions") + section_bodies.BODY_TYPES
-# not "docs" (v0.1); needs, tracker and the section templates (#96) carry content: a section of those types stays in only when its
+SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs") + section_bodies.BODY_TYPES
+# "docs" (#74): only while it has a document to show (documents()); needs, tracker and the section templates (#96) carry content: a section of those types stays in only when its
 # body checks again and its published fields are not empty (_content; a template stub is never in the file)
 
 # The columns the view shows, per table. Anything not named here is never copied into the file.
@@ -73,6 +76,7 @@ PUBLISH_FIELDS = {
                   "revisit", "replaces", "use_case"),
     "use_cases": ("id", "ref", "title", "status", "headline", "standing", "sort_order"),
     "links": ("from_item", "to_item", "kind"),
+    "documents": ("title", "kind", "url", "date"),        # #74: never its id, place or archive flag
 }
 RICH = {"projects": ("current_state",), "use_cases": ("standing",)}     # HTML the editor wrote: through clean_html
 # Read from the database as well, only to decide (never copied): the gates, and what a milestone's state is worked out from.
@@ -212,10 +216,7 @@ def clean_html(text):
 def _excluded_labels(rules):
     """The label names (lower case) that keep a row out: Sensitive, and any label whose behaviour or default choice is
     exclude."""
-    out = {"sensitive"}
-    out.update(str(r.get("name", "")).casefold() for r in rules or ()
-               if r.get("behaviour") == "exclude" or r.get("default_choice") == "exclude")
-    return out
+    return excluded_label_names(rules)
 
 
 REASON_LIMIT = 2000                                             # the writer's cap on a project's health reason (store.REASON_LIMIT)
@@ -260,6 +261,39 @@ def _keeper(d, code, hidden_ids, blocked):
                 and row.get("project", code) == code and row.get("id") not in hidden_ids
                 and not any(str(n).casefold() in blocked for n in item_labels.get(row.get("id"), ())))
     return keep
+
+
+def _document(row):
+    """#74: one document as the file carries it, or None to leave it out. Every field is checked again here, never trusted: the
+    link must pass doclinks.check_link (the one link rule; a bad one drops the document, it is never repaired) and the title must
+    not read as the address of another site; the title is text with hidden characters dropped (doclinks.link_label) and must hold
+    something; a kind not in doclinks.KINDS drops the document (it is refused, never published as an empty kind) and a date that is not a real day is carried as nothing."""
+    try:
+        url = doclinks.check_link(row.get("url"))
+        title = doclinks.link_label(row.get("title"), url) if str(row.get("title") or "").strip() else ""
+        if not title or doclinks.looks_like_other_place(title, url):
+            return None
+    except doclinks.LinkError:
+        return None
+    day = row.get("date")
+    try:
+        day = day if isinstance(day, str) and re.fullmatch(r"\d{4}-\d\d-\d\d", day) and date.fromisoformat(day) else None
+    except ValueError:
+        day = None
+    kind = row.get("kind")
+    if kind not in doclinks.KINDS:
+        return None
+    return {"title": title, "kind": kind, "url": url, "date": day}
+
+
+def documents(rows, code, hidden_ids, hidden_types):
+    """#74: the documents a client may see, in their order: live (not archived), this project's, not hidden by the eye
+    (report_hidden), and only while the Supporting documents section is not hidden; each through _document."""
+    if "docs" in hidden_types:
+        return []
+    kept = (_document(r) for r in sorted(rows or (), key=lambda r: (r.get("sort_order") or 0, str(r.get("id"))))
+            if r.get("archived") == 0 and r.get("project", code) == code and r.get("id") not in hidden_ids)
+    return [_pick(c, PUBLISH_FIELDS["documents"]) for c in kept if c]
 
 
 OPEN_STEPS = ("Open", "Delayed")                                # an action's statuses that are still to do
@@ -349,12 +383,15 @@ def select(inputs):
     proj["health_reason"] = reason_text(proj["health_reason"])
     proj["current_state"] = "" if "current" in hidden_types else clean_html(proj["current_state"])
     out["project"] = proj
+    out["documents"] = documents(inputs.get("documents"), code, hidden_ids, hidden_types) if any(
+        s.get("type") == "docs" and not s.get("hidden") for s in sections) else []          # #74: carried only with a section to draw them
 
     shown = []
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
     ctx = section_bodies.Context({k: out[k] for k in KINDS}, as_at)          # #96: only what is already kept, as the file carries it
     extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
-    out_of_file = lambda x: x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
+    out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
+                             or (x.get("type") == "docs" and not out["documents"]))       # #74: no document to show, no section
     i = 0
     while i < len(sections):
         if sections[i].get("beside") and i + 1 < len(sections):
@@ -379,6 +416,8 @@ def select(inputs):
         tabs.append("milestones")
     if out["use_case_pages"]:
         tabs.append("usecases")
+    if "milestones" not in hidden_types:      # the Client Requested Report View (#192) reads only what the file already holds; its figures are the milestones
+        tabs.append("clientreport")
     return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at}
 
 
@@ -430,9 +469,127 @@ FOREIGN = re.compile(r"<svg(?=[\t\n\f\r />])|<math(?=[\t\n\f\r />])|<!\[CDATA\["
 FOREIGN_FOUND = "an svg, math or CDATA section"
 
 
+# #321: a picture embedded as data in the page's style is refused, so the page's cards stay plain CSS and text. What is spared:
+# an embedded font (font/* and the older font types below; application/octet-stream only as an @font-face src), clark's named
+# logo (build_page.py writes it as exactly this rule, alone, at the top level of a style), and the three pictures an own look may
+# set (docs/DESIGN-SYSTEM.md: a home banner and a cover), each as `--name: url(data:image/...)` and nothing else in the value.
+# Only a data: that is a URL counts: after url( or inside an image function's string argument. `.metadata:hover` and
+# content:"Data: " are no URL. A data:font/ is trusted on its label, not on its bytes (a catch-the-accident check, not a sniffer).
+LOGO_RULE = re.compile(r"\s*\.logo-icon\s*\{\s*background-image:\s*url\(\s*[\"']?data:image/svg\+xml;base64,[A-Za-z0-9+/=]+[\"']?\s*\)\s*;?\s*\}", re.I)
+OLD_FONT_TYPES = frozenset(("application/font-woff", "application/font-woff2", "application/x-font-ttf", "application/x-font-otf",
+                            "application/vnd.ms-fontobject"))
+LOOK_PICTURES = re.compile(r"\s*--(?:art-home|image-cover|image-fade)\s*:\s*\Z")
+LOOK_PICTURE_TYPE = re.compile(r"image/(?:png|jpeg|gif|webp|svg\+xml)\Z")
+_DATA_URL = re.compile(r"[\"'\s]*data:([^;,\"')]*)", re.I)
+_PROPERTY = re.compile(r"\s*([\w-]+)\s*:")
+# The pieces of _CSS_PIECE, except that a run of words and punctuation with no string or bracket in it is one piece, not one per
+# word (a function name before its ( is still its own piece). The walk below reads only brackets, strings, { } ; and the end of a
+# piece, so it costs a step per bracket or string, not per word: an embedded font is a handful of steps, not thousands.
+_PICTURE_PIECE = re.compile(r"""\"(?:[^"\n]*)"?|'(?:[^'\n]*)'?|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|(?:[\w-]+(?![\w-])(?!\s*\()|[^"'()\w-])+|[\w-]+""")
+
+
+def _escape_places(css, plain):
+    """Where, in plain (= css_plain(css)), each escape of the style as typed put its character: two sorted lists, the starts and
+    the ends. One pass. None if the places cannot be told (an escape built a comment: plain is then shorter than the decoded
+    text). Used to ask whether a piece of the read text is spelled out as typed, with no escape in it."""
+    typed = _without_comments(css.replace("\x00", "\ufffd"))
+    starts, ends, shift = [], [], 0
+    for m in _CSS_ESCAPE.finditer(typed):
+        put = len(_css_escape(m))
+        starts.append(m.start() + shift)
+        ends.append(m.start() + shift + put)
+        shift += put - (m.end() - m.start())
+    if len(typed) + shift != len(plain):
+        return None
+    return starts, ends
+
+
+def _picture_as_data(css, work=None):
+    """True if style text has a data: URL that is not a font, the logo rule or one of the look's named pictures. Read as a browser
+    reads it (css_plain), with the same pieces css_findings reads: url( and the string arguments of image functions. A running
+    note of the block it is in (@font-face, a top-level rule) and of where its declaration began says which is spared."""
+    if "\\" not in css and "data:" not in css.lower():
+        return False                                    # no escape and no data: in it: nothing to find
+    work = work or Work()
+    plain = css_plain(css)
+    escaped = "\\" in css                              # an escape could make the text read differently from a browser: ask of each spared piece
+    stack, blocks, images, argument_start, decl = [], [], 0, False, 0
+
+    places = []
+
+    def spelled_out(begin, end):
+        """True if plain[begin:end] has no escape in it. An escape elsewhere in the style (the page's content:"\\2713" tick) says
+        nothing about a spared piece: only one inside the piece itself (a selector, a name, the value) takes its exception away."""
+        if not escaped:
+            return True
+        if not places:
+            places.append(_escape_places(css, plain))
+        if places[0] is None or "\\" in plain[begin:end]:
+            return False
+        starts, ends = places[0]
+        i = bisect.bisect_left(ends, begin)             # the first escape that ends at or after the piece begins
+        return i >= len(starts) or starts[i] > end
+
+    def refused(mime, start, via_url):
+        mime = mime.strip().lower()
+        if mime.startswith("font/") or mime in OLD_FONT_TYPES:
+            return False
+        head = plain[decl:start]
+        if mime == "application/octet-stream":
+            prop = _PROPERTY.match(head)
+            return not (blocks and blocks[-1][0] == "@font-face" and prop and prop.group(1).lower() == "src")
+        if not via_url:
+            return True
+        if LOOK_PICTURES.match(head) and LOOK_PICTURE_TYPE.match(mime):
+            close = plain.find(")", start)
+            if spelled_out(decl, len(plain) if close < 0 else close + 1):       # its name and its url(...), each as typed
+                return False
+        logo = LOGO_RULE.match(plain, blocks[0][1]) if len(blocks) == 1 else None      # the rule's own block, nothing around it
+        return not (logo and start < logo.end() and spelled_out(blocks[0][1], logo.end()))
+
+    for m in _PICTURE_PIECE.finditer(plain):
+        work.spend()
+        piece = m.group(0)
+        if m.group(1) is not None:
+            is_image = bool(_IMAGE_FUNCTION.match(m.group(1)))
+            stack.append(is_image)
+            images += is_image
+            argument_start = True
+            if m.group(1).lower() == "url":
+                argument_start = False                  # its string, if any, is its address, read here
+                d = _DATA_URL.match(plain, m.end())
+                if d and refused(d.group(1), m.start(), True):
+                    return True
+        elif piece == "(":
+            stack.append(False)
+            argument_start = True
+        elif piece == ")":
+            images -= stack.pop() if stack else 0
+            argument_start = False
+        elif piece[0] in "\"'":
+            if images and argument_start:
+                d = _DATA_URL.match(piece)
+                if d and refused(d.group(1), m.start(), False):
+                    return True
+            argument_start = False
+        else:
+            if not stack:
+                for i, ch in enumerate(piece, m.start()):
+                    if ch == "{":
+                        blocks.append((plain[decl:i].strip().lower(), decl))     # what it is, and where it began
+                    elif ch == "}" and blocks:
+                        blocks.pop()
+                    if ch in ";{}":
+                        decl = i + 1
+            argument_start = piece.rstrip().endswith(",") or (argument_start and not piece.strip())
+    return False
+
+
 def check_brand(page_text):
     """Refuse a brand that reaches outside the file: an @import, or a url() that isn't data:. A font has to be embedded in
-    tokens.css as data. (The policy would block it too, but a report with a missing font is refused, not published.)"""
+    tokens.css as data. (The policy would block it too, but a report with a missing font is refused, not published.) Also
+    (#321) refuse a picture embedded as data in a style, other than the logo: a data: image is no address, but it would put a
+    picture on a card, and only a test of the published cards would have caught it."""
     if FOREIGN.search(page_text):
         raise PublishError("The brand's tokens.css, or the page, has a drawing or formula section, which the check for "
                            "addresses outside the file cannot read: take it out.")
@@ -440,6 +597,7 @@ def check_brand(page_text):
     try:
         styles = style_texts(page_text, work)
         finds = [css_findings(css, work) for css in styles]
+        pictures = any(_picture_as_data(css, work) for css in styles)
     except ScanTooBig:
         raise PublishError("The brand's tokens.css, or the page, is too long or too tangled to check for addresses outside the "
                            "file: shorten it.")
@@ -450,6 +608,9 @@ def check_brand(page_text):
         if ADDRESS_FOUND in found:
             raise PublishError("The brand's tokens.css names a font or image by address, which would reach outside the "
                                "file: embed the font in tokens.css instead.")
+    if pictures:
+        raise PublishError("The brand's tokens.css, or the page, embeds a picture in its style, which the page's cards do not "
+                           "use: embed only the font in tokens.css.")
 
 
 # The block data_block() writes, and only where render() puts it: straight before the last </body>, on a line of its own. Its
@@ -688,9 +849,9 @@ def _without_comments(css):
 
 
 def css_plain(css):
-    """Style text as a browser's reader sees it: no null bytes, no comments, each \\75 or \\u escape turned into the character it
-    stands for (so \\75rl( and u/**/rl( are url( and \\69mport is import). One forward pass at each step."""
-    css = _without_comments(css.replace("\x00", ""))
+    """Style text as a browser's reader sees it: each null byte read as U+FFFD (not dropped), no comments, each \\75 or \\u escape
+    turned into the character it stands for (so \\75rl( and u/**/rl( are url( and \\69mport is import). One forward pass at each step."""
+    css = _without_comments(css.replace("\x00", "\ufffd"))
     return _without_comments(_CSS_ESCAPE.sub(_css_escape, css))
 
 
@@ -725,33 +886,35 @@ def css_findings(css, work=None):
     found = set()
     if "(" not in css and "@" not in css and "\\" not in css:
         return found             # no bracket, @ or escape: no url(, no @import (u/**/rl( keeps its bracket, \40 import its backslash)
-    for text in (css, css_plain(css)):
+    # a browser reads a null byte as U+FFFD; the guard also reads the text with it dropped (the stricter reading kept from before)
+    plains = [css_plain(css)] + ([css_plain(css.replace("\x00", ""))] if "\x00" in css else [])
+    for text in [css] + plains:
         if re.search(r"@\s*import", text, re.I):
             found.add(IMPORT_FOUND)
         if _url_outside(text, work):
             found.add(ADDRESS_FOUND)
-    plain = css_plain(css)
-    images, argument_start = 0, False
-    stack = []
-    for m in _CSS_PIECE.finditer(plain):
-        work.spend()
-        piece = m.group(0)
-        if m.group(1) is not None:
-            stack.append(bool(_IMAGE_FUNCTION.match(m.group(1))))
-            images += stack[-1]
-            argument_start = True
-        elif piece == "(":
-            stack.append(False)
-            argument_start = True
-        elif piece == ")":
-            images -= stack.pop() if stack else 0
-            argument_start = False
-        elif piece[0] in "\"'":
-            if images and argument_start and _not_data(piece):
-                found.add(ADDRESS_FOUND)
-            argument_start = False
-        else:
-            argument_start = piece.rstrip().endswith(",") or (argument_start and not piece.strip())
+    for plain in plains:
+        images, argument_start = 0, False
+        stack = []
+        for m in _CSS_PIECE.finditer(plain):
+            work.spend()
+            piece = m.group(0)
+            if m.group(1) is not None:
+                stack.append(bool(_IMAGE_FUNCTION.match(m.group(1))))
+                images += stack[-1]
+                argument_start = True
+            elif piece == "(":
+                stack.append(False)
+                argument_start = True
+            elif piece == ")":
+                images -= stack.pop() if stack else 0
+                argument_start = False
+            elif piece[0] in "\"'":
+                if images and argument_start and _not_data(piece):
+                    found.add(ADDRESS_FOUND)
+                argument_start = False
+            else:
+                argument_start = piece.rstrip().endswith(",") or (argument_start and not piece.strip())
     return found
 
 
@@ -987,6 +1150,45 @@ def take_back(path, digest):
         return False
 
 
+def put_link_back(dest, target, digest):
+    """Put the link `dest` -> `target` back in place of the file this call wrote (#388, #604), without a check-then-act gap:
+    whatever is at `dest` is first moved aside in one step, and only a file that holds exactly the bytes whose SHA-256 is
+    `digest` is replaced; anything else is put straight back (never replaced) and the link is not made. The link itself
+    is made with os.symlink, which never replaces a name that has appeared meanwhile. If the link cannot be made, our
+    file is put back, so `dest` is never left empty. Returns "linked", "kept" (our file is still at `dest`; the link was
+    not put back: also when it could not even be moved aside), "other" (something that is not ours is at `dest`, or it
+    is gone; it was left alone, no link made) or "aside" (the link could not be made and our file could not be put
+    back either: it is under its hidden aside name, not at `dest`)."""
+    dest = Path(dest)
+    aside = dest.with_name(f".{dest.name}.{os.getpid()}.{secrets.token_hex(4)}.aside")
+
+    def back():                                         # aside -> dest, never over a name taken meanwhile; True when placed
+        try:
+            return platform.move_unless_exists(aside, dest)
+        except OSError:
+            return None                                 # left under its aside name, which keeps the bytes
+
+    try:
+        os.rename(dest, aside)
+    except OSError:                                     # nothing was moved: if our file is still at dest, say so (#605)
+        return "kept" if still_ours(dest, digest) else "other"
+    if not still_ours(aside, digest):
+        back()                                          # someone else's file: back where it was
+        return "other"
+    try:
+        os.symlink(target, dest)
+    except OSError:
+        placed = back()
+        if placed:
+            return "kept"
+        if placed is False:                             # the name was taken meanwhile: ours is the extra copy
+            os.unlink(aside)
+            return "other"
+        return "aside"                                  # None: the report is under its aside name; no extra sentence yet
+    os.unlink(aside)
+    return "linked"
+
+
 def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding=None):
     """Write {folder}/{CODE}-report-{date}.html and return {"path", "sha256", "bytes", "seq"}. The file is encoded once,
     hashed once, written with platform.write_file (a temporary file, then replaced: never half a file), read back and
@@ -1010,11 +1212,16 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
             raise PublishError(f"{dest.name} could not be saved ({e.strerror or e}). Nothing was written.") from e
     digest = built["sha256"]
     earlier = None                         # #120: a file overwrite=True replaces is put back if the publish fails or loses the race
+    earlier_link = None                    # #388: so is a link it replaces (the link itself, not the file it points at)
     if overwrite:
         try:
             earlier = read_plain(dest, 64 * 1048576)
         except OSError:
             earlier = None
+            try:
+                earlier_link = os.readlink(dest)
+            except OSError:
+                earlier_link = None
     try:
         try:
             platform.write_file(dest, body)
@@ -1041,6 +1248,10 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
                     platform.write_file(dest, earlier)
                 except (OSError, platform.PlatformError):
                     pass
+        elif earlier_link is not None:
+            if put_link_back(dest, earlier_link, digest) == "kept":      # #605: said plainly, not swallowed
+                raise PublishError(f"{e} The link that was at {dest.name} could not be put back, so this report is still there "
+                                   "under that name.") from e
         else:
             take_back(dest, digest)
         raise PublishError(str(e)) from e

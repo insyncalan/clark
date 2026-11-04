@@ -387,12 +387,13 @@ class Picker(Base):
         self.assertIn(f"{b} was changed later", out["words"])
         self.assertIn(f"{a} is hidden from the client again", out["words"])
 
-    def test_an_undo_is_not_offered_for_a_step_that_only_turned_a_client_flag_on(self):
+    def test_an_undo_is_not_offered_for_a_step_that_only_turned_a_client_flag_on_from_another_route(self):
         a = self.demo.action()
         with self.s.step("dashboard", USER) as st:
             st.update("actions", a, {"client_visible": 0})
-        step = self.demo.update("actions", a, {"client_visible": 1})
-        status, out = self.back(step)
+        with self.s.step("excel", USER) as st:               # #97: from the page the eye is a work item's own field (test_changes_item_eye), so only another route's step is refused
+            st.update("actions", a, {"client_visible": 1})
+        status, out = self.back(self.demo.last_step())
         self.assertEqual((status, out["message"]), (400, changes.NO_UNDO))
 
     def test_a_picker_step_cannot_be_undone_from_another_project(self):
@@ -573,7 +574,7 @@ class Inserts(Base):
         body = self.ok(add("raid", type="Risk", description="A risk", impact="High", likelihood="High"))
         self.assertEqual((body["item"]["priority"], body["item"]["status"]), ("Urgent", "Open"))
         for field, value in (("raised", "2020-01-01"), ("source", "somewhere"), ("project", "XYZ"), ("id", "ABC-A-099"),
-                             ("status", "Closed"), ("archived", 1), ("closed", "2026-10-01"), ("client_visible", 0),
+                             ("status", "Closed"), ("archived", 1), ("closed", "2026-10-01"),
                              ("client_message", "x"), ("internal_note", "x"), ("updated_at", "x")):
             with self.subTest(field=field):
                 words = changes.NO_ARCHIVE if field == "archived" else f"The field '{field}' can't be set here."
@@ -648,8 +649,8 @@ class Inserts(Base):
         self.refused({**add("actions", description="X"), "id": "ABC-A-001"}, "That change doesn't take 'id'.")
         self.refused(add("actions", description="X") | {"values": "text"}, "Send the new row's values as an object.")
         self.refused(add("actions", description="X") | {"values": ["x"]}, "Send the new row's values as an object.")
-        self.refused(add("use_cases", title="X", headline="Y"), changes.BAD_OP)
-        self.refused(add("documents", title="X"), changes.BAD_OP)
+        self.refused(add("use_cases", title="X", headline="Y"), changes.UC_REF_WORDS)      # #455: a use case can be added (its own writer), but needs its ID
+        self.refused(add("documents", title="X"), "Add a link.")       # #74: a document is added with its link
         self.refused(add("workstreams", name="X"), changes.BAD_KIND)
         self.refused(add("report_hidden"), "That change doesn't take 'values'.")
         self.assertEqual(self.s.read("use_cases", "ABC")[0]["title"], "Invoice matching")

@@ -123,6 +123,7 @@ def markers_for(store, code, published, template=""):
                  for r in ([data["project"]] if kind == "projects" else data.get(kind, ())) if isinstance(r, dict)
                  for v in r.values() if isinstance(v, str)]
     kept_text += [s.get("body") or "" for s in published.get("sections", ()) if isinstance(s, dict)]
+    kept_text += [v for r in data.get("documents", ()) if isinstance(r, dict) for v in r.values() if isinstance(v, str)]     # #74: the links the client may see
     found, where = [], {}
     bare = to_client._key(template)
 
@@ -141,6 +142,12 @@ def markers_for(store, code, published, template=""):
                 value = (_text(row.get(field)) or "").strip()
                 if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
                     add(value, row["id"])
+    for row in store.read("documents", project=code):              # #74: a document's id, title and link are absent unless a kept document carries the same words (publish carries no id)
+        add(row["id"], row["id"])
+        for field in ("title", "url"):
+            value = (_text(row.get(field)) or "").strip()
+            if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
+                add(value, row["id"])
     out = Markers(dict.fromkeys(found))
     out.where = where
     return out
@@ -263,11 +270,11 @@ class Publisher:
             return 409, self.fail("local_not_html")
         if any(self.inside_folder(dest, own) for own in (self.data_dir, self.backups_dir) if own):
             return 409, self.fail("local_clark_files")
-        earlier_local = self.earlier_bytes(dest)        # #120: a file this one replaces is put back if the record is refused
         if self.pdf_step.on:                  # made only after every refusal above; saved after the report (publish_pdf.finish)
             early = self.pdf_step.prepare(self, dest, built, today, store, code, markers if want_client else None, saved)
             if early is not None:
                 return early
+        earlier_local = self.earlier_bytes(dest)        # #120: a file this one replaces is put back if the record is refused
         written = self.write_local(dest, body_bytes, digest)
         if written is not None:
             return 409, written
@@ -468,6 +475,9 @@ class Publisher:
         code = body.get("project") if isinstance(body, dict) else None
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
+        refused = to_client.section_style_refusal(body)
+        if refused:
+            return 400, self.fail(code_of(refused), refused)
         store = self.store()
         try:
             if store.read("projects", ref=code) is None:
@@ -538,7 +548,8 @@ class Publisher:
 
     # ----- the report bar -----
     def latest(self, code):
-        """The latest publication of the project, for the report bar: {"at", "to_client"} or {} (no paths, no hash)."""
+        """The latest publication of the project, for the report bar: {"at", "to_client"} or {} (no paths, no hash), and (#437) the number the
+        next one will have."""
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
         store = self.store()
@@ -546,7 +557,8 @@ class Publisher:
             if store.read("projects", ref=code) is None:
                 return 404, self.fail("project_not_found")
             last = store.latest_publication(code)
+            following = store.next_publication(code)        # #437: the number the next publication will have, for the Publish dialog's line
         finally:
             store.close()
         return 200, {"ok": True, "latest": {"at": last["at"][:10], "to_client": last["to_client"]} if last else None,
-                     "pdf": publish_pdf.available()}
+                     "next": following, "pdf": publish_pdf.available()}

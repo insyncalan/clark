@@ -25,6 +25,11 @@ const ICONS = {
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
   half: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>',
   bars: '<path d="M6 19v-5M12 19v-9M18 19V5"/>',
+  flash: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  doc: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/>',
+  ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
+  archive: '<rect x="3.6" y="4.8" width="16.8" height="4.8" rx="1.2"/><path d="M5.4 9.6v9.6h13.2V9.6M10.2 13.2h3.6"/>',
 };
 const SHAPES = new Set(["path", "circle", "rect", "line", "polyline", "polygon", "ellipse"]);
 const PARSED = {};

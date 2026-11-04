@@ -35,6 +35,7 @@ MESSAGES = {
     "bad_pdf_request": "Something is wrong inside clark. Nothing was published. Reload the page and try again; if it keeps happening, tell the clark team.",
     "no_chrome": pdf.NO_CHROME + " Nothing was published.",
     "pdf_failed": "{reason} Nothing was published.",
+    "pdf_no_number": "The PDF could not be made, because this publication has no number to put at its foot. Nothing was published. Try again; if it keeps happening, leave the PDF box unticked.",
     "pdf_held_back": "The PDF was not made, because it would contain {what}. Nothing was published. Leave the PDF box unticked, or tell the clark team.",
     "pdf_not_checked": "The PDF could not be checked, so it was not made. Nothing was published. Try once more; if it fails again, leave the PDF box unticked.",
     "pdf_unreadable": "The PDF could not be read back to check it, so it was not made. Nothing was published. Leave the PDF box unticked.",
@@ -286,6 +287,9 @@ class Step:
             markers = publish_flow.markers_for(store, code, built["published"], page.page_html(pub.branding, view=True))
         if not pdf.find_chrome():
             return 409, pub.fail("no_chrome", MESSAGES["no_chrome"])
+        number = built.get("number")
+        if not isinstance(number, int) or isinstance(number, bool) or number < 1:          # #120: the foot says "Publication N"; no number, no PDF
+            return 409, pub.fail("pdf_failed", MESSAGES["pdf_no_number"])
         local = Path(dest).with_suffix(EXT)
         if local.exists() or local.is_symlink():            # the system's Save window asks whether to replace it
             try:
@@ -304,7 +308,7 @@ class Step:
         # Save window, may be replaced. A file that appears while the PDF is being made is never written over (see write).
         self.local_replaces = local.exists() or local.is_symlink()
         try:
-            data = make(body_bytes, as_at, number=built.get("number"))
+            data = make(body_bytes, as_at, number=number)
         except pdf.PdfError as e:
             return 409, pub.fail("pdf_failed", MESSAGES["pdf_failed"].format(reason=str(e).rstrip()))
         except (OSError, ValueError, MemoryError, RecursionError):

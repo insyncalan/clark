@@ -228,21 +228,13 @@ class Logic(unittest.TestCase):
         stale = [sec("a", "Summary"), sec("z", "Last", beside=1)]
         self.assertEqual(len(self.t(f"plan({lit(stale)}, 'text', 'z', true)")["requests"]), 1, "beside needs no clearing: clark sets the pairing")
 
-    def test_a_flag_left_on_the_last_section_is_cleared_so_the_new_one_does_not_pair_with_it(self):
-        stale = [sec("a", "Summary"), sec("z", "Last", beside=1)]
-        p = self.t(f"plan({lit(stale)}, 'text', 'z', false)")
-        self.assertEqual(p["requests"][1], {"op": "update", "id": "z", "changes": {"beside": 0}, "place": "report"})
-        self.assertEqual(len(self.t(f"plan({lit(S)}, 'text', 'e', false)")["requests"]), 1, "no flag, nothing to clear")
-
-    def test_at_the_end_a_flag_left_on_the_last_section_is_cleared_too(self):
-        """Adding at the end (after = null): a stale beside flag on the lone last section is cleared, so the new one does not pair with it."""
-        last = [sec("a", "Summary"), sec("b", "Decisions", type="decisions", beside=1)]
-        p = self.t(f"plan({lit(last)}, 'text', null, false)")
-        self.assertEqual(p["requests"], [{"op": "new", "values": {"type": "text", "title": "New section"}, "after": None, "place": "report"},
-                                         {"op": "update", "id": "b", "changes": {"beside": 0}, "place": "report"}])
-        clean = [sec("a", "Summary"), sec("b", "Decisions", type="decisions")]
-        self.assertEqual(len(self.t(f"plan({lit(clean)}, 'text', null, false)")["requests"]), 1)
-        self.assertEqual(len(self.t("plan([], 'text', null, false)")["requests"]), 1, "an empty report")
+    def test_a_plain_add_below_a_last_section_with_a_stale_flag_is_one_request(self):
+        """clark clears the stale flag in the same step (#244), so the page sends the one `new` and nothing else."""
+        for sections, after in (([sec("a", "Summary"), sec("z", "Last", beside=1)], "'z'"),
+                                ([sec("a", "Summary"), sec("b", "Decisions", type="decisions", beside=1)], "null")):
+            p = self.t(f"plan({lit(sections)}, 'text', {after}, false)")
+            self.assertEqual(p["requests"], [{"op": "new", "values": {"type": "text", "title": "New section"}, "after": None if after == "null" else "z", "place": "report"}])
+            self.assertNotIn("partial", p)
 
     def test_the_event_name_is_written_once_in_the_page_code(self):
         """The add-section event name is written once, in addSection.js (the gutter); addDialog.js re-exports it."""
@@ -297,6 +289,28 @@ class Box(Base):
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
                              ["All templates13", "Text and pictures2", "Figures2", "Work items3", "Files and links3", "People and dates2", "Notes1"])
             self.assertEqual(self.sent, [], "opening sends nothing")
+
+    def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
+        """#425: the ask panel and a toast with Undo are behind the box too; every layer in the page root is inert but the message area."""
+        every = ("[...document.querySelector('#app').children].filter(c => !c.querySelector('[role=dialog]') && !c.matches('.toasts') && c.tagName !== 'SCRIPT')"
+                 ".map(c => c.hasAttribute('inert'))")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel')", "the ask panel opened")
+            p.replace_title("ABC-S-003", "Renamed")
+            p.saved()
+            self.open_box(p, "ABC-S-003", focus='[data-id="ABC-S-004"] [data-drag]')
+            self.assertTrue(p.js("document.querySelector('#ask-panel').hasAttribute('inert')"), "the ask panel is inert")
+            self.assertTrue(p.js("document.querySelector('.toast [data-undo]').closest('[inert]') !== null"), "the toast's Undo is inert")
+            self.assertFalse(p.js("document.querySelector('.toasts').hasAttribute('inert')"), "the message area stays live")
+            states = p.js(every)
+            self.assertTrue(states and all(states), f"every layer outside the box is inert: {states}")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('[role=dialog]')", "Esc closed it")
+            self.assertFalse(any(p.js(every)), "nothing is inert after it closes")
+            self.assertFalse(p.js("document.querySelector('#ask-panel').hasAttribute('inert')"))
 
     def test_it_takes_the_event_exactly_as_the_gutter_sends_it(self):
         """The contract with #101: a cancelable event on the document, detail {after, opener}; the box claims it and opens."""
@@ -553,6 +567,7 @@ class Box(Base):
             self.assertEqual(self.ids_in_store(), IDS)
             self.assertEqual(self.beside_flags(), flags, "Summary is on its own row again")
             self.assertEqual(p.js("document.querySelectorAll('.sec.slot-left').length"), 1, "only the first pair is left")
+            p.toast_is("Undone.")
             self.assertEqual(p.toast(), "Undone.")
             self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 0, "nothing more to undo")
 
@@ -592,11 +607,11 @@ class Box(Base):
             self.assertEqual(self.sent[-1][1].get("beside"), None, "alone: no beside")
 
     def stale_flag_on_the_last_section(self):
-        """A leftover pairing flag on the last section (the page ignores it): the one case where a plain add is two requests."""
+        """A leftover pairing flag on the last section (the page ignores it)."""
         code, _ = self.real_change({"project": "ABC", "kind": "report_sections", "op": "update", "id": "ABC-S-011", "changes": {"beside": 1}, "place": "report"})
         self.assertEqual(code, 200)
 
-    def test_a_plain_add_below_a_stale_flag_is_two_requests_and_one_undo(self):
+    def test_a_plain_add_below_a_stale_flag_is_one_request_and_one_undo(self):
         self.stale_flag_on_the_last_section()
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -605,86 +620,16 @@ class Box(Base):
             p.js("document.querySelector('button[data-place]').click()")
             p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
             new = [i for i in p.ids() if i not in IDS][0]
-            self.assertEqual([r[1]["op"] for r in self.sent], ["new", "update"])
-            self.assertEqual(self.sent[-1][1]["changes"], {"beside": 0})
+            self.assertEqual([r[1]["op"] for r in self.sent], ["new"], "one request")
             self.assertEqual(self.beside_flags()["ABC-S-011"], 0)
             self.assertEqual(p.js(f"document.querySelector('[data-id=\"{new}\"]').classList.contains('slot-full')"), True, "on its own row")
-            self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1, "one Undo for the one action")
+            self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1)
             p.js("document.querySelector('[data-undo]').click()")
             p.until("document.querySelectorAll('.sec').length === 11", "the section is gone after one click")
-            undos = [r[1]["apply_id"] for r in self.sent if r[0] == "undo"]
-            self.assertEqual(len(undos), 2, "both steps were undone")
-            self.assertGreater(undos[0], undos[1], "the flag first, then the new section")
+            self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "one undo")
             self.assertEqual(self.ids_in_store(), IDS)
             self.assertEqual(self.beside_flags()["ABC-S-011"], 1, "the flag is as it was")
-            self.assertEqual(p.toast(), "Undone.")
-
-    def test_a_failed_second_request_says_so_plainly_and_undo_removes_the_section(self):
-        self.stale_flag_on_the_last_section()
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            p.edit()
-            self.failure = lambda req: (400, {"ok": False, "message": "x", "code": "refused"}) if req.get("op") == "update" else self.real_change(req)
-            self.open_box(p, "ABC-S-011")
-            p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "the section was added and the toast offers Undo")
-            self.assertEqual(p.toast(), "The section was added, but it could not be put on its own row. Undo removes it.")
-            self.failure = None
-            p.js("document.querySelector('[data-undo]').click()")
-            p.until("document.querySelectorAll('.sec').length === 11", "Undo removed the section")
-            self.assertEqual(self.ids_in_store(), IDS)
-            self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "one step to take back: the flag was never changed")
-            self.assertEqual(p.toast(), "Undone.")
-
-    def test_if_the_first_undo_fails_the_section_stays_and_the_toast_says_so(self):
-        self.stale_flag_on_the_last_section()
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            p.edit()
-            self.open_box(p, "ABC-S-011")
-            p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
-            self.failure = lambda req: (400, {"ok": False, "message": "x", "code": "refused"})
-            p.js("document.querySelector('[data-undo]').click()")
-            p.until("!!document.querySelector('.toast.problem')", "the toast says it failed")
-            self.assertTrue(p.toast().endswith("The section was not removed."), p.toast())
-            self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "stopped after the first Undo failed")
-            self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 12)
-
-    def test_if_the_second_undo_fails_the_page_shows_what_clark_holds_and_says_so(self):
-        """The Undo of two linked steps: the flag goes back first, then the section is removed. When the removal fails the page
-        reads clark again: the section is still there, the flag is as it was, and the toast says so and offers Undo for the section."""
-        self.stale_flag_on_the_last_section()
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            p.edit()
-            self.open_box(p, "ABC-S-011")
-            p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
-            new = [i for i in p.ids() if i not in IDS][0]
-            section_step = [r[1] for r in self.sent if r[1].get("op") == "new"]
-            self.assertEqual(len(section_step), 1)
-            seen = []
-
-            def fail_the_second(req):
-                seen.append(req["apply_id"])
-                if len(seen) == 2:
-                    return 400, {"ok": False, "message": "x", "code": "refused"}
-                return self.real_undo(req)
-            self.failure = fail_the_second
-            p.js("document.querySelector('[data-undo]').click()")
-            self.assertTrue(wait(lambda: len(seen) == 2, 10), f"both undos were tried: {seen}")
-            p.until("!!document.querySelector('.toast.problem')", "the toast says the removal failed")
-            self.assertIn("The section above was put back", p.toast())
-            self.assertIn("could not be removed", p.toast())
-            self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 12, "the section is still there")
-            self.assertEqual(p.js(f"!!document.querySelector('[data-id=\"{new}\"]')"), True)
-            self.assertEqual(self.beside_flags()["ABC-S-011"], 1, "the flag was put back")
-            self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1, "Undo is offered for the section")
-            self.failure = None
-            p.js("document.querySelector('[data-undo]').click()")
-            p.until("document.querySelectorAll('.sec').length === 11", "a second try removes the section")
-            self.assertEqual(self.ids_in_store(), IDS)
+            p.toast_is("Undone.")
             self.assertEqual(p.toast(), "Undone.")
 
     def test_a_stale_beside_add_that_clark_refuses_reads_the_page_again(self):
@@ -704,11 +649,20 @@ class Box(Base):
             p.until("!!document.querySelector('.toast.problem')", "the toast says it failed")
             p.until("document.querySelectorAll('.sec').length === 12", "the page was read again and shows the section added elsewhere")
 
-    def test_the_linked_map_is_cleaned_when_a_pair_is_resolved_or_can_no_longer_be_undone(self):
-        src = (SRC / "clark" / "page" / "src" / "stores" / "changes.js").read_text(encoding="utf-8")
-        self.assertIn("linked.delete(gone.step)", src, "a step that falls out of the kept list leaves the pairing")
-        body = src[src.index("export function undo("):]
-        self.assertLess(body.index("linked.delete(applyId)"), body.index("await sendUndo(code, applyId)"), "removed before the request, so a failure leaves nothing behind")
+    def break_reads(self, p):
+        p.js("window.__realFetch = window.fetch; window.fetch = (u, o) => String(u).includes('/api/data') ? Promise.reject(new Error('down')) : window.__realFetch(u, o)")
+
+    def test_if_the_page_cannot_be_read_again_after_an_undo_the_toast_says_to_reload(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.open_box(p, "ABC-S-003")
+            p.js("document.querySelector('button[data-place]').click()")
+            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
+            self.break_reads(p)
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("!!document.querySelector('.toast.problem')", "the toast says the page could not be refreshed")
+            self.assertEqual(p.toast(), "The change was undone, but the page could not be refreshed. Reload the page to see it.")
 
     def test_the_plain_add_is_one_step_and_one_undo(self):
         with chrome() as cdp:
@@ -770,13 +724,20 @@ class Box(Base):
             for width in (900, 1400):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                 self.open_box(p, "ABC-S-003")
+                p.until("document.querySelector('[data-ad-say]').textContent !== ''", "the live line has its words (set after the box is on the page, #380)")
                 order = p.js("""(function(){var q=function(s){return document.querySelector(s);}, ks=[q('.ad-kinds'), q('.ad-where'), q('.ad-list'), q('.ad-prev')], ok=true;
                     for (var i=0;i<3;i++) ok = ok && !!(ks[i].compareDocumentPosition(ks[i+1]) & Node.DOCUMENT_POSITION_FOLLOWING);
                     return {ok: ok, prevDisplay: getComputedStyle(q('.ad-prev')).display, prevBox: q('.ad-prev').getBoundingClientRect().width > 0,
                       label: q('.ad-prev').getAttribute('aria-label'), live: q('.ad-prev').getAttribute('aria-live'),
-                      announced: [...document.querySelectorAll('.ad-prev [aria-live]')].map(e => e.tagName)};})()""")
-                self.assertEqual(order, {"ok": True, "prevDisplay": "block", "prevBox": True, "label": "About this template", "live": None, "announced": ["H3", "P"]},
-                                 f"{width}: only the heading and the description are announced when the choice changes, not the whole preview")
+                      announced: [...document.querySelectorAll('.ad-prev [aria-live]')].map(e => e.tagName),
+                      say: (q('[data-ad-say]') || {}).textContent, sayLive: q('[data-ad-say]') && q('[data-ad-say]').getAttribute('aria-live'),
+                      sayOutside: !!q('[data-ad-say]') && !q('[data-ad-say]').closest('.ad-prev'),
+                      name: q('.ad-prev h3').textContent, desc: q('.ad-prev h3 + p').textContent};})()""")
+                say = order.pop("say"); name = order.pop("name"); desc = order.pop("desc")
+                self.assertEqual(order, {"ok": True, "prevDisplay": "block", "prevBox": True, "label": "About this template", "live": None, "announced": [],
+                                         "sayLive": "polite", "sayOutside": True},
+                                 f"{width}: the name and description are announced from one live line outside the preview, which remounts on each move")
+                self.assertEqual(say, f"{name}. {desc}", f"{width}: the live line says the chosen template's name and description")
                 seq = []
                 for _ in range(16):
                     p.key("Tab", code="Tab", vk=9)
@@ -788,6 +749,28 @@ class Box(Base):
                     self.assertTrue(first["list"] < seq.index("preview"), f"{width}: then the preview: {seq}")
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('[role=dialog]')", "closed")
+
+    def test_the_live_line_is_on_the_page_empty_before_its_words_are_set(self):
+        """#380: a live region that arrives already filled is usually not read out. The line is put on the page with no text, and its
+        words are set afterwards; the words then change in place when the chosen template moves."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.js("""(function(){ window.__sayLog = [];
+                var note = function(n){ try { if (n && n.nodeType === 1 && !window.__sayLog.length) {
+                    var e = n.matches('[data-ad-say]') ? n : n.querySelector('[data-ad-say]');
+                    if (e) window.__sayLog.push(e.textContent); } } catch (x) {} };
+                ['appendChild', 'insertBefore'].forEach(function(k){ var o = Node.prototype[k];
+                    Node.prototype[k] = function(n){ note(n); return o.apply(this, arguments); }; }); })()""")
+            self.open_box(p, "ABC-S-003")
+            p.until("document.querySelector('[data-ad-say]').textContent !== ''", "the words are set once the box is on the page")
+            self.assertEqual(p.js("window.__sayLog"), [""], "the line first reached the page with no text in it")
+            self.assertEqual(p.js("document.querySelector('[data-ad-say]').getAttribute('aria-live')"), "polite")
+            before = p.js("document.querySelector('[data-ad-say]').textContent")
+            p.js("document.querySelectorAll('input[name=template]')[1].click()")
+            p.until(f"document.querySelector('[data-ad-say]').textContent !== {json.dumps(before)}", "the same line changes in place when the choice moves")
+            self.assertEqual(p.js("window.__sayLog"), [""], "and it was not put on the page again")
+            p.js("document.querySelector('[data-cancel]').click()")
 
     def test_the_focus_ring_is_the_brand_blue_in_light_and_dark_and_the_scrim_is_a_token(self):
         """Every focus ring in the box is --brand-blue (the cyan --focus is 1.8:1 on white); the scrim names no raw colour."""

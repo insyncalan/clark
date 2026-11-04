@@ -239,18 +239,19 @@ class ThePageDrawsNeedsAndLeavesTheTrackerQuiet(unittest.TestCase):
         src = (self.PAGE / "Section.jsx").read_text(encoding="utf-8")
         self.assertIn('<p class="quiet">Not shown on this page yet.</p>', src)
         self.assertIn('section.type === "needs"', src)
-        self.assertNotIn("tracker", src)
+        self.assertIn('section.type === "tracker"', src)            # #189: the tracker is drawn, in Edit and in View and the file
 
     def test_a_published_file_draws_no_type_it_does_not_know(self):
         src = (self.PAGE / "Dashboard.jsx").read_text(encoding="utf-8")
         line = next(l for l in src.splitlines() if "const fileDraws" in l)
-        self.assertTrue(line.rstrip().endswith(": false);"), line)             # every other type: not drawn, so left out of the file
+        self.assertTrue(line.rstrip().endswith("!!KINDS[s.type] && rowsFor(s.type).length > 0);"), line)   # every other type: drawn only when it is a known kind with rows, so an unknown one is left out of the file
         self.assertIn("needs", line)
         self.assertNotIn("tracker", line)
 
-    def test_the_page_writes_no_body_of_a_text_section(self):
+    def test_the_page_writes_only_the_body_of_a_text_section(self):
         rich = (self.PAGE.parent / "edit" / "richSave.js").read_text(encoding="utf-8")
-        self.assertIn("export const RICH_WRITES = {};", rich)
+        self.assertIn("body: (id, html) => ({ kind: \"report_sections\", op: \"update\"", rich)
+        self.assertNotIn("RICH_WRITES = {};", rich)
 
 
 class ExportsLeaveThemOut(Published):

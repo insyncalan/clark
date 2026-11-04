@@ -1,23 +1,24 @@
 """#192 Client Requested Report View, part 3: Highlights and Planned for next week (the pair), Risks, delays and items to watch, and
-the delivery placeholder.
+nothing in the place the delivery plan will take (it is on hold: no placeholder shows).
 
 Run: python3 dev/run_tests.py test_client_report_part3
 Source tests (no browser) pin the mapping words, the Escalate rule, that the text is cleaned and never drawn raw, that the page's
-cleaner stays out of a published file, and that the look is tokens only. The browser test (class Drawn) draws the page from the real
-server in View and in Edit, at 1400 and 900 px, light and dark: the sections exist in order, the pair is side by side at 1400 and
+cleaner stays out of a published file, and that the look is tokens only. The browser test (class Drawn) draws the client report from a published file (#559: the served page no longer offers it), at 1400 and 900 px, light and dark: the sections exist in order, the pair is side by side at 1400 and
 stacked at 900, the Delay, Risk and Monitor words are the mapped ones, nothing overflows, text is at least 13 px and 4.5:1.
 """
 import re
 import sys
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from _demo import USER, DemoStore
 from _paths import SRC
 
-from clark import page, server as sv  # noqa: E402
-from test_page import navigate  # noqa: E402
-from test_server import Running, chrome, wait  # noqa: E402
+from clark import page, publish, server as sv  # noqa: E402
+from test_publish import EMPTY_BRANDING, opened  # noqa: E402
+from test_server import chrome, wait  # noqa: E402
 
 PAGE = SRC / "clark" / "page"
 SRCDIR = PAGE / "src"
@@ -53,8 +54,9 @@ class Source(unittest.TestCase):
         for name in ("Overall.jsx", "Plans.jsx", "Risks.jsx"):
             self.assertIn("clientRules(", text("components", "clientreport", name), name)
 
-    def test_the_placeholder_says_it_in_plain_words(self):
-        self.assertIn("The delivery progress template is not built yet.", text("components", "clientreport", "Delivery.jsx"))
+    def test_no_marked_block_for_the_delivery_plan_is_drawn(self):
+        self.assertFalse((SRCDIR / "components" / "clientreport" / "Delivery.jsx").exists())
+        self.assertNotIn("Delivery", text("components", "ClientReport.jsx"))
 
     def test_the_pair_text_is_cleaned_never_drawn_raw(self):
         pair = text("components", "clientreport", "Pair.jsx")
@@ -68,7 +70,7 @@ class Source(unittest.TestCase):
         self.assertIn("RichRead", text("edit", "index.js"))
 
     def test_the_cleaner_is_not_in_a_published_file(self):
-        for f in ("Pair.jsx", "Risks.jsx", "Delivery.jsx"):
+        for f in ("Pair.jsx", "Risks.jsx"):
             self.assertNotRegex(text("components", "clientreport", f), r"import[^;]*cleanHtml")
         view = (PAGE / "page-view.html").read_text(encoding="utf-8")
         self.assertNotIn("SanitiseError", "".join(re.findall(r"<script>(.*?)</script>", view, re.S)))
@@ -76,7 +78,7 @@ class Source(unittest.TestCase):
     def test_the_fixed_sections_have_files_and_the_css_is_in_the_part_3_block(self):
         css = (PAGE / "shell.css").read_text(encoding="utf-8")
         block = css[css.index("/* -- 192 part 3"):]
-        for sel in (".cr-wl .wl-row", ".cr-wl .wl-meta", ".cr-placeholder", "@media (max-width: 900px)"):
+        for sel in (".cr-wl .wl-row", ".cr-wl .wl-meta", "@media (max-width: 900px)"):
             self.assertIn(sel, block)
         clean = re.sub(r"/\*.*?\*/", "", block, flags=re.S)
         self.assertNotRegex(clean, r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(", "colours come from the tokens")
@@ -84,7 +86,7 @@ class Source(unittest.TestCase):
 
     def test_no_names_or_dates_in_the_part_3_files(self):
         for rel in (("logic", "clientRisks.js"), ("components", "clientreport", "Pair.jsx"), ("components", "clientreport", "Risks.jsx"),
-                    ("components", "clientreport", "Delivery.jsx"), ("edit", "RichRead.jsx")):
+                    ("edit", "RichRead.jsx")):
             self.assertNotRegex(text(*rel), r"\b20\d\d-\d\d-\d\d\b", "/".join(rel))
 
 
@@ -98,7 +100,7 @@ MEASURE = r"""
   function lum(c) { function f(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); } return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); }
   function bg(el) { for (var e = el; e; e = e.parentElement) { var c = rgb(getComputedStyle(e).backgroundColor); if (c && c.a > 0.5) return c; } return rgb(getComputedStyle(document.documentElement).backgroundColor) || { r: 255, g: 255, b: 255, a: 1 }; }
   var bad = [], count = 0;
-  document.querySelectorAll("#cr-highlights, #cr-nextweek, #cr-raid, #cr-delivery").forEach(function (root) {
+  document.querySelectorAll("#cr-highlights, #cr-nextweek, #cr-raid").forEach(function (root) {
     root.querySelectorAll("*").forEach(function (el) {
       var own = Array.prototype.some.call(el.childNodes, function (n) { return n.nodeType === 3 && n.textContent.trim(); });
       if (!own) return;
@@ -163,7 +165,7 @@ class Drawn(unittest.TestCase):
         js = lambda e: cdp.js(e, sid)  # noqa: E731
         where = f"{'edit' if edit else 'view'} {width} {theme}"
         order = js("[...document.querySelectorAll('.client-report .sec')].map(function(e){return e.dataset.sec})")
-        self.assertEqual(order, ["progress", "plans", "delivery", "highlights", "nextweek", "raid"], where)
+        self.assertEqual(order, ["progress", "plans", "highlights", "nextweek", "raid"], where)
         hi = js("(function(){var r=document.getElementById('cr-highlights').getBoundingClientRect();return [r.left,r.top,r.right,r.bottom]})()")
         nx = js("(function(){var r=document.getElementById('cr-nextweek').getBoundingClientRect();return [r.left,r.top,r.right,r.bottom]})()")
         if width >= 1400:
@@ -186,40 +188,45 @@ class Drawn(unittest.TestCase):
         self.assertIn("The client's own words", titles, "a row's client message is what the client reads: " + where)
         page = js("document.getElementById('clientreport').innerText")
         self.assertNotIn("A weekly call between both leads.", page, "the response is a working note, never on this page: " + where)
-        rows = js("[...document.querySelectorAll('#cr-raid .wl-row')].map(function(e){return [e.querySelector('.cr-back').textContent, e.querySelector('.cr-esc').textContent, e.querySelector('.wl-resp') ? 'shown' : '—', e.querySelector('.idl').textContent]})")
-        self.assertEqual(rows[0][:3], ["Back on track by 13-11-2026", "Escalate: —", "—"], where)
-        self.assertEqual(rows[1][1], "Escalate: Yes", "a High priority risk is Red: " + where)
+        rows = js("[...document.querySelectorAll('#cr-raid .wl-row')].map(function(e){return [e.querySelector('.cr-back').textContent, e.querySelector('.wl-resp') ? 'shown' : '—']})")
+        self.assertEqual(rows[0], ["Back on track by 13-11-2026", "—"], where)
         self.assertEqual(rows[2][0], "Back on track by —", where)
         self.assertEqual(rows[3][0], "Review by 15-11-2026", where)
-        self.assertEqual(rows[3][2], "—", where)
-        self.assertRegex(rows[0][3], r"^ABC-\d{3}$")
-        self.assertEqual(js("document.querySelector('#cr-delivery .quiet').textContent"), "The delivery progress template is not built yet.", where)
+        self.assertEqual(rows[3][1], "—", where)
+        # ruling on the 0.5.0 hand-check: no row id and no Escalate line on the client's page (the answer is still worked out, not drawn)
+        self.assertEqual(js("document.querySelectorAll('#cr-raid .cr-esc, #cr-raid .wl-id, #cr-raid .idl').length"), 0, where)
+        self.assertNotRegex(raid_text, r"Escalate|\bABC-\d{3}\b", "no id and no Escalate on a risk row: " + where)
+        self.assertEqual(js("document.querySelectorAll('#cr-delivery, [data-placeholder]').length"), 0, "nothing unfinished shows: " + where)
         self.assertIn("Seeded highlight", js("document.getElementById('cr-highlights').textContent"), where)
         self.assertIn("Kept words", js("document.getElementById('cr-highlights').textContent"), where)
         self.assertEqual(js("document.querySelectorAll('#cr-highlights script, #cr-highlights img, #cr-highlights [onclick]').length"), 0, "cleaned: " + where)
         self.assertIsNone(js("window.__bad"), where)
         self.assertEqual(js("document.querySelectorAll('#cr-nextweek li').length"), 2, where)
-        self.assertEqual(js("document.querySelectorAll('#cr-highlights [data-edit-only], #cr-nextweek [data-edit-only]').length"), 0, "read-only until the body editor is on: " + where)
+        self.assertEqual(js("document.querySelectorAll('#cr-highlights [data-edit-only], #cr-nextweek [data-edit-only]').length"), 2 if edit else 0,
+                         "read-only in View; in Edit each of the two is the text section's own editor field (#220): " + where)
         self.assertLessEqual(js("document.documentElement.scrollWidth"), js("window.innerWidth"), "no sideways scroll: " + where)
-        self.assertEqual(js("[...document.querySelectorAll('#cr-highlights, #cr-nextweek, #cr-raid, #cr-delivery')].filter(function(e){return e.scrollWidth > e.clientWidth + 1}).length"), 0, "no overflow: " + where)
+        self.assertEqual(js("[...document.querySelectorAll('#cr-highlights, #cr-nextweek, #cr-raid')].filter(function(e){return e.scrollWidth > e.clientWidth + 1}).length"), 0, "no overflow: " + where)
         m = js(MEASURE)
         self.assertGreater(m["count"], 20, where)
         self.assertEqual(m["bad"], [], where)
 
-    def test_view_and_edit_at_1400_and_900_light_and_dark(self):
-        s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(None))
-        self.addCleanup(s.close)
+    def test_view_at_1400_and_900_light_and_dark(self):
+        # #559: drawn from a PUBLISHED FILE (read_inputs -> select -> render -> file://), because the served page no longer offers this
+        # view. The served-page run is dropped; every View assertion in check() is kept as it was.
+        pub = publish.select(publish.read_inputs(self.store, "ABC"))
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "report.html"
+        path.write_text(publish.render(pub, page.page_html(EMPTY_BRANDING), pub["as_at"], pub["data"]["project"]["name"]), encoding="utf-8")
         with chrome() as cdp:
-            sid = navigate(cdp, s.port, "#clientreport&p=ABC")
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#cr-raid .wl-row').length > 0", sid), 20), "the page drew")
-            for edit in (False, True):
-                if edit:
-                    cdp.js("document.querySelector('[data-mode=edit]').click(); true", sid)
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid), 10), "Edit is on")
-                for width in (1400, 900):
-                    for theme in ("light", "dark"):
-                        self.look(cdp, sid, width, theme)
-                        self.check(cdp, sid, width, theme, edit)
+            sid = opened(cdp, path.as_uri())
+            self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1", 20), "the file drew")
+            cdp.js("document.querySelector('[data-view=clientreport]').click(); true", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#cr-raid .wl-row').length > 0", sid), 20), "the report view drew")
+            for width in (1400, 900):
+                for theme in ("light", "dark"):
+                    self.look(cdp, sid, width, theme)
+                    self.check(cdp, sid, width, theme, False)
 
 
 if __name__ == "__main__":

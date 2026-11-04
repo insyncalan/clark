@@ -3,6 +3,10 @@
 // and `C.dueWords`, rewritten here. `todayIso()` is the only place that reads the clock.
 
 export const KIND_WORDS = { action: "Action", risk: "Risk", issue: "Issue", assumption: "Assumption", dependency: "Dependency", decision: "Decision" };
+// The letter in the badge before an item's title (#456; prototype db.js TYPES: A, R, I, D). The prototype has four kinds; an assumption
+// and a dependency, which only this build has, take S and P so no two kinds share a letter.
+export const KIND_LETTERS = { action: "A", risk: "R", issue: "I", assumption: "S", dependency: "P", decision: "D" };
+export function kindLetter(kind) { return KIND_LETTERS[kind] || String(kind || "?").charAt(0).toUpperCase(); }
 const CLOSED = ["Closed", "Cancelled", "Made", "Withdrawn"];
 const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DAY = 86400000;
@@ -99,11 +103,12 @@ export function rowsOf(data) {
   // #158: when the data carries an item's freshness (worked out from its history), the row carries it too.
   const fresh = (r) => (r.freshness && typeof r.freshness === "object"
     ? { raised: r.freshness.raised || null, last_reviewed: r.freshness.last_reviewed || null, not_reviewed: !!r.freshness.not_reviewed, review_days: r.freshness.days || null } : {});
-  const common = (r) => ({ ...fresh(r), id: r.id, status: r.status, client: !!r.client_visible,
+  const common = (r) => ({ ...fresh(r), id: r.id, status: r.status, client: !!r.client_visible, client_message: String(r.client_message || "").trim(),
     uc: r.use_case && ucs[r.use_case] ? `Use case ${ucs[r.use_case]}` : "", milestone: (r.milestone && ms[r.milestone]) || "", workstream: r.workstream || "" });
   const rows = [];
   for (const r of data.actions || []) rows.push({ ...common(r), kind: "action", title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed });
-  for (const r of data.raid || []) rows.push({ ...common(r), kind: String(r.type).toLowerCase(), title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed });
+  for (const r of data.raid || []) rows.push({ ...common(r), kind: String(r.type).toLowerCase(), title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed,
+    impact: r.impact || null, likelihood: r.likelihood || null });   // item 210: the two a risk's or issue's priority follows from
   for (const r of data.decisions || []) rows.push({ ...common(r), kind: "decision", title: r.decision, owner: r.made_by, priority: null, needed_by: r.needed_by, date: r.date, workstream: "", milestone: "" });
   return rows;
 }

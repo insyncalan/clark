@@ -1,6 +1,8 @@
 """The page the server sends (#35): the committed, built page.html, with a user's own brand layered over the demo one.
 
-page.html is built by dev/tools/build_page.py and committed; nothing is built when clark runs. It carries the demo brand's
+page.html and page-view.html are built by dev/tools/build_page.py and are NOT committed (#495): CI, dev/run_tests.py and
+dev/tools/package.py build them, and a source checkout builds them (ensure_built below) the first time it needs them. The
+download holds them already built and has no dev/ folder, so a download never calls the bundler and installs nothing. It carries the demo brand's
 tokens in <style id="brand-demo">. If the user has a brand of their own, a tokens.css in system/branding/ (git ignores it),
 its text goes in as a second <style id="brand-local"> after the demo one, so the same token names take the user's values. The
 server hashes the exact bytes it sends, so the policy covers both blocks (#33). A user's own brand is a client's, so the
@@ -24,7 +26,12 @@ file (which takes the same page text) carries no new address. The name is looked
 The brand block goes after the element with id="brand-demo" (DEMO_ID), found by that id and not by one exact string; a page
 without that element, when there is a local brand, raises PageError rather than leaving the brand out without a word.
 """
+import hashlib
+import os
 import re
+import sys
+import threading
+import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -125,6 +132,151 @@ class PageError(Exception):
     """The built page is not the shape clark expects. Said in words, with what to do next."""
 
 
+SOURCES = HERE / "src"
+BUILDER = ROOT / "dev" / "tools" / "build_page.py"      # in a source checkout only: the download has no dev/ folder
+CACHE = ROOT / "dev" / ".cache"                          # git-ignored: the build stamp and the build lock
+STAMP = CACHE / "pages.stamp"
+LOCK = CACHE / "pages.lock"
+_checked = False
+LOCK_WAIT = 300          # seconds a process waits for another's build before giving up (PageError)
+_failed = None          # (source stamp, message) of the last failed build in this process
+_noted = set()          # one-time stderr notes already given
+
+try:
+    import fcntl
+except ImportError:         # Windows: only the in-process lock
+    fcntl = None
+
+
+def build_inputs():
+    """Every file the build reads, sorted: the page's sources (not the built help copy), its shell CSS, this module (the build
+    imports it), its assets, the brand tokens, the vendored libraries and fonts, and the two build tools."""
+    files = []
+    if SOURCES.is_dir():
+        files += [f for f in SOURCES.rglob("*") if f.is_file() and "__pycache__" not in f.parts and "shown" not in f.relative_to(SOURCES).parts[:-1]]
+    files += [HERE / "shell.css", HERE / "__init__.py", ROOT / "src" / "clark" / "brand" / "tokens.css",
+              ROOT / "dev" / "tools" / "build_page.py", ROOT / "dev" / "tools" / "esbuild.py"]
+    for d in (HERE / "assets", ROOT / "vendor" / "preact", ROOT / "vendor" / "tiptap", ROOT / "vendor" / "fonts"):
+        if d.is_dir():
+            files += [f for f in d.rglob("*") if f.is_file() and "__pycache__" not in f.parts]
+    return sorted({f for f in files if f.is_file()})
+
+
+def source_stamp():
+    """A SHA-256 over the relative path and the content of every build input: the pages are stale when it differs from STAMP."""
+    h = hashlib.sha256()
+    for f in build_inputs():
+        try:
+            rel = f.relative_to(ROOT).as_posix()
+        except ValueError:
+            rel = f.as_posix()
+        h.update(rel.encode("utf-8") + b"\0")
+        h.update(f.read_bytes())
+        h.update(b"\0")
+    return h.hexdigest()
+
+
+def _stamp_is(want):
+    try:
+        return STAMP.read_text(encoding="utf-8").strip() == want
+    except OSError:
+        return False
+
+
+_build_lock = threading.Lock()
+
+
+def _note(key, text):
+    """One line on stderr, once per process for each `key`."""
+    if key not in _noted:
+        _noted.add(key)
+        print("clark: " + text, file=sys.stderr)
+
+
+class _file_lock:
+    """An exclusive flock on LOCK, so two processes never build at once; a no-op where fcntl does not exist. The wait is
+    bounded: it polls with LOCK_NB for up to LOCK_WAIT seconds, then raises PageError. If the lock file cannot be made (a
+    read-only checkout: OSError), it falls back to the in-process lock alone, with a one-time note on stderr."""
+
+    def __enter__(self):
+        self.f = None
+        if fcntl is None:
+            return self
+        try:
+            CACHE.mkdir(parents=True, exist_ok=True)
+            self.f = open(LOCK, "a+b")
+        except OSError:
+            _note("lock", "dev/.cache cannot be written, so the build is guarded within this process only.")
+            return self
+        end = time.monotonic() + LOCK_WAIT
+        while True:
+            try:
+                fcntl.flock(self.f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return self
+            except OSError:
+                if time.monotonic() >= end:
+                    self.f.close()
+                    self.f = None
+                    raise PageError("Another clark is building the page; try again in a minute.") from None
+                time.sleep(0.1)
+
+    def __exit__(self, *exc):
+        if self.f is not None:
+            self.f.close()          # closing releases the lock
+
+
+def ensure_built():
+    """Make sure both generated pages exist and match their sources. In a source checkout (dev/tools/build_page.py is there) a
+    missing page, or one built from other sources (the stamp differs: see source_stamp), is built with the pinned bundler.
+    Anywhere else (the download) nothing is built: a missing page is a PageError. Never installs anything; the bundler is fetched
+    by dev/tools/esbuild.py only in development. The check and the build run under an in-process lock and a cross-process file
+    lock (dev/.cache/pages.lock), and the check is made again inside them, so two threads or two servers build once and the
+    second waits for the first (at most LOCK_WAIT seconds, then PageError; an unwritable dev/.cache falls back to the in-process
+    lock with a note); the builder writes each page to a temporary file and swaps it in, so a reader never sees half a
+    page. The server builds at start (clark.__main__).
+    A failed build is remembered for this process by its source stamp (_failed): the bundler is not run again until the sources
+    change. If old pages exist, they are served after one warning on stderr (stale, but a broken edit does not take the server
+    down); if a page is missing, PageError is raised, every time, with the first failure's reason. A source edited while a server runs is not rebuilt: restart the server."""
+    global _checked
+    pages = (PAGE, VIEW_PAGE)
+    if not BUILDER.is_file():
+        if not all(p.is_file() for p in pages):
+            raise PageError("This copy of clark is missing its page files and cannot make them. Download clark again.")
+        return
+    if _checked and all(p.is_file() for p in pages):
+        return
+    with _build_lock, _file_lock():
+        if _checked and all(p.is_file() for p in pages):
+            return
+        want = source_stamp()
+        have = all(p.is_file() for p in pages)
+        if not have or not _stamp_is(want):
+            global _failed
+            if _failed is not None and _failed[0] == want:
+                if not have:
+                    raise PageError(_failed[1])
+                return
+            from clark import platform      # here, not at the top: dev/tools/merge_page.py runs this file's build code with the standard library alone
+            done = platform.run_program([sys.executable, BUILDER], cwd=ROOT)
+            if done.returncode != 0 or not all(p.is_file() for p in pages):
+                msg = ("The page could not be built (python3 dev/tools/build_page.py): "
+                       + (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or ["no reason given"])[-1])
+                _failed = (want, msg)
+                if not have:
+                    raise PageError(msg)
+                _note("stale", msg + ". Serving the earlier pages until the sources change.")
+                return
+            _failed = None
+            try:
+                CACHE.mkdir(parents=True, exist_ok=True)
+                tmp = STAMP.with_name(STAMP.name + ".tmp")
+                tmp.write_text(want, encoding="utf-8")
+                os.replace(tmp, STAMP)
+            except OSError:         # a read-only checkout: built, but the stamp is not kept (it is checked again next start)
+                _note("lock", "dev/.cache cannot be written, so the build is guarded within this process only.")
+        _checked = True
+
+
 DEMO_OPEN = re.compile(r"<style\b[^>]*?\sid\s*=\s*[\"']?" + DEMO_ID + r"[\"']?(?=[\s>/])[^>]*>", re.I)
 STYLE_CLOSE = re.compile(r"</style\s*>", re.I)
 
@@ -143,6 +295,7 @@ def after_demo_block(html):
 def page_html(branding=None, view=False):
     """The page, with the user's own brand tokens layered over the demo ones when they exist. view=True gives the published
     page (page-view.html) in place of the served one."""
+    ensure_built()
     html = (VIEW_PAGE if view else PAGE).read_text(encoding="utf-8")
     css = local_tokens(branding)
     if css is None:

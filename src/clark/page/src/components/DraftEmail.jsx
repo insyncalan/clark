@@ -3,12 +3,14 @@
 // caller asks for a new one in onChange(state) and saves the history entry that onSent(entry) is given (it answers {ok, message}). clark never sends mail.
 // Every word from the data is a text node; the email's own HTML is cleaned (safeHtml) before it is drawn.
 import { useState, useRef, useEffect } from "preact/hooks";
-import { MODES, LABELS, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mailLink, internalNote, pickWords, togglePick, sentEntry, sentWords, NO_OPEN_ITEMS, NO_ADDRESS } from "../logic/draftEmail.js";
+import { todayIso } from "../workItems.js";
+import { MODES, LABELS, TONES, chasedWords, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mailLink, internalNote, pickWords, togglePick, sentEntry, sentWords, NO_OPEN_ITEMS, NO_ADDRESS } from "../logic/draftEmail.js";
 
-export function DraftEmail({ items, state, draft, today, onChange, onSent, onClose, clip }) {
+export function DraftEmail({ items, state, draft, today, onChange, onSent, sentOff, onClose, clip, none: noneWords }) {
   const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);       // #258: I sent it is in flight; a second press does nothing until the reply
-  const inFlight = useRef(false);
+  const [saving, setSaving] = useState(false);          // I sent it is in flight: the button is off and a second press does nothing (one press, one record)
+  const saveLock = useRef(false);
+  const sentBtn = useRef(null), wasSaving = useRef(false);
   const preview = useRef(null);
   const edited = useRef(false);
   const shown = useRef("");
@@ -17,6 +19,11 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
   useEffect(() => {
     if (preview.current && shown.current !== html) { preview.current.innerHTML = html; shown.current = html; edited.current = false; }
   }, [html]);
+  // A saved (or failed) press turned the button off, which drops focus to the page: put it back on the button, so Esc still reaches the dialog.
+  useEffect(() => {
+    if (saving) wasSaving.current = true;
+    else if (wasSaving.current) { wasSaving.current = false; if (sentBtn.current) sentBtn.current.focus({ preventScroll: true }); }
+  }, [saving]);
   const change = (patch) => { setNote(""); if (onChange) onChange({ ...state, ...patch }); };
   const body = () => {
     const el = preview.current;
@@ -39,16 +46,16 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
   // onSent(entry) may answer {ok: true} (saved in the history), {ok: false, message} (not saved: the note says why and nothing is
   // marked) or nothing (a caller that does not save yet: the note says so).
   const sent = async () => {
-    if (inFlight.current) return;
-    inFlight.current = true;
+    if (sentOff || saveLock.current) return;
+    saveLock.current = true;
     setSaving(true);
     try {
-      const entry = sentEntry(draft ? draft.ids : [], state.mode, today);
+      const entry = sentEntry(draft ? draft.ids : [], state.mode, today || todayIso());   // the person's own day, never a UTC day, which the store would show as the wrong day near midnight
       const r = onSent ? await onSent(entry) : null;
       if (r && typeof r === "object" && r.ok === false) setNote(typeof r.message === "string" && r.message ? r.message : sentWords(entry, false, true));
       else setNote(sentWords(entry, !!(r && typeof r === "object" && r.ok === true)));
     } catch (e) { setNote(e.message); }
-    finally { inFlight.current = false; setSaving(false); }
+    finally { saveLock.current = false; setSaving(false); }          // a failure leaves it ready to press again
   };
   const keys = (e) => { if (e.key === "Escape") { e.stopPropagation(); if (onClose) onClose(); } };
   if (!draft) {
@@ -57,8 +64,8 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
         <button type="button" class="pk-btn" onClick={() => onClose && onClose()}>{LABELS.close}</button></div>
     );
   }
-  const none = items.length === 0;                       // nothing is offered: one clear message, nothing to tick
-  const problem = none ? NO_OPEN_ITEMS : blocked(draft);
+  const none = items.length === 0;                       // nothing is offered: one clear message (a caller may say why in its own words), nothing to tick
+  const problem = none ? noneWords || NO_OPEN_ITEMS : blocked(draft);
   const link = mailLink(draft);
   const internal = internalNote(draft.internal_ids);
   const picked = state.picked || [];
@@ -68,13 +75,24 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
       <div class="de-body">
         <fieldset class="de-kinds"><legend class="sr">{LABELS.kind}</legend>
           {MODES.map((m) => (
-            <label key={m.mode}><input type="radio" name="de-kind" value={m.mode} checked={state.mode === m.mode} onChange={() => change({ mode: m.mode })} /> {m.label}</label>
+            <label key={m.mode}><input type="radio" name="de-kind" value={m.mode} checked={state.mode === m.mode} onChange={() => change({ mode: m.mode, tone: null })} /> {m.label}</label>
           ))}
         </fieldset>
         <dl class="de-meta">
           <dt>{LABELS.to}</dt><dd>{draft.to || NO_ADDRESS}</dd>
           <dt>{LABELS.subject}</dt><dd>{draft.subject}</dd>
         </dl>
+        {state.mode === "chase" && !none ? <div class="de-tone">
+          <span class="de-tone-label" id="de-tone-label">{LABELS.tone}</span>
+          {/* #452: preselected to the tone the builder used (clark's own choice until the user picks one); a pick asks for a new draft */}
+          <span class="seg" role="group" aria-labelledby="de-tone-label">
+            {TONES.map((name, n) => (
+              <button key={name} type="button" data-tone={n} aria-pressed={draft.tone === n ? "true" : "false"}
+                onClick={() => { if (draft.tone !== n) change({ tone: n }); }}>{name}</button>
+            ))}
+          </span>
+          <span class="muted de-chased">{chasedWords(draft.chased)}</span>
+        </div> : null}
         {none ? null : <section aria-label={LABELS.items}>
           <h3>{LABELS.items}</h3>
           <ul class="pick">
@@ -100,11 +118,12 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, onClo
         <p class="muted de-note" role="status" aria-live="polite">{note}</p>
         {link.message && !problem ? <p class="muted de-mail">{link.message}</p> : null}
       </div>
+      {sentOff ? <p class="muted de-note" id="de-sent-off">{sentOff}</p> : null}
       <div class="pk-foot">
         <button type="button" class="pk-btn pri" disabled={!!problem} onClick={() => copy("outlook")}>{LABELS.copyOutlook}</button>
         <button type="button" class="pk-btn" disabled={!!problem} onClick={() => copy("text")}>{LABELS.copyText}</button>
         {link.href ? <a class="pk-btn" href={link.href}>{LABELS.mail}</a> : null}
-        <button type="button" class="pk-btn" disabled={!!problem || saving} onClick={sent}>{LABELS.sent}</button>
+        <button type="button" class="pk-btn" ref={sentBtn} disabled={!!problem || saving || !!sentOff} aria-describedby={sentOff ? "de-sent-off" : undefined} onClick={sent}>{LABELS.sent}</button>
         <button type="button" class="pk-btn" onClick={() => onClose && onClose()}>{LABELS.close}</button>
       </div>
     </div>

@@ -1,11 +1,12 @@
 // The Add a section box (Edit only, #96): choose a template, say where it goes, add it. Opened by the window event
 // `clark:add-section` (edit/addDialog.js). It is a modal dialog: focus starts in the search box and stays inside until it closes, Esc
-// closes it, and focus goes back to what opened it. The page behind is `inert` while it is open. Every word from the catalogue is
+// closes it, and focus goes back to what opened it. Everything outside it is `inert` while it is open. Every word from the catalogue is
 // a text node.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { mode, data } from "../stores/report.js";
 import { openHelp } from "../help/helpStore.js";
 import { ADD_SECTION_EVENT } from "./addDialog.js";
+import { inertBehind } from "./modalLayers.js";
 import { addFromTemplate } from "./actions.js";
 import { KINDS, RECENT, MESSAGES, list, counts, find, available, besideState, remember, fitWords, noMatch } from "../logic/templates.js";
 
@@ -14,7 +15,6 @@ const readRecent = () => { try { const v = JSON.parse(localStorage.getItem(STORE
 const writeRecent = (v) => { try { localStorage.setItem(STORE_KEY, JSON.stringify(v)); } catch (e) { /* no storage: the box works without it */ } };
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-const BEHIND = ["#main", ".top"];                                    // made inert while the box is open (the message area stays live)
 
 export function AddDialog() {
   const [open, setOpen] = useState(null);                           // null, or { after, opener }
@@ -46,6 +46,11 @@ function Box({ after, opener, onClose }) {
   const okBeside = besideState(sections, after, current);
   const sideOn = beside && okBeside.ok;
   const canPlace = available(current);
+  // #380: the live line is in the markup EMPTY and its words are set once the box is on the page. A live region that arrives
+  // already filled is usually not read out; one that is there first and then changes is.
+  const sayNow = current ? `${current.name}. ${current.description}` : "";
+  const [said, setSaid] = useState("");
+  useEffect(() => { setSaid(sayNow); }, [sayNow]);
 
   // Where focus goes when the box closes: what opened it, or the handle of the section it was below.
   const giveBack = () => {
@@ -57,9 +62,7 @@ function Box({ after, opener, onClose }) {
 
   useEffect(() => {
     if (search.current) search.current.focus();
-    const held = BEHIND.map((q) => document.querySelector(q)).filter(Boolean);
-    held.forEach((el) => el.setAttribute("inert", ""));
-    return () => held.forEach((el) => el.removeAttribute("inert"));
+    return inertBehind(root.current);                               // everything outside the box is inert while it is open (modalLayers.js, #425)
   }, []);
 
   // A click on text that cannot take focus lands on the box itself (tabindex -1), never on the page behind; if focus still
@@ -153,11 +156,15 @@ function Box({ after, opener, onClose }) {
               );
             })}
           </fieldset>
-          <section class="ad-prev" aria-label="About this template">
+          {/* One live line outside the keyed preview: the preview remounts on each move (to restart its fade), and a live region
+              that arrives already filled is usually not read out, so the name and description are announced from here. It is
+              drawn empty first and filled by `said` after the box mounts (#380). */}
+          <p class="sr-only" aria-live="polite" data-ad-say>{said}</p>
+          <section class="ad-prev" aria-label="About this template" key={current ? current.id : "none"}>
             {current ? (
               <>
-                <h3 aria-live="polite">{current.name}</h3>
-                <p aria-live="polite">{current.description}</p>
+                <h3>{current.name}</h3>
+                <p>{current.description}</p>
                 <p class="ad-lbl">Holds</p>
                 <ul>{current.holds.map((h) => <li key={h}>{h}</li>)}</ul>
                 <p class="muted">{fitWords(current)}</p>

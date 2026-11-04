@@ -119,6 +119,7 @@ class TokensOnly(unittest.TestCase):
         css = SHELL.read_text(encoding="utf-8")
         self.assertIn(SHELL_MARK, css)
         mine = css[css.index(SHELL_MARK):]
+        mine = mine[:mine.index("/* The work item rows")] if "/* The work item rows" in mine else mine       # the icons' own block; the next block is another item's
         self.assertNotRegex(mine, r"#[0-9a-fA-F]{3,8}\b")
         self.assertNotRegex(mine, r"\b(rgb|rgba|hsl|hsla|oklch|color-mix)\(")
         for tone, token in ICON_TOKENS.items():
@@ -268,7 +269,10 @@ class IconsBrowser(unittest.TestCase):
             # never colour alone: the icon sits beside a written word, and its shape is the row's own
             self.assertTrue(row["words"], where)
         self.assertEqual(rows["status"]["words"], rows["status"]["words"].strip())
-        self.assertIn(rows["status"]["words"], PLAIN_STATUS, iid)
+        status, _, kept = rows["status"]["words"].partition(" · ")      # a closed or cancelled risk or issue keeps its rating word: "Closed · Amber"
+        self.assertIn(status, PLAIN_STATUS, iid)
+        if kept:
+            self.assertIn(kept, {"Red", "Amber", "Green", "Not rated"}, f"{iid}: the rating word kept beside the status")
         if "priority" in rows:
             self.assertIn(rows["priority"]["words"], PLAIN_PRIORITY, iid)
             if priority:

@@ -13,6 +13,7 @@ import unittest
 from pathlib import Path
 
 from _paths import ROOT  # noqa: F401  (puts src/ on the path)
+from _new_page import reload_to_new_page_cdp
 import _publish_fixture as fx
 
 from clark import publish
@@ -250,13 +251,87 @@ class ClientPageFilters(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('#q').value", sid), "")
             self.assertTrue(cdp.js("[...document.querySelectorAll('#work-list tr[data-id]')].every(r => /Bo Chen/.test(r.textContent))", sid))
 
+    # -- #492: a click on the Work items tab must not write the address's empty filters over the kept choices
+    def keep_owner_choice(self, cdp, sid):
+        """Set All and the owner Bo Chen on the Work items tab, and wait until the page has kept them."""
+        self.click(cdp, sid, "[data-show=all]")
+        self.tick(cdp, sid, "owner", "Bo Chen")
+        self.settle(cdp, sid, "!!document.querySelector('[data-chip=owner]') && /Bo Chen/.test(localStorage.getItem('clark.work.PUB') || '')")
+        return cdp.js("localStorage.getItem('clark.work.PUB')", sid)
+
+    def open_on_dashboard(self, cdp, sid):
+        cdp.call("Page.navigate", {"url": "about:blank"}, sid)
+        self.settle(cdp, sid, "location.href === 'about:blank'")
+        cdp.call("Page.navigate", {"url": self.path.as_uri()}, sid)
+        self.settle(cdp, sid, "!!document.querySelector('.tab[data-view=work]') && !document.querySelector('#work-list')")
+
+    def chosen(self, cdp, sid):
+        return (cdp.js("document.querySelector('[data-show=all]').getAttribute('aria-pressed')", sid) == "true"
+                and bool(self.count(cdp, sid)) and cdp.js("[...document.querySelectorAll('#work-list tr[data-id]')].every(r => /Bo Chen/.test(r.textContent))", sid))
+
+    def test_a_click_on_the_work_items_tab_keeps_the_saved_choices(self):
+        for view in ("dashboard", "milestones"):
+            with self.subTest(opened_on=view), chrome() as cdp:
+                sid = self.go(cdp, 1400, "light")
+                kept = self.keep_owner_choice(cdp, sid)
+                self.open_on_dashboard(cdp, sid)                       # a normal reopening: the Dashboard, no filters asked for
+                if view != "dashboard":
+                    self.click(cdp, sid, f".tab[data-view={view}]")
+                    self.settle(cdp, sid, f"location.hash.startsWith('#{view}')")
+                reload_to_new_page_cdp(cdp, sid)
+                self.settle(cdp, sid, "!!document.querySelector('.tab[data-view=work]') && !document.querySelector('#work-list')")
+                self.assertEqual(cdp.js("localStorage.getItem('clark.work.PUB')", sid), kept, "the Dashboard does not change what is kept")
+                self.click(cdp, sid, ".tab[data-view=work]")
+                self.settle(cdp, sid, "!!document.querySelector('#work-list') && !!document.querySelector('[data-chip=owner]')")
+                self.assertTrue(wait(lambda: self.chosen(cdp, sid)), "the tab shows the kept choices")
+                self.assertEqual(cdp.js("localStorage.getItem('clark.work.PUB')", sid), kept, "the click did not write over them")
+                reload_to_new_page_cdp(cdp, sid)                       # the address is now #work with the filters: reload keeps both
+                self.settle(cdp, sid, "!!document.querySelector('#work-list') && !!document.querySelector('[data-chip=owner]')")
+                self.assertTrue(self.chosen(cdp, sid))
+                self.assertEqual(cdp.js("localStorage.getItem('clark.work.PUB')", sid), kept, "still kept after the reload")
+                # and a tab out and back in keeps them too
+                self.click(cdp, sid, ".tab[data-view=dashboard]")
+                self.settle(cdp, sid, "!document.querySelector('#work-list')")
+                self.assertEqual(cdp.js("localStorage.getItem('clark.work.PUB')", sid), kept, "leaving the page did not write over them")
+                self.click(cdp, sid, ".tab[data-view=work]")
+                self.settle(cdp, sid, "!!document.querySelector('[data-chip=owner]')")
+                self.assertTrue(wait(lambda: self.chosen(cdp, sid)))
+
+    def test_clear_all_still_clears_what_is_kept(self):
+        with chrome() as cdp:
+            sid = self.go(cdp, 1400, "light")
+            self.keep_owner_choice(cdp, sid)
+            self.open_on_dashboard(cdp, sid)
+            self.click(cdp, sid, ".tab[data-view=work]")
+            self.settle(cdp, sid, "!!document.querySelector('[data-chip=owner]')")
+            self.click(cdp, sid, "#clearAll")
+            self.settle(cdp, sid, "!document.querySelector('.fchip')")
+            self.settle(cdp, sid, "!/Bo Chen/.test(localStorage.getItem('clark.work.PUB') || '')")
+            self.assertEqual(json.loads(cdp.js("localStorage.getItem('clark.work.PUB')", sid))["filters"], {}, "the empty state is kept")
+            self.click(cdp, sid, ".tab[data-view=dashboard]")
+            self.settle(cdp, sid, "!document.querySelector('#work-list')")
+            self.click(cdp, sid, ".tab[data-view=work]")
+            self.settle(cdp, sid, "!!document.querySelector('#work-list')")
+            self.assertFalse(cdp.js("!!document.querySelector('.fchip')", sid), "nothing comes back after the person cleared it")
+
+    def test_removing_a_chip_is_a_change_that_is_kept(self):
+        with chrome() as cdp:
+            sid = self.go(cdp, 1400, "light")
+            self.keep_owner_choice(cdp, sid)
+            cdp.call("Page.navigate", {"url": "about:blank"}, sid)
+            self.settle(cdp, sid, "location.href === 'about:blank'")
+            cdp.call("Page.navigate", {"url": self.path.as_uri() + "#work"}, sid)
+            self.settle(cdp, sid, "!!document.querySelector('[data-chip=owner]')")
+            self.click(cdp, sid, '[data-fx="owner"]')                   # the person removes the owner chip: a real change, kept
+            self.settle(cdp, sid, "!/Bo Chen/.test(localStorage.getItem('clark.work.PUB') || '')")
+
     def test_a_damaged_kept_choice_gives_the_start_page(self):
         for bad in ("{", "[]", "null", json.dumps({"v": 2}), json.dumps({"v": 1, "group": [], "type": {}, "mode": 5, "filters": {"owner": ["Gone"]}})):
             with self.subTest(bad=bad), chrome() as cdp:
                 sid = open_page(cdp, self.path.as_uri() + "#work", 1400, "light")
                 self.settle(cdp, sid, "!!document.querySelector('#work-list')")
                 cdp.js(f"localStorage.setItem('clark.work.PUB', {json.dumps(bad)})", sid)
-                cdp.call("Page.reload", {}, sid)
+                reload_to_new_page_cdp(cdp, sid)
                 self.settle(cdp, sid, "!!document.querySelector('#work-list')")
                 self.assertEqual(self.count(cdp, sid), 6, "the start page: every open row")
                 self.assertFalse(cdp.js("!!document.querySelector('.fchip')", sid))

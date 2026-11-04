@@ -24,7 +24,7 @@ An own look may also add rules (a logo picture, a still picture for the home ban
 | Type | `--font` `--font-head` `--font-label`, `--size-*`, `--leading`, `--weight-*`, `--tracking-caps` | One text face, one heading face, one label face |
 | Shape and space | `--radius-sm` `--radius` `--radius-lg` `--radius-pill`, `--space-1` to `--space-8`, `--max-width`, `--topbar` | Corners and spacing: use the tokens, not numbers |
 | Depth and motion | `--shadow`, `--ease-*`, `--dur-*`, `--stagger` | See section 6 |
-| Pictures | `--image-cover` `--image-fade` `--art-home` `--art-home-height` | Empty and flat by default; only an own look fills them |
+| Pictures | `--image-cover` `--image-logo` `--image-fade` `--art-home` `--art-home-height` | Empty and flat by default; only an own look fills them. `--image-logo` is the logo at the right of the Client Requested Report View's cover band |
 | Profile circle | `--profile-bg` `--profile-fg` `--profile-ring` `--profile-size` | The initials circle in the header |
 
 **Rule: no raw colour in a rule.** A rule in `shell.css` or a component uses a token. A new colour is a new token in the contract, with a dark value.
@@ -38,7 +38,7 @@ An own look may also add rules (a logo picture, a still picture for the home ban
 
 ## 4. Type
 - **Text:** the text face (`--font`), regular weight. **Headings and big figures:** the heading face (`--font-head`), extra-bold. **The small line above a title:** the label face, bold capitals with wide spacing. **Buttons:** extra-bold.
-- **The floor is 13 px** for any text the page draws, SVG chart text included (`tests/test_font.py` parses every size in use). `--size-caption` (12 px) is a contract token a look may set; the committed page does not use it for text.
+- **The floor is 13 px** for any text the page draws, SVG chart text included (`tests/test_font.py` parses every size in use). `--size-caption` is 13 px, the floor itself, and is the size the page uses for its small labels and chips (`--size-small` is 14 px, `--size-body` 16 px; the headings are 20, 24 and 30 px and the display size 40 px, all from `src/clark/brand/tokens.css`).
 - Line length at most about 80 characters; no skipped heading level; no one-word last lines.
 - **Fonts are vendored:** `vendor/fonts/<family>/` holds the woff2 files, the licence and a manifest with each file's SHA-256 (`tests/test_font.py`). A look that falls back to a system face does so only for characters outside the Latin range.
 

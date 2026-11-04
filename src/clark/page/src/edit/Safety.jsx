@@ -2,10 +2,44 @@
 // The server decides and checks everything; this draws its answers in plain words (logic/safety.js). `api` and `reload` are
 // seams for the tests; the page passes neither.
 import { useEffect, useState } from "preact/hooks";
-import { listBackups, previewBackup, restoreBackup } from "./safetyApi.js";
+import { listBackups, previewBackup, restoreBackup, setCopyFolder } from "./safetyApi.js";
 import * as L from "../logic/safety.js";
 
-const REAL = { list: listBackups, preview: previewBackup, restore: restoreBackup };
+const REAL = { list: listBackups, preview: previewBackup, restore: restoreBackup, setCopyFolder };
+
+// Copy my backups to (#622): one optional folder, off until a path is saved. Saved by the Save button or Enter (never by leaving the box,
+// because saving makes the folder when it isn't there). An empty box turns it off. The server decides; a refusal is shown under the box
+// and the box keeps what was typed. The OneDrive folders it found are offered as one-press choices that fill the box.
+function CopyFolder({ list, api, saved }) {
+  const [typed, setTyped] = useState(list.copy_folder || "");
+  const [said, setSaid] = useState(null);                    // null, or {kind: "success" | "error", text}
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    setBusy(true);
+    setSaid(null);
+    const r = await api.setCopyFolder(typed);
+    setBusy(false);
+    if (r.status === 200 && r.body && r.body.ok === true) {
+      setTyped(r.body.folder);
+      saved(r.body.folder);
+      setSaid({ kind: "success", text: r.body.message });
+    } else setSaid({ kind: "error", text: L.answerWords(r.status, r.body) });
+  }
+  return (
+    <div class="fld copy-fld" id="safety-copy">
+      <label for="safety-copy-box">{list.copy_label}</label>
+      <input id="safety-copy-box" type="text" value={typed} autocomplete="off" spellcheck={false} data-copy-folder aria-describedby="safety-copy-line safety-copy-said"
+        aria-invalid={said && said.kind === "error" ? "true" : undefined}
+        onInput={(e) => setTyped(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!busy) save(); } }} />
+      <small id="safety-copy-line">{list.copy_help}</small>
+      {(list.copy_suggestions || []).map((path) => (
+        <button type="button" class="btn quiet sm" data-copy-suggestion key={path} disabled={busy} onClick={() => setTyped(path)}>Use {path}</button>
+      ))}
+      <div class="row"><button type="button" class="btn sm" data-copy-save disabled={busy} onClick={save}>{L.LABELS.save}</button></div>
+      <div id="safety-copy-said" role={said && said.kind === "error" ? "alert" : "status"} aria-live="polite">{said ? <p class={said.kind === "error" ? "fld-bad" : "success"}>{said.text}</p> : null}</div>
+    </div>
+  );
+}
 
 export function Safety({ api = REAL, reload = () => window.location.reload(), store }) {
   const [state, setState] = useState({ phase: "loading", list: null, message: "" });
@@ -47,7 +81,7 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
   const list = state.list;
   return (
     <section class="frame setting" id="safety">
-      <h2>{L.TITLE}</h2>
+      <h2 id="safety-h" tabIndex={-1}>{L.TITLE}</h2>
       <p class="muted">{L.INTRO}</p>
       {state.phase === "loading" ? <p class="muted">{L.LOADING}</p> : null}
       {state.phase === "failed" ? <p class="error" role="alert">{state.message} <button type="button" class="btn sm" data-safety-again onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
@@ -73,6 +107,8 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
           ) : <p class="muted">{L.NONE_SHOWN}</p>}
           <p class="keep"><b>{list.keep_label}:</b> <span class="num" id="safety-keep">{list.keep}</span></p>
           <p class="muted">{list.keep_help}</p>
+          {list.copy_warning ? <p class="error" id="safety-copy-warning" role="alert">{list.copy_warning}</p> : null}
+          <CopyFolder list={list} api={api} saved={(folder) => setState((s) => ({ ...s, list: { ...s.list, copy_folder: folder, copy_warning: null } }))} />
         </>
       ) : null}
       {panel ? (

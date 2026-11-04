@@ -98,7 +98,7 @@ MESSAGES.update({
     "dialog_to_client": "To client",
     "button_local": "Publish locally",
     "button_client": "Publish and send to the client",
-    "client_sees": "The client will see this page.",
+    "client_sees": "The client will see this page. Only what is shown in View mode is included.",     # #437: the prototype's two sentences
     "numbered_preview": "saves as “{numbered}”",
     "working": "Publishing…",
     "rename_label": "New file name",
@@ -773,6 +773,16 @@ def send_to_client(fs, *, saved_folder, data, project, at, week_ending, today, d
 
 
 # ===== The request =====
+def section_style_refusal(body):
+    """The words that refuse the request's `section_style` (named, with the four there are), or None when it is one of them or
+    absent. Publish (validate_request) and preview both ask this, so they refuse a junk style the same way."""
+    style = body.get("section_style")
+    if style is None or style in publish.STYLES:
+        return None
+    named = style if isinstance(style, str) else "that value"
+    return MESSAGES["unknown_section_style"].format(value=named, allowed=", ".join(publish.STYLES))
+
+
 def validate_request(body, saved_client_folder):
     """The publish request's body, checked. Returns {status: 200, to_client} or {status: 400, message}. Only `project`,
     `to_client` (exactly true or false when given), `on_clash`, `new_name`, `confirmed` and `section_style` (one of the four section
@@ -794,9 +804,9 @@ def validate_request(body, saved_client_folder):
     confirmed = body.get("confirmed") is True
     if "project" in body and not isinstance(body["project"], str):
         return {"status": 400, "message": MESSAGES["bad_project"]}
-    if body.get("section_style") is not None and body["section_style"] not in publish.STYLES:
-        named = body["section_style"] if isinstance(body["section_style"], str) else "that value"
-        return {"status": 400, "message": MESSAGES["unknown_section_style"].format(value=named, allowed=", ".join(publish.STYLES))}
+    refused = section_style_refusal(body)
+    if refused:
+        return {"status": 400, "message": refused}
     if body.get("on_clash") is not None and body["on_clash"] not in CHOICES:
         return {"status": 400, "message": MESSAGES["unknown_choice"]}
     if body.get("new_name") is not None and not isinstance(body["new_name"], str):

@@ -1,21 +1,24 @@
 // The Work items board (#68) and its full screen (#81): columns for Group by, one level of swimlanes, cards, and moving a card by
-// dragging it or by its "Move to..." menu. Spec: docs/handoff/design-68-81-board.md. Every rule (which column a card is in, what a
+// dragging it or by its "Move to..." menu. Layout, Group by and the swimlanes are chosen in the filter line's View menu (#287).
+// Spec: docs/handoff/design-68-81-board.md. Every rule (which column a card is in, what a
 // move asks the server for, why it is refused) is in ../logic/board.js; this file draws it and sends what moveFor gives, through
 // stores/changes.js. It is an Edit part (edit/index.js): the published page has no board. Cards move only in Edit; in View they
 // can be read and opened. Nothing here removes an item: a card moves, and closing is a status.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { mode, item, openPeek } from "../stores/report.js";
+import { item, openPeek } from "../stores/report.js";
 import { work, setWork, full, announce, contextFor } from "../stores/work.js";
 import { changeItem, say } from "../stores/changes.js";
-import { build, moveFor, dateMove, movedWords, boardGroup, isCollapsed, toggleCollapsed, groupLabel, LANE_GROUPS } from "../logic/board.js";
+import { build, moveFor, dateMove, movedWords, boardGroup, isCollapsed, toggleCollapsed, groupLabel } from "../logic/board.js";
 import { createDrag } from "../logic/dragCore.js";
-import { Menu, MenuPanel } from "../components/Menu.jsx";
+import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { cursor, stopOf, cardKeys } from "../listKeys.js";
 import { GroupTick } from "../components/SelectBar.jsx";
 import { workSelection as pickSel } from "../stores/selection.js";
 import { ownClick, noTextRange, pickClick, pickOpen, pickKeys } from "../components/pick.js";
 
 const TONED = ["status", "due", "priority"];             // the groups whose columns carry their state's colour
+const TYPE_LETTER = { action: "A", risk: "R", issue: "I", assumption: "S", dependency: "P", decision: "D" };   // the card's badge; its full word is the badge's accessible name
 const LANE_WORDS = { workstream: "Workstream", type: "Type" };
 
 // The peek is #42's. Until it claims this, a click on a card puts the item in the address (the router's `item`) and tells the page.
@@ -33,21 +36,22 @@ function Eye() {
 // A card is picked like a table row (#195): a click selects it, Cmd or Ctrl+click adds or removes it, Shift+click a range in the
 // order drawn, a double click (or Enter) opens the peek; Space adds or removes it, Shift+Up and Shift+Down extend, Cmd or Ctrl+A
 // selects every card shown.
-function Card({ card, editing, selected, picked, dragging, ask, menu, onOpen, onPick, onMenu, children }) {
+function Card({ card, editing, selected, picked, dragging, ask, menu, stop, pos, size, onOpen, onPick, onMenu, children }) {
   const label = `${card.id} ${card.title}, ${card.state.text}${card.due.words ? ", " + card.due.words.toLowerCase() : ""}${picked ? ", selected" : ""}`;
   const focusCard = (id) => { const el = document.querySelector(`article[data-id="${CSS.escape(id)}"] .bc-main`); if (el) el.focus(); };
   return (
-    <article class={`bcard k-${card.typeClass.slice(2)}${selected ? " sel" : ""}${picked ? " picked" : ""}${dragging ? " drag" : ""}${card.open ? "" : " done"}`} data-id={card.id} data-kind={card.typeClass.slice(2)}>
-      <div class="bc-main" role="button" tabIndex={0} aria-label={label} onMouseDown={noTextRange}
+    <article aria-posinset={pos} aria-setsize={size} class={`bcard k-${card.typeClass.slice(2)}${selected ? " sel" : ""}${picked ? " picked" : ""}${dragging ? " drag" : ""}${card.open ? "" : " done"}`} data-id={card.id} data-kind={card.typeClass.slice(2)}>
+      <div class="bc-main" role="button" tabIndex={stop ? 0 : -1} data-cursor={card.id} aria-label={label} onMouseDown={noTextRange}
         onClick={(e) => { if (ownClick(e.target, e.currentTarget)) onPick(e, card.id); }}
         onDblClick={(e) => { if (ownClick(e.target, e.currentTarget)) onOpen(card.id, true); }}
-        onFocus={() => pickSel.moveCursor(card.id)}
+        onFocus={() => { cursor.value = card.id; pickSel.moveCursor(card.id); }}
         onKeyDown={(e) => {
           if (e.target !== e.currentTarget) return;
           if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); onOpen(card.id); return; }
           pickKeys(e, card.id, focusCard);
+          cardKeys(e);
         }}>
-        <div class="bc-top"><span class={`type ${card.typeClass}`}>{card.type}</span><span class="bc-id num">{card.id}</span>{card.client ? <Eye /> : null}</div>
+        <div class="bc-top"><span class={`type tl ${card.typeClass}`} role="img" aria-label={card.type} title={card.type}>{TYPE_LETTER[card.typeClass.slice(2)] || card.type.charAt(0)}</span><span class="bc-id num">{card.id}</span>{card.client ? <Eye /> : null}</div>
         <div class="bc-title">{picked ? <span class="tick" aria-hidden="true"><Icon name="check" /></span> : null}{card.title}</div>
         <div class="bc-foot">
           {card.initials ? <span class="av" title={card.owner} aria-hidden="true">{card.initials}</span> : null}
@@ -106,28 +110,13 @@ function Confirm({ onYes, onCancel }) {
   );
 }
 
-// The table or board icon switch (remembered), shown only where there is a board to show (the page clark serves).
-export function LayoutSwitch() {
-  const set = (view) => { setWork({ view }); announce.value = view === "board" ? `Showing the board, grouped by ${groupLabel(boardGroup(work.value.group))}.` : "Showing the table."; };
-  const v = work.value.view;
-  return (
-    <div class="seg icons" role="group" aria-label="Layout">
-      {["table", "board"].map((k) => (
-        <button type="button" key={k} class="bib" data-layout={k} aria-pressed={v === k ? "true" : "false"} aria-label={k === "table" ? "Table" : "Board"} data-tip={k === "table" ? "Table" : "Board"} onClick={() => set(k)}>
-          <Icon name={k} />
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // What an empty Move to menu says. A made or withdrawn decision is changed only by a new one; other cards by opening them.
 const noMove = (row) => row && row.kind === "decision" && (row.status === "Made" || row.status === "Withdrawn")
   ? "This card can't move on this board. Record a new decision to change it."
   : "This card can't move on this board. Open it to change its details.";
 
 export function Board({ rows, today, type }) {
-  const st = work.value, g = boardGroup(st.group), editing = mode.value === "edit";
+  const st = work.value, g = boardGroup(st.group), editing = true;      // the Work items page is always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026)
   const ctx = contextFor(today, type);
   const b = build(rows, { group: g, lane: st.lane, ctx });
   const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
@@ -253,8 +242,6 @@ export function Board({ rows, today, type }) {
   const toggleFull = () => { if (isFull) leave(false); else { full.value = true; announce.value = "Full screen on."; } };
 
   const toned = TONED.includes(g);
-  const laneItems = [{ id: "none", name: "None" }].concat(LANE_GROUPS.filter((x) => x !== g).map((x) => ({ id: x, name: LANE_WORDS[x] })));
-  const laneNow = b.lane ? LANE_WORDS[b.lane] : "None";
   const sendMenu = (id, pick) => {                    // a Move to... choice
     setMenu(null);
     const L = live.current, row = L.byId[id];
@@ -281,11 +268,14 @@ export function Board({ rows, today, type }) {
     return out;
   }
 
+  const drawn = [];                                   // the cards on screen in reading order: the board's one tab stop (#194)
+  b.lanes.forEach((ln) => ln.columns.forEach((c) => { if (!isCollapsed(st, g, c.key)) c.cards.forEach((cd) => drawn.push(cd.id)); }));
+  const stopId = stopOf(drawn);
   const cardNode = (cd, ln, c) => {
     const here = cardCell[cd.id];
     return (
       <div key={cd.id} class="bwrap" onPointerDown={(e) => startDrag(e, cd.id, ln.key, c.key)}>
-        <Card card={cd} editing={editing} selected={peeked === cd.id} picked={picked.includes(cd.id)} dragging={dragId === cd.id} menu={menu === cd.id}
+        <Card card={cd} editing={editing} stop={cd.id === stopId} pos={drawn.indexOf(cd.id) + 1} size={drawn.length} selected={peeked === cd.id} picked={picked.includes(cd.id)} dragging={dragId === cd.id} menu={menu === cd.id}
           onOpen={open} onPick={pick} onMenu={(id) => setMenu(menu === id ? null : id)}
           ask={ask && ask.id === cd.id
             ? ask.kind === "date"
@@ -313,9 +303,6 @@ export function Board({ rows, today, type }) {
   return (
     <div class="board" id="work-board" data-full={isFull ? "1" : "0"} data-editing={editing ? "1" : "0"}>
       <div class="lanebar" role="group" aria-label="Board view">
-        <Menu label={`Swimlanes: ${laneNow}`} ariaLabel={`Swimlanes: ${laneNow}`} id="swimlanes" btnCls="btn gb" menuLabel="Swimlanes" left items={laneItems}
-          onPick={(id) => setWork({ lane: id === "none" ? null : id })} />
-        {!editing ? <span class="muted lb-hint">Switch to Edit to move cards.</span> : null}
         <button type="button" class="bib fs" id="board-full" ref={fsBtn} aria-pressed={isFull ? "true" : "false"} aria-label={isFull ? "Leave full screen" : "View full screen"}
           data-tip={isFull ? "Leave full screen (Esc)" : "View full screen"} onClick={toggleFull}>
           <Icon name={isFull ? "shrink" : "expand"} />

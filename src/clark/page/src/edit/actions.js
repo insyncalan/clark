@@ -1,7 +1,7 @@
 // What each edit control asks of clark: one change, one request, one toast (stores/changes.js). The ordered list is the one on
 // the page (data.report_sections), which is the one clark last sent. Nothing here edits it.
 import { data, project, reread } from "../stores/report.js";
-import { change, changeThen } from "../stores/changes.js";
+import { change } from "../stores/changes.js";
 import { keep } from "./focus.js";
 import { note } from "./notes.js";
 import { plan as planTemplate } from "../logic/templates.js";
@@ -41,6 +41,24 @@ export const canStep = (id, dir) => step(list(), id, dir);
 export const canBeside = (id) => besideOf(list(), id);
 export const inPair = (id) => rows(list()).some((r) => r.length === 2 && r.some((s) => s.id === id));
 
+// The eye on a milestone row: leave it out of the published page (`hide`) or put it back. One change, one Undo; a second press on
+// the same row while the first is on its way is ignored, so the same change is never sent twice.
+const eyeBusy = new Set();
+export function setMsHidden(id, hide, name) {
+  if (eyeBusy.has(id)) return Promise.resolve(null);
+  eyeBusy.add(id);
+  const what = name ? String(name) : "Milestone";
+  const words = hide ? `${what} taken off the page.` : `${what} added back to the page.`;
+  return change({ kind: "report_hidden", op: hide ? "new" : "delete", id, place: "report" }, words).finally(() => eyeBusy.delete(id));
+}
+
+// "+ Add a milestone from your project record": the picker's Add (the page's one `pick` change): every chosen milestone is taken off
+// the left-out list in ONE step with ONE Undo (the server also shows one that was not for the client; see changes.py _do_pick).
+export function addMilestonesBack(ids) {
+  const n = ids.length;
+  return change({ kind: "report_hidden", op: "pick", ids, place: "report" }, `${n} milestone${n === 1 ? "" : "s"} added to the page.`);
+}
+
 export function rename(id, title) {
   return change({ op: "update", id, changes: { title }, place: "cell" }, "Title changed.");
 }
@@ -65,17 +83,13 @@ export function remove(id, place) {
 }
 
 // Add template `id` below section `after` (null: at the end), alone or beside that section (logic/templates.js plan). One request
-// and one Undo, except below a last section with a stale pairing flag, which takes a second request to clear it: the two are one
-// action to the person, with one Undo that takes both back (stores/changes.js changeThen). Resolves to the
+// and one Undo; below a last section with a stale pairing flag clark clears it in the same step (#244). Resolves to the
 // first reply, or to null when nothing was added (a refusal in a note, or clark said no in the toast). The new section's title takes
 // focus.
 export async function addFromTemplate(id, after, beside) {
   const p = planTemplate(list(), id, after, beside);
   if (!p.ok) { note(p.message); return null; }
-  const [one, two] = p.requests;
-  const first = two
-    ? await changeThen(one, () => two, p.words, p.partial)
-    : await change(one, p.words);
+  const first = await change(p.requests[0], p.words);
   if (first) keep(Promise.resolve(first), "new", "title");
   else await reread(project.value);       // clark said no: the page may be out of date (the section above gone, or paired since), so it shows what clark holds
   return first;

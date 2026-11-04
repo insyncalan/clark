@@ -29,7 +29,7 @@ USER = "Sam Carter"
 class Rig:
     """A server over a publisher, a plant database, a Local folder, a client folder and fake dialogs."""
 
-    def __init__(self, case, saved=True, branding=EMPTY_BRANDING):
+    def __init__(self, case, saved=True, branding=EMPTY_BRANDING, page_html=None):
         tmp = tempfile.TemporaryDirectory()
         case.addCleanup(tmp.cleanup)
         self.root = Path(tmp.name).resolve()
@@ -52,7 +52,7 @@ class Rig:
         self.publisher = publish_flow.Publisher(self.db, [str(self.onedrive)], choose_save_file=self.save_dialog,
                                                 choose_folder=self.folder_dialog, today=lambda: DAY, by_user=lambda: USER,
                                                 data_dir=self.data_dir, branding=branding)
-        self.httpd = sv.LocalServer((sv.HOST, 0), data_for=self.store.data_for, page_html=lambda: page.page_html(branding),
+        self.httpd = sv.LocalServer((sv.HOST, 0), data_for=self.store.data_for, page_html=page_html or (lambda: page.page_html(branding)),
                                     projects=lambda: [{"code": "PUB", "name": "Harbour Bridge Programme"}], publisher=self.publisher,
                                     change=changes.make_change(self.db, [], USER), undo=changes.make_undo(self.db, [], USER),
                                     profile=profile_settings.Profile(self.data_dir))
@@ -168,6 +168,32 @@ class TheCopy(Base):
         copy = (self.rig.client / WANTED).read_text(encoding="utf-8")
         for absent in ("ZQ-LATE-FLAG-OFF", "ZQ-LATE-INTERNAL-NOTE", ref):
             self.assertNotIn(absent, copy)
+
+    def test_a_new_use_case_is_absent_until_its_eye_is_turned_on(self):
+        """#455 (the owner, 03-11-2026): a use case added through the writer starts hidden from the client, so the published file does
+        not hold it; turning its eye on publishes it. The use cases already there are published as before."""
+        change = changes.make_change(self.rig.db, [], USER)
+        self.rig.publish(to_client=True)
+        copy = (self.rig.client / WANTED).read_text(encoding="utf-8")
+        existing = [r["id"] for r in self.rig.store.read("use_cases", "PUB")]
+        shown_before = sorted(i for i in existing if i in copy)
+        self.assertTrue(shown_before, "the plant publishes at least one use case")
+        status, got = change({"project": "PUB", "kind": "use_cases", "op": "new", "values": {"ref": "9.9", "title": "ZQ-NEW-UC-HIDDEN"}})
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        ref = got["ref"]
+        status, got = self.rig.publish(to_client=True, on_clash="overwrite", confirmed=True)       # the same week's file again
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        copy = (self.rig.client / WANTED).read_text(encoding="utf-8")
+        for absent in ("ZQ-NEW-UC-HIDDEN", ref):
+            self.assertNotIn(absent, copy)
+        self.assertEqual(sorted(i for i in existing if i in copy), shown_before, "the existing use cases are published as before")
+        status, got = change({"project": "PUB", "kind": "use_cases", "op": "update", "id": ref, "changes": {"client_visible": 1}})
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        status, got = self.rig.publish(to_client=True, on_clash="overwrite", confirmed=True)       # the same week's file again
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        copy = (self.rig.client / WANTED).read_text(encoding="utf-8")
+        self.assertIn("ZQ-NEW-UC-HIDDEN", copy)
+        self.assertIn(ref, copy)
 
     def test_unticked_leaves_the_client_folder_untouched(self):
         before = {p.name: p.stat().st_mtime_ns for p in self.rig.client.iterdir()}
@@ -388,7 +414,9 @@ class TheClientFolderChangedWhileTheSaveWindowIsOpen(Base):
         self.rig.publisher.choose_save_file = dialog
 
     def data_files(self):
-        return sorted(p.name for p in self.rig.data_dir.iterdir() if not p.name.startswith("clark.db") and p.name != "backups")
+        # published-copies is clark's own folder of kept pages (#443), written by the store after the record; what these tests guard
+        # against is a client-folder file landing next to the database, which would be in this folder's parent, not in it
+        return sorted(p.name for p in self.rig.data_dir.iterdir() if not p.name.startswith("clark.db") and p.name not in ("backups", "published-copies"))
 
     def test_a_link_to_clarks_data_folder_swapped_in_copies_nothing(self):
         def swap():
@@ -805,7 +833,7 @@ class TheClientFolderSetting(Base):
 class TheReportBar(Base):
     def test_the_latest_publication_says_when_and_whether_to_the_client(self):
         status, got = self.rig.call("GET", "/api/publication?project=PUB")
-        self.assertEqual((status, got.pop("pdf")["ok"] in (True, False), got), (200, True, {"ok": True, "latest": None}))        # pdf: whether Chrome is here
+        self.assertEqual((status, got.pop("pdf")["ok"] in (True, False), got), (200, True, {"ok": True, "latest": None, "next": 1}))        # pdf: whether Chrome is here
         self.rig.publish()
         status, got = self.rig.call("GET", "/api/publication?project=PUB")
         self.assertEqual((status, sorted(got["latest"]), got["latest"]["to_client"]), (200, ["at", "to_client"], False))
