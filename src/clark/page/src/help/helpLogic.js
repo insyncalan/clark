@@ -83,7 +83,9 @@ export function plain(s, mac = false) {
 // ---------- the tab lists ----------
 export const tasks = () => CONTENT.howto.tasks;
 export const sections = () => CONTENT.reference.sections;
-export const jobs = () => CONTENT.start.jobs.map(([id, title, does, go]) => ({ id, place: `howto-${id}`, title, does, go }));
+// A job opens its guide (its fifth word, a guide id) while that guide is shown, and its how-to entry otherwise; the entry stays under How do I….
+const jobPlace = (id, guide) => (guide && (CONTENT.guides || []).some((g) => g.id === guide) ? GUIDE + guide : `howto-${id}`);
+export const jobs = () => CONTENT.start.jobs.map(([id, title, does, go, guide]) => ({ id, place: jobPlace(id, guide), title, does, go }));
 export const firstTen = () => CONTENT.start.first;
 export const loopSteps = () => CONTENT.start.loop;
 /** The small "Undo" link beside the jobs: { lead, link, place }, or null while the entry it opens is held. */
@@ -103,7 +105,7 @@ export function tabList(tab) {
     for (const p of CONTENT.start.parts) {
       out.push({ group: p === "jobs" ? T.jobs_head : "Start here", entries: [{ id: p, title: startTitle(p), place: PREFIX.start + p }] });
       if (p === "jobs") {
-        const js = jobs(), ids = new Set(js.map((j) => j.id));
+        const js = jobs(), ids = new Set(js.filter((j) => j.place.startsWith(PREFIX.howto)).map((j) => j.id));   // a job that opens a guide leaves its how-to entry under "Also under How do I..."
         out.push({ group: T.jobs_title, entries: js.map((j) => ({ id: j.id, title: j.title, place: j.place })) });
         const more = tasks().filter((x) => !ids.has(x.id));
         if (more.length) out.push({ group: T.jobs_more, entries: more.map((x) => ({ id: x.id, title: x.t, place: PREFIX.howto + x.id })) });
@@ -226,7 +228,7 @@ export function allText() {
 export function linksIn() {
   const inside = new Set(), screens = new Set(), re = /\]\((#|go:)([^)]+)\)/g;
   for (const s of allText()) for (const m of s.matchAll(re)) (m[1] === "#" ? inside : screens).add(m[2]);
-  for (const j of CONTENT.start.jobs) { inside.add(`howto-${j[0]}`); screens.add(j[3]); }
+  for (const j of CONTENT.start.jobs) { inside.add(jobPlace(j[0], j[4])); screens.add(j[3]); }
   for (const t of tasks()) if (t.go) screens.add(t.go);
   for (const w of CONTENT.start.where) if (w[2]) screens.add(w[2]);
   if (CONTENT.start.undo && CONTENT.start.text.undo_link) inside.add(PREFIX.howto + CONTENT.start.undo);
