@@ -198,6 +198,13 @@ class Words(unittest.TestCase):
                                   "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
                                   "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",
                                   "Open folder", "Copy diagnostics", "The log settings could not be read. Reload the page and try again.",
+                                  "Projects", "Show archived", "Add project",      # A-S6: the projects table comes before the Data card; this server has no list to give (#444: Add project is on it)
+                                  "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
+                                  "The list of projects could not be read. Choose Try again. If it happens again, restart clark. Try again",
+                                  "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
+                                  "Export workbook", "Import workbook",        # #444: Export, Import and (for demo data only) Reset the demo data
+                                  "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases. Export saves this project's as an Excel workbook; "
+                                  "your browser saves the file and nothing is sent or published. Import shows what would change before anything is saved.",
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
