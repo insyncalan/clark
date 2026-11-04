@@ -119,11 +119,16 @@ function SavedViews({ board }) {
   // The open tab and its arrow are brought into view inside the scrolling row (the row alone moves, never the page).
   const tabsBox = useRef(null);
   useEffect(() => {
-    const row = tabsBox.current, on = row && row.querySelector('.vtab[aria-pressed="true"]');
-    if (!on) return;
-    const at = (on.parentElement || on).getBoundingClientRect(), box = row.getBoundingClientRect();
-    if (at.right > box.right) row.scrollLeft += at.right - box.right;
-    else if (at.left < box.left) row.scrollLeft -= box.left - at.left;
+    const show = () => {
+      const row = tabsBox.current, on = row && row.querySelector('.vtab[aria-pressed="true"]');
+      if (!on) return;
+      const at = (on.parentElement || on).getBoundingClientRect(), box = row.getBoundingClientRect();
+      if (at.right > box.right) row.scrollLeft += at.right - box.right;
+      else if (at.left < box.left) row.scrollLeft -= box.left - at.left;
+    };
+    show();
+    window.addEventListener("resize", show);      // a narrower window can push the open tab out of the box
+    return () => window.removeEventListener("resize", show);
   }, [active && active.id, shown.length]);
   const act = (id) => {
     if (/^(layout|group|lane):/.test(id)) pickLayout(id);

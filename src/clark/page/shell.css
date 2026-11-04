@@ -295,7 +295,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 /* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
 .fline-wrap { margin-top: 12px; }
 .fviews { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
-.vtabs { display: flex; flex-wrap: nowrap; gap: 4px 6px; min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.vtabs { display: flex; flex-wrap: nowrap; gap: 4px 6px; min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none; padding: 3px; margin: -3px; }   /* room for the focus outline, which the scrolling box would cut */
 .vtabs::-webkit-scrollbar { display: none; }
 .vtabs > * { flex: none; }
 .vtab { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; min-height: calc(var(--space-6) - var(--space-1)); border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); cursor: pointer; font-size: var(--size-small); color: var(--text); }

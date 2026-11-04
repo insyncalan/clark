@@ -1005,6 +1005,21 @@ class Line(unittest.TestCase):
                     self.assertEqual(bg, "rgb(14, 45, 56)")
                 self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.fline')).borderTopColor !== 'rgba(0, 0, 0, 0)'", sid), True)
 
+    def test_the_open_tabs_menu_closes_when_the_row_scrolls_or_the_window_resizes(self):
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.load(cdp, s.port, 900)
+            for how in ("row", "window"):
+                with self.subTest(how=how):
+                    click(cdp, sid, "#viewTabMenu")
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)))
+                    if how == "row":
+                        cdp.js("document.querySelector('.vtabs').scrollLeft = 5", sid)
+                    else:
+                        cdp.call("Emulation.setDeviceMetricsOverride", {"width": 880, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                    self.assertTrue(wait(lambda: cdp.js("!document.querySelector('#viewTabMenuList')", sid)), "the menu does not stay behind its arrow")
+
+
     def test_the_tab_row_stays_on_one_line_and_scrolls_inside_its_own_box(self):
         # At 900 px the tabs (the five core views, any saved views and + New view) never wrap onto a second line and never push the page
         # sideways: the row scrolls inside its own box. At 1400 px they all fit and the row looks as it did.
