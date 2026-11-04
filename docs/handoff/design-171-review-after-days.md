@@ -27,20 +27,20 @@ column goes there (no new table, as the ticket asks). The `typeof` test is neede
 by itself (that is harmless), but a decimal such as 14.5 would otherwise pass `BETWEEN`. The column is last in the table so the
 migration's `ALTER TABLE ... ADD COLUMN` gives a brought-up file the same columns, in the same order, as a new file (a test checks it).
 
-## Migration step 12 (store.py, guarded)
+## Migration step 14 (store.py, guarded)
 
-`SCHEMA_VERSION` 11 to 12. `migrate_review_after_days` runs `ALTER TABLE projects ADD COLUMN ...` with the same default and CHECK,
+`SCHEMA_VERSION` 13 to 14. `migrate_review_after_days` runs `ALTER TABLE projects ADD COLUMN ...` with the same default and CHECK,
 only when the column is missing. SQLite accepts a CHECK with a default in `ADD COLUMN`, and every existing project takes 14, so no
 table is made again and no frozen `schema_v12.sql` is needed (design-152 asks for one only when a table is rebuilt). The runner
 already takes the safety copy before any step, runs it in one transaction with the version written after it, and refuses a file made
 by a newer clark. Nothing else is touched (a test compares every other table, index and trigger). `tests/test_store_review_days_migration.py`:
-a version 11 file gets 14 on every project (an archived one too) and keeps every other row; a version 1 file goes through all steps;
-the safety copy is on disk before the step and holds version 11 without the column; a failed copy changes nothing; opening twice
+a version 13 file gets 14 on every project (an archived one too) and keeps every other row; a version 1 file goes through all steps;
+the safety copy is on disk before the step and holds version 13 without the column; a failed copy changes nothing; opening twice
 changes nothing and takes no second copy; running the step twice keeps a changed value; the CHECK refuses 0, 366, 14.5, text, empty,
 null and a blob in a brought-up file and in a new one.
 
-**The number is provisional.** Main is at version 11, and the runner refuses a table with a gap (`migration_plan`), so this step is
-numbered 12 for now. #325 (a trigger repair) is to take 12 when it lands; this step then becomes 13. The number is written in
+**The number is provisional.** Main is at version 13 (#325 took 12, #368 took 13), and the runner refuses a table with a gap (`migration_plan`), so this step is
+numbered 14. A later step (#521) takes 15 after it. The number is written in
 `store.REVIEW_DAYS_STEP` (used by `MIGRATIONS`), in `SCHEMA_VERSION`'s line and in the migration test's `STEP`; those three change
 together, nothing else (the frozen-file and pin tests read them). Whichever lands second renumbers.
 

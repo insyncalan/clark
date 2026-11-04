@@ -34,7 +34,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 13          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 14          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -2147,13 +2147,13 @@ def migrate_publication_shared_number(con):
         con.execute(statement)
 
 
-REVIEW_DAYS_STEP = 12        # #171's step number, written once here and used by MIGRATIONS. It is 12 only because the runner refuses a gap and main has no 13 yet: if #325 takes 12 first, this becomes 13 together with SCHEMA_VERSION (and the test's STEP)
+REVIEW_DAYS_STEP = 14        # #171's step number, written once here and used by MIGRATIONS. It is 14 because 12 (#325) and 13 (#368) are taken and the runner refuses a gap: if another step lands first, this becomes the next number together with SCHEMA_VERSION (and the test's STEP)
 
 
 def migrate_review_after_days(con):
     """A project's own "not reviewed after N days" (#171): projects gains review_after_days, 14 on every project that is there
     (the number clark used for all of them before). A column added at the end of the table, with the CHECK of schema.sql, so no
-    table is made again and no frozen schema file is needed. Skipped when the column is already there. Its own step, number 12 (see
+    table is made again and no frozen schema file is needed. Skipped when the column is already there. Its own step, number 14 (see
     SCHEMA_VERSION and MIGRATIONS); it touches no other table. Runs inside the caller's transaction; the runner writes the version."""
     if "review_after_days" not in columns(con, "projects"):
         con.execute("ALTER TABLE projects ADD COLUMN review_after_days INTEGER NOT NULL DEFAULT 14 "
