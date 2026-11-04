@@ -17,7 +17,7 @@ from unittest import mock
 
 from _paths import SRC
 
-from clark import page, server as sv  # noqa: E402
+from clark import page, platform as clark_platform, server as sv  # noqa: E402
 from test_page import DATA, navigate  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 
@@ -162,6 +162,13 @@ class Words(unittest.TestCase):
             sid = navigate(cdp, none.port, "#dashboard")
             self.shown(cdp, sid, ["No project open", "There are no projects yet.",
                                   "To look around with made-up projects, close clark and start it again with python3 -m clark --demo."])
+        # item 427: in the container the Docker route has no --demo flag, so the page leaves that sentence out
+        boxed = Running(data_for=self.fake, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda: [])
+        self.addCleanup(boxed.close)
+        with mock.patch.object(clark_platform, "container_mode", lambda: True), chrome() as cdp:
+            sid = navigate(cdp, boxed.port, "#dashboard")
+            self.shown(cdp, sid, ["No project open", "There are no projects yet."])
+            self.assertNotIn("made-up projects", cdp.js("document.body.innerText", sid))
         with chrome() as cdp:
             sid = self.visit(cdp)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid), WAIT))
