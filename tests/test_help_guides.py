@@ -265,11 +265,8 @@ class PageKey(unittest.TestCase):
 # A part the page adds that is not here fails the rule below, so the new card's line is written with it.
 # Asking is left out on purpose: it is the ask clark switch, and Help holds every entry about ask clark (helpLater.json).
 SETTINGS_PARTS = {"ClientFolder": "Publishing", "PublishedReports": "Published reports", "Personal": "Personal", "ReviewDays": "Freshness",
-                  "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People"}
+                  "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Projects": "Projects", "Data": "Data"}
 SETTINGS_LEFT_OUT = {"AskSettings"}
-# Cards main has that this branch's tree does not hold yet (Data and Projects merged to main after this branch was cut): their
-# lines are written from main's source and are checked by title only. Remove them from here when the tree has them.
-SETTINGS_ON_MAIN_ONLY = {"Projects": "Projects", "Data": "Data"}
 PAGE_SRC = HELP.parent
 WORDS_NOT_USED = re.compile(r"\b(apply|applied|staged|proposal|sweep|tracker|vault|extract)\b", re.I)
 
@@ -308,7 +305,7 @@ class ContextText(unittest.TestCase):
         unknown = found - set(SETTINGS_PARTS) - SETTINGS_LEFT_OUT
         self.assertEqual(unknown, set(), "the page has a Settings card with no title here: add it to SETTINGS_PARTS and write its line")
         titles = {k["title"]: k for k in self.CTX["settings"]["cards"]}
-        want = {SETTINGS_PARTS[p] for p in found if p in SETTINGS_PARTS} | set(SETTINGS_ON_MAIN_ONLY.values())
+        want = {SETTINGS_PARTS[p] for p in found if p in SETTINGS_PARTS}
         self.assertEqual(set(titles), want)
         for t, k in titles.items():
             self.assertTrue(k["line"].strip().endswith("."), t)
@@ -320,7 +317,7 @@ class ContextText(unittest.TestCase):
                 self.assertNotIn("cards", c, page)
 
     def test_each_card_title_is_a_title_the_page_shows(self):
-        names = ("ClientFolder.jsx", "Personal.jsx", "ReviewDays.jsx", "Diagnostics.jsx", "People.jsx", "Safety.jsx", "PublishedReports.jsx")
+        names = ("ClientFolder.jsx", "Personal.jsx", "ReviewDays.jsx", "Diagnostics.jsx", "People.jsx", "Safety.jsx", "PublishedReports.jsx", "Projects.jsx", "Data.jsx")
         code = " ".join((PAGE_SRC / "edit" / f).read_text(encoding="utf-8") for f in names)
         code += " " + (PAGE_SRC / "logic" / "safety.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "pastReports.js").read_text(encoding="utf-8")
         for title in SETTINGS_PARTS.values():

@@ -151,6 +151,8 @@ class PageKeys(Base):
             self.assertTrue(p.js(VIEW))
             # Esc and the question mark: Help opens and closes; Space is not taken from a button
             p.key("?", code="Slash", vk=191)
+            p.until("!!document.querySelector('#help-peek')", "? opened the peek")
+            p.js("document.querySelector('#help-peek [data-hpk-full]').click()")   # the foot link opens the full Help
             p.until("!!document.querySelector('#help')", "? still opens Help when off")
             p.key("/", code="Slash", vk=191)
             time.sleep(0.2)
@@ -194,6 +196,8 @@ class PageKeys(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.key("?", code="Slash", vk=191)
+            p.until("!!document.querySelector('#help-peek')", "? opened the peek")
+            p.js("document.querySelector('#help-peek [data-hpk-full]').click()")   # the foot link opens the full Help
             p.until("!!document.querySelector('#help')", "Help opened")
             p.js("document.querySelector('#hpTab-reference').click()")
             p.until("document.querySelectorAll('#hp-ref-keys .hp-keys tbody tr').length > 0", "the key table drew")

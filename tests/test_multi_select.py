@@ -403,9 +403,9 @@ class Page(Base):
             cdp.js("document.activeElement.blur()", sid)
             cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "?", "text": "?", "code": "Slash", "windowsVirtualKeyCode": 191, "modifiers": SHIFT}, sid)
             cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "?", "code": "Slash", "windowsVirtualKeyCode": 191, "modifiers": SHIFT}, sid)
-            self.until(cdp, sid, "clarkPage.help.isOpen()", "Help opened")
+            self.until(cdp, sid, "clarkPage.help.peek.isOpen()", "the Help peek opened")
             press(cdp, sid, "Escape")
-            self.until(cdp, sid, "!clarkPage.help.isOpen()", "Esc closed Help")
+            self.until(cdp, sid, "!clarkPage.help.peek.isOpen()", "Esc closed the peek")
             self.assertEqual(len(self.picked(cdp, sid)), 2, "and left the selection")
 
     def test_esc_with_the_ask_panel_open_closes_it_first_and_keeps_the_selection(self):

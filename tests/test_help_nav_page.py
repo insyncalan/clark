@@ -39,8 +39,8 @@ class Nav(Base):
     def in_help(self, cdp, tab=None):
         p = self.visit(cdp)
         p.js("try { localStorage.removeItem('clark.helpTab'); } catch (e) {}")
-        p.key("?", code="Slash", vk=191)
-        p.until("!!document.querySelector('#help')", "Help opened on ?")
+        from test_help_panel import full_help_from_menu   # "?" opens the context peek now; the profile menu's Help is the full Help
+        full_help_from_menu(p, "Help opened from the profile menu")
         if tab:
             p.js(f"document.querySelector('#hpTab-{tab}').click()")
             p.until(f"document.querySelector('#hpTab-{tab}').getAttribute('aria-selected') === 'true' && !!document.querySelector('.hp-idx a')", f"the {tab} tab")
@@ -184,8 +184,8 @@ class Nav(Base):
                     self.assertTrue(p.js("var b=document.querySelector('#hpPrev').getBoundingClientRect(); b.right <= innerWidth && b.left >= 0 && b.height >= 30"), f"{scheme} {w}: in view")
             p.js("document.querySelector('#hpBack').click()")
             p.until("!document.querySelector('#help') && !!document.querySelector('#report')", "Back closes Help, as before")
-            p.key("?", code="Slash", vk=191)
-            p.until("!!document.querySelector('#help')", "reopened")
+            from test_help_panel import full_help_from_menu   # "?" opens the context peek now; the profile menu's Help is the full Help
+            full_help_from_menu(p, "reopened")
             self.assertEqual(p.js("document.querySelector('#hpPrev')"), None, "a fresh visit starts a fresh history")
 
     def test_a_tab_change_is_a_place_you_can_go_back_from(self):

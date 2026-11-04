@@ -30,11 +30,28 @@ def keys_in_help(p):
     return p.js("document.querySelector('#help') ? 1 : 0")
 
 
+def full_help_from_menu(p, what="Help opened from the profile menu"):
+    """The profile menu's Help entry opens the FULL Help (on the tab used last); "?" and the top-bar button open the context peek where a screen has text."""
+    p.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)   # a click with no key press before it leaves the page unfocused
+    p.js("document.querySelector('#profile-btn').click()")
+    p.until("!!document.querySelector('#profile-menu')", "profile menu")
+    p.js("[...document.querySelectorAll('#profile-menu [role=menuitem]')].find(e => e.textContent === 'Help').click()")
+    p.until("!!document.querySelector('#help') && !document.querySelector('#profile-menu')", what)
+
+
+def full_help_from_key(p, what="Help opened from ? and the foot link"):
+    """"?" opens the peek; its foot link opens the full Help. The peek hands focus back first, so Help's Back returns to what had it."""
+    p.key("?", code="Slash", vk=191)
+    p.until("!!document.querySelector('#help-peek')", "the peek opened on ?")
+    p.js("document.querySelector('#help-peek [data-hpk-full]').click()")
+    p.until("!!document.querySelector('#help')", what)
+
+
+
 class Panel(Base):
     def in_help(self, cdp):
         p = self.visit(cdp)
-        p.key("?", code="Slash", vk=191)
-        p.until("!!document.querySelector('#help')", "Help opened on ?")
+        full_help_from_menu(p)
         return p
 
     def test_question_mark_opens_and_esc_returns(self):
@@ -44,7 +61,11 @@ class Panel(Base):
             before = p.js("location.hash")
             self.assertEqual(p.js("document.querySelector('#help') === null"), True)
             p.key("?", code="Slash", vk=191)
-            p.until("!!document.querySelector('#help')", "Help opened on ?")
+            p.until("!!document.querySelector('#help-peek')", "? opened the peek (the Dashboard has context text)")
+            self.assertEqual(p.js("document.querySelector('#help') === null"), True, "the peek is not the full Help")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#help-peek') && !document.querySelector('.peek.leaving')", "Esc closed the peek")
+            full_help_from_menu(p)
             self.assertEqual(p.js("document.querySelector('#report') === null"), True, "Help is in place of the page")
             self.assertEqual(p.js("location.hash"), before, "opening Help does not move the address")
             p.key("Escape", code="Escape", vk=27)
@@ -128,15 +149,13 @@ class Panel(Base):
             p = self.visit(cdp)
             p.edit()
             p.js("var h=document.querySelector('.secs .sec[data-id] [data-drag]'); window.__id=h.closest('.sec').dataset.id; h.focus()")
-            p.key("?", code="Slash", vk=191)
-            p.until("!!document.querySelector('#help')", "Help opened from a section's handle")
+            full_help_from_key(p, "Help opened from a section's handle")
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('#help') && document.activeElement && document.activeElement.hasAttribute('data-drag')", "Esc put focus back on the handle")
             self.assertEqual(p.js("document.activeElement.closest('.sec').dataset.id"), p.js("window.__id"))
             # the Back button does the same, and a part of the top bar is the same element still
             p.js("document.querySelector('.mode[data-mode=view]').focus()")
-            p.key("?", code="Slash", vk=191)
-            p.until("!!document.querySelector('#help')", "Help opened from the View button")
+            full_help_from_key(p, "Help opened from the View button")
             p.js("document.querySelector('#hpBack').click()")
             p.until("!document.querySelector('#help') && document.activeElement && document.activeElement.dataset.mode === 'view'", "Back put focus back on View")
 
@@ -151,14 +170,20 @@ class Panel(Base):
                 self.assertEqual(p.js("(function(){var b=document.querySelector('header.top #help-btn');return b&&[b.textContent,b.getAttribute('aria-label'),b.title,b.getBoundingClientRect().width>=24,b.getBoundingClientRect().height>=24,b.getBoundingClientRect().right<=innerWidth]})()"),
                                  ["?", "Help", "Help (?)", True, True, True], f"{w}: the button is in the top bar, named Help, big enough, in view")
                 self.assertTrue(p.js("var a=document.querySelector('#help-btn').getBoundingClientRect(), b=document.querySelector('#profile-btn').getBoundingClientRect(); a.right <= b.left"), "beside the circle, before it")
+                # The button opens the context peek on a screen with text (the Dashboard has some); the profile menu's Help is the full Help.
                 p.js("document.querySelector('#help-btn').focus(); document.querySelector('#help-btn').click()")
-                p.until("!!document.querySelector('#help')", f"{w}: the button opened Help")
+                p.until("!!document.querySelector('#help-peek')", f"{w}: the button opened the peek")
+                self.assertEqual(p.js("document.querySelector('#help')"), None, f"{w}: the button does not open the full Help here")
+                p.js("document.querySelector('#help-btn').click()")
+                p.until("!document.querySelector('#help-peek') && !document.querySelector('.peek.leaving')", f"{w}: the button closed the peek")
+                p.js("document.querySelector('#profile-btn').focus()")
+                full_help_from_menu(p, f"{w}: the profile menu's Help opened Help")
                 self.assertEqual(p.js("document.querySelector('#hpBack').textContent"), "Back")
                 self.assertEqual(p.js("document.querySelector('#hpClose')"), None, "no Close Help button any more")
                 self.assertIn("Esc or Back takes you where you were", p.js("document.querySelector('.hp-head p').textContent"))
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), f"{w}: no sideways scroll")
                 p.js("document.querySelector('#hpBack').click()")
-                p.until("!document.querySelector('#help') && !!document.querySelector('#report') && document.activeElement.id === 'help-btn'", f"{w}: Back returned to the page and the button")
+                p.until("!document.querySelector('#help') && !!document.querySelector('#report') && document.activeElement.id === 'profile-btn'", f"{w}: Back returned to the page and the profile button that opened Help")
 
     def test_help_is_a_page_of_cards_with_a_search_icon_and_a_key_chip(self):
         """C-H6 and C-H7: no outer frame; the search box has its icon and a "/" chip that goes while the box is used; the Reference
@@ -242,7 +267,7 @@ class Panel(Base):
             p.until("document.querySelector('#hpTab-howto') && document.querySelector('#hpTab-howto').getAttribute('aria-selected') === 'true'", "opened on the tab used last")
             reload_to_new_page(p.js)
             p.until("!!window.clarkPage && !!document.querySelector('#report')", "reloaded")
-            p.key("?", code="Slash", vk=191)
+            full_help_from_menu(p)
             p.until("!!document.querySelector('#hpTab-howto') && document.querySelector('#hpTab-howto').getAttribute('aria-selected') === 'true'", "a reload still opens on the tab used last")
             p.js("window.clarkPage.show('work')")
             p.until("!document.querySelector('#help')", "going to another page closes Help")
