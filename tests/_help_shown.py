@@ -16,7 +16,7 @@ START_FIELDS = {
     "top": {"hero": {"label": "", "title": "", "lead": ""}},
     "loop": {"loop": [], "text": ["loop_title", "loop_intro", "loop_return"]},
     "first": {"first": [], "text": ["first_title"]},
-    "jobs": {"jobs": [], "text": ["jobs_title", "jobs_intro"]},
+    "jobs": {"jobs": [], "undo": "", "text": ["jobs_title", "undo_lead", "undo_link"]},
     "where": {"where": [], "text": ["where_title", "keyline", "keyline_link"]},
     "rules": {"rules": [], "text": ["rules_title"]},
     "foot": {"text": ["foot", "foot_link"]},
@@ -37,6 +37,10 @@ def shown_content(raw=RAW, later=LATER):
                 c["start"][k] = copy.deepcopy(v)
     c["howto"]["tasks"] = [x for x in c["howto"]["tasks"] if x["id"] not in (later.get("howto") or {})]
     c["reference"]["sections"] = [x for x in c["reference"]["sections"] if x["id"] not in (later.get("reference") or {})]
+    shown_task = lambda i: any(x["id"] == i for x in c["howto"]["tasks"])
+    c["start"]["jobs"] = [j for j in c["start"]["jobs"] if shown_task(j[0])]
+    if not shown_task(c["start"].get("undo")):
+        c["start"]["undo"] = c["start"]["text"]["undo_lead"] = c["start"]["text"]["undo_link"] = ""
     c["guides"] = [x for x in c.get("guides", []) if x["id"] not in (later.get("guides") or {})]
     c["howto"]["groups"] = [g for g in c["howto"]["groups"] if any(x["g"] == g for x in c["howto"]["tasks"])]
     c["reference"]["groups"] = [g for g in c["reference"]["groups"] if any(x["g"] == g for x in c["reference"]["sections"])]

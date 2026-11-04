@@ -131,12 +131,14 @@ class Logic(unittest.TestCase):
         self.assertTrue(all(e["place"].startswith("ref-") for g in lst for e in g["entries"]))
 
     def test_start_here_lists_its_seven_parts_and_an_unknown_tab_lists_nothing(self):
+        """The seven parts, and after the jobs part the five jobs (each opens its how-to entry): the contents list of Start here."""
         parts = [e["place"] for g in self.r["lists"]["start"] for e in g["entries"]]
-        self.assertEqual(parts, ["start-" + p for p in ("top", "loop", "first", "jobs", "where", "rules", "foot")])
+        jobs = ["howto-" + i for i in ("add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report")]
+        self.assertEqual(parts, ["start-" + p for p in ("top", "loop", "first", "jobs")] + jobs + ["start-" + p for p in ("where", "rules", "foot")])
         self.assertEqual(self.r["noList"], [])
 
     def test_the_jobs_and_steps_of_start_here(self):
-        self.assertEqual(len(self.r["jobs"]), 12)
+        self.assertEqual(len(self.r["jobs"]), 5)
         self.assertTrue(all(j["place"] == "howto-" + j["id"] for j in self.r["jobs"]))
         self.assertEqual((self.r["first"], self.r["loop"]), (5, 5))
 
@@ -286,7 +288,7 @@ class Logic(unittest.TestCase):
     # ---- links inside Help ----
     def test_every_link_inside_help_finds_its_place_and_every_screen_exists(self):
         links = self.r["links"]
-        self.assertGreater(len(links["inside"]), 20)
+        self.assertGreater(len(links["inside"]), 18)   # measured 19 on this tree (24 with the prototype's twelve jobs, 18 plus the Undo link's place now): the measured count less one
         self.assertEqual(sorted(set(links["inside"]) - set(self.r["places"])), [])
         screens = {"dashboard", "dashboard+edit", "work", "milestones", "settings", "publish", "preview", "ask"}
         self.assertEqual(sorted(s for s in links["screens"] if s.split("#")[0] not in screens), [])
@@ -313,17 +315,18 @@ class Shown(unittest.TestCase):
 
     def test_a_held_entry_is_in_no_list_no_place_and_no_search(self):
         s = self.shown
-        SEC = ["howto-set-the-health", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-use-the-board", "howto-arrange-the-report", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-handle-a-slipped-milestone",
+        SEC = ["start-jobs", "howto-set-the-health", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-use-the-board", "howto-arrange-the-report", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-handle-a-slipped-milestone",
                "ref-profile-circle", "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-freshness", "ref-archive-restore", "ref-at-a-glance", "ref-layouts", "ref-work-items",
                "ref-milestones-page", "ref-status-words", "ref-milestone-states", "ref-published-reports", "ref-diagnostics", "ref-dates-and-ids", "ref-using-help", "ref-keys"]
         self.assertEqual(s["places"], SEC)
-        self.assertEqual(s["tabs"]["start"], [])
-        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:10])
+        self.assertEqual([e["place"] for g in s["tabs"]["start"] for e in g["entries"]], ["start-jobs", "howto-add-a-section-from-a-template", "howto-arrange-the-report"],
+                         "Start here lists the jobs part and the two jobs whose entries are shown; the three held jobs and the Undo link are in no list")
+        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[1:11])
         self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]],
                          ["ref-profile-circle", "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-at-a-glance", "ref-layouts", "ref-work-items", "ref-milestones-page", "ref-freshness", "ref-archive-restore",
                           "ref-status-words", "ref-milestone-states", "ref-published-reports", "ref-diagnostics", "ref-dates-and-ids", "ref-using-help", "ref-keys"])      # by group: Screens, Working with items, Milestones, Publishing, Settings and data, Keys and icons
         self.assertEqual(s["index"], SEC)
-        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "ref-needs-from-you", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "ref-status-words", "howto-use-the-board", "howto-handle-a-slipped-milestone", "ref-keys"], ["dashboard+edit", "settings#pubs", "publish", "work", "milestones"]))
+        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (2, ["ref-section-templates", "ref-needs-from-you", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "ref-status-words", "howto-use-the-board", "howto-handle-a-slipped-milestone", "howto-arrange-the-report", "ref-keys"], ["dashboard+edit", "settings#pubs", "publish", "work", "milestones"]))
         self.assertEqual(s["q"]["sneak"], [], "no Sneak peek entry is shown")      # "ask clark" is left out: the board entry says \"clark remembers\", which the search reads as a match
         self.assertEqual(s["q"]["peek"], ["ref-freshness"], "no peek entry of its own is shown; Freshness says where the peek shows Raised and Last reviewed")
         self.assertEqual(s["q"]["movement"][:2], ["ref-milestones-page", "howto-handle-a-slipped-milestone"], "a search for movement finds the Movement entries")
@@ -337,7 +340,7 @@ class Shown(unittest.TestCase):
         w = self.shown["where"]
         self.assertEqual(w["held"], {"tab": "howto", "target": None, "known": False})
         self.assertEqual(w["heldRef"], {"tab": "reference", "target": None, "known": False})
-        self.assertEqual(w["startPart"], {"tab": "start", "target": None, "known": False})
+        self.assertEqual(w["startPart"], {"tab": "start", "target": "start-jobs", "known": True}, "the jobs part is shown now")
         self.assertEqual(w["kept"], {"tab": "reference", "target": "ref-keys", "known": True})
 
     def test_the_keys_that_are_shown_are_the_python_copy(self):

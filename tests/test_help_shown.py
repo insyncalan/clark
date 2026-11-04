@@ -100,7 +100,7 @@ class Held(unittest.TestCase):
         self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["set-the-health", "word-in-and-out", "find-a-past-publication", "save-as-a-pdf", "use-the-board", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "status-words",
                           "milestone-states", "published-reports", "diagnostics", "dates-and-ids", "using-help", "keys"])
-        self.assertEqual(s["start"]["parts"], [])
+        self.assertEqual(s["start"]["parts"], ["jobs"])      # only the jobs part is released (#642 step 3); the other six wait for their parts of clark
         self.assertEqual(len(s["reference"]["keys"]), 36 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones"])
         self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Publishing", "Settings and data", "Keys and icons"])

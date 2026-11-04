@@ -17,7 +17,7 @@ const START_FIELDS = {
   top: { hero: { label: "", title: "", lead: "" } },
   loop: { loop: [], text: ["loop_title", "loop_intro", "loop_return"] },
   first: { first: [], text: ["first_title"] },
-  jobs: { jobs: [], text: ["jobs_title", "jobs_intro"] },
+  jobs: { jobs: [], undo: "", text: ["jobs_title", "undo_lead", "undo_link"] },
   where: { where: [], text: ["where_title", "keyline", "keyline_link"] },
   rules: { rules: [], text: ["rules_title"] },
   foot: { text: ["foot", "foot_link"] },
@@ -42,6 +42,11 @@ export function shownContent(raw, later) {
   c.howto.tasks = c.howto.tasks.filter((x) => !(x.id in (L.howto || {})));
   c.reference.sections = c.reference.sections.filter((x) => !(x.id in (L.reference || {})));
   c.guides = (c.guides || []).filter((x) => !(x.id in (L.guides || {})));
+  // A job on Start here is shown only while the entry it opens is shown: a job whose entry is held keeps its words held (never shown,
+  // never a dead link). The Undo link beside the jobs follows the same rule.
+  const shownTask = (id) => c.howto.tasks.some((x) => x.id === id);
+  c.start.jobs = c.start.jobs.filter((j) => shownTask(j[0]));
+  if (!shownTask(c.start.undo)) { c.start.undo = ""; c.start.text.undo_lead = ""; c.start.text.undo_link = ""; }
   c.howto.groups = c.howto.groups.filter((g) => c.howto.tasks.some((x) => x.g === g));
   c.reference.groups = c.reference.groups.filter((g) => c.reference.sections.some((x) => x.g === g));
   const heldKeys = new Set((L.keys || []).map((k) => k.at));
@@ -81,13 +86,26 @@ export const sections = () => CONTENT.reference.sections;
 export const jobs = () => CONTENT.start.jobs.map(([id, title, does, go]) => ({ id, place: `howto-${id}`, title, does, go }));
 export const firstTen = () => CONTENT.start.first;
 export const loopSteps = () => CONTENT.start.loop;
+/** The small "Undo" link beside the jobs: { lead, link, place }, or null while the entry it opens is held. */
+export const undoLink = () => (CONTENT.start.undo && CONTENT.start.text.undo_link ? { lead: CONTENT.start.text.undo_lead, link: CONTENT.start.text.undo_link, place: PREFIX.howto + CONTENT.start.undo } : null);
 
 /** A tab as its groups, each with its entries (id, title, place): the contents list down the side of How do I… and Reference. */
 export function tabList(tab) {
   const by = (groups, list, pre) => groups.map((g) => ({ group: g, entries: list.filter((x) => x.g === g).map((x) => ({ id: x.id, title: x.t, place: pre + x.id })) }));
-  if (tab === "howto") return by(CONTENT.howto.groups, tasks(), PREFIX.howto);
+  if (tab === "howto") {
+    const g = guides();        // guides have no group: their own run at the end, with no heading (the contents list gives no new words)
+    return by(CONTENT.howto.groups, tasks(), PREFIX.howto).concat(g.length ? [{ group: "", entries: g.map((x) => ({ id: x.id, title: x.title, place: x.place })) }] : []);
+  }
   if (tab === "reference") return by(CONTENT.reference.groups, sections(), PREFIX.reference);
-  if (tab === "start") return CONTENT.start.parts.length ? [{ group: "Start here", entries: CONTENT.start.parts.map((p) => ({ id: p, title: startTitle(p), place: PREFIX.start + p })) }] : [];
+  if (tab === "start") {
+    // The parts of Start here, and after the jobs part the jobs it shows (each opens its entry under How do I…).
+    const rows = [];
+    for (const p of CONTENT.start.parts) {
+      rows.push({ id: p, title: startTitle(p), place: PREFIX.start + p });
+      if (p === "jobs") for (const j of jobs()) rows.push({ id: j.id, title: j.title, place: j.place });
+    }
+    return rows.length ? [{ group: "Start here", entries: rows }] : [];
+  }
   return [];
 }
 
@@ -122,6 +140,39 @@ export function placeTitle(place) {
 export function nextLinks(id) {
   const g = guide(id), known = new Set(placeIds());
   return g ? g.next.map((place) => ({ place, known: known.has(place), title: known.has(place) ? placeTitle(place) : null })) : [];
+}
+
+/** The "What next" links of any entry, from its `next` list of places: [{ place, title }]. A place that is not shown (held, or not a
+ *  place) is left out, so a link never goes nowhere; each place once, in the order given. */
+export function nextOf(places) {
+  const known = new Set(placeIds()), seen = new Set(), out = [];
+  for (const p of Array.isArray(places) ? places : []) {
+    if (!known.has(p) || seen.has(p)) continue;
+    seen.add(p);
+    out.push({ place: p, title: placeTitle(p) });
+  }
+  return out;
+}
+
+// ---------- the places visited (the way back beside Back) ----------
+// A small history: the places left behind, the latest last. Plain functions on arrays, so the store only holds the value.
+export const TRAIL_MAX = 20;
+/** The history after going from `from` to `to`: `from` is added unless it is empty or the same place. Never changes the list given. */
+export function trailVisit(trail, from, to) {
+  const t = Array.isArray(trail) ? trail.slice() : [];
+  if (!from || from === to || t[t.length - 1] === from) return t;
+  t.push(from);
+  return t.slice(-TRAIL_MAX);
+}
+/** Going back one place: { place, trail } (place null and the same history when there is none). */
+export function trailBack(trail) {
+  const t = Array.isArray(trail) ? trail.slice() : [];
+  return { place: t.length ? t.pop() : null, trail: t };
+}
+/** The place a tab opens at: its first entry in the contents list (null when it has none). */
+export function firstPlace(tab) {
+  const l = tabList(tab);
+  return l.length && l[0].entries.length ? l[0].entries[0].place : null;
 }
 
 // ---------- the keys and the icons ----------
@@ -173,6 +224,7 @@ export function linksIn() {
   for (const j of CONTENT.start.jobs) { inside.add(`howto-${j[0]}`); screens.add(j[3]); }
   for (const t of tasks()) if (t.go) screens.add(t.go);
   for (const w of CONTENT.start.where) if (w[2]) screens.add(w[2]);
+  if (CONTENT.start.undo && CONTENT.start.text.undo_link) inside.add(PREFIX.howto + CONTENT.start.undo);
   inside.add("ref-keys");   // the Start here key line links to it
   return { inside: [...inside], screens: [...screens] };
 }
@@ -233,7 +285,7 @@ export function buildIndex(dynamic = null) {
   if (on("top")) add("start", "start-top", S.hero.title, [S.hero.label, S.hero.lead]);
   if (on("loop")) add("start", "start-loop", T.loop_title, [T.loop_intro, ...S.loop.map((x) => `${x.t}. ${x.d}`), T.loop_return]);
   if (on("first")) add("start", "start-first", T.first_title, S.first.map((x) => `${x.t}. ${x.d}`));
-  if (on("jobs")) add("start", "start-jobs", T.jobs_title, [T.jobs_intro, ...S.jobs.map((j) => `${j[1]} ${j[2]}`)]);
+  if (on("jobs")) add("start", "start-jobs", T.jobs_title, S.jobs.map((j) => `${j[1]} ${j[2]}`));
   if (on("where")) add("start", "start-where", T.where_title, [...S.where.map((w) => `${w[0]}. ${w[1]}`), T.keyline]);
   if (on("rules")) add("start", "start-rules", T.rules_title, S.rules.map((r) => `${r[0]}. ${r[1]}`));
   if (on("foot")) add("start", "start-foot", "Start here", [T.foot, T.foot_link]);

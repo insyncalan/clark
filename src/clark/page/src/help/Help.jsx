@@ -1,8 +1,8 @@
 // The Help panel (#82; BRD 5.13): Start here, How do I… and Reference, all drawn from help/helpContent.json, with one search across
 // the three tabs. A layer in place of the open page; Esc or the Back button returns to it. Edit-served pages only (edit/index.js).
 import { useEffect, useRef } from "preact/hooks";
-import { content, TABS, tabList, tasks, sections, jobs, firstTen, loopSteps, iconLegend, milestoneMarks, buildIndex, resultsView, goLabel, markParts } from "./helpLogic.js";
-import { helpOpen, helpTab, helpTarget, helpQuery, helpFocusSearch, setTab, follow, goTo, canGo, closeHelp } from "./helpStore.js";
+import { content, TABS, tabList, tasks, sections, guides, jobs, undoLink, nextOf, firstTen, loopSteps, iconLegend, milestoneMarks, buildIndex, resultsView, goLabel, markParts } from "./helpLogic.js";
+import { helpOpen, helpTab, helpTarget, helpQuery, helpFocusSearch, helpHere, helpLand, setTab, follow, goTo, canGo, closeHelp, backPlace, goBackPlace } from "./helpStore.js";
 import { Md } from "./helpText.jsx";
 import { Icon } from "../components/Icon.jsx";
 
@@ -21,10 +21,12 @@ function Later() {
 }
 
 function Start() {
-  const where = S.where, on = (p) => S.parts.includes(p);
+  const where = S.where, on = (p) => S.parts.includes(p), undo = undoLink();
   if (!S.parts.length) return <Later />;
   return (
-    <>
+    <div class="hp-two">
+      <Contents tab="start" />
+      <div class="hp-col">
       {on("top") ? <section class="hp-hero" id="hp-start-top" aria-labelledby="hpT0">
         <div><div class="hp-lab">{S.hero.label}</div><h2 id="hpT0">{S.hero.title}</h2><p><Md text={S.hero.lead} /></p></div>
       </section> : null}
@@ -46,17 +48,16 @@ function Start() {
         <div class="hp-lab">Once</div><h2 id="hpT2">{T.first_title}</h2>
         <ol class="hp-first">{firstTen().map((f, i) => <li key={f.t}><span class="hp-big">{i + 1}</span><b>{f.t}</b><p><Md text={f.d} /></p></li>)}</ol>
       </section> : null}
-      {on("jobs") ? <section class="hp-sec" id="hp-start-jobs" aria-labelledby="hpT3">
-        <div class="hp-lab">The jobs you will do most</div><h2 id="hpT3">{T.jobs_title}</h2><p class="hp-lead">{T.jobs_intro}</p>
-        <ul class="hp-jobs">
+      {on("jobs") ? <section class="hp-sec hp-start-jobs" id="hp-start-jobs" data-k="start-jobs" aria-labelledby="hpT3" tabIndex={helpHere.value === "start-jobs" ? 0 : -1}>
+        <h2 id="hpT3">{T.jobs_title}</h2>
+        <ol class="hp-jobs">
           {jobs().map((j) => (
-            <li key={j.id} class="hp-job">
-              <a href="#" class="hp-jt" data-hlink={j.place} onClick={(e) => { e.preventDefault(); follow(j.place); }}>{j.title}</a>
-              <span>{j.does}</span>
-              <GoLink to={j.go} cls="hp-jgo" />
+            <li key={j.id}>
+              <a href="#" class="hp-job" data-hlink={j.place} onClick={(e) => { e.preventDefault(); follow(j.place); }}><div><b>{j.title}</b><span>{j.does}</span></div></a>
             </li>
           ))}
-        </ul>
+        </ol>
+        {undo ? <p class="hp-undo muted">{undo.lead} <a href="#" data-hlink={undo.place} onClick={(e) => { e.preventDefault(); follow(undo.place); }}>{undo.link}</a></p> : null}
       </section> : null}
       {on("where") ? <section class="hp-sec" id="hp-start-where" aria-labelledby="hpT4">
         <div class="hp-lab">The screens</div><h2 id="hpT4">{T.where_title}</h2>
@@ -78,20 +79,47 @@ function Start() {
         <p>{T.foot}</p>
         <a href="#" class="hp-a" data-htab="howto" onClick={(e) => { e.preventDefault(); setTab("howto"); }}>{T.foot_link} ›</a>
       </footer> : null}
-    </>
+      </div>
+    </div>
   );
 }
 
+// The contents list: stays in view (position: sticky, in the page's CSS), marks the place the reader is at, and is one stop for Tab
+// (the marked link; the others are reached with the arrow keys). Up and Down move, Home and End jump, Right opens the entry.
 function Contents({ tab }) {
+  const here = helpHere.value, lists = tabList(tab);
+  const stop = lists.some((g) => g.entries.some((e) => e.place === here)) ? here : (lists[0] && lists[0].entries[0] ? lists[0].entries[0].place : null);
+  const onKey = (e) => {
+    const links = [...e.currentTarget.querySelectorAll("a")], i = links.indexOf(document.activeElement);
+    if (i < 0) return;
+    const j = e.key === "ArrowDown" ? Math.min(i + 1, links.length - 1) : e.key === "ArrowUp" ? Math.max(i - 1, 0) : e.key === "Home" ? 0 : e.key === "End" ? links.length - 1 : -1;
+    if (j >= 0) { e.preventDefault(); links[j].focus(); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); links[i].click(); }
+  };
   return (
-    <nav class="hp-idx" aria-label="In this part">
-      {tabList(tab).map((g) => (
-        <div key={g.group}>
-          <div class="hp-ig">{g.group}</div>
-          <ul>{g.entries.map((e) => <li key={e.id}><a href="#" data-hlink={e.place} onClick={(ev) => { ev.preventDefault(); follow(e.place); }}>{e.title}</a></li>)}</ul>
+    <nav class="hp-idx" aria-label="In this part" onKeyDown={onKey}>
+      {lists.map((g, n) => (
+        <div key={g.group || n}>
+          {g.group ? <div class="hp-ig">{g.group}</div> : null}
+          <ul>{g.entries.map((e) => (
+            <li key={e.place}><a href="#" data-hlink={e.place} class={e.place === here ? "cur" : ""} aria-current={e.place === here ? "true" : undefined} tabIndex={e.place === stop ? 0 : -1}
+              onClick={(ev) => { ev.preventDefault(); follow(e.place); }}>{e.title}</a></li>
+          ))}</ul>
         </div>
       ))}
     </nav>
+  );
+}
+
+// The links at the foot of an entry: its `next` places that are shown (a place that is held is left out, so no link goes nowhere).
+function Next({ places }) {
+  const l = nextOf(places);
+  if (!l.length) return null;
+  return (
+    <div class="hp-next">
+      <h4>What next</h4>
+      <ul>{l.map((n) => <li key={n.place}><a href="#" data-hnext={n.place} onClick={(e) => { e.preventDefault(); follow(n.place); }}>{n.title}</a></li>)}</ul>
+    </div>
   );
 }
 
@@ -107,15 +135,25 @@ function HowTo() {
           <div key={g}>
             <h3 class="hp-grp">{g}</h3>
             {tasks().filter((x) => x.g === g).map((x) => (
-              <article class="hp-task" key={x.id} id={`hp-howto-${x.id}`} data-k={`howto-${x.id}`}>
+              <article class="hp-task" key={x.id} id={`hp-howto-${x.id}`} data-k={`howto-${x.id}`} tabIndex={helpHere.value === `howto-${x.id}` ? 0 : -1}>
                 <h3>{x.t}</h3>
                 <p class="hp-where">Where: <Md text={x.w} /></p>
                 <ol>{x.s.map((s, i) => <li key={i}><Md text={s} /></li>)}</ol>
                 {x.n ? <p class="hp-note"><Md text={x.n} /></p> : null}
                 <GoLink to={x.go} cls="hp-go" />
+                <Next places={x.next} />
               </article>
             ))}
           </div>
+        ))}
+        {guides().map((g) => (
+          <article class="hp-task hp-guide" key={g.id} id={`hp-${g.place}`} data-k={g.place} tabIndex={helpHere.value === g.place ? 0 : -1}>
+            <h3>{g.title}</h3>
+            <p class="hp-where">{g.job}</p>
+            <ol>{g.steps.map((s) => <li key={s.n}><Md text={s.d} /></li>)}</ol>
+            {g.result ? <p class="hp-note"><b>What you should see:</b> <Md text={g.result} /></p> : null}
+            <Next places={g.next} />
+          </article>
         ))}
       </div>
     </div>
@@ -156,10 +194,11 @@ function Reference() {
           <div key={g}>
             <h3 class="hp-grp">{g}</h3>
             {sections().filter((x) => x.g === g).map((x) => (
-              <article class="hp-ref" key={x.id} id={`hp-ref-${x.id}`} data-k={`ref-${x.id}`}>
+              <article class="hp-ref" key={x.id} id={`hp-ref-${x.id}`} data-k={`ref-${x.id}`} tabIndex={helpHere.value === `ref-${x.id}` ? 0 : -1}>
                 <h3>{x.t}</h3>
                 {x.w ? <p class="hp-where">Where: <Md text={x.w} /></p> : null}
                 {x.b.map((b, i) => <Block key={i} b={b} />)}
+                <Next places={x.next} />
               </article>
             ))}
           </div>
@@ -200,21 +239,48 @@ function Results() {
 
 const PANES = { start: Start, howto: HowTo, reference: Reference };
 
+let landedAt = 0;      // when a link last took the reader to a place: the scroll that follows is not the reader reading on
+
 export function Help() {
   const tab = helpTab.value, q = helpQuery.value, asked = !!q.trim();
   const box = useRef(null), search = useRef(null);
-  const Pane = PANES[tab];
+  const Pane = PANES[tab], back = backPlace();
   // Scroll to the place asked for and flash it.
   useEffect(() => {
     const t = helpTarget.value;
     if (!t) { window.scrollTo(0, 0); return; }
     const el = document.getElementById("hp-" + t);
     if (!el) return;
+    landedAt = Date.now();
     el.scrollIntoView({ block: "start" });
     el.classList.add("hp-found");
     const timer = setTimeout(() => el.classList.remove("hp-found"), 2400);
     return () => clearTimeout(timer);
   }, [helpTarget.value, tab, asked]);
+  // The place the reader is at follows the page as it scrolls (the marked link in the contents list); focus goes to the entry a link opened.
+  useEffect(() => {
+    if (asked) return;
+    let raf = 0;
+    const pick = () => {
+      raf = 0;
+      const wait = 800 - (Date.now() - landedAt);
+      if (wait > 0) { raf = -1; setTimeout(() => { raf = 0; on(); }, wait + 20); return; }      // a link's own scroll is not the reader reading on; look again once it is done
+      const els = [...document.querySelectorAll("#hpPane [data-k]")];
+      if (!els.length) return;
+      const line = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--topbar")) || 56) + 40;
+      let cur = els[0];
+      for (const e of els) { if (e.getBoundingClientRect().top <= line) cur = e; else break; }
+      if (cur.dataset.k !== helpHere.peek()) helpHere.value = cur.dataset.k;
+    };
+    function on() { if (!raf) raf = requestAnimationFrame(pick); }
+    window.addEventListener("scroll", on, { passive: true });
+    return () => { window.removeEventListener("scroll", on); if (raf > 0) cancelAnimationFrame(raf); };
+  }, [tab, asked]);
+  useEffect(() => {
+    if (!helpLand.value) return;
+    const here = helpHere.value, el = here && document.querySelector(`#hpPane [data-k="${here}"]`);
+    if (el) el.focus({ preventScroll: true });
+  }, [helpLand.value]);
   useEffect(() => { if (helpFocusSearch.value && search.current) { search.current.focus(); search.current.select(); } }, [helpFocusSearch.value]);
   useEffect(() => { if (box.current) box.current.focus({ preventScroll: true }); }, []);
   const onTabKey = (e) => {
@@ -223,6 +289,12 @@ export function Help() {
     if (j < 0) return;
     e.preventDefault(); setTab(ks[j]);
     setTimeout(() => { const b = document.getElementById("hpTab-" + ks[j]); if (b) b.focus(); }, 0);
+  };
+  // Left from an entry goes back to its link in the contents list.
+  const onPaneKey = (e) => {
+    if (e.key !== "ArrowLeft" || !e.target.dataset || !e.target.dataset.k) return;
+    const a = document.querySelector(`.hp-idx a[data-hlink="${e.target.dataset.k}"]`);
+    if (a) { e.preventDefault(); a.focus(); }
   };
   return (
     <section class="hp" id="help" aria-label="Help" tabIndex={-1} ref={box}>
@@ -233,11 +305,12 @@ export function Help() {
         </div>
         <div class="hp-actions">
           <button type="button" class="hp-back" id="hpBack" onClick={closeHelp}><Icon name="left" />Back</button>
+          {back ? <button type="button" class="hp-back hp-prev" id="hpPrev" onClick={goBackPlace}>Back to {back.title}</button> : null}
           <label class="search hp-search"><span class="hp-sr">Search Help</span><Icon name="search" />
             <input id="hpQ" ref={search} type="search" placeholder="Search Help" autocomplete="off" aria-describedby="hpQk" value={q} onInput={(e) => { helpQuery.value = e.currentTarget.value; helpTarget.value = null; }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") { const a = document.querySelector("#hpRes a.hp-r"); if (a) { e.preventDefault(); a.click(); } }
-                else if (e.key === "ArrowDown") { const a = document.querySelector("#hpRes a.hp-r"); if (a) { e.preventDefault(); a.focus(); } }
+                else if (e.key === "ArrowDown") { const a = document.querySelector(asked ? "#hpRes a.hp-r" : ".hp-idx a[tabindex='0']"); if (a) { e.preventDefault(); a.focus(); } }
               }} />
             <kbd id="hpQk" aria-label="Press slash to search">/</kbd>
           </label>
@@ -250,7 +323,7 @@ export function Help() {
         ))}
       </div>
       {asked ? <div id="hpRes" class="hp-res" aria-live="polite"><Results /></div> : null}
-      {asked ? null : <div id="hpPane" class={`hp-pane hp-${tab}`} role="tabpanel" data-tab={tab} aria-labelledby={`hpTab-${tab}`}><Pane /></div>}
+      {asked ? null : <div id="hpPane" class={`hp-pane hp-${tab}`} role="tabpanel" data-tab={tab} aria-labelledby={`hpTab-${tab}`} onKeyDown={onPaneKey}><Pane /></div>}
     </section>
   );
 }

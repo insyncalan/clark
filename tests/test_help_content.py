@@ -67,9 +67,12 @@ class Shape(unittest.TestCase):
         self.assertEqual(SRC["tabs"], [["start", "Start here"], ["howto", "How do I…"], ["reference", "Reference"]])
 
     def test_the_counts(self):
-        """Start here: five loop steps, five first-ten-minutes steps, twelve jobs, six places, four rules. The prototype's counts."""
+        """Start here: five loop steps, five first-ten-minutes steps, five jobs (the owner's five, 04-11-2026; the prototype had twelve), six places, four rules."""
         self.assertEqual((len(START["loop"]), len(START["first"]), len(START["jobs"]), len(START["where"]), len(START["rules"])),
-                         (5, 5, 12, 6, 4))
+                         (5, 5, 5, 6, 4))
+        self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
+                         "the owner's order; bringing in an Excel workbook is not one of them")
+        self.assertIn(START["undo"], [t["id"] for t in STEPS])
         self.assertEqual((len(STEPS), len(SECTIONS)), (34, 35))   # with the People entries (#454), held, and the Word entry
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (36, 31))
 
@@ -136,7 +139,7 @@ class Places(unittest.TestCase):
     def test_every_link_inside_help_finds_its_place(self):
         links = {m for s in self.all_strings() for m in re.findall(r"\]\(#([^)]+)\)", s)}
         links |= {"howto-" + j[0] for j in START["jobs"]} | {"ref-keys"}
-        self.assertGreater(len(links), 20)
+        self.assertGreater(len(links), 17)   # measured 18 on this tree; it was 24 with the prototype's twelve jobs (each job adds its place). The floor is the measured count less one.
         self.assertEqual(sorted(links - self.ids), [])
 
     def test_every_screen_help_sends_you_to_exists(self):

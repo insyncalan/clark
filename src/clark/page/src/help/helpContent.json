@@ -76,76 +76,34 @@
   ],
   "jobs": [
    [
-    "write-the-weekly-report",
-    "Write this week’s report",
-    "Current state, summary and health, in place.",
-    "dashboard+edit"
-   ],
-   [
     "add-a-work-item",
     "Add a work item",
-    "An action, risk, issue or decision.",
+    "Put a new task on the plan and say who owns it.",
     "work"
    ],
    [
-    "find-work-items",
-    "Find any work item",
-    "Type, Open or Closed, filters and search.",
-    "work"
-   ],
-   [
-    "use-the-board",
-    "Move work on the board",
-    "Drag a card to change it, with Undo.",
-    "work"
-   ],
-   [
-    "change-an-item-in-the-peek",
-    "Change an item",
-    "Everything about it, in the peek.",
-    "work"
-   ],
-   [
-    "choose-what-the-client-sees",
-    "Choose what the client sees",
-    "The eye, and Add from your project record.",
+    "write-the-weekly-report",
+    "Write this week’s report",
+    "Fill in the status, the highlights and the next steps.",
     "dashboard+edit"
    ],
    [
-    "update-a-milestone",
-    "Update a milestone",
-    "State, dates, progress and client wording.",
-    "milestones"
+    "add-a-section-from-a-template",
+    "Add a section from a template",
+    "Start a new section from a ready-made layout.",
+    "dashboard+edit"
    ],
    [
-    "handle-a-slipped-milestone",
-    "Deal with a slipped milestone",
-    "Hold, rebaseline, recover or escalate.",
-    "milestones"
-   ],
-   [
-    "import-and-export",
-    "Import or export Excel",
-    "One workbook in, one workbook out.",
-    "work"
-   ],
-   [
-    "check-the-report",
-    "Check the report",
-    "ask clark finds what looks wrong.",
-    "ask"
+    "arrange-the-report",
+    "Arrange the report’s sections",
+    "Change the order of the report, or take parts out.",
+    "dashboard+edit"
    ],
    [
     "publish-the-report",
-    "Publish the report",
-    "Local, to the client, and Word.",
+    "Publish to the client",
+    "Check the report, then send the finished copy.",
     "publish"
-   ],
-   [
-    "undo-a-mistake",
-    "Undo a mistake",
-    "Every change has a way back.",
-    "dashboard"
    ]
   ],
   "where": [
@@ -203,15 +161,17 @@
    "loop_intro": "Every week follows the same five steps. Only the last one sends anything anywhere, and only when you say so.",
    "loop_return": "Next week starts the loop again from the same record. The history keeps every change, so nothing is lost between weeks.",
    "first_title": "Your first ten minutes",
-   "jobs_title": "Twelve jobs",
-   "jobs_intro": "Pick a job. Its title opens the steps; the arrow takes you to the screen.",
+   "jobs_title": "Start here",
    "where_title": "Where things are",
    "keyline": "[[/]] ask clark · [[/]] [[/]] Sneak peek, with an item open · [[Esc]] close the top thing · [[Mod+Enter]] keep an edit · [[Alt+/]] AI on selected text · [[?]] Help",
    "keyline_link": "All the keys",
    "rules_title": "Four rules",
    "foot": "Dates are shown DD-MM-YYYY.",
-   "foot_link": "How do I…: step by step for every job"
-  }
+   "foot_link": "How do I…: step by step for every job",
+   "undo_lead": "Made a mistake?",
+   "undo_link": "Undo the last change"
+  },
+  "undo": "undo-a-mistake"
  },
  "howto": {
   "groups": [

@@ -65,8 +65,9 @@ class Panel(Base):
         with chrome() as cdp:
             p = self.in_help(cdp)
             self.assertEqual(p.js("[...document.querySelectorAll('.hp-tabs [role=tab]')].map(b => b.textContent)"), ["Start here", "How do I…", "Reference"])
-            self.assertEqual(p.js("document.querySelectorAll('.hp-job, .hp-steps li, .hp-first li').length"), 0, "no held entry on Start here")
-            self.assertTrue(p.js("!!document.querySelector('#hp-later')"))
+            self.assertEqual(p.js("document.querySelectorAll('.hp-steps li, .hp-first li').length"), 0, "no held entry on Start here")
+            self.assertEqual(p.js("document.querySelectorAll('.hp-job').length"), len(shown_content()["start"]["jobs"]), "the jobs whose entries are shown (#642 step 3)")
+            self.assertFalse(p.js("!!document.querySelector('#hp-later')"))
             p.js("document.querySelector('#hpTab-howto').click()")
             p.until("document.querySelectorAll('.hp-task').length > 0", "How do I… has the tasks the page can do")
             self.assertEqual(p.js("document.querySelectorAll('.hp-task').length"), len(shown_content()["howto"]["tasks"]))

@@ -111,6 +111,13 @@ def help_content_path(held=True):
     raw["howto"]["tasks"] = [t for t in raw["howto"]["tasks"] if t["id"] not in later.get("howto", {})]
     raw["reference"]["sections"] = [s for s in raw["reference"]["sections"] if s["id"] not in later.get("reference", {})]
     raw["guides"] = [g for g in raw.get("guides", []) if g["id"] not in later.get("guides", {})]
+    # A job on Start here whose entry is held leaves with it (its words never reach the page), and so does the Undo link's.
+    shown = {t["id"] for t in raw["howto"]["tasks"]}
+    raw["start"]["jobs"] = [j for j in raw["start"]["jobs"] if j[0] in shown]
+    if raw["start"].get("undo") not in shown:
+        raw["start"]["undo"] = ""
+        raw["start"]["text"].pop("undo_lead", None)
+        raw["start"]["text"].pop("undo_link", None)
     SHOWN_DIR.mkdir(exist_ok=True)
     out = SHOWN_DIR / "helpContent.json"
     out.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
