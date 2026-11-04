@@ -21,9 +21,41 @@ from clark import ai_codex, ai_providers, ask, ask_claude, settings
 
 LOG = logging.getLogger("clark.ai_connect")
 CLAUDE, CHATGPT = ask_claude.PROVIDER, ai_codex.PROVIDER
-RECOMMENDED = {CLAUDE: "sonnet", CHATGPT: ai_codex.RECOMMENDED}     # the owner, 04-11-2026: the default for Claude is always Sonnet; ChatGPT's is the one that compares with it
-SMALLER = ("haiku", *ai_codex.SMALLER)              # ask first; the others are simply offered
-LABELS = {**{m: f"Claude {ask_claude.MODEL_NAMES[m]}" for m in ask_claude.MODELS}, **ai_codex.MODEL_NAMES}
+
+
+class Entry:
+    """One provider in the registry: everything the card, the choice and the chain need to know about it, so no loop or dict elsewhere names a
+    provider. `key` is the saved setting (settings.ai_read's name) and `inverted` says whether ON is the setting being False (claude_off).
+    `route` is the kind of provider ("subscription": the person's own signed-in command). `make()` builds the real provider. `check(provider)`
+    is the status connecting needs; `after_off(provider)` runs once the setting is saved (a running question ends). A later route overrides these."""
+    route = "subscription"
+
+    def __init__(self, name, key, inverted, recommended, labels, smaller, make, route="subscription"):
+        self.name, self.key, self.inverted, self.recommended = name, key, inverted, recommended
+        self.labels, self.smaller, self.make, self.route = dict(labels), tuple(smaller), make, route
+
+    def is_on(self, saved):
+        return bool(saved[self.key]) != self.inverted
+
+    def setting(self, on):
+        """The change that turns this provider on or off, in the saved setting's own words."""
+        return {self.key: (not on) if self.inverted else bool(on)}
+
+    def check(self, provider):
+        return ask.answer_status(provider)
+
+    def after_off(self, provider):
+        provider.stop()
+
+
+REGISTRY = (
+    Entry(CLAUDE, "claude_off", True, "sonnet", {m: f"Claude {ask_claude.MODEL_NAMES[m]}" for m in ask_claude.MODELS}, ("haiku",),
+          ai_providers.ClaudeSubscription),
+    Entry(CHATGPT, "chatgpt_on", False, ai_codex.RECOMMENDED, ai_codex.MODEL_NAMES, ai_codex.SMALLER, ai_providers.ChatGPTSubscription),
+)       # the order is the order of the tiles and of the fallback: Claude, then ChatGPT
+RECOMMENDED = {e.name: e.recommended for e in REGISTRY}     # the owner, 04-11-2026: the default for Claude is always Sonnet; ChatGPT's is the one that compares with it
+SMALLER = tuple(m for e in REGISTRY for m in e.smaller)     # ask first; the others are simply offered
+LABELS = {m: label for e in REGISTRY for m, label in e.labels.items()}
 OFF_WORDS = "Nothing is connected in Settings. Connect Claude or ChatGPT there to use this."
 CARD_INTRO = ("Connect Claude or ChatGPT for ask clark: the passages it sends leave this computer, go to the one you choose and count against that plan. "
               "No password or key is kept.")
@@ -45,9 +77,15 @@ class AiConnect:
     """`data_dir` holds settings.json. `claude` and `chatgpt` are the providers (ai_providers.Subscription); each one's status says whether the person is
     signed in."""
 
-    def __init__(self, data_dir, claude, chatgpt):
+    def __init__(self, data_dir, claude, chatgpt, registry=REGISTRY, extra=None):
+        """`registry` is the ordered tuple of Entry; `extra` maps the name of any entry beyond Claude and ChatGPT to its provider."""
         self.data_dir = data_dir
-        self.providers = {CLAUDE: claude, CHATGPT: chatgpt}
+        given = {CLAUDE: claude, CHATGPT: chatgpt, **(extra or {})}
+        self.registry = {e.name: e for e in registry}
+        self.providers = {e.name: given[e.name] for e in registry}
+        self.recommended = {e.name: e.recommended for e in registry}
+        self.smaller = tuple(m for e in registry for m in e.smaller)
+        self.labels = {m: label for e in registry for m, label in e.labels.items()}
         self.lock = threading.Lock()         # a choice is read and saved as one step, so two at once can't lose one
 
     def provider_of(self, model):
@@ -55,19 +93,19 @@ class AiConnect:
 
     def is_on(self, name, saved=None):
         saved = settings.ai_read(self.data_dir) if saved is None else saved
-        return saved["chatgpt_on"] if name == CHATGPT else not saved["claude_off"]
+        return self.registry[name].is_on(saved)
 
     # ----- what the provider chain reads, for every question -----
     def pick(self):
         """(provider, model, prefer) for the next question, or None when nothing is connected. `prefer`: the model is only the default."""
         saved = settings.ai_read(self.data_dir)
         owner = self.provider_of(saved["model"])
-        ok = saved["model"] not in SMALLER or saved["model"] in saved["accepted"]     # a smaller model nobody said yes to (a hand-edited file) isn't a choice
+        ok = saved["model"] not in self.smaller or saved["model"] in saved["accepted"]     # a smaller model nobody said yes to (a hand-edited file) isn't a choice
         if owner is not None and ok and self.is_on(owner, saved):
             return self.providers[owner], saved["model"], False
-        for name in (CLAUDE, CHATGPT):
+        for name in self.providers:
             if self.is_on(name, saved):
-                return self.providers[name], RECOMMENDED[name], True
+                return self.providers[name], self.recommended[name], True
         return None
 
     # ----- the card -----
@@ -79,7 +117,7 @@ class AiConnect:
             connected = st["connected"] and self.is_on(name, saved)
             tiles[name] = {"connected": connected, "signed_in": st["connected"], "why": "" if st["connected"] else st["why"]}
             if connected:
-                models += [{"id": m, "label": LABELS[m], "provider": name, "recommended": m == RECOMMENDED[name]} for m in provider.models()]
+                models += [{"id": m, "label": self.labels[m], "provider": name, "recommended": m == self.recommended[name]} for m in provider.models()]
         offered = [m["id"] for m in models]
         picked = self.pick()
         model = picked[1] if picked is not None and picked[1] in offered else (offered[0] if offered else "")
@@ -98,18 +136,18 @@ class AiConnect:
             return fail(400, "bad_request", BAD)
         if name not in self.providers:
             return fail(400, "no_provider", NO_PROVIDER)
-        st = ask.answer_status(self.providers[name])
+        st = self.registry[name].check(self.providers[name])
         if not st["connected"]:
             return fail(409, "not_signed_in", st["why"])
         with self.lock:
             saved = settings.ai_read(self.data_dir)
             before = self.pick()
-            changes = {"claude_off": False} if name == CLAUDE else {"chatgpt_on": True}
+            changes = self.registry[name].setting(True)
             alone = before is None or not ask.answer_status(before[0])["connected"]     # nothing else can answer: this one does, without a second step
             if alone and self.provider_of(saved["model"]) != name:
-                changes["model"] = RECOMMENDED[name]
-            words = CONNECTED.format(model=LABELS[changes["model"]]) if "model" in changes else (
-                CONNECTED.format(model=LABELS[before[1]]) if before[0] is self.providers[name] else CONNECTED_OTHER)
+                changes["model"] = self.recommended[name]
+            words = CONNECTED.format(model=self.labels[changes["model"]]) if "model" in changes else (
+                CONNECTED.format(model=self.labels[before[1]]) if before[0] is self.providers[name] else CONNECTED_OTHER)
             return self._save(changes, words, f"{name} connected")
 
     def disconnect(self, body):
@@ -119,12 +157,12 @@ class AiConnect:
         if name not in self.providers:
             return fail(400, "no_provider", NO_PROVIDER)
         with self.lock:
-            changes = {"claude_off": True} if name == CLAUDE else {"chatgpt_on": False}
+            changes = self.registry[name].setting(False)
             if self.provider_of(settings.ai_read(self.data_dir)["model"]) == name:
                 changes["model"] = ""                # a model of this provider goes with it, so nothing moves back without being chosen
             got = self._save(changes, DISCONNECTED.format(name=self.providers[name].label), f"{name} disconnected")
         if got[0] == 200:
-            self.providers[name].stop()              # a question running on it ends: Disconnect means now
+            self.registry[name].after_off(self.providers[name])              # a question running on it ends: Disconnect means now
         return got
 
     def choose(self, body):
@@ -139,11 +177,11 @@ class AiConnect:
         with self.lock:
             accepted = settings.ai_read(self.data_dir)["accepted"]
             changes = {"model": model}
-            if model in SMALLER and model not in accepted:
+            if model in self.smaller and model not in accepted:
                 if "accept" not in body:
-                    return fail(409, "weaker", WEAKER.format(model=LABELS[model]))
+                    return fail(409, "weaker", WEAKER.format(model=self.labels[model]))
                 changes["accepted"] = sorted({*accepted, model})
-            return self._save(changes, USING.format(model=LABELS[model]), "model chosen")
+            return self._save(changes, USING.format(model=self.labels[model]), "model chosen")
 
     def _save(self, changes, message, what):
         try:
@@ -154,9 +192,10 @@ class AiConnect:
         return 200, self.view(message)
 
 
-def chain(data_dir, claude=None, chatgpt=None):
-    """(AiConnect, the provider ask clark uses): both subscriptions, with the choice in Settings › AI applied to every question."""
-    claude = claude if claude is not None else ai_providers.ClaudeSubscription()
-    chatgpt = chatgpt if chatgpt is not None else ai_providers.ChatGPTSubscription()
-    connect = AiConnect(data_dir, claude, chatgpt)
-    return connect, ai_providers.Chosen((claude, chatgpt), connect.pick, OFF_WORDS)
+def chain(data_dir, claude=None, chatgpt=None, registry=REGISTRY, extra=None):
+    """(AiConnect, the provider ask clark uses): every provider in the registry, with the choice in Settings › AI applied to every question.
+    `claude`, `chatgpt` and `extra` ({name: provider}) are seams; any provider not given is built by its entry."""
+    given = {CLAUDE: claude, CHATGPT: chatgpt, **(extra or {})}
+    built = {e.name: given.get(e.name) if given.get(e.name) is not None else e.make() for e in registry}
+    connect = AiConnect(data_dir, built[CLAUDE], built[CHATGPT], registry, {n: p for n, p in built.items() if n not in (CLAUDE, CHATGPT)})
+    return connect, ai_providers.Chosen(tuple(built.values()), connect.pick, OFF_WORDS)

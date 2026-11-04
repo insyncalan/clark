@@ -102,7 +102,9 @@ class Chosen(ask.Provider):
         self.providers, self.pick, self.off_words = tuple(providers), pick, off_words
         self.lock = threading.Lock()       # one run at a time across providers, even if the person switches while a question runs (ai_service.busy reads it)
         for provider in self.providers:
-            provider.command.lock = self.lock
+            command = getattr(provider, "command", None)     # a provider with no command of its own (a key route) has nothing to lock here
+            if command is not None:
+                command.lock = self.lock
 
     def _active(self):
         return self.pick() or (None, None, False)
@@ -126,7 +128,10 @@ class Chosen(ask.Provider):
         return any([p.stop(owner) for p in self.providers])     # every one: a run may have started before the choice changed
 
 
+# The provider classes by name, in order. A later route adds its own here (and an Entry in ai_connect.REGISTRY); provider_for reads only this.
+KINDS = {ask_claude.PROVIDER: ClaudeSubscription, ai_codex.PROVIDER: ChatGPTSubscription}
+
+
 def provider_for(name, **seams):
     """The provider called `name`, or None."""
-    kinds = {ask_claude.PROVIDER: ClaudeSubscription, ai_codex.PROVIDER: ChatGPTSubscription}
-    return kinds[name](**seams) if name in kinds else None
+    return KINDS[name](**seams) if name in KINDS else None

@@ -59,6 +59,8 @@ def valid_shape(provider, key):
         return REFUSAL_CODES["too_long"]
     if not key.startswith(PREFIXES[provider]):
         return REFUSAL_CODES["wrong_prefix"]
+    if provider == "openai" and key.startswith("sk-ant-"):      # an Anthropic key is not an OpenAI key, though it starts with `sk-`
+        return REFUSAL_CODES["wrong_prefix"]
     return None
 
 
