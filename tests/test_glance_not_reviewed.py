@@ -115,7 +115,7 @@ class NotReviewed(Setup):
             p.until("!!document.querySelector('[data-fig=stale]')", "the tile is on")
             self.assertEqual(self.expected(), 0, "ten days since review is not more than 14")
             self.assertEqual(p.js("document.querySelector('[data-fig=stale] .v').textContent"), "0")
-            self.assertEqual(p.js("document.querySelector('[data-fig=stale] .dd').textContent"), f"More than 14 days, of {self.open_items()} open items")
+            self.assertEqual(p.js("document.querySelector('[data-fig=stale] .dd').textContent"), f"Not reviewed for more than 14 days, of {self.open_items()} open items")
             self.assertEqual(p.js("document.querySelector('[data-fig=stale] .k').textContent"), "Not reviewed")
             self.assertTrue(p.js("document.querySelector('[data-fig=stale]').getAttribute('aria-label').endsWith('Opens Work items showing these')"))
             with self.store.step("dashboard", USER) as st:
@@ -159,7 +159,7 @@ class NotReviewed(Setup):
                 p.js("location.hash = '#dashboard&p=ABC'")
                 want = self.expected()
                 p.until(f"document.querySelector('[data-fig=stale] .v') && document.querySelector('[data-fig=stale] .v').textContent === '{want}'", "the tile follows the number")
-                self.assertEqual(p.js("document.querySelector('[data-fig=stale] .dd').textContent"), f"More than 7 days, of {self.open_items()} open items")
+                self.assertEqual(p.js("document.querySelector('[data-fig=stale] .dd').textContent"), f"Not reviewed for more than 7 days, of {self.open_items()} open items")
                 p.js("document.querySelector('[data-fig=stale]').click()")
                 p.until("!!document.querySelector('#freshMenu')", "Work items with the Freshness filter")
                 p.js("document.querySelector('#freshMenu').click()")

@@ -112,7 +112,7 @@ export const setStaleShown = (code, on) => { if (code) remember(staleKey(code), 
 export function staleTile(rows, today) {
   const value = applyFilters(rows, STALE_FILTER, today).length, open = rows.filter((r) => isOpen(r)).length;
   const rag = value ? "a" : "g";
-  return { key: STALE, label: STALE_TITLE, value, detail: `More than ${plural(currentReviewDays(), "day")}, of ${plural(open, "open item")}`,
+  return { key: STALE, label: STALE_TITLE, value, detail: `Not reviewed for more than ${plural(currentReviewDays(), "day")}, of ${plural(open, "open item")}`,
     rag, auto: rag, outline: "", filter: STALE_FILTER, word: value ? STALE_WORD : tileWord(STALE, rag) };
 }
 
