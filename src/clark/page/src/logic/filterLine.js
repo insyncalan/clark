@@ -371,6 +371,13 @@ export function removeLast(line, rows, ctx) {
 /** Add a chip's text (or words) to a line: an earlier chip on the same field is replaced as the line reads it. */
 export function addText(line, extra, rows, ctx) { return normalise(`${String(line || "").trim()} ${extra}`, rows, ctx); }
 
+// The one-line note beside each field when the box is opened empty (the list of fields, as the prototype shows it).
+const FIELD_NOTES = {
+  is: "Open, closed, overdue, not reviewed…", type: "Action, risk, issue or decision", status: "Where the item has got to", owner: "Who it is with",
+  priority: "Urgent, High, Medium or Low", due: "Overdue, today, in the next 7 days…", workstream: "The workstream", usecase: "The use case it belongs to",
+  milestone: "The milestone it feeds", client: "Shown to the client, or internal only", no: "Has no owner, date, workstream…",
+};
+
 // ── Suggestions ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** What to offer for the word being typed: the fields first, then the field's values with how many of the rows have each.
@@ -382,7 +389,8 @@ export function suggest(wordTyped, rows, ctx) {
     const n = low(body);
     if (w && !/^[a-z-]*$/i.test(w)) return [];
     const fs = names().filter((k) => k.startsWith(n)).map((k) => ({ kind: "field", ins: `${not ? "-" : ""}${k}:`, label: `${not ? "-" : ""}${k}:`, note: not ? `${LINE_FIELDS[k].name} is not…` : LINE_FIELDS[k].name }));
-    const nos = !not && n && "no:".startsWith(n) ? [{ kind: "field", ins: "no:", label: "no:", note: "Has no owner, date…" }] : [];
+    const nos = !not && "no:".startsWith(n) && (n || !w) ? [{ kind: "field", ins: "no:", label: "no:", note: "Has no owner, date…" }] : [];
+    if (!w) return [...fs, ...nos].map((o) => ({ ...o, note: own(FIELD_NOTES, o.ins.replace(/:$/, "")) || o.note })).sort((a, b) => (b.ins === "is:") - (a.ins === "is:"));   // the box opened empty: every field, "is" first, each with its one-line note
     return [...fs, ...nos];
   }
   const i = body.indexOf(":"), name = body.slice(0, i), rest = body.slice(i + 1);
@@ -510,16 +518,28 @@ export function toState(line, rows, ctx) {
 // ── Saved views, per project ─────────────────────────────────────────────────────────────────────────────────────────────
 // A view is {id, name, line, archived?}. Nothing is ever deleted: a view is archived (hidden from the tabs) and can be restored.
 
+// The five core views (#640): always the first tabs, in this order, on every project. They cannot be renamed or archived and are never stored
+// with the person's own views. "All work items" is the one place for closed items.
+export const CORE_VIEWS = [
+  { id: "core-open", name: "Open items", line: "is:open", core: true },
+  { id: "core-actions", name: "Actions", line: "type:action is:open", core: true },
+  { id: "core-risks", name: "Risks and issues", line: "type:risk,issue is:open", core: true },
+  { id: "core-decisions", name: "Decisions", line: "type:decision is:open", core: true },
+  { id: "core-all", name: "All work items", line: "", core: true },
+];
+const CORE_IDS = CORE_VIEWS.map((v) => v.id);
+export const isCoreView = (view) => !!view && (view.core === true || CORE_IDS.includes(view.id));
+// The views a project starts with after the five core ones; they are the person's own, so they can be renamed and archived like any other.
 export const DEFAULT_VIEWS = [
-  { id: "open", name: "Open items", line: "is:open" },
   { id: "overdue", name: "Overdue", line: "is:open due:overdue" },
   { id: "client", name: "Waiting on the client", line: "is:open is:needed" },
   { id: "mine", name: "My actions", line: "is:open type:action owner:me" },
 ];
-export const MAX_VIEWS = 20;
+export const MAX_VIEWS = 20;                     // the person's own views; the five core ones are not counted
 export const MAX_NAME = 40;
 
 export const visibleViews = (views) => (views || []).filter((v) => !v.archived);
+const mineVisible = (views) => visibleViews(views).filter((v) => !isCoreView(v));
 export const archivedViews = (views) => (views || []).filter((v) => v.archived);
 export const findView = (views, id) => (views || []).find((v) => v.id === id) || null;
 
@@ -545,23 +565,23 @@ const nextId = (views) => { let n = (views || []).length + 1; const ids = new Se
 export function addView(views, name, line) {
   const vs = views || [], bad = nameProblem(vs, name, null);
   if (bad) return { ok: false, message: bad };
-  if (visibleViews(vs).length >= MAX_VIEWS) return { ok: false, message: `You can keep ${MAX_VIEWS} saved views. Archive one to make room.` };
+  if (mineVisible(vs).length >= MAX_VIEWS) return { ok: false, message: `You can keep ${MAX_VIEWS} saved views. Archive one to make room.` };
   const id = nextId(vs);
   return { ok: true, id, views: [...vs, { id, name: cleanName(name), line: String(line || "") }] };
 }
 /** Save the current line over a view (Save). */
 export function saveView(views, id, line) {
-  if (!findView(views, id)) return { ok: false, message: "That view is not there any more." };
+  if (!findView(views, id) || isCoreView(findView(views, id))) return { ok: false, message: "That view is not there any more." };
   return { ok: true, views: views.map((v) => (v.id === id ? { ...v, line: String(line || "") } : v)) };
 }
 export function renameView(views, id, name) {
-  if (!findView(views, id)) return { ok: false, message: "That view is not there any more." };
+  if (!findView(views, id) || isCoreView(findView(views, id))) return { ok: false, message: "That view is not there any more." };
   const bad = nameProblem(views, name, id);
   return bad ? { ok: false, message: bad } : { ok: true, views: views.map((v) => (v.id === id ? { ...v, name: cleanName(name) } : v)) };
 }
 /** Take a view off the tabs. It is kept (archived), and restoreView brings it back. */
 export function archiveView(views, id) {
-  if (!findView(views, id)) return { ok: false, message: "That view is not there any more." };
+  if (!findView(views, id) || isCoreView(findView(views, id))) return { ok: false, message: "That view is not there any more." };
   return { ok: true, views: views.map((v) => (v.id === id ? { ...v, archived: true } : v)) };
 }
 export function restoreView(views, id) {
@@ -617,15 +637,18 @@ export function linePut(storage, project, line) {
   return writeAll(storage, LINE_KEY, all);
 }
 const sane = (v) => v && typeof v.id === "string" && typeof v.name === "string" && typeof v.line === "string";
-/** A project's saved views: its own, or the ones every project starts with. */
+// An older stored set began with its own "Open items" view (id open, as given); the core one replaces it. Any other stored view stays, as it was.
+const oldOpenItems = (v) => v.id === "open" && v.name === "Open items" && v.line === "is:open";
+/** A project's views: the five core ones, then its own stored views, or the ones every project starts with. */
 export function viewsGet(storage, project) {
   const mine = storage ? readAll(storage, VIEWS_KEY)[project] : null;
-  const got = Array.isArray(mine) && mine.every(sane) ? mine : DEFAULT_VIEWS.map((v) => ({ ...v }));
+  const own = (Array.isArray(mine) && mine.every(sane) ? mine : DEFAULT_VIEWS).filter((v) => !isCoreView(v) && !oldOpenItems(v)).map((v) => ({ ...v }));
+  const got = [...CORE_VIEWS.map((v) => ({ ...v })), ...own];
   return isPublished() ? got.filter((v) => lineIsClientSafe(v.line)) : got;
 }
 export function viewsPut(storage, project, views) {
   if (!storage) return false;
   const all = readAll(storage, VIEWS_KEY);
-  all[project] = views;
+  all[project] = (views || []).filter((v) => !isCoreView(v));            // the core views are never stored
   return writeAll(storage, VIEWS_KEY, all);
 }
