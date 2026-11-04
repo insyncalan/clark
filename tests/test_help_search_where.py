@@ -60,6 +60,7 @@ class Logic(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.r = run_node(fixture_content(), PROBE)
+        cls.shipped = run_node(RAW, "(() => { const v = HL.resultsView(HL.buildIndex(), 'undo'); return { kind: v.kind, lead: v.lead }; })()")
 
     def row(self, q, gid):
         return next(x for x in self.r[q]["rows"] if x["id"] == gid)
@@ -83,14 +84,19 @@ class Logic(unittest.TestCase):
             self.assertEqual(x["where"], {"step": None, "part": None}, q)
             self.assertEqual(x["labels"], {"step": None, "part": None}, q)
 
-    def test_a_how_to_entry_gives_its_step_and_the_part_it_names_under_where(self):
+    def test_a_how_to_step_has_no_part_chip_of_its_own_not_the_tasks_whole_where(self):
         task = next(t for t in RAW["howto"]["tasks"] if t["id"] == "undo-a-mistake")
         rows = [x for x in self.r["undo"]["rows"] if x["id"] == "howto-undo-a-mistake"]
         self.assertEqual(len(rows), 1)
-        w = rows[0]["where"]
-        self.assertEqual(w["part"], task["w"].replace("[[", "").replace("]]", "") if w["step"] else None)
-        if w["step"]:
-            self.assertTrue(1 <= w["step"]["n"] <= len(task["s"]))
+        self.assertIsNone(rows[0]["where"]["part"])
+        self.assertIsNone(rows[0]["labels"]["part"])
+        if rows[0]["where"]["step"]:
+            self.assertTrue(1 <= rows[0]["where"]["step"]["n"] <= len(task["s"]))
+
+    def test_the_lead_names_the_guide_so_it_is_shown_only_when_a_guide_ships(self):
+        self.assertEqual(self.shipped["kind"], "results")
+        self.assertIsNone(self.shipped["lead"], "no guide ships, so no sentence that says 'the guide'")
+        self.assertEqual(self.r["wombat"]["lead"], LEAD)
 
     def test_the_count_line_and_the_lead_are_the_signed_words(self):
         v = self.r["wombat"]

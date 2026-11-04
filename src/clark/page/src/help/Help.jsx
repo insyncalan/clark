@@ -221,7 +221,7 @@ function Results() {
   return (
     <>
       <p class="hp-resn" role="status">{r.line}</p>
-      <p class="hp-resl">{r.lead}</p>
+      {r.lead && <p class="hp-resl">{r.lead}</p>}
       {r.groups.map((g) => (
         <section class="hp-resg" key={g.tab} aria-label={g.name}>
           <h3>{g.name}</h3>
