@@ -10,7 +10,6 @@ import json
 import re
 import shutil
 import tempfile
-import time
 import unittest
 
 from _paths import ROOT, SRC
@@ -266,8 +265,11 @@ class Drawn(unittest.TestCase):
     def open_page(self, cdp, url, code=None):
         sid = opened(cdp, url)
         self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"), "the file drew")
-        cdp.js("document.querySelector('[data-view=clientreport]').click()", sid)
-        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#clientreport .sec')", sid)), "the report view drew")
+        # Click the tab on every poll until the view is up (showing a view twice is the same as once): a click made before the tab
+        # is there, or one the page took while it was still settling, is lost, and a single click then waits for nothing.
+        seen = lambda: cdp.js("!!document.querySelector('#clientreport .sec') || ((document.querySelector('[data-view=clientreport]') || {click(){}}).click(), false)", sid)  # noqa: E731
+        self.assertTrue(wait(seen, 20), "the report view drew; the page has: " + str(cdp.js(
+            "JSON.stringify({view: (document.querySelector('.tab[aria-selected=true]') || {}).dataset && document.querySelector('.tab[aria-selected=true]').dataset.view, tabs: [...document.querySelectorAll('.tab')].map(t => t.dataset.view), text: document.body.innerText.slice(0, 200)})", sid)))
         return sid
 
     def check(self, cdp, sid, where, order=SECTION_ORDER):
@@ -296,7 +298,8 @@ class Drawn(unittest.TestCase):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 for theme in ("light", "dark"):
                     cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
-                    time.sleep(0.3)
+                    # the theme's colour changes settle (no animation left running) before the page is measured
+                    self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.theme === '%s' && document.getAnimations().length === 0" % theme, sid)), "the theme settled")
                     # the demo has no Highlights or Next week text: the View leaves those two boxes out
                     self.check(cdp, sid, f"View {width}px {theme}", ["progress", "plans", "raid"])
                     shown = cdp.js("document.querySelector('#clientreport').innerText", sid)
