@@ -29,7 +29,9 @@ def run_node(probe):
         out = Path(tmp) / "pl.js"
         done = esbuild.run(["--bundle", "--format=iife", "--global-name=PL", str(HELP / "peekLogic.js"), f"--outfile={out}"], capture_output=True, text=True)
         assert done.returncode == 0, done.stderr
-        got = subprocess.run([node, "-e", out.read_text(encoding="utf-8") + ";\nconsole.log(JSON.stringify(" + probe + "));"], capture_output=True, text=True)
+        script = Path(tmp) / "probe.js"      # the bundle may hold the Help content: a file, never one argument (Linux allows 128 KB for one)
+        script.write_text(out.read_text(encoding="utf-8") + ";\nconsole.log(JSON.stringify(" + probe + "));", encoding="utf-8")
+        got = subprocess.run([node, str(script)], capture_output=True, text=True)
         assert got.returncode == 0, got.stderr
         return json.loads(got.stdout)
 

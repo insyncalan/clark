@@ -89,12 +89,31 @@ def run_node(content, probe):
         raise unittest.SkipTest("no node")
     with tempfile.TemporaryDirectory() as tmp:
         code = bundle(content, tmp) + ";\nconsole.log(JSON.stringify(" + probe + "));"
-        done = subprocess.run([node, "-e", code], capture_output=True, text=True)
+        script = Path(tmp) / "probe.js"      # the bundle holds all of helpContent.json: a file, never one argument (Linux allows 128 KB for one)
+        script.write_text(code, encoding="utf-8")
+        done = subprocess.run([node, str(script)], capture_output=True, text=True)
         assert done.returncode == 0, done.stderr
         return json.loads(done.stdout)
 
 
 class ShippedSource(unittest.TestCase):
+    def test_no_command_line_argument_carries_the_help_content(self):
+        """Linux allows one command-line argument only 128 KB: the node probes (here and in test_help_peek_logic) must pass the bundle as a file."""
+        import test_help_peek_logic as pl
+        from unittest import mock
+        seen = []
+        real = subprocess.run
+        def spy(cmd, *a, **k):
+            seen.extend(len(x.encode("utf-8")) for x in cmd)
+            return real(cmd, *a, **k)
+        with mock.patch.object(subprocess, "run", spy):
+            run_node(RAW, "1")
+            pl.run_node("1")
+        self.assertTrue(seen)
+        self.assertLess(max(seen), 100 * 1024, "an argument built from the Help content is too long for Linux")
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertGreater(len(bundle(RAW, tmp).encode("utf-8")), 100 * 1024, "the bundle is past the limit, so passing it as an argument would fail: this check bites")
+
     def test_the_nine_guides_are_shipped_and_hold_the_shape(self):
         """#642 guides A, B and C together: the pictures its steps draw are checked in test_help_guide_pictures."""
         self.assertEqual([g["id"] for g in RAW["guides"]], ["add-a-section-from-a-template", "arrange-the-report", "bring-in-an-excel-workbook", "send-the-workbook-out", "publish-to-the-client", "hand-an-item-over", "save-a-view", "see-the-dashboard-as-at-a-day", "back-up-and-restore-your-data"])
