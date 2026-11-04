@@ -1741,6 +1741,6 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .vnew:hover { background: var(--grey-100); color: var(--text); }
 .vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .fline:has(.fx) { padding-right: 38px; }
-.fx { all: unset; box-sizing: border-box; position: absolute; right: 7px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: 18px; line-height: 1; }
+.fx { all: unset; box-sizing: border-box; position: absolute; right: 7px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: var(--size-body); line-height: 1; }
 .fx:hover { background: var(--grey-100); color: var(--text); }
 .fx:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
