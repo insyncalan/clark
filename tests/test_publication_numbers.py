@@ -147,6 +147,7 @@ class TheShapeAndTheStep(unittest.TestCase):
                     "checks TEXT NOT NULL CHECK (checks IN ('passed','not needed')), by_user TEXT NOT NULL)")
         con.execute("BEGIN")
         store_module.migrate_publication_numbers(con)
+        store_module.migrate_publication_shared_number(con)           # #368: step 13 widens the key, so both steps make what schema.sql makes
         con.execute("COMMIT")
 
         def shape(c):
