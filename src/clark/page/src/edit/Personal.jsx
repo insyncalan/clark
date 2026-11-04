@@ -36,8 +36,8 @@ const showAlias = (alias) => alias.split(",").map((part) => part.trim()).filter(
 // About you (#180): the optional boxes. Each is saved when it is left (or on Enter); a refusal says why under the box and writes
 // nothing, and what was typed stays in the box so it can be mended. Emptying the name returns the menu's top line to its link.
 // The Alias (item 613): while no Alias was saved and nobody has typed in its box, it is filled in from the name ("Jane Doe" gives
-// "Jane, JD") and follows the name as it is typed, and is saved with the others. Once the person types or edits it, it is theirs and is
-// never filled in again; an Alias clark already has is never replaced by a suggestion (aliasOffer's rule).
+// "Jane, JD") and follows the name as it is typed, and is saved with the others. Once it is saved, or the person types or edits it, it is
+// never filled in again: a later name change leaves it as it is; an Alias clark already has is never replaced by a suggestion (aliasOffer's rule).
 function AboutYou() {
   const name = useRef(null), email = useRef(null), alias = useRef(null);
   const kept = useRef(profileRead.value ? profile.value.alias || "" : null);     // the Alias clark had when Settings opened; null: not read yet
@@ -77,6 +77,9 @@ function AboutYou() {
     // also shown only while the box still holds the text that was refused (text typed since has not been sent yet).
     if (!r.newest) return;
     if (r.ok) {
+      // A saved Alias is frozen (item 613): it becomes what clark has, so the name no longer carries it and only the person changes it.
+      // An empty one keeps following the name (an empty Alias cannot be told from one never set).
+      kept.current = r.alias || "";
       // what clark kept (it may be tidied, such as spaces cut off the ends) goes back in a box only if the box still holds what was sent:
       // a box changed since is left as it is (and stays typed in)
       for (const [f, ref] of [["name", name], ["email", email], ["alias", alias]]) if ((ref.current ? ref.current.value : typed[f]) === sent[f]) typedIn.current[f] = false;
@@ -87,7 +90,7 @@ function AboutYou() {
       });
       setSaid({ name: "", email: "", alias: "" });
       // "Name saved." or "Email saved." with Undo, when the save changed something (#429); the Alias is spoken of only when it is the person's
-      announce(r, (v) => setTyped({ ...v, alias: ownAlias.current ? v.alias : follow(v.name) }), ownAlias.current);
+      announce(r, (v) => { kept.current = v.alias || ""; setTyped({ ...v, alias: ownAlias.current ? v.alias : follow(v.name) }); }, ownAlias.current);
       return;
     }
     // the refusal is shown under the box it is about (the route says which); a refusal that names none goes under the box that was left

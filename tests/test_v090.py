@@ -47,7 +47,7 @@ COVERED = [
      "test_work_archived_peek::ArchivedPeek::test_restore_puts_it_back_and_leaves_the_peek_open_on_it"),
     ("#611", "A blank client message is turned away in plain words, not a server error.",
      "test_changes_null_message::NullMessage::test_a_null_client_message_is_refused_and_nothing_is_saved"),
-    ("#613", "Settings, About you: typing Jane Doe fills the Alias box with Jane, JD; it is saved beside the name, and an Alias typed by hand is kept when the name changes.",
+    ("#613", "Settings, About you: typing Jane Doe fills the Alias box with Jane, JD; it is saved beside the name, and a saved or typed Alias is kept when the name changes.",
      "test_alias_suggest::OnThePage::test_C_jane_doe_is_saved_with_jane_jd_and_a_typed_alias_is_kept_when_the_name_changes"),
 ]
 

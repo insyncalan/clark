@@ -2,7 +2,7 @@
 "Jane Doe" suggests "Jane,JD"; a one-word name suggests only that word; an empty name suggests nothing; a suggestion never overwrites
 an Alias already typed. Fictional names only. Settings › Personal › About you has an Alias box under Your name, kept by clark beside
 the name and the email: while nothing was saved and nobody has typed in it, it is filled in from the name with a space after the
-comma ("Jane, JD") and follows the name; once typed in it is the person's and is never filled in again. It is checked in the real page
+comma ("Jane, JD") and follows the name; once saved, or typed in, it is never filled in again. It is checked in the real page
 at 1400 and 900 px, light and dark.
 
 Run: python3 dev/run_tests.py test_alias_suggest
@@ -176,10 +176,13 @@ class OnThePage(Base):
             self.toast_is(p, "Name saved.")
             self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Jane, JD"), "the filled-in Alias is kept, as shown")
             self.assertEqual(self.saved().get("profile_name"), "Jane Doe")
+            # once saved, the Alias is frozen: a later name change in the same session leaves it as it is, in the box and in clark
             self.type_into(p, "name", "Jane Roe")
-            p.until("document.querySelector('#about-alias').value === 'Jane, JR'", "an untouched Alias follows the name")
-            self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Jane, JR"))
+            self.toast_is(p, "Name saved.")
+            self.assertTrue(wait(lambda: self.saved().get("profile_name") == "Jane Roe"))
             self.handled(p, "Jane Roe")             # the page has taken that save, so the next toast speaks only of the Alias
+            self.assertEqual(self.alias(p), "Jane, JD", "a saved Alias does not follow the name")
+            self.assertEqual(self.saved().get("profile_alias"), "Jane, JD", "a saved Alias is not rewritten")
             # typed in, the Alias is the person's
             self.type_into(p, "alias", "JJ")
             self.toast_is(p, "Alias saved.")
@@ -211,6 +214,41 @@ class OnThePage(Base):
             self.assertTrue(wait(lambda: self.saved().get("profile_name") == "Sam Lee"))
             self.assertEqual(self.alias(p), "Janey", "a saved Alias is never replaced by a suggestion")
             self.assertEqual(self.saved().get("profile_alias"), "Janey")
+
+    def test_C_undo_of_the_first_save_lets_the_alias_follow_the_name_again(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Jane Doe")
+            self.toast_is(p, "Name saved.")
+            self.handled(p, "Jane Doe")
+            self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Jane, JD"))
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.handled(p, "", "")
+            self.assertTrue(wait(lambda: self.saved().get("profile_alias", "") == ""), "Undo takes the first Alias back with the name")
+            self.assertEqual(self.alias(p), "")
+            self.type_into(p, "name", "Sam Lee", leave="none")
+            p.until("document.querySelector('#about-alias').value === 'Sam, SL'", "with nothing saved, the Alias follows the name again")
+
+    def test_C_an_emptied_alias_stays_empty_in_the_session_and_is_suggested_again_after_a_reload(self):
+        # an empty saved Alias cannot be told from one never set: after a reload the box is filled from the name again (and saved on the
+        # next save), which the person can empty again
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Jane Doe")
+            self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Jane, JD"))
+            self.type_into(p, "alias", "")
+            self.toast_is(p, "Alias cleared.")
+            self.assertTrue(wait(lambda: self.saved().get("profile_alias", "") == ""))
+            self.type_into(p, "name", "Jane Roe")
+            self.assertTrue(wait(lambda: self.saved().get("profile_name") == "Jane Roe"))
+            self.assertEqual(self.alias(p), "", "an Alias the person emptied is not filled in again in that session")
+            self.assertEqual(self.saved().get("profile_alias", ""), "")
+            reload_to_new_page(p.js, "!!document.querySelector('#profile-btn')", "the page again (not the one being left)")
+            self.open_settings(p)
+            p.until("document.querySelector('#about-alias').value === 'Jane, JR'", "an empty saved Alias is suggested from the name again")
+            self.assertEqual(self.saved().get("profile_alias", ""), "", "a suggestion alone writes nothing")
 
     def test_C_a_refused_alias_says_why_under_its_box_and_writes_nothing(self):
         with chrome() as cdp:
