@@ -27,10 +27,15 @@ const CLIENT = [["yes", "Shown to the client"], ["no", "Internal only"]];
 // read here as a row's own first-seen date; if work-item rows ever get a typed `raised`, rename this key (for example first_seen).
 // With none of these nothing is flagged. Plain calendar days, the same rule as src/clark/freshness.py: more than N
 // days (exactly N is not yet), open items only.
+// #171: 14 is the default only. The project's own number (its review_after_days, set through the one writer) is set here by setReviewDays
+// when the page's data arrives or changes, and every word and rule below reads it, so a change shows everywhere at once.
 export const REVIEW_DAYS = 14;
-export const staleWords = (days = REVIEW_DAYS) => "Not reviewed in " + plural(days, "day");       // the filter's value and the peek's chip say it the same way
-const REVIEWED = [["stale", staleWords()], ["incomplete", "No owner or no date"]];
-export function notReviewed(row, today, days = REVIEW_DAYS) {
+let reviewDays = REVIEW_DAYS;
+export function setReviewDays(n) { reviewDays = Number.isInteger(n) && n >= 1 && n <= 365 ? n : REVIEW_DAYS; }
+export function currentReviewDays() { return reviewDays; }
+export const staleWords = (days = reviewDays) => (days === REVIEW_DAYS ? "Not reviewed in 14 days" : "Not reviewed in " + plural(days, "day"));       // the filter's value and the peek's chip say it the same way; the default's words are written whole so the words Help quotes are found in the source (test_help_parity)
+const reviewed = () => [["stale", staleWords()], ["incomplete", "No owner or no date"]];
+export function notReviewed(row, today, days = reviewDays) {
   if (!isOpen(row)) return false;
   if (typeof row.not_reviewed === "boolean") return row.not_reviewed;
   const since = dayNumber(row.last_reviewed || row.raised), t = dayNumber(today);
@@ -112,7 +117,7 @@ export function valueOf(row, field, today) {
 export function labelOf(field, value) {
   if (value === NONE) return NO_WORDS[field] || NONE;
   if (field === "due") return (dueBuckets().find((d) => d[0] === value) || [0, value])[1];
-  if (field === "reviewed") return (REVIEWED.find((d) => d[0] === value) || [0, value])[1];
+  if (field === "reviewed") return (reviewed().find((d) => d[0] === value) || [0, value])[1];
   if (field === "client") return (CLIENT.find((d) => d[0] === value) || [0, value])[1];
   return value;
 }
@@ -176,7 +181,7 @@ export function options(rows, field, state, today) {
   let values;
   if (field === "due") values = dueBuckets().map((d) => d[0]);
   else if (field === "client") values = CLIENT.map((d) => d[0]);
-  else if (field === "reviewed") values = REVIEWED.map((d) => d[0]);
+  else if (field === "reviewed") values = reviewed().map((d) => d[0]);
   else {
     const seen = [...new Set(rows.map((r) => valueOf(r, field, today)))].filter((v) => v !== NONE);
     if (field === "priority") { for (const p of PRIORITIES) if (!seen.includes(p)) seen.push(p); }

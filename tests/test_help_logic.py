@@ -328,7 +328,7 @@ class Shown(unittest.TestCase):
         self.assertEqual(s["q"]["peek"], ["ref-freshness"], "no peek entry of its own is shown; Freshness says where the peek shows Raised and Last reviewed")
         self.assertEqual(s["q"]["movement"][:2], ["ref-milestones-page", "howto-handle-a-slipped-milestone"], "a search for movement finds the Movement entries")
         self.assertEqual(s["q"]["diagnostics"][0], "ref-diagnostics", "a search for diagnostics finds the Diagnostics entry")
-        self.assertEqual(s["q"]["publish"], ["ref-published-reports", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-archive-restore",
+        self.assertEqual(s["q"]["publish"], ["ref-published-reports", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-freshness", "ref-archive-restore",
                                              "ref-layouts", "ref-milestones-page", "ref-status-words", "ref-milestone-states"],
                          "the Published reports entries, then the entries that say what is or is not on the published page; only entries about Publish that are shown")
         self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "ref-section-templates"])

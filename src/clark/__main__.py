@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, app_settings, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, updater as clark_updater, use_cases_read, word_route
+from clark import activity_read, app_settings, as_at, appfiles, ask_claude, ask_folders, ask_service, backup, changes, draft_email_feed, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, publish, publish_flow, safety, server, sneak, store as clark_store, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -96,6 +96,8 @@ def restore_parser():
                       description="List clark's backups, or put one back. Close clark first: stop every running copy. With no NAME it only lists the copies.")
     p.add_argument("name", nargs="?", metavar="NAME", help="the backup to put back (as listed, for example clark-20261028T143005Z-undo.db)")
     p.add_argument("--data", metavar="FOLDER", help="the folder for clark's data (default: clark's own folder for your system)")
+    p.add_argument("--from", dest="source", metavar="FOLDER", help="read the backups from this folder instead (the folder your backups are "
+                   "copied to in Settings, for example in OneDrive). Nothing is written there.")
     return p
 
 
@@ -274,6 +276,18 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
         folder = platform.check_data_dir(Path(args.data).expanduser() if args.data else platform.data_dir(home), onedrive_roots)
         shown_data = backup.shown(folder)
         folder_shown = backup.shown(folder / "backups")
+        source = Path(args.source).expanduser() if args.source else None          # #622: the copy folder, read only
+        if source is not None and args.name is None:
+            found = backup.listing(source)
+            if not found:
+                print(f"There are no backups in {backup.shown(source)}.", file=out, flush=True)
+                return 0
+            print(f"Backups in {backup.shown(source)}, newest first (times are your local time):", file=out)
+            for row in found:
+                print(f"  {row['when']}  {row['kind']:<17} {row['name']}", file=out)
+            print("To put one back, close clark, then run this, with NAME the file name from the list above and FOLDER this folder:\n"
+                  "    python3 -m clark restore --from FOLDER NAME", file=out, flush=True)
+            return 0
         if args.name is None:
             found = backup.listing(folder / "backups")
             if not found:
@@ -297,6 +311,8 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
                 except clark_store.Invalid:
                     held = None               # too damaged to open: that is when a restore is needed, and it is moved aside whole
             try:
+                if source is not None:          # the file is checked and copied beside the data first, so the restore writes nothing in the copy folder
+                    args.name = backup.bring_in(source, args.name, folder / "backups", onedrive_roots).name
                 done = backup.restore_path(database, args.name, folder / "backups", onedrive_roots, held)
             finally:
                 if held is not None:
@@ -450,6 +466,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      # prompt (#72 slice 5) AND the real canary exists (#277). Do not pass ai= before both; test_main pins it.
                      activity=activity_read.make_read(store.path, store.data_for),
                      past=past_reports.PastReports(store.path),
+                     as_at=as_at.AsAt(store.path),
                      brand_picture=page.brand_picture,
                      updater=updates_seam,
                      **handlers)
