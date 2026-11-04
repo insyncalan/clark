@@ -7,8 +7,10 @@ One class, Publisher, with three public methods (each returns (status, body) for
   that was meant to be left out). Then the system's Save dialog chooses the Local file, Local is written and read back, the same
   bytes are copied into the client folder and read back (to_client.copy_to_client), and one `publications` row records it.
   The request never names a folder or a file: the client folder is the one saved in Settings (projects.publish_client).
-- client_folder(body): POST /api/client-folder {project, action: "choose" | "clear"}. Saves or clears that folder as an
-  ordinary step (so it is in history and can be undone). It never writes into the folder.
+- client_folder(body): POST /api/client-folder {project, action: "choose" | "clear" | "paste", value (paste only)}. Saves or
+  clears that folder as an ordinary step (so it is in history and can be undone). It never writes into the folder. A pasted
+  folder (item 647) is a path on this computer or a SharePoint link matched to a folder OneDrive syncs here (pasted_folder);
+  it must be inside a OneDrive root and then gets exactly the checks a chosen one gets. Nothing is fetched from the web.
 - latest(code): GET /api/publication?project=. The date and kind of the latest publication, for the report bar; no path.
 
 This is the only module besides to_client.py that may reach a client-folder writer (a test pins it). It opens its own short-lived
@@ -25,7 +27,9 @@ import shutil
 import tempfile
 import threading
 import time
+import unicodedata
 from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from clark import changes, milestones, page, platform, publish, publish_pdf, section_files, to_client
 from clark.store import Invalid, NumberTaken, open_store
@@ -39,6 +43,10 @@ PICK_PROMPT = "Choose the folder OneDrive syncs for the client"
 SAVE_PROMPT = "Save the report"
 PREVIEW_KEEP = 4                     # previews waiting to be opened; the oldest goes first
 PREVIEW_SECONDS = 120                # a preview that is not opened in this time is dropped
+MAX_PASTE = 2000                     # a pasted folder or link longer than this is refused unread
+MAX_LINK_PARTS = 40                  # folders below a SharePoint library that a link may name
+SHAREPOINT_HOST = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.sharepoint\.com")
+OPAQUE_HOSTS = ("onedrive.live.com", "1drv.ms")      # personal OneDrive links name an item by number, never by folder
 
 # What the route says, by stable `code`. The words are the product's (RULES.md): plain, "clark" in lower case. The messages of
 # to_client.MESSAGES (the catalogue of the spec) are used as they are for everything that module decides.
@@ -64,6 +72,9 @@ MESSAGES = {
     "folder_cleared": "The client folder is cleared.",
     "folder_unchanged": "That is already the client folder.",
     "bad_action": "Say whether to choose a folder or clear it.",
+    "paste_unknown": "That isn't a folder clark can find. Choose folder picks it for you.",
+    "paste_not_synced": "That folder isn't one OneDrive syncs on this computer. Choose folder picks it for you.",
+    "paste_no_match": "That SharePoint link doesn't match a folder synced on this computer. Use Choose folder to pick it.",
     "client_folder_refused": "{reason}",
     "settings_failed": "The client folder could not be saved. Nothing was changed. Try again.",
     "brand_styling": "The brand's styling file has a web link in it, so the report can't go out. Ask whoever looks after the brand to remove it.",
@@ -103,6 +114,43 @@ def code_of(message):
 
 def _text(value):
     return value if isinstance(value, str) else None
+
+
+def _has_control(text):
+    """True when `text` holds a control or formatting character (a new line, NUL, a zero-width or direction mark)."""
+    return any(unicodedata.category(ch) in ("Cc", "Cf") for ch in text)
+
+
+def _plain(name):
+    """A name for matching a link to a folder: letters and digits only, without case."""
+    return "".join(ch for ch in unicodedata.normalize("NFC", str(name)).casefold() if ch.isalnum())
+
+
+def _folders(path):
+    try:
+        return [p for p in Path(path).iterdir() if p.is_dir()]
+    except OSError:
+        return []
+
+
+def _child_path(base, names):
+    """`base` with each of `names` below it, as existing folders matched without case; None when one isn't there or is ambiguous."""
+    here = Path(base)
+    for name in names:
+        if not name or "/" in name or name in (".", ".."):
+            return None
+        exact = here / name
+        if exact.is_dir():
+            here = exact
+            continue
+        same = [p for p in _folders(here) if p.name.casefold() == name.casefold()]
+        if len(same) != 1:
+            return None
+        here = same[0]
+    try:
+        return here.resolve(strict=True) if here.is_dir() else None
+    except (OSError, RuntimeError):
+        return None
 
 
 class Markers(list):
@@ -428,7 +476,8 @@ class Publisher:
         code, action = body.get("project"), body.get("action")
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
-        if set(body) - {"project", "action"} or action not in ("choose", "clear"):
+        allowed = {"project", "action", "value"} if action == "paste" else {"project", "action"}
+        if set(body) - allowed or action not in ("choose", "clear", "paste") or (action == "paste" and not isinstance(body.get("value"), str)):
             return 400, self.fail("bad_action")
         with self.lock:
             store = self.store()
@@ -439,14 +488,19 @@ class Publisher:
                 saved = row.get("publish_client") or None
                 if action == "clear":
                     return self.save_folder(store, code, saved, None)
-                try:
-                    start = saved or next(iter(self.onedrive_roots), None)
-                    picked = self.choose_folder(PICK_PROMPT, start=start)
-                except platform.PlatformError as e:
-                    return 409, self.fail("dialog_failed", MESSAGES["dialog_failed"].format(reason=str(e).rstrip()).replace(
-                        " Nothing was published.", ""))
-                if picked is None:
-                    return 200, {"ok": True, "changed": False, "folder": saved}
+                if action == "paste":
+                    picked, refused = self.pasted_folder(body["value"])
+                    if refused:
+                        return 409, self.fail(refused)
+                else:
+                    try:
+                        start = saved or next(iter(self.onedrive_roots), None)
+                        picked = self.choose_folder(PICK_PROMPT, start=start)
+                    except platform.PlatformError as e:
+                        return 409, self.fail("dialog_failed", MESSAGES["dialog_failed"].format(reason=str(e).rstrip()).replace(
+                            " Nothing was published.", ""))
+                    if picked is None:
+                        return 200, {"ok": True, "changed": False, "folder": saved}
                 checked = to_client.preflight(self.fs, str(picked), data_dir=self.data_dir, onedrive_roots=self.onedrive_roots,
                                               local_folder=store.last_publish_folder(code) or row.get("publish_local"),
                                               backups_dir=self.backups_dir)
@@ -455,6 +509,104 @@ class Publisher:
                 return self.save_folder(store, code, saved, checked["folder"], checked.get("warning"))
             finally:
                 store.close()
+
+    # ----- a pasted client folder (item 647) -----
+    def pasted_folder(self, value):
+        """A pasted path or link as (the folder it names, resolved, None) or (None, the MESSAGES code of the refusal). The folder
+        must already exist and be inside one of the OneDrive roots; client_folder then checks it exactly as a chosen one. No link is
+        ever opened: a SharePoint link is matched by its words alone (matched_link)."""
+        text = value.strip()
+        if not text or len(text) > MAX_PASTE or _has_control(text):
+            return None, "paste_unknown"
+        if text[:8].lower() == "https://":
+            return self.matched_link(text)
+        if text.startswith("/") or text == "~" or text.startswith("~/"):
+            return self.synced_folder(Path(text).expanduser())
+        return None, "paste_unknown"            # a relative path, ~name, file://, http:// and every other kind of text
+
+    def synced_folder(self, path):
+        if not path.is_absolute() or ".." in path.parts:
+            return None, "paste_unknown"
+        try:
+            real = path.resolve(strict=True)    # links followed: where the folder really is is what must be inside a root
+            if not real.is_dir():
+                return None, "paste_unknown"
+            roots = [Path(r).resolve() for r in self.onedrive_roots]
+        except (OSError, RuntimeError, ValueError):
+            return None, "paste_unknown"
+        if not any(real == r or r in real.parents for r in roots):
+            return None, "paste_not_synced"
+        return real, None
+
+    def matched_link(self, text):
+        """A SharePoint link as the one folder OneDrive syncs it to here. The link's site, library and folders are read from its
+        address (or its id= for a library view); a synced library is a folder in a OneDrive root named "<site> - <library>"
+        (the default library's address name, "Shared Documents", is shown as "Documents"), and a folder synced on its own is
+        "<site> - <folder>". Names are compared ignoring case, spaces and punctuation. A link to someone's own OneDrive
+        (-my.sharepoint.com/personal/...) is matched under a root that is not a shared-libraries one. Only one existing folder
+        may match: none, or more than one, is no match. A sharing link that names no folder (/:f:/s/...) never matches."""
+        try:
+            u = urlsplit(text)
+            host = (u.hostname or "").lower()
+            port = u.port
+        except ValueError:
+            return None, "paste_unknown"
+        if u.username or u.password or port is not None:
+            return None, "paste_unknown"
+        if host in OPAQUE_HOSTS:
+            return None, "paste_no_match"
+        if not SHAREPOINT_HOST.fullmatch(host):
+            return None, "paste_unknown"
+        query = parse_qs(u.query)
+        ids = query.get("id") or query.get("RootFolder")
+        where = ids[0] if ids else unquote(u.path)
+        if _has_control(where) or "\\" in where:
+            return None, "paste_unknown"
+        parts = [p for p in where.split("/") if p]
+        if parts and re.fullmatch(r":[a-z]:", parts[0]):
+            if parts[1:2] != ["r"]:
+                return None, "paste_no_match"
+            parts = parts[2:]
+        if not ids:
+            cut = next((i for i, p in enumerate(parts) if p.lower() == "forms" or p.lower().endswith(".aspx")), len(parts))
+            parts = parts[:cut]
+        if any(p in (".", "..") for p in parts) or len(parts) > MAX_LINK_PARTS + 3:
+            return None, "paste_unknown"
+        found = set()
+        for base, rest in self._link_bases(host, parts):
+            folder = _child_path(base, rest)
+            if folder is not None:
+                found.add(folder)
+        if len(found) != 1:
+            return None, "paste_no_match"
+        folder, refused = self.synced_folder(found.pop())
+        return (folder, None) if folder else (None, "paste_no_match" if refused == "paste_not_synced" else refused)
+
+    def _link_bases(self, host, parts):
+        """(a folder in a OneDrive root, the folder names below it) for each place the link's address could be synced to."""
+        roots = [Path(r) for r in self.onedrive_roots]
+        if host.endswith("-my.sharepoint.com"):
+            if len(parts) >= 3 and parts[0].lower() == "personal":
+                for root in roots:
+                    if "sharedlibraries" not in _plain(root.name):
+                        yield root, parts[3:]
+            return
+        if len(parts) < 3 or parts[0].lower() not in ("sites", "teams"):
+            return
+        site, library, tail = _plain(parts[1]), parts[2], parts[3:]
+        libraries = {_plain(library)} | ({_plain("Documents")} if _plain(library) == _plain("Shared Documents") else set())
+        for root in roots:
+            for child in _folders(root):
+                pieces = child.name.split(" - ")
+                for i in range(1, len(pieces)):
+                    if _plain(" - ".join(pieces[:i])) != site:
+                        continue
+                    right = _plain(" - ".join(pieces[i:]))
+                    if right in libraries:
+                        yield child, tail
+                    for n, name in enumerate(tail):
+                        if right == _plain(name):
+                            yield child, tail[n + 1:]
 
     def save_folder(self, store, code, saved, folder, warning=None):
         if folder == saved:
