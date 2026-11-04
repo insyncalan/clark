@@ -47,6 +47,11 @@ def texts(o, path=""):
                 yield from texts(v, f"{path}.{k}")
 
 
+# The Docker entry (Advanced) is for the Terminal: it names addresses, a command and what Terminal and Docker print, so the rules
+# about addresses, file names and plain words are not applied to its own paragraphs (every other rule still is).
+DOCKER = {s for t in SRC["howto"]["tasks"] if t["id"] == "run-clark-with-docker" for s in t["s"]}
+
+
 def words():
     """The strings to read as words. A job's first item is its id and its last its screen; an icon's first is its picture's name."""
     out = list(texts({"howto": SRC["howto"], "start": {k: v for k, v in START.items() if k not in ("jobs", "where")}}))
@@ -73,7 +78,7 @@ class Shape(unittest.TestCase):
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
-        self.assertEqual((len(STEPS), len(SECTIONS)), (34, 35))   # with the People entries (#454), held, and the Word entry
+        self.assertEqual((len(STEPS), len(SECTIONS)), (35, 35))   # with the People entries (#454), held, and the Word entry, and Run clark with Docker
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (36, 31))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -110,7 +115,8 @@ class Shape(unittest.TestCase):
             self.assertIn(j[0], ids)
         screens = set(re.search(r"export const SCREENS = \[(.*?)\]", LOGIC).group(1).replace('"', "").replace(" ", "").split(","))
         for t in STEPS:
-            self.assertIn(t["go"].split("#")[0], screens, t["id"])
+            if t["id"] != "run-clark-with-docker":      # the Docker entry is run in Terminal: it opens no screen
+                self.assertIn(t["go"].split("#")[0], screens, t["id"])
 
 
 class KeysVE(unittest.TestCase):
@@ -171,7 +177,7 @@ class Words(unittest.TestCase):
     AMERICAN = re.compile(r"\b(color|colors|colored|organize|organized|center|behavior|favorite|gray|customize|license|canceled)\b", re.I)
 
     def test_no_internal_jargon_or_paths_or_creaite(self):
-        found = [(p, s) for p, s in words() if self.JARGON.search(s) or self.PATH.search(s)]
+        found = [(p, s) for p, s in words() if s not in DOCKER and (self.JARGON.search(s) or self.PATH.search(s))]
         self.assertEqual(found, [])
 
     def test_no_line_starts_with_the_product_name_and_the_name_is_lower_case(self):
@@ -187,7 +193,7 @@ class Words(unittest.TestCase):
         self.assertEqual(shown, [])
 
     def test_no_real_looking_email_or_address(self):
-        self.assertEqual([(p, s) for p, s in words() if re.search(r"[\w.]+@[\w.]+|https?://", s)], [])
+        self.assertEqual([(p, s) for p, s in words() if s not in DOCKER and re.search(r"[\w.]+@[\w.]+|https?://", s)], [])
 
     def test_nothing_is_named_that_clark_does_not_have(self):
         """creaite's mail, calendar and meeting features are not clark's, nor are the report layouts that are only in the backlog (FR-4)."""

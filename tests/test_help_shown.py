@@ -100,12 +100,12 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "publish-the-report", "word-in-and-out", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone", "undo-a-mistake"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "publish-the-report", "word-in-and-out", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone", "undo-a-mistake", "run-clark-with-docker"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "status-words",
                           "milestone-states", "published-reports", "diagnostics", "dates-and-ids", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], ["jobs"])      # only the jobs part is released (#642 step 3); the other six wait for their parts of clark
         self.assertEqual(len(s["reference"]["keys"]), 36 - len(LATER["keys"]))
-        self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones", "Settings and safety"])
+        self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones", "Settings and safety", "Advanced"])
         self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Publishing", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
@@ -118,7 +118,7 @@ class Held(unittest.TestCase):
         self.assertEqual(sorted(links - places), [])
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (34, 35, 36))   # 34 and 35 with the People entries (#454) and the Word entry written; the People entries held
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (35, 35, 36))   # 35 and 35 with the People entries (#454), the Word entry written and Run clark with Docker; the People entries held
 
 
 class AgainstThePage(unittest.TestCase):
