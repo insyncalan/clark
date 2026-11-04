@@ -256,7 +256,6 @@ class Menu(board.Base):
             # Nothing selected: it opens as before.
             cdp.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))", sid)
             key(cdp, sid, "Escape")                    # closes the multi-select menu, if one is open
-            time.sleep(0.3)
             cdp.js("document.getElementById('sel-clear').click()", sid)
             self.until(cdp, sid, "clarkPage.selected().length === 0", "the selection cleared")
             self.open_menu(cdp, sid, self.TABLE % a)
@@ -301,7 +300,7 @@ class Menu(board.Base):
             self.assertIn("Hide from the client", [e[1] for e in self.entries(cdp, sid)])
             key(cdp, sid, "Escape")
             self.shut(cdp, sid)
-            self.assertEqual(cdp.js("document.activeElement.dataset.id", sid), shown, "focus is back on the row")
+            self.until(cdp, sid, f"document.activeElement.dataset.id === {json.dumps(shown)}", "focus back on the row")
             self.open_menu(cdp, sid, self.TABLE % hidden)
             self.assertIn("Show to the client", [e[1] for e in self.entries(cdp, sid)])
             cdp.js("document.body.insertAdjacentHTML('beforeend', '<div id=away style=\"position:fixed;left:0;top:0;width:30px;height:30px;z-index:60\"></div>')", sid)
@@ -583,7 +582,7 @@ class Menu(board.Base):
             self.assertTrue(cdp.js("/^mailto:\\?subject=/.test(document.querySelector('.de a.pk-btn').getAttribute('href'))", sid), "a plain mail link with no address")
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('[data-draft-email]')", "the dialog to close")
-            self.assertEqual(cdp.js("document.activeElement.dataset.id", sid), a, "focus is back on the row")
+            self.until(cdp, sid, f"document.activeElement.dataset.id === {json.dumps(a)}", "focus back on the row")      # given back one tick after the dialog goes
             self.assertEqual((self.steps(), len(self.sent)), (before, sent), "nothing was changed, saved or sent")
             self.assertFalse(cdp.js("document.querySelector('#main, .top').hasAttribute('inert')", sid))
 
@@ -726,7 +725,7 @@ class Menu(board.Base):
             self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
             cdp.js("(() => { const b = [...document.querySelectorAll('.de .pk-btn')].find(x => /sent/.test(x.textContent)); b.click(); b.click(); })()", sid)
             self.until(cdp, sid, "/sent/i.test(document.querySelector('.de-note').textContent)", "the note")
-            time.sleep(0.8)
+            self.until(cdp, sid, "[...document.querySelectorAll('.de .pk-btn')].every(x => !/sent/.test(x.textContent) || !x.disabled)", "the button ready again after the save")
             self.assertEqual(len(self.sent_calls), 1, "one POST /api/draft-email/sent for two presses")
             self.assertEqual([r["ids"] for r in self.store.email_sent_for("ABC")], [[a]], "one record")
             self.assertFalse(cdp.js("[...document.querySelectorAll('.de .pk-btn')].find(x => /sent/.test(x.textContent)).disabled", sid), "ready again after the save")
@@ -741,7 +740,7 @@ class Menu(board.Base):
             self.assertEqual(self.entries(cdp, sid)[0][1], "Draft email to Sara Khan")
             key(cdp, sid, "Escape")
             self.shut(cdp, sid)
-            self.assertEqual(cdp.js("document.activeElement.closest('article').dataset.id", sid), a, "focus is back on the card")
+            self.until(cdp, sid, f"(document.activeElement.closest('article') || {{dataset: {{}}}}).dataset.id === {json.dumps(a)}", "focus back on the card")
             before = self.steps()
             click(cdp, sid, "#board-full")
             self.until(cdp, sid, "document.body.classList.contains('board-full')")
