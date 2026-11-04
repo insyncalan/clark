@@ -290,6 +290,15 @@ def make_cases(TYPE, PLACES):
                                      {"label": t["title"], "value": t["value"], "detail": t["detail"]}, t["tile"])
                     self.assertEqual(page[t["tile"]]["rag"], t["class"], t["tile"])
 
+        def test_a_low_only_project_is_amber_in_the_page_figure_and_in_the_file(self):
+            """Item 391: the live High risks and issues figure takes the tile's colour, so it is the file's colour too."""
+            raid_ = [{"id": "ABC-001", "project": "ABC", "type": "Risk", "status": "Open", "priority": "Low", "archived": 0, "client_visible": 1,
+                      "description": "x", "owner": "o", "due_date": None}]
+            page = self.val(f"F.figures.liveFigures({json.dumps(self.data(raid=raid_))}, '2030-01-15')")["risks"]["rag"]
+            kept = {"rows": glance.work_rows({"raid": raid_}), "hidden_types": set()}
+            tiles = glance.tiles({"project": {}}, "2030-01-15", hidden=set(), for_client=True, kept=kept)
+            self.assertEqual((page, {t["tile"]: t["class"] for t in tiles}["risks"]), ("a", "a"))
+
         def test_the_page_counts_only_rows_the_file_would_keep(self):
             base_row = {"project": "ABC", "archived": 0, "client_visible": 1, "status": "Open", "due_date": "2030-01-01", "description": "x"}
             actions = [dict(base_row, id="ABC-A-001"), dict(base_row, id="ABC-A-002", client_visible=0), dict(base_row, id="ABC-A-003", archived=1),

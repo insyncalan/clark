@@ -3,9 +3,10 @@
 import { style, setStyle } from "../stores/style.js";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { appearance, setAppearance } from "../stores/appearance.js";
-import { profile, loadProfile, setProfile, wantName } from "../stores/profile.js";
+import { profile, profileRead, loadProfile, setProfile, wantName } from "../stores/profile.js";
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
 import { announce, leave, noteTyped } from "./aboutYouToast.js";
+import { suggestAlias } from "../logic/alias.js";
 
 export const STYLES = [
   ["slim", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture."],
@@ -19,6 +20,29 @@ export const APPEARANCES = [                                 // the ruled order:
   ["light", "Light", "Always light."],
   ["dark", "Dark", "Always dark."],
 ];
+
+// The words of the suggested Alias under the name box, kept here in one place so they are easy to change (item 613).
+export const ALIAS_WORDS = {
+  label: "Suggested Alias:",                                   // the suggestion follows it, after a space ("Suggested Alias: Jane, JD")
+  help: "Your first name and your initials, worked out from your full name. Not saved.",
+};
+
+// The suggestion as shown: suggestAlias keeps its two parts comma-separated ("Jane,JD"); the line puts a space after the comma ("Jane, JD").
+// One word shows just that word.
+const showAlias = (alias) => alias.split(",").map((part) => part.trim()).filter(Boolean).join(", ");
+
+// The suggested Alias (item 613): read-only, worked out live from what is in the name box. Nothing here is kept or sent anywhere; an
+// empty name shows nothing.
+function AliasOffer({ name }) {
+  const alias = suggestAlias(name);
+  if (!alias) return null;
+  return (
+    <div class="alias-offer" data-alias-offer>
+      <p class="alias-line">{ALIAS_WORDS.label} <b data-alias>{showAlias(alias)}</b></p>
+      <p class="alias-help">{ALIAS_WORDS.help}</p>
+    </div>
+  );
+}
 
 // About you (#180): the two optional boxes. Each is saved when it is left (or on Enter); a refusal says why under the box and writes
 // nothing, and what was typed stays in the box so it can be mended. Emptying the name returns the menu's top line to its link.
@@ -41,7 +65,10 @@ function AboutYou() {
   const save = async (field) => {
     // both boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over the other
     const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };
-    const r = await setProfile(sent.name, sent.email);
+    // Before clark has answered a read, a box nobody has typed in holds only the empty draw, not what is saved: it is not sent, and the
+    // store fills it from clark's own answer (#420), so saving one box first never blanks the other.
+    const unread = !profileRead.value;
+    const r = await setProfile(unread && !typedIn.current.name ? undefined : sent.name, unread && !typedIn.current.email ? undefined : sent.email);
     // One rule: an answer speaks only for the newest save. A late answer to an older save changes nothing on the page (it can neither clear
     // nor replace what a newer save said), so a refusal is never lost and an old refusal never shows over text that was saved. A refusal is
     // also shown only while the box still holds the text that was refused (text typed since has not been sent yet).
@@ -60,7 +87,7 @@ function AboutYou() {
     if ((mine.current ? mine.current.value : typed[about]) !== sent[about]) return;
     setSaid({ name: about === "name" ? r.message : "", email: about === "email" ? r.message : "" });
   };
-  const box = (field, label, type, line, ref) => (
+  const box = (field, label, type, line, ref, after = null) => (
     <div class="fld">
       <label for={`about-${field}`}>{label}</label>
       <input id={`about-${field}`} ref={ref} type={type} value={typed[field]} autocomplete={field === "name" ? "name" : "email"} data-about={field}
@@ -69,12 +96,13 @@ function AboutYou() {
         onBlur={() => save(field)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(field); } }} />
       <small id={`about-${field}-line`}>{line}</small>
       <p class="fld-bad" role="alert">{said[field]}</p>
+      {after}
     </div>
   );
   return (
     <fieldset class="styles about" data-about-you>
       <legend>About you</legend>
-      {box("name", "Your name", "text", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.", name)}
+      {box("name", "Your name", "text", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.", name, <AliasOffer name={typed.name} />)}
       {box("email", "Your email", "email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.", email)}
     </fieldset>
   );

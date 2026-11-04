@@ -1,6 +1,9 @@
 """#613: the Alias clark suggests from a full name (src/clark/page/src/logic/alias.js): the first name, then the initials, comma-separated.
 "Jane Doe" suggests "Jane,JD"; a one-word name suggests only that word; an empty name suggests nothing; a suggestion never overwrites
-an Alias already typed. Fictional names only. The Alias box waits for a stored Alias field (a guarded change), so this is the pure part.
+an Alias already typed. Fictional names only. The Alias box waits for a stored Alias field (a guarded change); what the page has is a
+read-only line under Settings › Personal › About you › Your name, worked out live from the name box and never kept or sent. The line
+shows the two parts with a space after the comma ("Suggested Alias: Jane, JD"). It is checked in the real page at 1400 and 900 px,
+light and dark.
 
 Run: python3 dev/run_tests.py test_alias_suggest
 The plain-JS logic runs inside headless Chrome (the #33 harness, as test_placement.py does), bundled with the pinned esbuild into a
@@ -20,6 +23,12 @@ import build_page  # noqa: E402
 import esbuild  # noqa: E402
 
 from test_server import Running, chrome, wait  # noqa: E402  (the #33 browser harness, shared)
+import test_about_you as about  # noqa: E402  (its helpers only: the module is imported, not its test class, so those tests run once)
+from test_publish_dialog import Base  # noqa: E402
+
+WIDTHS = (1400, 900)
+LINE = "Suggested Alias: {}"
+HELP = "Your first name and your initials, worked out from your full name. Not saved."
 
 ALIAS_JS = SRC / "clark" / "page" / "src" / "logic" / "alias.js"
 _PAGE = {}
@@ -93,6 +102,86 @@ class Suggest(unittest.TestCase):
         self.assertEqual(self.call("aliasOffer", "Jane Doe", "JJ"), "", "an Alias the person typed is never overwritten")
         self.assertEqual(self.call("aliasOffer", "Jane Doe", None), "Jane,JD")
         self.assertEqual(self.call("aliasOffer", "", ""), "")
+
+
+class OnThePage(Base):
+    """The read-only line under the name box in the real page."""
+    saved = about.AboutYou.saved
+    open_menu = about.AboutYou.open_menu
+    open_settings = about.AboutYou.open_settings
+    type_into = about.AboutYou.type_into
+
+    def offer(self, p):
+        return p.js("(() => { const o = document.querySelector('[data-about-you] [data-alias-offer]'); if (!o) return null; "
+                    "const ps = o.querySelectorAll('p'); return {line: ps[0].textContent, alias: o.querySelector('[data-alias]').textContent, "
+                    "help: ps[1].textContent, under: !!o.closest('.fld') && !!o.closest('.fld').querySelector('#about-name')}; })()")
+
+    def fits(self, p):
+        return p.js("(() => { const o = document.querySelector('[data-alias-offer]'), f = document.querySelector('[data-about-you]'); "
+                    "const r = o.getBoundingClientRect(), b = f.getBoundingClientRect(); "
+                    "return r.width > 0 && r.right <= b.right + 0.5 && document.documentElement.scrollWidth <= document.documentElement.clientWidth "
+                    "&& [...o.querySelectorAll('p')].every((e) => e.scrollWidth <= e.clientWidth + 0.5); })()")
+
+    def lightness(self, p, sel):
+        rgb = p.js(f"getComputedStyle(document.querySelector({json.dumps(sel)})).color")
+        r, g, b = [int(x) for x in rgb[rgb.index("(") + 1:rgb.index(")")].split(",")[:3]]
+        return (r + g + b) / 3
+
+    def test_C_the_line_follows_the_name_box_at_both_widths_light_and_dark(self):
+        for w in WIDTHS:
+            with chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                self.open_settings(p)
+                self.assertIsNone(self.offer(p), "an empty name shows no line")
+                for theme in ("light", "dark"):
+                    with self.subTest(width=w, theme=theme):
+                        p.js(f"document.querySelector('input[name=appearance][value={theme}]').click()")
+                        p.until(f"document.documentElement.dataset.theme === {json.dumps('dark' if theme == 'dark' else None)} "
+                                f"|| ({json.dumps(theme)} === 'light' && !document.documentElement.dataset.theme)", "the appearance applied")
+                        for name, alias in (("Jane Doe", "Jane, JD"), ("Jane", "Jane"), ("Mary Ann Smith", "Mary, MAS")):
+                            self.type_into(p, "name", name, leave="none")
+                            p.until(f"(document.querySelector('[data-alias]') || {{}}).textContent === {json.dumps(alias)}", f"{name} shows {alias}")
+                            self.assertEqual(self.offer(p), {"line": LINE.format(alias), "alias": alias, "help": HELP, "under": True})
+                            self.assertTrue(self.fits(p), "the line fits, with no sideways scroll")
+                        for sel in ("[data-alias-offer] .alias-help", "[data-alias]"):
+                            light = self.lightness(p, sel)
+                            if theme == "dark":
+                                self.assertGreater(light, 128, f"{sel} is light text on dark")
+                            else:
+                                self.assertLess(light, 128, f"{sel} is dark text on light")
+                        self.type_into(p, "name", "", leave="none")
+                        p.until("!document.querySelector('[data-alias-offer]')", "an empty name shows no line")
+                        self.type_into(p, "name", "   ", leave="none")
+                        self.assertIsNone(self.offer(p), "spaces alone show no line")
+                self.assertEqual(self.saved(), {}, "nothing was saved")
+
+    def test_C_the_line_changing_sends_nothing_and_keeps_nothing(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.width(900)
+            self.open_settings(p)
+            p.js("(() => { window.__sent = []; const f = window.fetch; window.fetch = (u, o) => { "
+                 "if (String(u).includes('/api/profile') && o && o.method && o.method !== 'GET') window.__sent.push(String(o.body)); return f(u, o); }; "
+                 "const s = XMLHttpRequest.prototype.send, op = XMLHttpRequest.prototype.open; "
+                 "XMLHttpRequest.prototype.open = function (m, u, ...r) { this.__u = String(u); return op.call(this, m, u, ...r); }; "
+                 "XMLHttpRequest.prototype.send = function (b) { if ((this.__u || '').includes('/api/profile')) window.__sent.push(String(b)); return s.call(this, b); }; "
+                 "navigator.sendBeacon = () => { window.__sent.push('beacon'); return true; }; })()")
+            for name, alias in (("Jane Doe", "Jane, JD"), ("Jane", "Jane"), ("Sam Lee", "Sam, SL")):
+                self.type_into(p, "name", name, leave="none")
+                p.until(f"(document.querySelector('[data-alias]') || {{}}).textContent === {json.dumps(alias)}", f"{name} shows {alias}")
+            self.type_into(p, "name", "", leave="none")
+            p.until("!document.querySelector('[data-alias-offer]')", "the line went")
+            self.assertEqual(p.js("window.__sent"), [], "nothing is sent to /api/profile while the line changes")
+            self.assertEqual(self.saved(), {}, "nothing is kept by clark")
+            self.assertEqual(p.js("Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter(k => /alias/i.test(k))"), [],
+                             "nothing is kept in the browser")
+            # a name that is saved (the box is left) sends the name and the email only: never an Alias
+            self.type_into(p, "name", "Jane Doe", leave="enter")
+            p.until("window.__sent.length === 1", "the name box was saved")
+            self.assertNotIn("alias", p.js("window.__sent[0]").lower())
+            self.assertTrue(wait(lambda: self.saved().get("profile_name") == "Jane Doe"), "the name was kept")
+            self.assertNotIn("alias", json.dumps(self.saved()).lower(), "no Alias is kept")
 
 
 if __name__ == "__main__":

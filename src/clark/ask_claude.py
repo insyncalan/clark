@@ -25,7 +25,7 @@ The safety steps, each one tested in tests/test_ask_claude.py with a fake comman
   `--no-session-persistence` (nothing saved under ~/.claude), `--system-prompt` with the fixed rules (the default prompt, which
   carries the folder, the platform and the date, is replaced), `--max-turns 1`, a pinned `--output-format json`
   (one result object, read strictly) and a `--max-budget-usd` cap. Never `--bare` (it would allow an API key only and never the sign-in),
-  never `--add-dir`, never a model, never a file argument. `--max-turns` is documented for print mode but some versions leave it
+  never `--add-dir`, never a model except one of `MODELS` (a fixed list of the command's aliases), never a file argument. `--max-turns` is documented for print mode but some versions leave it
   out of `--help`, so it is in `UNLISTED_FLAGS`: sent, not looked for (with no tools there is one answer either way).
 - SCRUBBED ENVIRONMENT (`child_env`): an allow-list built from nothing: HOME, USER and LOGNAME from the system's own record of
   this user (never from clark's environment), a fixed system PATH and a plain language, plus the pinned switches in `PINNED_ENV`.
@@ -48,6 +48,7 @@ import re
 import stat
 import threading
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from clark import ask, platform
@@ -57,9 +58,12 @@ PLACES = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/cl
 OTHER_ROOTS = ("/opt/homebrew", "/usr/local")       # besides the home folder, where the file a place names may be
 NEEDED_FLAGS = ("--print", "--safe-mode", "--disable-slash-commands", "--tools", "--strict-mcp-config", "--setting-sources",
                 "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd")
+MODEL_FLAG = "--model"                             # #54: needed only when a model is asked for, so a command without it still answers with its own
+MODELS = ("opus", "sonnet", "haiku", "fable")      # #54: the only --model values ever sent: the command's own aliases, never raw text
+MODEL_NAMES = {"opus": "Opus", "sonnet": "Sonnet", "haiku": "Haiku", "fable": "Fable"}
 UNLISTED_FLAGS = ("--max-turns",)                 # documented for print mode, missing from some versions' --help: sent, not checked
 NEVER_FLAGS = ("--bare", "--add-dir", "--mcp-config", "--settings", "--dangerously-skip-permissions", "--resume", "--continue",
-               "--model", "--verbose", "--append-system-prompt", "--plugin-dir", "--agents")
+               "--verbose", "--append-system-prompt", "--plugin-dir", "--agents")
 SAFE_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
 KEEP_ENV = ("HOME", "USER", "LOGNAME", "LANG")      # what the sign-in and the text need; everything else is left out
 # Set in the child, never copied from clark's. The first three are the ones the design read named (no telemetry, no self-update,
@@ -103,6 +107,11 @@ TOO_SLOW = "Claude took too long to answer, so it was stopped. Try a shorter que
 TOO_LONG_REPLY = "Claude's answer was too long to read, so it was stopped. Ask a narrower question."
 BAD_SYSTEM = ask.BAD_INPUT                          # a coding fault, so the same plain line as any other bad input
 MAX_SYSTEM = 8000                                   # characters of a caller-given system prompt
+MODEL_REFUSED = "That model isn't one clark can use. Nothing was sent."
+MODEL_NOT_OFFERED = "This version of Claude can't choose a model. Update Claude to choose one."
+MODEL_UNAVAILABLE = "Claude says that model can't be used with this sign-in. Choose another model in Settings."
+LIMIT_REACHED = "Claude says the limit for this model has been reached, so nothing more was sent."
+LIMIT_OFFER = "You could ask again with {others}. clark doesn't switch unless you choose to."
 BUSY = "Another question is being answered. Wait for it, or press Stop."
 # Hints: added after the status sentence when this computer's set-up is one questions can't follow.
 PROXY_HINT = ("This computer reaches the internet through a proxy or its own security certificates. Questions don't use those "
@@ -140,13 +149,17 @@ def child_env(home=None, user=None):
     return env
 
 
-def arguments(path, canary="", system=None):
+def arguments(path, canary="", system=None, model=None):
     """The command line for one run: the fixed flags, the fixed rules as the system prompt (with this request's canary, #277),
     and nothing the person typed. `system` is a fixed rules text written in clark's own code (ai_menu.SUGGEST_RULES); left out,
-    it is ask clark's `ask.RULES`. The canary goes onto either one."""
+    it is ask clark's `ask.RULES`. The canary goes onto either one. `model` is None (the command's own choice) or one of
+    `MODELS`; anything else raises ValueError, so text can never reach --model."""
+    if model is not None and (not isinstance(model, str) or model not in MODELS):
+        raise ValueError("model")
+    pick = ["--model", model] if model else []
     return [str(path), "--print", "--safe-mode", "--disable-slash-commands", "--tools", "", "--strict-mcp-config",
             "--setting-sources", "", "--no-session-persistence", "--max-turns", "1", "--output-format", "json",
-            "--max-budget-usd", MAX_BUDGET_USD, "--system-prompt", ask.system_prompt(canary, system)]
+            "--max-budget-usd", MAX_BUDGET_USD, *pick, "--system-prompt", ask.system_prompt(canary, system)]
 
 
 def roots_for(home=None):
@@ -255,9 +268,74 @@ def read_answer(out):
     return text
 
 
+LIMIT_TEXT = re.compile(r"(hit your (usage |rate )?limit|(usage|rate|message) limit (reached|exceeded)|limit reached)", re.I)
+MODEL_TEXT = re.compile(r"(selected model|unrecognized model|model .{0,80}(not found|not available|may not exist|don't have access))", re.I)
+
+
+def _events(out):
+    """The JSON objects in the command's output: one object, a list of them, or one per line. Anything else gives none."""
+    try:
+        text = out.decode("utf-8")
+    except UnicodeDecodeError:
+        return []
+    try:
+        got = json.loads(text)
+        return [x for x in (got if isinstance(got, list) else [got]) if isinstance(x, dict)]
+    except (ValueError, RecursionError):
+        pass
+    found = []
+    for line in text.splitlines():
+        try:
+            x = json.loads(line)
+        except (ValueError, RecursionError):
+            continue
+        if isinstance(x, dict):
+            found.append(x)
+    return found
+
+
+def limit_reached(out):
+    """True when the command's output says a usage limit stopped the run: its own limit event (a `rate_limit_event` whose
+    status is `rejected`) or a failed result with status 429 first; failing those, the failed result's text. Reads nothing else."""
+    for ev in _events(out):
+        if ev.get("type") == "rate_limit_event":
+            info = ev.get("rate_limit_info")
+            if isinstance(info, dict) and info.get("status") == "rejected":
+                return True
+        elif ev.get("type") == "result" and ev.get("is_error") is True:
+            if ev.get("api_error_status") == 429:
+                return True
+            text = ev.get("result")
+            if isinstance(text, str) and LIMIT_TEXT.search(text):
+                return True
+    return False
+
+
+def model_unavailable(out):
+    """True when the command's failed result says it can't use the model it was given: an alias this version or this plan doesn't have."""
+    for ev in _events(out):
+        if ev.get("type") == "result" and ev.get("is_error") is True and isinstance(ev.get("result"), str) and MODEL_TEXT.search(ev["result"]):
+            return True
+    return False
+
+
 def run(args, data, env, limit, max_out, stop=None):
     """One run of the command (platform.run_stoppable: its own group, its own folders, the environment exactly `env`)."""
     return platform.run_stoppable(args, data, env, limit, max_out, stop=stop, prefix="clark-ask-", tmp_names=TMP_NAMES)
+
+
+@dataclass(frozen=True)
+class LimitReached(ask.Failure):
+    """A usage limit stopped the run. `model` is the one asked (None: the command's own) and `others` the aliases that could be
+    offered instead; the message already names them. Nothing is retried or switched."""
+    model: object = None
+    others: tuple = ()
+
+
+def limit_failure(model):
+    others = tuple(m for m in MODELS if m != model)
+    words = ", ".join(MODEL_NAMES[m] for m in others)
+    return LimitReached(LIMIT_REACHED + " " + LIMIT_OFFER.format(others=words), model, others)
 
 
 class ClaudeCommand(ask.Provider):
@@ -273,6 +351,7 @@ class ClaudeCommand(ask.Provider):
         self.stop_event = threading.Event()
         self.guard = threading.Lock()          # #284: a run is registered, and Stop looks at it and ends it, only under this
         self.owner = None                      # who asked for the run now going (ask.Request.owner), set and cleared under the guard
+        self.model_listed = False              # #54: whether the checked command's --help lists MODEL_FLAG
         self.checked = {}                      # (path, size, mtime, inode, device) -> the version and flag check, once per file
         self.passed = None                     # (path, when) of the last sign-in check status() passed, used once by ask()
 
@@ -300,7 +379,9 @@ class ClaudeCommand(ask.Provider):
         status, out, _code = run([str(path), "--help"], b"", self.env, self.check_limit, MAX_HELP)
         if status != "ok":
             return False
-        return set(NEEDED_FLAGS) <= listed_flags(out.decode("utf-8", "replace"))
+        listed = listed_flags(out.decode("utf-8", "replace"))
+        self.model_listed = MODEL_FLAG in listed
+        return set(NEEDED_FLAGS) <= listed
 
     def login_problem(self, path):
         """None when the command reports a Claude sign-in; otherwise the plain reason nothing is sent. Asked before every question."""
@@ -339,9 +420,14 @@ class ClaudeCommand(ask.Provider):
         return {"connected": path is not None, "why": words}
 
     # ----- one question -----
-    def answer(self, path, text, canary="", system=None):
-        """Send `text` to the command at `path` (already checked) and read its answer: the reply text, or an ask.Failure."""
-        status, out, _code = run(arguments(path, canary, system), text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)
+    def answer(self, path, text, canary="", system=None, model=None):
+        """Send `text` to the command at `path` (already checked) and read its answer: the reply text, or an ask.Failure.
+        A usage limit gives a `LimitReached` (never a switch to another model: the caller offers, the person chooses)."""
+        status, out, _code = run(arguments(path, canary, system, model), text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)
+        if status in ("ok", "failed") and limit_reached(out):
+            return limit_failure(model)
+        if status in ("ok", "failed") and model is not None and model_unavailable(out):
+            return ask.Failure(MODEL_UNAVAILABLE)
         if status == "stopped":
             return ask.Failure(ask.STOPPED)
         if status == "slow":
@@ -359,7 +445,9 @@ class ClaudeCommand(ask.Provider):
         from clark import ai_menu                    # here, not at the top: ai_menu is the page-facing module and imports ask
         return isinstance(system, str) and len(system) <= MAX_SYSTEM and system in (ask.RULES, ai_menu.SUGGEST_RULES)
 
-    def ask(self, request):
+    def ask(self, request, model=None):
+        if model is not None and not (isinstance(model, str) and model in MODELS):
+            return ask.Failure(MODEL_REFUSED)    # fails closed, before anything is checked or sent
         with self.guard:                       # #284: registering the run and clearing stop state are one step Stop cannot split
             if not self.lock.acquire(blocking=False):
                 return ask.Failure(BUSY)
@@ -376,7 +464,9 @@ class ClaudeCommand(ask.Provider):
             path, why = self.usable(reuse=True)
             if path is None:
                 return ask.Failure(why)
-            return self.answer(path, self.envelope(request.text), request.canary, system)
+            if model is not None and not self.model_listed:
+                return ask.Failure(MODEL_NOT_OFFERED)      # nothing is sent, and a question with no model is unaffected
+            return self.answer(path, self.envelope(request.text), request.canary, system, model)
         finally:
             with self.guard:
                 self.owner = None

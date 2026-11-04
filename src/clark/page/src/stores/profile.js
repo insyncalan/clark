@@ -2,6 +2,7 @@
 // parts only. Nothing here is read from the computer, the browser or the Claude sign-in: a fresh store has neither.
 import { signal } from "@preact/signals";
 import { getProfile, saveProfile } from "../api.js";
+import { plainChange } from "./report.js";
 
 export const profile = signal({ name: "", email: "" });
 export const wantName = signal(false);                  // "Add your name in Settings": the name box takes the focus when Settings has drawn
@@ -21,13 +22,19 @@ export async function loadProfile() {
 
 let sent = 0, applied = 0;                              // saves sent so far; the newest save whose answer the menu has been given
 
-/** Save both values. Resolves {ok: true, ...} (the menu shows them at once) or {ok: false, message} (nothing changed on screen or on disk).
+/** Save both values (one left undefined is clark's own: read first when clark has not yet said what it holds, #420). Resolves {ok: true, ...} (the menu shows them at once) or {ok: false, message} (nothing changed on screen or on disk).
  *  `before` is what clark held when the save was sent ({name, email}), or null when that could not be read: an answer to compare with (#429).
  *  Answers can arrive late and out of order, so the answer also says `newest`: true only when no save was sent after this one. The menu
  *  is given a saved answer unless a newer saved answer has already been given (the older one must not put the menu back). */
 export async function setProfile(name, email) {
   const n = ++sent;
   const before = loaded ? profile.value : null;      // not read yet (Settings opened a moment ago): without an answer there is no "before", and the save never waits for a read
+  if (name === undefined || email === undefined) {      // a box left alone before clark's first answer (#420): its saved value is read, never guessed as empty
+    const held = loaded ? profile.value : await getProfile();
+    if (!held) return { ok: false, message: plainChange(0), newest: n === sent, before };
+    if (name === undefined) name = held.name;
+    if (email === undefined) email = held.email;
+  }
   const r = await saveProfile(name, email);
   if (r.ok && n > applied) { applied = n; profile.value = { name: r.name, email: r.email }; }
   return { ...r, newest: n === sent, before };

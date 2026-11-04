@@ -48,7 +48,7 @@ class WeekPicker(Base):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         page = Path(tmp.name) / "page.html"
-        page.write_bytes(b"<!doctype html><title>Publication 3</title><p>ZQ the kept page</p>")
+        page.write_bytes(b"<!doctype html><title>Publication 3</title><body><p>ZQ the kept page</p></body>")
         sha = hashlib.sha256(page.read_bytes()).hexdigest()
         s.log_publication("ABC", str(Path(tmp.name) / "one.docx"), "2026-10-23", "a" * 64, USER, word=1)
         s.log_publication("ABC", str(Path(tmp.name) / "two.html"), "2026-10-30", "b" * 64, USER)
@@ -86,7 +86,7 @@ class WeekPicker(Base):
                                                 ["asat", "Dashboard as at a day…"]])
             self.assertEqual(p.js("document.querySelector('#week-past').getAttribute('aria-label')"), "Open a published week")
             self.assertEqual(p.js("document.querySelector('#week-past').closest('#report-bar') && "
-                                  "document.querySelector('#week-past').previousElementSibling.id"), "week-ending-text", "beside Week ending, in View")
+                                  "document.querySelector('#week-past').previousElementSibling.querySelector('#week-ending') ? 'ok' : ''"), "ok", "beside the Week ending box, in View")
             p.edit()
             self.assertEqual(p.js("document.querySelector('#week-past').previousElementSibling.querySelector('#week-ending') ? 'ok' : ''"),
                              "ok", "beside the Week ending box, in Edit")
