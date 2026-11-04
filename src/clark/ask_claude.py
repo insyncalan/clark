@@ -57,7 +57,8 @@ PROVIDER = "claude"
 PLACES = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude")
 OTHER_ROOTS = ("/opt/homebrew", "/usr/local")       # besides the home folder, where the file a place names may be
 NEEDED_FLAGS = ("--print", "--safe-mode", "--disable-slash-commands", "--tools", "--strict-mcp-config", "--setting-sources",
-                "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd", "--model")
+                "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd")
+MODEL_FLAG = "--model"                             # #54: needed only when a model is asked for, so a command without it still answers with its own
 MODELS = ("opus", "sonnet", "haiku", "fable")      # #54: the only --model values ever sent: the command's own aliases, never raw text
 MODEL_NAMES = {"opus": "Opus", "sonnet": "Sonnet", "haiku": "Haiku", "fable": "Fable"}
 UNLISTED_FLAGS = ("--max-turns",)                 # documented for print mode, missing from some versions' --help: sent, not checked
@@ -107,6 +108,7 @@ TOO_LONG_REPLY = "Claude's answer was too long to read, so it was stopped. Ask a
 BAD_SYSTEM = ask.BAD_INPUT                          # a coding fault, so the same plain line as any other bad input
 MAX_SYSTEM = 8000                                   # characters of a caller-given system prompt
 MODEL_REFUSED = "That model isn't one clark can use. Nothing was sent."
+MODEL_NOT_OFFERED = "This version of Claude can't choose a model. Update Claude to choose one."
 MODEL_UNAVAILABLE = "Claude says that model can't be used with this sign-in. Choose another model in Settings."
 LIMIT_REACHED = "Claude says the limit for this model has been reached, so nothing more was sent."
 LIMIT_OFFER = "You could ask again with {others}. clark doesn't switch unless you choose to."
@@ -349,6 +351,7 @@ class ClaudeCommand(ask.Provider):
         self.stop_event = threading.Event()
         self.guard = threading.Lock()          # #284: a run is registered, and Stop looks at it and ends it, only under this
         self.owner = None                      # who asked for the run now going (ask.Request.owner), set and cleared under the guard
+        self.model_listed = False              # #54: whether the checked command's --help lists MODEL_FLAG
         self.checked = {}                      # (path, size, mtime, inode, device) -> the version and flag check, once per file
         self.passed = None                     # (path, when) of the last sign-in check status() passed, used once by ask()
 
@@ -376,7 +379,9 @@ class ClaudeCommand(ask.Provider):
         status, out, _code = run([str(path), "--help"], b"", self.env, self.check_limit, MAX_HELP)
         if status != "ok":
             return False
-        return set(NEEDED_FLAGS) <= listed_flags(out.decode("utf-8", "replace"))
+        listed = listed_flags(out.decode("utf-8", "replace"))
+        self.model_listed = MODEL_FLAG in listed
+        return set(NEEDED_FLAGS) <= listed
 
     def login_problem(self, path):
         """None when the command reports a Claude sign-in; otherwise the plain reason nothing is sent. Asked before every question."""
@@ -459,6 +464,8 @@ class ClaudeCommand(ask.Provider):
             path, why = self.usable(reuse=True)
             if path is None:
                 return ask.Failure(why)
+            if model is not None and not self.model_listed:
+                return ask.Failure(MODEL_NOT_OFFERED)      # nothing is sent, and a question with no model is unaffected
             return self.answer(path, self.envelope(request.text), request.canary, system, model)
         finally:
             with self.guard:
