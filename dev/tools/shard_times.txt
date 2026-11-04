@@ -1,8 +1,9 @@
 # "test_x.py seconds" from real runs, read by dev/run_tests.py (--shard). Lines starting with # are ignored (creaite's format).
 # Re-measured 03-11-2026 from the OK lines of CI run 41611603624 (PR 440, Ubuntu 3.x one shard, macOS two shards, several files at a
 # time, so these are wall seconds under load; the ratios are what matters). A file's weight is the mean of its Ubuntu time and its
-# macOS time scaled to Ubuntu seconds. test_publish_public and test_publish_scan_time hit the 900 s file timeout on macOS, so each is
-# weighed at 900: the split now puts the two in different shards. Before this, only ten files were listed and every other file
+# macOS time scaled to Ubuntu seconds. test_publish_public hit the 900 s file timeout on macOS then and was weighed at 900; its growth tests
+# now live in test_publish_public_growth, and the two are weighed 63 and 47, which is the 80 s / 59 s split measured alone applied to the
+# 94-138 s the whole file took in later CI runs. test_publish_scan_time is still weighed at 900, so the split puts it apart from the big ones. Before this, only ten files were listed and every other file
 # counted 30 s, so the shards were split by file count, not by time (macOS shard 1 held 10,900 s of work and shard 2 6,600 s).
 # Refresh it from a CI run's "OK file.py (Ns)" lines. Files not listed count as 30 s.
 test_about_you.py 84.7
@@ -210,7 +211,8 @@ test_publish_glance.py 2.9
 test_publish_in_menu.py 17.2
 test_publish_no_warnings.py 10.5
 test_publish_progress.py 49.2
-test_publish_public.py 900.0
+test_publish_public.py 63.0
+test_publish_public_growth.py 47.0
 test_publish_route.py 133.2
 test_publish_scan_budget.py 173.0
 test_publish_scan_gaps.py 529.3
