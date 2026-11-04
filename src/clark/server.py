@@ -78,6 +78,64 @@ from urllib.parse import parse_qs, quote, urlsplit
 LOG = logging.getLogger("clark.server")
 HOST = "127.0.0.1"                    # the only address clark listens on, whatever any setting says
 DEFAULT_PORT = 8766
+CONTAINER_BIND = "0.0.0.0"            # item 427: only inside the shipped container (see container_mode); the Mac publishes the port to 127.0.0.1 only
+
+
+def container_mode():
+    """item 427: True only when CLARK_CONTAINER=1 is set (by docker/compose.yaml, which runs a stock Python image) AND this really is a
+    container (Docker makes /.dockerenv in every container, Podman /run/.containerenv). Never by the setting alone; never on a Mac."""
+    return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
+
+
+def container_gateway():
+    """item 427: the container's default gateway address, the one peer a published port arrives from; None when it can't be read.
+    Why this address and no other: a published port is forwarded by Docker's proxy (docker-proxy on Linux; Docker Desktop's
+    forwarder in its VM on Mac and Windows), which opens a new connection to the container from the host side of the
+    container's network. That side's address is the network's gateway (172.17.0.1 on the default bridge, the compose network's
+    own, such as 172.18.0.1, here), and it is the gateway of the container's default route, read from the kernel's table rather
+    than assumed. Other containers on that network have other addresses in the subnet and are refused, and the LAN cannot
+    reach the port at all (compose publishes it on 127.0.0.1 only). Only a true default route counts: destination and mask
+    both 0.0.0.0, with the gateway flag. The table prints each address as a number in this machine's byte order."""
+    try:
+        with open("/proc/net/route", encoding="utf-8") as table:
+            for line in table.read().splitlines()[1:]:
+                f = line.split()
+                if f[1] == "00000000" and f[7] == "00000000" and int(f[3], 16) & 2:
+                    return ".".join(str(b) for b in int(f[2], 16).to_bytes(4, sys.byteorder))
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
+def local_peer(address):
+    """Whether a request's peer address is this machine, or, in a container only, the container's gateway (item 427)."""
+    if address in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+        return True
+    gateway = container_mode() and container_gateway()
+    return bool(gateway) and address == gateway
+
+
+# item 427 (a reader's finding): a peer refused in container mode is told why in a plain page, and the container's log names it, so
+# a second run in Docker shows which address Docker Desktop really connects from. Addresses only: never a token or a header.
+CONTAINER_REFUSED = "This connection was refused. clark is running in Docker and only answers this computer."
+CONTAINER_REFUSED_PAGE = f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>clark</title></head><body><p>{CONTAINER_REFUSED}</p></body></html>
+"""
+_REFUSED_PEERS = set()          # each refused address is logged once; at most REFUSED_PEERS_KEPT of them, then no more lines
+REFUSED_PEERS_KEPT = 256
+_REFUSED_LOCK = threading.Lock()
+
+
+def note_refused_peer(address):
+    """item 427: one line to the container's log (stderr) the first time `address` is refused, naming it and the gateway that is
+    accepted. Never more than once for an address, and never more than REFUSED_PEERS_KEPT lines in all, so no peer can fill the log."""
+    with _REFUSED_LOCK:
+        if address in _REFUSED_PEERS or len(_REFUSED_PEERS) >= REFUSED_PEERS_KEPT:
+            return
+        _REFUSED_PEERS.add(address)
+    gateway = container_gateway()
+    print(f"Refused a connection from {address}: in Docker only 127.0.0.1 and the container's gateway "
+          f"({gateway or 'not found'}) are accepted.", file=sys.stderr, flush=True)
 TOKEN = secrets.token_urlsafe(24)     # new at every start; the page gets it in GET /
 TOKEN_HEADER = "X-Clark-Token"
 STALE_PAGE = "This page is out of date because clark was restarted. Reload the page and try again."
@@ -320,7 +378,9 @@ def csp_local(handler):
     """Whether a request comes from this machine's own page: a local address and Host, and no other site's Origin. Every
     Origin and Sec-Fetch-Site header counts, not only the first, and an Origin must be this very Host and port (#65: the page
     is served from that one address; a page on another local port is another site). No Origin at all (a plain client) is fine."""
-    if not handler.host_ok() or handler.client_address[0] not in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+    if not handler.host_ok() or not local_peer(handler.client_address[0]):
+        if container_mode() and not local_peer(handler.client_address[0]):
+            note_refused_peer(handler.client_address[0])                 # item 427: the container's log names a refused peer, once
         return False
     get_all = getattr(handler.headers, "get_all", None)                  # a request with no version has no parsed headers (a dict)
     every = (lambda name: get_all(name) or []) if get_all else (lambda name: [v for v in [handler.headers.get(name)] if v])
@@ -886,6 +946,15 @@ p { margin: 0 0 8px; color: #55606e; }
 """
 
 
+def page_route(handler):
+    """GET /: the page, with this run's token. Run through run_route like every other route, so a page that cannot be made (a
+    copy of clark without its page files that cannot build them) is answered with a 500 in plain words.
+    Before, the error left the handler and the standard library closed the connection with no answer at all."""
+    if page_load_is_ours(handler.headers, handler.server.server_port):
+        mark_here()
+    return handler.send(200, with_boot(handler.server.page_html()), "text/html")
+
+
 def preview_page_route(handler):
     """GET /preview?id=: the page a preview made, once. A new tab can't send the token, so the address itself is the one-visit
     secret (made by POST /api/preview); the Host and Origin checks are as everywhere. Nothing is written."""
@@ -1206,13 +1275,14 @@ class Handler(BaseHTTPRequestHandler):
             return None
         if not self.host_ok():
             return self.send(403, error_body("not_allowed"))
+        if container_mode() and not local_peer(self.client_address[0]):      # item 427: with the container's 0.0.0.0 bind, the page and /health are for this machine only too
+            note_refused_peer(self.client_address[0])
+            return self.send(403, CONTAINER_REFUSED_PAGE, "text/html")
         route = self.path.split("?")[0]
         if route == "/health":
             return self.send(200, health_answer(self.headers.get(MARK_HEADER)))
         if route == "/":
-            if page_load_is_ours(self.headers, self.server.server_port):
-                mark_here()
-            return self.send(200, with_boot(self.server.page_html()), "text/html")
+            return self.run_route(page_route)
         if route in OPEN_GET_ROUTES:
             return self.run_route(open_route, route)
         if route == PREVIEW_ROUTE:
@@ -1270,7 +1340,7 @@ class LocalServer(ThreadingHTTPServer):
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None,
                  people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None):
-        if server_address[0] != HOST:
+        if server_address[0] != HOST and not (container_mode() and server_address[0] == CONTAINER_BIND):
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
         self.projects = projects or (lambda: [])
@@ -1336,7 +1406,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
-        httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
+        httpd = LocalServer((CONTAINER_BIND if container_mode() else HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, ai=ai,

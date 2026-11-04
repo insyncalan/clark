@@ -434,6 +434,10 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         try:
             page.ensure_built()          # #495: a source checkout builds its pages now, before the first request
         except page.PageError as e:
+            if platform.container_mode():       # item 427: in the container there is nothing to fall back on; stop at once, in plain words
+                LOG.error("%s", e)
+                print(str(e), file=err or sys.stderr, flush=True)
+                return 1
             print(str(e), file=err or sys.stderr)
         done = serve(port=port, data_for=store.data_for, page_html=page.page_html,
                      projects=projects, out=shown,
