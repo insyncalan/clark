@@ -153,7 +153,7 @@ class Compose(unittest.TestCase):
         """clark's code and its data stay in the unzipped folder on the computer: nothing is kept only inside the container."""
         text = self.service()
         self.assertIn("      - type: bind\n        source: ..\n        target: /clark\n        read_only: true\n", text)
-        self.assertIn("      - type: bind\n        source: ../data\n        target: /clark/data\n        bind:\n"
+        self.assertIn("      - type: bind\n        source: ${CLARK_DATA_DIR:-../data}\n        target: /clark/data\n        bind:\n"
                       "          create_host_path: true\n", text)
         self.assertRegex(text, r"(?m)^    working_dir: /clark$")
         self.assertEqual(len(re.findall(r"(?m)^\s*target:", text)), 2, "the code (read-only) and its data folder, nothing else")
@@ -186,7 +186,7 @@ class ComposeIsLanSafe(unittest.TestCase):
     def test_it_publishes_exactly_one_port_in_the_short_form_on_loopback(self):
         self.assertEqual(len(re.findall(r"(?m)^\s*ports:\s*$", self.CODE)), 1)
         listed = re.findall(r"(?m)^\s*-\s*(.+?)\s*$", self.CODE.split("ports:", 1)[1].split("volumes:", 1)[0])
-        self.assertEqual([p.strip("\"'") for p in listed], ["127.0.0.1:8766:8766"])
+        self.assertEqual([p.strip("\"'") for p in listed], ["127.0.0.1:${CLARK_PORT:-8766}:8766"])
 
     def test_nothing_in_it_can_put_the_container_on_the_hosts_network_or_another_address(self):
         for word in ("network_mode", "host_ip", "0.0.0.0", "expose:", "extra_hosts", "privileged", "pid:", "ipc:"):
@@ -194,8 +194,27 @@ class ComposeIsLanSafe(unittest.TestCase):
         ports_block = self.CODE.split("ports:", 1)[1].split("volumes:", 1)[0]
         for word in ("published:", "target:", "mode:"):                      # the long form of a port (the volume below has its own target)
             self.assertNotIn(word, ports_block, word)
-        ports_line = next(line for line in self.CODE.splitlines() if "8766:8766" in line)
-        self.assertNotIn("${", ports_line, "the address is not read from the environment")
+        ports_line = next(line for line in self.CODE.splitlines() if "}:8766" in line)
+        self.assertEqual(ports_line.count("${"), 1, "only the host port is read from the environment, never the address")
+        self.assertRegex(ports_line, r'^      - "127\.0\.0\.1:\$\{CLARK_PORT:-8766\}:8766"$')
+
+    def test_the_host_port_can_be_changed_but_the_address_and_the_container_port_cannot(self):
+        """CLARK_PORT moves the port on this computer (8766 when unset); the address stays 127.0.0.1 and clark still listens on 8766 inside."""
+        ports_line = next(line for line in self.CODE.splitlines() if "CLARK_PORT:-" in line)
+        address, rest = ports_line.split('"')[1].split(":", 1)
+        self.assertEqual(address, "127.0.0.1")
+        self.assertEqual(rest, "${CLARK_PORT:-8766}:8766")
+        self.assertIn('"--port", "8766"]', self.CODE)
+        self.assertRegex(self.CODE, r'(?m)^      CLARK_PORT: "8766"$')
+        for unsafe in ("${CLARK_PORT}", "${CLARK_PORT:-0.0.0.0", "${HOST", "${CLARK_HOST"):
+            self.assertNotIn(unsafe, self.CODE, unsafe)
+
+    def test_the_data_folder_can_be_named_and_defaults_to_the_folder_s_own(self):
+        """CLARK_DATA_DIR points Docker at a data folder the owner already has; unset, it is the clark folder's data folder."""
+        self.assertRegex(self.CODE, r"(?m)^        source: \$\{CLARK_DATA_DIR:-\.\./data\}$")
+        self.assertRegex(self.CODE, r'(?m)^      CLARK_DATA_SOURCE: "\$\{CLARK_DATA_DIR:-\$\{PWD:-\}/data\}"$')
+        self.assertIn('CLARK_DATA_DIR="$HOME/Library/Application Support/clark" docker compose -f docker/compose.yaml up -d', self.TEXT,
+                      "the comment shows the path quoted, since it has a space")
 
 
 class GetFromAnotherPeer(unittest.TestCase):
