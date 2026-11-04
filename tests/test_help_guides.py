@@ -95,8 +95,8 @@ def run_node(content, probe):
 
 
 class ShippedSource(unittest.TestCase):
-    def test_the_five_guides_are_shipped_with_no_picture_yet(self):
-        self.assertEqual([g["id"] for g in RAW["guides"]], ["add-a-section-from-a-template", "arrange-the-report", "bring-in-an-excel-workbook", "send-the-workbook-out", "publish-to-the-client"])
+    def test_the_nine_guides_are_shipped_with_no_picture_yet(self):
+        self.assertEqual([g["id"] for g in RAW["guides"]], ["add-a-section-from-a-template", "arrange-the-report", "bring-in-an-excel-workbook", "send-the-workbook-out", "publish-to-the-client", "hand-an-item-over", "save-a-view", "see-the-dashboard-as-at-a-day", "back-up-and-restore-your-data"])
         self.assertEqual([len(g["steps"]) for g in RAW["guides"]][:2], [6, 7])
         self.assertEqual(RAW["pictures"], [], "the pictures live on branch v10-pictures; the integration step adds the ids")
         self.assertFalse([s for g in RAW["guides"] for s in g["steps"] if "pic" in s])
@@ -197,7 +197,7 @@ class GuideShape(unittest.TestCase):
 
     def test_the_shipped_page_has_the_same_index_as_before(self):
         r = run_node(RAW, "(() => ({ guides: HL.guides().map((g) => g.id), pics: HL.pictureIds(), idx: HL.buildIndex().filter((e) => e.id.startsWith('guide-')).length }))()")
-        self.assertEqual(r, {"guides": ["add-a-section-from-a-template", "arrange-the-report", "bring-in-an-excel-workbook", "send-the-workbook-out", "publish-to-the-client"], "pics": [], "idx": 5})
+        self.assertEqual(r, {"guides": ["add-a-section-from-a-template", "arrange-the-report", "bring-in-an-excel-workbook", "send-the-workbook-out", "publish-to-the-client", "hand-an-item-over", "save-a-view", "see-the-dashboard-as-at-a-day", "back-up-and-restore-your-data"], "pics": [], "idx": 9})
 
 
 SHIPPED = shown_content()["guides"]
@@ -206,10 +206,10 @@ HELD_PLACES = {"howto-" + i for i in LATER.get("howto", {})} | {"ref-" + i for i
 
 
 class ShippedGuides(unittest.TestCase):
-    """The two guides as shipped (#642 guides A): their shape, their links, the names they use and that search finds them."""
+    """The guides as shipped (#642 guides A, B and C): their shape, their links, the names they use and that search finds them."""
 
     def test_each_guide_has_five_to_eight_numbered_steps_a_result_and_next_links(self):
-        self.assertEqual(len(SHIPPED), 5)
+        self.assertEqual(len(SHIPPED), 9)
         for g in SHIPPED:
             self.assertTrue(5 <= len(g["steps"]) <= 8, g["id"])
             self.assertTrue(g["job"].strip() and g["result"].strip() and g["next"], g["id"])

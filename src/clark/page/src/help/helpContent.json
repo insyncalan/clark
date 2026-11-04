@@ -2572,6 +2572,153 @@
     "howto-find-a-past-publication",
     "ref-published-reports"
    ]
+  },
+  {
+   "id": "hand-an-item-over",
+   "t": "Hand an item over",
+   "job": "Give several open work items to someone else in one step, with one Undo to take it back.",
+   "steps": [
+    {
+     "d": "Press **Edit** at the top of the page, then open **Work items**. Handing over is not offered in View."
+    },
+    {
+     "d": "Click the filter box, which says **Filter by keyword or by field**, and filter by owner: type owner: and pick the person from the suggestions. The hand-over button only appears while an owner filter is on, and not when the filter is “is not”."
+    },
+    {
+     "d": "Press **Hand over**, beside the button that adds an item. A tick box appears on each open item, and a bar opens above the list. Closed and archived items are not offered."
+    },
+    {
+     "d": "Tick the items to give away: click a row, or press Space on it. **All** ticks every item offered, and **None** clears the ticks. The bar counts them, such as “3 of 12 selected”. While you are ticking, the keys for changing an item are switched off."
+    },
+    {
+     "d": "Type the new person’s name in **Hand over to**. It suggests names from your people list, or the names already in the project if the list is empty. If the name matches no one, a line under the box asks you to check the spelling."
+    },
+    {
+     "d": "Press **Hand over** in the bar. It stays unavailable, with a line saying why, until you have ticked an item and named a person. Above 25 items a question comes first, such as “Hand over 30 items to Sam Rivers?”: press **Change** to go on, or **Cancel** to stop."
+    },
+    {
+     "d": "To leave without handing anything over, press **Cancel** in the bar, or press Esc."
+    },
+    {
+     "d": "If you change your mind after handing over, press **Undo** on the message that appears, or press Ctrl+Z (Cmd+Z on a Mac). The whole hand over goes back in one step."
+    }
+   ],
+   "result": "The bar closes and a message says what was handed over. Any item that could not take the change is left out and named in that message. The items now show their new owner, and **Undo** puts them back with their old owner.",
+   "next": [
+    "howto-undo-a-mistake",
+    "ref-work-items",
+    "howto-add-a-work-item"
+   ]
+  },
+  {
+   "id": "save-a-view",
+   "t": "Save a view",
+   "job": "Keep a set of filters on Work items under a name, so you can come back to it with one press.",
+   "steps": [
+    {
+     "d": "Open **Work items**, in View or in Edit. Above the table are the saved views as tabs, and under them the filter line. Click the filter line and type a word or pick a field from the list, then press Enter. Each filter becomes a chip, and the table shows only the items that match. Press the x on a chip to take that filter off."
+    },
+    {
+     "d": "When the table shows what you want, press **+ New view**, at the end of the tabs."
+    },
+    {
+     "d": "A box opens with the label **Name for the new view**. Type a name of up to 40 characters, then press **Save**. A name that is empty, too long or already used by another view is refused, and a line beside the box says why."
+    },
+    {
+     "d": "The new view appears as a tab, with the number of items it shows beside its name, and it is the open tab. The view is kept in your browser, for this project."
+    },
+    {
+     "d": "To come back to it later, press its tab. The filter line is set to what you saved. The tabs Open items, Actions, Risks and issues, Decisions and All work items are on every project."
+    },
+    {
+     "d": "If you change the filter line while a view is open, a small dot shows on its tab. Press the small arrow beside the open tab’s name and choose **Save changes** to keep the new filters under the same name, or **Save as a new view…** to keep them as another view. The five tabs that every project has cannot be changed this way, so use **Save as a new view…** for them."
+    },
+    {
+     "d": "To rename one of your own views, open it, press the small arrow beside its name and choose **Rename…**. Type the new name in the box labelled **New name for this view** and press **Save**."
+    },
+    {
+     "d": "To remove a view you no longer want, open it, press the small arrow and choose **Archive**. It leaves the tabs but is kept. To get it back, press the small arrow beside an open tab and choose **Bring back** followed by its name."
+    }
+   ],
+   "result": "Your view is a tab on Work items with its item count. Pressing it sets the filter line to your saved filters, and a dot on the tab tells you when the line has changes you have not saved.",
+   "next": [
+    "ref-work-items",
+    "howto-add-a-work-item",
+    "howto-undo-a-mistake"
+   ]
+  },
+  {
+   "id": "see-the-dashboard-as-at-a-day",
+   "t": "See the Dashboard as it stood on a past day",
+   "job": "Look at the Dashboard as it stood at the end of a past day, read only, and come back to this week.",
+   "steps": [
+    {
+     "d": "Open the **Dashboard**. Beside **Week ending** on the report bar there is a drop-down that reads **Published weeks**. It is there in View and in Edit, and only once the project has a publication."
+    },
+    {
+     "d": "To look at a week you published, pick it from the list. Each line reads like 28-10-2026 · Publication 3, newest first. A page that was kept opens in a new browser tab exactly as it was published."
+    },
+    {
+     "d": "A line that ends in rebuilt has no kept page. Picking it shows the Dashboard as it stood on the day that publication was made, rebuilt from the change history, in this same tab."
+    },
+    {
+     "d": "To choose any other day, pick **Dashboard as at a day…** at the foot of the list. Settings opens at **Published reports**, and the day box in the **Dashboard as at a day** card is ready for you."
+    },
+    {
+     "d": "Type the day as DD-MM-YYYY, for example 21-10-2026, and press **Show**. A day that has not happened yet, or from before the project existed, is turned away with a line saying so. Pick another day."
+    },
+    {
+     "d": "The Dashboard now shows the project as it stood at the end of that day. A banner at the top reads “You are looking at the dashboard as at” and the day, and under it “Read only · this was not published in this form”. Due dates and overdue marks are worked out as at that day."
+    },
+    {
+     "d": "The report on this page cannot be changed, and there is no Edit, no Publish and no Help while you look. Look as long as you like: nothing is saved."
+    },
+    {
+     "d": "Press **Back to now** in the banner. You are back on this week’s Dashboard, read fresh from clark."
+    }
+   ],
+   "result": "You have seen the Dashboard as it stood at the end of a past day, and nothing in the project has changed. You are back on this week’s Dashboard.",
+   "next": [
+    "howto-find-a-past-publication",
+    "ref-published-reports",
+    "howto-publish-the-report"
+   ]
+  },
+  {
+   "id": "back-up-and-restore-your-data",
+   "t": "Back up and restore your data",
+   "job": "See the copies clark keeps of your data, look inside one, and put one back if you need to.",
+   "steps": [
+    {
+     "d": "Press your profile circle and choose **Settings**, then find the **Backups** card. It says that a copy of your data is kept each day, and before an undo or an import."
+    },
+    {
+     "d": "Read the line under the title. It gives the date and time of the latest backup, or says there are no backups yet: the first one is made when you save your first change of the day. If the latest copy is damaged, the line says so."
+    },
+    {
+     "d": "Read the list, newest first. Each row shows the date and time, the kind (Daily, Before an undo, Before an import, Before a change, Before a restore or Before an update) and the size. Under the list, a line says how many backups are kept of each kind; the oldest are removed after that."
+    },
+    {
+     "d": "To look inside a copy, press **Preview** on its row. A box says when the backup is from and how many projects, work items and milestones it holds, then how many you have now. Nothing is changed by looking."
+    },
+    {
+     "d": "If the box says the backup is of a different database, it cannot be put back over yours and there is no **Restore** button. Press **Close** to leave it."
+    },
+    {
+     "d": "To put a copy back, press **Restore** on its row, or on the preview box. The box asks, for example, “Put back the backup from 04-11-2026 09:30? What you have now is kept first.” Your current data is replaced by the copy, so everything you saved after that copy was made is no longer in your pages. clark keeps a copy of what you have now before it swaps, and it shows in the list as Before a restore."
+    },
+    {
+     "d": "Press **Put it back** to go ahead, or **Cancel** to stop with nothing changed. If your data changed after you pressed **Preview**, clark refuses and asks you to look at the backup again."
+    },
+    {
+     "d": "The page reloads and one line says that the backup was restored and that your data from before is kept in case you need it. There is no Undo button for a restore: to go back, look in the list for the Before a restore copy and put that one back."
+    }
+   ],
+   "result": "Your pages show the data from the copy you chose, a line confirms the restore, and a Before a restore copy of the data you had is in the list.",
+   "next": [
+    "howto-undo-a-mistake",
+    "ref-profile-circle"
+   ]
   }
  ],
  "pictures": []

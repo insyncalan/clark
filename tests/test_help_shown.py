@@ -230,6 +230,9 @@ COMPUTED = {
     "DPP-report-2026-10-30.html": "a worked example of the file name Publish builds from the project's code and the week ending (its form is checked by test_help_content.PublishFileName)",
     "this week\u2019s actions": "an example of what a card might be called, not a label",
     "decisions needed": "an example of what a card might be called, not a label",
+    "3 of 12 selected": "the Hand over bar's count, built from the numbers (logic/handOver.js)",
+    "Hand over 30 items to Sam Rivers?": "the Hand over question, built from the count and the name (logic/handOver.js)",
+    "Put back the backup from 04-11-2026 09:30? What you have now is kept first": "the Restore question, built from the backup's date and time (a worked example)",
 }
 
 
