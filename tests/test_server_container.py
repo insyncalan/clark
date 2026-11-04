@@ -217,5 +217,20 @@ class GatewayRead(unittest.TestCase):
             self.assertIsNone(sv.container_gateway())
 
 
+class Ipv4OnlyListener(unittest.TestCase):
+    """#462 (1): the peer check is IPv4 only on purpose. The listener is an IPv4 socket, so no request has an IPv6 peer; if that
+    ever changes, these fail and the change must add the IPv6 gateway (/proc/net/ipv6_route) with its own tests."""
+
+    def test_the_listener_is_ipv4_only(self):
+        import socket
+        self.assertEqual(sv.LocalServer.address_family, socket.AF_INET)
+
+    def test_an_ipv6_peer_is_refused_in_a_container(self):
+        with mock.patch.object(sv, "container_mode", lambda: True), mock.patch.object(sv, "container_gateway", lambda: "172.18.0.1"):
+            for peer in ("fe80::1", "fd00::1", "2001:db8::1", "::ffff:172.18.0.2"):
+                self.assertFalse(sv.local_peer(peer), peer)
+            self.assertTrue(sv.local_peer("172.18.0.1"))
+
+
 if __name__ == "__main__":
     unittest.main()

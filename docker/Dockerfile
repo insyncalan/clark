@@ -1,4 +1,4 @@
-# clark in a container (#427). Build from the top folder of the download (or of this repository):
+# clark in a container (#427). Build from the top folder of the download (the repository has no built pages, so build from the download):
 #   docker compose -f docker/compose.yaml build
 # Only clark's own files go in (the same list as the download, docker/Dockerfile.dockerignore): no tests, no tools, no data.
 # The base image is pinned by its digest (python:3.12.12-slim-bookworm); changing it is a reviewed change, never an automatic one.

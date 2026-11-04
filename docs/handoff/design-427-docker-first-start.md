@@ -67,7 +67,7 @@ A container is Linux, and `platform.py` refused every system but the Mac: a run 
 
 ### What the container mode loses, plainly
 
-1. **The OneDrive refusal does not protect the shared data folder inside the container.** On the Mac clark refuses to keep its database in OneDrive (a synced folder can corrupt it). In the container there is no OneDrive app to find, so the check has nothing to compare with, and a data folder shared in from a OneDrive folder is **accepted**. The Mac-side starter (`clark-docker.command`, the follow-up) must check the folder before it starts the container and refuse a OneDrive path, using the same rule as the terminal route. Until it exists, the compose file's default folder (the terminal route's own, outside OneDrive) is the only protection, and a person who sets `CLARK_DATA` into OneDrive is not stopped.
+1. **Inside the container the OneDrive check cannot see the disk.** There is no OneDrive app to find, so `onedrive_roots()` is empty. The compose file therefore passes the Mac's folder by name (`CLARK_DATA_SOURCE`, the same setting as the volume), and `platform.container_host_in_onedrive` refuses a name with an OneDrive part before clark does anything. It is a name check only (see the decisions below).
 2. The same empty list means Word import/export, Ask folders and publish also do not warn about a OneDrive place the person types.
 3. No daily log, and no folder, Save or Open windows (see the table).
 4. Outside a container nothing is gained: Linux still stops with "not built yet".
@@ -135,5 +135,17 @@ Way 2: without Docker
 ## Scope of this pull request (stated plainly, so the done-when is not read as met)
 
 - **In:** the container setting, the 0.0.0.0 bind inside a container only, the peer rule on the API and on GET, the compose file (loopback port, non-root, read-only, no capabilities), and their tests.
-- **Not in, and still to do before the item is done:** the Mac-side starter and its test (it is where the OneDrive refusal for a shared data folder lives; inside the container that refusal does not run, so a data folder shared from OneDrive would be accepted until the starter checks it); one recorded real run on Docker Desktop to see which peer address it presents (if it is the VM's address the request is refused, which fails safe); a warning line when the bind is 0.0.0.0 under `--network host`.
+- **Not in, and still to do before the item is done:** the Mac-side starter and its test; one recorded real run on Docker Desktop to see which peer address it presents (if it is the VM's address the request is refused, which fails safe); a warning line when the bind is 0.0.0.0 under `--network host`.
 - container_mode() is written twice (server.py cannot import platform.py by design). tests/test_server_container.py and tests/test_platform_container.py cover both; keep them the same.
+
+## Decisions on the three LOWs of #462 (recorded, not changed)
+
+1. **The peer check is IPv4 only: left, with a test.** The server's socket is `AF_INET` (an IPv4 listener, bound to 0.0.0.0 in the container), so a request can never arrive with an IPv6 peer address; there is nothing for an IPv6 gateway to match. Reading `/proc/net/ipv6_route` would add dead code to a guarded file. If the listener ever becomes IPv6, a test in `tests/test_server_container.py` fails (it pins `address_family` and that an IPv6 address is refused), and that change must add the IPv6 gateway with its own tests. The IPv4 route table remains the only source; if it cannot be read the gateway is refused (fails closed).
+2. **`CLARK_DATA` can point anywhere: left.** The data folder is the person's own choice, as on the terminal route (`--data`). The folder is shared into the container as `/data` and nothing else of the Mac is visible; the only refusal is the OneDrive one, which already applies. The issue does not ask for a restriction, and a restriction would be a new visible sentence (the owner's call).
+3. **`CLARK_UID` / `CLARK_GID` run the container as the host user: left.** It is an opt-in the compose file's own comment offers when the shared folder is not writable as 10001; `cap_drop: ALL`, `no-new-privileges` and the read-only image still apply, and the person is only given their own files. Not changed.
+
+## Decisions on the earlier notes (PR 252)
+
+- Stale OneDrive note: corrected above.
+- Name-only OneDrive check: left as a name check. It can refuse a harmless folder named like OneDrive (fails safe) and cannot see a link with another name that points into OneDrive; the docstring now says so. A real-path check is impossible from inside the container, and the Mac-side starter is the place to resolve links.
+- Dockerfile comment: now says to build from the download.
