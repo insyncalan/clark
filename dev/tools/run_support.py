@@ -59,7 +59,7 @@ def box_slots(path=SLOTS_FILE):
         text = Path(path).read_text(encoding="utf-8").strip()
     except (OSError, UnicodeDecodeError):
         return 0
-    return int(text) if text.isdigit() else 0
+    return int(text) if text.isascii() and text.isdigit() else 0
 
 
 def take_slot(runs, jobs, slots=None, folder=SLOT_DIR, environ=None, max_wait=SLOT_MAX_WAIT, pause=3.0, clock=time.monotonic, say=print):

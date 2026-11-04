@@ -605,7 +605,7 @@ class SuiteSlots(unittest.TestCase):
 
     def test_the_file_says_the_limit_and_rubbish_is_no_limit(self):
         path = Path(self.d.name) / "slots"
-        for text, want in (("2\n", 2), ("x", 0), ("", 0)):
+        for text, want in (("2\n", 2), ("x", 0), ("", 0), ("\u00b2", 0)):       # a superscript counts as a digit to isdigit, and int() refuses it
             path.write_text(text, encoding="utf-8")
             self.assertEqual(run_tests.support.box_slots(path), want)
         self.assertEqual(run_tests.support.box_slots(Path(self.d.name) / "none"), 0)
