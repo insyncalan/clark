@@ -12,14 +12,13 @@ import unittest
 from pathlib import Path
 
 from _paths import SRC
+from _new_page import reload_to_new_page_cdp
 from test_page import navigate
 from test_publish_route import Rig, WANTED
 from test_server import chrome, wait
 import _testpage as testpage
 
-from unittest import mock
-
-from clark import page, pdf, publish_pdf, to_client
+from clark import page, to_client
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 NO_FOLDER = "No client folder yet. Set it in Settings, Publishing."
@@ -94,20 +93,20 @@ class Dialog(Base):
                 self.assertEqual(p.js("document.querySelector('#pub-to-set')"), None, "with a folder set there is nothing to set, so no link")
                 self.assertIn("Publish locally", text)
                 self.assertNotIn("The client will see this page.", text)
-                self.assertNotIn("Word", text, "no Word tick in v0.2")
+                self.assertIn("Also a Word document", text, "the Word tick (#48)")
+                self.assertEqual(p.js("[document.querySelector('#pub-word').checked, document.querySelector('#pub-word').disabled]"), [False, False], "Also a Word document is unticked, and can be ticked")
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('#publish-dialog')", "the dialog closed")
 
     def test_C_pdf_tick_is_there_unticked_and_never_remembered(self):
-        with mock.patch.object(pdf, "find_chrome", return_value="/chrome"), chrome() as cdp:
+        with chrome() as cdp:
             p = self.page(cdp)
             for w in WIDTHS:
                 p.width(w)
                 p.open_publish()
                 self.assertEqual(p.js("[document.querySelector('#pub-pdf').checked, document.querySelector('#pub-pdf').disabled]"),
-                                 [False, False], "PDF is unticked and can be ticked: Chrome is here")
-                self.assertEqual(p.js("document.querySelector('#pub-pdf').closest('label').querySelector('b').innerText"), "Also a PDF",
-                                 "#453: the tick reads as the prototype's does")
+                                 [False, False], "PDF is unticked and can be ticked: it needs nothing but the browser")
+                self.assertEqual(p.js("document.querySelector('#pub-pdf').closest('label').querySelector('b').innerText"), "Also a PDF", "#453: the tick reads as the prototype's does")
                 p.js("document.querySelector('#pub-pdf').click()")
                 p.until("document.querySelector('#pub-pdf').checked", "ticked")
                 p.js("document.querySelector('[data-cancel]').click()")
@@ -116,28 +115,30 @@ class Dialog(Base):
             self.assertFalse(p.js("document.querySelector('#pub-pdf').checked"), "reopened: unticked")
             self.assertEqual(p.js("localStorage.length + sessionStorage.length"), 0)
 
-    def test_C_pdf_tick_is_greyed_with_one_line_without_chrome(self):
-        with mock.patch.object(pdf, "find_chrome", return_value=None), chrome() as cdp:
+    def test_C_pdf_tick_has_no_chrome_wording_and_is_never_greyed(self):
+        with chrome() as cdp:
             p = self.page(cdp)
             for w in WIDTHS:
                 p.width(w)
                 p.open_publish()
-                self.assertEqual(p.js("document.querySelector('#pub-pdf').disabled"), True)
+                self.assertFalse(p.js("document.querySelector('#pub-pdf').closest('label').classList.contains('off')"))
+                self.assertNotIn("Chrome", p.dialog_text())
                 self.assertEqual(p.js("document.querySelector('#pub-pdf').closest('label').innerText.replace(/\\s+/g, ' ')"),
-                                 "Also a PDF " + publish_pdf.NO_CHROME_LINE)
+                                 "Also a PDF The page as it prints: the tabs one after another, no controls, with the publication number in the foot")
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('#publish-dialog')", "closed")
 
-    def test_C_pdf_words_follow_the_ticks(self):
-        with mock.patch.object(pdf, "find_chrome", return_value="/chrome"), chrome() as cdp:
+    def test_C_pdf_words_follow_the_ticks_and_the_client_line_never_names_the_pdf(self):
+        with chrome() as cdp:
             p = self.page(cdp)
             p.open_publish()
-            self.assertIn("A PDF of the report, saved next to the report file. With To client ticked, it is copied to the client folder too.", p.dialog_text())
+            self.assertEqual(p.js("!!document.querySelector('#pub-pdf-note')"), False, "no note until the PDF is ticked")
             p.js("document.querySelector('#pub-client').click()")
             p.until("!!document.querySelector('#pub-warn')", "the line about the client")
-            self.assertEqual(p.js("document.querySelector('#pub-warn').innerText"), to_client.MESSAGES["client_sees"])
             p.js("document.querySelector('#pub-pdf').click()")
-            p.until("document.querySelector('#pub-warn').innerText === 'The client will see this page and the PDF. Only what is shown in View mode is included.'", "the line names the PDF")
+            p.until("!!document.querySelector('#pub-pdf-note')", "the note about the print box")
+            self.assertEqual(p.js("document.querySelector('#pub-warn').innerText"), to_client.MESSAGES["client_sees"])
+            self.assertIn("untick Headers and footers", p.js("document.querySelector('#pub-pdf-note').innerText"))
 
     def test_C_tick_changes_button_and_line(self):
         with chrome() as cdp:
@@ -158,7 +159,9 @@ class Dialog(Base):
             p.key(" ", code="Space", vk=32)
             p.until("document.querySelector('#pub-client').checked", "Space ticks it")
             p.key("Tab", code="Tab", vk=9)
-            self.assertEqual(p.js("document.activeElement.id"), "pub-pdf", "Tab goes to the PDF tick (Chrome is here), then Cancel")
+            self.assertEqual(p.js("document.activeElement.id"), "pub-pdf", "Tab goes to the PDF tick, then the Word tick")
+            p.key("Tab", code="Tab", vk=9)
+            self.assertEqual(p.js("document.activeElement.id"), "pub-word", "Tab goes to the Word tick, then Cancel")
             p.key("Tab", code="Tab", vk=9)
             self.assertEqual(p.js("document.activeElement.hasAttribute('data-cancel')"), True, "then to the button")
             p.key("Tab", code="Tab", vk=9)
@@ -516,6 +519,69 @@ class Settings(Base):
             p.width(900, 700)
             p.until("!!document.querySelector('[data-choose-folder]')", "the field")
             self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"))
+
+
+PLACEHOLDER_ONE = "1 work item still has a placeholder title ({t}) and will be shown to the client. Rename it or turn off its eye first."
+PLACEHOLDER_MANY = ("{n} work items still have a placeholder title (such as {t}) and will be shown to the client. "
+                    "Rename them or turn off their eye first.")
+
+
+class Placeholder(Base):
+    """Item 449: every work item is client-visible by default (D-3), so the dialog warns while one the client would see still has
+    the title Add gave it. A warning, not a block: Publish still works."""
+
+    def change(self, body):
+        status, reply = self.rig.call("POST", "/api/change", {"project": "PUB", "place": "menu", **body})
+        self.assertEqual(status, 200, reply)
+        return reply
+
+    def page(self, cdp, hash_="#dashboard&p=PUB"):
+        p = super().page(cdp, hash_)
+        # the same address again is only a hash change: load the data afresh
+        reload_to_new_page_cdp(cdp, p.sid, "!!document.querySelector('#profile-btn')", "the page loaded again")
+        return p
+
+    def add(self, table, values):
+        return str(self.change({"kind": table, "op": "new", "values": values})["ref"])
+
+    def warning(self, p, w, scheme):
+        p.width(w)
+        self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, p.sid)
+        p.open_publish()
+        found = p.js("(function(){var e=document.querySelector('#pub-placeholder');return e ? [e.innerText, e.dataset.count] : null})()")
+        self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"))
+        p.js("document.querySelector('[data-cancel]').click()")
+        p.until("!document.querySelector('#publish-dialog')", "the dialog closed")
+        return found
+
+    def each(self, cdp, expected):
+        for w in WIDTHS:
+            for scheme in ("light", "dark"):
+                with self.subTest(width=w, scheme=scheme):
+                    p = self.page(cdp)
+                    self.assertEqual(self.warning(p, w, scheme), expected)
+
+    def test_the_warning_counts_placeholder_items_the_client_would_see_and_goes_when_renamed_or_hidden(self):
+        with chrome() as cdp:
+            self.cdp = cdp
+            self.each(cdp, None)                                                           # the plant has none
+            a = self.add("actions", {"description": "New action"})
+            r = self.add("raid", {"type": "Risk", "description": "New risk"})
+            self.add("raid", {"type": "Issue", "description": "New risk"})                # an issue called New risk is a real title
+            self.each(cdp, [PLACEHOLDER_MANY.format(n=2, t="New action"), "2"])
+            self.change({"kind": "actions", "op": "update", "id": a, "changes": {"description": "Order the steel"}})
+            self.each(cdp, [PLACEHOLDER_ONE.format(t="New risk"), "1"])
+            self.change({"kind": "raid", "op": "update", "id": r, "changes": {"client_visible": 0}})
+            self.each(cdp, None)
+            # the warning never blocks Publish
+            self.change({"kind": "raid", "op": "update", "id": r, "changes": {"client_visible": 1}})
+            p = self.page(cdp)
+            p.open_publish()
+            self.assertEqual(p.js("document.querySelector('#pub-placeholder').innerText"), PLACEHOLDER_ONE.format(t="New risk"))
+            self.assertFalse(p.js("document.querySelector('[data-go]').disabled"))
+            p.go()
+            p.until("document.querySelector('[data-go]').classList.contains('ok')", "published with the warning shown")
+            self.assertEqual(len(self.rig.rows()), 1)
 
 
 class Published(unittest.TestCase):

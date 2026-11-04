@@ -40,6 +40,65 @@ MAC_CHROME_PATHS = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrom
 
 
 # ---------- finding Chrome ----------
+# A shared box says how many full runs may go at once in SLOTS_FILE, and a run then waits its turn: without this, one box reached a load of 184 on
+# 16 processors on 04-11-2026, and browser tests fail on timing at that load. A computer without the file (a laptop, a CI runner) is not touched.
+# A slot is an operating-system lock, the same files clark-one-suite takes, so it goes when the process ends, however it ends, and nothing already
+# running is ever stopped. A waiting run prints that it is waiting. After SLOT_MAX_WAIT it starts anyway: a stuck run can slow the others, never stop them.
+SLOTS_FILE = "/etc/clark/suite-slots"
+SLOT_DIR = "/run/clark"
+SLOT_HELD = "CLARK_SUITE_HELD"                  # set by clark-one-suite, which has already taken a slot for this run
+SMALL_RUN = 3                                   # this many test files, repeats counted, need no slot: one file while working goes straight through
+BOX_JOBS = 4                                    # at most this many files at once on such a box, so two runs fill 16 processors and no more
+SLOT_MAX_WAIT = 1800.0
+SLOT_SAY_EVERY = 60.0
+
+
+def box_slots(path=SLOTS_FILE):
+    """How many full runs this box allows at once, or 0 when it sets no limit."""
+    try:
+        text = Path(path).read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeDecodeError):
+        return 0
+    return int(text) if text.isascii() and text.isdigit() else 0
+
+
+def take_slot(runs, jobs, slots=None, folder=SLOT_DIR, environ=None, max_wait=SLOT_MAX_WAIT, pause=3.0, clock=time.monotonic, say=print):
+    """(the open lock to keep until the run ends, or None; the number of files to run at once). Waits for a slot when this box has a limit and the run
+    isn't small. Never raises: a limit that can't be used is no limit, because a test run must not fail for it."""
+    slots = box_slots() if slots is None else slots
+    environ = os.environ if environ is None else environ
+    if not slots:
+        return None, jobs
+    jobs = min(jobs, BOX_JOBS)
+    if runs <= SMALL_RUN or environ.get(SLOT_HELD):
+        return None, jobs
+    try:
+        import fcntl
+        Path(folder).mkdir(parents=True, exist_ok=True)
+    except (ImportError, OSError):
+        return None, jobs
+    start, told = clock(), None
+    while True:
+        for n in range(1, slots + 1):
+            try:
+                fd = os.open(str(Path(folder) / f"suite-{n}.lock"), os.O_RDWR | os.O_CREAT, 0o666)
+            except OSError:
+                return None, jobs
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return fd, jobs
+            except OSError:
+                os.close(fd)
+        waited = clock() - start
+        if waited >= max_wait:
+            say(f"Waited {waited / 60:.0f} minutes for a slot on this box: starting anyway.", flush=True)
+            return None, jobs
+        if told is None or clock() - told >= SLOT_SAY_EVERY:
+            say(f"All {slots} test slots on this box are busy: waiting {waited / 60:.0f} minutes so far. Nothing is wrong; this run starts when one is free.", flush=True)
+            told = clock()
+        time.sleep(pause)
+
+
 def chrome_path():
     """The one way the tests find a browser (creaite `cdp.chrome_path`): CLARK_CHROME, then google-chrome / chromium /
     chromium-browser on the PATH (Linux, the CI runner), then the macOS app paths. None if there isn't one; a browser

@@ -87,12 +87,16 @@ def set_backups_kept(data_dir, number):
 # Kept in the same file as the backups number: this person's, on this computer. Both are optional. The name is shown at the top of the
 # profile menu and is the name on each change (by_user) instead of the login name; the email is only used to tell which addresses are
 # the person's own (the Draft email's own domain). clark never reads either from the computer, the browser or the Claude sign-in, and
-# never sends mail.
+# never sends mail. The Alias (item 613) is what colleagues call the person, or their initials: plain text kept beside them, read and
+# checked as the name is.
 PROFILE_NAME = "profile_name"
 PROFILE_EMAIL = "profile_email"
-NAME_MAX, EMAIL_MAX = 60, 254
+PROFILE_ALIAS = "profile_alias"
+NAME_MAX, EMAIL_MAX, ALIAS_MAX = 60, 254, 60
 NAME_TOO_LONG = f"Your name is too long. Use {NAME_MAX} characters or fewer. Nothing was saved."
 NAME_BAD = "Your name has a character that can't be kept. Remove it and try again. Nothing was saved."
+ALIAS_TOO_LONG = f"Your Alias is too long. Use {ALIAS_MAX} characters or fewer. Nothing was saved."
+ALIAS_BAD = "Your Alias has a character that can't be kept. Remove it and try again. Nothing was saved."
 EMAIL_BAD = "That email address is not complete. Check it, or leave it empty. Nothing was saved."
 PROFILE_UNREADABLE = "Your settings couldn't be read, so your name and email were not changed. Nothing was saved."
 _UNSEEN = frozenset({"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"})
@@ -109,27 +113,35 @@ def _one_line(value):
 
 
 def profile(data_dir):
-    """{"name", "email"} as saved ("" for each that is not there, or is not a plain string within its limit): never an error, and
-    never anything but what was typed in Settings."""
+    """{"name", "email", "alias"} as saved ("" for each that is not there, or is not a plain string within its limit): never an error,
+    and never anything but what was typed in Settings."""
     got = read(data_dir)
-    name, email = _one_line(got.get(PROFILE_NAME)), _one_line(got.get(PROFILE_EMAIL))
+    name, email, alias = _one_line(got.get(PROFILE_NAME)), _one_line(got.get(PROFILE_EMAIL)), _one_line(got.get(PROFILE_ALIAS))
     return {"name": name if name is not None and len(name) <= NAME_MAX else "",
-            "email": email if email and len(email) <= EMAIL_MAX and _ADDRESS.fullmatch(email) else ""}
+            "email": email if email and len(email) <= EMAIL_MAX and _ADDRESS.fullmatch(email) else "",
+            "alias": alias if alias is not None and len(alias) <= ALIAS_MAX else ""}
 
 
 @_one_at_a_time
-def set_profile(data_dir, name, email):
-    """Save the name and the email (each may be empty), leaving every other setting as it is; returns what was saved. Raises ValueError
-    in plain words, ending "Nothing was saved.", for a name over 60 characters or with an unkeepable character, or an email that is
-    not shaped like an address, and then writes nothing. The file is replaced in one step (platform.write_file), and a file that can't
-    be read is never replaced."""
+def set_profile(data_dir, name, email, alias=None):
+    """Save the name, the email and the Alias (each may be empty; an Alias of None keeps the one saved), leaving every other setting as
+    it is; returns what was saved. Raises ValueError in plain words, ending "Nothing was saved.", for a name or an Alias over 60
+    characters or with an unkeepable character, or an email that is not shaped like an address, and then writes nothing. The file is
+    replaced in one step (platform.write_file), and a file that can't be read is never replaced."""
     if name is not None and not isinstance(name, str) or email is not None and not isinstance(email, str):
         raise ValueError(NAME_BAD)
+    if alias is not None and not isinstance(alias, str):
+        raise ValueError(ALIAS_BAD)
     clean_name, clean_email = _one_line(name or ""), _one_line(email or "")
     if clean_name is None:
         raise ValueError(NAME_BAD)
     if len(clean_name) > NAME_MAX:
         raise ValueError(NAME_TOO_LONG)
+    clean_alias = None if alias is None else _one_line(alias)
+    if alias is not None and clean_alias is None:
+        raise ValueError(ALIAS_BAD)
+    if clean_alias is not None and len(clean_alias) > ALIAS_MAX:
+        raise ValueError(ALIAS_TOO_LONG)
     if clean_email is None or clean_email and (len(clean_email) > EMAIL_MAX or not _ADDRESS.fullmatch(clean_email)):
         raise ValueError(EMAIL_BAD)
     data_dir = Path(data_dir)
@@ -143,9 +155,13 @@ def set_profile(data_dir, name, email):
             readable = False
         if not readable:
             raise ValueError(PROFILE_UNREADABLE)
+    if clean_alias is None:                          # no Alias sent: the one saved stays as it is
+        clean_alias = profile(data_dir)["alias"]
+    else:
+        current[PROFILE_ALIAS] = clean_alias
     current[PROFILE_NAME], current[PROFILE_EMAIL] = clean_name, clean_email
     platform.write_file(path, json.dumps(current, indent=2, sort_keys=True) + "\n")
-    return {"name": clean_name, "email": clean_email}
+    return {"name": clean_name, "email": clean_email, "alias": clean_alias}
 
 
 # ===== Copy my backups to (#622, Settings › Backups) =====

@@ -8,10 +8,12 @@
   and whether it was a Word copy: no path and no SHA-256 leaves. Every publication is kept (#348); only the list is cut to 10.
 - visit(code, number): GET /api/past-report?project=&number=. The publication's kept copy (published_copies.read) is checked
   against the SHA-256 its row holds, and kept in memory for one visit to the address in `url` (a new tab cannot send the token, so
-  the address is the one-visit secret, as the Preview's is). The request names a code and a number and nothing else: the copy's
+  the address is the one-visit secret, as the Preview's is). #343: what the address gives is the very bytes that were published with
+  one block added after <body> for that visit (past_banner.py): the banner 'Publication N · DD-MM-YYYY · read only', a tinted frame
+  and 'Back to now'; the copy on disk is not touched. The request names a code and a number and nothing else: the copy's
   file name is made from those two by published_copies.file_name, so no path from a request reaches the disk.
-- take(id): GET /past?id=. The kept bytes for an address from visit(), once; None when it is unknown, used or too old. They are
-  the very bytes that were published, so the page the client was given is shown, with nothing from Edit.
+- take(id): GET /past?id=. The page for an address from visit(), once; None when it is unknown, used or too old. It is the page the
+  client was given with the banner block added (past_banner.unframe gives the published bytes back), with nothing from Edit.
 
 Reads clark.db on a read-only connection and writes nothing but the one-visit entry in memory. Standard library only, Python 3.9."""
 import re
@@ -20,7 +22,7 @@ import secrets
 import time
 from pathlib import Path
 
-from clark import history, published_copies, timefmt
+from clark import history, past_banner, published_copies, timefmt
 from clark.store import connect
 
 SHOWN = 10                       # the list shows the newest ten; every publication is kept
@@ -65,7 +67,9 @@ class PastReports:
     def _con(self):
         return connect(self.db_path, readonly=True)
 
-    def listing(self, code):
+    def listing(self, code, archived=False):
+        """`archived` (#345, Show archived): the archived ones are listed with the rest, each marked `archived`, and counted in the
+        total; otherwise they are left out as before."""
         if not isinstance(code, str) or not published_copies.PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
         try:
@@ -79,7 +83,8 @@ class PastReports:
                 con.close()
         except Exception:
             return 500, self.fail("db_unreadable")
-        listed = [r for r in rows if not published_copies.is_archived(self.data_dir, code, r["number"])]   # #342: archived ones are hidden
+        gone = {r["number"] for r in rows if published_copies.is_archived(self.data_dir, code, r["number"])}
+        listed = rows if archived else [r for r in rows if r["number"] not in gone]       # #342: archived ones are hidden; #345: unless asked for
         total, out = len(listed), []
         for r in listed[:SHOWN]:
             word = bool(r["word"])
@@ -88,8 +93,8 @@ class PastReports:
                         "who": (r["by_user"] or "").strip() or NOT_RECORDED, "word": word,
                         "kept": not word and published_copies.is_kept(self.data_dir, code, r["number"]),
                         "week": r["week_ending"] if isinstance(r["week_ending"], str) and DAY.fullmatch(r["week_ending"]) else None,
-                        "day": local_day(r["at"])})
-        return 200, {"ok": True, "project": code, "total": total, "shown": len(out), "limit": SHOWN, "archived": len(rows) - total,
+                        "day": local_day(r["at"]), "archived": r["number"] in gone})
+        return 200, {"ok": True, "project": code, "total": total, "shown": len(out), "limit": SHOWN, "archived": sum(1 for r in rows if r["number"] in gone),
                      "publications": out}
 
     def visit(self, code, number):
@@ -102,7 +107,7 @@ class PastReports:
             try:
                 if con.execute("SELECT 1 FROM projects WHERE code = ?", (code,)).fetchone() is None:
                     return 404, self.fail("project_not_found")
-                row = con.execute("SELECT file_sha256, word FROM publications WHERE project = ? AND number = ? ORDER BY word LIMIT 1",
+                row = con.execute("SELECT file_sha256, word, at FROM publications WHERE project = ? AND number = ? ORDER BY word LIMIT 1",
                                   (code, number)).fetchone()
             finally:
                 con.close()
@@ -117,13 +122,16 @@ class PastReports:
             return 404, self.fail("not_kept", number=number)
         if state != published_copies.OK:
             return 409, self.fail("copy_changed", number=number)
+        shown = past_banner.frame(data, number, history.when_text(row["at"], None)[0][:10])      # #343: the banner, the tint, Back to now
+        if shown is None:                                      # the checksum matched, but this is not a page clark makes
+            return 409, self.fail("copy_changed", number=number)
         nonce, now = secrets.token_urlsafe(24), self.clock()
         with self.lock:
             for k in [k for k, v in self.visits.items() if now - v[1] > VISIT_SECONDS]:
                 del self.visits[k]
             while len(self.visits) >= VISIT_KEEP:
                 del self.visits[next(iter(self.visits))]
-            self.visits[nonce] = (data, now)
+            self.visits[nonce] = (shown, now)
         return 200, {"ok": True, "code": "past_ready", "message": MESSAGES["past_ready"].format(number=number),
                      "number": number, "url": "/past?id=" + nonce}
 

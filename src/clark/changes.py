@@ -62,9 +62,9 @@ CHANGE_KINDS = {
     # (an item is closed or cancelled by its status, and archived only by archiving). priority is not in raid's list because the
     # store works it out from impact and likelihood (D-12: the status picker's Rating sets those two); `archived` is in no list.
     # #67: a work item's title is the column the page shows as its title: an action's and a RAID item's `description`, a decision's `decision`.
-    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_visible")},   # the peek's Latest update (an action's only)
-    "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_visible")},
-    "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision", "client_visible")},   # #45: use_case links an existing use case of this project, or clears the link
+    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible")},   # the peek's Latest update (an action's only)
+    "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_message", "client_visible")},
+    "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision", "client_message", "client_visible")},   # #45: use_case links an existing use case of this project, or clears the link
     # #45: the At a glance tiles and the project's health. A tile is hidden, given an outline colour or moved (its place is worked
     # out here, never sent); the project's change takes no `id` (it is the request's project) and only its health and the reason.
     "glance_tiles": {UPDATE: ("hidden", "outline"), MOVE: ()},
@@ -104,9 +104,9 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
                            "client_message", "movement", "internal_note"),     # #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
             "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible"), "documents": ("archived",) + DOC_FIELDS, "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
-CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone", "client_visible", "latest_update", "use_case")      # #485: a next step added from a use case's row names it; #67: a row added in the report: no id,
-CHANGE_KINDS["raid"][NEW] = ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible")   # raised, status or source
-CHANGE_KINDS["decisions"][NEW] = ("decision", "made_by", "status", "date", "needed_by", "client_visible", "reasoning")      # (clark gives those), and no priority on a risk (worked out)
+CHANGE_KINDS["actions"][NEW] = ("description", "client_message", "client_visible", "owner", "priority", "due_date", "workstream", "milestone", "latest_update", "use_case")      # #485: a next step added from a use case's row names it; #67: a row added in the report: no id,
+CHANGE_KINDS["raid"][NEW] = ("type", "description", "client_message", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible")   # raised, status or source
+CHANGE_KINDS["decisions"][NEW] = ("decision", "client_message", "made_by", "status", "date", "needed_by", "client_visible", "reasoning")      # (clark gives those), and no priority on a risk (worked out)
 CHANGE_KINDS["milestones"][NEW] = ("name", "baseline_date", "owner", "workstream")
 # #196: one field change to several work items of one kind, in one step with one Undo (_do_bulk). A risk's impact and likelihood
 # are here (its priority is worked out from them); a decision takes only who makes it.
@@ -128,7 +128,7 @@ UC_HEADLINE_LIMIT = 300                              # its one-line headline
 ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision", "impact", "likelihood", "client_message")   # D-12: a rating is never cleared, as a new row
 CLEARED_BY_NEW = ("owner", "priority", "status", "description", "decision", "type", "name", "impact", "likelihood", "client_visible")   # sent as null on a new row: refused      # a work item field that has to have a value (the others may be cleared)
 EXPLAIN_FIELDS = ("latest_update", "reasoning")      # #458: the one explanation line a new action or decision may start with (Movement's buttons); never said back, never in ask clark's before and after
-TITLE_FIELDS = ("description", "decision")           # #67: a work item's title; never said back in a reply (the page keeps what it sent); a new milestone's name is held to the same
+TITLE_FIELDS = ("description", "decision", "client_message")           # #67: a work item's title, and the client wording the report rows edit in place; never said back in a reply (the page keeps what it sent); a new milestone's name is held to the same
 ITEM_SHOWN = {k: ("id",) + tuple(f for f in CHANGE_KINDS[k][UPDATE] if f not in TITLE_FIELDS) + (("closed",) if k != "decisions" else ())
               + (("priority",) if k == "raid" else ()) for k in ITEM_KINDS}   # what a reply says of a changed item: a risk's priority too,
                                                      # which the store works out from impact and likelihood (said back, never taken)
@@ -1967,6 +1967,8 @@ def _field_words(entry, name):
         return f"the {DOC_FIELD_NAMES[f]} of {name}"                # #74: never the old text or link itself
     if f in ("description", "decision") and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the title of {name} is back as it was"          # #67: never the old text itself
+    if f == "client_message" and ITEM_REF.fullmatch(str(entry.get("ref"))):
+        return f"the client wording of {name} is back as it was"      # the report rows edit it in place; never the old text itself
     if f in ITEM_FIELD_NAMES and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the {ITEM_FIELD_NAMES[f]} of {name} is back to {to}" if to else f"the {ITEM_FIELD_NAMES[f]} of {name} is cleared again"
     if f == "client_visible":                                       # #67: the picker's Add also showed the row to the client
@@ -2680,6 +2682,28 @@ def make_people_list(path, onedrive_roots=None, by_user=None):
     def people_list():
         return _call(path, onedrive_roots, by_user, _do_people_list, {})
     return people_list
+
+
+# ── Archive and Restore of one publication (#345, POST /api/publications/archive and /restore) ──
+# The server has checked the body is exactly a project code and a publication number. The store writes the one history line and the
+# archive mark (store.archive_publication, unarchive_publication); the reply carries no step, so the page offers no Undo. A publication
+# already in the state asked for is the 409; any other refusal is the store's own plain words as a 400.
+def _do_publication_mark(store, by_user, req, on):
+    code, number = req["project"], req["number"]
+    try:
+        (store.archive_publication if on else store.unarchive_publication)(code, number, by_user)
+    except Invalid as e:
+        if "already archived" in str(e) or "is not archived" in str(e):
+            raise Refused(str(e), 409, "already") from None
+        raise
+    return 200, {"ok": True, "code": "archived" if on else "restored", "project": code, "number": number}
+
+
+def make_publication_mark(path, onedrive_roots=None, by_user=None):
+    """The `publication_mark(action, req)` seam for POST /api/publications/archive and /restore, for the database at `path`."""
+    def publication_mark(action, req):
+        return _call(path, onedrive_roots, by_user, lambda store, who, r: _do_publication_mark(store, who, r, action == "archive"), req)
+    return publication_mark
 
 
 # ── ask clark's changes (#47e part 1) ─────────────────────────────────────────
