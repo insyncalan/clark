@@ -58,7 +58,10 @@ class EnsureBuilt(unittest.TestCase):
         self.addCleanup(__import__("shutil").rmtree, self.tmp, True)
         self.pages = (self.tmp / "page.html", self.tmp / "page-view.html")
         patches = [mock.patch.object(page, "PAGE", self.pages[0]), mock.patch.object(page, "VIEW_PAGE", self.pages[1]),
-                   mock.patch.object(page, "_checked", False), mock.patch.object(page, "SOURCES", self.tmp / "src")]
+                   mock.patch.object(page, "_checked", False), mock.patch.object(page, "SOURCES", self.tmp / "src"),
+                   mock.patch.object(page, "_failed", None), mock.patch.object(page, "_noted", set()),
+                   mock.patch.object(page, "CACHE", self.tmp / "cache"), mock.patch.object(page, "STAMP", self.tmp / "cache" / "pages.stamp"),
+                   mock.patch.object(page, "LOCK", self.tmp / "cache" / "pages.lock")]
         for p in patches:
             p.start()
             self.addCleanup(p.stop)
@@ -125,6 +128,58 @@ class EnsureBuilt(unittest.TestCase):
                 page.ensure_built()
         self.assertIn("esbuild could not be fetched", str(said.exception))
 
+    def _builder(self):
+        builder = self.tmp / "build_page.py"
+        builder.write_text("", encoding="utf-8")
+        return builder
+
+    def test_a_failed_build_with_old_pages_serves_them_and_does_not_loop(self):
+        for p in self.pages:
+            p.write_text("old", encoding="utf-8")
+        bad = subprocess.CompletedProcess([], 1, "", "boom\n")
+        stamps = iter(["a", "a", "a", "b"])
+        with mock.patch.object(page, "BUILDER", self._builder()), mock.patch.object(page, "source_stamp", side_effect=lambda: next(stamps)), \
+                mock.patch.object(clark_platform.subprocess, "run", return_value=bad) as run, mock.patch("sys.stderr") as err:
+            page.ensure_built()
+            page.ensure_built()
+            page.ensure_built()
+            self.assertEqual(run.call_count, 1)             # same stamp: no second run
+            self.assertEqual(self.pages[0].read_text(encoding="utf-8"), "old")
+            page.ensure_built()                              # the stamp changed: tried again
+            self.assertEqual(run.call_count, 2)
+        self.assertIn("boom", "".join(c.args[0] for c in err.write.call_args_list))
+
+    def test_a_failed_build_with_a_missing_page_raises_every_time_without_rerunning(self):
+        bad = subprocess.CompletedProcess([], 1, "", "boom\n")
+        with mock.patch.object(page, "BUILDER", self._builder()), mock.patch.object(page, "source_stamp", return_value="a"), \
+                mock.patch.object(clark_platform.subprocess, "run", return_value=bad) as run:
+            for _ in range(3):
+                with self.assertRaises(page.PageError) as said:
+                    page.ensure_built()
+                self.assertIn("boom", str(said.exception))
+            self.assertEqual(run.call_count, 1)
+
+    def test_an_unwritable_cache_falls_back_to_the_in_process_lock(self):
+        (self.tmp / "cache").write_text("a file, not a folder", encoding="utf-8")      # mkdir fails: OSError
+        ok = lambda *a, **k: (self.pages[0].write_text("b", encoding="utf-8"), self.pages[1].write_text("b", encoding="utf-8"), subprocess.CompletedProcess(a, 0, "", ""))[2]  # noqa: E731
+        with mock.patch.object(page, "BUILDER", self._builder()), mock.patch.object(page, "source_stamp", return_value="a"), \
+                mock.patch.object(clark_platform.subprocess, "run", side_effect=ok), mock.patch("sys.stderr") as err:
+            page.ensure_built()                     # built and served; neither the lock file nor the stamp could be written
+        self.assertEqual(self.pages[0].read_text(encoding="utf-8"), "b")
+        self.assertIn("this process only", "".join(c.args[0] for c in err.write.call_args_list))
+
+    def test_the_file_lock_gives_up_after_the_limit(self):
+        page.CACHE.mkdir(parents=True)
+        with open(page.LOCK, "a+b") as held:
+            page.fcntl.flock(held, page.fcntl.LOCK_EX)
+            with mock.patch.object(page, "LOCK_WAIT", 0.3):
+                with self.assertRaises(page.PageError) as said:
+                    with page._file_lock():
+                        pass
+        self.assertIn("Another clark is building the page", str(said.exception))
+        with page._file_lock():             # released: the lock is free again
+            pass
+
 
 CHILD = """
 import subprocess, sys, time
@@ -149,6 +204,20 @@ page.source_stamp = lambda: "same"
 with mock.patch.object(clark_platform.subprocess, "run", side_effect=fake):
     page.ensure_built()
 """
+
+
+@unittest.skipIf(page.fcntl is None, "no fcntl")
+class EsbuildFetch(unittest.TestCase):
+    def test_a_timeout_is_a_plain_message(self):
+        import socket
+        import urllib.error
+        import esbuild
+        for err in (socket.timeout("timed out"), urllib.error.URLError(socket.timeout("timed out"))):
+            with mock.patch.object(esbuild.urllib.request, "urlopen", side_effect=err) as op:
+                with self.assertRaises(esbuild.EsbuildError) as said:
+                    esbuild.fetch("https://example.invalid/x.tgz")
+            self.assertIn("timed out", str(said.exception))
+            self.assertEqual(op.call_args.kwargs["timeout"], esbuild.FETCH_TIMEOUT)
 
 
 @unittest.skipIf(page.fcntl is None, "no fcntl")

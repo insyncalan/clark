@@ -124,7 +124,7 @@ function Row({ row, today, Cell, Eye, stop, pos, size }) {
       <td class="c-owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td>
       <td class="c-due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td>
       <td class="c-prio">{cell("priority", row.priority || "none", row.priority || <span class="muted">{"—"}</span>)}</td>
-      <td class="c-status">{cell("status", row.status, <span class={`pill ${pill.class}`}>{pill.text}</span>)}</td>
+      <td class="c-status">{cell("status", pill.text, <span class={`pill ${pill.class}`}>{pill.text}</span>)}</td>
       {Eye ? <td class="c-eye"><Eye row={row} /></td> : null}
     </tr>
   );
@@ -312,6 +312,7 @@ export function WorkItems({ tools }) {
                   <List Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />
                 </>}
           </>}
+      {tools && tools.ArchivedItems && !fromFile.value ? <tools.ArchivedItems /> : null}   {/* B-5: Edit parts only; a published file carries no archived row */}
     </section>
   );
 }

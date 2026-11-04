@@ -22,7 +22,7 @@ export const LOADING = "Looking for your backups.";
 export const NONE_SHOWN = "There are no backups to show yet.";
 export const TITLE = "Backups";
 export const INTRO = "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.";
-export const LABELS = { preview: "Preview", restore: "Restore", putBack: "Put it back", cancel: "Cancel", close: "Close", tryAgain: "Try again" };
+export const LABELS = { preview: "Preview", restore: "Restore", putBack: "Put it back", cancel: "Cancel", close: "Close", tryAgain: "Try again", save: "Save" };
 
 // {status, body} → one sentence. Status 0 is no answer; 403 is a page from before clark was restarted.
 export function answerWords(status, body) {
