@@ -2288,6 +2288,110 @@
    ]
   ]
  },
+ "context": [
+  {
+   "page": "dashboard",
+   "title": "The Dashboard",
+   "s": [
+    "This is the weekly report, laid out as the client reads it.",
+    "**At a glance** shows the project health and the count tiles; press a count to open Work items filtered to it.",
+    "The sections under it are the report’s text and lists, one after another.",
+    "Press **Edit** to change the report, and choose **Publish** in your profile circle’s menu when it is ready."
+   ],
+   "full": "ref-sections"
+  },
+  {
+   "page": "dashboard+edit",
+   "title": "The Dashboard in Edit",
+   "s": [
+    "In Edit you change the report itself: its text, its tiles and its sections.",
+    "Add a section from the **Add a section** box, and rename any heading in place.",
+    "Your profile circle’s menu has **Publish**, **Export to Word**, **Import from Word** and **Export to Excel**.",
+    "Press **View** to see the report as it will read."
+   ],
+   "full": "howto-arrange-the-report"
+  },
+  {
+   "page": "work",
+   "title": "Work items",
+   "s": [
+    "Work items lists the actions, risks, issues and decisions for the project in one place.",
+    "Choose **Open**, **Closed** or **All** to say which items to list.",
+    "Narrow the list with **Search work items** and the filter line; **Clear all** puts it back.",
+    "The **View** menu holds **Layout** and **Group by**, so you can switch between a table and a board."
+   ],
+   "full": "ref-work-items"
+  },
+  {
+   "page": "milestones",
+   "title": "Milestones",
+   "s": [
+    "Milestones shows every milestone for the project, including internal ones.",
+    "Switch between **Timeline** and **Calendar** at the top right.",
+    "The **Legend** explains the marks, and a milestone that is not shown to the client has the tag **Internal only**.",
+    "In Edit, use **Add milestone** to add one.",
+    "Use the **Movement** switch next to **Plan** to see which are behind their agreed date."
+   ],
+   "full": "ref-milestones-page"
+  },
+  {
+   "page": "settings",
+   "title": "Settings",
+   "s": [
+    "Settings holds what belongs to the whole project and to you, one card for each job.",
+    "The row of chips under the title takes you to a card.",
+    "Below, one short line says what each card is for."
+   ],
+   "full": "howto-find-a-past-publication",
+   "cards": [
+    {
+     "card": "publishing",
+     "title": "Publishing",
+     "line": "Where Publish saves the report, and the client folder it is copied to."
+    },
+    {
+     "card": "pubs",
+     "title": "Published reports",
+     "line": "The numbered copies you have published, each with Open to see it as it was."
+    },
+    {
+     "card": "personal",
+     "title": "Personal",
+     "line": "How the Dashboard sections look, Light or Dark, your name and the single-key shortcuts."
+    },
+    {
+     "card": "freshness",
+     "title": "Freshness",
+     "line": "How many days an open item can go without a review before it counts as not reviewed."
+    },
+    {
+     "card": "diagnostics",
+     "title": "Logs and diagnostics",
+     "line": "The logs and checks to look at when something goes wrong."
+    },
+    {
+     "card": "projects",
+     "title": "Projects",
+     "line": "Every project, with Open, Edit and Archive; Show archived lists archived projects, each with Restore."
+    },
+    {
+     "card": "data",
+     "title": "Data",
+     "line": "Export the project to an Excel workbook, or import one after you have seen what would change."
+    },
+    {
+     "card": "backups",
+     "title": "Backups",
+     "line": "The daily copies of your data, to preview or put back."
+    },
+    {
+     "card": "people",
+     "title": "People",
+     "line": "Who is on the project, with their emails and roles."
+    }
+   ]
+  }
+ ],
  "guides": [],
  "pictures": []
 }
