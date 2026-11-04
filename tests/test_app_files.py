@@ -155,9 +155,9 @@ class OfflinePage(unittest.TestCase):
         for word in ("server", "Server", "localhost", "port", "JSON", "Error", "Exception", "!", "Clark"):
             self.assertNotIn(word, text)
 
-    def test_what_it_says_is_nothing_is_lost(self):
-        self.assertIn("Nothing is lost: your data stays on this computer.", self.page)
-        self.assertIn("A minute after the last window closes, clark stops by itself.", self.page)
+    def test_it_says_when_each_way_of_starting_stops(self):
+        """item 427: one text for both routes (the double-click and Docker)."""
+        self.assertIn("clark.command stops by itself a minute after the last window closes; Docker keeps running until you stop it with:", self.page)
 
     def test_the_launcher_name_is_escaped_and_nothing_else_is_put_in(self):
         page = af.offline_page('<b>x"&').decode("utf-8")
