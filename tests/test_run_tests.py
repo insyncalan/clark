@@ -318,6 +318,16 @@ class Changed(unittest.TestCase):
         _, why = run_tests.choose(self.files, ["src/clark/server.py"], repo=self.repo)
         self.assertIn("can reach any test", why)
 
+    def test_every_guarded_update_file_has_an_owner_in_codeowners(self):
+        # #473 LOW 4: the trust chain, its signing tool and the pin test cannot change without the owner's review
+        owners = {ln.split()[0] for ln in (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8").splitlines()
+                  if ln.strip() and not ln.startswith("#")}
+        for path in run_tests.GUARDED:
+            if path.startswith(("vendor/ed25519", "dev/tools/sign_release", "dev/tools/ed25519",
+                                "tests/test_update", "clark.command", "src/clark/__main__")):
+                with self.subTest(path):
+                    self.assertIn("/" + path, owners)
+
     def test_a_rename_away_from_a_guarded_path_is_seen(self):
         # #593: git diff must list the old name of a rename, so moving store.py away still runs everything
         def git(*a):

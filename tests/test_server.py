@@ -330,7 +330,9 @@ class Saving(ServerTest):
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
                                                 "/api/section-file": 1024,
                                                 "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,     # #72
-                                                "/api/people": 4 * 1024, "/api/people/undo": 1024})     # #96: a project and a section only
+                                                "/api/people": 4 * 1024, "/api/people/undo": 1024,
+                                                "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024,
+                                                "/api/update/undo": 1024})     # #96: a project and a section only
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)
 

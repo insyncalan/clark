@@ -85,6 +85,12 @@ def data_dir(home=None, on=None):
     return Path(home or Path.home()) / "Library" / "Application Support" / "clark"
 
 
+def downloads_dir(home=None, on=None):
+    """The Downloads folder, where a downloaded update is looked for: ~/Downloads on the Mac. Only read, never written."""
+    _only_mac("The Downloads folder", on)
+    return Path(home or Path.home()) / "Downloads"
+
+
 def log_dir(home=None, on=None):
     """Where clark writes its daily log: ~/Library/Logs/clark/ on the Mac (#110). Not created here."""
     _only_mac("The log folder", on)
@@ -330,6 +336,12 @@ FOLDER_SCRIPT = """on run argv
   end if
   return POSIX path of (choose folder with prompt (item 1 of argv))
 end run"""
+ZIP_OPEN_SCRIPT = """on run argv
+  if (count of argv) > 1 then
+    return POSIX path of (choose file with prompt (item 1 of argv) of type {"zip", "public.zip-archive"} default location (POSIX file (item 2 of argv)))
+  end if
+  return POSIX path of (choose file with prompt (item 1 of argv) of type {"zip", "public.zip-archive"})
+end run"""
 SAVE_SCRIPT = """on run argv
   if (count of argv) > 2 then
     return POSIX path of (choose file name with prompt (item 1 of argv) default name (item 2 of argv) default location (POSIX file (item 3 of argv)))
@@ -349,6 +361,12 @@ def choose_folder(prompt, start=None, run=None, on=None):
     """The system's own folder dialog. The chosen folder, or None if the person cancelled."""
     _only_mac("The folder dialog", on)
     return _dialog(FOLDER_SCRIPT, [prompt] + ([str(start)] if start else []), run, "folder")
+
+
+def choose_zip_file(prompt, start=None, run=None, on=None):
+    """The system's own Open dialog, for one .zip file. The chosen file, or None if the person cancelled."""
+    _only_mac("The Open dialog", on)
+    return _dialog(ZIP_OPEN_SCRIPT, [prompt] + ([str(start)] if start else []), run, "Open")
 
 
 def choose_save_file(prompt, default_name, start=None, run=None, on=None):
@@ -571,6 +589,14 @@ def start_detached(argv, env, log_path, cwd=None, popen=None, on=None):
                                                start_new_session=True)
     except OSError as e:
         raise PlatformError(f"Nothing was started, because this Mac would not run clark. Close this window and try again. If it keeps happening, send the file {with_tilde(log_path)} to the clark team.") from e
+
+
+def run_python_check(python, code, args=(), timeout=120, run=None):
+    """Run `code` with the Python program `python` in a fresh, isolated interpreter (-I -B), from an argument list. Returns
+    (exit status, what it wrote to stderr as text). The update helper's check that every part of a new version loads."""
+    done = (run or subprocess.run)([str(python), "-I", "-B", "-c", code, *[str(a) for a in args]], capture_output=True,
+                                   timeout=timeout, check=False)
+    return done.returncode, (done.stderr or b"").decode("utf-8", "replace")
 
 
 def open_app_window(url, chrome, popen=None, on=None):

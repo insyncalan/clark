@@ -178,6 +178,7 @@ export function Settings({ tools }) {
   const ReviewDays = tools && tools.ReviewDays;          // Freshness (item 160): the project's "Not reviewed after (days)"
   const Diagnostics = tools && tools.Diagnostics;        // logs and diagnostics (#110)
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
+  const Update = tools && tools.Update;                  // Version and updates; a published file has none
   const cards = CARDS.filter(([tool]) => tools && tools[tool]);
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
   return (
@@ -189,6 +190,7 @@ export function Settings({ tools }) {
       {ReviewDays ? <ReviewDays /> : null}
       {Diagnostics ? <Diagnostics /> : null}
       {Safety ? <Safety /> : null}
+      {Update ? <Update /> : null}
       {AskSettings ? <AskSettings /> : null}
     </>
   );
