@@ -7,7 +7,7 @@ import { data, project } from "../stores/report.js";
 import { Icon } from "../components/Icon.jsx";
 import { showDate } from "../workItems.js";
 import { dialogLine } from "./publishLine.js";
-import { dialog, latest, next, NO_FOLDER_LEAD, NO_FOLDER_LINK, toPublishingCard, folderName, open, close, tick, tickPdf, tickWord, wordPick, wordConfirm, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
+import { dialog, latest, next, NO_FOLDER_LEAD, NO_FOLDER_LINK, toPublishingCard, folderName, placeholderItems, placeholderWarning, open, close, tick, tickPdf, tickWord, wordPick, wordConfirm, pick, rename, confirmOverwrite, ready, cancel, go, refreshLatest } from "./publishState.js";
 import { WordClash } from "./WordClash.jsx";
 import { WordLayer } from "./Word.jsx";
 
@@ -40,6 +40,7 @@ function Dialog() {
     if (target) target.focus();
   }, [s.phase, s.phase === "clash" ? s.choice : ""]);
   const working = s.phase === "working", clash = s.clash;
+  const placeholders = placeholderItems(d);
   return (
     <dialog id="publish-dialog" class="dlg" aria-labelledby="pub-title" ref={el} onCancel={(e) => { e.preventDefault(); cancel(); }}>
       <form class="dlg-form" onSubmit={(e) => { e.preventDefault(); go(); }}>
@@ -92,6 +93,8 @@ function Dialog() {
         )}
         {/* item 437 rows 29 and 56: the second sentence is the prototype's (io.js, #pubWarn) */}
         {s.phase !== "clash" && s.phase !== "wordclash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">{s.word ? "The client will see this page and the Word report. Only what is shown in View mode is included." : "The client will see this page. Only what is shown in View mode is included."}</p> : null}
+        {/* item 449: a warning, not a block: client-visible work items whose title is still the one Add gave them */}
+        {s.phase !== "clash" && s.phase !== "wordclash" && placeholders.length ? <p class="dlg-warn" id="pub-placeholder" data-count={String(placeholders.length)}>{placeholderWarning(placeholders)}</p> : null}
         <div class="pub-msg" id="pub-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
           {working ? <p class="working">{s.step === "word" ? "Saving the Word report…" : "Publishing…"}</p>
             : s.message ? <p class={s.message.kind}><span>{doneWords(s.message)}</span></p> : null}

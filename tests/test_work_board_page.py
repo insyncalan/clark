@@ -655,6 +655,43 @@ class Moves(Base):
             self.assertEqual(self.row(a)["status"], "Delayed")
             self.assertEqual(self.steps(), before + 1, "one step")
 
+    def test_the_move_to_menu_works_as_the_page_opens_with_a_toast_and_undo(self):
+        """#449 (row 17): the card's "..." Move to menu works as the prototype's does in both its modes. Work items are always editable here
+        (View and Edit exist only on the Dashboard, ruled 02-11-2026), so the menu is there as the page opens, with nothing switched:
+        the move is one step with Undo, and a column width reset just after it keeps that Undo (the reset is said to a screen reader).
+        1400 and 900 px, light and dark."""
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.visit(cdp, width=width, edit=False)
+                    cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
+                    cdp.js("localStorage.setItem('clark.work.v1', JSON.stringify({ABC: {view: 'board', group: 'status', lane: null, collapsed: []}}))", sid)
+                    self.reload(cdp, sid)                        # never touches the top bar's View or Edit
+                    self.until(cdp, sid, "!!document.querySelector('#work-board .bcard')", "the board")
+                    self.assertEqual(cdp.js("document.querySelector('#work-board').dataset.editing", sid), "1", "the board is editable as the page opens")
+                    self.assertNotIn("Switch to Edit", cdp.js("document.querySelector('#work-board').textContent", sid))
+                    a = self.id_of("Order the laptops")
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-move]').length", sid), cdp.js("document.querySelectorAll('#work-board .bcard').length", sid),
+                                     "every card has its Move to button")
+                    self.assertEqual(cdp.js(f"document.querySelector(\"[data-move='{a}']\").getAttribute('aria-label')", sid), f"Move {a} to…")
+                    before = self.steps()
+                    click(cdp, sid, f"[data-move='{a}']")
+                    self.until(cdp, sid, "!!document.querySelector('.ddmenu')", "the menu")
+                    self.assertEqual(cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.textContent)", sid), ["Delayed", "Closed", "Cancelled"])
+                    click(cdp, sid, ".ddmenu [data-to='Delayed']")
+                    t = self.wait_toast(cdp, sid, "done")
+                    self.assertEqual(t["text"], f"{a} is now Delayed.")
+                    self.assertEqual((self.row(a)["status"], self.steps()), ("Delayed", before + 1))
+                    dblclick(cdp, sid, ".col[data-col='Open'] .col-rz")          # the LOW: a reset never takes the move's Undo away
+                    self.until(cdp, sid, "/back to its usual width/.test(document.querySelector('#work-live').textContent)", "the reset said to a screen reader")
+                    self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), f"{a} is now Delayed.")
+                    self.assertTrue(cdp.js("!!document.querySelector('.toast [data-undo]')", sid), "the move's Undo is still offered")
+                    self.assertTrue(cdp.js("(() => { const r = document.querySelector('.toast').getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; })()", sid))
+                    self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True)
+                    click(cdp, sid, "[data-undo]")
+                    self.until(cdp, sid, "document.querySelector('.toast-text').textContent === 'Undone.'", "Undone")
+                    self.assertEqual(self.row(a)["status"], "Open")
+
 
 class Collapse(Base):
     def test_columns_collapse_in_every_lane_and_are_remembered(self):
