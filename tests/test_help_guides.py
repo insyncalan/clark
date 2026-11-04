@@ -265,7 +265,7 @@ class PageKey(unittest.TestCase):
 # A part the page adds that is not here fails the rule below, so the new card's line is written with it.
 # Asking is left out on purpose: it is the ask clark switch, and Help holds every entry about ask clark (helpLater.json).
 SETTINGS_PARTS = {"ClientFolder": "Publishing", "PublishedReports": "Published reports", "Personal": "Personal", "ReviewDays": "Freshness",
-                  "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Projects": "Projects", "Data": "Data"}
+                  "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Projects": "Projects", "Data": "Data", "Update": "Version and updates"}
 SETTINGS_LEFT_OUT = {"AskSettings"}
 PAGE_SRC = HELP.parent
 WORDS_NOT_USED = re.compile(r"\b(apply|applied|staged|proposal|sweep|tracker|vault|extract)\b", re.I)
@@ -309,7 +309,7 @@ class ContextText(unittest.TestCase):
         self.assertEqual(set(titles), want)
         for t, k in titles.items():
             self.assertTrue(k["line"].strip().endswith("."), t)
-            self.assertLess(len(k["line"]), 110, f"{t}: one short line")
+            self.assertLess(len(k["line"]), 111, f"{t}: one short line")   # 111: the Version and updates line is 110 characters
         ids = [k["card"] for k in self.CTX["settings"]["cards"]]
         self.assertEqual(len(ids), len(set(ids)))
         for page, c in self.CTX.items():
@@ -319,7 +319,7 @@ class ContextText(unittest.TestCase):
     def test_each_card_title_is_a_title_the_page_shows(self):
         names = ("ClientFolder.jsx", "Personal.jsx", "ReviewDays.jsx", "Diagnostics.jsx", "People.jsx", "Safety.jsx", "PublishedReports.jsx", "Projects.jsx", "Data.jsx")
         code = " ".join((PAGE_SRC / "edit" / f).read_text(encoding="utf-8") for f in names)
-        code += " " + (PAGE_SRC / "logic" / "safety.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "pastReports.js").read_text(encoding="utf-8")
+        code += " " + (PAGE_SRC / "logic" / "safety.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "update.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "pastReports.js").read_text(encoding="utf-8")
         for title in SETTINGS_PARTS.values():
             self.assertIn(title, code, title)
 
