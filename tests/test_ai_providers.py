@@ -152,7 +152,9 @@ NETWORK = {"socket", "ssl", "http", "urllib", "urllib3", "requests", "ftplib", "
 NOT_NETWORK = {"urllib.parse", "urllib.error"}          # text handling only
 # Modules that already had one of these before item 54 (local sockets, the loopback server, the Chrome link, the launcher).
 # A new entry here is a reviewed change; a new provider goes in ai_providers.py, never here.
-KNOWN = {"platform.py", "ai_providers.py", "server.py", "pdf.py", "launch.py", "__main__.py"}
+# update_helper.py (items 280 and 282): loopback only. It checks that the update's local port is free (a socket bound to 127.0.0.1) and
+# asks the local clark it just started for /health on 127.0.0.1. It reaches no other host.
+KNOWN = {"platform.py", "ai_providers.py", "server.py", "pdf.py", "launch.py", "__main__.py", "update_helper.py"}
 
 
 def network_imports(source):

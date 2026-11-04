@@ -12,13 +12,21 @@
    "licence": "MIT",
    "licence_file": "licenses/et_xmlfile-2.0.0-LICENSE.txt",
    "from": "creaite v2.6.9 (db5adb2) system/scripts/vendor/et_xmlfile/"
+  },
+  "ed25519_verify": {
+   "version": "1",
+   "licence": "CC0-1.0",
+   "licence_file": "licenses/ed25519_verify-1-LICENSE.txt",
+   "from": "written for clark from RFC 8032 section 5.1.7 (verify only; the signer is in dev/tools)"
   }
  },
  "files": {
-  "README.md": "c942ea159375be69f430fd7e622c5a026f572a8e1cd141241b9983a15d0cc41c",
+  "README.md": "219038d77311b6edfa87cf272b46e2adbc221544101d70d5a66407555c50dd72",
+  "ed25519_verify/__init__.py": "99322f9cc880b5c84a871adaf3bbcb777315094889f2da9203c27c850c3240f1",
   "et_xmlfile/__init__.py": "010e3fd9c354132507947a3e63719debef12ffa7b229de798d83b87a1db7507c",
   "et_xmlfile/incremental_tree.py": "957e154ad7f350d2b48edad5b2fb213c436eec4ff3422ae0964c91b73183c048",
   "et_xmlfile/xmlfile.py": "e9077106ad8fd027f7e51fa8c978cb979c0e22d7c9278632e8094817d457ec18",
+  "licenses/ed25519_verify-1-LICENSE.txt": "23d6a45cc777128b3dbfc035f201f5a834b2a14eebe9c8aaf22dc383889f174a",
   "licenses/et_xmlfile-2.0.0-LICENSE.txt": "4ccdaaebc0f44b83720ec0399bb7ab329adce067dd62f73c5535a2dc05628ab2",
   "licenses/openpyxl-3.1.5-LICENSE.txt": "0c84bb42f5d367e5ebf9fc2dde35b16141df5ee0fdc189250858bc6c5560f69e",
   "openpyxl/__init__.py": "b36b17729f138575c7b3035287e52e422e411eca1ab2e7335328cd373d15ba97",

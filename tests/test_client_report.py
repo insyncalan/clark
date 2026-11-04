@@ -298,8 +298,9 @@ class Drawn(unittest.TestCase):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 for theme in ("light", "dark"):
                     cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
-                    # the theme's colour changes settle (no animation left running) before the page is measured
-                    self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.theme === '%s' && document.getAnimations().length === 0" % theme, sid)), "the theme settled")
+                    # the theme's colour changes settle (no finite animation left running) before the page is measured. #650: only
+                    # finite ones count, so a spinner that loops for ever (.spin, .ask-dots) could never fail this wait.
+                    self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.theme === '%s' && document.getAnimations().filter(a => a.effect.getComputedTiming().iterations !== Infinity).length === 0" % theme, sid)), "the theme settled")
                     # the demo has no Highlights or Next week text: the View leaves those two boxes out
                     self.check(cdp, sid, f"View {width}px {theme}", ["progress", "plans", "raid"])
                     shown = cdp.js("document.querySelector('#clientreport').innerText", sid)
