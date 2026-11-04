@@ -73,12 +73,19 @@ COVERED = [
      "test_week_picker::WeekPicker::test_a_page_not_kept_opens_as_the_dashboard_as_at_its_day_read_only_and_back_to_now"),
     ("#344", "Nothing published means no picker.",
      "test_week_picker::WeekPicker::test_nothing_published_has_no_picker"),
+    ("#454", "Paste from Excel shows a preview, adds the people in one step, and one Undo takes it back",
+     "test_people_card::PeopleCard::test_paste_from_excel_previews_adds_in_one_step_and_one_undo_takes_it_back"),
+    ("#454", "A bad row in a paste is named in plain words and nothing is added",
+     "test_people_card::PeopleCard::test_a_bad_row_is_named_in_plain_words_and_nothing_is_added"),
+    ("#454", "One Undo takes a whole paste back, including a person who was changed",
+     "test_people_paste_route::Paste::test_one_undo_takes_the_whole_paste_back_including_a_changed_person"),
+    ("#454", "The People card is not in a published page",
+     "test_people_paste_route::Private::test_the_people_card_is_not_in_the_published_page_source"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#454", "Settings, People card: Paste from Excel", "PR 568", "page/src/edit/People.jsx", "export function People()"),
     ("#347", "A backup copies each kept publication once, and a restore never removes one", "PR 570", "backup.py", "def _copy_kept"),
     ("#48", "HOLD (the Help wording is the owner's call): Export to Word and Import from Word screens", "PR 475", "page/src/edit/Word.jsx", "export function WordLayer"),
     ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo", "PR 513", "updater.py", "class Updater"),
