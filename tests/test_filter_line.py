@@ -386,7 +386,9 @@ class Suggest(Line):
 
     def test_fields_first(self):
         got = self.sug("")
-        self.assertEqual([s["label"] for s in got], ["type:", "status:", "owner:", "priority:", "due:", "workstream:", "usecase:", "milestone:", "client:", "is:"])
+        self.assertEqual([s["label"] for s in got], ["is:", "type:", "status:", "owner:", "priority:", "due:", "workstream:", "usecase:", "milestone:", "client:", "no:"], "#640: an empty box lists every field, is first")
+        self.assertEqual(got[0]["note"], "Open, closed, overdue, not reviewed…")
+        self.assertTrue(all(s["note"] for s in got), "each field has its one-line note")
         self.assertEqual([s["label"] for s in self.sug("st")], ["status:"])
         self.assertEqual([s["label"] for s in self.sug("n")], ["no:"])
         self.assertEqual([s["ins"] for s in self.sug("-st")], ["-status:"])
@@ -508,18 +510,40 @@ class SavedViews(Line):
     def v(self, expr):
         return self.val(f"T.fl.{expr}")
 
-    def test_a_project_starts_with_four_views(self):
+    def test_a_project_starts_with_the_five_core_views_then_three_of_its_own(self):
+        """#640: the core five first, in this order, then Overdue, Waiting on the client and My actions as ordinary views."""
         views = self.v("viewsGet(null, 'ABC')")
-        self.assertEqual([x["name"] for x in views], ["Open items", "Overdue", "Waiting on the client", "My actions"])
+        self.assertEqual([x["name"] for x in views], ["Open items", "Actions", "Risks and issues", "Decisions", "All work items", "Overdue", "Waiting on the client", "My actions"])
+        self.assertEqual([x["line"] for x in views[:5]], ["is:open", "type:action is:open", "type:risk,issue is:open", "type:decision is:open", ""])
+        self.assertEqual([bool(x.get("core")) for x in views], [True] * 5 + [False] * 3)
         for x in views:
             self.assertEqual(self.parse(x["line"])["errors"], [], x)
+
+    def test_core_views_are_never_changed_or_stored(self):
+        views = self.v("viewsGet(null, 'ABC')")
+        for cid in ("core-open", "core-actions", "core-risks", "core-decisions", "core-all"):
+            self.assertFalse(self.v(f"saveView({lit(views)}, {lit(cid)}, 'is:open owner:me')")["ok"], cid)
+            self.assertFalse(self.v(f"renameView({lit(views)}, {lit(cid)}, 'Mine')")["ok"], cid)
+            self.assertFalse(self.v(f"archiveView({lit(views)}, {lit(cid)})")["ok"], cid)
+        got = self.val("(function(){ var s = {store: {}, getItem(k) { return k in this.store ? this.store[k] : null; }, setItem(k, v) { this.store[k] = String(v); }};"
+                       f" T.fl.viewsPut(s, 'ABC', {lit(views)}); return JSON.parse(s.store['clark.fviews']).ABC.map(function (v) {{ return v.id; }}); }})()")
+        self.assertEqual(got, ["overdue", "client", "mine"], "only the person's own views are stored")
+
+    def test_a_stored_set_keeps_its_views_after_the_core_five(self):
+        """#640: nothing stored is lost; an older stored plain Open items is replaced by the core one, a changed one stays."""
+        stored = [{"id": "open", "name": "Open items", "line": "is:open"}, {"id": "overdue", "name": "Late", "line": "is:open due:overdue"},
+                  {"id": "open2", "name": "Mine", "line": "owner:me", "archived": True}, {"id": "open", "name": "My open", "line": "is:open owner:me"}]
+        got = self.val("(function(){ var s = {getItem() { return JSON.stringify({ABC: %s}); }, setItem() {}}; return T.fl.viewsGet(s, 'ABC'); })()" % json.dumps(stored))
+        self.assertEqual([x["name"] for x in got], ["Open items", "Actions", "Risks and issues", "Decisions", "All work items", "Late", "Mine", "My open"])
+        self.assertEqual([x["id"] for x in got[5:]], ["overdue", "open2", "open"])
+        self.assertTrue(got[6]["archived"])
 
     def test_the_starting_views_show_what_their_names_say(self):
         views = {x["id"]: x["line"] for x in self.v("DEFAULT_VIEWS")}
         self.assertEqual(self.ids(views["overdue"]), ["T-A-001"])
         self.assertEqual(self.ids(views["mine"]), ["T-A-001", "T-A-004"])
         self.assertEqual(self.ids(views["client"]), ["T-R-001"])
-        self.assertEqual(self.v(f"viewCount({lit(self.v('DEFAULT_VIEWS')[1])}, {lit(ROWS)}, {lit(CTX)})"), 1)
+        self.assertEqual(self.v(f"viewCount({lit(self.v('DEFAULT_VIEWS')[0])}, {lit(ROWS)}, {lit(CTX)})"), 1)
 
     def test_a_view_the_line_cannot_read_says_why_in_plain_words(self):
         """#589: it is listed with a message, not hidden. A view that reads gives no message."""
@@ -528,16 +552,16 @@ class SavedViews(Line):
         self.assertTrue(said.startswith("This view cannot be used any more. There is no \u201ccolour\u201d filter."), said)
         self.assertTrue(said.endswith(" Rename it or archive it."), said)
         self.assertNotIn("Did you mean", said, "the message keeps to its first sentence")
-        self.assertEqual(self.v(f"viewTrouble({lit(self.v('DEFAULT_VIEWS')[0])}, {lit(ROWS)}, {lit(CTX)})"), "")
+        self.assertEqual(self.v(f"viewTrouble({lit(self.v('DEFAULT_VIEWS')[1])}, {lit(ROWS)}, {lit(CTX)})"), "")
         self.assertEqual(self.v(f"viewTrouble(null, {lit(ROWS)}, {lit(CTX)})"), "")
-        needed = self.v("DEFAULT_VIEWS")[2]
+        needed = self.v("DEFAULT_VIEWS")[1]
         self.assertIn("is not available on this page yet.", self.v(f"viewTrouble({lit(needed)}, {lit(ROWS)}, {lit(OFF)})"))
         self.assertEqual(self.v(f"viewTrouble({lit(needed)}, {lit(ROWS)}, {lit(CTX)})"), "", "once the page can answer it, it reads")
 
     def test_only_a_starting_view_the_page_cannot_answer_yet_is_held_back(self):
         """#589: Waiting on the client, as given, stays out of the tabs while is:needed is off; the same view edited, or any other, stays in."""
         base = self.v("DEFAULT_VIEWS")
-        client = base[2]
+        client = base[1]
         def held(view, ctx):
             return self.v(f"heldBack({lit(view)}, {lit(ROWS)}, {lit(ctx)})")
         self.assertTrue(held(client, OFF))
@@ -564,8 +588,8 @@ class SavedViews(Line):
         got = self.v(f"addView({lit(self.v('DEFAULT_VIEWS'))}, '  Build   risks ', 'workstream:Build')")
         self.assertTrue(got["ok"])
         self.assertEqual(got["views"][-1], {"id": got["id"], "name": "Build risks", "line": "workstream:Build"})
-        self.assertEqual(len(got["views"]), 5)
-        self.assertEqual(len({x["id"] for x in got["views"]}), 5)
+        self.assertEqual(len(got["views"]), 4)
+        self.assertEqual(len({x["id"] for x in got["views"]}), 4)
 
     def test_add_refusals_are_plain_and_change_nothing(self):
         base = self.v("DEFAULT_VIEWS")
@@ -591,11 +615,11 @@ class SavedViews(Line):
     def test_a_view_is_archived_never_deleted(self):
         base = self.v("DEFAULT_VIEWS")
         gone = self.v(f"archiveView({lit(base)}, 'client')")
-        self.assertEqual(len(gone["views"]), 4, "it is kept")
-        self.assertEqual([x["id"] for x in self.v(f"visibleViews({lit(gone['views'])})")], ["open", "overdue", "mine"])
+        self.assertEqual(len(gone["views"]), 3, "it is kept")
+        self.assertEqual([x["id"] for x in self.v(f"visibleViews({lit(gone['views'])})")], ["overdue", "mine"])
         self.assertEqual([x["id"] for x in self.v(f"archivedViews({lit(gone['views'])})")], ["client"])
         back = self.v(f"restoreView({lit(gone['views'])}, 'client')")
-        self.assertEqual([x["id"] for x in self.v(f"visibleViews({lit(back['views'])})")], ["open", "overdue", "client", "mine"])
+        self.assertEqual([x["id"] for x in self.v(f"visibleViews({lit(back['views'])})")], ["overdue", "client", "mine"])
         self.assertNotIn("removeView", self.val("Object.keys(T.fl)"))
         self.assertNotIn("deleteView", self.val("Object.keys(T.fl)"))
 
@@ -627,20 +651,20 @@ class Memory(Line):
 
     def test_a_browser_that_refuses_storage_still_works(self):
         got = self.val(f"(function(){{ var s = {self.BROKEN}; return [T.fl.linePut(s, 'ABC', 'x'), T.fl.lineGet(s, 'ABC'), T.fl.viewsPut(s, 'ABC', []), T.fl.viewsGet(s, 'ABC').length, T.fl.linePut(null, 'A', 'x'), T.fl.lineGet(null, 'A')]; }})()")
-        self.assertEqual(got, [False, "is:open", False, 4, False, "is:open"])
+        self.assertEqual(got, [False, "is:open", False, 8, False, "is:open"])
 
     def test_bad_stored_data_gives_the_start(self):
         got = self.val("(function(){ var s = {getItem() { return '[1,2'; }, setItem() {}}; return [T.fl.lineGet(s, 'A'), T.fl.viewsGet(s, 'A').length]; })()")
-        self.assertEqual(got, ["is:open", 4])
+        self.assertEqual(got, ["is:open", 8])
         got = self.val("(function(){ var s = {getItem() { return JSON.stringify({A: 5}); }, setItem() {}}; return [T.fl.lineGet(s, 'A'), T.fl.viewsGet(s, 'A').length]; })()")
-        self.assertEqual(got, ["is:open", 4])
+        self.assertEqual(got, ["is:open", 8])
         got = self.val("(function(){ var s = {getItem() { return JSON.stringify({A: [{id: 1}]}); }, setItem() {}}; return T.fl.viewsGet(s, 'A').length; })()")
-        self.assertEqual(got, 4)
+        self.assertEqual(got, 8)
 
     def test_views_are_kept_per_project(self):
         got = self.val(f"(function(){{ var s = {self.FAKE}; var a = T.fl.addView(T.fl.viewsGet(s, 'ABC'), 'Mine too', 'owner:me').views; T.fl.viewsPut(s, 'ABC', a);"
                        " return [T.fl.viewsGet(s, 'ABC').length, T.fl.viewsGet(s, 'DEF').length]; })()")
-        self.assertEqual(got, [5, 4])
+        self.assertEqual(got, [9, 8])
 
     def test_a_long_line_is_cut_not_refused(self):
         got = self.val(f"(function(){{ var s = {self.FAKE}; T.fl.linePut(s, 'A', 'x'.repeat(2000)); return T.fl.lineGet(s, 'A').length; }})()")

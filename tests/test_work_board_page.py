@@ -815,6 +815,10 @@ class FullScreen(Base):
                 with self.subTest(width=width, full=full), chrome() as cdp:
                     sid = self.visit(cdp, width=width, height=700)
                     self.board(cdp, sid, "status")
+                    # board() leaves the cursor in the filter box, so the list of fields is open and, being in the page flow, it makes the toolbar taller.
+                    # A person who is done with the box has left it; this test is about the toolbar rows scrolling away, so it leaves the box first.
+                    cdp.js("document.activeElement.blur()", sid)
+                    self.until(cdp, sid, "!document.querySelector('#fline-list')", "the list of fields is closed")
                     if full:
                         click(cdp, sid, "#board-full")
                         self.until(cdp, sid, "document.body.classList.contains('board-full')")

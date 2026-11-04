@@ -12,6 +12,33 @@ if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' 2>/dev/null; t
   read -r -n 1 -p "Press any key to close this window. " _
   exit 1
 fi
+# An update swaps "src" and "clark" by moving the old one into .clark-old-<time> and then the new one in. If the Mac stopped between
+# the two moves, one of them is missing and nothing below could start. Put the old one back first; the launcher then finishes
+# the update the usual way (it puts everything else back too). Only a missing folder is touched, and only from the folder the
+# update's own marker names: with no marker (or an older set-aside folder left over), nothing is put back.
+data="$HOME/Library/Application Support/clark"
+prev=""
+for arg in "$@"; do
+  case "$prev" in --data) data="$arg" ;; esac
+  case "$arg" in --data=*) data="${arg#--data=}" ;; esac
+  prev="$arg"
+done
+stamp=""
+if [ ! -e src ] || [ ! -e clark ]; then
+  stamp=$(python3 -c 'import json, re, sys
+try:
+    s = json.load(open(sys.argv[1] + "/updates/.installing.json", encoding="utf-8")).get("stamp")
+    print(s if isinstance(s, str) and re.fullmatch(r"[0-9A-Za-z]+", s) else "")
+except Exception:
+    print("")' "$data" 2>/dev/null)
+fi
+if [ -n "$stamp" ]; then
+  for part in src clark; do
+    if [ ! -e "$part" ] && [ -d ".clark-old-$stamp/$part" ]; then
+      mv ".clark-old-$stamp/$part" "$part"
+    fi
+  done
+fi
 python3 -m clark.launch "$@"
 status=$?
 if [ "$status" -ne 0 ]; then

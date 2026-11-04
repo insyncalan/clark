@@ -256,6 +256,9 @@ class Menu(board.Base):
             # Nothing selected: it opens as before.
             cdp.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))", sid)
             key(cdp, sid, "Escape")                    # closes the multi-select menu, if one is open
+            # #650: wait for the button the click below needs, instead of a fixed pause. (A wait for the multi-select menu to be gone cannot
+            # work: the menu the key above opened stays open here, and the click is a script click, so the menu cannot swallow it.)
+            self.until(cdp, sid, "!!document.getElementById('sel-clear')", "the clear button of the selection bar")
             cdp.js("document.getElementById('sel-clear').click()", sid)
             self.until(cdp, sid, "clarkPage.selected().length === 0", "the selection cleared")
             self.open_menu(cdp, sid, self.TABLE % a)
@@ -824,6 +827,9 @@ class Menu(board.Base):
             cdp.js("(() => { const b = [...document.querySelectorAll('.de .pk-btn')].find(x => /sent/.test(x.textContent)); b.click(); b.click(); })()", sid)
             self.until(cdp, sid, "/sent/i.test(document.querySelector('.de-note').textContent)", "the note")
             self.until(cdp, sid, "[...document.querySelectorAll('.de .pk-btn')].every(x => !/sent/.test(x.textContent) || !x.disabled)", "the button ready again after the save")
+            # #650: the button is usually ready already once the note shows, so give a second POST a short time to arrive
+            # (a bounded wait for something that must NOT happen, as tests/test_report_editor.py does)
+            time.sleep(0.3)
             self.assertEqual(len(self.sent_calls), 1, "one POST /api/draft-email/sent for two presses")
             self.assertEqual([r["ids"] for r in self.store.email_sent_for("ABC")], [[a]], "one record")
             self.assertFalse(cdp.js("[...document.querySelectorAll('.de .pk-btn')].find(x => /sent/.test(x.textContent)).disabled", sid), "ready again after the save")

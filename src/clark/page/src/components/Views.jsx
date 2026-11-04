@@ -179,6 +179,7 @@ export function Settings({ tools }) {
   const Diagnostics = tools && tools.Diagnostics;        // logs and diagnostics (#110)
   const Data = tools && tools.Data;                    // the Data card (A-S11): Export to Excel; Edit only
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
+  const Update = tools && tools.Update;                  // Version and updates; a published file has none
   const cards = CARDS.filter(([tool]) => tools && tools[tool]);
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
   const People = tools && tools.People;                  // the People card (item 454): email, organisation, role, Paste from Excel; Edit's page only
@@ -194,6 +195,7 @@ export function Settings({ tools }) {
       {Projects ? <Projects /> : null}
       {Data ? <Data /> : null}
       {Safety ? <Safety /> : null}
+      {Update ? <Update /> : null}
       {People ? <People /> : null}
       {AskSettings ? <AskSettings /> : null}
     </>
