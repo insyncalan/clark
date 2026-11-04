@@ -986,6 +986,17 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-top { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; color: var(--white); font-size: var(--size-body); font-weight: var(--weight-medium); cursor: pointer; }
 .hp-top:hover { background: rgba(255,255,255,.14); }
 .hp-top:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+/* the Help peek (#645): the item peek's frame (.peek) below the top bar, so the "?" button stays in view; text only */
+.hpk { top: var(--topbar); width: 380px; min-width: 0; max-width: 92vw; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5); color: var(--text); font-size: var(--size-small); line-height: var(--leading); }
+.hpk-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.hpk-title { margin: 0; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
+.hpk-line { margin: 0; font-size: var(--size-small); }
+.hpk-cards { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-3); font-size: var(--size-small); }
+.hpk-cards b { font-weight: var(--weight-medium); color: var(--heading); }
+.hpk-foot { margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--grey-200); }
+.hpk-link { all: unset; box-sizing: border-box; cursor: pointer; font-size: var(--size-body); color: var(--status-blue-text); text-underline-offset: 2px; }
+.hpk-link:hover { text-decoration: underline; }
+.hpk-link:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 
 /* Milestones (item 44a): the timeline, the rail list, the Calendar and the Legend. Tokens only; no font under 13px. */
 .msv { position: relative; margin-top: var(--space-2); }
