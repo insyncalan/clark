@@ -73,7 +73,6 @@ CHOICES = {
 }
 DATE_FIELDS = {"due_date", "needed_by", "date", "revisit"}
 REQUIRED = {"actions": "description", "raid": "description", "decisions": "decision"}
-# WORDING: owner to rule. The imported rows are shown to the client until the person hides them.
 SHOWN_TO_CLIENT = "Shown to the client unless you hide it with the eye."
 
 CONTROLS = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f​-‏‪-‮⁠-⁤﻿]")
