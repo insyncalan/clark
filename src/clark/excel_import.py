@@ -894,6 +894,8 @@ class _Reader:
                                    "first if that isn't what you want.")
         self.fp_rows.setdefault(fp, rn)
         values["project"] = self.project
+        if table == "use_cases":
+            values.setdefault("client_visible", 0)     # a blank Yes/No cell: the use case arrives hidden from the client (eye off)
         if table in ("actions", "raid"):
             values.setdefault("raised", self.today)
         values["source"] = f"Excel import, {writer.shown(self.today)}, {self.filename}"

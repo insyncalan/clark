@@ -80,6 +80,23 @@ class Staging(ImportCase):
         self.assertEqual(c.after["project"], "ABC")
         self.assertIn("Excel import", c.after["source"])
 
+    def _new_use_case(self, **cells):
+        """Add a use case row with no id to the workbook; returns (the staged change, the stored row after importing it)."""
+        wbk.add_row(self.path, "Use cases", title="Supplier onboarding", status="On track", **cells)
+        p = self.plan()
+        (c,) = p.changes
+        p.accept(c.n)
+        self.assertTrue(xi.apply_import(self.s, p, USER).applied)
+        return c, next(r for r in self.s.read("use_cases") if r["title"] == "Supplier onboarding")
+
+    def test_a_new_use_case_with_a_blank_yes_no_cell_arrives_hidden_from_the_client(self):
+        c, row = self._new_use_case()
+        self.assertEqual(c.after["client_visible"], 0)
+        self.assertEqual(row["client_visible"], 0)
+
+    def test_a_new_use_case_marked_yes_or_no_keeps_what_the_cell_says(self):
+        self.assertEqual(self._new_use_case(client_visible="Yes")[1]["client_visible"], 1)
+
     def test_a_row_missing_from_the_workbook_is_staged_as_removed(self):
         wbk.drop_row(self.path, "Actions", self.a3)
         (c,) = self.plan().changes
