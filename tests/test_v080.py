@@ -38,12 +38,8 @@ COVERED = [
 WAITING = [
     ("#280", "An update that migrates and then does not answer in 15 seconds puts the database back too", "PR 544", "update_helper.py", "MARKER_NAME"),
     ("#368", "A web page and its Word copy share one publication number (a data layout step)", "PR 516", "store.py", "migrate_publication_shared_number"),
-    ("#343", "A past publication opens read only, with a banner and Back to now", "no pull request yet (issue 343)", "", None),
     ("#344", "A week picker beside Week ending lists the published weeks and opens one", "PR 529", "page/src/edit/WeekPicker.jsx", "export function WeekPicker"),
-    ("#345", "The Published reports list opens the past view and can archive an old report", "no pull request yet (issue 345)", "", None),
-    ("#347", "Backups copy each kept file once and a restore never removes one", "no pull request yet (issue 347)", "", None),
     ("#349", "The dashboard as at a chosen day, rebuilt from the change history", "PR 526", "as_at.py", "def cutoff"),
-    ("#303", "The publications update trigger guards its other columns", "no pull request yet (issue 303)", "", None),
     ("#326", "An overwrite of a file over 64 MB is refused in plain words, not put back cut short", "PR 456", "publish.py", "EARLIER_TOO_BIG"),
     ("#460", "The update helper's staging folder is owner only and its copy is hash-checked before it runs", "PR 506", "update_helper.py", "marker[\"helper_sha\"]"),
     ("#461", "The update helper copy is hash-checked before finish and an old signature is pruned", "PR 506", "update_install.py", "os.unlink(e.path + updates.SIGNATURE_SUFFIX)"),
@@ -51,12 +47,15 @@ WAITING = [
     ("#432", "Five small leftovers of the Word screens", "no pull request yet (issue 432)", "", None),
     ("#420", "About you saves one box without blanking the other", "no pull request yet (issue 420)", "", None),
     ("#462", "Docker first start: three small leftovers", "no pull request yet (issue 462)", "", None),
-    ("#489", "AI suggestions go through the private-text check", "no pull request yet (issue 489)", "", None),
-    ("#438", "Publishing can make a PDF as in the prototype", "no pull request yet (issue 438)", "", None),
     ("#171", "Each project keeps its own not-reviewed-after-days number (a data layout step)", "PR 472", "schema.sql", "review_after_days"),
     ("#427", "Install and first start: the Docker route (clark in a container, opened at 127.0.0.1)", "PR 252", "platform.py", "def container_mode():"),
-    ("#269", "The publications row names the PDF file", "no pull request yet (issue 269)", "", None),
     ("#160", "Settings has a 'Not reviewed after (days)' setting, and the At a glance row can show an optional Not reviewed tile (needs #171)", "PR 523", "page/src/edit/ReviewDays.jsx", "Settings \u203a Freshness (#160)"),
+    ("#269", "The publications row names the PDF file saved with it (a data layout step)", "PR 521",
+     "store.py", "def record_pdf_name"),
+    ("#454", "Settings, People card: Paste from Excel", "PR 558",
+     "page/src/edit/People.jsx", "export function People()"),
+    ("#48", "HOLD (the Help wording is the owner's call): Export to Word and Import from Word screens", "PR 475",
+     "page/src/edit/Word.jsx", "export function WordLayer"),
 ]
 
 # (item, check, kind, why, what the person does)
