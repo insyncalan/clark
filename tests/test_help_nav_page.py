@@ -91,8 +91,8 @@ class Nav(Base):
                 p.until(f"!!document.querySelector('#hp-{place}.hp-found')", f"{place} exists and opens")
             p.js("document.querySelector('#hpTab-start').click()")
             p.until("!!document.querySelector('.hp-job')", "back on Start here")
-            p.js("document.querySelector('.hp-job[data-hlink=howto-add-a-section-from-a-template]').click()")
-            p.until("!!document.querySelector('#hp-howto-add-a-section-from-a-template.hp-found') && document.querySelector('#hpTab-howto').getAttribute('aria-selected') === 'true'", "the job opened its entry under How do I…")
+            p.js("document.querySelector('.hp-job[data-hlink=guide-add-a-section-from-a-template]').click()")
+            p.until("!!document.querySelector('#hp-guide-add-a-section-from-a-template.hp-found') && document.querySelector('#hpTab-howto').getAttribute('aria-selected') === 'true'", "the job opened its entry under How do I…")
 
     # ---------- (2) the contents list ----------
     def test_the_contents_list_stays_in_view_and_marks_where_you_are(self):
@@ -142,7 +142,7 @@ class Nav(Base):
         with chrome() as cdp:
             p = self.in_help(cdp)
             self.assertEqual(p.js("[...document.querySelectorAll('.hp-idx a')].map(a => a.textContent)"),
-                             ["Start here"] + [j[1] for j in shown_content()["start"]["jobs"]] + [x["t"] for x in shown_content()["howto"]["tasks"] if x["id"] not in [j[0] for j in shown_content()["start"]["jobs"]]])
+                             ["Start here"] + [j[1] for j in shown_content()["start"]["jobs"]] + [x["t"] for x in shown_content()["howto"]["tasks"] if x["id"] not in [j[0] for j in shown_content()["start"]["jobs"] if len(j) < 5]])      # a job that opens a guide leaves its how-to entry in this list
             self.assertEqual(p.js("document.querySelector('.hp-idx a[aria-current]').textContent"), "Start here")
             self.assertEqual(p.js("getComputedStyle(document.querySelector('.hp-idx')).position"), "sticky")
 
@@ -152,8 +152,8 @@ class Nav(Base):
         with chrome() as cdp:
             p = self.in_help(cdp)
             self.assertEqual(p.js("document.querySelector('#hpPrev')"), None, "nowhere to go back to yet")
-            p.js("document.querySelector('.hp-job[data-hlink=howto-add-a-section-from-a-template]').click()")
-            p.until("!!document.querySelector('#hp-howto-add-a-section-from-a-template.hp-found')", "the job opened")
+            p.js("document.querySelector('.hp-job[data-hlink=guide-add-a-section-from-a-template]').click()")
+            p.until("!!document.querySelector('#hp-guide-add-a-section-from-a-template.hp-found')", "the job opened")
             self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to Start here")
             self.assertTrue(p.js("var a=document.querySelector('#hpBack').getBoundingClientRect(), b=document.querySelector('#hpPrev').getBoundingClientRect(); b.left >= a.right - 1 && Math.abs(a.top - b.top) < 8"), "beside Back, on its row")
             self.assertEqual(p.js("document.querySelector('#hpBack').textContent"), "Back", "Back still means Back")
@@ -162,8 +162,8 @@ class Nav(Base):
             p.until(f"!!document.querySelector('#hp-{ids[2]}.hp-found')", "a second place")
             self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to Add a section from a template")
             p.js("document.querySelector('#hpPrev').click()")
-            p.until("!!document.querySelector('#hp-howto-add-a-section-from-a-template.hp-found')", "the way back opened the place before")
-            self.assertEqual(p.js("document.querySelector('.hp-idx a[aria-current]').dataset.hlink"), "howto-add-a-section-from-a-template")
+            p.until("!!document.querySelector('#hp-guide-add-a-section-from-a-template.hp-found')", "the way back opened the place before")
+            self.assertEqual(p.js("document.querySelector('.hp-idx a[aria-current]').dataset.hlink"), "guide-add-a-section-from-a-template")
             self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to Start here", "and the one before that is next")
             p.js("document.querySelector('#hpPrev').click()")
             p.until("document.querySelector('#hpTab-start').getAttribute('aria-selected') === 'true' && !!document.querySelector('.hp-job')", "back on Start here")
@@ -174,7 +174,7 @@ class Nav(Base):
         from test_server import chrome
         with chrome() as cdp:
             p = self.in_help(cdp)
-            p.js("document.querySelector('.hp-job[data-hlink=howto-add-a-section-from-a-template]').click()")
+            p.js("document.querySelector('.hp-job[data-hlink=guide-add-a-section-from-a-template]').click()")
             p.until("!!document.querySelector('#hpPrev')", "a way back")
             for scheme in THEMES:
                 set_theme(cdp, p, scheme)
