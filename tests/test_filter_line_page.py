@@ -724,6 +724,28 @@ class Line(unittest.TestCase):
                     self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fline-input"))
                     self.assertTrue(wait(lambda: len(self.listed(cdp, sid)) > 1), "Tab into the line opens the fields")
 
+    def test_the_open_list_sits_above_the_rows_never_over_them_and_the_first_row_is_still_clickable(self):
+        """The list of fields is in the page flow under the box: it covers no row, and a click on the first row while it is open still reaches the row."""
+        s = self.serve()
+        for width in SIZES:
+            for theme in THEMES:
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sid = self.load(cdp, s.port, width, theme=theme)
+                    self.focus(cdp, sid)
+                    self.assertTrue(wait(lambda: self.listed(cdp, sid) == self.FIELDS_ALL), "the list of fields is open")
+                    geo = cdp.js("(() => { const l = document.querySelector('#fline-list').getBoundingClientRect(), r = document.querySelector('#work tbody tr[data-id]').getBoundingClientRect(); return {lb: l.bottom, rt: r.top}; })()", sid)
+                    self.assertLessEqual(geo["lb"], geo["rt"], "the open list ends above the first row")
+                    # the point at the middle of the first row's text is the row's own, not the list's
+                    hit = cdp.js("(() => { const t = document.querySelector('#work tbody tr[data-id] td'); const r = t.getBoundingClientRect(); window.scrollTo(0, window.scrollY + r.top - 200); const q = t.getBoundingClientRect(); const e = document.elementFromPoint(q.left + 4, q.top + q.height / 2); return !!e && !e.closest('#fline-list') && !!e.closest('tr[data-id]'); })()", sid)
+                    self.assertTrue(hit, "a point on the first row reaches the row")
+                    # a real click on the row while the list is open: the click lands on the row (it is not moved away by the list closing)
+                    cdp.js("window.__hit = null; document.addEventListener('click', e => { const r = e.target.closest('tr[data-id]'); window.__hit = r ? r.dataset.id : ''; }, true)", sid)
+                    first = cdp.js("document.querySelector('#work tbody tr[data-id]').dataset.id", sid)
+                    cdp.js("window.scrollTo(0, 0)", sid)
+                    click(cdp, sid, "#work tbody tr[data-id] td")
+                    self.assertTrue(wait(lambda: cdp.js("window.__hit", sid) == first), "the click reached the first row")
+                    self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#fline-list')", sid)), "and the list closes")
+
     def test_the_x_in_the_box_shows_only_off_the_starting_line_clears_in_one_step_and_keeps_the_focus(self):
         s = self.serve()
         for width in SIZES:

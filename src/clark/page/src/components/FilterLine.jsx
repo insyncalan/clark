@@ -3,10 +3,10 @@
 // this file is the controls: removable chips, a combobox with a listbox of suggestions, a live region for plain-words messages, hint
 // chips while the line is focused, saved views as tabs and one View menu. Keys: arrows choose, Enter accepts,
 // Backspace in an empty box removes the last chip, Esc closes the open list. The line is reached by a click or Tab: the page shows no
-// "Press /" hint, because "/" opens ask clark (#286).
-// The View menu (#287, the prototype's one View menu, gap list B-2 and B-17) holds Layout (Table or Board), Group by and the board's
-// swimlanes: nothing of these sits beside the line any more. The saved-view actions (#640) are on the open tab's own arrow and on "+ New view".
-// An empty box opens the list of fields, and an x inside the box puts the line back to the starting line (#640).
+// "Press /" hint, because "/" opens ask clark.
+// The View menu (the prototype's one View menu, gap list B-2 and B-17) holds Layout (Table or Board), Group by and the board's
+// swimlanes: nothing of these sits beside the line any more. The saved-view actions are on the open tab's own arrow and on "+ New view".
+// An empty box opens the list of fields, and an x inside the box puts the line back to the starting line.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { rows as allRows, project, filterCtx, fromFile, peek } from "../stores/report.js";
@@ -224,6 +224,22 @@ export function FilterLine({ board }) {
     setSaid(r.said);
     setActive(-1); setClosed(false); setForced(false);
   };
+  // Leaving the line closes the list. The list is in the page flow, so closing it moves the rows: while the button is still down (a click on a
+  // row or card took the focus) the closing waits for the button to come up, so the row under the pointer is still the one that is clicked.
+  const down = useRef(false), late = useRef(false);
+  const leave = () => {
+    if (down.current) { late.current = true; return; }
+    setFocused(false); setClosed(false); setForced(false); setActive(-1);
+  };
+  useEffect(() => {
+    const press = () => { down.current = true; };
+    const lift = () => { down.current = false; if (late.current) { late.current = false; if (!box.current || !box.current.contains(document.activeElement)) leave(); } };
+    // The button comes up as a pointerup, or as a mouseup or a click when a row drawn again took the pointer's capture with it.
+    const ups = ["pointerup", "pointercancel", "mouseup", "click", "lostpointercapture"];
+    document.addEventListener("pointerdown", press, true);
+    ups.forEach((n) => document.addEventListener(n, lift, true));
+    return () => { document.removeEventListener("pointerdown", press, true); ups.forEach((n) => document.removeEventListener(n, lift, true)); };
+  }, []);
   const putFocus = () => { quiet.current = true; if (input.current) input.current.focus(); quiet.current = false; };
   const remove = (i) => { setSaid([]); apply(dropAt(line, i, rows, ctx)); putFocus(); };
   // The x inside the box: the whole line back to the starting line (the same as Clear all); the focus stays in the box.
@@ -258,7 +274,7 @@ export function FilterLine({ board }) {
     }
   };
   // "/" focuses the line only where nothing took the key first. In the app the ask panel's capture handler does (#47a), so this does not run
-  // there and the page does not advertise it (#286); it stays for a page without that handler.
+  // there and the page does not advertise it; it stays for a page without that handler.
   useEffect(() => {
     const slash = (e) => {
       if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
@@ -279,7 +295,7 @@ export function FilterLine({ board }) {
   return (
     <div class="fline-wrap" ref={box}
       onFocusIn={() => setFocused(true)}
-      onFocusOut={(e) => { if (!e.relatedTarget || !box.current.contains(e.relatedTarget)) { setFocused(false); setClosed(false); setForced(false); setActive(-1); } }}>
+      onFocusOut={(e) => { if (!e.relatedTarget || !box.current.contains(e.relatedTarget)) leave(); }}>
       <SavedViews board={board} />
       <div class={`fline${focused ? " on" : ""}`} data-fline>
         <Chips parsed={parsed} onRemove={remove} />
@@ -289,19 +305,20 @@ export function FilterLine({ board }) {
           placeholder={parsed.chips.length || parsed.words.length ? "" : FL.PLACEHOLDER} value={draft}
           onInput={(e) => { setDraft(e.target.value); setActive(-1); setClosed(false); setSaid([]); }} onKeyDown={onKeyDown} />
         {canX ? <button type="button" class="fx" id="fline-x" aria-label="Clear the filter" title="Clear the filter" onMouseDown={(e) => e.preventDefault()} onClick={clearLine}>{"×"}</button> : null}
-        {listed ? (
-          <ul class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
-            {options.map((o, i) => (
-              <li key={o.ins} id={`fo-${i}`} role="option" aria-selected={i === active ? "true" : "false"} class={`fopt ${o.kind}`} data-ins={o.ins}
-                onMouseDown={(e) => e.preventDefault()} onClick={() => accept(o)}>
-                <span class="fl1">{o.label}</span>
-                <span class="fl2">{o.gloss || o.note}</span>
-                {o.n !== undefined ? <span class="c num">{o.n}</span> : null}
-              </li>
-            ))}
-          </ul>
-        ) : null}
       </div>
+      {/* The list sits in the page flow under the box, not over the table or board: the first rows and cards stay clickable while it is open. */}
+      {listed ? (
+        <ul class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
+          {options.map((o, i) => (
+            <li key={o.ins} id={`fo-${i}`} role="option" aria-selected={i === active ? "true" : "false"} class={`fopt ${o.kind}`} data-ins={o.ins}
+              onMouseDown={(e) => e.preventDefault()} onClick={() => accept(o)}>
+              <span class="fl1">{o.label}</span>
+              <span class="fl2">{o.gloss || o.note}</span>
+              {o.n !== undefined ? <span class="c num">{o.n}</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {
         // Always drawn, hidden unless the line is focused: the room stays, so a click that moves focus away from the line does not shift the page under the pointer.
         // The examples and the list of suggestions are never shown together: while the list is open the examples keep their room but are hidden.
