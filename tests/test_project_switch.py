@@ -32,7 +32,7 @@ class ProjectSwitch(Base):
             self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return e.textContent})"), ["Project settings"])
 
     def test_C_the_menu_lists_the_projects_with_open_counts_and_Project_settings(self):
-        self.rig.httpd.projects = lambda: TWO
+        self.rig.httpd.projects = lambda archived=False: TWO
         with chrome() as cdp:
             p = self.page(cdp)
             p.until("document.querySelector('#project-name').tagName === 'BUTTON'", "the menu button")
@@ -54,7 +54,7 @@ class ProjectSwitch(Base):
     def test_C_the_counts_are_read_again_each_time_the_menu_opens(self):
         """Work done since the page drew (an item closed or added) shows in the menu's counts without a reload."""
         now = [dict(r) for r in TWO]
-        self.rig.httpd.projects = lambda: [dict(r) for r in now]
+        self.rig.httpd.projects = lambda archived=False: [dict(r) for r in now]
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_menu(p)
@@ -67,7 +67,7 @@ class ProjectSwitch(Base):
             self.assertEqual(p.js(ITEMS), ["Harbour Bridge Programme2 open items", "Second Programme4 open items"])
 
     def test_C_choosing_a_project_changes_the_address_and_says_so(self):
-        self.rig.httpd.projects = lambda: TWO
+        self.rig.httpd.projects = lambda archived=False: TWO
         with self.rig.store.step("dashboard", "tester", place="menu") as s:      # the chosen project is one clark has, so its page opens in View
             s.create("projects", {"code": "ABC", "name": "Second Programme"})
         with chrome() as cdp:
@@ -79,7 +79,7 @@ class ProjectSwitch(Base):
             self.assertEqual(p.js("document.querySelector('.toast-text').textContent"), "Switched to Second Programme")
 
     def test_C_Project_settings_opens_Settings(self):
-        self.rig.httpd.projects = lambda: TWO
+        self.rig.httpd.projects = lambda archived=False: TWO
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_menu(p)
