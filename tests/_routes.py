@@ -16,9 +16,9 @@ POST_ROUTES = (
     "/api/ai/stop", "/api/ai/suggest", "/api/ask", "/api/ask-enabled", "/api/ask-folders", "/api/ask/change/apply", "/api/ask/change/dry", "/api/ask/stop",
     "/api/backups/copy-folder", "/api/backups/preview", "/api/backups/restore", "/api/change", "/api/client-folder", "/api/draft-email",
     "/api/draft-email/sent", "/api/logging", "/api/logging/open-folder", "/api/page-error", "/api/people", "/api/people/undo",
-    "/api/preview", "/api/profile", "/api/publish", "/api/section-file", "/api/section-image", "/api/sneak/read", "/api/undo",
+    "/api/preview", "/api/profile", "/api/publications/archive", "/api/publications/restore", "/api/publish", "/api/section-file", "/api/section-image", "/api/sneak/read", "/api/undo",
     "/api/update/arm-undo", "/api/update/install", "/api/update/review", "/api/update/undo", "/api/word-export", "/api/word-import",
-)     # #43, #111, #622 (the copy folder), #147, #180, #50, #47, #47e, #42, #96, #72 (the AI suggestion, its Stop and its status), #282 (the update routes), and #48 (the two Word ones)
+)     # #345 (Archive and Restore of one publication), #43, #111, #622 (the copy folder), #147, #180, #50, #47, #47e, #42, #96, #72 (the AI suggestion, its Stop and its status), #282 (the update routes), and #48 (the two Word ones)
 
 
 def unplanned(server):

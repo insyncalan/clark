@@ -1592,6 +1592,5 @@ table.xl .xl-caution td:last-child { color: var(--status-amber-text); background
 .wi-all { display: flex; gap: 12px; margin: 6px 0; } .wi-items { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; max-height: 300px; overflow-y: auto; }
 .wi-item { align-items: center; } .wi-item b { display: inline; font-weight: 500; } .wi-item .type { vertical-align: middle; margin: 0 4px; } .wi-notes { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--text-muted); }
 .wt-demos { display: flex; gap: 8px; flex-wrap: wrap; } .wt-tbl { margin: 10px 0 6px; } .wt-tbl td { overflow-wrap: anywhere; } .wt-tbl td:first-child { white-space: nowrap; overflow-wrap: normal; }
-.pf-tpl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 700px) { .st-row { flex-direction: column; } .pv-if { height: 520px; } }
