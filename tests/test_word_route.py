@@ -2,7 +2,7 @@
 server. Fictional data only. Run: python3 dev/run_tests.py test_word_route
 
 What is asserted, for the import: a check writes nothing; an apply is ONE step by the "word" route with ONE Undo; the history of
-each item says "Added from Word (<file name>)" under the person's name; items are new, hidden from the client, never changed or
+each item says "Added from Word (<file name>)" under the person's name; items are new, shown to the client until hidden, never changed or
 removed; the same content twice makes the items once (and again after an Undo); a bad row names itself and the whole step rolls
 back with nothing written; a hostile file, a wrong request and an old plan are refused in plain words; no message has jargon.
 """
@@ -77,7 +77,7 @@ class Check(Base):
         self.assertEqual(status, 200, got)
         self.assertEqual([(i["n"], i["table"]) for i in got["items"]],
                          [(1, "actions"), (2, "actions"), (3, "raid"), (4, "decisions")])
-        self.assertIn("Not shown to the client until you turn it on.", got["items"][0]["text"])
+        self.assertIn("Shown to the client unless you hide it with the eye.", got["items"][0]["text"])
         self.assertEqual(self.counts(), before)
         self.assertFalse(self.state().exists())
 
@@ -112,12 +112,12 @@ class Apply(Base):
         self.assertEqual([(x["type"], x["description"]) for x in r], [("Risk", "Supplier may slip the delivery")])
         self.assertEqual([x["decision"] for x in d], ["Move go-live to December"])
         for x in a + r + d:
-            self.assertEqual(x["client_visible"], 0, "hidden from the client until the person turns it on")
+            self.assertEqual(x["client_visible"], 1, "shown to the client until the person hides it")
             self.assertTrue(x["source"].startswith("Word import, 29-10-2026, week 43 notes.docx, under"))
 
     def test_the_success_words_say_what_was_added_and_how_to_take_it_back(self):
         _, got = self.go()
-        self.assertEqual(got["message"], "Added 4 new items from week 43 notes.docx. They are not shown to the client until you turn them on. "
+        self.assertEqual(got["message"], "Added 4 new items from week 43 notes.docx. They are shown to the client until you hide them with the eye. "
                                          "Press Undo to take them all back.")
         self.assertNotRegex(got["message"], r"\(s\)|one step|content")
 
@@ -127,7 +127,7 @@ class Apply(Base):
         self.assertEqual(self.apply(first["plan"], [1])[0], 200)
         status, got = self.apply(second["plan"], "all")
         self.assertEqual(status, 200, got)
-        self.assertEqual(got["message"], "Added 3 new items from week 43 notes.docx. They are not shown to the client until you turn them on. "
+        self.assertEqual(got["message"], "Added 3 new items from week 43 notes.docx. They are shown to the client until you hide them with the eye. "
                                          "Press Undo to take them all back. 1 item from this file was added a moment ago, so it was not added again.")
 
     def test_undo_says_which_were_left_as_they_are(self):

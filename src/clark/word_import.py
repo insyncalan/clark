@@ -12,8 +12,8 @@ left alone, and a missing line means nothing. It reads no picture and no comment
 
 Text from a file is not an instruction. Every value is plain text for a plain field (control characters removed, blanks tidied,
 at most MAX_VALUE characters). No rich field is seeded (RICH_FIELDS is empty): the day one is, its text goes through
-`sanitise.clean_html`, as everywhere else. Each row is staged with `client_visible` off (Q3), so a file nobody has read closely
-reaches the client only when the person turns that row on. Each row's `source` names the file, the day and the heading.
+`sanitise.clean_html`, as everywhere else. Each row is staged with `client_visible` on, as every new item is, and the person hides any row with its eye; one Undo takes
+the whole import back. (Alan changed this from off: the client sees an imported row until it is hidden.) Each row's `source` names the file, the day and the heading.
 
 The same content twice makes the rows once: a row's fingerprint (SHA-256 of its table and values, not the file's bytes) is
 compared with `seen` (the fingerprints already made, kept by the later step) and with the rows already staged from this file.
@@ -73,7 +73,8 @@ CHOICES = {
 }
 DATE_FIELDS = {"due_date", "needed_by", "date", "revisit"}
 REQUIRED = {"actions": "description", "raid": "description", "decisions": "decision"}
-HIDDEN_FROM_CLIENT = "Not shown to the client until you turn it on."
+# WORDING: owner to rule. The imported rows are shown to the client until the person hides them.
+SHOWN_TO_CLIENT = "Shown to the client unless you hide it with the eye."
 
 CONTROLS = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f​-‏‪-‮⁠-⁤﻿]")
 BLANKS = re.compile(r"\s+")
@@ -112,9 +113,9 @@ class StagedItem:
         return f"new {_noun(self.table, self.values)} ({self.where})"
 
     def describe(self):
-        """The row in plain words, dates as DD-MM-YYYY, and that it is hidden from the client."""
+        """The row in plain words, dates as DD-MM-YYYY, and that it is shown to the client."""
         body = "; ".join(f"{_LABEL.get(f, f)} {shown(f, v)}" for f, v in self.values.items() if f in _SHOWN)
-        return f"New {_noun(self.table, self.values)} ({self.where}): {body}. {HIDDEN_FROM_CLIENT}"
+        return f"New {_noun(self.table, self.values)} ({self.where}): {body}. {SHOWN_TO_CLIENT}"
 
 
 _LABEL = {"description": "", "decision": "", "owner": "Owner", "priority": "Priority", "due_date": "Due", "status": "Status",
@@ -181,7 +182,7 @@ class WordPlan:
                f"{_count(k['raid'], 'risk or issue', 'risks or issues')}, {_count(k['decisions'], 'decision')})"
                + (f", {self.already_created} left out because they were added before or repeat another line"
                   if self.already_created else "")
-               + f", {len(self.problems)} not added. Nothing changes until you accept. {HIDDEN_FROM_CLIENT}"]
+               + f", {len(self.problems)} not added. Nothing changes until you accept. {SHOWN_TO_CLIENT}"]
         out += [f"  {i.n}. {i.state}: {i.describe()}" for i in self.items]
         out += [f"  Not added: {p.message}" for p in self.problems]
         out += [f"  Note: {n}" for n in self.notes]
@@ -279,7 +280,7 @@ class _Stage:
             if values["status"] == "Made" and not values.get("date"):
                 self.plan.problems.append(Problem(f"{where}: it says Made but has no date, so this one cannot be added. Add the date in the Word file and choose the file again.", where))
                 return
-        values["client_visible"] = 0
+        values["client_visible"] = 1               # shown to the client, as every new item is; the person hides a row with its eye
         values["source"] = f"Word import, {shown('date', self.on)}, {self.file}, under {heading}"
         self.plan.items.append(StagedItem(len(self.plan.items) + 1, table, where, values, fp))
 

@@ -10,7 +10,7 @@ Import, in three ops of one route:
 - "apply": the person accepts "all" or some numbers. The accepted items go in ONE step by the "word" route through
   excel_import._try (the import path's refuse-and-rollback: if any row breaks a rule every broken one is named and nothing
   at all is written), so one Undo reverses the lot. Each item's history says "Added from Word (<file name>)" (the step's
-  src_ref) under the person's name. Only new items are made, each with client_visible off; there is no path that changes,
+  src_ref) under the person's name. Only new items are made, each with client_visible on (the person hides a row with its eye); there is no path that changes,
   closes or removes an item. The fingerprints of what was made go to word-import-state.json beside clark.db (ids and
   fingerprints only, never any text) so the same content is not added twice.
 - "undo": reverses one Word import step, and only a Word import step.
@@ -257,8 +257,9 @@ def _apply(store, who, req, project, clock):
     PLANS.pop(key, None)                                                 # an import is applied once
     count = len(chosen)
     one = count == 1
-    words = (f"Added {_n(count, 'new item')} from {file}. {'It is' if one else 'They are'} not shown to the client until you turn "
-             f"{'it' if one else 'them'} on. Press Undo to take {'it' if one else 'them all'} back."
+    # WORDING: owner to rule. The imported items are shown to the client until the person hides them with the eye.
+    words = (f"Added {_n(count, 'new item')} from {file}. {'It is' if one else 'They are'} shown to the client until you hide "
+             f"{'it' if one else 'them'} with the eye. Press Undo to take {'it' if one else 'them all'} back."
              + (" " + SOME_SEEN.format(n=skipped, items="item" if skipped == 1 else "items", were="was" if skipped == 1 else "were",
                                        they="it was" if skipped == 1 else "they were") if skipped else "") + note)
     return 200, {"ok": True, "apply_id": step_id, "added": [made[i.n] for i in chosen if i.n in made], "message": words}

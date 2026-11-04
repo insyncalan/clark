@@ -89,7 +89,7 @@ function Dialog() {
           </div>
         )}
         {/* item 437 rows 29 and 56: the second sentence is the prototype's (io.js, #pubWarn) */}
-        {s.phase !== "clash" && s.phase !== "wordclash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">{s.pdf && pdfInfo.value.ok ? (s.word ? "The client will see this page, the PDF and the Word report." : "The client will see this page and the PDF.") : s.word ? "The client will see this page and the Word report." : "The client will see this page."} Only what is shown in View mode is included.</p> : null}
+        {s.phase !== "clash" && s.phase !== "wordclash" && s.ticked ? <p class="muted dlg-warn" id="pub-warn">{s.pdf && pdfInfo.value.ok ? (s.word ? "The client will see this page, the PDF and the Word report. Only what is shown in View mode is included." : "The client will see this page and the PDF. Only what is shown in View mode is included.") : s.word ? "The client will see this page and the Word report. Only what is shown in View mode is included." : "The client will see this page. Only what is shown in View mode is included."}</p> : null}
         <div class="pub-msg" id="pub-msg" role={s.message && s.message.kind === "error" ? "alert" : "status"} aria-live="polite">
           {working ? <p class="working">{s.step === "word" ? "Saving the Word report…" : s.pdf && pdfInfo.value.ok ? "Making the PDF…" : "Publishing…"}</p>
             : s.message ? <p class={s.message.kind}><span>{doneWords(s.message)}</span></p> : null}

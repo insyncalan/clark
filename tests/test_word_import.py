@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_word_import
 Every file is made in the test from made-up text. What is asserted: only NEW actions, risks and issues, and decisions are staged;
-nothing is accepted for the person; text from the file stays plain text; every row starts hidden from the client; an existing item
+nothing is accepted for the person; text from the file stays plain text; every row starts shown to the client; an existing item
 (a line with an ID) is never changed; the same content twice makes the rows once; a bad line names itself and is not staged; the
 text is read through docx_read, so a hostile file stages nothing; every message is plain; the module touches no disk, network or
 process. The guarded step that writes accepted rows (one step, one Undo, the history row) is not here.
@@ -151,9 +151,9 @@ class NothingIsDecidedForThePerson(unittest.TestCase):
     def test_every_row_starts_hidden_from_the_client_and_says_so(self):
         p = plan([H("Actions"), item("One"), H("Risks"), item("Two"), H("Decisions"), item("Three")])
         for i in p.items:
-            self.assertEqual(i.values["client_visible"], 0)
-            self.assertIn("Not shown to the client until you turn it on.", i.describe())
-        self.assertIn("Not shown to the client until you turn it on.", p.report())
+            self.assertEqual(i.values["client_visible"], 1)
+            self.assertIn("Shown to the client unless you hide it with the eye.", i.describe())
+        self.assertIn("Shown to the client unless you hide it with the eye.", p.report())
 
     def test_the_source_names_the_file_the_day_and_the_heading(self):
         p = plan([H("Next steps"), item("One")])
@@ -274,7 +274,7 @@ class TextFromAFileIsOnlyText(unittest.TestCase):
                    "source"}
         for i in p.items:
             self.assertLessEqual(set(i.values), allowed)
-            self.assertEqual(i.values["client_visible"], 0)
+            self.assertEqual(i.values["client_visible"], 1)
             self.assertNotIn("client_message", i.values)
             self.assertTrue(i.values["source"].startswith("Word import,"))
 
