@@ -14,6 +14,7 @@ export const helpQuery = signal("");
 export const helpFocusSearch = signal(0);        // bumped to ask the panel to focus the search box
 export const helpHere = signal(null);            // the place the reader is at: marked in the contents list, and the one the way back leaves
 export const helpTrail = signal([]);             // the places left behind, the latest last (a small history, helpLogic.js trailVisit)
+export const landing = { at: 0 };               // when a link last took the reader somewhere (set at once, before the page draws): a scroll that follows is not the reader reading on
 export const helpLand = signal(0);               // bumped when a link took the reader to a place, so the panel puts focus on that entry
 
 // The screens Help can take you to today. The others (the Publish box, Preview, ask clark) are named in the text but their
@@ -108,6 +109,7 @@ export function follow(place) {
 }
 
 function arrive(p) {
+  landing.at = Date.now();
   helpTab.value = p.tab;
   rememberTab(p.tab);
   helpQuery.value = "";

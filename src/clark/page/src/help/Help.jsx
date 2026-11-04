@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import { content, TABS, tabList, tasks, sections, guides, jobs, undoLink, nextOf, firstTen, loopSteps, iconLegend, milestoneMarks, buildIndex, resultsView, whereLabels, goLabel, markParts, stepPicture } from "./helpLogic.js";
 import { pictureUrl } from "./helpPictures.js";
-import { helpOpen, helpTab, helpTarget, helpQuery, helpFocusSearch, helpHere, helpLand, setTab, follow, goTo, canGo, closeHelp, backPlace, goBackPlace } from "./helpStore.js";
+import { helpOpen, helpTab, helpTarget, helpQuery, helpFocusSearch, helpHere, helpLand, landing, setTab, follow, goTo, canGo, closeHelp, backPlace, goBackPlace } from "./helpStore.js";
 import { Md } from "./helpText.jsx";
 import { Icon } from "../components/Icon.jsx";
 
@@ -279,7 +279,7 @@ export function Help() {
     let raf = 0;
     const pick = () => {
       raf = 0;
-      const wait = 800 - (Date.now() - landedAt);
+      const wait = 800 - (Date.now() - Math.max(landedAt, landing.at));
       if (wait > 0) { raf = -1; setTimeout(() => { raf = 0; on(); }, wait + 20); return; }      // a link's own scroll is not the reader reading on; look again once it is done
       const els = [...document.querySelectorAll("#hpPane [data-k]")];
       if (!els.length) return;
