@@ -63,11 +63,12 @@ class KeepingEveryFile(Base):
         kept = self.copies / f"PUB-{done['number']}.html"
         self.assertEqual(kept.read_bytes(), body)
         self.assertEqual(sha(kept.read_bytes()), done["sha256"])
-        self.assertEqual(sorted(p.name for p in self.copies.iterdir()), [kept.name], "nothing else is in the folder")
+        self.assertEqual(sorted(p.name for p in self.copies.iterdir()), [kept.name, f"PUB-{done['number']}.json"],
+                         "nothing else is in the folder but its data copy (#342)")
 
     def test_a_kept_copy_is_read_only_and_the_folder_is_the_owners_alone(self):
         self.publish()
-        kept = next(self.copies.iterdir())
+        kept = next(p for p in self.copies.iterdir() if p.suffix == ".html")
         self.assertEqual(stat.S_IMODE(kept.stat().st_mode) & 0o222, 0, "no one can write to it")
         self.assertEqual(stat.S_IMODE(self.copies.stat().st_mode) & 0o077, 0, "no group or other access to the folder")
 
@@ -77,7 +78,7 @@ class KeepingEveryFile(Base):
         for i in range(12):                                       # past ten: all are kept
             self.publish(now=f"2026-11-{i + 1:02d}")
         names = sorted(p.name for p in self.copies.iterdir())
-        self.assertEqual(len(names), 13)
+        self.assertEqual(len(names), 26, "13 pages and their 13 data copies (#342)")
         self.assertEqual(sha((self.copies / f"PUB-{first['number']}.html").read_bytes()), before)
         self.assertEqual(before, first["sha256"])
 
@@ -144,13 +145,13 @@ class KeepingEveryFile(Base):
         word = self.root / "report.docx"
         word.write_bytes(b"PK word")
         self.store.log_publication("PUB", word, "2026-10-23", sha(b"PK word"), USER, word=1)
-        self.assertEqual(sorted(p.name for p in self.copies.iterdir()), [f"PUB-{done['number']}.html"])
+        self.assertEqual(sorted(p.name for p in self.copies.iterdir()), [f"PUB-{done['number']}.html", f"PUB-{done['number']}.json"])
         from clark.store import NumberTaken
         page = self.root / "late.html"
         page.write_bytes(b"late")
         with self.assertRaises(NumberTaken):
             self.store.log_publication("PUB", page, "2026-10-23", sha(b"late"), USER, number=1)
-        self.assertEqual(len(list(self.copies.iterdir())), 1)
+        self.assertEqual(len(list(self.copies.iterdir())), 2)
 
     def test_a_fictional_path_in_a_record_keeps_nothing_and_does_not_fail(self):
         seq = self.store.log_publication("PUB", Path("/tmp/clark-fictional/none.html"), "2026-10-23", SHA, USER)
@@ -204,6 +205,16 @@ class Seam(Base):
         rows = self.past.listing("PUB")[1]["publications"]
         self.assertEqual([(r["number"], r["kept"], r["word"], r["where"]) for r in rows],
                          [(2, False, True, "Local and to client · Word"), (1, False, False, "Local")])
+
+    def test_a_word_copy_sharing_its_pages_number_is_listed_beside_it_and_open_still_finds_the_page(self):
+        done, body = self.publish()                            # #368: the web page and its Word copy are both Publication 1
+        page = self.store.web_publication_seq("PUB", done["number"])
+        self.store.log_publication("PUB", Path("/tmp/clark-fictional/old.docx"), "2026-10-23", "b" * 64, USER, word=1, same_as=page)
+        rows = self.past.listing("PUB")[1]["publications"]
+        self.assertEqual([(r["number"], r["word"], r["kept"]) for r in rows], [(done["number"], False, True), (done["number"], True, False)])
+        status, got = self.past.visit("PUB", done["number"])
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        self.assertEqual(self.past.take(got["url"].split("=")[1]), body)
 
     def test_a_project_with_nothing_published_has_an_empty_list(self):
         status, body = self.past.listing("PUB")

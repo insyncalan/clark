@@ -13,7 +13,7 @@ import { ClientReport } from "./ClientReport.jsx";
 const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, clientreport: ClientReport, settings: Settings };
 
 export function App({ tools: given }) {
-  // #349: the Dashboard as at a day is read only: the page draws it as a published file is drawn, with no Edit part at all (no
+  // item 349: the Dashboard as at a day is read only: the page draws it as a published file is drawn, with no Edit part at all (no
   // Edit, Publish, menu, peek tools, Help, palette or ask panel), behind its banner; Back to now gives them back.
   const past = !!rebuilt.value && !fromFile.value;
   const tools = past ? null : given;
@@ -27,6 +27,7 @@ export function App({ tools: given }) {
   const body = status.value === "ready" ? <>{past ? <AsAtBanner /> : null}<Page tools={tools} /><Leaving /></> : <Gate />;
   const AddDialog = tools && tools.AddDialog;
   const UcBoxes = tools && tools.ucEdit && tools.ucEdit.Boxes;      // the Dashboard's use case boxes (#455): beside <main>, which they make inert
+  const MsLayers = tools && tools.MsLayers;              // the milestone picker and an archived milestone's peek (Edit only)
   return (
     <>
       <TopBar tools={tools} />
@@ -39,6 +40,7 @@ export function App({ tools: given }) {
       {Pal ? <Pal /> : null}
       {AddDialog ? <AddDialog /> : null}
       {UcBoxes ? <UcBoxes /> : null}
+      {MsLayers && status.value === "ready" ? <MsLayers /> : null}
     </>
   );
 }

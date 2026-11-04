@@ -306,7 +306,7 @@
     "w": "Profile circle › Publish…",
     "go": "publish",
     "s": [
-     "Open the Publish box and tick **PDF**. It needs Google Chrome on this computer; with none found, the box is off and says so.",
+     "Open the Publish box and tick **Also a PDF**. It needs Google Chrome on this computer; with none found, the box is off and says so.",
      "Press **Publish locally** (or **Publish and send to the client**). The web page is saved as usual, and clark makes the PDF from it with Chrome.",
      "The PDF is saved beside the report file, with the same name and **.pdf** at the end. With **To client** ticked it is copied to the client folder too, and the box says the client will see the page and the PDF.",
      "The PDF has the four tabs one after another, no buttons or menus, and the publication number, the date and the page number at the foot of each page."
@@ -338,19 +338,19 @@
      "**Filter by** has Workstream, Status, Due, Owner, Priority, Use case, Milestone and Client, and Freshness once some item has a date it can go by. Each opens a list with a count beside every value: tick the ones you want, choose **is** or **is not**, and close the list to apply it. **Select all** and **Clear** are at the top. A dot marks a filter that is on.",
      "The filters that are on show as chips beside the count of items. **×** on a chip removes it; **Clear all** removes everything, the type and the search too. In the app it goes back to the open items.",
      "The search box finds words in the ID, title, owner, description, latest update and use case as you type.",
-     "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N open work items”), opens Work items already filtered to what it counts."
+     "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N work items” and the use case's reference), opens Work items already filtered to what it counts."
     ]
    },
    {
     "id": "use-the-board",
     "g": "Work items",
     "t": "Group work and use the board",
-    "w": "Work items › Group by · Table and Board",
+    "w": "Work items › View",
     "go": "work",
     "s": [
-     "**Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
-     "The two icons beside Group by switch between **Table** and **Board**. The board’s columns follow Group by (Status when it is Nothing).",
-     "**Swimlanes** adds rows across the board: None, Workstream or Type.",
+     "The **View** menu beside the saved views holds the layout, the grouping and the saved views. **Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
+     "**Layout** in the View menu switches between **Table** and **Board**. The board’s columns follow Group by (Status when it is Nothing).",
+     "On the board, **Swimlanes** in the View menu adds rows across it: No lanes, Workstream lanes or Type lanes.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
      "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes.",
      "Press a column’s heading to collapse it, and again to open it. The full-screen icon gives the board the whole window; [[Esc]] leaves it.",
@@ -369,7 +369,7 @@
      "Click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "Under the title are **Status**, **Priority**, **Owner** and **Due**. Click one to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. The due date offers Today, Tomorrow, Friday, Next week and No date.",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
-     "**Latest update**: click to write it. **Draft** writes one from the item’s own facts.",
+     "**Latest update**: click to write it. **Draft** writes one from the item’s own facts. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
      "**Details** holds the description, type, workstream, milestone, use case and client wording. It stays open or closed as you last left it.",
      "In Edit, the **Activity** tab under the title shows the item’s history: who changed what, how and when, newest first. **Details** goes back to the fields.",
      "With the peek open, click another item anywhere on the page and the peek moves to it. A click elsewhere, or [[Esc]], closes it. The up and down arrows at the top step through the list."
@@ -490,7 +490,7 @@
      "Next to **Project health** are the counts: **Overdue actions**, **High risks and issues** and **Decisions needed** (hidden to start with).",
      "Click a count, or press [[Enter]] on it, to open Work items filtered to exactly what it counts.",
      "In Edit, drag a tile to reorder it, or press [[Alt+Left]] or [[Alt+Right]]. The eye hides a tile: it is left out of the published page.",
-     "Right-click a tile in Edit for **Tile colour**: **Automatic, from the data**, Green, Amber, Red or **No colour**."
+     "Right-click a tile in Edit for **Outline colour**: **Automatic, from the data**, Green, Amber, Red or **No colour**."
     ],
     "n": "The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or an open risk or issue is rated Urgent or High, amber when something waits, and green otherwise."
    },
@@ -502,7 +502,7 @@
     "go": "dashboard",
     "s": [
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
-     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N open work items”, opens Work items filtered to that use case.",
+     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case's reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "In the detail, write **Where it stands**, or add a next step as “Owner: what it is”.",
      "**Archive this use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Restore** or Undo brings it back."
@@ -573,6 +573,7 @@
      "A slipped milestone keeps its mark on the agreed date, with a dashed ring where it is now expected and a dashed line between them.",
      "The two buttons at the top right, **Timeline** and **Calendar**, switch between them. Your choice is kept.",
      "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. In Quarter, click a month’s name to open that month.",
+     "With the keyboard, [[Tab]] reaches the calendar once, on today (or the first day when today is not shown). [[Left]] and [[Right]] move a day at a time, and [[Up]] and [[Down]] a week. [[Enter]] on a day with milestones goes to the first of them, and [[Shift+Tab]] or [[Esc]] comes back to the day.",
      "**Legend**, at the right under the milestones, explains every mark when you point at it or tab to it.",
      "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all** shows the rest. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept."
     ],
@@ -928,7 +929,9 @@
        "**Raised**: when the item came in, from its first change in the history. Raised and Last reviewed are in the peek of an open action, risk, issue or decision.",
        "**Last reviewed**: the latest change you made by hand. A change made by clark or an Undo does not count.",
        "**Not reviewed in 14 days**: shown at the top of the peek on an open action, risk, issue or decision that has not been reviewed for that long.",
-       "In **Filter by**, **Freshness** offers **Not reviewed in 14 days** and **No owner or no date**. To get the same two lists, type **is:quiet** or **is:incomplete** in the filter line. Freshness is offered once some item has a date it can count from."
+       "In **Filter by**, **Freshness** offers **Not reviewed in 14 days** and **No owner or no date**. To get the same two lists, type **is:quiet** or **is:incomplete** in the filter line. Freshness is offered once some item has a date it can count from.",
+       "14 days is the default. To change it for this project, open **Settings**, then **Freshness**, and type a whole number from 1 to 365 in **Not reviewed after (days)**. The note, the filter and the tile follow at once.",
+       "The **Not reviewed** tile on the Dashboard counts the same items and opens them in Work items. It is off until you turn it on with its eye in Edit. It is never in the published report."
       ]
      ],
      [
@@ -951,7 +954,7 @@
       [
        "An archived milestone leaves the Milestones list, the counts, the Dashboard and the published page.",
        "**Show archived** on Milestones, with the number of them in brackets, lists the archived ones in muted text, each marked **Archived**, with its agreed date and how many work items are still linked to it. A published file has no such list.",
-       "An archived milestone is read-only, with one **Restore** button. Restore is in Edit only, and is one step with **Undo**; in View the list says “To put one back, switch to Edit.”",
+       "An archived milestone is read-only. Its name opens it, with one **Restore** button. Restore works in View and in Edit, and is one step with **Undo**.",
        "A work item keeps its link to an archived milestone."
       ]
      ]
@@ -1041,7 +1044,7 @@
     "b": [
      [
       "p",
-      "From the top: the type switch; **Open**, **Closed** and **All** with counts; **Group by**; the **Table** and **Board** icons; then **Filter by**."
+      "From the top: the type switch; **Open**, **Closed** and **All** with counts; the saved views with **Freshness** and the **View** menu (Layout, Group by, Swimlanes and the saved-view actions); then the filter line."
      ],
      [
       "tbl",
@@ -1051,12 +1054,8 @@
       ],
       [
        [
-        "Type",
-        "Action, Risk, Issue, Assumption, Dependency or Decision"
-       ],
-       [
         "Item",
-        "The title, then the ID, use case, milestone and workstream, and a **Shown to client** tag"
+        "A letter for the kind of item (the letters are listed in [Types, statuses and colours](#ref-status-words)), the title, then the ID, use case, milestone and workstream"
        ],
        [
         "Owner",
@@ -1073,6 +1072,10 @@
        [
         "Status",
         "The state in words and colour: in View, the pill; in Edit, the status itself; see [Status words](#ref-status-words)"
+       ],
+       [
+        "Client-visible (the eye)",
+        "Whether the client sees the item. Open eye: shown to the client. Crossed-out eye: internal only. It follows the item’s client flag, the hidden list and Sensitive labels together, so an item with a Sensitive label shows crossed out. In View it is a mark only; in Edit, select it to turn the item on or off, with **Undo**"
        ]
       ]
      ],
@@ -1185,7 +1188,7 @@
        "**The line above the title**: the type, the ID, the project, and Client when it is shown to the client.",
        "**A warning**, when an action is overdue or due on a weekend, with fixes.",
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
-       "**Latest update**, with **Draft**; then when it was last updated.",
+       "**Latest update**, with **Draft**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
        "**Details**: Description, Type, Workstream, Milestone, Use case and Client wording.",
        "**Activity** (in Edit): each change to the item, newest first: who, how and when."
       ]
@@ -1232,8 +1235,41 @@
       ]
      ],
      [
+      "tbl",
+      [
+       "Letter",
+       "Kind of item"
+      ],
+      [
+       [
+        "A",
+        "Action"
+       ],
+       [
+        "R",
+        "Risk"
+       ],
+       [
+        "I",
+        "Issue"
+       ],
+       [
+        "D",
+        "Decision"
+       ],
+       [
+        "S",
+        "Assumption (this letter waits for the owner to confirm)"
+       ],
+       [
+        "P",
+        "Dependency (this letter waits for the owner to confirm)"
+       ]
+      ]
+     ],
+     [
       "p",
-      "A risk or issue’s colour follows its priority, which is set from impact and likelihood. Priorities are Urgent, High, Medium and Low."
+      "The letter shows before the title in the Work items table. A risk or issue’s colour follows its priority, which is set from impact and likelihood. Priorities are Urgent, High, Medium and Low."
      ],
      [
       "p",
@@ -1352,7 +1388,7 @@
      ],
      [
       "p",
-      "A state follows the dates: Achieved when the milestone is done; Overdue once the agreed date has passed; Slipped when the forecast is later than the agreed date; otherwise On track."
+      "A state follows the dates: Achieved when the milestone is done; Overdue once the agreed date has passed; Slipped when the forecast is later than the agreed date; otherwise On track. Two states are set by you, not the dates: At risk, when the project team marks it, and Forecast, for a date not yet agreed."
      ],
      [
       "p",

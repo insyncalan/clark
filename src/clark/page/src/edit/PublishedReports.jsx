@@ -9,7 +9,7 @@ import { openInNewTab } from "../router.js";
 import { dialog } from "./publishState.js";
 import { listPublications, readyPast } from "./pastReportsApi.js";
 import * as L from "../logic/pastReports.js";
-import { AsAtPick } from "./AsAtPick.jsx";            // #349: the Dashboard as at a day, under the list
+import { AsAtPick } from "./AsAtPick.jsx";            // item 349: the Dashboard as at a day, under the list
 
 const REAL = { list: listPublications, ready: readyPast };
 
