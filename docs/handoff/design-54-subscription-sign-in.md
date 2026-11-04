@@ -57,7 +57,7 @@ Slice 2 adds:
 
 - "Connect Claude for ask clark: the passages it sends leave this computer, go to Claude and count against your Claude plan. No password or key is kept."
 - "Through your Claude subscription, using the Claude command on this computer."
-- "Coming soon, through your ChatGPT sign-in."
+- "Through your ChatGPT subscription, using the Codex command on this computer. What you ask goes to OpenAI." (the ChatGPT tile; it replaced "Coming soon, through your ChatGPT sign-in." when ChatGPT went live in PR 619, #52)
 - "Connected. Asking will use Claude Sonnet." and "Asking will use Claude Sonnet." (the model name changes)
 - "Disconnected. You're still signed in to Claude on this computer, but clark won't use it."
 - "Claude Haiku is smaller than the recommended model, so its answers may be less careful. Use it anyway?" with "Use it anyway" and "Keep the model I have"
