@@ -394,6 +394,8 @@ def begin(data_dir, app_dir, staging, stamp, from_version, to_version, installed
     if marker_path(data_dir).exists():           # an earlier update is unfinished: its marker holds what to put back, so it is never overwritten
         from clark import updates
         raise updates.UpdateError("unfinished", "a marker is there already")
+    if os.path.islink(Path(data_dir) / DB_NAME):  # the helper reads and replaces <data>/clark.db only as a regular file, never through a link
+        raise StepError("unsafe", "the database is a link")
     if check:
         from clark import updates            # the caller runs inside the server, where it can be imported; run() never does
         updates.check_app_folder(app)
@@ -486,7 +488,7 @@ def read_db_state(path, readonly=False):
     """{"schema": int, "db_id": str or None} from the database's meta table, or None when there is no file, it can't be read or it
     has no usable version. Changes nothing (query_only). `readonly` opens the file with no power to write at all (a backup copy)."""
     path = Path(path)
-    if not path.is_file():
+    if path.is_symlink() or not path.is_file():   # a link is never followed: it reads as no database
         return None
     try:
         if readonly:
@@ -940,6 +942,9 @@ class Run:
         db = self.data / DB_NAME
         if not isinstance(before, int):
             return                                       # there was no readable database at the start: nothing to compare with
+        if db.is_symlink():                              # never read or replaced through a link: leave it, and offer the Undo
+            self.keep_pending(Refused("stopped", "the database is a link"), None, None)
+            return
         if finish_put_back(db):                          # an earlier run stopped between its first move and its last
             self.save(data_restore=self.restored(db, before, None, True))
             return
@@ -1114,6 +1119,12 @@ def finish(data_dir, seams=None, fault=None, trace=None, home=None):
     try:
         run = Run(marker_file, seams, fault, trace, home)
     except (OSError, ValueError):
+        return NOT_RESTORED, {"status": "not_restored", "message": MESSAGES["not_restored"].format(log=tilde(updates_dir(data_dir) / LOG_NAME, home))}
+    try:                                         # the marker names the folders the helper moves: it must be this data folder's own
+        same = Path(run.m["data_dir"]).resolve() == Path(data_dir).resolve()
+    except (OSError, KeyError, TypeError, ValueError, RuntimeError):
+        same = False
+    if not same:
         return NOT_RESTORED, {"status": "not_restored", "message": MESSAGES["not_restored"].format(log=tilde(updates_dir(data_dir) / LOG_NAME, home))}
     pid = run.m.get("helper_pid")
     if pid and pid != os.getpid() and run.seams.helper_running(pid, run.m.get("helper_ident")):

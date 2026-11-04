@@ -10,14 +10,16 @@ import os
 import shutil
 import sqlite3
 import tempfile
+import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
-from clark import backup, store as store_module, update_helper as h, update_install as ui
+from clark import backup, store as store_module, update_helper as h, update_install as ui, updater as up
 from clark.store import open_store
 from test_store_migration import make_v1, version
 from test_update_helper import FakeSeams, snapshot, sentences
-from test_updater import Rig
+from test_updater import Rig, Served
 from test_update_migration import rows
 
 
@@ -299,6 +301,49 @@ class HandOverFailsAfterTheRestoreTest(Rolled):
         self.assertEqual(newest, rows(self.db, "projects"))                           # with the change made after the update
         self.assertEqual([], [n for n in os.listdir(self.data) if n.startswith("clark.db.restoring")])
 
+
+    def test_a_begin_that_fails_after_the_restore_puts_the_newer_data_back_and_lowers_the_flag(self):
+        """Read B's MEDIUM: begin() failing after restore_data (a damaged record, a full disk, a wrong argument) is a failed
+        hand-over like any other: the newer data is put back, the flag goes down, the server answers, and it is said plainly."""
+        self.seams = MigratingSeams(self, answers=True)
+        body = self.reviewed()
+        self.assertEqual(200, self.up.install({"review_id": body["review_id"]})[0])
+        self.assertEqual(h.OK, self.run_helper()[0])
+        s = open_store(self.db, onedrive_roots=[])
+        copy = s.migration_backup
+        s.close()
+        now = self.make(version="0.3.1", migration_backup=copy)
+        now.settle()
+        con = sqlite3.connect(str(self.db))
+        con.execute("INSERT INTO projects (code, name) VALUES ('NEW', 'Added after the update')")
+        con.commit()
+        con.close()
+        newest = rows(self.db, "projects")
+        served = Served(self, now)
+        real_stamp = ui.stamp_now
+        for n, error in enumerate((h.StepError("damaged", "x"), OSError("disk full"), TypeError("x"))):
+            with self.subTest(error=type(error).__name__):
+                restored = []
+                real_restore = ui.restore_data
+
+                def restore(*a, **k):
+                    real_restore(*a, **k)
+                    restored.append(version(self.db))         # the data really was put back before begin() ran
+                armed = served.call("POST", "/api/update/arm-undo", {})[1]
+                with mock.patch.object(ui, "restore_data", restore), mock.patch.object(h, "begin", side_effect=error), \
+                        mock.patch.object(ui, "stamp_now", lambda now=None, n=n: real_stamp(time.time() + 100 * n)):   # a backup set each
+                    status, said = served.call("POST", "/api/update/undo", {"arm_id": armed["arm_id"]})
+                self.assertEqual(["1"], restored)
+                self.assertEqual((409, "helper", up.UNDO_STOPPED_BACK), (status, said["code"], said["message"]))
+                self.plain(said["message"])
+                self.assertFalse(now.installing())
+                self.assertEqual(200, served.call("POST", "/api/change", {"x": 1})[0], "the server answers again")
+                self.assertEqual(str(store_module.SCHEMA_VERSION), version(self.db))      # the newer layout, as the running app needs
+                self.assertEqual(newest, rows(self.db, "projects"))                       # with the change made after the update
+                self.assertFalse(h.marker_path(self.data).exists())
+                self.assertFalse((self.data / "updates" / up.PENDING).exists())
+                self.assertEqual([], [n for n in os.listdir(self.app) if n.startswith(h.STAGING_PREFIX)])
+                self.assertEqual([], [n for n in os.listdir(self.data) if n.startswith("clark.db.restoring")])
 
     def test_a_hand_over_that_fails_when_the_newer_data_cannot_be_put_back_says_where_it_is_kept(self):
         self.seams = MigratingSeams(self, answers=True)

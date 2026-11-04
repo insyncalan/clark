@@ -329,6 +329,44 @@ class BeginRefusalsTest(unittest.TestCase, PlainWordsMixin):
             fx.before = snapshot(fx.app)
             self.refused(fx, "norecord")
 
+    def test_a_linked_database_is_refused_and_never_read_through_the_link(self):
+        """Read B's LOW: the helper reads and replaces <data>/clark.db, so a link there (to a file anywhere) is refused."""
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            elsewhere = fx.root / "elsewhere.db"
+            make_meta_db(elsewhere, 2, "db-1")
+            (fx.data / h.DB_NAME).unlink()
+            os.symlink(elsewhere, fx.data / h.DB_NAME)
+            kept = elsewhere.read_bytes()
+            with self.assertRaises(h.StepError) as cm:
+                fx.begin()
+            self.assertEqual("unsafe", cm.exception.key)
+            self.assertFalse(h.marker_path(fx.data).exists())                    # nothing was written
+            self.assertEqual(fx.before, snapshot(fx.app))
+            self.assertIsNone(h.read_db_state(fx.data / h.DB_NAME))               # a link reads as no database
+            self.assertEqual(2, h.read_db_state(elsewhere)["schema"])
+            self.assertEqual(kept, elsewhere.read_bytes())
+
+    def test_a_database_turned_into_a_link_after_the_start_is_left_and_the_undo_offered(self):
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            marker = fx.begin()
+            m = json.loads(marker.read_text(encoding="utf-8"))
+            m["schema_before"] = 2
+            marker.write_text(json.dumps(m), encoding="utf-8")
+            elsewhere = fx.root / "elsewhere.db"
+            make_meta_db(elsewhere, 3, "db-1")
+            (fx.data / h.DB_NAME).unlink()
+            os.symlink(elsewhere, fx.data / h.DB_NAME)
+            kept = elsewhere.read_bytes()
+            run = h.Run(marker, FakeSeams())
+            run.r_restore_data()
+            self.assertTrue((fx.data / h.DB_NAME).is_symlink())
+            self.assertEqual(elsewhere, Path(os.readlink(fx.data / h.DB_NAME)))
+            self.assertEqual(kept, elsewhere.read_bytes())
+            self.assertEqual("pending", run.m["data_restore"]["status"])
+            self.assertEqual(h.REASONS["stopped"], run.m["data_restore"]["reason"])
+
     def test_unsafe_names_in_the_installed_record_are_refused(self):
         for bad in ("", "..", "/etc/passwd", "src\\x.py", "src/../../x"):
             with self.subTest(name=bad), tempfile.TemporaryDirectory() as t:
@@ -635,6 +673,33 @@ class FinishTest(unittest.TestCase, PlainWordsMixin):
             fx = Fixture(t)
             run_with(fx, Once("commit"))
             self.assertEqual(snapshot(fx.app), fx.before)
+
+    def test_finish_refuses_a_marker_that_names_another_data_folder(self):
+        """Read B's LOW: --finish works from the marker's folders, so the marker must be this --data folder's own."""
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            path = fx.begin()
+            age_marker(path)
+            other = Fixture(tempfile.mkdtemp(dir=t))
+            m = json.loads(path.read_text(encoding="utf-8"))
+            m["data_dir"] = str(other.data)
+            path.write_text(json.dumps(m), encoding="utf-8")
+            kept = path.read_bytes()
+            seams = FakeSeams()
+            code, result = h.finish(fx.data, seams)
+            self.assertEqual((code, result["status"]), (h.NOT_RESTORED, "not_restored"))
+            self.assertPlain(result["message"])
+            self.assertEqual(kept, path.read_bytes())                             # kept, and nothing done with it
+            self.assertEqual(snapshot(fx.app), fx.before)
+            self.assertEqual(snapshot(other.data), other.data_before)
+            self.assertEqual(seams.started, [])
+
+    def test_finish_takes_the_same_data_folder_however_it_is_written(self):
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            age_marker(fx.begin())
+            code, result = h.finish(str(fx.data) + "/./", FakeSeams())
+            self.assertEqual((code, result["status"]), (h.ROLLED_BACK, "rolled_back"))
 
     def test_finish_stops_while_the_helper_is_still_running(self):
         with tempfile.TemporaryDirectory() as t:

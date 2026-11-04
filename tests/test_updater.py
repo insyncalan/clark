@@ -206,6 +206,26 @@ class InstallTest(Rig):
         self.assertFalse((self.data / "updates" / up.PENDING).exists())
         self.assertIsNone(ui.last_update(self.data), "the update never went in, so there is nothing to undo")
 
+    def test_a_begin_that_fails_lowers_the_flag_and_the_server_answers_again(self):
+        """Read B's MEDIUM: begin() (the marker, the helper copy) failing in any way, not only in updates' words, must not leave
+        the flag up with every route on 503 'updating'; it is said the way the other hand-over failures are."""
+        before = snapshot(self.app)
+        s = Served(self, self.up)
+        real_stamp = ui.stamp_now
+        for n, error in enumerate((OSError("disk full"), h.StepError("damaged", "x"), TypeError("x"))):
+            with self.subTest(error=type(error).__name__):
+                body = s.call("POST", "/api/update/review", {"from": "downloads"})[1]
+                with mock.patch.object(h, "begin", side_effect=error), \
+                        mock.patch.object(ui, "stamp_now", lambda now=None, n=n: real_stamp(time.time() + 100 * n)):   # a backup set each
+                    status, said = s.call("POST", "/api/update/install", {"review_id": body["review_id"]})
+                self.assertEqual((409, "helper", ui.MESSAGES["helper"]), (status, said["code"], said["message"]))
+                self.assertFalse(self.up.installing())
+                self.assertEqual(200, s.call("POST", "/api/change", {"x": 1})[0], "the server answers again")
+                self.assertEqual(before, snapshot(self.app))
+                self.assertFalse(h.marker_path(self.data).exists())
+                self.assertFalse((self.data / "updates" / up.PENDING).exists())
+                self.assertEqual([], [n for n in os.listdir(self.app) if n.startswith(h.STAGING_PREFIX)])
+
     def test_a_review_is_used_once_even_when_the_install_stops(self):
         body = self.reviewed()
         failing = self.make(start=lambda *a, **k: (_ for _ in ()).throw(OSError("no")))
