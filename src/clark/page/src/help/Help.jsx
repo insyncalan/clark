@@ -1,7 +1,7 @@
 // The Help panel (#82; BRD 5.13): Start here, How do I… and Reference, all drawn from help/helpContent.json, with one search across
 // the three tabs. A layer in place of the open page; Esc or the Back button returns to it. Edit-served pages only (edit/index.js).
 import { useEffect, useRef } from "preact/hooks";
-import { content, TABS, tabList, tasks, sections, guides, jobs, undoLink, nextOf, firstTen, loopSteps, iconLegend, milestoneMarks, buildIndex, resultsView, goLabel, markParts } from "./helpLogic.js";
+import { content, TABS, tabList, tasks, sections, guides, jobs, undoLink, nextOf, firstTen, loopSteps, iconLegend, milestoneMarks, buildIndex, resultsView, whereLabels, goLabel, markParts } from "./helpLogic.js";
 import { helpOpen, helpTab, helpTarget, helpQuery, helpFocusSearch, helpHere, helpLand, setTab, follow, goTo, canGo, closeHelp, backPlace, goBackPlace } from "./helpStore.js";
 import { Md } from "./helpText.jsx";
 import { Icon } from "../components/Icon.jsx";
@@ -221,15 +221,22 @@ function Results() {
   return (
     <>
       <p class="hp-resn" role="status">{r.line}</p>
+      {r.lead && <p class="hp-resl">{r.lead}</p>}
       {r.groups.map((g) => (
         <section class="hp-resg" key={g.tab} aria-label={g.name}>
           <h3>{g.name}</h3>
           {g.results.map((x) => {
-            const e = index()[x.n];
+            const lab = whereLabels(x.where);
             return (
               <a href="#" class="hp-r" key={x.id} data-hit={x.id} onClick={(ev) => { ev.preventDefault(); follow(x.id); }}>
                 <span class="hp-rt"><Marked text={x.title} q={helpQuery.value} /></span>
-                <span class="hp-rl"><Marked text={x.line < 0 ? e.lines[0] || "" : e.lines[x.line]} q={helpQuery.value} /></span>
+                {(lab.step || lab.part) && (
+                  <span class="hp-where">
+                    {lab.step && <span class="hp-chip" data-where="step">{lab.step}</span>}
+                    {lab.part && <span class="hp-chip hp-chip-g" data-where="part">{lab.part}</span>}
+                  </span>
+                )}
+                <span class="hp-rl"><Marked text={x.text} q={helpQuery.value} /></span>
               </a>
             );
           })}

@@ -960,6 +960,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-r { display: block; padding: 10px 14px; margin-bottom: 6px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius); color: var(--text); text-decoration: none; }
 .hp-r:hover, .hp-r:focus-visible { border-color: var(--brand-blue); outline: none; box-shadow: 0 0 0 3px var(--brand-blue-tint); }
 .hp-rt { display: block; font-weight: 500; color: var(--heading); }
+.hp-resl { margin: 0 0 var(--space-2); color: var(--text-muted); }
+.hp-where { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; font-size: var(--size-small); }
+.hp-chip { display: inline-block; border-radius: 99px; padding: 2px 9px; background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.hp-chip-g { background: var(--grey-100); color: var(--text-muted); }
 .hp-rl { display: block; font-size: var(--size-small); color: var(--text-muted); margin-top: 2px; }
 .hp-none { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 22px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); }
 .hp-later { padding: var(--space-5) 0; }

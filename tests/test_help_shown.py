@@ -205,8 +205,8 @@ class AgainstThePage(unittest.TestCase):
         # 37 measured on the merge of main (39 there, the project switcher's menu) into the refreshed Version and updates card (38): both sides' names on the page together (38 fails)
         # 35 measured on the merge of main (37 there, the Word screens) into the refreshed Version and updates card (37): both sides' names on the page together (36 fails)
         # 30 measured on the merge of main (32 there, the Settings Data card and Projects table) into the refreshed Version and updates card (35): both sides' names on the page together (31 fails)
-        # 27 measured on the merge of main (30 there) into the v1.0 integration base (28 fails)
-        self.assertGreaterEqual(len(names), 27)
+        # 27 measured on the merge of main (30 there) into the search-where branch (29): the refreshed Version and updates card puts Choose zip… and Undo update on the page, and this branch's released entries take Draft with AI, Movement › What changed and Summary off it (28 fails): both sides' names on the page together
+        self.assertGreaterEqual(len(names), 27)      # measured 27 (was 29) with add-a-work-item, write-the-weekly-report, publish-the-report and undo-a-mistake released (32 before: their old steps named AI and other features not built); lower only when a feature lands
         # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
         # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
         # 56 measured on the merged tree after the next main merge (names printed): the milestone details toggle (C-M6) leaves the list on top of the Supporting documents section

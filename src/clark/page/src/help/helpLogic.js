@@ -128,7 +128,7 @@ function startTitle(part) {
 /** The guides as the panel needs them: the steps numbered from 1, the text with its markup taken off in `text`. */
 export const guides = () => (CONTENT.guides || []).map((g) => ({
   id: g.id, place: GUIDE + g.id, title: g.t, job: g.job, result: g.result, next: (g.next || []).slice(), page: (g.page || []).slice(),
-  steps: (g.steps || []).map((s, i) => ({ n: i + 1, d: s.d, text: plain(s.d), pic: s.pic || null })),
+  steps: (g.steps || []).map((s, i) => ({ n: i + 1, d: s.d, text: plain(s.d), pic: s.pic || null, t: s.t || null, part: s.part || null })),
 }));
 /** One guide by id (null when there is none). */
 export const guide = (id) => guides().find((g) => g.id === id) || null;
@@ -282,10 +282,14 @@ const stems = (w) => {
 };
 const hit = (q, t) => stems(q).some((c) => c.length >= 2 && t.startsWith(c));
 
-function entry(tab, id, title, lines) {
-  const ls = lines.map((l) => plain(l)).filter(Boolean);
-  return { tab, id, title, lines: ls, tw: wordsOf(title), lw: ls.map(wordsOf) };
+// `meta` (optional) is one note for each line, in step with `lines`: { step: n, t: step title | null, part: screen part | null } for a
+// numbered step, null for any other line (#642 step 4: a result shows where it lives). `part` is the step's own screen part, only.
+function entry(tab, id, title, lines, meta = null) {
+  const ls = [], ms = [];
+  lines.forEach((l, i) => { const t = plain(l); if (t) { ls.push(t); ms.push(meta ? meta[i] || null : null); } });
+  return { tab, id, title, lines: ls, meta: ms, tw: wordsOf(title), lw: ls.map(wordsOf) };
 }
+const stepMeta = (n, t, part) => ({ step: n, t: t || null, part: part || null });
 
 function refLines(sec, dynamic) {
   const R = CONTENT.reference, out = [];
@@ -314,9 +318,11 @@ export function buildIndex(dynamic = null) {
   if (on("where")) add("start", "start-where", T.where_title, [...S.where.map((w) => `${w[0]}. ${w[1]}`), T.keyline]);
   if (on("rules")) add("start", "start-rules", T.rules_title, S.rules.map((r) => `${r[0]}. ${r[1]}`));
   if (on("foot")) add("start", "start-foot", "Start here", [T.foot, T.foot_link]);
-  tasks().forEach((x) => add("howto", PREFIX.howto + x.id, x.t, ["Where: " + x.w, ...x.s, ...(x.n ? [x.n] : []), ...(x.say ? ["Or ask clark: " + x.say.join(" ")] : [])]));
+  tasks().forEach((x) => add("howto", PREFIX.howto + x.id, x.t, ["Where: " + x.w, ...x.s, ...(x.n ? [x.n] : []), ...(x.say ? ["Or ask clark: " + x.say.join(" ")] : [])],
+    [null, ...x.s.map((_, i) => stepMeta(i + 1))]));
   sections().forEach((x) => add("reference", PREFIX.reference + x.id, x.t, refLines(x, dynamic)));
-  guides().forEach((g) => add("howto", g.place, g.title, [g.job, ...g.steps.map((s) => `${s.n}. ${s.d}`), g.result ? "What you should see: " + g.result : ""]));
+  guides().forEach((g) => add("howto", g.place, g.title, [g.job, ...g.steps.map((s) => `${s.n}. ${s.d}`), g.result ? "What you should see: " + g.result : ""],
+    [null, ...g.steps.map((s) => stepMeta(s.n, s.t, s.part))]));
   return idx;
 }
 
@@ -365,6 +371,9 @@ export function markParts(line, q) {
   return out;
 }
 
+/** The sentence under the count (shown only when a guide ships: it says "the guide") and the two chip labels: the signed mockup's words (docs/handoff/v1.0/mockups/help-search.html). */
+export const RESULT_LEAD = "Each result names the guide, the step and the part of the screen it is about.";
+export const whereLabels = (w) => ({ step: w.step ? `Step ${w.step.n}${w.step.title ? ": " + w.step.title : ""}` : null, part: w.part ? `Screen part: ${w.part}` : null });
 const TAB_NAME = Object.fromEntries(CONTENT.tabs);
 /** The results as the panel shows them: a count line, then groups in the order How do I…, Reference, Start here. */
 export function resultsView(index, q) {
@@ -373,7 +382,13 @@ export function resultsView(index, q) {
   const res = search(index, q);
   if (!res.length) return { kind: "empty", count: 0, groups: [], ...noResults(trimmed) };
   const groups = ["howto", "reference", "start"].map((t) => ({ tab: t, name: TAB_NAME[t], results: res.filter((r) => r.tab === t) })).filter((g) => g.results.length);
-  return { kind: "results", count: res.length, line: `${res.length} result${res.length === 1 ? "" : "s"}`, groups };
+  groups.forEach((g) => g.results.forEach((r) => {
+    // where the best line lives: the step (only when that line is a numbered step) and the screen part (the step's own: a how-to step has none, and its task's whole Where is not one step's part)
+    const e = index[r.n], m = r.line >= 0 ? e.meta[r.line] : null, raw = r.line < 0 ? e.lines[0] || "" : e.lines[r.line];
+    r.where = { step: m && m.step ? { n: m.step, title: m.t } : null, part: (m && m.part) || null };
+    r.text = r.where.step ? raw.replace(/^\d+\.\s+/, "") : raw;     // the step's number is in its chip, so the snippet drops it
+  }));
+  return { kind: "results", count: res.length, line: `${res.length} result${res.length === 1 ? "" : "s"} for “${trimmed}”`, lead: guides().length ? RESULT_LEAD : null, groups };
 }
 
 /** What a search with no match says. It points to the tabs (ask clark returns when it exists), and the word searched for is shown as text, never as markup. */
