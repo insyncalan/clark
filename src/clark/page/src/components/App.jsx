@@ -42,7 +42,7 @@ export function App({ tools: given }) {
   const Pal = tools && tools.Palette;                    // the command palette (#198); a published file has none
   const Ask = tools && tools.AskPanel;                   // the ask panel (#47a) sits over the open page; a published file has none
   const HPeek = tools && tools.HelpPeek;                 // the Help peek (#645) sits at the right edge over the open page; a published file has none
-  const stacked =fromFile.value && printing.value && status.value === "ready";
+  const stacked = fromFile.value && printing.value && status.value === "ready";
   const body = status.value === "ready" ? <>{past ? <AsAtBanner /> : null}<Page tools={tools} /><Leaving /></> : <Gate />;
   const AddDialog = tools && tools.AddDialog;
   const UcBoxes = tools && tools.ucEdit && tools.ucEdit.Boxes;      // the Dashboard's use case boxes (#455): beside <main>, which they make inert
