@@ -48,8 +48,15 @@ export function setMsHidden(id, hide, name) {
   if (eyeBusy.has(id)) return Promise.resolve(null);
   eyeBusy.add(id);
   const what = name ? String(name) : "Milestone";
-  const words = hide ? `${what} left out of the published page.` : `${what} included in the published page.`;
+  const words = hide ? `${what} taken off the page.` : `${what} added back to the page.`;
   return change({ kind: "report_hidden", op: hide ? "new" : "delete", id, place: "report" }, words).finally(() => eyeBusy.delete(id));
+}
+
+// "+ Add a milestone from your project record": the picker's Add (the page's one `pick` change): every chosen milestone is taken off
+// the left-out list in ONE step with ONE Undo (the server also shows one that was not for the client; see changes.py _do_pick).
+export function addMilestonesBack(ids) {
+  const n = ids.length;
+  return change({ kind: "report_hidden", op: "pick", ids, place: "report" }, `${n} milestone${n === 1 ? "" : "s"} added to the page.`);
 }
 
 export function rename(id, title) {
