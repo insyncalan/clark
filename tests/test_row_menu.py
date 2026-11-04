@@ -467,6 +467,85 @@ class Menu(board.Base):
                     self.assertEqual(self.row(new)["client_visible"], eye, (table, eye))
                     self.until(cdp, sid, f"!!document.querySelector(\"{self.TABLE % new}\")", "the copy in the list")
 
+    def go_dark(self, cdp, sid, where):
+        cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
+        self.until(cdp, sid, "getComputedStyle(document.body).backgroundColor !== 'rgb(255, 255, 255)'", f"{where}: the page went dark")
+        self.assertLess(ms._lum(cdp.js("getComputedStyle(document.body).backgroundColor", sid)), 0.2, f"{where}: the page is dark")
+
+    def readable(self, cdp, sid, selector, where):
+        """Each element's words against the first solid background behind it, at least 4.5:1."""
+        got = cdp.js("[...document.querySelectorAll(" + json.dumps(selector) + ")].filter(e => e.offsetWidth > 1).map(e => {"
+                     " let b = e, bg = 'rgba(0, 0, 0, 0)';"
+                     " while (b && /rgba\\(.*, 0\\)$|transparent/.test(bg = getComputedStyle(b).backgroundColor)) b = b.parentElement;"
+                     " return [e.textContent.trim(), getComputedStyle(e).color, bg]; })", sid)
+        self.assertTrue(got, f"{where}: {selector} is on screen")
+        for text, fg, bg in got:
+            self.assertGreaterEqual(ms.contrast(fg, bg), 4.5, f"{where}: {text!r} is {fg} on {bg}")
+
+    def test_in_dark_at_1400_and_900_duplicate_opens_the_copy_and_its_toast_with_undo_reads(self):
+        """Item 442, Done-when 4: in dark, Duplicate adds the copy in one step, opens its peek, and the toast names it with an
+        Undo that can be read and sits in the window; Undo takes the copy back."""
+        a = self.id_of("Order the laptops")
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                where = f"dark {width}"
+                sid = self.visit(cdp, width=width)
+                self.go_dark(cdp, sid, where)
+                n, before = len(self.query("SELECT id FROM actions")), self.steps()
+                self.open_menu(cdp, sid, self.TABLE % a)
+                self.readable(cdp, sid, ".rowmenu [role=menuitem] b", where + " menu")
+                click(cdp, sid, "[data-rm=dup]")
+                t = self.wait_toast(cdp, sid, "done")
+                now = self.query("SELECT id FROM actions WHERE description = 'Order the laptops (copy)'")
+                self.assertEqual((len(now), len(self.query("SELECT id FROM actions")), self.steps()), (1, n + 1, before + 1), where)
+                copy = now[0]["id"]
+                self.assertEqual((t["text"], t["undo"]), (f"{copy} added, a copy of {a}.", True), where)
+                self.readable(cdp, sid, ".toast .toast-text, .toast [data-undo]", where + " toast")
+                box = cdp.js("(() => { const b = document.querySelector('.toast').getBoundingClientRect(), u = document.querySelector('.toast [data-undo]').getBoundingClientRect();"
+                             " return [b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight, u.width > 0 && u.right <= b.right]; })()", sid)
+                self.assertEqual(box, [True, True], f"{where}: the toast and its Undo are whole in the window")
+                self.until(cdp, sid, f"location.hash.includes('item={copy}')", f"{where}: the copy's peek to open")
+                self.until(cdp, sid, f"(document.querySelector('#peek') || {{}}).dataset && document.querySelector('#peek').dataset.peek === '{copy}'", f"{where}: the peek is the copy's")
+                self.assertEqual(cdp.js("document.querySelector('#peek .pk-title').textContent", sid), "Order the laptops (copy)", where)
+                self.readable(cdp, sid, "#peek .pk-title, #peek .pk-id", where + " peek")
+                click(cdp, sid, "[data-undo]")
+                self.until(cdp, sid, f"!document.querySelector(\"{self.TABLE % copy}\")", f"{where}: the copy to go again")
+                want = json.dumps(copy + ' is taken back. ' + a + ' is as it was.')
+                self.until(cdp, sid, f"(document.querySelector('.toast-text') || {{}}).textContent === {want}", f"{where}: the Undo words")
+                self.readable(cdp, sid, ".toast .toast-text", where + " undo toast")
+                self.assertEqual(self.query("SELECT id FROM actions WHERE id = ?", copy), [], where)
+                self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), f"{where}: no sideways scroll")
+
+    def test_in_dark_at_1400_and_900_a_copy_keeps_the_eye_and_its_menu_says_so(self):
+        """Item 442, Done-when 4: in dark, a copy of a hidden item is hidden and a copy of a shown one is shown, in the store and
+        in the copy's own menu, whose eye entry can be read."""
+        a = self.id_of("Order the laptops")
+        made = []
+        for width in (1400, 900):
+            for eye in (0, 1):
+                with self.subTest(width=width, eye=eye), chrome() as cdp:
+                    where = f"dark {width} eye {eye}"
+                    with self.store.step("dashboard", USER) as st:
+                        st.update("actions", a, {"client_visible": eye})
+                    sid = self.visit(cdp, width=width)
+                    self.go_dark(cdp, sid, where)
+                    self.open_menu(cdp, sid, self.TABLE % a)
+                    click(cdp, sid, "[data-rm=dup]")
+                    fresh = lambda: [r["id"] for r in self.query("SELECT id FROM actions WHERE description = 'Order the laptops (copy)'") if r["id"] not in made]
+                    self.assertTrue(wait(lambda: len(fresh()) == 1), where)
+                    new = fresh()[0]
+                    made.append(new)
+                    self.assertEqual(self.row(new)["client_visible"], eye, where)
+                    self.until(cdp, sid, f"location.hash.includes('item={new}')", f"{where}: the copy's peek to open")
+                    click(cdp, sid, "#peek [data-pk-close]")
+                    self.until(cdp, sid, "!location.hash.includes('item=')", f"{where}: the peek closed")
+                    self.until(cdp, sid, f"!!document.querySelector(\"{self.TABLE % new}\")", f"{where}: the copy in the list")
+                    self.open_menu(cdp, sid, self.TABLE % new)
+                    self.assertIn("Hide from the client" if eye else "Show to the client", [e[1] for e in self.entries(cdp, sid)], where)
+                    self.readable(cdp, sid, ".rowmenu [data-rm=eye] b", where + " eye entry")
+                    key(cdp, sid, "Escape")
+                    self.shut(cdp, sid)
+
     def test_in_view_arrow_right_opens_the_list_for_status_due_and_owner(self):
         with chrome() as cdp:
             sid = self.visit(cdp, edit=False)
