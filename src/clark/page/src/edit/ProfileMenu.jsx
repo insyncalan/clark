@@ -9,6 +9,7 @@ import { data, tabs, show, project, mode, view } from "../stores/report.js";
 import { openInNewTab } from "../router.js";
 import { openHelp } from "../help/helpStore.js";
 import { openPublish, lastLine } from "./Publish.jsx";
+import { BarToast } from "./BarToast.jsx";
 import { latest } from "./publishState.js";
 import { note, say, closeNote } from "./menuNote.js";
 import { previewRequest, exportRequest, words } from "./publishApi.js";
@@ -105,7 +106,7 @@ export function ProfileMenu() {
     <>
       <Menu id="profile-btn" btnCls="me" icon="user" label="" chevron={false} ariaLabel={MENU_NAME} tip={tip} menuId="profile-menu" menuLabel={MENU_NAME} items={shown} onPick={pick} />
       <Welcome />{/* #174: the first-run name prompt, asked once (Welcome.jsx) */}
-      {mode.value !== "edit" && view.value === "dashboard" ? <div class="toasts" role="status" aria-live="polite">{toast.value && toast.value.own ? <ToastCard t={toast.value} /> : null}<MenuNote /></div> : null}      {/* the Dashboard in View: About you's own toast, with Undo, too (#429) */}
+      {mode.value !== "edit" && view.value === "dashboard" ? <div class="toasts" role="status" aria-live="polite">{toast.value && toast.value.own ? <ToastCard t={toast.value} /> : <BarToast />}<MenuNote /></div> : null}      {/* the Dashboard in View: About you's own toast, with Undo, too (item 429), and one made in View (item 439) */}
     </>
   );
 }
