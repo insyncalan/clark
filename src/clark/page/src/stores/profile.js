@@ -3,7 +3,7 @@
 import { signal } from "@preact/signals";
 import { getProfile, saveProfile } from "../api.js";
 
-export const profile = signal({ name: "", email: "" });
+export const profile = signal({ name: "", email: "", alias: "" });      // alias: the Alias (item 613), "" when none was saved
 export const wantName = signal(false);                  // "Add your name in Settings": the name box takes the focus when Settings has drawn
 export const profileRead = signal(false);               // clark has answered a read: only then is an empty name known to be empty (the welcome, #174)
 export const welcomeHeld = signal(false);               // the browser tests' copy holds the welcome back unless a test asks for it (testhook.js)
@@ -25,10 +25,10 @@ let sent = 0, applied = 0;                              // saves sent so far; th
  *  `before` is what clark held when the save was sent ({name, email}), or null when that could not be read: an answer to compare with (#429).
  *  Answers can arrive late and out of order, so the answer also says `newest`: true only when no save was sent after this one. The menu
  *  is given a saved answer unless a newer saved answer has already been given (the older one must not put the menu back). */
-export async function setProfile(name, email) {
+export async function setProfile(name, email, alias) {     // with no alias given (undefined), the saved Alias is kept
   const n = ++sent;
   const before = loaded ? profile.value : null;      // not read yet (Settings opened a moment ago): without an answer there is no "before", and the save never waits for a read
-  const r = await saveProfile(name, email);
-  if (r.ok && n > applied) { applied = n; profile.value = { name: r.name, email: r.email }; }
+  const r = await saveProfile(name, email, alias);
+  if (r.ok && n > applied) { applied = n; profile.value = { name: r.name, email: r.email, alias: r.alias }; }
   return { ...r, newest: n === sent, before };
 }

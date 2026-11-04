@@ -1,9 +1,9 @@
 """#613: the Alias clark suggests from a full name (src/clark/page/src/logic/alias.js): the first name, then the initials, comma-separated.
 "Jane Doe" suggests "Jane,JD"; a one-word name suggests only that word; an empty name suggests nothing; a suggestion never overwrites
-an Alias already typed. Fictional names only. The Alias box waits for a stored Alias field (a guarded change); what the page has is a
-read-only line under Settings › Personal › About you › Your name, worked out live from the name box and never kept or sent. The line
-shows the two parts with a space after the comma ("Suggested Alias: Jane, JD"). It is checked in the real page at 1400 and 900 px,
-light and dark.
+an Alias already typed. Fictional names only. Settings › Personal › About you has an Alias box under Your name, kept by clark beside
+the name and the email: while nothing was saved and nobody has typed in it, it is filled in from the name with a space after the
+comma ("Jane, JD") and follows the name; once typed in it is the person's and is never filled in again. It is checked in the real page
+at 1400 and 900 px, light and dark.
 
 Run: python3 dev/run_tests.py test_alias_suggest
 The plain-JS logic runs inside headless Chrome (the #33 harness, as test_placement.py does), bundled with the pinned esbuild into a
@@ -25,10 +25,12 @@ import esbuild  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402  (the #33 browser harness, shared)
 import test_about_you as about  # noqa: E402  (its helpers only: the module is imported, not its test class, so those tests run once)
 from test_publish_dialog import Base  # noqa: E402
+from _new_page import reload_to_new_page  # noqa: E402
 
 WIDTHS = (1400, 900)
-LINE = "Suggested Alias: {}"
-HELP = "Your first name and your initials, worked out from your full name. Not saved."
+LABEL = "Alias"
+PLACEHOLDER = "What colleagues call you, or your initials"
+HELP = "Your first name and your initials, worked out from your full name. You can change it."
 
 ALIAS_JS = SRC / "clark" / "page" / "src" / "logic" / "alias.js"
 _PAGE = {}
@@ -105,35 +107,43 @@ class Suggest(unittest.TestCase):
 
 
 class OnThePage(Base):
-    """The read-only line under the name box in the real page."""
+    """The Alias box under the name box in the real page, kept by clark."""
     saved = about.AboutYou.saved
     open_menu = about.AboutYou.open_menu
     open_settings = about.AboutYou.open_settings
     type_into = about.AboutYou.type_into
+    toast_is = about.AboutYou.toast_is
+    handled = about.AboutYou.handled
+    close_menu = about.AboutYou.close_menu
 
-    def offer(self, p):
-        return p.js("(() => { const o = document.querySelector('[data-about-you] [data-alias-offer]'); if (!o) return null; "
-                    "const ps = o.querySelectorAll('p'); return {line: ps[0].textContent, alias: o.querySelector('[data-alias]').textContent, "
-                    "help: ps[1].textContent, under: !!o.closest('.fld') && !!o.closest('.fld').querySelector('#about-name')}; })()")
+    def box(self, p):
+        return p.js("(() => { const i = document.querySelector('[data-about-you] #about-alias'); if (!i) return null; const f = i.closest('.fld'); "
+                    "const prev = f.previousElementSibling; return {label: f.querySelector('label').textContent, placeholder: i.placeholder, "
+                    "help: f.querySelector('small').textContent, value: i.value, autocomplete: i.autocomplete, "
+                    "under: !!prev && !!prev.querySelector('#about-name')}; })()")
+
+    def alias(self, p):
+        return p.js("document.querySelector('#about-alias').value")
 
     def fits(self, p):
-        return p.js("(() => { const o = document.querySelector('[data-alias-offer]'), f = document.querySelector('[data-about-you]'); "
-                    "const r = o.getBoundingClientRect(), b = f.getBoundingClientRect(); "
+        return p.js("(() => { const f = document.querySelector('#about-alias').closest('.fld'), a = document.querySelector('[data-about-you]'); "
+                    "const r = f.getBoundingClientRect(), b = a.getBoundingClientRect(); "
                     "return r.width > 0 && r.right <= b.right + 0.5 && document.documentElement.scrollWidth <= document.documentElement.clientWidth "
-                    "&& [...o.querySelectorAll('p')].every((e) => e.scrollWidth <= e.clientWidth + 0.5); })()")
+                    "&& f.querySelector('small').scrollWidth <= f.querySelector('small').clientWidth + 0.5; })()")
 
-    def lightness(self, p, sel):
-        rgb = p.js(f"getComputedStyle(document.querySelector({json.dumps(sel)})).color")
+    def lightness(self, p, sel, prop="color"):
+        rgb = p.js(f"getComputedStyle(document.querySelector({json.dumps(sel)})).{prop}")
         r, g, b = [int(x) for x in rgb[rgb.index("(") + 1:rgb.index(")")].split(",")[:3]]
         return (r + g + b) / 3
 
-    def test_C_the_line_follows_the_name_box_at_both_widths_light_and_dark(self):
+    def test_C_the_box_is_filled_from_the_name_at_both_widths_light_and_dark(self):
         for w in WIDTHS:
             with chrome() as cdp:
                 p = self.page(cdp)
                 p.width(w)
                 self.open_settings(p)
-                self.assertIsNone(self.offer(p), "an empty name shows no line")
+                self.assertEqual(self.box(p), {"label": LABEL, "placeholder": PLACEHOLDER, "help": HELP, "value": "", "autocomplete": "nickname", "under": True},
+                                 "an empty name leaves the Alias empty")
                 for theme in ("light", "dark"):
                     with self.subTest(width=w, theme=theme):
                         p.js(f"document.querySelector('input[name=appearance][value={theme}]').click()")
@@ -141,47 +151,81 @@ class OnThePage(Base):
                                 f"|| ({json.dumps(theme)} === 'light' && !document.documentElement.dataset.theme)", "the appearance applied")
                         for name, alias in (("Jane Doe", "Jane, JD"), ("Jane", "Jane"), ("Mary Ann Smith", "Mary, MAS")):
                             self.type_into(p, "name", name, leave="none")
-                            p.until(f"(document.querySelector('[data-alias]') || {{}}).textContent === {json.dumps(alias)}", f"{name} shows {alias}")
-                            self.assertEqual(self.offer(p), {"line": LINE.format(alias), "alias": alias, "help": HELP, "under": True})
-                            self.assertTrue(self.fits(p), "the line fits, with no sideways scroll")
-                        for sel in ("[data-alias-offer] .alias-help", "[data-alias]"):
+                            p.until(f"document.querySelector('#about-alias').value === {json.dumps(alias)}", f"{name} fills in {alias}")
+                            self.assertTrue(self.fits(p), "the box fits, with no sideways scroll")
+                        for sel in ("#about-alias", "#about-alias-line"):
                             light = self.lightness(p, sel)
                             if theme == "dark":
                                 self.assertGreater(light, 128, f"{sel} is light text on dark")
                             else:
                                 self.assertLess(light, 128, f"{sel} is dark text on light")
+                        self.assertGreater(abs(self.lightness(p, "#about-alias") - self.lightness(p, "#about-alias", "backgroundColor")), 100,
+                                           "the Alias reads against its box")
                         self.type_into(p, "name", "", leave="none")
-                        p.until("!document.querySelector('[data-alias-offer]')", "an empty name shows no line")
+                        p.until("document.querySelector('#about-alias').value === ''", "an empty name leaves the Alias empty")
                         self.type_into(p, "name", "   ", leave="none")
-                        self.assertIsNone(self.offer(p), "spaces alone show no line")
-                self.assertEqual(self.saved(), {}, "nothing was saved")
+                        self.assertEqual(self.alias(p), "", "spaces alone leave it empty")
+                self.assertEqual(self.saved(), {}, "nothing was saved while nothing was left")
 
-    def test_C_the_line_changing_sends_nothing_and_keeps_nothing(self):
+    def test_C_jane_doe_is_saved_with_jane_jd_and_a_typed_alias_is_kept_when_the_name_changes(self):
         with chrome() as cdp:
             p = self.page(cdp)
-            p.width(900)
+            p.width(1400)
             self.open_settings(p)
-            p.js("(() => { window.__sent = []; const f = window.fetch; window.fetch = (u, o) => { "
-                 "if (String(u).includes('/api/profile') && o && o.method && o.method !== 'GET') window.__sent.push(String(o.body)); return f(u, o); }; "
-                 "const s = XMLHttpRequest.prototype.send, op = XMLHttpRequest.prototype.open; "
-                 "XMLHttpRequest.prototype.open = function (m, u, ...r) { this.__u = String(u); return op.call(this, m, u, ...r); }; "
-                 "XMLHttpRequest.prototype.send = function (b) { if ((this.__u || '').includes('/api/profile')) window.__sent.push(String(b)); return s.call(this, b); }; "
-                 "navigator.sendBeacon = () => { window.__sent.push('beacon'); return true; }; })()")
-            for name, alias in (("Jane Doe", "Jane, JD"), ("Jane", "Jane"), ("Sam Lee", "Sam, SL")):
-                self.type_into(p, "name", name, leave="none")
-                p.until(f"(document.querySelector('[data-alias]') || {{}}).textContent === {json.dumps(alias)}", f"{name} shows {alias}")
-            self.type_into(p, "name", "", leave="none")
-            p.until("!document.querySelector('[data-alias-offer]')", "the line went")
-            self.assertEqual(p.js("window.__sent"), [], "nothing is sent to /api/profile while the line changes")
-            self.assertEqual(self.saved(), {}, "nothing is kept by clark")
-            self.assertEqual(p.js("Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter(k => /alias/i.test(k))"), [],
-                             "nothing is kept in the browser")
-            # a name that is saved (the box is left) sends the name and the email only: never an Alias
-            self.type_into(p, "name", "Jane Doe", leave="enter")
-            p.until("window.__sent.length === 1", "the name box was saved")
-            self.assertNotIn("alias", p.js("window.__sent[0]").lower())
-            self.assertTrue(wait(lambda: self.saved().get("profile_name") == "Jane Doe"), "the name was kept")
-            self.assertNotIn("alias", json.dumps(self.saved()).lower(), "no Alias is kept")
+            self.type_into(p, "name", "Jane Doe")
+            self.toast_is(p, "Name saved.")
+            self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Jane, JD"), "the filled-in Alias is kept, as shown")
+            self.assertEqual(self.saved().get("profile_name"), "Jane Doe")
+            self.type_into(p, "name", "Jane Roe")
+            p.until("document.querySelector('#about-alias').value === 'Jane, JR'", "an untouched Alias follows the name")
+            self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Jane, JR"))
+            self.handled(p, "Jane Roe")             # the page has taken that save, so the next toast speaks only of the Alias
+            # typed in, the Alias is the person's
+            self.type_into(p, "alias", "JJ")
+            self.toast_is(p, "Alias saved.")
+            self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "JJ"))
+            for name in ("Sam Lee", "Pat Roe"):
+                self.type_into(p, "name", name)
+                self.assertTrue(wait(lambda: self.saved().get("profile_name") == name))
+                self.handled(p, name)
+                self.assertEqual(self.alias(p), "JJ", "a typed Alias is kept when the name changes")
+                self.assertEqual(self.saved().get("profile_alias"), "JJ")
+            # emptied by the person, it stays empty
+            self.type_into(p, "alias", "")
+            self.toast_is(p, "Alias cleared.")
+            self.type_into(p, "name", "Dana Moss")
+            self.assertTrue(wait(lambda: self.saved().get("profile_name") == "Dana Moss"))
+            self.assertEqual(self.alias(p), "", "an Alias the person emptied is not filled in again")
+
+    def test_C_a_saved_alias_is_never_replaced_after_a_reload(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Jane Doe")
+            self.type_into(p, "alias", "Janey")
+            self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Janey"))
+            reload_to_new_page(p.js, "!!document.querySelector('#profile-btn')", "the page again (not the one being left)")
+            self.open_settings(p)
+            p.until("document.querySelector('#about-alias').value === 'Janey'", "the Alias is read from clark")
+            self.type_into(p, "name", "Sam Lee")
+            self.assertTrue(wait(lambda: self.saved().get("profile_name") == "Sam Lee"))
+            self.assertEqual(self.alias(p), "Janey", "a saved Alias is never replaced by a suggestion")
+            self.assertEqual(self.saved().get("profile_alias"), "Janey")
+
+    def test_C_a_refused_alias_says_why_under_its_box_and_writes_nothing(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Jane Doe")
+            self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Jane, JD"))
+            before = self.saved()
+            self.type_into(p, "alias", "A" * 61)
+            bad = "document.querySelector('#about-alias').closest('.fld').querySelector('.fld-bad').textContent"
+            p.until(f"{bad} !== ''", "the refusal shows")
+            self.assertEqual(p.js(bad), "Your Alias is too long. Use 60 characters or fewer. Nothing was saved.")
+            self.assertEqual(p.js("document.querySelector('#about-alias').getAttribute('aria-invalid')"), "true")
+            self.assertEqual(self.alias(p), "A" * 61, "what was typed stays in the box")
+            self.assertEqual(self.saved(), before, "nothing was written")
 
 
 if __name__ == "__main__":
