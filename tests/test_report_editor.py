@@ -277,7 +277,9 @@ class Modes(Base):
             self.assertEqual(p.js("document.querySelector('h1').textContent"), "Example Programme")
             p.edit()
             self.assertEqual(p.js("document.querySelectorAll('[data-add]').length"), 1, "an empty report can still get its first section")
-            p.js("window.posts = []; var f = window.fetch; window.fetch = function (u, o) { window.posts.push(String(o && o.body)); return f.apply(this, arguments); };")
+            # Only a request that sends something is counted: the page reads the project again after a change (#188), and that GET
+            # landing between two polls made the count jump from 0 to 2 on a slow runner.
+            p.js("window.posts = []; var f = window.fetch; window.fetch = function (u, o) { if (o && o.body) window.posts.push(String(o.body)); return f.apply(this, arguments); };")
             p.js("document.querySelector('[data-add]').click()")
             # The Add a section box (#96) claims the request, so the button opens it; its Add section then makes a plain text section at the end.
             # (The fallback for a page with no box is tested at the "not claimed" toast below.)
