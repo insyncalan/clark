@@ -16,14 +16,17 @@ a { color: var(--status-blue-text); }
 .top { position: sticky; top: 0; z-index: 30; height: var(--topbar); background: var(--brand-navy); color: var(--white); display: flex; align-items: center; gap: 18px; padding: 0 20px; }
 .logo { display: inline-flex; align-items: center; }
 .logo-icon { display: var(--logo-icon); width: 28px; height: 28px; margin-right: var(--space-2); background: center / contain no-repeat; }   /* the image is added by dev/tools/build_page.py */
-.logo .wm { font-weight: var(--weight-medium); font-size: var(--size-h3); letter-spacing: .02em; }
+.logo .wm { font-weight: var(--weight-medium); font-size: var(--size-h2); letter-spacing: .02em; }   /* 24 px, as the owner ruled for the PR 240 sizes */
 .top .divider { width: 1px; height: 26px; background: rgba(255,255,255,.2); }
 .proj { font-size: var(--size-small); color: rgba(255,255,255,.85); }
 .projbtn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: var(--space-1) var(--space-2); border-radius: var(--radius); cursor: pointer; font-size: var(--size-small); color: rgba(255,255,255,.85); }
 .projbtn:hover { background: rgba(255,255,255,.14); }
 .projbtn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .projbtn .nch { width: 14px; height: 14px; }
-.top .projbtn { display: inline-flex; max-width: 260px; }
+.top .projbtn { display: inline-flex; max-width: 260px; min-width: 0; }
+@media (max-width: 1000px) { .top { gap: 10px; } }
+.top .modes { flex: none; }   /* View and Edit keep their width: the bar's other items give way, not these */
+.top .dd:has(> .projbtn) { min-width: 0; }   /* the project name gives way (its ellipsis) before the bar runs past a 901 px window, now the wordmark is 24 px */
 .projbtn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabs { display: flex; height: 100%; }
 .pubfoot { max-width: 1200px; margin: 24px auto 16px; padding: 0 16px; font-size: var(--size-small); color: var(--text-muted); }   /* item 120 */
@@ -320,7 +323,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fchip button { all: unset; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
 .fchip button:hover { background: var(--grey-200); }
 .fchip button:focus-visible { outline: 2px solid var(--brand-blue); }
-.flist { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; margin: 0; padding: 6px 0; list-style: none; width: min(420px, 100%); max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
+.flist { margin: 4px 0 0; padding: 6px 0; list-style: none; width: min(420px, 100%); max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
 .fopt { display: flex; align-items: baseline; gap: 10px; padding: 4px 12px; min-height: calc(var(--space-6) - var(--space-1)); box-sizing: border-box; cursor: pointer; color: var(--text); }
 .fopt:hover, .fopt[aria-selected="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .fopt .fl1 { font-weight: var(--weight-medium); }
@@ -1173,6 +1176,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .backup-panel { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .backup-panel p { margin: 0 0 6px; }
 .setting p.error { color: var(--status-red-text); }
+.update-notes { margin: 0 0 6px; max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; color: var(--text); }
+.update-files { margin: 6px 0; }
+.update-files ul { margin: 0 0 6px; overflow-wrap: anywhere; }
+.update-sum { overflow-wrap: anywhere; }
+#update-last p { margin: 0; align-self: center; }
 /* item 443: Settings > Published reports: a plain table, the same look as the work items table; it wraps instead of scrolling sideways. */
 .pubs { width: 100%; border-collapse: collapse; font-size: var(--size-small); margin-top: 8px; }
 .pubs th { text-align: left; font-weight: 400; font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: 8px 10px; border-top: 1px solid var(--grey-200); }
@@ -1762,6 +1770,18 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.vt { display: inline-flex; align-items: center; gap: 2px; }
+.vtabmenu { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; color: var(--text-muted); }
+.vtabmenu:hover { background: var(--grey-100); color: var(--text); }
+.vtabmenu:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.vtabmenu .nch { width: 14px; height: 14px; }
+.vnew { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; padding: 3px 10px; border-radius: var(--radius-pill); cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.vnew:hover { background: var(--grey-100); color: var(--text); }
+.vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.fline:has(.fx) { padding-right: 38px; }
+.fx { all: unset; box-sizing: border-box; position: absolute; right: 7px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: var(--size-body); line-height: 1; }
+.fx:hover { background: var(--grey-100); color: var(--text); }
+.fx:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .wl-id { display: inline-flex; align-items: center; gap: 4px; }
 .idl { all: unset; box-sizing: border-box; padding: 2px 4px; margin: -2px -4px; border-radius: var(--radius-sm); color: var(--status-blue-text); cursor: pointer; }
 .idl:hover { text-decoration: underline; text-underline-offset: 2px; }

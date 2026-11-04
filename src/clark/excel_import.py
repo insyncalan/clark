@@ -303,6 +303,7 @@ class ImportPlan:
     unrecorded: bool = False          # no export record of this workbook: accept_all accepts nothing, apply_import refuses...
     unrecorded_ok: bool = False       # ...until the person has confirmed it (confirm_unrecorded)
     store: object = field(default=None, repr=False)     # read only: to work out the IDs new rows would get
+    sheets: tuple = ()                # the tables the person chose to read (item 655); empty: all five. An unchosen sheet is left alone.
 
     def refresh_ids(self):
         """Work out, for each new row still wanted, the ID it gets if the plan is applied as it stands: row order within each
@@ -903,14 +904,23 @@ class _Reader:
         self.given[self.stage(kind="new", table=table, sheet=sheet, row=rn, after=values, fp=fp).n] = given
 
 
-def read_workbook(store, path, project, state_path=None, allow_unrecorded=False):
+def read_workbook(store, path, project, state_path=None, allow_unrecorded=False, sheets=None):
     """Compare the workbook at `path` with `project`'s rows in the database; returns an ImportPlan of staged changes (all waiting
     for a decision), the rows that were reported, and notes. Writes nothing. Raises Invalid if the file isn't a workbook, is too
     big to open (excel.check_workbook_size) or the project isn't there.
 
     `state_path` is the export's record (default: excel.STATE_FILE beside clark.db). A file whose hash is the last one imported
     is not read again (plan.already_imported). A workbook with no export record is plan.unrecorded: nothing is accepted for the
-    person and apply_import refuses it until it is confirmed (`allow_unrecorded=True`, or plan.confirm_unrecorded())."""
+    person and apply_import refuses it until it is confirmed (`allow_unrecorded=True`, or plan.confirm_unrecorded()).
+
+    `sheets` (item 655) is the tables to read, or None for all five. A sheet that is not chosen is left completely alone: none of its
+    rows is read, counted or staged, no size check is made on it, and the rows of its table are never proposed as "no longer in the
+    workbook". An unknown table raises Invalid."""
+    chosen = None
+    if sheets is not None:
+        chosen = {t for t in sheets}
+        if not chosen or not chosen <= set(SHEET_NAMES):
+            raise Invalid("Choose at least one of the sheets clark reads.")
     if store.read("projects", ref=project) is None:
         raise Invalid(f"There is no project {project}.")
     path = Path(path)
@@ -949,6 +959,7 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False)
             rd.plan.notes.append(f"{path.name} was imported before, but that import has been undone (or this is another copy of "
                                  "the database), so it is read again.")
         rd.plan.path, rd.plan.file_hash, rd.plan.state_path = str(path), seen_hash, state_path
+        rd.plan.sheets = tuple(t for t in TABLE_ORDER if chosen is None or t in chosen)
         rd.plan.unrecorded = not record.get("hash")
         rd.plan.unrecorded_ok = bool(allow_unrecorded)
         if rd.plan.unrecorded:
@@ -958,7 +969,7 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False)
         found, to_read, area = set(), [], 0
         for ws in wb.worksheets:
             table = SHEET_TABLES.get(re.sub(r"[\s_]+", " ", ws.title.strip().lower()))
-            if table is None:
+            if table is None or (chosen is not None and table not in chosen):
                 continue
             if table in found:
                 first = next(w.title for w, t in to_read if t == table)
@@ -979,11 +990,14 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False)
                           "clark will import in one go. Check this is the right file. Nothing was changed.")
         for ws, table in to_read:
             rd.sheet(ws, table)
-        if not found:
+        if not found and chosen is not None:
+            rd.problem("The workbook has none of the sheets you chose (" + ", ".join(SHEET_NAMES[t] for t in TABLE_ORDER if t in chosen)
+                       + "), so there is nothing to compare.")
+        elif not found:
             rd.problem("The workbook has none of the sheets Actions, RAID (or Risks and issues), Decisions, Milestones or Use cases, so there is "
                        "nothing to compare.")
         else:
-            for t in TABLE_ORDER:
+            for t in rd.plan.sheets:
                 if t not in found:
                     rd.plan.notes.append(f"There is no {SHEET_NAMES[t]} sheet, so {WORDS[t]}s were not compared")
         for sheet_name, rows_ in rd.formulas.items():

@@ -359,7 +359,7 @@
     "w": "Work items › View",
     "go": "work",
     "s": [
-     "The **View** menu beside the saved views holds the layout, the grouping and the saved views. **Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
+     "The **View** menu beside the saved views holds the layout and the grouping. **Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
      "**Layout** in the View menu switches between **Table** and **Board**. The board’s columns follow Group by (Status when it is Nothing).",
      "On the board, **Swimlanes** in the View menu adds rows across it: No lanes, Workstream lanes or Type lanes.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
@@ -1156,7 +1156,7 @@
     "b": [
      [
       "p",
-      "From the top: the type switch; **Open**, **Closed** and **All** with counts; the saved views with **Freshness** and the **View** menu (Layout, Group by, Swimlanes and the saved-view actions); then the filter line."
+      "From the top: the type switch; **Open**, **Closed** and **All** with counts; the saved views with **Freshness** and the **View** menu (Layout, Group by and Swimlanes); then the filter line."
      ],
      [
       "tbl",
@@ -2293,34 +2293,34 @@
   {
    "id": "bring-in-an-excel-workbook",
    "t": "Bring in an Excel workbook",
-   "job": "Read a workbook into the project, see every change before anything is saved, and choose which to keep.",
+   "job": "Read the sheets you choose from a workbook into the project, see every change before anything is saved, and choose which to keep.",
    "steps": [
     {
      "d": "Press your profile circle and choose **Settings**. Find the **Data** card: it has two buttons, **Export workbook** and **Import workbook**. Press **Import workbook**."
     },
     {
-     "d": "The box **Import from Excel** says what is read: sheets called Actions, Risks and issues (or RAID), Decisions, Milestones and Use cases. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
+     "d": "The box **Import from Excel** says what is read: sheets called Actions, Risks and issues, Decisions, Milestones and Use cases. A History sheet from an export is left alone. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
     },
     {
      "d": "Press **Choose a file** and pick an .xlsx workbook of up to 25 MB. A macro workbook (.xlsm) is turned away and nothing is saved; save a copy as an ordinary .xlsx workbook and choose that."
     },
     {
-     "d": "The box **Check the import** opens. A line gives the counts: how many rows are new, how many changed, how many are no longer in the workbook and how many are unchanged. Unchanged rows are left alone. Nothing has been saved yet."
+     "d": "The box now shows **Sheets to import**, with a tick for each of the five sheets your workbook has. A sheet the workbook does not have is not shown. All are ticked the first time, and after that the box remembers your last choice. Untick a sheet to leave it completely alone: nothing is read, counted, listed or archived from it. **Select all** ticks every sheet and **Clear** unticks them all. With nothing ticked a line says to tick at least one sheet, and **Check** is not available. Press **Check**."
     },
     {
-     "d": "Read the list under the counts. Each change has a tick and a tag: **New** rows will be added, **Changed** rows will update the item already in clark, and a row tagged Not in the workbook would archive its item. A line under a change says what differs. A change that would be refused says why and cannot be ticked."
+     "d": "The box **Check the import** opens. A row of counts says how many rows are new and how many are updated, with how many are refused and how many are not in the workbook only when there are some. Under it, a line for each kind gives the new and updated rows for Work items, Milestones and Use cases. Nothing has been saved yet. If any row breaks a rule, the whole file is refused: the box says nothing was imported, lists the rows that break a rule and tells you to fix them in the workbook and import again. Nothing was changed, so press **Close**."
     },
     {
-     "d": "Untick any change you do not want. New and changed rows start ticked, except a change that clashes: a line under it says it changed in clark after the workbook was made, and it starts unticked. Rows tagged Not in the workbook also start unticked. If clark has no record of exporting the workbook, it warns you, and the button reads **Import anyway**."
+     "d": "Read the list under **Changes to check**. Each change has a tag and two choices, **Accept** and **Reject**. **New** rows will be added, **Changed** rows will update the item already in clark, and a row tagged Not in the workbook would archive its item. A line under a change says what differs. New and changed rows start on Accept, except a change that clashes: a line under it says it changed in clark after the workbook was made, and it starts on Reject. Rows tagged Not in the workbook also start on Reject, and a row that would be refused says why and cannot be accepted. Choose Reject for any change you do not want, or use **Accept all** and **Reject all** to set every row at once."
     },
     {
-     "d": "Press the button at the foot, which reads Import and the number you ticked, such as Import 3 changes. The whole import is one step."
+     "d": "Press the button at the foot, which reads Import and the number you accepted, such as Import 3 changes. If clark has no record of exporting the workbook, it warns you, and the button reads **Import anyway**. The whole import is one step."
     },
     {
      "d": "The box says what was done. Press **Undo this import** to put the project back as it was before, or **Close** to keep it. The project’s pages then show the new and changed items."
     }
    ],
-   "result": "The box tells you what was added and updated, the rows you left are untouched, and one press of Undo this import takes the whole import back.",
+   "result": "The box tells you what was added and updated, the sheets you left unticked and the rows you rejected are untouched, and one press of Undo this import takes the whole import back.",
    "next": [
     "guide-send-the-workbook-out",
     "howto-undo-a-mistake"

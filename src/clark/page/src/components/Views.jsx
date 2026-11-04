@@ -179,6 +179,7 @@ export function Settings({ tools }) {
   const Diagnostics = tools && tools.Diagnostics;        // logs and diagnostics (#110)
   const Data = tools && tools.Data;                    // the Data card (A-S11): Export to Excel; Edit only
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
+  const Update = tools && tools.Update;                  // Version and updates; a published file has none
   const cards = CARDS.filter(([tool]) => tools && tools[tool]);
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
   const People = tools && tools.People;                  // the People card (item 454): email, organisation, role, Paste from Excel; Edit's page only
@@ -194,11 +195,15 @@ export function Settings({ tools }) {
       {Projects ? <Projects /> : null}
       {Data ? <Data /> : null}
       {Safety ? <Safety /> : null}
+      {Update ? <Update /> : null}
       {People ? <People /> : null}
       {AskSettings ? <AskSettings /> : null}
     </>
   );
 }
+
+// item 427: in the Docker route there is no --demo flag. The server's page carries data-container="1" on <html> then (page.page_html).
+const inContainer = () => typeof document !== "undefined" && document.documentElement.dataset.container === "1";
 
 // The "No project open" screen: the projects to choose from or, when there are none (or the list could not be read), what to do.
 function NoProject() {
@@ -210,7 +215,7 @@ function NoProject() {
       <section class="frame empty">
         <h1>No project open</h1>
         <p class="muted">There are no projects yet.</p>
-        <p class="muted">To look around with made-up projects, close clark and start it again with <code>python3 -m clark --demo</code>.</p>
+        {inContainer() ? null : <p class="muted">To look around with made-up projects, close clark and start it again with <code>python3 -m clark --demo</code>.</p>}
       </section>
     );
   }

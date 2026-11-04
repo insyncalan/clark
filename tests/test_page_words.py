@@ -17,7 +17,7 @@ from unittest import mock
 
 from _paths import SRC
 
-from clark import page, server as sv  # noqa: E402
+from clark import page, platform as clark_platform, server as sv  # noqa: E402
 from test_page import DATA, navigate  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 
@@ -162,6 +162,13 @@ class Words(unittest.TestCase):
             sid = navigate(cdp, none.port, "#dashboard")
             self.shown(cdp, sid, ["No project open", "There are no projects yet.",
                                   "To look around with made-up projects, close clark and start it again with python3 -m clark --demo."])
+        # item 427: in the container the Docker route has no --demo flag, so the page leaves that sentence out
+        boxed = Running(data_for=self.fake, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda: [])
+        self.addCleanup(boxed.close)
+        with mock.patch.object(clark_platform, "container_mode", lambda: True), chrome() as cdp:
+            sid = navigate(cdp, boxed.port, "#dashboard")
+            self.shown(cdp, sid, ["No project open", "There are no projects yet."])
+            self.assertNotIn("made-up projects", cdp.js("document.body.innerText", sid))
         with chrome() as cdp:
             sid = self.visit(cdp)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid), WAIT))
@@ -204,11 +211,14 @@ class Words(unittest.TestCase):
                                   "The list of projects could not be read. Choose Try again. If it happens again, restart clark. Try again",
                                   "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
                                   "Export workbook", "Import workbook",        # #444: Export and Import
-                                  "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases. Export saves this project's as an Excel workbook; "
-                                  "your browser saves the file and nothing is sent or published. Import shows what would change before anything is saved.",
+                                  "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "Version and updates",      # Settings › Version and updates: with no updater the server says so
+                                  "Install a newer version from a file you downloaded from the clark releases page. Your projects, "
+                                  "settings and published reports are kept.",
+                                  "Updates can't be shown right now. Restart clark the usual way and try again. Try again",
                                   "People", "Paste from Excel",             # #454: the People card; this server has no people routes, so the list can't be read
                                   "Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.",
                                   "The people list could not be read. Reload the page. If it happens again, restart clark. Try again",

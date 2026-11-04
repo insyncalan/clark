@@ -18,6 +18,7 @@
 import { signal } from "@preact/signals";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, mode, rows } from "../stores/report.js";
+import { inertBehind } from "./modalLayers.js";
 import { change, say } from "../stores/changes.js";
 import { NewTile } from "../components/NewTile.jsx";
 import { Menu } from "../components/Menu.jsx";
@@ -46,7 +47,6 @@ export const added = signal("");
 const send = (u, changes, done) => change({ kind: "use_cases", op: "update", id: u.id, changes, place: "cell" }, done);
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-const BEHIND = ["#main", ".top"];                             // made inert while a box is open (the same as the Add a section box)
 
 // A modal box: the page behind is inert, Esc and a click on the backdrop close it, Tab stays inside, focus goes back to what opened it.
 function Modal({ onClose, opener, children }) {
@@ -55,10 +55,9 @@ function Modal({ onClose, opener, children }) {
   // box also takes its focus). useEffect runs a paint later, or up to a tenth of a second on a slow runner: a box shut by Esc before then
   // never ran its clean-up, so the focus did not go back, and until then the box showed with the page behind it still live.
   useLayoutEffect(() => {
-    const held = BEHIND.map((q) => document.querySelector(q)).filter(Boolean);
-    held.forEach((el) => el.setAttribute("inert", ""));
+    const release = inertBehind(root.current);                // everything outside the box, a toast that arrives later too (modalLayers.js, #425)
     return () => {
-      held.forEach((el) => el.removeAttribute("inert"));
+      release();
       if (opener && opener.isConnected && opener.focus) opener.focus();
     };
   }, []);

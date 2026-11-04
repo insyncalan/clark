@@ -73,7 +73,8 @@ class TheThreeGuides(unittest.TestCase):
         """The control names, exactly as the page shows them (ImportWorkbook.jsx, Data.jsx, ExportBtn.jsx, Publish.jsx, dataCard.js, ProfileMenu.jsx)."""
         text = {i: " ".join(s["d"] for s in g["steps"]) for i, g in GUIDES.items()}
         for name in ("**Settings**", "**Data**", "**Export workbook**", "**Import workbook**", "**Import from Excel**", "**Get the template**",
-                     "**Choose a file**", "**Check the import**", "**Import anyway**", "**Undo this import**", "**Close**"):
+                     "**Choose a file**", "**Sheets to import**", "**Select all**", "**Clear**", "**Check**", "**Check the import**", "**Changes to check**",
+                     "**Accept**", "**Reject**", "**Accept all**", "**Reject all**", "**Import anyway**", "**Undo this import**", "**Close**"):
             self.assertIn(name, text["bring-in-an-excel-workbook"], name)
         for name in ("**Export to Excel**", "**Export workbook**", "**Import workbook**", "**Work items**", "**Data**"):
             self.assertIn(name, text["send-the-workbook-out"], name)

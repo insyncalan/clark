@@ -1,0 +1,57 @@
+# Start clark with Docker instead of a Terminal window (item 427). In the unzipped clark folder:
+#   docker compose -f docker/compose.yaml up -d        then open http://localhost:8766
+#   docker compose -f docker/compose.yaml down         to stop it
+# To use a data folder you already have, name it (a full path, in quotes) in CLARK_DATA_DIR; to use another port on this computer, CLARK_PORT:
+#   CLARK_DATA_DIR="$HOME/Library/Application Support/clark" docker compose -f docker/compose.yaml up -d
+#   CLARK_PORT=8780 docker compose -f docker/compose.yaml up -d        then open http://localhost:8780
+# Only a stock Python image runs here: nothing of clark is built into it. clark's code and its data stay in this folder on
+# your computer, which is shared into the container as /clark. The data is kept in the folder's "data" folder, made at the first start.
+# The port is published to 127.0.0.1 ONLY. Without the "127.0.0.1:" in front, anyone on your network could reach clark.
+name: clark
+services:
+  clark:
+    image: python:3.12.12-slim-bookworm
+    working_dir: /clark
+    # The same start as the Terminal route's: python3 -m clark checks the pages (and in a checkout would build them), then serves.
+    command: ["python3", "-m", "clark", "--data", "/clark/data", "--port", "8766"]
+    ports:
+      - "127.0.0.1:${CLARK_PORT:-8766}:8766"
+    # clark's code is shared in read-only, so the container cannot change it; only the data folder can be written.
+    # The download holds its built pages. A source checkout must build them first on the computer: python3 dev/tools/build_page.py
+    volumes:
+      - type: bind
+        source: ..
+        target: /clark
+        read_only: true
+      - type: bind
+        source: ${CLARK_DATA_DIR:-../data}
+        target: /clark/data
+        bind:
+          create_host_path: true
+    # Not root: the container writes the data folder as an ordinary user. UID and GID are read when they are exported (Linux);
+    # on a Mac or Windows, Docker Desktop writes the shared folder as the person signed in, whatever the number here.
+    user: "${UID:-1000}:${GID:-1000}"
+    # CLARK_CONTAINER=1 lets clark listen inside the container and trust the one peer the published port arrives from
+    # (src/clark/server.py, container_mode). CLARK_DATA_SOURCE names this computer's data folder, so clark can refuse it
+    # when it is inside OneDrive (from inside the container OneDrive cannot be seen); PWD is the folder you started in.
+    # CLARK_PORT here is the port inside the container, always 8766; the CLARK_PORT you set only changes the published one above.
+    environment:
+      CLARK_CONTAINER: "1"
+      CLARK_PORT: "8766"
+      CLARK_DATA_SOURCE: "${CLARK_DATA_DIR:-${PWD:-}/data}"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8766/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"

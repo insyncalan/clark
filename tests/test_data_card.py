@@ -30,7 +30,7 @@ class DataCard(Base):
                 self.open_settings(p)
                 self.assertEqual(p.js("document.querySelector('#data-card h2').textContent"), "Data")
                 self.assertEqual(p.js("[...document.querySelectorAll('#data-card button')].map(b => b.textContent)"), ["Export workbook", "Import workbook"])
-                self.assertIn("Excel workbook", p.js("document.querySelector('#data-card p').textContent"))
+                self.assertIn("a sheet each for actions", p.js("document.querySelector('#data-card p').textContent"))
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
 
     def test_C_pressing_export_downloads_one_workbook_and_says_so(self):

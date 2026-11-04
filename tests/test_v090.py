@@ -27,6 +27,18 @@ SCHEMA_AT_0_8_0 = 15     # 0.8.0 reads layout 15; a layout step after it makes t
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
+    ("#152", "The Settings Update clark card: Undo update puts the data back as it was and says changes after the update are lost.",
+     "test_update_migration::Migrated::test_undo_puts_the_data_back_as_it_was_and_says_changes_after_the_update_are_lost"),
+    ("#280", "An update file with no signature or a wrong one is refused and nothing is kept.",
+     "test_updater::ReviewTest::test_an_unsigned_or_wrongly_signed_update_is_refused_with_nothing_kept"),
+    ("#280", "Updates stay off while the release key is the placeholder.",
+     "test_updater::ReviewTest::test_updates_stay_off_while_the_release_key_is_the_placeholder"),
+    ("#427", "A copy of the source in a container stops at once with one plain sentence about the missing built page.",
+     "test_main::InProcess::test_in_a_container_with_no_built_page_it_stops_at_once_in_one_plain_sentence"),
+    ("#427", "A container accepts only loopback and the gateway as local peers; the compose file publishes only on 127.0.0.1.",
+     "test_server_container::InAContainer::test_the_gateway_and_loopback_are_local_and_no_other_peer"),
+    ("#640", "The filter box's open list sits above the rows, never over them, and the first row is still clickable.",
+     "test_filter_line_page::Line::test_the_open_list_sits_above_the_rows_never_over_them_and_the_first_row_is_still_clickable"),
     ("#420", "Open About you before clark has read it, type only a name and leave the box: the email saved before is still there.",
      "test_about_you::AboutYou::test_C_a_save_made_before_the_first_read_has_landed_keeps_the_other_box_saved_value"),
     ("#434", "Risks, issues, actions and decisions rows: a status pill, empty sections, editing in place and the ID button",
@@ -49,26 +61,84 @@ COVERED = [
      "test_work_archived_peek::ArchivedPeek::test_restore_puts_it_back_and_leaves_the_peek_open_on_it"),
     ("#444", "Settings › Data: Import workbook checks the workbook first, then imports it in one step, and Undo this import puts it back.",
      "test_settings_data_page::Card::test_import_checks_then_imports_in_one_step_and_undo_puts_it_back"),
+    ("#444", "A macro workbook is turned away in words and nothing is stored.",
+     "test_excel_route::Check::test_a_macro_workbook_is_refused_in_words_and_nothing_is_stored"),
+    ("#444", "Settings has a Projects table with each project and its columns.",
+     "test_projects_settings_page::Browser::test_the_table_lists_each_project_with_its_columns_at_1400_and_900_px_in_light_and_dark"),
+    ("#449", "Publish warns while a work item the client would see has a placeholder title, and the warning goes when it is renamed or hidden.",
+     "test_publish_dialog::Placeholder::test_the_warning_counts_placeholder_items_the_client_would_see_and_goes_when_renamed_or_hidden"),
+    ("#449", "The Move to menu works as the page opens, with a toast and Undo, and does not switch to Edit.",
+     "test_work_board_page::Moves::test_the_move_to_menu_works_as_the_page_opens_with_a_toast_and_undo"),
+    ("#647", "A pasted path to a folder OneDrive syncs is saved like a chosen one.",
+     "test_client_folder_paste::APastedFolder::test_a_folder_inside_onedrive_is_saved_as_a_chosen_one"),
+    ("#647", "A pasted link can't be used and nothing is saved.",
+     "test_client_folder_paste::ALink::test_a_link_is_refused_by_its_form_and_nothing_is_saved"),
     ("#611", "A blank client message is turned away in plain words, not a server error.",
      "test_changes_null_message::NullMessage::test_a_null_client_message_is_refused_and_nothing_is_saved"),
     ("#613", "Settings, About you: typing Jane Doe fills the Alias box with Jane, JD; it is saved beside the name, and a saved or typed Alias is kept when the name changes.",
      "test_alias_suggest::OnThePage::test_C_jane_doe_is_saved_with_jane_jd_and_a_typed_alias_is_kept_when_the_name_changes"),
+    ("#343", "A past publication opens read only: a banner with its number and day and Back to now, a tinted frame, nothing to change.",
+     "test_past_view::TheBanner::test_the_words_the_date_the_tint_and_back_to_now"),
+    ("#343", "A kept file that no longer matches its checksum is refused in plain words and not shown.",
+     "test_past_view::TheChecksum::test_a_file_that_no_longer_matches_is_refused_in_plain_words_with_what_to_do"),
+    ("#345", "Each published report row has Archive; an archived one is hidden from the list and the pickers; Show archived lists them with Restore.",
+     "test_past_reports_card::Card::test_each_row_has_archive_and_the_default_list_hides_the_archived"),
+    ("#345", "Archive says \"Publication N archived. Restore it from Show archived.\" and offers no Undo; Restore brings it back.",
+     "test_past_reports_card::Card::test_archive_asks_once_says_the_exact_words_with_no_undo_and_reads_the_list_again"),
+    ("#345", "Show archived lists the archived publications marked Archived, each with Restore.",
+     "test_past_reports_card::Card::test_show_archived_lists_them_marked_with_restore_and_restore_says_its_words"),
+    ("#391", "The High risks and issues tile counts the open items of the Risks and issues type rated Urgent or High, by one rule, with the same colour on the page and in the published file.",
+     "test_glance_rule::OneRule::test_the_published_file_gives_the_same_colour_as_the_page"),
+    ("#613", "Settings, About you: typing a full name shows the suggested Alias below the name (the first name, then the initials).",
+     "test_alias_suggest::Suggest::test_a_full_name_suggests_the_first_name_then_the_initials"),
+    ("#434", "The risks, issues, actions and decisions rows show a status pill, a heading with a line when empty, edit in place, and an Add line.",
+     "test_item_rows::EditRows::test_every_part_of_a_row_edits_in_place_and_the_pill_is_the_prototypes"),
+    ("#434", "The Add line adds a row with its client wording, and the count follows.",
+     "test_item_rows::EditRows::test_the_add_line_adds_a_row_with_its_wording_and_the_count_follows"),
+    ("#434", "The eye takes a row off the page and Add from your project record puts it back.",
+     "test_item_rows::EditRows::test_the_eye_takes_a_row_off_and_add_from_your_project_record_puts_it_back"),
+    ("#434", "What a client reads has no edit control and nothing internal.",
+     "test_item_rows::EditRows::test_what_a_client_reads_has_no_edit_control_and_nothing_internal"),
+    ("#614", "The ring beside Publishing\u2026 keeps turning, at a calmer pace, for as long as publishing takes; reduced motion shows a still ring.",
+     "test_publish_ring::Ring::test_C_the_ring_still_turns_after_the_old_stop_time_while_publishing"),
+    ("#644", "The Use case summary has no export icon in View or in Edit; the Work items workbook export is unchanged.",
+     "test_uc_row_parity::Reference::test_the_use_case_summary_has_no_export_icon_in_view_or_edit"),
+    ("#612", "In the right-click menu, when the browser does not copy, the select-and-press-copy hint shows only if there is a selection.",
+     "test_row_menu::Menu::test_when_the_browser_does_not_copy_the_cmd_c_hint_shows_only_with_a_selection"),
+    ("#612", "Duplicate with forged label values is refused and writes nothing.",
+     "test_changes_item_eye::Duplicate::test_a_forged_labels_value_on_duplicate_is_refused_and_writes_nothing"),
+    ("#48", "Export to Word saves a file and says where.",
+     "test_word_screens::Export::test_an_export_saves_a_file_and_says_where"),
+    ("#48", "Import from Word shows what it read before anything is added, adds only what is chosen, with one Undo.",
+     "test_word_screens::Import::test_it_shows_what_it_read_before_anything_is_added_then_adds_only_what_is_chosen_with_one_undo"),
+    ("#48", "Import from Word reads only a Word document, on the server as on the page.",
+     "test_word_route::Refusals::test_only_a_docx_is_read_whatever_is_inside"),
+    ("#438", "The Also a PDF tick has the prototype's words.",
+     "test_pdf_print::Words::test_the_tick_has_the_prototypes_words"),
+    ("#438", "A page with the print flag opens the print box once it has drawn.",
+     "test_pdf_print::Browser::test_a_page_with_the_flag_opens_the_print_box_once_it_has_drawn_and_a_page_without_it_does_not"),
+    ("#449", "Add makes an item, opens it, and Undo removes it.",
+     "test_work_add_item::AddMenu::test_each_pick_makes_the_item_opens_it_and_undo_removes_it"),
+    ("#449", "A double-click on the grip resets a column's width, with a toast.",
+     "test_board_columns::Columns::test_a_double_click_on_the_grip_says_column_width_reset_in_a_toast_in_view_and_in_edit"),
+    ("#613", "The Alias box fills in from the name at both widths, light and dark.",
+     "test_alias_suggest::OnThePage::test_C_the_box_is_filled_from_the_name_at_both_widths_light_and_dark"),
+    ("#613", "Jane Doe is saved with Jane, JD, and a typed Alias is kept when the name changes.",
+     "test_alias_suggest::OnThePage::test_C_jane_doe_is_saved_with_jane_jd_and_a_typed_alias_is_kept_when_the_name_changes"),
+    ("#160", "The Not reviewed tile's line says its days and its open items.",
+     "test_glance_not_reviewed::NotReviewed::test_the_count_is_the_list_it_opens_with_the_freshness_filter_on"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#48", "HOLD (the Help wording is the owner's call): Export to Word and Import from Word screens", "PR 475", "page/src/edit/Word.jsx", "export function WordLayer"),
-    ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo", "PR 592", "updater.py", "class Updater"),
-    ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 592", "page/src/edit/Update.jsx", "upd-rows"),
-    ("#449", "Work items: the column width can be changed and reset, with a toast", "PR 555", "page/src/logic/board.js", "COL_MIN"),
 ]
 
 # (item, check, kind, why, what the person does)
 WALK_THROUGH = [
 ]
 
-BANNED_WORDS = ("apply", "applied", "staged", "proposal", "sweep", "tracker", "vault", "extract")
+BANNED_WORDS = ("apply", "applied", "staged", "proposal", "sweep", "tracker", "vault", "extract", "refused")
 
 
 def names_in(path):
