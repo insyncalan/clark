@@ -125,7 +125,7 @@ class FailsClosed(unittest.TestCase):
         with mock.patch.object(c, "own_home", return_value="/home/sam"), mock.patch.object(c.platform.subprocess, "Popen") as popen, \
                 mock.patch.object(c.platform, "run_stoppable") as stoppable, mock.patch.object(c, "run") as run:
             got = c.CodexCommand(env={}).ask(ours)
-        self.assertEqual(got, ask.Failure("This computer's home folder isn't in the usual place, so ChatGPT can't be kept away from your files. Nothing was sent."))
+        self.assertEqual(got, ask.Failure("Your computer's home folder is not where macOS usually keeps it, so clark can't keep ChatGPT away from your files. Nothing was sent."))
         for started in (popen, stoppable, run):
             started.assert_not_called()
 
