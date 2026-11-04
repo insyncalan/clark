@@ -158,6 +158,7 @@ class TakeInTest(Base):
     def test_a_browser_copy_name_is_taken_under_its_proper_name_when_chosen(self):
         copy = self.downloads / "clark-0.3.1-mac (1).zip"
         shutil.copyfile(self.download, copy)
+        shutil.copyfile(str(self.download) + ".sig", str(copy) + ".sig")        # taking in checks the signature first
         path, _ = ui.take_in(copy, self.data, SYSTEM, chosen=True)
         self.assertEqual("clark-0.3.1-mac.zip", path.name)
 

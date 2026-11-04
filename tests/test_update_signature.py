@@ -317,15 +317,27 @@ class OneSetOfBytesTest(SignedBase):
             self.assertEqual(0o600, stat.S_IMODE(os.stat(kept).st_mode))
             self.assertEqual(0o600, stat.S_IMODE(os.stat(str(kept) + ".sig").st_mode))
 
-    def test_take_in_does_not_leave_an_old_signature_beside_an_unsigned_file(self):
+    def test_take_in_refuses_an_unsigned_file_and_leaves_an_earlier_kept_copy_and_its_signature_as_they_were(self):
         data_dir = self.fresh()
-        ui.take_in(make_zip(self.tmp), data_dir, "mac")
-        unsigned = make_zip(self.fresh(), sign=False)
-        kept, digest = ui.take_in(unsigned, data_dir, "mac")
-        self.assertFalse(Path(str(kept) + ".sig").exists())
+        kept, _ = ui.take_in(make_zip(self.tmp), data_dir, "mac")
+        before = (kept.read_bytes(), Path(str(kept) + ".sig").read_bytes())
+        unsigned = make_zip(self.fresh(), sign=False, notes="Not the genuine one.\n")
         with self.assertRaises(UpdateError) as said:
-            ui.read_taken(kept, digest, "mac", "0.3.0", 2)
+            ui.take_in(unsigned, data_dir, "mac")
         self.assertEqual("unsigned", said.exception.key)
+        self.assertEqual(before, (kept.read_bytes(), Path(str(kept) + ".sig").read_bytes()))
+        self.assertEqual([], [n for n in os.listdir(kept.parent) if n.endswith(".part")])
+
+    def test_take_in_refuses_a_forged_signature_and_leaves_an_earlier_kept_copy_as_it_was(self):
+        data_dir = self.fresh()
+        kept, _ = ui.take_in(make_zip(self.tmp), data_dir, "mac")
+        before = (kept.read_bytes(), Path(str(kept) + ".sig").read_bytes())
+        forged = make_zip(self.fresh(), notes="Not the genuine one.\n")
+        Path(str(forged) + ".sig").write_bytes(b"\x01" * updates.SIGNATURE_BYTES)
+        with self.assertRaises(UpdateError) as said:
+            ui.take_in(forged, data_dir, "mac")
+        self.assertEqual("badsig", said.exception.key)
+        self.assertEqual(before, (kept.read_bytes(), Path(str(kept) + ".sig").read_bytes()))
 
 
 class ShippedKeyTest(unittest.TestCase):

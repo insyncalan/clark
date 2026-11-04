@@ -105,7 +105,7 @@ def take_in(source, data_dir, system, chosen=False, max_bytes=updates.MAX_ZIP_BY
 
     The name is checked first (updates.check_name). The file is opened without following a link, must be a regular file no
     bigger than `max_bytes`, and is read once, in chunks, into a new private file in the releases folder; nothing else of the
-    original is looked at again. A copy already there under the same name is replaced only when the new one is whole."""
+    original is looked at again. A copy already there under the same name is replaced only when the new one is whole and its signature checks."""
     source = Path(source)
     version = updates.check_name(source.name, system, chosen)
     folder = platform.private_folder(Path(data_dir) / RELEASES)
@@ -138,9 +138,10 @@ def take_in(source, data_dir, system, chosen=False, max_bytes=updates.MAX_ZIP_BY
                 out.write(chunk)
             out.flush()
             os.fsync(out.fileno())
+        signature = updates.read_signature(source)
+        updates.check_signature(part.read_bytes(), signature)       # before any earlier kept copy is touched
         (folder / (name + updates.SIGNATURE_SUFFIX)).unlink(missing_ok=True)       # never a signature left from another file
         os.replace(part, folder / name)
-        signature = updates.read_signature(source)
         if signature is not None:
             sig_part = folder / f".{name}{updates.SIGNATURE_SUFFIX}.{os.getpid()}.part"
             platform.private_file(sig_part)
