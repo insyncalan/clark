@@ -121,6 +121,19 @@ class Apply(Base):
                                          "Press Undo to take them all back.")
         self.assertNotRegex(got["message"], r"\(s\)|one step|content")
 
+    def test_one_undo_takes_the_whole_import_back(self):
+        """Ruling: several imported rows, one step, one Undo removes every one of them (and puts nothing else back)."""
+        before = self.counts()
+        status, got = self.go()
+        self.assertEqual((status, len(got["added"])), (200, 4), got)
+        self.assertNotEqual(self.counts(), before)
+        status, undone = self.post(op="undo", project="ABC", apply_id=got["apply_id"])
+        self.assertEqual(status, 200, undone)
+        self.assertEqual(undone["message"], "Undone. 4 items from the Word import were removed.")
+        after = self.counts()
+        self.assertEqual({t: after[t] for t in ("actions", "raid", "decisions")}, {t: before[t] for t in ("actions", "raid", "decisions")},
+                         "the one Undo removed all four rows")
+
     def test_some_that_were_added_a_moment_ago_are_said_in_plain_words(self):
         _, first = self.check()
         _, second = self.check()
@@ -308,8 +321,20 @@ class Refusals(Base):
 
     def test_a_file_that_is_not_a_word_file_is_refused_with_what_to_do_next(self):
         for raw in (b"plain text, not a Word file", b"PK\x03\x04 cut short"):
-            got = self.refused(op="check", project="ABC", name="notes.txt", data=encoded(raw))
+            got = self.refused(op="check", project="ABC", name="notes.docx", data=encoded(raw))
             self.assertIn("Open it in Word and save a copy, then choose it again.", got["message"])
+
+    def test_only_a_docx_is_read_whatever_is_inside(self):
+        """Ruling: .docx only. A good Word file under any other name (an older .doc, a template, a macro file, a PDF, a text file, no
+        extension) is refused in the page's own words, and nothing is staged or written."""
+        before = self.counts()
+        for name in ("notes.doc", "notes.dotx", "notes.docm", "notes.pdf", "notes.txt", "notes", "notes.docx.exe", "dir.docx/notes.rtf"):
+            got = self.refused(op="check", project="ABC", name=name, data=encoded(docx(body())))
+            shown = word_route.word_import.file_label(name)
+            self.assertEqual(got["message"], f"{shown} is not a Word file. Choose a Word file.", name)
+        self.assertEqual(word_route.PLANS, {})
+        self.assertEqual(self.counts(), before)
+        self.assertEqual(self.check(name="NOTES.DOCX")[0], 200, "the extension is not case sensitive")
 
     def test_a_file_that_unpacks_too_big_is_refused(self):
         import zipfile

@@ -59,6 +59,7 @@ TABLE_OF_KEY = {"A": "actions", "R": "raid", "D": "decisions"}
 NOT_JSON_OBJECT = "That could not be read. Reload the page and try again."
 BAD_OP = "That isn't something clark can do with a Word file."
 NO_FILE = "Choose a Word file to import."
+NOT_WORD = "{file} is not a Word file. Choose a Word file."      # the page's own sentence (wordApi.js notWord): only a .docx is read
 BAD_NAME = "The file's name could not be read. Choose the Word file again."
 BAD_FILE = "That file could not be read. Choose the Word file again."
 EXPIRED = "The list from that file has expired. Nothing was added. Choose the Word file again."
@@ -166,6 +167,8 @@ def _check(store, req, project, today, clock):
     if not isinstance(data, str) or not data:
         raise Refused(NO_FILE)
     shown = word_import.file_label(name)
+    if not shown.lower().endswith(".docx"):                               # .docx only: an older .doc, a template, a macro file or anything else is refused
+        raise Refused(NOT_WORD.format(file=shown))
     if len(data) > docx_read.MAX_FILE_BYTES * 4 // 3 + 16:                # said before anything is decoded
         raise Refused(SIZE_TOO_BIG.format(file=shown, mb=docx_read.MAX_FILE_BYTES // 1048576))
     try:
