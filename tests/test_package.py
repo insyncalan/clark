@@ -155,6 +155,8 @@ class MacZipTest(unittest.TestCase):
         self.assertLess(text.index(up), text.index("1. Double-click clark.command"), "Docker is said first")
         self.assertIn("Install clark", text)
         self.assertIn("OneDrive", text)
+        self.assertIn("clark will not use a folder inside OneDrive.", text)     # item 652: not "refused"
+        self.assertNotIn("refused", text.lower())
         self.assertNotIn("clark-docker.command", text)
         # item 615: the second route says what a managed Mac really does (an unsigned download is stopped), and what to do about it.
         self.assertIn("Do not\n   choose Move to Trash: choose Done", text)

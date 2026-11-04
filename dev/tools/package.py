@@ -128,8 +128,8 @@ With Docker, your data is kept in the data folder beside the clark files, made
 at the first start. Keep that data folder when you swap this folder for a newer
 download. To use the data clark.command uses instead, type this in step 3:
         CLARK_DATA_DIR="$HOME/Library/Application Support/clark" docker compose -f docker/compose.yaml up -d
-To use another folder, put its full path in CLARK_DATA_DIR the same way. A
-folder inside OneDrive is refused.
+To use another folder, put its full path in CLARK_DATA_DIR the same way.
+As a rule, clark will not use a folder inside OneDrive.
 Never open the same data from clark.command and from Docker at the same time:
 stop one before you start the other.
 To use another port, put it in front of the command, for example:

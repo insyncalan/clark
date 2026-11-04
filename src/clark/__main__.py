@@ -8,7 +8,7 @@ plain thing itself instead: it checks the port before starting, replaces the ser
 ServerOutput), and turns the store's "not a database" refusal into one line without the raw error.
 
 Opens the store in the data folder (platform.data_dir() unless --data), makes it on first run, and starts the server (#33)
-with the store's data and the built page (#35). The address is 127.0.0.1 only. Ctrl+C stops it. The `change` and `undo`
+with the store's data and the built page (#35). The address is 127.0.0.1 only on the Mac; in the Docker container it listens on the container's addresses and accepts only the loopback and the default-gateway peer (server.py, container_mode). Ctrl+C stops it. The `change` and `undo`
 handlers (#65, clark.changes) are built for this data's file, each call on a store of its own; a test may pass its own through
 main(change=..., undo=...).
 
@@ -149,6 +149,16 @@ def address_for(port, code):
     return f"http://127.0.0.1:{port}/" + (f"#dashboard&p={code}" if code else "")
 
 
+def shown_port(port):
+    """item 652: in the container the port clark listens on is always 8766, but the person opens the one compose published
+    (CLARK_PUBLISHED_PORT, from CLARK_PORT). Outside the container, or without a usable number, the port as given."""
+    if platform.container_mode():
+        text = os.environ.get("CLARK_PUBLISHED_PORT", "")
+        if text.isascii() and text.isdigit() and 1 <= int(text) <= 65535:
+            return int(text)
+    return port
+
+
 def start_line(address):
     return f"Open {address} to use clark. Leave this window open. Press Ctrl+C to stop."
 
@@ -166,7 +176,7 @@ class ServerOutput:
         if not found:
             return self.out.write(text)
         self.done = True
-        address = address_for(int(found.group(1)), self.code)
+        address = address_for(shown_port(int(found.group(1))), self.code)
         self.out.write(start_line(address))
         if self.opener:
             try:
