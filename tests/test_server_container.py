@@ -210,6 +210,17 @@ class ComposeIsLanSafe(unittest.TestCase):
         for unsafe in ("${CLARK_PORT}", "${CLARK_PORT:-0.0.0.0", "${HOST", "${CLARK_HOST"):
             self.assertNotIn(unsafe, self.CODE, unsafe)
 
+    def test_the_published_port_is_handed_in_for_the_start_up_line(self):
+        """item 652: the start-up line names the port the person opens, so compose passes the same ${CLARK_PORT:-8766}."""
+        self.assertRegex(self.CODE, r'(?m)^      CLARK_PUBLISHED_PORT: "\$\{CLARK_PORT:-8766\}"$')
+
+    def test_the_data_source_limit_is_written_in_the_compose_file(self):
+        """item 652: no Compose variable names this file's folder, so PWD stands in; started from another folder the check would
+        look in the wrong place. The limit is said in the file, with the way round it (name CLARK_DATA_DIR)."""
+        self.assertIn("KNOWN LIMIT", self.TEXT)
+        self.assertIn("Start it from the clark folder", self.TEXT)
+        self.assertIn("name the data folder in CLARK_DATA_DIR", self.TEXT)
+
     def test_the_data_folder_can_be_named_and_defaults_to_the_folder_s_own(self):
         """CLARK_DATA_DIR points Docker at a data folder the owner already has; unset, it is the clark folder's data folder."""
         self.assertRegex(self.CODE, r"(?m)^        source: \$\{CLARK_DATA_DIR:-\.\./data\}$")

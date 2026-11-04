@@ -1165,7 +1165,15 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .update-files { margin: 6px 0; }
 .update-files ul { margin: 0 0 6px; overflow-wrap: anywhere; }
 .update-sum { overflow-wrap: anywhere; }
-#update-last p { margin: 0; align-self: center; }
+/* item 445: the card's labelled rows (the prototype's Installed / Update / Install from a file / Last update), a hint line under a control */
+.upd-rows { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: var(--space-3) var(--space-4); align-items: start; margin-top: var(--space-3); }
+.upd-rows .upd-l { margin: 0; padding-top: 6px; font-size: var(--size-small); color: var(--text-muted); }
+.upd-c { min-width: 0; }
+.upd-c > p { margin: 6px 0 0; overflow-wrap: anywhere; }
+.upd-c > p:first-child { margin-top: 0; padding-top: 6px; }
+.upd-c > .row:first-child { margin-top: 0; }
+.upd-c .upd-hint { margin-top: 4px; font-size: var(--size-small); }
+@media (max-width: 600px) { .upd-rows { grid-template-columns: minmax(0, 1fr); gap: 4px; } .upd-rows .upd-l { padding-top: var(--space-2); } }
 /* item 443: Settings > Published reports: a plain table, the same look as the work items table; it wraps instead of scrolling sideways. */
 .pubs { width: 100%; border-collapse: collapse; font-size: var(--size-small); margin-top: 8px; }
 .pubs th { text-align: left; font-weight: 400; font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: 8px 10px; border-top: 1px solid var(--grey-200); }
