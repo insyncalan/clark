@@ -24,8 +24,8 @@ Replaces the API-key plan in `readiness-54-providers.md`. The owner's answers ar
 ## Decisions in slice 2
 
 - **Connect and Disconnect are about clark's use of the command, never the sign-in.** clark can't sign a person in, and signing them out would break their other work. Disconnect only stops clark using it, and says so. A person already signed in counts as connected, as before.
-- **Opus is the default model**, sent as `--model opus` (FR-65: the recommended model is the default). Before this, the command chose. A plan without it gets the plain line and can pick another.
-- **Sonnet and Haiku ask first**, and a yes is remembered. Fable is simply offered.
+- **Sonnet is the default model**, sent as `--model sonnet` (the owner, 04-11-2026: "default for claude is always sonnet"). Before this, the command chose. A plan without it gets the plain line and can pick another.
+- **Haiku asks first**, and a yes is remembered. Opus and Fable are simply offered.
 - **The OpenAI tile says Later** until slice 3.
 - **The AI menu stays off:** the launcher still passes no `ai=`, so the line under the card still says suggestions come later.
 

@@ -50,8 +50,8 @@ class TheCard(Base):
         status, b = self.connect.get()
         self.assertEqual(status, 200)
         self.assertTrue(b["claude"]["connected"])
-        self.assertEqual(b["model"], "opus")
-        self.assertEqual([m["id"] for m in b["models"] if m["recommended"]], ["opus"])
+        self.assertEqual(b["model"], "sonnet")
+        self.assertEqual([m["id"] for m in b["models"] if m["recommended"]], ["sonnet"])
         self.assertEqual({m["id"] for m in b["models"]}, set(ask_claude.MODELS))
         self.assertTrue(b["openai"]["later"])
         self.assertFalse(b["openai"]["connected"])
@@ -92,10 +92,10 @@ class TheModel(Base):
     def test_a_smaller_model_asks_first_and_the_answer_is_remembered(self):
         status, b = self.connect.choose({"model": "haiku"})
         self.assertEqual((status, b["code"]), (409, "weaker"))
-        self.assertEqual(self.connect.model(), "opus", "asking changes nothing")
+        self.assertEqual(self.connect.model(), "sonnet", "asking changes nothing")
         self.assertEqual(self.connect.choose({"model": "haiku", "accept": True})[0], 200)
         self.assertEqual(self.connect.model(), "haiku")
-        self.connect.choose({"model": "opus"})
+        self.connect.choose({"model": "sonnet"})
         self.assertEqual(self.connect.choose({"model": "haiku"})[0], 200, "already said yes")
 
     def test_text_never_becomes_a_model(self):
@@ -105,7 +105,7 @@ class TheModel(Base):
 
     def test_a_bad_value_in_the_file_reads_as_the_recommended_model(self):
         (self.d / settings.FILE).write_text(json.dumps({settings.AI_MODEL: "--evil", settings.AI_CLAUDE_OFF: "yes", settings.AI_ACCEPTED: "haiku"}), encoding="utf-8")
-        self.assertEqual(self.connect.model(), "opus")
+        self.assertEqual(self.connect.model(), "sonnet")
         self.assertTrue(self.connect.on())
         self.assertEqual(self.connect.choose({"model": "haiku"})[0], 409, "a bad list accepts nothing")
 
@@ -130,7 +130,7 @@ class TheChain(Base):
         self.assertEqual(self.chain.ask(self.request()), "answer")
         self.connect.choose({"model": "fable"})
         self.chain.ask(self.request())
-        self.assertEqual(self.claude.asked, ["opus", "fable"])
+        self.assertEqual(self.claude.asked, ["sonnet", "fable"])
 
     def test_while_disconnected_nothing_is_asked_and_the_status_says_so(self):
         self.connect.disconnect({"provider": "claude"})

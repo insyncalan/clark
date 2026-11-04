@@ -18,8 +18,8 @@ import logging
 from clark import ai_providers, ask, ask_claude, settings
 
 LOG = logging.getLogger("clark.ai_connect")
-RECOMMENDED = "opus"
-SMALLER = ("sonnet", "haiku")                       # asks first; Fable is not smaller, and is simply offered
+RECOMMENDED = "sonnet"                              # the owner, 04-11-2026: the default for Claude is always Sonnet
+SMALLER = ("haiku",)                                # asks first; Opus and Fable are not smaller, and are simply offered
 LABELS = {m: f"Claude {ask_claude.MODEL_NAMES[m]}" for m in ask_claude.MODELS}
 CLAUDE = ask_claude.PROVIDER
 OFF_WORDS = "Claude isn't connected in Settings. Connect it there to use this."

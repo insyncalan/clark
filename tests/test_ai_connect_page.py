@@ -37,8 +37,8 @@ class Card(unittest.TestCase):
             js = self.show(cdp)
             self.assertIn("Connected", js("document.querySelector('[data-ai-tile=claude] .tag').innerText"))
             self.assertEqual(js("document.querySelector('[data-ai-tile=openai] .tag').innerText"), "Later")
-            self.assertEqual(js("document.querySelector('#ai-model').value"), "opus")
-            self.assertIn("(recommended)", js("document.querySelector('#ai-model option[value=opus]').innerText"))
+            self.assertEqual(js("document.querySelector('#ai-model').value"), "sonnet")
+            self.assertIn("(recommended)", js("document.querySelector('#ai-model option[value=sonnet]').innerText"))
 
     def test_disconnect_then_connect(self):
         with chrome() as cdp:
@@ -67,7 +67,7 @@ class Card(unittest.TestCase):
             js = self.show(cdp)
             self.pick(js, "haiku")
             self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-weaker]')"), 10))
-            self.assertEqual(js("document.querySelector('#ai-model').value"), "opus", "the drop-down goes back while it asks")
+            self.assertEqual(js("document.querySelector('#ai-model').value"), "sonnet", "the drop-down goes back while it asks")
             js("document.querySelector('[data-ai-keep]').click()")
             self.assertTrue(wait(lambda: js("!document.querySelector('[data-ai-weaker]')"), 10))
             self.assertEqual(settings.ai_read(self.d)["model"], "")
