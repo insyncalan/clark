@@ -16,7 +16,7 @@
 // (a use case is archived, never deleted: its toast says so), the rest keep theirs. A new use case starts hidden from the client (eye off,
 // the owner, 03-11-2026): it is counted in "from your project record (N)" and on the Use cases page until its eye is turned on.
 import { signal } from "@preact/signals";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, mode, rows } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
 import { NewTile } from "../components/NewTile.jsx";
@@ -75,7 +75,10 @@ function Modal({ onClose, opener, children }) {
 // "Add a use case": the prototype's box and words. The ID is the reference the project writes ("3.1"); clark gives the id itself.
 function AddBox({ onClose, opener }) {
   const first = useRef(null), [busy, setBusy] = useState(false);
-  useEffect(() => { if (first.current) first.current.focus(); }, []);
+  // Focus goes to the ID field in the same step that draws the box. useEffect runs after the paint, so a person (or a test) who had
+  // already clicked into Use case could have the late focus pull them back to ID mid-typing: the name then landed in ID, Use case
+  // stayed empty, and Add was refused without a word.
+  useLayoutEffect(() => { if (first.current) first.current.focus(); }, []);
   const submit = async (e) => {
     e.preventDefault();
     const f = e.currentTarget, ref = f.ucI.value.trim(), title = f.ucT.value.trim();
@@ -231,7 +234,7 @@ function LinkBox({ uc, onClose, opener }) {
   const d = data.value, u = (d && d.use_cases || []).find((x) => x.id === uc);
   const [query, setQuery] = useState(""), [kind, setKind] = useState(""), [chosen, setChosen] = useState([]);
   const search = useRef(null), list = useRef(null);
-  useEffect(() => { if (search.current) search.current.focus(); }, []);
+  useLayoutEffect(() => { if (search.current) search.current.focus(); }, []);    // as the Add box: focus is in the search field before the box is drawn
   if (!u) return null;
   const items = linkable(d, rows.value, uc, todayIso()), shown = narrow(items, kind, query);
   const picked = chosen.filter((id) => items.some((i) => i.id === id)), n = picked.length;
