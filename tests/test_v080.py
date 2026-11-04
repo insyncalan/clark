@@ -81,12 +81,15 @@ COVERED = [
      "test_people_paste_route::Paste::test_one_undo_takes_the_whole_paste_back_including_a_changed_person"),
     ("#454", "The People card is not in a published page",
      "test_people_paste_route::Private::test_the_people_card_is_not_in_the_published_page_source"),
+    ("#347", "A backup copies each kept publication once, and a restore never removes one",
+     "test_backup_copy::KeptPublications::test_a_backup_copies_each_kept_publication_once_and_not_again"),
+    ("#347", "A kept file already in the backup folder is never replaced, and a restore never removes one",
+     "test_backup_copy::KeptPublications::test_a_restore_never_removes_a_kept_publication"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#347", "A backup copies each kept publication once, and a restore never removes one", "PR 570", "backup.py", "def _copy_kept"),
     ("#48", "HOLD (the Help wording is the owner's call): Export to Word and Import from Word screens", "PR 475", "page/src/edit/Word.jsx", "export function WordLayer"),
     ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo", "PR 513", "updater.py", "class Updater"),
     ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 518", "page/src/edit/Update.jsx", "upd-rows"),
