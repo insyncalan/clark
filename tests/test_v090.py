@@ -53,7 +53,7 @@ COVERED = [
 # marker None means there is no pull request to look for yet).
 WAITING = [
     ("#48", "HOLD (the Help wording is the owner's call): Export to Word and Import from Word screens", "PR 475", "page/src/edit/Word.jsx", "export function WordLayer"),
-    ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo", "PR 513", "updater.py", "class Updater"),
+    ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo", "PR 592", "updater.py", "class Updater"),
     ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 592", "page/src/edit/Update.jsx", "upd-rows"),
     ("#434", "Risks, issues, actions and decisions rows: a status pill, empty sections, editing in place and the ID button", "PR 580", "page/src/edit/ItemRowsEdit.jsx", "WORDS_MAX"),
     ("#449", "Work items: the column width can be changed and reset, with a toast", "PR 555", "page/src/logic/board.js", "COL_MIN"),
