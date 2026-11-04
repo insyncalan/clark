@@ -5,7 +5,9 @@ export const OFF_LINE = "Asking is off. Turn it on in Settings.";               
 export const OFF_LINK = "Open Settings";
 export const SIGNED_OUT_LINE = "Claude is not signed in on this computer, so there is nothing to ask yet. Sign in to Claude on this computer, then open this panel again.";
 export const SETTINGS_LINK = "Open Settings";
-export const DISCONNECTED_LINE = "Claude isn't connected in Settings. Connect it there to use this.";   // the server's status words, ai_connect.OFF_WORDS
+// #54: every line that says where a question goes follows the provider in use, because it has to be true. The words themselves are written for Claude.
+export const named = (text, who) => (who === "ChatGPT" ? text.replace(/Claude, which Anthropic runs/g, "ChatGPT, which OpenAI runs").replace(/Claude/g, "ChatGPT") : text);
+export const DISCONNECTED_LINE = "Nothing is connected in Settings. Connect Claude or ChatGPT there to use this.";   // the server's status words, ai_connect.OFF_WORDS
 // #47a: the connect box says where the words go and who pays for them.
 export const SENT_LINE = "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.";
 export const CHECKING_LINE = "Checking whether you can ask…";

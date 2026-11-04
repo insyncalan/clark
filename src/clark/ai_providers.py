@@ -1,12 +1,12 @@
 """AI providers for ask clark (#54, the subscription routes). A provider is a small object: `name`, `models()` (the fixed aliases it
 accepts), `status()`, `ask(request, model=None)` and `others(model)` (what to offer when a limit is reached). There is no key here, no
 keychain and no network call: the Claude provider is the person's own `claude` command, run by ask_claude.ClaudeCommand (the one place
-that starts it, through platform.py). The API-key route is a later item (#643).
+that starts it, through platform.py). The API-key route is a later item (#643). `ai_codex.py` is the ChatGPT command.
 
 The size of what is sent is limited per model, pinned in code from each model's context, so a change is a reviewed change. A limit never
 switches model by itself: the answer is a `LimitReached` that names the other models, and the person chooses.
 """
-from clark import ask, ask_claude
+from clark import ai_codex, ask, ask_claude
 
 # Each model's context window in tokens (the owner's answer on #53, question 6). Characters allowed are half of it: a token is often
 # more than two characters of English, but text in other scripts can be fewer, and the provider's own prompt and the reply need room.
@@ -16,7 +16,7 @@ TOO_BIG = "That is too much text for {model}, so nothing was sent. Ask about les
 
 
 def most_chars(model):
-    """The longest request text `model` may be sent. No model chosen: the smallest, because the command's own choice isn't known here."""
+    """The longest request text a Claude `model` may be sent (Subscription.most_chars for any provider)."""
     tokens = CONTEXT_TOKENS[model] if model is not None else min(CONTEXT_TOKENS.values())
     return int(tokens * CHARS_PER_TOKEN)
 
@@ -38,56 +38,95 @@ class Provider:
         return tuple(m for m in self.models() if m != model)
 
 
-class ClaudeSubscription(Provider):
-    """The Claude command, signed in with the person's own Claude plan. `command` is a seam for the tests."""
-    name = ask_claude.PROVIDER
+class Subscription(Provider):
+    """A person's own signed-in command as a provider. `command` is a seam for the tests."""
+    contexts = {}
+    names = {}
 
-    def __init__(self, command=None):
-        self.command = command if command is not None else ask_claude.ClaudeCommand()
+    def __init__(self, command):
+        self.command = command
+        self.name = command.provider
 
     def models(self):
-        return ask_claude.MODELS
+        return self.command.models
 
     def status(self):
         return self.command.status()
 
+    def most_chars(self, model):
+        """The longest request text `model` may be sent. No model chosen: the smallest, because the command's own choice isn't known here."""
+        tokens = self.contexts[model] if model is not None else min(self.contexts.values())
+        return int(tokens * CHARS_PER_TOKEN)
+
     def ask(self, request, model=None, prefer=False):
         if model is not None and not (isinstance(model, str) and model in self.models()):
             return ask.Failure(ask_claude.MODEL_REFUSED)
-        if len(request.text) > most_chars(model):
-            return ask.Failure(TOO_BIG.format(model=ask_claude.MODEL_NAMES.get(model, "this model")))
+        if len(request.text) > self.most_chars(model):
+            return ask.Failure(TOO_BIG.format(model=self.names.get(model, "this model")))
         return self.command.ask(request, model, prefer=prefer) if prefer else self.command.ask(request, model)
 
     def stop(self, owner=None):
         return self.command.stop(owner)
 
 
-class Chosen(ask.Provider):
-    """What ask clark and the suggestions are given: `provider` with the choice in Settings › AI applied. `on` and `saved` are read for
-    every question, so a change in Settings counts at once. A model the person chose must be used or refused; `default` is only preferred,
-    so an older command that can't choose a model still answers. While it is off nothing is asked and the status says why."""
+class ClaudeSubscription(Subscription):
+    """The Claude command, signed in with the person's own Claude plan."""
+    contexts = CONTEXT_TOKENS
+    names = ask_claude.MODEL_NAMES
+    label, company = "Claude", "Anthropic"
 
-    def __init__(self, provider, on, saved, default, off_words):
-        self.provider, self.on, self.saved, self.default, self.off_words = provider, on, saved, default, off_words
-        self.name = provider.name
+    def __init__(self, command=None):
+        super().__init__(command if command is not None else ask_claude.ClaudeCommand())
+
+
+class ChatGPTSubscription(Subscription):
+    """The Codex command, signed in with the person's own ChatGPT plan. The three layers around a run are in ai_codex.py."""
+    contexts = ai_codex.CONTEXT_TOKENS
+    names = ai_codex.MODEL_NAMES
+    label, company = "ChatGPT", "OpenAI"
+
+    def __init__(self, command=None):
+        super().__init__(command if command is not None else ai_codex.CodexCommand())
+
+
+class Chosen(ask.Provider):
+    """What ask clark and the suggestions are given: the provider and model chosen in Settings › AI. `pick` is read for every question, so a change
+    in Settings counts at once: it gives (provider, model, prefer), or None when nothing is connected. `prefer` means the model is only a default, so
+    an older command that can't choose a model still answers; a model the person chose is used or refused. It never moves to another provider by
+    itself: a limit or a fault is told, and the person chooses. While nothing is connected nothing is asked and the status says why."""
+    name = "chosen"
+
+    def __init__(self, providers, pick, off_words):
+        self.providers, self.pick, self.off_words = tuple(providers), pick, off_words
+
+    def _active(self):
+        return self.pick() or (None, None, False)
 
     @property
     def lock(self):
-        return self.provider.command.lock       # one run at a time, shared with a question's run (ai_service.busy reads it)
+        provider = self._active()[0]
+        return (provider or self.providers[0]).command.lock       # one run at a time, shared with a question's run (ai_service.busy reads it)
+
+    @property
+    def label(self):
+        provider = self._active()[0]
+        return provider.label if provider is not None else ""
 
     def status(self):
-        return self.provider.status() if self.on() else {"connected": False, "why": self.off_words}
+        provider = self._active()[0]
+        return provider.status() if provider is not None else {"connected": False, "why": self.off_words}
 
     def ask(self, request):
-        if not self.on():
+        provider, model, prefer = self._active()
+        if provider is None:
             return ask.Failure(self.off_words)
-        chosen = self.saved()
-        return self.provider.ask(request, chosen or self.default, prefer=chosen is None)
+        return provider.ask(request, model, prefer=prefer)
 
     def stop(self, owner=None):
-        return self.provider.stop(owner)
+        return any([p.stop(owner) for p in self.providers])     # every one: a run may have started before the choice changed
 
 
 def provider_for(name, **seams):
     """The provider called `name`, or None."""
-    return ClaudeSubscription(**seams) if name == ask_claude.PROVIDER else None
+    kinds = {ask_claude.PROVIDER: ClaudeSubscription, ai_codex.PROVIDER: ChatGPTSubscription}
+    return kinds[name](**seams) if name in kinds else None

@@ -3,7 +3,8 @@
 // page asks the server to open the folder window and shows what the server answers, in its words).
 import { useEffect, useState } from "preact/hooks";
 import { project } from "../stores/report.js";
-import { askOn, askStatus, askSaved, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
+import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
+import { named } from "./askWords.js";
 import { AiSettings } from "./AiSettings.jsx";
 import { askFoldersRead, askFoldersChange, askFoldersChoose, words } from "./publishApi.js";
 
@@ -66,14 +67,14 @@ export function AskSettings() {
     <>
     <section class="frame setting" id="ask-settings">
       <h2 id="ask-settings-h" tabIndex={-1}>Asking</h2>
-      <p class="muted">Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.</p>
-      <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? "Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs." : ASK_OFF_LINE}</p>
+      <p class="muted">{named("Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.", askProvider.value)}</p>
+      <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? named("Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs.", askProvider.value) : ASK_OFF_LINE}</p>
       {status === "ready" && !saved ? <p class="muted" id="ask-unsaved">This computer's saved data can't keep this choice yet, so asking stays off. Restart clark to bring the saved data up to date.</p> : null}
       <div class="row">
         <button type="button" class="btn" data-ask-switch aria-pressed={on ? "true" : "false"} disabled={busy || status !== "ready"} onClick={flip}>{on ? "Turn off asking" : "Turn on asking"}</button>
       </div>
       <h3>Folders asking may read</h3>
-      <p class="muted">Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.</p>
+      <p class="muted">{named("Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.", askProvider.value)}</p>
       {folders === "unavailable" ? <p class="muted" id="ask-folders-note">{NOT_READY}</p> : null}
       {folders !== "unavailable" && folders !== null && !list.length ? <p class="muted" id="ask-folders-none">No folders are set. Asking uses only this project's data.</p> : null}
       {list.length ? (

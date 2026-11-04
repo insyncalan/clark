@@ -1,10 +1,11 @@
-// Settings: AI (#54, #446). A tile for Claude with Connect or Disconnect, a tile for OpenAI that says it comes later, and the model asking
-// uses. clark holds no key or password: Disconnect only stops clark using the person's own sign-in. Below them, AI suggestions (#72): one status line for the Edit parts' Settings, in the server's own words (GET /api/ai/status): on,
+// Settings: AI (#54, #446). A tile each for Claude and ChatGPT with Connect or Disconnect, and the model asking
+// uses. clark holds no key or password: Disconnect only stops clark using the person's own sign-in.  Below them, AI suggestions (#72): one status line for the Edit parts' Settings, in the server's own words (GET /api/ai/status): on,
 // off, not signed in, or busy. There is one switch for Claude on this computer, the one under Asking; this line only says what it
 // means for suggestions. Until the server has answered, or when it cannot, the line says so and AI reads as off.
 import { useEffect, useState } from "preact/hooks";
 import { token } from "../stores/report.js";
 import { realAiClient } from "./aiClient.js";
+import { askProvider } from "./askState.js";
 import { aiConnectRead, aiConnectSend, aiDisconnectSend, aiModelSend, words } from "./publishApi.js";
 
 export const AI_CHECKING_LINE = "Checking whether AI suggestions are on…";
@@ -12,12 +13,18 @@ export const AI_LATER_LINE = "AI suggestions come in a later version.";      // 
 export const AI_UNAVAILABLE_LINE = "AI suggestions are off, because clark could not check just now. Reload the page to try again.";
 const client = realAiClient({ token });
 
+const TILES = [
+  ["claude", "Claude", "Through your Claude subscription, using the Claude command on this computer."],
+  ["chatgpt", "ChatGPT", "Through your ChatGPT subscription, using the Codex command on this computer. What you ask goes to OpenAI."],
+];
+
 function ConnectCard() {
   const [conn, setConn] = useState(null);                // null: not read yet; "later": no route; "unavailable"; or the server's view
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
   const [weaker, setWeaker] = useState(null);            // {model, text}: a smaller model asks first
-  const readable = (b) => b && b.ok === true && b.claude && Array.isArray(b.models);
+  const readable = (b) => b && b.ok === true && b.claude && b.chatgpt && Array.isArray(b.models);
+  useEffect(() => { if (conn && conn.active) askProvider.value = conn.active; }, [conn && conn.active]);
   useEffect(() => {
     let live = true;
     aiConnectRead().then((r) => { if (live) setConn(r.status === 404 ? "later" : r.status === 200 && readable(r.body) ? r.body : "unavailable"); });
@@ -47,23 +54,24 @@ function ConnectCard() {
     <>
     <p class="muted" data-ai-intro>{conn.intro}</p>
     <div class="ai-provs">
-      <div class={`ai-prov${c.connected ? " on" : ""}`} data-ai-tile="claude">
-        <h3>Claude <span class={`tag${c.connected ? " cl" : ""}`}>{c.connected ? "Connected" : "Not connected"}</span></h3>
-        <p class="muted">Through your Claude subscription, using the Claude command on this computer.</p>
-        {c.why ? <p data-ai-why>{c.why}</p> : null}
-        {c.connected
-          ? <button type="button" class="btn sm" data-ai-disconnect disabled={busy} onClick={() => send(() => aiDisconnectSend("claude"), "disconnect Claude")}>Disconnect</button>
-          : <button type="button" class="btn pri sm" data-ai-connect disabled={busy} onClick={() => send(() => aiConnectSend("claude"), "connect Claude")}>Connect</button>}
-      </div>
-      <div class="ai-prov later" data-ai-tile="openai">
-        <h3>OpenAI <span class="tag">Later</span></h3>
-        <p class="muted">Coming soon, through your ChatGPT sign-in.</p>
-      </div>
+      {TILES.map(([id, name, line]) => {
+        const c = conn[id];
+        return (
+          <div class={`ai-prov${c.connected ? " on" : ""}`} data-ai-tile={id} key={id}>
+            <h3>{name} <span class={`tag${c.connected ? " cl" : ""}`}>{c.connected ? "Connected" : "Not connected"}</span></h3>
+            <p class="muted">{line}</p>
+            {c.why ? <p data-ai-why>{c.why}</p> : null}
+            {c.connected
+              ? <button type="button" class="btn sm" data-ai-disconnect={id} disabled={busy} onClick={() => send(() => aiDisconnectSend(id), `disconnect ${name}`)}>Disconnect</button>
+              : <button type="button" class="btn pri sm" data-ai-connect={id} disabled={busy} onClick={() => send(() => aiConnectSend(id), `connect ${name}`)}>Connect</button>}
+          </div>
+        );
+      })}
     </div>
     <div class="ai-model">
       <label for="ai-model">Model for ask clark</label>{" "}
       <select id="ai-model" disabled={busy || !conn.models.length} value={conn.model} onChange={(e) => choose(e.currentTarget.value)}>
-        {conn.models.length ? conn.models.map((m) => <option key={m.id} value={m.id}>{m.label}{m.recommended ? " (recommended)" : ""}</option>) : <option value="">Connect Claude first</option>}
+        {conn.models.length ? conn.models.map((m) => <option key={m.id} value={m.id}>{m.label}{m.recommended ? " (recommended)" : ""}</option>) : <option value="">Connect Claude or ChatGPT first</option>}
       </select>
     </div>
     {weaker ? (

@@ -5,7 +5,7 @@ import { signal, effect } from "@preact/signals";
 import { view, project, peek } from "../stores/report.js";
 import { token } from "../stores/report.js";
 import { helpOpen } from "../help/helpStore.js";
-import { askOn } from "./askState.js";
+import { askOn, askProvider } from "./askState.js";
 import { QUIPS, DISCONNECTED_LINE } from "./askWords.js";
 
 const MIN = 320, DEFAULT = 420;
@@ -55,6 +55,7 @@ async function readStatus() {
   askOn.value = true;
   panelModel.value = typeof b.model === "string" ? b.model.slice(0, 60) : "";
   panelDisconnected.value = b.why === DISCONNECTED_LINE;
+  if (typeof b.provider === "string") askProvider.value = b.provider;
   panelState.value = b.connected === true ? "ready" : "signed-out";
 }
 

@@ -28,6 +28,7 @@ MODELS = ("gpt-6.1-sol", "gpt-6.1-terra", "gpt-6-sol", "gpt-6-astra", "gpt-6-lun
 CONTEXT_TOKENS = {"gpt-6.1-sol": 500000, "gpt-6.1-terra": 500000, "gpt-6-sol": 272000, "gpt-6-astra": 272000, "gpt-6-luna": 272000}
 RECOMMENDED = "gpt-6.1-sol"     # the owner, 04-11-2026: the middle model, the one that compares with Sonnet. Codex calls it the "workhorse for coding and everyday work"
 SMALLER = ("gpt-6.1-terra", "gpt-6-luna")                  # ask first, as Haiku does: Codex calls them balanced for straightforward work, and fast for easier tasks
+MODEL_NAMES = {"gpt-6.1-sol": "GPT-6.1 Sol", "gpt-6.1-terra": "GPT-6.1 Terra", "gpt-6-sol": "GPT-6 Sol", "gpt-6-astra": "GPT-6 Astra", "gpt-6-luna": "GPT-6 Luna"}
 DISABLED = ("shell_tool", "unified_exec", "apps", "plugins", "multi_agent", "multi_agent_v2", "image_generation", "browser_use", "computer_use",
             "in_app_browser", "goals", "skill_search", "hooks", "code_mode_host", "sleep_tool", "shell_snapshot", "view_image", "tool_suggest")
 NEEDED_FLAGS = ("--ignore-user-config", "--ignore-rules", "--ephemeral", "--skip-git-repo-check", "--sandbox", "--disable", "--json", "--config", "--model")

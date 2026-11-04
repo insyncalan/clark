@@ -26,7 +26,8 @@ Replaces the API-key plan in `readiness-54-providers.md`. The owner's answers ar
 - **Connect and Disconnect are about clark's use of the command, never the sign-in.** clark can't sign a person in, and signing them out would break their other work. Disconnect only stops clark using it, and says so. A person already signed in counts as connected, as before.
 - **Sonnet is the default model**, sent as `--model sonnet` (the owner, 04-11-2026: "default for claude is always sonnet"). Before this, the command chose. On a command too old to choose a model, the default is dropped and the command's own is used; a model the person chose gets the plain line.
 - **Haiku asks first**, and a yes is remembered. Opus and Fable are simply offered.
-- **The OpenAI tile says Later** until slice 3.
+- **ChatGPT is off until the person connects it:** what they ask would go to a second company. The model chosen decides the provider, and clark never moves to another provider by itself.
+- **Every line saying where a question goes follows the provider in use** (`askWords.named`), because it has to be true.
 - **The suggestions menu stays off:** the launcher still passes no `ai=`, so the line under the card still says suggestions come later.
 
 ## The ChatGPT run (slice 3), from the tests on #52

@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 from _paths import SRC  # noqa: F401
-from test_ai_connect import FakeClaude
+from test_ai_connect import FakeChatGPT, FakeClaude
 from test_page import DATA, navigate
 from test_server import Running, chrome, wait
 
@@ -23,8 +23,8 @@ class Card(unittest.TestCase):
         self.addCleanup(self.s.close)
         self.d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
         self.addCleanup(shutil.rmtree, self.d, True)
-        self.claude = FakeClaude()
-        self.s.httpd.ai_connect = ai_connect.AiConnect(self.d, self.claude)
+        self.claude, self.chatgpt = FakeClaude(), FakeChatGPT()
+        self.s.httpd.ai_connect = ai_connect.AiConnect(self.d, self.claude, self.chatgpt)
 
     def show(self, cdp):
         self.sid = navigate(cdp, self.s.port, "#settings&p=ABC")
@@ -36,7 +36,7 @@ class Card(unittest.TestCase):
         with chrome() as cdp:
             js = self.show(cdp)
             self.assertIn("Connected", js("document.querySelector('[data-ai-tile=claude] .tag').innerText"))
-            self.assertEqual(js("document.querySelector('[data-ai-tile=openai] .tag').innerText"), "Later")
+            self.assertEqual(js("document.querySelector('[data-ai-tile=chatgpt] .tag').innerText"), "Not connected")
             self.assertEqual(js("document.querySelector('[data-ai-intro]').innerText"), ai_connect.CARD_INTRO)
             self.assertEqual(js("document.querySelector('#ai-model').value"), "sonnet")
             self.assertIn("(recommended)", js("document.querySelector('#ai-model option[value=sonnet]').innerText"))
@@ -44,20 +44,32 @@ class Card(unittest.TestCase):
     def test_disconnect_then_connect(self):
         with chrome() as cdp:
             js = self.show(cdp)
-            js("document.querySelector('[data-ai-disconnect]').click()")
-            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-connect]')"), 10))
+            js("document.querySelector('[data-ai-disconnect=claude]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-connect=claude]')"), 10))
             self.assertIn("still signed in", js("document.querySelector('[data-ai-msg]').innerText"))
             self.assertEqual(js("document.querySelector('#ai-model').disabled"), True)
-            self.assertEqual(js("document.querySelector('#ai-model').innerText"), "Connect Claude first")
-            js("document.querySelector('[data-ai-connect]').click()")
-            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-disconnect]')"), 10))
+            self.assertEqual(js("document.querySelector('#ai-model').innerText"), "Connect Claude or ChatGPT first")
+            js("document.querySelector('[data-ai-connect=claude]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-disconnect=claude]')"), 10))
+
+    def test_connecting_chatgpt_offers_its_models_and_the_askings_words_follow_the_choice(self):
+        with chrome() as cdp:
+            js = self.show(cdp)
+            self.assertIn("Claude, which Anthropic runs", js("document.querySelector('#ask-settings').innerText"))
+            js("document.querySelector('[data-ai-connect=chatgpt]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-model option[value=\"gpt-6.1-sol\"]')"), 10))
+            self.pick(js, "gpt-6.1-sol")
+            self.assertTrue(wait(lambda: js("document.querySelector('#ai-model').value") == "gpt-6.1-sol", 10))
+            self.assertEqual(settings.ai_read(self.d)["model"], "gpt-6.1-sol")
+            self.assertTrue(wait(lambda: "ChatGPT, which OpenAI runs" in js("document.querySelector('#ask-settings').innerText"), 10))
+            self.assertNotIn("Anthropic", js("document.querySelector('#ask-settings').innerText"))
 
     def test_not_signed_in_says_what_to_do(self):
         self.claude.signed_in = False
         with chrome() as cdp:
             js = self.show(cdp)
-            self.assertIn("sign in", js("document.querySelector('[data-ai-why]').innerText"))
-            js("document.querySelector('[data-ai-connect]').click()")
+            self.assertIn("sign in", js("document.querySelector('[data-ai-tile=claude] [data-ai-why]').innerText"))
+            js("document.querySelector('[data-ai-connect=claude]').click()")
             self.assertTrue(wait(lambda: "sign in" in js("document.querySelector('[data-ai-msg]').innerText"), 10))
 
     def pick(self, js, model):

@@ -1,37 +1,40 @@
-"""ai connect (#54, #446): the logic of Settings › AI. GET /api/providers, and POST /api/providers/connect, /disconnect and
-/model. server.py only routes to it. There is no key and no password anywhere in this: a provider is the person's own signed-in
-command, so what is kept in settings.json is ordinary words only (whether clark may use Claude, the model chosen, the smaller models the
-person said "use it anyway" to).
+"""ai connect (#54, #446, #52): the logic of Settings › AI. GET /api/providers, and POST /api/providers/connect, /disconnect and /model. server.py only
+routes to it. There is no key and no password anywhere in this: a provider is the person's own signed-in command, so what is kept in settings.json is
+ordinary words only (which providers clark may use, the model chosen, the smaller models the person said "use it anyway" to).
 
-CONNECT AND DISCONNECT are about clark's use of the command, never the sign-in. clark can't sign a person in, and it must not sign them out:
-the same sign-in serves their other work. Connect checks the sign-in and says what to do when there is none. Disconnect only stops clark
-using it, and says so. Claude counts as connected from the start when the person is signed in, as it did before this card existed.
+CONNECT AND DISCONNECT are about clark's use of the command, never the sign-in. clark can't sign a person in, and it must not sign them out: the same
+sign-in serves their other work. Connect checks the sign-in and says what to do when there is none. Disconnect stops clark using it, ends a question
+already running on it, and says the sign-in stays. Claude counts as connected from the start when the person is signed in, as it did before this card
+existed. ChatGPT is off until the person connects it: what they ask would go to a second company, so that is their choice to make.
 
-THE MODEL (FR-65). The list shows connected providers only, with the recommended model marked and the default. A smaller model asks first
-(409 `weaker`); the person's "use it anyway" (`accept: true`) is remembered.
+THE MODEL (FR-65). The list shows connected providers only, with each one's recommended model marked. The model chosen decides the provider. With none
+chosen: Claude's recommended model when Claude is connected, otherwise ChatGPT's. A smaller model asks first (409 `weaker`); the person's "use it anyway"
+(`accept: true`) is remembered. clark never moves to another provider by itself.
 
-Every answer is (status, {ok, ...}); a refusal has a stable `code` and a plain `message`, and never repeats what it was given. The log holds
-the provider and what happened, nothing else.
+Every answer is (status, {ok, ...}); a refusal has a stable `code` and a plain `message`, and never repeats what it was given. The log holds the provider
+and what happened, nothing else.
 """
 import logging
 import threading
 
-from clark import ai_providers, ask, ask_claude, settings
+from clark import ai_codex, ai_providers, ask, ask_claude, settings
 
 LOG = logging.getLogger("clark.ai_connect")
-RECOMMENDED = "sonnet"                              # the owner, 04-11-2026: the default for Claude is always Sonnet
-SMALLER = ("haiku",)                                # asks first; Opus and Fable are not smaller, and are simply offered
-LABELS = {m: f"Claude {ask_claude.MODEL_NAMES[m]}" for m in ask_claude.MODELS}
-CLAUDE = ask_claude.PROVIDER
-OFF_WORDS = "Claude isn't connected in Settings. Connect it there to use this."
+CLAUDE, CHATGPT = ask_claude.PROVIDER, ai_codex.PROVIDER
+RECOMMENDED = {CLAUDE: "sonnet", CHATGPT: ai_codex.RECOMMENDED}     # the owner, 04-11-2026: the default for Claude is always Sonnet; ChatGPT's is the one that compares with it
+SMALLER = ("haiku", *ai_codex.SMALLER)              # ask first; the others are simply offered
+LABELS = {**{m: f"Claude {ask_claude.MODEL_NAMES[m]}" for m in ask_claude.MODELS}, **ai_codex.MODEL_NAMES}
+OFF_WORDS = "Nothing is connected in Settings. Connect Claude or ChatGPT there to use this."
+CARD_INTRO = ("Connect Claude or ChatGPT for ask clark: the passages it sends leave this computer, go to the one you choose and count against that plan. "
+              "No password or key is kept.")
 CONNECTED = "Connected. Asking will use {model}."
-DISCONNECTED = "Disconnected. You're still signed in to Claude on this computer, but clark won't use it."
+CONNECTED_OTHER = "Connected. Choose one of its models below to use it."
+DISCONNECTED = "Disconnected. You're still signed in to {name} on this computer, but clark won't use it."
 USING = "Asking will use {model}."
 WEAKER = "{model} is smaller than the recommended model, so its answers may be less careful. Use it anyway?"
 BAD = "That could not be read. Reload the page and try again."
-NO_PROVIDER = "That isn't something clark can connect yet."
-NOT_CONNECTED = "Connect Claude first."
-CARD_INTRO = "Connect Claude for ask clark: the passages it sends leave this computer, go to Claude and count against your Claude plan. No password or key is kept."
+NO_PROVIDER = "That isn't something clark can connect."
+NOT_CONNECTED = "Connect it first."
 
 
 def fail(status, code, message):
@@ -39,81 +42,120 @@ def fail(status, code, message):
 
 
 class AiConnect:
-    """`data_dir` holds settings.json. `claude` is the Claude provider (ai_providers.ClaudeSubscription), whose status says whether the
-    person is signed in."""
+    """`data_dir` holds settings.json. `claude` and `chatgpt` are the providers (ai_providers.Subscription); each one's status says whether the person is
+    signed in."""
 
-    def __init__(self, data_dir, claude):
-        self.data_dir, self.claude = data_dir, claude
-        self.lock = threading.Lock()         # two saves take turns: each reads the settings file and writes it back
+    def __init__(self, data_dir, claude, chatgpt):
+        self.data_dir = data_dir
+        self.providers = {CLAUDE: claude, CHATGPT: chatgpt}
+        self.lock = threading.Lock()         # a choice is read and saved as one step, so two at once can't lose one
+
+    def provider_of(self, model):
+        return next((name for name, p in self.providers.items() if model in p.models()), None)
+
+    def is_on(self, name, saved=None):
+        saved = settings.ai_read(self.data_dir) if saved is None else saved
+        return saved["chatgpt_on"] if name == CHATGPT else not saved["claude_off"]
 
     # ----- what the provider chain reads, for every question -----
-    def on(self):
-        return not settings.ai_read(self.data_dir)["claude_off"]
-
-    def saved_model(self):
-        saved = settings.ai_read(self.data_dir)["model"]
-        return saved if saved in ask_claude.MODELS else None
-
-    def model(self):
-        return self.saved_model() or RECOMMENDED
+    def pick(self):
+        """(provider, model, prefer) for the next question, or None when nothing is connected. `prefer`: the model is only the default."""
+        saved = settings.ai_read(self.data_dir)
+        owner = self.provider_of(saved["model"])
+        if owner is not None and self.is_on(owner, saved):
+            return self.providers[owner], saved["model"], False
+        for name in (CLAUDE, CHATGPT):
+            if self.is_on(name, saved):
+                return self.providers[name], RECOMMENDED[name], True
+        return None
 
     # ----- the card -----
     def view(self, message=""):
-        st = ask.answer_status(self.claude)
-        connected = st["connected"] and self.on()
-        models = [{"id": m, "label": LABELS[m], "recommended": m == RECOMMENDED} for m in ask_claude.MODELS] if connected else []
-        return {"ok": True, "claude": {"connected": connected, "signed_in": st["connected"], "why": "" if st["connected"] else st["why"]},
-                "openai": {"connected": False, "later": True}, "intro": CARD_INTRO, "model": self.model() if connected else "", "models": models, "message": message}
+        saved = settings.ai_read(self.data_dir)
+        tiles, models = {}, []
+        for name, provider in self.providers.items():
+            st = ask.answer_status(provider)
+            connected = st["connected"] and self.is_on(name, saved)
+            tiles[name] = {"connected": connected, "signed_in": st["connected"], "why": "" if st["connected"] else st["why"]}
+            if connected:
+                models += [{"id": m, "label": LABELS[m], "provider": name, "recommended": m == RECOMMENDED[name]} for m in provider.models()]
+        offered = [m["id"] for m in models]
+        picked = self.pick()
+        model = picked[1] if picked is not None and picked[1] in offered else (offered[0] if offered else "")
+        return {"ok": True, **tiles, "model": model, "models": models, "active": picked[0].label if picked is not None else "", "intro": CARD_INTRO, "message": message}
 
     def get(self, *_ignored):
         return 200, self.view()
 
+    @staticmethod
+    def named(body):
+        return body["provider"] if isinstance(body, dict) and set(body) == {"provider"} else None
+
     def connect(self, body):
-        if not isinstance(body, dict) or set(body) != {"provider"}:
+        name = self.named(body)
+        if name is None:
             return fail(400, "bad_request", BAD)
-        if body["provider"] != CLAUDE:
+        if name not in self.providers:
             return fail(400, "no_provider", NO_PROVIDER)
-        st = ask.answer_status(self.claude)
+        st = ask.answer_status(self.providers[name])
         if not st["connected"]:
             return fail(409, "not_signed_in", st["why"])
-        return self._save({"claude_off": False}, CONNECTED.format(model=LABELS[self.model()]), "connected")
+        with self.lock:
+            saved = settings.ai_read(self.data_dir)
+            before = self.pick()
+            changes = {"claude_off": False} if name == CLAUDE else {"chatgpt_on": True}
+            alone = before is None or not ask.answer_status(before[0])["connected"]     # nothing else can answer: this one does, without a second step
+            if alone and self.provider_of(saved["model"]) != name:
+                changes["model"] = RECOMMENDED[name]
+            words = CONNECTED.format(model=LABELS[changes["model"]]) if "model" in changes else (
+                CONNECTED.format(model=LABELS[before[1]]) if before[0] is self.providers[name] else CONNECTED_OTHER)
+            return self._save(changes, words, f"{name} connected")
 
     def disconnect(self, body):
-        if not isinstance(body, dict) or set(body) != {"provider"}:
+        name = self.named(body)
+        if name is None:
             return fail(400, "bad_request", BAD)
-        if body["provider"] != CLAUDE:
+        if name not in self.providers:
             return fail(400, "no_provider", NO_PROVIDER)
-        return self._save({"claude_off": True}, DISCONNECTED, "disconnected")
+        with self.lock:
+            changes = {"claude_off": True} if name == CLAUDE else {"chatgpt_on": False}
+            if self.provider_of(settings.ai_read(self.data_dir)["model"]) == name:
+                changes["model"] = ""                # a model of this provider goes with it, so nothing moves back without being chosen
+            got = self._save(changes, DISCONNECTED.format(name=self.providers[name].label), f"{name} disconnected")
+        if got[0] == 200:
+            self.providers[name].stop()              # a question running on it ends: Disconnect means now
+        return got
 
     def choose(self, body):
         if not isinstance(body, dict) or "model" not in body or not set(body) <= {"model", "accept"} or body.get("accept", True) is not True:
             return fail(400, "bad_request", BAD)
         model = body["model"]
-        if not isinstance(model, str) or model not in ask_claude.MODELS:
+        owner = self.provider_of(model) if isinstance(model, str) else None
+        if owner is None:
             return fail(400, "bad_model", ask_claude.MODEL_REFUSED)
-        view = self.view()
-        if not view["claude"]["connected"]:
+        if not self.view()[owner]["connected"]:
             return fail(409, "not_connected", NOT_CONNECTED)
-        accepted = settings.ai_read(self.data_dir)["accepted"]
-        changes = {"model": model}
-        if model in SMALLER and model not in accepted:
-            if "accept" not in body:
-                return fail(409, "weaker", WEAKER.format(model=LABELS[model]))
-            changes["accepted"] = sorted({*accepted, model})
-        return self._save(changes, USING.format(model=LABELS[model]), "model chosen")
+        with self.lock:
+            accepted = settings.ai_read(self.data_dir)["accepted"]
+            changes = {"model": model}
+            if model in SMALLER and model not in accepted:
+                if "accept" not in body:
+                    return fail(409, "weaker", WEAKER.format(model=LABELS[model]))
+                changes["accepted"] = sorted({*accepted, model})
+            return self._save(changes, USING.format(model=LABELS[model]), "model chosen")
 
     def _save(self, changes, message, what):
         try:
-            with self.lock:
-                settings.ai_write(self.data_dir, changes)
+            settings.ai_write(self.data_dir, changes)
         except (ValueError, OSError):
             return fail(409, "unreadable", settings.AI_UNREADABLE)
-        LOG.info("ai: %s %s", CLAUDE, what)
+        LOG.info("ai: %s", what)
         return 200, self.view(message)
 
 
-def chain(data_dir, claude=None):
-    """(AiConnect, the provider ask clark uses): the Claude subscription, with the choice in Settings › AI applied to every question."""
+def chain(data_dir, claude=None, chatgpt=None):
+    """(AiConnect, the provider ask clark uses): both subscriptions, with the choice in Settings › AI applied to every question."""
     claude = claude if claude is not None else ai_providers.ClaudeSubscription()
-    connect = AiConnect(data_dir, claude)
-    return connect, ai_providers.Chosen(claude, connect.on, connect.saved_model, RECOMMENDED, OFF_WORDS)
+    chatgpt = chatgpt if chatgpt is not None else ai_providers.ChatGPTSubscription()
+    connect = AiConnect(data_dir, claude, chatgpt)
+    return connect, ai_providers.Chosen((claude, chatgpt), connect.pick, OFF_WORDS)

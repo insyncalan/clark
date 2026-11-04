@@ -194,7 +194,7 @@ class EveryRouteThatSendsText(unittest.TestCase):
         got = []
         inner = type("P", (), {"name": "x", "ask": lambda self, request, model=None, prefer=False: got.append(request) or "ok"})()
         request = ask.Request(text="q", question="q")
-        self.assertEqual(ai_providers.Chosen(inner, lambda: True, lambda: None, "sonnet", "off").ask(request), "ok")
+        self.assertEqual(ai_providers.Chosen((inner,), lambda: (inner, "sonnet", True), "off").ask(request), "ok")
         self.assertIs(got[0], request)
 
     def test_ask_provider_is_reached_only_after_build_request(self):

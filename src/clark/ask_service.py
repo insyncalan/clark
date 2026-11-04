@@ -101,7 +101,8 @@ class AskService:
     def status(self, *_ignored):
         on = self.enabled()
         st = ask.answer_status(self.provider) if on else {"connected": False, "why": MESSAGES["asking_off"]}
-        return 200, {"ok": True, "ask_enabled": on, "connected": st["connected"], "why": st["why"]}
+        label = getattr(self.provider, "label", "")      # #54: who a question goes to, so the page can say so truly
+        return 200, {"ok": True, "ask_enabled": on, "connected": st["connected"], "why": st["why"], **({"provider": label} if label else {})}
 
     # ----- POST /api/ask/stop -----
     def stop(self, body=None):
