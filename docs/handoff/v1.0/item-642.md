@@ -52,7 +52,7 @@ Not final copy; the owner writes or signs all of it.
 - The program grows with pictures. Mitigation: crop to the control, optimise, light and dark only where they differ, agree a budget.
 - Pictures must never show a real client, name or brand (`docs/RULES.md`): the script refuses any data that is not the demo data.
 - #645 reads the same entries; changing the entry shape in step 2 touches both (see `item-645.md`).
-- Windows (1.1) will want the pictures retaken there; the script must not assume Mac fonts.
+- A later Windows version will want the pictures retaken there; the script must not assume Mac fonts.
 - The search index and `test_help_shown.py` read the whole content file: a shape change must keep the held list (`helpLater.json`) working.
 
 ## 7. Open questions for the owner

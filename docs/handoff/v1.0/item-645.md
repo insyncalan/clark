@@ -35,7 +35,7 @@ Dependency: build with or after #642 step 2, so the peek and the full Help share
 ## 5. New visible wording needing the owner's sign-off
 Not final copy.
 - The peek heading (with the page name).
-- The context text for Dashboard (View and Edit), Work items, Milestones, Settings and its cards, Publications.
+- The context text for Dashboard (View and Edit), Work items, Milestones, Settings and its cards. "Publications" is not a screen of its own today: the screens a person can reach are the five in `LIVE_SCREENS` (`help/helpStore.js`: Dashboard, Dashboard in Edit, Work items, Milestones, Settings). The Published reports list is a Settings card and the Publish box opens from the Dashboard, so each uses the text of the page it sits on, with a line of its own in that text.
 - The foot link to the full Help and the Close label.
 - The line shown for a page with no context text.
 - The accessible name of the region.
@@ -60,4 +60,4 @@ Not final copy.
 - The peek opens on a page that has help context, and every page has help context (so "?" always opens the peek; the full Help opens from its link and from the profile menu's Help entry). It closes on a click outside it, Esc, or leaving the page. Text only, no pictures.
 - Pressing "?" replaces whatever peek is open (the item peek or ask clark). A second "?", Esc, a click outside or leaving the page closes it.
 - Settings: one text for the whole page with a short line per card and a link to the full Help.
-- Consequence for the build: step 1 (page key) must cover every screen, including Publications and Settings cards, and a test fails if any screen has no context text.
+- Consequence for the build: step 1 (page key) must cover every screen in `LIVE_SCREENS` and every Settings card (the Published reports card and the Publish box included), and a test fails if any screen has no context text.
