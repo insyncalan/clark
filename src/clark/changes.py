@@ -230,7 +230,7 @@ NOT_A_STATUS = "That status isn't available for this item."
 # D-12: the status picker's Rating sets a risk's or issue's impact and likelihood; these are its own refusals.
 RATING_FIELDS = ("impact", "likelihood")
 NOT_A_RATING = "Impact and likelihood are each High, Medium or Low, so nothing was changed. Pick a rating from the list."
-RATING_KINDS = ("Risk", "Issue")
+RATING_KINDS = clark_store.RATING_TYPES     # the store says which RAID types carry a rating
 RATING_NOT_THIS_KIND = "Only a risk or an issue has a rating, so nothing was changed. Pick a status instead."
 NO_WORKSTREAM = "That workstream isn't available."
 ARCHIVED_MILESTONE = "That milestone is archived. Restore it first."

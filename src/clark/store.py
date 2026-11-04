@@ -103,6 +103,7 @@ ALLOWED = {
     ("projects", "layout"): ("boxed", "spine", "cover"),                                           # clark
     ("updates", "health"): ("On track", "At risk", "Off track"),
 }
+RATING_TYPES = ("Risk", "Issue")     # the RAID types that carry an impact and likelihood; each is one of ALLOWED[("raid", "type")], pinned in tests/test_rating_kinds.py
 CODE_RE = r"[A-Z][A-Z0-9]{2,6}"      # project codes: 3 to 7 capital letters or digits, starting with a letter
 DATE_FIELDS = {"due_date", "raised", "closed", "date", "week_ending", "baseline_date", "forecast_date", "created",
                "needed_by", "actual_date"}
