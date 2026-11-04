@@ -4,6 +4,7 @@ taken back; History gets one line per publish. Fictional data only.
 
 Run: python3 dev/run_tests.py test_publication_numbers
 """
+import hashlib
 import json
 import os
 import re
@@ -446,6 +447,143 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertTrue(os.path.islink(dest), "the link is back, not removed and not turned into a file")
         self.assertEqual(os.readlink(dest), str(target))
         self.assertEqual(target.read_bytes(), b"the file the link points at")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
+
+    def test_a_link_that_cannot_be_put_back_leaves_the_report_not_an_empty_folder(self):
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        target = folder.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        dest.unlink()
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        real = os.symlink
+
+        def refuse(src, dst, *a, **kw):                                  # the put-back's link cannot be made
+            raise OSError(13, "Permission denied")
+        os.symlink = refuse
+        try:
+            with self.assertRaises(publish.PublishError):
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.symlink = real
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "the file is still there and no temporary name is left")
+        self.assertTrue(dest.read_bytes().startswith(b"<!doctype html"), "the report is kept, not removed")
+        self.assertEqual(target.read_bytes(), b"the file the link points at")
+
+    def test_a_link_that_cannot_be_put_back_is_said_plainly(self):          # #605
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        target = folder.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        dest.unlink()
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        real = os.symlink
+
+        def refuse(src, dst, *a, **kw):
+            raise OSError(13, "Permission denied")
+        os.symlink = refuse
+        try:
+            with self.assertRaises(publish.PublishError) as caught:
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.symlink = real
+        self.assertIn("Another publication was made", str(caught.exception), "the reason for the refusal is still given")
+        self.assertIn(f"The link that was at {dest.name} could not be put back", str(caught.exception))
+
+    def _link_rig(self):
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        target = folder.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        dest.unlink()
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        return store, folder, dest
+
+    def test_a_link_whose_file_cannot_be_moved_aside_is_said_plainly(self):          # #605, reader's LOW 1(a)
+        store, folder, dest = self._link_rig()
+        real = os.rename
+
+        def refuse(src, dst, *a, **kw):
+            if str(dst).endswith(".aside"):
+                raise OSError(13, "Permission denied")
+            return real(src, dst, *a, **kw)
+        os.rename = refuse
+        try:
+            with self.assertRaises(publish.PublishError) as caught:
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.rename = real
+        self.assertIn("Another publication was made", str(caught.exception))
+        self.assertIn(f"The link that was at {dest.name} could not be put back", str(caught.exception))
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "our report is still at its name, nothing left beside it")
+        self.assertTrue(dest.read_bytes().startswith(b"<!doctype html"))
+
+    def test_a_put_back_that_cannot_restore_the_report_keeps_it_under_the_aside_name(self):          # #605, reader's LOW 1(b)
+        store, folder, dest = self._link_rig()
+        real_sym, real_move = os.symlink, publish.platform.move_unless_exists
+
+        def refuse(*a, **kw):
+            raise OSError(13, "Permission denied")
+        os.symlink = refuse
+        publish.platform.move_unless_exists = refuse
+        try:
+            with self.assertRaises(publish.PublishError) as caught:
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.symlink, publish.platform.move_unless_exists = real_sym, real_move
+        self.assertIn("Another publication was made", str(caught.exception), "the refusal is still given")
+        names = [p.name for p in folder.iterdir()]
+        self.assertEqual(len(names), 1)
+        self.assertTrue(names[0].endswith(".aside"), "the report is kept under its aside name, not lost")
+        self.assertTrue((folder / names[0]).read_bytes().startswith(b"<!doctype html"))
+
+    def test_put_link_back_says_which_failure_it_was(self):
+        folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"ours")
+        digest = hashlib.sha256(b"ours").hexdigest()
+        real_sym, real_move, real_rename = os.symlink, publish.platform.move_unless_exists, os.rename
+
+        def refuse(*a, **kw):
+            raise OSError(13, "Permission denied")
+        os.rename = refuse
+        try:
+            self.assertEqual(publish.put_link_back(dest, folder / "x.html", digest), "kept")
+            self.assertEqual(publish.put_link_back(dest, folder / "x.html", "0" * 64), "other", "not ours and not moved: nothing claimed")
+        finally:
+            os.rename = real_rename
+        os.symlink = publish.platform.move_unless_exists = refuse
+        try:
+            self.assertEqual(publish.put_link_back(dest, folder / "x.html", digest), "aside")
+        finally:
+            os.symlink, publish.platform.move_unless_exists = real_sym, real_move
+
+    def test_a_link_is_never_put_over_a_file_that_is_not_ours(self):       # #604: no gap between the check and the swap
+        folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"someone else's report, put there a moment ago")
+        ours = hashlib.sha256(b"what this publish wrote").hexdigest()
+        self.assertEqual(publish.put_link_back(dest, folder / "elsewhere.html", ours), "other")
+        self.assertFalse(os.path.islink(dest))
+        self.assertEqual(dest.read_bytes(), b"someone else's report, put there a moment ago")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "nothing is left beside it")
+        dest.write_bytes(b"what this publish wrote")
+        self.assertEqual(publish.put_link_back(dest, folder / "elsewhere.html", ours), "linked")
+        self.assertTrue(os.path.islink(dest))
         self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
 
     def test_overwrite_with_a_lost_race_and_no_earlier_file_leaves_nothing(self):
