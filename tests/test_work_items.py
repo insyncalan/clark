@@ -192,8 +192,8 @@ class RealBrowser(unittest.TestCase):
                         self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True,
                                          f"{code} at {width}px has no sideways scroll")
                         self.assertEqual(cdp.js("[...document.querySelectorAll('#work, #work *')].filter(e => e.scrollWidth > e.clientWidth + 1"
-                                                " && /auto|scroll/.test(getComputedStyle(e).overflowX)).length", sid), 0,
-                                         "nothing inside the list scrolls sideways")
+                                                " && /auto|scroll/.test(getComputedStyle(e).overflowX) && !e.closest('.vtabs')).length", sid), 0,
+                                         "nothing inside the list scrolls sideways (the row of saved-view tabs scrolls inside its own box at 900 px, by design: #653)")
                         text = cdp.js("document.querySelector('#work').innerText", sid)
                         self.assertNotRegex(text, r"\d{4}-\d{2}-\d{2}", "dates read DD-MM-YYYY")
                         # #442: in View exactly the four picker cells (owner, due, priority, status) edit, as buttons carrying data-cell; nothing else does
@@ -213,7 +213,8 @@ class RealBrowser(unittest.TestCase):
             wide = cdp.js("[...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > window.innerWidth + 0.5).map(e => e.tagName + '.' + e.className).slice(0, 8)", sid)
             self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, f"no sideways page scroll: {wide}")
             self.assertEqual(cdp.js("[...document.querySelectorAll('#work, #work *')].filter(e => e.scrollWidth > e.clientWidth + 1"
-                                    " && /auto|scroll/.test(getComputedStyle(e).overflowX)).length", sid), 0, "no inner sideways scroll")
+                                    " && /auto|scroll/.test(getComputedStyle(e).overflowX) && !e.closest('.vtabs')).length", sid), 0,
+                             "no inner sideways scroll (the row of saved-view tabs scrolls inside its own box, by design: #653)")
             bad = cdp.js("[...document.querySelectorAll('#work tbody tr, #work .fline, #work .fviews, #work .head')]"
                          ".filter(e => { const r = e.getBoundingClientRect(); return r.left < -0.5 || r.right > window.innerWidth + 0.5 "
                          "|| e.scrollWidth > e.clientWidth + 1; }).map(e => e.className || e.tagName)", sid)
