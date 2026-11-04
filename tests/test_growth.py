@@ -32,20 +32,21 @@ def cubic(n):
 
 
 class TheGrowthCheckTellsLinearFromQuadratic(unittest.TestCase):
-    # Linear measures 4 and quadratic 16 (the step is 4n), the limit is 8: each is a factor of two from it. The margins asserted here are
-    # looser than that (linear under three quarters of the limit, quadratic over one and a half times it) so a busy machine does not fail
-    # this test, but a limit moved back towards the old 3.5 for a step of 2 would still be caught.
-    def test_the_step_and_the_limit_leave_a_gap_of_two_each_way(self):
+    # Linear measures 4 and quadratic 16 (the step is 4n), the limit is 5 (#651): above linear with room for noise, and below a cost of
+    # n to the power 1.5 (8). The margins asserted here are looser (linear within the limit, quadratic over one and a half times it) so a
+    # busy machine does not fail this test, but a limit moved back up to 8 would still be caught.
+    def test_the_limit_sits_above_linear_and_below_n_to_the_power_one_and_a_half(self):
         self.assertEqual(GROWTH_STEP, 4)
-        self.assertEqual(GROWTH_LIMIT, 2 * GROWTH_STEP)
-        self.assertEqual(GROWTH_STEP ** 2, 2 * GROWTH_LIMIT)
+        self.assertEqual(GROWTH_LIMIT, 5)
+        self.assertGreater(GROWTH_LIMIT, GROWTH_STEP)
+        self.assertLess(GROWTH_LIMIT, GROWTH_STEP ** 1.5)
 
     def test_linear_work_passes_and_quadratic_and_cubic_work_fail_the_limit(self):
         linear_ratio = growth_ratio(linear, 3)[2]
         quadratic_ratio = growth_ratio(quadratic, 1000)[2]
         cubic_ratio = growth_ratio(cubic, 70)[2]
         print("linear ratio=%.2f quadratic ratio=%.2f cubic ratio=%.2f (limit %s)" % (linear_ratio, quadratic_ratio, cubic_ratio, GROWTH_LIMIT))
-        self.assertLessEqual(linear_ratio, GROWTH_LIMIT * 0.75)
+        self.assertLessEqual(linear_ratio, GROWTH_LIMIT)
         self.assertGreater(quadratic_ratio, GROWTH_LIMIT * 1.5)
         self.assertGreater(cubic_ratio, GROWTH_LIMIT * 1.5)
 
