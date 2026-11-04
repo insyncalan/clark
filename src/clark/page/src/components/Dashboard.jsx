@@ -4,7 +4,7 @@
 // `tools` from edit/) draws every section, a hidden one dimmed, with those parts. A published file passes no tools and is never Edit.
 import { useEffect } from "preact/hooks";
 import { armHint } from "../stores/motion.js";
-import { data, mode, fromFile, dropAt } from "../stores/report.js";
+import { data, mode, fromFile, dropAt, rebuilt } from "../stores/report.js";
 import { Section } from "./Section.jsx";
 import { Minimap } from "./Minimap.jsx";
 import { scrollTargets, entries, countOf } from "../logic/minimap.js";
@@ -68,7 +68,7 @@ export function Dashboard({ tools }) {
   return (
     <>
     {Bar ? <Bar /> : null}
-    <section class="frame report" id="report" data-mode={editing ? "edit" : "view"}>
+    <section class={`frame report${rebuilt.value ? " asat-frame" : ""}`} id="report" data-mode={editing ? "edit" : "view"} inert={rebuilt.value ? true : undefined}>{/* item 349: as at a day, nothing in it can be focused or clicked */}
       <header class="cover" id="cover">
         <h1>{d.project.name}</h1>
         <p class="cover-line"><b class="cover-kind">Weekly report</b>{coverLine(d.project).map((t) => <span key={t}>{t}</span>)}</p>
