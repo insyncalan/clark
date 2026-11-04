@@ -1168,11 +1168,11 @@ def put_link_back(dest, target, digest):
         except OSError:
             return None                                 # left under its aside name, which keeps the bytes
 
-    def drop_aside():                                   # a failing unlink leaves a hidden leftover, never a bare OSError
+    def drop_aside():                                   # a failing unlink is raised as PublishError, never a bare OSError, never swallowed
         try:
             os.unlink(aside)
-        except OSError:
-            pass
+        except OSError as e:                            # WORDING: owner to rule (the neighbouring "could not be saved" text is reused)
+            raise PublishError(f"{dest.name} could not be saved ({e.strerror or e}).") from e
 
     try:
         os.rename(dest, aside)

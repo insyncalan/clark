@@ -588,7 +588,7 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertFalse(dest.exists())
         self.assertEqual([p.read_bytes() for p in folder.iterdir()], [b"theirs"], "their bytes are kept, not deleted")
 
-    def test_put_link_back_survives_a_failing_unlink_of_the_aside_name(self):      # item 388: no bare OSError
+    def test_put_link_back_raises_publish_error_when_the_aside_name_cannot_be_removed(self):      # item 388: seen, not a bare OSError
         folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
         self.addCleanup(shutil.rmtree, folder, True)
         dest = folder / "PUB-report.html"
@@ -600,13 +600,15 @@ class ThroughThePublisher(unittest.TestCase):
         os.unlink = refuse
         try:
             dest.write_bytes(b"ours")
-            self.assertEqual(publish.put_link_back(dest, folder / "x.html", digest), "linked")
-            self.assertTrue(os.path.islink(dest))
+            with self.assertRaises(publish.PublishError):
+                publish.put_link_back(dest, folder / "x.html", digest)
+            self.assertTrue(os.path.islink(dest), "the link is in place")
             real_unlink(dest)
             dest.write_bytes(b"ours")
             os.symlink = refuse
             publish.platform.move_unless_exists = lambda *a, **kw: False       # the name was taken meanwhile
-            self.assertEqual(publish.put_link_back(dest, folder / "x.html", digest), "other")
+            with self.assertRaises(publish.PublishError):
+                publish.put_link_back(dest, folder / "x.html", digest)
         finally:
             os.unlink, os.symlink, publish.platform.move_unless_exists = real_unlink, real_sym, real_move
 
