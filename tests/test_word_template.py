@@ -223,13 +223,13 @@ class Refuses(unittest.TestCase):
 
     def test_odd_file_names(self):
         for bad in ("../evil.xml", "/abs.xml", "word\\x.xml", "C:evil.xml", "word/../../x"):
-            self.refused(make(P("{{A}}"), raw_entries=[(bad, b"x")]), "inside")
+            self.refused(make(P("{{A}}"), raw_entries=[(bad, b"x")]), "could not be read safely")   # the one plain refusal for an unsafe file (docx_read)
 
     def test_a_repeated_name(self):
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            self.refused(make(P("{{A}}"), raw_entries=[("word/styles.xml", b"again")]), "inside")
+            self.refused(make(P("{{A}}"), raw_entries=[("word/styles.xml", b"again")]), "could not be read safely")
 
     def test_entities_are_refused_and_never_expanded(self):
         evil = (HEAD + '<!DOCTYPE d [<!ENTITY a "boom">]>' + doc(P("{{A}} &a;"))[len(HEAD):])
