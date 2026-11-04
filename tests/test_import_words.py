@@ -35,8 +35,10 @@ class ImportWords(unittest.TestCase):
         self.assertIn("Fix ${k === 1 ? 'it' : 'them'} in the workbook and import again. Nothing was changed.", IO)
 
     def test_the_check_screen_has_buttons_not_tick_boxes(self):
+        # item 655: the one place with tick boxes is the choice of sheets, before the check; the changes themselves stay buttons
         self.assertIn('type="radio"', BOX)
-        self.assertNotIn('type="checkbox"', BOX)
+        self.assertEqual(BOX.count('type="checkbox"'), 1)
+        self.assertIn('name="import-sheet"', BOX)
 
 
 class ApprovedWordsArePinned(unittest.TestCase):
@@ -81,6 +83,32 @@ class ApprovedWordsArePinned(unittest.TestCase):
         self.assertIn("Not imported: {t}", BOX)
         self.assertIn("and {items.length - SHOWN} more, taken as Accept all is for the rest: new and changed rows with no problem.", BOX)
         self.assertNotIn("ticks above", BOX)
+
+
+class SheetChoiceWordsArePinned(unittest.TestCase):
+    """Item 655: the words of the choice of sheets, pinned exactly. Each is one the owner signs; a change fails here."""
+
+    def test_the_heading_the_two_links_the_button_and_the_none_line(self):
+        self.assertEqual(quoted("sheetsHead"), "Sheets to import")
+        self.assertEqual((quoted("selectAll"), quoted("clear")), ("Select all", "Clear"))
+        self.assertEqual(quoted("check"), "Check")
+        self.assertEqual(quoted("noSheets"), "Tick at least one sheet to import.")
+
+    def test_each_tick_is_the_sheets_own_name_and_no_other_word_is_added(self):
+        self.assertIn("{n}</label>", BOX)
+        self.assertIn("T.sheetsHead", BOX)
+        for key in ("selectAll", "clear", "noSheets", "check"):
+            self.assertIn(f"T.{key}", BOX)
+
+    def test_the_sheets_are_the_five_the_first_box_lists_and_a_history_sheet_is_never_offered(self):
+        self.assertIn("SHEET_NAMES = IMPORT_COLUMNS.map(([sheet]) => sheet)", CARD)
+        self.assertNotIn("History", re.search(r"export const IMPORT_COLUMNS.*?\n\];", CARD, re.S).group(0))
+
+    def test_the_choice_is_kept_in_this_browser_only(self):
+        self.assertIn('const MEMORY = "importSheets"', CARD)
+        remember = (ROOT / "src/clark/page/src/logic/remember.js").read_text(encoding="utf-8")
+        self.assertIn("window.localStorage", remember)
+        self.assertNotIn("api.", re.sub(r"//.*", "", CARD.split("const MEMORY")[1].split("export const ticked")[0]))
 
 
 if __name__ == "__main__":

@@ -75,10 +75,14 @@ class Card(Base):
         p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
         p.until("!!document.querySelector('#data-card')", "the Data card drew")
 
-    def choose(self, p, b64):
+    def choose(self, p, b64, go=True):
         p.js("""(() => { const bin = atob(%s), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
           const dt = new DataTransfer(); dt.items.add(new File([a], 'PUB work items.xlsx')); const inp = document.querySelector('#import-file');
           inp.files = dt.files; inp.dispatchEvent(new Event('change', {bubbles: true})); })()""" % json.dumps(b64))
+        # item 655: the box now asks which sheets to read before it checks; every sheet is ticked to begin with, so this goes straight on
+        p.until("!!document.querySelector('#import-check') || !!document.querySelector('#import-summary') || !!document.querySelector('#import-refused') || !!document.querySelector('#import-problem').textContent", "the sheets step or the check")
+        if go:
+            p.js("(() => { const b = document.querySelector('#import-check'); if (b) b.click(); })()")
 
     def test_the_card_has_export_and_import_and_nothing_else(self):
         for w in WIDTHS:

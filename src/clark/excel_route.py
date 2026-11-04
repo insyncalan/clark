@@ -5,7 +5,8 @@ imports nothing from clark) hands a request to a seam made here and sends the (s
 its own: reading a workbook, staging the differences, the clash rules, the export's record and the apply with its one step are
 excel_import.py's (#38), the code the command line and the tests of the import already use.
 
-Three ops of one route:
+Four ops of one route (item 655 added "sheets": which of the five sheets the workbook has, read from nothing else, and "check" takes the
+sheets the person chose, so an unchosen sheet is left completely alone):
 - "check": a workbook (its bytes, as text the page sends) is put in a private temporary folder and read by excel_import.read_workbook
   against the named project. Nothing is written to the database. The reply lists every difference by number, in words (new,
   changed, no longer in the workbook), with the ones that would be refused and the ones that clash with a later change in clark.
@@ -42,15 +43,18 @@ ROUTE = "excel"                      # the step's route (store.ROUTES); excel_im
 MAX_PLANS = 4                        # checks waiting for a decision, at once
 PLAN_MINUTES = 30                    # how long one waits
 MAX_NAME = 255
-OPS = ("check", "apply", "undo")
-ALLOWED = {"check": ("op", "project", "name", "data"), "apply": ("op", "project", "plan", "accept", "confirm"),
-           "undo": ("op", "project", "apply_id")}
+OPS = ("check", "sheets", "apply", "undo")
+ALLOWED = {"check": ("op", "project", "name", "data", "sheets"), "apply": ("op", "project", "plan", "accept", "confirm"),
+           "sheets": ("op", "project", "name", "data"), "undo": ("op", "project", "apply_id")}
+SHEET_ORDER = ("Actions", "Risks and issues", "Decisions", "Milestones", "Use cases")     # the order the page lists the sheets in (a test says they are the import's five)
 MAX_FILE_BYTES = 25 * 1024 * 1024     # excel.MAX_FILE_BYTES; a test says they agree
 
 NOT_JSON_OBJECT = "That could not be read. Reload the page and try again."
 BAD_OP = "That isn't something clark can do with a workbook."
 NO_FILE = "Choose a workbook to import."
 BAD_NAME = "The file's name could not be read. Choose the workbook again."
+NO_SHEETS = "Choose at least one sheet to import."
+BAD_SHEET = "That sheet is not one clark reads: {sheet}."
 BAD_FILE = "That file could not be read. Choose the workbook again."
 MACRO_BOOK = "{file} is a macro workbook, and clark imports only .xlsx workbooks. Nothing was saved."
 EXPIRED = "That import is no longer waiting. Choose the workbook again."
@@ -117,6 +121,27 @@ def _accepted_numbers(value):
     return sorted(set(value))
 
 
+def _sheets(value):
+    """The tables of the sheets the person chose (item 655): None when the request names none (all five), else the tables, in the
+    import's order. An empty list, anything that is not a list of sheet names, and a name clark does not read are refused."""
+    if value is None:
+        return None
+    if not isinstance(value, list) or not value:
+        raise Refused(NO_SHEETS)
+    by_name = {name: table for table, name in word_route._excel_import().SHEET_NAMES.items()}
+    out = set()
+    for v in value:
+        if not isinstance(v, str) or v not in by_name:
+            raise Refused(BAD_SHEET.format(sheet=_shown(v) if isinstance(v, str) else "?"))
+        out.add(by_name[v])
+    return sorted(out)
+
+
+def _named(tables):
+    names = word_route._excel_import().SHEET_NAMES
+    return sorted((names[t] for t in tables), key=SHEET_ORDER.index)
+
+
 def _item(c):
     """One staged change as the page shows it: its number, its words, and whether it is taken by Accept all."""
     return {"n": c.n, "kind": c.kind, "table": c.table, "text": c.describe(), "detail": c.detail() if c.kind == "new" else "",
@@ -126,11 +151,12 @@ def _item(c):
 def _described(plan, key):
     return {"ok": True, "plan": key, "file": plan.file, "counts": plan.counts(), "unchanged": plan.unchanged,
             "items": [_item(c) for c in plan.changes], "problems": [p.message for p in plan.problems], "notes": list(plan.notes),
-            "unrecorded": bool(plan.unrecorded), "already_imported": bool(plan.already_imported), "report": plan.report(),
+            "sheets": _named(plan.sheets), "unrecorded": bool(plan.unrecorded), "already_imported": bool(plan.already_imported), "report": plan.report(),
             "refused": [{"name": c.describe(), "why": c.problem} for c in plan.changes if c.problem]}
 
 
-def _check(store, req, project, clock):
+def _workbook(req):
+    """(the name to show, the workbook's bytes) of a request that carries a workbook; refused in words when it does not."""
     name = req.get("name")
     if not isinstance(name, str) or not name.strip() or len(name) > MAX_NAME:
         raise Refused(BAD_NAME)
@@ -147,6 +173,36 @@ def _check(store, req, project, clock):
         raw = base64.b64decode(data, validate=True)
     except (binascii.Error, ValueError):
         raise Refused(BAD_FILE) from None
+    return shown, raw
+
+
+def _sheets_op(req):
+    """Which of the five sheets clark reads the workbook has (item 655), in the page's order; nothing is read from them and nothing waits."""
+    shown, raw = _workbook(req)
+    imp = word_route._excel_import()
+    folder = Path(tempfile.mkdtemp(prefix="clark-import-"))
+    try:
+        file = folder / "workbook.xlsx"
+        file.write_bytes(raw)
+        imp.excel.check_workbook_size(file)
+        try:
+            wb = imp.load_workbook(str(file), read_only=True)
+        except Exception:
+            raise Invalid(f"{shown} can't be read as an Excel workbook (.xlsx).") from None
+        try:
+            tables = {imp.SHEET_TABLES.get(re.sub(r"[\s_]+", " ", t.strip().lower())) for t in wb.sheetnames}
+        finally:
+            wb.close()
+    except imp.excel.TooBig as e:
+        raise Invalid(str(e)) from None
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+    return 200, {"ok": True, "sheets": _named(t for t in tables if t)}
+
+
+def _check(store, req, project, clock):
+    shown, raw = _workbook(req)
+    sheets = _sheets(req.get("sheets"))
     now = clock()                                          # the caller (changes._call) holds the one lock, so PLANS is ours here
     _expire(now)
     while len(PLANS) >= MAX_PLANS:
@@ -157,7 +213,7 @@ def _check(store, req, project, clock):
         if file.suffix.lower() != ".xlsx":
             file = file.with_name(file.name + ".xlsx")
         file.write_bytes(raw)
-        plan = word_route._excel_import().read_workbook(store, file, project)
+        plan = word_route._excel_import().read_workbook(store, file, project, sheets=sheets)
     except BaseException:
         shutil.rmtree(folder, ignore_errors=True)
         raise
@@ -239,6 +295,8 @@ def _do_import(store, who, req, clock):
         raise Refused("There is no project with that code. Check the code, or choose a project from the list.", 404, "project_not_found")
     if op == "check":
         return _check(store, req, project, clock)
+    if op == "sheets":
+        return _sheets_op(req)
     if op == "apply":
         return _apply(store, who, req, project, clock)
     return _undo(store, who, req, project)
