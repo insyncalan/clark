@@ -196,6 +196,26 @@ class Optimiser(unittest.TestCase):
             self.assertEqual(hp.optimise_png(data), data)
 
 
+class Pins(unittest.TestCase):
+    def test_a_missing_unpinned_changed_or_stray_picture_is_named(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as d:
+            for name, body in (("a", b"1"), ("b", b"2"), ("c", b"3")):
+                (Path(d) / f"{name}.png").write_bytes(body)
+            pins = {"a.png": hashlib.sha256(b"1").hexdigest(), "b.png": hashlib.sha256(b"other").hexdigest(), "z.png": "0"}
+            found = hp.pin_problems(d, pins, ["a", "b", "c", "m"])
+            self.assertEqual(found, ["b.png does not match its pin in help_pins.json.", "c.png has no pin in help_pins.json.",
+                                     "m.png is missing.", "z.png is pinned but no shot makes it."])
+            self.assertEqual(hp.pin_problems(d, {"a.png": pins["a.png"]}, ["a"]), [])
+
+    def test_the_pins_are_written_sorted_and_read_back(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "pins.json"
+            hp.write_pins({"b.png": "2", "a.png": "1"}, f)
+            self.assertEqual(list(hp.read_pins(f)), ["a.png", "b.png"])
+            self.assertEqual(hp.read_pins(Path(d) / "none.json"), {})
+
+
 class ClarkOutput(unittest.TestCase):
     def clark_with(self, code, seconds):
         c = hp.Clark.__new__(hp.Clark)

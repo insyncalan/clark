@@ -28,6 +28,7 @@ The shots are in help_shots.json (one place naming which screen each picture sho
     marks     optional list of {"ring": CSS, "number": N}: a ring on that control, and a number beside it if given
 """
 import argparse
+import hashlib
 import importlib
 import json
 import os
@@ -48,6 +49,7 @@ for _folder in (TOOLS, ROOT / "dev", ROOT / "vendor", ROOT / "src"):
         sys.path.insert(0, str(_folder))
 
 SHOTS = TOOLS / "help_shots.json"
+PINS = TOOLS / "help_pins.json"             # picture file name to its SHA-256: the client-image guard (tests/test_no_client_image.py) reads it
 OUT = ROOT / "src" / "clark" / "page" / "help-pictures"
 WIDTH, HEIGHT, SCALE = 1400, 1000, 1          # CSS pixels and device scale factor 1: the same pixels on every screen
 FIXED_NOW = "2026-10-28 09:00"                # the demo data's "now"; every date in it is an offset from this
@@ -107,6 +109,36 @@ def crop_list(shot):
 
 def shot_ids(path=SHOTS):
     return [s["id"] for s in load_shots(path)]
+
+
+# ---- the pins: each picture's SHA-256 -----------------------------------------------------------------------------------------
+
+def read_pins(path=PINS):
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def write_pins(pins, path=PINS):
+    Path(path).write_text(json.dumps(dict(sorted(pins.items())), indent=1) + "\n", encoding="utf-8")
+
+
+def pin_problems(out, pins, ids):
+    """Plain sentences for each listed picture that has no file, no pin or a pin that does not match its file, and each pin that no
+    shot names. An empty list means the folder and the pins agree."""
+    out, found = Path(out), []
+    for i in ids:
+        f = out / f"{i}.png"
+        if not f.is_file():
+            found.append(f"{i}.png is missing.")
+        elif f"{i}.png" not in pins:
+            found.append(f"{i}.png has no pin in help_pins.json.")
+        elif hashlib.sha256(f.read_bytes()).hexdigest() != pins[f"{i}.png"]:
+            found.append(f"{i}.png does not match its pin in help_pins.json.")
+    found += [f"{n} is pinned but no shot makes it." for n in sorted(set(pins) - {f"{i}.png" for i in ids})]
+    return found
 
 
 # ---- only the demo data -------------------------------------------------------------------------------------------------------
@@ -243,6 +275,7 @@ def main(argv=None):
     parser.add_argument("--data", metavar="FOLDER", help="a folder holding the demo data (clark.db made by dev/demo_data.py); any other is refused")
     parser.add_argument("--shots", default=str(SHOTS), help=argparse.SUPPRESS)
     parser.add_argument("--out", default=str(OUT), help=argparse.SUPPRESS)
+    parser.add_argument("--pins", default=str(PINS), help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     try:
         shots = load_shots(args.shots)
@@ -259,17 +292,27 @@ def main(argv=None):
                 out = Path(args.out)
                 if not args.check:
                     out.mkdir(parents=True, exist_ok=True)
-                total = 0
+                total, written = 0, {}
                 for s in shots:
                     data = shoot.take(b, clark.port, s, write=not args.check)
                     if data is not None:
                         (out / f"{s['id']}.png").write_bytes(data)
+                        written[f"{s['id']}.png"] = hashlib.sha256(data).hexdigest()
                         total += len(data)
                         print(f"{s['id']}: {len(data) / 1024:.1f} KB")
                     else:
                         print(f"{s['id']}: ok")
         finally:
             clark.stop()
+        every = [x["id"] for x in load_shots(args.shots)]
+        if args.check:
+            found = pin_problems(args.out, read_pins(args.pins), every)
+            if found:
+                raise Refused("The pictures and their pins disagree: " + " ".join(found) + " Retake with python3 dev/tools/help_pictures.py.")
+        else:
+            pins = {n: h for n, h in read_pins(args.pins).items() if n[:-4] in every}      # a retake and its pins go in one commit
+            pins.update(written)
+            write_pins(pins, args.pins)
     except Refused as e:
         print(f"help_pictures: {e}", file=sys.stderr)
         return 1
