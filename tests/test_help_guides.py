@@ -19,6 +19,7 @@ from _help_shown import LATER, RAW, shown_content
 from _paths import SRC
 
 import esbuild  # noqa: E402  (dev/tools)
+import build_page  # noqa: E402  (dev/tools)
 
 HELP = SRC / "clark" / "page" / "src" / "help"
 MODULE = HELP / "helpLogic.js"
@@ -160,6 +161,37 @@ class GuideShape(unittest.TestCase):
         self.assertEqual(r, {"guides": 0, "found": 0, "places": [], "ctx": 0})
         self.assertEqual(shown_content(c, {"guides": {"fixture-guide": "later"}})["guides"], [])
 
+    def test_the_index_is_what_it_was_without_guides_pictures_and_page_keys(self):
+        """The new keys add nothing to what is searched: the source without them gives the identical index, held list or not."""
+        old = copy.deepcopy(RAW)
+        old.pop("guides"), old.pop("pictures")
+        for e in old["howto"]["tasks"] + old["reference"]["sections"]:
+            e.pop("page", None)
+        probe = "(() => { const a = HL.buildIndex(); HL.useHeld({}); return { shown: a, all: HL.buildIndex() }; })()"
+        self.assertEqual(run_node(old, probe), run_node(RAW, probe))
+        self.assertTrue(run_node(RAW, probe)["all"])
+
+    def test_the_built_page_has_no_held_guide(self):
+        """The built Help (held entries left out of the file the page is bundled from) holds no guide id, place or word of a held guide."""
+        with tempfile.TemporaryDirectory() as tmp:
+            fake = Path(tmp) / "help"
+            fake.mkdir()
+            (fake / "helpContent.json").write_text(json.dumps(fixture_content(), ensure_ascii=False), encoding="utf-8")
+            (fake / "helpLater.json").write_text(json.dumps({"guides": {"fixture-guide": "later"}}), encoding="utf-8")
+            was = build_page.HELP, build_page.SHOWN_DIR
+            build_page.HELP, build_page.SHOWN_DIR = fake, fake / "shown"
+            try:
+                built = build_page.help_content_path(True)
+            finally:
+                build_page.HELP, build_page.SHOWN_DIR = was
+            text = built.read_text(encoding="utf-8")
+            self.assertNotIn("fixture-guide", text)
+            self.assertNotIn("wombat", text)
+            self.assertEqual(json.loads(text)["guides"], [])
+            r = run_node(json.loads(text), "({ guides: HL.guides().length, places: HL.placeIds().filter((p) => p.startsWith('guide-')),"
+                         " found: HL.search(HL.buildIndex(), 'zebra').length })")
+            self.assertEqual(r, {"guides": 0, "places": [], "found": 0})
+
     def test_the_shipped_page_has_the_same_index_as_before(self):
         r = run_node(RAW, "(() => ({ guides: HL.guides(), pics: HL.pictureIds(), idx: HL.buildIndex().filter((e) => e.id.startsWith('guide-')).length }))()")
         self.assertEqual(r, {"guides": [], "pics": [], "idx": 0})
@@ -200,8 +232,8 @@ class PageKey(unittest.TestCase):
                 self.assertNotIn("page", t, f"{t['id']}: go is {go!r}, not a screen Help can open")
 
     def test_the_context_for_each_screen_today_is_recorded(self):
-        """INFORMATION, not a rule: how many entries have context for each screen (and Settings card) today. It never fails on
-        zero; the step that writes the context text adds the rule that every screen has some (#645 section 8)."""
+        """INFORMATION, not a rule: how many entries have context for each screen (and Settings card) today. It does not fail on a zero, only on a
+        change from these numbers; the step that writes the context text adds the rule that every screen has some (#645 section 8)."""
         shown = shown_content()
         counts = {s: 0 for s in LIVE_SCREENS}
         cards = {}
@@ -213,8 +245,10 @@ class PageKey(unittest.TestCase):
                     if "#" in p:
                         cards[p] = cards.get(p, 0) + 1
         print("\nHelp context per screen:", ", ".join(f"{s}={n}" for s, n in counts.items()), "| cards:", cards or "none")
-        self.assertEqual(set(counts), set(LIVE_SCREENS))
-        self.assertTrue(all(n >= 0 for n in counts.values()))
+        # The counts recorded when the key was added; the step that writes the context text raises them (and adds the rule that
+        # none is zero), so it changes these numbers with it.
+        self.assertEqual(counts, {"dashboard": 0, "dashboard+edit": 8, "work": 1, "milestones": 1, "settings": 2})
+        self.assertEqual(cards, {"settings#pubs": 1})
 
     def test_context_for_agrees_with_the_source_on_every_screen_and_card_and_never_returns_a_held_entry(self):
         cards = sorted({p for _, _, p in page_values(RAW) if "#" in p})
