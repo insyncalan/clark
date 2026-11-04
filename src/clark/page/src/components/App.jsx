@@ -44,6 +44,7 @@ export function App({ tools: given }) {
   const stacked = fromFile.value && printing.value && status.value === "ready";
   const body = status.value === "ready" ? <>{past ? <AsAtBanner /> : null}<Page tools={tools} /><Leaving /></> : <Gate />;
   const AddDialog = tools && tools.AddDialog;
+  const Boxes = tools && tools.Boxes;                    // the boxes Settings opens (item 444): the project form and Import workbook; a published file has none
   const UcBoxes = tools && tools.ucEdit && tools.ucEdit.Boxes;      // the Dashboard's use case boxes (#455): beside <main>, which they make inert
   const MsLayers = tools && tools.MsLayers;              // the milestone picker and an archived milestone's peek (Edit only)
   return (
@@ -57,6 +58,7 @@ export function App({ tools: given }) {
       {RowMenu ? <RowMenu /> : null}
       {Pal ? <Pal /> : null}
       {AddDialog ? <AddDialog /> : null}
+      {Boxes ? <Boxes /> : null}
       {UcBoxes ? <UcBoxes /> : null}
       {MsLayers && status.value === "ready" ? <MsLayers /> : null}
     </>
