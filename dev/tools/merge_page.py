@@ -94,7 +94,8 @@ def merged_tree(theirs):
 BUILD_CODE = ("dev/tools/build_page.py", "dev/tools/esbuild.py", "src/clark/__init__.py", "src/clark/page/__init__.py")
 # What the build reads as data and the merge may NOT change (a change refuses): the vendored libraries and fonts it bundles, the
 # demo brand's tokens and the page's pictures. They are unpacked so the build can read them.
-BUILD_INPUTS = ("vendor/preact/", "vendor/tiptap/", "vendor/fonts/", "src/clark/brand/tokens.css", "src/clark/page/assets/")
+BUILD_INPUTS = ("vendor/preact/", "vendor/tiptap/", "vendor/fonts/", "src/clark/brand/tokens.css", "src/clark/page/assets/",
+               "src/clark/page/help-pictures/", "dev/tools/help_shots.json", "dev/tools/help_pins.json")
 # Where the repository's code and build tools live. Any path the merge changes under these (compared in lower case, so a
 # look-alike such as src/Clark counts) must be page data, or the merge is refused.
 GUARDED = ("src/", "dev/tools/", "dev/.cache/", "vendor/")
