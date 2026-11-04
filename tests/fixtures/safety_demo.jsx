@@ -18,6 +18,7 @@ const api = {
   list: () => answer("list"),
   preview: (name) => answer("preview", name),
   restore: (name, step) => answer("restore", { name, step }),
+  setCopyFolder: (folder) => answer("copy", folder),
 };
 T.mount = () => {
   const root = document.getElementById("root");

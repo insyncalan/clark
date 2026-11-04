@@ -1,4 +1,4 @@
-"""#68 and #81, the Work items board on the page: layout switch, Group by, cards, swimlanes, moving a card (drag and Move to...)
+"""#68 and #81, the Work items board on the page: Layout, Group by and swimlanes (all in the one View menu, #287), cards, moving a card (drag and Move to...)
 against the real change route with Undo, refusals, Due's date picker, collapse, full screen. Spec: docs/handoff/design-68-81-board.md.
 
 Run: python3 dev/run_tests.py test_work_board_page
@@ -20,7 +20,7 @@ from _new_page import reload_to_new_page_cdp
 from clark import page, server as sv  # noqa: E402
 from test_board import make_data  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
-from test_work_filters import click, dblclick, hover, key, need_chrome, where  # noqa: E402
+from test_work_filters import click, dblclick, key, need_chrome, where  # noqa: E402
 from test_work_items import page_target  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -105,6 +105,31 @@ class Base(unittest.TestCase):
             self.until(cdp, sid, "document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'true'", "Edit")
         return sid
 
+    def view_pick(self, cdp, sid, kind, mouse=True):
+        """Choose `kind` ("layout:board", "group:status", "lane:type", ...) from the one View menu (#287), as a person would."""
+        item = f"#viewMenuList [data-kind={json.dumps(kind)}]"
+        if mouse:
+            click(cdp, sid, "#viewMenu")
+            self.until(cdp, sid, f"!!document.querySelector({json.dumps(item)})", f"{kind} in the View menu")
+            click(cdp, sid, item)
+        else:
+            cdp.js("document.querySelector('#viewMenu').click()", sid)
+            self.until(cdp, sid, f"!!document.querySelector({json.dumps(item)})", f"{kind} in the View menu")
+            cdp.js(f"document.querySelector({json.dumps(item)}).click()", sid)
+        self.until(cdp, sid, "!document.querySelector('#viewMenuList')", "the View menu closed")
+
+    def view_items(self, cdp, sid):
+        """The View menu's entries, opened and closed again: [kind, words, checked] for each item."""
+        click(cdp, sid, "#viewMenu")
+        self.until(cdp, sid, "!!document.querySelector('#viewMenuList')", "the View menu")
+        got = cdp.js("[...document.querySelectorAll('#viewMenuList [role^=menuitem]')].map(b => [b.dataset.kind, b.textContent, b.getAttribute('aria-checked')])", sid)
+        key(cdp, sid, "Escape")
+        self.until(cdp, sid, "!document.querySelector('#viewMenuList')", "the View menu closed")
+        return got
+
+    def checked(self, cdp, sid, prefix):
+        return [k for k, _, c in self.view_items(cdp, sid) if k.startswith(prefix) and c == "true"]
+
     def until(self, cdp, sid, expr, what="", secs=30):
         self.assertTrue(wait(lambda: bool(cdp.js(f"!!({expr})", sid)), secs), f"timed out waiting for {what or expr}")
 
@@ -172,21 +197,18 @@ class Base(unittest.TestCase):
 
 
 class Switch(Base):
-    def test_layout_icon_switch_has_tooltips_and_is_remembered(self):
+    def test_layout_is_in_the_view_menu_and_is_remembered(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
-            self.assertEqual(cdp.js("[...document.querySelectorAll('[aria-label=Layout] button')].map(b => [b.dataset.layout, b.getAttribute('aria-label'), b.dataset.tip, b.getAttribute('aria-pressed')])", sid),
-                             [["table", "Table", "Table", "true"], ["board", "Board", "Board", "false"]])
+            self.assertEqual([x for x in self.view_items(cdp, sid) if x[0].startswith("layout:")], [["layout:table", "\u2713Table", "true"], ["layout:board", "Board", "false"]])
             self.assertTrue(cdp.js("!!document.querySelector('table.items') && !document.querySelector('#work-board')", sid), "a table to start")
-            hover(cdp, sid, "[data-layout=board]")
-            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('[data-layout=board]'), '::after').content", sid), '"Board"', "a tooltip")
-            click(cdp, sid, "[data-layout=board]")
+            self.view_pick(cdp, sid, "layout:board")
             self.until(cdp, sid, "!!document.querySelector('#work-board')", "the board")
             self.assertEqual(cdp.js("document.querySelector('#work-live').textContent", sid), "Showing the board, grouped by Workstream.")
             self.reload(cdp, sid)
             self.assertTrue(cdp.js("!!document.querySelector('#work-board')", sid), "the board is remembered")
-            self.assertEqual(cdp.js("document.querySelector('[data-layout=board]').getAttribute('aria-pressed')", sid), "true")
-            click(cdp, sid, "[data-layout=table]")
+            self.assertEqual(self.checked(cdp, sid, "layout:"), ["layout:board"])
+            self.view_pick(cdp, sid, "layout:table")
             self.reload(cdp, sid)
             self.assertTrue(cdp.js("!!document.querySelector('table.items') && !document.querySelector('#work-board')", sid), "the table is remembered")
 
@@ -194,7 +216,7 @@ class Switch(Base):
         with chrome() as cdp:
             sid = self.visit(cdp)
             before = cdp.js("[history.length, location.hash]", sid)
-            click(cdp, sid, "[data-layout=board]")
+            self.view_pick(cdp, sid, "layout:board")
             self.until(cdp, sid, "!!document.querySelector('#work-board')")
             self.assertEqual(cdp.js("[history.length, location.hash]", sid), before)
 
@@ -204,8 +226,8 @@ class Switch(Base):
             cdp.call("Page.enable", {}, sid)
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED + "Storage.prototype.setItem = function () { throw new Error('blocked'); };"}, sid)
             cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#work&p=ABC"}, sid)
-            self.until(cdp, sid, "!!document.querySelector('[data-layout=board]')")
-            click(cdp, sid, "[data-layout=board]")
+            self.until(cdp, sid, "!!document.querySelector('#viewMenu')")
+            self.view_pick(cdp, sid, "layout:board")
             self.until(cdp, sid, "!!document.querySelector('#work-board')", "the board, though nothing could be kept")
 
     def test_the_published_page_has_no_board(self):
@@ -213,27 +235,27 @@ class Switch(Base):
         for word in ("clark:open-peek", "work-board", "/api/change"):
             self.assertNotIn(word, view)
         self.assertNotIn("data-layout", view)
+        self.assertNotIn("No lanes", view)
 
 
 class GroupBy(Base):
     def test_group_by_menu_and_the_table_groups(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
-            self.assertEqual(cdp.js("document.querySelector('#group-by').textContent", sid), "Group by: Workstream")
-            self.assertEqual(cdp.js("document.querySelector('#group-by').getAttribute('aria-haspopup')", sid), "menu")
-            click(cdp, sid, "#group-by")
-            names = cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.textContent)", sid)
+            self.assertFalse(cdp.js("!!document.querySelector('#group-by')", sid), "no Group by button beside the line (#287)")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid), "View: table, grouped by Workstream")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-haspopup')", sid), "menu")
+            names = [w.lstrip("\u2713") for k, w, _ in self.view_items(cdp, sid) if k.startswith("group:")]
             self.assertEqual(names, ["Workstream", "Status", "Due", "Owner", "Priority", "Milestone", "Type", "Nothing"])
-            click(cdp, sid, ".ddmenu [data-kind=status]")
-            self.until(cdp, sid, "document.querySelector('#group-by').textContent === 'Group by: Status'")
-            groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, t.querySelectorAll('tr[data-id]').length, +t.querySelector('.gc').textContent])", sid)
-            self.assertTrue(groups and all(n == c for _, n, c in groups), groups)
+            self.view_pick(cdp, sid, "group:status")
+            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'View: table, grouped by Status'")
+            groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, t.querySelectorAll('tr[data-id]').length, parseInt(t.querySelector('.gc').textContent, 10)])", sid)
+            self.assertTrue(groups and all(n == c for _, n, c in groups), groups)       # the heading says "N items" (#456); its number is the row count
             self.assertEqual(sum(n for _, n, _ in groups), cdp.js("document.querySelectorAll('#work tr[data-id]').length", sid))
-            click(cdp, sid, "#group-by")
-            click(cdp, sid, ".ddmenu [data-kind=nothing]")
+            self.view_pick(cdp, sid, "group:nothing")
             self.until(cdp, sid, "!document.querySelector('tr.grp')", "a flat table")
             self.reload(cdp, sid)
-            self.assertEqual(cdp.js("document.querySelector('#group-by').textContent", sid), "Group by: Nothing", "remembered")
+            self.assertEqual(self.checked(cdp, sid, "group:"), ["group:nothing"], "remembered")
 
     def test_a_table_group_opens_and_shuts_and_is_remembered(self):
         with chrome() as cdp:
@@ -252,11 +274,10 @@ class GroupBy(Base):
             self.board(cdp, sid, "status")
             cols = cdp.js("[...document.querySelectorAll('#work-board section.col')].map(c => c.dataset.col)", sid)
             self.assertEqual(cols, ["Open", "Delayed", "Pending", "Closed", "Made", "Cancelled", "Withdrawn"])
-            click(cdp, sid, "#group-by")
-            names = cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.textContent)", sid)
+            names = [w.lstrip("\u2713") for k, w, _ in self.view_items(cdp, sid) if k.startswith("group:")]
             self.assertNotIn("Nothing", names)
-            click(cdp, sid, ".ddmenu [data-kind=owner]")
-            self.until(cdp, sid, "document.querySelector('#group-by').textContent === 'Group by: Owner'")
+            self.view_pick(cdp, sid, "group:owner")
+            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'View: board, grouped by Owner'")
             labels = cdp.js("[...document.querySelectorAll('#work-board .col-b .cl')].map(c => c.textContent)", sid)
             self.assertEqual(labels[-1], "No owner")
             self.assertIn("Priya Nair", labels)
@@ -294,7 +315,7 @@ class GroupBy(Base):
             x, y = where(cdp, sid, "article.bcard .bc-main")
             cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "buttons": 1, "clickCount": 1}, sid)
             self.assertEqual(cdp.js("window.__open", sid), 1, "a press listens")
-            cdp.js("document.querySelector('[data-layout=table]').click()", sid)
+            self.view_pick(cdp, sid, "layout:table", mouse=False)
             self.until(cdp, sid, "!document.querySelector('#work-board')", "the table")
             self.assertEqual(cdp.js("window.__open", sid), 0)
             cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y, "button": "left", "buttons": 0, "clickCount": 1}, sid)
@@ -356,13 +377,13 @@ class Cards(Base):
             self.assertTrue(lanes and all(c == n for _, c, n in lanes), lanes)
             self.assertEqual([x[0] for x in lanes][:2], ["Build", "Data"])
             self.assertEqual(lanes[-1][0], "No workstream")
-            click(cdp, sid, "#swimlanes")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.textContent)", sid), ["None", "Workstream", "Type"])
-            click(cdp, sid, ".ddmenu [data-kind=type]")
-            self.until(cdp, sid, "document.querySelector('#swimlanes').textContent === 'Swimlanes: Type'")
+            self.assertFalse(cdp.js("!!document.querySelector('#swimlanes')", sid), "no Swimlanes button on the board bar (#287)")
+            self.assertEqual([[k, w.lstrip("\u2713"), c] for k, w, c in self.view_items(cdp, sid) if k.startswith("lane:")],
+                             [["lane:none", "No lanes", "false"], ["lane:workstream", "Workstream lanes", "true"], ["lane:type", "Type lanes", "false"]])
+            self.view_pick(cdp, sid, "lane:type")
+            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'View: board, grouped by Status, type lanes'")
             self.assertEqual(cdp.js("[...document.querySelectorAll('#work-board .lane .ll')].map(c => c.textContent)", sid), ["Actions", "Risks and issues", "Decisions"])
-            click(cdp, sid, "#group-by")                       # the group chosen is not offered as a lane
-            click(cdp, sid, ".ddmenu [data-kind=type]")
+            self.view_pick(cdp, sid, "group:type")             # the group chosen is not offered as a lane
             self.until(cdp, sid, "!document.querySelector('#work-board .lane-h')", "no lanes when Group by takes the lane's place")
 
 
@@ -746,7 +767,7 @@ class FullScreen(Base):
             click(cdp, sid, "#board-full")
             self.until(cdp, sid, "document.body.classList.contains('board-full')")
             cdp.js("window.scrollTo(0, 0)", sid)
-            cdp.js("document.querySelector('[data-layout=table]').click()", sid)
+            self.view_pick(cdp, sid, "layout:table")           # the View menu is reachable in full screen
             self.until(cdp, sid, "!document.body.classList.contains('board-full')", "the table, with the top bar")
 
     def test_board_view_pins_only_the_column_headings_under_the_top_bar(self):
@@ -817,7 +838,7 @@ class FullScreen(Base):
             self.assertFalse(cdp.js("document.body.classList.contains('board-view')", sid), "no board class in the table")
             self.board(cdp, sid, "status")
             self.assertTrue(cdp.js("document.body.classList.contains('board-view')", sid))
-            cdp.js("document.querySelector('[data-layout=table]').click()", sid)
+            self.view_pick(cdp, sid, "layout:table", mouse=False)
             self.until(cdp, sid, "!document.body.classList.contains('board-view') && !!document.querySelector('table.items')", "the table")
 
     def test_no_sideways_scroll_of_the_page_at_900_and_1400(self):

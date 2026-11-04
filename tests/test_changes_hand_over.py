@@ -108,8 +108,12 @@ class HandOver(Base):
         self.assertEqual(self.counts(), before)
 
     def test_a_refusal_in_the_real_step_leaves_every_item_as_it_was(self):
+        """#317: the refusal is aimed at one named item (the last one asked for) in the real step, not at the Nth write, and what
+        is asserted is the outcome: the answer, the counts and every owner as it was. Items before it were written inside the
+        step, so the test only means something if they are rolled back."""
         real_step, real_update = type(self.s).step, clark_store.Step.update
-        state = {"real": False, "writes": 0}
+        aim = self.all[-1]
+        state = {"real": False, "written": [], "refused": False}
 
         def step(store, *a, **kw):                                  # mark when the real (not dry) step starts
             state["real"] = not kw.get("dry")
@@ -117,17 +121,19 @@ class HandOver(Base):
 
         def update(st, kind, ref, changes_, **kw):
             if state["real"]:
-                state["writes"] += 1
-                if state["writes"] == 2:                            # the second write of the real step, whatever came before it
+                if ref == aim:
+                    state["refused"] = True
                     raise clark_store.Invalid("owner must be one of nobody")
+                state["written"].append(ref)
             return real_update(st, kind, ref, changes_, **kw)
         before = self.counts()
         with mock.patch.object(type(self.s), "step", step), mock.patch.object(clark_store.Step, "update", update):
             status, body = self.send(self.all)
-        self.assertEqual(state["writes"], 2, "the refusal came in the real step")
-        self.assertEqual((status, body["message"]), (400, changes.STALE), body)
+        self.assertTrue(state["refused"], "the refusal came in the real step, on the item aimed at")
+        self.assertTrue(set(state["written"]) & set(self.all[:-1]), "other items were written in that step before the refusal")
+        self.assertEqual((status, body["ok"], body["message"]), (400, False, changes.STALE), body)
         self.assertEqual(self.counts(), before, "no step, no history line, nothing written")
-        self.assertEqual({self.who(r) for r in self.all}, {OWNER})
+        self.assertEqual({ref: self.who(ref) for ref in self.all}, {ref: OWNER for ref in self.all})
 
     def test_an_item_closed_or_decided_between_the_trial_and_the_write_rolls_the_whole_step_back(self):
         for table, ref, sql in (("decisions", self.decisions[0], "UPDATE decisions SET status = 'Made', date = '2026-10-01' WHERE id = ?"),
@@ -338,18 +344,109 @@ class PeopleList(Base):
         self.assertEqual((self.who(ref), self.linked(ref)), ("Cara Free", bob), "the name stays, and no old link is put back beside it")
         self.assertEqual(self.counts(), before, "nothing was written")
 
-    def test_a_hand_over_with_an_edited_owner_is_left_whole_in_an_undo_of_several(self):
+    def test_a_hand_over_whose_only_item_was_edited_is_all_skipped_in_an_undo_of_several(self):
+        """One item, edited by hand: nothing goes back, and the preview names that item once with the plain reason (#620)."""
         ada, bob = self.person(OWNER), self.person(NEW)
         ref = self.actions[0]
         with self.s.step("dashboard", USER) as st:
             st.update("actions", ref, {"owner_id": ada})
         _, body = self.send([ref])
         self.change({"project": "ABC", "kind": "actions", "op": "update", "id": ref, "changes": {"owner": "Cara Free"}})
+        before = self.counts()
         status, undone = self.undo({"project": "ABC", "steps": [body["apply_id"]], "preview": True})
         self.assertEqual(status, 200, undone)
         self.assertEqual([(x["ref"], x["why"]) for x in undone["skipped"]], [(ref, changes.CHANGED_SINCE)], undone)
         self.assertEqual(undone["undo"], [])
         self.assertEqual((self.who(ref), self.linked(ref)), ("Cara Free", bob))
+        self.assertEqual(self.counts(), before, "a preview writes nothing")
+
+    def three_handed(self):
+        """Three actions each linked to Ada, handed to Bob in one step; the owner of the middle one is then typed over as Cara Free."""
+        ada, bob = self.person(OWNER), self.person(NEW)
+        refs = self.actions + [self.demo.action(owner=OWNER)]
+        with self.s.step("dashboard", USER) as st:
+            for ref in refs:
+                st.update("actions", ref, {"owner_id": ada})
+        _, body = self.send(refs)
+        self.assertEqual((body["ok"], body["changed"]), (True, refs), body)
+        edited = refs[1]
+        status, got = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": edited, "changes": {"owner": "Cara Free"}})
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        return ada, bob, refs, edited, body["apply_id"]
+
+    def test_an_undo_of_a_hand_over_skips_only_the_owner_that_changed_and_undoes_the_rest(self):
+        """Three items handed over, one owner then edited by hand: one Undo puts the other two back (owner and link together) and leaves
+        the edited one, its text and its link, alone. Nothing is written for it, and the reply says so once (#620)."""
+        ada, bob, refs, edited, apply_id = self.three_handed()
+        others = [r for r in refs if r != edited]
+        status, undone = self.undo({"project": "ABC", "apply_id": apply_id})
+        self.assertEqual((status, undone["ok"]), (200, True), undone)
+        for ref in others:
+            self.assertEqual((self.who(ref), self.linked(ref)), (OWNER, ada), "owner and link are both back")
+        self.assertEqual((self.who(edited), self.linked(edited)), ("Cara Free", bob), "its text and its link are left as they are")
+        self.assertEqual(sorted(e["ref"] for e in undone["reversed"]), sorted(others), "one line for each item put back")
+        self.assertEqual({e["field"] for e in undone["reversed"]}, {"owner"})
+        self.assertEqual([(x["ref"], x["field"], x["why"]) for x in undone["skipped"]], [(edited, "owner", changes.CHANGED_LATER)],
+                         "one line for the one item left as it is, the link not named separately")
+        self.assertIn("changed later", undone["words"])
+        self.assertNotIn(edited, {r["key"] for r in self.s.step_rows(undone["apply_id"])}, "nothing is written for the item that was left")
+        self.assertEqual(len([r for r in self.s.step_rows(undone["apply_id"]) if r["field"] == "owner_id"]), 2)
+
+    def test_the_link_of_a_skipped_owner_is_never_put_back_alone(self):
+        """The store's own rule, below the page's checks: an owner_id rides with its owner text, so when the text is skipped as
+        changed since, the link is skipped with the same reason and the same later step (#620)."""
+        ada, bob, refs, edited, apply_id = self.three_handed()
+        done = self.s.undo(apply_id, USER)
+        skipped = [(x["ref"], x["field"], x["why"]) for x in done["skipped"]]
+        self.assertEqual({(r, f) for r, f, _ in skipped}, {(edited, "owner"), (edited, "owner_id")}, done)
+        self.assertEqual({w for _, _, w in skipped}, {"has changed since: left as it is"})
+        self.assertEqual(len({x["by_step"] for x in done["skipped"]}), 1)
+        self.assertIsNotNone(done["skipped"][0]["by_step"])
+        self.assertNotIn(edited, {x["ref"] for x in done["reversed"]})
+        self.assertEqual(self.linked(edited), bob)
+
+    def test_an_undo_of_several_skips_the_edited_item_and_undoes_the_others(self):
+        ada, bob, refs, edited, apply_id = self.three_handed()
+        others = [r for r in refs if r != edited]
+        status, undone = self.undo({"project": "ABC", "steps": [apply_id], "preview": True})
+        self.assertEqual(status, 200, undone)
+        self.assertEqual(sorted(x["ref"] for x in undone["undo"]), sorted(others), undone)
+        self.assertEqual([(x["ref"], x["why"]) for x in undone["skipped"]], [(edited, changes.CHANGED_SINCE)], undone)
+        self.assertEqual((self.who(edited), self.linked(edited)), ("Cara Free", bob), "a preview changes nothing")
+        status, done = self.undo({"project": "ABC", "steps": [apply_id]})
+        self.assertEqual(status, 200, done)
+        self.assertEqual([(self.who(r), self.linked(r)) for r in others], [(OWNER, ada)] * 2)
+        self.assertEqual((self.who(edited), self.linked(edited)), ("Cara Free", bob))
+
+    def test_the_activity_tick_stays_for_a_hand_over_with_one_item_left_to_undo(self):
+        ada, bob, refs, edited, apply_id = self.three_handed()
+        self.assertEqual(changes.undo_refusals(self.s, "ABC", {apply_id}), {}, "two of the three can still go back")
+
+    def test_the_activity_tick_is_withheld_when_every_item_was_edited(self):
+        ada, bob = self.person(OWNER), self.person(NEW)
+        refs = self.actions
+        with self.s.step("dashboard", USER) as st:
+            for ref in refs:
+                st.update("actions", ref, {"owner_id": ada})
+        _, body = self.send(refs)
+        for ref in refs:
+            self.change({"project": "ABC", "kind": "actions", "op": "update", "id": ref, "changes": {"owner": "Cara Free"}})
+        self.assertEqual(changes.undo_refusals(self.s, "ABC", {body["apply_id"]}), {body["apply_id"]: changes.CHANGED_SINCE})
+
+    def test_a_link_only_item_whose_name_was_edited_still_leaves_the_whole_hand_over(self):
+        """A link-only item has no owner text row, so the store has no name to judge it by: its step stays whole (fails safe)."""
+        ada, bob = self.person(OWNER), self.person(NEW)
+        first, second = self.actions
+        with self.s.step("dashboard", USER) as st:
+            st.update("actions", first, {"owner": NEW})
+            st.update("actions", second, {"owner_id": ada})
+        _, body = self.send([first, second])
+        self.change({"project": "ABC", "kind": "actions", "op": "update", "id": first, "changes": {"owner": "Cara Free"}})
+        before = self.counts()
+        status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
+        self.assertEqual((status, undone["message"]), (409, changes.HAND_OVER_CHANGED), undone)
+        self.assertEqual(self.counts(), before)
+        self.assertEqual(changes.undo_refusals(self.s, "ABC", {body["apply_id"]}), {body["apply_id"]: changes.CHANGED_SINCE})
 
     def test_a_link_only_hand_over_is_undone_and_only_the_link_goes_back(self):
         """The owner text already reads the person's name, so only the link changes (#199): its Undo is offered and restores the link."""
