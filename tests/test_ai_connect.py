@@ -211,6 +211,23 @@ class Both(Base):
         self.assertEqual(self.connect.choose({"model": "gpt-6-astra"})[0], 200)
 
 
+class TheFileLock(Base):
+    def test_every_setter_takes_the_one_lock_so_none_is_lost(self):
+        for setter in (settings.set_backups_kept, settings.set_profile, settings.set_backup_copy_folder, settings.ai_write):
+            self.assertTrue(hasattr(setter, "__wrapped__"), setter.__name__)
+        source = Path(settings.__file__).read_text(encoding="utf-8")
+        self.assertEqual(source.count("platform.write_file("), 4, "a new writer needs the lock too")
+
+    def test_two_at_once_keep_both(self):
+        threads = [threading.Thread(target=settings.ai_write, args=(self.d, {"model": "fable"})), threading.Thread(target=settings.set_profile, args=(self.d, "Sam Lee", ""))]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        self.assertEqual(settings.ai_read(self.d)["model"], "fable")
+        self.assertEqual(settings.read(self.d)["profile_name"], "Sam Lee")
+
+
 class TheSizes(unittest.TestCase):
     def test_chatgpt_has_its_own_limit_per_model(self):
         prov = ai_providers.ChatGPTSubscription(command=FakeProviderCommand())

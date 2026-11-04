@@ -7,15 +7,18 @@ names (`backups_kept`, `set_backups_kept`) and the file. Nothing here names a pa
 The file is a JSON object. A missing file, a file that isn't a JSON object, a value of the wrong kind or one out of range is not an
 error: the default is used, so a bad settings file can never stop a backup or its tidying up. Standard library only, Python 3.9.
 """
+import functools
 import json
 import os
 import re
+import threading
 import unicodedata
 from pathlib import Path
 
 from clark import platform
 
 FILE = "settings.json"
+LOCK = threading.RLock()                # every setter reads the file and writes it back whole: one at a time, so none is lost
 LIMIT = 64 * 1024                       # a settings file larger than this is not read
 BACKUPS_KEPT = "backups_kept"
 BACKUPS_KEPT_DEFAULT = 14               # = backup.KEEP; a test keeps the two equal
@@ -25,6 +28,15 @@ BACKUPS_KEPT_RANGE = (1, 365)
 BACKUPS_KEPT_LABEL = "How many backups to keep"
 BACKUPS_KEPT_HELP = ("This many backups are kept of each kind (daily, before an undo, before an import and so on); the oldest "
                      "are removed after that. 14 is usual. The newest backup is always kept.")
+
+
+def _one_at_a_time(setter):
+    """Run a setter under LOCK."""
+    @functools.wraps(setter)
+    def run(*args, **kw):
+        with LOCK:
+            return setter(*args, **kw)
+    return run
 
 
 def read(data_dir):
@@ -49,6 +61,7 @@ def backups_kept(data_dir):
     return value if _whole_number_in(value, *BACKUPS_KEPT_RANGE) else BACKUPS_KEPT_DEFAULT
 
 
+@_one_at_a_time
 def set_backups_kept(data_dir, number):
     """Save the number kept (a whole number from 1 to 365), leaving every other setting as it is. Raises ValueError in plain
     words for anything else. The file is replaced in one step (platform.write_file)."""
@@ -104,6 +117,7 @@ def profile(data_dir):
             "email": email if email and len(email) <= EMAIL_MAX and _ADDRESS.fullmatch(email) else ""}
 
 
+@_one_at_a_time
 def set_profile(data_dir, name, email):
     """Save the name and the email (each may be empty), leaving every other setting as it is; returns what was saved. Raises ValueError
     in plain words, ending "Nothing was saved.", for a name over 60 characters or with an unkeepable character, or an email that is
@@ -184,6 +198,7 @@ def backup_copy_folder(data_dir):
     return _copy_path(value) if isinstance(value, str) else None
 
 
+@_one_at_a_time
 def set_backup_copy_folder(data_dir, text):
     """Save the copy folder (an existing folder, or one that can be made), or turn it off with an empty text. Every other setting is left
     as it is. Returns the saved Path, or None when turned off. Raises ValueError in plain words, ending "Nothing was changed.", and writes
@@ -240,6 +255,7 @@ def ai_read(data_dir):
             "accepted": [m for m in accepted if isinstance(m, str)] if isinstance(accepted, list) else []}
 
 
+@_one_at_a_time
 def ai_write(data_dir, changes):
     """Save any of model, claude_off, chatgpt_on and accepted, leaving every other setting as it is. Raises ValueError, and writes nothing, for a
     settings file that can't be read: it is never replaced."""
