@@ -155,7 +155,7 @@ class NoSandboxProgram(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             marked = os.path.join(d, "marked")
             script = os.path.join(d, "codex")
-            with open(script, "w") as f:
+            with open(script, "w", encoding="utf-8") as f:
                 f.write(f'#!/bin/sh\ncat > "{marked}"\nprintf \'{{"type":"item.completed","item":{{"type":"agent_message","text":"hi"}}}}\\n\'\n')
             os.chmod(script, 0o700)
             real, started = subprocess.Popen, []
