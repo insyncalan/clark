@@ -1,7 +1,8 @@
 // The Help panel (#82; BRD 5.13): Start here, How do I… and Reference, all drawn from help/helpContent.json, with one search across
 // the three tabs. A layer in place of the open page; Esc or the Back button returns to it. Edit-served pages only (edit/index.js).
 import { useEffect, useRef } from "preact/hooks";
-import { content, TABS, tabList, tasks, sections, guides, jobs, undoLink, nextOf, firstTen, loopSteps, iconLegend, milestoneMarks, buildIndex, resultsView, whereLabels, goLabel, markParts } from "./helpLogic.js";
+import { content, TABS, tabList, tasks, sections, guides, jobs, undoLink, nextOf, firstTen, loopSteps, iconLegend, milestoneMarks, buildIndex, resultsView, whereLabels, goLabel, markParts, stepPicture } from "./helpLogic.js";
+import { pictureUrl } from "./helpPictures.js";
 import { helpOpen, helpTab, helpTarget, helpQuery, helpFocusSearch, helpHere, helpLand, setTab, follow, goTo, canGo, closeHelp, backPlace, goBackPlace } from "./helpStore.js";
 import { Md } from "./helpText.jsx";
 import { Icon } from "../components/Icon.jsx";
@@ -152,7 +153,7 @@ function HowTo() {
           <article class="hp-task hp-guide" key={g.id} id={`hp-${g.place}`} data-k={g.place} tabIndex={helpHere.value === g.place ? 0 : -1}>
             <h3>{g.title}</h3>
             <p class="hp-where">{g.job}</p>
-            <ol>{g.steps.map((s) => <li key={s.n}><Md text={s.d} /></li>)}</ol>
+            <ol>{g.steps.map((s) => <li key={s.n}><Md text={s.d} /><StepPicture step={s} /></li>)}</ol>
             {g.result ? <p class="hp-note"><b>What you should see:</b> <Md text={g.result} /></p> : null}
             <Next places={g.next} />
           </article>
@@ -160,6 +161,12 @@ function HowTo() {
       </div>
     </div>
   );
+}
+
+/** A step's picture (light only, from the page's own copy of it); nothing at all when there is none to draw. */
+function StepPicture({ step, urlOf = pictureUrl }) {
+  const p = stepPicture(step, urlOf);
+  return p ? <img class="hp-pic" src={p.src} alt={p.alt} loading="lazy" /> : null;
 }
 
 function Table({ head, rows, cls }) {

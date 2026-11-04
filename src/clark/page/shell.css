@@ -934,6 +934,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-task h3, .hp-ref h3 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .hp-where { margin: 0 0 10px; font-size: var(--size-small); color: var(--text-muted); }
 .hp-task ol { margin: 0; padding-left: 22px; }
+.hp-pic { display: block; max-width: 100%; height: auto; margin: var(--space-2) 0 0; border: 1px solid var(--grey-300); border-radius: var(--radius); background: #fff; }   /* the pictures are light only; the frame keeps one a card on the dark theme */
 .hp-task li, .hp-ref li { margin: 0 0 7px; line-height: 1.55; }
 .hp-ref ul { margin: 0 0 10px; padding-left: 20px; }
 .hp-ref p { margin: 0 0 10px; line-height: 1.55; }

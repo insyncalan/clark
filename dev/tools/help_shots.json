@@ -11,8 +11,8 @@
     {"id": "templates-place", "guide": "templates", "screen": "#dashboard&p=TUL",
      "steps": [{"mode": "edit"}, {"hover": ".secs > .sec:nth-child(2)"}, {"click": ".secs > .sec:nth-child(2) [data-add]"}, {"wait": ".ad"},
                {"click": ".ad .ad-tpl:not(.off)"}],
-     "crop": ".ad .ad-foot", "margin": 8,
-     "marks": [{"ring": ".ad [data-place]", "number": 1}]},
+     "crop": ".ad .ad-where", "margin": 12,
+     "marks": [{"ring": ".ad .ad-where", "number": 1}]},
 
     {"id": "arrange-grip", "guide": "arrange", "screen": "#dashboard&p=TUL",
      "steps": [{"mode": "edit"}, {"hover": ".secs > .sec:nth-child(2)"}],

@@ -122,7 +122,7 @@ class Folder(unittest.TestCase):
 
     def test_the_content_only_names_listed_pictures(self):
         content = json.loads(CONTENT.read_text(encoding="utf-8"))
-        self.assertLessEqual(set(content.get("pictures", [])), set(listed()))
+        self.assertLessEqual({p["id"] for p in content.get("pictures", [])}, set(listed()))
 
     def pictures(self):
         path = build_page.help_pictures_path(True)

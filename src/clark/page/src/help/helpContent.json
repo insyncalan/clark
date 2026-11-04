@@ -2410,16 +2410,19 @@
      "d": "On the **Dashboard**, press **Edit**. Each section now has a control at the left of its card: a move button and, under it, a **+**."
     },
     {
-     "d": "Point at the section you want the new one to follow and press its **+**. Or click the move button to open the section’s menu and choose **Add a template below…**."
+     "d": "Point at the section you want the new one to follow and press its **+**. Or click the move button to open the section’s menu and choose **Add a template below…**.",
+     "pic": "templates-add-box"
     },
     {
-     "d": "The **Add a section** box opens with the cursor in **Search templates**. On the left, pick a kind: **All templates**, **Text and pictures**, **Figures**, **Work items**, **Files and links**, **People and dates** or **Notes**. Or type a word to find a template by name."
+     "d": "The **Add a section** box opens with the cursor in **Search templates**. On the left, pick a kind: **All templates**, **Text and pictures**, **Figures**, **Work items**, **Files and links**, **People and dates** or **Notes**. Or type a word to find a template by name.",
+     "pic": "templates-dialog"
     },
     {
      "d": "Choose a template in the list, such as **Key figures, four** or **Callout**. [[Up]] and [[Down]] move through them. The box on the right says what the chosen one is for and what it **Holds**."
     },
     {
-     "d": "Under **Where it goes**, choose **On its own row**, or **Beside** the section above, which gives each of the two half the width. **Beside** is greyed out, with the reason under it, when the template cannot be half width or the section above is not on a row of its own."
+     "d": "Under **Where it goes**, choose **On its own row**, or **Beside** the section above, which gives each of the two half the width. **Beside** is greyed out, with the reason under it, when the template cannot be half width or the section above is not on a row of its own.",
+     "pic": "templates-place"
     },
     {
      "d": "Press **Add section**, or press [[Enter]]. Press **Cancel**, or [[Esc]], to close the box and add nothing."
@@ -2438,13 +2441,15 @@
    "job": "Change the order of the report, put two sections side by side, or take parts out.",
    "steps": [
     {
-     "d": "On the **Dashboard**, press **Edit**. Each section has a move button at the left of its card (in the margin on a wide window, inside the card on a narrow one). It is faint until you point at the section or tab to it."
+     "d": "On the **Dashboard**, press **Edit**. Each section has a move button at the left of its card (in the margin on a wide window, inside the card on a narrow one). It is faint until you point at the section or tab to it.",
+     "pic": "arrange-grip"
     },
     {
      "d": "To move a section, drag its move button and drop it. A line between two rows puts it on a row of its own. The cover stays at the top. Without a mouse, focus the button and press [[Alt+Up]] or [[Alt+Down]]."
     },
     {
-     "d": "Click the move button, or press [[Enter]] or [[Space]] on it, to open the section’s menu."
+     "d": "Click the move button, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
+     "pic": "arrange-menu"
     },
     {
      "d": "To move one step, choose **Move up** or **Move down**. A choice that cannot be used is greyed out, with the reason under it."
@@ -2453,7 +2458,8 @@
      "d": "To put a section beside another, choose **Place beside the next section**. Each takes half the width, and a row never holds more than two. For a section already in a pair the menu says **Full width** instead; choose it to give the section a row of its own."
     },
     {
-     "d": "To keep a section out of the client’s copy, choose **Leave out of the published page**. It stays in Edit, greyed, with a small eye mark under its **+** and the tag **Left out of the published page**. Choose **Include in the published page** to bring it back."
+     "d": "To keep a section out of the client’s copy, choose **Leave out of the published page**. It stays in Edit, greyed, with a small eye mark under its **+** and the tag **Left out of the published page**. Choose **Include in the published page** to bring it back.",
+     "pic": "arrange-leave-out"
     },
     {
      "d": "A text section, and the Needs from you section, also have **Delete section** in the menu. It removes the section from the report."
@@ -2472,13 +2478,15 @@
    "job": "Read a workbook into the project, see every change before anything is saved, and choose which to keep.",
    "steps": [
     {
-     "d": "Press your profile circle and choose **Settings**. Find the **Data** card: it has two buttons, **Export workbook** and **Import workbook**. Press **Import workbook**."
+     "d": "Press your profile circle and choose **Settings**. Find the **Data** card: it has two buttons, **Export workbook** and **Import workbook**. Press **Import workbook**.",
+     "pic": "excel-in-button"
     },
     {
      "d": "The box **Import from Excel** says what is read: sheets called Actions, Risks and issues (or RAID), Decisions, Milestones and Use cases. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
     },
     {
-     "d": "Press **Choose a file** and pick an .xlsx workbook of up to 25 MB. A macro workbook (.xlsm) is turned away and nothing is saved; save a copy as an ordinary .xlsx workbook and choose that."
+     "d": "Press **Choose a file** and pick an .xlsx workbook of up to 25 MB. A macro workbook (.xlsm) is turned away and nothing is saved; save a copy as an ordinary .xlsx workbook and choose that.",
+     "pic": "excel-in-box"
     },
     {
      "d": "The box **Check the import** opens. A line gives the counts: how many rows are new, how many changed, how many are no longer in the workbook and how many are unchanged. Unchanged rows are left alone. Nothing has been saved yet."
@@ -2508,13 +2516,16 @@
    "job": "Save the project as an Excel workbook, know what is in it, and take changes back in.",
    "steps": [
     {
-     "d": "On **Work items**, in View, press the **Export to Excel** icon in the page header, beside the add button. The icon is not there in Edit, so use step 2 or 3 instead."
+     "d": "On **Work items**, in View, press the **Export to Excel** icon in the page header, beside the add button. The icon is not there in Edit, so use step 2 or 3 instead.",
+     "pic": "excel-out-icon"
     },
     {
-     "d": "Or press your profile circle and choose **Export to Excel**. It gives the same workbook from any screen."
+     "d": "Or press your profile circle and choose **Export to Excel**. It gives the same workbook from any screen.",
+     "pic": "excel-out-menu"
     },
     {
-     "d": "Or choose **Settings** from the profile circle, find the **Data** card and press **Export workbook**. It is the same export again."
+     "d": "Or choose **Settings** from the profile circle, find the **Data** card and press **Export workbook**. It is the same export again.",
+     "pic": "excel-out-card"
     },
     {
      "d": "Your browser saves one .xlsx file, and a message gives its name. Nothing is sent or published: the file is only on your computer."
@@ -2544,10 +2555,12 @@
      "d": "To look first, press your profile circle and choose **Preview the page in a new tab**. It shows what the client will see, and nothing is saved."
     },
     {
-     "d": "Press your profile circle and choose **Publish…**. The box **Publish the report** opens. The line under its title gives the project, the week ending, the number this publication will have, such as this will be Publication 4, and when and where the last one went."
+     "d": "Press your profile circle and choose **Publish…**. The box **Publish the report** opens. The line under its title gives the project, the week ending, the number this publication will have, such as this will be Publication 4, and when and where the last one went.",
+     "pic": "publish-menu"
     },
     {
-     "d": "**Local** is always ticked, and the box says you choose the folder and name in the save window. Tick **To client** to copy it to the client folder as well. With no client folder set, that tick is off and a link takes you to Settings, Publishing to set one."
+     "d": "**Local** is always ticked, and the box says you choose the folder and name in the save window. Tick **To client** to copy it to the client folder as well. With no client folder set, that tick is off and a link takes you to Settings, Publishing to set one.",
+     "pic": "publish-dialog"
     },
     {
      "d": "If you want them, tick **Also a PDF** (your browser’s print box opens and you choose Save as PDF) and **Also a Word document** (a Word copy of the report, saved in the folder last used for this project)."
@@ -2721,5 +2734,58 @@
    ]
   }
  ],
- "pictures": []
+ "pictures": [
+  {
+   "id": "templates-add-box",
+   "alt": "The plus button at the left of a section, ringed."
+  },
+  {
+   "id": "templates-dialog",
+   "alt": "The Add a section box, with the kinds of template on the left and the list of templates beside them."
+  },
+  {
+   "id": "templates-place",
+   "alt": "The foot of the Add a section box, with the Where it goes choices ringed."
+  },
+  {
+   "id": "arrange-grip",
+   "alt": "The move button at the left of a section, ringed."
+  },
+  {
+   "id": "arrange-menu",
+   "alt": "A section’s menu, with Move up and Leave out of the published page marked 1 and 2."
+  },
+  {
+   "id": "arrange-leave-out",
+   "alt": "A section’s menu, with Leave out of the published page ringed."
+  },
+  {
+   "id": "excel-in-button",
+   "alt": "The Data card in Settings, with the Import workbook button ringed."
+  },
+  {
+   "id": "excel-in-box",
+   "alt": "The Import from Excel box, with the Choose a file button ringed."
+  },
+  {
+   "id": "excel-out-icon",
+   "alt": "The Export to Excel icon in the page header, ringed."
+  },
+  {
+   "id": "excel-out-menu",
+   "alt": "The profile menu, with Export to Excel ringed."
+  },
+  {
+   "id": "excel-out-card",
+   "alt": "The Data card in Settings, with the Export workbook button ringed."
+  },
+  {
+   "id": "publish-menu",
+   "alt": "The profile menu, with Publish… ringed."
+  },
+  {
+   "id": "publish-dialog",
+   "alt": "The Publish the report box, with the To client choice ringed."
+  }
+ ]
 }
