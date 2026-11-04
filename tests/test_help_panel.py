@@ -70,7 +70,7 @@ class Panel(Base):
             self.assertFalse(p.js("!!document.querySelector('#hp-later')"))
             p.js("document.querySelector('#hpTab-howto').click()")
             p.until("document.querySelectorAll('.hp-task').length > 0", "How do I… has the tasks the page can do")
-            self.assertEqual(p.js("document.querySelectorAll('.hp-task').length"), len(shown_content()["howto"]["tasks"]))
+            self.assertEqual(p.js("document.querySelectorAll('.hp-task').length"), len(shown_content()["howto"]["tasks"]) + len(shown_content()["guides"]), "the entries and the guides")
             self.assertEqual(p.js("!!document.querySelector('#hp-later')"), False)
             p.js("document.querySelector('#hpTab-reference').click()")
             p.until("document.querySelectorAll('.hp-ref').length > 0", "Reference drew")

@@ -77,7 +77,7 @@ class TheFiveJobs(unittest.TestCase):
     def test_the_browsers_copy_and_the_python_copy_agree_on_the_jobs(self):
         r = run_node(RAW, "(() => ({ shown: HL.content.start.jobs.map((j) => j[0]), undo: HL.undoLink(), list: HL.jobs().map((j) => j.place) }))()")
         self.assertEqual(r["shown"], JOBS)
-        self.assertEqual(r["list"], ["howto-" + i for i in JOBS])
+        self.assertEqual(r["list"], ["guide-publish-to-the-client" if i == "publish-the-report" else "howto-" + i for i in JOBS])      # the Publish job opens its guide
         self.assertEqual(r["undo"], {"lead": "Made a mistake?", "link": "Undo the last change", "place": "howto-undo-a-mistake"})
         r = run_node(RAW, "(() => { HL.useHeld({ howto: { 'publish-the-report': 'later' } }); return { shown: HL.content.start.jobs.map((j) => j[0]) }; })()")
         self.assertEqual(r["shown"], JOBS[:4])
@@ -85,7 +85,7 @@ class TheFiveJobs(unittest.TestCase):
     def test_the_contents_list_of_start_here_has_the_three_groups(self):
         r = run_node(RAW, "HL.tabList('start').map((g) => [g.group, g.entries.map((e) => e.place)])")
         self.assertEqual(r[0], ["Start here", ["start-jobs"]])
-        self.assertEqual(r[1], ["The five jobs", ["howto-" + i for i in JOBS]])
+        self.assertEqual(r[1], ["The five jobs", ["guide-publish-to-the-client" if i == "publish-the-report" else "howto-" + i for i in JOBS]])
         self.assertEqual(r[2][0], "Also under How do I...")
         others = [t["id"] for t in shown_content()["howto"]["tasks"] if t["id"] not in JOBS]
         self.assertEqual(r[2][1], ["howto-" + i for i in others], "the other shown how-to entries, in the source's order")
@@ -189,8 +189,8 @@ class WhatNext(unittest.TestCase):
         r = run_node(fixture_content(), "(() => { const l = HL.tabList('howto'); return { last: l[l.length - 1], n: l.length }; })()")
         self.assertEqual(r["last"], {"group": "", "entries": [{"id": "fixture-guide", "title": "Fixture guide", "place": "guide-fixture-guide"}]})
         self.assertEqual(r["n"], len(shown_content()["howto"]["groups"]) + 1)
-        r = run_node(RAW, "HL.tabList('howto').filter((g) => !g.group).length")
-        self.assertEqual(r, 0, "no guide shipped: no unnamed group")
+        r = run_node(RAW, "HL.tabList('howto').filter((g) => !g.group).map((g) => g.entries.map((e) => e.place))")
+        self.assertEqual(r, [["guide-" + g["id"] for g in RAW["guides"]]], "the shipped guides are the one unnamed group")
 
     def test_a_held_guide_is_in_no_list_and_no_next(self):
         c = copy.deepcopy(fixture_content())

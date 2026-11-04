@@ -74,6 +74,7 @@ def shown_texts():
     s = SHOWN
     out = list(strings(s["start"]) if s["start"]["parts"] else [])
     out += list(strings(s["howto"]["tasks"])) + list(strings(s["reference"]["sections"]))
+    out += [x for g in s["guides"] for x in strings({k: v for k, v in g.items() if k != "next"})]       # the guides' words (next is a list of places)
     return out
 
 
