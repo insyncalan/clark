@@ -2,7 +2,7 @@
 
 The step is ALTER TABLE ... ADD COLUMN with a default of 14 and the CHECK of schema.sql, so no table is made again and no frozen schema
 file is needed. A file from before the step gets 14 on every project that is in it; a new file has the column from schema.sql. The step
-is step 12 of MIGRATIONS (STEP below); if another step lands first, renumbering is: STEP here, SCHEMA_VERSION's line and REVIEW_DAYS_STEP in store.py. Fictional data only.
+is step 14 of MIGRATIONS (STEP below); if another step lands first, renumbering is: STEP here, SCHEMA_VERSION's line and REVIEW_DAYS_STEP in store.py. Fictional data only.
 
 Run: python3 dev/run_tests.py test_store_review_days_migration
 """
@@ -20,7 +20,7 @@ from clark.store import Invalid, connect, open_store
 from test_store_migration import make_v1, version
 from test_store_use_case_done_migration import every_row, make_at, schema_of
 
-STEP = 12                                           # this step's number (see the docstring)
+STEP = 14                                           # this step's number (see the docstring)
 BEFORE = str(STEP - 1)                              # the version this step brings a file from
 NOW = str(store_module.SCHEMA_VERSION)              # the version a plain open brings a file to (this step and any later one)
 

@@ -293,6 +293,8 @@ const CHANGE_KNOWN = {
   "That section isn't in this project.": "That section is no longer in this report, and nothing was changed. Reload the page.",
   "That step can't be undone from here.": "That change can't be undone any more. Reload the page to see how the report is now.",
   "That step has been undone already.": "That change has been undone already. Reload the page to see how the report is now.",
+  // The eye of the Work items table (#456) cannot show a Sensitive item: clark's refusal of it, in the page's words.
+  "A Sensitive item is never published, so it can't be added to the report.": "A Sensitive item is never shown to the client, and nothing was changed. Take the Sensitive label off first.",
   // #80: a work item change clark would not make (clark/changes.py's words; the page says its own)
   "That item isn't in this project.": "That item is no longer in this project, and nothing was changed. Reload the page.",
   "Pick a real date.": "That date isn't a real day, and nothing was changed. Pick another date.",
@@ -305,6 +307,8 @@ const CHANGE_KNOWN = {
     "That decision has been made, so it was left as it is. Record a new decision that replaces it.",
   "Use plain text, with no line breaks or hidden characters.": "A name can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
   "That value isn't one clark can use.": "That value can't be used, and nothing was changed. Try another.",
+  "A latest update can be at most 1000 characters. Shorten it and try again.": "A latest update can be 1000 characters at most. Nothing was changed. Shorten it and try again.",
+  "That has a hidden character in it. Take it out and try again.": "That update has a hidden character in it, often from copying and pasting. Nothing was changed. Type it again, then press Enter.",
   // #121: a 'Needs from you' list clark would not save (clark/section_bodies.py's words; the page checks first and says the same)
   "Needs from you can have at most 100 rows.": "A list can have 100 rows at most, and nothing was changed. Remove one to add another.",
   "Say what is needed.": "Say what is needed. Nothing was changed.",
@@ -335,6 +339,8 @@ const CHANGE_KNOWN = {
   "A count must be a whole number from 0 to 99999, or empty.": "A count must be a whole number from 0 to 99999, or empty. Nothing was changed.",
   "That content can't hold control or invisible characters.": "Hidden text can't be saved. Use plain letters and numbers. Nothing was changed.",
   "That content is too long to save.": "That is too long to save, and nothing was changed. Make the text shorter, or take some of the list out.",
+  // #220: a text section's body clark would not save (clark/changes.py's words)
+  "That text is too long to save. Shorten it and try again.": "That text is too long to save, and nothing was changed. Shorten it and try again.",
   // the whole change was over the size clark takes (server.py's words; any kind of section can be that big)
   "That is too big to save. Make the text shorter, or take some of the list out, then try again.": "That is too big to save, and nothing was changed. Make the text shorter, or take some of the list out.",
 };

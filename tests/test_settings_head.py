@@ -114,7 +114,7 @@ class Head(Base):
             with self.subTest(mode=mode), chrome() as cdp:
                 p = self.page(cdp)
                 self.open_settings(p, 1400, mode)
-                got = p.js("""[...document.querySelectorAll('.set-nav .set-chip')].map(b => { const s = getComputedStyle(b);
+                got = p.js("""[...document.querySelectorAll('.set-nav .set-chip:not([aria-current])')].map(b => { const s = getComputedStyle(b);
                     return [parseFloat(s.fontSize), s.color, s.backgroundColor, s.borderTopColor]; })""")
                 for size, color, ground, edge in got:
                     self.assertGreaterEqual(size, 13)

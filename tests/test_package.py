@@ -72,6 +72,21 @@ class MacZipTest(unittest.TestCase):
                        "vendor/manifest.json", "README.md", "START-HERE.txt"):
             self.assertIn(needed, names)
 
+    def test_licence_and_notice_are_in_the_zip(self):
+        """#639: LICENSE and NOTICE.md travel with the code; the list, the zip and the manifest all hold them."""
+        import json
+        self.assertIn("LICENSE", package.SHARED)
+        self.assertIn("NOTICE.md", package.SHARED)
+        names = set(self.inside())
+        with zipfile.ZipFile(self.zip) as z:
+            files = json.loads(z.read(f"{self.top}/{package.MANIFEST}"))["files"]
+        for name in ("LICENSE", "NOTICE.md"):
+            with self.subTest(name=name):
+                self.assertIn(name, names)
+                self.assertIn(name, files)
+                self.assertRegex(files[name]["sha256"], r"^[0-9a-f]{64}$")
+                self.assertGreater(files[name]["size"], 0)
+
     def test_demo_file_follows_the_switch(self):
         self.assertEqual(package.INCLUDE_DEMO, "dev/demo_data.py" in self.inside())
 

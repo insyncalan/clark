@@ -4,6 +4,7 @@ taken back; History gets one line per publish. Fictional data only.
 
 Run: python3 dev/run_tests.py test_publication_numbers
 """
+import hashlib
 import json
 import os
 import re
@@ -94,7 +95,8 @@ class TheCounter(unittest.TestCase):
         for sql in ("DELETE FROM publications", "UPDATE publications SET number = 9", "UPDATE publications SET project = 'XYZ'",
                     "UPDATE publications SET word = 1", "UPDATE publications SET file_sha256 = '%s'" % ("b" * 64),
                     "UPDATE publications SET seq = 99", "UPDATE publications SET at = '2020-01-01'", "UPDATE publications SET week_ending = '2020-01-03'",
-                    "UPDATE publications SET local_path = '/x/z.html'", "UPDATE publications SET checks = 'passed'"):
+                    "UPDATE publications SET local_path = '/x/z.html'", "UPDATE publications SET checks = 'passed'",
+                    "UPDATE publications SET client_path = '/x/c.html'", "UPDATE publications SET by_user = 'Someone Else'"):
             with self.assertRaises(sqlite3.DatabaseError, msg=sql):
                 con.execute(sql)
         with self.assertRaises(sqlite3.DatabaseError):                   # REPLACE would remove the row without the delete trigger
@@ -104,7 +106,19 @@ class TheCounter(unittest.TestCase):
             con.execute("INSERT OR REPLACE INTO publications (project, local_path, file_sha256, checks, by_user, number) "
                         "VALUES ('ABC', '/x/y.html', ?, 'not needed', 'u', 1)", (SHA,))
         self.assertEqual(numbers(con), [1])
-        con.execute("UPDATE publications SET client_path = '/x/c.html' WHERE seq = ?", (seq,))    # the client copy's path may be set
+
+    def test_the_step_replaces_a_narrower_trigger_a_dev_file_kept(self):          # #325
+        con = self.s.con
+        seq = self.log()
+        con.execute("DROP TRIGGER publications_number_fixed")
+        con.execute("CREATE TRIGGER publications_number_fixed BEFORE UPDATE OF number ON publications "
+                    "BEGIN SELECT RAISE(ABORT, 'narrow'); END")
+        con.execute("UPDATE publications SET client_path = '/x/c.html' WHERE seq = ?", (seq,))       # the narrow one lets it through
+        con.execute("BEGIN")
+        store_module.migrate_publication_numbers(con)
+        con.execute("COMMIT")
+        with self.assertRaises(sqlite3.DatabaseError):
+            con.execute("UPDATE publications SET client_path = '/x/d.html' WHERE seq = ?", (seq,))
 
     def test_undo_never_frees_a_number(self):
         self.log()
@@ -134,6 +148,7 @@ class TheShapeAndTheStep(unittest.TestCase):
                     "checks TEXT NOT NULL CHECK (checks IN ('passed','not needed')), by_user TEXT NOT NULL)")
         con.execute("BEGIN")
         store_module.migrate_publication_numbers(con)
+        store_module.migrate_publication_shared_number(con)           # #368: step 13 widens the key, so both steps make what schema.sql makes
         con.execute("COMMIT")
 
         def shape(c):
@@ -143,6 +158,59 @@ class TheShapeAndTheStep(unittest.TestCase):
                                                   "AND sql IS NOT NULL"))
         self.assertEqual(shape(con), shape(fresh.store.con))
         self.assertEqual(len(shape(con)), 4, "the table and its three triggers")
+
+
+class TheTriggerStepTwelve(unittest.TestCase):
+    """#325: 0.6.0 ships step 10 with the narrow publications UPDATE trigger, so step 12 makes it again with client_path named."""
+
+    NARROW = ("CREATE TRIGGER publications_number_fixed BEFORE UPDATE OF seq, at, week_ending, local_path, checks, number, project, word, "
+              "file_sha256, by_user ON publications BEGIN SELECT RAISE(ABORT, 'narrow'); END")
+
+    def old_file(self, level):
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        path = demo.store.path
+        demo.store.close()
+        con = sqlite3.connect(path, isolation_level=None)
+        con.execute("INSERT INTO publications (project, local_path, file_sha256, checks, by_user, number) "
+                    "VALUES ('ABC', '/x/a.html', ?, 'not needed', 'Sam Carter', 1)", (SHA,))
+        con.execute("DROP TRIGGER publications_number_fixed")
+        con.execute(self.NARROW)
+        con.execute("UPDATE meta SET v = ? WHERE k = 'schema_version'", (str(level),))
+        con.close()
+        return path
+
+    def test_the_step_is_number_12_and_the_version_says_so(self):
+        self.assertIn((12, store_module.migrate_publication_trigger_client_path), store_module.MIGRATIONS)
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 12)
+
+    def test_a_file_at_step_10_or_11_with_the_narrow_trigger_is_upgraded_and_refuses_a_client_path_update(self):
+        for level in (10, 11):
+            with self.subTest(level=level):
+                path = self.old_file(level)
+                con = sqlite3.connect(path, isolation_level=None)
+                con.execute("UPDATE publications SET client_path = '/x/c.html'")             # the narrow one lets it through
+                con.close()
+                s = open_store(path, onedrive_roots=[])
+                self.addCleanup(s.close)
+                self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))
+                with self.assertRaises(sqlite3.DatabaseError):
+                    s.con.execute("UPDATE publications SET client_path = '/x/d.html'")
+                self.assertEqual(s.con.execute("SELECT client_path FROM publications").fetchone()[0], "/x/c.html")
+
+    def test_the_step_is_safe_to_repeat(self):
+        s = open_store(self.old_file(11), onedrive_roots=[])
+        self.addCleanup(s.close)
+
+        def dump():
+            return sorted(tuple(r) for r in s.con.execute("SELECT type, name, sql FROM sqlite_master WHERE tbl_name = 'publications'"))
+        once = dump()
+        for _ in range(2):
+            s.con.execute("BEGIN")
+            store_module.migrate_publication_trigger_client_path(s.con)
+            s.con.execute("COMMIT")
+        self.assertEqual(dump(), once)
+        self.assertEqual(len([r for r in once if r[0] == "trigger"]), 3)
 
 
 class OlderFiles(unittest.TestCase):
@@ -379,6 +447,143 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertTrue(os.path.islink(dest), "the link is back, not removed and not turned into a file")
         self.assertEqual(os.readlink(dest), str(target))
         self.assertEqual(target.read_bytes(), b"the file the link points at")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
+
+    def test_a_link_that_cannot_be_put_back_leaves_the_report_not_an_empty_folder(self):
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        target = folder.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        dest.unlink()
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        real = os.symlink
+
+        def refuse(src, dst, *a, **kw):                                  # the put-back's link cannot be made
+            raise OSError(13, "Permission denied")
+        os.symlink = refuse
+        try:
+            with self.assertRaises(publish.PublishError):
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.symlink = real
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "the file is still there and no temporary name is left")
+        self.assertTrue(dest.read_bytes().startswith(b"<!doctype html"), "the report is kept, not removed")
+        self.assertEqual(target.read_bytes(), b"the file the link points at")
+
+    def test_a_link_that_cannot_be_put_back_is_said_plainly(self):          # #605
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        target = folder.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        dest.unlink()
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        real = os.symlink
+
+        def refuse(src, dst, *a, **kw):
+            raise OSError(13, "Permission denied")
+        os.symlink = refuse
+        try:
+            with self.assertRaises(publish.PublishError) as caught:
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.symlink = real
+        self.assertIn("Another publication was made", str(caught.exception), "the reason for the refusal is still given")
+        self.assertIn(f"The link that was at {dest.name} could not be put back", str(caught.exception))
+
+    def _link_rig(self):
+        store, folder = self._overwrite_rig()
+        publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)       # takes number 1
+        dest = next(folder.iterdir())
+        target = folder.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        dest.unlink()
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        return store, folder, dest
+
+    def test_a_link_whose_file_cannot_be_moved_aside_is_said_plainly(self):          # #605, reader's LOW 1(a)
+        store, folder, dest = self._link_rig()
+        real = os.rename
+
+        def refuse(src, dst, *a, **kw):
+            if str(dst).endswith(".aside"):
+                raise OSError(13, "Permission denied")
+            return real(src, dst, *a, **kw)
+        os.rename = refuse
+        try:
+            with self.assertRaises(publish.PublishError) as caught:
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.rename = real
+        self.assertIn("Another publication was made", str(caught.exception))
+        self.assertIn(f"The link that was at {dest.name} could not be put back", str(caught.exception))
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "our report is still at its name, nothing left beside it")
+        self.assertTrue(dest.read_bytes().startswith(b"<!doctype html"))
+
+    def test_a_put_back_that_cannot_restore_the_report_keeps_it_under_the_aside_name(self):          # #605, reader's LOW 1(b)
+        store, folder, dest = self._link_rig()
+        real_sym, real_move = os.symlink, publish.platform.move_unless_exists
+
+        def refuse(*a, **kw):
+            raise OSError(13, "Permission denied")
+        os.symlink = refuse
+        publish.platform.move_unless_exists = refuse
+        try:
+            with self.assertRaises(publish.PublishError) as caught:
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.symlink, publish.platform.move_unless_exists = real_sym, real_move
+        self.assertIn("Another publication was made", str(caught.exception), "the refusal is still given")
+        names = [p.name for p in folder.iterdir()]
+        self.assertEqual(len(names), 1)
+        self.assertTrue(names[0].endswith(".aside"), "the report is kept under its aside name, not lost")
+        self.assertTrue((folder / names[0]).read_bytes().startswith(b"<!doctype html"))
+
+    def test_put_link_back_says_which_failure_it_was(self):
+        folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"ours")
+        digest = hashlib.sha256(b"ours").hexdigest()
+        real_sym, real_move, real_rename = os.symlink, publish.platform.move_unless_exists, os.rename
+
+        def refuse(*a, **kw):
+            raise OSError(13, "Permission denied")
+        os.rename = refuse
+        try:
+            self.assertEqual(publish.put_link_back(dest, folder / "x.html", digest), "kept")
+            self.assertEqual(publish.put_link_back(dest, folder / "x.html", "0" * 64), "other", "not ours and not moved: nothing claimed")
+        finally:
+            os.rename = real_rename
+        os.symlink = publish.platform.move_unless_exists = refuse
+        try:
+            self.assertEqual(publish.put_link_back(dest, folder / "x.html", digest), "aside")
+        finally:
+            os.symlink, publish.platform.move_unless_exists = real_sym, real_move
+
+    def test_a_link_is_never_put_over_a_file_that_is_not_ours(self):       # #604: no gap between the check and the swap
+        folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"someone else's report, put there a moment ago")
+        ours = hashlib.sha256(b"what this publish wrote").hexdigest()
+        self.assertEqual(publish.put_link_back(dest, folder / "elsewhere.html", ours), "other")
+        self.assertFalse(os.path.islink(dest))
+        self.assertEqual(dest.read_bytes(), b"someone else's report, put there a moment ago")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "nothing is left beside it")
+        dest.write_bytes(b"what this publish wrote")
+        self.assertEqual(publish.put_link_back(dest, folder / "elsewhere.html", ours), "linked")
+        self.assertTrue(os.path.islink(dest))
         self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
 
     def test_overwrite_with_a_lost_race_and_no_earlier_file_leaves_nothing(self):

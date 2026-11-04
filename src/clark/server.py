@@ -29,6 +29,7 @@ Routes:
 - GET  /api/backups      the backups newest first, a status line, the daily-copy warning (#111; safety.py)
 - POST /api/backups/preview  {name}: counts in a backup and now, from a temporary copy
 - POST /api/backups/restore  {name, last_step}: put a backup back (one writer at a time, never waiting)
+- POST /api/backups/copy-folder  {folder}: choose the optional folder each backup is also copied into, OneDrive allowed, or "" for none (#622; safety.py)
 - POST /api/page-error   the page reports a fault: one short line in the log at most, rate-limited (#110; log_routes.py)
 - GET  /api/diagnostics  the logging level, the last 7 days' errors and the Copy diagnostics text (#110)
 - POST /api/logging      set Normal or Debug (#110); POST /api/logging/open-folder shows the log folder
@@ -117,7 +118,7 @@ def change_body_limit(body_max=SECTION_BODY_MAX):
 
 
 CHANGE_BODY_LIMIT = change_body_limit()   # #96, #378, #405: 516 KB today; moves with the three above, never with a bare number
-ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024,
+ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096,
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
@@ -795,6 +796,26 @@ DOWNLOAD_CHUNK = 64 * 1024
 XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
+# What the address of a preview shows once it has been opened, or when it ran out of time or was never made: a plain page in the
+# browser tab, in plain words, not a bare line (the prototype's Preview is a page in a tab). It names nothing internal.
+PREVIEW_GONE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preview not available</title>
+<style>
+:root { color-scheme: light dark; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: #f4f6f9; color: #1d2733; }
+main { box-sizing: border-box; max-width: 34rem; margin: 24px; padding: 28px 32px; background: #fff; border: 1px solid #d9dee5; border-radius: 12px; }
+h1 { margin: 0 0 8px; font-size: 1.4rem; font-weight: 500; }
+p { margin: 0 0 8px; color: #55606e; }
+@media (prefers-color-scheme: dark) { body { background: #12171d; color: #e8ecf1; } main { background: #1b222b; border-color: #2e3844; } p { color: #a9b4c1; } }
+</style></head><body><main>
+<h1>This preview is no longer available</h1>
+<p>A preview opens once, and only for a couple of minutes after you ask for it.</p>
+<p>Go back to clark, open your menu (the circle at the top right) and choose Preview the page in a new tab for a new one.</p>
+</main></body></html>
+"""
+
+
 def preview_page_route(handler):
     """GET /preview?id=: the page a preview made, once. A new tab can't send the token, so the address itself is the one-visit
     secret (made by POST /api/preview); the Host and Origin checks are as everywhere. Nothing is written."""
@@ -803,7 +824,7 @@ def preview_page_route(handler):
         return handler.send(404 if publisher is None else 403, error_body("not_found" if publisher is None else "not_allowed"))
     body = publisher.take_preview((parse_qs(urlsplit(handler.path).query).get("id") or [""])[0])
     if body is None:
-        return handler.send(404, error_body("not_found"))
+        return handler.send(404, PREVIEW_GONE, "text/html")      # a second visit, a late one or a guess: a plain page, still a 404
     return handler.send(200, body, "text/html")
 
 
@@ -946,7 +967,7 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open")}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
-               "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"),
+               "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
                 "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"),
                 "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
                 "/api/ai/suggest": ask_route("suggest", "ai"), "/api/ai/stop": ask_route("stop", "ai"),

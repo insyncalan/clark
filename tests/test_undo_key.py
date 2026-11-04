@@ -7,6 +7,7 @@ rich-text field, inside a dialog or a menu, in View, or with Shift; with nothing
 The browser parts are required: they fail, never skip, without Chrome (set CLARK_CHROME to its path).
 """
 import json
+import re
 import shutil
 import tempfile
 import time
@@ -14,6 +15,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from _new_page import reload_to_new_page_cdp
 from _real_server import USER, real_server  # noqa: F401  (USER: test_activity_undo reads it as tuk.USER)
 from clark import page, server as sv
 from clark.store import open_store
@@ -274,12 +276,10 @@ class UndoKey(unittest.TestCase):
             self.assertEqual([which for which, _ in self.sent], ["change"], "the change was sent, as it must be")
             later = [p for p in posts if not p.startswith("GET ")]
             self.assertEqual(later, ["POST /api/change"], "and nothing else was sent by any method: the list stays on the page")
-            self.assertEqual([p for p in posts[opened:] if "?" in p], [], "nor in the address of a request")
+            # the archived work items list (B-5) is re-read after a change: its address names the project and the flag archived=only, never a change
+            self.assertEqual([p for p in posts[opened:] if "?" in p and not re.fullmatch(r"GET /api/data\?project=[A-Za-z0-9]+&archived=only", p)], [], "nor in the address of a request")
             self.assertEqual(self.kept(cdp, sid), before, "nothing was kept in the browser")
-            cdp.js("window.__before_reload = true", sid)
-            cdp.call("Page.reload", {}, sid)
-            self.until(cdp, sid, "window.__before_reload === undefined && document.querySelectorAll('#work tbody tr').length > 0",
-                       "the page was read again")
+            reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#work tbody tr').length > 0", "the page was read again")
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "Edit shows the cells' pickers")
             cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
