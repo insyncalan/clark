@@ -10,6 +10,7 @@ import { exportWord } from "./wordApi.js";
 import { openInNewTab } from "../router.js";
 import { printUrl } from "../logic/printView.js";
 import { say } from "./menuNote.js";
+import { placeholderItems, placeholderWarning } from "../logic/placeholders.js";
 
 // With no client folder, To client says where to set one; the second part is a link to the Publishing card (the prototype's
 // "Set it in Settings, Publishing", io.js).
@@ -38,6 +39,9 @@ export async function printSource(code, number) {
 export const CLOSE_MS = 1200;
 export const closeAfter = { ms: CLOSE_MS };
 let finished = 0;                        // counts finished publishes, so a timer from an earlier dialog never closes a later one
+
+// Item 449: the client-visible work items that still have the title Add gave them (logic/placeholders.js); the dialog warns.
+export { placeholderItems, placeholderWarning };
 
 export const savedFolder = () => {
   const d = data.value;

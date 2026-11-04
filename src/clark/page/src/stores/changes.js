@@ -136,6 +136,24 @@ export function changeRecord(req, done) {
   });
 }
 
+// Add one work item (gap list B-8: the Add menu on Work items). `req` is {kind: actions | raid | decisions, op: "new", values, place}
+// as edit/addItem.js builds it. The work items are read again so the new row is drawn as clark saved it; the toast says "<ID> added"
+// with Undo, and that Undo says "<ID> removed." A refusal says why, and nothing was added. `more` is a sentence added to the toast
+// (what was filled in for the person). Resolves to the reply, or null.
+export function newItem(req, more = "") {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendItemChange(code, req);
+    if (!r.ok) { say("problem", r.message); return null; }
+    const ref = String(r.reply.ref || r.reply.item.id);
+    if (!(await readAgain(code, `${ref} was added`))) return r.reply;
+    const step = r.reply.apply_id || null;
+    if (step) itemSteps.set(step, `${ref} removed.`);
+    say("done", `${ref} added.${more ? " " + more : ""}`, step, code);
+    return r.reply;
+  });
+}
+
 // Restore one archived work item (B-5): the work items are read again after it and after its undo. A refusal is a note.
 export function restoreItem(table, id) {
   const code = project.value;
