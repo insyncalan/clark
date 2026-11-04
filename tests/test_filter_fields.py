@@ -48,7 +48,7 @@ class Fields(Line):
                 self.assertEqual(self.expanded(cdp, sid), "true")
                 self.assertEqual(cdp.js("document.querySelector('#fline-list').getAttribute('role')", sid), "listbox")
                 self.assertEqual(cdp.js("document.querySelector('#fline-input').getAttribute('role')", sid), "combobox")
-                self.assertEqual(cdp.js("document.querySelector('#fline-list').getAttribute('aria-label')", sid), "Filter by field")
+                self.assertEqual(cdp.js("document.querySelector('#fline-list').getAttribute('aria-label')", sid), "Suggestions")
                 got = cdp.js("Object.fromEntries([...document.querySelectorAll('#fline-list [role=option]')].map(o => [o.dataset.ins, [o.querySelector('.fl1').textContent, o.querySelector('.fl2').textContent]]))", sid)
                 for ins, words in NOTES.items():
                     self.assertEqual(tuple(got[ins]), words, ins)
@@ -276,7 +276,7 @@ class Fields(Line):
             key(cdp, sid, "Escape")
             self.assertNotIn("Plain words search titles", cdp.js("document.querySelector('#work').innerText", sid))
         view = (ROOT / "src" / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
-        for word in ("fline-clear", "Filter by field", "vtabMenu", "core-actions", "Has no owner, date, workstream"):
+        for word in ("fline-clear", "vtabMenu", "core-actions", "Has no owner, date, workstream"):
             self.assertNotIn(word, view, f"{word} is the app's only, never in the published file")
 
 

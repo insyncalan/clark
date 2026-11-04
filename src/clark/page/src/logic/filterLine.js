@@ -399,12 +399,12 @@ export function suggest(wordTyped, rows, ctx) {
     .map(([v, l]) => ({ kind: "value", ins: `${not ? "-" : ""}${k}:${done}${quote(word(k, v))}`, label: word(k, v), note: l !== word(k, v) ? l : "", n: count(k, v), gloss: k === "is" ? own(gloss(), v) || "" : "" }));
 }
 
-/** The field list (#640, as GitHub's): what opens when you click or Tab into the line with no word being typed. Each field with its
+/** The field list (item 640, as GitHub's): what opens when you click or Tab into the line with no word being typed. Each field with its
  *  icon (a name from components/Icon.jsx), its plain name and a one-line note. Picking one puts `field:` in the box, and the list then
  *  shows that field's values with their counts (suggest). Only the fields this page's line can use (names()). */
-const FIELD_NOTES = {      // the prototype's notes (#640, PR 545); `is` first, then `no:` last
+const FIELD_NOTES = {      // the prototype's notes (item 640, PR 545); `is` first, then `no:` last
   is: ["circ", "Open, closed, overdue, not reviewed…"],
-  type: ["tag", "Action, risk, issue, decision…"],
+  type: ["tag", "Action, risk, issue or decision"],
   status: ["half", "Where the item has got to"],
   owner: ["user", "Who it is with"],
   priority: ["flag", "Urgent, High, Medium or Low"],
@@ -539,9 +539,9 @@ export const DEFAULT_VIEWS = [
   { id: "client", name: "Waiting on the client", line: "is:open is:needed" },
   { id: "mine", name: "My actions", line: "is:open type:action owner:me" },
 ];
-/** The five core tabs (#640), always first and always there, in this order. They are not the person's saved views: they cannot be
+/** The five core tabs (item 640), always first and always there, in this order. They are not the person's saved views: they cannot be
  *  renamed or archived, and Save changes is not offered on them (Save as a new view is). All work items has no filter, so closed items
- *  are there; the other four show open items only, as the prototype has them (PR 545; open-only waits on the product owner's sign-off). Risks and
+ *  are there; the other four show open items only, as the prototype has them (PR 545, signed off by the owner). Risks and
  *  issues is risks and issues, as the issue and the prototype give it. */
 export const CORE_VIEWS = [
   { id: "core-open", name: "Open items", line: "is:open", core: true },

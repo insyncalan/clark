@@ -19,7 +19,7 @@ import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
 // or archived like any other (#589). The one view left out is a starting view the page cannot answer yet (Waiting on the client, while
 // is:needed is not on): FL.heldBack. Choosing a view that cannot be read does not touch the line.
 
-// The field list, the x in the box, the core tabs and the tab's ▾ menu (#640).
+// The field list, the x in the box, the core tabs and the tab's ▾ menu (item 640).
 import { useLayoutEffect } from "preact/hooks";
 import { MenuPanel, useMenuState } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
@@ -72,7 +72,7 @@ function Chips({ parsed, onRemove }) {
   );
 }
 
-// The ▾ beside the open tab's name (#640): that tab's menu. The tabs row scrolls inside its own box at narrow widths, so the menu is
+// The ▾ beside the open tab's name (item 640): that tab's menu. The tabs row scrolls inside its own box at narrow widths, so the menu is
 // placed against the window (position: fixed, under the ▾) rather than inside the row, where the row would clip it.
 function TabMenu({ view, items, onPick }) {
   const [open, setOpen] = useMenuState();
@@ -87,12 +87,12 @@ function TabMenu({ view, items, onPick }) {
   useEffect(() => { if (!open && back.current) { back.current = false; if (btn.current) btn.current.focus(); } }, [open]);
   return (
     <>
-      <button type="button" class="vtabm" id="vtabMenu" ref={btn} aria-haspopup="menu" aria-expanded={open ? "true" : "false"} aria-label={`${view.name} view options`} title={`${view.name} view options`}
+      <button type="button" class="vtabm" id="vtabMenu" ref={btn} aria-haspopup="menu" aria-expanded={open ? "true" : "false"} aria-label={`Options for ${view.name}`} title={`Options for ${view.name}`}
         onClick={() => setOpen(!open)} onKeyDown={(e) => { if (e.key === "ArrowDown" && !open) { e.preventDefault(); setOpen(true); } }}>
         <Icon name="chevdown" />
       </button>
       {open ? (
-        <MenuPanel label={`${view.name} view`} id="vtabMenuList" cls="vtabmenu" anchor={btn.current} onClose={close} boxRef={panel}>
+        <MenuPanel label={`Options for ${view.name}`} id="vtabMenuList" cls="vtabmenu" anchor={btn.current} onClose={close} boxRef={panel}>
           {items.map((it) => it.sep ? <div key={it.id} class="sep" role="separator"></div> : (
             <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-kind={it.id} onClick={() => { close("pick"); onPick(it.id); }}>{it.name}</button>
           ))}
@@ -146,7 +146,7 @@ function SavedViews({ board }) {
   const nameBox = useRef(null);
   const [form, setForm] = useState(null);                 // null, or {mode: "saveas" | "rename", name, error}
   const mine = chosen.value[code];
-  // The tab that is on: one of the core five (#640) or one of the person's own views. `active` is only ever the person's own view, so
+  // The tab that is on: one of the core five (item 640) or one of the person's own views. `active` is only ever the person's own view, so
   // Save changes, Rename and Archive never reach a core tab; `on` is whichever tab is on, for the dot and the tab's own ▾ menu.
   const tabs = [...FL.CORE_VIEWS, ...shown];
   const on = tabs.find((v) => v.id === mine) || tabs.find((v) => !trouble(v) && !FL.differs(v, line, rows, ctx)) || null;
@@ -199,7 +199,7 @@ function SavedViews({ board }) {
       <div class="vtabs" role="group" aria-label="Saved views">
         {tabs.map((v) => {
           const isOn = !!on && on.id === v.id, dot = isOn && dirty, bad = trouble(v);
-          // The open tab carries a small ▾ beside its name with that tab's own menu (#640, as GitHub's); not in a file opened from disc.
+          // The open tab carries a small ▾ beside its name with that tab's own menu (item 640, as GitHub's); not in a file opened from disc.
           const menu = isOn && !fromFile.value ? <TabMenu view={v} items={tabItems} onPick={(id) => (id === "discard" ? pick(v) : act(id))} /> : null;
           if (bad) {          // no count: the line is not applied, so there is nothing to count
             return (
@@ -251,7 +251,7 @@ export function FilterLine({ board }) {
   const [forced, setForced] = useState(false);               // the list was asked for with the arrow keys on an empty box
   const [said, setSaid] = useState([]);
   const box = useRef(null), input = useRef(null), quiet = useRef(false);
-  // With no word being typed, the list is the field list (#640, as GitHub's): it opens when you click or Tab into the box, or press
+  // With no word being typed, the list is the field list (item 640, as GitHub's): it opens when you click or Tab into the box, or press
   // Down; with a word being typed, it is the suggestions for that word, as before. `forced` is "asked for" (a click, Tab or Down).
   const word = lastWord(draft), fieldsOnly = word === "";
   const options = !focused ? [] : fieldsOnly ? FL.fieldList() : FL.suggest(word, rows, ctx);
@@ -259,7 +259,7 @@ export function FilterLine({ board }) {
   const ask = () => { if (quiet.current) { quiet.current = false; return; } setClosed(false); setForced(true); };
   // Focus back in the box after a click on a chip's x or the box's x, without opening the field list (focus events run at once).
   const refocus = () => { if (!input.current || document.activeElement === input.current) return; quiet.current = true; input.current.focus(); quiet.current = false; };
-  // The x in the box (#640): back to the starting line, the same as Clear all, in one step; the focus stays in the box.
+  // The x in the box (item 640): back to the starting line, the same as Clear all, in one step; the focus stays in the box.
   const canClear = FL.canClear(line, rows, ctx) || draft.trim() !== "";
   const clearAll = () => {
     if (line !== FL.BASE) setLine(FL.BASE);
@@ -336,7 +336,7 @@ export function FilterLine({ board }) {
           onInput={(e) => { setDraft(e.target.value); setActive(-1); setClosed(false); setSaid([]); }} onKeyDown={onKeyDown} onFocus={ask} onClick={ask} />
         {canClear ? <button type="button" class="fclear" id="fline-clear" aria-label="Clear the filter" title="Clear the filter" onClick={clearAll}><Icon name="x" /></button> : null}
         {listed ? (
-          <ul class={`flist${fieldsOnly ? " ffields" : ""}`} id="fline-list" role="listbox" aria-label={fieldsOnly ? "Filter by field" : "Suggestions"}>
+          <ul class={`flist${fieldsOnly ? " ffields" : ""}`} id="fline-list" role="listbox" aria-label="Suggestions">
             {options.map((o, i) => (
               <li key={o.ins} id={`fo-${i}`} role="option" aria-selected={i === active ? "true" : "false"} class={`fopt ${o.kind}`} data-ins={o.ins} data-field={o.field}
                 onMouseDown={(e) => e.preventDefault()} onClick={() => accept(o)}>
@@ -350,7 +350,7 @@ export function FilterLine({ board }) {
         ) : null}
       </div>
       {
-        // Always drawn, hidden unless the line is focused and no list is open (#640: the examples never show with the list): the room
+        // Always drawn, hidden unless the line is focused and no list is open (item 640: the examples never show with the list): the room
         // stays, so a click that moves focus away from the line does not shift the page under the pointer.
         <div class={`fhints${focused && !listed ? " on" : ""}`} role="group" aria-label="Examples" aria-hidden={focused && !listed ? undefined : "true"}>
           <span class="fhl">Try</span>

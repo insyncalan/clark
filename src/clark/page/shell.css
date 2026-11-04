@@ -327,7 +327,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fopt .fl2 { font-size: var(--size-small); color: var(--text-muted); }
 .fopt[aria-selected="true"] .fl2 { color: inherit; }
 .fopt .c { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); }
-/* #640: the field list (each field with its icon, plain name and one-line note), the x that clears the line, the core tabs' row with the
+/* Item 640: the field list (each field with its icon, plain name and one-line note), the x that clears the line, the core tabs' row with the
    open tab's ▾ and "New view" at its end. The row keeps to one line and scrolls inside its own box at 900 px and below. */
 .flist.ffields { width: min(380px, 100%); }
 .fopt .fic { flex: none; align-self: center; width: var(--space-4); height: var(--space-4); color: var(--text-muted); }
