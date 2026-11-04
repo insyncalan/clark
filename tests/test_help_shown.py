@@ -24,6 +24,8 @@ SHOWN = shown_content()
 # The one place a record is really deleted today: a text section's menu (edit/Gutter.jsx). The owner has not ruled on it, so Help
 # describes the button exactly as the page labels it. FOR THE RULING (the owner / the review): archive it too, or keep Delete.
 SECTION_DELETE = "Delete section"
+# Signed by the owner on 04-11-2026, build notes: the Start here job and its entry are named this on the signed mockups. Exact strings only.
+SIGNED_DELETE = {"Move, hide and delete sections"}
 # A feature word in shown text needs proof that the page has it: a pattern that must match the page's own code (outside Help).
 FEATURES = [
     ("the peek", r"\bpeek\b", r"<Peek\b"),
@@ -97,12 +99,12 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["set-the-health", "word-in-and-out", "find-a-past-publication", "save-as-a-pdf", "use-the-board", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "publish-the-report", "word-in-and-out", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone", "undo-a-mistake"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "status-words",
                           "milestone-states", "published-reports", "diagnostics", "dates-and-ids", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], ["jobs"])      # only the jobs part is released (#642 step 3); the other six wait for their parts of clark
         self.assertEqual(len(s["reference"]["keys"]), 36 - len(LATER["keys"]))
-        self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones"])
+        self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones", "Settings and safety"])
         self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Publishing", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
@@ -196,7 +198,7 @@ class AgainstThePage(unittest.TestCase):
         # 33 measured on the merge of main (37) into the Settings Data card and Projects table (item 444, 34 on the earlier main): both sides' names on the page together (34 fails)
         # 36 measured on the merge of main (37) into item 434 (38): both sides' names on the page together (37 fails)
         # 32 measured on the merge of main (36) into the Settings Data card and Projects table (item 444, 33): both sides' names on the page together (33 fails)
-        self.assertGreaterEqual(len(names), 32)
+        self.assertGreaterEqual(len(names), 29)      # measured 29 with add-a-work-item, write-the-weekly-report, publish-the-report and undo-a-mistake released (32 before: their old steps named AI and other features not built); lower only when a feature lands
         # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
         # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
         # 56 measured on the merged tree after the next main merge (names printed): the milestone details toggle (C-M6) leaves the list on top of the Supporting documents section
@@ -217,6 +219,7 @@ COMPUTED = {
     "3 days late": "Due, built from the date (workItems.js dueCell)",
     "In 5 days": "Due, built from the date (workItems.js dueCell)",
     "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
+    "DPP-report-2026-10-30.html": "a worked example of the file name Publish builds from the project's code and the week ending (its form is checked by test_help_content.PublishFileName)",
     "this week\u2019s actions": "an example of what a card might be called, not a label",
     "decisions needed": "an example of what a card might be called, not a label",
 }
@@ -270,8 +273,12 @@ class NeverDelete(unittest.TestCase):
         return [s for s in strings(RAW)] + [s for s in strings(LATER)]
 
     def test_no_delete_in_the_words_except_the_section_button_as_the_page_labels_it(self):
+        """Signed by the owner on 04-11-2026, build notes (the signed mockups): the string in SIGNED_DELETE is allowed, exactly, and no other
+        Help word may say "delete" except the Delete section button's own name."""
         found = []
         for s in self.user_text():
+            if s in SIGNED_DELETE:
+                continue
             rest = s.replace(SECTION_DELETE, "")
             found += re.findall(r"(?i)\b(delet\w*)\b", rest)
         self.assertEqual(found, [])

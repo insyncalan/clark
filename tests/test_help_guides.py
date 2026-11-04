@@ -247,7 +247,7 @@ class PageKey(unittest.TestCase):
         print("\nHelp context per screen:", ", ".join(f"{s}={n}" for s, n in counts.items()), "| cards:", cards or "none")
         # The counts recorded when the key was added; the step that writes the context text raises them (and adds the rule that
         # none is zero), so it changes these numbers with it.
-        self.assertEqual(counts, {"dashboard": 0, "dashboard+edit": 8, "work": 1, "milestones": 1, "settings": 2})
+        self.assertEqual(counts, {"dashboard": 1, "dashboard+edit": 9, "work": 2, "milestones": 1, "settings": 2})      # measured on the tree with the four entries released (was 0, 8, 1, 1, 2)
         self.assertEqual(cards, {"settings#pubs": 1})
 
     def test_context_for_agrees_with_the_source_on_every_screen_and_card_and_never_returns_a_held_entry(self):

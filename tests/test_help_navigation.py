@@ -17,10 +17,9 @@ from test_help_guides import FIXTURE, fixture_content, run_node
 import build_page  # noqa: E402  (dev/tools, on the path through test_help_guides)
 
 JOBS = ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"]
-# The owner's decision (item-642.md section 8) names the fourth job "Move, hide and delete sections", and the signed mockup uses it. The
-# never-delete rule (test_help_shown.NeverDelete: Help says Archive, and Delete only as the section button is labelled) refuses the word
-# "delete" anywhere else in Help's words, so the job carries its entry's own title until the owner rules. Not loosened here.
-TITLE_FOR_ARRANGE = "Arrange the report’s sections"
+# The owner named the fourth job "Move, hide and delete sections" (item-642.md section 8, the signed mockups). It is used for the job, the contents
+# list and the entry title; the never-delete test allows exactly that signed string (test_help_shown.SIGNED_DELETE).
+TITLE_FOR_ARRANGE = "Move, hide and delete sections"
 MOCKUP = {
     "add-a-work-item": ("Add a work item", "Put a new task on the plan and say who owns it."),
     "write-the-weekly-report": ("Write this week’s report", "Fill in the status, the highlights and the next steps."),
@@ -30,79 +29,133 @@ MOCKUP = {
 }
 
 
+ENTRIES = ["add-a-work-item", "write-the-weekly-report", "publish-the-report", "undo-a-mistake"]     # written for step 3, shown now
+# Words the owner keeps out of what a person reads (and AI, which is not in this release).
+BANNED = r"(?i)\b(apply|applied|applies|applying|staged|staging|proposal|proposals|sweep|tracker|vault|extract|extracted|extracts|AI)\b|Draft with|Claude"
+
+
 class TheFiveJobs(unittest.TestCase):
-    def test_the_source_holds_the_five_jobs_in_the_owners_order_with_the_mockups_words(self):
+    def test_the_source_holds_the_five_jobs_in_the_owners_order_with_the_signed_words(self):
         self.assertEqual([j[0] for j in RAW["start"]["jobs"]], JOBS)
         for j in RAW["start"]["jobs"]:
             self.assertEqual((j[1], j[2]), MOCKUP[j[0]], j[0])
-        self.assertEqual((RAW["start"]["text"]["undo_lead"], RAW["start"]["text"]["undo_link"]), ("Made a mistake?", "Undo the last change"))
+        self.assertEqual(RAW["start"]["jobs"][3][1], "Move, hide and delete sections", "the owner's name for the job")
+        t = RAW["start"]["text"]
+        self.assertEqual((t["undo_lead"], t["undo_link"]), ("Made a mistake?", "Undo the last change"))
+        self.assertEqual((t["jobs_head"], t["jobs_lead"], t["jobs_title"], t["jobs_more"]),
+                         ("Start here", "Pick a job and follow the steps. Each one is short.", "The five jobs", "Also under How do I..."))
         self.assertNotIn("excel", json.dumps(RAW["start"]["jobs"]).lower(), "bringing in an Excel workbook is not a start page job")
 
-    def test_only_the_jobs_with_a_shown_entry_are_shown_and_the_rest_are_held(self):
-        shown = shown_content()
-        ids = {t["id"] for t in shown["howto"]["tasks"]}
-        self.assertEqual([j[0] for j in shown["start"]["jobs"]], [j for j in JOBS if j in ids])
-        self.assertEqual([j[0] for j in shown["start"]["jobs"]], ["add-a-section-from-a-template", "arrange-the-report"])
-        held = [j for j in JOBS if j in LATER["howto"]]
-        self.assertEqual(held, ["add-a-work-item", "write-the-weekly-report", "publish-the-report"])
-        self.assertTrue(set(held).isdisjoint(j[0] for j in shown["start"]["jobs"]))
-
-    def test_the_undo_link_is_held_with_its_entry(self):
-        self.assertIn("undo-a-mistake", LATER["howto"])
+    def test_all_five_jobs_and_the_undo_link_are_shown(self):
         s = shown_content()["start"]
-        self.assertEqual((s["undo"], s["text"]["undo_lead"], s["text"]["undo_link"]), ("", "", ""))
-
-    def test_a_job_whose_entry_is_released_shows_with_its_words(self):
-        """Mutation check: with nothing held all five and the Undo link appear, in the owner's order (the rule bites both ways)."""
-        s = shown_content(RAW, {})["start"]
         self.assertEqual([j[0] for j in s["jobs"]], JOBS)
         self.assertEqual((s["undo"], s["text"]["undo_link"]), ("undo-a-mistake", "Undo the last change"))
-        one = {"howto": {"publish-the-report": "later"}}
-        self.assertEqual([j[0] for j in shown_content(RAW, one)["start"]["jobs"]], JOBS[:4])
+        ids = {t["id"] for t in shown_content()["howto"]["tasks"]}
+        self.assertTrue(all(j in ids for j in JOBS), "every job opens an entry that is shown")
 
-    def test_a_held_job_leaves_no_word_and_no_link_in_the_shown_content(self):
-        text = json.dumps(shown_content(), ensure_ascii=False)
-        for i in ("add-a-work-item", "write-the-weekly-report", "publish-the-report"):
-            self.assertNotIn(MOCKUP[i][1], text, f"the held job {i} shows its description")
-            self.assertNotIn(f"howto-{i}", text)
-        self.assertNotIn("Made a mistake?", text)
+    def test_the_fourth_jobs_entry_carries_the_owners_name(self):
+        t = next(x for x in RAW["howto"]["tasks"] if x["id"] == "arrange-the-report")
+        self.assertEqual(t["t"], "Move, hide and delete sections")
+
+    def test_a_job_whose_entry_is_held_is_not_shown_and_its_words_go_with_it(self):
+        """The rule bites: hold one entry and its job (and the Undo link, for undo) leave the shown content, with their words."""
+        s = shown_content(RAW, {"howto": {"publish-the-report": "later", "undo-a-mistake": "later"}})["start"]
+        self.assertEqual([j[0] for j in s["jobs"]], JOBS[:4])
+        self.assertEqual((s["undo"], s["text"]["undo_lead"], s["text"]["undo_link"]), ("", "", ""))
+        text = json.dumps(shown_content(RAW, {"howto": {"publish-the-report": "later", "undo-a-mistake": "later"}}), ensure_ascii=False)
+        self.assertNotIn(MOCKUP["publish-the-report"][1], text)
         self.assertNotIn("Undo the last change", text)
+        self.assertNotIn("howto-publish-the-report", json.dumps(s))
+        every = shown_content(RAW, {"howto": {i: "later" for i in JOBS}})["start"]
+        self.assertEqual(every["jobs"], [])
 
-    def test_the_built_page_has_no_held_job_words(self):
+    def test_the_built_page_holds_a_held_job_out(self):
         built = build_page.help_content_path(True).read_text(encoding="utf-8")
-        for i in ("add-a-work-item", "write-the-weekly-report", "publish-the-report"):
-            self.assertNotIn(MOCKUP[i][1], built, i)
-        self.assertNotIn("Undo the last change", built)
-        self.assertIn(MOCKUP["arrange-the-report"][1], built)
-        self.assertEqual([j[0] for j in json.loads(built)["start"]["jobs"]], ["add-a-section-from-a-template", "arrange-the-report"])
+        self.assertEqual([j[0] for j in json.loads(built)["start"]["jobs"]], JOBS)
+        self.assertIn(MOCKUP["publish-the-report"][1], built)
 
     def test_the_browsers_copy_and_the_python_copy_agree_on_the_jobs(self):
         r = run_node(RAW, "(() => ({ shown: HL.content.start.jobs.map((j) => j[0]), undo: HL.undoLink(), list: HL.jobs().map((j) => j.place) }))()")
-        self.assertEqual(r["shown"], ["add-a-section-from-a-template", "arrange-the-report"])
-        self.assertEqual(r["list"], ["howto-add-a-section-from-a-template", "howto-arrange-the-report"])
-        self.assertIsNone(r["undo"])
-        r = run_node(RAW, "(() => { HL.useHeld({}); return { shown: HL.content.start.jobs.map((j) => j[0]), undo: HL.undoLink() }; })()")
         self.assertEqual(r["shown"], JOBS)
+        self.assertEqual(r["list"], ["howto-" + i for i in JOBS])
         self.assertEqual(r["undo"], {"lead": "Made a mistake?", "link": "Undo the last change", "place": "howto-undo-a-mistake"})
+        r = run_node(RAW, "(() => { HL.useHeld({ howto: { 'publish-the-report': 'later' } }); return { shown: HL.content.start.jobs.map((j) => j[0]) }; })()")
+        self.assertEqual(r["shown"], JOBS[:4])
 
-    def test_a_held_job_is_not_in_the_search_the_places_or_the_contents_list(self):
-        r = run_node(RAW, "(() => { const i = HL.buildIndex(); return { places: HL.placeIds(), words: HL.search(i, 'highlights').filter((x) => x.id === 'start-jobs').length, list: HL.tabList('start')[0].entries.map((e) => e.place),"
-                     " where: HL.placeOf('howto-add-a-work-item', 'start') }; })()")
-        self.assertEqual(r["words"], 0)
-        self.assertNotIn("howto-add-a-work-item", r["places"])
-        self.assertNotIn("howto-add-a-work-item", r["list"])
-        self.assertEqual(r["list"], ["start-jobs", "howto-add-a-section-from-a-template", "howto-arrange-the-report"])
-        self.assertFalse(r["where"]["known"])
+    def test_the_contents_list_of_start_here_has_the_three_groups(self):
+        r = run_node(RAW, "HL.tabList('start').map((g) => [g.group, g.entries.map((e) => e.place)])")
+        self.assertEqual(r[0], ["Start here", ["start-jobs"]])
+        self.assertEqual(r[1], ["The five jobs", ["howto-" + i for i in JOBS]])
+        self.assertEqual(r[2][0], "Also under How do I...")
+        others = [t["id"] for t in shown_content()["howto"]["tasks"] if t["id"] not in JOBS]
+        self.assertEqual(r[2][1], ["howto-" + i for i in others], "the other shown how-to entries, in the source's order")
+        self.assertEqual(len(r), 3)
 
-    def test_the_jobs_part_is_searchable_by_a_shown_jobs_words(self):
+    def test_the_jobs_part_is_searchable_by_its_words(self):
         r = run_node(RAW, "(() => HL.search(HL.buildIndex(), 'ready-made').map((x) => x.id))()")
         self.assertEqual(r[0], "start-jobs")
+        r = run_node(RAW, "(() => HL.search(HL.buildIndex(), 'delete sections').map((x) => x.id))()")
+        self.assertIn("start-jobs", r)
+        self.assertIn("howto-arrange-the-report", r)
+
+
+class TheNewEntries(unittest.TestCase):
+    """The four entries written for step 3: add a work item, write this week's report, publish the report, undo a mistake."""
+    def entry(self, i):
+        return next(t for t in shown_content()["howto"]["tasks"] if t["id"] == i)
+
+    def test_each_is_shown_and_has_a_group_title_where_and_three_to_six_numbered_steps(self):
+        for i in ENTRIES:
+            t = self.entry(i)
+            self.assertTrue(t["g"] in shown_content()["howto"]["groups"], i)
+            self.assertTrue(t["t"].strip() and t["w"].strip(), i)
+            self.assertTrue(3 <= len(t["s"]) <= 6, f"{i}: {len(t['s'])} steps")
+            self.assertTrue(all(s.strip() for s in t["s"]), i)
+            self.assertNotIn(i, LATER["howto"], i)
+
+    def test_each_has_a_next_list_that_points_at_shown_places_only(self):
+        r = run_node(RAW, "(() => { const o = {}; for (const id of %s) { const t = HL.tasks().find((x) => x.id === id); o[id] = [t.next, HL.nextOf(t.next).map((n) => n.place)]; } return o; })()" % json.dumps(ENTRIES))
+        for i in ENTRIES:
+            given, shown = r[i]
+            self.assertTrue(given, i)
+            self.assertEqual(given, shown, f"{i}: every next place is a shown place")
+            self.assertNotIn("howto-" + i, given, "an entry does not point at itself")
+
+    def test_the_words_avoid_the_words_the_owner_keeps_out_and_say_nothing_of_ai(self):
+        import re
+        for i in ENTRIES:
+            t = self.entry(i)
+            text = " ".join([t["t"], t["w"]] + t["s"] + [t.get("n", "")])
+            self.assertIsNone(re.search(BANNED, text), f"{i}: {re.search(BANNED, text)}")
+            self.assertNotRegex(text, r"(?<!\d)\d{1,2}/\d{1,2}/\d{2,4}", i)    # dates are DD-MM-YYYY, never with slashes
+
+    def test_the_steps_say_only_what_is_built(self):
+        add, publish, write, undo = (self.entry(i) for i in ("add-a-work-item", "publish-the-report", "write-the-weekly-report", "undo-a-mistake"))
+        self.assertIn("**Add item**", " ".join(add["s"]))
+        self.assertIn("Also a PDF", " ".join(publish["s"]))
+        self.assertIn("Also a Word document", " ".join(publish["s"]))
+        self.assertIn("Publish locally", " ".join(publish["s"]))
+        self.assertIn("Week ending", " ".join(write["s"]))
+        self.assertIn("**Activity**", " ".join(undo["s"]))
+
+    def test_a_search_finds_each_new_entry(self):
+        probes = {"add-a-work-item": "placeholder", "write-the-weekly-report": "week ending", "publish-the-report": "preview", "undo-a-mistake": "activity"}
+        for i, word in probes.items():
+            r = run_node(RAW, "(() => HL.search(HL.buildIndex(), %s).map((x) => x.id))()" % json.dumps(word))
+            self.assertIn("howto-" + i, r, f"{word} finds {i}")
+        r = run_node(RAW, "(() => HL.search(HL.buildIndex(), 'Publish the report').map((x) => x.id))()")
+        self.assertEqual(r[0], "howto-publish-the-report")
+
+    def test_the_remaining_held_entries_stay_held(self):
+        for i in ("check-the-report", "improve-wording-with-ai", "find-work-items", "import-and-export", "update-a-milestone"):
+            self.assertIn(i, LATER["howto"], i)
+            self.assertNotIn(i, [t["id"] for t in shown_content()["howto"]["tasks"]])
 
 
 class WhatNext(unittest.TestCase):
     def test_a_next_list_gives_shown_places_with_their_titles_in_order_once_each(self):
         first = "howto-" + next(t["id"] for t in shown_content()["howto"]["tasks"])
-        r = run_node(RAW, "(() => HL.nextOf([%s, 'ref-keys', %s, 'howto-add-a-work-item', 'howto-nothing', 5, null]))()" % (json.dumps(first), json.dumps(first)))
+        r = run_node(RAW, "(() => HL.nextOf([%s, 'ref-keys', %s, 'howto-find-work-items', 'howto-nothing', 5, null]))()" % (json.dumps(first), json.dumps(first)))
         self.assertEqual([n["place"] for n in r], [first, "ref-keys"])
         self.assertTrue(all(n["title"] for n in r))
 

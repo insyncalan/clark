@@ -49,7 +49,9 @@ function Start() {
         <ol class="hp-first">{firstTen().map((f, i) => <li key={f.t}><span class="hp-big">{i + 1}</span><b>{f.t}</b><p><Md text={f.d} /></p></li>)}</ol>
       </section> : null}
       {on("jobs") ? <section class="hp-sec hp-start-jobs" id="hp-start-jobs" data-k="start-jobs" aria-labelledby="hpT3" tabIndex={helpHere.value === "start-jobs" ? 0 : -1}>
-        <h2 id="hpT3">{T.jobs_title}</h2>
+        <h2 id="hpT3">{T.jobs_head}</h2>
+        <p class="hp-lead">{T.jobs_lead}</p>
+        <h3 class="hp-jobs-h">{T.jobs_title}</h3>
         <ol class="hp-jobs">
           {jobs().map((j) => (
             <li key={j.id}>

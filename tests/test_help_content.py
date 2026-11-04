@@ -27,7 +27,7 @@ UI_NAMES = {"clark version and updates"}     # the name of a Settings section (B
 # 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
 # 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) is read on the page itself; the prototype words it differently. 'Shown to client' left this list with the tag on a work item row (#456: the eye column says it, and Help no longer bolds it)
 # 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
-CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
+CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Install clark X.Y.Z', 'Keep the date', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Remove group', 'Review X.Y.Z', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -139,7 +139,7 @@ class Places(unittest.TestCase):
     def test_every_link_inside_help_finds_its_place(self):
         links = {m for s in self.all_strings() for m in re.findall(r"\]\(#([^)]+)\)", s)}
         links |= {"howto-" + j[0] for j in START["jobs"]} | {"ref-keys"}
-        self.assertGreater(len(links), 17)   # measured 18 on this tree; it was 24 with the prototype's twelve jobs (each job adds its place). The floor is the measured count less one.
+        self.assertGreater(len(links), 16)   # measured 17 on this tree (18 before the four entries were released and the jobs list gained none); it was 24 with the prototype's twelve jobs. The floor is the measured count less one.
         self.assertEqual(sorted(links - self.ids), [])
 
     def test_every_screen_help_sends_you_to_exists(self):

@@ -22,7 +22,7 @@ from test_help_navigation import MOCKUP
 import build_page  # noqa: E402
 
 TOPBAR = 56
-HELD_JOB_WORDS = [MOCKUP[i][1] for i in ("add-a-work-item", "write-the-weekly-report", "publish-the-report")]
+HELD_PLACES = ("howto-find-work-items", "howto-check-the-report", "howto-import-and-export", "howto-improve-wording-with-ai", "ref-peek")     # still held: never shown, never linked
 SIZES = (1400, 900)
 THEMES = ("light", "dark")
 
@@ -47,12 +47,12 @@ class Nav(Base):
         return p
 
     # ---------- (1) the jobs ----------
-    def test_start_here_shows_the_jobs_with_a_shown_entry_as_large_links_and_never_a_held_one(self):
+    def test_start_here_shows_the_five_jobs_as_large_links_and_never_a_held_place(self):
         from test_server import chrome
         with chrome() as cdp:
             p = self.in_help(cdp)
             shown = [j for j in shown_content()["start"]["jobs"]]
-            self.assertEqual(len(shown), 2)
+            self.assertEqual(len(shown), 5)
             for w in SIZES:
                 set_size(cdp, p, w)
                 self.assertEqual(p.js("!!document.querySelector('#hp-later')"), False)
@@ -65,13 +65,20 @@ class Nav(Base):
                     self.assertGreaterEqual(size, 18)
                     self.assertEqual(tag, "A")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), f"{w}: no sideways scroll")
-            text = p.js("document.querySelector('#help').textContent")
-            for words in HELD_JOB_WORDS:
-                self.assertNotIn(words, text)
-            for held in ("add-a-work-item", "write-the-weekly-report", "publish-the-report", "undo-a-mistake"):
-                self.assertEqual(p.js(f"document.querySelector('[data-hlink=\"howto-{held}\"], [data-hnext=\"howto-{held}\"]')"), None, f"{held} is held: no link to it")
-            self.assertEqual(p.js("document.querySelector('.hp-undo')"), None, "the Undo link waits for its entry")
+            self.assertEqual(p.js("document.querySelector('.hp-start-jobs h2').textContent"), "Start here")
+            self.assertEqual(p.js("document.querySelector('.hp-start-jobs .hp-lead').textContent"), "Pick a job and follow the steps. Each one is short.")
+            self.assertEqual(p.js("document.querySelector('.hp-jobs-h').textContent"), "The five jobs")
+            self.assertEqual(p.js("document.querySelector('.hp-undo').textContent"), "Made a mistake? Undo the last change")
+            self.assertEqual(p.js("document.querySelector('.hp-undo a').dataset.hlink"), "howto-undo-a-mistake")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('.hp-undo')).fontSize !== getComputedStyle(document.querySelector('.hp-job b')).fontSize"), True, "a small link beside the jobs")
+            for held in HELD_PLACES:
+                self.assertEqual(p.js(f"document.querySelector('[data-hlink=\"{held}\"], [data-hnext=\"{held}\"]')"), None, f"{held} is held: no link to it")
             self.assertNotIn("Excel", p.js("document.querySelector('.hp-start-jobs').textContent"))
+            for scheme in THEMES:
+                set_theme(cdp, p, scheme)
+                for w in SIZES:
+                    set_size(cdp, p, w)
+                    self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), f"{scheme} {w}")
 
     def test_a_job_opens_its_entry_and_every_link_on_start_here_has_a_place(self):
         from test_server import chrome
@@ -84,7 +91,7 @@ class Nav(Base):
                 p.until(f"!!document.querySelector('#hp-{place}.hp-found')", f"{place} exists and opens")
             p.js("document.querySelector('#hpTab-start').click()")
             p.until("!!document.querySelector('.hp-job')", "back on Start here")
-            p.js("document.querySelector('.hp-job').click()")
+            p.js("document.querySelector('.hp-job[data-hlink=howto-add-a-section-from-a-template]').click()")
             p.until("!!document.querySelector('#hp-howto-add-a-section-from-a-template.hp-found') && document.querySelector('#hpTab-howto').getAttribute('aria-selected') === 'true'", "the job opened its entry under How do I…")
 
     # ---------- (2) the contents list ----------
@@ -135,7 +142,7 @@ class Nav(Base):
         with chrome() as cdp:
             p = self.in_help(cdp)
             self.assertEqual(p.js("[...document.querySelectorAll('.hp-idx a')].map(a => a.textContent)"),
-                             ["Start here"] + [j[1] for j in shown_content()["start"]["jobs"]])
+                             ["Start here"] + [j[1] for j in shown_content()["start"]["jobs"]] + [x["t"] for x in shown_content()["howto"]["tasks"] if x["id"] not in [j[0] for j in shown_content()["start"]["jobs"]]])
             self.assertEqual(p.js("document.querySelector('.hp-idx a[aria-current]').textContent"), "Start here")
             self.assertEqual(p.js("getComputedStyle(document.querySelector('.hp-idx')).position"), "sticky")
 
@@ -145,7 +152,7 @@ class Nav(Base):
         with chrome() as cdp:
             p = self.in_help(cdp)
             self.assertEqual(p.js("document.querySelector('#hpPrev')"), None, "nowhere to go back to yet")
-            p.js("document.querySelector('.hp-job').click()")
+            p.js("document.querySelector('.hp-job[data-hlink=howto-add-a-section-from-a-template]').click()")
             p.until("!!document.querySelector('#hp-howto-add-a-section-from-a-template.hp-found')", "the job opened")
             self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to Start here")
             self.assertTrue(p.js("var a=document.querySelector('#hpBack').getBoundingClientRect(), b=document.querySelector('#hpPrev').getBoundingClientRect(); b.left >= a.right - 1 && Math.abs(a.top - b.top) < 8"), "beside Back, on its row")
@@ -167,7 +174,7 @@ class Nav(Base):
         from test_server import chrome
         with chrome() as cdp:
             p = self.in_help(cdp)
-            p.js("document.querySelector('.hp-job').click()")
+            p.js("document.querySelector('.hp-job[data-hlink=howto-add-a-section-from-a-template]').click()")
             p.until("!!document.querySelector('#hpPrev')", "a way back")
             for scheme in THEMES:
                 set_theme(cdp, p, scheme)
@@ -273,10 +280,10 @@ def fixture_content():
     c = copy.deepcopy(RAW)
     c["guides"] = [{"id": "fixture-guide", "t": "Fixture guide", "job": "Check that a wombat can read it.",
                     "steps": [{"d": "Open the **Zebra** screen."}, {"d": "Press `Quokka` twice."}], "result": "A numbat arrives.",
-                    "next": ["howto-arrange-the-report", "howto-add-a-work-item", "ref-keys", "howto-nothing-here"]}]
+                    "next": ["howto-arrange-the-report", "howto-find-work-items", "ref-keys", "howto-nothing-here"]}]
     for t in c["howto"]["tasks"]:
         if t["id"] == "set-the-health":
-            t["next"] = ["guide-fixture-guide", "howto-publish-the-report"]
+            t["next"] = ["guide-fixture-guide", "howto-check-the-report"]
     return c
 
 
@@ -310,7 +317,7 @@ class WhatNextPage(Base):
             p = self.open_at(cdp, "guide-fixture-guide")
             self.assertEqual(p.js("document.querySelector('#hp-guide-fixture-guide .hp-next h4').textContent"), "What next")
             self.assertEqual(p.js("[...document.querySelectorAll('#hp-guide-fixture-guide .hp-next a')].map(a => [a.dataset.hnext, a.textContent])"),
-                             [["howto-arrange-the-report", "Arrange the report’s sections"], ["ref-keys", next(s["t"] for s in RAW["reference"]["sections"] if s["id"] == "keys")]],
+                             [["howto-arrange-the-report", "Move, hide and delete sections"], ["ref-keys", next(s["t"] for s in RAW["reference"]["sections"] if s["id"] == "keys")]],
                              "the held place and the place that does not exist are left out; the order is the guide's")
             self.assertEqual(p.js("document.querySelector('#hp-guide-fixture-guide .hp-next').parentElement === document.querySelector('#hp-guide-fixture-guide')"), True)
             self.assertEqual(p.js("document.querySelector('#hp-guide-fixture-guide').lastElementChild.className"), "hp-next", "at the end of the entry")
@@ -334,8 +341,8 @@ class WhatNextPage(Base):
             p = self.open_at(cdp, "howto-set-the-health")
             self.assertEqual(p.js("[...document.querySelectorAll('#hp-howto-set-the-health .hp-next a')].map(a => a.dataset.hnext)"), ["guide-fixture-guide"],
                              "the held entry in its list is not linked")
-            self.assertEqual(p.js("document.querySelectorAll('#hpPane .hp-next').length"), 2, "this entry and the guide: no other entry has a next list")
-            self.assertEqual(p.js("document.querySelectorAll('.hp-task:not(#hp-howto-set-the-health):not(.hp-guide) .hp-next').length"), 0)
+            self.assertEqual(p.js("document.querySelectorAll('#hpPane .hp-next').length"), 6, "the four written entries, this one and the guide: no other entry has a next list")
+            self.assertEqual(p.js("document.querySelectorAll('.hp-task:not(#hp-howto-set-the-health):not(.hp-guide):not(#hp-howto-add-a-work-item):not(#hp-howto-write-the-weekly-report):not(#hp-howto-publish-the-report):not(#hp-howto-undo-a-mistake) .hp-next').length"), 0)
 
     def test_what_next_in_both_themes_and_widths(self):
         from test_server import chrome

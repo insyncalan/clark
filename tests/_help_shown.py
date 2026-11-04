@@ -16,7 +16,7 @@ START_FIELDS = {
     "top": {"hero": {"label": "", "title": "", "lead": ""}},
     "loop": {"loop": [], "text": ["loop_title", "loop_intro", "loop_return"]},
     "first": {"first": [], "text": ["first_title"]},
-    "jobs": {"jobs": [], "undo": "", "text": ["jobs_title", "undo_lead", "undo_link"]},
+    "jobs": {"jobs": [], "undo": "", "text": ["jobs_head", "jobs_lead", "jobs_title", "jobs_more", "undo_lead", "undo_link"]},
     "where": {"where": [], "text": ["where_title", "keyline", "keyline_link"]},
     "rules": {"rules": [], "text": ["rules_title"]},
     "foot": {"text": ["foot", "foot_link"]},

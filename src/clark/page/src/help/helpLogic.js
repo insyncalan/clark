@@ -17,7 +17,7 @@ const START_FIELDS = {
   top: { hero: { label: "", title: "", lead: "" } },
   loop: { loop: [], text: ["loop_title", "loop_intro", "loop_return"] },
   first: { first: [], text: ["first_title"] },
-  jobs: { jobs: [], undo: "", text: ["jobs_title", "undo_lead", "undo_link"] },
+  jobs: { jobs: [], undo: "", text: ["jobs_head", "jobs_lead", "jobs_title", "jobs_more", "undo_lead", "undo_link"] },
   where: { where: [], text: ["where_title", "keyline", "keyline_link"] },
   rules: { rules: [], text: ["rules_title"] },
   foot: { text: ["foot", "foot_link"] },
@@ -99,19 +99,24 @@ export function tabList(tab) {
   if (tab === "reference") return by(CONTENT.reference.groups, sections(), PREFIX.reference);
   if (tab === "start") {
     // The parts of Start here, and after the jobs part the jobs it shows (each opens its entry under How do I…).
-    const rows = [];
+    const out = [], T = CONTENT.start.text;
     for (const p of CONTENT.start.parts) {
-      rows.push({ id: p, title: startTitle(p), place: PREFIX.start + p });
-      if (p === "jobs") for (const j of jobs()) rows.push({ id: j.id, title: j.title, place: j.place });
+      out.push({ group: p === "jobs" ? T.jobs_head : "Start here", entries: [{ id: p, title: startTitle(p), place: PREFIX.start + p }] });
+      if (p === "jobs") {
+        const js = jobs(), ids = new Set(js.map((j) => j.id));
+        out.push({ group: T.jobs_title, entries: js.map((j) => ({ id: j.id, title: j.title, place: j.place })) });
+        const more = tasks().filter((x) => !ids.has(x.id));
+        if (more.length) out.push({ group: T.jobs_more, entries: more.map((x) => ({ id: x.id, title: x.t, place: PREFIX.howto + x.id })) });
+      }
     }
-    return rows.length ? [{ group: "Start here", entries: rows }] : [];
+    return out;
   }
   return [];
 }
 
 function startTitle(part) {
   const t = CONTENT.start.text;
-  return { top: CONTENT.start.hero.title, loop: t.loop_title, first: t.first_title, jobs: t.jobs_title, where: t.where_title, rules: t.rules_title, foot: "Start here" }[part];
+  return { top: CONTENT.start.hero.title, loop: t.loop_title, first: t.first_title, jobs: t.jobs_head, where: t.where_title, rules: t.rules_title, foot: "Start here" }[part];
 }
 
 // ---------- the guides (#642 step 2) ----------
@@ -285,7 +290,7 @@ export function buildIndex(dynamic = null) {
   if (on("top")) add("start", "start-top", S.hero.title, [S.hero.label, S.hero.lead]);
   if (on("loop")) add("start", "start-loop", T.loop_title, [T.loop_intro, ...S.loop.map((x) => `${x.t}. ${x.d}`), T.loop_return]);
   if (on("first")) add("start", "start-first", T.first_title, S.first.map((x) => `${x.t}. ${x.d}`));
-  if (on("jobs")) add("start", "start-jobs", T.jobs_title, S.jobs.map((j) => `${j[1]} ${j[2]}`));
+  if (on("jobs")) add("start", "start-jobs", T.jobs_title, [T.jobs_lead, ...S.jobs.map((j) => `${j[1]} ${j[2]}`)]);
   if (on("where")) add("start", "start-where", T.where_title, [...S.where.map((w) => `${w[0]}. ${w[1]}`), T.keyline]);
   if (on("rules")) add("start", "start-rules", T.rules_title, S.rules.map((r) => `${r[0]}. ${r[1]}`));
   if (on("foot")) add("start", "start-foot", "Start here", [T.foot, T.foot_link]);
