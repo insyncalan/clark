@@ -118,9 +118,9 @@ class Logic(unittest.TestCase):
 
     def test_how_do_i_lists_every_task_under_its_group(self):
         lst = self.r["lists"]["howto"]
-        self.assertEqual([g["group"] for g in lst], CONTENT["howto"]["groups"])
-        self.assertEqual(sum(len(g["entries"]) for g in lst), len(TASKS))
-        self.assertEqual(sum(len(g["entries"]) for g in lst), 34)   # with the People entry (#454)
+        self.assertEqual([g["group"] for g in lst], CONTENT["howto"]["groups"] + [""])      # the guides follow, in a run with no heading
+        self.assertEqual(sum(len(g["entries"]) for g in lst), len(TASKS) + len(CONTENT["guides"]))
+        self.assertEqual(sum(len(g["entries"]) for g in lst), 34 + 4)   # with the People entry (#454) and the four guides (#642 step 10)
         first = lst[0]["entries"][0]
         self.assertEqual(first, {"id": TASKS[0]["id"], "title": TASKS[0]["t"], "place": "howto-" + TASKS[0]["id"]})
 
@@ -169,7 +169,7 @@ class Logic(unittest.TestCase):
     def test_every_place_is_unique_and_the_count_is_right(self):
         p = self.r["places"]
         self.assertEqual(len(p), len(set(p)))
-        self.assertEqual(len(p), 7 + 34 + 35)   # with the People entries (#454)
+        self.assertEqual(len(p), 7 + 34 + 35 + 4)   # with the People entries (#454) and the four guides (#642 step 10)
 
     # ---- search ----
     def test_search_finds_every_entry_by_its_title(self):
@@ -321,11 +321,13 @@ class Shown(unittest.TestCase):
         SEC = ["start-jobs", "howto-write-the-weekly-report", "howto-set-the-health", "howto-publish-the-report", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-add-a-work-item", "howto-use-the-board", "howto-arrange-the-report", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-handle-a-slipped-milestone", "howto-undo-a-mistake",
                "ref-profile-circle", "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-freshness", "ref-archive-restore", "ref-at-a-glance", "ref-layouts", "ref-work-items",
                "ref-milestones-page", "ref-status-words", "ref-milestone-states", "ref-published-reports", "ref-diagnostics", "ref-dates-and-ids", "ref-using-help", "ref-keys"]
+        GUIDES = ["guide-hand-an-item-over", "guide-save-a-view", "guide-see-the-dashboard-as-at-a-day", "guide-back-up-and-restore-your-data"]
+        SEC += GUIDES
         self.assertEqual(s["places"], SEC)
         jobs = [e["place"] for g in s["tabs"]["start"] if g["group"] == "The five jobs" for e in g["entries"]]
         self.assertEqual(jobs, ["howto-add-a-work-item", "howto-write-the-weekly-report", "howto-add-a-section-from-a-template", "howto-arrange-the-report", "howto-publish-the-report"], "Start here lists the five jobs, all shown")
         self.assertTrue(all(p in SEC for p in jobs), "and each is a shown place")
-        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[1:15])
+        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[1:15] + GUIDES)
         self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]],
                          ["ref-profile-circle", "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-at-a-glance", "ref-layouts", "ref-work-items", "ref-milestones-page", "ref-freshness", "ref-archive-restore",
                           "ref-status-words", "ref-milestone-states", "ref-published-reports", "ref-diagnostics", "ref-dates-and-ids", "ref-using-help", "ref-keys"])      # by group: Screens, Working with items, Milestones, Publishing, Settings and data, Keys and icons
@@ -335,10 +337,10 @@ class Shown(unittest.TestCase):
         self.assertEqual(s["q"]["peek"], ["howto-write-the-weekly-report", "howto-add-a-work-item", "howto-undo-a-mistake", "ref-freshness"], "no peek entry of its own is shown; the weekly report, add a work item and undo entries say where the peek opens, and Freshness where it shows Raised and Last reviewed")
         self.assertEqual(s["q"]["movement"][:2], ["ref-milestones-page", "howto-handle-a-slipped-milestone"], "a search for movement finds the Movement entries")
         self.assertEqual(s["q"]["diagnostics"][0], "ref-diagnostics", "a search for diagnostics finds the Diagnostics entry")
-        self.assertEqual(s["q"]["publish"], ["howto-publish-the-report", "ref-published-reports", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-add-a-work-item", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "start-jobs", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-freshness", "ref-archive-restore",
+        self.assertEqual(s["q"]["publish"], ["howto-publish-the-report", "ref-published-reports", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-add-a-work-item", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "guide-see-the-dashboard-as-at-a-day", "start-jobs", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-freshness", "ref-archive-restore",
                                              "ref-layouts", "ref-milestones-page", "ref-status-words", "ref-milestone-states"],
                          "the Published reports entries, then the entries that say what is or is not on the published page; only entries about Publish that are shown")
-        self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "ref-section-templates"])
+        self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "guide-hand-an-item-over", "ref-section-templates"])
 
     def test_opening_help_at_a_held_place_is_an_unknown_place_and_a_shown_one_still_opens(self):
         w = self.shown["where"]

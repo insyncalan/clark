@@ -94,8 +94,9 @@ def run_node(content, probe):
 
 
 class ShippedSource(unittest.TestCase):
-    def test_no_guide_is_shipped_yet(self):
-        self.assertEqual(RAW["guides"], [])
+    def test_the_shipped_guides_hold_the_shape(self):
+        """#642 step 10: the four guides C. No picture is declared here (the shots do not exist yet)."""
+        self.assertEqual([g["id"] for g in RAW["guides"]], ["hand-an-item-over", "save-a-view", "see-the-dashboard-as-at-a-day", "back-up-and-restore-your-data"])
         self.assertEqual(RAW["pictures"], [])
         self.assertEqual(check_guides(RAW), [])
 
@@ -167,9 +168,11 @@ class GuideShape(unittest.TestCase):
         old.pop("guides"), old.pop("pictures")
         for e in old["howto"]["tasks"] + old["reference"]["sections"]:
             e.pop("page", None)
+        raw = copy.deepcopy(RAW)
+        raw["guides"] = []                 # the shipped guides add their own entries to the index; what else is searched is unchanged
         probe = "(() => { const a = HL.buildIndex(); HL.useHeld({}); return { shown: a, all: HL.buildIndex() }; })()"
-        self.assertEqual(run_node(old, probe), run_node(RAW, probe))
-        self.assertTrue(run_node(RAW, probe)["all"])
+        self.assertEqual(run_node(old, probe), run_node(raw, probe))
+        self.assertTrue(run_node(raw, probe)["all"])
 
     def test_the_built_page_has_no_held_guide(self):
         """The built Help (held entries left out of the file the page is bundled from) holds no guide id, place or word of a held guide."""
@@ -192,9 +195,9 @@ class GuideShape(unittest.TestCase):
                          " found: HL.search(HL.buildIndex(), 'zebra').length })")
             self.assertEqual(r, {"guides": 0, "places": [], "found": 0})
 
-    def test_the_shipped_page_has_the_same_index_as_before(self):
-        r = run_node(RAW, "(() => ({ guides: HL.guides(), pics: HL.pictureIds(), idx: HL.buildIndex().filter((e) => e.id.startsWith('guide-')).length }))()")
-        self.assertEqual(r, {"guides": [], "pics": [], "idx": 0})
+    def test_the_shipped_index_holds_one_entry_for_each_guide_and_no_picture(self):
+        r = run_node(RAW, "(() => ({ guides: HL.guides().map((g) => g.id), pics: HL.pictureIds(), idx: HL.buildIndex().filter((e) => e.id.startsWith('guide-')).length }))()")
+        self.assertEqual(r, {"guides": [g["id"] for g in RAW["guides"]], "pics": [], "idx": len(RAW["guides"])})
 
 
 def page_values(content):

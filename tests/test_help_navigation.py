@@ -189,8 +189,8 @@ class WhatNext(unittest.TestCase):
         r = run_node(fixture_content(), "(() => { const l = HL.tabList('howto'); return { last: l[l.length - 1], n: l.length }; })()")
         self.assertEqual(r["last"], {"group": "", "entries": [{"id": "fixture-guide", "title": "Fixture guide", "place": "guide-fixture-guide"}]})
         self.assertEqual(r["n"], len(shown_content()["howto"]["groups"]) + 1)
-        r = run_node(RAW, "HL.tabList('howto').filter((g) => !g.group).length")
-        self.assertEqual(r, 0, "no guide shipped: no unnamed group")
+        r = run_node(RAW, "HL.tabList('howto').filter((g) => !g.group).map((g) => g.entries.map((e) => e.place))")
+        self.assertEqual(r, [["guide-" + g["id"] for g in RAW["guides"]]], "the shipped guides are the one unnamed group")
 
     def test_a_held_guide_is_in_no_list_and_no_next(self):
         c = copy.deepcopy(fixture_content())

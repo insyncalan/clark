@@ -2501,7 +2501,7 @@
    "next": [
     "howto-find-a-past-publication",
     "ref-published-reports",
-    "ref-dashboard"
+    "howto-publish-the-report"
    ]
   },
   {
@@ -2536,9 +2536,8 @@
    ],
    "result": "Your pages show the data from the copy you chose, a line confirms the restore, and a Before a restore copy of the data you had is in the list.",
    "next": [
-    "ref-settings",
-    "ref-saving",
-    "howto-undo-a-mistake"
+    "howto-undo-a-mistake",
+    "ref-profile-circle"
    ]
   }
  ],
