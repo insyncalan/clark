@@ -289,6 +289,75 @@ class Importing(RoundTrip):
         self.assertEqual([(x.id, x.field) for x in p.problems], [(self.a1, "due_date")])
 
 
+class ClientView(RoundTrip):
+    """The import honours the Client-visible column: Yes shows, No hides, a blank cell shows, for a use case as for a work item.
+    (A use case added by hand in clark starts hidden; an Excel import does not follow that, it follows the column.)"""
+
+    def add_all(self):
+        """One new row per sheet for each of blank, Yes and No, as a person typing under the tables would."""
+        wb = load_workbook(str(self.path))
+        for n, cv in enumerate((None, "Yes", "No")):
+            tag = {None: "blank", "Yes": "yes", "No": "no"}[cv]
+            for sheet, cells in (("Use cases", {"Use case": f"UC {tag}", "Shown as": f"9.{n}", "Status": "On track"}),
+                                 ("Actions", {"Description": f"A {tag}"}),
+                                 ("Risks and issues", {"Type": "Risk", "Description": f"R {tag}", "Impact": "High", "Likelihood": "Low"}),
+                                 ("Decisions", {"Decision": f"D {tag}", "Status": "Pending"})):
+                ws = wb[sheet]
+                head = {c.value: c.column for c in ws[1]}
+                row = ws.max_row + 1                    # under the data, one row per cell set; no ID, so a new item
+                for label, value in {**cells, "Client-visible": cv}.items():
+                    ws.cell(row, head[label]).value = value
+        wb.save(str(self.path))
+
+    def seen(self):
+        title = {"use_cases": "title", "actions": "description", "raid": "description", "decisions": "decision"}
+        return {(t, r[col]): r["client_visible"] for t, col in title.items() for r in self.s.read(t, project="ABC")
+                if str(r[col]).split(" ")[-1] in ("blank", "yes", "no")}
+
+    def test_yes_no_and_blank_for_use_cases_and_work_items(self):
+        self.add_all()
+        p = self.read()
+        self.assertEqual(p.problems, [])
+        p.accept_all()
+        res = xi.apply_import(self.s, p, USER, state_path=self.state)
+        self.assertTrue(res.applied, res.message)
+        want = {"blank": 1, "yes": 1, "no": 0}
+        self.assertEqual(self.seen(), {(t, f"{pre} {tag}"): v for t, pre in (("use_cases", "UC"), ("actions", "A"), ("raid", "R"),
+                                                                              ("decisions", "D")) for tag, v in want.items()})
+
+    def test_the_whole_import_is_taken_back_by_one_undo(self):
+        before, n = self.snapshot(), self.steps()
+        self.add_all()
+        p = self.read()
+        p.accept_all()
+        res = xi.apply_import(self.s, p, USER, state_path=self.state)
+        self.assertTrue(res.applied, res.message)
+        self.assertEqual((len(self.seen()), self.steps()), (12, n + 1))
+        self.assertEqual(self.s.undo(res.step_id, USER)["skipped"], [])
+        self.assertEqual((self.seen(), self.snapshot()), ({}, before))
+
+    def test_an_exported_file_comes_back_with_the_same_visibility(self):
+        with self.s.step("dashboard", USER) as st:
+            st.update("use_cases", self.demo.use_case, {"client_visible": 0})
+        self.export_again()
+        ws = load_workbook(str(self.path))["Use cases"]
+        head = {c.value: c.column for c in ws[1]}
+        self.assertEqual(ws.cell(2, head["Client-visible"]).value, "No")
+        before = self.snapshot()
+        p = self.read()
+        self.assertEqual((p.changes, p.problems), ([], []))
+        edit(self.path, "Use cases", self.demo.use_case, **{"Client-visible": "Yes"})
+        edit(self.path, "Actions", self.a2, **{"Client-visible": "Yes"})
+        p = self.read()
+        p.accept_all()
+        res = xi.apply_import(self.s, p, USER, state_path=self.state)
+        self.assertTrue(res.applied, res.message)
+        self.assertEqual([self.s.read("use_cases", ref=self.demo.use_case)["client_visible"],
+                          self.s.read("actions", ref=self.a2)["client_visible"]], [1, 1])
+        self.s.undo(res.step_id, USER)
+        self.assertEqual(self.snapshot(), before)
+
+
 class Guard(RoundTrip):
     def test_exporting_before_importing_is_refused_and_after_importing_is_allowed(self):
         self.edited()

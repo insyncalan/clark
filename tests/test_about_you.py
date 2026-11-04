@@ -13,6 +13,7 @@ import json
 import time
 import unittest
 
+from clark.settings import EMAIL_BAD, NAME_TOO_LONG    # the one place the refusal sentences are written; test_profile_settings pins their words
 from _new_page import reload_to_new_page
 from _paths import SRC
 from test_publish_dialog import Base, PAGE_SRC
@@ -188,7 +189,7 @@ class AboutYou(Base):
             self.type_into(p, "name", "N" * 61)
             p.until("document.querySelector('#about-name-line').parentElement.querySelector('.fld-bad').textContent !== ''", "the refusal shows")
             self.assertEqual(p.js("document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"),
-                             "Your name is too long. Use 60 characters or fewer. Nothing was saved.")
+                             NAME_TOO_LONG)
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61, "what was typed stays in the box")
             self.assertEqual(self.saved(), before, "nothing was written")
             self.type_into(p, "name", "Sam Lee")
@@ -196,9 +197,25 @@ class AboutYou(Base):
             self.type_into(p, "email", "nope")
             p.until("document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent !== ''", "the email refusal shows")
             self.assertEqual(p.js("document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent"),
-                             "That email address is not complete. Check it, or leave it empty. Nothing was saved.")
+                             EMAIL_BAD)
             self.assertEqual(self.saved(), before)
             self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
+
+    def test_C_a_refusal_is_the_servers_own_sentence_so_a_reworded_one_reaches_the_box(self):
+        """#496: the page shows the sentence clark sends, not a copy of its own. The route's sentence is changed for this test only."""
+        import clark.settings as settings
+        reworded = "Your name is longer than 60 characters, so it was left as it was. Nothing was saved."
+        self.assertNotEqual(reworded, NAME_TOO_LONG)
+        old = settings.NAME_TOO_LONG
+        settings.NAME_TOO_LONG = reworded
+        self.addCleanup(setattr, settings, "NAME_TOO_LONG", old)
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "N" * 61)
+            bad = "document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"
+            p.until(f"{bad} !== ''", "the refusal shows")
+            self.assertEqual(p.js(bad), reworded)
 
     def test_C_the_menu_still_opens_when_the_first_click_is_lost(self):
         """The helper that opens the menu must survive a click the page never took (a slow computer right after a load): the first click is
@@ -225,7 +242,7 @@ class AboutYou(Base):
             p.until("document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent !== ''", "still under the email")
             time.sleep(1)
             self.assertEqual(self.refused_under(p, "name"), "", "nothing under the name box")
-            self.assertEqual(self.refused_under(p, "email"), "That email address is not complete. Check it, or leave it empty. Nothing was saved.")
+            self.assertEqual(self.refused_under(p, "email"), EMAIL_BAD)
             self.assertEqual(p.js("[document.querySelector('#about-name').value, document.querySelector('#about-email').value]"), ["Sam Lee", "nope"])
             self.assertEqual(self.saved(), {})
 
@@ -238,7 +255,7 @@ class AboutYou(Base):
             self.type_into(p, "email", "sam@example.test")
             time.sleep(1)
             self.assertEqual(self.refused_under(p, "email"), "", "nothing under the email box")
-            self.assertEqual(self.refused_under(p, "name"), "Your name is too long. Use 60 characters or fewer. Nothing was saved.")
+            self.assertEqual(self.refused_under(p, "name"), NAME_TOO_LONG)
             self.assertEqual(p.js("[document.querySelector('#about-name').value, document.querySelector('#about-email').value]"), ["N" * 61, "sam@example.test"])
             self.assertEqual(self.saved(), {})
 
@@ -276,7 +293,7 @@ class AboutYou(Base):
             p.until("window.__answered >= 2", "the older good save was answered too")
             self.handled(p, "Sam Lee")                               # the page has taken the good answer
             p.until("window.__handled >= 2", "the late answer has been taken in")
-            self.assertEqual(p.js(bad), "Your name is too long. Use 60 characters or fewer. Nothing was saved.", "the refusal is still shown")
+            self.assertEqual(p.js(bad), NAME_TOO_LONG, "the refusal is still shown")
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61, "what was typed is still in the box")
             self.assertEqual(p.js("document.querySelector('#about-name').getAttribute('aria-invalid')"), "true")
             self.assertEqual(self.saved().get("profile_name"), "Sam Lee", "the store holds the name that was saved, not the refused one")
@@ -576,7 +593,7 @@ class AboutYou(Base):
             p.until("window.__answered >= 1", "the refusal was answered")
             bad = "document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"
             p.until(f"{bad} !== ''", "the refusal shows")
-            self.assertEqual(p.js(bad), "Your name is too long. Use 60 characters or fewer. Nothing was saved.")
+            self.assertEqual(p.js(bad), NAME_TOO_LONG)
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61)
             self.assertEqual(self.saved().get("profile_name"), None, "nothing was written")
 
@@ -596,7 +613,7 @@ class AboutYou(Base):
             p.until(f"{bad} !== ''", "the refusal shows")
             p.until("window.__answered >= 2", "the older good save was answered too")
             time.sleep(0.5)
-            self.assertEqual(p.js(bad), "That email address is not complete. Check it, or leave it empty. Nothing was saved.", "the refusal is still shown")
+            self.assertEqual(p.js(bad), EMAIL_BAD, "the refusal is still shown")
             self.assertEqual(p.js("document.querySelector('#about-email').value"), "nope", "what was typed is still in the box")
             self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
             self.assertEqual(p.js("document.querySelector('#about-name').value"), "Old Name", "the name box is as it was")

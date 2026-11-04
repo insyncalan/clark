@@ -587,5 +587,66 @@ class RemoveProfile(unittest.TestCase):
         self.assertIn(str(d), err.getvalue())
 
 
+class SuiteSlots(unittest.TestCase):
+    """A shared box's limit on full runs (support.take_slot). Real locks in a temporary folder; nothing waits long."""
+
+    def setUp(self):
+        self.d = tempfile.TemporaryDirectory()
+        self.addCleanup(self.d.cleanup)
+        self.said = []
+
+    def take(self, runs=50, jobs=8, slots=2, **kw):
+        return run_tests.support.take_slot(runs, jobs, slots=slots, folder=self.d.name, environ=kw.pop("environ", {}), pause=0.01,
+                                           say=lambda text, flush=True: self.said.append(text), **kw)
+
+    def test_a_computer_with_no_limit_is_not_touched(self):
+        self.assertEqual(self.take(slots=0), (None, 8))
+        self.assertEqual(os.listdir(self.d.name), [])
+
+    def test_the_file_says_the_limit_and_rubbish_is_no_limit(self):
+        path = Path(self.d.name) / "slots"
+        for text, want in (("2\n", 2), ("x", 0), ("", 0), ("\u00b2", 0)):       # a superscript counts as a digit to isdigit, and int() refuses it
+            path.write_text(text, encoding="utf-8")
+            self.assertEqual(run_tests.support.box_slots(path), want)
+        self.assertEqual(run_tests.support.box_slots(Path(self.d.name) / "none"), 0)
+
+    def test_two_runs_get_slots_and_files_at_once_are_capped(self):
+        a, jobs = self.take()
+        b, _ = self.take()
+        self.addCleanup(os.close, a)
+        self.addCleanup(os.close, b)
+        self.assertIsNotNone(a)
+        self.assertIsNotNone(b)
+        self.assertEqual(jobs, run_tests.support.BOX_JOBS)
+
+    def test_a_third_waits_says_so_and_starts_anyway_in_the_end(self):
+        held = [self.take()[0], self.take()[0]]
+        for fd in held:
+            self.addCleanup(os.close, fd)
+        got, jobs = self.take(max_wait=0.05)
+        self.assertIsNone(got, "it runs without a slot rather than never")
+        self.assertEqual(jobs, run_tests.support.BOX_JOBS)
+        self.assertIn("Nothing is wrong", self.said[0])
+        self.assertIn("starting anyway", self.said[-1])
+
+    def test_a_slot_comes_free_when_its_holder_closes(self):
+        a = self.take()[0]
+        b = self.take()[0]
+        self.addCleanup(os.close, b)
+        os.close(a)
+        c = self.take(max_wait=0.05)[0]
+        self.addCleanup(os.close, c)
+        self.assertIsNotNone(c)
+        self.assertEqual(self.said, [])
+
+    def test_a_small_run_and_a_run_under_the_wrapper_need_no_slot(self):
+        self.assertEqual(self.take(runs=run_tests.support.SMALL_RUN), (None, run_tests.support.BOX_JOBS))
+        self.assertEqual(self.take(environ={run_tests.support.SLOT_HELD: "1"}), (None, run_tests.support.BOX_JOBS))
+        self.assertEqual(os.listdir(self.d.name), [])
+
+    def test_a_folder_that_cannot_be_made_is_no_limit(self):
+        self.assertEqual(run_tests.support.take_slot(50, 8, slots=2, folder="/dev/null/x", environ={})[0], None)
+
+
 if __name__ == "__main__":
     unittest.main()
