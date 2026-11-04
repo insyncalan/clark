@@ -8,7 +8,9 @@ import threading
 from clark import platform, settings
 
 KEYS = ("name", "email")
-FIELD_OF = {settings.NAME_BAD: "name", settings.NAME_TOO_LONG: "name", settings.EMAIL_BAD: "email"}
+OPTIONAL = ("alias",)                                # item 613: the Alias may be left out, and then the one saved is kept
+FIELD_OF = {settings.NAME_BAD: "name", settings.NAME_TOO_LONG: "name", settings.EMAIL_BAD: "email",
+            settings.ALIAS_BAD: "alias", settings.ALIAS_TOO_LONG: "alias"}
 BAD = "That could not be read. Reload the page and try again. Nothing was saved."
 
 
@@ -18,17 +20,19 @@ class Profile:
         self.lock = threading.Lock()                 # two windows saving at once take turns; the file is replaced whole each time
 
     def get(self):
-        """(200, {"ok": true, "name", "email"}): what was saved, "" for each that was not."""
+        """(200, {"ok": true, "name", "email", "alias"}): what was saved, "" for each that was not."""
         return 200, {"ok": True, **settings.profile(self.data_dir)}
 
     def save(self, req):
-        """Save {"name", "email"} (both keys, each text, either may be empty): (200, {"ok": true, name, email}), or (400, a refusal in
-        plain words ending "Nothing was saved."); a refusal writes nothing."""
-        if not isinstance(req, dict) or set(req) != set(KEYS) or not all(isinstance(req[k], str) for k in KEYS):
+        """Save {"name", "email"} and, when it is sent, "alias" (each text, any may be empty; an Alias left out keeps the one saved):
+        (200, {"ok": true, name, email, alias}), or (400, a refusal in plain words ending "Nothing was saved."); a refusal writes
+        nothing."""
+        if (not isinstance(req, dict) or not set(KEYS) <= set(req) <= set(KEYS + OPTIONAL)
+                or not all(isinstance(req[k], str) for k in req)):
             return 400, {"ok": False, "message": BAD, "code": "bad_request"}
         with self.lock:
             try:
-                saved = settings.set_profile(self.data_dir, req["name"], req["email"])
+                saved = settings.set_profile(self.data_dir, req["name"], req["email"], req.get("alias"))
             except ValueError as e:
                 reply = {"ok": False, "message": str(e), "code": "refused"}
                 field = FIELD_OF.get(str(e))
