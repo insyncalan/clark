@@ -191,6 +191,67 @@ class Archive(Base):
                 self.store.archive_publication(code, number)
         self.assertEqual(sorted(p.name for p in self.copies.iterdir() if p.suffix == pc.ARCHIVED), ["PUB-1.archived"])
 
+    def test_restore_takes_the_mark_off_and_nothing_else(self):
+        made = [self.publish(now=f"2026-11-{i + 1:02d}") for i in range(2)]
+        n = made[0][0]["number"]
+        self.store.archive_publication("PUB", n)
+        before = {p.name: sha(p.read_bytes()) for p in self.copies.iterdir() if p.suffix != pc.ARCHIVED}
+        self.assertTrue(self.store.unarchive_publication("PUB", n))
+        self.assertEqual([p.name for p in self.copies.iterdir() if p.suffix == pc.ARCHIVED], [], "the mark is gone")
+        self.assertEqual({p.name: sha(p.read_bytes()) for p in self.copies.iterdir()}, before, "the page and the data are as they were")
+        self.assertEqual([p["number"] for p in past_reports.PastReports(self.db).listing("PUB")[1]["publications"]], [2, 1])
+        self.assertEqual(self.store.con.execute("SELECT count(*) FROM publications").fetchone()[0], 2)
+        self.assertTrue(self.store.archive_publication("PUB", n), "it can be archived again")
+
+    def test_restore_is_refused_in_plain_words_and_removes_nothing_that_is_not_the_mark(self):
+        done, _ = self.publish()
+        with self.assertRaisesRegex(Invalid, "is not archived"):
+            self.store.unarchive_publication("PUB", done["number"])
+        with self.assertRaisesRegex(Invalid, "There is no Publication 9"):
+            self.store.unarchive_publication("PUB", 9)
+        for code, number in (("../x", 1), ("PUB", 0), ("PUB", "1"), ("PUB", True)):
+            with self.subTest(code=code, number=number), self.assertRaises(Invalid):
+                self.store.unarchive_publication(code, number)
+        self.assertEqual(sorted(p.name for p in self.copies.iterdir()), ["PUB-1.html", "PUB-1.json"])
+        self.assertFalse(pc.unarchive(self.data_dir, "../x", 1))
+        (self.copies / "PUB-1.archived").write_bytes(b"not an empty mark")
+        self.assertFalse(pc.unarchive(self.data_dir, "PUB", 1), "only an empty ordinary file written by clark is taken off")
+        self.assertTrue((self.copies / "PUB-1.archived").exists())
+
+    def test_a_mark_that_could_not_be_changed_rolls_its_history_line_back(self):
+        done, _ = self.publish()
+        n = done["number"]
+        with mock.patch.object(pc, "archive", return_value=False), self.assertRaisesRegex(Invalid, "could not be archived"):
+            self.store.archive_publication("PUB", n)
+        self.assertEqual(self.store.con.execute("SELECT count(*) FROM change_log WHERE tbl = 'publications'").fetchone()[0], 0)
+        self.store.archive_publication("PUB", n)
+        with mock.patch.object(pc, "unarchive", return_value=False), self.assertRaisesRegex(Invalid, "could not be restored"):
+            self.store.unarchive_publication("PUB", n)
+        self.assertEqual(self.store.con.execute("SELECT count(*) FROM change_log WHERE tbl = 'publications'").fetchone()[0], 1, "only the archive line")
+
+    def test_archive_and_restore_are_in_the_history_and_an_undo_never_takes_them_back(self):
+        from clark import history
+        done, _ = self.publish()
+        n = done["number"]
+        self.store.archive_publication("PUB", n, "Sam Example")
+        self.store.unarchive_publication("PUB", n, "Sam Example")
+        rows = self.store.con.execute("SELECT tbl, item_id, field, old_value, new_value, op FROM change_log WHERE tbl = 'publications' ORDER BY rowid").fetchall()
+        self.assertEqual([tuple(r) for r in rows], [("publications", f"PUB-{n}", "archived", "0", "1", "update"),
+                                                    ("publications", f"PUB-{n}", "archived", "1", "0", "update")])
+        shown = [(r["kind"], r["who"]) for r in history.rows_for_project(self.store.con, "PUB") if r["table"] == "publications" and r["kind"] != "Published"]
+        self.assertEqual(shown, [("Restored", "Sam Example"), ("Archived", "Sam Example")], "newest first")
+        steps = [r[0] for r in self.store.con.execute("SELECT DISTINCT apply_id FROM change_log WHERE tbl = 'publications' ORDER BY apply_id")]
+        self.assertEqual(len(steps), 2)
+        for step in steps:
+            result = self.store.undo(step, "Sam Example")
+            self.assertEqual(result["reversed"], [], "an Undo puts nothing back")
+            self.assertTrue(result["skipped"])
+        self.assertFalse(pc.is_archived(self.data_dir, "PUB", n), "the mark is as Restore left it")
+        self.store.archive_publication("PUB", n)
+        for step in steps:
+            self.store.undo(step, "Sam Example")
+        self.assertTrue(pc.is_archived(self.data_dir, "PUB", n), "and an Undo of the older step does not remove a mark")
+
     def test_the_list_still_shows_ten_when_older_ones_are_archived(self):
         for i in range(12):
             self.publish(now=f"2026-11-{i + 1:02d}")

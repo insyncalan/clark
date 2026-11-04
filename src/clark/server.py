@@ -23,7 +23,8 @@ Routes:
 - POST /api/preview      Preview (#147): builds the page as publish would, in memory; answers a one-visit address (publish_flow.py)
 - GET  /preview          ?id=<from /api/preview>: that page, once, local only (a new tab cannot send the token header)
 - GET  /api/export       ?project=<CODE>: the project's workbook as a download named <CODE>-<date>.xlsx (publish_flow.py)
-- GET  /api/publications ?project=<CODE>: the newest 10 publications with number, time, where and who (#443; past_reports.py); no path, no hash
+- GET  /api/publications ?project=<CODE>[&archived=1]: the newest 10 publications with number, time, where and who (#443; past_reports.py); no path, no hash; archived=1 (#345) lists the archived ones too, marked
+- POST /api/publications/archive  {project, number}: hide one publication from that list, never delete it (#345; changes.make_publication_mark); /api/publications/restore puts it back. No Undo
 - GET  /api/past-report  ?project=<CODE>&number=<N>: checks that publication's kept copy and answers a one-visit address (#443)
 - GET  /past             ?id=<from /api/past-report>: that kept page as it was published, with the read-only banner added (#343), once, local only (#443)
 - GET  /api/as-at        ?project=<CODE>&date=<YYYY-MM-DD>: the project's data as at the end of that day, rebuilt from the change
@@ -136,6 +137,7 @@ ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
+                     "/api/publications/archive": 1024, "/api/publications/restore": 1024,     # #345: a project code and a number
                      "/api/people": PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #115: a person's few short fields; #454: or one paste of up to 500 rows; a step number
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
                      "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
@@ -584,18 +586,40 @@ def past_route(method):
             return handler.send(400, error_body("bad_request"))
         query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
         want = {"project"} if method == "listing" else {"project", "number"}
-        if set(query) != want or any(len(v) != 1 for v in query.values()):
+        shown_archived = method == "listing" and query.get("archived") == ["1"]      # #345: Show archived; any other value is a 400
+        if set(query) - ({"archived"} if shown_archived else set()) != want or any(len(v) != 1 for v in query.values()):
             return handler.send(400, error_body("bad_request"))
         code = query["project"][0]
         if not PROJECT_CODE.fullmatch(code):
             return handler.send(400, error_body("bad_project_code"))
         if method == "listing":
-            status, body = seam.listing(code)
+            status, body = seam.listing(code, archived=shown_archived)
         else:
             number = query["number"][0]
             if not PUBLICATION_NUMBER.fullmatch(number):
                 return handler.send(400, error_body("bad_request"))
             status, body = seam.visit(code, int(number))
+        return handler.send(status, body)
+    return route
+
+
+def publication_mark_route(action):
+    """POST /api/publications/archive and /api/publications/restore (#345): {project, number} and nothing else. The server's
+    `publication_mark` (changes.make_publication_mark) archives or restores that one publication and answers (status, body); it writes
+    the archive mark and one history line, and offers no Undo. Checked like change_route before this runs (token, Host, Origin, JSON
+    only, the route's own small limit). A body that is not exactly a code of the stored shape and a whole number from 1 to 999999 is
+    the 400 bad_request; a refusal in the store's plain words is 400, and a publication already in the state asked for is 409. Without
+    the seam, saving is switched off (503). Nothing from the request is used as a path: the seam makes the mark's name from the two."""
+    def route(handler, req):
+        seam = getattr(handler.server, "publication_mark", None)
+        if seam is None:
+            return handler.send(503, error_body("saving_off"))
+        code = req.get("project") if isinstance(req, dict) else None
+        number = req.get("number") if isinstance(req, dict) else None
+        if (not isinstance(req, dict) or set(req) != {"project", "number"} or not isinstance(code, str) or not PROJECT_CODE.fullmatch(code)
+                or type(number) is not int or not 1 <= number <= 999999):
+            return handler.send(400, error_body("bad_request"))
+        status, body = seam(action, req)
         return handler.send(status, body)
     return route
 
@@ -1007,6 +1031,7 @@ POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/secti
                 "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply"),
                 "/api/profile": profile_route("save"), "/api/people": people_route("people"), "/api/people/undo": people_route("people_undo"), "/api/page-error": logs_route("page_error"),
                 "/api/logging": logs_route("set_level"), "/api/logging/open-folder": logs_route("open_folder"),     # #110
+                "/api/publications/archive": publication_mark_route("archive"), "/api/publications/restore": publication_mark_route("restore"),     # #345
                 "/api/draft-email": draft_email_route("draft_email"),
                 "/api/draft-email/sent": draft_email_route("draft_email_sent"),
                 "/api/word-import": word_import_route, "/api/word-export": word_export_route,
@@ -1213,7 +1238,7 @@ class LocalServer(ThreadingHTTPServer):
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None,
-                 people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None):
+                 people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -1239,6 +1264,7 @@ class LocalServer(ThreadingHTTPServer):
         self.ask = ask                        # ask_service.AskService (#47): questions; None: the ask routes answer 404
         self.ai = ai                          # ai_service.AiService (#72): AI suggestions, on the ask service's provider; None: 404
         self.past = past                      # past_reports.PastReports (#443): the Published reports list and Open; None: those routes answer 404
+        self.publication_mark = publication_mark   # changes.make_publication_mark (#345): archive or restore one publication; None: saving off (503)
         self.as_at = as_at                    # as_at.AsAt (#349): the dashboard as at a day, rebuilt from the history, read only; None: 404
         super().__init__(server_address, handler)
 
@@ -1273,7 +1299,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None,
-          people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None):
+          people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
@@ -1282,7 +1308,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, ai=ai,
-                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, past=past, as_at=as_at)
+                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, past=past, as_at=as_at, publication_mark=publication_mark)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)
