@@ -1,6 +1,7 @@
 // Link preview (#96), store type "linkcard": its Edit part. The card's link, title, site line and words, typed and saved together
 // with Save card: one change, one step, one Undo, place "report". clark never fetches the page: what the card says is what is typed.
 import { useState, useEffect, useRef } from "preact/hooks";
+import { useGrow } from "../useGrow.js";
 import { linkProblem } from "../../templates/files.js";
 import { stored, oneLine, paragraphsOf, linesProblem, labelProblem, saveContent } from "./filesEdit.js";
 
@@ -14,6 +15,8 @@ export function Edit({ section }) {
   const saved = { href: asText(content.href), title: asText(content.title), site: asText(content.site),
                   text: (Array.isArray(content.text) ? content.text : []).filter((t) => typeof t === "string").join("\n") };
   const [f, setF] = useState(saved);
+  const grow = useRef(null);
+  useGrow(grow, f.text);
   const [problem, setProblem] = useState("");
   const seen = useRef(section.body);
   useEffect(() => {                       // a save or an Undo brought another body: show it (never on the first draw, which would undo typing)
@@ -48,7 +51,7 @@ export function Edit({ section }) {
         <label for={`${fid}-site`}>Line above the title (optional, such as the site's name)</label>
         <input id={`${fid}-site`} type="text" autocomplete="off" value={f.site} onInput={set("site")} />
         <label for={`${fid}-text`}>Words on the card (optional, one paragraph a line)</label>
-        <textarea id={`${fid}-text`} rows={3} value={f.text} onInput={set("text")} />
+        <textarea id={`${fid}-text`} class="grow" ref={grow} rows={3} value={f.text} onInput={set("text")} />
         <button type="submit" class="btn" disabled={!changed}>Save card</button>
       </form>
       {problem ? <p class="tpl-problem" role="alert">{problem}</p> : null}
