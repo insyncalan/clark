@@ -270,7 +270,8 @@ class Browser(unittest.TestCase):
 
     def load_page(self, cdp, width, hash_=None, change=None):
         extra = {"change": change} if change else {}
-        s = real_server(self.store.path, self.store.data_for, who="Demo User", projects=lambda: self.store.read("projects"),
+        projects = self.store.read("projects")            # read here: the store's connection belongs to this thread, and the server answers on another
+        s = real_server(self.store.path, self.store.data_for, who="Demo User", projects=lambda: projects,
                         page_html=lambda: testpage.html(), **extra)
         self.addCleanup(s.close)
         sid = page_target(cdp)
