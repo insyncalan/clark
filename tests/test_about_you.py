@@ -506,12 +506,32 @@ class AboutYou(Base):
             p = self.page(cdp)
             self.hold_the_read(cdp, p)
             self.open_settings(p)
+            self.type_into(p, "email", "sam@example.test", leave="none")      # both boxes typed in: the save has nothing to wait for the read for (#420)
             self.type_into(p, "name", "Sam Lee")
-            self.handled(p, "Sam Lee")
+            self.handled(p, "Sam Lee", "sam@example.test")
             self.assertEqual(self.saved().get("profile_name"), "Sam Lee")
             (self.rig.data_dir / "settings.json").write_text(json.dumps({**self.saved(), "profile_name": "Other Name"}), encoding="utf-8")
             p.js("window.__release()")
             p.until("document.querySelector('#about-name').value === 'Other Name'", "the late read filled the saved, untouched box")
+
+    def test_C_a_save_made_before_the_first_read_has_landed_keeps_the_other_box_saved_value(self):
+        """#420: clark holds a name and an email; the page's read of them is held back, and the person saves the name first. The email box has
+        only the empty draw then, so the save must not send it as empty: the saved email is kept and the saved name is the new one."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            (self.rig.data_dir / "settings.json").write_text(
+                json.dumps({**self.saved(), "profile_name": "Old Name", "profile_email": "old@example.com"}), encoding="utf-8")
+            self.hold_the_read(cdp, p)
+            self.open_settings(p)
+            self.assertEqual(p.js("document.querySelector('#about-email').value"), "", "the read has not landed: the box is the empty draw")
+            self.type_into(p, "name", "Sam Lee")
+            time.sleep(0.5)
+            p.js("window.__release()")
+            deadline = time.time() + 10
+            while time.time() < deadline and self.saved().get("profile_name") != "Sam Lee":
+                time.sleep(0.1)
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee")
+            self.assertEqual(self.saved().get("profile_email"), "old@example.com", "the other box's saved value is kept")
 
     def test_C_a_late_read_does_not_fill_a_box_typed_in_since_it_was_saved(self):
         """The same, with more typed after the save and not yet left: that box stays as typed."""
@@ -519,8 +539,9 @@ class AboutYou(Base):
             p = self.page(cdp)
             self.hold_the_read(cdp, p)
             self.open_settings(p)
+            self.type_into(p, "email", "sam@example.test", leave="none")      # both boxes typed in: the save has nothing to wait for the read for (#420)
             self.type_into(p, "name", "Sam Lee")
-            self.handled(p, "Sam Lee")
+            self.handled(p, "Sam Lee", "sam@example.test")
             self.type_into(p, "name", "Sam Lee and more", leave="none")
             (self.rig.data_dir / "settings.json").write_text(json.dumps({**self.saved(), "profile_name": "Other Name"}), encoding="utf-8")
             p.js("window.__release()")
