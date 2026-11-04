@@ -224,6 +224,25 @@ def key(cdp, sid, name, alt=False):
     cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
 
 
+def colours(selector):
+    """JS: [text, colour, background] for each element matched, the background the first solid one behind it (item 442, dark)."""
+    return ("[...document.querySelectorAll(" + json.dumps(selector) + ")].filter(e => e.offsetWidth > 1).map(e => {"
+            " let b = e, bg = 'rgba(0, 0, 0, 0)';"
+            " while (b && /rgba\\(.*, 0\\)$|transparent/.test(bg = getComputedStyle(b).backgroundColor)) b = b.parentElement;"
+            " return [(e.value || e.textContent).trim(), getComputedStyle(e).color, bg]; })")
+
+
+def _lum(css):
+    r, g, b = [int(x) / 255 for x in re.findall(r"\d+", css)[:3]]
+    f = lambda c: c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+
+
+def contrast(fg, bg):
+    a, b = sorted((_lum(fg), _lum(bg)), reverse=True)
+    return (a + 0.05) / (b + 0.05)
+
+
 def click(cdp, sid, selector, mods=0):
     cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})", sid)
     box = cdp.js(f"(() => {{ const e = document.querySelector({json.dumps(selector)}); if (!e) return null; const b = e.getBoundingClientRect(); return [b.x + Math.min(b.width / 2, 20), b.y + b.height / 2]; }})()", sid)
@@ -365,6 +384,46 @@ class Live(unittest.TestCase):
                 self.until(cdp, sid, "document.activeElement === document.querySelector(\"tr[data-id='TUL-007']\")", "the row has the focus")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "location.hash.includes('item=TUL-007')", "Enter on a row opens its peek")
+
+    def readable(self, cdp, sid, selector, where):
+        got = cdp.js(colours(selector), sid)
+        self.assertTrue(got, f"{where}: {selector} is on screen")
+        for text, fg, bg in got:
+            self.assertGreaterEqual(contrast(fg, bg), 4.5, f"{where}: {text!r} is {fg} on {bg}")
+
+    def test_in_dark_at_1400_and_900_the_four_view_pickers_open_and_read(self):
+        """Item 442, Done-when 4: in View, in dark, owner, due, priority and status each open their picker, which follows the
+        theme, sits whole in the window and says what the cell has in words that can be read; leaving it changes nothing."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                where = f"dark {width}"
+                sid = self.open_page(cdp, width, edit=False)
+                cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
+                self.until(cdp, sid, "getComputedStyle(document.body).backgroundColor !== 'rgb(255, 255, 255)'", f"{where}: the page went dark")
+                self.assertLess(_lum(cdp.js("getComputedStyle(document.body).backgroundColor", sid)), 0.2, f"{where}: the page is dark")
+                self.assertEqual(cdp.js("[...new Set([...document.querySelectorAll('#work [data-cell]')].map(c => c.dataset.cell.split(':')[1]))].sort()", sid),
+                                 ["due", "owner", "priority", "status"], f"{where}: View shows the four pickers")
+                before, n = self.steps(), len(self.sent)
+                for ref, field, opened, says in (
+                        ("TUL-A-001", "owner", "[data-pop] input.cp-in", "document.querySelector('[data-pop] input.cp-in').value === 'Ada Quillfeather'"),
+                        ("TUL-A-001", "due", "[data-pop] .cp-g", "document.querySelector('[data-pop] .cp-t').textContent === 'November 2026' && document.activeElement.dataset.day === '2026-11-02'"),
+                        ("TUL-A-001", "priority", "[data-pop][role=menu]", "[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => b.textContent).join() === 'Urgent,High,Medium,Low'"),
+                        ("TUL-007", "status", "[data-pop][role=menu]", "[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => b.textContent).join() === 'Open,Closed,Cancelled,Red,Amber,Green'")):
+                    what, cell = f"{where} {field}", f"[data-cell='{ref}:{field}']"
+                    self.readable(cdp, sid, cell, what + " cell")
+                    click(cdp, sid, cell)
+                    self.until(cdp, sid, f"!!document.querySelector({json.dumps(opened)})", f"{what}: the picker opened")
+                    self.until(cdp, sid, says, f"{what}: the picker says what the cell has")
+                    box = cdp.js("(() => { const p = document.querySelector('[data-pop]'), b = p.getBoundingClientRect();"
+                                 " return [getComputedStyle(p).backgroundColor, b.left >= 0 && b.right <= innerWidth, b.top >= 0 && b.bottom <= innerHeight]; })()", sid)
+                    self.assertLess(_lum(box[0]), 0.2, f"{what}: the picker follows the theme ({box[0]})")
+                    self.assertEqual(box[1:], [True, True], f"{what}: the picker is whole in the window")
+                    self.readable(cdp, sid, "[data-pop] [role=menuitemradio], [data-pop] [data-name], [data-pop] input.cp-in, [data-pop] [data-day],"
+                                  " [data-pop] [data-quick], [data-pop] .cp-t, [data-pop] .rp-head", what)
+                    key(cdp, sid, "Escape")
+                    self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", f"{what}: one Esc closes it")
+                self.assertEqual((self.steps(), len(self.sent)), (before, n), f"{where}: opening and leaving the pickers changed nothing")
+                self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), f"{where}: no sideways scroll")
 
     def test_the_table_is_one_tab_stop_and_the_arrows_move_inside_it(self):
         # the rows are one tab stop; a group heading's open/shut button (#68) is a control of its own, so it is left out here
