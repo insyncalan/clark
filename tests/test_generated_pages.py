@@ -83,7 +83,7 @@ class EnsureBuilt(unittest.TestCase):
                 mock.patch.object(clark_platform.subprocess, "run") as run:
             with self.assertRaises(page.PageError) as said:
                 page.ensure_built()
-            self.assertEqual(str(said.exception), "This copy of clark has no built page. Use the clark download (the zip), not a copy of the source.")
+            self.assertEqual(str(said.exception), "This copy of clark has no built page. Use the clark download, not a copy of the source code.")
             for p in self.pages:
                 p.write_text("<html><body></body></html>", encoding="utf-8")
             page.ensure_built()

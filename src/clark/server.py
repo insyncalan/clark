@@ -117,7 +117,7 @@ def local_peer(address):
 
 # item 427 (a reader's finding): a peer refused in container mode is told why in a plain page, and the container's log names it, so
 # a second run in Docker shows which address Docker Desktop really connects from. Addresses only: never a token or a header.
-CONTAINER_REFUSED = "clark is running in Docker and refused this connection."
+CONTAINER_REFUSED = "This connection was refused. clark is running in Docker and only answers this computer."
 CONTAINER_REFUSED_PAGE = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>clark</title></head><body><p>{CONTAINER_REFUSED}</p></body></html>
 """

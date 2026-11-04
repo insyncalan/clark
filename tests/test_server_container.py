@@ -292,7 +292,7 @@ class AlwaysAnswered(unittest.TestCase):
                 status, ctype, body = self.get(peer, path)
                 self.assertEqual(status, 403, (peer, path))
                 self.assertEqual(ctype, "text/html; charset=utf-8")
-                self.assertIn("<p>clark is running in Docker and refused this connection.</p>", body, (peer, path))
+                self.assertIn("<p>This connection was refused. clark is running in Docker and only answers this computer.</p>", body, (peer, path))
                 self.assertNotIn("Reload the page", body)
                 self.assertNotIn("ZQ-THE-PAGE", body)
                 self.assertNotIn(sv.TOKEN, body)

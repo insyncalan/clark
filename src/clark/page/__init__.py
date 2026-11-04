@@ -225,7 +225,7 @@ class _file_lock:
             self.f.close()          # closing releases the lock
 
 
-NO_BUILT_PAGE = "This copy of clark has no built page. Use the clark download (the zip), not a copy of the source."
+NO_BUILT_PAGE = "This copy of clark has no built page. Use the clark download, not a copy of the source code."
 
 
 def ensure_built():

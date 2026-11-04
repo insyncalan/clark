@@ -87,8 +87,8 @@ def _only_mac(what, on=None):
     on = on or system()
     if on != MAC:
         if on == "linux" and container_mode():          # item 427: said in the words of the person who started Docker
-            raise NotBuiltYet(f"{what} is not available when clark runs in Docker: it needs the Mac. Start clark the other way "
-                              "(clark.command) to use it")
+            raise NotBuiltYet(f"{what} needs the Mac, so it is not available when clark runs in Docker. To use it, start clark with "
+                              "clark.command instead.")
         raise NotBuiltYet(f"{what} on {'Windows' if on == WINDOWS else on} is not built yet: clark runs on macOS for now")
 
 

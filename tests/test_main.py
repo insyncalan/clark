@@ -446,7 +446,7 @@ class InProcess(TempFolder):
 
     def test_in_a_container_with_no_built_page_it_stops_at_once_in_one_plain_sentence(self):
         """item 427: the code is shared in read-only, so a build is never tried; the person is told to use the download."""
-        said = "This copy of clark has no built page. Use the clark download (the zip), not a copy of the source."
+        said = "This copy of clark has no built page. Use the clark download, not a copy of the source code."
         def missing():
             raise launcher.page.PageError(said)
         with mock.patch.object(launcher.platform, "container_mode", lambda: True), mock.patch.object(launcher.page, "ensure_built", missing):

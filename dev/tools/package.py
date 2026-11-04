@@ -120,9 +120,9 @@ already use Docker, use Docker instead. You only need Docker and Chrome.
      right end of Chrome's address bar. Open it from there on later days.
   5. To stop clark, type this in the same folder and press Return:
         docker compose -f docker/compose.yaml down
-Use the clark download (the zip), not a copy of the source: a copy of the
-source has no built page, and Docker stops with a message saying so.
-To see what clark has said, type this in the same folder:
+Use the clark download, not a copy of the source code: a copy of the source
+has no built page, and Docker stops with a message saying so.
+To see what Docker has said, type this in the same folder:
         docker compose -f docker/compose.yaml logs --tail 50
 With Docker, your data is kept in the data folder beside the clark files, made
 at the first start. Keep that data folder when you swap this folder for a newer
