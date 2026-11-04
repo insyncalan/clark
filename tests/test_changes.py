@@ -535,6 +535,43 @@ class Steps(Api):
         self.assertEqual(self.undone(body["apply_id"])[1]["skipped"], [])
         self.assertEqual(self.beside_now(), before)
 
+    # ----- #439 (prototype views.js:251): a lone section's stray beside flag is tidied after any add or move -----
+    def test_an_add_after_the_last_section_clears_a_stray_flag_on_it_in_the_same_step(self):
+        # #439 row 67 asked for this after ANY add; main's #244 rule (pinned by AddBeside: a plain add leaves other flags alone) clears it
+        # only for an add after the last section, so this test follows that narrower rule.
+        last = self.ids_now()[-1]
+        self.ok("update", id=last, changes={"beside": 1})                   # a 1 on the last section: the page ignores it
+        before = self.beside_now()
+        body = self.ok("new", values={"title": "Last"}, after=last)               # an add after the last section
+        self.assertEqual(self.beside_now()[last], 0)
+        self.assertEqual(self.undone(body["apply_id"])[1]["skipped"], [])
+        self.assertEqual(self.beside_now(), before, "one Undo puts the section away and the flag back")
+
+    def test_any_move_clears_a_stray_flag_on_a_second_half_and_keeps_the_real_pair(self):
+        for ref, value in (("ABC-S-003", 1), ("ABC-S-004", 1)):             # S3 and S4 are a pair; S4's own 1 is ignored by the page
+            self.ok("update", id=ref, changes={"beside": value})
+        before = self.beside_now()
+        body = self.ok("move", id="ABC-S-009", before="ABC-S-002", place="report")
+        now = self.beside_now()
+        self.assertEqual((now["ABC-S-003"], now["ABC-S-004"]), (1, 0), "the pair stays, the ignored flag goes")
+        self.assertEqual(self.undone(body["apply_id"])[1]["skipped"], [])
+        self.assertEqual(self.beside_now(), before)
+
+    def test_an_add_or_move_leaves_a_report_with_no_stray_flag_as_it_was(self):
+        self.ok("update", id="ABC-S-003", changes={"beside": 1})            # a real pair, no stray
+        before = self.beside_now()
+        body = self.ok("new", values={"title": "Plain"}, after="ABC-S-007")
+        others = {r["field"] for r in self.s.con.execute("SELECT field FROM change_log WHERE apply_id = ? AND item_id != ?", (body["apply_id"], body["ref"])).fetchall()}
+        self.assertNotIn("beside", others, "no other section's flag was written")
+        self.assertEqual({k: v for k, v in self.beside_now().items() if k in before}, before)
+
+    def test_the_stray_flags_are_the_ones_the_page_ignores(self):
+        row = lambda i, b: {"id": i, "beside": b}
+        self.assertEqual(changes._stray_flags([row("a", 1), row("b", 1), row("c", 1), row("d", 1), row("e", 1)]), ["b", "d", "e"])
+        self.assertEqual(changes._stray_flags([row("a", 0), row("b", 1), row("c", 0)]), [], "b starts a pair with c: not stray")
+        self.assertEqual(changes._stray_flags([row("a", 1), row("b", 0), row("c", 1)]), ["c"])
+        self.assertEqual(changes._stray_flags([row("a", 0), row("b", 0)]), [])
+
     def test_a_delete_the_store_refuses_leaves_every_flag_as_it_was(self):
         self.ok("update", id="ABC-S-001", changes={"beside": 1})           # S-002 is the second half of S-001; it is not a text section
         before, snap = self.beside_now(), self.snapshot()
@@ -994,7 +1031,7 @@ class ByUser(Api):
                          "Someone Else")
 
 
-ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "client_visible"},
+ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_visible"},
                "raid": {"status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_visible"},
                "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision", "client_visible"}}      # #67: + the title; #97: + the eye
 
@@ -1253,7 +1290,8 @@ class Items(Api):
         self.no(self.item("raid", self.r, likelihood=None), changes.ITEM_VALUE_WORDS)
         self.assertEqual(self.s.read("raid", ref=self.r)["priority"], "High", "the priority is still worked out")
 
-    def test_only_an_open_risk_or_issue_takes_a_rating(self):
+    def test_only_a_risk_or_issue_takes_a_rating_whatever_its_status(self):
+        """#448 (row 53): the prototype offers the rating whatever the status, so a closed or cancelled risk or issue takes one too."""
         with self.s.step("dashboard", USER) as st:
             others = [st.create("raid", {"project": "ABC", "type": t, "description": f"An {t.lower()}", "impact": "High",
                                          "likelihood": "Medium", "raised": "2026-10-01", "source": "demo"}) for t in ("Assumption", "Dependency", "Issue")]
@@ -1261,11 +1299,14 @@ class Items(Api):
             self.no(self.item("raid", ref, impact="Low"), changes.RATING_NOT_THIS_KIND)
             self.no(self.item("raid", ref, likelihood="Low"), changes.RATING_NOT_THIS_KIND)
         self.assertEqual(self.go("raid", others[2], impact="Low", likelihood="Low")["item"]["priority"], "Low", "an issue takes one")
-        self.no(self.item("raid", self.r, status="Closed", impact="Low"), changes.RATING_NOT_OPEN)
+        self.assertFalse(hasattr(changes, "RATING_NOT_OPEN"), "no sentence is left for a rating refused because of the status")
         self.go("raid", self.r, status="Closed")
-        self.no(self.item("raid", self.r, impact="Low", likelihood="Low"), changes.RATING_NOT_OPEN)
+        body = self.go("raid", self.r, impact="Low", likelihood="Low")
+        self.assertEqual((body["item"]["status"], body["item"]["priority"]), ("Closed", "Low"), "a closed risk is rated, and stays closed")
+        self.assertEqual(self.s.read("raid", ref=self.r)["priority"], "Low")
         self.go("raid", self.r, status="Cancelled")
-        self.no(self.item("raid", self.r, likelihood="Low"), changes.RATING_NOT_OPEN)
+        self.assertEqual(self.go("raid", self.r, likelihood="Medium", impact="High")["item"]["priority"], "High", "a cancelled one too")
+        self.no(self.item("raid", self.r, status="Closed", impact="Severe"), changes.NOT_A_RATING)
         self.assertEqual(self.go("raid", self.r, status="Open", impact="Low")["item"]["impact"], "Low", "reopened and rated in one change")
 
     def test_a_risks_priority_and_a_decisions_workstream_have_their_own_words(self):

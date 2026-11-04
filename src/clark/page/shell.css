@@ -19,6 +19,12 @@ a { color: var(--status-blue-text); }
 .logo .wm { font-weight: var(--weight-medium); font-size: var(--size-h3); letter-spacing: .02em; }
 .top .divider { width: 1px; height: 26px; background: rgba(255,255,255,.2); }
 .proj { font-size: var(--size-small); color: rgba(255,255,255,.85); }
+.projbtn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: var(--space-1) var(--space-2); border-radius: var(--radius); cursor: pointer; font-size: var(--size-small); color: rgba(255,255,255,.85); }
+.projbtn:hover { background: rgba(255,255,255,.14); }
+.projbtn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.projbtn .nch { width: 14px; height: 14px; }
+.top .projbtn { display: inline-flex; max-width: 260px; }
+.projbtn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabs { display: flex; height: 100%; }
 .pubfoot { max-width: 1200px; margin: 24px auto 16px; padding: 0 16px; font-size: var(--size-small); color: var(--text-muted); }   /* item 120 */
 .asat { margin-left: auto; font-size: var(--size-caption); color: rgba(255,255,255,.75); }
@@ -33,8 +39,17 @@ a { color: var(--status-blue-text); }
 main { position: relative; max-width: var(--max-width); margin: 0 auto; padding: 28px var(--space-5) 96px; }
 .frame { width: 100%; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: var(--space-5) 28px; }
 .frame h1 { margin: 0 0 var(--space-3); font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
-.crumbs { margin: 0 0 2px; font-size: var(--size-caption); color: var(--text-muted); }
-.glance { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-3); }
+/* The report's cover band (A-D1): navy, full width of the frame, the name, the kind of report, the week and the client. */
+.cover { margin: -24px -28px 20px; padding: var(--space-5) 28px 20px; background: var(--brand-navy); color: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.frame .cover h1 { margin: 0 0 6px; color: var(--white); }
+.cover-line { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) 10px; font-size: var(--size-small); color: var(--white); }
+.cover-line span + span::before, .cover-kind + span::before { content: "\00b7"; margin-right: 10px; }
+.cover-kind { font-weight: var(--weight-medium); letter-spacing: .08em; text-transform: uppercase; color: var(--brand-cyan); }
+@media (max-width: 900px) { .cover { margin: -18px -16px 16px; padding: 18px var(--space-4) var(--space-4); } }
+html:not([data-secstyle="card"]) .frame.report .cover { margin-top: 0; }      /* the report frame has only 4 px of top padding here, so the band starts at the frame, not 20 px above it */
+@media (max-width: 900px) { html:not([data-secstyle="card"]) .frame.report .cover { margin: 0 0 16px; } }      /* the report frame has no side padding here, so the band is the frame's width, not wider */
+.crumbs { margin: 0 0 2px; font-size: var(--size-small); color: var(--text-muted); }
+.glance { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: 12px; }
 .tile { display: flex; flex-direction: column; }
 .tile .n { font-size: 22px; font-weight: var(--weight-medium); color: var(--heading); }
 .tile .l { font-size: var(--size-caption); color: var(--text-muted); }
@@ -89,7 +104,7 @@ button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; fo
    A hidden tile has its tag (up to two lines, 41 px, 6 px off the bottom) at the bottom, so it keeps 54 px under its last line. Both are Edit only; View and the published page do not change. */
 #report[data-mode="edit"] .glance { --tile-ctl: 41px; --tile-tag: 54px; }
 #report[data-mode="edit"] .glance .fig .k { padding-right: var(--tile-ctl); }
-#report[data-mode="edit"] .glance .tcell.is-hidden .fig { padding-bottom: var(--tile-tag); }
+#report[data-mode="edit"] .glance .tcell.is-hidden .fig, #report[data-mode="edit"] .glance .tcell[data-tile="stale"] .fig { padding-bottom: var(--tile-tag); }   /* item 160: the Not reviewed tile carries its tag on or off */
 .tcell.drop-left::before, .tcell.drop-right::before { content: ""; position: absolute; top: 0; bottom: 0; width: 3px; background: var(--brand-cyan); z-index: 3; }
 .tcell.drop-left::before { left: -8px; } .tcell.drop-right::before { right: -8px; }
 .tilemenu { top: 30px; right: auto; left: 0; }
@@ -418,12 +433,21 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 
 /* The Dashboard's sections (#65). A grid of two columns: a section takes the whole row, or shares it with the next one when it is
    set beside it. One column at 900 px and below. min-width: 0 keeps a long title from pushing the page sideways. */
-.secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4) var(--space-5); margin-top: var(--space-4); }
-.sec { position: relative; min-width: 0; padding: var(--space-3) 0 var(--space-1); border-top: 1px solid var(--grey-200); }
+/* The section look (A-D3): by default each section is its own card, with a small coloured square before its heading, and a slim gap
+   between the cards. The side gap stays 24 px so a right-hand section's control (Edit) has room beside the left card. The Settings ›
+   Personal style (html[data-secstyle], at the end of this file) changes the gaps (Roomy), puts the heading on a grey band (Grey
+   headers) or takes the cards away for one card round every section (One card). Shared: the published page follows the same rules. */
+.secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3) var(--space-5); margin-top: 16px; }
+.sec { --sec-px: 20px; position: relative; min-width: 0; padding: 14px var(--sec-px) 10px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+/* In these styles the sections are cards on the page, so the report's own frame steps back (its side room is kept for Edit's control). */
+html:not([data-secstyle="card"]) .frame.report { padding: var(--space-1) 28px 0; background: transparent; border: 0; box-shadow: none; }
+@media (max-width: 900px) { html:not([data-secstyle="card"]) .frame.report { padding: 4px 0 0; } }      /* Edit's control sits inside the card from here down */
 .slot-full { grid-column: 1 / -1; }
 .slot-left { grid-column: 1; }
 .slot-right { grid-column: 2; }
 .sec-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+/* The coloured square: --brand-blue is at least 3:1 against the card, and against the grey band, in light and in dark. */
+.sec-head::before { content: ""; flex: none; width: 10px; height: 10px; margin-right: 2px; background: var(--brand-blue); }
 .sec-h { flex: 1; min-width: 0; margin: 0; font-size: var(--size-h2); line-height: 1.3; font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
 .quiet { margin: 6px 0 var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
 /* A text section's body in a published file (#74): the editor's own words, read-only. Nothing in it may push the page sideways. */
@@ -507,8 +531,8 @@ table.tracker tr.tr-none td { text-align: left; }
 @media print { .tr-bar, .tr-fill, .tr-mark, .tr-pbar, .tr-pbar i, .tr-behind, .tr-tile { print-color-adjust: exact; -webkit-print-color-adjust: exact; } .tr-v { font-size: 26px; } }
 
 /* A hidden section's words are dimmed, not the section: its control keeps its own rest strength (issue 101). */
-.sec.is-hidden { border-top-style: dashed; }
-.sec.is-hidden > :not(.sec-ctl) { opacity: .65; }
+.sec.is-hidden { border-style: dashed; }
+.sec.is-hidden > :not(.sec-ctl):not(.sec-head), .sec.is-hidden .sec-h { opacity: .75; }      /* the title and body dim; the square and the tag keep their strength */
 .tag.hid { flex: none; }
 .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-cyan); }
 .secs.drop-end { box-shadow: 0 3px 0 var(--brand-cyan); }
@@ -538,14 +562,14 @@ table.tracker tr.tr-none td { text-align: left; }
    it never moves or narrows it. Faint at rest; clear when the section is hovered or has focus, and while its menu is open; always
    clear on a touch screen. The right half of a pair has the 24 px gap between the columns to itself, so it covers no content. */
 .sec-ctl { position: absolute; top: 6px; left: -26px; z-index: 2; display: flex; flex-direction: column; align-items: center; width: 24px; opacity: var(--sh-rest, .3);      /* --sh-rest: how clear at rest, from brand/tokens.css (.3 light, .75 dark) */ transition: opacity var(--dur-instant) var(--ease-out); }
-.sec.slot-right > .sec-ctl { left: -24px; }
+.sec.slot-right > .sec-ctl { left: -25px; }      /* the card's 1 px border is outside the padding box this is measured from */
 .sec:hover > .sec-ctl, .sec:focus-within > .sec-ctl, .sec-ctl.open, .sec-ctl:hover { opacity: 1; }
 /* an open menu is above the next section's control */
 .sec-ctl.open { z-index: 20; }
 @media (hover: none) { .sec-ctl { opacity: 1; } }
 /* At 900 px and below the frame's side padding is only 16 px, so the control would hang outside the card (issue 139). In Edit the section keeps
    room for it inside its own padding (32 px: the 24 px control and a 4 px gap each side); the box itself, its left edge and width, do not change. */
-@media (max-width: 900px) { #report[data-mode="edit"] .sec { padding-left: var(--space-6); } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; --sh-rest: var(--sh-rest-narrow, .85); } }      /* in the padding it is clearer at rest (issue 130, point 2): .85 in light, .75 in dark; --sh-rest-narrow is in brand/tokens.css */
+@media (max-width: 900px) { #report[data-mode="edit"] .sec { --sec-px: 32px; padding-left: 32px; } #report[data-mode="edit"] .sec > .sec-ctl, #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; --sh-rest: var(--sh-rest-narrow, .85); } }      /* in the padding it is clearer at rest (issue 130, point 2): .85 in light, .75 in dark; --sh-rest-narrow is in brand/tokens.css */
 @media (prefers-reduced-motion: reduce) { .sec-ctl { transition: none; } }      /* after the rule above, so it wins */
 .sec-title { display: inline-block; min-width: 4ch; max-width: 100%; padding: 0 var(--space-1); margin: 0 -4px 0 0; border-radius: var(--radius-sm); font: inherit; color: inherit; background: transparent; border: 1px solid transparent; overflow-wrap: anywhere; cursor: text; }
 .sec-title:hover { border-color: var(--grey-300); }
@@ -644,6 +668,9 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 .cpop .mi-note { flex-basis: 100%; order: 2; font-size: var(--size-caption); color: var(--text-muted); }
 .cpop [role="menuitemradio"][aria-checked="true"]::after { content: "✓"; margin-left: auto; padding-left: 14px; color: var(--status-blue-text); }
 .cpop .menu-item:focus-visible, .cpop button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+.cpop.rpick [role="group"] { display: flex; flex-direction: column; }   /* item 210: a risk's Priority picker, Impact then Likelihood */
+.cpop .rp-head { padding: 6px 12px 2px; font-size: var(--size-small); color: var(--text-muted); }
+.cpop.rpick [role="group"] + [role="group"] { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 2px; }
 .cowner { width: 260px; padding: 6px; }
 .cp-l { display: block; }
 .cp-in { box-sizing: border-box; width: 100%; min-height: 32px; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
@@ -1036,7 +1063,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .cal-list h4 { margin: 0 0 var(--space-2); color: var(--heading); font-weight: var(--weight-medium); }
 .cal-list ul { list-style: none; margin: 0; padding: 0; } .cal-list li { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; padding: var(--space-1) 0; border-bottom: 1px solid var(--grey-200); }
 .cal-ld { color: var(--text-muted); min-width: 6.5em; } .cal-ln { font-weight: var(--weight-medium); }
-@media (max-width: 900px) { .cal-d { min-height: 64px; } .cal-q { grid-template-columns: 1fr; } .msl-cells { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 900px) { .cal-d { min-height: 64px; } .cal-q { grid-template-columns: 1fr; } }
+/* C-M11 (row 24): a list row keeps its columns (date, name, state, progress) down to 801 px, as the prototype's does (app.css:849);
+   only at 800 px and below do the cells stack in two columns (app.css:875). */
+@media (max-width: 800px) { .msl-cells { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 700px) { .cal-list { display: block; } .cal-ms span { display: none; } .cal-ms { justify-content: center; } }   /* the cells keep their marks, the names go, the period is listed under the month */
 .mlg { position: relative; display: flex; justify-content: flex-end; margin: 6px 0 2px; }
 .mlg-b { all: unset; display: inline-flex; align-items: center; box-sizing: border-box; min-height: 28px; min-width: 28px; gap: var(--space-1); font-size: var(--size-caption); color: var(--text-muted); cursor: help; padding: 2px var(--space-1); border-radius: var(--radius-sm); }
@@ -1092,9 +1122,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pub-msg .info, .pub-msg .note { color: var(--text-muted); }
 /* Publish (issue 130, point 4): a spinner while it works, then a tick with the success line. With reduced motion the ring stays still. */
 .pub-msg .working { display: flex; align-items: center; gap: var(--space-2); color: var(--text-muted); }
-.spin { flex: none; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--brand-blue); border-radius: 50%; }
-/* Ticket 380: the ring turns four times (about 3.6 s) and then rests as the still ring; it never loops. A loop needs the owner's written word (ticket 131); the words "Publishing…" say the work is going on. */
-@media (prefers-reduced-motion: no-preference) { .spin { animation: pub-spin 900ms linear 4 forwards; } }
+.spin { flex: none; width: var(--space-4); height: var(--space-4); border: 2px solid var(--border); border-top-color: var(--brand-blue); border-radius: 50%; }
+/* Item 614 (after ticket 380): the ring turns, calmly, for exactly as long as "Publishing…" shows. It is drawn only while the work is
+   open (Publish.jsx renders it under `working`), so it goes the moment the work ends and nothing turns after the publish. Ticket 380's
+   four turns stopped it at about 3.6 s while the work went on, which read as "finished". The one approved loop (test_motion). */
+@media (prefers-reduced-motion: no-preference) { .spin { animation: pub-spin calc(var(--dur-enter) * 3) linear infinite; } }      /* calm: one even turn in 2.1 s (was 0.9 s) */
 @keyframes pub-spin { to { transform: rotate(360deg); } }
 .pub-msg .success { display: flex; align-items: center; gap: var(--space-2); }
 .pub-tick { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--status-green-text); color: var(--surface); }
@@ -1137,7 +1169,21 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pubs td { padding: 9px 10px; border-top: 1px solid var(--grey-100); vertical-align: middle; overflow-wrap: anywhere; }
 .pubs th:first-child, .pubs td:first-child { padding-left: 4px; width: 48px; }
 .pubs td.acts { text-align: right; white-space: nowrap; }
+.pubs td.acts > * + * { margin-left: var(--space-2); }
+.pubs tr.arch-row td { color: var(--text-muted); }
+#pubs .pp-tools { margin: var(--space-2) 0 0; }
 #pubs-note { margin: 8px 0 0; font-size: var(--size-small); }
+/* item 349: Settings > Published reports > Dashboard as at a day, and the banner and dashed tinted frame of the rebuilt Dashboard
+   (the design note of item 125, its past view: the prototype's .pv-banner and .pv-frame.asat). */
+.asat-pick { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--grey-200); }
+.asat-pick h3 { margin: 0 0 4px; font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--heading); }
+.asat-pick p.muted { margin: 0 0 8px; }
+.asat-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.asat-row input { width: 9em; max-width: 100%; box-sizing: border-box; min-height: 32px; padding: 4px 8px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.pv-banner { display: flex; gap: 10px; align-items: flex-start; background: var(--status-amber-tint); color: var(--text); border: 1px solid var(--status-amber); border-radius: var(--radius-lg); padding: 10px 14px; margin: 0 0 12px; position: sticky; top: calc(var(--topbar) + 8px); z-index: 5; overflow-wrap: anywhere; }
+.pv-banner p { margin: 0; font-size: var(--size-small); } .pv-banner b { font-weight: var(--weight-medium); } .pv-banner small { color: var(--text-muted); font-size: var(--size-caption); }
+.pv-banner .link { display: inline-flex; align-items: center; min-height: 24px; box-sizing: border-box; }
+.report.asat-frame, html:not([data-secstyle="card"]) .frame.report.asat-frame { border: 3px dashed var(--status-amber); background: var(--status-amber-tint); }      /* the second selector outranks the flat style's border: 0 on .frame.report */
 @media (max-width: 900px) { .pubnote { display: none; } .dlg-form { padding: var(--space-4); } }
 /* #43: on a phone the Publish button must not push the top bar wider than the window; only top-bar rules, after the phone card rules. */
 @media (max-width: 640px) { .pubbar { gap: var(--space-1); } .pubbtn { padding: 0 var(--space-2); font-size: var(--size-small); } .top:has(.pubbar) .logo .wm { display: none; } }   /* the Edit top bar only: the logo keeps its icon (its aria-label names it) */
@@ -1157,13 +1203,13 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucbar:hover, .ucrow.open > .ucbar { background: var(--grey-100); }
 .ucbar:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .ucref { justify-self: start; padding: 2px var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-caption); font-weight: var(--weight-medium); white-space: nowrap; }
-.ucstrip .ucexport { margin-left: auto; }
 .uctitle { font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
 .uchead { color: var(--text-muted); overflow-wrap: anywhere; }
 .ucword { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
-.ucsteps { color: var(--text-muted); font-size: var(--size-caption); }
+.ucsteps { color: var(--text-muted); font-size: var(--size-small); }
 .ucdetail { padding: var(--space-1) var(--space-1) var(--space-3) 72px; }
-.ucdetail h3 { margin: var(--space-2) 0 2px; font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
+.ucdetail h3 { margin: var(--space-2) 0 2px; font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
+.ucdcols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
 .ucdetail p { margin: 0 0 6px; }
 .ucdetail ul.plain li { border-top: 0; padding: 2px 0; }
 .ucdetail ul.ucstepl li { display: flex; align-items: center; gap: 8px; }
@@ -1207,14 +1253,64 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .fld input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .fld input[aria-invalid="true"] { border-color: var(--status-red-text); }
 .fld small { color: var(--text-muted); font-size: var(--size-caption); }
+.fld.copy-fld { max-width: 640px; }
 .fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-caption); }
 .fld-bad:empty { display: none; }
-.stylepick small { display: block; color: var(--text-muted); font-size: var(--size-caption); }
-html[data-secstyle="roomy"] .secs { gap: 36px var(--space-6); margin-top: 28px; }
-html[data-secstyle="roomy"] .sec { padding: 20px 0 var(--space-2); }
-html[data-secstyle="grey"] .sec { border-top: 0; padding-top: 0; }
-html[data-secstyle="grey"] .sec-head { padding: 6px 10px; border-radius: var(--radius-sm); background: var(--grey-100); }
-html[data-secstyle="card"] .secs { padding: var(--space-1) 20px var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); }
+/* item 613: the suggested Alias under the name box, read-only (Settings, Personal, About you) */
+.alias-offer { display: grid; gap: var(--space-1); min-width: 0; }
+.alias-offer p { margin: 0; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }
+.alias-offer b { font-weight: var(--weight-medium); color: var(--text); }
+/* Settings › People (item 454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
+.pp-h { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; }
+.pp-h h2 { margin: 0; flex: 1; }
+.pp-intro { font-size: var(--size-small); margin: 0 0 12px; }
+.pp-paste { margin: 0 0 14px; }
+.pp-paste[hidden] { display: none; }
+.pp-paste label { display: block; font-size: var(--size-small); color: var(--text-muted); margin-bottom: 6px; }
+.pp-paste textarea { width: 100%; box-sizing: border-box; min-height: 70px; padding: 6px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font-family: ui-monospace, Menlo, monospace; font-size: var(--size-caption); line-height: 1.5; resize: vertical; }
+.pp-paste textarea:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.pp-acts { display: flex; align-items: center; gap: 12px; margin-top: 8px; font-size: var(--size-small); }
+.pp-done { margin: 0 0 10px; font-size: var(--size-body); }
+.pp-done[hidden] { display: none; }
+.pp-done.error { color: var(--status-red-text); }
+.pp-plan { margin: 8px 0 0; font-size: var(--size-body); }
+.pp-bad { margin: 8px 0 0; padding-left: 18px; color: var(--status-red-text); font-size: var(--size-small); }
+.pp-sum { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 10px; font-size: var(--size-body); }
+.pp-sum .link { display: inline-flex; align-items: center; min-height: 24px; }
+table.pp-table, table.pp-prev { width: 100%; border-collapse: collapse; font-size: var(--size-small); margin-top: 8px; }
+table.pp-table th, table.pp-prev th { text-align: left; font-weight: 400; font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: 8px 10px; border-bottom: 1px solid var(--grey-200); }
+table.pp-table td, table.pp-prev td { padding: 10px; border-bottom: 1px solid var(--grey-100); vertical-align: middle; overflow-wrap: anywhere; }
+table.pp-table td.nm b { font-weight: var(--weight-medium); }
+table.pp-prev { font-size: var(--size-caption); }
+table.pp-prev td { padding: 6px 10px; }
+table.pp-prev tr.bad td { color: var(--status-red-text); }
+.stylepick small { display: block; color: var(--text-muted); font-size: var(--size-small); }
+/* The section style (#45). Slim gaps is the card look above. Each style changes one thing, so a square or a border is never drawn twice. */
+html[data-secstyle="roomy"] .secs { gap: 28px var(--space-6); margin-top: 28px; }
+html[data-secstyle="roomy"] .sec { padding: 20px var(--sec-px) 14px; }
+html[data-secstyle="grey"] .sec { padding-top: 0; }
+html[data-secstyle="grey"] .sec-head { margin: 0 calc(var(--sec-px) * -1) 4px; padding: 10px var(--sec-px); border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0; background: var(--grey-100); }
+/* One card: the report's own frame is the only card (its one border); the sections inside it are flat, divided by thin lines (the square
+   stays). The frame's side padding is Edit's gutter for the grip and +, so neither sits on a border. */
+html[data-secstyle="card"] .secs { padding: var(--space-1) 0 var(--space-3); border: 0; border-radius: 0; background: transparent; }
+html[data-secstyle="card"] .sec { --sec-px: 0px; padding: var(--space-3) 0 var(--space-1); background: transparent; border: 0; border-top: 1px solid var(--grey-200); border-radius: 0; box-shadow: none; }
+html[data-secstyle="card"] .sec.is-hidden { border-top-style: dashed; }
+html[data-secstyle="card"] .secs > .sec:first-child, html[data-secstyle="card"] .secs > .sec.slot-left:first-child + .sec.slot-right { border-top: 0; }      /* the first row has no line, for either half of a pair */
+/* A pair's right half reaches back across the 24 px column gap (its own padding gives the room back), so the line above the pair is one
+   unbroken line, and the right half's control sits in that gap, inside its own box, clear of every border. */
+@media (min-width: 901px) {
+  html[data-secstyle="card"] .sec.slot-right { margin-left: -24px; padding-left: 24px; }
+  html[data-secstyle="card"] .sec.slot-right > .sec-ctl { left: 0; }
+  html[data-secstyle="card"] .sec.drop-right::after { width: calc((100% - 24px) / 2); }
+}
+/* At 900 px and below the frame has 16 px side padding: in Edit it widens to 36 px for the control (24 px and a 6 px gap each side), so the
+   sections keep their full width and the control still sits in the frame's padding, not on its border. */
+@media (max-width: 900px) {
+  html[data-secstyle="card"] #report[data-mode="edit"] { padding-left: 36px; }
+  html[data-secstyle="card"] #report[data-mode="edit"] .sec { --sec-px: 0px; padding-left: 0; }
+  html[data-secstyle="card"] #report[data-mode="edit"] .sec > .sec-ctl, html[data-secstyle="card"] #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: -30px; }
+}
+html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-cyan); }      /* the flat sections keep the drag drop-line */
 
 /* The rich editor (#66). Colours from the tokens only, so dark mode follows. The editor adds no <style> of its own (injectCSS is
    false), so the rules ProseMirror needs are here. */
@@ -1618,6 +1714,24 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
 .ucp-body h2 { margin: 14px 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .ucp-headline { margin: 0 0 8px; }
+/* Printing: a published file printed from the browser (Save as PDF) shows every tab one after another, with no controls, in the light colours, and the page number in the foot. stores/print.js sets html.print-all and draws the stack while the browser prints; the screen never changes. */
+@page { size: A4; margin: 14mm 12mm 18mm; @bottom-right { content: "Page " counter(page); font-family: Arial, sans-serif; font-size: var(--size-caption); } }   /* the bottom-left foot, "Publication N · DD-MM-YYYY", is added by stores/print.js while the browser prints */
+@media print {
+  html.print-all, html.print-all body { background: var(--white); color: var(--text); color-scheme: light; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html.print-all .top, html.print-all .pubfoot, html.print-all .toc, html.print-all .peek, html.print-all .toast, html.print-all .skip, html.print-all .wbar, html.print-all .fbar, html.print-all .factive, html.print-all .vctl, html.print-all .msv-sw, html.print-all .mv-bar, html.print-all .cal-bar, html.print-all .sec-ctl, html.print-all dialog, html.print-all input, html.print-all select, html.print-all textarea { display: none; }
+  html.print-all button, html.print-all [role=button] { border: 0; background: none; box-shadow: none; padding: 0; min-height: 0; cursor: default; color: inherit; font: inherit; }
+  html.print-all main { max-width: none; margin: 0; padding: 0; }
+  html.print-all .frame { box-shadow: none; border: 0; padding: 0; background: var(--white); }
+  html.print-all .print-head { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-caption); }
+  html.print-all .print-tab + .print-tab { break-before: page; }
+  html.print-all .print-tab-title { margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-body); font-weight: 400; color: var(--text-muted); }
+  html.print-all .sec, html.print-all article, html.print-all .tile, html.print-all .fig, html.print-all figure, html.print-all blockquote, html.print-all tr, html.print-all li, html.print-all h1, html.print-all h2, html.print-all h3, html.print-all details { break-inside: avoid; }
+  html.print-all h1, html.print-all h2, html.print-all h3 { break-after: avoid; }
+  html.print-all thead { display: table-header-group; }
+  html.print-all a { color: inherit; text-decoration: none; }
+}
+
+.pk-rating { color: var(--text-muted); }   /* a closed risk keeps its rating word beside its Closed pill */
 /* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
 .pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .pk-val .i { width: 16px; height: 16px; }

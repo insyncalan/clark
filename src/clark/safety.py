@@ -7,6 +7,9 @@ One class, Safety, with three public methods, each returning (status, body) for 
   warning, a check of the newest copy, and how many are kept.
 - preview(req): POST /api/backups/preview {name}: counts of projects, work items and milestones in the copy and now. It reads a
   private working copy of the backup (in the backups folder, removed after) and a temporary snapshot of the live data, never the live file itself, and removes both.
+- copy_folder(req): POST /api/backups/copy-folder {folder}: save the optional folder each backup is also copied into (#622; a OneDrive
+  folder is allowed there), or turn it off with an empty text. The listing carries the saved folder, the last copy's warning and
+  the OneDrive folders found here as suggestions. The rules and the file are settings.py's; the copy itself is backup.copy_out.
 - restore(req): POST /api/backups/restore {name, last_step}: under changes.LOCK, taken without waiting, so a change, an undo or
   another restore in this process is never overlapped. In order: the name is checked, the live data is checked to be as it was at
   Preview (`last_step`), an older copy is tried on a temporary copy (open_store's migration) so a failure changes nothing, backup.restore_path swaps the files, and the new file is opened once (and closed).
@@ -49,7 +52,14 @@ MESSAGES = {
     "unfinished": "An earlier restore did not finish. Close clark and start it again: it finishes putting your data back, or tells you where your data is. Nothing was changed.",
     "generic": "That backup couldn't be put back. Nothing was changed.",
     "file_problem": "A file clark needs couldn't be read or written ({reason}). Nothing was changed.",
+    "bad_copy_request": "That could not be read. Reload the page and try again. Nothing was changed.",
 }
+FOLDER_LABEL = "Copy my backups to"
+FOLDER_HELP = ("Optional. After each backup, clark also puts a finished copy in this folder, so you have a copy that is not only on this "
+             "computer. The folder can be in OneDrive. clark's live data is never kept there. Leave it empty to turn this off.")
+FOLDER_ON = "Saved. Each backup is now copied there too, starting with the next one."
+FOLDER_OFF = "Saved. Backups are no longer copied anywhere else."
+FOLDER_SUGGESTED = "clark backups"
 COMMAND_WORDS = ("the file clark", "run restore", "restore again", "python3", "--data", ".restoring", "clark.db", "-m clark")     # text holding any of these is command-line talk, never shown
 WORK_PREFIXES = ("clark-preview-", "clark-restore-")     # the private working folders, made inside the backups folder
 JARGON = ("zip", "sqlite", "wal", "python", "manifest", "traceback", "errno", "db_id", "schema")     # no message a person reads holds these
@@ -99,6 +109,7 @@ class Safety:
         self.roots = onedrive_roots
         self.lock = lock if lock is not None else changes.LOCK
         self._preview_lock = threading.Lock()                # one Preview at a time (each copies a whole backup)
+        self._copy_lock = threading.Lock()                   # #622: two saves of the copy folder take turns
         self.clean_work()
 
     def clean_work(self):
@@ -175,7 +186,38 @@ class Safety:
         status, check = self._status(rows)
         return 200, {"ok": True, "backups": rows, "status": status, "newest_ok": check, "warning": backup.backup_warning,
                      "keep": settings.backups_kept(self.path.parent), "keep_label": settings.BACKUPS_KEPT_LABEL,
-                     "keep_help": settings.BACKUPS_KEPT_HELP}
+                     "keep_help": settings.BACKUPS_KEPT_HELP, **self._copy_view()}
+
+    # ── the copy folder (#622) ───────────────────────────────────────────────
+
+    def _suggestions(self):
+        """Folders to offer in the box: a "clark backups" folder in each OneDrive folder found here. Never an error; none where there is no OneDrive."""
+        try:
+            roots = platform.onedrive_roots() if self.roots is None else self.roots
+            return [str(Path(r) / FOLDER_SUGGESTED) for r in roots]
+        except (OSError, platform.PlatformError):
+            return []
+
+    def _copy_view(self):
+        saved = settings.backup_copy_folder(self.path.parent)
+        return {"copy_folder": str(saved) if saved else "", "copy_warning": backup.copy_warning if saved else None,
+                "copy_label": FOLDER_LABEL, "copy_help": FOLDER_HELP, "copy_suggestions": self._suggestions()}
+
+    def copy_folder(self, req):
+        """Save the copy folder: (200, {"ok": true, "folder": "" when off}) or (400, a refusal in plain words ending "Nothing was changed.").
+        A refusal writes nothing. Nothing is copied now: the next backup is the first copy."""
+        folder = req.get("folder") if isinstance(req, dict) and set(req) == {"folder"} else None
+        if not isinstance(folder, str):
+            return reply(400, "bad_request", MESSAGES["bad_copy_request"])
+        with self._copy_lock:
+            try:
+                saved = settings.set_backup_copy_folder(self.path.parent, folder)
+            except ValueError as e:
+                return reply(400, "refused", str(e))
+            except (OSError, platform.PlatformError) as e:
+                return reply(400, "file_problem", MESSAGES["file_problem"].format(reason=backup.plain_reason(e)))
+            backup.set_copy_warning(None)             # a new folder (or none): the last warning was about the old one
+        return 200, {"ok": True, "folder": str(saved) if saved else "", "message": FOLDER_ON if saved else FOLDER_OFF}
 
     def _status(self, rows):
         if not rows:

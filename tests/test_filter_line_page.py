@@ -329,6 +329,20 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: "is not available on this page yet" in self.say(cdp, sid)))
             self.assertEqual(self.chips(cdp, sid), ["is:open"])
 
+    def test_the_freshness_words_follow_the_projects_own_number_of_days(self):
+        """#171: the project's review_after_days (in its row of the data) is what the menu says, in the singular for one day."""
+        for days, words in ((3, "Not reviewed in 3 days"), (1, "Not reviewed in 1 day"), (365, "Not reviewed in 365 days")):
+            self.data["TUL"]["project"]["review_after_days"] = days
+            self.addCleanup(self.data["TUL"]["project"].__setitem__, "review_after_days", 14)
+            s = self.serve()
+            with self.subTest(days=days), chrome() as cdp:
+                sid = self.load(cdp, s.port)
+                self.watch(cdp, sid)
+                click(cdp, sid, "#freshMenu")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#freshMenu[aria-expanded=true]')", sid)))
+                names = cdp.js("[...document.querySelectorAll('[role=menu] [role^=menuitem]')].map(e => e.textContent.trim())", sid)
+                self.assertEqual(names, [words, "No owner or no date"])
+
     def test_the_freshness_menu_gives_the_two_plain_values_and_the_chips_say_them_in_plain_words(self):
         s = self.serve()
         for width in SIZES:

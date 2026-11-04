@@ -70,7 +70,7 @@ class Shape(unittest.TestCase):
         """Start here: five loop steps, five first-ten-minutes steps, twelve jobs, six places, four rules. The prototype's counts."""
         self.assertEqual((len(START["loop"]), len(START["first"]), len(START["jobs"]), len(START["where"]), len(START["rules"])),
                          (5, 5, 12, 6, 4))
-        self.assertEqual((len(STEPS), len(SECTIONS)), (32, 34))
+        self.assertEqual((len(STEPS), len(SECTIONS)), (33, 35))   # with the People entries (#454), held
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (36, 31))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -331,10 +331,10 @@ class LowWordsRound(unittest.TestCase):
             self.assertIn(line, card, f"{name}: Help's line is the one Settings shows")
 
     def test_use_case_help_says_what_the_page_says(self):
-        """The page's button reads "See all N open work items" and a use case has four statuses, Done included (UseCases.jsx; #412)."""
+        """The page's button reads "See all N work items for <ref>" (every linked item, as the prototype's views.js) and a use case has four statuses, Done included (UseCases.jsx; #412)."""
         page = (ROOT / "src" / "clark" / "page" / "src" / "components" / "UseCases.jsx").read_text(encoding="utf-8")
-        self.assertIn("See all ${n} open work", page)
-        self.assertEqual(self.ALL.count("it reads “See all N open work items”") + self.ALL.count("which reads “See all N open work items”"), 2)
+        self.assertIn('`See all ${n} work ${n === 1 ? "item" : "items"} for ${u.ref}`', page)
+        self.assertEqual(self.ALL.count("it reads “See all N work items” and the use case's reference") + self.ALL.count("which reads “See all N work items” and the use case's reference"), 2)
         self.assertNotIn("See all work items", self.ALL)
         self.assertIn('export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];', page)
         self.assertIn("Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey).", self.ALL)
@@ -391,6 +391,26 @@ class HelpMatchesThePage(unittest.TestCase):
         self.assertIn("**Use cases** link at the top, [[Esc]] or the Back button of your browser", line)
         self.assertNotIn("Back returns", line)
         self.assertNotIn("**Back**", line)       # the page has no button called Back
+
+    def test_every_line_that_lists_milestone_states_lists_fr50s(self):
+        """#453: FR-50's states are Achieved, On track, At risk, Slipped, Overdue and Forecast; no Help line may leave one out."""
+        brd = (ROOT / "docs" / "BRD.md").read_text(encoding="utf-8")
+        self.assertIn("(Achieved, On track, At risk, Slipped, Overdue) plus Forecast", brd)
+        fr50 = {"Achieved", "On track", "At risk", "Slipped", "Overdue", "Forecast"}
+        self.assertEqual({r[0] for r in SRC["reference"]["milestone_states"]}, fr50, "the legend")
+        states = next(sec for sec in SECTIONS if sec["id"] == "milestone-states")
+        follow = next(b[1] for b in states["b"] if b[0] == "p" and b[1].startswith("A state follows the dates"))
+        edit = next(s for _, s in words() if s.startswith("**State**: "))
+        for name, line in (("Milestone states and marks", follow), ("the State chip", edit)):
+            for st in fr50:
+                self.assertIn(st, line, f"{name} names {st}")
+
+    def test_help_names_the_tile_menu_as_the_page_does(self):
+        """#453: the tile's right-click menu is headed 'Outline colour' (edit/GlanceEdit.jsx); Help calls it that everywhere."""
+        glance = (self.SRC / "edit" / "GlanceEdit.jsx").read_text(encoding="utf-8")
+        self.assertIn('<div class="lab" role="presentation">Outline colour</div>', glance)
+        self.assertNotIn("**Tile colour**", self.ALL)
+        self.assertGreaterEqual(self.ALL.count("right-click for **Outline colour**") + self.ALL.count("Right-click a tile in Edit for **Outline colour**"), 2)
 
     def test_delete_section_is_said_for_both_kinds_that_have_it(self):
         gutter = (self.SRC / "edit" / "Gutter.jsx").read_text(encoding="utf-8")

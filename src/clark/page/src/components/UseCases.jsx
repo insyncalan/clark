@@ -4,12 +4,11 @@
 // status, linking a work item and editing the text are other items'. In a published file every use case and linked item on the page
 // is one the file kept (publish.select), so the page counts what it holds and a Sensitive or client-off item is never drawn.
 import { useEffect, useState } from "preact/hooks";
-import { data, rows, openWork, fromFile, show, project, mode } from "../stores/report.js";
+import { data, rows, openWork, openPeek, fromFile, show, project, mode } from "../stores/report.js";
 import { format } from "../router.js";
 import { isOn, liveOf } from "../logic/useCasesList.js";
-import { isOpen, ownerOf } from "../workItems.js";
+import { isOpen, dueField, showDate, ownerOf } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
-import { Icon } from "./Icon.jsx";
 
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];     // Done is grey: finished, and always said in its word
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -48,8 +47,8 @@ export function StepLine({ r }) {
 
 function Row({ s, shown, toggle, ed }) {
   const { u } = s, id = `uc-${u.id}`, label = u.ref ? `Use case ${u.ref}` : "";
-  // "See all N" counts the open items and the link opens the open ones: one list, `s.open`, for both.
-  const n = s.open.length, go = () => openWork(setFilter(initial(), "use_case", [label], false));
+  // "See all N" counts every linked item, open or closed, and the link opens that same list (the All switch), as the prototype does.
+  const n = s.linked.length, go = () => openWork({ ...setFilter(initial(), "use_case", [label], false), mode: "all" });
   return (
     <li class={`ucrow${shown ? " open" : ""}${ed ? " ucrow-ed" : ""}`} data-uc={u.id}>
       <div class="ucbar" role="button" tabIndex={0} aria-expanded={shown ? "true" : "false"} aria-controls={id}
@@ -64,12 +63,21 @@ function Row({ s, shown, toggle, ed }) {
       {shown ? (
         <div class="ucdetail" id={id}>
           {ed ? <ed.Name u={u} /> : null}
-          <h3>Where it stands</h3>
-          {ed ? <ed.Standing u={u} /> : fromFile.value && u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : <p>{plain(u.standing) || "Not written yet."}</p>}
-          <h3>Next steps</h3>
-          {s.steps.length ? <ul class="plain ucstepl">{s.steps.map((r) => <li key={r.id}><StepLine r={r} /></li>)}</ul> : <p class="muted">No open next steps.</p>}
+          <div class="ucdcols">
+            <div>
+              <h3>Where it stands</h3>
+              {ed ? <ed.Standing u={u} /> : fromFile.value && u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : <p>{plain(u.standing) || "Not written yet."}</p>}
+            </div>
+            <div>
+              <h3>{`Next steps \u00b7 ${s.steps.length}`}</h3>
+              {s.steps.length ? <ul class="plain ucstepl">{s.steps.map((r) => {
+                const due = dueField(r), see = () => openPeek(r.id, "item");
+                return <li key={r.id}><StepLine r={r} /> <span class="link" role="button" tabIndex={0} data-stepid={r.id} onClick={see} onKeyDown={(e) => press(e, see)}>{r.id}</span>{due ? <span class="muted">{` \u00b7 due ${showDate(due)}`}</span> : null}</li>;
+              })}</ul> : <p class="muted">No open next steps.</p>}
+            </div>
+          </div>
           {ed ? <><ed.NextStep u={u} /><ed.LinkButton u={u} /></> : null}
-          {n && label ? <span class="link" role="button" tabIndex={0} data-seeall onClick={go} onKeyDown={(e) => press(e, go)}>{`See all ${n} open work ${n === 1 ? "item" : "items"}`}</span> : n ? <p class="muted">{`${n} open work ${n === 1 ? "item" : "items"}.`}</p> : <p class="muted">No open work items.</p>}
+          {n && label ? <span class="link" role="button" tabIndex={0} data-seeall onClick={go} onKeyDown={(e) => press(e, go)}>{`See all ${n} work ${n === 1 ? "item" : "items"} for ${u.ref}`}</span> : n ? <p class="muted">{`${n} work ${n === 1 ? "item" : "items"}.`}</p> : <p class="muted">No work items.</p>}
         </div>
       ) : null}
     </li>
@@ -84,7 +92,7 @@ function More({ n }) {
   return <p class="ucmore"><a href={format({ view: "usecases", project: project.value })} data-uc-more onClick={go}>{n === 1 ? "1 more on the Use cases page" : `${n} more on the Use cases page`}</a></p>;
 }
 
-export function UseCases({ onExport, tools }) {
+export function UseCases({ tools }) {
   const d = data.value, [open, setOpen] = useState(() => new Set());
   const ed = tools && tools.ucEdit && !fromFile.value && mode.value === "edit" ? tools.ucEdit : null;       // Edit's parts (#455, #485): only in Edit; View and a published file have none
   const list = summary(d, rows.value), off = fromFile.value ? 0 : liveOf(d).filter((u) => !isOn(u)).length;
@@ -105,7 +113,6 @@ export function UseCases({ onExport, tools }) {
         <span class="meter" role="img" aria-label={STATUSES.filter(([k]) => counts[k]).map(([k]) => `${counts[k]} ${k}`).join(", ")}>
           {STATUSES.flatMap(([k, c]) => Array.from({ length: counts[k] || 0 }, (_, n) => <i key={k + n} class={`m-${c}`}></i>))}
         </span>
-        {onExport ? <button type="button" class="bib ucexport" data-uc-export data-tip="Export to Excel (the use cases are one sheet of it)" aria-label="Export to Excel. The use cases are one sheet of the workbook." onClick={onExport}><Icon name="dl" /></button> : null}
       </div>
       <ul class="ucrows plain">{list.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
       {ed ? <ed.FromRecord n={off} /> : null}
