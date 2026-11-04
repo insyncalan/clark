@@ -21,7 +21,7 @@ from pathlib import Path
 import _paths  # noqa: F401
 import _publish_fixture as fx
 from _demo import USER
-from clark import past_reports, publish, published_copies
+from clark import past_banner, past_reports, publish, published_copies
 from clark import server as sv
 from clark.store import open_store
 from test_publish_route import DAY, EMPTY_BRANDING, Rig as PublishRig
@@ -214,7 +214,7 @@ class Seam(Base):
         self.assertEqual([(r["number"], r["word"], r["kept"]) for r in rows], [(done["number"], False, True), (done["number"], True, False)])
         status, got = self.past.visit("PUB", done["number"])
         self.assertEqual((status, got["ok"]), (200, True), got)
-        self.assertEqual(self.past.take(got["url"].split("=")[1]), body)
+        self.assertEqual(past_banner.unframe(self.past.take(got["url"].split("=")[1])), body)
 
     def test_a_project_with_nothing_published_has_an_empty_list(self):
         status, body = self.past.listing("PUB")
@@ -233,7 +233,7 @@ class Seam(Base):
         self.assertRegex(got["url"], r"^/past\?id=[A-Za-z0-9_-]{16,64}$")
         self.assertEqual(set(got), {"ok", "code", "message", "number", "url"})
         nonce = got["url"].split("=")[1]
-        self.assertEqual(self.past.take(nonce), body)
+        self.assertEqual(past_banner.unframe(self.past.take(nonce)), body)
         self.assertIsNone(self.past.take(nonce), "once")
 
     def test_open_says_plainly_when_there_is_no_copy_or_the_copy_changed_or_there_is_no_such_publication(self):
@@ -286,7 +286,7 @@ class Seam(Base):
         done, body = self.publish()
         status, got = self.past.visit("PUB", done["number"])
         served = self.past.take(got["url"].split("=")[1])
-        self.assertEqual(served, body)
+        self.assertEqual(past_banner.unframe(served), body)
         text = served.decode("utf-8")
         for where, marker in self.plant["markers"].items():
             for spelling in fx.spellings(marker):
@@ -363,7 +363,7 @@ class TheRoutes(Base):
         status, got = self.json(f"/api/past-report?project=PUB&number={done['number']}")
         self.assertEqual((status, got["ok"]), (200, True))
         status, resp, raw = self.get(got["url"], token=False)                 # a new tab sends no token
-        self.assertEqual((status, raw), (200, body))
+        self.assertEqual((status, past_banner.unframe(raw)), (200, body))
         self.assertTrue(resp.getheader("Content-Type").startswith("text/html"))
         self.assertIn("script-src", resp.getheader("Content-Security-Policy"))
         self.assertEqual(resp.getheader("X-Frame-Options"), "DENY")
@@ -385,7 +385,7 @@ class TheRoutes(Base):
         done, body = self.publish()
         url = self.json(f"/api/past-report?project=PUB&number={done['number']}")[1]["url"]
         status, resp, raw = self.get(url, token=False)
-        self.assertEqual((status, raw), (200, body), "the sandbox changes the headers, never the bytes")
+        self.assertEqual((status, past_banner.unframe(raw)), (200, body), "the sandbox changes the headers, never the published bytes")
         csp = self.directives(resp)
         self.assertEqual(csp.get("sandbox"), "allow-scripts", "scripts only: a null origin")
         for flag in ("allow-same-origin", "allow-top-navigation", "allow-popups", "allow-forms", "allow-modals"):
