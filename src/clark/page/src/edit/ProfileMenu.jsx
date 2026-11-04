@@ -1,6 +1,6 @@
 // The profile circle and its menu (#77, #147), Edit parts only: what the page can do. Publish opens the dialog (#43). Preview opens
 // the page as it would be published in a new tab, and Export downloads the project's workbook; both ask the server (publishApi.js)
-// and neither publishes or saves a file. Settings is a tab, Help is the Help page. The tooltip lists the entries that carry a short
+// and neither publishes or saves a file. Export to Word and Import from Word (#48) open their own boxes (Word.jsx); Import is in Edit only. Settings is a tab, Help is the Help page. The tooltip lists the entries that carry a short
 // word (`tip`), so it follows the entries; Help has none, as its "?" key is its own way in. The accessible name is just "Your menu".
 // Appearance (Light, Dark, System) is in the menu (#179); the top line is the name and email from Settings › Personal (#180).
 import { useEffect } from "preact/hooks";
@@ -9,12 +9,14 @@ import { data, tabs, show, project, mode, view } from "../stores/report.js";
 import { openInNewTab } from "../router.js";
 import { openHelp } from "../help/helpStore.js";
 import { openPublish, lastLine } from "./Publish.jsx";
+import { BarToast } from "./BarToast.jsx";
 import { latest } from "./publishState.js";
 import { note, say, closeNote } from "./menuNote.js";
 import { previewRequest, exportRequest, words } from "./publishApi.js";
 import { showPublished } from "./PublishedReports.jsx";
 import { appearance, setAppearance, MODES } from "../stores/appearance.js";
 import { profile, loadProfile, wantName } from "../stores/profile.js";
+import { openExport, openImport } from "./wordState.js";
 import { toast } from "../stores/changes.js";
 import { ToastCard } from "./ToastCard.jsx";
 import { Welcome } from "./Welcome.jsx";
@@ -75,7 +77,8 @@ export function ProfileMenu() {
   useEffect(() => { loadProfile(); }, []);
   if (!data.value) return null;      // like the Publish button it replaced: not until the report is loaded, or Publish would open without the project's client folder
   const items = [{ id: "publish", name: "Publish…", tip: "Publish" }, { id: "preview", name: "Preview the page in a new tab", tip: "Preview" },
-    { id: "export", name: "Export to Excel", tip: "Export" }];
+    { id: "export", name: "Export to Excel", tip: "Export" }, { id: "word-export", name: "Export to Word" }];
+  if (mode.value === "edit") items.push({ id: "word-import", name: "Import from Word" });       // Edit only: it adds items
   if (tabs.value.includes("settings")) items.push({ id: "published", name: "Published reports" }, { id: "settings", name: "Settings", tip: "Settings" });      // #443: Published reports opens Settings at its card, so it comes with Settings; after Export, as in the prototype; no short word, so the tooltip is as it was
   items.push({ id: "help", name: "Help" });
   const tip = menuTip(items);
@@ -84,7 +87,7 @@ export function ProfileMenu() {
   // Appearance (#179; its group is called Appearance in the menu and in Settings): the same three choices as Settings › Personal, in the same order, below the separator that divides the actions
   // (Publish, Preview, Export) from the settings entries; the one in use is marked. One signal feeds both places.
   const look = [{ id: "look-lab", lab: "Appearance" }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], checked: appearance.value === m }))];
-  const actions = items.filter((i) => ["publish", "preview", "export", "published"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
+  const actions = items.filter((i) => ["publish", "preview", "export", "word-export", "word-import", "published"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
   // Who you are (#180), the top line: the name in bold with the email under it, or only the name; with neither, a link that opens
   // Settings › Personal and puts the cursor in the name box. Only what was typed in Settings: clark never makes up an email.
   const me = profile.value;
@@ -96,6 +99,8 @@ export function ProfileMenu() {
     else if (id === "preview") preview();
     else if (id === "export") exportExcel();
     else if (id === "published") showPublished();
+    else if (id === "word-export") openExport();
+    else if (id === "word-import") openImport();
     else if (id === "who") { wantName.value = true; show("settings"); }
     else if (id.startsWith("look-")) setAppearance(id.slice(5));
     else if (id === "settings") show("settings");
@@ -105,7 +110,7 @@ export function ProfileMenu() {
     <>
       <Menu id="profile-btn" btnCls="me" icon="user" label="" chevron={false} ariaLabel={MENU_NAME} tip={tip} menuId="profile-menu" menuLabel={MENU_NAME} items={shown} onPick={pick} />
       <Welcome />{/* #174: the first-run name prompt, asked once (Welcome.jsx) */}
-      {mode.value !== "edit" && view.value === "dashboard" ? <div class="toasts" role="status" aria-live="polite">{toast.value && toast.value.own ? <ToastCard t={toast.value} /> : null}<MenuNote /></div> : null}      {/* the Dashboard in View: About you's own toast, with Undo, too (#429) */}
+      {mode.value !== "edit" && view.value === "dashboard" ? <div class="toasts" role="status" aria-live="polite">{toast.value && toast.value.own ? <ToastCard t={toast.value} /> : <BarToast />}<MenuNote /></div> : null}      {/* the Dashboard in View: About you's own toast, with Undo, too (item 429), and one made in View (item 439) */}
     </>
   );
 }

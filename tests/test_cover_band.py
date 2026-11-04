@@ -6,6 +6,7 @@ Served page (View) and the published file, at 1400 and 900 px, light and dark. F
 import shutil
 import tempfile
 import unittest
+from datetime import date, timedelta
 from pathlib import Path
 
 from _demo import USER
@@ -49,6 +50,19 @@ class Served(Setup):
                 self.assertTrue(b["wide"], "no sideways scroll")
                 self.assertGreaterEqual(b["top"], -1.5, "the band does not start above the frame")
                 self.assertGreaterEqual(min(p.js(LUM)), 4.5)
+
+
+class TheWeek(Setup):
+    def coming_friday(self):
+        d = date.today()
+        return (d + timedelta(days=(4 - d.weekday()) % 7))
+
+    def test_row_34_a_project_with_no_week_shows_the_coming_friday_on_the_cover(self):
+        with self.store.step("dashboard", USER) as st:
+            st.update("projects", "ABC", {"week_ending": None})
+        with chrome() as cdp:
+            line = self.show(cdp).js("document.querySelector('.cover-line').textContent")
+        self.assertIn("Week ending " + self.coming_friday().strftime("%d-%m-%Y"), line)
 
 
 class InTheFile(Published):

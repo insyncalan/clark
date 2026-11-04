@@ -5,7 +5,7 @@
 // closePeek(). The width is dragged from the left edge (keys too), double-click resets it.
 // The arrow keys (#246, #289): Up and Down on one of its buttons step like Previous and Next, an arrow that moves the focus to
 // another row or card moves the peek with it, and Esc puts the focus on the row of the item shown. Nothing else takes an arrow.
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { data, rows, peek, openPeek, closePeek, mode, fromFile } from "../stores/report.js";
 import { width, wide, setWidth, resetWidth, MIN, peekTab } from "../stores/peekState.js";
@@ -50,7 +50,8 @@ function Row({ name, children, ref_, key_ }) {          // key_: which field thi
   return <div class={`pk-row${hit ? " flash" : ""}`} data-row={key_ || undefined} data-flash={hit ? "1" : undefined}><dt>{name}</dt><dd>{children}{hit ? <span class="tag chg">Changed</span> : null}</dd></div>;
 }
 
-function ItemFields({ row, editing, Cell }) {
+// ItemFields and Edge are also the archived peek's (ArchivedItems.jsx in the Edit part, item 450 row 39): the same rows, read only.
+export function ItemFields({ row, editing, Cell }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner);
   // #448: a closed risk or issue's pill reads Closed; it keeps its rating word beside it (the prototype's "Closed · Amber"), here and in a published file.
   const kept = (row.kind === "risk" || row.kind === "issue") && !isOpen(row) && row.priority ? colourOf(row.priority).word : "";
@@ -91,7 +92,7 @@ function MilestoneFields({ m }) {
 }
 
 // The edge you drag. Keys work too: Left widens, Right narrows, Home resets. Double-click resets.
-function Edge() {
+export function Edge() {
   const start = useRef(null);
   const down = (e) => { start.current = true; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* no capture: the move still follows */ } e.preventDefault(); };
   const move = (e) => { if (start.current) setWidth(document.documentElement.clientWidth - e.clientX); };
@@ -119,7 +120,8 @@ export function Peek({ tools }) {
   if (p) shown.current = p.id;                            // kept after the peek closes, for the focus it returns
   // Focus goes in when the peek opens and back to where it was when it closes: to the row (or card) of the item the peek shows then,
   // which after Up, Down, Previous or Next is not the one it opened on (#246).
-  useEffect(() => {
+  // A layout effect: the focus is taken and given back in the step that draws and removes the peek, not a frame later (frames arrive late on a busy runner).
+  useLayoutEffect(() => {
     if (!p) return undefined;
     back.current = document.activeElement;
     opened.current = p.id;
@@ -224,7 +226,7 @@ export function Peek({ tools }) {
       </div>
       {Warn && row ? <Warn key={`w-${row.id}`} row={row} /> : null}
       <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>
-      <h2 class="pk-title">{title}</h2>
+      <h2 class="pk-title" tabIndex={-1}>{title}</h2>
       {row && typeof row.not_reviewed === "boolean" && notReviewed(row, todayIso()) ? <p class="pk-stale"><span class="pk-chip" data-stale>{staleWords(row.review_days || undefined)}</span></p> : null}
       {Tabs ? <Tabs /> : null}
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}

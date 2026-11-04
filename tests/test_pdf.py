@@ -432,7 +432,7 @@ class PublishRealChrome(unittest.TestCase):
         self.assertNotIn(squash(str(rig.client)), squashed)
         for word in ("Dashboard", "Work items", "Milestones", "28-10-2026", "Page 1 of"):
             self.assertIn(word, text)
-        self.assertRegex(text, r"Publication \d+ · 28-10-2026", "the footer carries the number and the date")
+        self.assertIn(f"Publication {got['number']} \u00b7 28-10-2026", text, "the footer carries the publication number and the date")
         self.assertNotIn("Filter by", text, "no controls")
         self.assertEqual(text.count("Programme notes"), 1, "the live page is not printed as well as the stack")
         # a taken name in the client folder is asked about first, and nothing is written for the question

@@ -14,8 +14,14 @@ export const plainTextEditing = (() => {
   } catch (e) { return false; }
 })();
 
-const read = (el) => (plainTextEditing ? el.textContent : el.value);
-const show = (el, text) => { if (plainTextEditing) el.textContent = text; else el.value = text; };
+export const read = (el) => (plainTextEditing ? el.textContent : el.value);
+export const show = (el, text) => { if (plainTextEditing) el.textContent = text; else el.value = text; };
+
+// The one plain-text field the page edits in place: the section title, and a report row's client wording (ItemRowsEdit.jsx). Called
+// as a function with the field's props (its `ref` among them), so the field is drawn exactly where it is called.
+export const plainBox = (props) => (plainTextEditing
+  ? <span {...props} contenteditable="plaintext-only" role="textbox" tabindex="0" />
+  : <input {...props} type="text" />);
 
 export function Title({ section }) {
   const ref = useRef(null), now = useRef(section.title), cancelled = useRef(false);
@@ -37,8 +43,5 @@ export function Title({ section }) {
     if (e.key === "Enter") { e.preventDefault(); ref.current.blur(); }
     else if (e.key === "Escape") { e.preventDefault(); cancelled.current = true; show(ref.current, now.current); ref.current.blur(); }
   };
-  const common = { ref, class: "sec-title", "data-edit-only": "", "data-title": "", "aria-label": "Section title", onBlur: commit, onKeyDown, spellcheck: false };
-  return plainTextEditing
-    ? <span {...common} contenteditable="plaintext-only" role="textbox" tabindex="0" />
-    : <input {...common} type="text" />;
+  return plainBox({ ref, class: "sec-title", "data-edit-only": "", "data-title": "", "aria-label": "Section title", onBlur: commit, onKeyDown, spellcheck: false });
 }

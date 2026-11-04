@@ -22,6 +22,7 @@ from unittest import mock
 
 import _paths  # noqa: F401  (puts dev/tools/ on the path)
 import publish_public as pp
+from _growth import assert_growth
 from test_no_real_names import FICTIONAL
 
 HANDOVER = pp.reveal("qbpf/UNAQBIRE-EBZNABSS.zq")                    # file names that hold a person's name: kept ROT13, as in the tool
@@ -2009,9 +2010,7 @@ class TheVeryLongLine(unittest.TestCase):
                 data = ((unit * (size // len(unit))) + "\n").encode()
                 pp.scrub("docs/x.md", data)
                 pp.guard_kinds("docs/x.md", data)
-            small, big, ratio = growth_ratio(work, 20000)
-            print("long line %r: t(n)=%.3f t(2n)=%.3f ratio=%.2f" % (unit, small, big, ratio))
-            self.assertLessEqual(ratio, GROWTH_LIMIT, "%r: t(n)=%.3f t(2n)=%.3f" % (unit, small, big))
+            assert_growth(self, work, 10000, "long line %r" % unit)
 
     def test_a_listed_word_on_a_long_line_is_left_by_the_scrub_and_refused_by_the_guard(self):
         line = ("word " * (pp.MAX_LINE // 5 + 1)) + OWNER_N + "\n"
@@ -2322,54 +2321,6 @@ class TheGuardInThePublish(Base):
                 self.assertFalse(has_listed(out.split("Checks:")[1]))
 
 
-GROWTH_LIMIT = 3.5      # t(2n) / t(n): linear is 2, quadratic is 4, cubic is 8. Above 3.5 means the work is growing faster than linear (a square fails; linear measures 1.8 to 2.2).
-GROWTH_FLOOR = 0.01     # CPU seconds; a faster t(n) than this is raised to it, so timer noise cannot fail a very quick run
-
-
-def growth_ratio(work, n, tries=3):
-    """Time work(n) and work(2 * n) in CPU time (time.process_time, so a busy machine does not count against it), best of
-    `tries` for each, and return (t(n), t(2n), t(2n) / max(t(n), GROWTH_FLOOR)).
-
-    PR 511: a loaded runner measured 3.58 for long lines that measure 2.00 alone, because all the n runs came first and a burst of load
-    then landed on the 2n runs only. So the two sizes are timed in turns (n, 2n, n, 2n, ...), and a ratio over GROWTH_LIMIT earns up to
-    `tries` more rounds before it is returned. More rounds can only lower each best time, so this out-waits a burst on one size but not
-    a real blow-up: the best t(2n) of a square stays four times its best t(n) however many rounds are timed. The limit is unchanged."""
-    import time
-
-    def once(size):
-        start = time.process_time()
-        work(size)
-        return time.process_time() - start
-    small = big = None
-    for round_ in range(2 * tries):
-        if round_ >= tries and big / max(small, GROWTH_FLOOR) <= GROWTH_LIMIT:
-            break
-        a, b = once(n), once(2 * n)
-        small = a if small is None else min(small, a)
-        big = b if big is None else min(big, b)
-    return small, big, big / max(small, GROWTH_FLOOR)
-
-
-class TheGrowthCheckTellsLinearFromCubic(unittest.TestCase):
-    """The helper above is only worth trusting if it passes a linear cost and fails a cubic one (known pure-Python costs)."""
-    def test_linear_work_passes_and_cubic_work_fails_the_limit(self):
-        def linear(n):
-            total = 0
-            for i in range(n * 400000):
-                total += i
-            return total
-
-        def cubic(n):
-            total = 0
-            for i in range(n):
-                for j in range(n):
-                    for k in range(n):
-                        total += 1
-            return total
-        self.assertLessEqual(growth_ratio(linear, 3)[2], GROWTH_LIMIT)
-        self.assertGreater(growth_ratio(cubic, 160)[2], GROWTH_LIMIT)
-
-
 if __name__ == "__main__":
     unittest.main()
 
@@ -2413,7 +2364,7 @@ class TheScrubHasALimit(Base):
     """Review of fb9b5a0: a million newlines, a million '<', or 500 long lines took the scrub over 40 s and the dry run over 100 s, and
     some Python files raised MemoryError. Each of those is now quick (or refused by file number) and never a traceback."""
     def grows_slowly(self, path, make, n, seconds=4):
-        """The scrub and the guard on make(n) and make(2 * n): judged by the growth in CPU time (growth_ratio), not by a wall-clock limit
+        """The scrub and the guard on make(n // 2) and make(2 * n): judged by the growth in CPU time (growth_ratio), not by a wall-clock limit
         (the old quick() asserted `seconds` of wall time, which a loaded runner broke). The alarm is only a hang guard: a regression must
         fail the test, not hang it."""
         import signal
@@ -2427,12 +2378,10 @@ class TheScrubHasALimit(Base):
                 data = make(size)
                 pp.scrub(path, data)
                 pp.guard_kinds(path, data)
-            small, big, ratio = growth_ratio(work, n)
+            assert_growth(self, work, max(n // 2, 1), self.id().split(".")[-1])
         finally:
             signal.alarm(0)
             signal.signal(signal.SIGALRM, old)
-        print("%s: t(n)=%.3f t(2n)=%.3f ratio=%.2f" % (self.id().split(".")[-1], small, big, ratio))
-        self.assertLessEqual(ratio, GROWTH_LIMIT, "t(n)=%.3f t(2n)=%.3f" % (small, big))
 
     def test_a_million_newlines_is_refused_by_file_number_without_being_read(self):
         data = b"\n" * 1000000
@@ -2463,7 +2412,7 @@ class TheScrubHasALimit(Base):
         self.assertEqual(self.heads(), [])
 
     # The old check was a wall-clock limit (quick(), seconds=4 for a run of 900000 '<'); a loaded runner took 4.07 s. It is now the growth
-    # from n to 2n in CPU time, which is what a regex blow-up changes. ANGLE_OLD_LIMIT is kept as documentation and is no longer asserted.
+    # from n/2 to 2n in CPU time, which is what a regex blow-up changes. ANGLE_OLD_LIMIT is kept as documentation and is no longer asserted.
     ANGLE_OLD_LIMIT = 4
 
     def test_a_run_of_angle_brackets_is_quick_in_the_scrub_and_the_guard(self):
@@ -2471,9 +2420,7 @@ class TheScrubHasALimit(Base):
             data = b"<" * n
             pp.scrub("docs/x.md", data)
             pp.guard_kinds("docs/x.md", data)
-        small, big, ratio = growth_ratio(work, 200000)
-        print("angle brackets: t(n)=%.3f t(2n)=%.3f ratio=%.2f" % (small, big, ratio))
-        self.assertLessEqual(ratio, GROWTH_LIMIT, "t(n)=%.3f t(2n)=%.3f" % (small, big))
+        assert_growth(self, work, 100000, "angle brackets")
 
     def test_a_run_of_square_brackets_is_quick(self):
         self.grows_slowly("docs/x.md", lambda n: b"[" * n, 450000)

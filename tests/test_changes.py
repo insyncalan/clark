@@ -535,6 +535,43 @@ class Steps(Api):
         self.assertEqual(self.undone(body["apply_id"])[1]["skipped"], [])
         self.assertEqual(self.beside_now(), before)
 
+    # ----- #439 (prototype views.js:251): a lone section's stray beside flag is tidied after any add or move -----
+    def test_an_add_after_the_last_section_clears_a_stray_flag_on_it_in_the_same_step(self):
+        # #439 row 67 asked for this after ANY add; main's #244 rule (pinned by AddBeside: a plain add leaves other flags alone) clears it
+        # only for an add after the last section, so this test follows that narrower rule.
+        last = self.ids_now()[-1]
+        self.ok("update", id=last, changes={"beside": 1})                   # a 1 on the last section: the page ignores it
+        before = self.beside_now()
+        body = self.ok("new", values={"title": "Last"}, after=last)               # an add after the last section
+        self.assertEqual(self.beside_now()[last], 0)
+        self.assertEqual(self.undone(body["apply_id"])[1]["skipped"], [])
+        self.assertEqual(self.beside_now(), before, "one Undo puts the section away and the flag back")
+
+    def test_any_move_clears_a_stray_flag_on_a_second_half_and_keeps_the_real_pair(self):
+        for ref, value in (("ABC-S-003", 1), ("ABC-S-004", 1)):             # S3 and S4 are a pair; S4's own 1 is ignored by the page
+            self.ok("update", id=ref, changes={"beside": value})
+        before = self.beside_now()
+        body = self.ok("move", id="ABC-S-009", before="ABC-S-002", place="report")
+        now = self.beside_now()
+        self.assertEqual((now["ABC-S-003"], now["ABC-S-004"]), (1, 0), "the pair stays, the ignored flag goes")
+        self.assertEqual(self.undone(body["apply_id"])[1]["skipped"], [])
+        self.assertEqual(self.beside_now(), before)
+
+    def test_an_add_or_move_leaves_a_report_with_no_stray_flag_as_it_was(self):
+        self.ok("update", id="ABC-S-003", changes={"beside": 1})            # a real pair, no stray
+        before = self.beside_now()
+        body = self.ok("new", values={"title": "Plain"}, after="ABC-S-007")
+        others = {r["field"] for r in self.s.con.execute("SELECT field FROM change_log WHERE apply_id = ? AND item_id != ?", (body["apply_id"], body["ref"])).fetchall()}
+        self.assertNotIn("beside", others, "no other section's flag was written")
+        self.assertEqual({k: v for k, v in self.beside_now().items() if k in before}, before)
+
+    def test_the_stray_flags_are_the_ones_the_page_ignores(self):
+        row = lambda i, b: {"id": i, "beside": b}
+        self.assertEqual(changes._stray_flags([row("a", 1), row("b", 1), row("c", 1), row("d", 1), row("e", 1)]), ["b", "d", "e"])
+        self.assertEqual(changes._stray_flags([row("a", 0), row("b", 1), row("c", 0)]), [], "b starts a pair with c: not stray")
+        self.assertEqual(changes._stray_flags([row("a", 1), row("b", 0), row("c", 1)]), ["c"])
+        self.assertEqual(changes._stray_flags([row("a", 0), row("b", 0)]), [])
+
     def test_a_delete_the_store_refuses_leaves_every_flag_as_it_was(self):
         self.ok("update", id="ABC-S-001", changes={"beside": 1})           # S-002 is the second half of S-001; it is not a text section
         before, snap = self.beside_now(), self.snapshot()
@@ -994,9 +1031,9 @@ class ByUser(Api):
                          "Someone Else")
 
 
-ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_visible"},
-               "raid": {"status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_visible"},
-               "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision", "client_visible"}}      # #67: + the title; #97: + the eye
+ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible"},
+               "raid": {"status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_message", "client_visible"},
+               "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision", "client_message", "client_visible"}}      # #67: + the title; #97: + the eye; the report rows: + the client wording
 
 
 class Items(Api):
@@ -1218,9 +1255,27 @@ class Items(Api):
         self.assertEqual(changes.NO_ARCHIVE, "An item can't be archived by editing its details. Archiving isn't available from the page yet. Ask the clark team if you need an item hidden now.")
         self.assertEqual(self.s.read("actions", ref=self.a)["archived"], 0)
 
+    def test_the_client_wording_of_a_work_item_is_changed_in_place_by_the_report_rows_and_undone(self):
+        """A-D5: the report rows draw only the client's wording, so Edit changes that wording (client_message) in place: plain
+        text of 200 characters at most, never blank, one step and one Undo; the team's own text (description) is untouched."""
+        for kind, ref, title in (("actions", self.a, "description"), ("raid", self.r, "description"), ("decisions", self.d, "decision")):
+            with self.subTest(kind=kind):
+                before = self.s.read(kind, ref=ref)
+                body = self.go(kind, ref, client_message="What the client reads")
+                self.assertNotIn("client_message", body["item"], "the wording is never said back in a reply, as a title is not")
+                row = self.s.read(kind, ref=ref)
+                self.assertEqual((row["client_message"], row[title]), ("What the client reads", before[title]), "the team's own text is untouched")
+                self.no(self.item(kind, ref, client_message=""), changes.ITEM_VALUE_WORDS)
+                self.no(self.item(kind, ref, client_message=None), changes.ITEM_VALUE_WORDS)     # a null is refused in the same plain words, not a 500
+                self.assertEqual(self.s.read(kind, ref=ref)["client_message"], "What the client reads", "nothing saved")
+                self.no(self.item(kind, ref, client_message="x" * 201), changes.ITEM_VALUE_WORDS)
+                self.no(self.item(kind, ref, client_message="two\nlines"), changes.ITEM_TEXT_WORDS)
+                status, undone = self.undone(body["apply_id"])
+                self.assertEqual(status, 200, undone)
+                self.assertEqual(self.s.read(kind, ref=ref)["client_message"], before["client_message"])
+
     def test_unknown_and_never_fields_are_refused(self):
-        self.no(self.item("actions", self.a, client_message="x"), "The field 'client_message' can't be set here.")
-        self.no(self.item("actions", self.a, client_message="x", client_visible=0), "The field 'client_message' can't be set here.")
+        self.no(self.item("actions", self.a, raised="2026-10-02"), "The field 'raised' can't be set here.")
         self.no(self.item("actions", self.a, closed="2026-10-02"), "The field 'closed' can't be set here.")
         self.no(self.item("actions", self.a, project="XYZ"), "The field 'project' can't be set here.")
         self.no(self.item("actions", self.a, id="ABC-A-099"), "The field 'id' can't be set here.")

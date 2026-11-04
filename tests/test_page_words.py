@@ -167,17 +167,20 @@ class Words(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid), WAIT))
             cdp.js("document.querySelector('[data-view=settings]').click()", sid)
             self.shown(cdp, sid, ["Settings",
-                                  "Where reports are published, how clark looks for you, the log, your backups and asking Claude.",
-                                  "Publishing", "Personal", "Logs and diagnostics", "Backups", "Asking",      # the chips: one for each card below, in the order they are on the page
+                                  "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
+                                  "Publishing", "Personal", "Freshness", "Logs and diagnostics", "Backups", "Asking",      # the chips: one for each card below, in the order they are on the page
                                   "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
                                   "Local folder", "Always saved. Publish opens the save window where you last saved this report, so you choose the local folder there each time.",
                                   "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",
-                                  "No client folder yet.", "Choose folder",
+                                  "No client folder yet.", "Choose folder", "or paste the folder's path", "Use", "A folder on this computer.",
                                   "Published reports · Example Programme",      # #443: the card; the page has no server here, so its list says it could not be read
                                   "Every time you publish, the report gets the next number for this project and a copy of the page is kept. Open shows the copy as it was published. Every copy is kept; this list shows the latest 10.",
                                   "The published reports could not be read. Reload the page and try again. Try again",
+                                  "Dashboard as at a day",      # #349: under the list
+                                  "See the Dashboard as it stood at the end of a day, rebuilt from the change history. Read only; it was not published in this form.",
+                                  "Day", "Show",      # the box's label is read by a screen reader only
                                   "Personal",    # #45: Settings › Personal, the section styles
                                   "These are for you, on this computer. The section style is used on the published report too; Light or Dark is yours alone.",
                                   "Dashboard sections", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture.",
@@ -185,16 +188,30 @@ class Words(unittest.TestCase):
                                   "One card", "All the sections in one long card.",
                                   "Appearance", "System", "Follows your Mac's setting.", "Light", "Always light.", "Dark", "Always dark.",      # #179
                                   "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
+                                  "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
                                   "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
+                                  "Freshness",          # #160: the project's "Not reviewed after (days)"
+                                  "When an open item counts as not reviewed in this project. It sets the peek's note, the Freshness filter and the Not reviewed tile.",
+                                  "Not reviewed after (days)", "A whole number from 1 to 365. The default is 14. Not in the published report.",
                                   "Logs and diagnostics",      # #110
                                   "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
                                   "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",
                                   "Open folder", "Copy diagnostics", "The log settings could not be read. Reload the page and try again.",
+                                  "Projects", "Show archived", "Add project",      # A-S6: the projects table comes before the Data card; this server has no list to give (#444: Add project is on it)
+                                  "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
+                                  "The list of projects could not be read. Choose Try again. If it happens again, restart clark. Try again",
+                                  "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
+                                  "Export workbook", "Import workbook",        # #444: Export and Import
+                                  "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases. Export saves this project's as an Excel workbook; "
+                                  "your browser saves the file and nothing is sent or published. Import shows what would change before anything is saved.",
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "People", "Paste from Excel",             # #454: the People card; this server has no people routes, so the list can't be read
+                                  "Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.",
+                                  "The people list could not be read. Reload the page. If it happens again, restart clark. Try again",
                                   "Asking",             # #47: the switch and its folders, below the client folder
                                   "Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.",
                                   "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off

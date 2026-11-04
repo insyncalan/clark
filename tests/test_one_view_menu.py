@@ -50,12 +50,21 @@ class OneMenu(Base):
             self.assertEqual(cdp.js("[...document.querySelectorAll('#viewMenuList [data-kind^=\"lane:\"]')].map(b => b.textContent.replace('\\u2713', ''))", sid),
                              ["No lanes", "Workstream lanes", "Type lanes"], "the prototype's words")
 
+    def only_the_archived_pill_in_the_bar(self, cdp, sid):
+        # item 450: the bar may hold one .vctl wrapper again, and it holds the Archived pill and nothing else
+        got = cdp.js("[...document.querySelectorAll('.wbar .vctl')].map(v => [...v.children].map(c => c.className))", sid)
+        self.assertEqual(got, [["arch-pill"]], "one wrapper, holding only the Archived pill")
+        self.assertEqual(cdp.js("document.querySelectorAll('.wbar .vctl #group-by, .wbar .vctl [data-layout], .wbar .vctl [aria-label=Layout], .wbar .vctl #swimlanes, .wbar .vctl [aria-haspopup=menu]').length", sid), 0,
+                         "no layout or group controls in it")
+
     def test_the_old_separate_controls_are_gone(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
-            self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout], [aria-label=Layout], .wbar .vctl').length", sid), 0)
+            self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout], [aria-label=Layout]').length", sid), 0)
+            self.only_the_archived_pill_in_the_bar(cdp, sid)
             self.board(cdp, sid, "status")
-            self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout], #swimlanes, .wbar .vctl').length", sid), 0)
+            self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout], #swimlanes').length", sid), 0)
+            self.only_the_archived_pill_in_the_bar(cdp, sid)
             self.assertEqual(cdp.js("document.querySelectorAll('#work .wbar [aria-haspopup=menu], #work .fline-wrap [aria-haspopup=menu], #work .lanebar [aria-haspopup=menu]').length", sid), 2, "Freshness and View, nothing else")
             self.assertTrue(cdp.js("!!document.querySelector('.lanebar #board-full')", sid), "full screen stays on the board bar")
 

@@ -40,6 +40,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from clark import backup, doclinks, milestone_rows, milestones, order, platform, sanitise, section_bodies, section_kinds
+from clark import people as people_rules
 from clark import store as clark_store
 from clark.section_kinds import base as section_base, textimage as pictures
 from clark.store import Invalid
@@ -61,9 +62,9 @@ CHANGE_KINDS = {
     # (an item is closed or cancelled by its status, and archived only by archiving). priority is not in raid's list because the
     # store works it out from impact and likelihood (D-12: the status picker's Rating sets those two); `archived` is in no list.
     # #67: a work item's title is the column the page shows as its title: an action's and a RAID item's `description`, a decision's `decision`.
-    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_visible")},   # the peek's Latest update (an action's only)
-    "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_visible")},
-    "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision", "client_visible")},   # #45: use_case links an existing use case of this project, or clears the link
+    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible")},   # the peek's Latest update (an action's only)
+    "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_message", "client_visible")},
+    "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision", "client_message", "client_visible")},   # #45: use_case links an existing use case of this project, or clears the link
     # #45: the At a glance tiles and the project's health. A tile is hidden, given an outline colour or moved (its place is worked
     # out here, never sent); the project's change takes no `id` (it is the request's project) and only its health and the reason.
     "glance_tiles": {UPDATE: ("hidden", "outline"), MOVE: ()},
@@ -103,9 +104,9 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
                            "client_message", "movement", "internal_note"),     # #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
             "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible"), "documents": ("archived",) + DOC_FIELDS, "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
-CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone", "client_visible", "latest_update", "use_case")      # #485: a next step added from a use case's row names it; #67: a row added in the report: no id,
-CHANGE_KINDS["raid"][NEW] = ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible")   # raised, status or source
-CHANGE_KINDS["decisions"][NEW] = ("decision", "made_by", "status", "date", "needed_by", "client_visible", "reasoning")      # (clark gives those), and no priority on a risk (worked out)
+CHANGE_KINDS["actions"][NEW] = ("description", "client_message", "client_visible", "owner", "priority", "due_date", "workstream", "milestone", "latest_update", "use_case")      # #485: a next step added from a use case's row names it; #67: a row added in the report: no id,
+CHANGE_KINDS["raid"][NEW] = ("type", "description", "client_message", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible")   # raised, status or source
+CHANGE_KINDS["decisions"][NEW] = ("decision", "client_message", "made_by", "status", "date", "needed_by", "client_visible", "reasoning")      # (clark gives those), and no priority on a risk (worked out)
 CHANGE_KINDS["milestones"][NEW] = ("name", "baseline_date", "owner", "workstream")
 # #196: one field change to several work items of one kind, in one step with one Undo (_do_bulk). A risk's impact and likelihood
 # are here (its priority is worked out from them); a decision takes only who makes it.
@@ -124,10 +125,10 @@ UC_FIELDS = CHANGE_KINDS["use_cases"][UPDATE]        # #164: what a request may 
 UC_REF_LIMIT = 20                                    # #455: a new use case's reference as the project writes it ("3.1"), in characters
 UC_NAME_LIMIT = 120                                  # a use case's name, in characters
 UC_HEADLINE_LIMIT = 300                              # its one-line headline
-ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision", "impact", "likelihood")   # D-12: a rating is never cleared, as a new row
+ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision", "impact", "likelihood", "client_message")   # D-12: a rating is never cleared, as a new row
 CLEARED_BY_NEW = ("owner", "priority", "status", "description", "decision", "type", "name", "impact", "likelihood", "client_visible")   # sent as null on a new row: refused      # a work item field that has to have a value (the others may be cleared)
 EXPLAIN_FIELDS = ("latest_update", "reasoning")      # #458: the one explanation line a new action or decision may start with (Movement's buttons); never said back, never in ask clark's before and after
-TITLE_FIELDS = ("description", "decision")           # #67: a work item's title; never said back in a reply (the page keeps what it sent); a new milestone's name is held to the same
+TITLE_FIELDS = ("description", "decision", "client_message")           # #67: a work item's title, and the client wording the report rows edit in place; never said back in a reply (the page keeps what it sent); a new milestone's name is held to the same
 ITEM_SHOWN = {k: ("id",) + tuple(f for f in CHANGE_KINDS[k][UPDATE] if f not in TITLE_FIELDS) + (("closed",) if k != "decisions" else ())
               + (("priority",) if k == "raid" else ()) for k in ITEM_KINDS}   # what a reply says of a changed item: a risk's priority too,
                                                      # which the store works out from impact and likelihood (said back, never taken)
@@ -671,6 +672,24 @@ def _on_its_own(rows, ref):
     return True
 
 
+def _stray_flags(rows):
+    """#439 (prototype views.js:251): the sections whose `beside` is 1 though the page reads it as nothing, so a flag left behind by an
+    add, a move or an earlier change never starts a new pair later: a 1 on the second half of a pair, and a 1 on the last section."""
+    ids = [r["id"] for r in rows]
+    flag = {r["id"]: r["beside"] for r in rows}
+    out, i = [], 0
+    while i < len(ids):
+        if flag[ids[i]] == 1 and i + 1 < len(ids):
+            if flag[ids[i + 1]] == 1:
+                out.append(ids[i + 1])
+            i += 2
+        else:
+            if flag[ids[i]] == 1:
+                out.append(ids[i])
+            i += 1
+    return out
+
+
 def _do_change(store, by_user, req):
     project, kind, op, place = _shape(req)
     if store.read("projects", ref=project) is None:
@@ -756,6 +775,8 @@ def _do_change(store, by_user, req):
                     st.update(table, other, {"sort_order": place_})
                 for other, value in flags.items():                  # the same step: one Undo for the place and every flag
                     st.update(table, other, {"beside": value})
+                for other in _stray_flags(_sections(store, project)):       # #439: after any move, a lone section's stray flag goes too
+                    st.update(table, other, {"beside": 0})
             else:
                 for other in _flags_to_clear(rows, ref):            # the same step: one Undo puts the section and the flag back
                     st.update(table, other, {"beside": 0})
@@ -1946,6 +1967,8 @@ def _field_words(entry, name):
         return f"the {DOC_FIELD_NAMES[f]} of {name}"                # #74: never the old text or link itself
     if f in ("description", "decision") and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the title of {name} is back as it was"          # #67: never the old text itself
+    if f == "client_message" and ITEM_REF.fullmatch(str(entry.get("ref"))):
+        return f"the client wording of {name} is back as it was"      # the report rows edit it in place; never the old text itself
     if f in ITEM_FIELD_NAMES and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the {ITEM_FIELD_NAMES[f]} of {name} is back to {to}" if to else f"the {ITEM_FIELD_NAMES[f]} of {name} is cleared again"
     if f == "client_visible":                                       # #67: the picker's Add also showed the row to the client
@@ -2443,7 +2466,7 @@ def make_undo(path, onedrive_roots=None, by_user=None):
 # fields are checked by the store (people rules); this checks only the shape of the request, then one step, one Undo.
 PERSON_FIELDS = ("name", "email", "organisation", "role", "label", "aliases", "kind", "needs_details")
 PEOPLE_SHAPES = {"add": PERSON_FIELDS, "edit": ("id", "changes"), "rename": ("id", "name"), "merge": ("from", "into"),
-                 "archive": ("id",), "restore": ("id",)}
+                 "archive": ("id",), "restore": ("id",), "paste": ("rows",)}
 PEOPLE_SOURCE = "People list"
 BAD_PERSON = "That isn't a person clark knows. Reload the page and try again."
 NO_PEOPLE_UNDO = "That step can't be undone from here."
@@ -2470,9 +2493,77 @@ def _person_ref(value):
     return value
 
 
+PASTE_FIELDS = ("name", "email", "organisation", "role")     # #454: the four columns the People card's Paste from Excel takes
+PASTE_NONE = "There is nothing to add. Paste rows copied from Excel: name, email, organisation, role."
+PASTE_MANY = f"That is more than {people_rules.ROW_LIMIT} rows. Paste fewer rows at a time. Nothing was changed."
+PASTE_BAD_ROW = "One of the rows isn't details clark can use. Check the rows and try again. Nothing was changed."
+
+
+def _paste_people(st, rows):
+    """#454: rows of name, email, organisation and role (the People card's Paste from Excel), applied in the caller's ONE step, so one
+    Undo takes the whole paste back. A name already on the live list (the people rules' exact match on a name or alias, never fuzzy)
+    gets the details that were pasted: a blank cell leaves what is there alone. Any other name is added, Needs details when it has no
+    email. Every field goes through the same writer and checks as an add or an edit (the email rule, one email per person, the
+    limits). One row that can't be used refuses the whole paste, in words that name the person, and nothing is written. Returns
+    (added, updated)."""
+    if not isinstance(rows, list) or not rows:
+        raise Refused(PASTE_NONE)
+    if len(rows) > people_rules.ROW_LIMIT:
+        raise Refused(PASTE_MANY)
+    added = updated = 0
+    by_id, live, gone = {}, {}, {}                                  # the name and alias index, built ONCE: key -> ids (live, archived)
+    for p in st.store.people(archived=None):
+        by_id[p["id"]] = p
+        for key in people_rules.keys_of(p):
+            (gone if p.get("archived") else live).setdefault(key, []).append(p["id"])
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("name"), str) or any(k not in PASTE_FIELDS for k in row):
+            raise Refused(PASTE_BAD_ROW)
+        given = {k: _person_value(k, v) for k, v in row.items()}
+        name = " ".join(given["name"].split())
+        if not name:
+            raise Refused("A row has no name. Give each person a name. Nothing was changed.")
+        shown = name if len(name) <= 40 else name[:40] + "…"
+        try:
+            key = people_rules.name_key(name)
+            if key in people_rules.NO_PERSON:                        # the placeholder rule the owner fields use: TBC is no one
+                raise Refused(f"{shown} isn't a name. Give the person's real name, or leave the row out. Nothing was changed.")
+            ids = live.get(key, [])                                  # exactly people.resolve's order: live first, then archived
+            if len(ids) > 1:
+                raise Refused(f"More than one person is called {shown}. Change the name to say which one, then paste again. Nothing was changed.")
+            if not ids and key in gone:
+                raise Refused(f"{shown} is on the list but has been archived. Restore them from the People card instead of pasting them again. Nothing was changed.")
+            email, bad = people_rules.clean_email(given.get("email"))
+            if bad:
+                raise Refused(f"{shown}: {bad} Nothing was changed.")
+            details = {"email": email or None, "organisation": " ".join((given.get("organisation") or "").split()) or None,
+                       "role": " ".join((given.get("role") or "").split()) or None}
+            for field in ("organisation", "role"):
+                if details[field] and len(details[field]) > people_rules.CELL_MAX:
+                    raise Refused(f"{shown}: the {field} is too long (at most {people_rules.CELL_MAX} characters). Shorten it and try again. Nothing was changed.")
+            if ids:
+                now = by_id[ids[0]]
+                changes = {k: v for k, v in details.items() if v and v != now.get(k)}
+                if changes:
+                    st.edit_person(ids[0], changes)
+                    now.update(changes)
+                    updated += 1
+            else:
+                new = st.add_person(source=PEOPLE_SOURCE, name=name, needs_details=0 if email else 1, **{k: v for k, v in details.items() if v})
+                person = {"id": new, "name": name, "aliases": None, "archived": 0, **details}
+                by_id[new] = person
+                for k in people_rules.keys_of(person):
+                    live.setdefault(k, []).append(new)
+                added += 1
+        except Invalid as e:                                    # a store rule (one email per person ...), said with the person's name
+            raise Refused(f"{shown}: {e} Nothing was changed.") from None
+    return added, updated
+
+
 def _do_people(store, by_user, req):
-    """POST /api/people: {"op": add | edit | rename | merge | archive | restore, ...}. One step; answers the new apply_id (the Undo's
-    handle), the person's id where there is one, how many work items a rename or merge carried, and the list as it now is."""
+    """POST /api/people: {"op": add | edit | rename | merge | archive | restore | paste, ...}. One step; answers the new apply_id (the
+    Undo's handle; None when a paste changed nothing), the person's id where there is one, how many work items a rename or merge
+    carried, how many people a paste added and updated, and the list as it now is."""
     if not isinstance(req, dict):
         raise Refused(NOT_JSON_OBJECT)
     op = req.get("op")
@@ -2482,9 +2573,12 @@ def _do_people(store, by_user, req):
     for k in req:
         if k not in allowed:
             raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
-    ref, count = None, 0
+    ref, count, pasted = None, 0, {}
     with store.step("dashboard", by_user) as st:
-        if op == "add":
+        if op == "paste":
+            added, updated = _paste_people(st, req.get("rows"))
+            pasted = {"added": added, "updated": updated}
+        elif op == "add":
             fields = {k: _person_value(k, v) for k, v in req.items() if k != "op"}
             ref = st.add_person(source=PEOPLE_SOURCE, **fields)
         elif op == "edit":
@@ -2506,7 +2600,7 @@ def _do_people(store, by_user, req):
             ref = _person_ref(req.get("id"))
             st.restore_person(ref)
         apply_id = st.peek_apply_id()
-    return 200, {"ok": True, "apply_id": apply_id, "id": ref, "items": count, "people": store.people(archived=None)}
+    return 200, {"ok": True, "apply_id": apply_id, "id": ref, "items": count, **pasted, "people": store.people(archived=None)}
 
 
 def _do_people_undo(store, by_user, req):
@@ -2588,6 +2682,28 @@ def make_people_list(path, onedrive_roots=None, by_user=None):
     def people_list():
         return _call(path, onedrive_roots, by_user, _do_people_list, {})
     return people_list
+
+
+# ── Archive and Restore of one publication (#345, POST /api/publications/archive and /restore) ──
+# The server has checked the body is exactly a project code and a publication number. The store writes the one history line and the
+# archive mark (store.archive_publication, unarchive_publication); the reply carries no step, so the page offers no Undo. A publication
+# already in the state asked for is the 409; any other refusal is the store's own plain words as a 400.
+def _do_publication_mark(store, by_user, req, on):
+    code, number = req["project"], req["number"]
+    try:
+        (store.archive_publication if on else store.unarchive_publication)(code, number, by_user)
+    except Invalid as e:
+        if "already archived" in str(e) or "is not archived" in str(e):
+            raise Refused(str(e), 409, "already") from None
+        raise
+    return 200, {"ok": True, "code": "archived" if on else "restored", "project": code, "number": number}
+
+
+def make_publication_mark(path, onedrive_roots=None, by_user=None):
+    """The `publication_mark(action, req)` seam for POST /api/publications/archive and /restore, for the database at `path`."""
+    def publication_mark(action, req):
+        return _call(path, onedrive_roots, by_user, lambda store, who, r: _do_publication_mark(store, who, r, action == "archive"), req)
+    return publication_mark
 
 
 # ── ask clark's changes (#47e part 1) ─────────────────────────────────────────

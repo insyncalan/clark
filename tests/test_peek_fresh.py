@@ -46,7 +46,8 @@ class PeekFresh(unittest.TestCase):
         return d
 
     def load(self, cdp, width, item, scheme):
-        s = real_server(self.store.path, self.data_for, who="Demo User", projects=lambda: self.store.read("projects"),
+        projects = self.store.read("projects")            # read here: the store's connection belongs to this thread, and the server answers on another
+        s = real_server(self.store.path, self.data_for, who="Demo User", projects=lambda: projects,
                         page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         sid = page_target(cdp)

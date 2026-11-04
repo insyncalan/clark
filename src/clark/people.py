@@ -24,6 +24,7 @@ EMAIL_MAX = 254
 LOCAL_MAX = 64
 LABEL_MAX = 30
 NAME_MAX = 120
+CELL_MAX = 100                    # organisation and role (the page's CELL_MAX, #454)
 KINDS = ("person", "group")
 NO_PERSON = ("", "tbc")           # an owner text that is blank or TBC maps to no person and never raises the Add prompt
 ID_SHAPE = re.compile(r"\AP-(\d{3})\Z")

@@ -310,6 +310,7 @@ CREATE TABLE IF NOT EXISTS publications (
   checks      TEXT NOT NULL CHECK (checks IN ('passed','not needed')),
   by_user     TEXT NOT NULL,
   number      INTEGER NOT NULL CHECK (number >= 1),                 -- clark (#120, schema version 10): Publication N, per project, max + 1 in the insert's own transaction
+  pdf_name    TEXT CHECK (pdf_name IS NULL OR (length(pdf_name) BETWEEN 1 AND 255 AND pdf_name NOT GLOB '*[/\]*')), -- clark (#269, schema version 15): the name of the Local PDF saved with this publication, set once when it is saved; NULL when no PDF was made or saved
   UNIQUE (project, number, word)                                  -- #368 (schema version 13): a number is given once to a web page and once to a Word file, so a Word copy can share its web page's number
 );
 

@@ -281,11 +281,25 @@
      "Press your profile circle at the top right and choose **Publish…**. It opens the Dashboard first.",
      "**Local** is always ticked. The save window opens where you last saved for this project, and you choose the folder and the name.",
      "Tick **To client** to send it to the client folder set in Settings › Publishing as well. With no folder set, the box is off and says so. A line reminds you that the client will see the page.",
-     "Tick **Also a Word document** for a Word copy beside the web page.",
+     "Tick **Also a Word document** for a Word copy in the folder last used for this project. With **To client** ticked it is copied to the client folder as well. If a Word file with that name is already in the folder, you are asked whether to add a number or replace it. A copy already in the client folder is never replaced: the new one gets a number.",
      "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”; press it to close the box. The line at the top of the Dashboard says when it was published, and whether to the client or locally.",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
     ],
     "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on), shown at the foot of the page with its date. A Word copy takes the next number as well. Each publish adds a line to History."
+   },
+   {
+    "id": "word-in-and-out",
+    "g": "Every week",
+    "t": "Export to Word, or bring items in from a Word file",
+    "w": "Profile circle › Export to Word · Import from Word (in Edit)",
+    "go": "dashboard+edit",
+    "s": [
+     "Press your profile circle and choose **Export to Word**. The report is saved as a Word file in the folder last used for this project; if there is none yet, a window asks you to choose one. Tick **To client** to copy it to the client folder as well (you can tick it once a client folder is saved in Settings › Publishing).",
+     "If a file with that name is already there, you are asked: **Add a number** (keeps the old file and saves the new one beside it), **Replace it** (it asks you to confirm) or **Cancel**. Nothing is saved until you choose.",
+     "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it.",
+     "In **Edit**, choose **Import from Word** from the same menu, choose a .docx file of up to 25 MB and press **Read the file**. Work items under a heading called Actions, Risks, Issues or Decisions are listed. Tick the ones you want, or use **Tick all**, and press the Add button, which reads **Add** and the number you ticked, such as Add 3 items. Nothing is added until you press it. The new items are shown to the client until you hide them with the eye, and Undo takes them all back.",
+     "If clark refuses a file it says why in plain words and names the file. Choose the same file again once you have fixed it: **Read the file** comes on again."
+    ]
    },
    {
     "id": "find-a-past-publication",
@@ -306,12 +320,12 @@
     "w": "Profile circle › Publish…",
     "go": "publish",
     "s": [
-     "Open the Publish box and tick **Also a PDF**. It needs Google Chrome on this computer; with none found, the box is off and says so.",
-     "Press **Publish locally** (or **Publish and send to the client**). The web page is saved as usual, and clark makes the PDF from it with Chrome.",
-     "The PDF is saved beside the report file, with the same name and **.pdf** at the end. With **To client** ticked it is copied to the client folder too, and the box says the client will see the page and the PDF.",
-     "The PDF has the four tabs one after another, no buttons or menus, and the publication number, the date and the page number at the foot of each page."
+     "Open the Publish box and tick **Also a PDF**. It needs nothing on the computer but your browser.",
+     "Press **Publish locally** (or **Publish and send to the client**). The web page is saved as usual, and your browser’s print box opens on the page in a new tab.",
+     "In the print box, choose **Save as PDF**. Under More settings, untick Headers and footers, so the PDF carries no web address and no date from the browser.",
+     "The PDF has the tabs one after another, with Use cases last, no buttons or menus, and the publication number, the date and the page number at the foot of each page."
     ],
-    "n": "The PDF is read back and its words are checked before clark keeps it. If it would hold anything that is not in the published page, nothing is published and the box says so. A PDF name already taken in the client folder is asked about first, as the report's is."
+    "n": "The PDF is made by your browser, not by clark, and it is not kept or copied to the client folder, so save it where you want it. If the print box does not open, allow pop-ups for this page. Checked in Google Chrome; another browser may print the page without the publication line at the foot."
    },
    {
     "id": "add-a-work-item",
@@ -414,7 +428,6 @@
     "go": "work",
     "s": [
      "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks and issues, Decisions, Milestones and Use cases, named after today and the project.",
-     "The Use case summary has its own export icon (in View), for the use cases alone.",
      "**Import**: press the up-arrow icon. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
      "Press **Choose a file** (Excel or CSV). **Check the import** shows how many rows are new, updated or skipped, and the first few. Press **Import** to save them.",
      "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
@@ -661,6 +674,19 @@
      "Each saves when you leave the box (or press [[Enter]]), with **Undo**.",
      "Your full name goes on every change you make, in each item’s history. Your initials fill the circle at the top right."
     ]
+   },
+   {
+    "id": "add-people-details",
+    "g": "Settings and safety",
+    "t": "Add people’s emails and roles",
+    "w": "Settings › People",
+    "go": "settings#people",
+    "s": [
+     "Open **Settings** and find the **People** card. It lists everyone who owns a work item or a milestone. The line above the table says how many people still need details (“8 of 8 people need details”). **Show only these** lists just those people, each marked **Needs details**; **Show everyone** brings the rest back.",
+     "Press **Paste from Excel**, then paste rows copied from a sheet: name, email, organisation and role, separated by tabs. A first row of headings is skipped. A preview shows what happens to each row, and names every row that needs fixing.",
+     "Press **Add to the list**. People are matched by name, so the owner pickers keep working on names. One **Undo**, in the card, takes the whole paste back."
+    ],
+    "n": "The table is read-only apart from the paste."
    },
    {
     "id": "undo-a-mistake",
@@ -929,7 +955,9 @@
        "**Raised**: when the item came in, from its first change in the history. Raised and Last reviewed are in the peek of an open action, risk, issue or decision.",
        "**Last reviewed**: the latest change you made by hand. A change made by clark or an Undo does not count.",
        "**Not reviewed in 14 days**: shown at the top of the peek on an open action, risk, issue or decision that has not been reviewed for that long.",
-       "In **Filter by**, **Freshness** offers **Not reviewed in 14 days** and **No owner or no date**. To get the same two lists, type **is:quiet** or **is:incomplete** in the filter line. Freshness is offered once some item has a date it can count from."
+       "In **Filter by**, **Freshness** offers **Not reviewed in 14 days** and **No owner or no date**. To get the same two lists, type **is:quiet** or **is:incomplete** in the filter line. Freshness is offered once some item has a date it can count from.",
+       "14 days is the default. To change it for this project, open **Settings**, then **Freshness**, and type a whole number from 1 to 365 in **Not reviewed after (days)**. The note, the filter and the tile follow at once.",
+       "The **Not reviewed** tile on the Dashboard counts the same items and opens them in Work items. It is off until you turn it on with its eye in Edit. It is never in the published report."
       ]
      ],
      [
@@ -1512,7 +1540,7 @@
       [
        "**Local**: always. Saved through your browser’s own save window, which opens where you last saved for the project (or your downloads, where the browser has no save window).",
        "**To client**: only when ticked, to the client folder in Settings › Publishing.",
-       "**Also a Word document**: a Word copy beside the web page."
+       "**Also a Word document**: a Word copy in the folder last used for this project, and in the client folder when To client is ticked."
       ]
      ],
      [
@@ -1522,6 +1550,10 @@
      [
       "p",
       "Each publish is noted on the project, and the Dashboard says when it was last published. **Preview the page in a new tab** shows the page without saving it."
+     ],
+     [
+      "p",
+      "In your profile menu, Export to Word saves the Word file on its own, without publishing the web page. Import from Word (in Edit) reads a Word file and lists the new actions, risks, issues and decisions it found. Nothing is added until you press the Add button (it reads Add and the number of items you ticked, such as Add 3 items); the items are shown to the client until you hide them with the eye, and one Undo takes them all back."
      ]
     ]
    },
@@ -1634,6 +1666,22 @@
         "The log level (Normal or Debug), the log folder, **Copy diagnostics** and recent errors. See [Diagnostics and logs](#ref-diagnostics)."
        ]
       ]
+     ]
+    ]
+   },
+   {
+    "id": "people",
+    "g": "Settings and data",
+    "t": "People",
+    "w": "Settings › People",
+    "b": [
+     [
+      "p",
+      "The table is built from the owners on work items and milestones, and shows each person’s email, organisation and role. The line above it says how many need details; **Show only these** lists them, each marked **Needs details**."
+     ],
+     [
+      "p",
+      "**Paste from Excel** takes rows of name, email, organisation and role, separated by tabs; a heading row is skipped. A name that matches a person updates that person; a new name is added. Nothing is added while a row needs fixing. One **Undo** reverses a paste. Owner pickers still work on names."
      ]
     ]
    },

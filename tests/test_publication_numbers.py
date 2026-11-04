@@ -129,9 +129,10 @@ class TheCounter(unittest.TestCase):
 
 class TheShapeAndTheStep(unittest.TestCase):
     def test_the_step_is_number_10_and_the_table_has_no_gap(self):
-        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 10)                  # later steps follow (#412 is 11)
+        self.assertEqual(store_module.SCHEMA_VERSION, 15)          # #269 is step 15, after #412 (11), #325 (12), #368 (13) and #171 (14)
         self.assertIn((10, store_module.migrate_publication_numbers), store_module.MIGRATIONS)
-        self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, store_module.SCHEMA_VERSION + 1)))
+        self.assertEqual(store_module.MIGRATIONS[-1], (15, store_module.migrate_publication_pdf_name))
+        self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, 16)))
 
     def test_the_frozen_step_makes_what_schema_sql_makes(self):
         fresh = DemoStore()
@@ -149,6 +150,7 @@ class TheShapeAndTheStep(unittest.TestCase):
         con.execute("BEGIN")
         store_module.migrate_publication_numbers(con)
         store_module.migrate_publication_shared_number(con)           # #368: step 13 widens the key, so both steps make what schema.sql makes
+        store_module.migrate_publication_pdf_name(con)          # #269: step 15 adds the PDF's name to what steps 10 and 13 made
         con.execute("COMMIT")
 
         def shape(c):
@@ -249,7 +251,7 @@ class OlderFiles(unittest.TestCase):
         path = self.make()
         s = open_store(path, onedrive_roots=[])
         self.addCleanup(s.close)
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))   # later steps follow (#412 is 11)
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "15")
         # ABC by time: /x/2 (08:00 on the 1st) = 1, then /x/0 and /x/3 tie on the 2nd, seq order = 2, 3, then /x/5 = 4
         self.assertEqual(self.expected(s), {("/x/2.html", 1), ("/x/0.html", 2), ("/x/3.html", 3), ("/x/5.html", 4),
                                             ("/x/1.html", 1), ("/x/4.html", 2)})
@@ -258,11 +260,11 @@ class OlderFiles(unittest.TestCase):
         self.assertEqual(s.log_publication("ABC", LOCAL, "2026-10-23", SHA, USER), 7, "the sequence goes on after the old rows")
         self.assertEqual(s.con.execute("SELECT count(*) FROM applies").fetchone()[0], 2, "the migration is not a step")
 
-    def test_a_version_2_file_moves_up_through_every_step_to_10(self):
+    def test_a_version_2_file_moves_up_through_every_step_to_the_latest(self):
         path = self.make(2)
         s = open_store(path, onedrive_roots=[])
         self.addCleanup(s.close)
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))   # later steps follow (#412 is 11)
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "15")
         self.assertEqual((numbers(s.con), numbers(s.con, "XYZ")), ([2, 1, 3, 4], [1, 2]))
 
     def test_the_file_is_copied_first_a_second_open_changes_nothing_and_the_step_is_safe_to_repeat(self):
@@ -627,12 +629,143 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertTrue(os.path.islink(dest))
         self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
 
+    def _folder(self):
+        folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        return folder
+
+    def _swap_in_during_the_check(self, dest, data):
+        """The moment after the check runs, another program saves `data` at `dest` (the window #604 is about)."""
+        real = publish.still_ours
+
+        def check_then_swap(path, digest):
+            answer = real(path, digest)
+            dest.write_bytes(data)
+            return answer
+        publish.still_ours = check_then_swap
+        self.addCleanup(setattr, publish, "still_ours", real)
+
+    def test_a_link_swapped_in_is_put_back_as_that_link_not_followed(self):               # #604
+        folder = self._folder()
+        theirs = folder / "theirs.html"
+        theirs.write_bytes(b"the file their link points at")
+        dest = folder / "PUB-report.html"
+        try:
+            os.symlink(theirs, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        ours = hashlib.sha256(b"what this publish wrote").hexdigest()
+        real_link = os.link
+
+        def following_link(src, dst, *, follow_symlinks=True, **kw):         # as on systems where a plain link follows links
+            return real_link(os.path.realpath(src) if follow_symlinks else src, dst, follow_symlinks=False, **kw)
+        real_move = publish.platform.move_unless_exists
+
+        def move(src, dst, link=None, **kw):                                # a plain os.link here is that following one
+            return real_move(src, dst, link=os.link if link in (None, real_link) else link, **kw)
+        os.link, publish.platform.move_unless_exists = following_link, move
+        self.addCleanup(setattr, publish.platform, "move_unless_exists", real_move)
+        self.addCleanup(setattr, os, "link", real_link)
+        self.assertEqual(publish.put_link_back(dest, folder / "elsewhere.html", ours), "other")
+        self.assertTrue(os.path.islink(dest))
+        self.assertEqual(os.readlink(dest), str(theirs))
+        self.assertEqual(publish.take_back(dest, ours), False)
+        self.assertEqual(os.readlink(dest), str(theirs))
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), sorted([dest.name, theirs.name]))
+
+    def test_take_back_never_removes_a_file_that_is_not_ours(self):                       # #604: take_back has the same shape
+        folder = self._folder()
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"someone else's report")
+        ours = hashlib.sha256(b"what this publish wrote").hexdigest()
+        self.assertFalse(publish.take_back(dest, ours))
+        self.assertEqual(dest.read_bytes(), b"someone else's report")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "nothing is left beside it")
+        dest.write_bytes(b"what this publish wrote")
+        self.assertTrue(publish.take_back(dest, ours))
+        self.assertEqual(list(folder.iterdir()), [])
+        self.assertTrue(publish.take_back(dest, ours), "a file already gone is gone")
+
+    def test_take_back_never_removes_a_file_saved_during_the_check(self):                 # #604
+        folder = self._folder()
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"what this publish wrote")
+        ours = hashlib.sha256(b"what this publish wrote").hexdigest()
+        self._swap_in_during_the_check(dest, b"someone else's report, saved during the check")
+        self.assertTrue(publish.take_back(dest, ours), "our bytes are gone")
+        self.assertEqual(dest.read_bytes(), b"someone else's report, saved during the check")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
+
+    def test_take_back_puts_our_file_back_when_it_will_not_go(self):
+        folder = self._folder()
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"what this publish wrote")
+        ours = hashlib.sha256(b"what this publish wrote").hexdigest()
+        real, refused = os.unlink, []
+
+        def refuse(path, *a, **kw):                                         # the removal is refused once, then works
+            if not refused:
+                refused.append(path)
+                raise OSError(13, "Permission denied")
+            return real(path, *a, **kw)
+        os.unlink = refuse
+        try:
+            self.assertFalse(publish.take_back(dest, ours))
+        finally:
+            os.unlink = real
+        self.assertEqual(dest.read_bytes(), b"what this publish wrote")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name], "not left under a hidden name")
+
+    def test_a_put_back_refused_by_the_platform_still_ends_in_a_publish_error(self):      # replace_file raises PlatformError
+        store, folder, dest = self._link_rig()
+        real_sym, real_move = os.symlink, publish.platform.move_unless_exists
+
+        def refuse_link(*a, **kw):
+            raise OSError(13, "Permission denied")
+
+        def refuse_move(*a, **kw):
+            raise publish.platform.PlatformError("The file is in use by another program.")
+        os.symlink = refuse_link
+        publish.platform.move_unless_exists = refuse_move
+        try:
+            with self.assertRaises(publish.PublishError) as caught:
+                self._lost_race(store, folder, overwrite=True)
+        finally:
+            os.symlink, publish.platform.move_unless_exists = real_sym, real_move
+        self.assertIn("Another publication was made", str(caught.exception), "the refusal is still given, not the platform's")
+        names = [p.name for p in folder.iterdir()]
+        self.assertEqual(len(names), 1)
+        self.assertTrue(names[0].endswith(".aside"), "the report is kept under its aside name, not lost")
+        self.assertTrue((folder / names[0]).read_bytes().startswith(b"<!doctype html"))
+
     def test_overwrite_with_a_lost_race_and_no_earlier_file_leaves_nothing(self):
         store, folder = self._overwrite_rig()
         store.log_publication("PUB", Path("/tmp/clark-fictional/other.html"), None, SHA, "Someone Else")
         with self.assertRaises(publish.PublishError):
             self._lost_race(store, folder, overwrite=True)
         self.assertEqual(list(folder.iterdir()), [])
+
+    def test_overwrite_refuses_a_file_too_big_to_keep_a_copy_of(self):          # #326
+        store, folder = self._overwrite_rig()
+        dest = folder / "PUB-report-2026-10-23.html"
+        with open(dest, "wb") as f:
+            f.truncate(64 * 1048576 + 1)                                        # one byte over what is kept to put back
+        with self.assertRaises(publish.PublishError) as caught:
+            publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING, overwrite=True)
+        self.assertIn("was not replaced", str(caught.exception))
+        self.assertEqual(dest.stat().st_size, 64 * 1048576 + 1, "the big file is untouched")
+        self.assertEqual(numbers(store.con, "PUB"), [], "and nothing was recorded")
+
+    def test_the_publisher_refuses_a_local_file_too_big_to_keep_a_copy_of(self):  # #326
+        rig = Rig(self)
+        big = rig.local / "chosen.html"
+        with open(big, "wb") as f:
+            f.truncate(64 * 1048576 + 1)
+        status, got = rig.publish()
+        self.assertEqual((status, got["ok"], got["code"]), (409, False, "earlier_too_big"), got)
+        self.assertIn("Nothing was published.", got["message"])
+        self.assertEqual(big.stat().st_size, 64 * 1048576 + 1)
+        self.assertEqual(rig.rows(), [])
 
     def test_overwrite_without_a_race_still_replaces_the_file(self):
         store, folder = self._overwrite_rig()

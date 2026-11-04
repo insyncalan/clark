@@ -6,7 +6,7 @@ function. Later items add their routes to GET_ROUTES and POST_ROUTES, where the 
 Routes:
 - GET  /health           {"ok": true} only (and "this_data" when asked with X-Clark-Data, #71); the Host is checked as everywhere
 - GET  /                 the page, with this run's token in a JSON data block (id="clark-boot"), never run as a script
-- GET  /api/projects     the projects the page can ask for: [{"code", "name"}], from the store (`projects`, #31)
+- GET  /api/projects     the projects the page can ask for: [{"code", "name", "open"?}], from the store (`projects`, #31); `open` is the count of open work items (#439)
 - GET  /api/data         ?project=<CODE>: one project's data, from the store (`data_for`, #31)
 - GET  /api/movement     ?project=<CODE>: Milestones Movement (#136), owner only, never published: the view of the store's `milestone_moves` read (movement_read.py); without the seam, not found
 - GET  /api/activity     ?project=<CODE>&item=<ID>: one item's changes for the peek's Activity tab (#42), owner only, never published (activity_read.py); without the seam, not found
@@ -22,10 +22,14 @@ Routes:
 - GET  /api/publication  ?project=<CODE>: when the project was last published and whether to the client (#43)
 - POST /api/preview      Preview (#147): builds the page as publish would, in memory; answers a one-visit address (publish_flow.py)
 - GET  /preview          ?id=<from /api/preview>: that page, once, local only (a new tab cannot send the token header)
-- GET  /api/export       ?project=<CODE>: the project's workbook as a download named <CODE>-<date>.xlsx (publish_flow.py)
-- GET  /api/publications ?project=<CODE>: the newest 10 publications with number, time, where and who (#443; past_reports.py); no path, no hash
+- GET  /api/export       ?project=<CODE>: the project's workbook as a download named <CODE>-<date>.xlsx (publish_flow.py);
+                         ?template=1: the empty import template, "clark import template.xlsx" (#454)
+- GET  /api/publications ?project=<CODE>[&archived=1]: the newest 10 publications with number, time, where and who (#443; past_reports.py); no path, no hash; archived=1 (#345) lists the archived ones too, marked
+- POST /api/publications/archive  {project, number}: hide one publication from that list, never delete it (#345; changes.make_publication_mark); /api/publications/restore puts it back. No Undo
 - GET  /api/past-report  ?project=<CODE>&number=<N>: checks that publication's kept copy and answers a one-visit address (#443)
-- GET  /past             ?id=<from /api/past-report>: that kept page as it was published, once, local only (#443)
+- GET  /past             ?id=<from /api/past-report>: that kept page as it was published, with the read-only banner added (#343), once, local only (#443)
+- GET  /api/as-at        ?project=<CODE>&date=<YYYY-MM-DD>: the project's data as at the end of that day, rebuilt from the change
+                         history in a copy, read only, never published (#349; as_at.py); without the seam, not found
 - GET  /api/backups      the backups newest first, a status line, the daily-copy warning (#111; safety.py)
 - POST /api/backups/preview  {name}: counts in a backup and now, from a temporary copy
 - POST /api/backups/restore  {name, last_step}: put a backup back (one writer at a time, never waiting)
@@ -39,11 +43,13 @@ Routes:
 - POST /api/ask/change/apply  {project, offer, confirm?}: one offer saved as one undoable step (#47e; ask_apply.py, changes.make_ask_change)
 - GET  /assets/<name>    the brand's picture (#98): only cover.png, cover.jpg, cover.jpeg and cover.webp, from the local brand folder; no
                          token (an <img> can't send one), but the Host, Origin and Sec-Fetch-Site are checked; 404 when there is none
-- GET  /api/profile      the name and email typed in Settings › Personal (#180), from the data folder's settings.json; without the seam, not found
-- POST /api/profile      save them: {name, email}, both text; a refusal is in plain words and writes nothing (profile_settings.py)
+- GET  /api/profile      the name, email and Alias typed in Settings › Personal (#180, #613), from the data folder's settings.json; without the seam, not found
+- POST /api/profile      save them: {name, email, alias}, all text, alias optional (left out, the saved one is kept); a refusal is in plain words and writes nothing (profile_settings.py)
 - GET  /api/people       the people list, archived too (#115; changes.make_people_list); without the seam, not found
-- POST /api/people       one person writer: {op: add | edit | rename | merge | archive | restore, ...}, one undoable step (#115; changes.make_people)
+- POST /api/people       one person writer: {op: add | edit | rename | merge | archive | restore | paste, ...}, one undoable step (#115; changes.make_people)
 - POST /api/people/undo  {apply_id}: reverse one people step (#115; changes.make_people_undo)
+- POST /api/excel-import a workbook to read back in, and the choice of what to take from it (#444; excel_route.py)
+- POST /api/project     a new project, or a project's name, client and added workstreams (#444; project_route.py)
 - POST /api/word-import  a Word file to read into new items, and the choice to add them (#48); the logic is `word_import(req)`
 - POST /api/word-export  the report as a Word file, saved in the report folder, and in the client folder with To client (#48)
 - POST /api/section-file  {project, section}: the Open dialog, then the file copied into the client folder's "Report files" folder and
@@ -104,6 +110,7 @@ MESSAGES = {
 # bad_request and any 500 or more server_error.
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
+EXCEL_FILE_MB = 25                     # the largest workbook clark reads (excel.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it (#444)
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
 # #247: no tracker-only limit is needed. Every change, tracker or not, is read up to this one limit, which is above the widest
 # tracker the checker accepts (95 KB in the worst letters), so the checker's own words are what a person sees; a request over it
@@ -118,16 +125,31 @@ def change_body_limit(body_max=SECTION_BODY_MAX):
 
 
 CHANGE_BODY_LIMIT = change_body_limit()   # #96, #378, #405: 516 KB today; moves with the three above, never with a bare number
+# #454: the People card's paste, worked out the way the change limit is, never a bare number. This server imports nothing from clark, so the
+# four caps are copied here and tests/test_server.py keeps them equal to people.py (ROW_LIMIT, NAME_MAX, EMAIL_MAX, CELL_MAX). The bound is
+# the worst the page can send: every character of every cell a six-byte JSON escape (\u00XX, which JSON.stringify gives a control character;
+# a lone surrogate half is the same six bytes, and the page counts a letter outside the basic plane as two halves, so six bytes a counted
+# character holds for it too). Plain text is one to three bytes a character, so nothing a person types comes near it.
+PEOPLE_ROW_MAX = 500                   # people.ROW_LIMIT: rows in one paste
+PEOPLE_NAME_MAX, PEOPLE_EMAIL_MAX = 120, 254
+PEOPLE_CELL_MAX = 100                  # people.CELL_MAX: organisation, and role
+JSON_ESCAPE_BYTES = 6                  # the most one character takes in a JSON string
+PEOPLE_ROW_ENVELOPE = 64               # a row's braces, four keys, quotes, colons and comma: 51 bytes compact, 59 when spaced
+PEOPLE_ROW_BYTES = (PEOPLE_NAME_MAX + PEOPLE_EMAIL_MAX + 2 * PEOPLE_CELL_MAX) * JSON_ESCAPE_BYTES + PEOPLE_ROW_ENVELOPE      # 574 * 6 + 64 = 3508
+PEOPLE_BODY_LIMIT = PEOPLE_ROW_MAX * PEOPLE_ROW_BYTES + REQUEST_ENVELOPE      # 500 * 3508 + 4096 = 1,758,096 bytes (1.68 MiB), under BODY_LIMIT; an add or an edit is a few hundred bytes
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096,
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
-                     "/api/people": 4 * 1024, "/api/people/undo": 1024,     # #115: a person's few short fields; a step number
+                     "/api/publications/archive": 1024, "/api/publications/restore": 1024,     # #345: a project code and a number
+                     "/api/people": PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #115: a person's few short fields; #454: or one paste of up to 500 rows; a step number
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
                      "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                      "/api/draft-email": 16 * 1024,                    # #50: the ticked ids and a few short words
                      "/api/draft-email/sent": 4 * 1024,                # #50: the ids, the mode and the day: never the email's words
                      "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024,      # #48
+                     "/api/excel-import": (EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,      # #444: a workbook as text, like the Word one
+                     "/api/project": 4 * 1024,      # #444: a name, a code, a client and a few workstreams
                      "/api/section-file": 1024}     # #96: names a project and a section only; the file never comes in the request
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
@@ -570,13 +592,14 @@ def past_route(method):
             return handler.send(400, error_body("bad_request"))
         query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
         want = {"project"} if method == "listing" else {"project", "number"}
-        if set(query) != want or any(len(v) != 1 for v in query.values()):
+        shown_archived = method == "listing" and query.get("archived") == ["1"]      # #345: Show archived; any other value is a 400
+        if set(query) - ({"archived"} if shown_archived else set()) != want or any(len(v) != 1 for v in query.values()):
             return handler.send(400, error_body("bad_request"))
         code = query["project"][0]
         if not PROJECT_CODE.fullmatch(code):
             return handler.send(400, error_body("bad_project_code"))
         if method == "listing":
-            status, body = seam.listing(code)
+            status, body = seam.listing(code, archived=shown_archived)
         else:
             number = query["number"][0]
             if not PUBLICATION_NUMBER.fullmatch(number):
@@ -584,6 +607,46 @@ def past_route(method):
             status, body = seam.visit(code, int(number))
         return handler.send(status, body)
     return route
+
+
+def publication_mark_route(action):
+    """POST /api/publications/archive and /api/publications/restore (#345): {project, number} and nothing else. The server's
+    `publication_mark` (changes.make_publication_mark) archives or restores that one publication and answers (status, body); it writes
+    the archive mark and one history line, and offers no Undo. Checked like change_route before this runs (token, Host, Origin, JSON
+    only, the route's own small limit). A body that is not exactly a code of the stored shape and a whole number from 1 to 999999 is
+    the 400 bad_request; a refusal in the store's plain words is 400, and a publication already in the state asked for is 409. Without
+    the seam, saving is switched off (503). Nothing from the request is used as a path: the seam makes the mark's name from the two."""
+    def route(handler, req):
+        seam = getattr(handler.server, "publication_mark", None)
+        if seam is None:
+            return handler.send(503, error_body("saving_off"))
+        code = req.get("project") if isinstance(req, dict) else None
+        number = req.get("number") if isinstance(req, dict) else None
+        if (not isinstance(req, dict) or set(req) != {"project", "number"} or not isinstance(code, str) or not PROJECT_CODE.fullmatch(code)
+                or type(number) is not int or not 1 <= number <= 999999):
+            return handler.send(400, error_body("bad_request"))
+        status, body = seam(action, req)
+        return handler.send(status, body)
+    return route
+
+
+def as_at_route(handler):
+    """GET /api/as-at?project=<CODE>&date=<YYYY-MM-DD> (#349): the project's data as at the end of that day, rebuilt from the change
+    history. The server's `as_at` (as_at.AsAt) answers (status, body); it reads clark.db on a read-only connection and rebuilds in a
+    copy of its own, so it never writes. Without the seam the route is not there (404). No body is accepted (400); each parameter
+    once and nothing else (400); the seam checks the code and the day."""
+    seam = getattr(handler.server, "as_at", None)
+    if seam is None:
+        return handler.send(404, error_body("not_found"))
+    if handler.headers.get("Content-Length") not in (None, "0") or handler.headers.get("Transfer-Encoding"):
+        return handler.send(400, error_body("bad_request"))
+    query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
+    if set(query) != {"project", "date"} or any(len(v) != 1 for v in query.values()):
+        return handler.send(400, error_body("bad_request"))
+    if not PROJECT_CODE.fullmatch(query["project"][0]):
+        return handler.send(400, error_body("bad_project_code"))
+    status, body = seam.read(query["project"][0], query["date"][0])
+    return handler.send(status, body)
 
 
 def past_page_route(handler):
@@ -613,7 +676,7 @@ PROJECT_NAME_LIMIT = 200
 
 
 def projects_route(handler):
-    """GET /api/projects[?archived=1]: the code and name of each project, nothing else, so the page can choose which one to ask for.
+    """GET /api/projects[?archived=1]: the code and name of each project (and, when the list gives one, how many work items are open), nothing else, so the page can choose which one to ask for.
     Only a code of the shape the store accepts is listed (3 to 7 capital letters or digits), a row that isn't a dict is
     skipped, a name that is not text falls back to the code, a name is cut at PROJECT_NAME_LIMIT characters, and the list stops at
     PROJECT_LIST_LIMIT."""
@@ -641,7 +704,14 @@ def projects_route(handler):
             name = None
         if not isinstance(name, str) or not name.strip():           # only text is a name; anything else falls back to the code
             name = code
-        out.append({"code": code, "name": name[:PROJECT_NAME_LIMIT]})
+        one = {"code": code, "name": name[:PROJECT_NAME_LIMIT]}
+        try:
+            count = row["open"]
+        except (KeyError, TypeError, IndexError):
+            count = None
+        if type(count) is int and count >= 0:                       # #439: the open work items, for the switcher; left out when not a plain count
+            one["open"] = count
+        out.append(one)
     return handler.send(200, {"ok": True, "projects": out})
 
 
@@ -829,11 +899,17 @@ def preview_page_route(handler):
 
 
 def export_route(handler):
-    """GET /api/export?project=<CODE>: the workbook as a download, or the publisher's plain refusal as JSON."""
+    """GET /api/export?project=<CODE>: the workbook as a download, or the publisher's plain refusal as JSON. GET /api/export?template=1
+    (#454): the import template instead, an export's workbook with no rows, which names no project and reads nothing from the store;
+    no other value of `template` and nothing else in the query is read for it, and a request value never reaches a path."""
     publisher = getattr(handler.server, "publisher", None)
     if publisher is None:
         return handler.send(404, error_body("not_found"))
-    status, body = publisher.export((parse_qs(urlsplit(handler.path).query).get("project") or [""])[0])
+    query = parse_qs(urlsplit(handler.path).query)
+    if query.get("template") == ["1"]:
+        status, body = publisher.template()
+    else:
+        status, body = publisher.export((query.get("project") or [""])[0])
     if status != 200:
         return handler.send(status, body)
     data = body["data"]
@@ -947,6 +1023,17 @@ def word_export_route(handler, req):
     return seam_route(handler, handler.server.word_export, req)
 
 
+def excel_import_route(handler, req):
+    """POST /api/excel-import (#444). Checked like change_route before this runs: the token, the Host, no other site's Origin, JSON
+    only, a Content-Length and the route's own size limit."""
+    return seam_route(handler, handler.server.excel_import, req)
+
+
+def project_save_route(handler, req):
+    """POST /api/project (#444): a new project, or a project's name, client and added workstreams. Checked like change_route before this runs."""
+    return seam_route(handler, handler.server.project_save, req)
+
+
 def profile_route(method):
     """GET and POST /api/profile (#180): hand the request to the server's `profile` (profile_settings.Profile), which answers (status,
     body). Without one: not found. Checked like change_route before this runs (token, Host, Origin, JSON only, the 2 KiB limit)."""
@@ -964,7 +1051,7 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/diagnostics": logs_route("diagnostics"),
-              "/api/publications": past_route("listing"), "/api/past-report": past_route("open")}
+              "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
@@ -974,9 +1061,11 @@ POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/secti
                 "/api/ask/change/dry": ask_route("change_dry"), "/api/ask/change/apply": ask_route("change_apply"),
                 "/api/profile": profile_route("save"), "/api/people": people_route("people"), "/api/people/undo": people_route("people_undo"), "/api/page-error": logs_route("page_error"),
                 "/api/logging": logs_route("set_level"), "/api/logging/open-folder": logs_route("open_folder"),     # #110
+                "/api/publications/archive": publication_mark_route("archive"), "/api/publications/restore": publication_mark_route("restore"),     # #345
                 "/api/draft-email": draft_email_route("draft_email"),
                 "/api/draft-email/sent": draft_email_route("draft_email_sent"),
                 "/api/word-import": word_import_route, "/api/word-export": word_export_route,
+                "/api/excel-import": excel_import_route, "/api/project": project_save_route,     # #444
                 "/api/section-file": publisher_route("section_file")}     # later items: /api/import
 # ===== end of the page and the data =====
 
@@ -1178,9 +1267,9 @@ class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
-                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
+                 publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None,
-                 people=None, people_undo=None, people_list=None, section_image=None, past=None):
+                 people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None):
         if server_address[0] != HOST:
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -1188,6 +1277,7 @@ class LocalServer(ThreadingHTTPServer):
         self.change, self.undo, self.sneak = change, undo, sneak
         self.section_image = section_image    # changes.make_section_image (#96 R1); None: that route answers 503 saving_off
         self.word_import, self.word_export = word_import, word_export
+        self.excel_import, self.project_save = excel_import, project_save      # #444: the workbook import, a project's new and edit; None: those routes answer 503
         self.page_html = page_html or placeholder_html
         self.logs = logs                      # log_routes.Logs (#110); None: those routes answer not found
         self.publisher = publisher            # publish_flow.Publisher (#43); None until the launcher gives one
@@ -1206,6 +1296,8 @@ class LocalServer(ThreadingHTTPServer):
         self.ask = ask                        # ask_service.AskService (#47): questions; None: the ask routes answer 404
         self.ai = ai                          # ai_service.AiService (#72): AI suggestions, on the ask service's provider; None: 404
         self.past = past                      # past_reports.PastReports (#443): the Published reports list and Open; None: those routes answer 404
+        self.publication_mark = publication_mark   # changes.make_publication_mark (#345): archive or restore one publication; None: saving off (503)
+        self.as_at = as_at                    # as_at.AsAt (#349): the dashboard as at a day, rebuilt from the history, read only; None: 404
         super().__init__(server_address, handler)
 
     def server_bind(self):
@@ -1237,18 +1329,18 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 
 
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
-          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None,
+          publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None,
-          people=None, people_undo=None, people_list=None, section_image=None, past=None):
+          people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None):
     """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
-                            word_import=word_import, word_export=word_export, draft_email=draft_email, draft_email_sent=draft_email_sent,
+                            word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, ai=ai,
-                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, past=past)
+                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, past=past, as_at=as_at, publication_mark=publication_mark)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)

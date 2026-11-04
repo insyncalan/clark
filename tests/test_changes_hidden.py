@@ -568,6 +568,19 @@ class Inserts(Base):
         self.assertEqual((status, body["ref"]), (200, "XYZ-A-002"))
         self.assertEqual(self.count("actions", "ABC"), 1)
 
+    def test_a_new_row_from_the_report_carries_its_client_wording(self):
+        """A-D5: the report rows draw only the client's wording, so a row added from the report is given its words as both its text
+        and its client wording; the same limits as any text (200 characters, plain)."""
+        for kind, title, values in (("actions", "description", {}), ("raid", "description", {"type": "Risk", "impact": "Medium", "likelihood": "Medium"}),
+                                    ("decisions", "decision", {})):
+            with self.subTest(kind=kind):
+                body = self.ok(add(kind, **{title: "Check the plan", "client_message": "Check the plan", **values}))
+                row = self.s.read(kind, ref=body["ref"])
+                self.assertEqual((row[title], row["client_message"], row["client_visible"]), ("Check the plan", "Check the plan", 1))
+                self.assertNotIn("client_message", body["item"], "never said back in a reply")
+                self.refused(add(kind, **{title: "x", "client_message": "y" * 201}, **values), changes.ITEM_VALUE_WORDS)
+                self.refused(add(kind, **{title: "x", "client_message": "a\nb"}, **values), changes.ITEM_TEXT_WORDS)
+
     def test_the_day_it_was_raised_and_the_open_status_are_clarks(self):
         body = self.ok(add("actions", description="Open"))
         self.assertEqual((body["item"]["status"], body["item"]["raised"]), ("Open", store_module.today()))
@@ -575,7 +588,7 @@ class Inserts(Base):
         self.assertEqual((body["item"]["priority"], body["item"]["status"]), ("Urgent", "Open"))
         for field, value in (("raised", "2020-01-01"), ("source", "somewhere"), ("project", "XYZ"), ("id", "ABC-A-099"),
                              ("status", "Closed"), ("archived", 1), ("closed", "2026-10-01"),
-                             ("client_message", "x"), ("internal_note", "x"), ("updated_at", "x")):
+                             ("internal_note", "x"), ("updated_at", "x")):
             with self.subTest(field=field):
                 words = changes.NO_ARCHIVE if field == "archived" else f"The field '{field}' can't be set here."
                 self.refused(add("actions", description="X", **{field: value}), words)

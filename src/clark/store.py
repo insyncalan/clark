@@ -34,7 +34,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 14          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 15          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -1629,6 +1629,55 @@ def _typed(con, table, changes):
     return out
 
 
+def rewound_copy(path, dest, until):
+    """#349: a copy of clark.db at `dest` (a new file in a temporary folder of the caller's) as it stood just before `until`
+    ('YYYY-MM-DD HH:MM:SS', UTC, as change_log writes it), for the Dashboard as at a day (as_at.py). Read only as far as clark.db
+    goes: it is read on a read-only connection and copied with SQLite's backup; every write below is to the copy. In the copy,
+    every change_log row at or after `until` is undone, newest first: a changed field gets its old value back, a row made since is
+    taken out, and a row deleted since is put back from the copy of it the log keeps (REMOVED). Then the log, its events and its steps
+    from `until` on are dropped from the copy, so a reader of history (freshness) sees it as it was. A change the copy will not take
+    back (a built-in label's guard, a value an older rule allowed) is left as it is now."""
+    src = connect(path, readonly=True)
+    try:
+        out = sqlite3.connect(str(dest), isolation_level=None)
+        try:
+            src.backup(out)
+        finally:
+            out.close()
+    finally:
+        src.close()
+    con = sqlite3.connect(str(dest), isolation_level=None)
+    con.row_factory = sqlite3.Row
+    try:
+        con.execute("PRAGMA foreign_keys = OFF")          # in the copy only: a row comes back before the row it refers to does
+        con.execute("BEGIN")
+        have = {}
+        for r in con.execute("SELECT rowid, tbl, item_id, field, old_value, op FROM change_log WHERE at >= ? ORDER BY rowid DESC",
+                             (until,)).fetchall():
+            table, key, f = r["tbl"], r["item_id"], r["field"]
+            if table not in TABLES or len(key_values(table, key)) != len(KEYS[table]):
+                continue
+            cols = have.setdefault(table, set(columns(con, table)))
+            try:
+                if f == REMOVED:                          # deleted since: put back as the log kept it
+                    row = {k: v for k, v in json.loads(r["old_value"] or "{}").items() if k in cols}
+                    if row and fetch(con, table, key) is None:
+                        _insert_sql(con, table, row)
+                elif r["op"] == OP_MADE:                  # made since: not there yet
+                    con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
+                elif f in cols:
+                    con.execute(f"UPDATE {_table(table)} SET {f} = ? WHERE {where_key(table)}",
+                                [_typed(con, table, {f: r["old_value"]})[f], *key_values(table, key)])
+            except (sqlite3.DatabaseError, ValueError):
+                continue
+        con.execute("DELETE FROM item_events WHERE at >= ?", (until,))
+        con.execute("DELETE FROM change_log WHERE at >= ?", (until,))
+        con.execute("DELETE FROM applies WHERE at >= ?", (until,))
+        con.execute("COMMIT")
+    finally:
+        con.close()
+
+
 # ── The store ─────────────────────────────────────────────────────────────────
 
 def connect(path, readonly=False, existing=False):
@@ -2160,13 +2209,23 @@ def migrate_review_after_days(con):
                     "CHECK (typeof(review_after_days) = 'integer' AND review_after_days BETWEEN 1 AND 365)")
 
 
+def migrate_publication_pdf_name(con):
+    """Schema version 14 to 15 (#269): `publications.pdf_name`, the name of the PDF file saved with a publication, NULL for every row
+    already there and for any publish that made no PDF. An optional column with no default can be added in place, so no table is
+    rebuilt and the triggers made by steps 10, 12 and 13 stay as they are. Skipped when the column is already there (a new database, or a
+    second run). Runs inside the caller's transaction and does not touch the version (the runner does). It is step 15 in MIGRATIONS."""
+    if "pdf_name" not in [r[1] for r in con.execute("PRAGMA table_info(publications)")]:
+        con.execute("ALTER TABLE publications ADD COLUMN pdf_name TEXT CHECK (pdf_name IS NULL OR (length(pdf_name) BETWEEN 1 AND 255 "
+                    "AND pdf_name NOT GLOB '*[/\\]*'))")
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
               (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers),
               (11, migrate_use_case_done), (12, migrate_publication_trigger_client_path),
               (13, migrate_publication_shared_number),
-              (REVIEW_DAYS_STEP, migrate_review_after_days))
+              (REVIEW_DAYS_STEP, migrate_review_after_days), (15, migrate_publication_pdf_name))
 
 
 def migration_plan(version, table=None):
@@ -2744,27 +2803,64 @@ class Store:
         except Exception:        # noqa: BLE001  never let a copy that could not be kept undo a publication that was made
             return False
 
-    def archive_publication(self, code, number):
+    def archive_publication(self, code, number, by_user=None):
         """#342: archive Publication `number` of `code`: the list leaves it out, and nothing is removed or changed (its row, its kept
         page and its data copy stay as they are; FR-43c, archive never delete). The mark is written once beside the kept copies
-        (published_copies.archive); like a publication it is a record, not an edit, so there is no step and no Undo. Refused in plain
-        words when there is no such publication or it is archived already. True when archived."""
+        (published_copies.archive). #345: it is a plain write through this writer, logged as a history line (Archived) under a step of
+        its own, and no Undo is offered for it (the log line names the publications table, which an Undo never puts back): Restore
+        (`unarchive_publication`) is the way back. Refused in plain words when there is no such publication or it is archived
+        already. True when archived."""
+        return self._mark_publication(code, number, by_user, True)
+
+    def unarchive_publication(self, code, number, by_user=None):
+        """#345: take the archive mark off Publication `number` of `code` (Restore): the list shows it again. Nothing else is touched.
+        Logged as a history line (Restored) and, as for archive, no Undo. Refused in plain words when there is no such publication
+        or it is not archived. True when restored."""
+        return self._mark_publication(code, number, by_user, False)
+
+    def _mark_publication(self, code, number, by_user, on):
         if published_copies.file_name(code, number) is None:
             raise Invalid("Give the project's code and the publication's number.")
         if str(self.path) == ":memory:":
             raise Invalid("A publication can't be archived in a database that is not saved to a file.")
         if not self.con.execute("SELECT 1 FROM publications WHERE project = ? AND number = ?", (code, number)).fetchone():
             raise Invalid(f"There is no Publication {number} for {code}. Nothing was changed.")
-        if published_copies.is_archived(self.path.parent, code, number):
-            raise Invalid(f"Publication {number} is already archived. Nothing was changed.")
-        if not published_copies.archive(self.path.parent, code, number):
-            raise Invalid(f"Publication {number} could not be archived. Nothing was changed. Try again.")
+        if published_copies.is_archived(self.path.parent, code, number) == on:
+            raise Invalid(f"Publication {number} is already archived. Nothing was changed." if on
+                          else f"Publication {number} is not archived. Nothing was changed.")
+        # the line is written first, in a step the file change cannot outrun: a file that could not be changed rolls the line back
+        with self.step("dashboard", by_user or platform.login_name(), place="report") as st:
+            log(self.con, st, "publications", f"{code}-{number}", "archived", "0" if on else "1", "1" if on else "0", "update")
+            if not (published_copies.archive if on else published_copies.unarchive)(self.path.parent, code, number):
+                raise Invalid(f"Publication {number} could not be archived. Nothing was changed. Try again." if on
+                              else f"Publication {number} could not be restored. Nothing was changed. Try again.")
         return True
 
     def next_publication(self, code):
         """The number the next publication of `code` will have (#120), to be put in the file before it is made. Nothing is reserved:
         log_publication refuses if it is no longer the next one. Every row counts, whatever its kind. Read-only."""
         return self.con.execute("SELECT coalesce(max(number), 0) + 1 FROM publications WHERE project = ?", (code,)).fetchone()[0]
+
+    def record_pdf_name(self, seq, name):
+        """Name the PDF file saved with the publication `seq` (#269). It is a file name only (no folder), set once: a row that
+        already has a name is never changed, and a `seq` that is not there changes nothing. Like the row itself it is no step
+        and no change_log line, so Undo never meets it. Returns True when the name was written."""
+        name = str(name or "")
+        if not name or len(name) > 255 or "/" in name or "\\" in name or "\x00" in name:
+            raise Invalid("a PDF's name must be a file name, with no folder in it")
+        if self.con.in_transaction:
+            raise Invalid("A PDF's name can't be recorded in the middle of a step: finish the step first.")
+        try:
+            self.con.execute("BEGIN IMMEDIATE")
+        except sqlite3.OperationalError as e:
+            raise Invalid(_busy(e)) from e
+        try:
+            cur = self.con.execute("UPDATE publications SET pdf_name = ? WHERE seq = ? AND pdf_name IS NULL", (name, seq))
+            self.con.execute("COMMIT")
+            return cur.rowcount == 1
+        except BaseException:
+            self.con.execute("ROLLBACK")
+            raise
 
     def web_publication_seq(self, code, number):
         """The seq of project `code`'s web publication numbered `number` (#368), or None. Read-only."""
