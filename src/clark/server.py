@@ -81,7 +81,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, quote, urlsplit
 
 LOG = logging.getLogger("clark.server")
-HOST = "127.0.0.1"                    # the only address clark listens on, whatever any setting says
+HOST = "127.0.0.1"                    # the address clark listens on, whatever any setting says (in the container: CONTAINER_BIND, below)
 DEFAULT_PORT = 8766
 CONTAINER_BIND = "0.0.0.0"            # item 427: only inside the shipped container (see container_mode); the Mac publishes the port to 127.0.0.1 only
 
@@ -1377,7 +1377,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 class LocalServer(ThreadingHTTPServer):
-    """The server, on 127.0.0.1 only, without the reverse DNS lookup at bind. (creaite LocalServer, #83: http.server's
+    """The server, on 127.0.0.1 (in the container, on its own addresses, peers checked), without the reverse DNS lookup at bind. (creaite LocalServer, #83: http.server's
     server_bind calls socket.getfqdn(host), which can stall for 30 s on some Macs.) `data_for(code)` is the store's read
     of one project (None when there is none); `projects()` lists them as rows with a code and a name; `page_html()` gives
     the page's HTML (#35 supplies the bundle); `change(req)` and `undo(req)` (#65) answer POST /api/change and /api/undo
@@ -1451,7 +1451,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, updater=None,
           people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None):
-    """Start the server on 127.0.0.1 and serve until stopped. A port in use is one plain line and exit code 1."""
+    """Start the server on 127.0.0.1 (in the container, on its own addresses: see container_mode) and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
     try:

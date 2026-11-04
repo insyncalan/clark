@@ -45,6 +45,8 @@ clark listens on 127.0.0.1 only, and refuses any request whose peer address is n
 
 ## Slice 2: clark starts on Linux inside the container
 
+_History: the Dockerfile, user 10001, `/data` and the `127.0.0.1`-only wording in the sections from "The problem" down to here were replaced by the shipped `docker/compose.yaml`: a stock python image (no Dockerfile), the data in the `data` folder beside the clark files by default, `CLARK_DATA_DIR` to name another data folder, `CLARK_PORT` for the published port (and `CLARK_PUBLISHED_PORT`, which only lets the start-up line name it). The paragraph at the top is the current design._
+
 A container is Linux, and `platform.py` refused every system but the Mac: a run with the system named "linux" stopped at once with "Finding OneDrive on linux is not built yet". Slice 2 lets clark start there, in the shipped container and nowhere else on Linux.
 
 ### What changed (`src/clark/platform.py`)
