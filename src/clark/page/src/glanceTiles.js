@@ -101,6 +101,8 @@ export const STALE_TITLE = "Not reviewed";
 export const STALE_FILTER = setFilter(initial(), "reviewed", ["stale"], false);
 export const STALE_TAG_OFF = "Off. Never in the published report.";
 export const STALE_TAG_ON = "Never in the published report.";
+/** The tile's detail line: "Not reviewed for more than 14 days, of 8 open items" (the Freshness days setting, then the count of open items). */
+export const staleDetail = (days, open) => `Not reviewed for more than ${plural(days, "day")}, of ${plural(open, "open item")}`;
 export const STALE_WORD = "To review";       // its own status word when some are not reviewed (the prototype's table, TILE_WORDS_OF, stays as it is)
 const staleKey = (code) => `glance.notReviewed.${code}`;
 
@@ -112,7 +114,7 @@ export const setStaleShown = (code, on) => { if (code) remember(staleKey(code), 
 export function staleTile(rows, today) {
   const value = applyFilters(rows, STALE_FILTER, today).length, open = rows.filter((r) => isOpen(r)).length;
   const rag = value ? "a" : "g";
-  return { key: STALE, label: STALE_TITLE, value, detail: `More than ${plural(currentReviewDays(), "day")}, of ${plural(open, "open item")}`,
+  return { key: STALE, label: STALE_TITLE, value, detail: staleDetail(currentReviewDays(), open),
     rag, auto: rag, outline: "", filter: STALE_FILTER, word: value ? STALE_WORD : tileWord(STALE, rag) };
 }
 

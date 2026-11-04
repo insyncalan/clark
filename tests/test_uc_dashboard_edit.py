@@ -155,6 +155,8 @@ class Edit(Setup):
                     off = p.js("document.querySelector('[data-uc-back]').textContent")
                     self.click(p, "#ucAdd")
                     p.until("!!document.querySelector('#ucF')", "the box")
+                    # focus is in ID as soon as the box is there, not a paint later: a late focus pulled the typing from Use case back to ID
+                    self.assertEqual(p.js("document.activeElement && document.activeElement.id"), "ucI", "focus is in ID when the box opens")
                     self.type_in(p, "#ucI", ref)
                     self.type_in(p, "#ucT", f"Hidden {ref}")
                     p.js("document.querySelector('#ucF').requestSubmit()")
