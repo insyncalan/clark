@@ -89,6 +89,23 @@ class ArchivedPeek(Base):
                 self.until(cdp, sid, f"document.activeElement && document.activeElement.dataset.archId === '{self.gone[1]}'", "the focus on the row after Close")
                 self.assertFalse(cdp.js("document.documentElement.scrollWidth > window.innerWidth", sid), "no sideways scroll")
 
+    def test_if_its_row_has_gone_the_focus_falls_back_never_to_the_body(self):
+        from test_server import chrome
+        with chrome() as cdp:
+            sid = self.visit(cdp, width=900)
+            self.open_list(cdp, sid)
+            self.open_peek(cdp, sid, self.gone[1])            # the row clicked is the opener too
+            cdp.js(f"document.querySelector('#archived-list tr[data-arch-id=\"{self.gone[1]}\"]').remove()", sid)
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('#peek-archived')", "the peek shut by Esc")
+            self.until(cdp, sid, f"document.activeElement && document.activeElement.dataset.archId === '{self.gone[0]}'", "the focus on the list's first row")
+            self.open_peek(cdp, sid, self.gone[0])
+            cdp.js("document.querySelectorAll('#archived-list tr.arch-row').forEach(r => r.remove())", sid)
+            click(cdp, sid, "#peek-archived [data-pk-close]")
+            self.until(cdp, sid, "!document.querySelector('#peek-archived')", "the peek shut by Close")
+            self.until(cdp, sid, "document.activeElement && document.activeElement.id === 'showArchived'", "the focus on the Show archived pill")
+            self.assertFalse(cdp.js("document.activeElement === document.body", sid))
+
     def test_a_live_row_takes_the_place_of_the_archived_peek(self):
         from test_server import chrome
         with chrome() as cdp:
