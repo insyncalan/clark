@@ -5,7 +5,7 @@
 //   - an element that was already inert (another part of the page, such as the closed contents list) is left alone, both ways;
 //   - an element another open dialog made inert stays inert until the last of the dialogs holding it has closed.
 // The toast region (.toasts) stays live so a screen reader still hears what the page says; the toasts already in it (they carry
-// Undo and Close buttons) are made inert.
+// Undo and Close buttons) are made inert, and so is one that arrives while the dialog is open (a MutationObserver, disconnected on release).
 const held = new Map();                                   // element -> how many open dialogs have it inert; only what this file made inert is here
 const SKIP = /^(SCRIPT|STYLE|LINK|TEMPLATE|META)$/;
 
@@ -32,16 +32,31 @@ function behind(dialog) {
   return all;
 }
 
+function regions(dialog) {                                // the live toast regions outside the dialog
+  const top = document.getElementById("app") || document.body;
+  return [...top.querySelectorAll(".toasts")].filter((r) => !r.contains(dialog));
+}
+
 export function inertBehind(dialog) {
-  const mine = [];
-  for (const el of behind(dialog)) {
-    if (held.has(el)) { held.set(el, held.get(el) + 1); mine.push(el); }
-    else if (!el.hasAttribute("inert")) { el.setAttribute("inert", ""); held.set(el, 1); mine.push(el); }
-  }
+  const mine = new Set();
+  const take = (el) => {
+    if (held.has(el)) { held.set(el, held.get(el) + 1); mine.add(el); }
+    else if (!el.hasAttribute("inert")) { el.setAttribute("inert", ""); held.set(el, 1); mine.add(el); }
+  };
+  for (const el of behind(dialog)) take(el);
+  // A toast that arrives while the dialog is open is made inert too; one that is removed stops being tracked.
+  const watch = new MutationObserver((records) => {
+    for (const rec of records) {
+      for (const n of rec.addedNodes) if (n.nodeType === 1 && n.matches(".toast")) take(n);
+      for (const n of rec.removedNodes) if (mine.delete(n)) held.delete(n);
+    }
+  });
+  for (const r of regions(dialog)) watch.observe(r, { childList: true });
   let done = false;
   return () => {
     if (done) return;
     done = true;
+    watch.disconnect();
     for (const el of mine) {
       const n = (held.get(el) || 1) - 1;
       if (n > 0) held.set(el, n);

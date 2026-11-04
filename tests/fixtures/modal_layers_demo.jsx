@@ -24,6 +24,8 @@ T.build = () => {
 // What a dialog host does: its own element is never held; the rest of the page is, until release.
 T.hold = (id) => { const r = inertBehind(document.getElementById(id)); T.releases.push(r); return T.releases.length - 1; };
 T.release = (n) => T.releases[n]();
+T.toast = (id) => { const d = document.createElement("div"); d.className = "toast"; d.innerHTML = `<button id="${id}" type="button">x</button>`; document.querySelector(".toasts").appendChild(d); };
+T.removeToast = (id) => { const b = document.getElementById(id); if (b) b.closest(".toast").remove(); };
 
 function Host({ onClose }) {
   const root = useRef(null);
