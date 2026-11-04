@@ -112,7 +112,7 @@ export function Milestones({ tools }) {
 // focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
 // The row of chips (item 440, S2) is a bar of its own under the head: it stays under the top bar as you scroll, and the chip of the card
 // you are reading is marked (aria-current). The prototype's other chips wait for their cards.
-const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
+const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
   ["Safety", "Backups", "safety-h"], ["AskSettings", "Asking", "ask-settings-h"]];
 
 const cardOf = (headId) => { const head = document.getElementById(headId); return head ? head.closest("section") || head : null; };
@@ -158,7 +158,7 @@ function SettingsHead({ cards }) {
     <>
       <section class="frame set-head">
         <h1>Settings</h1>
-        <p class="muted">Where reports are published, how clark looks for you, the log, your backups and asking Claude.</p>
+        <p class="muted">Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.</p>
       </section>
       {cards.length ? (
         <nav class="set-bar" aria-label="Settings sections">
@@ -175,18 +175,22 @@ export function Settings({ tools }) {
   const ClientFolder = tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
   const PublishedReports = tools && tools.PublishedReports;      // the list of publications, with Open (#443); Edit's page only
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
+  const ReviewDays = tools && tools.ReviewDays;          // Freshness (item 160): the project's "Not reviewed after (days)"
   const Diagnostics = tools && tools.Diagnostics;        // logs and diagnostics (#110)
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
   const cards = CARDS.filter(([tool]) => tools && tools[tool]);
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
+  const People = tools && tools.People;                  // the People card (item 454): email, organisation, role, Paste from Excel; Edit's page only
   return (
     <>
       <SettingsHead cards={cards} />
       {ClientFolder ? <ClientFolder /> : null}
       {PublishedReports ? <PublishedReports /> : null}
       {Personal ? <Personal /> : null}
+      {ReviewDays ? <ReviewDays /> : null}
       {Diagnostics ? <Diagnostics /> : null}
       {Safety ? <Safety /> : null}
+      {People ? <People /> : null}
       {AskSettings ? <AskSettings /> : null}
     </>
   );

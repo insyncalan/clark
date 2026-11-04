@@ -381,7 +381,8 @@ class WhatTheModuleCanDo(unittest.TestCase):
         for name in ("NOT_JSON_OBJECT", "BAD_OP", "NO_FILE", "BAD_NAME", "BAD_FILE", "EXPIRED", "BAD_ACCEPT", "NOTHING_ACCEPTED",
                      "NO_UNDO", "UNDONE", "NOT_RECORDED", "ALL_SEEN", "SOME_SEEN", "CHOOSE_FOLDER", "BAD_FLAG", "BAD_CLASH",
                      "NO_CLIENT_FOLDER", "OVERWRITE_UNCONFIRMED", "NAME_TAKEN", "APPEARED", "FOLDER_GONE", "FOLDER_DATA", "NOT_SAVED",
-                     "NOT_AS_MADE", "NOT_AS_MADE_REPLACED", "SAVED", "SAVED_CLIENT", "CLIENT_FAILED", "NOT_RECORDED_FILE", "CANCELLED"):
+                     "NOT_AS_MADE", "NOT_AS_MADE_REPLACED", "SAVED", "SAVED_CLIENT", "CLIENT_FAILED", "NOT_RECORDED_FILE", "CANCELLED",
+                     "APPEARED_CLIENT"):
             text = getattr(word_route, name)
             self.assertNotRegex(text, JARGON, name)
             self.assertFalse(text.lower().startswith("clark"), name)
@@ -591,8 +592,8 @@ class Export(unittest.TestCase):
         with mock.patch.object(word_route, "_write_new", lambda dest, data: False if dest.parent == self.client else real(dest, data)):
             status, got = self.post(to_client=True)
         self.assertEqual(status, 200, got)
-        # the whole message, with the failure sentence once and one space before it
-        self.assertEqual(got["message"], word_route.SAVED.format(name=self.name, folder=f"“{self.local.name}”") + " " + word_route.APPEARED_CLIENT.format(name=self.name)
+        # the whole message, with the failure sentence once, after its own one space
+        self.assertEqual(got["message"], word_route.SAVED.format(name=self.name, folder=f"“{self.local.name}”") + word_route.APPEARED_CLIENT.format(name=self.name)
                          + f" It is Publication {got['number']}.")
         self.assertEqual(got["message"].count("not copied to the client folder"), 1)
         self.assertNotIn("Nothing was saved", got["message"], "the report folder copy WAS saved")
@@ -607,7 +608,7 @@ class Export(unittest.TestCase):
         with mock.patch.object(word_route, "_write_new", write):
             status, got = self.post(to_client=True)
         self.assertEqual((status, got["client_failed"]), (200, True), got)
-        self.assertEqual(got["message"], word_route.SAVED.format(name=self.name, folder=f"“{self.local.name}”") + " " + word_route.CLIENT_FAILED.format(
+        self.assertEqual(got["message"], word_route.SAVED.format(name=self.name, folder=f"“{self.local.name}”") + word_route.CLIENT_FAILED.format(
             reason="Permission denied.") + f" It is Publication {got['number']}.")
 
     def test_a_client_folder_that_changed_says_try_again_not_publish_again(self):
@@ -656,11 +657,35 @@ class Export(unittest.TestCase):
         with mock.patch.object(word_route, "_verified", lambda dest, digest: real(dest, digest) if dest.parent == self.local else False):
             status, got = self.post(to_client=True)
         self.assertEqual((status, got["client_failed"], got["client_name"]), (200, True, None))
-        self.assertEqual(got["message"], word_route.SAVED.format(name=self.name, folder=f"“{self.local.name}”") + " " + word_route.CLIENT_FAILED.format(
-            reason="What was copied did not match the report, so it was taken back.") + f" It is Publication {got['number']}.")
-        self.assertEqual(got["message"].count("Nothing was added to the client folder"), 1)
+        self.assertEqual(got["message"], self.client_failed_words(got, "It was not copied to the client folder: What was copied did not "
+                                                                       "match the report, so it was taken back. Nothing was added to the "
+                                                                       "client folder."))
         self.assertEqual((self.files(self.local), self.files(self.client)), ([self.name], []))
         self.assertIsNone(self.publications()[0]["client_path"])
+
+    def client_failed_words(self, got, sentence):
+        return f"Saved “{self.name}” in “{self.local.name}”. {sentence} It is Publication {got['number']}."
+
+    def test_a_client_copy_failure_says_it_once_and_plainly(self):
+        # #607: the failure sentence is built once, after one space, and never says "Nothing was saved" of a saved report
+        self.save_client_folder()
+        real = word_route._write_new
+        appeared = lambda dest, data: False if dest.parent == self.client else real(dest, data)
+        cases = ((appeared, f"It was not copied to the client folder, because a file called “{self.name}” appeared there while clark "
+                            "was working. Nothing was added to the client folder. Export again to choose what to do."),
+                 (OSError(13, "Permission denied"), "It was not copied to the client folder: Permission denied. Nothing was added to "
+                                                    "the client folder."))
+        for how, sentence in cases:
+            for f in self.files(self.local):
+                os.unlink(self.local / f)
+            fake = how if callable(how) else (lambda dest, data, e=how: real(dest, data) if dest.parent == self.local else (_ for _ in ()).throw(e))
+            with mock.patch.object(word_route, "_write_new", fake):
+                status, got = self.post(to_client=True)
+            self.assertEqual((status, got["client_failed"], got["client_name"]), (200, True, None), got)
+            self.assertEqual(got["message"], self.client_failed_words(got, sentence))
+            self.assertEqual(got["message"].count("client folder"), 2, got["message"])
+            self.assertNotIn("Nothing was saved", got["message"])
+            self.assertEqual(self.files(self.client), [])
 
     def test_a_local_file_that_does_not_match_is_taken_back_and_nothing_is_recorded(self):
         self.post()                                                 # remember the folder

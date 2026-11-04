@@ -7,6 +7,7 @@ import { signal } from "@preact/signals";
 import { data, project, show } from "../stores/report.js";
 import { publishRequest, latestRequest, words } from "./publishApi.js";
 import { exportWord } from "./wordApi.js";
+import { say } from "./menuNote.js";
 
 // With no client folder, To client says where to set one; the second part is a link to the Publishing card (the prototype's
 // "Set it in Settings, Publishing", io.js).
@@ -16,6 +17,11 @@ export const dialog = signal(null);      // null (closed) or the state below
 export const latest = signal(null);      // {at: YYYY-MM-DD, to_client} for the report bar, or null
 export const next = signal(0);           // the number the next publication will have (#437), or 0 until the server has said
 export const pdfInfo = signal({ ok: false, note: "" });      // whether Chrome is on this computer, and the one line saying why not
+// #437: how long the finished dialog shows its tick before it closes by itself (the prototype's 1200 ms, io.js). The test build
+// changes it through window.clarkPage.publishCloseMs (testhook.js); null keeps the dialog open until it is closed.
+export const CLOSE_MS = 1200;
+export const closeAfter = { ms: CLOSE_MS };
+let finished = 0;                        // counts finished publishes, so a timer from an earlier dialog never closes a later one
 
 export const savedFolder = () => {
   const d = data.value;
@@ -110,13 +116,24 @@ const afterPublish = (text) => String(text).replace(/\s*Nothing (was|has been) s
 
 // Save the Word report, in the folder last used for the project, after the web page that was just published (`said` is what publishing said), or answer the question about a
 // taken name. Whatever happens, the box ends in "done" with both results in words: the web page is published either way.
+// The box ends in "done" with `message`. The same words go to the menu's note, which stays after the dialog has closed itself (item 437
+// rows 27 and 57); it has no Undo, as in the prototype: a publication keeps its number and its files, so it is not a step that can be taken back.
+// A finished box that is not an error closes itself after closeAfter.ms; an error stays up, and its note is a problem, which stays too.
+function finish(message, extra = {}) {
+  set({ phase: "done", clash: null, ...extra, message });
+  say(message.kind === "error" ? "problem" : message.kind === "info" ? "note" : "done", message.text);
+  const mine = ++finished;
+  if (message.kind !== "error" && Number.isFinite(closeAfter.ms)) setTimeout(() => { const now = dialog.value; if (mine === finished && now && now.phase === "done") close(); }, Math.max(0, closeAfter.ms));
+}
+
 async function sendWord(s, said, num) {
   set({ phase: "working", step: "word", published: said, num, message: null });
   const o = await exportWord(project.value, s.ticked && s.saved, s.phase === "wordclash" ? { on_clash: s.wchoice } : null);
   if (o.kind === "clash") { set({ phase: "wordclash", step: "publish", wclash: o, wchoice: "number", wconfirmed: false, message: null }); return; }
-  if (o.kind === "saved") set({ phase: "done", step: "publish", wclash: null, message: { kind: "success", text: `${said} ${o.message}`, number: num } });
-  else if (o.kind === "cancelled") set({ phase: "done", step: "publish", wclash: null, message: { kind: "info", text: `${said} The Word report was not saved, because you cancelled.` } });
-  else set({ phase: "done", step: "publish", wclash: null, message: { kind: "error", text: `${said} The web page is published, but the Word report was not saved. ${afterPublish(o.message)}` } });
+  const ended = { step: "publish", wclash: null };
+  if (o.kind === "saved") finish({ kind: "success", text: `${said} ${o.message}`, number: num }, ended);
+  else if (o.kind === "cancelled") finish({ kind: "info", text: `${said} The Word report was not saved, because you cancelled.` }, ended);
+  else finish({ kind: "error", text: `${said} The web page is published, but the Word report was not saved. ${afterPublish(o.message)}` }, ended);
 }
 
 export async function go() {
@@ -138,7 +155,7 @@ export async function go() {
     const num = Number.isInteger(b.publication) && b.publication > 0 ? b.publication : null;
     refreshLatest();
     if (s.word) return sendWord(s, said, num);
-    set({ phase: "done", clash: null, message: { kind: b.pdf_saved === false ? "info" : "success", text: said, number: num } });
+    finish({ kind: b.pdf_saved === false ? "info" : "success", text: said, number: num });
     return;
   }
   const cancelled = r.status === 200 && b && (b.code === "cancelled" || b.code === "cancel");

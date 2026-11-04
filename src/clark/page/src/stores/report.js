@@ -2,10 +2,10 @@
 // reload keeps them; the project's data comes from GET /api/data with this run's token (#33, #31's data_for).
 // A published file (#39) has its data in an inline block, id="clark-data": then the page is a file (fromFile), reads that block
 // and nothing else: no fetch, no token, no Settings tab, and "today" is the date it was published (as_at).
-import { signal, computed, batch } from "@preact/signals";
+import { signal, computed, batch, effect } from "@preact/signals";
 import * as route from "../router.js";
-import { rowsOf, todayIso } from "../workItems.js";
-import { decode, encode, fits, hasReviewDates, setPublished } from "../filters.js";
+import { rowsOf, todayIso, pinToday } from "../workItems.js";
+import { decode, encode, fits, hasReviewDates, setPublished, setReviewDays } from "../filters.js";
 import { searchIndex } from "../clientView.js";
 import { lineApi } from "./lineSlot.js";
 import { ucKey } from "../logic/useCasesList.js";
@@ -35,12 +35,14 @@ export const filterNote = signal("");                // a plain line when a filt
 export const refusals = signal(0);                   // counts the refusals, so a ticked box that was not kept is drawn unticked again
 export const status = signal(project.value ? "loading" : "none");   // none | loading | ready | missing | failed
 export const data = signal(null);
+effect(() => setReviewDays(data.value && data.value.project ? data.value.project.review_after_days : undefined));   // #171: the words and rules for "not reviewed" follow the open project's own number (a file has none: 14)
 export const message = signal("");
 export const publication = signal(0);       // a published file: its publication number (#120), else 0; the footer reads it
 export const fromFile = signal(false);       // true when the page is a published file (#39): it never edits and never asks a server
 export const mode = signal("view");          // view | edit (#65): memory only, never in the database or the address, so a reload is View
 export const dropAt = signal(undefined);     // Edit, while a section is dragged: what to draw (logic/placement.js indicator: { line: "before", ids } | { line: "end" } | { outline, side }), undefined for none
 export const asAt = signal("");              // view mode: the publish date, YYYY-MM-DD; due dates and Overdue read as at this
+export const rebuilt = signal("");           // item 349: the day the Dashboard is shown as at, rebuilt from the change history (YYYY-MM-DD), else "": memory only, never in the address; while set the page is read only
 export const SERVED_TABS = VIEWS.filter((v) => v !== "clientreport");   // the served page never offers the client report (#559); only a published file lists it, from its own p.tabs
 export const tabs = signal(SERVED_TABS);           // the views the tab bar offers; a published file has no Settings, and only the Use Cases it was given
 export const moves = signal(0);              // counts Back and Forward (and a typed address): a menu that is open closes on each
@@ -78,6 +80,7 @@ const where = () => ({ view: view.value, project: project.value, item: item.valu
 // project and only its own tabs: an address that names another project or a tab the file does not have (typed, or a Back to it)
 // stays on the file's project and opens its first tab, as a reload of that address does.
 function apply(s) {
+  if (rebuilt.value && (s.project !== project.value || s.view !== "dashboard")) leaveAsAt(s.project === project.value);   // item 349: another page or project is now, not then
   if (!fromFile.value && s.view === "clientreport") s = { ...s, view: SERVED_TABS[0] };   // #559
   if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: "" };
   if (s.view !== view.value || s.project !== project.value) { openFilter.value = ""; filterNote.value = ""; }   // a filter change keeps its box open
@@ -296,6 +299,7 @@ const CHANGE_KNOWN = {
   "A Sensitive item is never published, so it can't be added to the report.": "A Sensitive item is never shown to the client, and nothing was changed. Take the Sensitive label off first.",
   // #80: a work item change clark would not make (clark/changes.py's words; the page says its own)
   "That item isn't in this project.": "That item is no longer in this project, and nothing was changed. Reload the page.",
+  "The week ending date must be a real date. The old date was kept. Pick a date and try again.": "That isn't a real day, so the old week ending date was kept. Type another date as DD-MM-YYYY.",
   "Pick a real date.": "That date isn't a real day, and nothing was changed. Pick another date.",
   "That status isn't available for this item.": "That status isn't one this item can have, and nothing was changed.",
   "A decision that is made needs the date it was made.": "A made decision needs the date it was made, and nothing was changed. Pick a date.",
@@ -306,6 +310,8 @@ const CHANGE_KNOWN = {
     "That decision has been made, so it was left as it is. Record a new decision that replaces it.",
   "Use plain text, with no line breaks or hidden characters.": "A name can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
   "That value isn't one clark can use.": "That value can't be used, and nothing was changed. Try another.",
+  "A latest update can be at most 1000 characters. Shorten it and try again.": "A latest update can be 1000 characters at most. Nothing was changed. Shorten it and try again.",
+  "That has a hidden character in it. Take it out and try again.": "That update has a hidden character in it, often from copying and pasting. Nothing was changed. Type it again, then press Enter.",
   // #121: a 'Needs from you' list clark would not save (clark/section_bodies.py's words; the page checks first and says the same)
   "Needs from you can have at most 100 rows.": "A list can have 100 rows at most, and nothing was changed. Remove one to add another.",
   "Say what is needed.": "Say what is needed. Nothing was changed.",
@@ -402,7 +408,7 @@ export async function load() {
 /** Read the open project's data again without redrawing the page as loading (#80: after an undo of a work item change, whose
  *  reply carries no items). Resolves to true when the data was read and drawn; false leaves the page as it is. */
 export async function reread(code) {
-  if (fromFile.value || !code || code !== project.value) return false;
+  if (fromFile.value || rebuilt.value || !code || code !== project.value) return false;
   try {
     const r = await fetch(`/api/data?project=${encodeURIComponent(code)}`, { headers: { "X-Clark-Token": token() }, cache: "no-store" });
     const body = await r.json().catch(() => ({}));
@@ -413,6 +419,33 @@ export async function reread(code) {
   } catch (e) {
     return false;
   }
+}
+
+// item 349: the Dashboard as at `day`, from GET /api/as-at's data (edit/asAtApi.js). The page is View, read only, behind the banner
+// (components/AsAtBanner.jsx), and "today" is that day. Nothing here is saved; Back to now (or any other page or project) reads now again.
+export function showAsAt(day, d) {
+  if (fromFile.value || !d || !d.project || d.project.code !== project.value) return false;
+  ++reading;                                          // a read of now still on its way is not drawn over this one
+  batch(() => {
+    pinToday(day);
+    mode.value = "view";
+    data.value = d;
+    rebuilt.value = day;
+    status.value = "ready";
+  });
+  if (view.value !== "dashboard" || item.value || ms.value) show("dashboard");
+  return true;
+}
+
+function leaveAsAt(reload) {
+  pinToday("");
+  rebuilt.value = "";
+  if (reload) load();
+}
+
+/** Back to now: this week's Dashboard, read from clark again. */
+export function backToNow() {
+  if (rebuilt.value) leaveAsAt(true);
 }
 
 // "Try again": a page that clark would not accept has a token from an earlier run, so only a reload of the page helps.
