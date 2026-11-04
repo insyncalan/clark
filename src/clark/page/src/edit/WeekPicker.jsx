@@ -1,7 +1,7 @@
-// The week picker beside "Week ending" on the Dashboard's report bar (#344, follow-on 3 of the #125 design note; the prototype's
+// The week picker beside "Week ending" on the Dashboard's report bar (item 344, follow-on 3 of the item 125 design note; the prototype's
 // #wkPast in system/prototype/past.js). It lists each published week of the open project, newest first, and opens the one picked
 // read only: a page that was kept opens in a new tab as it was published (pastReportsApi.js, as Settings › Published reports'
-// Open does); one that was not kept opens as the Dashboard as at the day it was published (GET /api/as-at, #349), behind its banner.
+// Open does); one that was not kept opens as the Dashboard as at the day it was published (GET /api/as-at, item 349), behind its banner.
 // The last line goes to Settings › Published reports › Dashboard as at a day. It only reads; it is in View and Edit, and like the
 // rest of the report bar it is an Edit part, so a published file never has it. `api`, `openTab` and `code` are seams for the tests.
 import { useEffect, useState } from "preact/hooks";

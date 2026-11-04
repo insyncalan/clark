@@ -1,4 +1,4 @@
-// The week picker beside "Week ending" (#344, follow-on 3 of the #125 design note): its words and its options, as plain functions
+// The week picker beside "Week ending" (item 344, follow-on 3 of the item 125 design note): its words and its options, as plain functions
 // with no DOM, so a test can run them alone. The options follow the prototype (system/prototype/past.js, C.pastPickHtml): a first
 // "Published weeks" line, then each publication newest first as "DD-MM-YYYY · Publication N" (the week ending it was for), then
 // "Dashboard as at a day…". Two publications for one week are two lines. The rows are the Published reports list's (past_reports.py).
