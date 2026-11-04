@@ -1108,9 +1108,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pub-msg .info, .pub-msg .note { color: var(--text-muted); }
 /* Publish (issue 130, point 4): a spinner while it works, then a tick with the success line. With reduced motion the ring stays still. */
 .pub-msg .working { display: flex; align-items: center; gap: var(--space-2); color: var(--text-muted); }
-.spin { flex: none; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--brand-blue); border-radius: 50%; }
-/* Ticket 380: the ring turns four times (about 3.6 s) and then rests as the still ring; it never loops. A loop needs the owner's written word (ticket 131); the words "Publishing…" say the work is going on. */
-@media (prefers-reduced-motion: no-preference) { .spin { animation: pub-spin 900ms linear 4 forwards; } }
+.spin { flex: none; width: var(--space-4); height: var(--space-4); border: 2px solid var(--border); border-top-color: var(--brand-blue); border-radius: 50%; }
+/* Item 614 (after ticket 380): the ring turns, calmly, for exactly as long as "Publishing…" shows. It is drawn only while the work is
+   open (Publish.jsx renders it under `working`), so it goes the moment the work ends and nothing turns after the publish. Ticket 380's
+   four turns stopped it at about 3.6 s while the work went on, which read as "finished". The one approved loop (test_motion). */
+@media (prefers-reduced-motion: no-preference) { .spin { animation: pub-spin calc(var(--dur-enter) * 3) linear infinite; } }      /* calm: one even turn in 2.1 s (was 0.9 s) */
 @keyframes pub-spin { to { transform: rotate(360deg); } }
 .pub-msg .success { display: flex; align-items: center; gap: var(--space-2); }
 .pub-tick { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--status-green-text); color: var(--surface); }
@@ -1153,6 +1155,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pubs td { padding: 9px 10px; border-top: 1px solid var(--grey-100); vertical-align: middle; overflow-wrap: anywhere; }
 .pubs th:first-child, .pubs td:first-child { padding-left: 4px; width: 48px; }
 .pubs td.acts { text-align: right; white-space: nowrap; }
+.pubs td.acts > * + * { margin-left: var(--space-2); }
+.pubs tr.arch-row td { color: var(--text-muted); }
+#pubs .pp-tools { margin: var(--space-2) 0 0; }
 #pubs-note { margin: 8px 0 0; font-size: var(--size-small); }
 /* item 349: Settings > Published reports > Dashboard as at a day, and the banner and dashed tinted frame of the rebuilt Dashboard
    (the design note of item 125, its past view: the prototype's .pv-banner and .pv-frame.asat). */
@@ -1237,6 +1242,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .fld.copy-fld { max-width: 640px; }
 .fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-caption); }
 .fld-bad:empty { display: none; }
+/* item 613: the suggested Alias under the name box, read-only (Settings, Personal, About you) */
+.alias-offer { display: grid; gap: var(--space-1); min-width: 0; }
+.alias-offer p { margin: 0; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }
+.alias-offer b { font-weight: var(--weight-medium); color: var(--text); }
 /* Settings › People (item 454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
 .pp-h { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; }
 .pp-h h2 { margin: 0; flex: 1; }

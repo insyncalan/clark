@@ -83,6 +83,48 @@ class Archived(Base):
                 self.assertEqual(cdp.js("document.querySelector('#showArchived').getAttribute('aria-pressed')", sid), "false")
                 self.assertFalse(cdp.js("!!document.querySelector('#archived-list')", sid))
 
+    def fits(self, cdp, sid, sel):
+        """The box sits inside the page's width at 900 px, and the page has no sideways scroll."""
+        right = cdp.js(f"Math.round(document.querySelector({json.dumps(sel)}).getBoundingClientRect().right)", sid)
+        self.assertLessEqual(right, cdp.js("document.documentElement.clientWidth", sid), f"{sel} fits")
+        self.assertFalse(cdp.js("document.documentElement.scrollWidth > window.innerWidth", sid), "no sideways scroll")
+
+    def test_at_900_px_the_empty_sections_show_and_fit(self):
+        from test_server import chrome
+        # No archived item: the pill says 0 and the open section says there is none.
+        with self.store.step("dashboard", USER) as st:
+            for ref in self.gone:
+                st.restore("actions" if "-A-" in ref else "raid", ref)
+        for scheme in ("light", "dark"):
+            with self.subTest(case="no archived item", scheme=scheme), chrome() as cdp:
+                sid = self.visit(cdp, width=900)
+                self.scheme(cdp, sid, scheme)
+                cdp.js("try { localStorage.removeItem('clark.workArchived.ABC'); } catch (e) {}", sid)
+                self.until(cdp, sid, "document.querySelector('#showArchived')?.textContent === 'Show archived 0'", "the pill at 0")
+                click(cdp, sid, "#showArchived")
+                self.until(cdp, sid, "!!document.querySelector('#archived-list')", "the archived section")
+                self.assertIn("No archived work items.", cdp.js("document.querySelector('#archived-list').textContent", sid))
+                self.assertEqual(cdp.js("document.querySelectorAll('#archived-list table, #archived-list .arch-row').length", sid), 0)
+                self.fits(cdp, sid, "#archived-list")
+                self.fits(cdp, sid, "#showArchived")
+        # No live item, every one archived: the pill stands in a bar of its own under the empty state.
+        with self.store.step("dashboard", USER) as st:
+            for k in ("actions", "raid", "decisions"):
+                for r in self.data[k]:
+                    st.archive(k, r["id"])
+        for scheme in ("light", "dark"):
+            with self.subTest(case="no live item", scheme=scheme), chrome() as cdp:
+                sid = self.visit(cdp, width=900, wait_for="#work h1")
+                self.scheme(cdp, sid, scheme)
+                cdp.js("try { localStorage.removeItem('clark.workArchived.ABC'); } catch (e) {}", sid)
+                self.until(cdp, sid, "!!document.querySelector('#archived > .wbar #showArchived')", "the lone pill")
+                self.assertIn("This project has no work items yet.", cdp.js("document.querySelector('#work').textContent", sid))
+                self.assertFalse(cdp.js("!!document.querySelector('#work-list')", sid))
+                self.fits(cdp, sid, "#archived > .wbar")
+                click(cdp, sid, "#showArchived")
+                self.until(cdp, sid, "document.querySelectorAll('#archived-list .arch-row').length > 0", "the archived rows")
+                self.fits(cdp, sid, "#archived-list")
+
     def test_restore_puts_the_item_back_and_undo_archives_it_again(self):
         from test_server import chrome
         with chrome() as cdp:

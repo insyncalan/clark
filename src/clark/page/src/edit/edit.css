@@ -517,6 +517,8 @@ textarea.tpl-field { resize: vertical; }
 :root[data-theme=dark] .arch-pill[aria-pressed="true"] { background: var(--brand-blue); border-color: var(--brand-blue); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .arch-pill[aria-pressed="true"] { background: var(--brand-blue); border-color: var(--brand-blue); } }
 .arch-pill em { font-style: normal; }   /* full colour, as the prototype, at the pill's size: the build keeps text at 13 px at least */
+/* :has() is in Chrome and Edge 105+, Safari 15.4+ and Firefox 121+; Chrome is the supported browser. A browser without it drops
+   this one rule only: the bar itself (.wbar, shell.css) still wraps, so the group drops to a line of its own, never sideways. */
 .vctl:has(.arch-pill) { flex-wrap: wrap; }   /* item 450: the pill joins View and the layout switch; at 900 px they wrap, never sideways */
 .arch-h { margin: 8px 0; font-size: var(--size-body); font-weight: 600; }
 .arch-h span { font-weight: 400; font-size: var(--size-small); margin-left: 6px; }

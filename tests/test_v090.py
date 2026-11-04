@@ -29,8 +29,6 @@ SCHEMA_AT_0_8_0 = 15     # 0.8.0 reads layout 15; a layout step after it makes t
 COVERED = [
     ("#420", "Open About you before clark has read it, type only a name and leave the box: the email saved before is still there.",
      "test_about_you::AboutYou::test_C_a_save_made_before_the_first_read_has_landed_keeps_the_other_box_saved_value"),
-    ("#449", "Work items: the column width can be changed and reset, with a toast",
-     "test_board_columns::Columns::test_a_double_click_on_the_grip_says_column_width_reset_in_a_toast_in_view_and_in_edit"),
     ("#439", "The bar above the page: Week ending is a box in View and in Edit; with no week kept it shows the coming Friday and saves nothing until Enter.",
      "test_report_bar::Bar::test_with_no_week_kept_the_field_shows_the_coming_friday_and_saves_nothing"),
     ("#439", "A typed entry that is not a day keeps the old date and says so.",
@@ -55,13 +53,11 @@ COVERED = [
 # marker None means there is no pull request to look for yet).
 WAITING = [
     ("#48", "HOLD (the Help wording is the owner's call): Export to Word and Import from Word screens", "PR 475", "page/src/edit/Word.jsx", "export function WordLayer"),
-    ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo", "PR 513", "updater.py", "class Updater"),
-    ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 518", "page/src/edit/Update.jsx", "upd-rows"),
+    ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo", "PR 592", "updater.py", "class Updater"),
+    ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 592", "page/src/edit/Update.jsx", "upd-rows"),
     ("#434", "Risks, issues, actions and decisions rows: a status pill, empty sections, editing in place and the ID button", "PR 580", "page/src/edit/ItemRowsEdit.jsx", "WORDS_MAX"),
-    ("#444", "Settings Data card and Projects table: Import workbook, Reset the demo data, Add and Edit project", "PR 461", "page/src/logic/dataCard.js", "export const DATA"),
-    ("#53", "Where clark's AI providers code comes from (a copy from the other product's branch)", "no pull request yet (issue 53)", "", None),
-    ("#54", "Settings, AI: Claude and OpenAI sign-in for ask clark", "no pull request yet (issue 54)", "", None),
-    ("#446", "Settings, AI card: Connect and Disconnect for Claude, an OpenAI tile that says Later, a model list", "no pull request yet (issue 446)", "", None),
+    ("#449", "Work items: the column width can be changed and reset, with a toast", "PR 555", "page/src/logic/board.js", "COL_MIN"),
+    ("#444", "Settings Data card and Projects table: Import workbook, Add and Edit project", "PR 461", "page/src/logic/dataCard.js", "export const DATA"),
     ("#613", "Settings: typing a full name suggests an Alias (Jane Doe suggests Jane,JD)", "no pull request yet (issue 613)", "", None),
 ]
 
