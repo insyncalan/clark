@@ -213,6 +213,26 @@ class Browser(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek dt')", sid)))
         return sent, sid
 
+    IDS = ("(() => { const t = document.querySelector('[data-pk-latest-text]'); const lab = document.querySelector('[data-pk-latest] .pk-lab span');"
+           " const ids = [...document.querySelectorAll('[id]')].map(e => e.id);"
+           " return {lab: lab.id, txt: t.id, by: t.getAttribute('aria-labelledby'), dup: ids.length - new Set(ids).size}; })()")
+
+    def test_the_latest_update_ids_come_from_the_item_and_each_link_points_at_its_own_element(self):
+        other = "TUL-A-001"
+        with chrome() as cdp:
+            sent, sid = self.load(cdp, 1400, OVERDUE)
+            first = cdp.js(self.IDS, sid)
+            cdp.js(f"clarkPage.openPeek({json.dumps(other)})", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-latest-text]')", sid) and
+                                 cdp.js(self.IDS, sid)["lab"] != first["lab"]))
+            second = cdp.js(self.IDS, sid)
+            for ref, ids in ((OVERDUE, first), (other, second)):
+                self.assertEqual(ids["lab"], f"pk-latest-lab-{ref}")
+                self.assertEqual(ids["txt"], f"pk-latest-txt-{ref}")
+                self.assertEqual(ids["by"], f"{ids['lab']} {ids['txt']}", "the button is named by its own label and its own text")
+                self.assertEqual(ids["dup"], 0, "no id is used twice in the page")
+            self.assertNotEqual((first["lab"], first["txt"]), (second["lab"], second["txt"]))
+
     def due(self, cdp, sid):
         return cdp.js("(d => d ? d.textContent.replace('Changed', '').trim() : '')(document.querySelector('#peek [data-row=due] dd'))", sid)
 
@@ -438,7 +458,7 @@ class Browser(unittest.TestCase):
                 self.assertIn(self.action(OVERDUE)["latest_update"], box["text"])
                 self.assertEqual(box["ink"], self.want(cdp, sid, "--text"))
                 self.assertGreaterEqual(box["ratio"], 4.5, box)
-                lab = self.look(cdp, sid, "#pk-latest-lab")
+                lab = self.look(cdp, sid, f"#pk-latest-lab-{OVERDUE}")
                 self.assertEqual(lab["text"], "Latest update")
                 self.assertGreaterEqual(lab["ratio"], 4.5, lab)
                 stamp = self.look(cdp, sid, "[data-pk-last]")

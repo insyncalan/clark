@@ -68,10 +68,11 @@ export function PeekLatest({ row }) {
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); stop(); }
     else if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); save(e.currentTarget.value); }
   };
+  const lab = `pk-latest-lab-${row.id}`, txt = `pk-latest-txt-${row.id}`;         // from the item's id: two peeks never share an id
   return (
     <div class="pk-latest" data-pk-latest>
       {action ? <>
-        <div class="pk-lab"><span id="pk-latest-lab">Latest update</span> <button type="button" class="pk-draft" data-pk-draft onClick={draft}><Icon name="sparkle" cls="s" />Draft</button>
+        <div class="pk-lab"><span id={lab}>Latest update</span> <button type="button" class="pk-draft" data-pk-draft onClick={draft}><Icon name="sparkle" cls="s" />Draft</button>
           {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
         {open
           ? <>
@@ -79,7 +80,7 @@ export function PeekLatest({ row }) {
               onInput={(e) => { setText(e.currentTarget.value); if (problem) setProblem(""); }} onKeyDown={key} onBlur={(e) => { const to = e.relatedTarget; if (!settled.current && !(to && to.hasAttribute && to.hasAttribute("data-pk-draft"))) save(e.currentTarget.value); }} />
             {problem ? <p class="pk-latest-err" role="alert" data-pk-latest-err>{problem}</p> : <p class="pk-latest-hint">Enter saves, Shift+Enter adds a line, Esc leaves it as it was.</p>}
           </>
-          : <button type="button" class="pk-latest-text" data-pk-latest-text ref={shown} onClick={start} id="pk-latest-txt" aria-labelledby="pk-latest-lab pk-latest-txt" title="Edit the latest update">{now || <span class="muted">Add the latest update…</span>}</button>}
+          : <button type="button" class="pk-latest-text" data-pk-latest-text ref={shown} onClick={start} id={txt} aria-labelledby={`${lab} ${txt}`} title="Edit the latest update">{now || <span class="muted">Add the latest update…</span>}</button>}
       </> : null}
       {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
     </div>
