@@ -107,6 +107,17 @@ class Check(Base):
         self.assertEqual(self.temp_folders(), was)
         self.assertEqual(excel_route.PLANS, {})
 
+    def test_a_macro_workbook_is_refused_in_words_and_nothing_is_stored(self):
+        was, before = self.temp_folders(), self.steps()
+        for name in ("ABC work items.xlsm", "ABC WORK ITEMS.XLSM", "ABC work items.xlsm. "):
+            status, got = self.check(name=name)                    # the bytes are a real workbook: the name alone refuses it
+            self.assertEqual((status, got["ok"]), (400, False), name)
+            self.assertIn("Nothing was saved.", got["message"])
+            self.assertIn("macro workbook", got["message"])
+            self.assertIsNone(__import__("re").search(JARGON, got["message"]), got["message"])
+        self.assertEqual((self.temp_folders(), self.steps(), excel_route.PLANS), (was, before, {}))
+        self.assertEqual(self.description_of(self.a1), "Draft the cut-over plan")
+
     def test_a_path_in_the_name_is_only_a_name(self):
         status, got = self.check(name="../../../etc/ABC work items.xlsx")
         self.assertEqual((status, got["file"]), (200, "ABC work items.xlsx"))

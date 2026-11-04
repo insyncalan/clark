@@ -52,6 +52,7 @@ BAD_OP = "That isn't something clark can do with a workbook."
 NO_FILE = "Choose a workbook to import."
 BAD_NAME = "The file's name could not be read. Choose the workbook again."
 BAD_FILE = "That file could not be read. Choose the workbook again."
+MACRO_BOOK = "{file} is a macro workbook, and clark imports only .xlsx workbooks. Nothing was saved."
 EXPIRED = "That import is no longer waiting. Choose the workbook again."
 BAD_ACCEPT = "Accept all, or give the numbers of the changes to accept."
 NEEDS_CONFIRM = ("clark has no record of exporting this workbook, so it is not applied until you confirm it. Check it is the right "
@@ -136,6 +137,8 @@ def _check(store, req, project, clock):
     if not isinstance(data, str) or not data:
         raise Refused(NO_FILE)
     shown = word_import.file_label(name).replace("a Word file", "a workbook")
+    if shown.lower().rstrip(". ").endswith(".xlsm"):                     # a macro workbook is refused by name, before anything is decoded or stored
+        raise Refused(MACRO_BOOK.format(file=shown))
     if len(data) > MAX_FILE_BYTES * 4 // 3 + 16:                          # said before anything is decoded
         raise Refused(f"{shown} is more than {MAX_FILE_BYTES // 1048576} MB, more than clark will open. A clark export is far smaller. "
                       "Check it is the right file, then choose it again.")
