@@ -29,8 +29,8 @@ class TheWarning(unittest.TestCase):
     def test_the_dialog_model_and_the_page_say_both_sentences(self):
         self.assertEqual(to_client.MESSAGES["client_sees"], WARNING)
         jsx = src("edit/Publish.jsx")
-        self.assertIn(f'"{WARNING}"', jsx)
-        self.assertIn(f'"The client will see this page and the PDF. {SECOND}"', jsx, "the PDF line keeps the second sentence too")
+        self.assertIn(f'id="pub-warn">{WARNING}</p>', jsx)
+        self.assertNotIn("this page and the PDF", jsx, "item 438: the browser makes the PDF, so none goes to the client folder")
         ticked = to_client.dialog_step(to_client.new_dialog_state("/x/Harbour Bridge"), "tick", True)
         self.assertEqual(to_client.to_client_dialog(ticked)["line"], WARNING)
 
@@ -52,7 +52,7 @@ class TheFinishedState(unittest.TestCase):
     def test_the_note_is_the_menus_and_has_no_undo(self):
         state, note = src("edit/publishState.js"), src("edit/menuNote.js")
         self.assertIn('import { say } from "./menuNote.js";', state)
-        self.assertRegex(state, r'say\(b\.pdf_saved === false \? "note" : "done", said\)')
+        self.assertRegex(state, r'say\(s\.pdf && !printed \? "note" : "done", text\)')
         self.assertRegex(note, r"export function say\(kind, text\)", "the menu's note takes no Undo")
         self.assertNotIn("undo", re.sub(r"//.*", "", note).lower())
 
