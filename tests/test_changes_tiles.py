@@ -63,7 +63,7 @@ class Base(unittest.TestCase):
 class Kinds(Base):
     def test_the_two_kinds_and_their_fields(self):
         self.assertEqual(changes.CHANGE_KINDS["glance_tiles"], {"update": ("hidden", "outline"), "move": ()})
-        self.assertEqual(changes.CHANGE_KINDS["projects"], {"update": ("health", "health_reason", "week_ending"), "archive": (), "restore": ()})   # #126 adds archive and restore
+        self.assertEqual(changes.CHANGE_KINDS["projects"], {"update": ("health", "health_reason", "week_ending", "review_after_days"), "archive": (), "restore": ()})   # #126 adds archive and restore
         for kind in ("glance_tiles", "projects"):
             columns = set(store_module.columns(self.s.con, kind))
             for fields in changes.CHANGE_KINDS[kind].values():
@@ -238,12 +238,12 @@ class Health(Base):
     def test_a_health_change_with_a_reason_is_one_step_and_undo_puts_both_back(self):
         week = self.project()["week_ending"]
         body = self.ok(self.proj(health="At risk", health_reason="Test environment is late"))
-        self.assertEqual(body["project"], {"health": "At risk", "health_reason": "Test environment is late", "week_ending": week})
+        self.assertEqual(body["project"], {"health": "At risk", "health_reason": "Test environment is late", "week_ending": week, "review_after_days": 14})
         self.assertEqual(set(body), {"ok", "apply_id", "ref", "project"})
         status, back = self.back(body["apply_id"])
         self.assertEqual(status, 200, back)
         self.assertEqual(back["words"], "Put back: the health of the project (On track) and its reason.")
-        self.assertEqual(back["project"], {"health": "On track", "health_reason": None, "week_ending": week})
+        self.assertEqual(back["project"], {"health": "On track", "health_reason": None, "week_ending": week, "review_after_days": 14})
         self.assertEqual((self.project()["health"], self.project()["health_reason"]), ("On track", None))
         self.assertEqual(self.back(body["apply_id"])[0], 409)
 
@@ -338,7 +338,7 @@ class Health(Base):
     def test_week_ending_and_health_change_in_one_step(self):
         old = self.project()["week_ending"]
         body = self.ok(self.proj(health="At risk", health_reason="Late", week_ending="2026-11-13"))
-        self.assertEqual(body["project"], {"health": "At risk", "health_reason": "Late", "week_ending": "2026-11-13"})
+        self.assertEqual(body["project"], {"health": "At risk", "health_reason": "Late", "week_ending": "2026-11-13", "review_after_days": 14})
         status, back = self.back(body["apply_id"])
         self.assertEqual(status, 200, back)
         self.assertEqual((self.project()["health"], self.project()["week_ending"]), ("On track", old))
@@ -477,7 +477,7 @@ class WhatAnUndoMayReverse(Base):
         self.assertEqual(set(changes.UNDOABLE), {"report_sections", "actions", "raid", "decisions", "glance_tiles", "projects",
                                                  "milestones", "use_cases", "documents", "workstreams", "report_hidden"})   # #126 adds the archivable records
         self.assertEqual(changes.UNDOABLE["glance_tiles"], ("hidden", "outline", "sort_order"))
-        self.assertEqual(changes.UNDOABLE["projects"], ("health", "health_reason", "week_ending", "archived", "active"))
+        self.assertEqual(changes.UNDOABLE["projects"], ("health", "health_reason", "week_ending", "review_after_days", "archived", "active"))
         self.assertTrue(set(changes.UNDOABLE) >= set(changes.CHANGE_KINDS), "every kind the route admits can be undone")
 
     def test_a_dashboard_step_that_renamed_the_project_is_refused(self):

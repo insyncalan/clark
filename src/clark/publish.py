@@ -35,6 +35,7 @@ import html as htmllib
 import json
 import os
 import re
+import secrets
 import stat
 import sys
 import unicodedata
@@ -1122,12 +1123,28 @@ def build(store, code, now=None, branding=None, section_style=None, number=None)
     return {"body": body, "sha256": hashlib.sha256(body).hexdigest(), "project": project, "as_at": as_at, "published": published, "number": n}
 
 
+EARLIER_TOO_BIG = ("The file already there is too big to keep a copy of, so it was not replaced. "
+                   "Move or remove it first, then publish again.")
+
+
 def read_plain(path, limit=None):
     """The bytes of an ordinary file (at most `limit` of them), or OSError for a link, a pipe, a folder or anything else."""
     if not stat.S_ISREG(os.lstat(path).st_mode):
         raise OSError("not an ordinary file")
     with open(path, "rb") as f:
         return f.read() if limit is None else f.read(limit)
+
+
+EARLIER_MAX = 64 * 1048576      # #326: the most of a replaced file that is kept to put back; a larger one is not replaced
+
+
+def read_earlier(path):
+    """The bytes of the ordinary file at `path` (kept to put back if a publish is refused), or OSError for anything else.
+    A file over EARLIER_MAX is refused with PublishError rather than kept cut short: it would be put back truncated."""
+    data = read_plain(path, EARLIER_MAX + 1)
+    if len(data) > EARLIER_MAX:
+        raise PublishError(EARLIER_TOO_BIG)
+    return data
 
 
 def still_ours(path, digest):
@@ -1147,6 +1164,45 @@ def take_back(path, digest):
         return True
     except OSError:
         return False
+
+
+def put_link_back(dest, target, digest):
+    """Put the link `dest` -> `target` back in place of the file this call wrote (#388, #604), without a check-then-act gap:
+    whatever is at `dest` is first moved aside in one step, and only a file that holds exactly the bytes whose SHA-256 is
+    `digest` is replaced; anything else is put straight back (never replaced) and the link is not made. The link itself
+    is made with os.symlink, which never replaces a name that has appeared meanwhile. If the link cannot be made, our
+    file is put back, so `dest` is never left empty. Returns "linked", "kept" (our file is still at `dest`; the link was
+    not put back: also when it could not even be moved aside), "other" (something that is not ours is at `dest`, or it
+    is gone; it was left alone, no link made) or "aside" (the link could not be made and our file could not be put
+    back either: it is under its hidden aside name, not at `dest`)."""
+    dest = Path(dest)
+    aside = dest.with_name(f".{dest.name}.{os.getpid()}.{secrets.token_hex(4)}.aside")
+
+    def back():                                         # aside -> dest, never over a name taken meanwhile; True when placed
+        try:
+            return platform.move_unless_exists(aside, dest)
+        except OSError:
+            return None                                 # left under its aside name, which keeps the bytes
+
+    try:
+        os.rename(dest, aside)
+    except OSError:                                     # nothing was moved: if our file is still at dest, say so (#605)
+        return "kept" if still_ours(dest, digest) else "other"
+    if not still_ours(aside, digest):
+        back()                                          # someone else's file: back where it was
+        return "other"
+    try:
+        os.symlink(target, dest)
+    except OSError:
+        placed = back()
+        if placed:
+            return "kept"
+        if placed is False:                             # the name was taken meanwhile: ours is the extra copy
+            os.unlink(aside)
+            return "other"
+        return "aside"                                  # None: the report is under its aside name; no extra sentence yet
+    os.unlink(aside)
+    return "linked"
 
 
 def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding=None):
@@ -1175,7 +1231,7 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
     earlier_link = None                    # #388: so is a link it replaces (the link itself, not the file it points at)
     if overwrite:
         try:
-            earlier = read_plain(dest, 64 * 1048576)
+            earlier = read_earlier(dest)
         except OSError:
             earlier = None
             try:
@@ -1209,12 +1265,9 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
                 except (OSError, platform.PlatformError):
                     pass
         elif earlier_link is not None:
-            if still_ours(dest, digest):
-                try:
-                    os.unlink(dest)
-                    os.symlink(earlier_link, dest)
-                except OSError:
-                    pass
+            if put_link_back(dest, earlier_link, digest) == "kept":      # #605: said plainly, not swallowed
+                raise PublishError(f"{e} The link that was at {dest.name} could not be put back, so this report is still there "
+                                   "under that name.") from e
         else:
             take_back(dest, digest)
         raise PublishError(str(e)) from e

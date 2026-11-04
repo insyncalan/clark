@@ -96,7 +96,12 @@ class Keys(ie.Live):
                 self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "and the focus stays in the peek")
                 key(cdp, sid, "ArrowUp")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Up steps it back")
+                self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "and the focus is still in the peek, settled, before it is moved")
                 self.assertEqual(cdp.js("window.__seen.filter(x => x[1]).length", sid), 2, "Down and Up in the peek were taken, once each")
+                # The peek's own effect (Peek.jsx: after a step the focus goes to Close when it is on the page) runs after the render has been
+                # drawn; until it has, blurring to the page lets it take the focus back and the next keys are the peek's. Wait for two frames.
+                cdp.js("window.__settled = false; requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => { window.__settled = true; }, 0)))", sid)
+                self.until(cdp, sid, "window.__settled === true", "the peek has finished reacting to the step")
                 cdp.js("document.body.focus(); document.activeElement.blur()", sid)
                 cdp.js("window.__seen.length = 0", sid)
                 key(cdp, sid, "ArrowLeft")
@@ -109,7 +114,9 @@ class Keys(ie.Live):
                 self.until(cdp, sid, f"{FOCUS} === '{rows[0]}'", "focus returns to the row")
                 key(cdp, sid, "ArrowRight")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Right opens it again")
+                self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "and the focus has moved into the peek, so it cannot move there after the row is focused")
                 cdp.js(f"document.querySelector('#work tr[data-id=\"{rows[0]}\"]').focus()", sid)
+                self.until(cdp, sid, f"{FOCUS} === '{rows[0]}'", "the row has the focus before Left is pressed")
                 key(cdp, sid, "ArrowLeft")
                 self.until(cdp, sid, "!location.hash.includes('item=')", "Left from the row closes the peek")
 
