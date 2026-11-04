@@ -62,6 +62,6 @@ function Row({ row, today, words, inFile }) {
 
 export function ItemRows({ type }) {
   const list = rowsFor(type), today = todayOf(), words = wordings(data.value || {});
-  if (!list.length) return <p class="muted" data-nothing>{NOTHING}</p>;
+  if (!list.length) return <p class="quiet" data-nothing>{NOTHING}</p>;
   return <ul class="wl">{list.map((r) => <Row key={r.id} row={r} today={today} words={words} inFile={fromFile.value} />)}</ul>;
 }

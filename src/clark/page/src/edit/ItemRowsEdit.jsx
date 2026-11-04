@@ -15,7 +15,7 @@ import { rowsFor, candidates, wordings, todayOf } from "../components/ItemRows.j
 import { Picker } from "../components/Picker.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { Cell } from "./cells/Cell.jsx";
-import { plainTextEditing, read, show } from "./Title.jsx";
+import { plainBox, read, show } from "./Title.jsx";
 import { tableOf } from "./itemEdit.js";
 
 export const WORDS_MAX = 200;                                        // clark/changes.py: a work item's text is 200 characters at most
@@ -68,8 +68,7 @@ function Words({ row, text }) {
     if (e.key === "Enter") { e.preventDefault(); ref.current.blur(); }
     else if (e.key === "Escape") { e.preventDefault(); cancelled.current = true; show(ref.current, now.current); ref.current.blur(); }
   };
-  const common = { ref, class: "cell-ce", "data-edit-only": "", "data-ce": row.id, "data-f": "title", "aria-label": `Wording of ${row.id}`, onBlur: commit, onKeyDown, spellcheck: true };
-  return plainTextEditing ? <span {...common} contenteditable="plaintext-only" role="textbox" tabindex="0" /> : <input {...common} type="text" />;
+  return plainBox({ ref, class: "cell-ce", "data-edit-only": "", "data-ce": row.id, "data-f": "title", "aria-label": `Wording of ${row.id}`, onBlur: commit, onKeyDown, spellcheck: true });
 }
 
 function EditRow({ row, today, words }) {
