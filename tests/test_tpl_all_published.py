@@ -6,12 +6,14 @@ Run: python3 dev/run_tests.py test_tpl_all_published
 Needs Chrome (the #33 harness): the page tests fail, never skip, without it. Fictional data only.
 """
 import json
+import re
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
 import _routes as routes_expected
+from _paths import ROOT
 from _demo import USER
 from _pictures import GOOD
 from test_report_editor import EMPTY_BRANDING, Base, Pg, tearDownModule  # noqa: F401
@@ -25,6 +27,23 @@ HIDDEN, ARCHIVED, SENSITIVE = "ZQ-ALL-HIDDEN", "ZQ-ALL-ARCHIVED", "ZQ-ALL-SENSIT
 KEPT, RISK, MILESTONE = "Fictional kept action", "Fictional kept risk", "Fictional pilot go-live"
 # Dates that read the same on any day from now to past AS_AT, so the served View (today) and the file (AS_AT) agree:
 OVERDUE, LATER = "2025-01-01", "2031-02-01"
+
+
+def whole_route(route):
+    """A pattern for the route as a whole: "/api/project" (new and edit) is not found inside "/api/projects" (the read)."""
+    return re.compile(re.escape(route) + r"(?![\w-])")
+
+
+class ViewBundleNamesNoRoute(unittest.TestCase):
+    """The View's built page (page-view.html) names no route that changes anything, and no route of the Settings Data card, the
+    Projects table or the Import workbook template: the only routes it names are the two reads it already had."""
+    def test_the_view_bundle_holds_no_post_route_and_no_edit_only_route(self):
+        text = (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8")
+        for route in routes_expected.POST_ROUTES + ("/api/excel-import", "/api/project"):
+            self.assertIsNone(whole_route(route).search(text), f"{route} is in page-view.html")
+        self.assertNotIn("template=1", text)
+        self.assertNotIn("archived=1", text)
+        self.assertEqual(sorted(set(re.findall(r"/api/[\w/-]+", text))), ["/api/data", "/api/projects"])
 
 
 class AllTemplates(Base):
@@ -101,7 +120,7 @@ class AllTemplates(Base):
         for kind in ("textimage", "gallery", "imagecap"):
             self.assertIn(GOOD, json.dumps(kinds[kind]), f"{kind}: its picture is in the file")
         for never in routes_expected.POST_ROUTES:      # the routes that change things are never in the file
-            self.assertNotIn(never, text, never)
+            self.assertIsNone(whole_route(never).search(text), never)      # the whole route: "/api/project" is not "/api/projects"
 
     def draw_file(self, cdp):
         path = Path(publish.publish(self.store, "ABC", self.out, by_user=USER, now=AS_AT, branding=EMPTY_BRANDING)["path"])

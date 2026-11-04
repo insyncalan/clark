@@ -177,10 +177,12 @@ export function Settings({ tools }) {
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
   const ReviewDays = tools && tools.ReviewDays;          // Freshness (item 160): the project's "Not reviewed after (days)"
   const Diagnostics = tools && tools.Diagnostics;        // logs and diagnostics (#110)
+  const Data = tools && tools.Data;                    // the Data card (A-S11): Export to Excel; Edit only
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
   const cards = CARDS.filter(([tool]) => tools && tools[tool]);
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
   const People = tools && tools.People;                  // the People card (item 454): email, organisation, role, Paste from Excel; Edit's page only
+  const Projects = tools && tools.Projects;              // the projects table (A-S6); a published file has none
   return (
     <>
       <SettingsHead cards={cards} />
@@ -189,6 +191,8 @@ export function Settings({ tools }) {
       {Personal ? <Personal /> : null}
       {ReviewDays ? <ReviewDays /> : null}
       {Diagnostics ? <Diagnostics /> : null}
+      {Projects ? <Projects /> : null}
+      {Data ? <Data /> : null}
       {Safety ? <Safety /> : null}
       {People ? <People /> : null}
       {AskSettings ? <AskSettings /> : null}

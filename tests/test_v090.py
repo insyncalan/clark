@@ -47,6 +47,20 @@ COVERED = [
      "test_work_archived_peek::ArchivedPeek::test_a_row_opens_the_peek_read_only_with_one_restore"),
     ("#450", "Restore puts the item back and leaves the peek open on it, now editable.",
      "test_work_archived_peek::ArchivedPeek::test_restore_puts_it_back_and_leaves_the_peek_open_on_it"),
+    ("#444", "Settings › Data: Import workbook checks the workbook first, then imports it in one step, and Undo this import puts it back.",
+     "test_settings_data_page::Card::test_import_checks_then_imports_in_one_step_and_undo_puts_it_back"),
+    ("#444", "A macro workbook is turned away in words and nothing is stored.",
+     "test_excel_route::Check::test_a_macro_workbook_is_refused_in_words_and_nothing_is_stored"),
+    ("#444", "Settings has a Projects table with each project and its columns.",
+     "test_projects_settings_page::Browser::test_the_table_lists_each_project_with_its_columns_at_1400_and_900_px_in_light_and_dark"),
+    ("#449", "Publish warns while a work item the client would see has a placeholder title, and the warning goes when it is renamed or hidden.",
+     "test_publish_dialog::Placeholder::test_the_warning_counts_placeholder_items_the_client_would_see_and_goes_when_renamed_or_hidden"),
+    ("#449", "The Move to menu works as the page opens, with a toast and Undo, and does not switch to Edit.",
+     "test_work_board_page::Moves::test_the_move_to_menu_works_as_the_page_opens_with_a_toast_and_undo"),
+    ("#647", "A pasted path to a folder OneDrive syncs is saved like a chosen one.",
+     "test_client_folder_paste::APastedFolder::test_a_folder_inside_onedrive_is_saved_as_a_chosen_one"),
+    ("#647", "A pasted link can't be used and nothing is saved.",
+     "test_client_folder_paste::ALink::test_a_link_is_refused_by_its_form_and_nothing_is_saved"),
     ("#611", "A blank client message is turned away in plain words, not a server error.",
      "test_changes_null_message::NullMessage::test_a_null_client_message_is_refused_and_nothing_is_saved"),
     ("#613", "Settings, About you: typing Jane Doe fills the Alias box with Jane, JD; it is saved beside the name, and a saved or typed Alias is kept when the name changes.",
@@ -61,7 +75,7 @@ COVERED = [
      "test_past_reports_card::Card::test_archive_asks_once_says_the_exact_words_with_no_undo_and_reads_the_list_again"),
     ("#345", "Show archived lists the archived publications marked Archived, each with Restore.",
      "test_past_reports_card::Card::test_show_archived_lists_them_marked_with_restore_and_restore_says_its_words"),
-    ("#391", "The High risks and issues tile counts risks and issues only, by one rule, with the same colour on the page and in the published file.",
+    ("#391", "The High risks and issues tile counts the open items of the Risks and issues type rated Urgent or High, by one rule, with the same colour on the page and in the published file.",
      "test_glance_rule::OneRule::test_the_published_file_gives_the_same_colour_as_the_page"),
     ("#613", "Settings, About you: typing a full name shows the suggested Alias below the name (the first name, then the initials).",
      "test_alias_suggest::Suggest::test_a_full_name_suggests_the_first_name_then_the_initials"),
@@ -108,7 +122,6 @@ COVERED = [
 WAITING = [
     ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo", "PR 592", "updater.py", "class Updater"),
     ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 592", "page/src/edit/Update.jsx", "upd-rows"),
-    ("#444", "Settings Data card and Projects table: Import workbook, Add and Edit project", "PR 461", "page/src/logic/dataCard.js", "export const DATA"),
 ]
 
 # (item, check, kind, why, what the person does)
