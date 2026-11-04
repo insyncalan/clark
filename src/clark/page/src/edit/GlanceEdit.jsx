@@ -2,6 +2,7 @@
 // eye (hide it from the published report), a right-click menu for its outline colour, and Project health's pill menu and reason box.
 // Nothing here is in a published file.
 import { useRef, useState } from "preact/hooks";
+import { useGrow } from "./useGrow.js";
 import { Menu, MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { OUTLINE_CHOICES, TILE_TITLES, STALE, STALE_TITLE, STALE_TAG_OFF, STALE_TAG_ON } from "../glanceTiles.js";
@@ -123,6 +124,7 @@ function HealthPill({ health, reason }) {
 // The reason, in place. Saved when the box is left; Esc puts the old words back. A health picked while it was empty is saved with it.
 function Reason({ health, reason }) {
   const ref = useRef(null), skip = useRef(false);
+  useGrow(ref, reason);
   const pending = pendingHealth.value;                 // for the box's look; the save reads the signal itself, as it is when the box is left
   const done = async () => {
     const el = ref.current, text = el.value.trim(), pending = pendingHealth.value;
@@ -138,7 +140,7 @@ function Reason({ health, reason }) {
     if (!(await sendReason(text))) el.value = reason;
   };
   return (
-    <textarea class={`hreason edit${pending ? " needs" : ""}`} data-reason rows="3" maxLength={2000} key={reason}
+    <textarea class={`hreason grow edit${pending ? " needs" : ""}`} data-reason rows="3" maxLength={2000} key={reason}
       aria-label="Why the project has this health" placeholder={pending ? `Why is it ${pending}?` : "Say why"} defaultValue={reason} ref={ref}
       onBlur={done} onKeyDown={(e) => { if (e.key === "Escape") { skip.current = true; pendingHealth.value = ""; e.currentTarget.blur(); } }} />
   );

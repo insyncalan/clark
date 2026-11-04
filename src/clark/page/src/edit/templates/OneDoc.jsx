@@ -2,6 +2,7 @@
 // client folder's "Report files" folder, fileRoute.js; choosing another replaces it on the section, never in the folder), the words
 // shown for it and the lines under it, saved together with Save. Each is one change: one step, one Undo, place "report".
 import { useState, useEffect, useRef } from "preact/hooks";
+import { useGrow } from "../useGrow.js";
 import { oneDoc, fileOf } from "../../templates/files.js";
 import { FileRow } from "../../templates/DocLinks.jsx";
 import { chooseFile } from "./fileRoute.js";
@@ -16,6 +17,8 @@ export function Edit({ section }) {
   const savedText = (Array.isArray(content.text) ? content.text : []).filter((t) => typeof t === "string").join("\n");
   const [label, setLabel] = useState(savedLabel);
   const [text, setText] = useState(savedText);
+  const grow = useRef(null);
+  useGrow(grow, text);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   const seen = useRef(section.body);
@@ -54,7 +57,7 @@ export function Edit({ section }) {
         <label for={`${fid}-label`}>Words to show for the file (optional)</label>
         <input id={`${fid}-label`} type="text" autocomplete="off" value={label} onInput={(e) => setLabel(e.currentTarget.value)} />
         <label for={`${fid}-text`}>Words under the file (optional, one paragraph a line)</label>
-        <textarea id={`${fid}-text`} rows={3} value={text} onInput={(e) => setText(e.currentTarget.value)} />
+        <textarea id={`${fid}-text`} class="grow" ref={grow} rows={3} value={text} onInput={(e) => setText(e.currentTarget.value)} />
         <button type="submit" class="btn" disabled={!changed}>Save</button>
       </form>
       {problem ? <p class="tpl-problem" role="alert">{problem}</p> : null}
