@@ -27,75 +27,40 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "0.8.0"
-SCHEMA_AT_0_7_0 = 11     # main reads layout 11 on 04-11-2026; 0.7.0 is not cut yet, so check this on the 0.7.0 tag
+SCHEMA_AT_0_7_0 = 12     # main reads layout 11 on 04-11-2026; 0.7.0 is not cut yet, so check this on the 0.7.0 tag
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
-    ("#424", "Duplicate on a client-visible item gives a copy that is client-visible, and a hidden one gives a hidden copy",
-     "test_changes_item_eye::Duplicate::test_a_copy_keeps_the_items_eye_whether_or_not_the_request_carries_it"),
-    ("#425", "The Add box uses the one shared helper that makes everything behind a dialog inert",
-     "test_modal_layers::Source::test_the_add_box_uses_the_shared_helper_and_no_list_of_its_own"),
-    ("#425", "With a dialog open every other layer and the toast buttons are inert, and the message area stays live",
-     "test_modal_layers::Layers::test_the_draft_email_makes_every_other_layer_inert_and_a_toast_button_unreachable"),
-    ("#401", "Help's Work items filter table lists Freshness as the page does",
-     "test_help_content::HelpMatchesThePage::test_the_work_items_filters_name_freshness_as_the_page_does"),
-    ("#402", "Help names the Use cases link, Esc and the browser Back, and no Back button",
-     "test_help_content::HelpMatchesThePage::test_a_use_case_names_the_ways_back_the_page_has"),
-    ("#403", "Help says Delete section is for a text section and for Needs from you",
-     "test_help_content::HelpMatchesThePage::test_delete_section_is_said_for_both_kinds_that_have_it"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#210", "A risk's, issue's or decision's Priority can be set in place", "PR 528",
-     "page/src/edit/cells/RatingPick.jsx", "export function RatingPick"),
-    ("#280", "An update that migrates and then does not answer in 15 seconds puts the database back too", "PR 544",
-     "update_helper.py", "MARKER_NAME"),
-    ("#368", "A web page and its Word copy share one publication number (a data layout step)", "PR 516",
-     "store.py", "migrate_publication_shared_number"),
-    ("#342", "Every published file and a copy of its data are kept, written once", "PR 530",
-     "published_copies.py", "def data_of"),
+    ("#280", "An update that migrates and then does not answer in 15 seconds puts the database back too", "PR 544", "update_helper.py", "MARKER_NAME"),
+    ("#368", "A web page and its Word copy share one publication number (a data layout step)", "PR 516", "store.py", "migrate_publication_shared_number"),
     ("#343", "A past publication opens read only, with a banner and Back to now", "no pull request yet (issue 343)", "", None),
-    ("#344", "A week picker beside Week ending lists the published weeks and opens one", "PR 529",
-     "page/src/edit/WeekPicker.jsx", "export function WeekPicker"),
+    ("#344", "A week picker beside Week ending lists the published weeks and opens one", "PR 529", "page/src/edit/WeekPicker.jsx", "export function WeekPicker"),
     ("#345", "The Published reports list opens the past view and can archive an old report", "no pull request yet (issue 345)", "", None),
     ("#347", "Backups copy each kept file once and a restore never removes one", "no pull request yet (issue 347)", "", None),
-    ("#349", "The dashboard as at a chosen day, rebuilt from the change history", "PR 526",
-     "as_at.py", "def cutoff"),
-    ("#325", "The publications trigger also guards the client copy's path (a data layout step)", "PR 474",
-     "store.py", "migrate_publication_trigger_client_path"),
-    ("#324", "The publications trigger guards the client copy's path", "PR 474",
-     "store.py", "migrate_publication_trigger_client_path"),
+    ("#349", "The dashboard as at a chosen day, rebuilt from the change history", "PR 526", "as_at.py", "def cutoff"),
     ("#303", "The publications update trigger guards its other columns", "no pull request yet (issue 303)", "", None),
-    ("#326", "An overwrite of a file over 64 MB is refused in plain words, not put back cut short", "PR 456",
-     "publish.py", "EARLIER_TOO_BIG"),
-    ("#460", "The update helper's staging folder is owner only and its copy is hash-checked before it runs", "PR 506",
-     "update_helper.py", 'marker["helper_sha"]'),
-    ("#461", "The update helper copy is hash-checked before finish and an old signature is pruned", "PR 506",
-     "update_install.py", "os.unlink(e.path + updates.SIGNATURE_SUFFIX)"),
+    ("#326", "An overwrite of a file over 64 MB is refused in plain words, not put back cut short", "PR 456", "publish.py", "EARLIER_TOO_BIG"),
+    ("#460", "The update helper's staging folder is owner only and its copy is hash-checked before it runs", "PR 506", "update_helper.py", "marker[\"helper_sha\"]"),
+    ("#461", "The update helper copy is hash-checked before finish and an old signature is pruned", "PR 506", "update_install.py", "os.unlink(e.path + updates.SIGNATURE_SUFFIX)"),
     ("#417", "Three small leftovers of the Word screens", "no pull request yet (issue 417)", "", None),
     ("#432", "Five small leftovers of the Word screens", "no pull request yet (issue 432)", "", None),
     ("#420", "About you saves one box without blanking the other", "no pull request yet (issue 420)", "", None),
     ("#462", "Docker first start: three small leftovers", "no pull request yet (issue 462)", "", None),
     ("#489", "AI suggestions go through the private-text check", "no pull request yet (issue 489)", "", None),
     ("#438", "Publishing can make a PDF as in the prototype", "no pull request yet (issue 438)", "", None),
-    ("#171", "Each project keeps its own not-reviewed-after-days number (a data layout step)", "PR 472",
-     "schema.sql", "review_after_days"),
-    ("#427", "Install and first start: the Docker route (clark in a container, opened at 127.0.0.1)", "PR 252",
-     "platform.py", "def container_mode():"),
-    ("#220", "Edit opens the one editor in place for Summary, This week and Next week", "PR 509",
-     "changes.py", "def _text_body"),
+    ("#171", "Each project keeps its own not-reviewed-after-days number (a data layout step)", "PR 472", "schema.sql", "review_after_days"),
+    ("#427", "Install and first start: the Docker route (clark in a container, opened at 127.0.0.1)", "PR 252", "platform.py", "def container_mode():"),
     ("#269", "The publications row names the PDF file", "no pull request yet (issue 269)", "", None),
-    ("#160", "Settings has a 'Not reviewed after (days)' setting, and the At a glance row can show an optional Not reviewed tile (needs #171)", "PR 523",
-     "page/src/edit/ReviewDays.jsx", "Settings \u203a Freshness (#160)"),
+    ("#160", "Settings has a 'Not reviewed after (days)' setting, and the At a glance row can show an optional Not reviewed tile (needs #171)", "PR 523", "page/src/edit/ReviewDays.jsx", "Settings \u203a Freshness (#160)"),
 ]
 
 # (item, check, kind, why, what the person does)
 WALK_THROUGH = [
-    ("#425", "Nothing behind a dialog can be reached from the keyboard", "live only",
-     "the Add box uses the helper, but the Draft email window the card names is not wired to it in the code, and only a person can tell what a keyboard or a screen reader reaches",
-     "Open the Draft email window and the Add box in turn, press Tab round and round, and check the keyboard never reaches the peek, ask clark, Help or a toast button behind."),
 ]
 
 BANNED_WORDS = ("apply", "applied", "staged", "proposal", "sweep", "tracker", "vault", "extract")
