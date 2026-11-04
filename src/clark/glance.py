@@ -36,8 +36,9 @@ What the rules are
 Decisions taken where the board item was open (each can be changed in one place)
 - The Overdue actions tile counts open actions only (the board's Done-when, BRD FR-20 and the prototype); open RAID items and
   pending decisions past due are reported beside it as `parts` and `all_overdue`, not added in.
-- The High risks and issues tile's value is the number of open risks and issues rated Urgent or High; `open` is all open
-  risks and issues, and the tile's colour is the highest priority colour among the open ones.
+- The High risks and issues tile's value is the number of open risks, issues, assumptions and dependencies rated Urgent or High (the page's
+  Risks and issues type, so the file and the page agree); `open` is all of those open, and the tile's colour is the page's rule (item 391): red when any open one is Urgent or High, amber when
+  any is open, green when none is.
 - Decisions needed is hidden unless its `glance_tiles` row says otherwise (the board's Done-when).
 - The client version shows the project's health reason, as the prototype's published page does. Health, Overdue and the
   other tiles use the same words for a client: there is no client word for them (creaite's "Expected later" and "Late" are
@@ -317,9 +318,9 @@ def _overdue_tile(rows, today):
 
 
 def _risks_tile(rows):
-    open_ = [r for r in rows if r["kind"] in ("risk", "issue") and is_open(r)]
+    open_ = [r for r in rows if r["kind"] not in ("action", "decision") and is_open(r)]     # as the page: risks, issues, assumptions, dependencies
     high = [r for r in open_ if r.get("priority") in HIGH]
-    worst = max((colour_of_priority(r.get("priority")) for r in open_), key=_RANK.get, default=None)
+    colour = "red" if high else "amber" if open_ else "green"          # the page's rule (glanceTiles.js tiles()), item 391
     if not open_:
         detail = "None open"
     elif len(open_) == 1:
@@ -327,7 +328,7 @@ def _risks_tile(rows):
     else:
         detail = f"of {len(open_)} open risks and issues"
     return {"tile": "risks", "title": TILE_TITLES["risks"], "value": len(high), "detail": detail, "open": len(open_),
-            "high": len(high), "auto_colour": worst or "green"}
+            "high": len(high), "auto_colour": colour}
 
 
 def _decisions_tile(rows):

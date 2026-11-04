@@ -14,14 +14,13 @@
 // Also here: saved views per project (lists, add, rename, archive, and whether the line differs from the saved one) and the
 // session memory of the line per project. Views are archived, never deleted.
 import { dayNumber, dueField, isOpen } from "../workItems.js";
-import { initial, FIELDS as STATE_FIELDS, NONE, dueBucket, hasReviewDates, isPublished } from "../filters.js";
+import { initial, FIELDS as STATE_FIELDS, NONE, dueBucket, hasReviewDates, isPublished, currentReviewDays, staleWords } from "../filters.js";
 
 // ── The words a person reads ─────────────────────────────────────────────────────────────────────────────────────────────
 
 export const NO_ME = "Set your name in Settings to see your actions.";
 export const BASE = "is:open";                       // the line a Work items page starts on, and the one Clear all goes back to
 export const PLACEHOLDER = "Filter by keyword or by field";
-export const QUIET_DAYS = 14;
 const MAX_LIST = 8;
 
 const list = (a, and = "and") => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} ${and} ${a[a.length - 1]}`);
@@ -41,19 +40,18 @@ const STATUSES = ["Open", "Pending", "Delayed", "Closed", "Cancelled"];
 const DECISION_STATUSES = ["Made", "Withdrawn"];
 const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
 const DUE_WORDS = [["overdue", "Overdue (the date has passed)"], ["today", "Today"], ["next-7-days", "In the next 7 days"], ["later", "Later than 7 days"], ["none", "No date"]];
-const IS_WORDS = [["open", "Open"], ["closed", "Closed"], ["overdue", "Open and overdue"], ["quiet", `Not reviewed in ${QUIET_DAYS} days`],
+const isWords = () => [["open", "Open"], ["closed", "Closed"], ["overdue", "Open and overdue"], ["quiet", staleWords()],      // #171: the quiet words say the project's own number
   ["incomplete", "No owner or no date"], ["needed", "Needed from the client"], ["archived", "Archived"]];
 // `is:` words that match nothing until the page supplies the data behind them. The page turns them on with `ctx.isReady: true`;
 // until then they are not offered and, typed, say so in plain words. Each is [what the page calls it].
-// `is:quiet` is the Freshness filter's "not reviewed" (counted from the same date fields, but 14 days or more), so it is on as soon as some row carries
+// `is:quiet` is the Freshness filter's "not reviewed" (counted from the same date fields, but N days or more, N being the project's number: filters.js currentReviewDays), so it is on as soon as some row carries
 // a date to count from (hasReviewDates), or when the page says so; `is:incomplete` needs only the owner and the date, so it is always on.
 const NOT_YET = { needed: "Work needed from the client", archived: "Archived work" };
-const QUIET_OFF = "Not reviewed in 14 days";
 const quietOn = (rows, ctx) => !!(ctx && ctx.isReady) || (rows || []).some((r) => r && r.reviewed) || hasReviewDates(rows);
 const isOn = (v, ctx, rows) => (v === "quiet" ? quietOn(rows, ctx) : !own(NOT_YET, v) || !!(ctx && ctx.isReady));
 const PLURAL = { owner: "owners", workstream: "workstreams", usecase: "use cases", milestone: "milestones" };
 const CLIENT_WORDS = [["shown", "Shown to the client"], ["internal", "Internal only"]];
-const GLOSS = { quiet: `Not reviewed in ${QUIET_DAYS} days`, incomplete: "No owner or no date" };
+const gloss = () => ({ quiet: staleWords(), incomplete: "No owner or no date" });
 
 const text = (v) => (v == null ? "" : String(v).trim());
 const blank = (v) => !text(v) || low(text(v)) === "tbc";
@@ -66,13 +64,13 @@ function dueValues(row, ctx) {
   return n < 0 ? ["overdue"] : n === 0 ? ["today", "soon"] : n <= 7 ? ["soon"] : ["later"];
 }
 
-// `is:quiet` is 14 days or more (a review exactly 14 days ago is quiet, 13 is not). The Freshness filter (filters.js notReviewed) keeps
-// its own rule, "more than 14", so the line counts from the same date fields with its own comparison.
+// `is:quiet` is N days or more (with 14: a review exactly 14 days ago is quiet, 13 is not). The Freshness filter (filters.js notReviewed) keeps
+// its own rule, "more than N", so the line counts from the same date fields with its own comparison.
 function quietRow(row, today) {
   if (!isOpen(row)) return false;
   if (typeof row.not_reviewed === "boolean") return row.not_reviewed;
   const since = dayNumber(row.last_reviewed || row.reviewed || row.raised), t = dayNumber(today);
-  return since !== null && t !== null && t - since >= QUIET_DAYS;
+  return since !== null && t !== null && t - since >= currentReviewDays();
 }
 
 function isValues(row, ctx) {
@@ -157,7 +155,7 @@ export function offers(field, rows, ctx = {}) {
     case "priority": return [...PRIORITIES.map((p) => [p, p]), ...(noneRow((r) => r.priority) ? [[NONE, "No priority"]] : [])];
     case "due": return DUE_WORDS.map(([w, l]) => [stored("due", w), l]);
     case "client": return CLIENT_WORDS.map(([w, l]) => [stored("client", w), l]);
-    case "is": return isPublished() ? IS_WORDS.filter(([v]) => CLIENT_IS.includes(v)) : IS_WORDS.filter(([v]) => isOn(v, ctx, rows));
+    case "is": return isPublished() ? isWords().filter(([v]) => CLIENT_IS.includes(v)) : isWords().filter(([v]) => isOn(v, ctx, rows));
     case "owner": return [...(isPublished() ? [] : [["me", ctx.me ? `Me (${ctx.me})` : "Me (set your name in Settings)"]]), ...dyn((r) => text(r.owner)).map((o) => [o, o]), ...(noneRow((r) => text(r.owner)) ? [[NONE, "No owner"]] : [])];
     case "workstream": return [...inOrder(projectWorkstreams(ctx), dyn((r) => r.workstream)).map((o) => [o, o]), ...(noneRow((r) => r.workstream) ? [[NONE, "No workstream"]] : [])];
     case "usecase": return [...dyn((r) => r.uc).map((o) => [o, o]), ...(noneRow((r) => r.uc) ? [[NONE, "No use case"]] : [])];
@@ -266,7 +264,7 @@ function readWord(w, rows, ctx, memo) {
   const known = (memo || memoOf(rows, ctx)).known(k);
   if (k === "is" && !isPublished()) {
     const off = typed.find((t) => (low(t) === "quiet" || own(NOT_YET, low(t))) && !isOn(low(t), ctx, rows));
-    if (off) return { err: `${low(off) === "quiet" ? QUIET_OFF : own(NOT_YET, low(off))} is not available on this page yet.`, field: k };
+    if (off) return { err: `${low(off) === "quiet" ? staleWords() : own(NOT_YET, low(off))} is not available on this page yet.`, field: k };
   }
   const values = [], bad = [], tokens = [];
   let byNumber = false;       // a use case typed by its number (1.1) or group (1) is written back as typed
@@ -304,9 +302,9 @@ function dress(c, rows, ctx, memo) {
   const textOf = (c.not ? "-" : "") + (only ? `no:${c.field}` : `${c.field}:${(c.tokens || c.values.map((v) => quote(word(c.field, v)))).join(",")}`);
   let say;
   if (only) say = c.not ? `${F.name} is set` : `No ${F.name.toLowerCase()}`;
-  else if (c.field === "is") say = (c.not ? "Leaves out: " : "") + list(c.values.map((v) => own(GLOSS, v) || labelOf("is", v, rows, ctx, memo)), "or");
+  else if (c.field === "is") say = (c.not ? "Leaves out: " : "") + list(c.values.map((v) => own(gloss(), v) || labelOf("is", v, rows, ctx, memo)), "or");
   else say = `${F.name} ${c.not ? "is not" : "is"} ${list(labels, "or")}`;
-  return { ...c, name: F.name, labels, text: textOf, say, glosses: c.values.filter((v) => own(GLOSS, v)).map((v) => ({ value: v, gloss: GLOSS[v] })) };
+  return { ...c, name: F.name, labels, text: textOf, say, glosses: c.values.filter((v) => own(gloss(), v)).map((v) => ({ value: v, gloss: gloss()[v] })) };
 }
 
 /** A line, read. {chips, words, errors, notes}: chips are the conditions (each with its words and a plain sentence), words are
@@ -398,7 +396,7 @@ export function suggest(wordTyped, rows, ctx) {
   return offers(k, rows, c)
     .filter(([v]) => !chosen.includes(low(word(k, v))))
     .filter(([v, l]) => low(word(k, v)).includes(part) || low(l).includes(part))
-    .map(([v, l]) => ({ kind: "value", ins: `${not ? "-" : ""}${k}:${done}${quote(word(k, v))}`, label: word(k, v), note: l !== word(k, v) ? l : "", n: count(k, v), gloss: k === "is" ? own(GLOSS, v) || "" : "" }));
+    .map(([v, l]) => ({ kind: "value", ins: `${not ? "-" : ""}${k}:${done}${quote(word(k, v))}`, label: word(k, v), note: l !== word(k, v) ? l : "", n: count(k, v), gloss: k === "is" ? own(gloss(), v) || "" : "" }));
 }
 
 /** The hint chips under the focused line: a few to start from, each with a plain meaning for its tooltip. */
@@ -408,10 +406,10 @@ export const HINTS = [
   { text: "due:overdue", gloss: "Open items whose date has passed" },
   { text: "-status:Closed", gloss: "Leave closed items out" },
   { text: "no:owner", gloss: "Items with no owner" },
-  { text: "is:incomplete", gloss: GLOSS.incomplete },
+  { text: "is:incomplete", gloss: "No owner or no date" },
 ];
 /** The hint chips to show: HINTS, with is:quiet added once the page turns the `is:` data on (ctx.isReady). */
-export const hints = (ctx) => (isPublished() ? HINTS.filter((h) => lineIsClientSafe(h.text)) : ctx && (ctx.isReady || ctx.quietReady) ? [...HINTS.slice(0, 5), { text: "is:quiet", gloss: GLOSS.quiet }, ...HINTS.slice(5)] : HINTS.slice());
+export const hints = (ctx) => (isPublished() ? HINTS.filter((h) => lineIsClientSafe(h.text)) : ctx && (ctx.isReady || ctx.quietReady) ? [...HINTS.slice(0, 5), { text: "is:quiet", gloss: gloss().quiet }, ...HINTS.slice(5)] : HINTS.slice());
 
 /** True when every field word of the line is one the published file's line may use (CLIENT_FIELDS; `is:` only CLIENT_IS; no `owner:me`) and
  *  is a field at all. Needs no rows. Used to drop a remembered line or saved view that names anything else. */
@@ -431,7 +429,7 @@ export function lineIsClientSafe(line) {
 
 // ── The line and the older filter state ──────────────────────────────────────────────────────────────────────────────────
 
-const IS_ALL = Object.fromEntries(IS_WORDS.map(([v]) => [v, true]));
+const IS_ALL = Object.fromEntries(isWords().map(([v]) => [v, true]));
 const RAID_SET = RAID_KINDS.slice().sort().join(",");
 
 // The older Freshness values (filters.js: stale, incomplete) and the two words the line keeps for them.

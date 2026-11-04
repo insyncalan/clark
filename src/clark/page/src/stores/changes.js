@@ -3,9 +3,10 @@
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
-import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendRecordChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData } from "../api.js";
+import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendRecordChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData, sendRestore } from "../api.js";
 import { flashed } from "./wordsState.js";
 import { diffIds, markChanged } from "./changed.js";
+import { undoRequest as wordUndoRequest, words as wordWords } from "../edit/wordApi.js";
 
 // null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in }
 export const toast = signal(null);
@@ -13,6 +14,7 @@ export const toast = signal(null);
 export const undone = signal(0);
 
 let counter = 0, tail = Promise.resolve(), timer = 0;
+const wordSteps = new Set();             // the steps a Word import made (#48): their Undo goes by the Word route, which undoes only those
 const itemSteps = new Map();             // the steps that changed a work item (#80 cells, #68 board moves), to what their Undo says ("" for "Undone."): their undo reply has no items, so the data is read again
 
 // #197: the steps the toast offered Undo for, newest last, so Cmd or Ctrl+Z (undoKey.js) undoes the last one even after the toast
@@ -53,7 +55,7 @@ function redraw(code, reply) {
     next.report_sections = reply.sections.map((sec) => ({ ...was.get(sec.id), ...sec }));
   }
   if (Array.isArray(reply.tiles)) next.glance_tiles = reply.tiles;
-  if (reply.project && typeof reply.project === "object") next.project = { ...next.project, health: reply.project.health, health_reason: reply.project.health_reason, ...(reply.project.week_ending !== undefined ? { week_ending: reply.project.week_ending } : {}) };
+  if (reply.project && typeof reply.project === "object") next.project = { ...next.project, health: reply.project.health, health_reason: reply.project.health_reason, ...(reply.project.week_ending !== undefined ? { week_ending: reply.project.week_ending } : {}), ...(reply.project.review_after_days !== undefined ? { review_after_days: reply.project.review_after_days } : {}) };
   data.value = next;
 }
 
@@ -134,6 +136,38 @@ export function changeRecord(req, done) {
   });
 }
 
+// Add one work item (gap list B-8: the Add menu on Work items). `req` is {kind: actions | raid | decisions, op: "new", values, place}
+// as edit/addItem.js builds it. The work items are read again so the new row is drawn as clark saved it; the toast says "<ID> added"
+// with Undo, and that Undo says "<ID> removed." A refusal says why, and nothing was added. `more` is a sentence added to the toast
+// (what was filled in for the person). Resolves to the reply, or null.
+export function newItem(req, more = "") {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendItemChange(code, req);
+    if (!r.ok) { say("problem", r.message); return null; }
+    const ref = String(r.reply.ref || r.reply.item.id);
+    if (!(await readAgain(code, `${ref} was added`))) return r.reply;
+    const step = r.reply.apply_id || null;
+    if (step) itemSteps.set(step, `${ref} removed.`);
+    say("done", `${ref} added.${more ? " " + more : ""}`, step, code);
+    return r.reply;
+  });
+}
+
+// Restore one archived work item (B-5): the work items are read again after it and after its undo. A refusal is a note.
+export function restoreItem(table, id) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendRestore(code, table, id);
+    if (!r.ok) { say("note", r.message); return null; }
+    const step = r.reply.apply_id || null;
+    if (step) itemSteps.set(step, "");
+    if (!(await reread(code)) && project.value === code) { say("problem", `${id} was restored, but the page could not be refreshed. Reload the page to see it.`, step, code); return r.reply; }
+    say("done", `${id} restored.`, step, code);
+    return r.reply;
+  });
+}
+
 // Undo one step, by the id the change's reply gave, in the project the step was made in (`code`; the open one if not given). If some rows were left as they are, the toast
 // says which, in the words clark gives (they name the section and why); otherwise it says what went back (a work item's cell, #80)
 // or that it is undone.
@@ -141,12 +175,14 @@ export function undo(applyId, code = project.value) {
   const at = undoable.findIndex((s) => s.step === applyId);
   if (at >= 0) undoable.splice(at, 1);
   return enqueue(async () => {
-    const r = await sendUndo(code, applyId);
+    const word = wordSteps.has(applyId);
+    const r = word ? await sendWordUndo(code, applyId) : await sendUndo(code, applyId);
     if (!r.ok) { say("problem", r.message, applyId, code); return null; }
     redraw(code, r.reply);
     undone.value++;
-    const back = itemSteps.get(applyId);
+    const back = word ? (typeof r.reply.message === "string" && r.reply.message) || "Undone." : itemSteps.get(applyId);
     itemSteps.delete(applyId);
+    wordSteps.delete(applyId);
     // Read again after every undo: an item's cell, or a section's body, comes back from the database. Not read again because the
     // person has opened another project meanwhile: nothing is wrong, so nothing is said about it.
     if (!(await readAgain(code, "The change was undone"))) return r.reply;
@@ -157,15 +193,40 @@ export function undo(applyId, code = project.value) {
   });
 }
 
+// A Word import's one step (#48): `send(code)` makes the request (the page has already shown what was read, and the person chose what
+// to add). Resolves to {ok: true} (the toast says what was added, in the server's words, with Undo) or {ok: false, status, message}
+// (nothing is said here: the import box shows the refusal where the person is). The work items are read again, so the page shows
+// what clark saved.
+export function changeWord(send, failed) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await send(code);
+    const b = r.body;
+    if (!(r.status === 200 && b && b.ok === true && Number.isInteger(b.apply_id) && typeof b.message === "string")) return { ok: false, status: r.status, message: wordWords(r, failed) };
+    wordSteps.add(b.apply_id);
+    const fresh = (await reread(code)) || project.value !== code;
+    say("done", fresh ? b.message : `${b.message} The page could not be refreshed. Reload the page to see them.`, b.apply_id, code);
+    return { ok: true };
+  });
+}
+
+async function sendWordUndo(code, applyId) {
+  const r = await wordUndoRequest(code, applyId);
+  if (r.status === 200 && r.body && r.body.ok === true) return { ok: true, reply: r.body };
+  return { ok: false, message: wordWords(r, "That could not be undone just now. Nothing was changed. Reload the page and try again.") };
+}
+
 // #80: change fields of one work item, in one step. `table` is actions, raid or decisions; `changes` the fields to set. The page
 // draws the item as clark saved it (the reply's item), never its own guess. `done.text` is what the toast says; it carries Undo
 // when the step can be undone, and `done.back` is what the toast says after that Undo. A decision that is made has none (the reply says so): with `done.always` the toast still says what
-// happened. Otherwise a change that altered nothing says nothing.
+// happened. Otherwise a change that altered nothing says nothing. `done.place` is where the page says it was made (the history says
+// "in the peek", "with a draft"; "cell" when not given). `done.refused(message)`, when given, hears a refusal in place of the toast, so
+// a box that is still open can show it beside what was typed.
 export function changeCell(table, id, changes, done) {
   const code = project.value;
   return enqueue(async () => {
-    const r = await sendCellChange(code, table, id, changes, "cell");
-    if (!r.ok) { say("problem", r.message); return null; }
+    const r = await sendCellChange(code, table, id, changes, done.place || "cell");
+    if (!r.ok) { if (typeof done.refused === "function") done.refused(r.message); else say("problem", r.message); return null; }
     const item = r.reply.item;
     const d = data.value;
     if (d && project.value === code && Array.isArray(d[table])) {
@@ -174,6 +235,25 @@ export function changeCell(table, id, changes, done) {
     const step = r.reply.undoable === true && r.reply.apply_id ? r.reply.apply_id : null;
     if (step) { itemSteps.set(step, done.back || ""); say("done", done.text, step, code); }
     else if (done.always) say("done", done.text, null, code);                   // a decision that is made: it changed, and has no Undo
+    return r.reply;
+  });
+}
+
+// Item 210: a risk's or issue's impact or likelihood from its Priority cell. The update op doesn't take those two (clark works the
+// priority out from them), so the change goes as a bulk change of this one item, from the cell: one step and one Undo, the value
+// checked by clark, the history "in the table". The data is read again, so the cell shows the priority clark worked out, and
+// the toast says it.
+export function changeRating(table, id, changes, done) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendBulk(code, { kind: table, op: "bulk", ids: [id], changes, place: "cell" });
+    if (!r.ok) { say("problem", r.message); return null; }
+    await reread(code);
+    const row = project.value === code && data.value && Array.isArray(data.value[table]) ? data.value[table].find((x) => x.id === id) : null;
+    const text = row && row.priority ? `${done.text} Its priority is now ${row.priority}.` : done.text;
+    const step = r.reply.undoable === true && r.reply.apply_id ? r.reply.apply_id : null;
+    if (step) { itemSteps.set(step, done.back || ""); say("done", text, step, code); }
+    else say("note", r.reply.words, null, code);
     return r.reply;
   });
 }

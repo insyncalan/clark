@@ -4,7 +4,7 @@
 // section_kinds/_figures.py, which works them out at publish time (a test runs both over the same rows). Counts come from the
 // At a glance tiles (glanceTiles.js tiles), so a figure here is the number a tile shows.
 import { tiles, TILE_TITLES } from "../glanceTiles.js";
-import { rowsOf, isOpen, dayNumber, showDate, plural, colourOf } from "../workItems.js";
+import { rowsOf, isOpen, dayNumber, showDate, plural } from "../workItems.js";
 import { keptRows, rulesFor } from "../logic/publishable.js";
 import { dateWords } from "./safe.js";
 
@@ -12,7 +12,6 @@ export const PLACES = { figures4: 4, figures3: 3 };
 export const METRICS = [["overdue", TILE_TITLES.overdue], ["risks", TILE_TITLES.risks], ["decisions", TILE_TITLES.decisions]];
 export const LIMITS = { label: 60, value: 30, detail: 80 };
 const KIND_OF = { overdue: "actions", risks: "raid", decisions: "decisions" };
-const RANK = { g: 1, a: 2, r: 3 };
 const text = (v) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "");
 
 // The stored slots of a section (an array no longer than its places): a body that is empty or does not read gives none.
@@ -50,8 +49,7 @@ export function liveFigures(d, today) {
   }
   if (kept.raid.length) {
     const live = open.filter((r) => r.kind !== "action" && r.kind !== "decision");
-    const worst = live.reduce((w, r) => { const l = colourOf(r.priority).class; return (RANK[l] || 0) > (RANK[w] || 0) ? l : w; }, "");
-    out.risks = { label: TILE_TITLES.risks, value: by.risks.value, rag: worst || "g",
+    out.risks = { label: TILE_TITLES.risks, value: by.risks.value, rag: by.risks.rag,      // the tile's own colour: one rule (item 391)
       detail: !live.length ? "None open" : live.length === 1 ? "of 1 open risk or issue" : `of ${live.length} open risks and issues` };
   }
   if (kept.decisions.length) {

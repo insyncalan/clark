@@ -31,9 +31,6 @@ WAITS = {
     "howto-check-before-you-publish": ("the stale and incomplete notes with Show them in the Publish box", r"Show them"),
     "howto-start-from-last-report": ("Start from last week's report", r"Start from last"),
     "ref-since-last-report": ("the Since the last report panel", r"Since the last report"),
-    "howto-add-people-details": ("the People card in Settings", r"[\"'>]People[\"'<]"),
-    "ref-people": ("the People card in Settings", r"[\"'>]People[\"'<]"),
-    "howto-word-in-and-out": ("Export to Word and Import from Word on the page", r"Import from Word"),
     "howto-excel-file-layout": ("the Excel file layout with drop-downs and locked IDs (drawn in the prototype only)", r"Excel file layout"),
 }
 # prototype entries the build has under another id, written for what the page does

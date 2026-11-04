@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Help: Start here</title>
+<style>
+:root{--brand-blue:#3B5BDB;--brand-blue-strong:#2F4AC0;--brand-blue-tint:#EDF1FF;--brand-navy:#14233A;--brand-ink:#18232B;--brand-cyan:#4FD1E8;
+--grey-50:#F3F5F8;--grey-100:#E9EBEE;--grey-200:#E0E2E5;--grey-300:#D3D5D8;--grey-500:#9A9EA3;--grey-700:#5A6270;
+--status-green:#0F7B5F;--status-green-tint:#DCEFE9;--status-green-text:#0B654E;--status-amber-tint:#FCEFCF;--status-amber-text:#8A5200;--status-blue-text:#2A4FE0;
+--text:var(--brand-ink);--text-muted:var(--grey-700);--border:var(--grey-300);--control-border:#878C92;--surface:#fff;--heading:var(--brand-navy);
+--font:Inter,Arial,"Helvetica Neue",sans-serif;--radius:6px;--radius-lg:8px;--shadow:0 1px 2px rgba(19,35,42,.08),0 2px 8px rgba(19,35,42,.06);--topbar:56px}
+*{box-sizing:border-box}body{margin:0;background:var(--grey-50);color:var(--text);font:300 15px/1.5 var(--font)}
+a{color:var(--status-blue-text)}h1,h2,h3{color:var(--heading);font-weight:500;margin:0}
+button,input{font:inherit;color:inherit}
+.top{position:sticky;top:0;z-index:30;height:var(--topbar);background:var(--brand-navy);color:#fff;display:flex;align-items:center;gap:18px;padding:0 20px}
+.top .wm{font-weight:500;font-size:20px;letter-spacing:.02em}.top .tabs{display:flex;gap:4px}.top .tabs span{padding:6px 12px;font-size:14px;color:rgba(255,255,255,.75)}
+.top .tabs span.on{color:#fff;box-shadow:inset 0 -3px 0 var(--brand-cyan)}.top .sp{flex:1}
+.top .qbtn{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:transparent;color:#fff;font-size:16px;cursor:pointer}
+.top .qbtn:hover{background:rgba(255,255,255,.12)}.top .qbtn:focus-visible{outline:2px solid var(--brand-cyan);outline-offset:2px}
+.top .me{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--brand-cyan);color:var(--brand-navy);font-size:13px;font-weight:500}
+.btn{display:inline-flex;align-items:center;gap:7px;font-weight:400;font-size:14px;padding:7px 13px;border-radius:var(--radius);border:1px solid var(--border);background:#fff;cursor:pointer;text-decoration:none;color:var(--text);white-space:nowrap}
+.btn:hover{border-color:var(--grey-500)}.btn:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--brand-blue);outline-offset:2px}
+.search{width:100%;border:1px solid var(--control-border);border-radius:var(--radius);padding:10px 14px;background:#fff;font-size:15px}
+.chip{display:inline-block;font-size:12px;border-radius:99px;padding:2px 9px;background:var(--brand-blue-tint);color:var(--status-blue-text)}
+.chip.g{background:var(--grey-100);color:var(--text-muted)}
+.page{padding:24px 28px;max-width:1100px}.page h1{font-size:28px;margin-bottom:8px}.lead{color:var(--text-muted);font-size:16px;margin:0 0 20px}
+.mock-note{background:var(--status-amber-tint);color:var(--status-amber-text);font-size:13px;padding:6px 20px;border-bottom:1px solid var(--grey-300)}
+
+.scrim{position:fixed;inset:0;background:rgba(20,35,58,.45);z-index:40}
+.layer{position:fixed;top:calc(var(--topbar) + 57px);bottom:24px;left:50%;transform:translateX(-50%);width:min(1200px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-lg);box-shadow:0 12px 40px rgba(19,35,42,.28);z-index:50;display:flex;flex-direction:column;overflow:hidden}
+.lhead{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--grey-200)}
+.lhead h2{font-size:18px;flex:none}.lhead .ltabs{display:flex;gap:2px;margin-left:12px;flex:1}
+.ltab{padding:8px 14px;font-size:14px;color:var(--text-muted);border-bottom:3px solid transparent;text-decoration:none}
+.ltab.on{color:var(--heading);font-weight:400;border-bottom-color:var(--brand-blue)}
+.lbody{display:flex;flex:1;min-height:0;overflow:auto;align-items:flex-start}
+.toc{position:sticky;top:0;width:250px;flex:none;padding:20px 12px 20px 20px;border-right:1px solid var(--grey-200);max-height:100%;overflow:auto}
+.toc h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-weight:400;margin:14px 0 6px}.toc h3:first-child{margin-top:0}
+.toc a{display:block;padding:5px 10px;font-size:14px;color:var(--text);text-decoration:none;border-left:3px solid transparent;border-radius:0 var(--radius) var(--radius) 0}
+.toc a:hover{background:var(--grey-50)}.toc a.cur{border-left-color:var(--brand-blue);background:var(--brand-blue-tint);font-weight:400;color:var(--heading)}
+.main{flex:1;min-width:0;padding:24px 36px 40px}.main>.inner{max-width:760px}
+.main h1{font-size:28px;margin-bottom:8px}
+.jobs{list-style:none;margin:22px 0 0;padding:0;display:grid;gap:12px;counter-reset:j}
+.job{display:flex;gap:16px;align-items:center;padding:16px 20px;border:1px solid var(--border);border-radius:var(--radius-lg);text-decoration:none;color:var(--text);background:#fff;counter-increment:j}
+.job:hover{border-color:var(--brand-blue);box-shadow:var(--shadow)}
+.job::before{content:counter(j);flex:none;width:34px;height:34px;border-radius:50%;background:var(--brand-blue-tint);color:var(--status-blue-text);display:grid;place-items:center;font-weight:500}
+.job b{display:block;font-size:19px;font-weight:500;color:var(--heading)}.job span{color:var(--text-muted);font-size:14px}
+.undo{margin-top:18px;font-size:14px}
+.steps{list-style:none;margin:24px 0;padding:0;display:grid;gap:26px;counter-reset:s}
+.steps li{counter-increment:s;padding-left:48px;position:relative}
+.steps li::before{content:counter(s);position:absolute;left:0;top:0;width:34px;height:34px;border-radius:50%;background:var(--brand-navy);color:#fff;display:grid;place-items:center;font-weight:500}
+.steps h3{font-size:18px;margin-bottom:4px}.steps p{margin:0 0 10px}
+.pic{border:2px dashed var(--grey-500);background:var(--grey-100);color:var(--text-muted);border-radius:var(--radius-lg);min-height:130px;display:grid;place-items:center;text-align:center;padding:14px;font-size:14px}
+.pic small{display:block;font-size:12px;margin-top:4px}
+.see{margin:28px 0;padding:14px 18px;border-radius:var(--radius-lg);background:var(--status-green-tint);color:var(--status-green-text)}
+.next h3{font-size:18px;margin-bottom:8px}.next ul{margin:0;padding-left:20px;display:grid;gap:4px}
+.hit{padding:16px 0;border-bottom:1px solid var(--grey-200)}.hit a.t{font-size:18px;font-weight:400}
+.hit .where{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0;align-items:center;font-size:13px}.hit p{margin:4px 0 0}
+mark{background:var(--status-amber-tint);color:inherit;padding:0 2px;border-radius:3px}
+@media(max-width:1000px){.main{padding:20px 22px 32px}.toc{width:200px}.layer{width:calc(100vw - 24px);top:calc(var(--topbar) + 45px);bottom:12px}}
+</style></head><body>
+<div class="mock-note">Mockup for sign-off. Fictional data, light theme only. Nothing here is saved.</div><header class="top"><span class="wm">clark</span><nav class="tabs"><span>Dashboard</span><span>Work items</span><span>Milestones</span><span class="on">Settings</span></nav><span class="sp"></span><span class="me">AB</span></header><div class="page" aria-hidden="true"><h1>Weekly report</h1><p class="lead">Harbour Road Refit (demo project). Week ending 07-11-2026.</p><p>This is the page behind the Help layer.</p></div><div class="scrim"></div><section class="layer" role="dialog" aria-label="Help"><div class="lhead"><a class="btn" href="help-start.html">&larr; Back</a><h2>Help</h2><nav class="ltabs"><a class="ltab on" href="#">Start here</a><a class="ltab" href="#">How do I...</a><a class="ltab" href="#">Reference</a></nav><button class="btn" type="button" aria-label="Close Help">Close &times;</button></div><div class="lbody"><nav class="toc" aria-label="Contents"><h3>Start here</h3><a href="#" class="cur" aria-current="page">Start here</a><h3>The five jobs</h3><a href="#">Add a work item</a><a href="#">Write this week's report</a><a href="#">Add a section from a template</a><a href="#">Move, hide and delete sections</a><a href="#">Publish to the client</a><h3>Also under How do I...</h3><a href="#">Bring in an Excel workbook</a><a href="#">Change the freshness rules</a><h3>Reference</h3><a href="#">Settings, card by card</a><a href="#">Keyboard shortcuts</a></nav><div class="main"><div class="inner"><input class="search" type="search" placeholder="Search Help, for example: template" aria-label="Search Help"><h1 style="margin-top:22px">Start here</h1><p class="lead">Clark turns your weekly work into a report you can send. Pick the job you want to do and follow the steps with pictures. Nothing you read here changes your report.</p><ol class="jobs"><li><a class="job" href="help-guide.html"><div><b>Add a work item</b><span>Put a new task on the plan and say who owns it.</span></div></a></li><li><a class="job" href="help-guide.html"><div><b>Write this week's report</b><span>Fill in the status, the highlights and the next steps.</span></div></a></li><li><a class="job" href="help-guide.html"><div><b>Add a section from a template</b><span>Start a new section from a ready-made layout.</span></div></a></li><li><a class="job" href="help-guide.html"><div><b>Move, hide and delete sections</b><span>Change the order of the report, or take parts out.</span></div></a></li><li><a class="job" href="help-guide.html"><div><b>Publish to the client</b><span>Check the report, then send the finished copy.</span></div></a></li></ol><p class="undo muted">Made a mistake? <a href="#">Undo the last change</a></p></div></div></div></section>
+</body></html>

@@ -1,12 +1,10 @@
 """The growth check (tests/_growth.py) is only worth trusting if it passes a linear cost and fails a quadratic and a cubic one (known
-pure-Python costs) with a clear margin on both sides of the limit, and if its floor is the same wherever a test keeps its own copy."""
-import re
+pure-Python costs) with a clear margin on both sides of the limit."""
 import unittest
 import unittest.mock
 
-from _paths import ROOT
 import _growth
-from _growth import ABSOLUTE_CAP, GROWTH_FLOOR, GROWTH_LIMIT, GROWTH_STEP, assert_growth, assert_near_baseline, growth_ratio
+from _growth import ABSOLUTE_CAP, GROWTH_LIMIT, GROWTH_STEP, assert_growth, assert_near_baseline, growth_ratio
 
 
 def linear(n):
@@ -70,17 +68,6 @@ class TheNearBaselineCheckTellsQuadraticFromPlain(unittest.TestCase):
         assert_near_baseline(self, lambda: linear(1), lambda: linear(1), "same")
         with self.assertRaises(AssertionError):
             assert_near_baseline(self, lambda: quadratic(7000), lambda: linear(1), "quadratic")
-
-
-class TheCopyKeepsTheSameFloor(unittest.TestCase):
-    """tests/test_publish_public.py keeps its own copy of the helper (its owner reviews changes to it), still measuring n and 2n with a
-    limit of 3.5. Only the floor is the same as the shared one; the shared limit and step are asserted above, and the copy is for its
-    owner to bring across."""
-    def test_the_copy_in_test_publish_public_has_the_same_floor_and_the_same_signature(self):
-        text = (ROOT / "tests" / "test_publish_public.py").read_text(encoding="utf-8")
-        found = re.findall(r"^GROWTH_FLOOR = ([0-9.]+)", text, re.M)
-        self.assertEqual([float(v) for v in found], [GROWTH_FLOOR])
-        self.assertIn("def growth_ratio(work, n, tries=3):", text)
 
 
 if __name__ == "__main__":

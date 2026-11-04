@@ -33,9 +33,15 @@ import { Icon } from "./Icon.jsx";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
 import { GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
 
-// Adding an item is not built yet (#65 to #67): the Add button says so, in words, and records what was asked for.
+// The Add button (gap list B-8): in clark, a pick makes the item at once and opens it, with "<ID> added" and Undo in the toast
+// (tools.addItem, edit/addItem.js). The published file has no Add (#204); a page with no tools says, in words, that nothing was added.
 const asked = signal("");
-function onAdd(kind) { asked.value = `Add ${kind || "item"} is coming with a later release. Nothing was added.`; }
+function adder(tools) {
+  if (tools && typeof tools.addItem === "function" && !fromFile.value) {
+    return (kind) => { asked.value = ""; tools.addItem(kind, work.value.view === "board" ? "board" : "menu"); };
+  }
+  return (kind) => { const k = kind || "item"; asked.value = `Nothing was added. This page is read only. To add ${/^[aeiou]/.test(k) ? "an" : "a"} ${k}, open the project in clark.`; };
+}
 
 function Owner({ name }) {
   const o = ownerOf(name);
@@ -124,7 +130,7 @@ function Row({ row, today, Cell, Eye, stop, pos, size }) {
       <td class="c-owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td>
       <td class="c-due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td>
       <td class="c-prio">{cell("priority", row.priority || "none", row.priority || <span class="muted">{"—"}</span>)}</td>
-      <td class="c-status">{cell("status", row.status, <span class={`pill ${pill.class}`}>{pill.text}</span>)}</td>
+      <td class="c-status">{cell("status", pill.text, <span class={`pill ${pill.class}`}>{pill.text}</span>)}</td>
       {Eye ? <td class="c-eye"><Eye row={row} /></td> : null}
     </tr>
   );
@@ -191,7 +197,7 @@ function Table({ rows, today, type, Cell, Eye }) {
   );
 }
 
-// Group by, the swimlanes' neighbour: a menu button reading "Group by: Status". On the board "Nothing" is not offered.
+// The published file's Group by (the app's is in the filter line's View menu, #287): a menu button reading "Group by: Status".
 function GroupBy({ board }) {
   const g = work.value.group, shown = board ? boardGroup(g) : g;
   return (
@@ -278,6 +284,7 @@ export function WorkItems({ tools }) {
   const board = !!Board && work.value.view === "board";
   // Coming back to Work items: the project's line is the one kept in this session (the address holds the older form of it).
   useEffect(() => { if (L) L.restore(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  const Arch = tools && tools.ArchivedItems && !fromFile.value, Pill = Arch && tools.ArchivedPill ? tools.ArchivedPill : null;   // B-5: Edit parts only
   return (
     <section class={`frame work${fromFile.value ? " pub" : ""}`} id="work">
       <p class="crumbs">{d.project.name}</p>
@@ -290,7 +297,7 @@ export function WorkItems({ tools }) {
           <div class="hacts">
             {tools.ExportBtn && mode.value !== "edit" ? <tools.ExportBtn /> : null}   {/* the workbook download: View only (FR-70), and never in a published file */}
             {tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: in Edit, with the Owner filter on */}
-            <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={onAdd} />   {/* a published file is read only: no Add (#204) */}
+            <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={adder(tools)} />   {/* a published file is read only: no Add (#204) */}
           </div>
         ) : null}
       </div>
@@ -302,16 +309,17 @@ export function WorkItems({ tools }) {
         : <>
             {!L
               ? <>
-                  <Switches><GroupBy board={board} /><SearchBox />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
+                  <Switches>{Pill ? <Pill /> : null}<GroupBy board={board} /><SearchBox /></Switches>
                   <FilterBar />
                   <PublishedList Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} />
                 </>
               : <>
-                  <Switches L={L}><GroupBy board={board} />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
-                  <FilterLine />
+                  <Switches L={L}>{Pill ? <Pill /> : null}</Switches>   {/* item 287: Layout, Group by and the swimlanes are in the filter line's one View menu */}
+                  <FilterLine board={!!Board} />
                   <List Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />
                 </>}
           </>}
+      {Arch ? <tools.ArchivedItems pill={allRows.value.length === 0} /> : null}   {/* B-5: the pill is in the bar; a published file carries no archived row */}
     </section>
   );
 }

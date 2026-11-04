@@ -35,7 +35,8 @@ class PeekExit(unittest.TestCase):
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
     def load(self, cdp, width, scheme, motion="no-preference"):
-        s = real_server(self.store.path, self.store.data_for, who="Demo User", projects=lambda: self.store.read("projects"),
+        projects = self.store.read("projects")            # read here: the store's connection belongs to this thread, and the server answers on another
+        s = real_server(self.store.path, self.store.data_for, who="Demo User", projects=lambda: projects,
                         page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         sid = page_target(cdp)

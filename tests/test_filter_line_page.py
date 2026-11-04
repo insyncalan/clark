@@ -185,6 +185,25 @@ class Line(unittest.TestCase):
             cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
             self.assertEqual(cdp.js("document.activeElement.id", sid), "other", "not while typing in a field")
 
+    def test_the_line_does_not_say_press_slash_in_view_or_edit_because_that_key_opens_ask(self):
+        # #286: the hint "Press /" pointed at a key that opens ask clark in the app, so it is gone. Pinned in both modes at both widths.
+        s = self.serve()
+        for width in SIZES:
+            for mode in ("view", "edit"):
+                with self.subTest(width=width, mode=mode), chrome() as cdp:
+                    sid = self.load(cdp, s.port, width)
+                    cdp.js(f"document.querySelector('[data-mode={mode}]').click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('[data-mode={mode}]').getAttribute('aria-pressed')", sid) == "true"))
+                    self.assertEqual(cdp.js("document.querySelectorAll('.fkey, .fline kbd, .fline-wrap [aria-keyshortcuts]').length", sid), 0)
+                    for focused in (False, True):
+                        if focused:
+                            self.focus(cdp, sid)
+                        text = cdp.js("document.querySelector('.fline-wrap').textContent", sid)
+                        self.assertNotRegex(text, r"(?i)press\s*/", f"no hint for the slash key (focused={focused})")
+                    cdp.js("document.activeElement.blur()", sid)
+                    cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
+                    self.assertNotEqual(cdp.js("document.activeElement.id", sid), "fline-input", "the slash key goes to ask clark, not the line")
+
     def test_hint_chips_show_only_while_focused_and_a_hint_goes_into_the_box(self):
         s = self.serve()
         for width in SIZES:
@@ -303,6 +322,20 @@ class Line(unittest.TestCase):
             key(cdp, sid, "Enter")
             self.assertTrue(wait(lambda: "is not available on this page yet" in self.say(cdp, sid)))
             self.assertEqual(self.chips(cdp, sid), ["is:open"])
+
+    def test_the_freshness_words_follow_the_projects_own_number_of_days(self):
+        """#171: the project's review_after_days (in its row of the data) is what the menu says, in the singular for one day."""
+        for days, words in ((3, "Not reviewed in 3 days"), (1, "Not reviewed in 1 day"), (365, "Not reviewed in 365 days")):
+            self.data["TUL"]["project"]["review_after_days"] = days
+            self.addCleanup(self.data["TUL"]["project"].__setitem__, "review_after_days", 14)
+            s = self.serve()
+            with self.subTest(days=days), chrome() as cdp:
+                sid = self.load(cdp, s.port)
+                self.watch(cdp, sid)
+                click(cdp, sid, "#freshMenu")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#freshMenu[aria-expanded=true]')", sid)))
+                names = cdp.js("[...document.querySelectorAll('[role=menu] [role^=menuitem]')].map(e => e.textContent.trim())", sid)
+                self.assertEqual(names, [words, "No owner or no date"])
 
     def test_the_freshness_menu_gives_the_two_plain_values_and_the_chips_say_them_in_plain_words(self):
         s = self.serve()
