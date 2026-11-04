@@ -223,7 +223,8 @@ class Route(unittest.TestCase):
             self.assertIsNone(page.brand_picture(name, self.brand.root), repr(name))
         self.assertEqual(page.brand_picture("cover.png", self.brand.root), (PNG, "image/png"))
         src = (ROOT / "src" / "clark" / "server.py").read_text(encoding="utf-8")
-        self.assertNotRegex(src, r"Path\(|os\.path|open\(", "the server touches no path: only page.brand_picture does")
+        start, end = src.index("def container_mode"), src.index("TOKEN = secrets")                   # item 427: the container's own three helpers read two fixed system files (/.dockerenv, /proc/net/route), never a name from a request
+        self.assertNotRegex(src[:start] + src[end:], r"Path\(|os\.path|open\(", "the server touches no path: only page.brand_picture does")
 
     def test_the_servers_allow_list_is_the_pages_and_the_launcher_hands_it_the_page_function(self):
         """server.py imports no clark module (a test in test_server keeps that), so it holds its own copy of the names and is
