@@ -167,6 +167,7 @@ class RealBrowser(unittest.TestCase):
 
     def rows(self, cdp, sid):
         return cdp.js("[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => ({id: r.dataset.id, kind: r.dataset.kind,"
+                      " badge: (r.querySelector('.kb') || {}).textContent, badgeWord: (r.querySelector('.kb') || {}).title,"
                       " text: r.innerText, late: !!r.querySelector('.due-l.late'), words: (r.querySelector('.due-l') || {}).textContent,"
                       " pill: r.querySelector('.pill').textContent, pillClass: r.querySelector('.pill').className}))", sid)
 
@@ -292,10 +293,10 @@ class RealBrowser(unittest.TestCase):
                               " && getComputedStyle(e, '::before').content !== 'normal').map(e => e.tagName + '.' + e.className)", sid)
             self.assertTrue(labelled)
             self.assertEqual({x.split('.')[0] for x in labelled}, {"TD"}, "only cells carry a label")
-            self.assertEqual({x.split('.')[1] for x in labelled}, {"c-type", "c-owner", "c-status", "c-due", "c-prio"})
+            self.assertEqual({x.split('.')[1] for x in labelled}, {"c-owner", "c-status", "c-due", "c-prio"})
             texts = cdp.js("(() => { const tr = document.querySelector('#work tbody tr[data-id]'); return [...tr.children].map(td => { const r = td.getBoundingClientRect(); return [td.className.split(' ')[0], getComputedStyle(td, '::before').content, getComputedStyle(td, '::before').fontSize, Math.round(r.top), r.left]; })"
                            ".filter(x => x[1] !== 'none' && x[1] !== 'normal').sort((p, q) => p[3] - q[3] || p[4] - q[4]).map(x => x.slice(0, 3)); })()", sid)
-            self.assertEqual([(a, b) for a, b, _ in texts], [("c-type", '"Type"'), ("c-owner", '"Owner"'), ("c-status", '"Status"'), ("c-due", '"Due"'), ("c-prio", '"Priority"')])
+            self.assertEqual([(a, b) for a, b, _ in texts], [("c-owner", '"Owner"'), ("c-status", '"Status"'), ("c-due", '"Due"'), ("c-prio", '"Priority"')])
             self.assertTrue(all(c == "14px" for _, _, c in texts), "labels are 14 px (the small size)")
 
     def test_the_phone_rules_leave_900_and_1400_px_as_a_table(self):
@@ -312,31 +313,32 @@ class RealBrowser(unittest.TestCase):
         with chrome() as cdp:
             sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL&f=mode:all")
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
-            cdp.js("document.querySelector('#group-by').click()", sid)                 # the one flat list, whose order this checks (#68's default is grouped)
-            cdp.js("document.querySelector('.ddmenu [data-kind=nothing]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewMenu')", sid)))
+            cdp.js("document.querySelector('#viewMenu').click()", sid)                 # the one flat list, whose order this checks (#68's default is grouped)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.ddmenu [data-kind=\"group:nothing\"]')", sid)))
+            cdp.js("document.querySelector('.ddmenu [data-kind=\"group:nothing\"]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("!document.querySelector('tr.grp')", sid)))
             rows = {r["id"]: r for r in self.rows(cdp, sid)}
             data = self.store.data_for("TUL")
             order = [r["id"] for r in self.rows(cdp, sid)]
             self.assertEqual(order[0], "TUL-A-002", "the oldest open date comes first")
             late = rows["TUL-010"]                                    # an open Urgent issue due 25-10-2026
-            self.assertEqual((late["words"], late["late"], late["pill"]), ("3 days late", True, "Open"))   # #442: the status cell shows the item's own status, as in Edit
+            self.assertEqual((late["words"], late["late"], late["pill"]), ("3 days late", True, "Red"))   # #448: the status cell shows the live look, as in Edit: an open Urgent issue reads its rating word
             self.assertIn("25-10-2026", late["text"])
-            self.assertEqual(rows["TUL-A-002"]["pill"], "Delayed")    # the item's own status; its lateness shows in the due words
+            self.assertEqual(rows["TUL-A-002"]["pill"], "Overdue")    # #448: the live look: a late action reads Overdue (its status, Delayed, is in the picker)
             closed = rows["TUL-A-003"]                                # closed: its date, no words
             self.assertIsNone(closed.get("words"))
             self.assertIn("13-10-2026", closed["text"])
             self.assertEqual(closed["pill"], "Closed")
             self.assertEqual(rows["TUL-007"]["words"], "In 7 days")
-            self.assertIn("Dependency", rows["TUL-011"]["text"])      # all four RAID types are listed, by word
-            self.assertIn("Assumption", rows["TUL-009"]["text"])
+            self.assertEqual((rows["TUL-011"]["badge"], rows["TUL-011"]["badgeWord"]), ("P", "Dependency"))      # the RAID types are told by a letter badge that names its word (#456)
+            self.assertEqual((rows["TUL-009"]["badge"], rows["TUL-009"]["badgeWord"]), ("S", "Assumption"))
             self.assertEqual(rows["TUL-D-016"]["pill"], "Pending")
             self.assertEqual(rows["TUL-D-013"]["pill"], "Made")
             self.assertIn("19-08-2026", rows["TUL-D-013"]["text"])    # a made decision shows the date it was made
             self.assertIn("Use case 1.1", rows["TUL-A-001"]["text"])
             self.assertNotIn("UC ", rows["TUL-A-001"]["text"])
-            self.assertIn("Shown to client", rows["TUL-A-001"]["text"])
-            self.assertNotIn("Shown to client", rows["TUL-A-004"]["text"])
+            self.assertNotIn("Shown to client", rows["TUL-A-001"]["text"], "#456: the eye column says it, not a tag in the item line")
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('tr[data-id=TUL-010] .due-l')).color", sid),
                              "rgb(163, 48, 31)", "late words are in the red text colour")
             self.assertEqual(len(data["actions"]) + len(data["raid"]) + len(data["decisions"]), len(rows))
@@ -400,7 +402,7 @@ class RealBrowser(unittest.TestCase):
         with mock.patch.object(sv, "with_boot", lambda html: real(html).replace(sv.TOKEN, "an-old-token")):
             with chrome() as cdp:                                                   # a page from before a restart
                 sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL")
-                self.assertTrue(wait(lambda: "This page is out of date: clark was restarted after you opened it. Reload the page and try again." in
+                self.assertTrue(wait(lambda: "This page is out of date because clark was restarted after you opened it. Reload the page and try again." in
                                      (cdp.js("document.querySelector('main').innerText", sid) or "")), "the page's own words, not the server's")
                 self.assertNotIn(sv.STALE_PAGE, cdp.js("document.querySelector('main').innerText", sid))
                 self.assertEqual(cdp.js("document.querySelectorAll('main button').length", sid), 1, "Try again")
@@ -429,7 +431,7 @@ class RealBrowser(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('main li button').length", sid) == 2))
             s.close()                                                               # clark goes away; then a project is chosen
             cdp.js("document.querySelector('main li button').click()", sid)
-            self.assertTrue(wait(lambda: "Nothing is running behind this page: clark stops by itself after a while with nothing open. Start it again from clark.command." in
+            self.assertTrue(wait(lambda: "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command." in
                                  (cdp.js("document.querySelector('main').innerText", sid) or "")))
 
     def test_a_project_with_no_work_items_says_so(self):

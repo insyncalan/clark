@@ -8,6 +8,7 @@ The file is a JSON object. A missing file, a file that isn't a JSON object, a va
 error: the default is used, so a bad settings file can never stop a backup or its tidying up. Standard library only, Python 3.9.
 """
 import json
+import os
 import re
 import unicodedata
 from pathlib import Path
@@ -131,3 +132,91 @@ def set_profile(data_dir, name, email):
     current[PROFILE_NAME], current[PROFILE_EMAIL] = clean_name, clean_email
     platform.write_file(path, json.dumps(current, indent=2, sort_keys=True) + "\n")
     return {"name": clean_name, "email": clean_email}
+
+
+# ===== Copy my backups to (#622, Settings › Backups) =====
+# One optional folder, on this computer's settings only (never in the database, so a backup or a restore never carries it). Each finished
+# backup is also put there (backup.copy_out). OneDrive is allowed here: a finished single file is safe to sync, which a live database is not.
+BACKUP_COPY_FOLDER = "backup_copy_folder"
+COPY_PATH_MAX = 1000
+COPY_BAD = "Choose a full folder path, such as one in your OneDrive folder. Nothing was changed."
+COPY_IN_DATA = ("That folder is clark's own data or backups folder. Choose a different folder for the copies, such as one in "
+                "OneDrive. Nothing was changed.")
+COPY_NOT_FOLDER = "That is a file, not a folder. Choose a folder. Nothing was changed."
+COPY_CANT_MAKE = "That folder isn't there and clark couldn't make it. Check the path, or choose a folder that exists. Nothing was changed."
+COPY_NOT_WRITABLE = "This account isn't allowed to save files in that folder. Choose another folder. Nothing was changed."
+COPY_UNREADABLE = "Your settings couldn't be read, so the backup copy folder was not changed. Nothing was changed."
+
+
+def _copy_path(text):
+    """`text` as an absolute path (a leading ~ written out), or None when it is not one clark may use."""
+    if not isinstance(text, str) or not text.strip() or len(text) > COPY_PATH_MAX:
+        return None
+    if any(unicodedata.category(c) in _UNSEEN for c in text):
+        return None
+    path = Path(text.strip()).expanduser()
+    return path if path.is_absolute() else None
+
+
+def backup_copy_problem(data_dir, folder):
+    """Why `folder` can't be the copy folder for the data in `data_dir`, in plain words (ending "Nothing was changed."), or None when it can.
+    Looks only: it makes nothing. The folder must not be the data folder, the backups folder beside it, or inside either, once links are
+    followed (a shortcut can't get round it). Used when the folder is saved and again at every copy."""
+    path = _copy_path(str(folder))
+    if path is None:
+        return COPY_BAD
+    live = Path(data_dir).resolve()
+    try:
+        here = path.resolve()
+    except (OSError, RuntimeError):
+        return COPY_BAD
+    for avoid in (live, live / "backups"):
+        if here == avoid or avoid in here.parents:
+            return COPY_IN_DATA
+    if path.exists() and not path.is_dir():
+        return COPY_NOT_FOLDER
+    return None
+
+
+def backup_copy_folder(data_dir):
+    """The saved copy folder as a Path, or None when there is none (the default: off) or what is saved is not a usable absolute path."""
+    value = read(data_dir).get(BACKUP_COPY_FOLDER)
+    return _copy_path(value) if isinstance(value, str) else None
+
+
+def set_backup_copy_folder(data_dir, text):
+    """Save the copy folder (an existing folder, or one that can be made), or turn it off with an empty text. Every other setting is left
+    as it is. Returns the saved Path, or None when turned off. Raises ValueError in plain words, ending "Nothing was changed.", and writes
+    nothing, for a path that is not absolute, is clark's own data or backups folder (or inside one), is a file or can't be written to. A
+    missing last folder is made; a settings file that can't be read is never replaced."""
+    data_dir = Path(data_dir)
+    off = text is None or (isinstance(text, str) and not text.strip())
+    path = None
+    if not off:
+        problem = backup_copy_problem(data_dir, text)
+        if problem is not None:
+            raise ValueError(problem)
+        path = _copy_path(text)
+        if not path.exists():
+            try:
+                path.mkdir(parents=True)
+            except OSError:
+                raise ValueError(COPY_CANT_MAKE) from None
+        if not os.access(path, os.W_OK | os.X_OK):
+            raise ValueError(COPY_NOT_WRITABLE)
+    current = read(data_dir)
+    file = data_dir / FILE
+    if not current and (file.is_symlink() or file.exists()):
+        try:
+            readable = (not file.is_symlink() and file.is_file() and file.stat().st_size <= LIMIT
+                        and isinstance(json.loads(file.read_text(encoding="utf-8")), dict))
+        except (OSError, ValueError, RecursionError):
+            readable = False
+        if not readable:
+            raise ValueError(COPY_UNREADABLE)
+    if path is None:
+        current.pop(BACKUP_COPY_FOLDER, None)
+    else:
+        current[BACKUP_COPY_FOLDER] = str(path)
+    platform.write_file(file, json.dumps(current, indent=2, sort_keys=True) + "\n")
+    return path

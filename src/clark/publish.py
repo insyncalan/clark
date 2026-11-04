@@ -35,6 +35,7 @@ import html as htmllib
 import json
 import os
 import re
+import secrets
 import stat
 import sys
 import unicodedata
@@ -266,7 +267,7 @@ def _document(row):
     """#74: one document as the file carries it, or None to leave it out. Every field is checked again here, never trusted: the
     link must pass doclinks.check_link (the one link rule; a bad one drops the document, it is never repaired) and the title must
     not read as the address of another site; the title is text with hidden characters dropped (doclinks.link_label) and must hold
-    something; a kind not in doclinks.KINDS and a date that is not a real day are carried as nothing."""
+    something; a kind not in doclinks.KINDS drops the document (it is refused, never published as an empty kind) and a date that is not a real day is carried as nothing."""
     try:
         url = doclinks.check_link(row.get("url"))
         title = doclinks.link_label(row.get("title"), url) if str(row.get("title") or "").strip() else ""
@@ -280,7 +281,9 @@ def _document(row):
     except ValueError:
         day = None
     kind = row.get("kind")
-    return {"title": title, "kind": kind if kind in doclinks.KINDS else "", "url": url, "date": day}
+    if kind not in doclinks.KINDS:
+        return None
+    return {"title": title, "kind": kind, "url": url, "date": day}
 
 
 def documents(rows, code, hidden_ids, hidden_types):
@@ -489,7 +492,7 @@ def _escape_places(css, plain):
     """Where, in plain (= css_plain(css)), each escape of the style as typed put its character: two sorted lists, the starts and
     the ends. One pass. None if the places cannot be told (an escape built a comment: plain is then shorter than the decoded
     text). Used to ask whether a piece of the read text is spelled out as typed, with no escape in it."""
-    typed = _without_comments(css.replace("\x00", ""))
+    typed = _without_comments(css.replace("\x00", "\ufffd"))
     starts, ends, shift = [], [], 0
     for m in _CSS_ESCAPE.finditer(typed):
         put = len(_css_escape(m))
@@ -846,9 +849,9 @@ def _without_comments(css):
 
 
 def css_plain(css):
-    """Style text as a browser's reader sees it: no null bytes, no comments, each \\75 or \\u escape turned into the character it
-    stands for (so \\75rl( and u/**/rl( are url( and \\69mport is import). One forward pass at each step."""
-    css = _without_comments(css.replace("\x00", ""))
+    """Style text as a browser's reader sees it: each null byte read as U+FFFD (not dropped), no comments, each \\75 or \\u escape
+    turned into the character it stands for (so \\75rl( and u/**/rl( are url( and \\69mport is import). One forward pass at each step."""
+    css = _without_comments(css.replace("\x00", "\ufffd"))
     return _without_comments(_CSS_ESCAPE.sub(_css_escape, css))
 
 
@@ -883,33 +886,35 @@ def css_findings(css, work=None):
     found = set()
     if "(" not in css and "@" not in css and "\\" not in css:
         return found             # no bracket, @ or escape: no url(, no @import (u/**/rl( keeps its bracket, \40 import its backslash)
-    for text in (css, css_plain(css)):
+    # a browser reads a null byte as U+FFFD; the guard also reads the text with it dropped (the stricter reading kept from before)
+    plains = [css_plain(css)] + ([css_plain(css.replace("\x00", ""))] if "\x00" in css else [])
+    for text in [css] + plains:
         if re.search(r"@\s*import", text, re.I):
             found.add(IMPORT_FOUND)
         if _url_outside(text, work):
             found.add(ADDRESS_FOUND)
-    plain = css_plain(css)
-    images, argument_start = 0, False
-    stack = []
-    for m in _CSS_PIECE.finditer(plain):
-        work.spend()
-        piece = m.group(0)
-        if m.group(1) is not None:
-            stack.append(bool(_IMAGE_FUNCTION.match(m.group(1))))
-            images += stack[-1]
-            argument_start = True
-        elif piece == "(":
-            stack.append(False)
-            argument_start = True
-        elif piece == ")":
-            images -= stack.pop() if stack else 0
-            argument_start = False
-        elif piece[0] in "\"'":
-            if images and argument_start and _not_data(piece):
-                found.add(ADDRESS_FOUND)
-            argument_start = False
-        else:
-            argument_start = piece.rstrip().endswith(",") or (argument_start and not piece.strip())
+    for plain in plains:
+        images, argument_start = 0, False
+        stack = []
+        for m in _CSS_PIECE.finditer(plain):
+            work.spend()
+            piece = m.group(0)
+            if m.group(1) is not None:
+                stack.append(bool(_IMAGE_FUNCTION.match(m.group(1))))
+                images += stack[-1]
+                argument_start = True
+            elif piece == "(":
+                stack.append(False)
+                argument_start = True
+            elif piece == ")":
+                images -= stack.pop() if stack else 0
+                argument_start = False
+            elif piece[0] in "\"'":
+                if images and argument_start and _not_data(piece):
+                    found.add(ADDRESS_FOUND)
+                argument_start = False
+            else:
+                argument_start = piece.rstrip().endswith(",") or (argument_start and not piece.strip())
     return found
 
 
@@ -1118,12 +1123,28 @@ def build(store, code, now=None, branding=None, section_style=None, number=None)
     return {"body": body, "sha256": hashlib.sha256(body).hexdigest(), "project": project, "as_at": as_at, "published": published, "number": n}
 
 
+EARLIER_TOO_BIG = ("The file already there is too big to keep a copy of, so it was not replaced. "
+                   "Move or remove it first, then publish again.")
+
+
 def read_plain(path, limit=None):
     """The bytes of an ordinary file (at most `limit` of them), or OSError for a link, a pipe, a folder or anything else."""
     if not stat.S_ISREG(os.lstat(path).st_mode):
         raise OSError("not an ordinary file")
     with open(path, "rb") as f:
         return f.read() if limit is None else f.read(limit)
+
+
+EARLIER_MAX = 64 * 1048576      # #326: the most of a replaced file that is kept to put back; a larger one is not replaced
+
+
+def read_earlier(path):
+    """The bytes of the ordinary file at `path` (kept to put back if a publish is refused), or OSError for anything else.
+    A file over EARLIER_MAX is refused with PublishError rather than kept cut short: it would be put back truncated."""
+    data = read_plain(path, EARLIER_MAX + 1)
+    if len(data) > EARLIER_MAX:
+        raise PublishError(EARLIER_TOO_BIG)
+    return data
 
 
 def still_ours(path, digest):
@@ -1143,6 +1164,45 @@ def take_back(path, digest):
         return True
     except OSError:
         return False
+
+
+def put_link_back(dest, target, digest):
+    """Put the link `dest` -> `target` back in place of the file this call wrote (#388, #604), without a check-then-act gap:
+    whatever is at `dest` is first moved aside in one step, and only a file that holds exactly the bytes whose SHA-256 is
+    `digest` is replaced; anything else is put straight back (never replaced) and the link is not made. The link itself
+    is made with os.symlink, which never replaces a name that has appeared meanwhile. If the link cannot be made, our
+    file is put back, so `dest` is never left empty. Returns "linked", "kept" (our file is still at `dest`; the link was
+    not put back: also when it could not even be moved aside), "other" (something that is not ours is at `dest`, or it
+    is gone; it was left alone, no link made) or "aside" (the link could not be made and our file could not be put
+    back either: it is under its hidden aside name, not at `dest`)."""
+    dest = Path(dest)
+    aside = dest.with_name(f".{dest.name}.{os.getpid()}.{secrets.token_hex(4)}.aside")
+
+    def back():                                         # aside -> dest, never over a name taken meanwhile; True when placed
+        try:
+            return platform.move_unless_exists(aside, dest)
+        except OSError:
+            return None                                 # left under its aside name, which keeps the bytes
+
+    try:
+        os.rename(dest, aside)
+    except OSError:                                     # nothing was moved: if our file is still at dest, say so (#605)
+        return "kept" if still_ours(dest, digest) else "other"
+    if not still_ours(aside, digest):
+        back()                                          # someone else's file: back where it was
+        return "other"
+    try:
+        os.symlink(target, dest)
+    except OSError:
+        placed = back()
+        if placed:
+            return "kept"
+        if placed is False:                             # the name was taken meanwhile: ours is the extra copy
+            os.unlink(aside)
+            return "other"
+        return "aside"                                  # None: the report is under its aside name; no extra sentence yet
+    os.unlink(aside)
+    return "linked"
 
 
 def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding=None):
@@ -1168,11 +1228,16 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
             raise PublishError(f"{dest.name} could not be saved ({e.strerror or e}). Nothing was written.") from e
     digest = built["sha256"]
     earlier = None                         # #120: a file overwrite=True replaces is put back if the publish fails or loses the race
+    earlier_link = None                    # #388: so is a link it replaces (the link itself, not the file it points at)
     if overwrite:
         try:
-            earlier = read_plain(dest, 64 * 1048576)
+            earlier = read_earlier(dest)
         except OSError:
             earlier = None
+            try:
+                earlier_link = os.readlink(dest)
+            except OSError:
+                earlier_link = None
     try:
         try:
             platform.write_file(dest, body)
@@ -1199,6 +1264,10 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
                     platform.write_file(dest, earlier)
                 except (OSError, platform.PlatformError):
                     pass
+        elif earlier_link is not None:
+            if put_link_back(dest, earlier_link, digest) == "kept":      # #605: said plainly, not swallowed
+                raise PublishError(f"{e} The link that was at {dest.name} could not be put back, so this report is still there "
+                                   "under that name.") from e
         else:
             take_back(dest, digest)
         raise PublishError(str(e)) from e

@@ -8,6 +8,8 @@ Run: python3 dev/run_tests.py test_ai_prompt
 Fictional data only.
 """
 import re
+import threading
+import time
 import unittest
 
 from _paths import SRC  # noqa: F401
@@ -61,7 +63,7 @@ class TheCommandTakesThem(CommandFake):
         self.assertEqual(args[-2:], ["--system-prompt", am.SUGGEST_RULES])
 
     def test_a_suggestion_run_starts_the_command_under_suggest_rules(self):
-        req = am.ask_request("shorter", TEXT, "plain")
+        req = am.ask_request("shorter", TEXT, "plain", owner=object())
         self.assertEqual(self.provider.ask(req), ANSWER)
         seen = self.seen()
         self.assertEqual(seen["args"], ac.arguments(self.cmd, "", am.SUGGEST_RULES)[1:])
@@ -127,19 +129,50 @@ class SuggestionsCarryTheCanary(unittest.TestCase):
 
     def test_a_suggestion_through_ask_provider_gets_a_fresh_canary_and_keeps_suggest_rules(self):
         provider = self.Leaky(lambda canary: "A calmer text.")
-        ask.ask_provider(provider, am.ask_request("shorter", TEXT, "plain"))
-        ask.ask_provider(provider, am.ask_request("shorter", TEXT, "plain"))
+        ask.ask_provider(provider, am.ask_request("shorter", TEXT, "plain", owner=object()))
+        ask.ask_provider(provider, am.ask_request("shorter", TEXT, "plain", owner=object()))
         first, second = provider.seen
         self.assertTrue(first.canary and second.canary and first.canary != second.canary)
         self.assertEqual(first.system, am.SUGGEST_RULES)
 
     def test_a_suggestion_reply_that_holds_the_canary_is_dropped(self):
-        got = ask.ask_provider(self.Leaky(lambda canary: "Here is the text. " + canary), am.ask_request("shorter", TEXT, "plain"))
+        got = ask.ask_provider(self.Leaky(lambda canary: "Here is the text. " + canary), am.ask_request("shorter", TEXT, "plain", owner=object()))
         self.assertEqual(got, ask.Failure(ask.HELD_BACK))
 
     def test_a_suggestion_reply_holding_the_canary_with_hidden_characters_is_dropped_too(self):
-        got = ask.ask_provider(self.Leaky(lambda canary: " - ".join(canary)), am.ask_request("shorter", TEXT, "plain"))
+        got = ask.ask_provider(self.Leaky(lambda canary: " - ".join(canary)), am.ask_request("shorter", TEXT, "plain", owner=object()))
         self.assertEqual(got, ask.Failure(ask.HELD_BACK))
+
+
+class StopEndsASuggestion(CommandFake):
+    """#606: the request a suggestion builds carries its service's owner, so that service's Stop ends the run (and no one else's)."""
+
+    def test_the_request_carries_the_owner_and_cancel_it_is_given(self):
+        mine, cancel = object(), threading.Event()
+        req = am.ask_request("shorter", TEXT, "plain", owner=mine, cancel=cancel)
+        self.assertIs(req.owner, mine)
+        self.assertIs(req.cancel, cancel)
+
+    def test_a_request_with_no_owner_is_refused(self):
+        with self.assertRaises(TypeError):
+            am.ask_request("shorter", TEXT, "plain")
+        with self.assertRaises(TypeError):
+            am.ask_request("shorter", TEXT, "plain", owner=None)
+
+    def test_stop_by_its_owner_ends_the_run_and_another_owners_stop_does_not(self):
+        self.mode("slow")
+        provider = self.make(limit=30)
+        mine, other = object(), object()
+        t = threading.Thread(target=lambda: provider.ask(am.ask_request("shorter", TEXT, "plain", owner=mine)), daemon=True)
+        t.start()
+        deadline = time.monotonic() + 10
+        while self.seen() is None and time.monotonic() < deadline:
+            time.sleep(0.05)
+        self.assertFalse(provider.stop(owner=other))
+        self.assertTrue(t.is_alive())
+        self.assertTrue(provider.stop(owner=mine), "Stop ends a suggestion's run only if its request carries the owner")
+        t.join(10)
+        self.assertFalse(t.is_alive())
 
 
 class TheCanary(unittest.TestCase):
@@ -148,7 +181,7 @@ class TheCanary(unittest.TestCase):
 
     def run_one(self, option, instruction=""):
         provider = Recorder()
-        provider.ask(am.ask_request(option, TEXT, "plain", instruction))
+        provider.ask(am.ask_request(option, TEXT, "plain", instruction, owner=object()))
         return provider.seen[0]
 
     def test_only_the_text_the_options_instruction_and_the_ask_line_arrive(self):
@@ -178,7 +211,7 @@ class TheCanary(unittest.TestCase):
     def test_a_project_object_as_text_or_as_the_ask_line_is_refused(self):
         for text, line in ((self.PROJECT, ""), (TEXT, self.PROJECT)):
             with self.assertRaises(Refused):
-                am.ask_request("custom", text, "plain", line)
+                am.ask_request("custom", text, "plain", line, owner=object())
 
     def test_the_request_is_built_from_the_same_four_things_only(self):
         with self.assertRaises(TypeError):

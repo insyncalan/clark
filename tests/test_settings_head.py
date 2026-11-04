@@ -15,8 +15,8 @@ from test_server import chrome
 
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
-HELP = "Where reports are published, how clark looks for you, the log, your backups and asking Claude."
-CARDS = [("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Logs and diagnostics", "diagnostics-h"), ("Backups", "safety-h"), ("Asking", "ask-settings-h")]
+HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
+CARDS = [("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Logs and diagnostics", "diagnostics-h"), ("Backups", "safety-h"), ("Asking", "ask-settings-h")]
 
 
 def ratio(a, b):
@@ -114,7 +114,7 @@ class Head(Base):
             with self.subTest(mode=mode), chrome() as cdp:
                 p = self.page(cdp)
                 self.open_settings(p, 1400, mode)
-                got = p.js("""[...document.querySelectorAll('.set-nav .set-chip')].map(b => { const s = getComputedStyle(b);
+                got = p.js("""[...document.querySelectorAll('.set-nav .set-chip:not([aria-current])')].map(b => { const s = getComputedStyle(b);
                     return [parseFloat(s.fontSize), s.color, s.backgroundColor, s.borderTopColor]; })""")
                 for size, color, ground, edge in got:
                     self.assertGreaterEqual(size, 13)

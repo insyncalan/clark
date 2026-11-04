@@ -521,6 +521,32 @@ class SavedViews(Line):
         self.assertEqual(self.ids(views["client"]), ["T-R-001"])
         self.assertEqual(self.v(f"viewCount({lit(self.v('DEFAULT_VIEWS')[1])}, {lit(ROWS)}, {lit(CTX)})"), 1)
 
+    def test_a_view_the_line_cannot_read_says_why_in_plain_words(self):
+        """#589: it is listed with a message, not hidden. A view that reads gives no message."""
+        old = {"id": "old", "name": "Old", "line": "is:open colour:red"}
+        said = self.v(f"viewTrouble({lit(old)}, {lit(ROWS)}, {lit(CTX)})")
+        self.assertTrue(said.startswith("This view cannot be used any more. There is no \u201ccolour\u201d filter."), said)
+        self.assertTrue(said.endswith(" Rename it or archive it."), said)
+        self.assertNotIn("Did you mean", said, "the message keeps to its first sentence")
+        self.assertEqual(self.v(f"viewTrouble({lit(self.v('DEFAULT_VIEWS')[0])}, {lit(ROWS)}, {lit(CTX)})"), "")
+        self.assertEqual(self.v(f"viewTrouble(null, {lit(ROWS)}, {lit(CTX)})"), "")
+        needed = self.v("DEFAULT_VIEWS")[2]
+        self.assertIn("is not available on this page yet.", self.v(f"viewTrouble({lit(needed)}, {lit(ROWS)}, {lit(OFF)})"))
+        self.assertEqual(self.v(f"viewTrouble({lit(needed)}, {lit(ROWS)}, {lit(CTX)})"), "", "once the page can answer it, it reads")
+
+    def test_only_a_starting_view_the_page_cannot_answer_yet_is_held_back(self):
+        """#589: Waiting on the client, as given, stays out of the tabs while is:needed is off; the same view edited, or any other, stays in."""
+        base = self.v("DEFAULT_VIEWS")
+        client = base[2]
+        def held(view, ctx):
+            return self.v(f"heldBack({lit(view)}, {lit(ROWS)}, {lit(ctx)})")
+        self.assertTrue(held(client, OFF))
+        self.assertFalse(held(client, CTX), "back as soon as the page can answer it")
+        self.assertFalse(held({**client, "line": "is:needed"}, OFF), "edited: it is the person's view now")
+        self.assertFalse(held({**client, "id": "v9"}, OFF))
+        self.assertFalse(held({"id": "old", "name": "Old", "line": "colour:red"}, OFF))
+        self.assertTrue(all(not held(v, CTX) for v in base))
+
     def test_the_dot(self):
         view = {"id": "o", "name": "Overdue", "line": "is:open due:overdue"}
         def differs(line):
@@ -926,6 +952,15 @@ class Source(unittest.TestCase):
             body = p.read_text(encoding="utf-8")
             for m in re.finditer(r"^\s*(//|#).*$", body, re.M):
                 self.assertNotRegex(m.group(0), r"\b\d{2}-\d{2}-\d{4}\b|\b20\d{2}-\d{2}-\d{2}\b", f"{p.name}: a date in a comment")
+
+    def test_the_line_carries_no_press_slash_hint(self):
+        # #286: "/" opens ask clark in the app, so the line must not advertise it. A plain click or Tab reaches the line.
+        import re
+        jsx = (PAGE_SRC / "components" / "FilterLine.jsx").read_text(encoding="utf-8")
+        for m in re.finditer(r"^(?!\s*//).*$", jsx, re.M):
+            self.assertNotRegex(m.group(0), r"(?i)press\s*(<kbd>)?\s*/|class=\"fkey\"|aria-keyshortcuts", "the line advertises a key")
+        css = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
+        self.assertNotIn(".fkey", css)
 
     def test_it_is_pure(self):
         body = (PAGE_SRC / "logic" / "filterLine.js").read_text(encoding="utf-8")

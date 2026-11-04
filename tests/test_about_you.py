@@ -13,6 +13,7 @@ import json
 import time
 import unittest
 
+from _new_page import reload_to_new_page
 from _paths import SRC
 from test_publish_dialog import Base, PAGE_SRC
 from test_server import chrome
@@ -72,6 +73,16 @@ class AboutYou(Base):
              "window.fetch = (u, o) => (String(u).includes('/api/profile') && o && o.method === 'POST') "
              f"? f(u, o).then((r) => new Promise((ok) => setTimeout(() => {{ const c = r.clone(); window.__answered++; ok(r); c.text().then(() => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(() => window.__handled++)), 0)); }}, d ? d[Math.min(window.__sentn++, d.length - 1)] : {ms}))) : f(u, o); }})()")
 
+    def hold_the_read(self, cdp, p):
+        """Reload the page with its first read of the profile held back (as on a busy computer) until window.__release() is called; the
+        read is sent then, so it answers with what the file holds at that moment. window.__readDone is set when the answer has come."""
+        hold = ("(() => { const f = window.fetch; window.fetch = (u, o) => (String(u).includes('/api/profile') && !(o && o.method === 'POST')) "
+                "? new Promise((ok) => { window.__release = () => ok(f(u, o).then((r) => { window.__readDone = true; return r; })); }) : f(u, o); })()")
+        cdp.call("Page.enable", {}, p.sid)
+        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": hold}, p.sid)
+        reload_to_new_page(p.js, "!!document.querySelector('#profile-btn') && typeof window.__release === 'function'",
+                           "the page is up with its read held back")
+
     def top(self, p):
         return p.js("(() => { const w = document.querySelector('#profile-menu .who'); if (w) return {name: w.querySelector('b').textContent, "
                     "email: (w.querySelector('small') || {}).textContent || '', title: w.title}; "
@@ -107,8 +118,7 @@ class AboutYou(Base):
             self.assertEqual(self.top(p), {"name": "Sam Lee", "email": "sam@example.test", "title": "Sam Lee\nsam@example.test"})
             self.assertEqual(p.js("getComputedStyle(document.querySelector('#profile-menu .who b')).fontWeight >= 500"), True)
             self.close_menu(p)
-            p.js("window.__before_reload = true; location.reload()")
-            p.until("!window.__before_reload && !!document.querySelector('#profile-btn')", "the page again (not the one being left)")
+            reload_to_new_page(p.js, "!!document.querySelector('#profile-btn')", "the page again (not the one being left)")
             self.open_menu(p)
             p.until("!!document.querySelector('#profile-menu .who')", "the menu shows who you are after a reload (read from clark)")
             self.assertEqual(self.top(p)["name"], "Sam Lee")
@@ -292,8 +302,338 @@ class AboutYou(Base):
             self.assertEqual(self.saved().get("profile_name"), "Sam Lee")
             self.handled(p, "Sam Lee")
 
+    # ── the toast and Undo (#429) ───────────────────────────────────────────
+
+    def toast_is(self, p, text):
+        p.until(f"(document.querySelector('.toast .toast-text') || {{}}).textContent === {json.dumps(text)}", f"the toast says {text}")
+
+    def has_undo(self, p):
+        return p.js("!!document.querySelector('.toast [data-undo]')")
+
+    def test_C_saving_the_name_or_the_email_says_so_with_undo_and_a_second_save_of_the_same_words_says_nothing(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.toast_is(p, "Name saved.")
+            self.assertTrue(self.has_undo(p), "Undo is offered")
+            self.type_into(p, "email", "sam@example.test")
+            self.toast_is(p, "Email saved.")
+            self.assertTrue(self.has_undo(p))
+            p.js("document.querySelector('[data-dismiss]').click()")
+            p.until("!document.querySelector('.toast')", "the toast went")
+            self.type_into(p, "email", "sam@example.test")           # the same words again: nothing changed
+            self.handled(p, "Sam Lee", "sam@example.test")
+            time.sleep(0.3)
+            self.assertIsNone(p.js("document.querySelector('.toast')"), "nothing changed, so nothing is said")
+
+    def test_C_undo_puts_the_old_value_back_in_the_box_the_menu_and_the_store(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.handled(p, "Sam Lee")
+            self.type_into(p, "name", "Sam Lee Two")
+            self.toast_is(p, "Name saved.")
+            self.handled(p, "Sam Lee Two")
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee Two")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.handled(p, "Sam Lee")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee", "the box has the old name")
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee", "clark has the old name")
+            self.assertFalse(self.has_undo(p), "the Undo is used up")
+            self.toast_is(p, "Name is back to Sam Lee.")
+
+    def test_C_undo_of_the_first_name_empties_the_box_and_the_menu_asks_for_a_name_again(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.toast_is(p, "Name saved.")
+            self.handled(p, "Sam Lee")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.handled(p, "", "")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "")
+            self.assertEqual(self.saved().get("profile_name", ""), "")
+            self.toast_is(p, "Name is blank again.")
+
+    def test_C_a_refused_save_shows_no_toast_and_no_undo(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "N" * 61)
+            p.until("document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent !== ''", "the refusal shows")
+            time.sleep(0.3)
+            self.assertIsNone(p.js("document.querySelector('.toast')"), "a refusal is said under the box, not in a toast")
+            self.assertEqual(self.saved().get("profile_name", ""), "")
+
+    def test_C_typing_again_after_a_save_takes_the_undo_away_and_nothing_goes_back(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.handled(p, "Sam Lee")
+            self.type_into(p, "name", "Sam Lee Two")
+            self.toast_is(p, "Name saved.")
+            self.handled(p, "Sam Lee Two")
+            self.type_into(p, "name", "Sam Lee Three", leave="none")
+            p.until("!document.querySelector('.toast [data-undo]')", "the Undo is gone once the person has typed again")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee Three", "what was typed stays")
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee Two")
+
+    def test_C_a_late_read_does_not_make_a_save_of_the_stored_words_look_like_a_change(self):
+        """Nothing is offered for a save until clark has said what it holds: a first save never turns the stored words into an 'old value'."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.handled(p, "Sam Lee")
+            reload_to_new_page(p.js, "!!document.querySelector('#profile-btn')", "the page again")
+            self.open_settings(p)
+            p.until("document.querySelector('#about-name').value === 'Sam Lee'", "the box follows what clark holds")
+            self.type_into(p, "name", "Sam Lee")                      # the stored words, saved again
+            self.handled(p, "Sam Lee")
+            time.sleep(0.3)
+            self.assertIsNone(p.js("document.querySelector('.toast')"))
+
+    def both_boxes(self, p, name, email):
+        """Change both boxes, then Enter in the name box: one save carries both."""
+        p.js("(() => { for (const [f, v] of [['name', %s], ['email', %s]]) { const el = document.querySelector('#about-' + f); "
+             "el.value = v; el.dispatchEvent(new Event('input', {bubbles: true})); } "
+             "document.querySelector('#about-name').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true})); })()"
+             % (json.dumps(name), json.dumps(email)))
+
+    def test_C_an_emptied_box_says_cleared_and_undo_says_what_went_back(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.handled(p, "Sam Lee")
+            self.type_into(p, "email", "sam@example.test")
+            self.toast_is(p, "Email saved.")
+            self.type_into(p, "name", "")
+            self.toast_is(p, "Name cleared.")
+            self.assertTrue(self.has_undo(p))
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.toast_is(p, "Name is back to Sam Lee.")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee")
+            self.type_into(p, "email", "")
+            self.toast_is(p, "Email cleared.")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.toast_is(p, "Email is back to sam@example.test.")
+            self.assertEqual(self.saved().get("profile_email"), "sam@example.test")
+
+    def test_C_one_save_of_both_boxes_says_both_and_one_undo_takes_both_back(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.both_boxes(p, "Sam Lee", "sam@example.test")
+            self.toast_is(p, "Name and email saved.")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.toast_is(p, "Name and email are back as they were.")
+            self.assertEqual(self.saved().get("profile_name", ""), "")
+            self.assertEqual(self.saved().get("profile_email", ""), "")
+            self.both_boxes(p, "Sam Lee", "sam@example.test")
+            self.toast_is(p, "Name and email saved.")
+            self.both_boxes(p, "", "")
+            self.toast_is(p, "Name and email cleared.")
+            self.both_boxes(p, "Sam Lee", "sam@example.test")
+            self.toast_is(p, "Name and email saved.")
+            self.both_boxes(p, "", "other@example.test")
+            self.toast_is(p, "Name cleared. Email saved.")
+
+    # ── the toast in View goes as it does in Edit (#429) ────────────────────
+
+    def quick_toasts(self, p):
+        """Make the toast's 20 seconds 0.4 s: the page's own timer (changes.js say), only shorter."""
+        p.js("(() => { const t = window.setTimeout; window.setTimeout = (f, ms, ...a) => t(f, ms === 20000 ? 400 : ms, ...a); })()")
+
+    def test_C_in_view_the_toast_goes_after_its_time_like_in_edit(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true", "the page is in View")
+            self.quick_toasts(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.toast_is(p, "Name saved.")
+            p.until("!document.querySelector('.toast')", "the toast went by itself in View")
+
+    def test_C_in_view_close_takes_the_toast_away_and_the_line_after_undo_shows_and_closes(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.toast_is(p, "Name saved.")
+            p.js("document.querySelector('.toast [data-dismiss]').click()")
+            p.until("!document.querySelector('.toast')", "Close took it away")
+            self.type_into(p, "name", "Sam Lee Two")
+            self.toast_is(p, "Name saved.")
+            self.handled(p, "Sam Lee Two")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.toast_is(p, "Name is back to Sam Lee.")
+            self.assertFalse(self.has_undo(p), "no Undo on the line after Undo")
+            p.js("document.querySelector('.toast [data-dismiss]').click()")
+            p.until("!document.querySelector('.toast')", "the line after Undo closed")
+
+    def test_C_in_view_typing_again_takes_the_toast_away(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.toast_is(p, "Name saved.")
+            self.type_into(p, "name", "Sam Lee Two", leave="none")
+            p.until("!document.querySelector('.toast')", "the toast went once the person typed again")
+
+    def test_C_in_view_leaving_settings_takes_the_toast_and_its_undo_away(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Sam Lee")
+            self.toast_is(p, "Name saved.")
+            self.assertTrue(self.has_undo(p))
+            p.js("[...document.querySelectorAll('.tab')].find((t) => t.dataset.view !== 'settings').click()")
+            p.until("!document.querySelector('#about-name')", "Settings was left")
+            p.until("!document.querySelector('.toast')", "the toast did not follow the person to the report")
+            self.assertFalse(self.has_undo(p))
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee", "leaving does not undo anything")
+
+
+    def test_C_a_late_read_fills_a_box_that_was_typed_in_saved_and_left_alone(self):
+        """The read of what clark has finishes after the person has typed a name and saved it: the box was typed in, but that text is saved
+        and nobody has touched it since, so it follows clark again. (The file is changed behind the page's back to tell the two apart.)"""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.hold_the_read(cdp, p)
+            self.open_settings(p)
+            self.type_into(p, "email", "sam@example.test", leave="none")      # both boxes typed in: the save has nothing to wait for the read for (#420)
+            self.type_into(p, "name", "Sam Lee")
+            self.handled(p, "Sam Lee", "sam@example.test")
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee")
+            (self.rig.data_dir / "settings.json").write_text(json.dumps({**self.saved(), "profile_name": "Other Name"}), encoding="utf-8")
+            p.js("window.__release()")
+            p.until("document.querySelector('#about-name').value === 'Other Name'", "the late read filled the saved, untouched box")
+
+    def test_C_a_save_made_before_the_first_read_has_landed_keeps_the_other_box_saved_value(self):
+        """#420: clark holds a name and an email; the page's read of them is held back, and the person saves the name first. The email box has
+        only the empty draw then, so the save must not send it as empty: the saved email is kept and the saved name is the new one."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            (self.rig.data_dir / "settings.json").write_text(
+                json.dumps({**self.saved(), "profile_name": "Old Name", "profile_email": "old@example.com"}), encoding="utf-8")
+            self.hold_the_read(cdp, p)
+            self.open_settings(p)
+            self.assertEqual(p.js("document.querySelector('#about-email').value"), "", "the read has not landed: the box is the empty draw")
+            self.type_into(p, "name", "Sam Lee")
+            time.sleep(0.5)
+            p.js("window.__release()")
+            deadline = time.time() + 10
+            while time.time() < deadline and self.saved().get("profile_name") != "Sam Lee":
+                time.sleep(0.1)
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee")
+            self.assertEqual(self.saved().get("profile_email"), "old@example.com", "the other box's saved value is kept")
+
+    def test_C_a_late_read_does_not_fill_a_box_typed_in_since_it_was_saved(self):
+        """The same, with more typed after the save and not yet left: that box stays as typed."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.hold_the_read(cdp, p)
+            self.open_settings(p)
+            self.type_into(p, "email", "sam@example.test", leave="none")      # both boxes typed in: the save has nothing to wait for the read for (#420)
+            self.type_into(p, "name", "Sam Lee")
+            self.handled(p, "Sam Lee", "sam@example.test")
+            self.type_into(p, "name", "Sam Lee and more", leave="none")
+            (self.rig.data_dir / "settings.json").write_text(json.dumps({**self.saved(), "profile_name": "Other Name"}), encoding="utf-8")
+            p.js("window.__release()")
+            p.until("window.__readDone === true", "the late read was answered")
+            time.sleep(0.5)
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee and more", "what was typed since stays in the box")
+
+    def test_C_text_typed_back_to_what_was_sent_takes_what_clark_kept(self):
+        """A box that was changed while a save was on its way and then typed back to the text that was sent holds what was sent, so the
+        answer goes in it: the spaces clark cut off the ends go from the box too, and the box and the saved name agree."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.slow_saves(p)
+            self.type_into(p, "name", "  Sam Lee  ")
+            self.type_into(p, "name", "Sam", leave="none")
+            self.type_into(p, "name", "  Sam Lee  ", leave="none")
+            p.until("window.__answered >= 1", "the page was handed the answer")
+            self.handled(p, "Sam Lee")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "Sam Lee")
+            self.assertEqual(self.saved().get("profile_name"), "Sam Lee")
+
+    def test_C_a_refused_text_typed_back_still_shows_its_refusal(self):
+        """The refused text is moved away from while its answer is on its way and typed back before it arrives: the box holds the text that
+        was refused, so the refusal shows, and nothing was saved."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.slow_saves(p)
+            self.type_into(p, "name", "N" * 61)
+            self.type_into(p, "name", "Sam", leave="none")
+            self.type_into(p, "name", "N" * 61, leave="none")
+            p.until("window.__answered >= 1", "the refusal was answered")
+            bad = "document.querySelector('#about-name').closest('.fld').querySelector('.fld-bad').textContent"
+            p.until(f"{bad} !== ''", "the refusal shows")
+            self.assertEqual(p.js(bad), "Your name is too long. Use 60 characters or fewer. Nothing was saved.")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "N" * 61)
+            self.assertEqual(self.saved().get("profile_name"), None, "nothing was written")
+
+    def test_C_an_older_good_email_answer_arriving_late_changes_nothing_on_the_page(self):
+        """An email save is sent first and answered last; a refused one is sent second and answered first. When the older good answer arrives,
+        the refusal is still under the email box, the box still holds the refused text, and the name box is as it was."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.type_into(p, "name", "Old Name")
+            self.handled(p, "Old Name")
+            self.slow_saves(p, delays=[2500, 300])
+            self.type_into(p, "email", "sam@example.com")             # sent first, answered last
+            self.type_into(p, "email", "nope")                         # sent second, refused, answered first
+            bad = "document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent"
+            p.until("window.__answered >= 1", "the refusal was answered")
+            p.until(f"{bad} !== ''", "the refusal shows")
+            p.until("window.__answered >= 2", "the older good save was answered too")
+            time.sleep(0.5)
+            self.assertEqual(p.js(bad), "That email address is not complete. Check it, or leave it empty. Nothing was saved.", "the refusal is still shown")
+            self.assertEqual(p.js("document.querySelector('#about-email').value"), "nope", "what was typed is still in the box")
+            self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), "true")
+            self.assertEqual(p.js("document.querySelector('#about-name').value"), "Old Name", "the name box is as it was")
+            self.assertEqual(p.js("document.querySelector('#about-name').getAttribute('aria-invalid')"), None)
+            self.assertEqual(self.saved().get("profile_email"), "sam@example.com", "the store holds the email that was saved, not the refused one")
+
+    def test_C_an_older_email_refusal_arriving_late_changes_nothing_on_the_page(self):
+        """A refused email save is sent first and answered last; a good one is sent second and answered first. When the older refusal
+        arrives, nothing shows under the email box and the box keeps the saved text."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.slow_saves(p, delays=[2500, 300])
+            self.type_into(p, "email", "nope")                         # sent first, refused, answered last
+            self.type_into(p, "email", "sam@example.com")             # sent second, answered first
+            p.until("window.__answered >= 1", "the good save was answered")
+            p.until("window.__answered >= 2", "the older refused save was answered too")
+            time.sleep(0.5)
+            bad = "document.querySelector('#about-email').closest('.fld').querySelector('.fld-bad').textContent"
+            self.assertEqual(p.js(bad), "", "no refusal over the saved text")
+            self.assertEqual(p.js("document.querySelector('#about-email').value"), "sam@example.com")
+            self.assertEqual(p.js("document.querySelector('#about-email').getAttribute('aria-invalid')"), None)
+            self.assertEqual(self.saved().get("profile_email"), "sam@example.com")
+
 
 class Source(unittest.TestCase):
+    def test_the_toast_words_are_pinned(self):
+        """The words agreed on #429 (01-11-2026), each as the file builds it."""
+        text = (PAGE_SRC / "edit" / "aboutYouToast.js").read_text(encoding="utf-8")
+        for words in ("Name ${said(r.name)}.", "Email ${said(r.email)}.", "Name and email ${said(r.name)}.", "Name ${said(r.name)}. Email ${said(r.email)}.",
+                      '"cleared"', '"saved"', "Name is blank again.", "Name is back to ${b.name}.", "Email is blank again.", "Email is back to ${b.email}.",
+                      "Name and email are back as they were."):
+            self.assertIn(words, text)
+        self.assertNotIn("Undone.", text)
+        self.assertNotIn("Name and email saved. ", text)
+        self.assertTrue((PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8").count("toast.value.own") == 1, "View draws only About you's own toast")
+
     def test_the_words_are_pinned(self):
         text = (PAGE_SRC / "edit" / "Personal.jsx").read_text(encoding="utf-8")
         for words in ("<legend>About you</legend>", '"Your name"', '"Your email"', NAME_LINE, EMAIL_LINE):

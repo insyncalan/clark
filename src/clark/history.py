@@ -260,7 +260,7 @@ def original_date(con, item_id, current=None):
 
 # ===== The display rows (#123): one function the peek's Activity tab and the Excel History sheet both call =====
 
-FOOTNOTE = "Names come from this computer until you add your name in Settings \u203a Profile."
+FOOTNOTE = "Names come from this computer until you add your name in Settings \u203a Personal \u203a About you."
 NO_ZONE = "Time zone not recorded (shown as UTC)"
 ROW_LIMIT = 20000                      # the newest rows the Excel History sheet holds, per project (answered 29-10-2026)
 CLOSING_LINE = "Older history is kept in clark. Showing the newest 20,000 changes."
@@ -306,7 +306,7 @@ COMMON = {
 FIELD_NAMES = {
     "projects": {"name": "Project name", "phase": "Phase", "sponsor": "Sponsor", "health": "Health", "health_reason": "Reason for the health",
                  "active": "Active", "client_name": "Client", "current_state": "Where things stand", "week_ending": "Week ending",
-                 "layout": "Report layout", "publish_local": "Local publish folder", "publish_client": "Client publish folder"},
+                 "review_after_days": "Not reviewed after (days)", "layout": "Report layout", "publish_local": "Local publish folder", "publish_client": "Client publish folder"},
     "milestones": {"name": "Name", "status": "Status"},
     "actions": {"description": "Action"},
     "raid": {"description": "Description", "type": "Type"},

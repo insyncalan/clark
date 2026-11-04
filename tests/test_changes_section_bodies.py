@@ -199,14 +199,12 @@ class Writing(Content):
         self.assertNotIn(MARK, words)
         self.assertIn("the content of", words)
 
-    def test_a_text_section_and_the_built_in_sections_take_no_body(self):
+    def test_the_built_in_sections_take_no_body(self):
         for row in self.rows():
-            if row["type"] in TYPES:
+            if row["type"] in TYPES or row["type"] == "text":      # a text section takes one, through the cleaner (test_changes_text_body)
                 continue
             with self.subTest(type=row["type"], title=row["title"]):
                 self.refused_body(row["id"], text(BODY), changes.NO_BODY_HERE)
-        new_text = self.ok("new", values={"title": "Notes"})["ref"]
-        self.refused_body(new_text, "<p>words</p>", changes.NO_BODY_HERE)               # a text body write stays closed
 
     def test_the_stored_type_decides_which_checker_a_body_meets(self):
         needs, _ = self.make("needs")
@@ -352,14 +350,10 @@ class NothingElseOpens(unittest.TestCase):
         carrying = [(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields]
         self.assertEqual(carrying, [(KIND, "update")])
 
-    def test_the_change_module_has_no_markup_path_for_a_body(self):
+    def test_only_a_text_body_has_a_markup_path_and_it_is_the_cleaner(self):
         src = (store_module.Path(changes.__file__)).read_text(encoding="utf-8")
-        self.assertNotIn("clean_html", src.split("def _section_body")[1].split("\ndef ")[0])
-
-    def test_the_page_still_has_no_text_body_write(self):
-        from _paths import SRC
-        rich = (SRC / "clark" / "page" / "src" / "edit" / "richSave.js").read_text(encoding="utf-8")
-        self.assertIn("export const RICH_WRITES = {};", rich)
+        self.assertNotIn("clean_html", src.split("def _section_body")[1].split("\ndef ")[0])      # _section_body hands a text body on
+        self.assertIn("sanitise.clean_html(body)", src.split("def _text_body")[1].split("\ndef ")[0])
 
 
 if __name__ == "__main__":

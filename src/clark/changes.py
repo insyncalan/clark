@@ -16,8 +16,9 @@ What it does, and does not:
   does not make an empty database, when clark.db isn't there.
 - The reply carries only what the page needs of each section: id, type, title, beside, hidden, sort_order. Never its body.
 - A section may be added as text, needs or tracker (NEW_SECTION_TYPES, an allow-list). An update may write `body` only for a
-  needs or tracker section, through the checker registry section_bodies.CHECKERS keyed by the STORED type; each save replaces
-  the whole body in one step with one Undo. A needs or tracker section may be deleted like a text one (Undo-able, kept in
+  needs or tracker section, through the checker registry section_bodies.CHECKERS keyed by the STORED type, or for a text section
+  through sanitise.clean_html (_text_body); each save replaces the whole body in one step with one Undo. A needs or tracker
+  section may be deleted like a text one (Undo-able, kept in
   change_log): "we archive, we never delete" is about work items and is not breached.
 - #96 R1, pictures: a section template that holds pictures (its section_kinds module has `with_picture`) never takes one through
   /api/change: a body sent there may not name `pictures`, may be at most the module's TEXT_LIMIT, and keeps the pictures already
@@ -39,6 +40,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from clark import backup, doclinks, milestone_rows, milestones, order, platform, sanitise, section_bodies, section_kinds
+from clark import people as people_rules
 from clark import store as clark_store
 from clark.section_kinds import base as section_base, textimage as pictures
 from clark.store import Invalid
@@ -46,7 +48,7 @@ from clark.store import Invalid
 # The ops, as the request names them. Made from one string, not written one by one: tests/test_store_writer.py reads a lone
 # "update" or "delete" string anywhere in src/ as SQL (its check is case-blind until #39's case-sensitive version merges), and
 # these are not SQL: no op here is ever put in a statement.
-NEW, UPDATE, MOVE, DELETE, ARCHIVE, RESTORE, PICK, BULK = "new update move delete archive restore pick bulk".split()
+NEW, UPDATE, MOVE, DELETE, ARCHIVE, RESTORE, PICK, BULK, HAND_OVER, LINK = "new update move delete archive restore pick bulk handover link".split()
 
 # The allow-list: kind -> op -> the fields a request may give (`values` for new, `changes` for update). A field must also
 # be a column of the table (tests/test_changes.py asserts it for each). sort_order, project, id and type (after creation)
@@ -58,15 +60,15 @@ CHANGE_KINDS = {
     "report_sections": {NEW: ("type", "title"), UPDATE: ("title", "hidden", "beside", "body"), MOVE: ("beside",), DELETE: ()},   # a body is written only for a needs or tracker section: see _section_body
     # #68: the work items board changes an item's fields, and nothing else. Only `update`: no new, move or delete for these kinds
     # (an item is closed or cancelled by its status, and archived only by archiving). priority is not in raid's list because the
-    # store works it out from impact and likelihood; `archived` is in no list.
+    # store works it out from impact and likelihood (D-12: the status picker's Rating sets those two); `archived` is in no list.
     # #67: a work item's title is the column the page shows as its title: an action's and a RAID item's `description`, a decision's `decision`.
-    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description")},
-    "raid": {UPDATE: ("status", "workstream", "owner", "due_date", "milestone", "use_case", "description")},
-    "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision")},   # #45: use_case links an existing use case of this project, or clears the link
+    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_visible")},   # the peek's Latest update (an action's only)
+    "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_visible")},
+    "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision", "client_visible")},   # #45: use_case links an existing use case of this project, or clears the link
     # #45: the At a glance tiles and the project's health. A tile is hidden, given an outline colour or moved (its place is worked
     # out here, never sent); the project's change takes no `id` (it is the request's project) and only its health and the reason.
     "glance_tiles": {UPDATE: ("hidden", "outline"), MOVE: ()},
-    "projects": {UPDATE: ("health", "health_reason", "week_ending")},     # week_ending: the report bar's date (YYYY-MM-DD)
+    "projects": {UPDATE: ("health", "health_reason", "week_ending", "review_after_days")},     # week_ending: the report bar's date (YYYY-MM-DD); #171: review_after_days, a whole number from 1 to 365
     # #136: Milestones Movement. The dates, Done, the state with its reason, the client wording and the Movement choice. Never the
     # owner, the name, the workstream, the place or the archive flag (archive stays its own op). #458: + the internal note, the one
     # box Movement keeps for the owner (owner only: never in a reply, a Movement entry or a published file).
@@ -74,16 +76,16 @@ CHANGE_KINDS = {
                             "client_message", "movement", "internal_note")},
     # #164: an EXISTING use case's name, headline, status, standing text and eye (client_visible). Only `update` here: the
     # archive and restore ops below are #126's, and there is no new, move or delete for use cases.
-    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible"), NEW: ("ref", "title", "status", "headline")},   # #455: and a NEW one (below)
+    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible"), NEW: ("ref", "title", "status", "headline"), LINK: ()},   # #455: and a NEW one (below); #485: link work items to it (no fields: the items' own use_case is set)
     # #67: the eye on a report row. `new` hides the row from the report and `delete` shows it again; both take only the item's id
     # (no values: the row is the pair project + item, and the project is the request's).
     # `pick` is the picker's Add (see _do_pick): it puts several hidden rows back on the page in one step.
     "report_hidden": {NEW: (), DELETE: (), PICK: ()},
 }
-KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values",)} for k in NEWABLE},   # per kind, the keys an op takes when they are not OP_KEYS' (a project has no id)
+KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values", "copy_of") if k in ("actions", "raid", "decisions") else ("values",)} for k in NEWABLE},   # per kind, the keys an op takes when they are not OP_KEYS' (a project has no id)
                 "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)},
                 "report_sections": {NEW: ("values", "after", "beside")}}      # #149: a new section may go beside the one it is added after, in the same step
-KIND_OP_KEYS["use_cases"] = {NEW: ("values",)}    # #455: a new use case is only `values` (its reference, name, status and headline); no id is sent
+KIND_OP_KEYS["use_cases"] = {NEW: ("values",), LINK: ("id", "ids")}    # #455: a new use case is only `values` (its reference, name, status and headline); no id is sent. #485: `link` names the use case and the work items to link to it
 KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline")     # #136: a milestone's agreed date moves with a `rebaseline`
 TILES = ("health", "overdue", "risks", "decisions")  # glance_tiles.tile (the store's ALLOWED holds the same four; a test says so)
 TILE_WORDS = {"health": "Project health", "overdue": "Overdue actions", "risks": "High risks and issues",
@@ -97,20 +99,23 @@ HEALTHS = ("On track", "At risk", "Off track")
 # that changed another project field (a name, a phase) is never undone from here. `updated_at` and `note` follow any change.
 UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions": None, "report_hidden": None,
             "glance_tiles": ("hidden", "outline", "sort_order"),
-            "projects": ("health", "health_reason", "week_ending", "archived", "active"),       # #126: a project's own archive or restore step sets the flag and `active`
+            "projects": ("health", "health_reason", "week_ending", "review_after_days", "archived", "active"),       # #126: a project's own archive or restore step sets the flag and `active`
             "milestones": ("archived", "baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
                            "client_message", "movement", "internal_note"),     # #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
             "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible"), "documents": ("archived",) + DOC_FIELDS, "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
-CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone", "latest_update")      # #67: a row added in the report: no id,
-CHANGE_KINDS["raid"][NEW] = ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone")   # raised, status or source
-CHANGE_KINDS["decisions"][NEW] = ("decision", "made_by", "status", "date", "needed_by", "reasoning")      # (clark gives those), and no priority on a risk (worked out)
+CHANGE_KINDS["actions"][NEW] = ("description", "owner", "priority", "due_date", "workstream", "milestone", "client_visible", "latest_update", "use_case")      # #485: a next step added from a use case's row names it; #67: a row added in the report: no id,
+CHANGE_KINDS["raid"][NEW] = ("type", "description", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible")   # raised, status or source
+CHANGE_KINDS["decisions"][NEW] = ("decision", "made_by", "status", "date", "needed_by", "client_visible", "reasoning")      # (clark gives those), and no priority on a risk (worked out)
 CHANGE_KINDS["milestones"][NEW] = ("name", "baseline_date", "owner", "workstream")
 # #196: one field change to several work items of one kind, in one step with one Undo (_do_bulk). A risk's impact and likelihood
 # are here (its priority is worked out from them); a decision takes only who makes it.
 CHANGE_KINDS["actions"][BULK] = ("status", "owner", "due_date", "priority", "workstream", "milestone")
 CHANGE_KINDS["raid"][BULK] = ("status", "owner", "due_date", "impact", "likelihood", "workstream", "milestone")
 CHANGE_KINDS["decisions"][BULK] = ("made_by",)
+HAND_OVER_FIELD = {"actions": "owner", "raid": "owner", "decisions": "made_by"}      # #199: who has a work item; the one field a hand over changes
+for _kind, _field in HAND_OVER_FIELD.items():
+    CHANGE_KINDS[_kind][HAND_OVER] = (_field,)
 CHANGE_KINDS["documents"] = {NEW: DOC_FIELDS, UPDATE: DOC_FIELDS}          # #74 (archive and restore are added below)
 KIND_OP_KEYS["documents"] = {NEW: ("values",)}
 for _kind in ARCHIVABLE:                              # #126: every record can be archived and restored, with no fields; the items keep their update
@@ -120,16 +125,18 @@ UC_FIELDS = CHANGE_KINDS["use_cases"][UPDATE]        # #164: what a request may 
 UC_REF_LIMIT = 20                                    # #455: a new use case's reference as the project writes it ("3.1"), in characters
 UC_NAME_LIMIT = 120                                  # a use case's name, in characters
 UC_HEADLINE_LIMIT = 300                              # its one-line headline
-ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision")
-CLEARED_BY_NEW = ("owner", "priority", "status", "description", "decision", "type", "name", "impact", "likelihood")   # sent as null on a new row: refused      # a work item field that has to have a value (the others may be cleared)
+ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision", "impact", "likelihood")   # D-12: a rating is never cleared, as a new row
+CLEARED_BY_NEW = ("owner", "priority", "status", "description", "decision", "type", "name", "impact", "likelihood", "client_visible")   # sent as null on a new row: refused      # a work item field that has to have a value (the others may be cleared)
 EXPLAIN_FIELDS = ("latest_update", "reasoning")      # #458: the one explanation line a new action or decision may start with (Movement's buttons); never said back, never in ask clark's before and after
 TITLE_FIELDS = ("description", "decision")           # #67: a work item's title; never said back in a reply (the page keeps what it sent); a new milestone's name is held to the same
 ITEM_SHOWN = {k: ("id",) + tuple(f for f in CHANGE_KINDS[k][UPDATE] if f not in TITLE_FIELDS) + (("closed",) if k != "decisions" else ())
-              for k in ITEM_KINDS}                   # what a reply says of a changed item
+              + (("priority",) if k == "raid" else ()) for k in ITEM_KINDS}   # what a reply says of a changed item: a risk's priority too,
+                                                     # which the store works out from impact and likelihood (said back, never taken)
 FLAG_FIELDS = ("hidden", "beside")        # 0 or 1 only: a bool, a float, a string or any other number is refused
 BASE_KEYS = ("project", "kind", "op", "place")
 OP_KEYS = {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "before", "flags"), DELETE: ("id",),
-           ARCHIVE: ("id",), RESTORE: ("id",), PICK: ("ids",), BULK: ("ids", "changes", "confirm")}
+           ARCHIVE: ("id",), RESTORE: ("id",), PICK: ("ids",), BULK: ("ids", "changes", "confirm"), HAND_OVER: ("ids", "to", "confirm"),
+           LINK: ("id", "ids")}
 MAX_PICK = 100                            # the picker adds at most this many rows in one step
 MAX_BULK = 500                            # #196: a bulk change names at most this many items (the body limit allows about this many)
 BULK_CONFIRM_ABOVE = 25                   # #196: more items than this need the request's `confirm`, counting every id sent
@@ -156,6 +163,7 @@ NOT_MINE = "That section isn't in this project."
 NOT_MINE_RECORD = "That isn't in this project. Reload the page and try again."        # #126: another project's record and a missing one get the same words
 NOT_A_TILE = "That tile isn't in this project."          # an unknown tile and another project's: the same words
 BAD_OUTLINE = "That outline colour isn't one clark has."
+BAD_REVIEW_DAYS = "Choose a whole number of days from 1 to 365. Nothing was changed."        # #171: the one refusal for every value that is not a whole number in that range
 BAD_WEEK = "The week ending date must be a real date. The old date was kept. Pick a date and try again."
 NOT_FRIDAY = "Week ending is a Friday. Pick Friday {friday}."      # #570: {friday} is DD-MM-YYYY, the Friday on or after the date
 BAD_HEALTH = "Health can be On track, At risk or Off track."
@@ -169,6 +177,7 @@ DOC_KIND_WORDS = clark_store.DOC_KIND_WORDS
 ALREADY_HIDDEN = "That is hidden from the report already."
 NOT_HIDDEN = "That isn't hidden from the report."
 PICK_NOTHING = "Choose at least one item to add."
+LINK_NOTHING = "Choose at least one work item to link."
 PICK_TOO_MANY = f"Choose at most {MAX_PICK} items at a time."
 PICK_NOT_HIDDEN = "One of those is already on the page. Reload the page and try again."
 PICK_SENSITIVE = "A Sensitive item is never published, so it can't be added to the report."
@@ -181,6 +190,13 @@ BULK_CONFIRM = "Send confirm as true or false."
 BULK_ARCHIVED = "It is archived. Restore it first."
 BULK_DECIDED = "It has been made or withdrawn, so who made it stays as recorded. Record a new decision instead."
 DECIDED = ("Made", "Withdrawn")              # #196: a decision with one of these keeps its `made_by` in a bulk change
+HAND_OVER_DONE = clark_store.CLOSED_STATUSES + DECIDED     # #199: an item with one of these keeps who has it (the page's CLOSED list; a test pins the two)
+BULK_CLOSED = "It is closed, so who had it stays as recorded."
+HAND_OVER_NOBODY = "Say who to hand them over to: a person, not TBC."
+HAND_OVER_UNKNOWN = "That name isn't on the people list. Check the spelling, or add the person to the list first."
+HAND_OVER_MANY = "More than one person on the people list has that name, so clark can't tell who you mean. Nothing changed."
+HAND_OVER_CHANGED = "Who has it was changed after the hand over, so it can't be undone. Nothing was changed."
+HAND_OVER_ARCHIVED = "That person is archived on the people list. Restore them first, then hand over."
 BULK_GONE = "It isn't in this project now. Reload the page."
 BULK_NONE_CAN = "Nothing changed: none of these items can take that change."
 BULK_ALREADY = "Nothing changed: they already have that."
@@ -190,6 +206,9 @@ NO_RAID_PRIORITY = "A risk or issue's priority comes from its impact and likelih
 NO_DECISION_FIELD = {"workstream": "A decision isn't part of a workstream.", "milestone": "A decision isn't tied to a milestone.",
                      "priority": "A decision has no priority."}
 ITEM_VALUE_WORDS = "That value isn't one clark can use."
+LATEST_UPDATE_MAX = 1000                  # the most characters a latest update may have
+LATEST_LONG_WORDS = f"A latest update can be at most {LATEST_UPDATE_MAX} characters. Shorten it and try again."
+LATEST_HIDDEN_WORDS = "That has a hidden character in it. Take it out and try again."     # a latest update may have line breaks, so ITEM_TEXT_WORDS would be wrong
 ITEM_TEXT_WORDS = "Use plain text, with no line breaks or hidden characters."
 NOTE_TEXT_WORDS = "Use plain text, with no hidden characters."      # #458: the internal note may hold line breaks
 ITEM_BAD_KINDS = frozenset({"Cc", "Cf", "Cs", "Co", "Zl", "Zp"})   # as the store's section titles: control, format, surrogate, private use, separators
@@ -199,7 +218,20 @@ NOT_A_CHOICE = "That choice isn't one clark has."
 NEW_NEEDS = {"actions": "Say what the action is.", "raid": "Say what the risk or issue is, and whether it is a risk, assumption, issue or dependency.",
              "decisions": "Say what the decision is.", "milestones": "Give the milestone a name."}
 NEW_SOURCE = "Added by hand in clark"       # the row's source, as the prototype words it; never taken from a request
+COPY_SOURCE = "Duplicated from "             # #442: a copy's source, then the item's id (system/prototype/peek.js, Duplicate)
+COPY_MARK = " (copy)"                        # #442: the end of a copy's title
+ITEM_TITLE_MAX = 200                         # a work item's title, at most (_checked_item_changes)
+COPIED = {                                   # #442: what Duplicate copies from the stored item (the prototype copies the item whole); never the
+    "actions": ("workstream", "owner", "owner_id", "priority", "due_date", "status", "latest_update", "client_message", "milestone", "use_case"),
+    "raid": ("type", "workstream", "owner", "owner_id", "response_action", "due_date", "impact", "likelihood", "status", "client_message", "milestone", "use_case"),
+    "decisions": ("made_by", "owner_id", "date", "status", "needed_by", "reasoning", "options", "revisit", "use_case", "client_message"),
+}                                            # id, raised, closed, archived, history or a decision's `replaces`; a RAID priority is worked out again
 NOT_A_STATUS = "That status isn't available for this item."
+# D-12: the status picker's Rating sets a risk's or issue's impact and likelihood; these are its own refusals.
+RATING_FIELDS = ("impact", "likelihood")
+NOT_A_RATING = "Impact and likelihood are each High, Medium or Low, so nothing was changed. Pick a rating from the list."
+RATING_KINDS = ("Risk", "Issue")
+RATING_NOT_THIS_KIND = "Only a risk or an issue has a rating, so nothing was changed. Pick a status instead."
 NO_WORKSTREAM = "That workstream isn't available."
 ARCHIVED_MILESTONE = "That milestone is archived. Restore it first."
 NOT_PLANNED = "A Hold or a Rebaseline is for a Planned milestone. This one is not Planned."
@@ -237,6 +269,8 @@ NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES         # what a new s
 NEW_TYPE_WORDS = "That kind of section can't be added."
 NO_BODY_HERE = "That kind of section can't take content this way."
 BODY_NOT_TEXT = "A section's content must be sent as text."
+BIDI_CONTROLS = re.compile("[\u202a-\u202e\u2066-\u2069]")   # the nine bidi override, embedding and isolate marks: they can make text read backwards (zero-width joiners stay: emoji need them)
+TEXT_BODY_MAX = 64 * 1024               # bytes of a text section's body as stored; never more than server.SECTION_BODY_MAX, the most the change route carries (a test holds it at or under, so either may be raised alone)
 KEEPS_TYPE = "A section keeps its type."
 FLAG_WORDS = "That must be 0 or 1."
 NO_UNDO = "That step can't be undone from here."
@@ -304,7 +338,7 @@ def _shape(req):
             raise Refused(f"That change doesn't take '{_shown(k)}'.")
     place = req.get("place")
     if place is not None and (not isinstance(place, str) or place not in PLACES + ((MOVEMENT_PLACE,) if (kind, op) == ("milestones", UPDATE) else ())
-                              + ((BULK_PLACE,) if op == BULK else ())):
+                              + ((BULK_PLACE,) if op in (BULK, HAND_OVER) else ())):
         raise Refused(BAD_PLACE)
     return project, kind, op, place
 
@@ -355,12 +389,27 @@ def _checked_item_changes(fields):
     short. The store checks the rest (the words a status may take, a real date, an active workstream, this project's
     milestone); its refusals are put into plain words in _do_item_change."""
     fields = {k: (None if k == "use_case" and v == "" else v) for k, v in fields.items()}    # an empty use case clears the link
+    sent_latest = "latest_update" in fields                        # a JSON false is a value to refuse, not a field left out
+    latest = fields.pop("latest_update", None)                     # the peek's Latest update: plain text, line breaks allowed, up to 1000 characters, blank clears it
+    if sent_latest:
+        if latest is not None and not isinstance(latest, str):
+            raise Refused(ITEM_VALUE_WORDS)
+        if isinstance(latest, str) and len(latest) > LATEST_UPDATE_MAX:
+            raise Refused(LATEST_LONG_WORDS)
+        if isinstance(latest, str) and not _plain_text(latest.replace("\n", "")):
+            raise Refused(LATEST_HIDDEN_WORDS)
+        latest = unicodedata.normalize("NFC", latest).strip() or None if isinstance(latest, str) else None
+    flag = {k: _flag(v) for k, v in fields.items() if k == "client_visible"}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
+    fields = {k: v for k, v in fields.items() if k != "client_visible"}
     for k, v in fields.items():
         if v is None and k in ITEM_NOT_NULL or v is not None and (not isinstance(v, str) or not v.strip() or len(v) > 200):
             raise Refused(ITEM_VALUE_WORDS)
         if isinstance(v, str) and not _plain_text(v):
             raise Refused(ITEM_TEXT_WORDS)
-    return {k: (unicodedata.normalize("NFC", v).strip() if isinstance(v, str) else v) for k, v in fields.items()}
+    out = {k: (unicodedata.normalize("NFC", v).strip() if isinstance(v, str) else v) for k, v in fields.items()}
+    if sent_latest:
+        out["latest_update"] = latest
+    return {**out, **flag}
 
 
 def _store_words(e):
@@ -398,9 +447,11 @@ def _checked_changes(fields):
 def _section_body(section, body):
     """The canonical text of `body` for the stored section `section` (a row of this project), through the one checker registry
     (section_bodies.CHECKERS, keyed by the STORED type: the request never says which type it is). Only a needs or tracker section
-    takes a body here; a text section's body write stays closed until its own item opens it. A refusal is plain words and never
+    takes a body here, and a text section (Summary, This week, Next week) through the cleaner (_text_body). A refusal is plain words and never
     quotes the content. The store checks it again on write (every write, an Undo too). A section that holds pictures (#96 R1)
     takes its words here and keeps its stored pictures (_keep_pictures)."""
+    if section["type"] == "text":
+        return _text_body(body)
     if section["type"] not in section_bodies.CHECKERS:
         raise Refused(NO_BODY_HERE)
     try:
@@ -409,6 +460,19 @@ def _section_body(section, body):
         return clark_store.check_section_body(section["type"], body)
     except Invalid as e:
         raise Refused(str(e)) from None
+
+
+def _text_body(body):
+    """A text section's body as it is stored: the server's own cleaner (sanitise.clean_html) decides what is kept, never the page's
+    copy of it. Bidi override marks are dropped first. Over TEXT_BODY_MAX bytes once cleaned, or text the cleaner refuses (too long), is refused in plain words."""
+    body = BIDI_CONTROLS.sub("", body)      # dropped BEFORE the cleaner, so it judges the text that is kept (a mark inside a link's address can't hide it)
+    try:
+        text = sanitise.clean_html(body)
+    except sanitise.SanitiseError:
+        raise Refused(WORDS_TOO_LONG) from None
+    if len(text.encode("utf-8")) > TEXT_BODY_MAX:
+        raise Refused(WORDS_TOO_LONG)
+    return text
 
 
 # ── Pictures in a section template (#96 R1) ───────────────────────────────────
@@ -613,7 +677,7 @@ def _do_change(store, by_user, req):
     if store.read("projects", ref=project) is None:
         raise Refused(NO_PROJECT, 404, "project_not_found")
     table = next(k for k in CHANGE_KINDS if k == kind)              # the allow-list's own spelling, never the request's
-    if (kind == "report_hidden" or op == BULK or (op == NEW and kind in NEWABLE)) and clark_store.is_archived(store.con, project):
+    if (kind == "report_hidden" or op in (BULK, HAND_OVER) or (op == NEW and kind in NEWABLE)) and clark_store.is_archived(store.con, project):
         raise Refused(PROJECT_NOT_ACTIVE)                           # #67: an archived project is read only; said alike for show, hide, pick and a new row
     if op in (ARCHIVE, RESTORE):
         return _do_archive(store, by_user, project, table, op, place, req.get("id"))
@@ -626,6 +690,8 @@ def _do_change(store, by_user, req):
         return _do_new_row(store, by_user, req, project, table, columns, place)
     if op == BULK:
         return _do_bulk(store, by_user, req, project, table, columns, place)
+    if op == HAND_OVER:
+        return _do_hand_over(store, by_user, req, project, place)
     if kind in ITEM_KINDS:
         return _do_item_change(store, by_user, req, project, table, columns, place)
     if kind == "milestones":
@@ -753,20 +819,42 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
     if table == "decisions":
         values.setdefault("status", "Pending")
     values.update(project=project, source=NEW_SOURCE)
+    source = req.get("copy_of")
+    if source is not None and (table not in ITEM_KINDS or not isinstance(source, str)):
+        raise Refused(ITEM_NOT_MINE)
     with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: the next number is read and used inside it
+        link = values.get("use_case")                               # #485: a next step added from a use case's row: an existing, live use case of this project
+        if link is not None:
+            found = store.read("use_cases", ref=link) if _belongs("use_cases", link, project) else None
+            if found is None or found["project"] != project:
+                raise Refused(NO_USE_CASE)
+            if found["archived"]:
+                raise Refused(ARCHIVED_USE_CASE)
+        if source is not None:                                      # Duplicate: the copy is the item again, so it carries the item's labels and its hiding from the report (a Sensitive item's copy stays Sensitive and unpublished), read inside the step
+            was = store.read(table, ref=source) if _belongs(table, source, project) else None
+            if was is None or was["project"] != project or was["archived"]:
+                raise Refused(ITEM_NOT_MINE)
+            values = {k: was[k] for k in COPIED[table] if was[k] is not None}     # #442: the copy's fields are the STORED item's, never the request's
+            values[first] = was[first][:ITEM_TITLE_MAX - len(COPY_MARK)] + COPY_MARK
+            values.update(project=project, source=COPY_SOURCE + source, **({"raised": clark_store.today()} if table in ("actions", "raid") else {}))
+            values["labels"] = clark_store.labels_of(st.con, source)
+            values["client_visible"] = 1 if was["client_visible"] else 0   # #424: the eye is the item's own, whatever the request carried
+            hide = store.read("report_hidden", ref=f"{project}|{source}") is not None
         try:
             ref = st.create(table, values)
+            if source is not None and hide:
+                st.create("report_hidden", {"project": project, "item_id": ref})
         except Invalid as e:                                        # a rule of the store, in fixed words: no field name, no value
             words_ = _store_words(e)
             if words_ is None:
                 raise
             raise Refused(words_) from None
-        if any(values.get(f) for f in EXPLAIN_FIELDS):              # #487: a row that starts with Movement's explanation line starts hidden from the client (the eye off), in this same step so one Undo takes both back; the owner shows it when he chooses
+        if source is None and any(values.get(f) for f in EXPLAIN_FIELDS):   # #487 (not a copy: its hiding is the item's own, above): a row that starts with Movement's explanation line starts hidden from the client (the eye off), in this same step so one Undo takes both back; the owner shows it when he chooses
             if not st.is_hidden(project, ref):
                 st.create("report_hidden", {"project": project, "item_id": ref})     # only if no hiding row is there yet (a Duplicate of a hidden item makes one too; the key is project + item, so a second would fail)
         apply_id = st.peek_apply_id()
     row = store.read(table, ref=ref)
-    shown = ("id",) + tuple(f for f in CHANGE_KINDS[table][NEW] if f not in TITLE_FIELDS + EXPLAIN_FIELDS + ("name",)) + (("raised",) if table in ("actions", "raid") else ()) + ("status",) \
+    shown = ("id",) + tuple(f for f in CHANGE_KINDS[table][NEW] if f not in TITLE_FIELDS + EXPLAIN_FIELDS + ("name", "client_visible")) + (("raised",) if table in ("actions", "raid") else ()) + ("status",) \
         + (("priority",) if table == "raid" else ())
     return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "item": {k: row[k] for k in dict.fromkeys(shown)}}
 
@@ -783,6 +871,11 @@ def _do_item_change(store, by_user, req, project, table, columns, place):
         row = store.read(table, ref=ref) if isinstance(ref, str) else None
         if row is None or row["project"] != project or row["archived"]:
             raise Refused(ITEM_NOT_MINE)
+        if table == "raid" and any(f in changes for f in RATING_FIELDS):   # D-12: a risk or issue only, whatever its status (#448), High, Medium or Low
+            if row["type"] not in RATING_KINDS:
+                raise Refused(RATING_NOT_THIS_KIND)
+            if any(changes[f] not in clark_store.ALLOWED[("raid", f)] for f in RATING_FIELDS if f in changes):
+                raise Refused(NOT_A_RATING)
         link = changes.get("use_case")
         if link is not None:                                        # an existing use case of this project, else the same words for every other case
             found = store.read("use_cases", ref=link) if _belongs("use_cases", link, project) else None
@@ -1111,8 +1204,10 @@ def _use_case_shown(row):
 def _do_new_use_case(store, by_user, req, project, table, columns, place):
     """#455: add one use case to THIS project, in one step (it is in the change log under its own apply id and shows in History). The
     request gives its reference (as the project writes it, "3.1"), name, status and headline; clark gives the id (the next -U-
-    number), the project, the place at the end of the list, the source, and puts it on the dashboard (client_visible is set here to 1,
-    the store's own default, not left to the table). The name and headline are held to the same plain-text rule as an edit.
+    number), the project, the place at the end of the list and the source. #455 (the owner, 03-11-2026): a new use case is hidden from the
+    client by default, so client_visible is set here to 0 (eye off), not left to the table's default of 1, which existing and imported
+    use cases keep; it is off the dashboard and out of the published file until the eye is turned on (the Use cases page's eye, or the
+    dashboard's "Add a use case from your project record"). The name and headline are held to the same plain-text rule as an edit.
     A reference that any use case of the project already has, archived or not, is refused: an archived use case's reference is still
     taken, and a Restore must never bring back a second live one with it. The reply has no Undo (see below). Nothing is written when
     anything is refused."""
@@ -1127,7 +1222,7 @@ def _do_new_use_case(store, by_user, req, project, table, columns, place):
         raise Refused(UC_NAME_WORDS)
     values.setdefault("status", "On track")
     values.setdefault("headline", "")
-    values.update(ref=ref_text, project=project, source=NEW_SOURCE, client_visible=1)
+    values.update(ref=ref_text, project=project, source=NEW_SOURCE, client_visible=0)   # #455: hidden from the client until the eye is on
     with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: the next number is read and used inside it
         mine = store.read(table, project=project)                   # live AND archived: an archived use case's reference is still taken
         if any(str(r["ref"]).strip().casefold() == ref_text.casefold() for r in mine):
@@ -1152,6 +1247,8 @@ def _do_use_case_change(store, by_user, req, project, table, columns, place, op)
     written when anything is refused."""
     if op == NEW:
         return _do_new_use_case(store, by_user, req, project, table, columns, place)
+    if op == LINK:
+        return _do_link_use_case(store, by_user, req, project, table, place)
     ref = req.get("id")
     changes = _checked_use_case_changes(_fields(req.get("changes"), table, UPDATE, columns, "the changes"))
     if not changes:
@@ -1172,6 +1269,48 @@ def _do_use_case_change(store, by_user, req, project, table, columns, place, op)
         apply_id = st.peek_apply_id()                               # None when nothing changed: the page shows no Undo
     return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref,
                  "use_case": _use_case_shown(store.read(table, ref=ref))}
+
+
+def _do_link_use_case(store, by_user, req, project, table, place):
+    """#485: link existing work items (actions, risks and issues, decisions, of any mix) to ONE use case of THIS project, in one step with
+    one Undo: each item's `use_case` is set to the use case; an item already linked to it is left as it is, and one linked to another use
+    case moves. The whole request is checked before anything is written: the use case must be this project's and live, every item
+    must be a live work item of this project (an id that is not, another project's item, an archived one and a use case's own id get the
+    same words and are never said back). The reply gives the Undo only when something changed."""
+    if clark_store.is_archived(store.con, project):
+        raise Refused(PROJECT_NOT_ACTIVE)
+    given = req.get("ids")
+    if not isinstance(given, list) or not given:
+        raise Refused(LINK_NOTHING)
+    if len(given) > MAX_PICK:
+        raise Refused(PICK_TOO_MANY)
+    ids = []
+    for item in given:
+        if not (isinstance(item, str) and clark_store.ITEM_ID.fullmatch(item) and clark_store.item_table(item) in ITEM_KINDS):
+            raise Refused(ITEM_NOT_MINE)
+        if item not in ids:
+            ids.append(item)
+    ref = req.get("id")
+    with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: what is read next is what is changed
+        found = store.read(table, ref=ref) if isinstance(ref, str) else None
+        if found is None or found["project"] != project:
+            raise Refused(UC_NOT_MINE)
+        if found["archived"]:
+            raise Refused(ARCHIVED_USE_CASE)
+        plan = []
+        for item in ids:
+            item_table = clark_store.item_table(item)
+            row = store.read(item_table, ref=item)
+            if row is None or row["project"] != project or row["archived"]:
+                raise Refused(ITEM_NOT_MINE)
+            if row["use_case"] != ref:
+                plan.append((item_table, item))
+        for item_table, item in plan:
+            st.update(item_table, item, {"use_case": ref})
+        apply_id = st.peek_apply_id()                               # None when nothing changed: the page shows no Undo
+    return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref, "linked": [item for _, item in plan]}
+
+
 HIDABLE = ("milestones", "actions", "raid", "decisions", "use_cases")      # what the eye can hide: the store's own list of items a report shows
 
 
@@ -1277,8 +1416,8 @@ def _do_pick(store, by_user, req, project, table, place):
 
 
 def _bulk_ids(given, project, table):
-    """A bulk change's `ids`: a list of 1 to MAX_BULK work item ids, each of THIS project and of `table`'s kind, duplicates
-    dropped (first kept). Worked out from the id alone, before anything is read, so a refusal tells nothing of what exists."""
+    """A bulk change's `ids`: a list of 1 to MAX_BULK work item ids, each of THIS project and of `table`'s kind (#199: of any
+    work item kind when `table` is None), duplicates dropped (first kept). Worked out from the id alone, before anything is read, so a refusal tells nothing of what exists."""
     if not isinstance(given, list) or not given:
         raise Refused(BULK_NOTHING)
     if len(given) > MAX_BULK:
@@ -1290,7 +1429,9 @@ def _bulk_ids(given, project, table):
             raise Refused(ITEM_NOT_MINE)
         if m.group(1) != project:
             raise Refused(BULK_PROJECTS)
-        if clark_store.item_table(ref) != table:
+        if table is None and clark_store.item_table(ref) not in ITEM_KINDS:
+            raise Refused(ITEM_NOT_MINE)
+        if table is not None and clark_store.item_table(ref) != table:
             raise Refused(BULK_KINDS)
         if ref not in ids:
             ids.append(ref)
@@ -1326,15 +1467,31 @@ def _do_bulk(store, by_user, req, project, table, columns, place):
     for k, v in changes.items():
         if v is not None and (table, k) in clark_store.ALLOWED and v not in clark_store.ALLOWED[(table, k)]:
             raise Refused(NOT_A_STATUS if k == "status" else NOT_A_CHOICE)
+    _bulk_confirm(req, ids)
+    decided = table == "decisions" and "made_by" in changes      # the record of who decided is not rewritten
+
+    def kept(table_, row):
+        return BULK_DECIDED if decided and row["status"] in DECIDED else None
+    return _bulk_write(store, by_user, project, place, {ref: (table, changes) for ref in ids}, kept)
+
+
+def _bulk_confirm(req, ids):
+    """More than BULK_CONFIRM_ABOVE ids (every id sent, after duplicates are dropped) need the request's `confirm: true`."""
     confirm = req.get("confirm", False)
     if type(confirm) is not bool:
         raise Refused(BULK_CONFIRM)
     if len(ids) > BULK_CONFIRM_ABOVE and not confirm:
         raise Refused(f"Change {len(ids)} items?", 409, "confirm", {"count": len(ids)})
+
+
+def _bulk_write(store, by_user, project, place, plan, kept):
+    """#196, #199: write `plan` ({id: (table, changes)}) as _do_bulk says, in ONE step. `kept(table, row)` gives the fixed words
+    for an item that keeps what it has (left out in the trial), or None; an item it names in the real step was changed since the
+    trial, and the whole step rolls back."""
     where = {"place": place or BULK_PLACE}
     left_out, unchanged, ready = [], [], []
     with store.step(VIA, by_user, dry=True, **where) as st:         # always rolled back: only a trial of each item
-        for ref in ids:
+        for ref, (table, changes) in plan.items():
             row = store.read(table, ref=ref)
             if row is None or row["project"] != project:
                 left_out.append({"id": ref, "why": BULK_GONE})
@@ -1342,8 +1499,9 @@ def _do_bulk(store, by_user, req, project, table, columns, place):
             if row["archived"]:
                 left_out.append({"id": ref, "why": BULK_ARCHIVED})
                 continue
-            if table == "decisions" and "made_by" in changes and row["status"] in DECIDED:
-                left_out.append({"id": ref, "why": BULK_DECIDED})       # the record of who decided is not rewritten
+            why = kept(table, row)
+            if why:
+                left_out.append({"id": ref, "why": why})
                 continue
             try:
                 st.update(table, ref, changes)
@@ -1363,9 +1521,10 @@ def _do_bulk(store, by_user, req, project, table, columns, place):
     with store.step(VIA, by_user, **where) as st:                   # BEGIN IMMEDIATE: one step for every item that can take it
         changed = []
         for ref in ready:
+            table, changes = plan[ref]
             before = store.read(table, ref=ref)
-            if table == "decisions" and "made_by" in changes and before["status"] in DECIDED:
-                raise Refused(STALE)                                # made or withdrawn since the trial: the whole step rolls back
+            if kept(table, before):
+                raise Refused(STALE)                                # closed, made or withdrawn since the trial: the whole step rolls back
             try:
                 st.update(table, ref, changes)
             except Invalid as e:                                    # changed since the trial: the whole step rolls back
@@ -1374,10 +1533,53 @@ def _do_bulk(store, by_user, req, project, table, columns, place):
                 raise Refused(STALE) from None
             (changed if store.read(table, ref=ref) != before else unchanged).append(ref)    # what was written, not what the trial said
         apply_id = st.peek_apply_id()
-    shown = tuple(dict.fromkeys(ITEM_SHOWN[table] + CHANGE_KINDS[table][BULK] + (("priority",) if table == "raid" else ())))
-    items = [{k: r[k] for k in shown} for r in (store.read(table, ref=ref) for ref in changed)]
+    items = []
+    for ref in changed:
+        table = plan[ref][0]
+        shown = tuple(dict.fromkeys(ITEM_SHOWN[table] + CHANGE_KINDS[table][BULK] + (("priority",) if table == "raid" else ())))
+        row = store.read(table, ref=ref)
+        items.append({k: row[k] for k in shown})
     return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "changed": changed, "unchanged": unchanged,
                  "left_out": left_out, "words": _bulk_words(changed, unchanged, left_out), "items": items}
+
+
+def _hand_over_to(store, given):
+    """#199: who the items go to, as it will be written. Cleaned as a single owner change is. Then the people list's one resolver
+    (#115): once anyone is on the list, the name (or an alias) must be exactly one live person, and is written as the list has it;
+    with no one on the list yet, any name is taken, as a single owner change takes it. TBC or blank is no one: refused.
+    Returns (name, person id): the id of the one live person it names, or None for a name taken as free text (#199: the design
+    note's contract says a hand over writes the person's id beside the name)."""
+    to = _checked_item_changes({"owner": given})["owner"]
+    found = store.resolve_owner(to)
+    if found["status"] == "blank":
+        raise Refused(HAND_OVER_NOBODY)
+    if found["status"] == "many":
+        raise Refused(HAND_OVER_MANY)
+    if found["status"] == "archived":
+        raise Refused(HAND_OVER_ARCHIVED)
+    if found["status"] == "one":
+        return _checked_item_changes({"owner": next(p["name"] for p in store.people() if p["id"] == found["id"])})["owner"], found["id"]
+    if store.people():
+        raise Refused(HAND_OVER_UNKNOWN)
+    return to, None
+
+
+def _do_hand_over(store, by_user, req, project, place):
+    """#199: give several work items to someone else: the same person (`to`) on items of any of the three kinds in THIS project,
+    in ONE step with one Undo, one history line per item: an action's or risk's owner, a decision's made_by. The bulk change's
+    checks and writer (_bulk_ids, _bulk_confirm, _bulk_write), across kinds. A closed item and a decision made or withdrawn keep
+    who has them (left out and named). Only that field changes, and the owner's id beside it (the person's, or NULL for free text,
+    in the same step so one Undo restores both): never a status, an archive or a delete."""
+    ids = _bulk_ids(req.get("ids"), project, None)
+    to, person = _hand_over_to(store, req.get("to"))
+    _bulk_confirm(req, ids)
+    plan = {ref: (t, {HAND_OVER_FIELD[t]: to, "owner_id": person}) for ref, t in ((ref, clark_store.item_table(ref)) for ref in ids)}
+
+    def kept(table, row):
+        if row["status"] not in HAND_OVER_DONE:
+            return None
+        return BULK_DECIDED if table == "decisions" else BULK_CLOSED
+    return _bulk_write(store, by_user, project, place, plan, kept)
 
 
 def _tiles(store, code):
@@ -1456,6 +1658,8 @@ def _checked_project_changes(fields):
             if day.weekday() != 4:       # #570: Friday is the week end everywhere; the Friday offered is the one on or after that day (a weekend rolls forward)
                 friday = day + timedelta(days=(4 - day.weekday()) % 7)
                 raise Refused(NOT_FRIDAY.format(friday=friday.strftime("%d-%m-%Y")))
+        if k == "review_after_days" and (type(v) is not int or not clark_store.REVIEW_DAYS_RANGE[0] <= v <= clark_store.REVIEW_DAYS_RANGE[1]):
+            raise Refused(BAD_REVIEW_DAYS)      # #171: a real int only (not True, 14.5, "14", None or a list), checked before the step opens
         if k == "health_reason":
             try:
                 out[k] = clark_store.health_reason_text(v)      # the store's own check, called here so the first refusal is the route's
@@ -1492,7 +1696,8 @@ def _do_project_change(store, by_user, req, project, table, columns, place):
         apply_id = st.peek_apply_id()                               # None when nothing changed: the page shows no Undo
     now = store.read(table, ref=project)
     return 200, {"ok": True, "apply_id": apply_id, "ref": project,
-                 "project": {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"]}}
+                 "project": {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"],
+                             "review_after_days": now["review_after_days"]}}
 
 
 def _add(st, project, rows, ids, title, after, kind="text"):
@@ -1538,7 +1743,7 @@ def _row_is_ours(row, project, project_step, flagged):
         return False
     if field == "archived":
         return _belongs(table, key, project)
-    if table == "projects" and key == project and field in ("health", "health_reason", "week_ending", "note"):      # #45: the health change
+    if table == "projects" and key == project and field in ("health", "health_reason", "week_ending", "review_after_days", "note"):      # #45: the health change; #171: and the review days
         return True
     if field == "updated_at":                                       # the stamp goes only with its own record's flag or change
         return ((table, key) in flagged and _belongs(table, key, project)) or (table == "projects" and key == project)
@@ -1547,10 +1752,58 @@ def _row_is_ours(row, project, project_step, flagged):
 
 def _ours(store, step, rows, project):
     """_eligible, and #47e: an assistant-route step is ours only when ask clark made it. The one test for a single undo and a batch."""
-    return _eligible(rows, project) and not (any(r["via"] == ASSISTANT for r in rows) and store.step_actors(step) != {ASK_ACTOR})
+    return (_eligible(rows, project, _is_hand_over(store, step, rows)) and
+            not (any(r["via"] == ASSISTANT for r in rows) and store.step_actors(step) != {ASK_ACTOR}))
 
 
-def _eligible(rows, project):
+def _is_hand_over(store, step, rows):
+    """#199: whether step `step` (its Store.step_rows `rows`) is a hand over: written in the bulk place, only the owner (or made_by)
+    and its owner_id link of work items, with at least one link row. Nothing else writes a link from here, so the link is the
+    mark. Read only; a step with no link row is never asked about its history."""
+    if not any(r.get("field") == "owner_id" for r in rows):
+        return False
+    if any(r["table"] not in HAND_OVER_FIELD or r.get("field") not in ("owner_id", HAND_OVER_FIELD[r["table"]], "updated_at")
+           or r.get("op") == MADE_OP for r in rows):
+        return False
+    key = next(r["key"] for r in rows if r.get("field") == "owner_id")
+    return any(e["step"] == step and e["place"] == BULK_PLACE for e in store.history(key))
+
+
+def _hand_over_changed(store, step, rows, all_gone=True):
+    """#199, #620: the id of an item that stops this hand over being undone from here, or None. The owner and its link go back
+    together or not at all. When an item's owner (or made_by) text was changed after the hand over, the store leaves that item alone,
+    link and all, and undoes the others (Store.undo's per-item skip, #620), so such an item blocks nothing, unless every item of the
+    step changed (`all_gone`: nothing would go back, so a single Undo says so and is refused). A link-only item (no owner text row in
+    the step, so the store has no name to judge by) whose name was edited since is judged here by the name the new link has: it
+    blocks the whole step, as the store would put its link back beside the new name. Read only."""
+    if not _is_hand_over(store, step, rows):
+        return None
+    items, changed = [], []
+    for key in dict.fromkeys(r["key"] for r in rows if r.get("field") == "owner_id"):
+        table = clark_store.item_table(str(key))
+        field = HAND_OVER_FIELD[table]
+        mine = [e for e in store.history(key) if e["step"] == step]
+        text = [e for e in mine if e["field"] == field]
+        if text:
+            expected = text[0]["after"]                             # history is newest first: this step's last word on the field
+        else:
+            link = next(e for e in mine if e["field"] == "owner_id")["after"]
+            named = [p["name"] for p in store.people(archived=None) if p["id"] == link]
+            if not named:
+                continue                                            # a link cleared with the name as it was: nothing to compare
+            expected = named[0]
+        items.append(key)
+        row = store.read(table, ref=key)
+        if row is not None and str(row[field] if row[field] is not None else "") != str(expected if expected is not None else ""):
+            if not text:
+                return key                                          # a link alone can't be skipped by the store: the step is left whole
+            changed.append(key)
+    if all_gone and changed and len(changed) == len(items):
+        return changed[0]
+    return None
+
+
+def _eligible(rows, project, hand_over=False):
     """Whether step rows (Store.step_rows) are the dashboard's own to undo from here: at least one, every one written via the
     dashboard (the starting sections an old project's first change makes carry their own via), none by an undo, and every one
     either a section of this project, since #126 the `archived` flag of a record of this project (the FIELD is checked, not
@@ -1561,7 +1814,7 @@ def _eligible(rows, project):
     record in the same step that is its archive flag, its `active`, or its health change. The project's own row has the bare code
     as its key."""
     flagged = {(r["table"], str(r["key"])) for r in rows if r.get("field") == "archived"}
-    beside = {(r["table"], str(r["key"])) for r in rows if r.get("field") in ("archived", "active", "health", "health_reason", "week_ending", "note")}
+    beside = {(r["table"], str(r["key"])) for r in rows if r.get("field") in ("archived", "active", "health", "health_reason", "week_ending", "review_after_days", "note")}
     project_step = ("projects", project) in flagged
     items = {"actions": re.compile(re.escape(project) + r"-A-\d{3}"), "raid": re.compile(re.escape(project) + r"-\d{3}"),
              "decisions": re.compile(re.escape(project) + r"-D-\d{3}"),
@@ -1587,6 +1840,8 @@ def _eligible(rows, project):
         if not of_item(r):
             return False
         fields = tuple(CHANGE_KINDS[r["table"]].get(UPDATE, ())) + tuple(CHANGE_KINDS[r["table"]].get(BULK, ())) + ("closed", "priority")   # #196: + a bulk change's
+        if r.get("field") == "owner_id":                            # #199: a hand over's link to the person, in a hand over's step only (_is_hand_over), with or without the owner text beside it
+            return hand_over and r["table"] in HAND_OVER_FIELD
         return (r.get("op") == MADE_OP and r["table"] != "use_cases") or r.get("field") in fields
 
     def item_stamp_row(r):
@@ -1596,6 +1851,15 @@ def _eligible(rows, project):
             return _row_is_ours(r, project, False, flagged)
         return (r["table"] in shown_kinds and bool(shown_kinds[r["table"]].fullmatch(str(r["key"])))
                 and r.get("field") in ("client_visible", "updated_at", "note"))
+    def copy_row(r):                                                # #488: Duplicate's one step: the new item, the labels it carries and its hiding from the report (all made here)
+        if r["table"] == "item_labels":
+            return r.get("op") == MADE_OP and any(items[k].fullmatch(str(r["key"]).split("|", 1)[0]) for k in ITEM_KINDS)
+        if r["table"] == "report_hidden":
+            return r.get("op") == MADE_OP and _row_is_ours(r, project, False, flagged)
+        return item_field_row(r) or item_stamp_row(r)
+    if (any(r["table"] in ITEM_KINDS and of_item(r) and r.get("op") == MADE_OP for r in rows)
+            and any(r["table"] in ("item_labels", "report_hidden") for r in rows)):
+        return all(r["via"] == VIA and copy_row(r) for r in rows)
     picked = any(r.get("field") == "note" and r["table"] in shown_kinds and bool(shown_kinds[r["table"]].fullmatch(str(r["key"]))) for r in rows)
     made_item = any(r.get("op") == MADE_OP and r["table"] in ("actions", "decisions") and of_item(r) for r in rows)      # #487: a new row that started hidden is a work-item step with its hiding in it
     if not made_item and (picked or any(r["table"] == "report_hidden" for r in rows)) and any(r.get("field") == "client_visible" for r in rows):
@@ -1604,7 +1868,7 @@ def _eligible(rows, project):
         return all((r["via"] in (VIA, clark_store.SEED_VIA) or (r["via"] == ASSISTANT and r["table"] in ASK_KINDS))      # ask clark's: its own kinds only, never a use case
                    and not r["via"].startswith(clark_store.REVERT_VIA) and (item_field_row(r) or item_stamp_row(r) or (made_item and r["table"] == "report_hidden" and _row_is_ours(r, project, False, flagged))) for r in rows)
     archive_family = any(r.get("field") in ("archived", "active") for r in rows)
-    page_family = any(r["table"] in ("report_sections", "glance_tiles", "report_hidden") or (r["table"] == "projects" and r.get("field") in ("health", "health_reason", "week_ending", "note"))
+    page_family = any(r["table"] in ("report_sections", "glance_tiles", "report_hidden") or (r["table"] == "projects" and r.get("field") in ("health", "health_reason", "week_ending", "review_after_days", "note"))
                       for r in rows)
     if archive_family and page_family:                              # a mix of families is not undone from here
         return False
@@ -1616,7 +1880,8 @@ def _eligible(rows, project):
 UC_FIELD_NAMES = {"title": "name", "headline": "headline", "standing": "standing text"}
 ITEM_FIELD_NAMES = {"description": "title", "decision": "title", "status": "status", "workstream": "workstream", "owner": "owner", "priority": "priority",
                     "due_date": "due date", "milestone": "milestone", "made_by": "decider", "needed_by": "needed-by date",
-                    "date": "decision date", "closed": "closing date", "use_case": "use case", "impact": "impact", "likelihood": "likelihood"}
+                    "date": "decision date", "closed": "closing date", "use_case": "use case", "impact": "impact", "likelihood": "likelihood",
+                    "latest_update": "latest update"}
 UC_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-U-\d{3}")                  # #164: a use case's id; the words call it by its name
 TILE_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}\|(" + "|".join(TILES) + ")")      # #45: a tile's key
 ITEM_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-(?:[ADMU]-)?\d{3}")        # a work item's id is what a person calls it
@@ -1676,6 +1941,8 @@ def _field_words(entry, name):
             return f"the {MILESTONE_KEPT_AS_WAS[f]} of {name} is back as it was"
     if UC_REF.fullmatch(str(entry.get("ref"))):
         return _use_case_words(f, to, name)
+    if f == "latest_update" and ITEM_REF.fullmatch(str(entry.get("ref"))):
+        return f"the latest update of {name} is back as it was"      # never the text itself
     if DOC_REF.fullmatch(str(entry.get("ref"))) and f in DOC_FIELD_NAMES:
         return f"the {DOC_FIELD_NAMES[f]} of {name}"                # #74: never the old text or link itself
     if f in ("description", "decision") and ITEM_REF.fullmatch(str(entry.get("ref"))):
@@ -1752,6 +2019,11 @@ def words(reversed_, skipped, names):
             if "the week ending date" not in seen:
                 seen.add("the week ending date")
                 put.append("the week ending date")
+            continue
+        if e["field"] == "review_after_days":                       # #171: the days before an item counts as not reviewed
+            if "the days before an item counts as not reviewed" not in seen:
+                seen.add("the days before an item counts as not reviewed")
+                put.append("the days before an item counts as not reviewed")
             continue
         if e["field"] == "closed" and ITEM_REF.fullmatch(str(e["ref"])):
             continue                                                # a closing date follows the status: one line says both
@@ -1841,6 +2113,8 @@ def _do_undo(store, by_user, req):
     step_rows = store.step_rows(step)
     if not _ours(store, step, step_rows, project) and not _batch_is_ours(store, step, project):   # a missing step, another project's and
         raise Refused(NO_UNDO)                                      # another route's all say the same: nothing tells which exist
+    if _hand_over_changed(store, step, step_rows):
+        raise Refused(HAND_OVER_CHANGED, 409, "changed_since")      # #199: nothing of it can go back; #620: when some can, the store skips only the changed owner
     names = {r["id"]: r["title"] for r in _sections(store, project)}
     _name_use_cases(store, step_rows, names)                        # #164
     try:                                                            # still inside the caller's one lock
@@ -1857,7 +2131,10 @@ def _do_undo(store, by_user, req):
     _name_use_cases(store, step_rows, names)
     reversed_ = []
     doc_keys = {r["key"] for r in step_rows if r["table"] == "documents"} - {r["key"] for r in step_rows if r["table"] == "report_hidden"}
+    owner_text = {e["ref"] for e in done["reversed"] if e["field"] in HAND_OVER_FIELD.values()}
     for e in done["reversed"]:
+        if e["field"] == "owner_id" and e["ref"] in owner_text:
+            continue                                                # #199: the link goes back with its owner text; the words count the owner once
         entry = {"ref": e["ref"], "field": e["field"], "change": e["change"], "to": e.get("to")}
         if e["ref"] in doc_keys:
             entry["doc"] = True                                     # #74: a document's own step (its key looks like the eye's, but it is not a hide or a show)
@@ -1866,7 +2143,9 @@ def _do_undo(store, by_user, req):
                 continue                                            # one line for a whole section, not one for each field
             entry["field"] = None
         reversed_.append(entry)
-    skipped = [{"ref": s["ref"], "field": s["field"], "why": _skipped_why(s["why"]), "by_step": s["by_step"]} for s in done["skipped"]]
+    owner_skipped = {s["ref"] for s in done["skipped"] if s["field"] in HAND_OVER_FIELD.values()}
+    skipped = [{"ref": s["ref"], "field": s["field"], "why": _skipped_why(s["why"]), "by_step": s["by_step"]} for s in done["skipped"]
+               if not (s["field"] == "owner_id" and s["ref"] in owner_skipped)]      # #620: a link left with its owner text is one line, not two
     if not reversed_ and any(s["why"] == MADE_CANT_BE_PUT_BACK for s in skipped):       # a decision that is made is not put back
         raise Refused(MADE_CANT_BE_PUT_BACK, 409, "not_undoable")
     out = {"ok": True, "apply_id": done["step_id"],
@@ -1882,7 +2161,8 @@ def _do_undo(store, by_user, req):
         out["hidden"] = _hidden_ids(store, project)                 # #67: what the report hides now
     if any(r["table"] == "projects" for r in step_rows):
         now = store.read("projects", ref=project)
-        out["project"] = {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"]}
+        out["project"] = {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"],
+                          "review_after_days": now["review_after_days"]}
     return 200, out
 
 
@@ -1943,7 +2223,10 @@ def _many_field(field):
 def _many_entries(entries, skipped):
     """The preview's lines, newest step first: one per field changed, one per item made or put back whole (never one per column)."""
     out, seen = [], set()
+    texts = {(e["step"], e["ref"]) for e in entries if e["field"] in HAND_OVER_FIELD.values()}
     for e in entries:
+        if e["field"] == "owner_id" and (e["step"], e["ref"]) in texts:
+            continue                                                # #199: a hand over's link goes with its owner text: one line
         whole = e.get("change") in ("removed", "put back")
         key = (e["step"], e["ref"], e.get("change") if whole else e["field"])
         if key in seen:
@@ -2002,6 +2285,8 @@ def _do_undo_many(store, by_user, req):
             why = "is an undo"
         elif not _ours(store, s, rows, project):
             why = NOT_FROM_HERE
+        elif _hand_over_changed(store, s, rows, all_gone=False):
+            why = "has changed since: left as it is"                # #199: a link-only item whose name changed leaves the step whole; #620: other changed owners are skipped one by one
         else:
             ours.append(s)
             continue
@@ -2048,6 +2333,8 @@ def undo_refusals(store, project, steps):
             out[s] = IS_AN_UNDO
         elif not _ours(store, s, rows, project):
             out[s] = NOT_FROM_HERE
+        elif _hand_over_changed(store, s, rows):
+            out[s] = CHANGED_SINCE
         else:
             if reverted is None:
                 reverted = clark_store.reverted_rowids(store.con)
@@ -2157,7 +2444,7 @@ def make_undo(path, onedrive_roots=None, by_user=None):
 # fields are checked by the store (people rules); this checks only the shape of the request, then one step, one Undo.
 PERSON_FIELDS = ("name", "email", "organisation", "role", "label", "aliases", "kind", "needs_details")
 PEOPLE_SHAPES = {"add": PERSON_FIELDS, "edit": ("id", "changes"), "rename": ("id", "name"), "merge": ("from", "into"),
-                 "archive": ("id",), "restore": ("id",)}
+                 "archive": ("id",), "restore": ("id",), "paste": ("rows",)}
 PEOPLE_SOURCE = "People list"
 BAD_PERSON = "That isn't a person clark knows. Reload the page and try again."
 NO_PEOPLE_UNDO = "That step can't be undone from here."
@@ -2184,9 +2471,77 @@ def _person_ref(value):
     return value
 
 
+PASTE_FIELDS = ("name", "email", "organisation", "role")     # #454: the four columns the People card's Paste from Excel takes
+PASTE_NONE = "There is nothing to add. Paste rows copied from Excel: name, email, organisation, role."
+PASTE_MANY = f"That is more than {people_rules.ROW_LIMIT} rows. Paste fewer rows at a time. Nothing was changed."
+PASTE_BAD_ROW = "One of the rows isn't details clark can use. Check the rows and try again. Nothing was changed."
+
+
+def _paste_people(st, rows):
+    """#454: rows of name, email, organisation and role (the People card's Paste from Excel), applied in the caller's ONE step, so one
+    Undo takes the whole paste back. A name already on the live list (the people rules' exact match on a name or alias, never fuzzy)
+    gets the details that were pasted: a blank cell leaves what is there alone. Any other name is added, Needs details when it has no
+    email. Every field goes through the same writer and checks as an add or an edit (the email rule, one email per person, the
+    limits). One row that can't be used refuses the whole paste, in words that name the person, and nothing is written. Returns
+    (added, updated)."""
+    if not isinstance(rows, list) or not rows:
+        raise Refused(PASTE_NONE)
+    if len(rows) > people_rules.ROW_LIMIT:
+        raise Refused(PASTE_MANY)
+    added = updated = 0
+    by_id, live, gone = {}, {}, {}                                  # the name and alias index, built ONCE: key -> ids (live, archived)
+    for p in st.store.people(archived=None):
+        by_id[p["id"]] = p
+        for key in people_rules.keys_of(p):
+            (gone if p.get("archived") else live).setdefault(key, []).append(p["id"])
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("name"), str) or any(k not in PASTE_FIELDS for k in row):
+            raise Refused(PASTE_BAD_ROW)
+        given = {k: _person_value(k, v) for k, v in row.items()}
+        name = " ".join(given["name"].split())
+        if not name:
+            raise Refused("A row has no name. Give each person a name. Nothing was changed.")
+        shown = name if len(name) <= 40 else name[:40] + "…"
+        try:
+            key = people_rules.name_key(name)
+            if key in people_rules.NO_PERSON:                        # the placeholder rule the owner fields use: TBC is no one
+                raise Refused(f"{shown} isn't a name. Give the person's real name, or leave the row out. Nothing was changed.")
+            ids = live.get(key, [])                                  # exactly people.resolve's order: live first, then archived
+            if len(ids) > 1:
+                raise Refused(f"More than one person is called {shown}. Change the name to say which one, then paste again. Nothing was changed.")
+            if not ids and key in gone:
+                raise Refused(f"{shown} is on the list but has been archived. Restore them from the People card instead of pasting them again. Nothing was changed.")
+            email, bad = people_rules.clean_email(given.get("email"))
+            if bad:
+                raise Refused(f"{shown}: {bad} Nothing was changed.")
+            details = {"email": email or None, "organisation": " ".join((given.get("organisation") or "").split()) or None,
+                       "role": " ".join((given.get("role") or "").split()) or None}
+            for field in ("organisation", "role"):
+                if details[field] and len(details[field]) > people_rules.CELL_MAX:
+                    raise Refused(f"{shown}: the {field} is too long (at most {people_rules.CELL_MAX} characters). Shorten it and try again. Nothing was changed.")
+            if ids:
+                now = by_id[ids[0]]
+                changes = {k: v for k, v in details.items() if v and v != now.get(k)}
+                if changes:
+                    st.edit_person(ids[0], changes)
+                    now.update(changes)
+                    updated += 1
+            else:
+                new = st.add_person(source=PEOPLE_SOURCE, name=name, needs_details=0 if email else 1, **{k: v for k, v in details.items() if v})
+                person = {"id": new, "name": name, "aliases": None, "archived": 0, **details}
+                by_id[new] = person
+                for k in people_rules.keys_of(person):
+                    live.setdefault(k, []).append(new)
+                added += 1
+        except Invalid as e:                                    # a store rule (one email per person ...), said with the person's name
+            raise Refused(f"{shown}: {e} Nothing was changed.") from None
+    return added, updated
+
+
 def _do_people(store, by_user, req):
-    """POST /api/people: {"op": add | edit | rename | merge | archive | restore, ...}. One step; answers the new apply_id (the Undo's
-    handle), the person's id where there is one, how many work items a rename or merge carried, and the list as it now is."""
+    """POST /api/people: {"op": add | edit | rename | merge | archive | restore | paste, ...}. One step; answers the new apply_id (the
+    Undo's handle; None when a paste changed nothing), the person's id where there is one, how many work items a rename or merge
+    carried, how many people a paste added and updated, and the list as it now is."""
     if not isinstance(req, dict):
         raise Refused(NOT_JSON_OBJECT)
     op = req.get("op")
@@ -2196,9 +2551,12 @@ def _do_people(store, by_user, req):
     for k in req:
         if k not in allowed:
             raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
-    ref, count = None, 0
+    ref, count, pasted = None, 0, {}
     with store.step("dashboard", by_user) as st:
-        if op == "add":
+        if op == "paste":
+            added, updated = _paste_people(st, req.get("rows"))
+            pasted = {"added": added, "updated": updated}
+        elif op == "add":
             fields = {k: _person_value(k, v) for k, v in req.items() if k != "op"}
             ref = st.add_person(source=PEOPLE_SOURCE, **fields)
         elif op == "edit":
@@ -2220,7 +2578,7 @@ def _do_people(store, by_user, req):
             ref = _person_ref(req.get("id"))
             st.restore_person(ref)
         apply_id = st.peek_apply_id()
-    return 200, {"ok": True, "apply_id": apply_id, "id": ref, "items": count, "people": store.people(archived=None)}
+    return 200, {"ok": True, "apply_id": apply_id, "id": ref, "items": count, **pasted, "people": store.people(archived=None)}
 
 
 def _do_people_undo(store, by_user, req):

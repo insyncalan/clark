@@ -3,7 +3,7 @@
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
-import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData } from "../api.js";
+import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendRecordChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData, sendRestore } from "../api.js";
 import { flashed } from "./wordsState.js";
 import { diffIds, markChanged } from "./changed.js";
 
@@ -53,7 +53,7 @@ function redraw(code, reply) {
     next.report_sections = reply.sections.map((sec) => ({ ...was.get(sec.id), ...sec }));
   }
   if (Array.isArray(reply.tiles)) next.glance_tiles = reply.tiles;
-  if (reply.project && typeof reply.project === "object") next.project = { ...next.project, health: reply.project.health, health_reason: reply.project.health_reason, ...(reply.project.week_ending !== undefined ? { week_ending: reply.project.week_ending } : {}) };
+  if (reply.project && typeof reply.project === "object") next.project = { ...next.project, health: reply.project.health, health_reason: reply.project.health_reason, ...(reply.project.week_ending !== undefined ? { week_ending: reply.project.week_ending } : {}), ...(reply.project.review_after_days !== undefined ? { review_after_days: reply.project.review_after_days } : {}) };
   data.value = next;
 }
 
@@ -118,6 +118,36 @@ export function changeItem(req, done) {
   });
 }
 
+// Archive an item or add a copy of it (#97), from the right-click menu: one step with Undo (`req` is the change, `done.text` what the
+// toast says and `done.back` what it says after the Undo, "" for "Undone."). The work items are read again, as after a board move.
+// A refusal is a note: nothing was changed.
+export function changeRecord(req, done) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendRecordChange(code, req);
+    if (!r.ok) { say("note", r.message); return null; }
+    await reread(code);
+    const w = typeof done === "function" ? done(r.reply) : done;     // #442: words that need the reply (a copy's new id)
+    itemSteps.set(r.reply.apply_id, w.back || "");
+    say("done", w.text, r.reply.apply_id, code);
+    return r.reply;
+  });
+}
+
+// Restore one archived work item (B-5): the work items are read again after it and after its undo. A refusal is a note.
+export function restoreItem(table, id) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendRestore(code, table, id);
+    if (!r.ok) { say("note", r.message); return null; }
+    const step = r.reply.apply_id || null;
+    if (step) itemSteps.set(step, "");
+    if (!(await reread(code)) && project.value === code) { say("problem", `${id} was restored, but the page could not be refreshed. Reload the page to see it.`, step, code); return r.reply; }
+    say("done", `${id} restored.`, step, code);
+    return r.reply;
+  });
+}
+
 // Undo one step, by the id the change's reply gave, in the project the step was made in (`code`; the open one if not given). If some rows were left as they are, the toast
 // says which, in the words clark gives (they name the section and why); otherwise it says what went back (a work item's cell, #80)
 // or that it is undone.
@@ -144,12 +174,14 @@ export function undo(applyId, code = project.value) {
 // #80: change fields of one work item, in one step. `table` is actions, raid or decisions; `changes` the fields to set. The page
 // draws the item as clark saved it (the reply's item), never its own guess. `done.text` is what the toast says; it carries Undo
 // when the step can be undone, and `done.back` is what the toast says after that Undo. A decision that is made has none (the reply says so): with `done.always` the toast still says what
-// happened. Otherwise a change that altered nothing says nothing.
+// happened. Otherwise a change that altered nothing says nothing. `done.place` is where the page says it was made (the history says
+// "in the peek", "with a draft"; "cell" when not given). `done.refused(message)`, when given, hears a refusal in place of the toast, so
+// a box that is still open can show it beside what was typed.
 export function changeCell(table, id, changes, done) {
   const code = project.value;
   return enqueue(async () => {
-    const r = await sendCellChange(code, table, id, changes, "cell");
-    if (!r.ok) { say("problem", r.message); return null; }
+    const r = await sendCellChange(code, table, id, changes, done.place || "cell");
+    if (!r.ok) { if (typeof done.refused === "function") done.refused(r.message); else say("problem", r.message); return null; }
     const item = r.reply.item;
     const d = data.value;
     if (d && project.value === code && Array.isArray(d[table])) {
@@ -158,6 +190,25 @@ export function changeCell(table, id, changes, done) {
     const step = r.reply.undoable === true && r.reply.apply_id ? r.reply.apply_id : null;
     if (step) { itemSteps.set(step, done.back || ""); say("done", done.text, step, code); }
     else if (done.always) say("done", done.text, null, code);                   // a decision that is made: it changed, and has no Undo
+    return r.reply;
+  });
+}
+
+// Item 210: a risk's or issue's impact or likelihood from its Priority cell. The update op doesn't take those two (clark works the
+// priority out from them), so the change goes as a bulk change of this one item, from the cell: one step and one Undo, the value
+// checked by clark, the history "in the table". The data is read again, so the cell shows the priority clark worked out, and
+// the toast says it.
+export function changeRating(table, id, changes, done) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await sendBulk(code, { kind: table, op: "bulk", ids: [id], changes, place: "cell" });
+    if (!r.ok) { say("problem", r.message); return null; }
+    await reread(code);
+    const row = project.value === code && data.value && Array.isArray(data.value[table]) ? data.value[table].find((x) => x.id === id) : null;
+    const text = row && row.priority ? `${done.text} Its priority is now ${row.priority}.` : done.text;
+    const step = r.reply.undoable === true && r.reply.apply_id ? r.reply.apply_id : null;
+    if (step) { itemSteps.set(step, done.back || ""); say("done", text, step, code); }
+    else say("note", r.reply.words, null, code);
     return r.reply;
   });
 }
@@ -202,7 +253,7 @@ export function changeBulk(req, back) {
     }
     await reread(code);
     const step = r.reply.undoable === true && r.reply.apply_id ? r.reply.apply_id : null;
-    if (step) itemSteps.set(step, back || "");
+    if (step) itemSteps.set(step, typeof back === "function" ? back(r.reply) : back || "");     // #199: `back` may work out its words from the reply
     say(step ? "done" : "note", r.reply.words, step, code);
     return r;
   });

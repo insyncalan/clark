@@ -34,7 +34,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 11          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 15          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -140,13 +140,16 @@ PLACES = ("peek", "cell", "bulk", "menu", "report", "dashboard", "excel", "board
 ORIGINS = ("report", "sneak")
 ACTORS = ("you", "clark")
 REVERT_VIA = "revert:"
+REVIEW_DAYS_RANGE = (1, 365)         # #171: the whole numbers a project's review_after_days may be (schema.sql's CHECK says the same)
 FRESH_TABLES = ("actions", "raid", "decisions")          # #158: the items whose review dates the peek shows (milestones have none)
 
 
 def review_days_for(project_row):
-    """N, the days after which an open item counts as not reviewed in this project (#160). Today every project uses the one
-    default; a per-project setting will be read here, from the project row, so nothing else has to change."""
-    return fresh.DEFAULT_DAYS
+    """N, the days after which an open item counts as not reviewed in this project (#160, #171): the project's own
+    review_after_days, or the default (freshness.DEFAULT_DAYS) when the row has none or holds something that is not a whole
+    number from 1 to 365 (a file from before step 12 read through a stand-in row, say). The one place that default is applied."""
+    n = (project_row or {}).get("review_after_days")
+    return n if type(n) is int and REVIEW_DAYS_RANGE[0] <= n <= REVIEW_DAYS_RANGE[1] else fresh.DEFAULT_DAYS
 
 
 def attach_freshness(con, data, days, cache=None):
@@ -449,6 +452,8 @@ def _check_number_and_flags(f, v):
         raise Invalid(f"percent_complete must be a whole number from 0 to 100 (got {v!r})")
     if f == "sort_order" and (isinstance(v, bool) or not isinstance(v, int)):
         raise Invalid(f"sort_order must be a whole number (got {v!r})")
+    if f == "review_after_days" and (type(v) is not int or not REVIEW_DAYS_RANGE[0] <= v <= REVIEW_DAYS_RANGE[1]):
+        raise Invalid(f"review_after_days must be a whole number from 1 to 365 (got {v!r})")
 
 
 def _check_label_value(table, f, v):
@@ -1577,11 +1582,14 @@ def revert_group(con, apply_id, table, key, rows_, step):
     by_field = {}                                     # a field changed twice in one step: judged by its last value, put back
     for r in rows_:                                   # to its first old value (creaite's whole-step cmd_undo)
         by_field.setdefault(r["field"], []).append(r)
-    for f, rs in by_field.items():
+    for f, rs in sorted(by_field.items(), key=lambda kv: kv[0] == "owner_id"):     # #620: the link is judged after its owner text
         if text(row[f]) != rs[-1]["new_value"]:
             skipped.append(entry(rs[-1], why="has changed since: left as it is",
                                  by_step=changed_after(con, rs[-1]["rowid"], table, key, skip=(step.peek_apply_id(),))))
-        else:
+        elif f == "owner_id" and any(x["field"] == OWNER_TEXT.get(table) and x["why"].startswith("has changed since") for x in skipped):
+            gone = next(x for x in skipped if x["field"] == OWNER_TEXT[table])     # #620: an owner_id rides with its owner text. When the
+            skipped.append(entry(rs[-1], why=gone["why"], by_step=gone["by_step"]))     # name was changed since, the link stays beside it and is
+        else:                                                                       # never put back alone (the old link beside a new name)
             changes[f] = rs[0]["old_value"]
             undoes[f] = rs[-1]["rowid"]
     if table == "projects" and "health" in changes and "health_reason" not in changes:    # a health change takes its reason back too
@@ -1619,6 +1627,55 @@ def _typed(con, table, changes):
     for f, v in changes.items():
         out[f] = int(v) if v is not None and kinds.get(f) == "INTEGER" and re.fullmatch(r"-?\d+", v) else v
     return out
+
+
+def rewound_copy(path, dest, until):
+    """#349: a copy of clark.db at `dest` (a new file in a temporary folder of the caller's) as it stood just before `until`
+    ('YYYY-MM-DD HH:MM:SS', UTC, as change_log writes it), for the Dashboard as at a day (as_at.py). Read only as far as clark.db
+    goes: it is read on a read-only connection and copied with SQLite's backup; every write below is to the copy. In the copy,
+    every change_log row at or after `until` is undone, newest first: a changed field gets its old value back, a row made since is
+    taken out, and a row deleted since is put back from the copy of it the log keeps (REMOVED). Then the log, its events and its steps
+    from `until` on are dropped from the copy, so a reader of history (freshness) sees it as it was. A change the copy will not take
+    back (a built-in label's guard, a value an older rule allowed) is left as it is now."""
+    src = connect(path, readonly=True)
+    try:
+        out = sqlite3.connect(str(dest), isolation_level=None)
+        try:
+            src.backup(out)
+        finally:
+            out.close()
+    finally:
+        src.close()
+    con = sqlite3.connect(str(dest), isolation_level=None)
+    con.row_factory = sqlite3.Row
+    try:
+        con.execute("PRAGMA foreign_keys = OFF")          # in the copy only: a row comes back before the row it refers to does
+        con.execute("BEGIN")
+        have = {}
+        for r in con.execute("SELECT rowid, tbl, item_id, field, old_value, op FROM change_log WHERE at >= ? ORDER BY rowid DESC",
+                             (until,)).fetchall():
+            table, key, f = r["tbl"], r["item_id"], r["field"]
+            if table not in TABLES or len(key_values(table, key)) != len(KEYS[table]):
+                continue
+            cols = have.setdefault(table, set(columns(con, table)))
+            try:
+                if f == REMOVED:                          # deleted since: put back as the log kept it
+                    row = {k: v for k, v in json.loads(r["old_value"] or "{}").items() if k in cols}
+                    if row and fetch(con, table, key) is None:
+                        _insert_sql(con, table, row)
+                elif r["op"] == OP_MADE:                  # made since: not there yet
+                    con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
+                elif f in cols:
+                    con.execute(f"UPDATE {_table(table)} SET {f} = ? WHERE {where_key(table)}",
+                                [_typed(con, table, {f: r["old_value"]})[f], *key_values(table, key)])
+            except (sqlite3.DatabaseError, ValueError):
+                continue
+        con.execute("DELETE FROM item_events WHERE at >= ?", (until,))
+        con.execute("DELETE FROM change_log WHERE at >= ?", (until,))
+        con.execute("DELETE FROM applies WHERE at >= ?", (until,))
+        con.execute("COMMIT")
+    finally:
+        con.close()
 
 
 # ── The store ─────────────────────────────────────────────────────────────────
@@ -2046,10 +2103,10 @@ PUBLICATIONS_NUMBERED = """CREATE TABLE publications_v10 (
 PUBLICATION_TRIGGERS = (
     """CREATE TRIGGER IF NOT EXISTS publications_no_delete BEFORE DELETE ON publications
 BEGIN SELECT RAISE(ABORT, 'a publication is never deleted'); END;""",
-    """CREATE TRIGGER IF NOT EXISTS publications_number_fixed BEFORE UPDATE OF seq, at, week_ending, local_path, checks, number, project, word, file_sha256, by_user ON publications
+    """CREATE TRIGGER IF NOT EXISTS publications_number_fixed BEFORE UPDATE OF seq, at, week_ending, local_path, client_path, checks, number, project, word, file_sha256, by_user ON publications
 BEGIN SELECT RAISE(ABORT, 'a publication''s number, project, kind, file, date, week, checks and publisher never change'); END;""",
     """CREATE TRIGGER IF NOT EXISTS publications_never_replaced BEFORE INSERT ON publications
-WHEN EXISTS (SELECT 1 FROM publications WHERE (project = NEW.project AND number = NEW.number) OR seq = NEW.seq)
+WHEN EXISTS (SELECT 1 FROM publications WHERE (project = NEW.project AND number = NEW.number AND word = NEW.word) OR seq = NEW.seq)
 BEGIN SELECT RAISE(ABORT, 'a publication is never replaced'); END;""",
 )
 
@@ -2070,6 +2127,9 @@ def migrate_publication_numbers(con):
             "FROM publications p ORDER BY p.seq")
         con.execute("DROP TABLE publications")
         con.execute("ALTER TABLE publications_v10 RENAME TO publications")
+    old = con.execute("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'publications_number_fixed'").fetchone()
+    if old and "client_path" not in old[0]:       # #325: a narrower one (made before client_path was named) is replaced, not kept by IF NOT EXISTS
+        con.execute("DROP TRIGGER publications_number_fixed")
     for statement in PUBLICATION_TRIGGERS:
         con.execute(statement)
 
@@ -2101,11 +2161,71 @@ def migrate_use_case_done(con):
     _use_cases_allow_done(con)
 
 
+def migrate_publication_trigger_client_path(con):
+    """Schema version 11 to 12 (#325): the publications UPDATE trigger also guards client_path. A file made at step 10 by 0.6.0 has the
+    narrower trigger, so it is dropped and made again from PUBLICATION_TRIGGERS (the other two are kept: IF NOT EXISTS). Trigger only: no
+    table changes, so no frozen schema file. Safe to repeat. Inside the caller's transaction; does not touch the version (the runner does)."""
+    con.execute("DROP TRIGGER IF EXISTS publications_number_fixed")
+    for statement in PUBLICATION_TRIGGERS:
+        con.execute(statement)
+
+
+# `publications` as schema.sql makes it once a web page and its Word copy may share one number (#368, step 13), frozen here.
+PUBLICATIONS_SHARED_NUMBER = PUBLICATIONS_NUMBERED.replace("publications_v10", "publications_v13").replace(
+    "UNIQUE (project, number)", "UNIQUE (project, number, word)")
+
+
+def migrate_publication_shared_number(con):
+    """Schema version 12 to 13 (#368): `UNIQUE (project, number)` becomes `UNIQUE (project, number, word)`, so one number can hold one web
+    page and one Word file. `publications` is made again from the frozen text, every row copied with its seq and its number unchanged
+    (so no number moves and the sequence goes on), and the three triggers made again, the never-replaced one now naming the kind.
+    Skipped when the table's own definition already has the wider key, so a second run (or a new database) changes nothing but makes any
+    missing trigger. Inside the caller's transaction; does not touch the version (the runner does)."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'publications'").fetchone()
+    if have is not None and not re.search(r"UNIQUE\s*\(\s*project\s*,\s*number\s*,\s*word\s*\)", have[0]):
+        con.execute("DROP TRIGGER IF EXISTS publications_no_delete")
+        con.execute("DROP TRIGGER IF EXISTS publications_number_fixed")
+        con.execute("DROP TRIGGER IF EXISTS publications_never_replaced")
+        con.execute(PUBLICATIONS_SHARED_NUMBER)
+        con.execute("INSERT INTO publications_v13 (seq, project, at, week_ending, local_path, client_path, word, file_sha256, checks, by_user, number) "
+                    "SELECT seq, project, at, week_ending, local_path, client_path, word, file_sha256, checks, by_user, number "
+                    "FROM publications ORDER BY seq")
+        con.execute("DROP TABLE publications")
+        con.execute("ALTER TABLE publications_v13 RENAME TO publications")
+    for statement in PUBLICATION_TRIGGERS:
+        con.execute(statement)
+
+
+REVIEW_DAYS_STEP = 14        # #171's step number, written once here and used by MIGRATIONS. It is 14 because 12 (#325) and 13 (#368) are taken and the runner refuses a gap: if another step lands first, this becomes the next number together with SCHEMA_VERSION (and the test's STEP)
+
+
+def migrate_review_after_days(con):
+    """A project's own "not reviewed after N days" (#171): projects gains review_after_days, 14 on every project that is there
+    (the number clark used for all of them before). A column added at the end of the table, with the CHECK of schema.sql, so no
+    table is made again and no frozen schema file is needed. Skipped when the column is already there. Its own step, number 14 (see
+    SCHEMA_VERSION and MIGRATIONS); it touches no other table. Runs inside the caller's transaction; the runner writes the version."""
+    if "review_after_days" not in columns(con, "projects"):
+        con.execute("ALTER TABLE projects ADD COLUMN review_after_days INTEGER NOT NULL DEFAULT 14 "
+                    "CHECK (typeof(review_after_days) = 'integer' AND review_after_days BETWEEN 1 AND 365)")
+
+
+def migrate_publication_pdf_name(con):
+    """Schema version 14 to 15 (#269): `publications.pdf_name`, the name of the PDF file saved with a publication, NULL for every row
+    already there and for any publish that made no PDF. An optional column with no default can be added in place, so no table is
+    rebuilt and the triggers made by steps 10, 12 and 13 stay as they are. Skipped when the column is already there (a new database, or a
+    second run). Runs inside the caller's transaction and does not touch the version (the runner does). It is step 15 in MIGRATIONS."""
+    if "pdf_name" not in [r[1] for r in con.execute("PRAGMA table_info(publications)")]:
+        con.execute("ALTER TABLE publications ADD COLUMN pdf_name TEXT CHECK (pdf_name IS NULL OR (length(pdf_name) BETWEEN 1 AND 255 "
+                    "AND pdf_name NOT GLOB '*[/\\]*'))")
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
               (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers),
-              (11, migrate_use_case_done))
+              (11, migrate_use_case_done), (12, migrate_publication_trigger_client_path),
+              (13, migrate_publication_shared_number),
+              (REVIEW_DAYS_STEP, migrate_review_after_days), (15, migrate_publication_pdf_name))
 
 
 def migration_plan(version, table=None):
@@ -2594,7 +2714,7 @@ class Store:
         finally:
             con.close()
 
-    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None, word=0, number=None):
+    def log_publication(self, code, path, week_ending, sha256, by_user, client_path=None, word=0, number=None, same_as=None):
         """Record one published file: a `publications` row with the file's SHA-256, and nothing else. No change_log,
         no step and no write to any other table: a publication is a record of a file, not an edit (#39; Head ruling,
         28-10-2026), so Undo never meets it. The folder to offer next time is read back from the latest publication
@@ -2606,7 +2726,11 @@ class Store:
         cannot take one number), never reused (a publication is never deleted) and shared by every kind, Local only included. When the
         caller put a `number` in the file it wrote (from `next_publication`), that number must still be the next one or nothing is
         written and NumberTaken is raised, so the caller takes its files back. Returns the publication's seq; `number_of(seq)` reads
-        its number."""
+        its number.
+
+        #368: `same_as` (a Word row only) is the seq of the web page this Word file is the copy of: the row then takes that page's number
+        instead of the next one. It is refused (Invalid, nothing written) unless that row is a web publication of the same project that
+        has no Word file yet; it cannot be combined with `number`. Without it a Word file takes the next number, as before."""
         if not str(by_user or "").strip():
             raise Invalid("a publication needs who made it (by_user)")
         if not re.fullmatch(r"[0-9a-f]{64}", str(sha256 or "")):
@@ -2617,6 +2741,8 @@ class Store:
             raise Invalid("a publication's word must be 0 or 1")
         if client_path is not None and not Path(str(client_path)).is_absolute():
             raise Invalid("a publication needs the client copy's full path")
+        if same_as is not None and (type(same_as) is not int or word != 1 or number is not None):
+            raise Invalid("only a Word file can share a web page's number, by the page's seq alone")
         if week_ending is not None:
             try:
                 if not re.fullmatch(r"\d{4}-\d\d-\d\d", str(week_ending)):
@@ -2641,6 +2767,15 @@ class Store:
             nxt = self.con.execute("SELECT coalesce(max(number), 0) + 1 FROM publications WHERE project = ?", (code,)).fetchone()[0]
             if number is not None and (type(number) is not int or number != nxt):
                 raise NumberTaken(NUMBER_TAKEN)
+            if same_as is not None:
+                page = self.con.execute("SELECT number FROM publications WHERE seq = ? AND project = ? AND word = 0",
+                                        (same_as, code)).fetchone()
+                if page is None:
+                    raise Invalid("That web page isn't one of this project's publications, so the Word file can't share its number.")
+                if self.con.execute("SELECT 1 FROM publications WHERE project = ? AND number = ? AND word = 1",
+                                    (code, page["number"])).fetchone():
+                    raise Invalid(f"Publication {page['number']} already has its Word file.")
+                nxt = page["number"]
             cur = self.con.execute(
                 "INSERT INTO publications (project, week_ending, local_path, client_path, word, file_sha256, checks, by_user, number) "
                 "VALUES (?, ?, ?, ?, ?, ?, 'not needed', ?, ?)",
@@ -2659,7 +2794,8 @@ class Store:
         publication's row is in (so a refused number keeps nothing). The copy is made from the file at `source` only while it still
         holds the bytes whose SHA-256 the row has; it is written once, never changed and never removed (published_copies.py). It is
         best effort: a publication is made when its row is, so a copy that could not be kept is logged nowhere and listed as "Not kept".
-        True when a copy was written. A Word file is not kept (its row has no page to open)."""
+        True when a copy was written. A Word file is not kept (its row has no page to open). #342: a copy of the page's data is kept
+        beside it, cut from the same bytes (published_copies.keep)."""
         if str(self.path) == ":memory:":
             return False
         try:
@@ -2667,10 +2803,57 @@ class Store:
         except Exception:        # noqa: BLE001  never let a copy that could not be kept undo a publication that was made
             return False
 
+    def archive_publication(self, code, number):
+        """#342: archive Publication `number` of `code`: the list leaves it out, and nothing is removed or changed (its row, its kept
+        page and its data copy stay as they are; FR-43c, archive never delete). The mark is written once beside the kept copies
+        (published_copies.archive); like a publication it is a record, not an edit, so there is no step and no Undo. Refused in plain
+        words when there is no such publication or it is archived already. True when archived."""
+        if published_copies.file_name(code, number) is None:
+            raise Invalid("Give the project's code and the publication's number.")
+        if str(self.path) == ":memory:":
+            raise Invalid("A publication can't be archived in a database that is not saved to a file.")
+        if not self.con.execute("SELECT 1 FROM publications WHERE project = ? AND number = ?", (code, number)).fetchone():
+            raise Invalid(f"There is no Publication {number} for {code}. Nothing was changed.")
+        if published_copies.is_archived(self.path.parent, code, number):
+            raise Invalid(f"Publication {number} is already archived. Nothing was changed.")
+        if not published_copies.archive(self.path.parent, code, number):
+            raise Invalid(f"Publication {number} could not be archived. Nothing was changed. Try again.")
+        return True
+
     def next_publication(self, code):
         """The number the next publication of `code` will have (#120), to be put in the file before it is made. Nothing is reserved:
         log_publication refuses if it is no longer the next one. Every row counts, whatever its kind. Read-only."""
         return self.con.execute("SELECT coalesce(max(number), 0) + 1 FROM publications WHERE project = ?", (code,)).fetchone()[0]
+
+    def record_pdf_name(self, seq, name):
+        """Name the PDF file saved with the publication `seq` (#269). It is a file name only (no folder), set once: a row that
+        already has a name is never changed, and a `seq` that is not there changes nothing. Like the row itself it is no step
+        and no change_log line, so Undo never meets it. Returns True when the name was written."""
+        name = str(name or "")
+        if not name or len(name) > 255 or "/" in name or "\\" in name or "\x00" in name:
+            raise Invalid("a PDF's name must be a file name, with no folder in it")
+        if self.con.in_transaction:
+            raise Invalid("A PDF's name can't be recorded in the middle of a step: finish the step first.")
+        try:
+            self.con.execute("BEGIN IMMEDIATE")
+        except sqlite3.OperationalError as e:
+            raise Invalid(_busy(e)) from e
+        try:
+            cur = self.con.execute("UPDATE publications SET pdf_name = ? WHERE seq = ? AND pdf_name IS NULL", (name, seq))
+            self.con.execute("COMMIT")
+            return cur.rowcount == 1
+        except BaseException:
+            self.con.execute("ROLLBACK")
+            raise
+
+    def web_publication_seq(self, code, number):
+        """The seq of project `code`'s web publication numbered `number` (#368), or None. Read-only."""
+        r = self.con.execute("SELECT seq FROM publications WHERE project = ? AND number = ? AND word = 0", (code, number)).fetchone()
+        return r["seq"] if r else None
+
+    def word_copy_exists(self, code, number):
+        """Whether project `code`'s publication `number` already has its Word file (#368). Read-only."""
+        return self.con.execute("SELECT 1 FROM publications WHERE project = ? AND number = ? AND word = 1", (code, number)).fetchone() is not None
 
     def number_of(self, seq):
         """The publication number of the `publications` row `seq` (#120), or None. Read-only."""

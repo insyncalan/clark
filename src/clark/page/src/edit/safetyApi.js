@@ -18,3 +18,5 @@ async function call(method, path, body) {
 export const listBackups = () => call("GET", "/api/backups");
 export const previewBackup = (name) => call("POST", "/api/backups/preview", { name });
 export const restoreBackup = (name, lastStep) => call("POST", "/api/backups/restore", { name, last_step: lastStep });
+// #622: the optional folder each backup is also copied into ("" turns it off). The server decides and checks; a refusal is plain words.
+export const setCopyFolder = (folder) => call("POST", "/api/backups/copy-folder", { folder });

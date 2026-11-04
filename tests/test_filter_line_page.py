@@ -10,6 +10,7 @@ import unittest
 import urllib.parse
 
 from _paths import ROOT, SRC  # noqa: F401
+from _new_page import reload_to_new_page_cdp
 import _testpage as testpage
 
 from test_server import Running, chrome, wait  # noqa: E402
@@ -184,6 +185,25 @@ class Line(unittest.TestCase):
             cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
             self.assertEqual(cdp.js("document.activeElement.id", sid), "other", "not while typing in a field")
 
+    def test_the_line_does_not_say_press_slash_in_view_or_edit_because_that_key_opens_ask(self):
+        # #286: the hint "Press /" pointed at a key that opens ask clark in the app, so it is gone. Pinned in both modes at both widths.
+        s = self.serve()
+        for width in SIZES:
+            for mode in ("view", "edit"):
+                with self.subTest(width=width, mode=mode), chrome() as cdp:
+                    sid = self.load(cdp, s.port, width)
+                    cdp.js(f"document.querySelector('[data-mode={mode}]').click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('[data-mode={mode}]').getAttribute('aria-pressed')", sid) == "true"))
+                    self.assertEqual(cdp.js("document.querySelectorAll('.fkey, .fline kbd, .fline-wrap [aria-keyshortcuts]').length", sid), 0)
+                    for focused in (False, True):
+                        if focused:
+                            self.focus(cdp, sid)
+                        text = cdp.js("document.querySelector('.fline-wrap').textContent", sid)
+                        self.assertNotRegex(text, r"(?i)press\s*/", f"no hint for the slash key (focused={focused})")
+                    cdp.js("document.activeElement.blur()", sid)
+                    cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
+                    self.assertNotEqual(cdp.js("document.activeElement.id", sid), "fline-input", "the slash key goes to ask clark, not the line")
+
     def test_hint_chips_show_only_while_focused_and_a_hint_goes_into_the_box(self):
         s = self.serve()
         for width in SIZES:
@@ -302,6 +322,20 @@ class Line(unittest.TestCase):
             key(cdp, sid, "Enter")
             self.assertTrue(wait(lambda: "is not available on this page yet" in self.say(cdp, sid)))
             self.assertEqual(self.chips(cdp, sid), ["is:open"])
+
+    def test_the_freshness_words_follow_the_projects_own_number_of_days(self):
+        """#171: the project's review_after_days (in its row of the data) is what the menu says, in the singular for one day."""
+        for days, words in ((3, "Not reviewed in 3 days"), (1, "Not reviewed in 1 day"), (365, "Not reviewed in 365 days")):
+            self.data["TUL"]["project"]["review_after_days"] = days
+            self.addCleanup(self.data["TUL"]["project"].__setitem__, "review_after_days", 14)
+            s = self.serve()
+            with self.subTest(days=days), chrome() as cdp:
+                sid = self.load(cdp, s.port)
+                self.watch(cdp, sid)
+                click(cdp, sid, "#freshMenu")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#freshMenu[aria-expanded=true]')", sid)))
+                names = cdp.js("[...document.querySelectorAll('[role=menu] [role^=menuitem]')].map(e => e.textContent.trim())", sid)
+                self.assertEqual(names, [words, "No owner or no date"])
 
     def test_the_freshness_menu_gives_the_two_plain_values_and_the_chips_say_them_in_plain_words(self):
         s = self.serve()
@@ -434,7 +468,7 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("clarkPage.filters()", sid) == "mode:all;type:action"))
             cdp.js(f"clarkPage.openPeek({json.dumps(item)})", sid)
             self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == f"#work&p=TUL&item={item}&f=mode:all;type:action"))
-            cdp.call("Page.reload", {}, sid)
+            reload_to_new_page_cdp(cdp, sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
             self.assertEqual(cdp.js("clarkPage.peek().id", sid), item)
             self.assertEqual(self.chips(cdp, sid), ["type:action"])
@@ -513,7 +547,7 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("location.hash", sid) == "#milestones&p=TUL"))
             click(cdp, sid, "[data-view=work]")
             self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open", "priority:High", "supplier"]), "the line comes back with Work items")
-            cdp.call("Page.reload", {}, sid)
+            reload_to_new_page_cdp(cdp, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-input')", sid)))
             self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open", "priority:High", "supplier"]), "and after a reload")
             other = [p["code"] for p in self.projects if p["code"] != "TUL"][0]
@@ -565,7 +599,7 @@ class Line(unittest.TestCase):
                     key(cdp, sid, "Enter")
                     self.assertTrue(wait(lambda: "Urgent soon" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)))
                     # it is kept in this browser
-                    cdp.call("Page.reload", {}, sid)
+                    reload_to_new_page_cdp(cdp, sid)
                     self.assertTrue(wait(lambda: "Urgent soon" in (cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid) or [])))
                     # Save the line as a new view, then archive it, then bring it back
                     self.put(cdp, sid, "type:decision")
@@ -586,6 +620,55 @@ class Line(unittest.TestCase):
                     self.assertEqual(self.shown(cdp, sid), self.shown(cdp, sid))
                     self.assertTrue(rows)
                     cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
+    def test_a_saved_view_the_line_cannot_read_stays_listed_says_why_and_can_be_renamed_or_archived(self):
+        """#589: it is no longer hidden. The starting view that needs a client answer is still left out (the test above)."""
+        s = self.serve()
+        views = [{"id": "open", "name": "Open items", "line": "is:open"},
+                 {"id": "client", "name": "Waiting on the client", "line": "is:open is:needed"},
+                 {"id": "old", "name": "Old view", "line": "is:open colour:red"}]
+        tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                self.watch(cdp, sid)
+                cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
+                reload_to_new_page_cdp(cdp, sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.vtab').length", sid) == 2))
+                self.assertEqual(cdp.js(tabs, sid), ["Open items", "Old view"], "the broken view is listed; the starting client view is still left out")
+                self.assertEqual(cdp.js("document.querySelector('[data-vbad]').textContent", sid), "", "nothing said until it is chosen")
+                before = self.shown(cdp, sid)
+                click(cdp, sid, ".vtab[data-view-id=old]")
+                self.assertTrue(wait(lambda: "cannot be used any more" in cdp.js("document.querySelector('[data-vbad]').textContent", sid)))
+                said = cdp.js("document.querySelector('[data-vbad]').textContent", sid)
+                self.assertIn("colour", said, "it says why")
+                self.assertIn("Rename it or archive it.", said)
+                self.assertEqual(cdp.js("document.querySelector('.vtab[data-view-id=old]').getAttribute('aria-pressed')", sid), "true")
+                self.assertEqual(cdp.js("document.querySelectorAll('.vtab[data-view-id=old] .num').length", sid), 0, "no count for a line that is not applied")
+                self.assertIn("cannot be used", cdp.js("document.querySelector('.vtab[data-view-id=old]').getAttribute('aria-label')", sid))
+                self.assertEqual(self.chips(cdp, sid), ["is:open"], "choosing it does not apply the broken line")
+                self.assertEqual(self.shown(cdp, sid), before)
+                self.assertEqual(self.errors(cdp, sid), [])
+                # Rename it
+                click(cdp, sid, "#viewMenu")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewMenuList [data-kind=rename]')", sid)))
+                self.assertFalse(cdp.js("!!document.querySelector('#viewMenuList [data-kind=save]')", sid), "nothing to save for a view that is not applied")
+                click(cdp, sid, "#viewMenuList [data-kind=rename]")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vname"))
+                cdp.js("document.querySelector('#vname').select()", sid)
+                self.type(cdp, sid, "Older view")
+                key(cdp, sid, "Enter")
+                self.assertTrue(wait(lambda: cdp.js(tabs, sid) == ["Open items", "Older view"]))
+                self.assertIn("cannot be used any more", cdp.js("document.querySelector('[data-vbad]').textContent", sid), "renamed, still said")
+                # Archive it, then it can be brought back
+                click(cdp, sid, "#viewMenu")
+                click(cdp, sid, "#viewMenuList [data-kind=archive]")
+                self.assertTrue(wait(lambda: cdp.js(tabs, sid) == ["Open items"]))
+                self.assertEqual(cdp.js("document.querySelector('[data-vbad]').textContent", sid), "")
+                click(cdp, sid, "#viewMenu")
+                self.assertTrue(wait(lambda: "Bring back Older view (cannot be used now)" in cdp.js("[...document.querySelectorAll('#viewMenuList [role=menuitem]')].map(b => b.textContent)", sid)))
+                self.assertEqual(self.errors(cdp, sid), [])
+                cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 
     # ---- keys that are also Object.prototype properties (#153 review) ----
     WATCH = ("(function () { window.__errs = []; addEventListener('error', function (e) { window.__errs.push(String(e.message)); });"
@@ -636,7 +719,7 @@ class Line(unittest.TestCase):
                 sid = self.load(cdp, s.port)
                 cdp.js("sessionStorage.setItem('clark.fline', JSON.stringify({TUL: %s})); localStorage.setItem('clark.fviews', JSON.stringify({TUL: [{id: 'constructor', name: 'toString', line: 'constructor:x'}]}))" % json.dumps(kept), sid)
                 self.watch(cdp, sid)
-                cdp.call("Page.reload", {}, sid)
+                reload_to_new_page_cdp(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-input')", sid)))
                 self.assertTrue(wait(lambda: self.drawn(cdp, sid)), f"{kept}: the list is not blank")
                 self.assertEqual(self.errors(cdp, sid), [], kept)
@@ -646,7 +729,7 @@ class Line(unittest.TestCase):
                 sid = self.load(cdp, s.port)
                 self.watch(cdp, sid)
                 cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#work&p=TUL&f=" + urllib.parse.quote(f, safe=":;,")}, sid)
-                cdp.call("Page.reload", {}, sid)
+                reload_to_new_page_cdp(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-input')", sid)), f)
                 self.assertTrue(wait(lambda: self.drawn(cdp, sid)), f"{f}: not blank")
                 self.assertEqual(self.errors(cdp, sid), [], f)

@@ -9,6 +9,7 @@ import time
 import unittest
 
 from _paths import ROOT
+from _new_page import reload_to_new_page_cdp
 
 import test_inline_edits as ie  # noqa: E402  (not bound by name, so its own tests are not run again here)
 from test_inline_edits import key  # noqa: E402
@@ -43,7 +44,7 @@ class Source(unittest.TestCase):
 class Keys(ie.Live):
     def board(self, cdp, sid):
         cdp.js("localStorage.setItem('clark.work.v1', JSON.stringify({TUL: {view: 'board', group: 'status', lane: null, collapsed: []}}))", sid)
-        cdp.call("Page.reload", {}, sid)
+        reload_to_new_page_cdp(cdp, sid)
         self.until(cdp, sid, "!!document.querySelector('#work-board .bcard')", "the board")
 
     def test_the_table_cursor_is_one_tab_stop_and_never_lands_on_a_heading(self):
@@ -95,7 +96,12 @@ class Keys(ie.Live):
                 self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "and the focus stays in the peek")
                 key(cdp, sid, "ArrowUp")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Up steps it back")
+                self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "and the focus is still in the peek, settled, before it is moved")
                 self.assertEqual(cdp.js("window.__seen.filter(x => x[1]).length", sid), 2, "Down and Up in the peek were taken, once each")
+                # The peek's own effect (Peek.jsx: after a step the focus goes to Close when it is on the page) runs after the render has been
+                # drawn; until it has, blurring to the page lets it take the focus back and the next keys are the peek's. Wait for two frames.
+                cdp.js("window.__settled = false; requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => { window.__settled = true; }, 0)))", sid)
+                self.until(cdp, sid, "window.__settled === true", "the peek has finished reacting to the step")
                 cdp.js("document.body.focus(); document.activeElement.blur()", sid)
                 cdp.js("window.__seen.length = 0", sid)
                 key(cdp, sid, "ArrowLeft")
@@ -108,7 +114,9 @@ class Keys(ie.Live):
                 self.until(cdp, sid, f"{FOCUS} === '{rows[0]}'", "focus returns to the row")
                 key(cdp, sid, "ArrowRight")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Right opens it again")
+                self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "and the focus has moved into the peek, so it cannot move there after the row is focused")
                 cdp.js(f"document.querySelector('#work tr[data-id=\"{rows[0]}\"]').focus()", sid)
+                self.until(cdp, sid, f"{FOCUS} === '{rows[0]}'", "the row has the focus before Left is pressed")
                 key(cdp, sid, "ArrowLeft")
                 self.until(cdp, sid, "!location.hash.includes('item=')", "Left from the row closes the peek")
 

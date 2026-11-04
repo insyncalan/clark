@@ -388,7 +388,7 @@ class Page(Base):
             rows = cdp.js(self.ROWS, sid)
             tap(cdp, sid, self.rsel(rows[0]))
             tap(cdp, sid, self.rsel(rows[1]), MOD)
-            click(cdp, sid, "#group-by")
+            click(cdp, sid, "#viewMenu")                       # the one View menu (#287)
             self.until(cdp, sid, "!!document.querySelector('.ddmenu')", "the menu")
             press(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('.ddmenu')", "Esc closed the menu")
@@ -475,7 +475,7 @@ class Page(Base):
         with chrome() as cdp:
             sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
-            self.assertEqual(cdp.js("[...document.querySelectorAll('#work table.items')].map(t => [t.getAttribute('role'), t.getAttribute('aria-multiselectable')])", sid), [["grid", "true"]])
+            self.assertEqual(cdp.js("[...new Set([...document.querySelectorAll('#work table.items')].map(t => t.getAttribute('role') + ':' + t.getAttribute('aria-multiselectable')))]", sid), ["grid:true"], "each group's table is a multiselectable grid")
             self.assertTrue(cdp.js("[...document.querySelectorAll('#work-list tr[data-id]')].every(r => r.getAttribute('aria-selected') === 'false')", sid))
             tap(cdp, sid, self.rsel(rows[0]))
             tap(cdp, sid, self.rsel(rows[1]), MOD)

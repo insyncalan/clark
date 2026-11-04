@@ -20,6 +20,7 @@ from _demo import USER, DemoStore
 from _editor_checks import edit_elements
 from _real_server import real_server
 from _paths import SRC, TOOLS
+from _new_page import reload_to_new_page
 import _testpage as testpage
 
 sys.path.insert(0, str(TOOLS))
@@ -65,11 +66,9 @@ class Pg:
         self.until("document.querySelectorAll('.sec').length > 0 || !!document.querySelector('#no-sections')", "the report drew")
 
     def reload(self):
-        """Reload and wait for the NEW document: location.reload() returns while the old one is still up, so a bare ready()
+        """Reload and wait for the NEW document (_new_page.py): a reload returns while the old one is still up, so a bare ready()
         sees the old sections (or none, mid-teardown). A token set on the old window is gone in the new one."""
-        self.js("window.__old_document = true")
-        self.js("location.reload()")
-        self.until("window.__old_document === undefined && document.readyState === 'complete'", "the page reloaded")
+        reload_to_new_page(self.js)
         self.ready()
 
     def edit(self):
@@ -262,7 +261,7 @@ class Modes(Base):
             for what in ("[data-drag]", "[data-options]", "[data-add]", "[contenteditable=plaintext-only]"):
                 self.assertEqual(len([f for f in found if what in f]), 11, what)
             self.assertEqual(p.js(quiet), want, "Edit: the same line")
-            self.assertEqual(p.js(texts), [QUIET] * 4, "Edit: the four text sections keep the old line (their editor is a later item)")
+            self.assertEqual(p.js(texts), [QUIET] + ["Click to write."] * 3, "Edit: Current state keeps the old line; the three text sections open the editor in place (#220)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")
@@ -399,7 +398,7 @@ class Sections(Base):
             p.until(hidden, "dimmed in Edit")
             self.assertEqual(p.ids(), IDS, "still drawn in Edit")
             self.assertIn("Left out of the published page", p.js("document.querySelector('[data-id=\"ABC-S-002\"]').textContent"))
-            self.assertLess(float(p.js("getComputedStyle(document.querySelector('[data-id=\"ABC-S-002\"] .sec-head')).opacity")), 1, "its words are dimmed")
+            self.assertLess(float(p.js("getComputedStyle(document.querySelector('[data-id=\"ABC-S-002\"] .sec-h')).opacity")), 1, "its words are dimmed")
             self.assertEqual(self.sent[-1][1]["changes"], {"hidden": 1}, "0 or 1, never true")
             self.assertEqual(p.toast(), "Section left out of the published page.")
             p.view()
@@ -810,7 +809,7 @@ class Sections(Base):
 
 class Failures(Base):
     """Every failure says plain words and nothing the server said; nothing is drawn that was not saved."""
-    STALE = "This page is out of date: clark was restarted after you opened it. Reload the page and try again."
+    STALE = "This page is out of date because clark was restarted after you opened it. Reload the page and try again."
 
     def shown_problem(self, p, words):
         p.until(f"!!document.querySelector('.toast.problem') && document.querySelector('.toast-text').textContent === {json.dumps(words)}",
@@ -880,7 +879,7 @@ class Failures(Base):
             self.s.close()                                                        # clark's window was closed
             self.addCleanup(lambda: None)
             p.menu("ABC-S-002", "up")
-            self.shown_problem(p, "Nothing is running behind this page: clark stops by itself after a while with nothing open. Start it again from clark.command.")
+            self.shown_problem(p, "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command.")
             self.assertEqual(p.ids(), IDS)
 
     def test_changes_go_out_one_at_a_time(self):
@@ -1124,7 +1123,7 @@ class Gutter(Base):
             p.js("document.querySelector('[data-id=\"ABC-S-002\"]').classList.add('is-hidden')")
             self.assertLessEqual(p.js(self.MEASURE + "[1][1]"), p.js(self.MEASURE + "[1][2]"), "a left-out section too")
             p.view()
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('.secs > .sec')).paddingLeft"), "0px", "View is unchanged")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('.secs > .sec')).paddingLeft"), "20px", "View keeps the card's own 20 px side padding, not Edit's 32 px (A-D3)")
 
     def test_the_menu_entries_and_their_order(self):
         with chrome() as cdp:

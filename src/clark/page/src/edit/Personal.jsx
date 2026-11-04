@@ -3,8 +3,9 @@
 import { style, setStyle } from "../stores/style.js";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { appearance, setAppearance } from "../stores/appearance.js";
-import { profile, loadProfile, setProfile, wantName } from "../stores/profile.js";
+import { profile, profileRead, loadProfile, setProfile, wantName } from "../stores/profile.js";
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
+import { announce, leave, noteTyped } from "./aboutYouToast.js";
 
 export const STYLES = [
   ["slim", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture."],
@@ -27,26 +28,34 @@ function AboutYou() {
   const [said, setSaid] = useState({ name: "", email: "" });
   useEffect(() => { loadProfile(); }, []);
   const typedIn = useRef({ name: false, email: false });
-  // The boxes follow what clark has when it is read late (a read that finished after Settings opened), but only a box nobody has typed in:
-  // a person who keeps typing while a save is on its way must never see the box go back to what was saved (and a box typed in before that
-  // effect ran must not be emptied by it). A saved value is put back in its box by save(), below, and only when the box still holds what was sent.
+  // The boxes follow what clark has when it is read late (a read that finished after Settings opened), but only a box nobody has typed in
+  // since it was last saved: a person who keeps typing while a save is on its way must never see the box go back to what was saved (and a
+  // box typed in before that effect ran must not be emptied by it). A saved value is put back in its box by save(), below, and only when
+  // the box still holds what was sent; that box is then no longer typed in, so a later read can fill it again.
   useEffect(() => {
     setTyped((t) => ({ name: typedIn.current.name ? t.name : profile.value.name, email: typedIn.current.email ? t.email : profile.value.email }));
   }, [profile.value.name, profile.value.email]);
   useEffect(() => { if (wantName.value && name.current) { wantName.value = false; name.current.focus(); } });
+  useEffect(() => { noteTyped(typed); }, [typed.name, typed.email]);      // the toast's Undo goes once the boxes hold something else (aboutYouToast.js, #429)
+  useEffect(() => leave, []);                                             // leaving Settings takes the toast (and its Undo) with it, in View as in Edit
   const save = async (field) => {
     // both boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over the other
     const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };
-    const r = await setProfile(sent.name, sent.email);
+    // Before clark has answered a read, a box nobody has typed in holds only the empty draw, not what is saved: it is not sent, and the
+    // store fills it from clark's own answer (#420), so saving one box first never blanks the other.
+    const unread = !profileRead.value;
+    const r = await setProfile(unread && !typedIn.current.name ? undefined : sent.name, unread && !typedIn.current.email ? undefined : sent.email);
     // One rule: an answer speaks only for the newest save. A late answer to an older save changes nothing on the page (it can neither clear
     // nor replace what a newer save said), so a refusal is never lost and an old refusal never shows over text that was saved. A refusal is
     // also shown only while the box still holds the text that was refused (text typed since has not been sent yet).
     if (!r.newest) return;
     if (r.ok) {
       // what clark kept (it may be tidied, such as spaces cut off the ends) goes back in a box only if the box still holds what was sent:
-      // a box changed since is left as it is
+      // a box changed since is left as it is (and stays typed in)
+      for (const [f, ref] of [["name", name], ["email", email]]) if ((ref.current ? ref.current.value : typed[f]) === sent[f]) typedIn.current[f] = false;
       setTyped((t) => ({ name: t.name === sent.name ? r.name : t.name, email: t.email === sent.email ? r.email : t.email }));
       setSaid({ name: "", email: "" });
+      announce(r, setTyped);                // "Name saved." or "Email saved." with Undo, when the save changed something (#429)
       return;
     }
     // the refusal is shown under the box it is about (the route says which); a refusal that names none goes under the box that was left
