@@ -1,4 +1,4 @@
-// The page's only way to the Dashboard as at a day (#349): GET /api/as-at. It reads; nothing on the server is changed by it.
+// The page's only way to the Dashboard as at a day (item 349): GET /api/as-at. It reads; nothing on the server is changed by it.
 import { token } from "../stores/report.js";
 
 // {status, body}: never a throw, whatever the network or the server did. A status of 0 is "no answer".

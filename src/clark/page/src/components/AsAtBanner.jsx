@@ -1,4 +1,4 @@
-// The banner over the Dashboard shown as at a day (#349): the #125 design note's past-view banner (the prototype's .pv-banner), in
+// The banner over the Dashboard shown as at a day (item 349): the item 125 design note's past-view banner (the prototype's .pv-banner), in
 // the "as at that date" form. It stays at the top, says the day and that the page is rebuilt from the change history and read only,
 // and has the one way back: Back to now, this week's Dashboard. A published file never shows it (it is never rebuilt).
 import { rebuilt, backToNow } from "../stores/report.js";

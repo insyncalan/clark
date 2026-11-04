@@ -1,4 +1,4 @@
-// Settings › Published reports: "Dashboard as at a day" (#349, follow-on 8 of the #125 design note). A day typed as DD-MM-YYYY
+// Settings › Published reports: "Dashboard as at a day" (item 349, follow-on 8 of the item 125 design note). A day typed as DD-MM-YYYY
 // (clark's own way, as Week ending takes it: never the browser's calendar) and Show: the server rebuilds the project's data as it
 // stood at the end of that day (as_at.py) and the page shows the Dashboard read only, behind the banner, until Back to now.
 // Edit parts only (a published file has no Settings). `api` is a seam for the tests; the page passes none.

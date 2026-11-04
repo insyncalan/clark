@@ -1,5 +1,5 @@
-// The words of the Dashboard "as at" a day (#349), as plain functions with no DOM: the Settings picker (edit/AsAtPick.jsx) and the
-// banner over the rebuilt Dashboard (components/AsAtBanner.jsx). The banner's sentence is the #125 design note's (the prototype's
+// The words of the Dashboard "as at" a day (item 349), as plain functions with no DOM: the Settings picker (edit/AsAtPick.jsx) and the
+// banner over the rebuilt Dashboard (components/AsAtBanner.jsx). The banner's sentence is the item 125 design note's (the prototype's
 // past.js): it is never what anyone was sent, so it says "rebuilt from the change history" every time.
 export const LABEL = "Dashboard as at a day";
 export const HINT = "See the Dashboard as it stood at the end of a day, rebuilt from the change history. Read only; it was not published in this form.";

@@ -12,7 +12,7 @@ const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DAY = 86400000;
 const DASH = "—";
 
-// #349: while the Dashboard is shown as at a day, rebuilt from the change history, "today" is that day, so due dates and Overdue
+// item 349: while the Dashboard is shown as at a day, rebuilt from the change history, "today" is that day, so due dates and Overdue
 // read as they did then. Only the report store sets it (stores/report.js showAsAt and backToNow); "" reads the clock.
 let pinned = "";
 export function pinToday(iso) { pinned = /^\d{4}-\d\d-\d\d$/.test(iso || "") ? iso : ""; }

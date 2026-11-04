@@ -13,7 +13,7 @@ import { ClientReport } from "./ClientReport.jsx";
 const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, clientreport: ClientReport, settings: Settings };
 
 export function App({ tools: given }) {
-  // #349: the Dashboard as at a day is read only: the page draws it as a published file is drawn, with no Edit part at all (no
+  // item 349: the Dashboard as at a day is read only: the page draws it as a published file is drawn, with no Edit part at all (no
   // Edit, Publish, menu, peek tools, Help, palette or ask panel), behind its banner; Back to now gives them back.
   const past = !!rebuilt.value && !fromFile.value;
   const tools = past ? null : given;
