@@ -202,6 +202,9 @@ export function Settings({ tools }) {
   );
 }
 
+// item 427: in the Docker route there is no --demo flag. The server's page carries data-container="1" on <html> then (page.page_html).
+const inContainer = () => typeof document !== "undefined" && document.documentElement.dataset.container === "1";
+
 // The "No project open" screen: the projects to choose from or, when there are none (or the list could not be read), what to do.
 function NoProject() {
   const list = projects.value, state = projectsState.value;
@@ -212,7 +215,7 @@ function NoProject() {
       <section class="frame empty">
         <h1>No project open</h1>
         <p class="muted">There are no projects yet.</p>
-        <p class="muted">To look around with made-up projects, close clark and start it again with <code>python3 -m clark --demo</code>.</p>
+        {inContainer() ? null : <p class="muted">To look around with made-up projects, close clark and start it again with <code>python3 -m clark --demo</code>.</p>}
       </section>
     );
   }

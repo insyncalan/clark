@@ -16,6 +16,7 @@ SHARED = (
     "LICENSE",                  # item 4 of the licence: it must not be removed from copies
     "NOTICE.md",                # the MIT, OFL, PSF and ISC texts the bundled code and fonts require (#639)
     "clark/",                   # the stand-in that hands `python3 -m clark` to src/clark/
+    "docker/",                  # item 427: the compose file (a stock Python image runs this folder), for a computer that uses Docker
     "src/clark/",               # with the built page.html
     "vendor/README.md",         # vendor/manifest.json lists it
     "vendor/ed25519_verify/",
