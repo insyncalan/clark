@@ -258,17 +258,18 @@ class OverdueTile(unittest.TestCase):
 
 
 class RisksTile(unittest.TestCase):
-    def test_counts_open_risks_and_issues_rated_urgent_or_high(self):
+    def test_counts_open_risks_issues_assumptions_and_dependencies_rated_urgent_or_high(self):
         d = data(raid_=[raid(1, priority="Urgent"), raid(2, "Issue", "High"), raid(3, priority="Medium"), raid(4, priority="Low"),
                         raid(5, priority="High", status="Closed"), raid(6, "Assumption", "High"),
                         raid(7, "Dependency", "Urgent"), raid(8, priority="High", archived=1), raid(9, priority=None)])
         t = by_name(g.tiles(d, ON))["risks"]
-        self.assertEqual((t["value"], t["high"], t["open"]), (2, 2, 5))
-        self.assertEqual((t["detail"], t["colour"], t["class"]), ("of 5 open risks and issues", "red", "r"))
+        self.assertEqual((t["value"], t["high"], t["open"]), (4, 4, 7))   # the page counts all four kinds
+        self.assertEqual((t["detail"], t["colour"], t["class"]), ("of 7 open risks and issues", "red", "r"))
 
-    def test_the_colour_is_the_highest_priority_by_d12(self):
-        for priorities, colour in ((["Urgent"], "red"), (["High"], "red"), (["Medium", "Low"], "amber"), (["Low"], "green"),
-                                   ([], "green"), ([None], "green"), (["Low", "High", "Medium"], "red")):
+    def test_the_colour_is_the_pages_rule(self):
+        """Item 391: red when any open one is Urgent or High, amber when any is open (Low or unrated too), green when none is."""
+        for priorities, colour in ((["Urgent"], "red"), (["High"], "red"), (["Medium", "Low"], "amber"), (["Low"], "amber"),
+                                   ([], "green"), ([None], "amber"), (["Low", "High", "Medium"], "red")):
             d = data(raid_=[raid(i + 1, priority=p) for i, p in enumerate(priorities)])
             self.assertEqual(by_name(g.tiles(d, ON))["risks"]["colour"], colour, priorities)
 
@@ -722,7 +723,7 @@ class DemoData(unittest.TestCase):
             got = by_name(g.tiles(d, ON, hidden=()))
             late = self.count("SELECT count(*) FROM actions WHERE project = ? AND status IN ('Open','Delayed') AND due_date < ? "
                               "AND archived = 0", code, ON)
-            high = self.count("SELECT count(*) FROM raid WHERE project = ? AND status = 'Open' AND type IN ('Risk','Issue') "
+            high = self.count("SELECT count(*) FROM raid WHERE project = ? AND status = 'Open' AND type IN ('Risk','Issue','Assumption','Dependency') "
                               "AND priority IN ('Urgent','High') AND archived = 0", code)
             pending = self.count("SELECT count(*) FROM decisions WHERE project = ? AND status = 'Pending' AND archived = 0", code)
             self.assertEqual((got["overdue"]["value"], got["risks"]["value"], got["decisions"]["value"]), (late, high, pending), code)
