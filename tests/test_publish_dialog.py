@@ -12,6 +12,7 @@ import unittest
 from pathlib import Path
 
 from _paths import SRC
+from _new_page import reload_to_new_page_cdp
 from test_page import navigate
 from test_publish_route import Rig, WANTED
 from test_server import chrome, wait
@@ -533,9 +534,8 @@ class Placeholder(Base):
 
     def page(self, cdp, hash_="#dashboard&p=PUB"):
         p = super().page(cdp, hash_)
-        p.js("window.__before449 = 1")
-        cdp.call("Page.reload", {"ignoreCache": True}, p.sid)                           # the same address again is only a hash change: load the data afresh
-        p.until("!window.__before449 && document.readyState === 'complete' && !!document.querySelector('#profile-btn')", "the page loaded again")
+        # the same address again is only a hash change: load the data afresh
+        reload_to_new_page_cdp(cdp, p.sid, "!!document.querySelector('#profile-btn')", "the page loaded again")
         return p
 
     def add(self, table, values):
