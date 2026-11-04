@@ -137,8 +137,10 @@ class OfflinePage(unittest.TestCase):
     def test_it_says_clark_isnt_running_with_the_start_command_and_check_again(self):
         self.assertIn("<title>Not running</title>", self.page)
         self.assertIn("<h1>Start clark to use this window</h1>", self.page)
-        self.assertIn("Double-click <b>clark.command</b> in your clark folder", self.page)
-        self.assertIn("<code>./clark.command</code>", self.page)
+        self.assertIn("Nothing is running at this address. Start it the way you started it: double-click <b>clark.command</b> in your clark folder, or, if you use Docker, open Terminal in that folder and type:", self.page)
+        self.assertIn("<code>docker compose -f docker/compose.yaml up -d</code>", self.page)
+        self.assertIn("Closing the last clark window stops clark.command after a minute. Docker keeps running until you stop it with:", self.page)
+        self.assertIn("<code>docker compose -f docker/compose.yaml down</code>", self.page)
         self.assertIn('<button type="button" id="again">Check again</button>', self.page)
         self.assertIn('"Still not running. Double-click clark.command, then check again."', self.page)
         self.assertNotIn("@LAUNCHER@", self.page)
@@ -153,9 +155,9 @@ class OfflinePage(unittest.TestCase):
         for word in ("server", "Server", "localhost", "port", "JSON", "Error", "Exception", "!", "Clark"):
             self.assertNotIn(word, text)
 
-    def test_what_it_says_is_nothing_is_lost(self):
-        self.assertIn("Nothing is lost: your data stays on this computer.", self.page)
-        self.assertIn("A minute after the last window closes, clark stops by itself.", self.page)
+    def test_it_says_when_each_way_of_starting_stops(self):
+        """item 427: one text for both routes (the double-click and Docker)."""
+        self.assertIn("Closing the last clark window stops clark.command after a minute. Docker keeps running until you stop it with:", self.page)
 
     def test_the_launcher_name_is_escaped_and_nothing_else_is_put_in(self):
         page = af.offline_page('<b>x"&').decode("utf-8")

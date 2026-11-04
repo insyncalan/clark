@@ -2,7 +2,7 @@
 // published file and View show the fields and nothing else). Every change is one request with one Undo (changeCell), and the data is
 // read again after it so the stamp is the one clark wrote. Draft writes the text from the item's own fields (peekLatest.js draftFor),
 // with no AI. An action that is shown to the client carries a 'Shown to the client' label (its latest update is published). An action has a latest update; a risk, issue or decision has the stamp only.
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { changeCell, say, refresh } from "../stores/changes.js";
 import { showDate, todayIso } from "../workItems.js";
@@ -35,7 +35,9 @@ export function PeekLatest({ row }) {
   const rec = raw(row), action = row.kind === "action";
   const [open, setOpen] = useState(false), [text, setText] = useState(""), [problem, setProblem] = useState("");
   const settled = useRef(false), saving = useRef(false), shown = useRef(null), box = useRef(null);
-  useEffect(() => { if (open && box.current) { box.current.focus(); const n = box.current.value.length; box.current.setSelectionRange(n, n); } }, [open]);
+  // A layout effect: the box takes the focus in the step that draws it, not a frame later. A frame that arrives late (a busy runner) left the
+  // box drawn but not focused, so the key that came next went to the page, and a late focus elsewhere (the peek giving Close its focus) closed the box on blur.
+  useLayoutEffect(() => { if (open && box.current) { box.current.focus(); const n = box.current.value.length; box.current.setSelectionRange(n, n); } }, [open]);
   const now = rec && rec.latest_update ? String(rec.latest_update) : "";
   const stamp = rec ? stampText(rec.updated_at) : "";
   const start = () => { settled.current = false; setText(now); setProblem(""); setOpen(true); };
