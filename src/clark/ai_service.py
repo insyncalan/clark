@@ -138,8 +138,7 @@ class AiService:
             LOG.info("ai suggest option=%s place=%s length=%d", req["option"], req["place"], len(text))
             canary = secrets.token_urlsafe(16)       # #277: new for each request, in memory for this call only, as ask.ask_provider does
             try:
-                reply = self.provider.ask(ask.Request(text=req["prompt"], question="", system=ai_menu.SUGGEST_RULES, canary=canary,
-                                                      owner=self.owner, cancel=self.stopped))
+                reply = self.provider.ask(ai_menu.ask_request(option, text, place, instruction, owner=self.owner, cancel=self.stopped, canary=canary))
             except Exception:  # noqa: BLE001  a provider fault is one plain line; its text could hold the request
                 reply = ask.Failure(MESSAGES["failed"])
             if isinstance(reply, str) and ask.leaks(reply, canary):    # the whole reply is dropped; neither it nor the marker is kept

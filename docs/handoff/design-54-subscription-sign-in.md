@@ -41,6 +41,7 @@ Also: the native binary, not the npm script; an environment built from nothing, 
 ## Visible words for the owner to rule on
 
 - "That model isn't one clark can use. Nothing was sent."
+- "This version of Claude can't choose a model. Update Claude to choose one."
 - "Claude says that model can't be used with this sign-in. Choose another model in Settings."
 - "Claude says the limit for this model has been reached, so nothing more was sent. You could ask again with Sonnet, Haiku, Fable. clark doesn't switch unless you choose to."
 - "That is too much text for Opus, so nothing was sent. Ask about less, or choose another model in Settings."
