@@ -1347,8 +1347,8 @@ class Published(unittest.TestCase):
             titles = cdp.js("[...document.querySelectorAll('.sec-h')].map(e => e.textContent)", sid)
             self.assertNotIn("Hidden secret plan", titles)
             self.assertIn("Shown <b>plan</b>", titles)
-            self.assertEqual(titles, ["At a glance", "Use case summary", "Shown <b>plan</b>", "Next week", "Risks and issues", "Open actions", "Decisions"],
-                             "At a glance and the use case summary (#45), the two text sections with words (Summary is hidden) and, even empty, Risks and issues, Open actions and Decisions (A-D5)")
+            self.assertEqual(titles, ["At a glance", "Use case summary", "Shown <b>plan</b>", "Next week"],
+                             "At a glance and the use case summary (#45) and the two text sections with words: Summary is hidden, and no other type is drawn in a file yet")
             self.assertEqual(edit_elements(cdp, sid), [])
             self.assertEqual(cdp.js("document.querySelectorAll('.mode, [aria-pressed]').length", sid), 0, "no Edit button")
             for key in ("e", "E", "v"):                                           # V and E do nothing in a published file (#103)
@@ -1446,7 +1446,55 @@ class Published(unittest.TestCase):
                             "the rows are worked out again without This week")
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-                self.assertTrue(wait(lambda: cdp.js("document.documentElement.scrollWidth <= document.documentElement.clientWidth", sid)), f"nothing pushes the file sideways at {w}")
+                full = ("(function(){var s=document.querySelector('[data-id=\"ABC-S-007\"]').getBoundingClientRect(),"
+                        "r=document.querySelector('.secs').getBoundingClientRect();return Math.abs(s.width - r.width) < 2;})()")
+                self.assertTrue(wait(lambda: cdp.js(full, sid)), f"with This week empty, Next week takes the whole row at {w}")
+
+    def test_a_type_the_file_does_not_draw_yet_is_left_out_and_its_neighbour_takes_the_row_at_1400_and_900(self):
+        """
+        does not draw yet (all but text) is left out of the file, heading and all, for every type in the demo; Next week is set
+        beside Risks and issues (This week no longer beside it), so with Risks and issues left out Next week takes the row."""
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        store = demo.store
+        sections = order.in_order(store.read("report_sections", "ABC"))
+        kinds = {s["type"] for s in sections}
+        self.assertTrue({"current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs"} <= kinds,
+                        kinds)
+        with store.step("dashboard", USER) as st:
+            for s in sections:
+                if s["type"] == "text":
+                    st.update("report_sections", s["id"], {"body": f"<p>Words ZQ-{s['id']}</p>"})
+            st.update("report_sections", "ABC-S-006", {"beside": 0})          # This week full width
+            st.update("report_sections", "ABC-S-007", {"beside": 1})          # Next week beside Risks and issues
+        folder = tempfile.mkdtemp(prefix="clark-pub-")
+        self.addCleanup(shutil.rmtree, folder, True)
+        done = publish.publish(store, "ABC", folder, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
+        text = Path(done["path"]).read_text(encoding="utf-8")
+        for never in ("is not shown on this page", "Its content is not shown"):     # the served line is in the code, never drawn
+            self.assertNotIn(never, text, never)
+        with chrome() as cdp:
+            tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+            sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+            cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-id=\"ABC-S-005\"] .sec-body')", sid)), "the file drew")
+            drawn = cdp.js("[...document.querySelectorAll('.sec')].map(s => s.dataset.type)", sid)
+            self.assertEqual(drawn, ["glance", "usecases"] + ["text"] * len([s for s in sections if s["type"] == "text"]),
+                             "only text sections, At a glance and the use case summary (#45) are drawn")
+            for s in sections:
+                if s["type"] not in ("text", "glance", "usecases"):
+                    self.assertIsNone(cdp.js(f"document.querySelector('[data-id=\"{s['id']}\"]')", sid), s["type"])
+            page_text = cdp.js("document.body.innerText", sid)
+            self.assertNotIn("is not shown", page_text)
+            self.assertNotIn(QUIET, page_text)
+            self.assertEqual(cdp.js("document.querySelectorAll('.quiet').length", sid), 0, "no quiet line in a file")
+            self.assertTrue(cdp.js("document.querySelector('[data-id=\"ABC-S-007\"]').classList.contains('slot-full')", sid),
+                            "the rows are worked out again without Risks and issues")
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                full = ("(function(){var s=document.querySelector('[data-id=\"ABC-S-007\"]').getBoundingClientRect(),"
+                        "r=document.querySelector('.secs').getBoundingClientRect();return Math.abs(s.width - r.width) < 2;})()")
+                self.assertTrue(wait(lambda: cdp.js(full, sid)), f"with Risks and issues left out, Next week takes the whole row at {w}")
 
 
 if __name__ == "__main__":

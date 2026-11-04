@@ -118,7 +118,28 @@ class ItemRows(unittest.TestCase):
             self.assertNotRegex(first, r"days? late|Today|Tomorrow|Yesterday|In \d+ days?", "a file shows the date only: it is read later, not on the publish date")
             self.assertEqual(cdp.js("document.querySelectorAll('[contenteditable],input,button.eye').length", sid), 0)
 
-    def test_a_section_with_nothing_to_show_keeps_its_heading_and_says_so_in_view_and_the_file(self):
+    def test_a_section_with_nothing_to_show_says_so_on_the_page_and_is_left_out_of_the_file(self):
+        empty = DemoStore()
+        self.addCleanup(empty.close)
+        s = Running(data_for=empty.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
+        self.addCleanup(s.close)
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, s.port)
+            p.ready()
+            self.assertEqual(p.js("document.querySelector('[data-type=raid] .quiet').textContent"), "Nothing to show.")
+        folder = tempfile.mkdtemp(prefix="clark-pub-")
+        self.addCleanup(shutil.rmtree, folder, True)
+        done = publish.publish(empty.store, "ABC", folder, by_user=USER, now=AS_AT, branding=EMPTY_BRANDING)
+        with chrome() as cdp:
+            tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+            sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+            cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid)))
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-type=raid],[data-type=actions],[data-type=decisions]').length", sid), 0)
+
+    def test_an_empty_section_says_so_in_view_and_edit_and_the_published_file_leaves_it_out_heading_and_all(self):
+        """A client's published file never shows an empty section: no heading and no 'Nothing to show.' for it. View keeps each
+        heading with that line (prototype views.js), and Edit says it with the add line and the count."""
         empty = DemoStore()
         self.addCleanup(empty.close)
         s = Running(data_for=empty.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
@@ -141,8 +162,13 @@ class ItemRows(unittest.TestCase):
             tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
             sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid)))
-            self.assertEqual(cdp.js(secs, sid), want, "the published file keeps them too")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sec')", sid)), "the file drew its other sections")
+            self.assertEqual(cdp.js(secs, sid), [], "the published file leaves each empty section out")
+            headings = cdp.js("[...document.querySelectorAll('.sec-h')].map(e => e.textContent)", sid)
+            for h in ("Risks and issues", "Open actions", "Decisions"):
+                self.assertNotIn(h, headings, f"no heading for an empty {h} in the file")
+            self.assertNotIn("Nothing to show.", cdp.js("document.body.innerText", sid), "the file never says Nothing to show.")
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-nothing]').length", sid), 0)
 
 
 def edit_server(test, store):

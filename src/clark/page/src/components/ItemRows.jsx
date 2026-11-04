@@ -2,7 +2,8 @@
 // and when (and the priority on a risk or issue), the ID on the right. The same rows in View, in Edit (edit/ItemRowsEdit.jsx draws
 // them with every part editable) and in a published file; they are drawn from the rows the page already holds, so a published file
 // needs nothing else. What a client reads is the client's own wording; an item without any is left out, never shown with the
-// team's own text. An empty section keeps its heading and says so in a line (prototype views.js: "Nothing to show.").
+// team's own text. An empty section keeps its heading and says so in a line in View (prototype views.js: "Nothing to show."); a
+// published file leaves an empty section out, heading and all (Dashboard.jsx fileDraws), so a client never reads that line.
 import { data, rows as allRows, fromFile, asAt, openPeek } from "../stores/report.js";
 import { dueCell, ownerOf, showDate, todayIso, dueField } from "../workItems.js";
 import { sectionRows, listed, dateWord, clientPill, keptIds } from "../logic/sectionRows.js";
