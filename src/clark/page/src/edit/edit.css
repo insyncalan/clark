@@ -525,17 +525,24 @@ textarea.tpl-field { resize: vertical; }
 .arch-pill:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .arch-pill[aria-pressed="true"] { background: var(--brand-navy); border-color: var(--brand-navy); color: var(--white); }
 :root[data-theme=dark] .arch-pill[aria-pressed="true"] { background: var(--brand-blue); border-color: var(--brand-blue); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .arch-pill[aria-pressed="true"] { background: var(--brand-blue); border-color: var(--brand-blue); } }
+.arch-pill em { font-style: normal; }   /* full colour, as the prototype, at the pill's size: the build keeps text at 13 px at least */
+.vctl:has(.arch-pill) { flex-wrap: wrap; }   /* item 450: the pill joins View and the layout switch; at 900 px they wrap, never sideways */
+.arch-h { margin: 8px 0; font-size: var(--size-body); font-weight: 600; }
+.arch-h span { font-weight: 400; font-size: var(--size-small); margin-left: 6px; }
 .arch-box { margin-top: 8px; border: 1px solid var(--grey-200); border-radius: var(--radius); padding: 4px 12px; background: var(--surface); }
-.arch-rows { list-style: none; margin: 0; padding: 0; }
-.arch-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: start; padding: 8px 0; border-top: 1px solid var(--grey-100); color: var(--text-muted); }
-.arch-row:first-child { border-top: 0; }
-.arch-open { all: unset; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; cursor: pointer; font-size: var(--size-small); color: var(--text-muted); }
-.arch-open:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 3px; }
-.arch-open .meta { font-size: var(--size-caption); }
-.arch-read { grid-column: 1 / -1; display: grid; grid-template-columns: 90px 1fr; gap: 2px 12px; margin: 4px 0 0; font-size: var(--size-small); }
-.arch-read dt { color: var(--text-muted); }
-.arch-read dd { margin: 0; }
-.arch-restore { grid-row: 1; grid-column: 2; }
+/* item 450 row 39 (prototype views.js:1006-10): the archived rows are a table, muted, each tagged Archived; a row opens the side peek */
+table.items.arch { margin-top: 0; }
+table.items.arch tr.arch-row td, table.items.arch tr.arch-row .t, table.items.arch tr.arch-row .meta { color: var(--text-muted); }
+table.items.arch tr.arch-row.sel td { background: var(--grey-50); }
+table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+.tag.arch { margin-left: var(--space-2); background: var(--grey-100); color: var(--text-muted); border: 1px solid var(--grey-200); }
+/* The archived peek (prototype peek.js:409-30, app.css .pk-archnote): read only, one note with the one Restore, a quiet foot line */
+.pk-arch .pk-bar .tag.arch { margin-left: 0; }
+.pk-archnote { display: flex; align-items: center; gap: 12px; margin: 12px 0 4px; padding: 10px 12px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-100); color: var(--text); font-size: var(--size-small); }
+.pk-archnote p { margin: 0; flex: 1; min-width: 0; }
+.pk-archnote .btn { flex: none; }
+.pk-arch-foot { margin: var(--space-4) 0 0; padding-top: var(--space-3); border-top: 1px solid var(--grey-100); font-size: var(--size-small); }
 
 /* #74 Supporting documents in Edit: each link's buttons, the add or edit form, and "Add back a document". Tokens only. */
 .docs-edit { gap: var(--space-2); margin: var(--space-2) 0; }

@@ -90,18 +90,6 @@ COVERED = [
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#48", "HOLD (the Help wording is the owner's call): Export to Word and Import from Word screens", "PR 475", "page/src/edit/Word.jsx", "export function WordLayer"),
-    ("#152", "Settings has a Version and updates card and the update routes, with a data migration step and its undo", "PR 513", "updater.py", "class Updater"),
-    ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 518", "page/src/edit/Update.jsx", "upd-rows"),
-    ("#434", "Risks, issues, actions and decisions rows: a status pill, empty sections, editing in place and the ID button", "PR 368", "page/src/edit/ItemRowsEdit.jsx", "A-D5"),
-    ("#449", "Work items: the column width can be changed and reset, with a toast", "PR 462", "page/src/logic/board.js", "COL_MIN"),
-    ("#444", "Settings Data card and Projects table: Import workbook, Reset the demo data, Add and Edit project", "PR 461", "page/src/logic/dataCard.js", "export const DATA"),
-    ("#450", "Archived items open read only in the peek with one Restore, and the Show archived pill remembers its state", "PR 503", "page/src/edit/ArchivedItems.jsx", "export function ArchivedPill"),
-    ("#53", "Where clark's AI providers code comes from (a copy from the other product's branch)", "no pull request yet (issue 53)", "", None),
-    ("#54", "Settings, AI: Claude and OpenAI sign-in for ask clark", "no pull request yet (issue 54)", "", None),
-    ("#446", "Settings, AI card: Connect and Disconnect for Claude, an OpenAI tile that says Later, a model list", "no pull request yet (issue 446)", "", None),
-    ("#611", "A blank client message is turned away in plain words, not a server error", "no pull request yet (issue 611)", "", None),
-    ("#613", "Settings: typing a full name suggests an Alias (Jane Doe suggests Jane,JD)", "no pull request yet (issue 613)", "", None),
 ]
 
 # (item, check, kind, why, what the person does)
