@@ -23,9 +23,13 @@ export const APPEARANCES = [                                 // the ruled order:
 
 // The words of the suggested Alias under the name box, kept here in one place so they are easy to change (item 613).
 export const ALIAS_WORDS = {
-  label: "Suggested Alias:",                                   // the suggestion follows it, after a space ("Suggested Alias: Jane,JD")
-  help: "What colleagues might call you, worked out from your name. Not saved.",
+  label: "Suggested Alias:",                                   // the suggestion follows it, after a space ("Suggested Alias: Jane, JD")
+  help: "Your first name and your initials, worked out from your full name. Not saved.",
 };
+
+// The suggestion as shown: suggestAlias keeps its two parts comma-separated ("Jane,JD"); the line puts a space after the comma ("Jane, JD").
+// One word shows just that word.
+const showAlias = (alias) => alias.split(",").map((part) => part.trim()).filter(Boolean).join(", ");
 
 // The suggested Alias (item 613): read-only, worked out live from what is in the name box. Nothing here is kept or sent anywhere; an
 // empty name shows nothing.
@@ -34,7 +38,7 @@ function AliasOffer({ name }) {
   if (!alias) return null;
   return (
     <div class="alias-offer" data-alias-offer>
-      <p class="alias-line">{ALIAS_WORDS.label} <b data-alias>{alias}</b></p>
+      <p class="alias-line">{ALIAS_WORDS.label} <b data-alias>{showAlias(alias)}</b></p>
       <p class="alias-help">{ALIAS_WORDS.help}</p>
     </div>
   );

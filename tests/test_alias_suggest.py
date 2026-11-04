@@ -1,8 +1,9 @@
 """#613: the Alias clark suggests from a full name (src/clark/page/src/logic/alias.js): the first name, then the initials, comma-separated.
 "Jane Doe" suggests "Jane,JD"; a one-word name suggests only that word; an empty name suggests nothing; a suggestion never overwrites
 an Alias already typed. Fictional names only. The Alias box waits for a stored Alias field (a guarded change); what the page has is a
-read-only line under Settings › Personal › About you › Your name, worked out live from the name box and never kept or sent. It is
-checked in the real page at 1400 and 900 px, light and dark.
+read-only line under Settings › Personal › About you › Your name, worked out live from the name box and never kept or sent. The line
+shows the two parts with a space after the comma ("Suggested Alias: Jane, JD"). It is checked in the real page at 1400 and 900 px,
+light and dark.
 
 Run: python3 dev/run_tests.py test_alias_suggest
 The plain-JS logic runs inside headless Chrome (the #33 harness, as test_placement.py does), bundled with the pinned esbuild into a
@@ -27,7 +28,7 @@ from test_publish_dialog import Base  # noqa: E402
 
 WIDTHS = (1400, 900)
 LINE = "Suggested Alias: {}"
-HELP = "What colleagues might call you, worked out from your name. Not saved."
+HELP = "Your first name and your initials, worked out from your full name. Not saved."
 
 ALIAS_JS = SRC / "clark" / "page" / "src" / "logic" / "alias.js"
 _PAGE = {}
@@ -138,7 +139,7 @@ class OnThePage(Base):
                         p.js(f"document.querySelector('input[name=appearance][value={theme}]').click()")
                         p.until(f"document.documentElement.dataset.theme === {json.dumps('dark' if theme == 'dark' else None)} "
                                 f"|| ({json.dumps(theme)} === 'light' && !document.documentElement.dataset.theme)", "the appearance applied")
-                        for name, alias in (("Jane Doe", "Jane,JD"), ("Jane", "Jane"), ("Mary Ann Smith", "Mary,MAS")):
+                        for name, alias in (("Jane Doe", "Jane, JD"), ("Jane", "Jane"), ("Mary Ann Smith", "Mary, MAS")):
                             self.type_into(p, "name", name, leave="none")
                             p.until(f"(document.querySelector('[data-alias]') || {{}}).textContent === {json.dumps(alias)}", f"{name} shows {alias}")
                             self.assertEqual(self.offer(p), {"line": LINE.format(alias), "alias": alias, "help": HELP, "under": True})
@@ -166,7 +167,7 @@ class OnThePage(Base):
                  "XMLHttpRequest.prototype.open = function (m, u, ...r) { this.__u = String(u); return op.call(this, m, u, ...r); }; "
                  "XMLHttpRequest.prototype.send = function (b) { if ((this.__u || '').includes('/api/profile')) window.__sent.push(String(b)); return s.call(this, b); }; "
                  "navigator.sendBeacon = () => { window.__sent.push('beacon'); return true; }; })()")
-            for name, alias in (("Jane Doe", "Jane,JD"), ("Jane", "Jane"), ("Sam Lee", "Sam,SL")):
+            for name, alias in (("Jane Doe", "Jane, JD"), ("Jane", "Jane"), ("Sam Lee", "Sam, SL")):
                 self.type_into(p, "name", name, leave="none")
                 p.until(f"(document.querySelector('[data-alias]') || {{}}).textContent === {json.dumps(alias)}", f"{name} shows {alias}")
             self.type_into(p, "name", "", leave="none")
