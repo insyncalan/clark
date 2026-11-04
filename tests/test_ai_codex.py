@@ -102,6 +102,14 @@ class TheCommandLine(unittest.TestCase):
                 self.args(model=bad)
 
 
+class TheModels(unittest.TestCase):
+    def test_the_default_is_the_owners_and_every_model_has_a_pinned_context(self):
+        self.assertEqual(c.RECOMMENDED, "gpt-6.1-sol")
+        self.assertNotIn(c.RECOMMENDED, c.SMALLER)
+        self.assertEqual(set(c.CONTEXT_TOKENS), set(c.MODELS))
+        self.assertLessEqual(set(c.SMALLER), set(c.MODELS))
+
+
 class TheEvents(unittest.TestCase):
     def test_the_last_message_is_the_answer(self):
         self.assertEqual(c.read_events(events({"type": "agent_message", "text": "Thinking."}, ANSWER)), ("answer", "Paris."))
