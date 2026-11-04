@@ -1,6 +1,8 @@
 """The one function behind GET /api/activity (#42): one item's Activity tab in the peek, for the owner only (Edit mode).
 
-The server imports nothing from clark, so this is the seam it is given (as it is given `movement`). It checks the item is one of
+The server imports nothing from clark, so this is the seam it is given (as it is given `movement`). It is thin in what it does, not in what it
+imports: the undo reasons come from changes.undo_refusals, which needs changes' own _ours and _hand_over_changed, so it imports changes
+(no cycle: changes does not import this). It checks the item is one of
 the project's, opens its own read-only connection, asks history.activity_for_item and keeps only what the tab draws: for each
 change, who made it, how, when, what changed and from what to what, newest first, and, for a change Undo several would refuse, the
 plain reason (`undo_refused`, else "") so the tab withholds the tick. Writes nothing. No publishing module uses it.
