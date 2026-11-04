@@ -29,7 +29,7 @@ export const IMPORT = {
   close: "Close",
   none: "Nothing in this workbook differs from what clark has, so there is nothing to import.",
   already: "That workbook was already imported as it is, so there is nothing to import. Save it again after editing it, or export a fresh one.",
-  unrecorded: "There is no record of exporting this workbook from clark, so clark cannot say what you changed in it. Check it is the right file; every difference is listed and nothing is ticked that archives a row.",
+  unrecorded: "There is no record of exporting this workbook from clark, so clark cannot say what you changed in it. Check it is the right file; every difference is listed and nothing is accepted that archives a row.",
   anyway: "Import anyway",
   undo: "Undo this import",
   undone: "Put back as it was before the import.",
