@@ -42,7 +42,9 @@ export function App({ tools: given }) {
   const Pal = tools && tools.Palette;                    // the command palette (#198); a published file has none
   const Ask = tools && tools.AskPanel;                   // the ask panel (#47a) sits over the open page; a published file has none
   const stacked = fromFile.value && printing.value && status.value === "ready";
-  const body = status.value === "ready" ? <>{past ? <AsAtBanner /> : null}<Page tools={tools} /><Leaving /></> : <Gate />;
+  // #656: with no project open Settings still opens, for its Projects card (Add project) and its Data card: a first install has no other way to make a project
+  const bare = status.value === "none" && view.value === "settings" && !fromFile.value && !!tools && !!tools.Projects;
+  const body = bare ? <Settings tools={tools} /> : status.value === "ready" ? <>{past ? <AsAtBanner /> : null}<Page tools={tools} /><Leaving /></> : <Gate />;
   const AddDialog = tools && tools.AddDialog;
   const Boxes = tools && tools.Boxes;                    // the boxes Settings opens (item 444): the project form and Import workbook; a published file has none
   const UcBoxes = tools && tools.ucEdit && tools.ucEdit.Boxes;      // the Dashboard's use case boxes (#455): beside <main>, which they make inert
