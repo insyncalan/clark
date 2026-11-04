@@ -260,7 +260,7 @@ class Detail(unittest.TestCase):
                     self.assertEqual(js("document.querySelector('[data-ucd-field=headline]').value"), "")
                     self.assertEqual(js("document.querySelector('[data-ucd-field=headline]').getAttribute('aria-label')"), "Headline for 1.1")
                     self.assertEqual(js("document.querySelector('[data-rich=standing]').textContent"), body)
-                    self.assertEqual(js("document.querySelector('[data-rich=standing]').getAttribute('aria-label')"), "Edit where 1.1 stands")
+                    self.assertEqual(js("document.querySelector('[data-rich=standing]').getAttribute('aria-label')"), "Edit where UC 1.1 stands")
                     self.assertEqual(js("document.querySelector('#ucd-h-std span').textContent"), "Where it stands")
                     self.assertTrue(js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     self.assertTrue(js("(() => { const v = document.querySelector('[data-rich=standing]'), c = v.closest('.ucd-card'), p = v.querySelector('p'); "
