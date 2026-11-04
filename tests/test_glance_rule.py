@@ -1,7 +1,7 @@
 """Item 391: the High risks and issues tile has ONE colour rule, the page's (glanceTiles.js tiles()), and the published file follows it.
 
 Run: python3 dev/run_tests.py test_glance_rule
-Red when any OPEN risk or issue is Urgent or High, amber when any risk or issue is open, green when none is. The same cases go
+Red when any OPEN risk, issue, assumption or dependency is Urgent or High, amber when any is open, green when none is. The same cases go
 through the page's own tiles() (bundled by the pinned esbuild, run in headless Chrome) and through glance.py's tiles(), for the
 editor and for the client's file (for_client=True), and the colours must be the same. Required: fails, never skips, without Chrome.
 """
@@ -29,9 +29,10 @@ CASES = {
     "open with no priority": ("a", [("Risk", None, "Open")]),
     "Low, Medium and High": ("r", [("Risk", "Low", "Open"), ("Risk", "Medium", "Open"), ("Issue", "High", "Open")]),
 }
-# Known gap, not part of the rule (it says risks and issues only): the page's tiles() counts open assumptions and dependencies
-# as risks and issues, glance.py does not. Pinned so a change on either side is seen.
-ASSUMPTIONS = {"assumption only": [("Assumption", "Low", "Open")], "dependency only": [("Dependency", "Medium", "Open")]}
+# The page's Risks and issues type holds risks, issues, assumptions and dependencies, so the file counts all four.
+ASSUMPTIONS = {"assumption only": [("Assumption", "Low", "Open")], "dependency only": [("Dependency", "Medium", "Open")],
+               "High dependency only": [("Dependency", "High", "Open")], "High assumption only": [("Assumption", "Urgent", "Open")],
+               "closed dependency only": [("Dependency", "High", "Closed")]}
 WORDS = {"g": "green", "a": "amber", "r": "red"}
 
 
@@ -74,9 +75,19 @@ class OneRule(unittest.TestCase):
         self.assertEqual(self.page["Low only"], "a")
         self.assertEqual(published(CASES["Low only"][1], True), "amber")
 
-    def test_assumptions_and_dependencies_alone_are_the_known_gap(self):
-        self.assertEqual([self.page[n] for n in ASSUMPTIONS], ["a", "a"], "the page")
-        self.assertEqual([published(c, True) for c in ASSUMPTIONS.values()], ["green", "green"], "the file")
+    def test_assumptions_and_dependencies_give_the_same_colour_on_both(self):
+        want = {"assumption only": "a", "dependency only": "a", "High dependency only": "r", "High assumption only": "r",
+                "closed dependency only": "g"}
+        for name, case in ASSUMPTIONS.items():
+            for for_client in (False, True):
+                with self.subTest(case=name, for_client=for_client):
+                    self.assertEqual(self.page[name], want[name])
+                    self.assertEqual(published(case, for_client), WORDS[self.page[name]])
+
+    def test_a_high_dependency_counts_in_the_value(self):
+        d = data(raid_=[raid(1, "Dependency", "High", "Open")])
+        t = by_name(glance.tiles(d, TODAY, for_client=True))["risks"]
+        self.assertEqual((t["value"], t["open"], t["colour"]), (1, 1, "red"))
 
 
 if __name__ == "__main__":
