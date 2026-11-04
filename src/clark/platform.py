@@ -185,7 +185,8 @@ def shown(path):
 def check_data_dir(path, roots=None, what="data"):
     """`path`, resolved, if clark may keep its database there. A folder inside OneDrive is refused with the reason:
     OneDrive syncs a database part-way through a write and can't lock it, so the data would be damaged. `what="backups"`
-    words the refusal for the backups folder (#86), where "backups can still go to OneDrive" would read wrongly."""
+    words the refusal for the backups folder (#86), where "backups can still go to OneDrive" would read wrongly. The way to have copies in
+    OneDrive is the separate copy folder (#622), which is never checked here: finished single files are safe there, a live database is not."""
     root = inside_onedrive(path, roots)
     if root is None and what == "data":
         root = container_host_in_onedrive()                  # #427: inside the container the Mac's OneDrive can't be seen, so the Mac's path is told
@@ -195,10 +196,12 @@ def check_data_dir(path, roots=None, what="data"):
         if what == "backups":
             raise PlatformError(f"Backups can't be kept in {shown(path)} because it is inside OneDrive ({root.name}). OneDrive "
                                 "copies files while they are being written, which damages a database. Keep them beside the "
-                                "database on this computer; a copy somewhere else is a separate, later feature.")
+                                "database on this computer. To have a copy in OneDrive, choose it in Settings › Backups › Copy my "
+                                "backups to.")
         raise PlatformError(f"Your data can't be kept in {shown(path)} because it is inside OneDrive ({root.name}). OneDrive "
                             "copies files while they are being written, which damages the database. Choose a folder on "
-                            "this computer that OneDrive doesn't sync; backups can still go to OneDrive.")
+                            "this computer that OneDrive doesn't sync, and choose a backup folder in OneDrive instead (Settings › "
+                            "Backups › Copy my backups to): backups can still go to OneDrive.")
     return Path(path).expanduser().resolve()
 
 

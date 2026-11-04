@@ -3,13 +3,13 @@
 A test that built its server with only `change` and `undo` left every other route off (503 or 404), so a body edit, a picture
 or a newer route was never exercised by it. `real_server(path)` starts test_server.Running with the same handlers the launcher
 (clark/__main__.py main) builds over the data file: change, undo, section_image, sneak, people (write, undo, list), word_import,
-word_export, activity, milestones, draft_email_sent, app_settings, ask_folders and safety. A test that needs to watch or break
+word_export, activity, as_at, milestones, draft_email_sent, app_settings, ask_folders and safety. A test that needs to watch or break
 a seam passes `seam(real, which)` (the tests' usual shape), which returns the function to put in place of the real "change" or
 "undo" handler (`which` is that word); one that needs a route which is not made from the file alone (publisher, use_cases, movement, ask,
 profile, logs) passes it as a keyword, as it would to Running.
 """
 from _demo import USER
-from clark import (activity_read, app_settings, ask_folders, changes, draft_email_feed, milestone_feed, safety, sneak,
+from clark import (activity_read, app_settings, as_at, ask_folders, changes, draft_email_feed, milestone_feed, safety, sneak,
                    word_route)
 from test_server import Running
 
@@ -27,6 +27,7 @@ def real_handlers(path, data_for, who=USER, roots=None):
             "word_import": word_route.make_word_import(path, roots),
             "word_export": word_route.make_word_export(path, roots),
             "activity": activity_read.make_read(path, data_for),
+            "as_at": as_at.AsAt(path),
             "milestones": milestone_feed.make_feed(data_for),
             "draft_email_sent": draft_email_feed.make_sent(path, roots, by_user=who),
             "app_settings": app_settings.AppSettings(path, roots),

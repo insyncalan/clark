@@ -1,6 +1,6 @@
 // "Add from your project record" (FR-16): a searchable list of the rows left out of the report, several chosen at once. It
 // only picks: the caller gets the ids through onAdd(ids) and saves them (#65's change path; not built here). Every word
-// from the data is a text node, never markup.
+// from the data is a text node, never markup. `title` is the panel's name (a list of one kind says so: "Add a milestone from your project record").
 import { useState, useRef, useEffect } from "preact/hooks";
 import { pickable, idsOf, toggle, selectAll, clear, chosen, countWords, addWords, emptyWords, ALL_ON_PAGE } from "../logic/picker.js";
 

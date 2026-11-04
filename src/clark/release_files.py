@@ -13,6 +13,8 @@ INCLUDE_DEMO = True
 # For every system.
 SHARED = (
     "README.md",
+    "LICENSE",                  # item 4 of the licence: it must not be removed from copies
+    "NOTICE.md",                # the MIT, OFL, PSF and ISC texts the bundled code and fonts require (#639)
     "clark/",                   # the stand-in that hands `python3 -m clark` to src/clark/
     "docker/",                  # #427: the Dockerfile and the compose file, for a computer that cannot open clark.command
     "src/clark/",               # with the built page.html
