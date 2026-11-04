@@ -2684,6 +2684,28 @@ def make_people_list(path, onedrive_roots=None, by_user=None):
     return people_list
 
 
+# ── Archive and Restore of one publication (#345, POST /api/publications/archive and /restore) ──
+# The server has checked the body is exactly a project code and a publication number. The store writes the one history line and the
+# archive mark (store.archive_publication, unarchive_publication); the reply carries no step, so the page offers no Undo. A publication
+# already in the state asked for is the 409; any other refusal is the store's own plain words as a 400.
+def _do_publication_mark(store, by_user, req, on):
+    code, number = req["project"], req["number"]
+    try:
+        (store.archive_publication if on else store.unarchive_publication)(code, number, by_user)
+    except Invalid as e:
+        if "already archived" in str(e) or "is not archived" in str(e):
+            raise Refused(str(e), 409, "already") from None
+        raise
+    return 200, {"ok": True, "code": "archived" if on else "restored", "project": code, "number": number}
+
+
+def make_publication_mark(path, onedrive_roots=None, by_user=None):
+    """The `publication_mark(action, req)` seam for POST /api/publications/archive and /restore, for the database at `path`."""
+    def publication_mark(action, req):
+        return _call(path, onedrive_roots, by_user, lambda store, who, r: _do_publication_mark(store, who, r, action == "archive"), req)
+    return publication_mark
+
+
 # ── ask clark's changes (#47e part 1) ─────────────────────────────────────────
 # ask clark's own modules never open the database for writing (tests/test_ask_route.py). A change they have checked comes here, to
 # make_ask_change, and goes through the SAME path as a hand edit (_do_change: the allow-list, the plain-text rule, the store's own

@@ -1,6 +1,6 @@
-// #613: the Alias clark suggests from a full name: the first name, then the initials, comma-separated ("Jane Doe" suggests "Jane,JD").
-// Pure: nothing here draws, reads or saves. The Alias box itself waits for a stored Alias field (Settings › Personal › About you keeps
-// only the name and the email today), which is a guarded change.
+// item 613: the Alias clark suggests from a full name: the first name, then the initials, comma-separated ("Jane Doe" suggests "Jane,JD").
+// Pure: nothing here draws, reads or saves. Settings › Personal › About you shows the suggestion read-only under the name box
+// (edit/Personal.jsx); an Alias box that keeps an Alias waits for a stored Alias field, which is a guarded change.
 
 // The words of a name: split on spaces, commas taken out (an Alias is comma-separated, so a comma inside a word would split it).
 const words = (name) => String(name || "").replace(/,/g, " ").trim().split(/\s+/).filter(Boolean);

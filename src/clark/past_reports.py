@@ -67,7 +67,9 @@ class PastReports:
     def _con(self):
         return connect(self.db_path, readonly=True)
 
-    def listing(self, code):
+    def listing(self, code, archived=False):
+        """`archived` (#345, Show archived): the archived ones are listed with the rest, each marked `archived`, and counted in the
+        total; otherwise they are left out as before."""
         if not isinstance(code, str) or not published_copies.PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
         try:
@@ -81,7 +83,8 @@ class PastReports:
                 con.close()
         except Exception:
             return 500, self.fail("db_unreadable")
-        listed = [r for r in rows if not published_copies.is_archived(self.data_dir, code, r["number"])]   # #342: archived ones are hidden
+        gone = {r["number"] for r in rows if published_copies.is_archived(self.data_dir, code, r["number"])}
+        listed = rows if archived else [r for r in rows if r["number"] not in gone]       # #342: archived ones are hidden; #345: unless asked for
         total, out = len(listed), []
         for r in listed[:SHOWN]:
             word = bool(r["word"])
@@ -90,8 +93,8 @@ class PastReports:
                         "who": (r["by_user"] or "").strip() or NOT_RECORDED, "word": word,
                         "kept": not word and published_copies.is_kept(self.data_dir, code, r["number"]),
                         "week": r["week_ending"] if isinstance(r["week_ending"], str) and DAY.fullmatch(r["week_ending"]) else None,
-                        "day": local_day(r["at"])})
-        return 200, {"ok": True, "project": code, "total": total, "shown": len(out), "limit": SHOWN, "archived": len(rows) - total,
+                        "day": local_day(r["at"]), "archived": r["number"] in gone})
+        return 200, {"ok": True, "project": code, "total": total, "shown": len(out), "limit": SHOWN, "archived": sum(1 for r in rows if r["number"] in gone),
                      "publications": out}
 
     def visit(self, code, number):
