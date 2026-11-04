@@ -3,7 +3,7 @@
 import { style, setStyle } from "../stores/style.js";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { appearance, setAppearance } from "../stores/appearance.js";
-import { profile, loadProfile, setProfile, wantName } from "../stores/profile.js";
+import { profile, profileRead, loadProfile, setProfile, wantName } from "../stores/profile.js";
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
 import { announce, leave, noteTyped } from "./aboutYouToast.js";
 
@@ -41,7 +41,10 @@ function AboutYou() {
   const save = async (field) => {
     // both boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over the other
     const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };
-    const r = await setProfile(sent.name, sent.email);
+    // Before clark has answered a read, a box nobody has typed in holds only the empty draw, not what is saved: it is not sent, and the
+    // store fills it from clark's own answer (#420), so saving one box first never blanks the other.
+    const unread = !profileRead.value;
+    const r = await setProfile(unread && !typedIn.current.name ? undefined : sent.name, unread && !typedIn.current.email ? undefined : sent.email);
     // One rule: an answer speaks only for the newest save. A late answer to an older save changes nothing on the page (it can neither clear
     // nor replace what a newer save said), so a refusal is never lost and an old refusal never shows over text that was saved. A refusal is
     // also shown only while the box still holds the text that was refused (text typed since has not been sent yet).
