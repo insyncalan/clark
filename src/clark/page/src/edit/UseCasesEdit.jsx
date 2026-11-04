@@ -16,7 +16,7 @@
 // (a use case is archived, never deleted: its toast says so), the rest keep theirs. A new use case starts hidden from the client (eye off,
 // the owner, 03-11-2026): it is counted in "from your project record (N)" and on the Use cases page until its eye is turned on.
 import { signal } from "@preact/signals";
-import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, mode, rows } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
 import { NewTile } from "../components/NewTile.jsx";
@@ -51,7 +51,10 @@ const BEHIND = ["#main", ".top"];                             // made inert whil
 // A modal box: the page behind is inert, Esc and a click on the backdrop close it, Tab stays inside, focus goes back to what opened it.
 function Modal({ onClose, opener, children }) {
   const root = useRef(null);
-  useEffect(() => {
+  // A layout effect, not useEffect: the page goes inert, and the opener is held for the way back, in the step that draws the box (where the
+  // box also takes its focus). useEffect runs a paint later, or up to a tenth of a second on a slow runner: a box shut by Esc before then
+  // never ran its clean-up, so the focus did not go back, and until then the box showed with the page behind it still live.
+  useLayoutEffect(() => {
     const held = BEHIND.map((q) => document.querySelector(q)).filter(Boolean);
     held.forEach((el) => el.setAttribute("inert", ""));
     return () => {
