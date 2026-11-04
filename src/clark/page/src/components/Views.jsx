@@ -181,6 +181,7 @@ export function Settings({ tools }) {
   const Update = tools && tools.Update;                  // Version and updates; a published file has none
   const cards = CARDS.filter(([tool]) => tools && tools[tool]);
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
+  const People = tools && tools.People;                  // the People card (item 454): email, organisation, role, Paste from Excel; Edit's page only
   return (
     <>
       <SettingsHead cards={cards} />
@@ -191,6 +192,7 @@ export function Settings({ tools }) {
       {Diagnostics ? <Diagnostics /> : null}
       {Safety ? <Safety /> : null}
       {Update ? <Update /> : null}
+      {People ? <People /> : null}
       {AskSettings ? <AskSettings /> : null}
     </>
   );

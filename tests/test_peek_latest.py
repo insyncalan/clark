@@ -4,7 +4,8 @@ Run: python3 dev/run_tests.py test_peek_latest
 Part 1 is clark/changes.py: an action's latest_update is one more field of the work-item change (plain text, line breaks allowed, 1000
 characters at most, blank clears it), one step and one Undo, and a risk or a decision has none. Part 2 is the source and the built page.
 Part 3 is the page in a real browser at 1400 and 900 px in Edit: Draft, the box, the stamp, Move to Friday, Move a week on and the
-weekend bar's two moves, each one request and one Undo; View has none of it.
+weekend bar's two moves, each one request and one Undo; View has none of it. In dark, at both widths, the box, its stamp, the overdue bar
+and Draft are drawn with the dark tokens and each line of text reads at 4.5:1 or more on what it is drawn over.
 """
 import json
 import unittest
@@ -179,7 +180,7 @@ class Browser(unittest.TestCase):
     def action(self, ref):
         return next(a for a in self.data["actions"] if a["id"] == ref)
 
-    def load(self, cdp, width, item, edit=True):
+    def load(self, cdp, width, item, edit=True, dark=False):
         self.fresh()
         sent = []
         real = changes.make_change(self.store.path, [], "Demo User")
@@ -194,6 +195,8 @@ class Browser(unittest.TestCase):
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#work&p={self.code}"}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
+        if dark:
+            cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
         if edit:
             cdp.js("document.querySelector('[data-view=dashboard]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit]')", sid)))
@@ -366,6 +369,97 @@ class Browser(unittest.TestCase):
         view = (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8")
         self.assertIn("data-pk-latest-client", built)
         self.assertNotIn("pk-latest-client", view)
+
+    # In dark: what a part is drawn with, read from the page itself. `ink` is the part's text colour, `ground` the colour it is drawn over
+    # (its own background, or the first one behind it, transparent layers blended in), and `want(name)` the colour a dark token gives.
+    LOOK = """((sel) => {
+      const e = document.querySelector(sel);
+      if (!e) return null;
+      const rgb = (c) => (c.match(/[\\d.]+/g) || []).map(Number);
+      const probe = (v) => { const d = document.createElement('i'); d.style.color = v; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return rgb(c).slice(0, 3); };
+      let ground = [0, 0, 0], left = 1, layers = [];
+      for (let n = e; n; n = n.parentElement) layers.push(rgb(getComputedStyle(n).backgroundColor));
+      layers.push(probe('var(--bg)').concat(1));
+      let out = null;
+      for (const l of layers) {
+        const a = l.length > 3 ? l[3] : 1;
+        if (!a) continue;
+        out = out ? out.map((c, i) => c + l[i] * a * left) : l.slice(0, 3).map((c) => c * a);
+        left *= 1 - a;
+        if (left <= 0.001) break;
+      }
+      const lum = (c) => { const v = c.map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+      const s = getComputedStyle(e), r = e.getBoundingClientRect(), ink = rgb(s.color).slice(0, 3), g = out.map(Math.round);
+      const hi = Math.max(lum(ink), lum(g)), lo = Math.min(lum(ink), lum(g));
+      return {ink: ink, ground: g, bg: rgb(s.backgroundColor).slice(0, 3), border: rgb(s.borderTopColor).slice(0, 3), ratio: (hi + 0.05) / (lo + 0.05),
+              shown: r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && Number(s.opacity) > 0,
+              text: e.textContent.trim()};
+    })"""
+
+    def look(self, cdp, sid, selector):
+        return cdp.js(f"{self.LOOK}({json.dumps(selector)})", sid)
+
+    def want(self, cdp, sid, token):
+        return cdp.js(f"(v => {{ const d = document.createElement('i'); d.style.color = v; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return (c.match(/[\\d.]+/g) || []).map(Number).slice(0, 3); }})('var({token})')", sid)
+
+    def test_in_dark_the_latest_update_box_its_stamp_and_the_overdue_bar_use_the_dark_tokens_and_read_clearly(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE, dark=True)
+                self.assertEqual(cdp.js("document.documentElement.dataset.theme", sid), "dark")
+                self.assertEqual(self.want(cdp, sid, "--surface"), [14, 45, 56], "the dark tokens are in force (#0E2D38)")
+                bar, warn = self.look(cdp, sid, ".pk-warnbar"), self.look(cdp, sid, "[data-pk-warn] .pk-warn")
+                self.assertTrue(bar["shown"])
+                self.assertIn("6 days overdue (due 22-10-2026)", warn["text"])
+                self.assertEqual(bar["bg"], self.want(cdp, sid, "--status-amber-tint"), "the bar is the dark amber tint")
+                self.assertEqual(bar["border"], self.want(cdp, sid, "--status-amber"))
+                self.assertEqual(warn["ink"], self.want(cdp, sid, "--status-amber-text"))
+                self.assertGreaterEqual(warn["ratio"], 4.5, warn)
+                for i in (1, 2):
+                    move = self.look(cdp, sid, f"[data-pk-move]:nth-child({i})")
+                    self.assertTrue(move["shown"], i)
+                    self.assertGreaterEqual(move["ratio"], 4.5, move)
+                self.assertTrue(self.inside(cdp, sid, ".pk-warnbar") and self.inside(cdp, sid, "[data-pk-move]:last-child"), "the bar fits the peek")
+                box = self.look(cdp, sid, "[data-pk-latest-text]")
+                self.assertTrue(box["shown"])
+                self.assertIn(self.action(OVERDUE)["latest_update"], box["text"])
+                self.assertEqual(box["ink"], self.want(cdp, sid, "--text"))
+                self.assertGreaterEqual(box["ratio"], 4.5, box)
+                lab = self.look(cdp, sid, "#pk-latest-lab")
+                self.assertEqual(lab["text"], "Latest update")
+                self.assertGreaterEqual(lab["ratio"], 4.5, lab)
+                stamp = self.look(cdp, sid, "[data-pk-last]")
+                self.assertTrue(stamp["shown"] and stamp["text"].startswith("Last updated "), stamp)
+                self.assertEqual(stamp["ink"], self.want(cdp, sid, "--text-muted"))
+                self.assertGreaterEqual(stamp["ratio"], 4.5, stamp)
+                self.assertTrue(self.inside(cdp, sid, "[data-pk-last]"))
+                click(cdp, sid, "[data-pk-latest-text]")                                          # the open box is dark too
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-latest-in]')", sid)))
+                typing = self.look(cdp, sid, "[data-pk-latest-in]")
+                self.assertEqual(typing["bg"], self.want(cdp, sid, "--surface"))
+                self.assertEqual(typing["ink"], self.want(cdp, sid, "--text"))
+                self.assertGreaterEqual(typing["ratio"], 4.5, typing)
+                hint = self.look(cdp, sid, ".pk-latest-hint")
+                self.assertGreaterEqual(hint["ratio"], 4.5, hint)
+                key(cdp, sid, "Escape")
+                self.assertEqual(sent, [], "looking sends nothing")
+
+    def test_in_dark_the_draft_control_shows_and_reads_clearly(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE, dark=True)
+                draft = self.look(cdp, sid, "[data-pk-draft]")
+                self.assertIsNotNone(draft, "Draft is there in dark")
+                self.assertTrue(draft["shown"])
+                self.assertEqual(draft["text"], "Draft")
+                self.assertEqual(draft["ink"], self.want(cdp, sid, "--status-blue-text"))
+                self.assertEqual(draft["bg"], self.want(cdp, sid, "--surface"))
+                self.assertGreaterEqual(draft["ratio"], 4.5, draft)
+                self.assertTrue(self.inside(cdp, sid, "[data-pk-draft]"))
+                self.assertTrue(cdp.js("(i => !!i && i.getBoundingClientRect().width > 0)(document.querySelector('[data-pk-draft] svg, [data-pk-draft] .i'))", sid), "its icon shows")
+                click(cdp, sid, "[data-pk-draft]")
+                self.assertTrue(wait(lambda: len(sent) == 1), "it still works in dark: one request")
+                self.assertTrue(wait(lambda: cdp.js("(t => !!t && t.textContent.startsWith('Overdue since 22-10-2026.'))(document.querySelector('[data-pk-latest-text]'))", sid)))
 
     def test_view_has_none_of_it(self):
         for width in (1400, 900):
