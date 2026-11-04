@@ -24,7 +24,7 @@ import { NewTile } from "../components/NewTile.jsx";
 import { Menu } from "../components/Menu.jsx";
 import { Picker } from "../components/Picker.jsx";
 import { Icon } from "../components/Icon.jsx";
-import { Line, NAME_MAX, HEAD_MAX } from "../components/UseCaseDetail.jsx";
+import { Line, NAME_MAX, HEAD_MAX, HEADLINE_PROMPT, STANDING_PROMPT } from "../components/UseCaseDetail.jsx";
 import { RichField } from "./RichField.jsx";
 import { KIND_WORDS, todayIso } from "../workItems.js";
 import { splitStep, knownNames, stepValues, linkable, narrow, KINDS, linkedWords } from "../logic/ucRow.js";
@@ -103,7 +103,7 @@ function AddBox({ onClose, opener }) {
           <label for="ucI">ID</label><input class="field" id="ucI" name="ucI" ref={first} required maxLength={REF_MAX} placeholder="For example: 3.1" autocomplete="off" />
           <label for="ucT">Use case</label><input class="field" id="ucT" name="ucT" required maxLength={NAME_MAX} placeholder="What it does" autocomplete="off" />
           <label for="ucS">Status</label><select class="field" id="ucS" name="ucS">{STATUSES.map(([s]) => <option key={s}>{s}</option>)}</select>
-          <label for="ucH">Headline</label><input class="field" id="ucH" name="ucH" maxLength={HEAD_MAX} placeholder="One line on where it stands" autocomplete="off" />
+          <label for="ucH">Headline</label><input class="field" id="ucH" name="ucH" maxLength={HEAD_MAX} placeholder={HEADLINE_PROMPT} autocomplete="off" />
         </div>
         <div class="ad-foot">
           <button type="button" class="pk-btn" data-cancel onClick={() => onClose(false)}>Cancel</button>
@@ -139,7 +139,7 @@ export function Status({ u }) {
 export function Headline({ u }) {
   return (
     <span class="uchead uchead-ed" data-edit-only>
-      <Line value={u.headline} label={`Headline for ${name(u)}`} cls="uchead-in" field="headline" max={HEAD_MAX} empty="One line on where it stands" ro={false}
+      <Line value={u.headline} label={`Headline for ${name(u)}`} cls="uchead-in" field="headline" max={HEAD_MAX} empty={HEADLINE_PROMPT} ro={false}
         problem={(t) => (Array.from(t).length > HEAD_MAX ? `A headline can be ${HEAD_MAX} characters at most. The old headline was kept.` : "")}
         onSave={(t) => send(u, { headline: t }, `Use case ${name(u)} saved.`)} />
     </span>
@@ -200,7 +200,7 @@ export function Eye({ u }) {
 
 /** "Where it stands" in an opened row: the text is changed in place, as on the use case's own page (the same editor, one change with one Undo). */
 export function Standing({ u }) {
-  return <RichField field="standing" id={u.id} value={u.standing} label={`where ${name(u)} stands`} empty="Not written yet. Click to write."
+  return <RichField field="standing" id={u.id} value={u.standing} label={`where ${name(u)} stands`} empty={STANDING_PROMPT}
     save={(html) => send(u, { standing: html }, `Use case ${name(u)} saved.`)} />;
 }
 

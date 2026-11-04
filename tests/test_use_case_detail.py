@@ -159,9 +159,13 @@ class Detail(unittest.TestCase):
     def read(self, code, archived="hide"):
         st = open_store(self.path, onedrive_roots=[])
         try:
-            return st.data_for(code, archived=archived)
+            d = st.data_for(code, archived=archived)
         finally:
             st.close()
+        if getattr(self, "blank", False):                      # #659: the use case with nothing written, to see the prompts
+            for x in d["use_cases"]:
+                x["headline"], x["standing"] = "", ""
+        return d
 
     def row(self, ref=UC):
         st = open_store(self.path, onedrive_roots=[])
@@ -239,6 +243,35 @@ class Detail(unittest.TestCase):
                     small = js("[...document.querySelectorAll('[data-ucd] button, [data-ucd] a, [data-ucd] textarea, [data-ucd] [role=button]')].filter(e => { const b = e.getBoundingClientRect(); return b.width && (b.height < 24 || b.width < 24); }).map(e => e.className + ':' + e.textContent.slice(0, 20))")
                     self.assertEqual(small, [], "every control is at least 24 px")
                     self.assertEqual(js(CONTRAST), [], "text is 13 px or more and has a contrast of 4.5:1")
+
+    def test_the_empty_where_it_stands_card_says_what_to_write_and_the_longer_prompt_fits(self):
+        """#659: the owner's words, in the headline box (a placeholder, so the box keeps a plain name for a screen reader) and in the
+        text box; the longer one wraps inside its card at 1400 and 900 px, light and dark. Screenshots go to CLARK_SHOTS when it is set."""
+        import base64
+        import os
+        self.blank = True
+        head, body = "Today's position, in one line", "What is done, what is happening now, and what is next. Add anything that is blocked or at risk."
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width, scheme)
+                    js = lambda e: cdp.js(e, sid)  # noqa: E731
+                    self.assertEqual(js("document.querySelector('[data-ucd-field=headline]').getAttribute('placeholder')"), head)
+                    self.assertEqual(js("document.querySelector('[data-ucd-field=headline]').value"), "")
+                    self.assertEqual(js("document.querySelector('[data-ucd-field=headline]').getAttribute('aria-label')"), "Headline for 1.1")
+                    self.assertEqual(js("document.querySelector('[data-rich=standing]').textContent"), body)
+                    self.assertEqual(js("document.querySelector('[data-rich=standing]').getAttribute('aria-label')"), "Edit where UC 1.1 stands")
+                    self.assertEqual(js("document.querySelector('#ucd-h-std span').textContent"), "Where it stands")
+                    self.assertTrue(js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
+                    self.assertTrue(js("(() => { const v = document.querySelector('[data-rich=standing]'), c = v.closest('.ucd-card'), p = v.querySelector('p'); "
+                                       "const a = p.getBoundingClientRect(), b = c.getBoundingClientRect(); "
+                                       "return p.scrollWidth <= p.clientWidth + 1 && a.left >= b.left && a.right <= b.right + 1; })()"), "the longer prompt stays inside its card")
+                    self.assertEqual(js(CONTRAST), [], "text is 13 px or more and has a contrast of 4.5:1")
+                    shots = os.environ.get("CLARK_SHOTS")
+                    if shots:
+                        js("document.querySelector('#ucd-h-std').scrollIntoView({block: 'center'})")
+                        png = cdp.call("Page.captureScreenshot", {"format": "png"}, sid)["data"]
+                        Path(shots, f"659-{width}-{scheme}.png").write_bytes(base64.b64decode(png))
 
     def test_in_view_nothing_changes_and_the_text_is_plain(self):
         with chrome() as cdp:

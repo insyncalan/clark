@@ -295,6 +295,7 @@ export function WorkItems({ tools }) {
         </div>
         {tools ? (
           <div class="hacts">
+            {tools.ImportBtn && !fromFile.value ? <tools.ImportBtn /> : null}   {/* item 454: Import from Excel, the same box as Settings; never in a published file */}
             {tools.ExportBtn && mode.value !== "edit" ? <tools.ExportBtn /> : null}   {/* the workbook download: View only (FR-70), and never in a published file */}
             {tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: in Edit, with the Owner filter on */}
             <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={adder(tools)} />   {/* a published file is read only: no Add (#204) */}

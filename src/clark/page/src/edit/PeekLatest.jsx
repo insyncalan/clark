@@ -3,6 +3,7 @@
 // read again after it so the stamp is the one clark wrote. Draft writes the text from the item's own fields (peekLatest.js draftFor),
 // with no AI. An action that is shown to the client carries a 'Shown to the client' label (its latest update is published). An action has a latest update; a risk, issue or decision has the stamp only.
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useGrow } from "./useGrow.js";
 import { data } from "../stores/report.js";
 import { changeCell, say, refresh } from "../stores/changes.js";
 import { showDate, todayIso } from "../workItems.js";
@@ -35,6 +36,7 @@ export function PeekLatest({ row }) {
   const rec = raw(row), action = row.kind === "action";
   const [open, setOpen] = useState(false), [text, setText] = useState(""), [problem, setProblem] = useState("");
   const settled = useRef(false), saving = useRef(false), shown = useRef(null), box = useRef(null);
+  useGrow(box, open ? text : null);
   // A layout effect: the box takes the focus in the step that draws it, not a frame later. A frame that arrives late (a busy runner) left the
   // box drawn but not focused, so the key that came next went to the page, and a late focus elsewhere (the peek giving Close its focus) closed the box on blur.
   useLayoutEffect(() => { if (open && box.current) { box.current.focus(); const n = box.current.value.length; box.current.setSelectionRange(n, n); } }, [open]);
@@ -73,7 +75,7 @@ export function PeekLatest({ row }) {
           {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
         {open
           ? <>
-            <textarea class="pk-latest-in" data-pk-latest-in aria-label="Latest update" rows={3} value={text} placeholder="Add the latest update…" ref={box}
+            <textarea class="pk-latest-in grow" data-pk-latest-in aria-label="Latest update" rows={3} value={text} placeholder="Add the latest update…" ref={box}
               onInput={(e) => { setText(e.currentTarget.value); if (problem) setProblem(""); }} onKeyDown={key} onBlur={(e) => { const to = e.relatedTarget; if (!settled.current && !(to && to.hasAttribute && to.hasAttribute("data-pk-draft"))) save(e.currentTarget.value); }} />
             {problem ? <p class="pk-latest-err" role="alert" data-pk-latest-err>{problem}</p> : <p class="pk-latest-hint">Enter saves, Shift+Enter adds a line, Esc leaves it as it was.</p>}
           </>

@@ -126,7 +126,8 @@ def _item(c):
 def _described(plan, key):
     return {"ok": True, "plan": key, "file": plan.file, "counts": plan.counts(), "unchanged": plan.unchanged,
             "items": [_item(c) for c in plan.changes], "problems": [p.message for p in plan.problems], "notes": list(plan.notes),
-            "unrecorded": bool(plan.unrecorded), "already_imported": bool(plan.already_imported), "report": plan.report()}
+            "unrecorded": bool(plan.unrecorded), "already_imported": bool(plan.already_imported), "report": plan.report(),
+            "refused": [{"name": c.describe(), "why": c.problem} for c in plan.changes if c.problem]}
 
 
 def _check(store, req, project, clock):
@@ -161,7 +162,7 @@ def _check(store, req, project, clock):
         shutil.rmtree(folder, ignore_errors=True)
         raise
     key = secrets.token_urlsafe(12)
-    if plan.already_imported:                              # nothing is staged: nothing to wait for
+    if plan.already_imported or any(c.problem for c in plan.changes):   # nothing is staged: nothing to wait for (a row that breaks a rule refuses the whole file)
         shutil.rmtree(folder, ignore_errors=True)
         return 200, _described(plan, None)
     held = {"project": project, "plan": plan, "dir": folder, "at": now, "timer": None}
