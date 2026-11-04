@@ -186,9 +186,11 @@ class AgainstThePage(unittest.TestCase):
         # 44 with the first-run welcome (#174): its Not now button and its words put two more of Help's bold names on the page (46 fails)
         # 42 measured on the merge of main into this branch (44 on each side alone): the first-run welcome (#174) and Latest update with Move to Friday together put two more names on the page (43 fails)
         # 41 measured on the merge of main (42) into the #436 milestones finish (43): both sides' names on the page together (42 fails)
+        # 40 measured with the project switcher's menu (item 439) on main: Project settings is on the page, so that bold name left the absent list (41 fails)
         # 41 measured on the take-over of PR 457 (#454) merged with main (42 there): the People card's Organisation column takes one more name off the absent list (42 fails)
         # 40 measured on the rebuild of item 454 on main (main is 41): the People card's Organisation column takes one more name off the absent list (41 fails)
-        self.assertGreaterEqual(len(names), 40)
+        # 39 measured on the merge of main (40) into the project switcher's menu (item 439, 40): Project settings and the People card's Organisation column together (40 fails)
+        self.assertGreaterEqual(len(names), 39)
         # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
         # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
         # 56 measured on the merged tree after the next main merge (names printed): the milestone details toggle (C-M6) leaves the list on top of the Supporting documents section

@@ -86,7 +86,7 @@ class WeekPicker(Base):
                                                 ["asat", "Dashboard as at a day…"]])
             self.assertEqual(p.js("document.querySelector('#week-past').getAttribute('aria-label')"), "Open a published week")
             self.assertEqual(p.js("document.querySelector('#week-past').closest('#report-bar') && "
-                                  "document.querySelector('#week-past').previousElementSibling.id"), "week-ending-text", "beside Week ending, in View")
+                                  "document.querySelector('#week-past').previousElementSibling.querySelector('#week-ending') ? 'ok' : ''"), "ok", "beside the Week ending box, in View")
             p.edit()
             self.assertEqual(p.js("document.querySelector('#week-past').previousElementSibling.querySelector('#week-ending') ? 'ok' : ''"),
                              "ok", "beside the Week ending box, in Edit")

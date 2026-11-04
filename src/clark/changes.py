@@ -125,7 +125,7 @@ UC_FIELDS = CHANGE_KINDS["use_cases"][UPDATE]        # #164: what a request may 
 UC_REF_LIMIT = 20                                    # #455: a new use case's reference as the project writes it ("3.1"), in characters
 UC_NAME_LIMIT = 120                                  # a use case's name, in characters
 UC_HEADLINE_LIMIT = 300                              # its one-line headline
-ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision", "impact", "likelihood")   # D-12: a rating is never cleared, as a new row
+ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision", "impact", "likelihood", "client_message")   # D-12: a rating is never cleared, as a new row
 CLEARED_BY_NEW = ("owner", "priority", "status", "description", "decision", "type", "name", "impact", "likelihood", "client_visible")   # sent as null on a new row: refused      # a work item field that has to have a value (the others may be cleared)
 EXPLAIN_FIELDS = ("latest_update", "reasoning")      # #458: the one explanation line a new action or decision may start with (Movement's buttons); never said back, never in ask clark's before and after
 TITLE_FIELDS = ("description", "decision")           # #67: a work item's title; never said back in a reply (the page keeps what it sent); a new milestone's name is held to the same
@@ -672,6 +672,24 @@ def _on_its_own(rows, ref):
     return True
 
 
+def _stray_flags(rows):
+    """#439 (prototype views.js:251): the sections whose `beside` is 1 though the page reads it as nothing, so a flag left behind by an
+    add, a move or an earlier change never starts a new pair later: a 1 on the second half of a pair, and a 1 on the last section."""
+    ids = [r["id"] for r in rows]
+    flag = {r["id"]: r["beside"] for r in rows}
+    out, i = [], 0
+    while i < len(ids):
+        if flag[ids[i]] == 1 and i + 1 < len(ids):
+            if flag[ids[i + 1]] == 1:
+                out.append(ids[i + 1])
+            i += 2
+        else:
+            if flag[ids[i]] == 1:
+                out.append(ids[i])
+            i += 1
+    return out
+
+
 def _do_change(store, by_user, req):
     project, kind, op, place = _shape(req)
     if store.read("projects", ref=project) is None:
@@ -757,6 +775,8 @@ def _do_change(store, by_user, req):
                     st.update(table, other, {"sort_order": place_})
                 for other, value in flags.items():                  # the same step: one Undo for the place and every flag
                     st.update(table, other, {"beside": value})
+                for other in _stray_flags(_sections(store, project)):       # #439: after any move, a lone section's stray flag goes too
+                    st.update(table, other, {"beside": 0})
             else:
                 for other in _flags_to_clear(rows, ref):            # the same step: one Undo puts the section and the flag back
                     st.update(table, other, {"beside": 0})
