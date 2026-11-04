@@ -16,6 +16,7 @@ losing the disk or the computer. For that there is an optional second place (#62
 Backups › Copy my backups to): `copy_out` puts each finished copy there too, under a temporary name that is renamed when whole, with the
 same name and the same retention, and only ever a single finished file, never the live database or its -wal and -shm. That folder may be
 in OneDrive (the live database never may). A failed copy there is a plain warning (`copy_warning`) and never stops a save or a backup.
+Each kept publication (#347, published_copies) is copied there once too, into its `published-copies` folder, and never again; a restore never touches them.
 `bring_in` is the other way: a file from that folder, checked, into the backups folder for a restore. Standard library only, Python 3.9.
 """
 import contextlib
@@ -27,6 +28,7 @@ import os
 import re
 import secrets
 import shutil
+import stat
 import threading
 import time
 from datetime import timedelta
@@ -37,7 +39,7 @@ try:
 except ImportError:
     fcntl = None
 
-from clark import platform, settings, store as clark_store, timefmt
+from clark import platform, published_copies, settings, store as clark_store, timefmt
 from clark.store import Invalid
 
 # The default number of each kind of copy kept (whole number, 1 to 365). The number used is the data folder's settings.json
@@ -458,12 +460,45 @@ def _copy_worker(data_dir, folder, final, keep, has_rows):
             if settings.backup_copy_problem(data_dir, folder) is not None:          # also checked here: the settings file may have been edited by hand
                 raise Invalid(COPY_REFUSED)
             _copy_into(folder, final, keep, has_rows)
+            _copy_kept(data_dir, folder)
         except Exception as e:
             warning = copy_warning_text(folder, e)
             LOG.warning("%s", warning)
             set_copy_warning(warning)
         else:
             set_copy_warning(None)
+
+
+KEPT_NAME = re.compile(r"[A-Z][A-Z0-9]{2,6}-[1-9][0-9]{0,5}\.(?:html|json|archived)")      # a kept publication's files, and nothing else (no temporary file, no link)
+
+
+def _copy_kept(data_dir, folder):
+    """#347: each kept publication (published_copies: the page, its data copy and its archive mark) is copied once into `folder`/published-copies.
+    A kept file never changes, so a name that is already there is left exactly as it is and is not read again: a later backup copies only
+    what is new, and nothing is ever replaced, pruned or removed there (retention above never looks in this folder). Each file goes under a
+    private temporary name, is read back and compared, then linked into place. Only ordinary files with a kept name are copied. Raises as
+    `_copy_into` does, and the copy folder is a plain warning then."""
+    source = published_copies.folder_of(data_dir)
+    try:
+        names = sorted(n for n in os.listdir(source) if KEPT_NAME.fullmatch(n))
+    except OSError:
+        return                                      # nothing has been kept yet
+    dest = folder / published_copies.FOLDER
+    for name in names:
+        if os.path.lexists(dest / name):
+            continue
+        original = source / name
+        if not stat.S_ISREG(os.lstat(original).st_mode):
+            continue
+        if not dest.is_dir():
+            platform.private_folder(dest)
+        part = dest / f".{name}.{os.getpid()}.{secrets.token_hex(4)}.part"
+        platform.private_file(part)
+        try:
+            _copy_checked(original, part)
+            platform.move_unless_exists(part, dest / name)
+        finally:
+            _clear(part)
 
 
 def _copy_into(folder, final, keep, has_rows):
