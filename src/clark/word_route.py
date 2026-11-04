@@ -68,7 +68,7 @@ NO_UNDO = "That import can't be undone from here. Nothing was changed."
 UNDONE = "That import has already been undone. Nothing was changed."
 NOT_RECORDED = " clark could not note this import in its list, so do not import the same file again: it may add the same items twice."
 ALL_SEEN = "Everything in {file} has been added already, so nothing was added."
-SOME_SEEN = "{n} {items} from this file {were} added a moment ago, so {they} not added again."
+SOME_SEEN = "{n} {items} from this file {were} added before, so {they} not added again."
 SIZE_TOO_BIG = ("{file} is bigger than the {mb} MB that clark can open. Save a smaller copy (for example without big pictures), "
                 "then choose it again. Nothing was added.")
 
@@ -257,7 +257,6 @@ def _apply(store, who, req, project, clock):
     PLANS.pop(key, None)                                                 # an import is applied once
     count = len(chosen)
     one = count == 1
-    # WORDING: owner to rule. The imported items are shown to the client until the person hides them with the eye.
     words = (f"Added {_n(count, 'new item')} from {file}. {'It is' if one else 'They are'} shown to the client until you hide "
              f"{'it' if one else 'them'} with the eye. Press Undo to take {'it' if one else 'them all'} back."
              + (" " + SOME_SEEN.format(n=skipped, items="item" if skipped == 1 else "items", were="was" if skipped == 1 else "were",

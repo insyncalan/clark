@@ -128,7 +128,7 @@ class Apply(Base):
         status, got = self.apply(second["plan"], "all")
         self.assertEqual(status, 200, got)
         self.assertEqual(got["message"], "Added 3 new items from week 43 notes.docx. They are shown to the client until you hide them with the eye. "
-                                         "Press Undo to take them all back. 1 item from this file was added a moment ago, so it was not added again.")
+                                         "Press Undo to take them all back. 1 item from this file was added before, so it was not added again.")
 
     def test_undo_says_which_were_left_as_they_are(self):
         _, got = self.go()

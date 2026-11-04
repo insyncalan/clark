@@ -513,6 +513,7 @@ class Import(Screens):
                     self.inside(p, "word-import-dialog")
                     self.assertEqual(self.focus_is(p), "word-file", "focus starts on the file picker")
                     self.assertIn("Choose a Word file of up to 25 MB.", self.text(p, "word-import-dialog"))
+                    self.assertIn("The rows are shown to the client until you hide them with the eye.", self.text(p, "word-import-dialog"))
                     self.assertTrue(p.js("document.querySelector('[data-read]').disabled"), "Read the file waits for a file")
                     self.colours(p, "word-import-dialog", scheme)
                     self.read_it(p)
