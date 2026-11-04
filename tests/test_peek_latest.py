@@ -180,7 +180,10 @@ class Browser(unittest.TestCase):
     def action(self, ref):
         return next(a for a in self.data["actions"] if a["id"] == ref)
 
-    def load(self, cdp, width, item, edit=True, dark=False):
+    HOLD = ("(() => { const st = window.setTimeout, raf = window.requestAnimationFrame; window.requestAnimationFrame = (f) => st(() => raf(f), 4000);"
+            " window.setTimeout = (f, d, ...a) => st(f, d >= 20 && d <= 150 ? d + 4000 : d, ...a); })();")     # frames and Preact's effect timers arrive 4 s late
+
+    def load(self, cdp, width, item, edit=True, dark=False, late=False):
         self.fresh()
         sent = []
         real = changes.make_change(self.store.path, [], "Demo User")
@@ -192,6 +195,8 @@ class Browser(unittest.TestCase):
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
+        if late:
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": self.HOLD}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#work&p={self.code}"}, sid)
@@ -293,20 +298,27 @@ class Browser(unittest.TestCase):
                 self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "the peek stays")
                 self.assertEqual(sent, [], "nothing was sent")
                 click(cdp, sid, "[data-pk-latest-text]")
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid)))
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid)), "focus is in the box once it is open")
                 cdp.js("(t => { t.value = 'Brand new words'; t.dispatchEvent(new Event('input', {bubbles: true})); })(document.activeElement)", sid)
                 key(cdp, sid, "Enter")
                 self.assertTrue(wait(lambda: cdp.js("(document.querySelector('[data-pk-latest-text]') || {textContent: ''}).textContent", sid) == "Brand new words"))
                 self.assertEqual((len(sent), sent[0]["changes"]), (1, {"latest_update": "Brand new words"}))
 
+    def test_the_box_has_the_focus_as_it_is_drawn_not_a_frame_later(self):
+        with chrome() as cdp:
+            sent, sid = self.load(cdp, 1400, OVERDUE, late=True)
+            click(cdp, sid, "[data-pk-latest-text]")
+            self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest-in]')", sid), "the click opened the box")
+            self.assertTrue(cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid), "the box has the focus with no frame in between")
+
     def test_a_too_long_update_is_refused_in_words_and_the_box_stays(self):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, OVERDUE)
             click(cdp, sid, "[data-pk-latest-text]")
-            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid)))
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid)), "focus is in the box once it is open")
             cdp.js("(t => { t.value = 'x'.repeat(1001); t.dispatchEvent(new Event('input', {bubbles: true})); })(document.activeElement)", sid)
             key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: "1000 characters at most" in cdp.js("(document.querySelector('[data-pk-latest-err]') || {textContent: ''}).textContent", sid)))
+            self.assertTrue(wait(lambda: "1000 characters at most" in cdp.js("(document.querySelector('[data-pk-latest-err]') || {textContent: ''}).textContent", sid)), "the box says the update is too long")
             self.assertEqual(sent, [])
             self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest-in]')", sid), "the box keeps what was typed")
 
@@ -314,10 +326,10 @@ class Browser(unittest.TestCase):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, OVERDUE)
             click(cdp, sid, "[data-pk-latest-text]")
-            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid)))
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid)), "focus is in the box once it is open")
             cdp.js("(t => { t.value = 'Pasted\\twith a tab'; t.dispatchEvent(new Event('input', {bubbles: true})); })(document.activeElement)", sid)
             key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: "hidden character" in cdp.js("(document.querySelector('[data-pk-latest-err]') || {textContent: ''}).textContent", sid)))
+            self.assertTrue(wait(lambda: "hidden character" in cdp.js("(document.querySelector('[data-pk-latest-err]') || {textContent: ''}).textContent", sid)), "the box says the character is hidden")
             self.assertEqual(sent, [], "nothing was sent")
             self.assertEqual(cdp.js("(document.querySelector('[data-pk-latest-in]') || {value: null}).value", sid), "Pasted\twith a tab", "the box keeps what was typed")
 
