@@ -104,14 +104,14 @@
 /* The right-click menu on a work item (#97): the ordinary menu box, placed where the pointer or the row is. An entry that can't be
    used shows its reason under it; the arrow marks an entry that opens a short list. */
 .rowmenu { position: fixed; z-index: 36; }
-.rowmenu .ddmenu { position: static; min-width: 240px; max-width: min(340px, calc(100vw - 16px)); }
-.rowmenu [role="menuitem"] { display: flex; align-items: center; gap: 8px; }
+.rowmenu .ddmenu { position: static; min-width: 240px; max-width: min(340px, calc(100vw - 2 * var(--space-2))); }
+.rowmenu [role="menuitem"] { display: flex; align-items: center; gap: var(--space-2); }
 .rowmenu [role="menuitem"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .rowmenu .rm-t { flex: 1; min-width: 0; }
 .rowmenu .rm-t small { display: block; font-size: var(--size-caption); color: var(--text-muted); }
 .rowmenu .rm-go { flex: none; width: 14px; height: 14px; color: var(--text-muted); }
 .rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
-.rowmenu .ddmenu { max-height: calc(100vh - 16px); overflow-y: auto; }
+.rowmenu .ddmenu { max-height: calc(100vh - 2 * var(--space-2)); overflow-y: auto; }
 
 /* Changing several work items at once (#196): the bar's buttons wrap at 900 px, the "N items" menu, and the question. Tokens only. */
 .selbar { flex-wrap: wrap; row-gap: 6px; }
@@ -508,6 +508,19 @@ textarea.tpl-field { resize: vertical; }
 .tpl-problem { margin: 0; color: var(--status-red-text); font-size: var(--size-caption); }
 .tpl-empty { margin: 0; }
 
+/* The Word boxes (#48): Export to Word and Import from Word. The box itself, its options and its messages are the Publish box's
+   (shell.css); this is only the list of what was read. Tokens only. A ticked item is a ticked box, so it never relies on colour. */
+.wi { width: min(680px, calc(100vw - 32px)); }
+.word-where, .word-ask { margin: 0; font-size: var(--size-small); overflow-wrap: anywhere; }
+.word-ask { color: var(--text); font-size: var(--size-body); }
+.wi-all { display: flex; gap: 16px; margin: 0 0 8px; }
+.wi-all .link:disabled { opacity: .55; cursor: default; }
+.wi-items { display: flex; flex-direction: column; gap: 6px; max-height: 45vh; margin: 0; padding: 0; overflow: auto; border: 0; min-width: 0; }
+.wi-item span { display: block; }
+.wi-item b { margin-right: 6px; font-weight: var(--weight-medium); color: var(--heading); }
+.wi-notes { margin: 12px 0 0; padding-left: 18px; font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
+.wi-notes li { margin: 2px 0; }
+.word-msg p { white-space: pre-line; overflow-wrap: anywhere; }       /* a refusal that lists items puts each on its own line */
 /* Show archived on Work items (B-5): a pill with the count, then muted rows with the word Archived and a Restore button */
 .archived { margin-top: 16px; }
 .arch-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); font: inherit; font-size: var(--size-small); cursor: pointer; white-space: nowrap; }
