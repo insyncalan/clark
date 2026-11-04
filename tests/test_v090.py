@@ -31,6 +31,24 @@ COVERED = [
      "test_about_you::AboutYou::test_C_a_save_made_before_the_first_read_has_landed_keeps_the_other_box_saved_value"),
     ("#449", "Work items: the column width can be changed and reset, with a toast",
      "test_board_columns::Columns::test_a_double_click_on_the_grip_says_column_width_reset_in_a_toast_in_view_and_in_edit"),
+    ("#439", "The bar above the page: Week ending is a box in View and in Edit; with no week kept it shows the coming Friday and saves nothing until Enter.",
+     "test_report_bar::Bar::test_with_no_week_kept_the_field_shows_the_coming_friday_and_saves_nothing"),
+    ("#439", "A typed entry that is not a day keeps the old date and says so.",
+     "test_report_bar::Bar::test_a_typed_entry_that_is_not_a_day_keeps_the_old_date_and_says_so"),
+    ("#439", "A typed day that is not a Friday keeps the old date and names the Friday (\"Week ending is a Friday. Pick Friday DD-MM-YYYY.\").",
+     "test_report_bar::Bar::test_a_typed_day_that_is_not_a_friday_keeps_the_old_date_and_names_the_friday"),
+    ("#439", "The project name in the top bar is always a menu: each project with its open-item count, and Project settings.",
+     "test_project_switch::ProjectSwitch::test_C_the_menu_lists_the_projects_with_open_counts_and_Project_settings"),
+    ("#439", "Choosing a project in the menu switches to it and says so.",
+     "test_project_switch::ProjectSwitch::test_C_choosing_a_project_changes_the_address_and_says_so"),
+    ("#450", "Show archived is a pill in the Work items bar with the archived count; on, the archived items show read only, and the choice is remembered for the project.",
+     "test_work_archived_page::Archived::test_the_choice_is_remembered_for_the_project_across_a_reload"),
+    ("#450", "An archived item opens read only in the side peek with one Restore; Esc and Close return to its row.",
+     "test_work_archived_peek::ArchivedPeek::test_a_row_opens_the_peek_read_only_with_one_restore"),
+    ("#450", "Restore puts the item back and leaves the peek open on it, now editable.",
+     "test_work_archived_peek::ArchivedPeek::test_restore_puts_it_back_and_leaves_the_peek_open_on_it"),
+    ("#611", "A blank client message is turned away in plain words, not a server error.",
+     "test_changes_null_message::NullMessage::test_a_null_client_message_is_refused_and_nothing_is_saved"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
@@ -41,11 +59,9 @@ WAITING = [
     ("#445", "The Settings Update clark card has labelled rows (Installed, Update, Install from a file, Last update) with hints", "PR 518", "page/src/edit/Update.jsx", "upd-rows"),
     ("#434", "Risks, issues, actions and decisions rows: a status pill, empty sections, editing in place and the ID button", "PR 580", "page/src/edit/ItemRowsEdit.jsx", "WORDS_MAX"),
     ("#444", "Settings Data card and Projects table: Import workbook, Reset the demo data, Add and Edit project", "PR 461", "page/src/logic/dataCard.js", "export const DATA"),
-    ("#450", "Archived items open read only in the peek with one Restore, and the Show archived pill remembers its state", "PR 576", "page/src/edit/ArchivedItems.jsx", "export function ArchivedPill"),
     ("#53", "Where clark's AI providers code comes from (a copy from the other product's branch)", "no pull request yet (issue 53)", "", None),
     ("#54", "Settings, AI: Claude and OpenAI sign-in for ask clark", "no pull request yet (issue 54)", "", None),
     ("#446", "Settings, AI card: Connect and Disconnect for Claude, an OpenAI tile that says Later, a model list", "no pull request yet (issue 446)", "", None),
-    ("#611", "A blank client message is turned away in plain words, not a server error", "no pull request yet (issue 611)", "", None),
     ("#613", "Settings: typing a full name suggests an Alias (Jane Doe suggests Jane,JD)", "no pull request yet (issue 613)", "", None),
 ]
 
