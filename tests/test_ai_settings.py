@@ -109,13 +109,15 @@ class Line(unittest.TestCase):
             sid = navigate(cdp, self.s.port, "#dashboard&p=ABC")
             js = lambda e: cdp.js(e, sid)          # noqa: E731
             self.assertTrue(wait(lambda: js("!!document.querySelector('#report')"), 20))
-            js("""window.__held = null; const real = window.fetch;
-                  window.fetch = function (url) { if (String(url).indexOf('/api/ai/status') >= 0) { const a = arguments; return new Promise((r) => { window.__held = () => r(real.apply(window, a)); }); }
+            js("""window.__pending = []; window.__held = () => window.__pending.splice(0).forEach((f) => f()); const real = window.fetch;
+                  window.fetch = function (url) { if (String(url).indexOf('/api/ai/status') >= 0) { const a = arguments; return new Promise((r) => { window.__pending.push(() => r(real.apply(window, a))); }); }
                                                   return real.apply(this, arguments); };
                   location.hash = '#settings&p=ABC'""")
             self.assertTrue(wait(lambda: js("(document.querySelector('#ai-state') || {}).innerText") == CHECKING, 10))
-            js("window.__held()")
-            self.line(js, ai_service.MESSAGES["ready"])
+            # Release whatever the page has asked so far on every poll, until the answer is on screen: the page asks after it draws
+            # the words, and may ask again if it draws again, so one release at one moment can find nothing, or the wrong ask.
+            self.assertTrue(wait(lambda: js("window.__held(), document.querySelector('#ai-state').innerText") == ai_service.MESSAGES["ready"], 20),
+                            js("document.querySelector('#ai-state').innerText"))
 
     def test_the_line_fits_and_reads_at_4_5_to_1_at_both_widths_in_light_and_dark(self):
         with chrome() as cdp:
