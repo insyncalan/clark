@@ -181,9 +181,9 @@ class Workflow(unittest.TestCase):
         self.assertIn("test_no_real_names.py", out)
         self.assertIn("test_app_files.py", out)               # the reuse record's rows (docs/REUSE-FROM-CREAITE.md)
 
-    def test_two_shards_on_macos_and_the_macos_job_is_required_when_it_runs(self):
+    def test_four_shards_on_macos_and_the_macos_job_is_required_when_it_runs(self):
         mac = self.jobs["macos"]
-        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {("1", "2"), ("2", "2")})
+        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {("1", "4"), ("2", "4"), ("3", "4"), ("4", "4")})
         self.assertRegex(mac, r"runs-on: macos-latest")
         self.assertIn('python-version: "3.x"', mac)
         self.assertNotIn("--quick", mac)
@@ -221,6 +221,19 @@ class Workflow(unittest.TestCase):
         for job, body in self.jobs.items():
             self.assertNotIn("continue-on-error", body, job)
 
+    def test_macos_runs_for_mac_specific_files_not_for_every_guarded_file(self):
+        """The owner, 04-11-2026: macOS runs at the release gate, not on every push of a guarded pull request. A guarded file is the full Ubuntu
+        matrix (FULL=1) and no macOS; only the Mac-specific code (platform, updates, the launcher and the package files) also asks for macOS."""
+        plan = self.jobs["plan"]
+        for ln in plan.splitlines():
+            m = re.match(r"^\s*([A-Za-z0-9_./*|-]+)\)\s+(FULL=1[^#]*)", ln)
+            if not m or "/" not in m.group(1):
+                continue
+            macos = "MACOS=1" in m.group(2)
+            mac_specific = any(p in m.group(1) for p in ("platform.py", "updates.py", "clark.command", "launch.py", "package.py"))
+            self.assertEqual(macos, mac_specific, f"{m.group(1)}: macOS only for Mac-specific files")
+        self.assertIn(".github/*) FULL=1 ;;", plan)
+
     def test_the_guarded_list_in_the_plan_job_matches_run_tests_guarded(self):
         """The plan job's case patterns are dev/run_tests.py GUARDED (source files) plus the documented extras and `.github/*`."""
         text = WORKFLOW.read_text(encoding="utf-8")
@@ -235,7 +248,8 @@ class Workflow(unittest.TestCase):
         # .github/* covers the workflow files, so a GUARDED entry under .github/ is handled by that pattern
         sources = {g for g in guarded if not g.startswith(".github/")}
         extras = {"src/clark/publish.py", "src/clark/publish_flow.py", "src/clark/secret_screen.py",
-                  "src/clark/platform.py", "src/clark/updates.py", ".github/*"}
+                  "src/clark/platform.py", "src/clark/updates.py", ".github/*",
+                  "clark.command", "src/clark/launch.py", "src/clark/doctor.py", "src/clark/release_files.py", "dev/tools/package.py"}
         self.assertTrue(sources, "no source file found in run_tests.GUARDED")
         self.assertIn(".github/*", listed, "the plan job must treat .github/* (the workflows) as guarded")
         missing = sorted(sources - listed)
