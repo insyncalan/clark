@@ -655,7 +655,7 @@ class CleanupPathTest(unittest.TestCase):
             inside_data = fx.data / h.UPDATES / (h.STAGING_PREFIX + STAMP)
             put(inside_data, "x", b"x")
             m = json.loads(path.read_text(encoding="utf-8"))
-            for odd in (elsewhere, fx.app, fx.data, elsewhere / "keep.txt"):
+            for odd in (elsewhere, fx.app, fx.data, elsewhere / "keep.txt", fx.app / "..", fx.data / h.UPDATES / ".."):      # the last two name the folder ABOVE (a reader's MEDIUM)
                 with self.subTest(staging=odd.name):
                     m["staging"] = str(odd)
                     path.write_text(json.dumps(m), encoding="utf-8")

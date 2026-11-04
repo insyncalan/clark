@@ -1046,10 +1046,10 @@ class Run:
     def own_staging(self):
         """Whether the staging path in the marker is a real folder (not a link) directly inside the app folder or the updates
         folder, where clark makes them; the marker is a file anyone could have changed, so nothing else is ever removed."""
-        if self.staging.is_symlink() or not self.staging.is_dir():
-            return False
-        parent = os.path.realpath(self.staging.parent)
-        return parent in (os.path.realpath(self.app), os.path.realpath(updates_dir(self.data)))
+        if self.staging.name in ("", ".", "..") or self.staging.is_symlink() or not self.staging.is_dir():
+            return False                   # a path ending in .. names the folder above, which pathlib does not collapse
+        real = os.path.realpath(self.staging)
+        return os.path.dirname(real) in (os.path.realpath(self.app), os.path.realpath(updates_dir(self.data)))
 
     def r_cleanup(self):
         if self.staging.exists() and self.own_staging():
