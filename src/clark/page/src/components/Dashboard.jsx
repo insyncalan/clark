@@ -47,7 +47,7 @@ export function Dashboard({ tools }) {
   // does not draw yet (only text bodies are drawn, #74). Rows are read from every section first (#95), so a section whose partner
   // is left out takes the full row and never pairs with the next one. The page clark serves is unchanged.
   // The file draws a text section with a body, the At a glance section when it carries tiles and the use case summary when it
-  // carries use cases (#45), Risks and issues, Open actions and Decisions always (A-D5: an empty one keeps its heading and says there is nothing to show), and a 'Needs from you' section that has a row to show (#121); the other types are left out until they are drawn.
+  // carries use cases (item 45), Risks and issues, Open actions and Decisions always (A-D5: an empty one keeps its heading and says there is nothing to show), and a 'Needs from you' section that has a row to show (item 121); the other types are left out until they are drawn.
   // A section template (#96) is drawn in the file and in the served View alike only while it has something to show (its isEmpty,
   // FR-11: View is what the client sees), so an empty template or a stub is in neither.
   const hasNeeds = (s) => shownRows(rowsOf(s, fromFile.value)).length > 0;       // a 'Needs from you' section with no row to show is left out (a left-out row is absent)

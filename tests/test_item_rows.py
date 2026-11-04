@@ -5,6 +5,7 @@ A real browser (tests/test_server.py chrome()) against a real server over a real
 with the real builder and opens the file from disk, where nothing may ask a server. Rows an item's flag keeps from a client are
 absent from the file, so it can never draw them.
 """
+import json
 import shutil
 import sys
 import tempfile
@@ -286,6 +287,42 @@ class EditRows(unittest.TestCase):
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.wl-row').length > 0", sid)))
             self.assertEqual(cdp.js("document.querySelectorAll('.idl,.wl-open,[data-eye],.add-in,[data-showing]').length", sid), 0, "the file has no button, no click and no Edit control")
+
+    def test_in_dark_the_rows_the_pill_the_in_place_parts_and_the_eye_are_readable_and_use_the_dark_tokens_at_1400_and_900(self):
+        """Done-when 6: in dark (data-theme dark), at 1400 and 900 px, in View and in Edit, each part of these rows reads at 4.5:1
+        or more on what is behind it, and its colour is the dark token it is drawn with (not a light value left over)."""
+        token = "(n) => { const e = document.createElement('span'); e.style.color = `var(${n})`; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; }"
+        parts = {
+            "view": [("[data-type=raid] .wl-row .wl-state .pill", None), ("[data-type=raid] .wl-row .wl-title", "--text"),
+                     ("[data-type=raid] .wl-row .wl-meta .num", None), ("[data-type=raid] .wl-row .idl", "--status-blue-text")],
+            "edit": [("[data-item-rows=raid] .wl-row [data-cell$=':status'] .pill", None), ("[data-item-rows=raid] .wl-row [data-f=title]", "--text"),
+                     ("[data-item-rows=raid] .wl-row [data-cell$=':owner']", None), ("[data-item-rows=raid] .wl-row [data-eye]", None),
+                     ("[data-item-rows=raid] .wl-row .idl", "--status-blue-text"), ("[data-item-rows=raid] [data-showing]", "--text-muted")],
+        }
+        check = """((parts, token) => {
+          const rgb = (c) => c.match(/[\\d.]+/g).slice(0, 3).map(Number);
+          const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+          const back = (el) => { let b = 'rgba(0, 0, 0, 0)'; while (el && /rgba\\(.*, 0\\)|transparent/.test(b)) { b = getComputedStyle(el).backgroundColor; el = el.parentElement; } return b; };
+          return parts.map(([sel, tok]) => { const el = document.querySelector(sel); if (!el) return [sel, null];
+            const fg = getComputedStyle(el).color, bg = back(el), x = lum(rgb(fg)), y = lum(rgb(bg));
+            return [sel, (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05), fg, tok ? token(tok) : fg, lum(rgb(back(el.closest('.sec'))))]; });
+        })(%s, %s)"""
+        for w in (1400, 900):
+            with self.subTest(width=w), chrome() as cdp:
+                p = Pg.at(self, cdp, self.s.port)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.ready()
+                p.js("document.documentElement.dataset.theme = 'dark'")       # after the page drew: its own Appearance setting is set on load
+                for mode in ("view", "edit"):
+                    if mode == "edit":
+                        p.edit()
+                        p.until("!!document.querySelector('[data-item-rows=raid] [data-eye]')", "Edit drew the rows")
+                    self.assertEqual(p.js("document.documentElement.dataset.theme"), "dark")
+                    for sel, ratio, fg, want, card in p.js(check % (json.dumps(parts[mode]), token)):
+                        self.assertIsNotNone(ratio, f"{mode} at {w}: {sel} is drawn")
+                        self.assertGreaterEqual(ratio, 4.5, f"{mode} at {w}: {sel} reads {ratio:.2f}:1 in dark")
+                        self.assertEqual(fg, want, f"{mode} at {w}: {sel} is drawn in its dark token")
+                        self.assertLess(card, 0.1, f"{mode} at {w}: the section behind {sel} is the dark surface")
 
     def test_what_a_client_reads_has_no_edit_control_and_nothing_internal(self):
         """Client safety: the published file and the served View carry no Edit part of these rows, and none of the team's own text."""
