@@ -452,13 +452,15 @@ class Daily(Backed):
         is closed after every request, so the warning can't stay on it). It decides nothing: what is due is still read from the folder."""
         tree = ast.parse((SRC / "backup.py").read_text(encoding="utf-8"))
         names = [t.id for node in tree.body if isinstance(node, ast.Assign) for t in node.targets if isinstance(t, ast.Name)]
-        self.assertEqual([n for n in names if not n.isupper() and n not in ("_lock", "backup_warning")], [], "only constants, the lock and the warning")
+        self.assertEqual([n for n in names if not n.isupper() and n not in ("_lock", "_copy_lock", "backup_warning", "copy_warning")], [],
+                         "only constants, the two locks and the two warnings (#622 added the copy folder's lock and warning)")
         stores = [n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute) and isinstance(n.ctx, ast.Store)
                   and isinstance(n.value, ast.Name) and n.value.id == "store"]
         self.assertEqual(sorted(set(stores)), ["_backup_hold", "backup_warning"],
                          "it sets the with-scoped flag and a warning for the person; it never reads the warning back")
         self.assertNotRegex((SRC / "backup.py").read_text(encoding="utf-8"), r"=\s*store\.backup_warning|if store\.backup_warning")
-        self.assertEqual([n.names for n in ast.walk(tree) if isinstance(n, ast.Global)], [["backup_warning"]], "no `global` but the warning's one")
+        self.assertEqual(sorted(n.names[0] for n in ast.walk(tree) if isinstance(n, ast.Global)), ["backup_warning", "copy_warning"],
+                         "no `global` but the two warnings' (#622)")
         self.assertTrue(isinstance(backup._lock, type(threading.Lock())))
 
 
