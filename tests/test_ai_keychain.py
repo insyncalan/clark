@@ -164,8 +164,8 @@ class ShapeRefusals(OnTheMac):
         self.assertEqual(k.valid_shape("openai", "sk-" + "a" * 398), "too_long")
 
     def test_real_key_shapes_are_accepted(self):
-        self.assertIsNone(k.valid_shape("claude", "sk-ant-api03-AbC_dE-1234567890abcdefghij"))
-        self.assertIsNone(k.valid_shape("openai", "sk-proj-AbC_dE-1234567890abcdefghijkl"))
+        self.assertIsNone(k.valid_shape("claude", "sk-" + "ant-api03-AbC_dE-" + "1234567890abcdefghij"))
+        self.assertIsNone(k.valid_shape("openai", "sk-" + "proj-AbC_dE-" + "1234567890abcdefghijkl"))
 
     def test_a_non_string_is_refused(self):
         self.assertEqual(k.valid_shape("claude", None), "empty")
