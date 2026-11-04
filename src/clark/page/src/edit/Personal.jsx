@@ -6,6 +6,7 @@ import { appearance, setAppearance } from "../stores/appearance.js";
 import { profile, loadProfile, setProfile, wantName } from "../stores/profile.js";
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
 import { announce, leave, noteTyped } from "./aboutYouToast.js";
+import { suggestAlias } from "../logic/alias.js";
 
 export const STYLES = [
   ["slim", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture."],
@@ -19,6 +20,25 @@ export const APPEARANCES = [                                 // the ruled order:
   ["light", "Light", "Always light."],
   ["dark", "Dark", "Always dark."],
 ];
+
+// The words of the suggested Alias under the name box, kept here in one place so they are easy to change (item 613).
+export const ALIAS_WORDS = {
+  label: "Suggested Alias:",                                   // the suggestion follows it, after a space ("Suggested Alias: Jane,JD")
+  help: "What colleagues might call you, worked out from your name. Not saved.",
+};
+
+// The suggested Alias (item 613): read-only, worked out live from what is in the name box. Nothing here is kept or sent anywhere; an
+// empty name shows nothing.
+function AliasOffer({ name }) {
+  const alias = suggestAlias(name);
+  if (!alias) return null;
+  return (
+    <div class="alias-offer" data-alias-offer>
+      <p class="alias-line">{ALIAS_WORDS.label} <b data-alias>{alias}</b></p>
+      <p class="alias-help">{ALIAS_WORDS.help}</p>
+    </div>
+  );
+}
 
 // About you (#180): the two optional boxes. Each is saved when it is left (or on Enter); a refusal says why under the box and writes
 // nothing, and what was typed stays in the box so it can be mended. Emptying the name returns the menu's top line to its link.
@@ -60,7 +80,7 @@ function AboutYou() {
     if ((mine.current ? mine.current.value : typed[about]) !== sent[about]) return;
     setSaid({ name: about === "name" ? r.message : "", email: about === "email" ? r.message : "" });
   };
-  const box = (field, label, type, line, ref) => (
+  const box = (field, label, type, line, ref, after = null) => (
     <div class="fld">
       <label for={`about-${field}`}>{label}</label>
       <input id={`about-${field}`} ref={ref} type={type} value={typed[field]} autocomplete={field === "name" ? "name" : "email"} data-about={field}
@@ -69,12 +89,13 @@ function AboutYou() {
         onBlur={() => save(field)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(field); } }} />
       <small id={`about-${field}-line`}>{line}</small>
       <p class="fld-bad" role="alert">{said[field]}</p>
+      {after}
     </div>
   );
   return (
     <fieldset class="styles about" data-about-you>
       <legend>About you</legend>
-      {box("name", "Your name", "text", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.", name)}
+      {box("name", "Your name", "text", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.", name, <AliasOffer name={typed.name} />)}
       {box("email", "Your email", "email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.", email)}
     </fieldset>
   );

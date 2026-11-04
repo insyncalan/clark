@@ -1228,6 +1228,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .fld.copy-fld { max-width: 640px; }
 .fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-caption); }
 .fld-bad:empty { display: none; }
+/* item 613: the suggested Alias under the name box, read-only (Settings, Personal, About you) */
+.alias-offer { display: grid; gap: var(--space-1); min-width: 0; }
+.alias-offer p { margin: 0; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }
+.alias-offer b { font-weight: var(--weight-medium); color: var(--text); }
 /* Settings › People (item 454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
 .pp-h { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; }
 .pp-h h2 { margin: 0; flex: 1; }
