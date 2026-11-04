@@ -279,6 +279,8 @@ class Updater:
                 self._hand_over(staging, stamp, self.version, release.version, backup_dir)
             except (updates.UpdateError, ui.InstallError) as e:
                 return self._stopped(stamp, e)
+            except Exception as e:                          # an unexpected one (an OSError, a PlatformError): the flag still goes down
+                return self._stopped(stamp, e, MESSAGES["generic"])
             return 200, {"ok": True, "restart": True, "message": INSTALLING.format(to=release.version)}
         finally:
             self.lock.release()
@@ -292,12 +294,13 @@ class Updater:
 
     def _stopped(self, stamp, error, message=None):
         """A step before the hand-over failed: nothing in the app folder changed. Put the flag down and say so."""
+        self._installing = False
         ui.remove_staging(self.app, stamp)
         self._drop(PENDING)
-        self._installing = False
-        LOG.info("an update stopped before it began: %s", error.key)
-        LOG.debug("an update stopped before it began: %s", error.detail)
-        return reply(409, error.key, message or error.message)
+        key = getattr(error, "key", "generic")           # an unexpected error has no key: log its kind only, never its text (a path)
+        LOG.info("an update stopped before it began: %s", key)
+        LOG.debug("an update stopped before it began: %s", getattr(error, "detail", type(error).__name__))
+        return reply(409, key, message or error.message)
 
     # --- POST /api/update/arm-undo and /api/update/undo ---
 
@@ -361,6 +364,11 @@ class Updater:
                     said = UNDO_STOPPED_BACK if ui.put_back_newer_data(self.db, began) else UNDO_STOPPED_ASIDE
                     return self._stopped(stamp, e, said)
                 return self._stopped(stamp, e)
+            except Exception as e:                                # an unexpected one (an OSError, a PlatformError): the flag still goes down
+                if restored:
+                    said = UNDO_STOPPED_BACK if ui.put_back_newer_data(self.db, began) else UNDO_STOPPED_ASIDE
+                    return self._stopped(stamp, e, said)
+                return self._stopped(stamp, e, MESSAGES["generic"])
             return 200, {"ok": True, "restart": True, "message": UNDOING.format(to=to)}
         finally:
             self.lock.release()

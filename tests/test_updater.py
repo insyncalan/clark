@@ -226,6 +226,27 @@ class InstallTest(Rig):
                 self.assertFalse((self.data / "updates" / up.PENDING).exists())
                 self.assertEqual([], [n for n in os.listdir(self.app) if n.startswith(h.STAGING_PREFIX)])
 
+    def test_an_unexpected_error_from_the_backup_or_the_staging_lowers_the_flag_and_the_server_answers_again(self):
+        """Reader's MEDIUM (item 280): an error in no update's words (an OSError from the free-space check, a PlatformError)
+        from back_up or stage must not leave the flag up with every route on 503; the generic sentence is said."""
+        before = snapshot(self.app)
+        s = Served(self, self.up)
+        real_stamp = ui.stamp_now
+        for n, (step, error) in enumerate((("back_up", OSError("no space")), ("stage", OSError("no space")),
+                                           ("back_up", platform.PlatformError("x")), ("stage", platform.PlatformError("x")))):
+            with self.subTest(step=step, error=type(error).__name__):
+                body = s.call("POST", "/api/update/review", {"from": "downloads"})[1]
+                with mock.patch.object(ui, step, side_effect=error), \
+                        mock.patch.object(ui, "stamp_now", lambda now=None, n=n: real_stamp(time.time() + 100 * n)):
+                    status, said = s.call("POST", "/api/update/install", {"review_id": body["review_id"]})
+                self.assertEqual((409, "generic", up.MESSAGES["generic"]), (status, said["code"], said["message"]))
+                self.assertFalse(self.up.installing())
+                self.assertEqual(200, s.call("POST", "/api/change", {"x": 1})[0], "the server answers again")
+                self.assertEqual(before, snapshot(self.app))
+                self.assertFalse(h.marker_path(self.data).exists())
+                self.assertFalse((self.data / "updates" / up.PENDING).exists())
+                self.assertEqual([], [n for n in os.listdir(self.app) if n.startswith(h.STAGING_PREFIX)])
+
     def test_a_review_is_used_once_even_when_the_install_stops(self):
         body = self.reviewed()
         failing = self.make(start=lambda *a, **k: (_ for _ in ()).throw(OSError("no")))
@@ -273,6 +294,27 @@ class UndoTest(Rig):
         self.assertEqual((409, "helper"), (status, said["code"]))
         self.assertEqual(ui.MESSAGES["helper"], said["message"])
         self.assertIn("nothing was changed", said["message"])
+
+    def test_an_unexpected_error_from_the_backup_or_the_staging_lowers_the_flag_and_the_server_answers_again(self):
+        """Reader's MEDIUM (item 280), for the undo: a PlatformError or an OSError from back_up or stage_undo, before any data was
+        replaced, lowers the flag and says the generic sentence; the server answers again."""
+        self.installed()
+        now = self.make(version="0.3.1")
+        now.settle()
+        s = Served(self, now)
+        real_stamp = ui.stamp_now
+        for n, (step, error) in enumerate((("stage_undo", platform.PlatformError("x")), ("back_up", platform.PlatformError("x")),
+                                           ("back_up", OSError("no space")), ("stage_undo", OSError("no space")))):
+            with self.subTest(step=step, error=type(error).__name__):
+                armed = s.call("POST", "/api/update/arm-undo", {})[1]
+                with mock.patch.object(ui, step, side_effect=error), \
+                        mock.patch.object(ui, "stamp_now", lambda now=None, n=n: real_stamp(time.time() + 100 * (n + 1))):
+                    status, said = s.call("POST", "/api/update/undo", {"arm_id": armed["arm_id"]})
+                self.assertEqual((409, "generic", up.MESSAGES["generic"]), (status, said["code"], said["message"]))
+                self.assertFalse(now.installing())
+                self.assertEqual(200, s.call("POST", "/api/change", {"x": 1})[0], "the server answers again")
+                self.assertFalse(h.marker_path(self.data).exists())
+                self.assertFalse((self.data / "updates" / up.PENDING).exists())
 
     def test_the_second_click_must_come_in_time_and_name_the_arm(self):
         self.installed()
