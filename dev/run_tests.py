@@ -609,6 +609,7 @@ def main(argv):
     if a.list:
         print("\n".join(f"{f.name}{'  (browser)' if support.is_chrome(f) else ''}" for f in files))
         return 0
+    slot, a.j = support.take_slot(len(files) * max(1, a.repeat or 1), a.j)    # kept open until this process ends, which frees it
     if not build_pages():
         return 1
     return run_all(files, a.j, a.repeat, a.stress, timeout=a.file_timeout, rerun_max=a.rerun_max, max_fail=a.max_fail,
