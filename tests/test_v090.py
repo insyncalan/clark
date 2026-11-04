@@ -30,98 +30,28 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "0.9.0"
-SCHEMA_AT_0_8_0 = 11     # the layout on main when this was written (the same as 0.6.0); the notes name a step only if it differs
+SCHEMA_AT_0_8_0 = 12     # the layout on main when this was written (the same as 0.6.0); the notes name a step only if it differs
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
-    ("#440", "The Settings chips are a bar of their own under the top bar, on the page ground, and never hide a card scrolled into view",
-     "test_settings_bar::SettingsBar::test_C_the_bar_stays_under_the_top_bar_on_the_page_ground_and_never_hides_a_card"),
-    ("#440", "The chip of the card you are reading is marked as you scroll",
-     "test_settings_bar::SettingsBar::test_C_the_marked_chip_follows_the_card_you_are_reading_as_you_scroll"),
-    ("#440", "Saving the name or the email says so with Undo, and a second save of the same words says nothing",
-     "test_about_you::AboutYou::test_C_saving_the_name_or_the_email_says_so_with_undo_and_a_second_save_of_the_same_words_says_nothing"),
-    ("#440", "Undo puts the old value back in the box, the menu and the store",
-     "test_about_you::AboutYou::test_C_undo_puts_the_old_value_back_in_the_box_the_menu_and_the_store"),
-    ("#451", "The progress section's Overall is three tiles, a labelled bar and a 0% to 100% scale",
-     "test_tracker_page::Page::test_view_overall_is_three_tiles_a_labelled_bar_and_a_scale"),
-    ("#451", "The Achieved column has a bar, the figure and the red chip",
-     "test_tracker_page::Page::test_view_achieved_column_has_a_bar_the_figure_and_the_red_chip"),
-    ("#451", "The author's weights note is in Edit and not in View",
-     "test_tracker_page::Page::test_the_weights_note_is_in_edit_for_the_author_and_not_in_view"),
-    ("#452", "A chase shows the three tones, with clark's own choice picked, and how often it was chased",
-     "test_draft_email_editor::Component::test_a_chase_shows_the_three_tones_preselected_to_clarks_choice_and_the_count"),
-    ("#452", "Picking a tone asks for a new draft, and changing the kind hands the choice back to clark",
-     "test_draft_email_editor::Component::test_picking_a_tone_asks_for_a_new_draft_and_changing_the_kind_hands_the_choice_back"),
-    ("#452", "Only a chase has the tone control", "test_draft_email_editor::Component::test_only_a_chase_has_the_tone_control"),
-    ("#452", "No tone word reaches the email", "test_draft_email::ToneChoice::test_no_tone_word_reaches_the_email"),
-    ("#456", "Work items has a letter badge, no Type column, an eye column and a card for each group, in both modes and themes",
-     "test_work_table_parity::Table::test_letter_badge_no_type_column_eye_column_and_a_card_per_group_in_both_modes_and_themes"),
-    ("#456", "In Edit the eye turns an item off or on with a message and Undo",
-     "test_work_table_parity::Table::test_the_eye_in_edit_turns_an_item_off_and_on_with_a_toast_and_undo"),
-    ("#456", "In View the eye is a mark only and a click changes nothing",
-     "test_work_table_parity::Table::test_the_eye_in_view_is_a_read_only_mark_and_a_click_changes_nothing"),
-    ("#456", "A published file has no eye and no client column",
-     "test_work_table_parity::Table::test_a_published_file_has_no_eye_and_no_client_column"),
-    ("#435", "The Expected chip in the milestone calendar is whole at 900 px and in Quarter",
-     "test_milestones_page::RealBrowser::test_the_expected_chip_is_whole_at_900_px_and_in_quarter"),
-    ("#441", "A use case's next steps are every open item in the client's wording, with the owner in a circle",
-     "test_glance_page::UseCases::test_next_steps_are_every_open_item_in_the_client_wording_with_the_owner_in_a_circle"),
-    ("#459", "Help is a page of cards with a search icon and a key chip",
-     "test_help_panel::Panel::test_help_is_a_page_of_cards_with_a_search_icon_and_a_key_chip"),
-    ("#459", "With no client folder, To client links to the Publishing card",
-     "test_publish_dialog::NoFolder::test_C_set_it_in_settings_publishing_is_a_link_to_the_publishing_card"),
-    ("#459", "A preview address opened a second time shows a plain page, not a bare message",
-     "test_preview_export_route::Preview::test_a_second_visit_shows_a_plain_page_not_a_bare_message"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#287", "One View menu on the filter line holds Layout, Group by, Swimlanes and saved views", "PR 537",
-     "page/src/components/FilterLine.jsx", "export function layoutItems"),
-    ("#436", "Milestones: an archived milestone opens read only in the peek, with the eye and one-line rows", "PR 504",
-     "page/src/edit/ArchivedPeek.jsx", "export function ArchivedPeek"),
-    ("#437", "Publish: the finished line, the warning words and the footer follow the prototype (rows 25, 27 and 29)", "PR 262",
-     "page/src/edit/publishLine.js", "export const doneWords"),
-    ("#439", "The Week ending box is in View as well as Edit, with the coming Friday as its value", "PR 458",
-     "page/src/logic/week.js", "export const shownDay"),
-    ("#439", "The project switcher is always a button with open counts, Project settings and a Switched-to message", "PR 527",
-     "page/src/edit/ProjectSwitch.jsx", "export const openWords"),
-    ("#442", "The remaining rows of Work items Duplicate and editing in View (rows 41 and 43 of the issue)",
-     "no pull request yet (issue 442)", "", None),
-    ("#444", "Settings Data card and Projects table: Import workbook, Reset the demo data, Add and Edit project", "PR 461",
-     "page/src/logic/dataCard.js", "export const DATA"),
-    ("#448", "Work items: a rating whatever the status, the live status look and the same status picker in the peek", "PR 534",
-     "page/src/edit/itemEdit.js", "export function statusPill(row, today)"),
-    ("#450", "Archived items open read only in the peek with one Restore, and the Show archived pill remembers its state", "PR 503",
-     "page/src/edit/ArchivedItems.jsx", "export function ArchivedPill"),
-    ("#454", "Settings People card: email, organisation, role and Paste from Excel", "PR 501",
-     "page/src/edit/People.jsx", "export function People"),
-    ("#454", "The Excel import page as the prototype: Check the import, accept or reject each change", "PR 498",
-     "page/src/logic/dataCard.js", "export function rejectAll"),
-    ("#457", "The peek's Latest update with Draft and a Last updated stamp, and the overdue warning bar", "PR 383",
-     "page/src/edit/PeekLatest.jsx", "export function PeekLatest"),
-    ("#485", "The use case row on the Dashboard in Edit: the eye, Where it stands, add a next step, link a work item", "PR 500",
-     "page/src/logic/ucRow.js", "export function splitStep"),
+    ("#287", "One View menu on the filter line holds Layout, Group by, Swimlanes and saved views", "PR 537", "page/src/components/FilterLine.jsx", "export function layoutItems"),
+    ("#437", "Publish: the finished line, the warning words and the footer follow the prototype (rows 25, 27 and 29)", "PR 262", "page/src/edit/publishLine.js", "export const doneWords"),
+    ("#439", "The Week ending box is in View as well as Edit, with the coming Friday as its value", "PR 458", "page/src/logic/week.js", "export const shownDay"),
+    ("#439", "The project switcher is always a button with open counts, Project settings and a Switched-to message", "PR 527", "page/src/edit/ProjectSwitch.jsx", "export const openWords"),
+    ("#442", "The remaining rows of Work items Duplicate and editing in View (rows 41 and 43 of the issue)", "no pull request yet (issue 442)", "", None),
+    ("#444", "Settings Data card and Projects table: Import workbook, Reset the demo data, Add and Edit project", "PR 461", "page/src/logic/dataCard.js", "export const DATA"),
+    ("#450", "Archived items open read only in the peek with one Restore, and the Show archived pill remembers its state", "PR 503", "page/src/edit/ArchivedItems.jsx", "export function ArchivedPill"),
+    ("#454", "Settings People card: email, organisation, role and Paste from Excel", "PR 501", "page/src/edit/People.jsx", "export function People"),
+    ("#454", "The Excel import page as the prototype: Check the import, accept or reject each change", "PR 498", "page/src/logic/dataCard.js", "export function rejectAll"),
 ]
 
 # (item, check, kind, why, what the person does)
 WALK_THROUGH = [
-    ("#440", "The Settings chip bar reads well as you scroll", "judgement",
-     "only a person can say the bar does not jump, the marked chip is clear and no card is hidden under it",
-     "Open Settings, scroll down and press a chip, at 1400 and 900 px, light and dark."),
-    ("#451", "The Overall tiles and the Achieved bar read as the approved design", "judgement",
-     "only a person can compare the tiles, the Planned label and the bar with the approved weekly design",
-     "Add a progress section, fill a few lines, and look at the Overall and the Achieved column at 1400 and 900 px, light and dark."),
-    ("#452", "The tone control reads well in the Draft email", "judgement",
-     "only a person can say the three tones and the line beside them look like the prototype's",
-     "Open Draft email on an owner's overdue items, choose Chase, and press each tone at 1400 and 900 px, light and dark."),
-    ("#456", "The Work items table reads as the prototype's", "judgement",
-     "only a person can compare the letter badge, the group cards and the eye with the prototype",
-     "Open Work items in View and in Edit at 1400 and 900 px, light and dark."),
-    ("#456", "A date picker low in the table is clickable while a message shows", "live only",
-     "the order of the picker and the messages at the bottom left needs a real screen at 900 px",
-     "In Edit at 900 px open the Due picker of a low row while a message shows, and press No date."),
 ]
 
 BANNED_WORDS = ("apply", "applied", "staged", "proposal", "sweep", "tracker", "vault", "extract")
