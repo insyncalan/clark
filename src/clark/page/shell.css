@@ -16,7 +16,7 @@ a { color: var(--status-blue-text); }
 .top { position: sticky; top: 0; z-index: 30; height: var(--topbar); background: var(--brand-navy); color: var(--white); display: flex; align-items: center; gap: 18px; padding: 0 20px; }
 .logo { display: inline-flex; align-items: center; }
 .logo-icon { display: var(--logo-icon); width: 28px; height: 28px; margin-right: var(--space-2); background: center / contain no-repeat; }   /* the image is added by dev/tools/build_page.py */
-.logo .wm { font-weight: var(--weight-medium); font-size: var(--size-h3); letter-spacing: .02em; }
+.logo .wm { font-weight: var(--weight-medium); font-size: var(--size-h2); letter-spacing: .02em; }   /* 24 px, as the owner ruled for the PR 240 sizes */
 .top .divider { width: 1px; height: 26px; background: rgba(255,255,255,.2); }
 .proj { font-size: var(--size-small); color: rgba(255,255,255,.85); }
 .projbtn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: var(--space-1) var(--space-2); border-radius: var(--radius); cursor: pointer; font-size: var(--size-small); color: rgba(255,255,255,.85); }
