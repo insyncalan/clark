@@ -2,10 +2,12 @@
 
 Run: python3 dev/run_tests.py test_help_pictures
 Covers the size budget (3 MB in all), that the shots list (dev/tools/help_shots.json) and the folder name the same pictures, that no
-picture is dark, that neither built page holds the folder (a published file has no Help), that the Help content only names listed
+picture is dark, that the editing page carries each picture as a data: URI and the published page none (it has no Help), that a build with a wrong pin or a missing file is refused, that the Help content only names listed
 pictures, that the shots list is well formed, and that the script refuses any data folder that is not the demo data. The retake
 itself (python3 dev/tools/help_pictures.py, and --check) needs the browser and is a separate, documented step.
 """
+import base64
+import hashlib
 import json
 import importlib
 import re
@@ -30,6 +32,7 @@ from clark import page
 sys.path.insert(0, str(ROOT / "dev"))
 import demo_data  # noqa: E402
 import help_pictures as hp  # noqa: E402
+import build_page  # noqa: E402
 
 FOLDER = ROOT / "src" / "clark" / "page" / "help-pictures"
 CONTENT = ROOT / "src" / "clark" / "page" / "src" / "help" / "helpContent.json"
@@ -95,14 +98,89 @@ class Folder(unittest.TestCase):
     def test_a_picture_is_taken_at_scale_one(self):
         self.assertEqual((hp.WIDTH, hp.SCALE), (1400, 1))
 
-    def test_the_built_pages_do_not_carry_the_folder(self):
+    def test_the_editing_page_carries_every_picture_and_the_published_page_none(self):
+        # Size of page.html (the editing page): 1,688,076 bytes before the pictures were inlined, 2,364,735 after (+676,659; the
+        # 13 PNGs are 495 KB, and base64 adds a third). page-view.html (published) is 541,527 bytes either way.
         page.ensure_built()
-        for built in (page.PAGE, page.VIEW_PAGE):
-            self.assertNotIn("help-pictures", built.read_text(encoding="utf-8"), f"{built.name} must carry no Help picture")
+        editing = page.PAGE.read_text(encoding="utf-8")
+        for shot in listed():
+            uri = "data:image/png;base64," + base64.b64encode((FOLDER / f"{shot}.png").read_bytes()).decode("ascii")
+            self.assertIn(uri, editing, f"the editing page must carry {shot}")
+        published = page.VIEW_PAGE.read_text(encoding="utf-8")
+        self.assertNotIn("help-pictures", published)
+        for shot in listed():
+            b64 = base64.b64encode((FOLDER / f"{shot}.png").read_bytes()).decode("ascii")
+            self.assertNotIn(b64[:200], published, f"the published page must carry no {shot}")
+        self.assertNotIn("help-pictures", editing, "the folder's name is not in the page; its pictures are")
+        shipped = {hashlib.sha256(base64.b64decode(m)).hexdigest() for m in re.findall(r"data:image/png;base64,([A-Za-z0-9+/=]+)", published)}
+        self.assertEqual(shipped & set(hp.read_pins().values()), set(), "no Help picture, by hash, in the published page")
+
+    def test_the_inlined_pictures_fit_the_budget(self):
+        total = sum(len(base64.b64decode(v.split(",", 1)[1])) for v in self.pictures().values())
+        self.assertLessEqual(total, BUDGET)
+        self.assertEqual(set(self.pictures()), set(listed()))
 
     def test_the_content_only_names_listed_pictures(self):
         content = json.loads(CONTENT.read_text(encoding="utf-8"))
         self.assertLessEqual(set(content.get("pictures", [])), set(listed()))
+
+    def pictures(self):
+        path = build_page.help_pictures_path(True)
+        return json.loads(path.read_text(encoding="utf-8").removeprefix("export default ").rstrip().rstrip(";"))
+
+    def test_the_published_build_gets_an_empty_set(self):
+        self.assertEqual(build_page.help_pictures_path(False).read_text(encoding="utf-8").strip(), "export default {};")
+
+    def test_picture_url_gives_null_for_an_unknown_id(self):
+        src = (ROOT / "src" / "clark" / "page" / "src" / "help" / "helpPictures.js").read_text(encoding="utf-8")
+        self.assertIn("hasOwnProperty", src)          # "constructor" and "__proto__" are not pictures
+        self.assertIn(": null", src)
+        self.assertIn("pictureUrl,", (ROOT / "src" / "clark" / "page" / "src" / "edit" / "index.js").read_text(encoding="utf-8").replace(" }", ","))
+
+
+class BuildRefuses(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = Path(self.tmp.name)
+        self.folder = self.dir / "pics"
+        self.folder.mkdir()
+        (self.folder / "a.png").write_bytes(b"\x89PNG one")
+        (self.dir / "shots.json").write_text(json.dumps({"shots": [{"id": "a"}]}), encoding="utf-8")
+        self.pins = self.dir / "pins.json"
+        self.pins.write_text(json.dumps({"a.png": hashlib.sha256(b"\x89PNG one").hexdigest()}), encoding="utf-8")
+
+    def build(self):
+        return build_page.help_pictures_path(True, self.folder, self.dir / "shots.json", self.pins)
+
+    def test_a_matching_pin_builds(self):
+        self.assertIn("data:image/png;base64,", self.build().read_text(encoding="utf-8"))
+
+    def test_a_pin_that_does_not_match_refuses(self):
+        (self.folder / "a.png").write_bytes(b"\x89PNG changed")
+        with self.assertRaisesRegex(build_page.PictureError, "does not match its pin"):
+            self.build()
+
+    def test_a_pinned_picture_with_no_file_refuses(self):
+        (self.folder / "a.png").unlink()
+        with self.assertRaisesRegex(build_page.PictureError, "is missing"):
+            self.build()
+
+    def test_a_pin_no_shot_makes_refuses(self):
+        self.pins.write_text(json.dumps({"a.png": hashlib.sha256(b"\x89PNG one").hexdigest(), "z.png": "0"}), encoding="utf-8")
+        with self.assertRaisesRegex(build_page.PictureError, "pinned but no shot"):
+            self.build()
+
+    def test_a_refused_picture_stops_the_whole_build(self):
+        (self.folder / "a.png").write_bytes(b"x")
+        with mock.patch.object(build_page, "PICTURES_DIR", self.folder), mock.patch.object(build_page, "SHOTS_FILE", self.dir / "shots.json"), \
+                mock.patch.object(build_page, "PINS_FILE", self.pins), redirect_stderr(StringIO()):
+            self.assertEqual(build_page.main(["--check"]), 1)
+
+    def test_over_the_budget_refuses(self):
+        with mock.patch.object(build_page, "MAX_PICTURE_BYTES", 3):
+            with self.assertRaisesRegex(build_page.PictureError, "budget"):
+                self.build()
 
 
 class Shots(unittest.TestCase):

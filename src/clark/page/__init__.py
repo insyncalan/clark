@@ -155,8 +155,9 @@ def build_inputs():
     if SOURCES.is_dir():
         files += [f for f in SOURCES.rglob("*") if f.is_file() and "__pycache__" not in f.parts and "shown" not in f.relative_to(SOURCES).parts[:-1]]
     files += [HERE / "shell.css", HERE / "__init__.py", ROOT / "src" / "clark" / "brand" / "tokens.css",
-              ROOT / "dev" / "tools" / "build_page.py", ROOT / "dev" / "tools" / "esbuild.py"]
-    for d in (HERE / "assets", ROOT / "vendor" / "preact", ROOT / "vendor" / "tiptap", ROOT / "vendor" / "fonts"):
+              ROOT / "dev" / "tools" / "build_page.py", ROOT / "dev" / "tools" / "esbuild.py",
+              ROOT / "dev" / "tools" / "help_pins.json", ROOT / "dev" / "tools" / "help_shots.json"]
+    for d in (HERE / "assets", HERE / "help-pictures", ROOT / "vendor" / "preact", ROOT / "vendor" / "tiptap", ROOT / "vendor" / "fonts"):
         if d.is_dir():
             files += [f for f in d.rglob("*") if f.is_file() and "__pycache__" not in f.parts]
     return sorted({f for f in files if f.is_file()})
