@@ -300,7 +300,7 @@ class Words(unittest.TestCase):
         words of Help (the page's and the prototype's), at the start of a string, after a full stop inside one and, since #225 and
         #318, after a colon or semicolon."""
         starts = SENTENCE_STARTS_WITH_PRODUCT_NAME
-        headings = ("clark version and updates",)                                   # a heading in Help's list of Settings entries, not a sentence
+        headings = ("Version and updates", "clark version and updates")                                   # a heading in Help's list of Settings entries, not a sentence
         files = (sorted(PAGE_SRC.rglob("*.js")) + sorted(PAGE_SRC.rglob("*.jsx")) + [PAGE_SRC / "help" / "helpContent.json",
                  PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"])
         self.assertTrue(files)

@@ -895,6 +895,29 @@ class LogTest(unittest.TestCase):
             self.assertNotIn("xxxx", log.read_text(encoding="utf-8"))
 
 
+class LogHardeningTest(unittest.TestCase):
+    def test_a_log_that_is_a_link_is_not_written_through(self):
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            log = h.updates_dir(fx.data) / h.LOG_NAME
+            log.parent.mkdir(parents=True, exist_ok=True)
+            target = Path(t) / "elsewhere.txt"
+            target.write_text("kept", encoding="utf-8")
+            log.symlink_to(target)
+            run_with(fx)
+            self.assertEqual(target.read_text(encoding="utf-8"), "kept")
+
+    def test_a_line_that_cannot_be_built_or_encoded_does_not_stop_the_update(self):
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            fx.begin()
+            run = h.Run(h.marker_path(fx.data), FakeSeams())
+            run.m.pop("stamp")
+            run.log("health", True, 0.1)
+            run.m["stamp"] = "\ud800"
+            run.log("health", True, 0.1)
+
+
 class PlainWordsTest(unittest.TestCase, PlainWordsMixin):
     def test_every_message_is_plain_and_none_starts_with_the_product_name(self):
         with tempfile.TemporaryDirectory() as t:

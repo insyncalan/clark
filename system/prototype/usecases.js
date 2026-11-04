@@ -132,7 +132,7 @@
     const acts = arch ? '' : `<div class="hacts ucx-acts"><button class="btn" id="ucxStatus" aria-haspopup="menu">Change status ${C.icon('chev', 's')}</button>
         <span class="ucx-eye-s${on ? ' on' : ''}">${C.icon(on ? 'eye' : 'eyeoff', 's')}${on ? EYE_ON : EYE_OFF}</span><button class="btn" id="ucxToggle">${on ? 'Take off the dashboard' : 'Put on the dashboard'}</button></div>`;
     const nm = arch ? esc(titles(u)[0]) : `<span class="ucx-ce ucx-nm" contenteditable="plaintext-only" role="textbox" spellcheck="true" data-ucx-name aria-label="Name of use case ${RW}">${esc(titles(u)[0])}</span>`;
-    const hl = arch ? `<p class="ucx-hl">${esc(u.headline || 'No headline yet')}</p>` : `<p class="ucx-hl"><span class="ucx-ce" contenteditable="plaintext-only" role="textbox" spellcheck="true" data-ucx-head data-ph="One line on where it stands" aria-label="One line on where use case ${RW} stands">${esc(u.headline)}</span></p>`;
+    const hl = arch ? `<p class="ucx-hl">${esc(u.headline || 'No headline yet')}</p>` : `<p class="ucx-hl"><span class="ucx-ce" contenteditable="plaintext-only" role="textbox" spellcheck="true" data-ucx-head data-ph="Today's position, in one line" aria-label="Headline for use case ${RW}">${esc(u.headline)}</span></p>`;
     return `<div class="crumbs ucx-crumb"><button class="link" data-ucx-back>Use cases</button> › ${R}</div>
       <div class="head"><div><h1 tabindex="-1">${R} · ${nm}</h1><p class="ucx-sub">${arch ? `<span class="tag arch">${C.icon('archive', 's')}Archived</span>` : ''}${word(u.status)} <span>${sub}</span></p></div>${acts}</div>
       ${arch ? `<div class="pk-archnote ucx-archnote"><p>Archived, so it is read-only. It is out of the lists, the counts, the dashboard and the published page; nothing in it was deleted.</p><button class="btn pri" id="ucxRestore">Restore</button></div>` : ''}
@@ -258,7 +258,7 @@
       ce(C.$('[data-ucx-name]', host), () => titles(u)[0], v => { const un = D.change('uc', u, { title: [v, ...titles(u).slice(1)].join('\n') }, D.who(HOW)); if (un) say(u, 'saved', un); });
       ce(C.$('[data-ucx-head]', host), () => u.headline || '', v => { const un = D.change('uc', u, { headline: v }, D.who(HOW)); if (un) say(u, 'saved', un); }, true);
       ce(C.$('[data-ucx-owner]', host), () => u.owner || '', v => { const un = D.change('uc', u, { owner: v }, D.who(HOW)); if (un) say(u, 'saved', un); }, true);
-      C.inline(C.$('[data-ucx-std]', host), { html: u.standing, label: 'Where it stands', placeholder: 'Where the use case stands', place: 'current', draft: () => C.draftUc(u),
+      C.inline(C.$('[data-ucx-std]', host), { html: u.standing, label: 'Where it stands', placeholder: 'What is done, what is happening now, and what is next. Add anything that is blocked or at risk.', place: 'current', draft: () => C.draftUc(u),
         onSave: h => { const un = D.change('uc', u, { standing: h }, D.who(HOW)); if (un) say(u, 'saved', un); } });
       C.$('#ucxStatus').addEventListener('click', e => { e.stopPropagation();
         C.menu(e.currentTarget, STATUSES.map(s => ({ html: word(s), selected: u.status === s, onPick: () => { const un = D.change('uc', u, { status: s }, D.who(HOW)); if (un) say(u, `set to ${s}`, un); } })), { select: true }); });

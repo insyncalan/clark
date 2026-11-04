@@ -743,17 +743,19 @@ class Run:
         write_json(self.marker_file, self.m)
 
     def log(self, step, ok, seconds, detail=""):
-        line = " ".join(["%s" % time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), self.m["stamp"],
-                         f"{self.m['from']}->{self.m['to']}", step, "ok" if ok else "failed", f"{seconds:.2f}s"])
-        if detail:
-            line += " " + tilde(detail, self.home).replace("\n", " ")[:300]
         try:
+            line = " ".join(["%s" % time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), self.m["stamp"],
+                             f"{self.m['from']}->{self.m['to']}", step, "ok" if ok else "failed", f"{seconds:.2f}s"])
+            if detail:
+                line += " " + tilde(detail, self.home).replace("\n", " ")[:300]
             self.log_file.parent.mkdir(parents=True, exist_ok=True)
+            if self.log_file.is_symlink():
+                return                       # a planted link would be written through: no line is better than that
             if self.log_file.exists() and self.log_file.stat().st_size > LOG_LIMIT:
                 self.log_file.write_bytes(b"")
             with open(self.log_file, "a", encoding="utf-8") as f:
                 f.write(line + "\n")
-        except OSError:
+        except (OSError, ValueError, KeyError):
             pass                             # the log never stops an update
 
     def step(self, name, action, after=True):
