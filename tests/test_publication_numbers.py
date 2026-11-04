@@ -593,6 +593,28 @@ class ThroughThePublisher(unittest.TestCase):
             self._lost_race(store, folder, overwrite=True)
         self.assertEqual(list(folder.iterdir()), [])
 
+    def test_overwrite_refuses_a_file_too_big_to_keep_a_copy_of(self):          # #326
+        store, folder = self._overwrite_rig()
+        dest = folder / "PUB-report-2026-10-23.html"
+        with open(dest, "wb") as f:
+            f.truncate(64 * 1048576 + 1)                                        # one byte over what is kept to put back
+        with self.assertRaises(publish.PublishError) as caught:
+            publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING, overwrite=True)
+        self.assertIn("was not replaced", str(caught.exception))
+        self.assertEqual(dest.stat().st_size, 64 * 1048576 + 1, "the big file is untouched")
+        self.assertEqual(numbers(store.con, "PUB"), [], "and nothing was recorded")
+
+    def test_the_publisher_refuses_a_local_file_too_big_to_keep_a_copy_of(self):  # #326
+        rig = Rig(self)
+        big = rig.local / "chosen.html"
+        with open(big, "wb") as f:
+            f.truncate(64 * 1048576 + 1)
+        status, got = rig.publish()
+        self.assertEqual((status, got["ok"], got["code"]), (409, False, "earlier_too_big"), got)
+        self.assertIn("Nothing was published.", got["message"])
+        self.assertEqual(big.stat().st_size, 64 * 1048576 + 1)
+        self.assertEqual(rig.rows(), [])
+
     def test_overwrite_without_a_race_still_replaces_the_file(self):
         store, folder = self._overwrite_rig()
         first = publish.publish(store, "PUB", folder, by_user=USER, now=DAY, branding=EMPTY_BRANDING)
