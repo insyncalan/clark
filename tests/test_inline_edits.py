@@ -774,7 +774,7 @@ class Live(unittest.TestCase):
 
     def test_the_view_peek_of_a_closed_risk_says_closed_and_its_rating_word_with_no_picker(self):
         """#448 (done-when 5): in View the peek of a closed risk says Closed and its rating word; no picker, no internal field. The
-        published file itself is checked in test_peek.PublishedList."""
+        published file itself is checked in test_peek.ClosedRiskPublished."""
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, width, edit=False)
