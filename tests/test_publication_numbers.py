@@ -571,6 +571,45 @@ class ThroughThePublisher(unittest.TestCase):
         finally:
             os.symlink, publish.platform.move_unless_exists = real_sym, real_move
 
+    def test_put_link_back_reports_a_foreign_file_it_could_not_put_back(self):     # item 388: back()'s result is not ignored
+        folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"theirs")
+        real_move = publish.platform.move_unless_exists
+
+        def refuse(*a, **kw):
+            raise OSError(13, "Permission denied")
+        publish.platform.move_unless_exists = refuse
+        try:
+            self.assertEqual(publish.put_link_back(dest, folder / "x.html", "0" * 64), "aside")
+        finally:
+            publish.platform.move_unless_exists = real_move
+        self.assertFalse(dest.exists())
+        self.assertEqual([p.read_bytes() for p in folder.iterdir()], [b"theirs"], "their bytes are kept, not deleted")
+
+    def test_put_link_back_survives_a_failing_unlink_of_the_aside_name(self):      # item 388: no bare OSError
+        folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        dest = folder / "PUB-report.html"
+        digest = hashlib.sha256(b"ours").hexdigest()
+        real_unlink, real_sym, real_move = os.unlink, os.symlink, publish.platform.move_unless_exists
+
+        def refuse(*a, **kw):
+            raise OSError(13, "Permission denied")
+        os.unlink = refuse
+        try:
+            dest.write_bytes(b"ours")
+            self.assertEqual(publish.put_link_back(dest, folder / "x.html", digest), "linked")
+            self.assertTrue(os.path.islink(dest))
+            real_unlink(dest)
+            dest.write_bytes(b"ours")
+            os.symlink = refuse
+            publish.platform.move_unless_exists = lambda *a, **kw: False       # the name was taken meanwhile
+            self.assertEqual(publish.put_link_back(dest, folder / "x.html", digest), "other")
+        finally:
+            os.unlink, os.symlink, publish.platform.move_unless_exists = real_unlink, real_sym, real_move
+
     def test_a_link_is_never_put_over_a_file_that_is_not_ours(self):       # #604: no gap between the check and the swap
         folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
         self.addCleanup(shutil.rmtree, folder, True)
