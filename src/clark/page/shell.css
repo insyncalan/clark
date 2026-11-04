@@ -1160,6 +1160,13 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .setting h2 { margin: 0 0 6px; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
 .setting .row { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
 .folder-now { overflow-wrap: anywhere; }
+/* item 647: the pasted folder path, under Choose folder; the box takes the row's room and the button stays beside it. */
+.folder-paste { margin-top: var(--space-3); }
+.folder-paste label { display: block; font-size: var(--size-small); color: var(--text); }
+.folder-paste .row { flex-wrap: nowrap; margin-top: var(--space-1); }
+.folder-paste input { box-sizing: border-box; flex: 1 1 auto; min-width: 0; max-width: 560px; min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.folder-paste input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.folder-paste p { margin: var(--space-1) 0 0; font-size: var(--size-small); }
 .backup-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-4); }
 .backup-list .acts { display: flex; gap: var(--space-2); margin-left: auto; }
 .backup-panel { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
