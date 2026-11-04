@@ -320,7 +320,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fchip button { all: unset; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
 .fchip button:hover { background: var(--grey-200); }
 .fchip button:focus-visible { outline: 2px solid var(--brand-blue); }
-.flist { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; margin: 0; padding: 6px 0; list-style: none; width: min(420px, 100%); max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
+.flist { margin: 4px 0 0; padding: 6px 0; list-style: none; width: min(420px, 100%); max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
 .fopt { display: flex; align-items: baseline; gap: 10px; padding: 4px 12px; min-height: calc(var(--space-6) - var(--space-1)); box-sizing: border-box; cursor: pointer; color: var(--text); }
 .fopt:hover, .fopt[aria-selected="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .fopt .fl1 { font-weight: var(--weight-medium); }
@@ -1745,6 +1745,18 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.vt { display: inline-flex; align-items: center; gap: 2px; }
+.vtabmenu { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; color: var(--text-muted); }
+.vtabmenu:hover { background: var(--grey-100); color: var(--text); }
+.vtabmenu:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.vtabmenu .nch { width: 14px; height: 14px; }
+.vnew { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; padding: 3px 10px; border-radius: var(--radius-pill); cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.vnew:hover { background: var(--grey-100); color: var(--text); }
+.vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.fline:has(.fx) { padding-right: 38px; }
+.fx { all: unset; box-sizing: border-box; position: absolute; right: 7px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: var(--size-body); line-height: 1; }
+.fx:hover { background: var(--grey-100); color: var(--text); }
+.fx:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .wl-id { display: inline-flex; align-items: center; gap: 4px; }
 .idl { all: unset; box-sizing: border-box; padding: 2px 4px; margin: -2px -4px; border-radius: var(--radius-sm); color: var(--status-blue-text); cursor: pointer; }
 .idl:hover { text-decoration: underline; text-underline-offset: 2px; }
