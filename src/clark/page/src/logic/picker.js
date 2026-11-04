@@ -4,6 +4,11 @@
 // and #65's change path does the adding.
 import { dayNumber, showDate } from "../workItems.js";
 
+// The ids the eye has left out of the published page, from the data's `report_hidden`.
+export function leftOutIds(d) {
+  return (d && Array.isArray(d.report_hidden) ? d.report_hidden : []).map((h) => (h && h.item_id) || h);
+}
+
 // The kinds in the order the picker lists them. `key` is the array in the project's data (Store.data_for), `noun` a word for
 // the plain-words label, `text` the field a person reads and searches.
 export const KINDS = [
