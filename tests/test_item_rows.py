@@ -327,8 +327,8 @@ class EditRows(unittest.TestCase):
 
     def test_what_a_client_reads_has_no_edit_control_and_nothing_internal(self):
         """Client safety: the published file and the served View carry no Edit part of these rows, and none of the team's own text."""
-        edit_only = ("document.querySelectorAll('[data-eye],.add-in,[data-add-line],[data-addfrom],[data-showing],[data-edit-only],[data-cell],"
-                     ".item-rows-edit,.wl-add,.add-from,[contenteditable],input,textarea,select').length")
+        edit_only = ("[...document.querySelectorAll('[data-eye],.add-in,[data-add-line],[data-addfrom],[data-showing],[data-edit-only],[data-cell],"
+                     ".item-rows-edit,.wl-add,.add-from,[contenteditable],input,textarea,select')].filter((e) => !e.closest('#report-bar')).length")   # the bar above the page (served only) keeps its Week ending box in View
         words = "document.querySelector('#report').innerText"
         internal = (HIDDEN, RESPONSE, NO_WORDING)
         ours = ("Add from your project record", "Take off the page", "Showing ", "Add a risk", "Add an action", "Add a decision", "Select any part to change it")
