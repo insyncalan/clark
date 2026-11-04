@@ -44,7 +44,8 @@ class Archived(Base):
                 self.until(cdp, sid, "!!document.querySelector('#showArchived')", "the Show archived button")
                 self.assertEqual(cdp.js("document.querySelector('#showArchived').textContent", sid), "Show archived 2")
                 self.assertTrue(cdp.js("!!document.querySelector('#work .wbar .vctl #showArchived')", sid), "the pill is in the Work items bar")
-                self.assertTrue(cdp.js("(() => { const p = document.querySelector('#showArchived'), v = p.nextElementSibling; return !!v && !!document.querySelector('#work .wbar .vctl') && p.parentElement === v.parentElement; })()", sid), "the pill sits before View, as in the prototype")
+                # Main moved Layout and Group by into the filter line's View menu (item 287), so the pill is the bar's one right-hand control.
+                self.assertTrue(cdp.js("(() => { const p = document.querySelector('#showArchived'); return p.parentElement.matches('#work .wbar .vctl') && p.parentElement.firstElementChild === p; })()", sid), "the pill leads the bar's right-hand controls")
                 self.assertFalse(cdp.js("!!document.querySelector('#archived-list')", sid), "the list is shut until asked for")
                 self.assertEqual(cdp.js("document.querySelector('#showArchived').getAttribute('aria-pressed')", sid), "false")
                 self.assertFalse(cdp.js("!!document.querySelector('#work-list tr[data-id=\"%s\"]')" % self.gone[0], sid), "an archived row is not in the table")
