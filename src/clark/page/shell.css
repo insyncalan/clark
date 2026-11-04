@@ -1102,7 +1102,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 /* Item 614 (after ticket 380): the ring turns, calmly, for exactly as long as "Publishing…" shows. It is drawn only while the work is
    open (Publish.jsx renders it under `working`), so it goes the moment the work ends and nothing turns after the publish. Ticket 380's
    four turns stopped it at about 3.6 s while the work went on, which read as "finished". The one approved loop (test_motion). */
-@media (prefers-reduced-motion: no-preference) { .spin { animation: pub-spin calc(var(--dur-enter) * 3) linear infinite; } }      /* calm: one even turn in 2.1 s (was 1.4 s) */
+@media (prefers-reduced-motion: no-preference) { .spin { animation: pub-spin calc(var(--dur-enter) * 3) linear infinite; } }      /* calm: one even turn in 2.1 s (was 0.9 s) */
 @keyframes pub-spin { to { transform: rotate(360deg); } }
 .pub-msg .success { display: flex; align-items: center; gap: var(--space-2); }
 .pub-tick { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--status-green-text); color: var(--surface); }
