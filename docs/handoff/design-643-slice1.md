@@ -11,7 +11,15 @@ No route, no setting, no page, no provider, no secret screen, no visible sentenc
 ## Choices to know about
 - Keychain `-T ""`: no application is trusted, so macOS asks before it gives a key out. Cost: a macOS prompt when the key is read. Dropping it removes the prompt and lets any program that can run `security` read the key.
 - No proxy: Python's `http.client` ignores proxy settings, so a request goes straight to the host. Someone behind a company proxy could not use this route.
-- Two code notes: `platform.container_mode` does not exist on this branch (item 427 adds it), so the container check is skipped until the branch is rebased on it. And `platform.run_program` has no stdin option, so `run_security` passes `input` through its `run` argument; adding a `stdin` argument to `run_program` would be cleaner, but `platform.py` is outside this slice.
+- `security -i` exit codes (confirmed on a real Mac): it exits 0 even when the add-generic-password inside it fails (it prints `add-generic-password: returned -25299`); only a bad command exits 1. So `save_key` does not trust exit 0: it reads both outputs for a `returned <number>` line, then confirms the item exists with a find, and raises the fixed sentence if either says no.
+- Key shape is an allowlist: after the provider prefix (`sk-ant-` or `sk-`) only letters, digits, `-` and `_`; 20 to 400 characters. Refusals give a short code from `REFUSAL_CODES`, never the key.
+- Timeouts: `socket.timeout` is not `TimeoutError` on Python 3.9, so both are caught. The per-call timeout is per socket call; there is also an overall deadline (default 60 s) checked between chunks. The reply cap is exact (a read never asks for more than one byte past it).
+- Key exposure in a traceback: `save_key` deletes its `key` local, and `_call` and `run_security` delete their command-text locals, in `finally`, so a traceback walk finds the key in no `ai_keychain` frame (a test checks this). NOT claimed: the command text is still the `input` argument inside the `subprocess` call and in `platform.run_program` frames below `run_security`, and in the caller's own frame; a handler that captures every frame's locals could still reach it there. Only a real fix in `platform.run_program` (or never holding the key in a Python str) would close that.
+
+## For when this is wired (not now)
+- Give `platform.run_program` its own `input` and `timeout` options instead of the `functools.partial` in `run_security` (`platform.py` is out of scope for this slice).
+- The proxy decision (no proxy now) and `-T ""` are with the owner.
+- One real-Mac check before the route is wired: save, has, read, delete, and a deliberately failing add, against the real Keychain.
 
 ## Open decisions for the owner
 1. Keep `-T ""` (a macOS prompt on each read) or trust `security` (no prompt, weaker).
