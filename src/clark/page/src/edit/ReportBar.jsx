@@ -25,15 +25,15 @@ export const isFriday = (iso) => new Date(iso + "T00:00:00Z").getUTCDay() === 5;
 export const notFriday = (iso) => `Week ending is a Friday. Pick Friday ${shownDay(weekEndOf(iso))}.`;
 
 export function ReportBar() {
-  useEffect(() => { refreshLatest(); }, [project.value]);
-  if (!data.value || !data.value.project) return null;
-  const stored = data.value.project.week_ending || "";
-  const week = weekOf(stored, todayIso());       // the project's own week, else the coming Friday (shown, never saved until a day is picked)
   const editing = mode.value === "edit";
-  useEffect(() => {
+  useEffect(() => { refreshLatest(); }, [project.value]);
+  useEffect(() => {       // both hooks sit above the early return below (#534): every render calls the same hooks in the same order
     if (editing && hintOpen.value) remember("dragHintSeen", true);
     if (!editing && hintOpen.value && recall("dragHintSeen", false)) hintOpen.value = false;
   }, [editing]);
+  if (!data.value || !data.value.project) return null;
+  const stored = data.value.project.week_ending || "";
+  const week = weekOf(stored, todayIso());       // the project's own week, else the coming Friday (shown, never saved until a day is picked)
   const published = lastLine(latest.value);
   const save = (e, confirmed) => {       // typed as DD-MM-YYYY, as Key dates takes it: clark's own way, never the browser's calendar
     const el = e.currentTarget, raw = el.value.trim(), iso = parseDay(raw);

@@ -4,6 +4,7 @@
 import { useState } from "preact/hooks";
 import { data, asAt, fromFile, mode, openPeek } from "../stores/report.js";
 import { milestoneRows, todayIso } from "../logic/milestones.js";
+import { leftOutIds } from "../logic/picker.js";
 import { recall, remember } from "../logic/remember.js";
 import { Icon } from "./Icon.jsx";
 import { MsTimeline } from "./MsTimeline.jsx";
@@ -19,14 +20,14 @@ import { MsLegend } from "./MsLegend.jsx";
 export function MsBlock({ place, tools }) {
   const client = fromFile.value, today = client && asAt.value ? asAt.value : todayIso();
   const dash = !client && place !== "page";
-  const off = dash ? new Set((Array.isArray(data.value.report_hidden) ? data.value.report_hidden : []).map((h) => (h && h.item_id) || h)) : null;
+  const off = dash ? new Set(leftOutIds(data.value)) : null;
   const rows = milestoneRows(data.value.milestones, today, client).filter((r) => !dash || (r.clientVisible && !off.has(r.id)));
   const AddBack = dash && tools && tools.MsAddBack && mode.value === "edit" ? tools.MsAddBack : null;
   const [view, setView] = useState(() => (client ? "line" : recall(`msv.${place}`, "line") === "cal" ? "cal" : "line"));
   const choose = (v) => { if (!client) remember(`msv.${place}`, v); setView(v); };
   const open = client ? null : (id) => openPeek(id, "milestone");   // a published file has nothing to open: its marks, labels, chips and rows are plain text
   const Eye = !client && tools && tools.MsEye && mode.value === "edit" ? tools.MsEye : null;
-  const left = Eye ? new Set((Array.isArray(data.value.report_hidden) ? data.value.report_hidden : []).map((h) => (h && h.item_id) || h)) : null;      // the ids left out of the published page
+  const left = Eye ? new Set(leftOutIds(data.value)) : null;      // the ids left out of the published page
   if (!rows.length) return <><p class="muted" data-no-milestones>No milestones are shown yet.</p>{AddBack ? <AddBack /> : null}</>;
   return (
     <div class="msv" data-view={view} data-place={place}>

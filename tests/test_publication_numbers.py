@@ -546,6 +546,9 @@ class ThroughThePublisher(unittest.TestCase):
         finally:
             os.symlink, publish.platform.move_unless_exists = real_sym, real_move
         self.assertIn("Another publication was made", str(caught.exception), "the refusal is still given")
+        self.assertIn("The old report could not be put back in the folder. It is still there under a hidden name.",
+                      str(caught.exception), "the owner's sentence (A), verbatim")
+        self.assertNotIn(".aside", str(caught.exception), "no hidden name or path in the message")
         names = [p.name for p in folder.iterdir()]
         self.assertEqual(len(names), 1)
         self.assertTrue(names[0].endswith(".aside"), "the report is kept under its aside name, not lost")
@@ -572,6 +575,51 @@ class ThroughThePublisher(unittest.TestCase):
             self.assertEqual(publish.put_link_back(dest, folder / "x.html", digest), "aside")
         finally:
             os.symlink, publish.platform.move_unless_exists = real_sym, real_move
+
+    def test_put_link_back_reports_a_foreign_file_it_could_not_put_back(self):     # item 388: back()'s result is not ignored
+        folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(b"theirs")
+        real_move = publish.platform.move_unless_exists
+
+        def refuse(*a, **kw):
+            raise OSError(13, "Permission denied")
+        publish.platform.move_unless_exists = refuse
+        try:
+            self.assertEqual(publish.put_link_back(dest, folder / "x.html", "0" * 64), "aside")
+        finally:
+            publish.platform.move_unless_exists = real_move
+        self.assertFalse(dest.exists())
+        self.assertEqual([p.read_bytes() for p in folder.iterdir()], [b"theirs"], "their bytes are kept, not deleted")
+
+    def test_put_link_back_raises_publish_error_when_the_aside_name_cannot_be_removed(self):      # item 388: seen, not a bare OSError
+        folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        dest = folder / "PUB-report.html"
+        digest = hashlib.sha256(b"ours").hexdigest()
+        real_unlink, real_sym, real_move = os.unlink, os.symlink, publish.platform.move_unless_exists
+
+        def refuse(*a, **kw):
+            raise OSError(13, "Permission denied")
+        os.unlink = refuse
+        try:
+            dest.write_bytes(b"ours")
+            with self.assertRaises(publish.PublishError) as caught:
+                publish.put_link_back(dest, folder / "x.html", digest)
+            self.assertEqual(str(caught.exception), "The old copy could not be cleared.", "the owner's sentence (B), verbatim")
+            self.assertNotIn("Permission", str(caught.exception))
+            self.assertNotIn(dest.name, str(caught.exception))
+            self.assertIsInstance(caught.exception.__cause__, OSError, "the os error stays on the cause")
+            self.assertTrue(os.path.islink(dest), "the link is in place")
+            real_unlink(dest)
+            dest.write_bytes(b"ours")
+            os.symlink = refuse
+            publish.platform.move_unless_exists = lambda *a, **kw: False       # the name was taken meanwhile
+            with self.assertRaises(publish.PublishError):
+                publish.put_link_back(dest, folder / "x.html", digest)
+        finally:
+            os.unlink, os.symlink, publish.platform.move_unless_exists = real_unlink, real_sym, real_move
 
     def test_a_link_is_never_put_over_a_file_that_is_not_ours(self):       # #604: no gap between the check and the swap
         folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
