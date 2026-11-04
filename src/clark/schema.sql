@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS projects (
   layout          TEXT NOT NULL DEFAULT 'boxed' CHECK (layout IN ('boxed','spine','cover')),             -- clark: report layout
   publish_local   TEXT,                                   -- clark: the local folder last used
   publish_client  TEXT,                                   -- clark: the client's SharePoint folder, as synced on this machine
-  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  review_after_days INTEGER NOT NULL DEFAULT 14 CHECK (typeof(review_after_days) = 'integer' AND review_after_days BETWEEN 1 AND 365)  -- clark: days before an open item counts as not reviewed (#171); last, as the migration's ADD COLUMN puts it
 );
 -- Not copied: next_milestone and milestone_date. clark works the next milestone out from `milestones` (the Next milestone tile).
 
@@ -309,7 +310,8 @@ CREATE TABLE IF NOT EXISTS publications (
   checks      TEXT NOT NULL CHECK (checks IN ('passed','not needed')),
   by_user     TEXT NOT NULL,
   number      INTEGER NOT NULL CHECK (number >= 1),                 -- clark (#120, schema version 10): Publication N, per project, max + 1 in the insert's own transaction
-  UNIQUE (project, number)                                          -- a number is never given twice, whatever the kind (a Word copy takes the next one too)
+  pdf_name    TEXT CHECK (pdf_name IS NULL OR (length(pdf_name) BETWEEN 1 AND 255 AND pdf_name NOT GLOB '*[/\]*')), -- clark (#269, schema version 15): the name of the Local PDF saved with this publication, set once when it is saved; NULL when no PDF was made or saved
+  UNIQUE (project, number, word)                                  -- #368 (schema version 13): a number is given once to a web page and once to a Word file, so a Word copy can share its web page's number
 );
 
 -- #120: the numbers are never reused and a publication is never rewritten. REPLACE removes the old row without running the delete
@@ -319,7 +321,7 @@ BEGIN SELECT RAISE(ABORT, 'a publication is never deleted'); END;
 CREATE TRIGGER IF NOT EXISTS publications_number_fixed BEFORE UPDATE OF seq, at, week_ending, local_path, client_path, checks, number, project, word, file_sha256, by_user ON publications
 BEGIN SELECT RAISE(ABORT, 'a publication''s number, project, kind, file, date, week, checks and publisher never change'); END;
 CREATE TRIGGER IF NOT EXISTS publications_never_replaced BEFORE INSERT ON publications
-WHEN EXISTS (SELECT 1 FROM publications WHERE (project = NEW.project AND number = NEW.number) OR seq = NEW.seq)
+WHEN EXISTS (SELECT 1 FROM publications WHERE (project = NEW.project AND number = NEW.number AND word = NEW.word) OR seq = NEW.seq)
 BEGIN SELECT RAISE(ABORT, 'a publication is never replaced'); END;
 
 -- #50: one row for each press of "I sent it" in the Draft email editor: the project, who, when, the mode and the day it was sent, and

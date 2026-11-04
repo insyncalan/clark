@@ -358,7 +358,8 @@ class NoOtherDelete(unittest.TestCase):
                         text = "".join(v.value for v in node.values if isinstance(v, ast.Constant) and isinstance(v.value, str))
                     if "DELETE FROM" in text.upper():
                         found.append((path.name, fn.name))
-        self.assertEqual(sorted(set(found)), [("store.py", "delete_row"), ("store.py", "revert_group")])
+        # #349: rewound_copy deletes only in a temporary copy of clark.db (the Dashboard as at a day); clark.db is opened read only there
+        self.assertEqual(sorted(set(found)), [("store.py", "delete_row"), ("store.py", "revert_group"), ("store.py", "rewound_copy")])
 
 
 

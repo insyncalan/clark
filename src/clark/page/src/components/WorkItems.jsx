@@ -191,7 +191,7 @@ function Table({ rows, today, type, Cell, Eye }) {
   );
 }
 
-// Group by, the swimlanes' neighbour: a menu button reading "Group by: Status". On the board "Nothing" is not offered.
+// The published file's Group by (the app's is in the filter line's View menu, #287): a menu button reading "Group by: Status".
 function GroupBy({ board }) {
   const g = work.value.group, shown = board ? boardGroup(g) : g;
   return (
@@ -302,13 +302,13 @@ export function WorkItems({ tools }) {
         : <>
             {!L
               ? <>
-                  <Switches><GroupBy board={board} /><SearchBox />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
+                  <Switches><GroupBy board={board} /><SearchBox /></Switches>
                   <FilterBar />
                   <PublishedList Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} />
                 </>
               : <>
-                  <Switches L={L}><GroupBy board={board} />{tools && tools.LayoutSwitch ? <tools.LayoutSwitch /> : null}</Switches>
-                  <FilterLine />
+                  <Switches L={L} />   {/* #287: Layout, Group by and the swimlanes are in the filter line's one View menu */}
+                  <FilterLine board={!!Board} />
                   <List Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />
                 </>}
           </>}

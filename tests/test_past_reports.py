@@ -11,6 +11,7 @@ import hashlib
 import http.client
 import json
 import os
+import re
 import stat
 import tempfile
 import threading
@@ -179,7 +180,9 @@ class Seam(Base):
         self.assertEqual((body["total"], body["shown"], body["limit"]), (12, 10, 10))
         self.assertEqual([p["number"] for p in body["publications"]], list(range(12, 2, -1)), "newest first")
         row = body["publications"][0]
-        self.assertEqual(set(row), {"number", "when", "where", "who", "word", "kept"})
+        self.assertEqual(set(row), {"number", "when", "where", "who", "word", "kept", "week", "day"})   # week and day: #344's picker
+        self.assertRegex(row["day"], r"^\d{4}-\d\d-\d\d$")
+        self.assertTrue(row["week"] is None or re.fullmatch(r"\d{4}-\d\d-\d\d", row["week"]), row["week"])
         self.assertEqual((row["where"], row["who"], row["kept"], row["word"]), ("Local", USER, True, False))
         self.assertRegex(row["when"], r"^\d\d-\d\d-\d{4} \d\d:\d\d$")
         text = json.dumps(body)
@@ -202,6 +205,16 @@ class Seam(Base):
         rows = self.past.listing("PUB")[1]["publications"]
         self.assertEqual([(r["number"], r["kept"], r["word"], r["where"]) for r in rows],
                          [(2, False, True, "Local and to client · Word"), (1, False, False, "Local")])
+
+    def test_a_word_copy_sharing_its_pages_number_is_listed_beside_it_and_open_still_finds_the_page(self):
+        done, body = self.publish()                            # #368: the web page and its Word copy are both Publication 1
+        page = self.store.web_publication_seq("PUB", done["number"])
+        self.store.log_publication("PUB", Path("/tmp/clark-fictional/old.docx"), "2026-10-23", "b" * 64, USER, word=1, same_as=page)
+        rows = self.past.listing("PUB")[1]["publications"]
+        self.assertEqual([(r["number"], r["word"], r["kept"]) for r in rows], [(done["number"], False, True), (done["number"], True, False)])
+        status, got = self.past.visit("PUB", done["number"])
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        self.assertEqual(self.past.take(got["url"].split("=")[1]), body)
 
     def test_a_project_with_nothing_published_has_an_empty_list(self):
         status, body = self.past.listing("PUB")
