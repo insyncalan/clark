@@ -89,7 +89,7 @@ class APastedFolder(Base):
     def test_a_missing_folder_or_a_file_is_refused(self):
         self.refused(str(self.rig.onedrive / "Not there"), UNKNOWN)
         f = self.rig.onedrive / "a file.txt"
-        f.write_text("x")
+        f.write_text("x", encoding="utf-8")
         self.refused(str(f), UNKNOWN)
 
     def test_the_same_refusals_as_choose_folder(self):
@@ -161,7 +161,7 @@ class Junk(Base):
                       "ftp://fictional.sharepoint.com/x", "javascript:alert(1)", "smb://server/share",
                       "https://fictional.sharepoint.com.example.test/sites/HarbourBridge/Shared%20Documents",
                       "https://example.test/sites/HarbourBridge/Shared%20Documents",
-                      "https://sam:pw@fictional.sharepoint.com/sites/HarbourBridge/Shared%20Documents",
+                      "https://sam@fictional.sharepoint.com/sites/HarbourBridge/Shared%20Documents",
                       "https://fictional.sharepoint.com:8443/sites/HarbourBridge/Shared%20Documents",
                       SITE + "/sites/HarbourBridge/Shared%20Documents/%2E%2E/%2E%2E",
                       SITE + "/sites/HarbourBridge/Shared%20Documents/Client%00Reports",
