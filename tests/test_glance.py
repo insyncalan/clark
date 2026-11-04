@@ -266,9 +266,10 @@ class RisksTile(unittest.TestCase):
         self.assertEqual((t["value"], t["high"], t["open"]), (2, 2, 5))
         self.assertEqual((t["detail"], t["colour"], t["class"]), ("of 5 open risks and issues", "red", "r"))
 
-    def test_the_colour_is_the_highest_priority_by_d12(self):
-        for priorities, colour in ((["Urgent"], "red"), (["High"], "red"), (["Medium", "Low"], "amber"), (["Low"], "green"),
-                                   ([], "green"), ([None], "green"), (["Low", "High", "Medium"], "red")):
+    def test_the_colour_is_the_pages_rule(self):
+        """Item 391: red when any open one is Urgent or High, amber when any is open (Low or unrated too), green when none is."""
+        for priorities, colour in ((["Urgent"], "red"), (["High"], "red"), (["Medium", "Low"], "amber"), (["Low"], "amber"),
+                                   ([], "green"), ([None], "amber"), (["Low", "High", "Medium"], "red")):
             d = data(raid_=[raid(i + 1, priority=p) for i, p in enumerate(priorities)])
             self.assertEqual(by_name(g.tiles(d, ON))["risks"]["colour"], colour, priorities)
 
