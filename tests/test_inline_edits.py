@@ -643,6 +643,56 @@ class Live(unittest.TestCase):
     def test_the_peek_has_the_same_status_picker_as_the_table_at_900(self):
         self.peek_picker(900)
 
+    # The colour of an element and the first solid background behind it, and its box: what dark mode is checked on.
+    LOOK = """((el) => {
+      const rgb = (c) => c.match(/[\\d.]+/g).slice(0, 3).map(Number);
+      const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+      let bg = el, back = 'rgba(0, 0, 0, 0)';
+      while (bg && /rgba\\(.*, 0\\)|transparent/.test(back)) { back = getComputedStyle(bg).backgroundColor; bg = bg.parentElement; }
+      const s = getComputedStyle(el), r = el.getBoundingClientRect(), x = lum(rgb(s.color)), y = lum(rgb(back));
+      return {color: s.color, back, ratio: (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05),
+              shown: s.visibility === 'visible' && s.display !== 'none' && r.width > 0 && r.height > 0 && r.right <= window.innerWidth};
+    })(document.querySelector(SEL))"""
+
+    def look(self, cdp, sid, selector):
+        return cdp.js(self.LOOK.replace("SEL", json.dumps(selector)), sid)
+
+    def test_the_status_pill_the_kept_rating_and_the_peeks_picker_in_dark(self):
+        """item 448 done-when 4: rows 53 to 55 at 1400 and 900 px in dark. The live status pill is drawn with the dark tokens and is
+        readable, a closed risk's rating word shows in the peek, and the peek's status picker opens."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_page(cdp, width)
+                cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
+                self.until(cdp, sid, "getComputedStyle(document.body).backgroundColor === 'rgb(8, 35, 45)'", "the page is dark (--bg)")
+                # row 54: the live look in the Status cell, with the dark tokens
+                red = self.look(cdp, sid, "[data-cell='TUL-007:status'] .pill")
+                self.assertEqual(cdp.js("document.querySelector(\"[data-cell='TUL-007:status'] .pill\").className", sid), "pill r")
+                self.assertEqual((red["color"], red["back"]), ("rgb(240, 138, 124)", "rgb(61, 31, 27)"), "--status-red-text on --status-red-tint, dark")
+                closed = self.look(cdp, sid, "[data-cell='TUL-008:status'] .pill")
+                self.assertEqual((closed["color"], closed["back"]), ("rgb(169, 203, 212)", "rgb(18, 56, 70)"), "--grey-700 on --grey-100, dark")
+                for name, got in (("Red", red), ("Closed", closed)):
+                    self.assertTrue(got["shown"], f"the {name} pill shows at {width}")
+                    self.assertGreaterEqual(got["ratio"], 4.5, f"the {name} pill is readable in dark at {width}")
+                # done-when 5 / row 55: the peek of a closed risk keeps its rating word, and its status picker opens
+                cdp.js("clarkPage.openPeek('TUL-008', 'item')", sid)
+                pcell = "#peek [data-cell='peek:TUL-008:status']"
+                self.until(cdp, sid, f"!!document.querySelector(\"{pcell}\")", "the peek's Status row is a picker")
+                self.until(cdp, sid, "document.querySelector('#peek').getAnimations({subtree: true}).length === 0", "the peek's slide-in has ended")
+                self.assertEqual(cdp.js("document.querySelector('#peek .pk-rating').textContent", sid), " · Amber")
+                kept = self.look(cdp, sid, "#peek .pk-rating")
+                self.assertTrue(kept["shown"], f"the rating word shows at {width}")
+                self.assertEqual(kept["color"], "rgb(169, 203, 212)", "--text-muted, dark")
+                self.assertGreaterEqual(kept["ratio"], 4.5, f"the rating word is readable in dark at {width}")
+                click(cdp, sid, pcell)
+                self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the peek's menu opened")
+                self.assertEqual(self.menu_state(cdp, sid), [["Open", "Closed", "Cancelled", "rating:Red", "rating:Amber", "rating:Green"], ["Closed", "rating:Amber"]])
+                item = self.look(cdp, sid, "[data-pop] [role=menuitemradio]")
+                self.assertTrue(item["shown"], f"the peek's menu shows at {width}")
+                self.assertEqual(item["back"], "rgb(14, 45, 56)", "the menu is drawn on --surface, dark")
+                self.assertGreaterEqual(item["ratio"], 4.5, f"the menu is readable in dark at {width}")
+                self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways scroll")
+
     def test_a_pick_in_the_peek_is_about_the_open_item_even_with_two_rows_selected(self):
         """#448: the peek's picker never turns into the table's bulk change (#196)."""
         mod = 4 if sys.platform == "darwin" else 2
