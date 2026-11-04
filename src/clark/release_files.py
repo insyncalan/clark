@@ -19,6 +19,7 @@ SHARED = (
     "docker/",                  # item 427: the compose file (a stock Python image runs this folder), for a computer that uses Docker
     "src/clark/",               # with the built page.html
     "vendor/README.md",         # vendor/manifest.json lists it
+    "vendor/ed25519_verify/",
     "vendor/et_xmlfile/",
     "vendor/fonts/",
     "vendor/licenses/",
