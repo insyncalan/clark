@@ -4,9 +4,9 @@
 // chips while the line is focused, saved views as tabs and one View menu. Keys: arrows choose, Enter accepts,
 // Backspace in an empty box removes the last chip, Esc closes the open list. The line is reached by a click or Tab: the page shows no
 // "Press /" hint, because "/" opens ask clark (#286).
-// The View menu (#287, the prototype's one View menu, gap list B-2 and B-17) holds Layout (Table or Board), Group by and the board's
-// swimlanes: nothing of these sits beside the line any more. The saved-view actions (#640) are on the open tab's own arrow and on "+ New view".
-// An empty box opens the list of fields, and an x inside the box puts the line back to the starting line (#640).
+// The View menu (item 287, the prototype's one View menu, gap list B-2 and B-17) holds Layout (Table or Board), Group by and the board's
+// swimlanes: nothing of these sits beside the line any more. The saved-view actions (item 640) are on the open tab's own arrow and on "+ New view".
+// An empty box opens the list of fields, and an x inside the box puts the line back to the starting line (item 640).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { rows as allRows, project, filterCtx, fromFile, peek } from "../stores/report.js";
@@ -143,6 +143,14 @@ function SavedViews({ board }) {
     const t = setTimeout(() => { if (nameBox.current) nameBox.current.focus(); }, 40);
     return () => clearTimeout(t);
   }, [form && form.mode]);
+  // The row of tabs scrolls inside its own box: the open tab (with its arrow) is brought into view when it changes.
+  const row = useRef(null);
+  useEffect(() => {
+    const t = row.current && row.current.querySelector(".vtab[aria-pressed=true]"), on = t && t.parentElement, box = row.current;
+    if (!on || !box) return;
+    const a = on.offsetLeft, b = a + on.offsetWidth;
+    if (a < box.scrollLeft) box.scrollLeft = a - 4; else if (b > box.scrollLeft + box.clientWidth) box.scrollLeft = b - box.clientWidth + 4;
+  }, [active && active.id, shown.length]);
   const lay = layoutItems(work.value, !!board);
   // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Archive never on a core view.
   const core = !!active && FL.isCoreView(active);
@@ -155,7 +163,7 @@ function SavedViews({ board }) {
   for (const v of archived) tabItems.push({ id: `restore:${v.id}`, name: `Bring back ${v.name}${trouble(v) ? " (cannot be used now)" : ""}` });
   return (
     <div class="fviews">
-      <div class="vtabs" role="group" aria-label="Saved views">
+      <div class="vtabs" role="group" aria-label="Saved views" ref={row}>
         {shown.map((v) => {
           const on = !!active && active.id === v.id, dot = on && dirty, bad = trouble(v);
           // the small arrow sits right beside the open tab's name

@@ -188,6 +188,7 @@ class Page(Base):
                 if cdp.js("document.querySelectorAll('.fline .fchip').length", sid) == 0:
                     break
                 press(cdp, sid, "Backspace")
+            press(cdp, sid, "Escape")                    # the field list a click opens would cover the first rows
             self.until(cdp, sid, "!/open/.test(document.querySelector('#work-count').textContent)", "every item shown")
         self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length > 5", "the rows")
         return sid

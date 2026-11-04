@@ -147,6 +147,7 @@ class Base(unittest.TestCase):
                 if cdp.js("document.querySelectorAll('.fline .fchip').length", sid) == 0:
                     break
                 key(cdp, sid, "Backspace")
+            key(cdp, sid, "Escape")                    # the field list a click opens would cover the first rows
             self.until(cdp, sid, "!/open/.test(document.querySelector('#work-count').textContent)", "the count follows All")
         self.until(cdp, sid, "!!document.querySelector('#work-board .bcard')", "the board")
 

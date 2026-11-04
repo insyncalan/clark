@@ -294,8 +294,10 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .factive.pub .fchip button { width: 22px; height: 22px; }
 /* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
 .fline-wrap { margin-top: 12px; }
-.fviews { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
-.vtabs { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.fviews { display: flex; flex-wrap: wrap; min-width: 0; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
+.vtabs { position: relative; display: flex; flex-wrap: nowrap; gap: 4px 6px; min-width: 0; max-width: 100%; overflow-x: auto; overflow-y: hidden; padding: 2px; margin: -2px; }
+.vtabs > *, .vtabs .vt { flex: none; }
+.vtabs .ddmenu { position: fixed; right: auto; }   /* out of the scrolling row's clip; Menu.jsx puts it under its arrow */
 .vtab { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; min-height: calc(var(--space-6) - var(--space-1)); border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); cursor: pointer; font-size: var(--size-small); color: var(--text); }
 .vtab:hover { background: var(--grey-50); }
 .vtab[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); border-color: var(--brand-blue); font-weight: var(--weight-medium); }

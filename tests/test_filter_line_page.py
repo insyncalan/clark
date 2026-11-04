@@ -626,6 +626,19 @@ class Line(unittest.TestCase):
                     self.assertTrue(rows)
                     cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 
+    def test_the_tab_row_scrolls_in_its_own_box_and_never_wraps(self):
+        """Item 640: at 900 px the tabs stay on one line and scroll inside the row; the arrow's menu is not clipped by it."""
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                tops = cdp.js("[...document.querySelectorAll('.vtabs .vtab')].map(e => Math.round(e.getBoundingClientRect().top))", sid)
+                self.assertEqual(len(set(tops)), 1, "every tab on one line")
+                self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.vtabs')).overflowX", sid), "auto")
+                click(cdp, sid, "#viewTabMenu")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList [data-kind=saveas]')", sid)))
+                self.assertTrue(cdp.js("(() => { const r = document.querySelector('#viewTabMenuList').getBoundingClientRect(); return r.width > 100 && r.height > 20 && document.elementFromPoint(r.left + 10, r.top + 10).closest('#viewTabMenuList') !== null; })()", sid), "the menu is on top, not clipped")
+
     def test_a_saved_view_the_line_cannot_read_stays_listed_says_why_and_can_be_renamed_or_archived(self):
         """#589: it is no longer hidden. The starting view that needs a client answer is still left out (the test above)."""
         s = self.serve()

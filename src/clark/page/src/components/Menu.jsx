@@ -27,6 +27,15 @@ export function menuMove(e, items) {
 export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, children }) {
   const own = useRef(null), box = boxRef || own;
   const closeRef = useRef(onClose); closeRef.current = onClose;
+  useLayoutEffect(() => {
+    // Inside a row that scrolls (the saved-view tabs) the box is fixed to the window, so the row's own clip cannot hide it: placed under its button.
+    const el = box.current;
+    if (anchor && el.closest(".vtabs")) {
+      const r = anchor.getBoundingClientRect();
+      el.style.top = `${Math.round(r.bottom + 4)}px`;
+      el.style.left = `${Math.max(8, Math.min(Math.round(r.left), window.innerWidth - el.offsetWidth - 8))}px`;
+    }
+  }, []);
   useLayoutEffect(() => { (menuItemsIn(box.current)[0] || box.current).focus({ preventScroll: true }); }, []);
   useLayoutEffect(() => {                        // not after the next frame: a click away that quick still closes it
     const away = (e) => { if (!box.current.contains(e.target) && !(anchor && anchor.contains(e.target))) closeRef.current("away"); };
