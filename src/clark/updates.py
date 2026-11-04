@@ -9,13 +9,17 @@ at any time. Installing, backing up and undoing are other steps and live elsewhe
   once into a folder only clark writes, then work from that copy), never the original file. The checks run in
   this order, stopping at the first failure with one plain sentence (UpdateError.message). The real reason, and up to five
   member names, are in UpdateError.detail, for the log and never for the screen:
+  the signature: a detached Ed25519 signature in a file beside the download (clark-X.Y.Z-mac.zip.sig, exactly 64 bytes) over the
+  download's own bytes, checked against the release key built into this file, before anything inside the download is looked at;
+  no signature file, a wrong one or a different key refuses it and nothing can override that;
   the name and system; a regular file, not too big; opens as a zip; clark-release.json is there (else it is GitHub's whole
   source code); the shape of every member (no folders, links, encryption, odd compression or duplicate names); every member
   path (nothing absolute, no `..`, no backslash or colon, nothing Windows can't hold, no names that differ only by capitals or
   accents); every member is in release_files' list for this system and nothing from it is missing; the manifest agrees with
   the members, and each file's SHA-256, size and mode match; the version inside agrees with the name; then the version rule
-  (newer, or the same or older only when reinstalling), `min_from`, and the data layout number: an update that changes the
-  data layout is refused for now.
+  (strictly newer than the installed one; the same version again only when reinstalling; an older one is never installed here), `min_from`, and the data layout number: an update with a newer layout is
+  allowed (the new version brings the data up to date, after a copy, on its first start; see store.bring_up_to_date), and one
+  with an older layout than the data is refused.
 - check_app_folder(app_dir) refuses a folder that holds `.git`, has no record of what it holds, has a link inside, or can't
   be written to.
 - plan(release, app_dir) compares the new files with the installed ones: added, replaced, removed (only a file the last
@@ -70,10 +74,26 @@ FILE_ATTRIBUTE_REPARSE_POINT = 0x400               # a Windows junction or other
 SYSTEM_NAMES = {"mac": "Mac", "windows": "Windows", "linux": "Linux"}
 STAMP_LENGTH = len("20261029T120000Z")
 
+# --- the release signature (an update is trusted only if the project's offline key signed these exact bytes) ----------------
+SIGN_DOMAIN = b"clark-release-v1\0"     # put in front of the download's bytes before signing; dev/tools/sign_release.py uses this same value
+SIGNATURE_BYTES = 64                   # an Ed25519 signature is exactly this long
+SIGNATURE_SUFFIX = ".sig"
+PLACEHOLDER_KEY = b"REPLACE-WITH-THE-RELEASE-KEY!!"[:30].ljust(32, b"!")
+# REPLACE WITH THE RELEASE KEY BEFORE THE FIRST SIGNED RELEASE: the 32-byte Ed25519 public key made offline with
+# `python3 dev/tools/sign_release.py keygen` (the private key goes straight into the Keychain, never a file). While this is still the placeholder every update is refused
+# (updates stay off), unless a test passes its own key. A release-key change is a new manual install (see sign_release.py).
+RELEASE_PUBLIC_KEY = PLACEHOLDER_KEY
+
 NO_NOTES = "No notes were written for this release."
 KEPT = "Your projects, settings and published reports are kept. A copy of your data is made first."
 
 MESSAGES = {
+    "unsigned": "This update has no signature file beside it, so it can't be trusted and wasn't installed. "
+                "Download the update again from the clark releases page, together with its .sig file.",
+    "badsig": "This update's signature doesn't match, so it wasn't installed. Don't use this file. "
+              "Download it again from the clark releases page.",
+    "nokey": "Updating is switched off in this copy of clark, because it has no release key to check updates against. "
+             "Download the latest release from the clark releases page instead.",
     "name": "That isn't a clark update. Choose the update file from the clark releases page. "
             "Its name looks like clark-1.2.3-{ending}.",
     "source": "That is the whole source code, not an update. On the releases page, download the file under Assets "
@@ -84,12 +104,11 @@ MESSAGES = {
     "incomplete": "This update file is incomplete. Download it again.",
     "unsafe": "This update would change things outside clark's own files, so it wasn't installed. "
               "Download it again from the clark releases page.",
-    "older": "Version {theirs} is older than the one you have ({ours}). Choose Install again only if you want it anyway.",
+    "older": "Version {theirs} is older than the one you have ({ours}), so it wasn't installed. "
+             "To go back to an older version, download it and replace the clark folder by hand.",
     "same": "Version {theirs} is the one you have already. Choose Install again only if you want it anyway.",
     "min_from": "This update can only be installed over version {need} or newer. Install that version first, then this one.",
-    "layout": "This update changes how your data is kept, so it can't be installed from here. Nothing was changed. "
-              "To install it by hand, quit clark, then put the folder from this download in place of your clark folder. "
-              "Your projects and settings are kept in their own folder, so they stay where they are.",
+    "newer_data": "This data needs a newer clark. Nothing was changed. Install the latest clark, then try again.",
     "git": "This copy of clark runs from its source code, so it can't update itself. Download the latest release instead.",
     "norecord": "This copy of clark has no record of what it holds, so it can't update itself. Nothing was changed. "
                 "Download the latest release and replace the clark folder by hand.",
@@ -101,6 +120,8 @@ MESSAGES = {
                 "Move the clark folder into your own folders, then try again.",
     "folder": "Part of the clark folder can't be read from this account, so the update can't be checked. "
               "Move the clark folder into your own folders, then try again.",
+    "unfinished": "An earlier update stopped part way and has not been put right yet, so nothing was changed. "
+                  "Close every clark window and open clark again from its launcher file. It will put things right first.",
     "toodeep": "The clark folder is too deep in other folders for this update. Move it nearer the top of the drive, "
                "then try again.",
 }
@@ -359,6 +380,41 @@ def read_once(path, max_zip=MAX_ZIP_BYTES):
     return b"".join(out)
 
 
+def read_signature(path):
+    """The bytes of the signature file beside the download at `path` (its name plus .sig), or None when there is none. Opened
+    without following a link; at most one byte more than a signature is read, so a long file is simply the wrong length."""
+    sig = Path(str(path) + SIGNATURE_SUFFIX)
+    if not os.path.lexists(sig):
+        return None
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
+    try:
+        with os.fdopen(os.open(sig, flags), "rb") as f:
+            if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+                return b""
+            return f.read(SIGNATURE_BYTES + 1)
+    except OSError:
+        return b""
+
+
+def check_signature(data, signature, public_key=None):
+    """Refuse unless `signature` is the release key's Ed25519 signature over SIGN_DOMAIN + `data`. Raises UpdateError
+    (unsigned, badsig or nokey). `public_key` is for tests; None means the key built into this file, which is refused while
+    it is still the placeholder."""
+    key = RELEASE_PUBLIC_KEY if public_key is None else public_key
+    if public_key is None and key == PLACEHOLDER_KEY:
+        raise UpdateError("nokey", "RELEASE_PUBLIC_KEY is still the placeholder")
+    if signature is None:
+        raise UpdateError("unsigned", "no .sig file beside the download")
+    if len(signature) != SIGNATURE_BYTES:
+        raise UpdateError("badsig", f"the signature file is {len(signature)} bytes, not {SIGNATURE_BYTES}")
+    try:
+        import ed25519_verify
+    except ImportError:
+        raise UpdateError("nokey", "the signature library is missing")
+    if not ed25519_verify.verify(key, SIGN_DOMAIN + data, signature):
+        raise UpdateError("badsig", "the signature does not verify against the release key")
+
+
 def member_count(data):
     """The number of members the zip says it holds, read from its end record without parsing the list (None when there is no
     end record). 0xFFFF means the 64-bit form, which a release never needs, so it is reported as over any limit."""
@@ -425,11 +481,15 @@ def check_coverage(system, rels):
 
 
 def read_release(path, system, installed_version, installed_schema, reinstall=False, chosen=False,
-                 max_zip=MAX_ZIP_BYTES, max_total=MAX_TOTAL_BYTES):
-    """Check the update file at `path` and return a Release, or raise UpdateError. Writes nothing."""
+                 max_zip=MAX_ZIP_BYTES, max_total=MAX_TOTAL_BYTES, public_key=None):
+    """Check the update file at `path` and return a Release, or raise UpdateError. Writes nothing.
+
+    The signature is checked first, on the bytes read here, before the zip is opened: everything after works on those same
+    bytes (Release.data) and never opens `path` again."""
     path = Path(path)
     version_in_name = check_name(path.name, system, chosen)
     data = read_once(path, max_zip)
+    check_signature(data, read_signature(path), public_key)
     digest = hashlib.sha256(data).hexdigest()
     if (member_count(data) or 0) > MAX_MEMBERS:
         raise UpdateError("damaged", "the file lists more members than an update has")
@@ -503,13 +563,13 @@ def check_version(release, installed_version, installed_schema, reinstall=False)
         need = version_key(release.min_from)
     except ValueError:
         raise UpdateError("damaged", "a version in the manifest can't be read as numbers")
-    if new <= have and not reinstall:
+    if new < have or (new == have and not reinstall):       # an older version is never installed here, whatever is asked
         raise UpdateError("same" if new == have else "older", f"{release.version} against {installed_version}",
                           theirs=release.version, ours=installed_version)
     if have < need:
         raise UpdateError("min_from", f"min_from {release.min_from}, installed {installed_version}", need=release.min_from)
-    if release.schema_version != installed_schema:
-        raise UpdateError("layout", f"data layout {release.schema_version}, installed {installed_schema}")
+    if release.schema_version < installed_schema:       # a newer layout is brought up to date by the new version; an older one cannot open this data
+        raise UpdateError("newer_data", f"data layout {release.schema_version}, installed {installed_schema}")
 
 
 # --- the installed folder ---------------------------------------------------------------------------------------------
