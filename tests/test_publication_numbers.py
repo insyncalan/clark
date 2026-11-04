@@ -129,9 +129,10 @@ class TheCounter(unittest.TestCase):
 
 class TheShapeAndTheStep(unittest.TestCase):
     def test_the_step_is_number_10_and_the_table_has_no_gap(self):
-        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 10)                  # later steps follow (#412 is 11)
+        self.assertEqual(store_module.SCHEMA_VERSION, 15)          # #269 is step 15, after #412 (11), #325 (12), #368 (13) and #171 (14)
         self.assertIn((10, store_module.migrate_publication_numbers), store_module.MIGRATIONS)
-        self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, store_module.SCHEMA_VERSION + 1)))
+        self.assertEqual(store_module.MIGRATIONS[-1], (15, store_module.migrate_publication_pdf_name))
+        self.assertEqual([n for n, _ in store_module.MIGRATIONS], list(range(2, 16)))
 
     def test_the_frozen_step_makes_what_schema_sql_makes(self):
         fresh = DemoStore()
@@ -149,6 +150,7 @@ class TheShapeAndTheStep(unittest.TestCase):
         con.execute("BEGIN")
         store_module.migrate_publication_numbers(con)
         store_module.migrate_publication_shared_number(con)           # #368: step 13 widens the key, so both steps make what schema.sql makes
+        store_module.migrate_publication_pdf_name(con)          # #269: step 15 adds the PDF's name to what steps 10 and 13 made
         con.execute("COMMIT")
 
         def shape(c):
@@ -249,7 +251,7 @@ class OlderFiles(unittest.TestCase):
         path = self.make()
         s = open_store(path, onedrive_roots=[])
         self.addCleanup(s.close)
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))   # later steps follow (#412 is 11)
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "15")
         # ABC by time: /x/2 (08:00 on the 1st) = 1, then /x/0 and /x/3 tie on the 2nd, seq order = 2, 3, then /x/5 = 4
         self.assertEqual(self.expected(s), {("/x/2.html", 1), ("/x/0.html", 2), ("/x/3.html", 3), ("/x/5.html", 4),
                                             ("/x/1.html", 1), ("/x/4.html", 2)})
@@ -258,11 +260,11 @@ class OlderFiles(unittest.TestCase):
         self.assertEqual(s.log_publication("ABC", LOCAL, "2026-10-23", SHA, USER), 7, "the sequence goes on after the old rows")
         self.assertEqual(s.con.execute("SELECT count(*) FROM applies").fetchone()[0], 2, "the migration is not a step")
 
-    def test_a_version_2_file_moves_up_through_every_step_to_10(self):
+    def test_a_version_2_file_moves_up_through_every_step_to_the_latest(self):
         path = self.make(2)
         s = open_store(path, onedrive_roots=[])
         self.addCleanup(s.close)
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))   # later steps follow (#412 is 11)
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "15")
         self.assertEqual((numbers(s.con), numbers(s.con, "XYZ")), ([2, 1, 3, 4], [1, 2]))
 
     def test_the_file_is_copied_first_a_second_open_changes_nothing_and_the_step_is_safe_to_repeat(self):

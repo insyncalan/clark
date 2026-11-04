@@ -34,7 +34,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 14          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 15          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -2160,13 +2160,23 @@ def migrate_review_after_days(con):
                     "CHECK (typeof(review_after_days) = 'integer' AND review_after_days BETWEEN 1 AND 365)")
 
 
+def migrate_publication_pdf_name(con):
+    """Schema version 14 to 15 (#269): `publications.pdf_name`, the name of the PDF file saved with a publication, NULL for every row
+    already there and for any publish that made no PDF. An optional column with no default can be added in place, so no table is
+    rebuilt and the triggers made by steps 10, 12 and 13 stay as they are. Skipped when the column is already there (a new database, or a
+    second run). Runs inside the caller's transaction and does not touch the version (the runner does). It is step 15 in MIGRATIONS."""
+    if "pdf_name" not in [r[1] for r in con.execute("PRAGMA table_info(publications)")]:
+        con.execute("ALTER TABLE publications ADD COLUMN pdf_name TEXT CHECK (pdf_name IS NULL OR (length(pdf_name) BETWEEN 1 AND 255 "
+                    "AND pdf_name NOT GLOB '*[/\\]*'))")
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
               (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers),
               (11, migrate_use_case_done), (12, migrate_publication_trigger_client_path),
               (13, migrate_publication_shared_number),
-              (REVIEW_DAYS_STEP, migrate_review_after_days))
+              (REVIEW_DAYS_STEP, migrate_review_after_days), (15, migrate_publication_pdf_name))
 
 
 def migration_plan(version, table=None):
@@ -2765,6 +2775,27 @@ class Store:
         """The number the next publication of `code` will have (#120), to be put in the file before it is made. Nothing is reserved:
         log_publication refuses if it is no longer the next one. Every row counts, whatever its kind. Read-only."""
         return self.con.execute("SELECT coalesce(max(number), 0) + 1 FROM publications WHERE project = ?", (code,)).fetchone()[0]
+
+    def record_pdf_name(self, seq, name):
+        """Name the PDF file saved with the publication `seq` (#269). It is a file name only (no folder), set once: a row that
+        already has a name is never changed, and a `seq` that is not there changes nothing. Like the row itself it is no step
+        and no change_log line, so Undo never meets it. Returns True when the name was written."""
+        name = str(name or "")
+        if not name or len(name) > 255 or "/" in name or "\\" in name or "\x00" in name:
+            raise Invalid("a PDF's name must be a file name, with no folder in it")
+        if self.con.in_transaction:
+            raise Invalid("A PDF's name can't be recorded in the middle of a step: finish the step first.")
+        try:
+            self.con.execute("BEGIN IMMEDIATE")
+        except sqlite3.OperationalError as e:
+            raise Invalid(_busy(e)) from e
+        try:
+            cur = self.con.execute("UPDATE publications SET pdf_name = ? WHERE seq = ? AND pdf_name IS NULL", (name, seq))
+            self.con.execute("COMMIT")
+            return cur.rowcount == 1
+        except BaseException:
+            self.con.execute("ROLLBACK")
+            raise
 
     def web_publication_seq(self, code, number):
         """The seq of project `code`'s web publication numbered `number` (#368), or None. Read-only."""
