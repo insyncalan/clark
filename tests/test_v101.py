@@ -117,47 +117,63 @@ COVERED = [
      "test_filter_line_page::Line::test_no_match_shows_the_empty_state_with_a_clear_filter_link"),
     ("#662", "Typing offers fields then values.",
      "test_filter_line_page::Line::test_typing_offers_fields_then_values_with_arrows_and_enter_choose"),
+    ("#655", "Import from Excel lists the workbook's sheets, all ticked, and reads only the ticked ones.",
+     "test_excel_sheet_choice::Listing::test_it_lists_the_five_sheets_in_order_with_their_row_counts_and_writes_nothing"),
+    ("#709", "A use case carries a Commitment flag in the data: new use cases start with no flag, and a 1.0.0 file moves to layout 16 after a safety copy.",
+     "test_store_commitment_migration::Migrating::test_a_1_0_0_file_with_use_cases_migrates_to_16_keeps_every_row_with_no_flag_and_takes_a_copy"),
+    ("#709", "The published report carries each flag as written, and a use case the eye hides carries nothing of it.",
+     "test_publish_commitment::Published::test_each_of_the_three_words_is_carried_as_written"),
+    ("#709", "The Word copy's use case table has a Commitment column after Status.",
+     "test_publish_commitment::WordCopy::test_the_use_case_table_has_a_commitment_column_after_status"),
+    ("#709", "The Excel export has a Commitment column after Status with a drop-down of the three words.",
+     "test_excel_commitment::Commitment::test_the_column_offers_exactly_the_three_words_and_allows_a_blank"),
+    ("#709", "On Excel import a wrong word is reported by row and an empty cell leaves the flag as it is.",
+     "test_excel_commitment::Commitment::test_an_empty_cell_leaves_the_flag_as_it_is"),
+    ("#709", "History says changed the Commitment from X to Y, and Undo puts it back.",
+     "test_changes_commitment::Flag::test_history_labels_the_field_and_shows_from_and_to"),
+    ("#709", "In Edit the Commitment menu beside the status sets the flag in one change with one Undo.",
+     "test_commitment_page::Edit::test_in_edit_the_chip_is_a_menu_and_a_choice_is_one_change_with_one_undo"),
+    ("#709", "The chip shows on the use case, the Use cases tab and the Dashboard rows, and nothing is drawn for no flag.",
+     "test_commitment_page::View::test_the_chip_is_on_the_flagged_row_only_and_nothing_is_drawn_for_none"),
+    ("#734", "The toolbar's View and Edit pill is aqua with a pencil on Edit, and the week-ending field is rounded.",
+     "test_mode_pill::ModePill::test_the_chosen_half_is_the_aqua_pill_with_dark_text_in_both_themes_edit_has_a_pencil_and_the_chip_is_13px"),
+    ("#698", "The README covers both ways to start clark and the check command.",
+     "test_readme_links::ReadmeLinks::test_both_ways_to_start_and_the_check_are_there"),
+    ("#698", "Every picture in the README has alt text and is small.",
+     "test_readme_links::ReadmeLinks::test_every_image_has_alt_text_and_is_small"),
+    ("#751", "The download's README (docs/zip/README.md) shows no picture, names nothing outside the download, and every sentence is in the repository README.",
+     "test_zip_readme::ZipReadme::test_every_sentence_is_in_the_root_readme"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#655", "Import from Excel lists the workbook's sheets, all ticked, and reads only the ticked ones.",
-     "PR 671", "excel_import.py", "sheets=None"),
     ("#710", "The Excel export shows ID: name in the Milestone and Use case cells and has Open work items.",
      "PR 672", "excel.py", '("Open work items", "open_items")'),
     ("#711", "The Excel cover follows option A: title band, INTERNAL tag, tiles, tab order.",
      "PR 672", "excel_palette.py", ""),
     ("#727", "The Excel export locks the cells people should not edit (sheet protection, no password).",
      "no pull request yet (issue 727)", "", None),
-    ("#709", "A use case carries a Commitment flag (Candidate, Committed, Planned 2027 or none) in the data, the published report, the Word copy and Excel (layout step 16).",
-     "PR 673", "store.py", "SCHEMA_VERSION = 16"),
-    ("#709", "In Edit a Commitment menu beside the status sets the flag, and the chip shows on the use case, the Use cases tab and the Dashboard rows.",
-     "PR 692", "page/src/edit/CommitMenu.jsx", "Set commitment"),
     ("#713", "The published report has a Report menu with Profile, Export to Excel, Export to PDF, Past reports and Dark mode (Light, Dark, System default).",
      "PR 681", "page/src/components/ClientMenu.jsx", "Report menu"),
     ("#713", "Publishing makes the workbook that goes inside the published file, so Export to Excel and Past reports show there.",
      "PR 687", "excel_client.py", ""),
     ("#716", "The download has a meet clark folder with the overview and the Getting Started PDFs (also #706, #707, #722).",
-     "PR 677", "release_files.py", 'EXTRA_TOP = ("meet clark", "intake")'),
+     "PR 693", "../../meet clark/clark-overview.pdf", ""),
     ("#741", "START-HERE no longer carries a version number in its sentence about updating from inside clark.",
      "PR 688", "../../dev/tools/package.py", "Updating from inside clark is switched off,"),
-    ("#698", "The README covers both ways to start clark, the check command, where data lives and has pictures (also #708).",
-     "PR 682", "../../README.md", "docs/img/clark-mascot.png"),
-    ("#712", "The design prototype's Past reports page keeps only the Published reports list (prototype only; PR 674 is merged, no unit test reads the prototype).",
-     "PR 674", "../../system/prototype/past.js", "Published reports: a mockup for review"),
     ("#721", "Help describes ask clark and Sneak peek as they behave, with one top-bar button bullet.",
      "PR 685", "page/src/help/helpContent.json", "Sneak peek, with a work item open in Edit"),
     ("#731", "The first start opens with made-up demo projects and a banner 'This is demo data.' with a Remove demo data button.",
      "PR 689", "page/src/logic/demoWords.js", "This is demo data."),
-    ("#734", "The toolbar's View and Edit pill is aqua with a pencil on Edit, the week-ending field is rounded and the draft chip is 12 px.",
-     "PR 683", "page/src/edit/edit.css", ".rbar .seg .mode .tb-ico"),
     ("#751", "The download carries its own README.md: the repository README without the pictures and without lines that name things outside the download.",
-     "no pull request yet (issue 751)", "", None),
+     "no pull request yet (issue 751)", "", None),     # docs/zip/README.md is on main (PR 691); the package step that puts it in the zip has no pull request yet
 ]
 
 # (item, check, kind, why, what the person does)
 WALK_THROUGH = [
+    ("#712", "The design prototype's Past reports page keeps only the Published reports list (prototype only, merged; no unit test reads the prototype).",
+     "judgement", "no test reads the prototype and no customer sees it", "open the design prototype at #past and see the heading Published reports with no Week picker or Timeline"),
 ]
 
 BANNED_WORDS = ("apply", "applied", "staged", "proposal", "sweep", "tracker", "vault", "extract", "refused")
@@ -184,7 +200,7 @@ def landed(path, marker):
     if marker is None:
         return None
     p = ROOT / "src" / "clark" / path
-    return p.is_file() and marker in p.read_text(encoding="utf-8")
+    return p.is_file() and marker.encode("utf-8") in p.read_bytes()
 
 
 class Tables(unittest.TestCase):
