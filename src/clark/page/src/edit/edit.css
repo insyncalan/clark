@@ -338,8 +338,9 @@ table.items td.c-pick { vertical-align: middle; }
 /* Use cases page: detail */
 /* One use case on its own page (Edit only): the crumb, the title, two columns at 1400 px and one at 900 px; tokens only, 13 px text at least, 24 px targets, no sideways scroll. */
 .ucd { display: block; min-width: 0; }
-.ucd-crumb { margin: 0 0 6px; font-size: var(--size-caption); color: var(--text-muted); }
-.ucd-crumb a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); }
+.ucd-crumb { margin: 0 0 6px; font-family: var(--font-label); font-weight: var(--weight-semibold); font-size: var(--size-caption); text-transform: uppercase; letter-spacing: .1em; color: var(--text-muted); }
+.ucd-crumb a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); text-decoration: none; }
+.ucd-crumb a:hover { text-decoration: underline; text-underline-offset: 2px; }
 .ucd-crumb a:focus-visible, .ucd-card .link:focus-visible, .ucd-item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 .ucd-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; margin: 0 0 16px; }
 .ucd-titles { flex: 1 1 420px; min-width: 0; }
