@@ -756,4 +756,3 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .rt-host { min-height: 6rem; min-height: calc(3lh + 1rem); resize: vertical; overflow: auto; }
 .rt-host .ProseMirror { min-height: 3lh; padding-bottom: 1lh; }
 .de-preview { min-height: calc(3lh + 1.5rem); max-height: 60vh; resize: vertical; }
-

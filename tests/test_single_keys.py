@@ -232,10 +232,16 @@ class PageKeys(Base):
             self.assertEqual(p.js("document.querySelector('fieldset.keys label').textContent.indexOf('Single-key shortcuts')"), 0)
             self.assertTrue(p.js("document.getElementById('keys-line').textContent.startsWith('Letter keys such as V and E')"), "the line describes it")
             self.assertEqual(p.js("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-label')"), "Single-key shortcuts", "the switch has a name of its own")
-            was = p.js("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked')")
             p.js("document.querySelector('fieldset.keys [role=switch]').focus()")
-            p.key(" ", code="Space", vk=32)
-            p.until(f"document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked') !== '{was}'", "Space flips the switch")
+            state = "document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked')"
+            for key, code, vk, text in ((" ", "Space", 32, " "), ("Enter", "Enter", 13, "\r")):
+                before = p.js(state)
+                for kind in ("keyDown", "keyUp"):         # a real key event, with its text, as a keyboard sends it
+                    p.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk,
+                                                          **({"text": text} if kind == "keyDown" else {})}, p.sid)
+                p.until(f"{state} !== '{before}'", f"{code} flips the switch")
+                time.sleep(0.3)
+                self.assertNotEqual(p.js(state), before, f"{code} toggles it once, not twice")
 
 
     def test_the_off_switch_has_a_visible_track_in_light_and_dark(self):       # item 677: the track colour is a token that exists
