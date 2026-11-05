@@ -141,6 +141,7 @@ def write_sheet(wb, published, table):
                 cell.alignment = Alignment(horizontal="left", wrap_text=True, vertical="top")      # a date is not flush to the next column's text
             excel.protect_text_cell(cell)
     ws.freeze_panes = "A5"
+    excel.protect_sheet(ws)           # as the export's sheets (item 727): no password; every cell is locked, as the sheet is read-only
     return ws
 
 
@@ -157,6 +158,7 @@ def workbook_bytes(published):
             cell.value = excel.cell_text(text)
             cell.font = BODY
             excel.protect_text_cell(cell)
+        excel.protect_sheet(ws)
     props = wb.properties
     props.creator = props.lastModifiedBy = excel.FIXED_NAME
     stamp = datetime.fromisoformat(published["as_at"] + "T00:00:00")
