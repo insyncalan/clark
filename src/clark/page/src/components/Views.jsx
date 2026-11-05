@@ -180,17 +180,19 @@ export function Settings({ tools }) {
   const Data = tools && tools.Data;                    // the Data card (A-S11): Export to Excel; Edit only
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
   const Update = tools && tools.Update;                  // Version and updates; a published file has none
-  const cards = CARDS.filter(([tool]) => tools && tools[tool]);
+  const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Published reports, Freshness) are left out
+  const NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays"];
+  const cards = CARDS.filter(([tool]) => tools && tools[tool] && (open || !NEEDS_PROJECT.includes(tool)));
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
   const People = tools && tools.People;                  // the People card (item 454): email, organisation, role, Paste from Excel; Edit's page only
   const Projects = tools && tools.Projects;              // the projects table (A-S6); a published file has none
   return (
     <>
       <SettingsHead cards={cards} />
-      {ClientFolder ? <ClientFolder /> : null}
-      {PublishedReports ? <PublishedReports /> : null}
+      {ClientFolder && open ? <ClientFolder /> : null}
+      {PublishedReports && open ? <PublishedReports /> : null}
       {Personal ? <Personal /> : null}
-      {ReviewDays ? <ReviewDays /> : null}
+      {ReviewDays && open ? <ReviewDays /> : null}
       {Diagnostics ? <Diagnostics /> : null}
       {Projects ? <Projects /> : null}
       {Data ? <Data /> : null}

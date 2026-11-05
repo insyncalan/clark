@@ -15,9 +15,10 @@ export function Data() {
       <h2 id="data-card-h">{L.DATA.title}</h2>
       <div class="row">
         <button type="button" class="btn gb" id="export-workbook" data-export-workbook disabled={!data.value} onClick={() => exportExcel()}><Icon name="dl" />{L.DATA.export}</button>
-        <button type="button" class="btn gb" id="import-workbook" data-import-workbook disabled={!data.value}
+        <button type="button" class="btn gb" id="import-workbook" data-import-workbook disabled={!data.value} aria-describedby={data.value ? undefined : "import-why"}
           onClick={(e) => openBox("import", { opener: e.currentTarget, project: project.value, projectName: data.value.project.name, onDone: imported })}><Icon name="ul" />{L.DATA.import}</button>
       </div>
+      {data.value ? null : <p class="muted dc-note" id="import-why">{L.IMPORT_NEEDS_PROJECT}</p>}
       <p class="muted dc-note">{L.DATA.note}</p>
     </section>
   );

@@ -2,6 +2,9 @@
 // Preact, so a test can run them alone. The words are the prototype's (system/prototype/views.js, io.js), with the build's own where the
 // prototype names its browser database. Nothing here is sent: the server checks every request again.
 
+// PENDING A RULING (issue 682): this sentence is new wording the owner has not approved. It is the one place to change it.
+export const IMPORT_NEEDS_PROJECT = "Add a project first.";
+
 export const DATA = {
   title: "Data",
   export: "Export workbook",
