@@ -124,6 +124,27 @@ def log_dir(home=None, on=None):
     return Path(home or Path.home()) / "Library" / "Logs" / "clark"
 
 
+def log_folder(data=None, home=None, on=None):
+    """The one place the daily log lives, for the log writer and the Settings card alike (issue 742). With a data folder other
+    than clark's own default one (--data), the log goes inside it: <data>/logs. With no data folder, or the default one (the
+    launcher and the updater always pass --data, even for a normal install), it stays log_dir(): ~/Library/Logs/clark/.
+    The data folder is resolved first (.. and links), so the answer is always below the folder itself; a logs entry that is a
+    link leading out of it is refused (PlatformError). Not created here."""
+    if data is None:
+        return log_dir(home, on)
+    folder = Path(data).expanduser().resolve()
+    try:
+        default = data_dir(home, on).resolve()
+    except PlatformError:                    # not the Mac (the container): there is no default folder, so any --data is explicit
+        default = None
+    if folder == default:
+        return log_dir(home, on)
+    logs = folder / "logs"
+    if logs.is_symlink() and logs.resolve().parent != folder:
+        raise PlatformError(f"{shown(logs)} is a shortcut to somewhere else. Replace it with a real folder, then try again.")
+    return logs
+
+
 def onedrive_roots(home=None, on=None):
     """The OneDrive folders on this machine, as suggestions only (the user still picks a folder): the OneDrive app's
     ~/Library/CloudStorage/OneDrive-<name>/ folders, and the older app's ~/OneDrive*/ folders. Sorted; may be empty.

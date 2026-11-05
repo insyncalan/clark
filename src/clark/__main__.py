@@ -390,12 +390,12 @@ def use_case_history(store):
 
 
 def start_log(data_folder, projects, home=None, scratch=None):
-    """The daily log for this run (#110): the log folder of the platform (inside the temporary demo folder with --demo, so a
-    demo leaves nothing in the real log), the level kept in the data folder, and clark's standard loggers routed into it.
+    """The daily log for this run (#110): the log folder of platform.log_folder (<data>/logs when --data names a folder other
+    than clark's own default, issue 742; inside the temporary demo folder with --demo, so a demo leaves nothing in the real log), the level kept in the data folder, and clark's standard loggers routed into it.
     (log, handler, Logs) or (None, None, None) when the log folder cannot be named (a system clark is not built for yet): clark
     never stops for want of a log."""
     try:
-        folder = Path(scratch) / "logs" if scratch else platform.log_dir(home)
+        folder = Path(scratch) / "logs" if scratch else platform.log_folder(data_folder, home)
     except platform.PlatformError:
         return None, None, None
     routes = set(server.GET_ROUTES) | set(server.POST_ROUTES) | {"/health", server.CSP_REPORT_ROUTE}
