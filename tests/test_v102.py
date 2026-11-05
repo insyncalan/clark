@@ -83,6 +83,14 @@ COVERED = [
      "test_log_follows_data::Started::test_data_given_writes_inside_it_and_nothing_under_the_home"),
     ("#760", "A folder of mixed versions is refused with a plain message.",
      "test_mixed_folder::Folder::test_one_older_file_is_refused"),
+    ("#763", "A brand's own circle picture no longer stops Preview and Publish.",
+     "test_brand_circle::Route::test_publish_and_preview_pass_with_the_circle"),
+    ("#763", "An outside address in the brand file shows its own sentence on Publish and Preview.",
+     "test_brand_circle::Route::test_an_address_shows_its_own_sentence_on_publish_and_preview"),
+    ("#763", "A picture in another form shows its own sentence on Publish and Preview.",
+     "test_brand_circle::Route::test_another_picture_shows_its_own_sentence_on_publish_and_preview"),
+    ("#763", "The two brand refusal sentences are the approved words.",
+     "test_page_words::Words::test_a_brand_link_refusal_does_not_contradict_itself"),
     ("#761", "The three public meet clark files are the regenerated ones, pinned by hash and size.",
      "test_ci_scan::PinnedPublicFiles::test_the_next_pins_are_well_formed_and_each_real_file_is_its_current_or_its_next_pin"),
     ("#761", "The public zip carries the meet clark folder at the top under its own name.",
@@ -91,12 +99,7 @@ COVERED = [
 
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has
 # landed; marker None means there is no pull request to look for yet).
-WAITING = [
-    ("#763", "The brand's circle picture is accepted and a comment can no longer hide an address or a picture.",
-     "no pull request yet (issue 763)", None, None),
-    ("#728", "Sneak peek changes a milestone and a use case.",
-     "no pull request yet (issue 728)", None, None),
-]
+WAITING = []
 
 # (item, check, kind, why, what the person does)
 WALK_THROUGH = [
