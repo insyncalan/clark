@@ -8,11 +8,27 @@ import { openHelp } from "../help/helpStore.js";
 import { ADD_SECTION_EVENT } from "./addDialog.js";
 import { inertBehind } from "./modalLayers.js";
 import { addFromTemplate } from "./actions.js";
-import { KINDS, RECENT, MESSAGES, list, counts, find, available, besideState, remember, fitWords, noMatch } from "../logic/templates.js";
+import { Icon } from "../components/Icon.jsx";
+import { KINDS, RECENT, MESSAGES, list, counts, find, available, besideState, remember, fitWords, fitWord, noMatch } from "../logic/templates.js";
 
 const STORE_KEY = "clark.recentTemplates";
 const readRecent = () => { try { const v = JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); return Array.isArray(v) ? remember(v.filter((x) => typeof x === "string"), "") : []; } catch (e) { return []; } };
 const writeRecent = (v) => { try { localStorage.setItem(STORE_KEY, JSON.stringify(v)); } catch (e) { /* no storage: the box works without it */ } };
+
+// Each template's thumbnail is drawn from CSS shapes (shell.css .ad-th), not a picture: a list of the parts it holds, top to bottom.
+// t a title bar, l a line, s a short line, img a picture, f3 f4 a row of figure boxes, c3 c4 a row of cards, r a list row, d a file row, dots a date line, box a callout.
+const THUMBS = {
+  text: ["t", "l", "l", "s"], textimage: ["t", "img", "l", "s"], figures4: ["t", "f4", "s"], figures3: ["t", "f3", "s"],
+  raid3: ["t", "c3", "l"], raid4: ["t", "c4"], workitems: ["t", "r", "r", "r"], doclinks: ["t", "d", "d", "s"],
+  callout: ["box"], keydates: ["t", "dots", "s"], needs: ["t", "r", "r", "r"], linkcard: ["t", "img", "s"], onedoc: ["t", "d", "l"],
+};
+const Thumb = ({ type }) => (
+  <span class="ad-th" aria-hidden="true">
+    {(THUMBS[type] || THUMBS.text).map((x, i) => (x.length === 2 && (x[0] === "f" || x[0] === "c")
+      ? <b key={i} class={`th-${x[0]}`}>{Array.from({ length: +x[1] }, (_, k) => <i key={k} />)}</b>
+      : <i key={i} class={`th-${x}`} />))}
+  </span>
+);
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -120,9 +136,11 @@ function Box({ after, opener, onClose }) {
         <div class="ad-head">
           <h2 id="ad-title">Add a section</h2>
           <label class="ad-q"><span class="sr">Search templates</span>
+            <Icon name="search" />
             <input ref={search} type="search" placeholder="Search templates" autocomplete="off" value={query}
               onInput={(e) => setQuery(e.currentTarget.value)} />
           </label>
+          <button type="button" class="ad-x" title="Close" aria-label="Close" onClick={close}><Icon name="x" /></button>
         </div>
         <div class="ad-main">
           <nav class="ad-kinds" aria-label="Kinds of template">
@@ -148,8 +166,9 @@ function Box({ after, opener, onClose }) {
                 <label class={`ad-tpl${ok ? "" : " off"}`} key={t.id} data-template={t.id}>
                   <input type="radio" name="template" value={t.id} checked={!!current && current.id === t.id}
                     aria-disabled={ok ? undefined : "true"} aria-describedby={ok ? `ad-d-${t.id}` : `ad-d-${t.id} ad-l-${t.id}`} onChange={() => setChosen(t.id)} />
+                  <Thumb type={t.type} />
                   <span class="ad-tn">{t.name}</span>
-                  <span class="ad-fit">{fitWords(t)}</span>
+                  <span class="ad-fit">{t.fit.map((f) => <span class="ad-chip" key={f}>{fitWord(f)}</span>)}</span>
                   <span class="ad-td" id={`ad-d-${t.id}`}>{t.description}</span>
                   {ok ? null : <span class="ad-td ad-later" id={`ad-l-${t.id}`}>{MESSAGES.later}</span>}
                 </label>
@@ -176,7 +195,7 @@ function Box({ after, opener, onClose }) {
         </div>
         <div class="ad-foot">
           <span class="ad-helpbox">
-            <button type="button" class="ad-help" data-help="howto-add-a-section-from-a-template" onClick={() => help("howto-add-a-section-from-a-template")}>About section templates</button>
+            <button type="button" class="ad-help" data-help="howto-add-a-section-from-a-template" onClick={() => help("howto-add-a-section-from-a-template")}><Icon name="doc" />About section templates</button>
           </span>
           <button type="button" class="pk-btn" data-cancel onClick={close}>Cancel</button>
           <button type="submit" class="pk-btn pri" data-place disabled={!canPlace} aria-describedby={canPlace ? undefined : "ad-later-prev"}>Add section</button>

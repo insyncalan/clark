@@ -1472,11 +1472,15 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 /* The Add a section box (#96): a modal over the page, desktop and 900 px. Tokens only; no text under 13 px. */
 .ad-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: calc(var(--topbar) + var(--space-6)) var(--space-4) var(--space-6); background: color-mix(in srgb, var(--black) 45%, transparent); overflow: auto; }   /* row 758: a box starts below the top bar, never over it */
 .ad:focus { outline: none; }
-.ad { display: flex; flex-direction: column; width: min(900px, 100%); max-height: calc(100vh - var(--topbar) - 2 * var(--space-6)); max-height: calc(100dvh - var(--topbar) - 2 * var(--space-6)); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-body); color: var(--text); }
+.ad { display: flex; flex-direction: column; width: min(1100px, 100%); max-height: calc(100vh - var(--topbar) - 2 * var(--space-6)); max-height: calc(100dvh - var(--topbar) - 2 * var(--space-6)); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-body); color: var(--text); }
 .ad-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-4) var(--space-5) var(--space-2); }
 .ad-head h2 { margin: 0; flex: 1 1 auto; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
-.ad-q { flex: 0 1 280px; min-width: 0; }
-.ad-q input { width: 100%; box-sizing: border-box; min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.ad-q { position: relative; flex: 0 1 280px; min-width: 0; }
+.ad-q > .i { position: absolute; left: 10px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }      /* row 783: the search icon */
+.ad-x { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
+.ad-x:hover { background: var(--grey-100); color: var(--text); }
+.ad-x:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ad-q input { width: 100%; box-sizing: border-box; min-height: 32px; padding: var(--space-1) 10px var(--space-1) 34px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .ad-q input:focus-visible, .ad-tpl input:focus-visible, .ad-where input:focus-visible, .ad .pk-btn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .ad-main { display: grid; grid-template-columns: 170px minmax(0, 1fr) minmax(0, 280px); grid-template-rows: auto auto 1fr; grid-template-areas: "kinds list prev" "kinds list where" "kinds list ."; gap: 0 var(--space-4); padding: var(--space-2) var(--space-5) var(--space-4); min-height: 0; overflow: auto; }
 .ad-kinds { grid-area: kinds; display: flex; flex-direction: column; gap: 2px; }
@@ -1485,31 +1489,52 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .ad-kind[aria-pressed="true"] { background: var(--grey-100); font-weight: var(--weight-medium); color: var(--heading); }
 .ad-kind:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .ad-n { color: var(--text-muted); }
-.ad-list { grid-area: list; border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
-.ad-tpl { display: grid; grid-template-columns: auto 1fr auto; gap: 2px var(--space-2); align-items: baseline; padding: var(--space-2) var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); cursor: pointer; }
+.ad-list { grid-area: list; border: 0; margin: 0; padding: 0; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: var(--space-3); }      /* row 783: a three-column card grid */
+.ad-tpl { position: relative; display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; padding: var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius); cursor: pointer; }
+.ad-tpl:has(input:focus-visible) { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .ad-tpl:has(input:checked) { border-color: var(--brand-blue); background: var(--grey-50); }
 .ad-tpl.off { color: var(--text-muted); cursor: default; }
-.ad-tpl input { margin: 0; accent-color: var(--brand-blue); }
+.ad-tpl input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; }      /* the card is the choice; the radio stays for the keyboard and the reader */
 .ad-tn { font-weight: var(--weight-medium); color: var(--heading); }
 .ad-tpl.off .ad-tn { color: var(--text-muted); }
-.ad-fit { font-size: var(--size-caption); color: var(--text-muted); }
+.ad-fit { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.ad-chip { padding: 0 var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius-pill); font-size: var(--size-caption); color: var(--text-muted); }
+.ad-th { display: flex; flex-direction: column; gap: 4px; height: 76px; padding: var(--space-2); box-sizing: border-box; overflow: hidden; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--grey-50); }      /* row 783: a thumbnail drawn from shapes */
+.ad-th i { display: block; flex: none; border-radius: 2px; background: var(--grey-300); }
+.ad-th .th-t { width: 40%; height: 6px; background: var(--text-muted); }
+.ad-th .th-l { height: 4px; }
+.ad-th .th-s { width: 60%; height: 4px; }
+.ad-th .th-img { height: 22px; background: var(--grey-200); }
+.ad-th .th-r { height: 6px; }
+.ad-th .th-d { width: 70%; height: 8px; border: 1px solid var(--grey-300); background: var(--surface); }
+.ad-th .th-dots { height: 0; border-top: 2px dotted var(--text-muted); border-radius: 0; background: none; margin: 6px 0; }
+.ad-th .th-box { flex: 1; height: auto; border-left: 4px solid var(--brand-blue); background: var(--surface); }
+.ad-th b { display: flex; gap: 3px; }
+.ad-th b i { flex: 1; border: 1px solid var(--grey-300); background: var(--surface); }
+.ad-th .th-f i { height: 16px; }
+.ad-th .th-c i { height: 24px; }
 .ad-td { grid-column: 2 / 4; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }
 /* A template the store cannot make yet is read and chosen like any other; only the button stays off, and the preview says why. */
 .ad-later { font-style: italic; }
-.ad-none { margin: var(--space-3) 0; }
+.ad-none { grid-column: 1 / -1; margin: var(--space-3) 0; }
 .ad-prev { grid-area: prev; min-width: 0; padding-left: var(--space-4); border-left: 1px solid var(--grey-200); overflow-wrap: anywhere; }
 .ad-prev h3 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .ad-prev p { margin: 0 0 var(--space-2); }
-.ad-prev ul { margin: 0 0 var(--space-2); padding-left: var(--space-5); }
+.ad-prev ul { display: flex; flex-wrap: wrap; gap: var(--space-1); margin: 0 0 var(--space-2); padding: 0; list-style: none; }
+.ad-prev li { padding: 0 var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius-pill); background: var(--grey-50); font-size: var(--size-small); }      /* row 783: what it holds, as chips */
 .ad-lbl { font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); padding: 0; }
 .ad-where { grid-area: where; min-width: 0; border: 0; border-left: 1px solid var(--grey-200); margin: 0; padding: var(--space-3) 0 0 var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
 .ad-where label { display: flex; align-items: center; gap: var(--space-2); min-height: 28px; cursor: pointer; }
 .ad-where label.off { color: var(--text-muted); cursor: default; }
 .ad-why { font-size: var(--size-caption); min-height: 0; }
 .ad-helpbox { margin-right: auto; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--space-2); font-size: var(--size-caption); }
-.ad-help { all: unset; box-sizing: border-box; color: var(--text-muted); font-size: var(--size-caption); text-decoration: underline; text-underline-offset: 2px; cursor: default; }
+.ad-help { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: var(--space-1); color: var(--link); font-size: var(--size-caption); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.ad-help > .i { width: 14px; height: 14px; }
 .ad-help:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 3px; }
-.ad-foot { display: flex; justify-content: flex-end; gap: var(--space-2); padding: var(--space-3) var(--space-5); border-top: 1px solid var(--grey-200); }
+.ad .pk-btn.pri:not(:disabled) { background: var(--brand-cyan); border-color: var(--brand-cyan); color: var(--brand-navy); }      /* row 783: the aqua action */
+.ad .pk-btn[data-cancel] { border-color: transparent; background: transparent; }
+.ad .pk-btn[data-cancel]:hover { background: var(--grey-100); }
+.ad-foot { align-items: center; display: flex; justify-content: flex-end; gap: var(--space-2); padding: var(--space-3) var(--space-5); border-top: 1px solid var(--grey-200); }
 @media (max-width: 900px) {
   /* One column: the kinds, then where to place it, then the list, then the preview, in that order in the page too, so the choice is never below all ten templates. */
   .ad-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "kinds" "where" "list" "prev"; gap: var(--space-4) 0; }

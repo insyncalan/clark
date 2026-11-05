@@ -83,6 +83,7 @@ export const MESSAGES = {
 };
 
 const FIT_WORDS = { full: "Full width", half: "Half width" };
+export const fitWord = (f) => FIT_WORDS[f];
 export const fitWords = (t) => t.fit.map((f) => FIT_WORDS[f]).join(" or ");
 
 export const find = (id) => TEMPLATES.find((t) => t.id === id) || null;

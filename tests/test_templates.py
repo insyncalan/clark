@@ -272,6 +272,31 @@ class Box(Base):
         p.js(OPEN % json.dumps(after))
         p.until("!!document.querySelector('[role=dialog]') && document.activeElement.matches('input[type=search]')", "the box opened with focus in the search box")
 
+    def test_the_list_is_a_thumbnail_card_grid_with_the_prototypes_chrome(self):
+        """Row 783: three columns of cards with a drawn thumbnail and width chips, a search icon, an X, chips for what it holds, an aqua Add section."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            for theme in ("light", "dark"):
+                p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                for w in (1400, 900):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    self.open_box(p, "ABC-S-003")
+                    m = p.js("""(function(){var q=function(s){return document.querySelector(s);}, cards=[...document.querySelectorAll('.ad-tpl')];
+                        var xs=new Set(cards.map(c => Math.round(c.getBoundingClientRect().left)));
+                        return {cols: xs.size, thumbs: cards.every(c => c.querySelector('.ad-th') && c.querySelector('.ad-th').getBoundingClientRect().height > 40),
+                          chips: cards.every(c => c.querySelectorAll('.ad-chip').length >= 1), icon: !!q('.ad-q > svg.i'), x: !!q('.ad-x'),
+                          held: getComputedStyle(q('.ad-prev li')).borderTopLeftRadius, bg: getComputedStyle(q('button[data-place]')).backgroundColor,
+                          cancel: getComputedStyle(q('[data-cancel]')).backgroundColor};})()""")
+                    self.assertEqual(m["cols"], 3, f"three columns ({theme} {w})")
+                    self.assertTrue(m["thumbs"] and m["chips"], f"a thumbnail and width chips on every card ({theme} {w})")
+                    self.assertTrue(m["icon"] and m["x"], f"search icon and X ({theme} {w})")
+                    self.assertNotEqual(m["held"], "0px", f"what it holds is chips ({theme} {w})")
+                    self.assertEqual(m["bg"], "rgb(56, 224, 238)", f"the aqua action ({theme} {w})")
+                    self.assertEqual(m["cancel"], "rgba(0, 0, 0, 0)", f"Cancel is text ({theme} {w})")
+                    p.js("document.querySelector('.ad-x').click()")
+                    p.until("!document.querySelector('[role=dialog]')", "the X closed the box")
+
     def test_it_opens_by_the_event_with_focus_in_search_and_does_nothing_in_view(self):
         with chrome() as cdp:
             p = self.visit(cdp)
