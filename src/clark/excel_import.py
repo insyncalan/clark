@@ -300,6 +300,7 @@ class ImportPlan:
     file_hash: object = None          # its SHA-256 when it was read (excel.file_hash)
     state_path: object = None         # the export's record that was used (apply_import records the import there)
     already_imported: bool = False    # this very file was imported before: nothing is staged
+    partial: bool = False             # only some of the workbook's sheets were read (#655): it is never marked as imported as a whole
     unrecorded: bool = False          # no export record of this workbook: accept_all accepts nothing, apply_import refuses...
     unrecorded_ok: bool = False       # ...until the person has confirmed it (confirm_unrecorded)
     store: object = field(default=None, repr=False)     # read only: to work out the IDs new rows would get
@@ -457,6 +458,10 @@ def from_cell(name, value, kind, label=None):
             return read_date(value), None
         except (ValueError, OverflowError):
             return None, f"{label} must be a date, shown DD-MM-YYYY (got {_got(value)})"
+    if name == "commitment":                                    # #709: the owner's words, case exact (spaces round the word are not part of it); never guessed
+        if str(value).strip() in writer.COMMITMENTS:
+            return str(value).strip(), None
+        return None, f"{label} must be one of {', '.join(writer.COMMITMENTS[:-1])} or {writer.COMMITMENTS[-1]}, or left empty (got {_got(value)})"
     if name in FLAGS:
         s = str(value).strip().lower()
         if s in ("yes", "y", "1", "true", "1.0"):
@@ -793,6 +798,8 @@ class _Reader:
                 self.problem(f"{sheet}, row {rn}, {rid}: {err}; the row was left out", sheet, rn, rid, f)
                 bad = True
                 continue
+            if f == "commitment" and v is None:
+                continue                                # #709: an empty Commitment cell leaves the flag as it is (never clears it)
             old = cur[f]
             if f == LABELS and sorted(n.lower() for n in writer.label_names(v)) == sorted(n.lower() for n in writer.label_names(old)):
                 continue                                # the same labels, in any order or case
@@ -903,14 +910,58 @@ class _Reader:
         self.given[self.stage(kind="new", table=table, sheet=sheet, row=rn, after=values, fp=fp).n] = given
 
 
-def read_workbook(store, path, project, state_path=None, allow_unrecorded=False):
+CHOICE_ORDER = ("actions", "raid", "decisions", "milestones", "use_cases")     # the order the person is offered the sheets in (#655)
+
+
+def list_sheets(path):
+    """The sheets of the workbook at `path` that clark imports, for the person to choose from (#655): [{"table", "name", "rows"}] in
+    CHOICE_ORDER, "rows" being the rows below the header with something in them. A sheet the file does not have is not listed; a
+    History sheet (or any other) is never listed. Nothing is compared or written, and no cell is built beyond the first
+    MAX_SHEET_ROWS + 1 rows below the header, so a huge sheet is counted up to one past the limit ("rows" is then above 5,000: the box says
+    "more than 5,000 rows"), not read (ticking it is what makes the check refuse it, in words)."""
+    path = Path(path)
+    try:
+        excel.check_workbook_size(path)
+    except excel.TooBig as e:
+        raise Invalid(str(e))
+    try:
+        wb = load_workbook(str(path), read_only=True)
+    except Exception:
+        raise Invalid(f"{path.name} can't be read as an Excel workbook (.xlsx).")
+    try:
+        found = {}
+        for ws in wb.worksheets:
+            table = SHEET_TABLES.get(re.sub(r"[\s_]+", " ", ws.title.strip().lower()))
+            if table is None:
+                continue
+            if table in found:
+                raise Invalid(f"The workbook has two sheets for the same thing: “{found[table][0]}” and “{ws.title}”. Keep one of them and "
+                              "import again. Nothing was changed.")
+            rows = 0
+            for row in ws.iter_rows(min_row=2, max_row=MAX_SHEET_ROWS + 2, max_col=MAX_SHEET_COLUMNS, values_only=True):
+                if any(v is not None and not (isinstance(v, str) and not v.strip()) for v in row):
+                    rows += 1
+            found[table] = (ws.title, rows)
+        return [{"table": t, "name": SHEET_NAMES[t], "rows": found[t][1]} for t in CHOICE_ORDER if t in found]
+    finally:
+        wb.close()
+
+
+def read_workbook(store, path, project, state_path=None, allow_unrecorded=False, sheets=None):
     """Compare the workbook at `path` with `project`'s rows in the database; returns an ImportPlan of staged changes (all waiting
     for a decision), the rows that were reported, and notes. Writes nothing. Raises Invalid if the file isn't a workbook, is too
     big to open (excel.check_workbook_size) or the project isn't there.
 
     `state_path` is the export's record (default: excel.STATE_FILE beside clark.db). A file whose hash is the last one imported
     is not read again (plan.already_imported). A workbook with no export record is plan.unrecorded: nothing is accepted for the
-    person and apply_import refuses it until it is confirmed (`allow_unrecorded=True`, or plan.confirm_unrecorded())."""
+    person and apply_import refuses it until it is confirmed (`allow_unrecorded=True`, or plan.confirm_unrecorded()).
+
+    `sheets` (#655): None reads every sheet; otherwise the tables (CHOICE_ORDER) whose sheets are read. A sheet that is not in it
+    is NOT READ: its dimensions are not checked, its rows are not looked at (a broken row in it blocks nothing), nothing in it is
+    staged as new, changed or "no longer in the workbook" (so nothing of it can be archived), and no note is made of it. The
+    plan is then `partial`: applying it does not mark the file as imported as a whole."""
+    if sheets is not None:
+        sheets = {t for t in sheets if t in CHOICE_ORDER}
     if store.read("projects", ref=project) is None:
         raise Invalid(f"There is no project {project}.")
     path = Path(path)
@@ -958,7 +1009,7 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False)
         found, to_read, area = set(), [], 0
         for ws in wb.worksheets:
             table = SHEET_TABLES.get(re.sub(r"[\s_]+", " ", ws.title.strip().lower()))
-            if table is None:
+            if table is None or (sheets is not None and table not in sheets):
                 continue
             if table in found:
                 first = next(w.title for w, t in to_read if t == table)
@@ -979,12 +1030,14 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False)
                           "clark will import in one go. Check this is the right file. Nothing was changed.")
         for ws, table in to_read:
             rd.sheet(ws, table)
+        rd.plan.partial = sheets is not None and any(
+            SHEET_TABLES.get(re.sub(r"[\s_]+", " ", w.title.strip().lower())) not in (None, *sheets) for w in wb.worksheets)
         if not found:
             rd.problem("The workbook has none of the sheets Actions, RAID (or Risks and issues), Decisions, Milestones or Use cases, so there is "
                        "nothing to compare.")
         else:
             for t in TABLE_ORDER:
-                if t not in found:
+                if t not in found and (sheets is None or t in sheets):
                     rd.plan.notes.append(f"There is no {SHEET_NAMES[t]} sheet, so {WORDS[t]}s were not compared")
         for sheet_name, rows_ in rd.formulas.items():
             shown = ", ".join(str(r) for r in sorted(rows_)[:10]) + (" and more" if len(rows_) > 10 else "")
@@ -1062,6 +1115,12 @@ def _mark_imported(store, plan, state_path, created=(), stamp=None):
     rows just made (`created`). Returns (done, note). Not marked when the file has changed since it was read (those edits were
     never read) or can't be recorded; the import stands either way, and the fingerprints are still recorded where they can be."""
     if not plan.path or plan.file_hash is None:
+        return False, ""
+    if plan.partial:             # #655: the sheets left unticked were never read, so the file is not "imported as it is"; only its new rows are recorded
+        try:
+            excel.record_created(plan.path, state_path, created, plan.project)
+        except (OSError, ValueError):
+            pass
         return False, ""
     if excel.file_hash(plan.path) != plan.file_hash:
         try:

@@ -1163,7 +1163,7 @@ class DefaultSeamsTest(unittest.TestCase):
 class ReleaseFilesTest(unittest.TestCase):
     def test_the_helper_ships_in_the_downloads_src_folder(self):
         from clark import release_files
-        self.assertTrue(release_files.covers("mac", "src/clark/update_helper.py"))
+        self.assertTrue(release_files.covers("mac", ".app/src/clark/update_helper.py"))
         self.assertTrue((ROOT / "src" / "clark" / "update_helper.py").is_file())
 
 

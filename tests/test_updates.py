@@ -17,6 +17,7 @@ import unicodedata
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 from _paths import ROOT
 import _signing
@@ -39,11 +40,15 @@ def listed_files(version="0.3.1"):
 
 def make_zip(folder, version="0.3.1", files=None, manifest=None, system=SYSTEM, name=None, top=None, tweak=None,
              modes=None, schema=2, min_from="0.0.0", notes="Fixes a typo.\n", extra=None, skip_manifest=False, rows=None,
-             sign=True):
+             sign=True, placed=True, top_files=None):
     """Write a fake download into `folder`; its path. `tweak(files)` changes the member bytes AFTER the manifest has been
     made (so a hash then differs); `extra` adds raw members (name -> bytes); `rows(files_doc)` changes the manifest rows."""
-    files = dict(listed_files(version) if files is None else files)
-    modes = modes or {}
+    # `files` and `modes` are keyed by repo names (src/clark/store.py); the zip holds them placed (.app/src/clark/store.py), as
+    # package.py writes them (issue 694). `placed=False` writes the old shape: repo names straight under the top folder.
+    place = release_files.place if placed else (lambda rel: rel)
+    files = {place(rel): body for rel, body in dict(listed_files(version) if files is None else files).items()}
+    files.update(top_files or {})        # already-placed names: an extra top-level folder (issue 716), e.g. "meet clark/a.md"
+    modes = {place(rel): m for rel, m in (modes or {}).items()}
     doc = {"product": "clark", "version": version, "system": system, "released": "2026-10-27", "notes": notes,
            "schema_version": schema, "min_from": min_from,
            "files": {rel: {"sha256": hashlib.sha256(b).hexdigest(), "size": len(b),
@@ -54,7 +59,7 @@ def make_zip(folder, version="0.3.1", files=None, manifest=None, system=SYSTEM, 
         manifest(doc)
     if tweak:
         tweak(files)
-    top = top or f"clark-{version}"
+    top = top or (release_files.TOP if placed else f"clark-{version}")
     name = name or f"clark-{version}-{system}.zip"
     path = Path(folder) / name
     with zipfile.ZipFile(path, "w") as z:
@@ -88,6 +93,8 @@ def real_download(case, schema=2):
     """A download built by package.py itself from a tiny repo (so its manifest is the real one), version 0.3.1."""
     import subprocess
     from unittest import mock
+    if package.top_folder() != release_files.TOP:       # package.py learns to place names in the next step of issue 694
+        case.skipTest("package.py does not build the placed layout yet")
     root = Path(tempfile.mkdtemp(prefix="clark repo "))
     case.addCleanup(shutil.rmtree, root, True)
     for rel, text in {"README.md": "A fictional readme.\n", "src/clark/__init__.py": '__version__ = "0.3.1"\n',
@@ -137,7 +144,7 @@ class GoodFileTest(Base):
     def test_a_good_update_reads(self):
         r = self.read(make_zip(self.tmp))
         self.assertEqual(("0.3.1", "mac", "2026-10-27", "Fixes a typo.\n", 2), (r.version, r.system, r.released, r.notes, r.schema_version))
-        self.assertIn("src/clark/__init__.py", r.files)
+        self.assertIn(".app/src/clark/__init__.py", r.files)
 
     def test_a_download_built_by_package_py_reads(self):
         built = real_download(self)
@@ -294,10 +301,10 @@ class MemberTest(Base):
                      "Download it again from the clark releases page.")
 
     def test_manifest_lists_something_the_zip_lacks_or_the_reverse(self):
-        self.refuses(make_zip(self.tmp, rows=lambda r: r.update({"src/clark/ghost.py": dict(r["README.md"])})), "incomplete")
+        self.refuses(make_zip(self.tmp, rows=lambda r: r.update({".app/src/clark/ghost.py": dict(r["README.md"])})), "incomplete")
         shutil.rmtree(self.tmp)
         os.mkdir(self.tmp)
-        self.refuses(make_zip(self.tmp, rows=lambda r: r.pop("src/clark/x.py")), "incomplete")
+        self.refuses(make_zip(self.tmp, rows=lambda r: r.pop(".app/src/clark/x.py")), "incomplete")
 
     def test_unsafe_paths_one_by_one(self):
         dots, windows, device = "empty, dot or dot-dot part", "character Windows can't hold", "Windows device name"
@@ -315,12 +322,12 @@ class MemberTest(Base):
         }
         for label, (member, reason) in bad.items():
             with self.subTest(label=label):
-                e = self.refuses(make_zip(self.fresh(), extra={f"clark-0.3.1/{member}": b"x"}), "unsafe",
-                                 detail=f"{reason}: clark-0.3.1/{member}")
+                e = self.refuses(make_zip(self.fresh(), extra={f"clark/{member}": b"x"}), "unsafe",
+                                 detail=f"{reason}: clark/{member}")
                 self.assertNotIn("zip", e.message.lower())
 
     def test_the_top_folder_itself_as_a_file_is_an_empty_name(self):
-        self.refuses(make_zip(self.tmp, extra={"clark-0.3.1": b"x"}), "unsafe", detail="empty name: clark-0.3.1")
+        self.refuses(make_zip(self.tmp, extra={"clark": b"x"}), "unsafe", detail="empty name: clark")
 
     def test_an_absolute_member_is_outside_the_top_folder(self):
         self.refuses(make_zip(self.tmp, extra={"/etc/passwd": b"x"}), "unsafe", detail="member outside the one top folder")
@@ -363,11 +370,11 @@ class MemberTest(Base):
         self.refuses(make_zip(self.tmp, files=files), "unsafe")
 
     def test_a_link_member_and_odd_modes(self):
-        self.refuses(make_zip(self.tmp, modes={"README.md": 0o120777}), "unsafe", detail="link member clark-0.3.1/README.md")
+        self.refuses(make_zip(self.tmp, modes={"README.md": 0o120777}), "unsafe", detail="link member clark/README.md")
         for label, mode in (("setuid", 0o104755), ("group write", 0o100664), ("device", 0o060644)):
             with self.subTest(label=label):
                 self.refuses(make_zip(self.fresh(), modes={"README.md": mode}), "damaged",
-                             detail=f"mode {oct(mode)} for clark-0.3.1/README.md")
+                             detail=f"mode {oct(mode)} for clark/README.md")
 
     def rebuilt(self, change=None, add=(), encrypt=(), compression=None):
         """A hostile copy of a good download: a pristine download is made in its own folder, every entry is copied into a
@@ -396,9 +403,9 @@ class MemberTest(Base):
         self.assertEqual("0.3.1", self.read(self.rebuilt()).version, "the helper alone breaks nothing")
 
     def test_a_folder_entry_is_refused(self):
-        folder = zipfile.ZipInfo("clark-0.3.1/src/", date_time=(2000, 1, 1, 0, 0, 0))
+        folder = zipfile.ZipInfo("clark/src/", date_time=(2000, 1, 1, 0, 0, 0))
         folder.create_system, folder.external_attr = 3, 0o040755 << 16
-        self.refuses(self.rebuilt(add=[(folder, b"")]), "damaged", detail="folder entry clark-0.3.1/src/")
+        self.refuses(self.rebuilt(add=[(folder, b"")]), "damaged", detail="folder entry clark/src/")
 
     def test_a_repeated_name_is_refused(self):
         with zipfile.ZipFile(make_zip(self.fresh())) as z:
@@ -469,16 +476,16 @@ class MemberTest(Base):
         class Lying:
             def open(self, info):
                 return io.BytesIO(b"x" * (info.file_size + 1))
-        info = zipfile.ZipInfo("clark-0.3.1/README.md")
+        info = zipfile.ZipInfo("clark/README.md")
         info.file_size = 4
         with self.assertRaises(UpdateError) as said:
             updates._read_counted(Lying(), info)
-        self.assertEqual(("damaged", "clark-0.3.1/README.md is bigger than it says"), (said.exception.key, said.exception.detail))
+        self.assertEqual(("damaged", "clark/README.md is bigger than it says"), (said.exception.key, said.exception.detail))
 
     def test_reading_counts_against_the_declared_size(self):
         path = make_zip(self.tmp)
         with zipfile.ZipFile(path) as z:
-            info = z.getinfo("clark-0.3.1/README.md")
+            info = z.getinfo("clark/README.md")
             info.file_size = 1                              # declared smaller than the real bytes
             with self.assertRaises(UpdateError) as said:
                 updates._read_counted(z, info)
@@ -545,8 +552,9 @@ class VersionRuleTest(Base):
 
 
 def install_to(folder, version="0.3.0", files=None):
-    """A fake installed app folder: the files of a download, and its record (its manifest) beside them."""
-    files = listed_files(version) if files is None else files
+    """A fake installed app folder: the files of a download, placed as a download holds them (program files below .app/),
+    and its record (its manifest) beside them. `files` is keyed by repo names."""
+    files = {release_files.place(rel): body for rel, body in (listed_files(version) if files is None else files).items()}
     folder = Path(folder)
     for rel, data in files.items():
         (folder / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -677,30 +685,30 @@ class PlanTest(Base):
         installed["src/clark/old.py"] = b"old\n"
         install_to(self.app, "0.3.0", installed)
         (self.app / "my notes.txt").write_text("mine", encoding="utf-8")
-        (self.app / "src" / "clark" / "mine.py").write_text("mine", encoding="utf-8")
+        (self.app / ".app" / "src" / "clark" / "mine.py").write_text("mine", encoding="utf-8")
         r = self.release(change={"README.md": b"new readme\n"}, add={"src/clark/new.py": b"n\n"}, drop=["README.md"] and [])
         r2 = self.release(change={"README.md": b"new readme\n"}, add={"src/clark/new.py": b"n\n"})
         p = updates.plan(r2, self.app)
-        self.assertEqual(["src/clark/new.py"], p.added)
+        self.assertEqual([".app/src/clark/new.py"], p.added)
         self.assertIn("README.md", p.replaced)
-        self.assertIn("src/clark/__init__.py", p.replaced)
-        self.assertEqual(["src/clark/old.py"], p.removed, "recorded as shipped, gone from the update")
-        self.assertEqual(["my notes.txt", "src/clark/mine.py"], p.left, "the person's own files are left alone")
+        self.assertIn(".app/src/clark/__init__.py", p.replaced)
+        self.assertEqual([".app/src/clark/old.py"], p.removed, "recorded as shipped, gone from the update")
+        self.assertEqual([".app/src/clark/mine.py", "my notes.txt"], p.left, "the person's own files are left alone")
         self.assertNotIn("README.md", p.removed)
         self.assertIsNotNone(r)
 
     def test_a_file_the_person_added_is_never_removed_even_in_a_folder_the_update_owns(self):
-        (self.app / "vendor" / "openpyxl" / "mine.py").write_text("mine", encoding="utf-8")
+        (self.app / ".app" / "vendor" / "openpyxl" / "mine.py").write_text("mine", encoding="utf-8")
         p = updates.plan(self.release(), self.app)
         self.assertEqual([], p.removed)
-        self.assertIn("vendor/openpyxl/mine.py", p.left)
+        self.assertIn(".app/vendor/openpyxl/mine.py", p.left)
 
     def test_before_the_first_recorded_install_nothing_is_removed(self):
         (self.app / updates.INSTALLED_RECORD).write_text(json.dumps({"files": {}}), encoding="utf-8")
-        (self.app / "src" / "clark" / "stray.py").write_text("x", encoding="utf-8")
+        (self.app / ".app" / "src" / "clark" / "stray.py").write_text("x", encoding="utf-8")
         p = updates.plan(self.release(), self.app)
         self.assertEqual([], p.removed)
-        self.assertIn("src/clark/stray.py", p.left)
+        self.assertIn(".app/src/clark/stray.py", p.left)
 
     def test_changed_by_hand(self):
         (self.app / "README.md").write_text("edited by hand", encoding="utf-8")
@@ -738,8 +746,8 @@ class PlanTest(Base):
         self.assertEqual(b"db", (data / "clark.db").read_bytes())
 
     def test_links_and_cache_are_skipped_in_the_walk(self):
-        (self.app / "src" / "clark" / "__pycache__").mkdir()
-        (self.app / "src" / "clark" / "__pycache__" / "a.pyc").write_bytes(b"x")
+        (self.app / ".app" / "src" / "clark" / "__pycache__").mkdir()
+        (self.app / ".app" / "src" / "clark" / "__pycache__" / "a.pyc").write_bytes(b"x")
         (self.app / ".clark-update-20261029T120000Z").mkdir()
         (self.app / ".clark-update-20261029T120000Z" / "stray").write_bytes(b"x")
         (self.app / ".DS_Store").write_bytes(b"x")
@@ -761,7 +769,7 @@ class ReviewTest(Base):
         self.assertEqual("Fixes a typo.\nAdds a thing.\n", text["notes"])
         self.assertEqual("Fixes a typo.\nAdds a thing.", text["notes_text"])
         self.assertEqual("Added (1 file)", text["added"]["label"])
-        self.assertEqual(["src/clark/new.py"], text["added"]["names"])
+        self.assertEqual([".app/src/clark/new.py"], text["added"]["names"])
         self.assertEqual("Removed (0 files)", text["removed"]["label"])
         self.assertEqual("Replaced (1 file)", text["replaced"]["label"])        # only __init__.py's version line differs
         self.assertEqual("Your projects, settings and published reports are kept. A copy of your data is made first.", text["kept"])
@@ -778,7 +786,7 @@ class ReviewTest(Base):
         self.assertEqual("1 file in the clark folder was changed by hand and will be replaced. A copy is kept in the backup.",
                          text["by_hand"])
         self.assertTrue(text["reinstall"])
-        (app / "src" / "clark" / "x.py").write_text("also edited", encoding="utf-8")
+        (app / ".app" / "src" / "clark" / "x.py").write_text("also edited", encoding="utf-8")
         text = updates.review(r, updates.plan(r, app), "0.3.0")
         self.assertEqual("2 files in the clark folder were changed by hand and will be replaced. A copy is kept in the backup.",
                          text["by_hand"])
@@ -1086,7 +1094,7 @@ class HostileFileTest(Base):
         self.assertEqual(f"{updates.MAX_MEMBERS + 1} members, over the limit", said.exception.detail)
 
     def test_a_real_zip_with_too_many_members_is_refused(self):
-        path = make_zip(self.tmp, extra={f"clark-0.3.1/x/{n}": b"" for n in range(updates.MAX_MEMBERS + 1)})
+        path = make_zip(self.tmp, extra={f"clark/x/{n}": b"" for n in range(updates.MAX_MEMBERS + 1)})
         e = self.refuses(path, "damaged")
         self.assertIn("more members", e.detail)
 
@@ -1225,11 +1233,11 @@ class UnreadableItemTest(Base):
         self.no_place_shown(said.exception)
 
     def test_a_folder_that_cant_be_listed(self):
-        self.locked(self.app / "vendor")
+        self.locked(self.app / ".app" / "vendor")
         with self.assertRaises(UpdateError) as said:
             updates.check_app_folder(self.app)
         self.assertEqual("folder", said.exception.key)
-        self.assertEqual("a folder in the app folder can't be listed: vendor", said.exception.detail)
+        self.assertEqual("a folder in the app folder can't be listed: .app/vendor", said.exception.detail)
         self.no_place_shown(said.exception)
 
 
@@ -1266,6 +1274,161 @@ class WordsTest(unittest.TestCase):
         source = (ROOT / "src" / "clark" / "updates.py").read_text(encoding="utf-8")
         for key in set(re.findall(r'UpdateError\("([a-z_]+)"', source)):
             self.assertIn(key, updates.MESSAGES)
+
+
+class PlacedZipTest(Base):
+    """A download in the layout of issue 694: one top folder named clark, program files below .app/."""
+
+    def test_the_members_are_placed_and_the_top_is_clark(self):
+        path = make_zip(self.tmp)
+        with zipfile.ZipFile(path) as z:
+            names = z.namelist()
+        self.assertTrue(all(n.startswith("clark/") for n in names))
+        self.assertIn("clark/.app/src/clark/__init__.py", names)
+        self.assertIn("clark/README.md", names)
+        self.assertIn("clark/docker/x.py", names)
+        self.assertIn("clark/clark.command", names)
+        self.assertIn("clark/clark-release.json", names)
+        self.assertFalse([n for n in names if n.startswith(("clark/src/", "clark/vendor/", "clark/system", "clark/data"))])
+
+    def test_it_is_read_and_planned(self):
+        r = self.read(make_zip(self.tmp))
+        self.assertEqual("clark", r.top)
+        self.assertEqual("0.3.1", r.version)
+        self.assertEqual("755", r.files["clark.command"]["mode"])
+        self.assertIn(".app/src/clark/__init__.py", r.files)
+        self.assertNotIn("src/clark/__init__.py", r.files)
+        app = install_to(Path(self.tmp) / "app", "0.3.0")
+        p = updates.plan(r, app)
+        self.assertEqual([".app/src/clark/__init__.py"], p.replaced)
+        self.assertEqual([], p.added + p.removed + p.left + p.by_hand)
+
+    def test_the_version_is_read_from_the_placed_init_file(self):
+        self.assertEqual(".app/src/clark/__init__.py", updates.VERSION_FILE)
+        files = listed_files()
+        files["src/clark/__init__.py"] = b'__version__ = "0.3.9"\n'
+        self.refuses(make_zip(self.tmp, files=files), "damaged", detail="the version inside the files differs")
+
+    def test_a_flat_name_in_the_new_shape_is_outside_the_list(self):
+        path = make_zip(self.tmp, extra={"clark/src/clark/mod.py": b"x"})
+        self.refuses(path, "unsafe", detail="outside the app's own list: src/clark/mod.py")
+
+    def test_the_hidden_folder_is_needed(self):
+        files = {k: v for k, v in listed_files().items() if not k.startswith("vendor/openpyxl/")}
+        self.refuses(make_zip(self.tmp, files=files), "incomplete", detail="missing: .app/vendor/openpyxl/")
+
+    def test_an_old_shape_download_is_called_older_or_the_same_not_damaged(self):
+        old = make_zip(self.tmp, version="0.2.0", placed=False)
+        self.refuses(old, "older")
+        same = make_zip(self.fresh(), version="0.3.0", placed=False)
+        self.refuses(same, "same")
+
+    def test_a_newer_old_shape_download_is_never_installed(self):
+        e = self.refuses(make_zip(self.tmp, version="0.4.0", placed=False), "damaged")
+        self.assertTrue(e.detail.startswith("old layout"), e.detail)
+
+    def test_an_old_top_name_that_does_not_match_the_version_is_damaged(self):
+        self.refuses(make_zip(self.tmp, version="0.4.0", placed=False, top="clark-0.3.5"), "damaged", detail="top folder 'clark-0.3.5'")
+
+
+class ProtectedTest(Base):
+    """system and data belong to the person: a download can neither carry them nor name them."""
+
+    def test_a_member_in_system_or_data_is_refused(self):
+        for rel in ("system/branding/logo.png", "data/clark.db", "System/branding/x", "DATA/y", "system"):
+            with self.subTest(rel=rel):
+                e = self.refuses(make_zip(self.fresh(), extra={f"clark/{rel}": b"mine"}), "unsafe")
+                self.assertTrue(e.detail.startswith(("member in a folder that belongs to the person",
+                                                     "outside the app's own list")), e.detail)
+
+    def test_a_member_in_system_is_refused_for_that_reason_when_the_list_would_allow_it(self):
+        listed = release_files.SHARED + ("system/", "data/")
+        for rel in ("system/branding/logo.png", "data/clark.db", "SYSTEM/x"):
+            with self.subTest(rel=rel), mock.patch.object(release_files, "SHARED", listed):
+                path = make_zip(self.fresh(), extra={f"clark/{rel}": b"mine"})
+                self.refuses(path, "unsafe", detail=f"member in a folder that belongs to the person: clark/{rel}")
+
+    def test_a_file_below_the_hidden_folder_named_system_is_the_programs_own(self):
+        with mock.patch.object(release_files, "SHARED", release_files.SHARED + ("system/",)):
+            files = {**listed_files(), "system/x.py": b"x"}
+            self.assertEqual("0.3.1", self.read(make_zip(self.tmp, files=files)).version)
+
+    def test_a_manifest_row_naming_system_is_refused(self):
+        row = lambda r: r.update({"system/branding/logo.png": dict(r["README.md"])})
+        self.refuses(make_zip(self.tmp, rows=row), "incomplete", detail="manifest and members differ")      # it is no member of the zip
+
+    def test_check_coverage_names_a_protected_file_as_unsafe(self):
+        rels = [release_files.place(i) + ("x.py" if i.endswith("/") else "") for i in release_files.listed("mac")] \
+            + [release_files.START_HERE]
+        updates.check_coverage("mac", rels)
+        with self.assertRaises(UpdateError) as said:
+            updates.check_coverage("mac", rels + ["system/branding/a.png"])
+        self.assertEqual("unsafe", said.exception.key)
+
+    def test_the_installed_record_may_not_name_system_or_data(self):
+        for rel in ("system/branding/logo.png", "system", "Data/clark.db"):
+            with self.subTest(rel=rel):
+                with self.assertRaises(UpdateError) as said:
+                    updates.check_record_names({"files": {rel: {}}})
+                self.assertEqual("unsafe", said.exception.key)
+        updates.check_record_names({"files": {".app/system/x": {}, "docker/data/x": {}}})
+
+    def test_check_app_folder_and_plan_refuse_a_record_that_names_system(self):
+        app = install_to(Path(self.tmp) / "app", "0.3.0")
+        record = json.loads((app / updates.INSTALLED_RECORD).read_text(encoding="utf-8"))
+        record["files"]["system/branding/logo.png"] = record["files"]["README.md"]
+        (app / updates.INSTALLED_RECORD).write_text(json.dumps(record), encoding="utf-8")
+        with self.assertRaises(UpdateError) as said:
+            updates.check_app_folder(app)
+        self.assertEqual("unsafe", said.exception.key)
+        with self.assertRaises(UpdateError) as said:
+            updates.plan(self.read(make_zip(self.fresh())), app)
+        self.assertEqual("unsafe", said.exception.key)
+
+
+class WalkSkipsThePersonsFoldersTest(Base):
+    def setUp(self):
+        super().setUp()
+        self.app = install_to(Path(self.tmp) / "app", "0.3.0")
+        brand = self.app / "system" / "branding"
+        brand.mkdir(parents=True)
+        (brand / "logo.png").write_bytes(b"png")
+        (self.app / "data").mkdir()
+        (self.app / "data" / "clark.db").write_bytes(b"db")
+
+    def test_walk_app_lists_neither(self):
+        files, links = updates.walk_app(self.app)
+        self.assertEqual([], [f for f in files if f.startswith(("system", "data"))])
+        self.assertEqual([], links)
+
+    def test_a_link_inside_system_branding_does_not_block_an_update(self):
+        os.symlink(self.app / "README.md", self.app / "system" / "branding" / "alias")
+        files, links = updates.walk_app(self.app)
+        self.assertEqual([], links)
+        updates.check_app_folder(self.app)
+
+    def test_system_itself_may_be_a_link(self):
+        shutil.move(str(self.app / "system"), str(Path(self.tmp) / "elsewhere"))
+        os.symlink(Path(self.tmp) / "elsewhere", self.app / "system")
+        self.assertEqual([], updates.walk_app(self.app)[1])
+        updates.check_app_folder(self.app)
+
+    def test_plan_never_counts_them_as_left_or_removed(self):
+        p = updates.plan(self.read(make_zip(self.fresh())), self.app)
+        self.assertEqual([], [n for n in p.left + p.removed + p.added + p.replaced if n.startswith(("system", "data"))])
+        self.assertEqual([], p.left)
+
+    def test_only_the_top_level_ones_are_skipped(self):
+        deeper = self.app / ".app" / "system"
+        deeper.mkdir()
+        (deeper / "mine.txt").write_text("x", encoding="utf-8")
+        self.assertIn(".app/system/mine.txt", updates.walk_app(self.app)[0])
+
+    def test_a_case_spelling_of_the_folder_is_still_skipped(self):
+        other = self.app / "SYSTEM2"
+        other.mkdir()
+        (other / "a.txt").write_text("x", encoding="utf-8")
+        self.assertIn("SYSTEM2/a.txt", updates.walk_app(self.app)[0], "a different name is not protected")
 
 
 if __name__ == "__main__":

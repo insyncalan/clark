@@ -23,13 +23,13 @@ a { color: var(--status-blue-text); }
 .projbtn:hover { background: rgba(255,255,255,.14); }
 .projbtn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .projbtn .nch { width: 14px; height: 14px; }
-.top .projbtn { display: inline-flex; max-width: 260px; min-width: 0; }
-@media (max-width: 1000px) { .top { gap: 10px; } }
+.top .projbtn { display: inline-flex; justify-content: space-between; width: 220px; max-width: 100%; min-width: 0; border: 1px solid var(--grey-500); }   /* a bordered box with the chevron at its right edge; it narrows (the name's ellipsis) rather than run the bar past 900 px */
+@media (max-width: 1000px) { .top { gap: 10px; } .top .tab { padding: 0 8px; } .top .tab::after { left: 8px; right: 8px; } }   /* item 664: the search and ask buttons need the room at 901 px; the tabs keep whole words */
 .top .modes { flex: none; }   /* View and Edit keep their width: the bar's other items give way, not these */
 .top .tabs { flex: none; }   /* item 681: the tabs keep their words on one line; the project name (its ellipsis) gives way first */
 .top .tab { white-space: nowrap; }
 .top .dd:has(> .projbtn) { min-width: 0; }   /* the project name gives way (its ellipsis) before the bar runs past a 901 px window, now the wordmark is 24 px */
-.projbtn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.projbtn > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabs { display: flex; height: 100%; }
 .pubfoot { max-width: 1200px; margin: 24px auto 16px; padding: 0 16px; font-size: var(--size-small); color: var(--text-muted); }   /* item 120 */
 .asat { margin-left: auto; font-size: var(--size-caption); color: rgba(255,255,255,.75); }
@@ -318,9 +318,20 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .vtab[data-broken="true"] { border-style: dashed; }
 .vbad { flex: 1 1 100%; margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
 .vbad:empty { display: none; }
-.fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.fline { position: relative; display: flex; flex-wrap: nowrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
-.fline input { all: unset; box-sizing: border-box; flex: 1 1 160px; min-width: 120px; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: var(--text); }
+.fedit { position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; }   /* issue 662: the box holds the whole line; its tokens are drawn over the text */
+.fline input { all: unset; box-sizing: border-box; flex: 1 1 auto; width: 100%; min-width: 0; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: transparent; caret-color: var(--text); }
+.fhi { position: absolute; inset: 0; display: flex; align-items: center; overflow: hidden; white-space: pre; pointer-events: none; font-size: var(--size-small); color: var(--text); }
+.fhs { flex: none; }
+.fk.k-sep { color: var(--text-muted); }
+.fk.k-val { border-radius: var(--radius); background: var(--brand-blue-tint); color: var(--status-blue-text); box-shadow: 0 0 0 2px var(--brand-blue-tint); }
+.fk.k-val.r { background: var(--status-red-tint); color: var(--status-red-text); box-shadow: 0 0 0 2px var(--status-red-tint); }
+.fk.k-val.a { background: var(--status-amber-tint); color: var(--status-amber-text); box-shadow: 0 0 0 2px var(--status-amber-tint); }
+.fk.k-val.g { background: var(--status-green-tint); color: var(--status-green-text); box-shadow: 0 0 0 2px var(--status-green-tint); }
+.fk.k-val.n { background: var(--grey-100); color: var(--grey-700); box-shadow: 0 0 0 2px var(--grey-100); }
+.fk.k-err { pointer-events: auto; cursor: text; text-decoration: underline wavy var(--status-red); text-underline-offset: 4px; }
+.fcount { flex: none; margin-left: auto; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
 .fline input::placeholder { color: var(--text-muted); }
 .fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 2px 0 10px; min-height: 26px; border-radius: var(--radius-pill); background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: var(--size-small); }
 .fchip.word { background: var(--grey-100); color: var(--text); }
@@ -333,6 +344,11 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fopt .fl1 { font-weight: var(--weight-medium); }
 .fopt .fl2 { font-size: var(--size-small); color: var(--text-muted); }
 .fopt[aria-selected="true"] .fl2 { color: inherit; }
+.fdv { flex: none; align-self: center; width: 8px; height: 8px; border-radius: 50%; background: var(--status-blue); }
+.fdv.r { background: var(--status-red); }
+.fdv.a { background: var(--status-amber); }
+.fdv.g { background: var(--status-green); }
+.fdv.n { background: var(--status-grey); }
 .fopt .c { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); }
 .fhints { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; min-height: 26px; visibility: hidden; }
 .fhints.on { visibility: visible; }
@@ -998,6 +1014,13 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-top { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; color: var(--white); font-size: var(--size-body); font-weight: var(--weight-medium); cursor: pointer; }
 .hp-top:hover { background: rgba(255,255,255,.14); }
 .hp-top:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.tb-act { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 32px; height: 32px; padding: 0 6px; border-radius: var(--radius-sm); color: var(--white); font-size: var(--size-body); cursor: pointer; white-space: nowrap; }   /* the top bar's search and ask buttons */
+.tb-act:hover { background: rgba(255,255,255,.14); }
+.tb-act:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.tb-ico { width: 20px; height: 20px; flex: none; }
+.tb-ask { padding: 0 10px; border: 1px solid rgba(255,255,255,.35); }
+.tb-key { font: inherit; font-size: var(--size-small); padding: 1px 6px; border: 1px solid rgba(255,255,255,.35); border-radius: var(--radius-sm); }
+@media (max-width: 1100px) { .tb-ask { padding: 0 6px; border-color: transparent; } .tb-ask-w, .tb-key { display: none; } }   /* icon only below 1100 px, so nothing in the bar overlaps */
 /* the Help peek (item 645): the item peek's frame (.peek) below the top bar, so the "?" button stays in view; text only */
 .hpk { top: var(--topbar); width: 380px; min-width: 0; max-width: 92vw; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5); color: var(--text); font-size: var(--size-small); line-height: var(--leading); }
 .hpk-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
@@ -1115,8 +1138,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .pubbar { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-3); }
 .pubbar + .modes { margin-left: 0; }
-.me { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; color: var(--white); cursor: pointer; }
-.me:hover { background: rgba(255,255,255,.14); }
+.me { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 2px solid color-mix(in srgb, var(--white) 25%, transparent); border-radius: 50%; background: var(--brand-cyan); color: var(--brand-navy); cursor: pointer; }   /* issue 732: filled aqua with a navy mark, as the prototype's profile circle */
+.me:hover { border-color: color-mix(in srgb, var(--white) 60%, transparent); }
 .me:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .me .i { width: 18px; height: 18px; }
 .top .dd { position: relative; display: inline-flex; }
@@ -1806,8 +1829,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .vnew { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; padding: 3px 10px; border-radius: var(--radius-pill); cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
 .vnew:hover { background: var(--grey-100); color: var(--text); }
 .vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.fline:has(.fx) { padding-right: 38px; }
-.fx { all: unset; box-sizing: border-box; position: absolute; right: 7px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: var(--size-body); line-height: 1; }
+.fx { all: unset; box-sizing: border-box; flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: var(--size-body); line-height: 1; }
 .fx:hover { background: var(--grey-100); color: var(--text); }
 .fx:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .wl-id { display: inline-flex; align-items: center; gap: 4px; }

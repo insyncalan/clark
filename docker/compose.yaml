@@ -1,11 +1,13 @@
 # Start clark with Docker instead of a Terminal window (item 427). In the unzipped clark folder:
 #   docker compose -f docker/compose.yaml up -d        then open http://localhost:8766
 #   docker compose -f docker/compose.yaml down         to stop it
-# To use a data folder you already have, name it (a full path, in quotes) in CLARK_DATA_DIR; to use another port on this computer, CLARK_PORT:
-#   CLARK_DATA_DIR="$HOME/Library/Application Support/clark" docker compose -f docker/compose.yaml up -d
+# The data is kept in ~/Library/Application Support/clark, the same place clark.command uses, not in this folder. To use another data
+# folder, name it (a full path, in quotes) in CLARK_DATA_DIR; to use another port on this computer, CLARK_PORT:
+#   CLARK_DATA_DIR="/full/path/to/the/folder" docker compose -f docker/compose.yaml up -d
 #   CLARK_PORT=8780 docker compose -f docker/compose.yaml up -d        then open http://localhost:8780
-# Only a stock Python image runs here: nothing of clark is built into it. clark's code and its data stay in this folder on
-# your computer, which is shared into the container as /clark. The data is kept in the folder's "data" folder, made at the first start.
+# Only a stock Python image runs here: nothing of clark is built into it. clark's code stays in this folder on
+# your computer, which is shared into the container as /clark. The data is NOT in this folder, so swapping this folder for a newer
+# download cannot lose it.
 # The port is published to 127.0.0.1 ONLY. Without the "127.0.0.1:" in front, anyone on your network could reach clark.
 name: clark
 services:
@@ -26,7 +28,7 @@ services:
         target: /clark
         read_only: true
       - type: bind
-        source: ${CLARK_DATA_DIR:-../data}
+        source: ${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}
         target: /data
         bind:
           create_host_path: true
@@ -35,17 +37,14 @@ services:
     user: "${UID:-1000}:${GID:-1000}"
     # CLARK_CONTAINER=1 lets clark listen inside the container and trust the one peer the published port arrives from
     # (src/clark/server.py, container_mode). CLARK_DATA_SOURCE names this computer's data folder, so clark can refuse it
-    # when it is inside OneDrive (from inside the container OneDrive cannot be seen); PWD is the folder you started in.
-    # CLARK_PUBLISHED_PORT is the port you open (only so the start-up line names it). KNOWN LIMIT: Compose has no variable for this
-    # file's own folder, so the default CLARK_DATA_SOURCE uses PWD, the folder you started in. Start it from the clark folder, as
-    # written at the top. Started with -f from another folder, the default data folder is still the one beside this file, but the
-    # OneDrive check looks in PWD/data: then name the data folder in CLARK_DATA_DIR (it is checked as named).
+    # when it is inside OneDrive (from inside the container OneDrive cannot be seen); it is the same folder as the data mount above.
+    # CLARK_PUBLISHED_PORT is the port you open (only so the start-up line names it).
     # CLARK_PORT here is the port inside the container, always 8766; the CLARK_PORT you set only changes the published one above.
     environment:
       CLARK_CONTAINER: "1"
       CLARK_PORT: "8766"
       CLARK_PUBLISHED_PORT: "${CLARK_PORT:-8766}"
-      CLARK_DATA_SOURCE: "${CLARK_DATA_DIR:-${PWD:-}/data}"
+      CLARK_DATA_SOURCE: "${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}"
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
     healthcheck:

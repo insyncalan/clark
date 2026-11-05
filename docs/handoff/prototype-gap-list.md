@@ -164,7 +164,7 @@ Columns: the difference (what the prototype does, what 0.2.1 does), the width it
 | A-P2 | The circle: prototype shows your initials once a name is set (an outline person icon until then); 0.2.1 always shows the outline person icon (it has no name to show). Tooltip is the same in both. | both | #180 v0.3 (In review), partly. Built after 0.2.1 |
 | A-P3 | Dark mode: prototype has a Dark mode choice in the menu (and Light, Dark, System in Settings) and a full dark look on every screen compared. 0.2.1 has no dark mode: with the Mac set to dark the page stays light. | both | #179 v0.3 (In review). Built after 0.2.1 |
 | A-P4 | "Published reports" item (jumps to the Settings card): prototype only. | both | #120 v0.5 (In review). Built after 0.2.1 |
-| A-P5 | "Past reports (mockup)" item: prototype only. | both | mockup only (#125 Unscheduled) |
+| A-P5 | "Past reports (mockup)" item: prototype only (the page itself is now headed Published reports; the menu wording waits for the owner, 05-11-2026). | both | mockup only (#125 Unscheduled) |
 | A-P6 | Look of the menu: prototype items have icons, one-line labels and a wider panel; 0.2.1 has plain text and wraps "Preview the page in a new tab" onto two lines. Publish, Preview, Export, Settings and Help are in both. | both | #87 v0.4 (In review). Built after 0.2.1 |
 
 ### Settings
@@ -298,11 +298,11 @@ Columns: the difference (what the prototype does, what 0.2.1 does), the width it
 | C-H10 | Empty search result: prototype says "Nothing in Help for ... Try another word, or ask clark." with an ask clark button; 0.2.1 says "Try another word, or look through the tabs." | both | #47 (v0.3, In review) partly (ask clark itself) |
 | C-H11 | Search over held content: "milestone peek" finds 13 results in the prototype and none in 0.2.1 (the entries are held, so they are not searchable). | both | #82 (v0.4); follows as entries are released |
 
-### Past reports and Publications
+### Published reports (the mockup) and Publications
 
 | # | Difference | Seen at | Board item and release, or mark |
 |---|---|---|---|
-| C-R1 | Prototype has a Past reports page (address #past; profile menu entry "Past reports (mockup)", tagged "Mockup for review") with three ways in (Week picker with "As published" / "As at that date"; Published reports list with Open buttons; Timeline of publications), a banner "You are looking at ..., as it was published. Back to now", a tinted read-only frame and a watermark. 0.2.1 has no such page and no list of publications: addresses such as #past, #publications, #history and #activity fall back to the Dashboard. | both | mockup only (#125: "a design and review item, not a build"; board state In review). Build follows from #120 (v0.5) numbered publications |
+| C-R1 | Prototype has a Published reports page (address #past; profile menu entry "Past reports (mockup)", tagged "Mockup for review"; it had three ways in until 05-11-2026, when the owner dropped the Week picker and the Timeline, so it is one way now) with the Published reports list and Open buttons, a banner "You are looking at ..., as it was published. Back to now", a tinted read-only frame and a watermark. 0.2.1 has no such page and no list of publications: addresses such as #past, #publications, #history and #activity fall back to the Dashboard. | both | mockup only (#125: "a design and review item, not a build"; board state In review). Build follows from #120 (v0.5) numbered publications |
 | C-R2 | Prototype Settings has a "Published reports" section (open the kept copy, numbered, last 10 kept); 0.2.1 Settings has none and no publication numbers. | both | #120 (v0.5, In review) |
 
 ### History / Activity
@@ -327,7 +327,7 @@ Columns: the difference (what the prototype does, what 0.2.1 does), the width it
 | D-1 | Prototype menu has a Dark mode entry (System, Light, Dark); the 0.2.1 menu has none. | both | #179, v0.3, In review **Built after 0.2.1.** |
 | D-2 | Prototype menu opens with a name line ("No name yet: add it in Settings > Profile"); 0.2.1 has no such line. | both | #180, v0.3, In review **Built after 0.2.1.** |
 | D-3 | Prototype menu has Published reports (the numbered list of what was published); 0.2.1 has no list of past publications. | both | #120, v0.5, In review (numbered publications; the list page is not named in the item, so partly) **Built after 0.2.1.** |
-| D-4 | Prototype menu has Past reports (mockup); 0.2.1 has none. | 1400 | Mockup only (#125, a design backlog item to keep and show a historic view) |
+| D-4 | Prototype menu has Past reports (mockup) (the page behind it is one way in, the list, headed Published reports since 05-11-2026); 0.2.1 has none. | 1400 | Mockup only (#125, a design backlog item to keep and show a historic view) |
 | D-5 | Prototype top bar has an "ask clark" button with a "/" key hint; 0.2.1 has no button, no panel and no route. | both | #47, v0.3, In review; #214 (the panel), v0.3, Building **Built after 0.2.1.** |
 | D-6 | Prototype top bar has a "?" Help button; 0.2.1 has Help only inside the profile menu. | 1400 | #82, v0.4, In review **Built after 0.2.1.** |
 | D-7 | Prototype has a Use Cases tab; 0.2.1 has Dashboard, Work items, Milestones, Settings. | both | #157, v0.4, Ready (editor page; the published side is #168, v0.4, Building) |

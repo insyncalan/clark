@@ -1,7 +1,11 @@
 """Item 454: the Import from Excel words are the prototype's (system/prototype/io.js, views.js), read from the prototype itself so
 they cannot drift. No browser needed. Run: python3 dev/run_tests.py test_import_words
 """
+import json
 import re
+import shutil
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -17,9 +21,13 @@ def quoted(name):
 
 
 class ImportWords(unittest.TestCase):
-    def test_the_first_box_says_what_the_prototype_says(self):
-        say = quoted("pickBody")
-        self.assertIn(say, re.sub(r"<[^>]+>", "", IO).replace("\n", " "))
+    def test_the_first_box_keeps_the_prototypes_rules_about_ids_and_refusals(self):
+        # #655: the sentence about which sheets are read is no longer the prototype's (the person chooses); the rest of it still is
+        text = re.sub(r"<[^>]+>", "", IO).replace("\n", " ")
+        for piece in ("A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. "
+                      "If a row breaks a rule, nothing is imported and you are told which rows.",):
+            self.assertIn(piece, quoted("pickBody"))
+            self.assertIn(piece, text)
 
     def test_the_data_card_says_what_the_prototype_says(self):
         views = (PROTO / "views.js").read_text(encoding="utf-8")
@@ -45,10 +53,19 @@ class ApprovedWordsArePinned(unittest.TestCase):
 
     def test_the_first_box(self):
         self.assertEqual(quoted("pickBody"),
-                         "Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases are read (a History sheet from an export is left alone). "
+                         "Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases can be imported. "
+                         "You choose which after you pick a file (a History sheet from an export is left alone). "
                          "A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. "
                          "If a row breaks a rule, nothing is imported and you are told which rows.")
         self.assertNotIn("(or RAID)", CARD)
+
+    def test_the_sheet_choice_words(self):
+        self.assertEqual(quoted("sheetsTitle"), "What to import")
+        self.assertEqual(quoted("sheetsBody"), "Tick the sheets to import. Anything you leave unticked is not read and not changed.")
+        self.assertEqual((quoted("selectAll"), quoted("clear")), ("Select all", "Clear"))
+        self.assertEqual(quoted("tickOne"), "Tick at least one sheet.")
+        self.assertEqual(quoted("continue"), "Continue")      # the wording the other two-step boxes (Publish, Word) already use
+        self.assertIn('`${s.name} (${s.rows > SHEET_ROWS_SHOWN ? "more than 5,000 rows" : `${s.rows} ${s.rows === 1 ? "row" : "rows"}`})`', CARD)
 
     def test_the_data_card_note_is_only_the_prototypes_sentence(self):
         self.assertEqual(quoted("note"), "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.")
@@ -81,6 +98,26 @@ class ApprovedWordsArePinned(unittest.TestCase):
         self.assertIn("Not imported: {t}", BOX)
         self.assertIn("and {items.length - SHOWN} more, taken as Accept all is for the rest: new and changed rows with no problem.", BOX)
         self.assertNotIn("ticks above", BOX)
+
+
+class SheetRowWords(unittest.TestCase):
+    """#655: a sheet's row count in the "What to import" box. Above 5,000 the box says so in words, never a wrong number."""
+    def test_sheet_labels_from_the_page_function(self):
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("no node")
+        src = Path(__file__).resolve().parents[1] / "src/clark/page/src/logic/dataCard.js"
+        with tempfile.TemporaryDirectory() as tmp:
+            mod = Path(tmp) / "dataCard.mjs"
+            mod.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+            probe = Path(tmp) / "probe.mjs"
+            probe.write_text('import { sheetWord } from "./dataCard.mjs";\n'
+                             'console.log(JSON.stringify([[\'Actions\', 12], [\'Decisions\', 1], [\'Milestones\', 0], [\'Actions\', 5000], [\'Actions\', 5001]]'
+                             '.map(([name, rows]) => sheetWord({ name, rows }))));', encoding="utf-8")
+            done = subprocess.run([node, str(probe)], capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(json.loads(done.stdout), ["Actions (12 rows)", "Decisions (1 row)", "Milestones (0 rows)",
+                                                   "Actions (5000 rows)", "Actions (more than 5,000 rows)"])
 
 
 if __name__ == "__main__":

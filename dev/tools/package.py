@@ -1,7 +1,7 @@
-"""Build the download for one system: one zip with one top folder, clark-<version>/ (#57, step 3 of
-docs/handoff/packaging-57.md).
+"""Build the download for one system: one zip, clark-<version>-<system>.zip, that unzips to one folder, clark/, with the program
+files in its hidden .app/ folder (issue 694; #57, step 3 of docs/handoff/packaging-57.md).
 
-Run: python3 dev/tools/package.py mac [--out FOLDER] [--dirty] [--release] [--notes FILE]   # writes dist/clark-<version>-mac.zip
+Run: python3 dev/tools/package.py mac [--out FOLDER] [--dirty] [--release] [--notes FILE] [--extra-folder PATH]...   # writes dist/clark-<version>-mac.zip
      python3 dev/tools/package.py mac --for-client                # in a checkout of the scrubbed public snapshot only
      python3 dev/tools/package.py windows                         # not built yet (steps 6 and 7 of the note)
 
@@ -36,6 +36,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 import tempfile
@@ -47,7 +48,8 @@ DIST = ROOT / "dist"
 
 if str(Path(__file__).resolve().parents[2] / "src") not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
-from clark.release_files import (INCLUDE_DEMO, MANIFEST, NOT_BUILT_YET, RUN_BIT, SHARED, START_HERE, SYSTEMS)  # noqa: E402,F401
+from clark.release_files import (EXTRA_TOP, INCLUDE_DEMO, MANIFEST, NOT_BUILT_YET, RUN_BIT, SHARED, START_HERE, SYSTEMS, TOP,  # noqa: E402,F401
+                                 place, protected, unplace)
 
 # The one list of what the download holds is src/clark/release_files.py (shipped, so the updater reads the same list).
 
@@ -108,6 +110,12 @@ Getting started on a Mac
 
 These steps are for a Mac.
 
+What is in this folder: README.md says what clark is. START-HERE.txt is this
+page. The file clark.command starts clark. docker is for starting clark with
+Docker. system/branding holds your own logo and colours, if you add them. The
+program's own files are in a hidden folder called .app: you do not need to
+open it.
+
 If your Mac will not open clark.command (a work Mac often will not), or you
 already use Docker, use Docker instead. You only need Docker and Chrome.
   1. Open Docker Desktop and wait until it says it is running.
@@ -125,20 +133,41 @@ has no built page, and Docker stops with a message saying so.
 Start Docker from the clark folder.
 To see what Docker has said, type this in the same folder:
         docker compose -f docker/compose.yaml logs --tail 50
-With Docker, your data is kept in the data folder beside the clark files, made
-at the first start. Keep that data folder when you swap this folder for a newer
-download. To use the data clark.command uses instead, type this in step 3:
-        CLARK_DATA_DIR="$HOME/Library/Application Support/clark" docker compose -f docker/compose.yaml up -d
-To use another folder, put its full path in CLARK_DATA_DIR the same way.
+With Docker, your data is kept in ~/Library/Application Support/clark, the same
+place clark.command uses, not in this folder, so you can swap this folder for a
+newer download without losing anything. To use another folder, put its full
+path in CLARK_DATA_DIR in front of the command in step 3:
+        CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d
 A folder inside OneDrive cannot be used by clark.
-Never open the same data from clark.command and from Docker at the same time:
-stop one before you start the other.
+If an earlier Docker start kept your data in a data folder inside the clark
+folder, move that data folder out of the clark folder first, or name it
+with CLARK_DATA_DIR.
+By default clark.command and Docker use the same data.
+IMPORTANT: Never open the same data from clark.command and from Docker at the
+same time: stop one before you start the other.
 To use another port, put it in front of the command, for example:
         CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d
 then open http://localhost:8800 instead.
 If it says port 8766 is already used, another clark is open: close it, or stop
 it with the command in step 5, then try again. If it says it cannot connect to
 Docker, Docker Desktop is not running yet.
+
+If you already have clark:
+  1. Close clark.
+  2. Rename your old clark folder (for example to clark-old) or move it away,
+     so the two folders do not clash.
+  3. Unzip this download.
+  4. If you added your own logo or colours, copy the system/branding folder
+     from the old clark folder into the new one. An update never changes that
+     folder, but replacing the whole clark folder by hand removes it.
+  5. If you use Docker and your data is in a data folder inside the old clark
+     folder, move that data folder out of it before you delete the old folder,
+     or start Docker with CLARK_DATA_DIR naming it.
+  6. Double-click clark.command. Your Mac may ask you to confirm clark.command
+     again: do as in step 2 under "Without Docker" below.
+Your projects are not in the old clark folder: they stay in
+~/Library/Application Support/clark. In clark 1.0.0, updating from inside clark
+is switched off, so install this version by hand.
 
 Without Docker:
 
@@ -177,7 +206,7 @@ If your Mac is missing something it needs, clark.command says how to get it.
 
 To check what your Mac needs for clark, open Terminal, type cd and a space,
 drag this folder into the Terminal window and press Return. Then type:
-   python3 -m clark.doctor
+   bash clark.command --check
 and press Return. It says what is ready and what to fix.
 
 Without Docker, your data is kept in ~/Library/Application Support/clark, not in
@@ -187,7 +216,7 @@ this folder, so you can swap this folder for a newer download without losing any
 START_HERE_DEMO = """
 To try it with made-up data first, open Terminal, type cd and a space,
 drag this folder into the Terminal window and press Return. Then type:
-   python3 -m clark --demo --open
+   bash clark.command --demo --open
 and press Return. Nothing you do there is kept.
 """
 
@@ -212,12 +241,16 @@ def tracked(root, paths):
 
 def files(system, root=ROOT):
     """The repo files that go in the zip for `system`, sorted (START-HERE.txt is not one: it is written here)."""
-    chosen = set()
+    chosen, kept = set(), set()
     for item in listed(system):
         found = tracked(root, [item]) if item.endswith("/") else [item]
         if not found or not all((Path(root) / p).is_file() for p in found):
             raise Refused(f"A file the download needs is missing: {item}. Restore it, then build again.")
+        kept.update(p for p in found if protected(p))
         chosen.update(p for p in found if not LEFT_OUT.search(p))
+    if kept:
+        raise Refused(f"The download must never hold the person's own folders (system, data), and git tracks files in them: "
+                      f"{', '.join(sorted(kept))}. Nothing was written. Untrack them, then build again.")
     if "src/clark/" in listed(system):
         for p in generated_pages(root):
             if not (Path(root) / p).is_file():
@@ -226,8 +259,30 @@ def files(system, root=ROOT):
     return sorted(chosen)
 
 
-def start_here(system, for_client=False, root=ROOT):
+# issue 716: one sentence for each extra folder a download carries; said in START-HERE only when the folder is in the zip.
+EXTRA_SENTENCES = {"intake": "intake holds a sample workbook with made-up data, in the same layout clark exports.",
+                   "meet clark": "meet clark holds an overview and a getting-started guide as PDFs."}
+
+
+def with_extra_folders(text, names):
+    """`text` (START-HERE) with a sentence about each extra folder in `names` added to "What is in this folder", the paragraph
+    wrapped again so that no line starts with the product name."""
+    import re
+    import textwrap
+    head, found, rest = text.partition("What is in this folder:")
+    para, blank, tail = rest.partition("\n\n")
+    if not found or "system/branding holds" not in para:
+        raise Refused("START-HERE has no 'What is in this folder' paragraph to add the extra folders to.")
+    flat = " ".join(para.split()).replace("system/branding holds", " ".join(EXTRA_SENTENCES[n] for n in names) + " system/branding holds", 1)
+    glued = re.sub(r" (clark)", "\x00\\1", "What is in this folder: " + flat, flags=re.I)
+    return head + textwrap.fill(glued, width=78, break_on_hyphens=False).replace("\x00", " ") + blank + tail
+
+
+def start_here(system, for_client=False, root=ROOT, extra=()):
     text = START_HERE_MAC + (START_HERE_DEMO if INCLUDE_DEMO else "")
+    names = [n for n in EXTRA_SENTENCES if n in extra]       # intake first, then meet clark
+    if names:
+        text = with_extra_folders(text, names)
     return text if for_client else f"{audience(root)}\n\n{text}"
 
 
@@ -340,17 +395,124 @@ def manifest_bytes(system, content, top, root=ROOT, released=None, notes="", min
 
 
 def top_folder(root=ROOT):
-    return f"clark-{version(root)}"
+    """The one folder the zip unzips to: always `clark`, whatever the version (issue 694)."""
+    return TOP
 
 
 def zip_name(system, root=ROOT):
-    return f"{top_folder(root)}-{system}.zip"
+    """The zip file keeps its version: clark-<version>-<system>.zip."""
+    return f"clark-{version(root)}-{system}.zip"
 
 
-def entries(system, root=ROOT):
+COMPOSE = "docker/compose.yaml"
+COMPOSE_WORKDIR = "    working_dir: /clark\n"
+COMPOSE_WORKDIR_HIDDEN = "    working_dir: /clark/.app\n"
+
+
+def compose_for_zip(data):
+    """The compose file as the zip holds it: the program files sit in .app, so the container starts there. Exactly one
+    `working_dir: /clark` line is changed (the bind of the whole folder stays, so system/branding is still seen);
+    anything else about it is refused, so a changed compose file never ships half-changed."""
+    text = data.decode("utf-8")
+    lines = [ln for ln in text.splitlines(keepends=True) if ln.rstrip("\r\n") == COMPOSE_WORKDIR.rstrip("\n")]
+    if len(lines) != 1:
+        raise Refused(f"{COMPOSE} must hold exactly one line '{COMPOSE_WORKDIR.strip()}' for the download to change, and it holds "
+                      f"{len(lines)}. Nothing was written. Fix the compose file or this tool, then build again.")
+    ending = lines[0][len(lines[0].rstrip("\r\n")):]
+    return text.replace(lines[0], COMPOSE_WORKDIR_HIDDEN.rstrip("\n") + ending).encode("utf-8")
+
+
+def placed_bytes(name, data):
+    """The bytes the zip holds for the repo file `name`: the file itself, except the compose file."""
+    return compose_for_zip(data) if name == COMPOSE else data
+
+
+# --- extra folders (issue 716) ----------------------------------------------------------------------------------------
+# Folders that are not in git (written at build time) go at the top of the clark folder under their own names. At most
+# EXTRA_MAX_BYTES of files in all of them; regular files only; a link anywhere refuses the build.
+EXTRA_MAX_BYTES = 5 * 1024 * 1024
+RESERVED_TOP = (".app", "README.md", START_HERE, MANIFEST, "clark.command", "clark.cmd", "docker", "system", "data", "clark")
+
+
+def extra_name(path):
+    """The top-level name an extra folder takes in the zip: its own name. A plain Refused if that can't be a safe name."""
+    text = str(path)
+    name = os.path.basename(os.path.abspath(text))
+    if not name or name.startswith(".") or "/" in name or "\\" in name or ".." in name or text.rstrip("/\\").endswith(".."):
+        raise Refused(f"The extra folder {text!r} has a name that can't be used (empty, starts with a dot, or holds "
+                      "a separator or ..). Nothing was written.")
+    if name.casefold() in [r.casefold() for r in RESERVED_TOP]:
+        raise Refused(f"The extra folder name {name!r} is one clark uses itself. Nothing was written. Rename the folder.")
+    if name not in EXTRA_TOP:
+        raise Refused(f"The extra folder name {name!r} is not one a download may carry ({', '.join(EXTRA_TOP)}). "
+                      "Nothing was written. Rename the folder or add the name to EXTRA_TOP in src/clark/release_files.py.")
+    return name
+
+
+def extra_content(folders):
+    """{name below the top folder: bytes} for every file in the extra `folders`, or Refused. Never follows a link."""
+    from clark import updates
+    out, seen, total = {}, set(), 0
+    for folder in folders:
+        name = extra_name(folder)
+        if name.casefold() in seen:
+            raise Refused(f"The extra folder {name!r} is given twice. Nothing was written.")
+        seen.add(name.casefold())
+        base = Path(os.path.abspath(str(folder)))
+        try:
+            st = os.lstat(base)
+        except OSError:
+            raise Refused(f"The extra folder {str(folder)!r} does not exist. Nothing was written.")
+        if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):
+            raise Refused(f"The extra folder {str(folder)!r} is not a folder (a link or a file does not count). Nothing was written.")
+        found, stack = [], [base]
+        while stack:
+            here = stack.pop()
+            try:
+                children = sorted(os.scandir(here), key=lambda e: e.name)
+            except OSError:
+                raise Refused(f"The extra folder {name!r} can't be read. Nothing was written.")
+            for e in children:
+                rel = Path(e.path).relative_to(base).as_posix()
+                if e.name.startswith(".") and e.name != ".DS_Store":
+                    raise Refused(f"The extra folder {name!r} holds a hidden file or folder: {rel}. Nothing was written. "
+                                  "Take it out of the folder; a download carries no hidden files.")
+                info = os.lstat(e.path)
+                if stat.S_ISLNK(info.st_mode):
+                    raise Refused(f"The extra folder {name!r} holds a link: {rel}. Nothing was written. Replace it with a real file.")
+                if stat.S_ISDIR(info.st_mode):
+                    stack.append(Path(e.path))
+                elif not stat.S_ISREG(info.st_mode):
+                    raise Refused(f"The extra folder {name!r} holds something that is not a regular file: {rel}. Nothing was written.")
+                elif not LEFT_OUT.search(rel):
+                    found.append((rel, e.path, info.st_size))
+        if not found:
+            raise Refused(f"The extra folder {name!r} holds no files. Nothing was written.")
+        for rel, path, size in sorted(found):
+            total += size
+            if total > EXTRA_MAX_BYTES:
+                raise Refused(f"The extra folders hold more than {EXTRA_MAX_BYTES // (1024 * 1024)} MB in all, so nothing was written.")
+            full = f"{name}/{rel}"
+            problem = updates.path_problem(full)
+            if problem:
+                raise Refused(f"The extra folder {name!r} holds a name that can't go in a download ({problem}): {rel}. Nothing was written.")
+            if protected(full):
+                raise Refused(f"The extra folder {name!r} would put a file in a folder that belongs to the person. Nothing was written.")
+            data = Path(path).read_bytes()
+            if len(data) != size:
+                raise Refused(f"A file in the extra folder {name!r} changed while it was read: {rel}. Nothing was written.")
+            out[full] = data
+    clash = updates.collisions(list(out))
+    if clash:
+        raise Refused("The extra folders hold names that clash on a Mac or Windows disk: " + ", ".join(clash[:5]) + ". Nothing was written.")
+    return out
+
+
+def entries(system, root=ROOT, extra_folders=()):
     """Every name in the zip, in order."""
     top = top_folder(root)
-    return sorted(f"{top}/{p}" for p in files(system, root) + [START_HERE])
+    return sorted([f"{top}/{place(p)}" for p in files(system, root) + [START_HERE]]
+                  + [f"{top}/{n}" for n in extra_content(extra_folders)])
 
 
 def uncommitted(root, paths):
@@ -384,7 +546,7 @@ def entry(name, mode):
 
 
 def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=None, release=False, notes="",
-          released=None, min_from="0.0.0"):
+          released=None, min_from="0.0.0", extra_folders=()):
     """Build the zip for `system` into the folder `out`; its path. With `for_client`, only from the scrubbed snapshot
     and only when the name guard finds nothing (`banned` replaces the hashed list, for the tests)."""
     if system in NOT_BUILT_YET:
@@ -414,6 +576,7 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
             raise Refused(f"A zip for a client must be built from the scrubbed public snapshot, and {problem}. "
                           "Nothing was written. Build it in a checkout of the snapshot that dev/tools/publish_public.py "
                           "makes, or leave out --for-client to build one for the team.")
+    extra = extra_content(extra_folders)            # before anything is written; a plain Refused if a folder is not fit
     changed = [] if dirty else changed_files(uncommitted(root, list(listed(system))))
     if changed:
         raise Refused(f"Some of the files that go in the zip have changes that aren't committed: {', '.join(changed)}. "
@@ -422,15 +585,17 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
         make_pages(root, twice=release)
     names = files(system, root)
     top = top_folder(root)
-    content = {f"{top}/{p}": ((root / p).read_bytes(), RUN_MODE if p in RUN_BIT else FILE_MODE) for p in names}
-    content[f"{top}/{START_HERE}"] = (start_here(system, for_client, root).encode("utf-8"), FILE_MODE)
+    content = {f"{top}/{place(p)}": (placed_bytes(p, (root / p).read_bytes()), RUN_MODE if p in RUN_BIT else FILE_MODE)
+               for p in names}
+    content[f"{top}/{place(START_HERE)}"] = (start_here(system, for_client, root, {n.split("/")[0] for n in extra}).encode("utf-8"), FILE_MODE)
+    content.update({f"{top}/{n}": (data, FILE_MODE) for n, data in extra.items()})      # issue 716: not in git, so not in `names`
     if for_client:
-        shown_paths, hidden = name_guard_hits({n[len(top) + 1:]: data for n, (data, _) in content.items()}, banned)
+        shown_paths, hidden = name_guard_hits({unplace(n[len(top) + 1:]): data for n, (data, _) in content.items()}, banned)   # repo names, as the builder knows them
         if shown_paths or hidden:
             where = shown_paths + ([f"{hidden} file(s) whose own name holds one (not shown)"] if hidden else [])
             raise Refused("A zip for a client must hold no one's name, and the name guard found one in: "
                           f"{', '.join(where)}. Nothing was written. Take the name out, then build again.")
-    content[f"{top}/{MANIFEST}"] = (manifest_bytes(system, content, top, root, released, notes, min_from), FILE_MODE)
+    content[f"{top}/{place(MANIFEST)}"] = (manifest_bytes(system, content, top, root, released, notes, min_from), FILE_MODE)
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     target = out / zip_name(system, root)
@@ -469,12 +634,15 @@ def main(argv=None):
                    help="a zip for a client: only from the scrubbed public snapshot, and only if the name guard finds nothing")
     p.add_argument("--release", action="store_true", help="refuse a version that is not three numbers (a .dev build), a tree not at its tag vX.Y.Z, and --dirty")
     p.add_argument("--notes", metavar="FILE", help="a text file of release notes, kept in clark-release.json")
+    p.add_argument("--extra-folder", metavar="PATH", action="append", default=[],
+                   help="put this folder's files at the top of the clark folder under the folder's own name "
+                        f"({', '.join(EXTRA_TOP)}); repeat for more; at most 5 MB in all; never committed")
     p.add_argument("--min-from", metavar="X.Y.Z", default="0.0.0", help="the oldest version that may update to this one")
     args = p.parse_args(argv)
     try:
         notes = Path(args.notes).read_text(encoding="utf-8") if args.notes else ""
         target = build(args.system, args.out, dirty=args.dirty, for_client=args.for_client, release=args.release,
-                       notes=notes, min_from=args.min_from)
+                       notes=notes, min_from=args.min_from, extra_folders=args.extra_folder)
     except OSError:
         print("The release notes file can't be read. Check its name, then build again.", file=sys.stderr)
         return 1

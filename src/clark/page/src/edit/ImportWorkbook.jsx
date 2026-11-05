@@ -1,26 +1,29 @@
 // Import workbook (item 444), the prototype's two steps (system/prototype/io.js importExcel): say what is read and choose a file, then Check
 // the import: the counts, every difference in words with a tick, and Import. Nothing is saved until Import; the server (POST
 // /api/excel-import) reads the workbook, compares it with this project by ID and applies the ticked changes as ONE step, which Undo
-// this import takes back. The workbook is sent once to be checked and not again. `api`, `read` and `tpl` (Get the template: GET /api/export?template=1) are seams for the tests.
+// this import takes back. The workbook is sent once (#655: "sheets" lists what it has and the server keeps it; the check then names only the
+// ticked sheets, the only ones the server reads, compares or can archive in). `api`, `read` and `tpl` (Get the template: GET /api/export?template=1) are seams for the tests.
 import { useRef, useState } from "preact/hooks";
 import { Dialog } from "./Dialog.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { templateRequest, saveBlob } from "./publishApi.js";
-import { checkWorkbook, applyWorkbook, undoWorkbook } from "./dataApi.js";
+import { listSheets, checkSheets, applyWorkbook, undoWorkbook } from "./dataApi.js";
+import { SheetChoice } from "./SheetChoice.jsx";
 import * as L from "../logic/dataCard.js";
 
 const T = L.IMPORT;
 const MAX_FILE = 25 * 1024 * 1024;                       // clark's own limit (excel.MAX_FILE_BYTES); the server says it again
 const SHOWN = 300;                                       // the changes listed with a tick; any more follow what the server takes for "all"
 
-const REAL = { check: checkWorkbook, apply: applyWorkbook, undo: undoWorkbook };
+const REAL = { sheets: listSheets, check: checkSheets, apply: applyWorkbook, undo: undoWorkbook };
 const readBytes = async (file) => new Uint8Array(await file.arrayBuffer());
 
 export function ImportWorkbook({ project, projectName, onClose, onDone, opener, api = REAL, read = readBytes, tpl = templateRequest }) {
-  const [step, setStep] = useState({ at: "pick" });           // pick | checking | plan | applying | done
+  const [step, setStep] = useState({ at: "pick" });           // pick | checking | sheets | plan | applying | done
   const [problem, setProblem] = useState("");
   const [saved, setSaved] = useState("");                    // the template, once the browser has been asked to save it
   const [ticks, setTicks] = useState({});
+  const [ticked, setTicked] = useState({});                  // the sheets to import, by table
   const input = useRef(null);
 
   async function chosen(e) {
@@ -32,7 +35,21 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
     setStep({ at: "checking", file: file.name });
     let data;
     try { data = L.toBase64(await read(file)); } catch (err) { setStep({ at: "pick" }); setProblem(T.readFailed); return; }
-    const r = await api.check(project, file.name, data);
+    const r = await api.sheets(project, file.name, data);
+    if (!r.ok) { setStep({ at: "pick" }); setProblem(r.words); return; }
+    const sheets = r.body.sheets || [];
+    if (!sheets.length) { await read_(r.body.file, ["actions", "raid", "decisions", "milestones", "use_cases"]); return; }   // none of the five: the check says so
+    const all = {};
+    for (const s of sheets) all[s.table] = true;
+    setTicked(all);
+    setStep({ at: "sheets", file: file.name, key: r.body.file, sheets });
+  }
+
+  // Check the import of the ticked sheets of the workbook the server is keeping.
+  async function read_(key, tables) {
+    setProblem("");
+    setStep({ at: "checking", file: key });
+    const r = await api.check(project, key, tables);
     if (!r.ok) { setStep({ at: "pick" }); setProblem(r.words); return; }
     setTicks(L.startTicks(r.body.items));
     setStep({ at: "plan", plan: r.body });
@@ -83,6 +100,10 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
         {fileInput}
       </Dialog>
     );
+  }
+  if (step.at === "sheets") {
+    return <SheetChoice sheets={step.sheets} ticked={ticked} setTicked={setTicked} opener={opener} onClose={onClose}
+      onContinue={() => read_(step.key, step.sheets.filter((s) => ticked[s.table]).map((s) => s.table))} />;
   }
   if (step.at === "done" || step.at === "undone") {
     return (

@@ -181,7 +181,7 @@ class BackUpTest(Base):
         self.assertEqual(copy["db_id"], record["db_before"]["db_id"])
         self.assertEqual(sorted(files), sorted(record["app_files"]))
         self.assertEqual(hashlib.sha256((self.app / "README.md").read_bytes()).hexdigest(), record["app_files"]["README.md"])
-        self.assertEqual(["src/clark/added.py"], record["planned"]["added"])
+        self.assertEqual([".app/src/clark/added.py"], record["planned"]["added"])
         self.assertFalse(str(Path.home()) in json.dumps(record) and str(Path.home()) != "/", "the home folder is written ~")
 
     def test_only_what_rebuilds_the_app_is_in_the_set(self):
@@ -298,8 +298,8 @@ class InstallTest(Base):
         before = self.planted()
         backup_dir, code, result = install(self)
         self.assertEqual((h.OK, "installed"), (code, result["status"]))
-        self.assertEqual(self.new_files["src/clark/added.py"], (self.app / "src/clark/added.py").read_bytes())
-        self.assertIn('"0.3.1"', (self.app / "src/clark/__init__.py").read_text(encoding="utf-8"))
+        self.assertEqual(self.new_files["src/clark/added.py"], (self.app / ".app/src/clark/added.py").read_bytes())
+        self.assertIn('"0.3.1"', (self.app / ".app/src/clark/__init__.py").read_text(encoding="utf-8"))
         self.assertEqual(before, self.planted(), "data, reports, a project folder and the person's own file are untouched")
         self.assertEqual("0.3.1", updates.installed_record(self.app)["version"])
         self.assertIsNotNone(ui.read_set(backup_dir)["db_after"])
