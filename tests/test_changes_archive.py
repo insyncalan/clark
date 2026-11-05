@@ -167,7 +167,7 @@ class Routes(unittest.TestCase):
         edit = self.demo.update("actions", self.action, {"raised": "2026-09-30"})
         status, body = self.undo({"project": "ABC", "apply_id": edit})
         self.assertEqual((status, body["message"]), (400, changes.NO_UNDO))
-        ms = self.demo.update("milestones", self.demo.milestone, {"name": "Renamed"})
+        ms = self.demo.update("milestones", self.demo.milestone, {"sort_order": 9})      # row 828: a milestone's name is the peek's now (undoable); its order is not
         self.assertEqual(self.undo({"project": "ABC", "apply_id": ms})[1]["message"], changes.NO_UNDO)
         proj = self.demo.update("projects", "ABC", {"name": "Renamed Programme"})
         self.assertEqual(self.undo({"project": "ABC", "apply_id": proj})[1]["message"], changes.NO_UNDO)
