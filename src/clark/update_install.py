@@ -40,7 +40,7 @@ import time
 import zipfile
 from pathlib import Path
 
-from clark import backup, platform, settings, store, update_helper, updates
+from clark import backup, platform, release_files, settings, store, update_helper, updates
 
 RELEASES = "releases"
 UPDATES = update_helper.UPDATES
@@ -328,7 +328,7 @@ def stage(release, app_dir, stamp, fault=None):
             infos = {i.filename: i for i in zf.infolist()}
             for rel in sorted(release.files):
                 row = release.files[rel]
-                if updates.path_problem(rel):
+                if updates.path_problem(rel) or release_files.protected(rel):
                     raise InstallError("staging", f"unsafe name {rel!r}")
                 dest = folder.joinpath(*rel.split("/"))
                 if folder.resolve() not in dest.resolve().parents:
@@ -365,9 +365,9 @@ IMPORT_ALL = ("import importlib, pkgutil, sys\n"
 
 def first_check(staging, python=None, run=None):
     """Every module of the staged copy imports in a fresh interpreter. Raises InstallError("first_check")."""
-    staging = Path(staging)
+    root = update_helper.code_root(staging)             # <staging>/.app for a download in the hidden-folder layout
     try:
-        status, errors = platform.run_python_check(python or sys.executable, IMPORT_ALL, [staging / "src", staging / "vendor"],
+        status, errors = platform.run_python_check(python or sys.executable, IMPORT_ALL, [root / "src", root / "vendor"],
                                                    run=run)
     except Exception as e:
         raise InstallError("first_check", f"{type(e).__name__}: {e}")

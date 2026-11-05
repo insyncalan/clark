@@ -154,7 +154,7 @@ class Compose(unittest.TestCase):
         """clark's code and its data stay in the unzipped folder on the computer: nothing is kept only inside the container."""
         text = self.service()
         self.assertIn("      - type: bind\n        source: ..\n        target: /clark\n        read_only: true\n", text)
-        self.assertIn("      - type: bind\n        source: ${CLARK_DATA_DIR:-../data}\n        target: /data\n        bind:\n"
+        self.assertIn("      - type: bind\n        source: ${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}\n        target: /data\n        bind:\n"
                       "          create_host_path: true\n", text)
         self.assertRegex(text, r"(?m)^    working_dir: /clark$")
         self.assertEqual(len(re.findall(r"(?m)^\s*target:", text)), 2, "the code (read-only) and its data folder, nothing else")
@@ -170,7 +170,7 @@ class Compose(unittest.TestCase):
         for t in targets:
             if t != shared:
                 self.assertFalse(t.startswith(shared + "/"), f"{t} is inside the read-only share {shared}")
-        self.assertIn("      - type: bind\n        source: ${CLARK_DATA_DIR:-../data}\n        target: /data\n", text)
+        self.assertIn("      - type: bind\n        source: ${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}\n        target: /data\n", text)
         self.assertIn('"--data", "/data"', text, "clark is told the folder that is mounted")
 
     def test_it_runs_as_an_ordinary_user_not_root(self):
@@ -227,19 +227,16 @@ class ComposeIsLanSafe(unittest.TestCase):
         """item 652: the start-up line names the port the person opens, so compose passes the same ${CLARK_PORT:-8766}."""
         self.assertRegex(self.CODE, r'(?m)^      CLARK_PUBLISHED_PORT: "\$\{CLARK_PORT:-8766\}"$')
 
-    def test_the_data_source_limit_is_written_in_the_compose_file(self):
-        """item 652: no Compose variable names this file's folder, so PWD stands in; started from another folder the check would
-        look in the wrong place. The limit is said in the file, with the way round it (name CLARK_DATA_DIR)."""
-        self.assertIn("KNOWN LIMIT", self.TEXT)
-        self.assertIn("Start it from the clark folder", self.TEXT)
-        self.assertIn("name the data folder in CLARK_DATA_DIR", self.TEXT)
-
-    def test_the_data_folder_can_be_named_and_defaults_to_the_folder_s_own(self):
-        """CLARK_DATA_DIR points Docker at a data folder the owner already has; unset, it is the clark folder's data folder."""
-        self.assertRegex(self.CODE, r"(?m)^        source: \$\{CLARK_DATA_DIR:-\.\./data\}$")
-        self.assertRegex(self.CODE, r'(?m)^      CLARK_DATA_SOURCE: "\$\{CLARK_DATA_DIR:-\$\{PWD:-\}/data\}"$')
-        self.assertIn('CLARK_DATA_DIR="$HOME/Library/Application Support/clark" docker compose -f docker/compose.yaml up -d', self.TEXT,
-                      "the comment shows the path quoted, since it has a space")
+    def test_the_data_default_is_outside_the_clark_folder_and_the_same_for_the_check(self):
+        """issue 694: the clark folder is replaced by a newer download of the same name, so the data default must not be inside it.
+        It is the folder clark.command uses; the OneDrive check is handed the same default, so it sees the folder that is mounted."""
+        default = "${HOME}/Library/Application Support/clark"
+        self.assertRegex(self.CODE, r"(?m)^        source: \$\{CLARK_DATA_DIR:-" + re.escape(default) + r"\}$")
+        self.assertRegex(self.CODE, r'(?m)^      CLARK_DATA_SOURCE: "\$\{CLARK_DATA_DIR:-' + re.escape(default) + r'\}"$')
+        self.assertNotIn("../data", self.CODE, "no default inside the clark folder")
+        self.assertNotIn("KNOWN LIMIT", self.TEXT, "the default no longer depends on the folder compose is started in")
+        self.assertIn('CLARK_DATA_DIR="/full/path/to/the/folder" docker compose -f docker/compose.yaml up -d', self.TEXT,
+                      "the comment shows how to name another folder, quoted")
 
 
 class GetFromAnotherPeer(unittest.TestCase):

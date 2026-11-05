@@ -27,7 +27,7 @@ import tempfile
 from collections import namedtuple
 from pathlib import Path
 
-from clark import platform
+from clark import platform, typed
 
 try:
     import sqlite3
@@ -38,7 +38,6 @@ READY, FIX, ADVICE, NOT_CHECKED = "ready", "fix", "advice", "not checked"
 LABELS = {READY: "Ready:", FIX: "To fix:", ADVICE: "Worth knowing:", NOT_CHECKED: "Not checked:"}
 MIN_PYTHON = (3, 9)
 APP = Path(__file__).resolve().parents[2]       # clark's own folder (the one holding clark.command)
-AGAIN = "python3 -m clark.doctor"               # how to run the checks again, said in the lines that ask for it
 UNKNOWN_MARK = "not-this-data"                  # asked when the data folder isn't known: no clark answers "this is yours"
 
 Line = namedtuple("Line", "kind words")
@@ -126,7 +125,7 @@ def check_data_not_in_onedrive(seen):
     return Line(FIX, f"Your clark data is set to go in {seen.tilde(folder)}, which is inside OneDrive. OneDrive copies files "
                      "while they are being written, which damages the data. Choose a folder on this computer that OneDrive "
                      "doesn't sync. Then open Terminal, type cd and a space, drag clark's folder into the Terminal window and press Return. "
-                     "Type python3 -m clark --data and a space, drag the folder you chose into the window, and press Return. "
+                     f"Type {typed.clark('--data')} and a space, drag the folder you chose into the window, and press Return. "
                      "Backups can still go to OneDrive.")
 
 
@@ -154,7 +153,7 @@ def check_port(seen):
         port = port_number(seen.port_text if given else (seen.environ.get("CLARK_PORT") or server.DEFAULT_PORT), where)
     except Usage:                               # the doctor's own words, not __main__'s (PR #65 has that file)
         return Line(FIX, f"The start-up number (set with {where}) must be a whole number from 1 to 65535. Change it, then "
-                         f"run {AGAIN} again.")
+                         f"run {typed.doctor()} again.")
     try:
         folder = seen.folder()
     except platform.PlatformError:
@@ -201,7 +200,7 @@ def run_check(check, seen):
     except platform.NotBuiltYet:
         return Line(NOT_CHECKED, f"{check.name} can't run on this computer yet.")
     except Exception:                           # noqa: BLE001 - never a traceback, nor the computer's own error text
-        return Line(NOT_CHECKED, f"{check.name} couldn't finish. Run python3 -m clark.doctor again.")
+        return Line(NOT_CHECKED, f"{check.name} couldn't finish. Run {typed.doctor()} again.")
 
 
 def summary(results):
@@ -210,7 +209,7 @@ def summary(results):
     unknown = sum(1 for check, line in results if check.required and line.kind == NOT_CHECKED)
     if to_fix:
         return (f"{to_fix} {'thing' if to_fix == 1 else 'things'} to fix before clark can start. Fix "
-                f"{'it' if to_fix == 1 else 'each one'}, then run {AGAIN} again."), 1
+                f"{'it' if to_fix == 1 else 'each one'}, then run {typed.doctor()} again."), 1
     if unknown:
         return ("Some checks can't run on this computer yet, so we can't say whether clark will start. Try starting it; if "
                 "it won't, tell the clark team."), 1
@@ -231,7 +230,7 @@ def doctor(seen, say=print, checks=CHECKS):
 
 
 def parser():
-    p = argparse.ArgumentParser(prog="python3 -m clark.doctor",
+    p = argparse.ArgumentParser(prog=typed.doctor(),
                                 description="Check what clark needs on this computer, and say what to do.",
                                 epilog="What it prints can include the names of folders on this computer, so look it over "
                                        "before you share it.")
@@ -250,7 +249,7 @@ def main(argv=None, say=print, **seams):
     except KeyboardInterrupt:
         return 1
     except Exception:                           # noqa: BLE001 - never a traceback, nor the computer's own error text
-        say("The checks stopped before the end. Run python3 -m clark.doctor again; if it keeps happening, tell the clark team.")
+        say(f"The checks stopped before the end. Run {typed.doctor()} again; if it keeps happening, tell the clark team.")
         return 1
 
 

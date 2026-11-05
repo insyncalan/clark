@@ -105,7 +105,7 @@ class ReviewTest(Rig):
         body = self.reviewed()
         r = body["review"]
         self.assertEqual("Version 0.3.0 → 0.3.1. Released 27-10-2026.", r["heading"])
-        self.assertEqual(["src/clark/added.py"], r["added"]["names"])
+        self.assertEqual([".app/src/clark/added.py"], r["added"]["names"])
         kept = self.data / "releases" / "clark-0.3.1-mac.zip"
         self.assertEqual(ui.take_in(kept, self.root / "elsewhere", "mac")[1], r["checksum"])
 
@@ -509,7 +509,7 @@ class FinishAtLaunchTest(Rig):
         self.up.install({"review_id": body["review_id"]})
 
         def kill(name):
-            if name == "swap:new:src":
+            if name == "swap:new:.app":
                 raise SystemExit("killed")
         try:
             h.run_update(h.marker_path(self.data), self.seams, fault=kill)
