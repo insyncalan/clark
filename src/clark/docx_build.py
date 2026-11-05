@@ -159,7 +159,9 @@ def cell(width, paras, fill=None):
 
 
 def widths(weights):
-    """Column widths in twentieths of a point that add up to the text width exactly (the last column takes the rounding)."""
+    """Column widths in twentieths of a point that add up to the text width exactly (the last column takes the rounding). The
+    weights of the data tables are themselves twentieths of a point (each sums to TEXT_W): an ID, a date or a status word is
+    given the width its longest word needs, so no word or date is broken across two lines."""
     total = sum(weights)
     cols = [TEXT_W * w // total for w in weights]
     cols[-1] += TEXT_W - sum(cols)
@@ -355,7 +357,7 @@ def section_usecases(published, ctx, title, sec, kept):
     out.append(para(run(strip["total_words"] + ": " + ", ".join(f"{c['count']} {c['status']}" for c in strip["counts"]))))
     rows = [[word_cell(u["ref"], ctx), word_cell(u["title"], ctx), word_cell(u["status"], ctx, colour=u["colour"]),
              word_cell(u.get("commitment") or "", ctx), word_cell(u["headline"], ctx), word_cell(u["words"], ctx)] for u in strip["rows"]]
-    out.append(table(ctx, ["Ref", "Use case", "Status", "Commitment", "Headline", "Work items"], [7, 24, 11, 12, 28, 18], rows))
+    out.append(table(ctx, ["Ref", "Use case", "Status", "Commitment", "Headline", "Work items"], [700, 2300, 1100, 1350, 3088, 1100], rows))
     standing = {u["id"]: u.get("standing") for u in kept["use_cases"]}
     for u in strip["rows"]:
         body = rich(standing.get(u["id"]), ctx)
@@ -390,7 +392,7 @@ def section_milestones(published, ctx, title, sec):
     if not rows:
         return _heading(title) + para(run(NONE))
     return _heading(title) + table(ctx, ["ID", "Milestone", "Owner", "Agreed", "Forecast", "State", "Slip"],
-                                   [10, 30, 13, 11, 13, 13, 10], rows)
+                                   [1200, 3038, 1150, 1100, 1100, 1100, 950], rows)
 
 
 def _due(table_name, field, row, ctx, extra=()):
@@ -411,7 +413,7 @@ def section_actions(published, ctx, title, sec):
                      _due("actions", "due_date", a, ctx), word_cell(a.get("status"), ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
-    return _heading(title) + table(ctx, ["ID", "Action", "Owner", "Priority", "Due", "Status"], [11, 38, 15, 10, 14, 12], rows)
+    return _heading(title) + table(ctx, ["ID", "Action", "Owner", "Priority", "Due", "Status"], [1200, 4038, 1250, 950, 1100, 1100], rows)
 
 
 def section_raid(published, ctx, title, sec):
@@ -426,7 +428,7 @@ def section_raid(published, ctx, title, sec):
     if not rows:
         return _heading(title) + para(run(NONE))
     return _heading(title) + table(ctx, ["ID", "Type", "Item", "Owner", "Priority", "Impact / likelihood", "Due", "Status"],
-                                   [9, 9, 30, 13, 9, 11, 11, 8], rows)
+                                   [1200, 1200, 1888, 1150, 950, 1050, 1100, 1100], rows)
 
 
 def section_decisions(published, ctx, title, sec):
@@ -444,7 +446,7 @@ def section_decisions(published, ctx, title, sec):
                      word_cell(label + when + (" (overdue)" if late else ""), ctx, late=late, extra=extra)])
     if not rows:
         return _heading(title) + para(run(NONE))
-    return _heading(title) + table(ctx, ["ID", "Decision", "Status", "Made by", "Date"], [11, 40, 12, 15, 22], rows)
+    return _heading(title) + table(ctx, ["ID", "Decision", "Status", "Made by", "Date"], [1200, 4138, 1100, 1400, 1800], rows)
 
 
 SIMPLE = {"current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
