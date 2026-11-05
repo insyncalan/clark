@@ -216,6 +216,11 @@ export function setFilterState(next) {
   setFilters(encode(next));
 }
 
+// Leave the open project (its data was removed, as the demo's is): the Dashboard with no project, one new entry; the Gate then says No project open.
+export function leaveProject() {
+  go({ view: "dashboard", project: "", item: "", ms: "", f: "" });
+}
+
 // Open a project chosen from the list: one new entry, so the address takes its code (a reload keeps it) and its data is read.
 export function openProject(code) {
   setProject(code);

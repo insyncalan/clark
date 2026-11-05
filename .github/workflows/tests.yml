@@ -8,15 +8,16 @@
 # plus the quick tier). No Python 3.9 and no macOS. The full suite is only for the release gate.
 # FULL MATRIX (the `plan` job decides, from the event, the branch and the labels): Ubuntu 3.x with EVERY file and Ubuntu 3.9 on
 # the quick tier (`--quick`) on a push to main, on a release branch, on a pull request that changes a guarded file, on the
-# label `full-ci`, and by hand. macOS (the newest Python, every file, FOUR shards) runs at the RELEASE GATE and on a few other
-# events, not on every push of a guarded pull request: on a push to main, on a release branch (release-X.Y.Z, and the Head's
-# v*-release* line, read from the pull request's head branch), on a pull request that changes Mac-specific code (platform.py,
-# updates.py, the launcher and the package files), on a pull request that carries the label `full-ci` (adding or removing the
-# label starts a new run), and by hand (macos=true). A guarded pull request that is not Mac-specific gets the full Ubuntu matrix
-# and no macOS until it is on a release branch. macOS is REQUIRED whenever it runs: clark is Mac first. A macOS runner that
-# fails to start is re-run once before anyone calls it a failure.
+# label `full-ci`, and by hand. macOS (the newest Python, every file, TWO shards) runs at the RELEASE GATE and on a few other
+# events, NOT on a push to main (fewer macOS runs: every merge to main used to start four macOS jobs) and not on
+# every push of a guarded pull request: on a release branch (release-X.Y.Z, and the Head's v*-release* line, read from the pull
+# request's head branch), on a pull request that changes Mac-specific code (platform.py, updates.py, the launcher and the package
+# files), on a pull request that carries the label `full-ci` (adding or removing the label starts a new run; use it only for a
+# change that needs a Mac before the release), and by hand (macos=true). A guarded pull request that is not Mac-specific gets the
+# full Ubuntu matrix and no macOS until it is on a release branch. macOS is REQUIRED whenever it runs: clark is Mac first. A macOS
+# runner that fails to start is re-run once before anyone calls it a failure.
 #
-# macOS shards: one job with a matrix of four, so `needs.macos.result` is ONE value for the whole matrix (success only if all four
+# macOS shards: one job with a matrix of two, so `needs.macos.result` is ONE value for the whole matrix (success only if both
 # shards pass; skipped when the job's `if` is false). Each runs two test files at a time (JOBS 2): three Chrome tests at once on the
 # 3-vCPU, 7 GB runner starved each other, which made the flake. The gate reads that result, so it never depends on a shard's name.
 #
@@ -32,7 +33,7 @@
 # takes seconds, so nothing is saved by skipping it.
 #
 # Shards (`--shard I/N`, balanced by the real per-file times in dev/tools/shard_times.txt): Ubuntu 3.x has three on both paths,
-# macOS four, Python 3.9 one; add shards when the slowest job passes 10 minutes. Every test file is in exactly one shard (tests/test_run_tests.py proves it).
+# macOS two, Python 3.9 one; add shards when the slowest job passes 10 minutes. Every test file is in exactly one shard (tests/test_run_tests.py proves it).
 # `--max-fail 8` stops a shard that has plainly gone wrong after 8 failed files.
 on:
   workflow_dispatch:
@@ -86,7 +87,7 @@ jobs:
         run: |
           FULL=""; MACOS=""
           case "$EVENT" in
-            push) FULL=1; MACOS=1 ;;
+            push) FULL=1 ;;      # a push to main: the full Ubuntu matrix; macOS runs at the release gate, not on every merge
             workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;
           esac
           case "$BRANCH" in
@@ -224,7 +225,7 @@ jobs:
         run: python3 dev/run_tests.py -j "$JOBS" --quick --shard "1/1" --max-fail 8 $FILES
 
   macos:
-    # macOS (the newest Python, every file, four shards) when the plan says so: a push to main, a release branch, a pull request
+    # macOS (the newest Python, every file, two shards) when the plan says so: a release branch, a pull request
     # that changes Mac-specific code, the full-ci label, or a hand-started run with macos=true (gh workflow run Tests --ref <branch> -f macos=true). Required when it runs.
     if: ${{ needs.plan.outputs.macos == '1' }}
     name: macos-latest · Python 3.x · shard ${{ matrix.shard }}/${{ matrix.shards }}      # skipped: shown unresolved; the gate reads needs.macos.result, never this name
@@ -235,10 +236,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {shard: 1, shards: 4}
-          - {shard: 2, shards: 4}
-          - {shard: 3, shards: 4}
-          - {shard: 4, shards: 4}
+          - {shard: 1, shards: 2}
+          - {shard: 2, shards: 2}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:

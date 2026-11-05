@@ -2,7 +2,7 @@
 
 The logo is part of the user's own brand (system/branding, which git ignores and which is not in the public copy). When an export
 runs it looks for the logo there, the same place the page finds its brand tokens (clark.page.local_tokens): `logo.png`, or
-`design-system/logo.png`, in system/branding. If there is none, the Cover has its navy band and title only.
+`design-system/logo.png`, in system/branding. If there is none, the Cover has its navy band and title only. The logo is at the left of the title band.
 
 openpyxl's Image needs Pillow, so the picture is put in after openpyxl has saved, by editing the saved .xlsx (a zip) with the
 standard library only: embed() adds xl/media/<name>.png, a drawing part, the Cover's <drawing r:id/> element, the Cover's and
@@ -29,7 +29,9 @@ LOCAL_LOGOS = ("logo.png", "design-system/logo.png")     # in the brand folder; 
 
 MARK_HEIGHT = 40                # pixels: the logo is scaled to this, inside a title row of COVER_ROW_POINTS
 COVER_ROW_POINTS = 36
-B_WIDTH_PIXELS = 100 * 7 + 5    # column B at width 100 (Excel's 7 pixels a character, plus 5)
+COVER_COL_WIDTH = 10.5          # each of the Cover's 12 grid columns, in Excel's character units
+LOGO_COLUMNS = 2                # the logo sits at the left of the title band, over the first two columns
+LEFT_PIXELS = LOGO_COLUMNS * int(COVER_COL_WIDTH * 7 + 5)    # Excel's 7 pixels a character, plus 5, for each column
 MARK_MARGIN = 10
 EMU = 9525                      # EMUs in a pixel
 
@@ -94,7 +96,12 @@ def local_logo(branding=None):
         p = base / name
         if p.is_file():
             return p
-    return None
+    assets = base / "assets"                    # a brand folder that keeps its pictures under assets/: logo-*.png, first by name
+    try:
+        found = sorted(q for q in assets.glob("logo-*.png") if q.is_file())
+    except OSError:
+        found = []
+    return found[0] if found else None
 
 
 NOT_USED = "The brand logo was not used, so the Cover has no logo: {why}"
@@ -124,14 +131,15 @@ def load(branding=None, warnings=None):
 
 
 def layout(width, height):
-    """(x, y, cx, cy) in EMUs for a logo of width by height pixels: scaled to MARK_HEIGHT, kept inside column B, at its right
-    edge, centred up and down in the title row. x is the offset from column B's left edge."""
+    """(x, y, cx, cy) in EMUs for a logo of width by height pixels: scaled to MARK_HEIGHT, kept inside the first LOGO_COLUMNS
+    columns, at their left edge (the title starts after them), centred up and down in the title row. x is the offset from
+    column A's left edge."""
     w, h = width * MARK_HEIGHT / height, MARK_HEIGHT
-    room = B_WIDTH_PIXELS - 2 * MARK_MARGIN
+    room = LEFT_PIXELS - 2 * MARK_MARGIN
     if w > room:
         w, h = room, h * room / w
     w, h = max(1, round(w)), max(1, round(h))
-    x = max(0, B_WIDTH_PIXELS - w - MARK_MARGIN)
+    x = MARK_MARGIN
     y = max(0, (COVER_ROW_POINTS * 4 // 3 - h) // 2)
     return x * EMU, y * EMU, w * EMU, h * EMU
 
@@ -143,7 +151,7 @@ def drawing_xml(width, height, rid="rId1", name="Brand logo"):
         '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" '
         'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
         f'xmlns:r="{NS_REL}">'
-        f'<xdr:oneCellAnchor><xdr:from><xdr:col>1</xdr:col><xdr:colOff>{x}</xdr:colOff><xdr:row>0</xdr:row>'
+        f'<xdr:oneCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>{x}</xdr:colOff><xdr:row>0</xdr:row>'
         f'<xdr:rowOff>{y}</xdr:rowOff></xdr:from><xdr:ext cx="{cx}" cy="{cy}"/>'
         f'<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="2" name="{escape(name)}" descr="{escape(name)}"/>'
         '<xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>'
