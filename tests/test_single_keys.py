@@ -231,6 +231,7 @@ class PageKeys(Base):
             self.assertEqual(p.js("document.querySelector('fieldset.keys button.switch').getAttribute('role')"), "switch")
             self.assertEqual(p.js("document.querySelector('fieldset.keys label').textContent.indexOf('Single-key shortcuts')"), 0)
             self.assertTrue(p.js("document.getElementById('keys-line').textContent.startsWith('Letter keys such as V and E')"), "the line describes it")
+            self.assertEqual(p.js("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-label')"), "Single-key shortcuts", "the switch has a name of its own")
             was = p.js("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked')")
             p.js("document.querySelector('fieldset.keys [role=switch]').focus()")
             p.key(" ", code="Space", vk=32)

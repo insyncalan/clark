@@ -156,7 +156,7 @@ export function Personal() {
       <AboutYou />
       <fieldset class="keys">
         <legend>Keys</legend>
-        <label class="sw key-sw"><button type="button" class="switch" role="switch" aria-checked={singleKeys.value ? "true" : "false"} aria-describedby="keys-line"
+        <label class="sw key-sw"><button type="button" class="switch" role="switch" aria-label="Single-key shortcuts" aria-checked={singleKeys.value ? "true" : "false"} aria-describedby="keys-line"
           onClick={() => setSingleKeys(!singleKeys.value)}></button>
           <span><b>Single-key shortcuts</b><small id="keys-line">Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.</small></span></label>
       </fieldset>
