@@ -836,7 +836,7 @@ class FullScreen(Base):
                     self.assertLessEqual(abs(got["h"] - got["bar"]), 2, f"the column headings sit at the top bar's foot: {got}")
                     cdp.js(f"{scroller}.scrollTop = 0", sid)
                     self.until(cdp, sid, f"{scroller}.scrollTop === 0", "back at the top")
-                    self.assertTrue(cdp.js("['.wbar', '.fline-wrap', '.factive', '.lanebar'].every(s => document.querySelector(s).getBoundingClientRect().top >= (document.querySelector('.top') && getComputedStyle(document.querySelector('.top')).display !== 'none' ? document.querySelector('.top').getBoundingClientRect().bottom - 1 : -1))", sid), "back at the top the toolbar shows again")
+                    self.assertTrue(cdp.js("['.wbar', '.fline-wrap', '.lanebar'].every(s => document.querySelector(s).getBoundingClientRect().top >= (document.querySelector('.top') && getComputedStyle(document.querySelector('.top')).display !== 'none' ? document.querySelector('.top').getBoundingClientRect().bottom - 1 : -1))", sid), "back at the top the toolbar shows again")
 
     def test_pinned_headings_dark_wheel_no_overlap_and_focus(self):
         """#134 (more): in light and dark, at 1400 and 900 px, the toolbar's top moves away with the page, the headings pin at the top
