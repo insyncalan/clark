@@ -211,14 +211,18 @@ class MacZipTest(unittest.TestCase):
         """issue 694: the one-folder download is described, and an update by hand is told as six short numbered steps."""
         text = package.start_here("mac")
         flat = " ".join(text.split())
-        self.assertIn("What is in this folder: README.md says what clark is. START-HERE.txt is this page. clark.command starts clark. "
+        self.assertIn("What is in this folder: README.md says what clark is. START-HERE.txt is this page. The file clark.command starts clark. "
                       "docker is for starting clark with Docker. system/branding holds your own logo and colours, if you add them. "
-                      "clark's own files are in a hidden folder called .app: you do not need to open it.", flat)
+                      "The program's own files are in a hidden folder called .app: you do not need to open it.", flat)
         self.assertLess(flat.index("These steps are for a Mac."), flat.index("What is in this folder:"))
+        self.assertIn("If an earlier Docker start kept your data in a data folder inside the clark folder, move that data folder out of the "
+                      "clark folder first, or name it with CLARK_DATA_DIR. By default clark.command and Docker use the same data.", flat)
+        for line in text.splitlines():
+            self.assertFalse(line.lstrip().lower().startswith("clark's own"), line)     # a sentence does not start with the product name
         self.assertLess(flat.index("What is in this folder:"), flat.index("If your Mac will not open"))
         steps = ["If you already have clark:", "1. Close clark.", "2. Rename your old clark folder (for example to clark-old) or move it away, "
                  "so the two folders do not clash.", "3. Unzip this download.", "4. If you added your own logo or colours, copy the "
-                 "system/branding folder from the old clark folder into the new one. clark never changes that folder, but replacing the "
+                 "system/branding folder from the old clark folder into the new one. An update never changes that folder, but replacing the "
                  "whole clark folder by hand removes it.", "5. If you use Docker and your data is in a data folder inside the old clark "
                  "folder, move that data folder out of it before you delete the old folder, or start Docker with CLARK_DATA_DIR naming it.",
                  '6. Double-click clark.command. Your Mac may ask you to confirm clark.command again: do as in step 2 under "Without Docker" below.',

@@ -5,7 +5,7 @@
 # folder, name it (a full path, in quotes) in CLARK_DATA_DIR; to use another port on this computer, CLARK_PORT:
 #   CLARK_DATA_DIR="/full/path/to/the/folder" docker compose -f docker/compose.yaml up -d
 #   CLARK_PORT=8780 docker compose -f docker/compose.yaml up -d        then open http://localhost:8780
-# Only a stock Python image runs here: nothing of clark is built into it. clark's code and its data stay in this folder on
+# Only a stock Python image runs here: nothing of clark is built into it. clark's code stays in this folder on
 # your computer, which is shared into the container as /clark. The data is NOT in this folder, so swapping this folder for a newer
 # download cannot lose it.
 # The port is published to 127.0.0.1 ONLY. Without the "127.0.0.1:" in front, anyone on your network could reach clark.
