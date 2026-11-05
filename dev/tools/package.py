@@ -1,5 +1,5 @@
-"""Build the download for one system: one zip with one top folder, clark-<version>/ (#57, step 3 of
-docs/handoff/packaging-57.md).
+"""Build the download for one system: one zip, clark-<version>-<system>.zip, that unzips to one folder, clark/, with the program
+files in its hidden .app/ folder (issue 694; #57, step 3 of docs/handoff/packaging-57.md).
 
 Run: python3 dev/tools/package.py mac [--out FOLDER] [--dirty] [--release] [--notes FILE]   # writes dist/clark-<version>-mac.zip
      python3 dev/tools/package.py mac --for-client                # in a checkout of the scrubbed public snapshot only
@@ -47,7 +47,8 @@ DIST = ROOT / "dist"
 
 if str(Path(__file__).resolve().parents[2] / "src") not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
-from clark.release_files import (INCLUDE_DEMO, MANIFEST, NOT_BUILT_YET, RUN_BIT, SHARED, START_HERE, SYSTEMS)  # noqa: E402,F401
+from clark.release_files import (INCLUDE_DEMO, MANIFEST, NOT_BUILT_YET, RUN_BIT, SHARED, START_HERE, SYSTEMS, TOP,  # noqa: E402,F401
+                                 place, protected, unplace)
 
 # The one list of what the download holds is src/clark/release_files.py (shipped, so the updater reads the same list).
 
@@ -108,6 +109,12 @@ Getting started on a Mac
 
 These steps are for a Mac.
 
+What is in this folder: README.md says what clark is. START-HERE.txt is this
+page. The file clark.command starts clark. docker is for starting clark with
+Docker. system/branding holds your own logo and colours, if you add them. The
+program's own files are in a hidden folder called .app: you do not need to
+open it.
+
 If your Mac will not open clark.command (a work Mac often will not), or you
 already use Docker, use Docker instead. You only need Docker and Chrome.
   1. Open Docker Desktop and wait until it says it is running.
@@ -125,20 +132,41 @@ has no built page, and Docker stops with a message saying so.
 Start Docker from the clark folder.
 To see what Docker has said, type this in the same folder:
         docker compose -f docker/compose.yaml logs --tail 50
-With Docker, your data is kept in the data folder beside the clark files, made
-at the first start. Keep that data folder when you swap this folder for a newer
-download. To use the data clark.command uses instead, type this in step 3:
-        CLARK_DATA_DIR="$HOME/Library/Application Support/clark" docker compose -f docker/compose.yaml up -d
-To use another folder, put its full path in CLARK_DATA_DIR the same way.
+With Docker, your data is kept in ~/Library/Application Support/clark, the same
+place clark.command uses, not in this folder, so you can swap this folder for a
+newer download without losing anything. To use another folder, put its full
+path in CLARK_DATA_DIR in front of the command in step 3:
+        CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d
 A folder inside OneDrive cannot be used by clark.
-Never open the same data from clark.command and from Docker at the same time:
-stop one before you start the other.
+If an earlier Docker start kept your data in a data folder inside the clark
+folder, move that data folder out of the clark folder first, or name it
+with CLARK_DATA_DIR.
+By default clark.command and Docker use the same data.
+IMPORTANT: Never open the same data from clark.command and from Docker at the
+same time: stop one before you start the other.
 To use another port, put it in front of the command, for example:
         CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d
 then open http://localhost:8800 instead.
 If it says port 8766 is already used, another clark is open: close it, or stop
 it with the command in step 5, then try again. If it says it cannot connect to
 Docker, Docker Desktop is not running yet.
+
+If you already have clark:
+  1. Close clark.
+  2. Rename your old clark folder (for example to clark-old) or move it away,
+     so the two folders do not clash.
+  3. Unzip this download.
+  4. If you added your own logo or colours, copy the system/branding folder
+     from the old clark folder into the new one. An update never changes that
+     folder, but replacing the whole clark folder by hand removes it.
+  5. If you use Docker and your data is in a data folder inside the old clark
+     folder, move that data folder out of it before you delete the old folder,
+     or start Docker with CLARK_DATA_DIR naming it.
+  6. Double-click clark.command. Your Mac may ask you to confirm clark.command
+     again: do as in step 2 under "Without Docker" below.
+Your projects are not in the old clark folder: they stay in
+~/Library/Application Support/clark. In clark 1.0.0, updating from inside clark
+is switched off, so install this version by hand.
 
 Without Docker:
 
@@ -177,7 +205,7 @@ If your Mac is missing something it needs, clark.command says how to get it.
 
 To check what your Mac needs for clark, open Terminal, type cd and a space,
 drag this folder into the Terminal window and press Return. Then type:
-   python3 -m clark.doctor
+   bash clark.command --check
 and press Return. It says what is ready and what to fix.
 
 Without Docker, your data is kept in ~/Library/Application Support/clark, not in
@@ -187,7 +215,7 @@ this folder, so you can swap this folder for a newer download without losing any
 START_HERE_DEMO = """
 To try it with made-up data first, open Terminal, type cd and a space,
 drag this folder into the Terminal window and press Return. Then type:
-   python3 -m clark --demo --open
+   bash clark.command --demo --open
 and press Return. Nothing you do there is kept.
 """
 
@@ -212,12 +240,16 @@ def tracked(root, paths):
 
 def files(system, root=ROOT):
     """The repo files that go in the zip for `system`, sorted (START-HERE.txt is not one: it is written here)."""
-    chosen = set()
+    chosen, kept = set(), set()
     for item in listed(system):
         found = tracked(root, [item]) if item.endswith("/") else [item]
         if not found or not all((Path(root) / p).is_file() for p in found):
             raise Refused(f"A file the download needs is missing: {item}. Restore it, then build again.")
+        kept.update(p for p in found if protected(p))
         chosen.update(p for p in found if not LEFT_OUT.search(p))
+    if kept:
+        raise Refused(f"The download must never hold the person's own folders (system, data), and git tracks files in them: "
+                      f"{', '.join(sorted(kept))}. Nothing was written. Untrack them, then build again.")
     if "src/clark/" in listed(system):
         for p in generated_pages(root):
             if not (Path(root) / p).is_file():
@@ -340,17 +372,42 @@ def manifest_bytes(system, content, top, root=ROOT, released=None, notes="", min
 
 
 def top_folder(root=ROOT):
-    return f"clark-{version(root)}"
+    """The one folder the zip unzips to: always `clark`, whatever the version (issue 694)."""
+    return TOP
 
 
 def zip_name(system, root=ROOT):
-    return f"{top_folder(root)}-{system}.zip"
+    """The zip file keeps its version: clark-<version>-<system>.zip."""
+    return f"clark-{version(root)}-{system}.zip"
+
+
+COMPOSE = "docker/compose.yaml"
+COMPOSE_WORKDIR = "    working_dir: /clark\n"
+COMPOSE_WORKDIR_HIDDEN = "    working_dir: /clark/.app\n"
+
+
+def compose_for_zip(data):
+    """The compose file as the zip holds it: the program files sit in .app, so the container starts there. Exactly one
+    `working_dir: /clark` line is changed (the bind of the whole folder stays, so system/branding is still seen);
+    anything else about it is refused, so a changed compose file never ships half-changed."""
+    text = data.decode("utf-8")
+    lines = [ln for ln in text.splitlines(keepends=True) if ln.rstrip("\r\n") == COMPOSE_WORKDIR.rstrip("\n")]
+    if len(lines) != 1:
+        raise Refused(f"{COMPOSE} must hold exactly one line '{COMPOSE_WORKDIR.strip()}' for the download to change, and it holds "
+                      f"{len(lines)}. Nothing was written. Fix the compose file or this tool, then build again.")
+    ending = lines[0][len(lines[0].rstrip("\r\n")):]
+    return text.replace(lines[0], COMPOSE_WORKDIR_HIDDEN.rstrip("\n") + ending).encode("utf-8")
+
+
+def placed_bytes(name, data):
+    """The bytes the zip holds for the repo file `name`: the file itself, except the compose file."""
+    return compose_for_zip(data) if name == COMPOSE else data
 
 
 def entries(system, root=ROOT):
     """Every name in the zip, in order."""
     top = top_folder(root)
-    return sorted(f"{top}/{p}" for p in files(system, root) + [START_HERE])
+    return sorted(f"{top}/{place(p)}" for p in files(system, root) + [START_HERE])
 
 
 def uncommitted(root, paths):
@@ -422,15 +479,16 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
         make_pages(root, twice=release)
     names = files(system, root)
     top = top_folder(root)
-    content = {f"{top}/{p}": ((root / p).read_bytes(), RUN_MODE if p in RUN_BIT else FILE_MODE) for p in names}
-    content[f"{top}/{START_HERE}"] = (start_here(system, for_client, root).encode("utf-8"), FILE_MODE)
+    content = {f"{top}/{place(p)}": (placed_bytes(p, (root / p).read_bytes()), RUN_MODE if p in RUN_BIT else FILE_MODE)
+               for p in names}
+    content[f"{top}/{place(START_HERE)}"] = (start_here(system, for_client, root).encode("utf-8"), FILE_MODE)
     if for_client:
-        shown_paths, hidden = name_guard_hits({n[len(top) + 1:]: data for n, (data, _) in content.items()}, banned)
+        shown_paths, hidden = name_guard_hits({unplace(n[len(top) + 1:]): data for n, (data, _) in content.items()}, banned)   # repo names, as the builder knows them
         if shown_paths or hidden:
             where = shown_paths + ([f"{hidden} file(s) whose own name holds one (not shown)"] if hidden else [])
             raise Refused("A zip for a client must hold no one's name, and the name guard found one in: "
                           f"{', '.join(where)}. Nothing was written. Take the name out, then build again.")
-    content[f"{top}/{MANIFEST}"] = (manifest_bytes(system, content, top, root, released, notes, min_from), FILE_MODE)
+    content[f"{top}/{place(MANIFEST)}"] = (manifest_bytes(system, content, top, root, released, notes, min_from), FILE_MODE)
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     target = out / zip_name(system, root)

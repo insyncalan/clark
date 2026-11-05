@@ -79,8 +79,10 @@ def reply(status, code, message=None, **extra):
 
 
 def app_folder():
-    """The folder this copy of clark runs from: the parent of src/ (src/clark/__init__.py is two levels below it)."""
-    return Path(clark.__file__).resolve().parents[2]
+    """The clark folder: the parent of src/ (src/clark/__init__.py is two levels below it), or, in a download, the folder that
+    holds the hidden .app folder where src/ sits (issue 694). A flat install, or a source checkout, is its own app folder."""
+    code = Path(clark.__file__).resolve().parents[2]
+    return code.parent if code.name == update_helper.HIDDEN else code
 
 
 class Updater:
