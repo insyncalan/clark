@@ -254,7 +254,7 @@ class PageKeys(Base):
                 card = p.js("getComputedStyle(document.querySelector('#personal')).backgroundColor")
                 self.assertNotIn("rgba(0, 0, 0, 0)", track, "the off track has a colour")
                 self.assertNotEqual(track, card)
-                self.assertGreaterEqual(ratio(rgb(track), rgb(card if "rgba(0, 0, 0, 0)" not in card else p.js("getComputedStyle(document.body).backgroundColor"))), 1.5,
+                self.assertGreaterEqual(ratio(rgb(track), rgb(card if "rgba(0, 0, 0, 0)" not in card else p.js("getComputedStyle(document.body).backgroundColor"))), 3,
                                         "the off track can be told from the card")
 
 
