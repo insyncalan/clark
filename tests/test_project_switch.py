@@ -76,8 +76,8 @@ class ProjectSwitch(Base):
             self.assertEqual(p.js("document.activeElement.querySelector('b').textContent"), "Harbour Bridge Programme")
             self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role^=menuitem]'), function(e){return e.textContent.replace('✓','')}).slice(-2)"),
                              ["New project...", "Project settings"])
-            p.js("document.querySelector('#project-menu [data-kind=\"\\u0000new\"]').click()")
-            p.until("!!document.querySelector('dialog[open], [role=dialog]')", "the project form opened")
+            p.js("document.querySelector('#project-menu [role=menuitem]').click()")          # New project... is the first plain item
+            p.until("!!document.querySelector('#project-form')", "the project form opened")
 
     def test_C_the_counts_are_read_again_each_time_the_menu_opens(self):
         """Work done since the page drew (an item closed or added) shows in the menu's counts without a reload."""
@@ -111,7 +111,7 @@ class ProjectSwitch(Base):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_menu(p)
-            p.js("document.querySelector('#project-menu [role=menuitem]').click()")
+            p.js("[].filter.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return /settings/i.test(e.textContent)})[0].click()")
             p.until("/^#settings/.test(location.hash)", "the address is Settings")
             self.assertIn("p=PUB", p.js("location.hash"), "still the same project")
 
