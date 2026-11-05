@@ -146,7 +146,7 @@ class OnThePage(Base):
                                  "an empty name leaves the Alias empty")
                 for theme in ("light", "dark"):
                     with self.subTest(width=w, theme=theme):
-                        p.js(f"document.querySelector('input[name=appearance][value={theme}]').click()")
+                        p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={theme}]').click()")
                         p.until(f"document.documentElement.dataset.theme === {json.dumps('dark' if theme == 'dark' else None)} "
                                 f"|| ({json.dumps(theme)} === 'light' && !document.documentElement.dataset.theme)", "the appearance applied")
                         for name, alias in (("Jane Doe", "Jane, JD"), ("Jane", "Jane"), ("Mary Ann Smith", "Mary, MAS")):
