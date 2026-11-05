@@ -3,11 +3,13 @@ launch.py beside it does for the launcher. Without this, the top folder's stand-
 """
 import sys
 
-from clark.__main__ import prepare
+from clark.__main__ import mixed, prepare
 
 
 def hand_over():
     prepare()
+    if mixed():                                 # row 760: the check says the same words; it recovers nothing, so no marker is waited for
+        return 1
     from clark import doctor as real
     return real.main()
 
