@@ -46,6 +46,17 @@ HIDDEN = ".app"                 # the one hidden folder that holds every program
 CODE_ROOT_MARK = HIDDEN + "/"
 # What stays visible at the top of the clark folder. A name ending in "/" is a folder.
 AT_TOP = ("README.md", "START-HERE.txt", "clark.command", "clark.cmd", MANIFEST, "docker/")
+# The README the zip carries is not the repository's README.md (that one is written for people reading the repository): its
+# words live in docs/zip/README.md and the zip puts them at the top under the name README.md. Only the zip does this.
+ZIP_README = "docs/zip/README.md"
+SOURCE_OF = {"README.md": ZIP_README}
+
+
+def source(rel):
+    """The repo file whose bytes the zip holds for the name `rel`: the file itself, except the README (see ZIP_README)."""
+    return SOURCE_OF.get(rel, rel)
+
+
 # Top-level names that belong to the person. They are never in a zip, never listed, backed up, replaced or removed.
 PROTECTED = ("system", "data")
 # Extra top-level folders a release may carry beside the program files (issue 716): files the Head puts in at build time
