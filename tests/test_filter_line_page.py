@@ -37,7 +37,7 @@ class Line(unittest.TestCase):
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
     def serve(self):
-        s = Running(data_for=lambda code: copy.deepcopy(self.data.get(code)), projects=lambda: self.projects,
+        s = Running(data_for=lambda code: copy.deepcopy(self.data.get(code)), projects=lambda archived=False: self.projects,
                     page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         return s
@@ -483,7 +483,7 @@ class Line(unittest.TestCase):
         pool = data["TUL"]["actions"] + data["TUL"]["raid"]
         for i, o in enumerate(owners):
             pool[i]["owner"] = o
-        s = Running(data_for=lambda code: copy.deepcopy(data.get(code)), projects=lambda: self.projects, page_html=lambda: testpage.html())
+        s = Running(data_for=lambda code: copy.deepcopy(data.get(code)), projects=lambda archived=False: self.projects, page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         with chrome() as cdp:
             sid = self.load(cdp, s.port)
@@ -1004,6 +1004,53 @@ class Line(unittest.TestCase):
                 if theme == "dark":
                     self.assertEqual(bg, "rgb(14, 45, 56)")
                 self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.fline')).borderTopColor !== 'rgba(0, 0, 0, 0)'", sid), True)
+
+    def test_the_open_tabs_menu_closes_when_the_row_scrolls_or_the_window_resizes(self):
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.load(cdp, s.port, 900)
+            for how in ("row", "window"):
+                with self.subTest(how=how):
+                    click(cdp, sid, "#viewTabMenu")
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)))
+                    if how == "row":
+                        cdp.js("document.querySelector('.vtabs').scrollLeft = 5", sid)
+                    else:
+                        cdp.call("Emulation.setDeviceMetricsOverride", {"width": 880, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                    self.assertTrue(wait(lambda: cdp.js("!document.querySelector('#viewTabMenuList')", sid)), "the menu does not stay behind its arrow")
+
+
+    def test_the_tab_row_stays_on_one_line_and_scrolls_inside_its_own_box(self):
+        # At 900 px the tabs (the five core views, any saved views and + New view) never wrap onto a second line and never push the page
+        # sideways: the row scrolls inside its own box. At 1400 px they all fit and the row looks as it did.
+        s = self.serve()
+        probe = """(() => { const r = document.querySelector('.vtabs'); const t = [...r.querySelectorAll('.vtab')];
+          return {tabs: t.length, tops: [...new Set(t.concat([r.querySelector('.vnew')]).map(e => { const b = e.getBoundingClientRect(); return Math.round(b.top + b.height / 2); }))], sw: r.scrollWidth, cw: r.clientWidth,
+                  ox: getComputedStyle(r).overflowX, wrap: getComputedStyle(r).flexWrap, page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                  right: r.getBoundingClientRect().right, win: window.innerWidth}; })()"""
+        for theme in THEMES:
+            for width in SIZES:
+                with self.subTest(theme=theme, width=width), chrome() as cdp:
+                    sid = self.load(cdp, s.port, width, theme=theme)
+                    m = cdp.js(probe, sid)
+                    self.assertGreaterEqual(m["tabs"], 5)
+                    self.assertEqual(len(m["tops"]), 1, "every tab and + New view sit on one line")
+                    self.assertEqual(m["wrap"], "nowrap")
+                    self.assertEqual(m["ox"], "auto")
+                    self.assertLessEqual(m["page"], 0, "the page itself does not scroll sideways")
+                    self.assertLessEqual(m["right"], m["win"], "the row stays inside the window")
+                    if width == 900:
+                        self.assertGreater(m["sw"], m["cw"], "the row is wider than its box and scrolls inside it")
+                        cdp.js("document.querySelector('.vtabs').scrollLeft = 10000", sid)
+                        self.assertGreater(cdp.js("document.querySelector('.vtabs').scrollLeft", sid), 0)
+                        self.assertLessEqual(cdp.js(probe, sid)["page"], 0)
+                        click(cdp, sid, "#viewTabMenu")
+                        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)))
+                        self.assertEqual(cdp.js("(() => { const r = document.querySelector('.vtabs'); return r.scrollHeight <= r.clientHeight; })()", sid), True, "the open tab's menu is not cut off by the row")
+                        self.assertGreater(cdp.js("document.querySelector('#viewTabMenuList').getBoundingClientRect().height", sid), 20)
+                        self.assertGreaterEqual(cdp.js("document.querySelector('#viewTabMenuList').getBoundingClientRect().top - document.querySelector('.vtabs').getBoundingClientRect().bottom", sid), 0, "it opens below the row")
+                    else:
+                        self.assertLessEqual(m["sw"], m["cw"], "at 1400 px everything fits, as before")
 
 
 if __name__ == "__main__":

@@ -156,14 +156,14 @@ class Words(unittest.TestCase):
             self.shown(cdp, sid, ["That project isn't here", "Check the project's code."])
 
     def test_the_empty_pages_say_what_is_happening_or_coming(self):
-        none = Running(data_for=self.fake, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda: [])   # #36: no projects yet
+        none = Running(data_for=self.fake, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda archived=False: [])   # #36: no projects yet
         self.addCleanup(none.close)
         with chrome() as cdp:
             sid = navigate(cdp, none.port, "#dashboard")
             self.shown(cdp, sid, ["No project open", "There are no projects yet.",
                                   "To look around with made-up projects, close clark and start it again with python3 -m clark --demo."])
         # item 427: in the container the Docker route has no --demo flag, so the page leaves that sentence out
-        boxed = Running(data_for=self.fake, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda: [])
+        boxed = Running(data_for=self.fake, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda archived=False: [])
         self.addCleanup(boxed.close)
         with mock.patch.object(clark_platform, "container_mode", lambda: True), chrome() as cdp:
             sid = navigate(cdp, boxed.port, "#dashboard")
@@ -206,9 +206,9 @@ class Words(unittest.TestCase):
                                   "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
                                   "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",
                                   "Open folder", "Copy diagnostics", "The log settings could not be read. Reload the page and try again.",
-                                  "Projects", "Show archived", "Add project",      # A-S6: the projects table comes before the Data card; this server has no list to give (#444: Add project is on it)
+                                  "Projects", "Show archived (2)", "Add project",      # A-S6: the projects table comes before the Data card (#444: Add project is on it); this server's stub list answers the archived request too (#653), so the table and the archived count show
                                   "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
-                                  "The list of projects could not be read. Choose Try again. If it happens again, restart clark. Try again",
+                                  "NAME\tCODE\tCLIENT\tWORKSTREAMS\tITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive",
                                   "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
                                   "Export workbook", "Import workbook",        # #444: Export and Import
                                   "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)

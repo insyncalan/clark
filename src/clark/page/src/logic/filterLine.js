@@ -518,7 +518,7 @@ export function toState(line, rows, ctx) {
 // ── Saved views, per project ─────────────────────────────────────────────────────────────────────────────────────────────
 // A view is {id, name, line, archived?}. Nothing is ever deleted: a view is archived (hidden from the tabs) and can be restored.
 
-// The five core views (#640): always the first tabs, in this order, on every project. They cannot be renamed or archived and are never stored
+// The five core views: always the first tabs, in this order, on every project. They cannot be renamed or archived and are never stored
 // with the person's own views. "All work items" is the one place for closed items.
 export const CORE_VIEWS = [
   { id: "core-open", name: "Open items", line: "is:open", core: true },

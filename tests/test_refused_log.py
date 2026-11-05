@@ -48,7 +48,7 @@ class Refusals(unittest.TestCase):
                   mock.patch.dict(sv.POST_ROUTES, {"/api/planted-fault": planted})):
             p.start()
             self.addCleanup(p.stop)
-        self.httpd = sv.LocalServer((sv.HOST, 0), projects=lambda: [])
+        self.httpd = sv.LocalServer((sv.HOST, 0), projects=lambda archived=False: [])
         self.httpd.handle_error = lambda *a: None
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         self.addCleanup(self.httpd.server_close)
@@ -359,7 +359,7 @@ class ShutdownFlush(unittest.TestCase):
                 shutdown()
 
         with mock.patch.object(sv, "IDLE", Idle()):
-            t = threading.Thread(target=sv.serve, kwargs=dict(port=0, out=io.StringIO(), projects=lambda: []))
+            t = threading.Thread(target=sv.serve, kwargs=dict(port=0, out=io.StringIO(), projects=lambda archived=False: []))
             t.start()
             for _ in range(refusals):
                 sv.refused_count()
@@ -384,14 +384,14 @@ class ShutdownFlush(unittest.TestCase):
         for _ in range(7):
             sv.refused_count()
         with mock.patch.object(sv.LocalServer, "serve_forever", side_effect=KeyboardInterrupt):
-            self.assertEqual(sv.serve(port=0, out=io.StringIO(), projects=lambda: []), 0)
+            self.assertEqual(sv.serve(port=0, out=io.StringIO(), projects=lambda archived=False: []), 0)
         lines = self.lines()
         self.assertEqual(len(lines), 1, lines)
         self.assertEqual(MANY.search(lines[0]).group(1), "7")
 
     def test_a_stop_with_no_refusals_writes_nothing(self):
         with mock.patch.object(sv.LocalServer, "serve_forever", side_effect=KeyboardInterrupt):
-            self.assertEqual(sv.serve(port=0, out=io.StringIO(), projects=lambda: []), 0)
+            self.assertEqual(sv.serve(port=0, out=io.StringIO(), projects=lambda archived=False: []), 0)
         self.assertEqual(self.lines(), [])
 
     def test_flushing_twice_writes_the_window_once(self):

@@ -66,7 +66,7 @@ class NotPublished(unittest.TestCase):
         self.addCleanup(lambda: (store.close(), shutil.rmtree(str(folder), ignore_errors=True)))
         projects = store.read("projects")
         data = {p["code"]: store.data_for(p["code"]) for p in projects}
-        s = Running(data_for=lambda code: copy.deepcopy(data.get(code)), projects=lambda: projects, page_html=lambda: testpage.html())
+        s = Running(data_for=lambda code: copy.deepcopy(data.get(code)), projects=lambda archived=False: projects, page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         with chrome() as cdp:
             sid = page_target(cdp)

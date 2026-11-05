@@ -85,7 +85,7 @@ class MilestonesButtons(unittest.TestCase):
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
     def test_earlier_later_and_the_view_switch_stay_28_by_28(self):
-        s = Running(data_for=self.store.data_for, projects=lambda: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         for width in (1400, 900):
             for theme in ("light", "dark"):

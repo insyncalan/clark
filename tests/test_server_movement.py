@@ -22,7 +22,7 @@ class Rig:
         store = self.demo.store
         self.today = "2026-10-28"
         read = movement_read.make_read(store.milestone_moves, store.data_for, today=lambda: self.today)
-        self.httpd = sv.LocalServer((sv.HOST, 0), data_for=store.data_for, projects=lambda: [], movement=read if movement else None)
+        self.httpd = sv.LocalServer((sv.HOST, 0), data_for=store.data_for, projects=lambda archived=False: [], movement=read if movement else None)
         self.httpd.handle_error = lambda *a: None
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         case.addCleanup(self.close)

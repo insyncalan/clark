@@ -277,7 +277,7 @@ class Live(unittest.TestCase):
                 self.sent.append((which, req))
                 return self.failure(req) if self.failure else real(req)
             return call
-        self.s = real_server(self.path, self.read, projects=lambda: [{"code": "TUL", "name": "Tulip"}],
+        self.s = real_server(self.path, self.read, projects=lambda archived=False: [{"code": "TUL", "name": "Tulip"}],
                              page_html=lambda: testpage.html(), seam=seam)
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)

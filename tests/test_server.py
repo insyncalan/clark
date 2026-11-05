@@ -83,7 +83,7 @@ class Stoppable(sv.LocalServer):
 class Running:
     """A server on a free port in a thread, stopped by close() (which also drops the connections it holds, as stopping would)."""
 
-    def __init__(self, data_for=DEMO.get, page_html=None, projects=lambda: PROJECTS, change=None, undo=None, sneak=None,
+    def __init__(self, data_for=DEMO.get, page_html=None, projects=lambda archived=False: PROJECTS, change=None, undo=None, sneak=None,
                  publisher=StubPublisher()):
         self.httpd = Stoppable((sv.HOST, 0), data_for=data_for, page_html=page_html, projects=projects, change=change,
                                undo=undo, sneak=sneak, publisher=publisher)
@@ -1140,7 +1140,7 @@ class ProjectList(ServerTest):
         rows = [{"code": "AAA", "name": "A", "open": 3, "client_name": "no"}, {"code": "BBB", "name": "B", "open": 0},
                 {"code": "CCC", "name": "C", "open": "7"}, {"code": "DDD", "name": "D", "open": -1}, {"code": "EEE", "name": "E", "open": 2.5},
                 {"code": "FFF", "name": "F", "open": True}]
-        s = Running(projects=lambda: rows)
+        s = Running(projects=lambda archived=False: rows)
         self.addCleanup(s.close)
         self.assertEqual(json.loads(s.api("GET", "/api/projects")[2])["projects"],
                          [{"code": "AAA", "name": "A", "open": 3}, {"code": "BBB", "name": "B", "open": 0}, {"code": "CCC", "name": "C"},
@@ -1156,12 +1156,12 @@ class ProjectList(ServerTest):
     def test_odd_rows_are_skipped_and_the_list_is_capped(self):
         rows = [{"code": "OK1", "name": "Fine"}, {"code": "ab"}, {"code": "TOOLONG99", "name": "x"}, {"name": "no code"},
                 "not a dict", None, {"code": "NONAME"}, {"code": "BAD-1", "name": "dash"}, {"code": "<B>", "name": "tag"}]
-        s = Running(projects=lambda: rows)
+        s = Running(projects=lambda archived=False: rows)
         self.addCleanup(s.close)
         self.assertEqual(json.loads(s.api("GET", "/api/projects")[2])["projects"],
                          [{"code": "OK1", "name": "Fine"}, {"code": "NONAME", "name": "NONAME"}])
         many = [{"code": f"P{n:03d}", "name": f"Project {n}"} for n in range(800)]
-        s2 = Running(projects=lambda: many)
+        s2 = Running(projects=lambda archived=False: many)
         self.addCleanup(s2.close)
         got = json.loads(s2.api("GET", "/api/projects")[2])["projects"]
         self.assertEqual((len(got), got[0]["code"], got[-1]["code"]), (sv.PROJECT_LIST_LIMIT, "P000", "P499"))
@@ -1169,14 +1169,14 @@ class ProjectList(ServerTest):
     def test_a_name_is_text_and_at_most_200_characters(self):
         rows = [{"code": "LONG", "name": "n" * 500}, {"code": "NUM", "name": 12345}, {"code": "BLANK", "name": "   "},
                 {"code": "LST", "name": ["a", "b"]}]
-        s = Running(projects=lambda: rows)
+        s = Running(projects=lambda archived=False: rows)
         self.addCleanup(s.close)
         got = json.loads(s.api("GET", "/api/projects")[2])["projects"]
         self.assertEqual(got, [{"code": "LONG", "name": "n" * 200}, {"code": "NUM", "name": "NUM"},
                                {"code": "BLANK", "name": "BLANK"}, {"code": "LST", "name": "LST"}])
 
     def test_no_projects_is_an_empty_list(self):
-        s = Running(projects=lambda: [])
+        s = Running(projects=lambda archived=False: [])
         self.addCleanup(s.close)
         self.assertEqual(json.loads(s.api("GET", "/api/projects")[2]), {"ok": True, "projects": []})
 

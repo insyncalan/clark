@@ -104,7 +104,7 @@ class Sizes(unittest.TestCase):
                 found += [f"{where} {view}{how}: {g}" for g in sorted(set(got))]
 
     def run_page(self, html, prefix, edit):
-        s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda: ONE, page_html=html)
+        s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda archived=False: ONE, page_html=html)
         self.addCleanup(s.close)
         found = []
         with chrome() as cdp:
@@ -127,7 +127,7 @@ class Sizes(unittest.TestCase):
         self.run_page(published_page, "&p=ABC", edit=False)
 
     def test_the_page_with_no_project_open_has_targets_of_24px(self):
-        s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda: ONE, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda archived=False: ONE, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         found = []
         with chrome() as cdp:

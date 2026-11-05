@@ -1,4 +1,4 @@
-// The one filter line above the Work items table (#153; the prototype is #145). It replaces the "Filter by" row and the type and
+// The one filter line above the Work items table (the page's first single filter line, built from an agreed prototype). It replaces the "Filter by" row and the type and
 // Open / Closed switches. The rules (reading a line, suggestions, plain-words messages, saved views) are in ../logic/filterLine.js;
 // this file is the controls: removable chips, a combobox with a listbox of suggestions, a live region for plain-words messages, hint
 // chips while the line is focused, saved views as tabs and one View menu. Keys: arrows choose, Enter accepts,
@@ -17,7 +17,7 @@ import { work, setWork, announce } from "../stores/work.js";
 import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
 
 // A saved view whose line the filter line no longer reads (a word it does not know) stays on the tabs with a plain message, and can be renamed
-// or archived like any other (#589). The one view left out is a starting view the page cannot answer yet (Waiting on the client, while
+// or archived like any other, so a view that cannot be read can still be fixed or removed. The one view left out is a starting view the page cannot answer yet (Waiting on the client, while
 // is:needed is not on): FL.heldBack. Choosing a view that cannot be read does not touch the line.
 
 // Which saved view is chosen, per project, for this visit. A page change keeps it; a reload goes back to the view the line matches.
@@ -68,7 +68,7 @@ function Chips({ parsed, onRemove }) {
   );
 }
 
-// Freshness (#94): the two plain values, each a toggle for the line's word. The words are the line's own (is:quiet, is:incomplete) and are
+// Freshness: the two plain values, each a toggle for the line's word. The words are the line's own (is:quiet, is:incomplete) and are
 // never shown alone: the menu and the chips read "Not reviewed in 14 days" and "No owner or no date".
 const FRESH = ["quiet", "incomplete"];
 function FreshnessMenu() {
@@ -116,6 +116,20 @@ function SavedViews({ board }) {
   const said = active ? trouble(active) : "";
   const dirty = !!active && !said && FL.differs(active, line, rows, ctx);
   const pick = (v) => { chosen.value = { ...chosen.value, [code]: v.id }; if (!trouble(v)) setLine(FL.normalise(v.line, rows, ctx)); };
+  // The open tab and its arrow are brought into view inside the scrolling row (the row alone moves, never the page).
+  const tabsBox = useRef(null);
+  useEffect(() => {
+    const show = () => {
+      const row = tabsBox.current, on = row && row.querySelector('.vtab[aria-pressed="true"]');
+      if (!on) return;
+      const at = (on.parentElement || on).getBoundingClientRect(), box = row.getBoundingClientRect();
+      if (at.right > box.right) row.scrollLeft += at.right - box.right;
+      else if (at.left < box.left) row.scrollLeft -= box.left - at.left;
+    };
+    show();
+    window.addEventListener("resize", show);      // a narrower window can push the open tab out of the box
+    return () => window.removeEventListener("resize", show);
+  }, [active && active.id, shown.length]);
   const act = (id) => {
     if (/^(layout|group|lane):/.test(id)) pickLayout(id);
     else if (id === "save" && active) { const r = FL.saveView(all, active.id, FL.normalise(line, rows, ctx)); if (r.ok) saveViews(code, r.views); }
@@ -155,11 +169,11 @@ function SavedViews({ board }) {
   for (const v of archived) tabItems.push({ id: `restore:${v.id}`, name: `Bring back ${v.name}${trouble(v) ? " (cannot be used now)" : ""}` });
   return (
     <div class="fviews">
-      <div class="vtabs" role="group" aria-label="Saved views">
+      <div class="vtabs" role="group" aria-label="Saved views" ref={tabsBox}>
         {shown.map((v) => {
           const on = !!active && active.id === v.id, dot = on && dirty, bad = trouble(v);
           // the small arrow sits right beside the open tab's name
-          const arrow = on && !fromFile.value ? <Menu label="" ariaLabel={`Options for ${v.name}`} id="viewTabMenu" btnCls="vtabmenu" menuId="viewTabMenuList" menuLabel={`Options for ${v.name}`} items={tabItems} onPick={act} /> : null;
+          const arrow = on && !fromFile.value ? <Menu label="" ariaLabel={`Options for ${v.name}`} id="viewTabMenu" btnCls="vtabmenu" menuId="viewTabMenuList" fixed menuLabel={`Options for ${v.name}`} items={tabItems} onPick={act} /> : null;
           if (bad) {          // no count: the line is not applied, so there is nothing to count
             return (
               <span class="vt" key={v.id}>
@@ -273,7 +287,7 @@ export function FilterLine({ board }) {
       e.preventDefault(); e.stopPropagation(); setClosed(true); setActive(-1);
     }
   };
-  // "/" focuses the line only where nothing took the key first. In the app the ask panel's capture handler does (#47a), so this does not run
+  // "/" focuses the line only where nothing took the key first. In the app the ask panel's capture handler does, so this does not run
   // there and the page does not advertise it; it stays for a page without that handler.
   useEffect(() => {
     const slash = (e) => {

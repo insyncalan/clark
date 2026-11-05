@@ -362,7 +362,7 @@ class HiddenOnTheServedPage(unittest.TestCase):
 
     def test_the_served_page_has_no_client_report_tab_in_either_dashboard_mode_and_its_address_falls_back(self):
         projects = self.store.read("projects")            # read here: the store's connection belongs to this thread, and the server answers on another
-        s = Running(data_for=self.store.data_for, projects=lambda: projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         with chrome() as cdp:
             sid = page_target(cdp)
