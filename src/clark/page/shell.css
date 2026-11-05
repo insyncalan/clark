@@ -1906,3 +1906,9 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 
 /* Row 832: Work items sits straight on the tinted page, not inside a white bordered card. */
 .frame.work { background: transparent; border: 0; box-shadow: none; padding: 0; }
+
+/* Row 832: Milestones sits on the tinted page; the viewer and timeline keep their card. */
+.frame.milestones { background: transparent; border: 0; box-shadow: none; padding: 0; }
+.frame.milestones .msv { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: var(--space-5) 28px; }
+.frame.milestones .msv-sw { top: var(--space-5); right: 28px; }
+@media (max-width: 900px) { .frame.milestones .msv { padding: 18px var(--space-4); } .frame.milestones .msv-sw { top: 18px; right: var(--space-4); } }

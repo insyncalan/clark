@@ -31,6 +31,16 @@ class Frames(Base):
     def test_row_832_work_items_has_no_wrapping_card(self):
         self.flat("#work&p=ABC", "#work", "#work-list")
 
+    def test_row_832_milestones_has_no_wrapping_card_but_the_viewer_keeps_its_own(self):
+        self.flat("#milestones&p=ABC", "#milestones", ".msv")
+        for width, scheme, edit in CASES:
+            with self.subTest(width=width, scheme=scheme, edit=edit), chrome() as cdp:
+                sid = self.visit(cdp, width=width, edit=edit, hash_="#milestones&p=ABC", wait_for=".msv")
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
+                got = cdp.js("(() => { const c = getComputedStyle(document.querySelector('#milestones .msv')); return [c.borderTopWidth, c.boxShadow !== 'none', c.backgroundColor !== 'rgba(0, 0, 0, 0)']; })()", sid)
+                self.assertEqual(got, ["1px", True, True], "the viewer and timeline keep a card")
+                self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
+
 
 if __name__ == "__main__":
     unittest.main()
