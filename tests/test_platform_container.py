@@ -256,5 +256,48 @@ class ContainerOneDrive(unittest.TestCase):
         self.assertIn('CLARK_DATA_SOURCE: "${CLARK_DATA_DIR:-${PWD:-}/data}"', text)   # no PWD (PowerShell) gives "/data": nothing is known, nothing refused
 
 
+class ShownPath(unittest.TestCase):
+    """#696: a path is written from "~" only when it really is under the home folder."""
+
+    def test_outside_home_the_path_is_shown_as_it_is(self):
+        for home, path in (("/Users/sam", "/tmp/clark-v100-run/OneDrive - Test/data"), ("/Users/sam", "/Users/samuel/clark"),
+                           ("/private/tmp/h", "/tmp/h/clark"), ("/Users/sam", "/private/tmp/x"), ("/", "/tmp/clark/data"),
+                           ("/", "/Users/sam/OneDrive/clark")):
+            with self.subTest(home=home, path=path):
+                self.assertEqual(pl.shown(path, home=home), path)
+
+    def test_under_home_it_is_written_from_the_tilde(self):
+        self.assertEqual(pl.shown("/Users/sam/Documents/clark", home="/Users/sam"), "~/Documents/clark")
+        self.assertEqual(pl.shown("/Users/sam", home="/Users/sam"), "~")
+
+    def test_the_onedrive_refusal_shows_the_real_path(self):
+        data = "/tmp/clark-v100-run/OneDrive - Test/data"
+        with mock.patch.dict("os.environ", {"HOME": "/Users/sam"}), self.assertRaises(pl.PlatformError) as e:
+            pl.check_data_dir(data, roots=["/tmp/clark-v100-run/OneDrive - Test"])
+        self.assertIn(f"kept in {data} because", str(e.exception))
+        self.assertNotIn("~/", str(e.exception))
+
+    def test_the_container_refusal_with_a_root_home_names_the_macs_folder_as_it_is(self):
+        mac = "/Users/sam/OneDrive - Test/clark"
+        with mock.patch.dict("os.environ", {"CLARK_CONTAINER": "1", "CLARK_DATA_SOURCE": mac, "HOME": "/"}), markers("/.dockerenv"), \
+                self.assertRaises(pl.PlatformError) as e:
+            pl.check_data_dir("/data")
+        self.assertIn(f"kept in {mac} because", str(e.exception))
+
+
+class StartLine(Case):
+    def test_the_container_line_gives_the_docker_stop_and_no_window(self):
+        self.inside()
+        text = launcher.start_line("http://127.0.0.1:8766/")
+        self.assertEqual(text, "Open http://127.0.0.1:8766/ to use clark. Stop it with: docker compose -f docker/compose.yaml down")
+        self.assertNotIn("Ctrl", text); self.assertNotIn("window", text)
+
+    def test_the_terminal_line_is_unchanged(self):
+        with mock.patch.dict("os.environ", {}), markers():
+            os.environ.pop("CLARK_CONTAINER", None)
+            self.assertEqual(launcher.start_line("http://127.0.0.1:8766/"),
+                             "Open http://127.0.0.1:8766/ to use clark. Leave this window open. Press Ctrl+C to stop.")
+
+
 if __name__ == "__main__":
     unittest.main()
