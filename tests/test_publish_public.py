@@ -1538,6 +1538,7 @@ KNOWN_PUBLIC = frozenset({
     # #93: the README's pictures, taken from the fictional demo data (the prototype and `python3 -m clark --demo`)
     "docs/img/app-work-items-dark.png", "docs/img/app-work-items-light.png", "docs/img/ask-clark.png",
     "docs/img/clark-mascot.png",
+    "docs/zip/README.md",                # the README the release zip carries at its top (#751)
     "docs/img/milestones-calendar.png", "docs/img/milestones-timeline.png", "docs/img/peek.png",
     "docs/img/published-page.png", "docs/img/report-dark.png", "docs/img/report-edit.png", "docs/img/report-light.png",
     "docs/img/work-items-board.png", "docs/img/work-items-dark.png", "docs/img/work-items-table.png",

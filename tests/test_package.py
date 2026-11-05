@@ -75,6 +75,52 @@ class MacZipTest(unittest.TestCase):
                        ".app/vendor/manifest.json", "README.md", "START-HERE.txt"):
             self.assertIn(needed, names)
 
+    def test_the_zips_readme_is_the_zip_readme_and_not_the_repositorys(self):
+        """#751: the README at the top of the zip is docs/zip/README.md, written for the download; the root README.md stays
+        for the repository and is not in the zip."""
+        with zipfile.ZipFile(self.zip) as z:
+            held = z.read(f"{self.top}/README.md")
+        self.assertEqual((package.ROOT / release_files.ZIP_README).read_bytes(), held)
+        self.assertNotEqual((package.ROOT / "README.md").read_bytes(), held)
+        self.assertNotIn(b"docs/zip", held)
+
+    def test_the_zips_readme_has_no_picture_no_repository_and_no_link_out_of_the_zip(self):
+        """#751: nothing in the download's README points outside the download: no image, no word 'repository', no file link that
+        is missing from the unzipped folder, no path of the source tree."""
+        import re
+        with zipfile.ZipFile(self.zip) as z, tempfile.TemporaryDirectory() as folder:
+            z.extractall(folder)
+            base = Path(folder) / self.top
+            text = (base / "README.md").read_text(encoding="utf-8")
+            self.assertNotRegex(text, r"!\[", "no picture")
+            self.assertNotRegex(text, r"<img\b|\.(png|jpe?g|gif|svg)\b", "no picture file")
+            self.assertNotIn("repository", text.lower())
+            for banned in ("SECURITY.md", "docs/", "dev/run_tests", "dev/tools/", "tests/", "python3 -m clark"):
+                self.assertNotIn(banned, text, banned)
+            for target in re.findall(r"\]\(([^)\s]+)\)", text):
+                if re.match(r"[a-z]+:", target) or target.startswith("#"):
+                    continue                                    # a web address or an anchor in the page itself
+                self.assertTrue((base / target.split("#")[0]).exists(), f"the link {target} points at nothing in the download")
+
+    def test_the_zip_carries_no_docs_folder_and_no_pictures_of_the_repository_readme(self):
+        """#751: the root README's pictures live in docs/img; the zip's README uses none, so the zip holds no docs/ folder at all."""
+        names = self.inside()
+        self.assertEqual([], [n for n in names if n.startswith(("docs/", ".app/docs/"))])
+        self.assertEqual([], [n for n in names if n.lower().endswith((".png", ".jpg", ".jpeg", ".gif")) and not n.startswith((".app/src/", ".app/vendor/"))])
+
+    def test_a_release_or_client_zip_refuses_without_the_zip_readme(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "repo"
+            (root / "src/clark").mkdir(parents=True)
+            (root / "README.md").write_text("A repository README.\n", encoding="utf-8")
+            (root / "src/clark/__init__.py").write_text('__version__ = "0.0.1"\n', encoding="utf-8")
+            (root / "src/clark/store.py").write_text("SCHEMA_VERSION = 1\n", encoding="utf-8")
+            with mock.patch.object(package, "SHARED", ("README.md", "src/clark/")), mock.patch.object(package, "tag_problem", return_value=None):
+                with self.assertRaises(package.Refused) as caught:
+                    package.build("mac", Path(tmp) / "out", root=root, release=True)
+            self.assertIn("docs/zip/README.md", str(caught.exception))
+            self.assertFalse((Path(tmp) / "out").exists() and any((Path(tmp) / "out").iterdir()))
+
     def test_licence_and_notice_are_in_the_zip(self):
         """#639: LICENSE and NOTICE.md travel with the code; the list, the zip and the manifest all hold them."""
         import json
@@ -319,7 +365,7 @@ class ForClientTest(unittest.TestCase):
         tmp = tempfile.mkdtemp(prefix="clark snapshot ")
         self.addCleanup(shutil.rmtree, tmp, True)
         root = Path(tmp)
-        base = {"README.md": "A fictional public README.\n", "src/clark/__init__.py": '__version__ = "0.0.1"\n', "src/clark/store.py": "SCHEMA_VERSION = 1\n",
+        base = {"README.md": "A fictional public README.\n", "docs/zip/README.md": "A fictional download README.\n", "src/clark/__init__.py": '__version__ = "0.0.1"\n', "src/clark/store.py": "SCHEMA_VERSION = 1\n",
                 "clark.command": "#!/bin/bash\necho start\n"}
         for name, text in {**base, **files}.items():
             (root / name).parent.mkdir(parents=True, exist_ok=True)

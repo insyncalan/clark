@@ -49,7 +49,7 @@ DIST = ROOT / "dist"
 if str(Path(__file__).resolve().parents[2] / "src") not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from clark.release_files import (EXTRA_TOP, INCLUDE_DEMO, MANIFEST, NOT_BUILT_YET, RUN_BIT, SHARED, START_HERE, SYSTEMS, TOP,  # noqa: E402,F401
-                                 place, protected, unplace)
+                                 ZIP_README, place, protected, source, unplace)
 
 # The one list of what the download holds is src/clark/release_files.py (shipped, so the updater reads the same list).
 
@@ -239,12 +239,19 @@ def tracked(root, paths):
     return [p for p in out.decode("utf-8").split("\0") if p]
 
 
+def zip_source(name, root=ROOT):
+    """The repo file the zip's `name` is read from: docs/zip/README.md for README.md when that file is there, else the name
+    itself (a small test repo has only a README.md). A release or a client build refuses to go on without docs/zip/README.md."""
+    src = source(name)
+    return src if (Path(root) / src).is_file() else name
+
+
 def files(system, root=ROOT):
     """The repo files that go in the zip for `system`, sorted (START-HERE.txt is not one: it is written here)."""
     chosen, kept = set(), set()
     for item in listed(system):
         found = tracked(root, [item]) if item.endswith("/") else [item]
-        if not found or not all((Path(root) / p).is_file() for p in found):
+        if not found or not all((Path(root) / zip_source(p, root)).is_file() for p in found):
             raise Refused(f"A file the download needs is missing: {item}. Restore it, then build again.")
         kept.update(p for p in found if protected(p))
         chosen.update(p for p in found if not LEFT_OUT.search(p))
@@ -576,8 +583,11 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
             raise Refused(f"A zip for a client must be built from the scrubbed public snapshot, and {problem}. "
                           "Nothing was written. Build it in a checkout of the snapshot that dev/tools/publish_public.py "
                           "makes, or leave out --for-client to build one for the team.")
+    if (release or for_client) and "README.md" in listed(system) and not (root / ZIP_README).is_file():
+        raise Refused(f"A release or a client zip carries {ZIP_README} as its README.md, and that file is missing. "
+                      "Nothing was written. Restore it, then build again.")
     extra = extra_content(extra_folders)            # before anything is written; a plain Refused if a folder is not fit
-    changed = [] if dirty else changed_files(uncommitted(root, list(listed(system))))
+    changed = [] if dirty else changed_files(uncommitted(root, [zip_source(p, root) for p in listed(system)]))
     if changed:
         raise Refused(f"Some of the files that go in the zip have changes that aren't committed: {', '.join(changed)}. "
                       "Commit them first, or add --dirty to build from them as they are.")
@@ -585,7 +595,7 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
         make_pages(root, twice=release)
     names = files(system, root)
     top = top_folder(root)
-    content = {f"{top}/{place(p)}": (placed_bytes(p, (root / p).read_bytes()), RUN_MODE if p in RUN_BIT else FILE_MODE)
+    content = {f"{top}/{place(p)}": (placed_bytes(p, (root / zip_source(p, root)).read_bytes()), RUN_MODE if p in RUN_BIT else FILE_MODE)
                for p in names}
     content[f"{top}/{place(START_HERE)}"] = (start_here(system, for_client, root, {n.split("/")[0] for n in extra}).encode("utf-8"), FILE_MODE)
     content.update({f"{top}/{n}": (data, FILE_MODE) for n, data in extra.items()})      # issue 716: not in git, so not in `names`
