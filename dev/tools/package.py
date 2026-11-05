@@ -109,6 +109,11 @@ Getting started on a Mac
 
 These steps are for a Mac.
 
+What is in this folder: README.md says what clark is. START-HERE.txt is this
+page. clark.command starts clark. docker is for starting clark with Docker.
+system/branding holds your own logo and colours, if you add them. clark's own
+files are in a hidden folder called .app: you do not need to open it.
+
 If your Mac will not open clark.command (a work Mac often will not), or you
 already use Docker, use Docker instead. You only need Docker and Chrome.
   1. Open Docker Desktop and wait until it says it is running.
@@ -126,20 +131,38 @@ has no built page, and Docker stops with a message saying so.
 Start Docker from the clark folder.
 To see what Docker has said, type this in the same folder:
         docker compose -f docker/compose.yaml logs --tail 50
-With Docker, your data is kept in the data folder beside the clark files, made
-at the first start. Keep that data folder when you swap this folder for a newer
-download. To use the data clark.command uses instead, type this in step 3:
-        CLARK_DATA_DIR="$HOME/Library/Application Support/clark" docker compose -f docker/compose.yaml up -d
-To use another folder, put its full path in CLARK_DATA_DIR the same way.
+With Docker, your data is kept in ~/Library/Application Support/clark, the same
+place clark.command uses, not in this folder, so you can swap this folder for a
+newer download without losing anything. To use another folder, put its full
+path in CLARK_DATA_DIR in front of the command in step 3:
+        CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d
 A folder inside OneDrive cannot be used by clark.
-Never open the same data from clark.command and from Docker at the same time:
-stop one before you start the other.
+By default clark.command and Docker use the same data.
+IMPORTANT: Never open the same data from clark.command and from Docker at the
+same time: stop one before you start the other.
 To use another port, put it in front of the command, for example:
         CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d
 then open http://localhost:8800 instead.
 If it says port 8766 is already used, another clark is open: close it, or stop
 it with the command in step 5, then try again. If it says it cannot connect to
 Docker, Docker Desktop is not running yet.
+
+If you already have clark:
+  1. Close clark.
+  2. Rename your old clark folder (for example to clark-old) or move it away,
+     so the two folders do not clash.
+  3. Unzip this download.
+  4. If you added your own logo or colours, copy the system/branding folder
+     from the old clark folder into the new one. clark never changes that
+     folder, but replacing the whole clark folder by hand removes it.
+  5. If you use Docker and your data is in a data folder inside the old clark
+     folder, move that data folder out of it before you delete the old folder,
+     or start Docker with CLARK_DATA_DIR naming it.
+  6. Double-click clark.command. Your Mac may ask you to confirm clark.command
+     again: do as in step 2 under "Without Docker" below.
+Your projects are not in the old clark folder: they stay in
+~/Library/Application Support/clark. In clark 1.0.0, updating from inside clark
+is switched off, so install this version by hand.
 
 Without Docker:
 
@@ -178,7 +201,7 @@ If your Mac is missing something it needs, clark.command says how to get it.
 
 To check what your Mac needs for clark, open Terminal, type cd and a space,
 drag this folder into the Terminal window and press Return. Then type:
-   python3 -m clark.doctor
+   bash clark.command --check
 and press Return. It says what is ready and what to fix.
 
 Without Docker, your data is kept in ~/Library/Application Support/clark, not in
@@ -188,7 +211,7 @@ this folder, so you can swap this folder for a newer download without losing any
 START_HERE_DEMO = """
 To try it with made-up data first, open Terminal, type cd and a space,
 drag this folder into the Terminal window and press Return. Then type:
-   python3 -m clark --demo --open
+   bash clark.command --demo --open
 and press Return. Nothing you do there is kept.
 """
 

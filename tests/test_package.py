@@ -141,8 +141,10 @@ class MacZipTest(unittest.TestCase):
             if not line.strip().startswith(("CLARK_DATA_DIR=", "CLARK_PORT=")):     # item 427: a command to type, which sets a variable
                 self.assertFalse(line.strip().lower().startswith("clark"), line)
         self.assertEqual(package.INCLUDE_DEMO, "--demo" in text)
+        self.assertEqual(package.INCLUDE_DEMO, "   bash clark.command --demo --open\n" in text)
         self.assertIn("If your Mac is missing something it needs, clark.command says how to get it.", text)
-        self.assertIn("python3 -m clark.doctor", text, "where the checks are run from")
+        self.assertIn("   bash clark.command --check\n", text, "where the checks are run from (issue 694: the download has no python3 -m clark)")
+        self.assertNotIn("python3 -m", text)
         self.assertNotIn("open Terminal in this folder", text, "the drag-into-Terminal steps are given instead")
         self.assertNotIn("!", text)
 
@@ -187,15 +189,47 @@ class MacZipTest(unittest.TestCase):
     def test_start_here_says_where_docker_keeps_the_data_and_the_two_ways_never_share_it_at_once(self):
         flat = " ".join(package.start_here("mac").split())
         self.assertIn("These steps are for a Mac.", flat)
-        self.assertIn("With Docker, your data is kept in the data folder beside the clark files", flat)
-        self.assertIn('CLARK_DATA_DIR="$HOME/Library/Application Support/clark" docker compose -f docker/compose.yaml up -d', flat)
+        self.assertIn("With Docker, your data is kept in ~/Library/Application Support/clark, the same place clark.command uses, not in this folder, "
+                      "so you can swap this folder for a newer download without losing anything.", flat)
+        self.assertIn('CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d', flat)
+        self.assertNotIn("beside the clark files", flat)
         self.assertIn("Use the clark download, not a copy of the source code: a copy of the source has no built page, and Docker stops with a message saying so.", flat)
         self.assertIn("To see what Docker has said, type this in the same folder:", flat)
         self.assertIn("docker compose -f docker/compose.yaml logs --tail 50", flat)
-        self.assertIn("Never open the same data from clark.command and from Docker at the same time: stop one before you start the other.", flat)
+        warning = ("By default clark.command and Docker use the same data. IMPORTANT: Never open the same data from clark.command "
+                   "and from Docker at the same time: stop one before you start the other.")
+        self.assertIn(warning, flat)
+        lines = package.start_here("mac").splitlines()
+        self.assertTrue(any(l.startswith("IMPORTANT: Never open the same data") for l in lines), "the warning starts its own line")
+        self.assertLess(flat.index("With Docker, your data"), flat.index(warning))
+        self.assertLess(flat.index(warning), flat.index("To use another port"))
         self.assertIn("CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d then open http://localhost:8800 instead.", flat)
         self.assertLess(flat.index("With Docker, your data"), flat.index("Without Docker:"))
         self.assertIn("Without Docker, your data is kept in ~/Library/Application Support/clark", flat)
+
+    def test_start_here_says_what_is_in_the_folder_and_how_to_swap_an_old_clark(self):
+        """issue 694: the one-folder download is described, and an update by hand is told as six short numbered steps."""
+        text = package.start_here("mac")
+        flat = " ".join(text.split())
+        self.assertIn("What is in this folder: README.md says what clark is. START-HERE.txt is this page. clark.command starts clark. "
+                      "docker is for starting clark with Docker. system/branding holds your own logo and colours, if you add them. "
+                      "clark's own files are in a hidden folder called .app: you do not need to open it.", flat)
+        self.assertLess(flat.index("These steps are for a Mac."), flat.index("What is in this folder:"))
+        self.assertLess(flat.index("What is in this folder:"), flat.index("If your Mac will not open"))
+        steps = ["If you already have clark:", "1. Close clark.", "2. Rename your old clark folder (for example to clark-old) or move it away, "
+                 "so the two folders do not clash.", "3. Unzip this download.", "4. If you added your own logo or colours, copy the "
+                 "system/branding folder from the old clark folder into the new one. clark never changes that folder, but replacing the "
+                 "whole clark folder by hand removes it.", "5. If you use Docker and your data is in a data folder inside the old clark "
+                 "folder, move that data folder out of it before you delete the old folder, or start Docker with CLARK_DATA_DIR naming it.",
+                 '6. Double-click clark.command. Your Mac may ask you to confirm clark.command again: do as in step 2 under "Without Docker" below.',
+                 "Your projects are not in the old clark folder: they stay in ~/Library/Application Support/clark. In clark 1.0.0, updating "
+                 "from inside clark is switched off, so install this version by hand."]
+        at = -1
+        for part in steps:
+            found = flat.find(part)
+            self.assertGreater(found, at, part)
+            at = found
+        self.assertLess(flat.index("6. Double-click clark.command."), flat.index("Without Docker:"))
 
     def test_the_default_build_says_what_is_true_of_the_tree_it_was_built_from(self):
         """This checkout is what is published on the public repository (#463): it tracks no private-only path, so the zip
