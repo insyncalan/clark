@@ -183,11 +183,9 @@ class Page(Base):
     def load(self, cdp, width=1400, edit=True, mode="all"):
         sid = self.visit(cdp, width=width, edit=edit)
         if mode != "open":
-            click(cdp, sid, "#fline-input")                 # no is: chip means every item, open or closed
-            for _ in range(5):
-                if cdp.js("document.querySelectorAll('.fline .fchip').length", sid) == 0:
-                    break
-                press(cdp, sid, "Backspace")
+            click(cdp, sid, "#fline-input")                 # no is: word means every item, open or closed
+            cdp.js("document.querySelector('#fline-input').select()", sid)
+            press(cdp, sid, "Backspace")
             self.until(cdp, sid, "!/open/.test(document.querySelector('#work-count').textContent)", "every item shown")
         self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length > 5", "the rows")
         return sid

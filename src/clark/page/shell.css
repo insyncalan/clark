@@ -318,9 +318,20 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .vtab[data-broken="true"] { border-style: dashed; }
 .vbad { flex: 1 1 100%; margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
 .vbad:empty { display: none; }
-.fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.fline { position: relative; display: flex; flex-wrap: nowrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
-.fline input { all: unset; box-sizing: border-box; flex: 1 1 160px; min-width: 120px; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: var(--text); }
+.fedit { position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; }   /* issue 662: the box holds the whole line; its tokens are drawn over the text */
+.fline input { all: unset; box-sizing: border-box; flex: 1 1 auto; width: 100%; min-width: 0; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: transparent; caret-color: var(--text); }
+.fhi { position: absolute; inset: 0; display: flex; align-items: center; overflow: hidden; white-space: pre; pointer-events: none; font-size: var(--size-small); color: var(--text); }
+.fhs { flex: none; }
+.fk.k-sep { color: var(--text-muted); }
+.fk.k-val { border-radius: var(--radius); background: var(--brand-blue-tint); color: var(--status-blue-text); box-shadow: 0 0 0 2px var(--brand-blue-tint); }
+.fk.k-val.r { background: var(--status-red-tint); color: var(--status-red-text); box-shadow: 0 0 0 2px var(--status-red-tint); }
+.fk.k-val.a { background: var(--status-amber-tint); color: var(--status-amber-text); box-shadow: 0 0 0 2px var(--status-amber-tint); }
+.fk.k-val.g { background: var(--status-green-tint); color: var(--status-green-text); box-shadow: 0 0 0 2px var(--status-green-tint); }
+.fk.k-val.n { background: var(--grey-100); color: var(--grey-700); box-shadow: 0 0 0 2px var(--grey-100); }
+.fk.k-err { pointer-events: auto; cursor: text; text-decoration: underline wavy var(--status-red); text-underline-offset: 4px; }
+.fcount { flex: none; margin-left: auto; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
 .fline input::placeholder { color: var(--text-muted); }
 .fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 2px 0 10px; min-height: 26px; border-radius: var(--radius-pill); background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: var(--size-small); }
 .fchip.word { background: var(--grey-100); color: var(--text); }
@@ -333,6 +344,11 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fopt .fl1 { font-weight: var(--weight-medium); }
 .fopt .fl2 { font-size: var(--size-small); color: var(--text-muted); }
 .fopt[aria-selected="true"] .fl2 { color: inherit; }
+.fdv { flex: none; align-self: center; width: 8px; height: 8px; border-radius: 50%; background: var(--status-blue); }
+.fdv.r { background: var(--status-red); }
+.fdv.a { background: var(--status-amber); }
+.fdv.g { background: var(--status-green); }
+.fdv.n { background: var(--status-grey); }
 .fopt .c { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); }
 .fhints { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; min-height: 26px; visibility: hidden; }
 .fhints.on { visibility: visible; }
@@ -1813,8 +1829,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .vnew { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; padding: 3px 10px; border-radius: var(--radius-pill); cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
 .vnew:hover { background: var(--grey-100); color: var(--text); }
 .vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.fline:has(.fx) { padding-right: 38px; }
-.fx { all: unset; box-sizing: border-box; position: absolute; right: 7px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: var(--size-body); line-height: 1; }
+.fx { all: unset; box-sizing: border-box; flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: var(--size-body); line-height: 1; }
 .fx:hover { background: var(--grey-100); color: var(--text); }
 .fx:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .wl-id { display: inline-flex; align-items: center; gap: 4px; }

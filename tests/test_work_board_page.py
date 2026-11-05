@@ -9,6 +9,7 @@ are real DevTools input events. Desktop (1400) and 900 px only. The pure rules a
 import json
 import re
 import sqlite3
+import time
 import unittest
 from unittest import mock
 
@@ -54,11 +55,12 @@ class Base(unittest.TestCase):
         self.addCleanup(quiet.stop)
 
     def line(self, cdp, sid, text):
-        """Add to the filter line the way a person does: click the box, type, press Enter."""
+        """Replace the filter line the way a person does: click the box, select what is in it, type; the list follows after the pause."""
         click(cdp, sid, "#fline-input")
+        cdp.js("document.querySelector('#fline-input').select()", sid)
         cdp.call("Input.insertText", {"text": text}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == text))
-        key(cdp, sid, "Enter")
+        time.sleep(0.7)
 
     # ---- the data ----
     def id_of(self, text):
@@ -142,11 +144,9 @@ class Base(unittest.TestCase):
         self.reload(cdp, sid)
         cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
         if mode != "open":
-            click(cdp, sid, "#fline-input")                 # no is: chip means every item, open or closed
-            for _ in range(5):
-                if cdp.js("document.querySelectorAll('.fline .fchip').length", sid) == 0:
-                    break
-                key(cdp, sid, "Backspace")
+            click(cdp, sid, "#fline-input")                 # no is: word means every item, open or closed
+            cdp.js("document.querySelector('#fline-input').select()", sid)
+            key(cdp, sid, "Backspace")
             self.until(cdp, sid, "!/open/.test(document.querySelector('#work-count').textContent)", "the count follows All")
         self.until(cdp, sid, "!!document.querySelector('#work-board .bcard')", "the board")
 
@@ -330,7 +330,7 @@ class GroupBy(Base):
             acts = cdp.js("document.querySelectorAll('#work-board .bcard').length", sid)
             self.assertLess(acts, all_)
             self.assertEqual(cdp.js("[...document.querySelectorAll('#work-board section.col')].map(c => c.dataset.col)", sid), ["Open", "Delayed", "Closed", "Cancelled"], "the status columns follow the type")
-            self.line(cdp, sid, "workstream:Build")
+            self.line(cdp, sid, "type:action workstream:Build")
             self.until(cdp, sid, f"document.querySelectorAll('#work-board .bcard').length < {acts}")
             n = cdp.js("document.querySelectorAll('#work-board .bcard').length", sid)
             self.assertRegex(cdp.js("document.querySelector('#work-count').textContent", sid), rf"^{n} (?:open )?items?$")
