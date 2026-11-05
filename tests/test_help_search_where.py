@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_help_search_where
 The pure part (buildIndex, resultsView) is bundled by the pinned esbuild and run in node (skips with no node), as in test_help_guides.py.
 The panel as drawn is driven in headless Chrome (a page built with a fixture guide: the real source ships no guide yet), at 1400 and 900 px,
-in the light and the dark theme. The words are the signed mockup's (docs/handoff/v1.0/mockups/help-search.html): "N results for “q”", the
+in the light and the dark theme. The words are the Head's ruling (issue 688), and the mockup (docs/handoff/v1.0/mockups/help-search.html) was updated to match: "N results for “q”", the
 sentence under it, "Step N: title" and "Screen part: ...". A step may carry `t` (its short title) and `part` (its screen part): both are data
 and both are optional; a chip with nothing to say is left off, never filled with invented words.
 """
@@ -103,6 +103,23 @@ class Logic(unittest.TestCase):
             self.assertEqual(v["kind"], "results", q)
             self.assertFalse(any(x["id"].startswith("guide-") for x in v["rows"]), q)
             self.assertIsNone(v["lead"], q)
+
+    def test_the_lead_is_shown_when_a_guide_is_among_other_results_and_not_otherwise(self):
+        c = fixture_content()
+        c["guides"].append({"id": "fx-undo", "t": "Fixture undo guide", "job": "Take back a change.",
+                            "steps": [{"d": "Press undo on the toolbar."}], "result": "The change is gone.", "next": ["ref-keys"]})
+        got = run_node(c, """(() => { const idx = HL.buildIndex(); return ["undo", "keyboard"].map((q) => { const v = HL.resultsView(idx, q), ids = v.groups.flatMap((g) => g.results.map((r) => r.id));
+          return { lead: v.lead || null, guides: ids.filter((i) => i.startsWith("guide-")).length, others: ids.filter((i) => !i.startsWith("guide-")).length }; }); })()""")
+        undo, keys = got
+        self.assertGreater(undo["guides"], 0, "the search holds a guide")
+        self.assertGreater(undo["others"], 0, "and results that are not guides: a mixed set")
+        self.assertEqual(undo["lead"], LEAD, "one guide among others is enough for the line")
+        self.assertEqual(keys["guides"], 0)
+        self.assertIsNone(keys["lead"], "no guide among the results: no line")
+
+    def test_the_mockup_carries_the_same_lead_as_the_code_and_this_test(self):
+        mock = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "handoff", "v1.0", "mockups", "help-search.html"), encoding="utf-8").read()
+        self.assertIn(f'<p class="lead">{LEAD}</p>', mock)
 
     def test_no_results_have_no_lead_and_the_no_results_words_are_unchanged(self):
         self.assertEqual(self.r["zzzqq"]["kind"], "empty")

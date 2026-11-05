@@ -22,7 +22,7 @@ import sys
 import time
 from pathlib import Path
 
-from clark import appfiles, platform, server, typed, update_helper
+from clark import appfiles, platform, same_version, server, typed, update_helper
 from clark.__main__ import Usage, free_port_near, port_free, port_number
 
 NOTHING, OURS, OTHER_DATA, NOT_CLARK = "nothing", "ours", "other data folder", "not clark"
@@ -164,6 +164,8 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
     folder = Path(folder)
     mark = appfiles.data_mark(folder)
     if not finish(folder, say):
+        return 1
+    if same_version.refuse():                   # row 760: a folder of mixed versions never starts; after the recovery of an interrupted update, never before it
         return 1
     seen = health(port, mark)
     if seen in (OTHER_DATA, NOT_CLARK):
