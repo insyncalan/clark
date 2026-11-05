@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Getting started with clark</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* A4 portrait, about 7 pages. Colours are the product's own (src/clark/brand/tokens.css, light). Local fonts only: nothing is fetched. Page numbers are made by the page's own CSS. */
+:root { --navy: #062F3A; --ink: #0E2430; --indigo: #5B47D8; --indigo-strong: #4A37C2; --indigo-tint: #ECE9FF; --cyan: #38E0EE; --grey-50: #F3F6FC; --grey-200: #D9E0EF; --grey-700: #475577; --font: Inter, -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; }
+@page { size: A4; margin: 16mm 17mm 20mm 17mm; @bottom-center { content: "Getting started with clark  ·  page " counter(page) " of " counter(pages); font: 400 9pt Inter, -apple-system, "Helvetica Neue", Arial, sans-serif; color: #475577; } }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #fff; }
+body { font: 400 10.5pt/1.5 var(--font); color: var(--ink); }
+.cover { display: flex; align-items: center; gap: 14px; background: var(--navy); color: #fff; padding: 18px 22px; border-radius: 10px; border-bottom: 4px solid var(--cyan); }
+.cover .mark { width: 58px; height: 58px; border-radius: 12px; display: block; }
+.cover h1 { margin: 0; font-size: 26pt; line-height: 1.1; font-weight: 600; letter-spacing: -.01em; }
+.eyebrow { margin: 0 0 4px; font-size: 9pt; letter-spacing: .09em; text-transform: uppercase; color: var(--cyan); font-weight: 600; }
+p { margin: 0 0 8px; }
+p.big { margin: 18px 0 6px; font-size: 17pt; line-height: 1.25; font-weight: 600; color: var(--navy); }
+p.lead { font-size: 11.5pt; color: var(--ink); }
+p.contents { margin: 10px 0 4px; padding: 8px 12px; background: var(--indigo-tint); border-radius: 8px; font-size: 9.5pt; color: var(--indigo-strong); }
+p.job { color: var(--grey-700); font-style: normal; margin-bottom: 6px; }
+p.result { margin: 8px 0 14px; padding: 8px 12px; background: var(--grey-50); border-left: 3px solid var(--indigo); border-radius: 0 6px 6px 0; break-inside: avoid; }
+p.muted { color: var(--grey-700); font-size: 9.5pt; }
+h2 { margin: 22px 0 8px; padding-bottom: 5px; border-bottom: 2px solid var(--indigo-tint); font-size: 16pt; line-height: 1.2; font-weight: 600; color: var(--navy); break-after: avoid; }
+h2 .num { display: inline-flex; width: 26px; height: 26px; margin-right: 9px; border-radius: 50%; background: var(--indigo); color: #fff; font-size: 11pt; font-weight: 700; align-items: center; justify-content: center; vertical-align: 1px; }
+h3 { margin: 16px 0 4px; font-size: 12.5pt; font-weight: 600; color: var(--indigo-strong); break-after: avoid; }
+.pb { break-after: page; }
+ol.steps { margin: 6px 0 6px; padding-left: 0; list-style: none; counter-reset: s; }
+ol.steps > li { counter-increment: s; position: relative; padding-left: 28px; margin-bottom: 7px; break-inside: avoid; }
+ol.steps > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 19px; height: 19px; border-radius: 50%; background: var(--indigo-tint); color: var(--indigo-strong); font-size: 9pt; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+ol.first > li::before { background: var(--indigo); color: #fff; }
+ul.need { margin: 4px 0 8px; padding-left: 20px; }
+ul.need li { margin-bottom: 4px; }
+pre { margin: 4px 0 10px; padding: 7px 12px; background: var(--navy); color: #E3F4F7; border-radius: 6px; font: 500 9.5pt/1.4 "SF Mono", Menlo, Consolas, monospace; white-space: pre-wrap; font-variant-ligatures: none; word-break: break-word; break-inside: avoid; }
+kbd { font: 500 8.5pt Menlo, "SF Mono", monospace; padding: 0 4px; border: 1px solid var(--grey-200); border-bottom-width: 2px; border-radius: 4px; background: var(--grey-50); }
+figure { margin: 6px 0 4px; break-inside: avoid; }
+figure img { display: block; max-width: 100%; max-height: 78mm; width: auto; height: auto; border: 1px solid var(--grey-200); border-radius: 6px; box-shadow: 0 1px 5px rgba(14,36,48,.14); }
+dl.rules { margin: 4px 0 8px; display: grid; gap: 6px; }
+dl.rules > div { padding: 7px 12px; border: 1px solid var(--grey-200); border-radius: 8px; break-inside: avoid; }
+dl.rules dt { font-weight: 600; color: var(--navy); }
+dl.rules dd { margin: 0; color: var(--grey-700); }
+b { font-weight: 600; }
+
+</style>
+</head>
+<body>
+<header class="cover"><img class="mark" src="img/clark-icon-512.png" alt=""><div><p class="eyebrow">clark 1.0.0 · Beta · for Mac</p><h1>Getting started with clark</h1></div></header>
+<p class="big">Keep one project record. Shape the weekly report from it. Publish it.</p>
+<p class="lead">clark is a report editor for programme managers. It keeps a project's actions, risks, issues, decisions, milestones and use cases in one place on your own computer, with a history and Undo.</p>
+<p class="contents">Contents: What you need, page 1 · Install and first start, page 1 · Look around with made-up data, page 2 · Your first five things, page 3 · Where your data lives, page 7 · If something goes wrong, page 7</p>
+<h2><span class="num">1</span>What you need</h2>
+<ul class="need">
+<li>A Mac. clark 1.0.0 runs on a Mac. Windows and Linux downloads come later.</li>
+<li>Google Chrome.</li>
+<li>Python 3.9 or newer. Your Mac may already have it. The check in the next part tells you.</li>
+<li>Docker is optional. It is for a Mac that will not open clark.command, or if you already use Docker.</li>
+</ul>
+<p>Everything stays on your own computer. Nothing leaves your computer unless you publish a report.</p>
+<h2><span class="num">2</span>Install and first start</h2>
+<p>Open this repository’s Releases page and download the latest clark-…-mac.zip. Unzip it.</p>
+<p>To check your Mac is ready, open Terminal in the unzipped folder and type python3 -m clark.doctor. It tells you what to fix, if anything, and where to get it.</p>
+<pre>python3 -m clark.doctor</pre>
+<h3>Open clark</h3>
+<p>Without Docker:</p>
+<ol class="steps">
+<li>Double-click clark.command in this folder.
+</li>
+<li>The first time, your Mac may say it could not verify clark.command and offer only Move to Trash and Done. This is expected, not a fault. Do not choose Move to Trash: choose Done. Then open System Settings, choose Privacy &amp; Security, scroll down and choose Open Anyway beside clark.command, then double-click it again. On a computer your employer manages, Open Anyway may ask for an administrator's password, and your employer may not allow it. If you cannot get past it, use the typed way below, which needs no password.
+</li>
+<li>A Terminal window starts clark, then its window opens in Chrome (or in your usual browser if Chrome isn't there).
+</li>
+<li>After a while with no window open, clark stops by itself. To use it again, double-click the file again.
+</li>
+</ol>
+<p>Double-clicking while clark is open just opens another window.</p>
+<p>The typed way: open Terminal, type cd and a space, drag this folder into the Terminal window and press Return. Then type:</p>
+<pre>bash clark.command</pre>
+<p>and press Return. Use this too if double-clicking does nothing.</p>
+<h3>Or use Docker</h3>
+<p>If your Mac will not open clark.command (a work Mac often will not), or you already use Docker, use Docker instead. You only need Docker and Chrome.</p>
+<ol class="steps">
+<li>Open Docker Desktop and wait until it says it is running.
+</li>
+<li>Open Terminal, type cd and a space, drag this folder into the Terminal window and press Return.
+</li>
+<li>Type this and press Return (the first time it takes a few minutes):
+<pre>docker compose -f docker/compose.yaml up -d</pre>
+</li>
+<li>Open Chrome and go to http://localhost:8766
+</li>
+<li>To stop clark, type this in the same folder and press Return:
+<pre>docker compose -f docker/compose.yaml down</pre>
+</li>
+</ol>
+<p>Use the clark download, not a copy of the source code: a copy of the source has no built page, and Docker stops with a message saying so. Start Docker from the clark folder.</p>
+<h2><span class="num">3</span>Look around with made-up data</h2>
+<p>To try it with made-up data first, open Terminal, type cd and a space, drag this folder into the Terminal window and press Return. Then type:</p>
+<pre>python3 -m clark --demo --open</pre>
+<p>and press Return. Nothing you do there is kept.</p>
+<div class="pb"></div>
+<h2><span class="num">4</span>Your first five things</h2>
+<p>These five jobs cover a first week with clark. The steps are the same as the ones in clark’s own Help, which you can open at any time.</p>
+<h3>Add a work item</h3>
+<p class="job">Put a new task on the plan and say who owns it.</p>
+<ol class="steps">
+<li>On <b>Work items</b>, press the <b>+</b> at the top right. Point at it and it shows what it adds, following the type switch: <b>Add action</b>, <b>Add decision</b>, <b>Add risk or issue</b> (a menu of Risk and Issue) and, on All, <b>Add item</b> (a menu of Action, Risk, Issue and Decision). You can do this in View as well as in Edit.
+</li>
+<li>The new item is made at once and opens in the peek with its title selected: type over it. A message at the foot of the page says it was added, with <b>Undo</b>.
+</li>
+<li>Its due date (a week from today; a decision’s needed-by date is today), and an action’s priority, are placeholders. Change them in the list or in the peek.
+</li>
+<li>A new item is shown to the client to start with. While one still has its placeholder title, the Publish box warns you. Rename it, or turn off its eye, before you publish.
+</li>
+<li>In Edit on the Dashboard, the last row of each list adds one too: type “Owner: what it is” (the owner, a colon, then what it is) and press <kbd>Enter</kbd>.
+</li>
+</ol>
+<h3>Write this week’s report</h3>
+<p class="job">Fill in the status, the highlights and the next steps.</p>
+<ol class="steps">
+<li>Open the <b>Dashboard</b> and press <b>Edit</b> at the top. Each change saves on its own.
+</li>
+<li>Set <b>Week ending</b> to the Friday the report covers: type it as DD-MM-YYYY, or press <kbd>Enter</kbd> in the empty box to use the Friday shown. Any other day is not accepted.
+</li>
+<li>Click the text under <b>Current state</b> and write where the project stands. It turns into an editor where it is: there is no Save button. Click away or press <kbd>Cmd+Enter</kbd> to keep it; <kbd>Esc</kbd> puts the old text back. Write the Summary, This week and Next week sections the same way.
+</li>
+<li>Set the health on the <b>Project health</b> tile: see Set the project health in Help.
+</li>
+<li>Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.
+</li>
+<li>Press <b>View</b> to read the report as the client will.
+</li>
+</ol>
+<h3>Add a section from a template</h3>
+<p class="job">Start a new section from a layout, in the place you choose.</p>
+<ol class="steps">
+<li>On the <b>Dashboard</b>, press <b>Edit</b>. Each section now has a control at the left of its card: a move button and, under it, a <b>+</b>.
+</li>
+<li>Point at the section you want the new one to follow and press its <b>+</b>. Or click the move button to open the section’s menu and choose <b>Add a template below…</b>.
+<figure><img src="img/templates-add-box.png" alt="The plus button at the left of a section, ringed."></figure>
+</li>
+<li>The <b>Add a section</b> box opens with the cursor in <b>Search templates</b>. On the left, pick a kind: <b>All templates</b>, <b>Text and pictures</b>, <b>Figures</b>, <b>Work items</b>, <b>Files and links</b>, <b>People and dates</b> or <b>Notes</b>. Or type a word to find a template by name.
+<figure><img src="img/templates-dialog.png" alt="The Add a section box, with the kinds of template on the left and the list of templates beside them."></figure>
+</li>
+<li>Choose a template in the list, such as <b>Key figures, four</b> or <b>Callout</b>. <kbd>Up</kbd> and <kbd>Down</kbd> move through them. The box on the right says what the chosen one is for and what it <b>Holds</b>.
+</li>
+<li>Under <b>Where it goes</b>, choose <b>On its own row</b>, or <b>Beside</b> the section above, which gives each of the two half the width. <b>Beside</b> is greyed out, with the reason under it, when the template cannot be half width or the section above is not on a row of its own.
+<figure><img src="img/templates-place.png" alt="The foot of the Add a section box, with the Where it goes choices ringed."></figure>
+</li>
+<li>Press <b>Add section</b>, or press <kbd>Enter</kbd>. Press <b>Cancel</b>, or <kbd>Esc</kbd>, to close the box and add nothing.
+</li>
+</ol>
+<p class="result">The new section sits below the one you chose, with its heading ready to rename. It starts empty, and an empty section is left out of what the client sees until you fill it. One <b>Undo</b> takes it away again.</p>
+<h3>Move, hide and delete sections</h3>
+<p class="job">Change the order of the report, put two sections side by side, or take parts out.</p>
+<ol class="steps">
+<li>On the <b>Dashboard</b>, press <b>Edit</b>. Each section has a move button at the left of its card (in the margin on a wide window, inside the card on a narrow one). It is faint until you point at the section or tab to it.
+<figure><img src="img/arrange-grip.png" alt="The move button at the left of a section, ringed."></figure>
+</li>
+<li>To move a section, drag its move button and drop it. A line between two rows puts it on a row of its own. The cover stays at the top. Without a mouse, focus the button and press <kbd>Alt+Up</kbd> or <kbd>Alt+Down</kbd>.
+</li>
+<li>Click the move button, or press <kbd>Enter</kbd> or <kbd>Space</kbd> on it, to open the section’s menu.
+<figure><img src="img/arrange-menu.png" alt="A section’s menu, with Move up and Leave out of the published page marked 1 and 2."></figure>
+</li>
+<li>To move one step, choose <b>Move up</b> or <b>Move down</b>. A choice that cannot be used is greyed out, with the reason under it.
+</li>
+<li>To put a section beside another, choose <b>Place beside the next section</b>. Each takes half the width, and a row never holds more than two. For a section already in a pair the menu says <b>Full width</b> instead; choose it to give the section a row of its own.
+</li>
+<li>To keep a section out of the client’s copy, choose <b>Leave out of the published page</b>. It stays in Edit, greyed, with a small eye mark under its <b>+</b> and the tag <b>Left out of the published page</b>. Choose <b>Include in the published page</b> to bring it back.
+<figure><img src="img/arrange-leave-out.png" alt="A section’s menu, with Leave out of the published page ringed."></figure>
+</li>
+<li>A text section, and the Needs from you section, also have <b>Delete section</b> in the menu. It removes the section from the report.
+</li>
+</ol>
+<p class="result">Edit shows the sections in their new order, and the published page follows it. A section you left out is greyed in Edit and gone from View and from the published page. <b>Undo</b> puts back a move, a section left out or a section removed.</p>
+<h3>Publish to the client</h3>
+<p class="job">Check the report, then save the finished copy locally and, if you choose, send it to the client.</p>
+<ol class="steps">
+<li>To look first, press your profile circle and choose <b>Preview the page in a new tab</b>. It shows what the client will see, and nothing is saved.
+</li>
+<li>Press your profile circle and choose <b>Publish…</b>. The box <b>Publish the report</b> opens. The line under its title gives the project, the week ending, the number this publication will have, such as this will be Publication 4, and when and where the last one went.
+<figure><img src="img/publish-menu.png" alt="The profile menu, with Publish… ringed."></figure>
+</li>
+<li><b>Local</b> is always ticked, and the box says you choose the folder and name in the save window. Tick <b>To client</b> to copy it to the client folder as well. With no client folder set, that tick is off and a link takes you to Settings, Publishing to set one.
+<figure><img src="img/publish-dialog.png" alt="The Publish the report box, with the To client choice ringed."></figure>
+</li>
+<li>If you want them, tick <b>Also a PDF</b> (your browser’s print box opens and you choose Save as PDF) and <b>Also a Word document</b> (a Word copy of the report, saved in the folder last used for this project).
+</li>
+<li>With <b>To client</b> ticked, a line says the client will see the page, and the Word report if you ticked it, and only what is shown in View mode. A hidden section or a work item with its eye turned off is not included.
+</li>
+<li>If a work item the client would see still has its placeholder title, such as New action, the box warns you with a count. It does not stop you. To fix it, press <b>Cancel</b>, rename the item or turn off its eye, and open <b>Publish…</b> again.
+</li>
+<li>Press the button at the foot, which reads <b>Publish locally</b>, or <b>Publish and send to the client</b> when To client is ticked. A spinner shows while it works. If the file name is taken, the box asks what to do: <b>Add a number</b>, <b>Rename it</b> or, where it is allowed, <b>Overwrite the existing file</b>.
+</li>
+<li>The button turns green and reads Published, with the publication number in brackets, such as Publication 4. Press it to close the box.
+</li>
+</ol>
+<p class="result">The button shows a green tick and Published with its publication number. The saved page is the one the client sees, and the next publication gets the next number.</p>
+<h2><span class="num">5</span>Where your data lives</h2>
+<p>Your data stays on your computer, in ~/Library/Application Support/clark/. That folder holds your database (clark.db), clark’s safety copies (in a backups folder beside it) and a log file.</p>
+<ul class="need">
+<li>Keep it out of OneDrive, Dropbox and any other synced folder. They can damage a database that is open.</li>
+<li>Safety copies are made before every Undo, before every Excel import and once a day. The newest 14 of each kind are kept. Settings › Backups lists them and puts one back.</li>
+</ul>
+<h2><span class="num">6</span>If something goes wrong</h2>
+<p>Open an issue on this repository and say what you did, what you expected and what you saw. If clark says it did not start, it names a log file (server.log in the data folder): please attach it. Do not attach your database or any real client information.</p>
+<p>If clark will not start, close it and type python3 -m clark restore in Terminal to see your safety copies.</p>
+<pre>python3 -m clark restore</pre>
+<p>If it says nothing was started because clark is already open in another Terminal window, or another program is using the connection it needs, close that Terminal window or program, then double-click clark.command again.</p>
+<p>If it says port 8766 is already used, another clark is open: close it, or stop it with the command in step 5 of the Docker steps, then try again. If it says it cannot connect to Docker, Docker Desktop is not running yet.</p>
+<p>Made a mistake? Every change saves on its own, and the message at the foot of the page offers Undo.</p>
+</body>
+</html>
