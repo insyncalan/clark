@@ -35,8 +35,7 @@ OWN = ("milestones", "workstreams", "actions", "raid", "decisions", "use_cases",
 # rows of these name a project but the demo never writes them and they are never deleted: any one makes the project the person's
 PERSONS = ("SELECT 1 FROM saved_views WHERE project = ?", "SELECT 1 FROM comments WHERE project = ?",
            "SELECT 1 FROM publications WHERE project = ?", "SELECT 1 FROM email_sent WHERE project = ?")
-NOTHING_TO_REMOVE = "There is no demo data to remove."
-FAILED = "The demo data could not be removed, and nothing was changed."
+FAILED = "The demo data could not be removed. Nothing was changed."
 
 
 def _get(con, key):
