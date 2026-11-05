@@ -82,15 +82,15 @@ class TopBarTabs(Base):
         got = self.measure(width, theme, long_name, edit, active)
         where = f"at {width} px, {theme}{', long name' if long_name else ''}{', Edit' if edit else ''}{', ' + active if active else ', Dashboard'}"
         self.assertGreaterEqual(len(got["tabs"]), 3, where)
-        scrolls = got["row"][2] > got["row"][3] + 1
+        scrolls = got["row"][2] > got["row"][3] + 1       # a sub-pixel overhang from the name's share of the shrink is not a scroll
         for t in got["tabs"]:
             self.assertEqual(t["lines"], 1, f"{where}: the {t['name']!r} tab is on {t['lines']} lines")
             self.assertFalse(t["over"], f"{where}: the {t['name']!r} tab is wider than its box")
             if t["open"] or not scrolls:       # the open tab is whole inside the tab row's box; with no scroll every tab is
                 self.assertGreaterEqual(t["left"], got["row"][0] - 0.5, f"{where}: {t['name']!r} starts left of the tab row")
-                self.assertLessEqual(t["right"], got["row"][1] + 0.5, f"{where}: {t['name']!r} is cut off by the tab row's right edge")
+                self.assertLessEqual(t["right"], got["row"][1] + 1, f"{where}: {t['name']!r} is cut off by the tab row's right edge")
         self.assertEqual(sum(1 for t in got["tabs"] if t["open"]), 1, where)
-        if scrolls:
+        if scrolls and width > 800:       # 800 px and below stay as main has them (the name keeps its width, the row scrolls): row 757 is 900 px only
             self.assertLessEqual(got["name"], 73, f"{where}: the tab row scrolls while the project name is still {got['name']} px wide")
         self.assertAlmostEqual(got["bar"][3] - got["bar"][2], 56, delta=0.5, msg=f"{where}: the bar is not one 56 px row")
         self.assertGreaterEqual(got["row"][0], got["bar"][0], f"{where}: the tab row starts left of the bar")
@@ -119,6 +119,34 @@ class TopBarTabs(Base):
                 left, right, wrap = self.tab_style(width)
                 self.assertEqual([left, right], [pad, pad], f"at {width} px the tab padding should be {pad}; got {left} and {right}")
                 self.assertEqual(wrap, "nowrap", f"at {width} px a tab label may wrap onto a second line (white-space is {wrap!r})")
+
+
+    def test_800_and_641_px_do_not_scroll_the_page_sideways_as_on_main(self):
+        # Row 757 is 900 px only: below 801 px the tab row keeps main's rule (it scrolls inside its own box), so the bar never grows wider than the window.
+        for width in (800, 700, 641):
+            for active, edit in ((None, False), ("Settings", False), ("Settings", True), (None, True)):
+                got = self.measure(width, "light", True, edit, active)
+                self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"at {width} px, {active}: the page scrolls sideways {got['scroll']}")
+                self.assertLessEqual(max(i["right"] for i in got["items"]), got["bar"][1] + 0.5, f"at {width} px, {active}: an item runs past the window")
+
+    def test_a_row_narrowed_after_the_scroll_shows_the_open_tab_again_at_900(self):
+        # The exact failing case: 900 px, the profile circle in the bar, Settings open; then the tab row narrows (as it does when the mode switch joins
+        # the bar on leaving the Dashboard) and the open tab, already scrolled to, must be brought into the row again.
+        with sqlite3.connect(str(self.store.path)) as con:
+            con.execute("UPDATE app_settings SET ask_enabled = 1 WHERE id = 1")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            size(cdp, p, 900, 700)
+            p.until("!!document.querySelector('#ask-btn') && !!document.querySelector('#profile-btn')", "the ask button and the profile circle show")
+            p.js("[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === 'Settings')[0].click()")
+            p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
+            p.js("(function(){ var s = document.createElement('span'); s.id = 'test-spacer'; s.style.cssText = 'flex:none;width:90px;height:1px'; "
+                 "document.querySelector('.top .tabs').after(s); })()")
+            p.js("new Promise(r => setTimeout(r, 300))")
+            got = p.js("(function(){ var row = document.querySelector('.top .tabs').getBoundingClientRect(), "
+                       "t = document.querySelector('.top .tab[aria-selected=true]').getBoundingClientRect(); return [t.left, t.right, row.left, row.right]; })()")
+            self.assertGreaterEqual(got[0], got[2] - 0.5, f"Settings starts left of the tab row {got}")
+            self.assertLessEqual(got[1], got[3] + 0.5, f"Settings is cut off by the tab row's right edge {got}")
 
 
 for _w in WIDTHS:

@@ -15,10 +15,17 @@ export function TopBar({ tools }) {
   const SearchButton = tools && tools.SearchButton && !fromFile.value ? tools.SearchButton : null;     // the search icon: opens the command palette
   const AskButton = tools && tools.AskButton && !fromFile.value ? tools.AskButton : null;     // ask clark: opens the ask panel, only while asking is on
   const row = useRef(null);
-  useEffect(() => {      // row 757: where the tab row scrolls inside its own box (narrow windows), the open tab is brought into it; no animation
+  const showOpen = () => {      // row 757: where the tab row scrolls inside its own box (narrow windows), the open tab is brought into it; no animation
     const on = row.current && row.current.querySelector('[aria-selected="true"]');
     if (on && on.scrollIntoView) on.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "auto" });
-  }, [view.value, tabs.value.length]);
+  };
+  useEffect(showOpen, [view.value, tabs.value.length]);
+  useEffect(() => {      // the row also narrows after that (the mode switch joins the bar when the Dashboard is left): bring the open tab in again
+    if (!row.current || typeof ResizeObserver === "undefined") return undefined;
+    const watch = new ResizeObserver(showOpen);
+    watch.observe(row.current);
+    return () => watch.disconnect();
+  }, []);
   return (
     <header class="top">
       <span class="logo" aria-label="clark"><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></span>

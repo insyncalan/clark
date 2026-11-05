@@ -329,11 +329,14 @@ table.items td.c-pick { vertical-align: middle; }
   .top .tab { flex: none; white-space: nowrap; }
 }
 @media (max-width: 900px) {      /* the project switcher (A-D25) adds a name beside the tabs: they scroll in their own bar, the name shortens, and the mode switch stays in the window */
-  .top .tabs { flex: 0 0.001 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }      /* row 757: the project name (shrink 1, floor 72 px below) gives way first; only then does the tab row (shrink 0.001) scroll inside its own box, the open tab scrolled into view by the top bar */
+  .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .top .tabs::-webkit-scrollbar { display: none; }
   .top .tab { flex: none; white-space: nowrap; }
   .top .proj, .top .projbtn { min-width: 0; flex: 0 1 auto; max-width: 160px; }
-  .top .dd:has(> .projbtn) { min-width: 72px; }
+}
+@media (min-width: 801px) and (max-width: 900px) {      /* row 757: at 900 px the project name gives way first (it is the item that shrinks, 1000 times as hard as the tab row, which must keep a shrink factor of 1 or more or flexbox would absorb only a fraction of the overflow, down to a floor of 72 px); only then does the tab row scroll inside its own box, the open tab kept in view by the top bar; 800 px and below stay as above */
+  .top .dd:has(> .projbtn) { flex-shrink: 1000; min-width: calc(var(--space-7) + var(--space-5)); }
+  .top .tabs { flex: 0 1 auto; }
 }
 
 /* Use cases page: detail */
