@@ -1,4 +1,4 @@
-// What the ask panel says (#47a). Every sentence is here, so one test can read them all. None starts with the product's name; each
+// What the ask panel says (#47a). Every sentence is here, so one test can read them all. Apart from the title, none starts with the product's name; each
 // says what happened and what to do next.
 export const PANEL_TITLE = "ask clark";
 export const OFF_LINE = "Asking is off. Turn it on in Settings.";                     // shown only when the server has answered that the switch is off
