@@ -85,7 +85,7 @@ class TypedFilter(unittest.TestCase):
         self.assertIn("`Add a value after '${e.name}:'.`", ui)
         self.assertIn('EMPTY = { none: "No work items match.", clear: "Clear filter" }', ui)
         self.assertIn('NO_ME = "Set your name in Settings to see your actions."', code("logic", "filterLine.js"))
-        for s in ("Unknown field 'x'. Did you mean Owner?", "Add a value after 'x':.", "Set your name in Settings to see your actions.", "No work items match.", "**Clear filter**"):
+        for s in ("Unknown field 'x'. Did you mean Owner?", "Add a value after 'x:'.", "Set your name in Settings to see your actions.", "No work items match.", "**Clear filter**"):
             self.assertIn(s, self.FIND)
         self.assertIn("text-decoration: underline wavy var(--status-red)", (PAGE.parent / "shell.css").read_text(encoding="utf-8"))
         self.assertIn('PLACEHOLDER = "Filter by keyword or by field"', code("logic", "filterLine.js"))
@@ -165,7 +165,7 @@ class SettingsChips(unittest.TestCase):
         self.assertIn('aria-label="Single-key shortcuts"', per)
         self.assertIn("<legend>Appearance</legend>", per)
         self.assertLess(per.index('["system", "System"'), per.index('["light", "Light"'))
-        self.assertIn("Appearance (System, Light or Dark), About you (your name, Alias and Email, kept on this computer only) and Keys (Single-key shortcuts)", self.TEXT)
+        self.assertIn("Appearance (System, Light or Dark), About you (your name, Alias and Email) and Keys (Single-key shortcuts)", self.TEXT)
         self.assertNotIn("Phone number", self.TEXT)
 
     def test_published_reports_row(self):
@@ -231,6 +231,23 @@ class ExcelColumns(unittest.TestCase):
         py = (SRC / "excel.py").read_text(encoding="utf-8")
         for label in ('("Achieved on", "actual_date")', '("% complete", "percent_complete")'):
             self.assertIn(label, py)
+
+    def test_the_table_is_what_the_importer_applies(self):
+        """Per sheet: ID, then every export column except the ones excel.DERIVED skips and excel_import.LOCKED / LOCKED_IN never apply
+        (excel_import.py:135-136 and :661). Those are named in the paragraph under the table."""
+        from clark import excel, excel_import as ei
+        table = next(b for b in SECS["excel"]["b"] if b[0] == "tbl")
+        rows = {r[0]: r[1] for r in table[2]}
+        left_out = set()
+        for name, tbl, cols, _ in excel.SHEETS:
+            applied = [l for l, f in cols if f == "id" or (f not in excel.DERIVED and f not in ei.LOCKED and f not in ei.LOCKED_IN.get(tbl, ()))]
+            self.assertEqual(rows[name].split(", "), applied, name)
+            left_out |= {l for l, f in cols if l not in applied}
+        left_out.discard("ID")
+        note = flat(SECS["excel"]["b"][-1])
+        for label in sorted(left_out):
+            self.assertIn(label, note)
+        self.assertIn("an import never changes anything from them", note)
 
 
 if __name__ == "__main__":
