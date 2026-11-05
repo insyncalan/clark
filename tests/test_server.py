@@ -827,6 +827,22 @@ class Health(ServerTest):
         self.assertNotIn("/some/folder", data)
         self.assertNotIn(str(ROOT), data)
 
+    def test_set_version_takes_only_a_short_string(self):
+        """Issue 745: a version that is not a short string is dropped, and /health stays valid JSON, exactly {"ok": true}."""
+        for bad in (None, 7, ["1.0"], {"v": 1}, "9" * 100000):
+            with mock.patch.object(sv, "VERSION", "old"):
+                sv.set_version(bad)
+                status, _, data = self.s.ask("GET", "/health")
+            self.assertEqual((status, json.loads(data)), (200, {"ok": True}), msg=repr(bad)[:40])
+        for good in ("7.8.9", "9" * 64, "v\u00e9rsion-\u4e2d"):
+            with mock.patch.object(sv, "VERSION", None):
+                sv.set_version(good)
+                status, _, data = self.s.ask("GET", "/health")
+            self.assertEqual((status, json.loads(data)), (200, {"ok": True, "version": good}))
+        with mock.patch.object(sv, "VERSION", None):
+            sv.set_version("9" * 65)
+            self.assertIsNone(sv.VERSION)
+
     def test_main_gives_the_server_its_version(self):
         src = (ROOT / "src" / "clark" / "__main__.py").read_text(encoding="utf-8")
         self.assertIn("server.set_version(__version__)", src)

@@ -272,7 +272,7 @@ def token_ok(sent):
     return hmac.compare_digest((sent or "").encode("utf-8", "surrogatepass"), TOKEN.encode("ascii"))
 
 
-# #71: /health says only {"ok": true}, unless the launcher asks with its mark of the data folder in X-Clark-Data: then it also says
+# #71: /health says only {"ok": true} (and the version, once given), unless the launcher asks with its mark of the data folder in X-Clark-Data: then it also says
 # whether this server's data folder is that one ("this_data"). A web page can't send that header without a preflight, which is
 # always refused. __main__ gives the server its mark (clark.appfiles.data_mark); with none set, "this_data" is false.
 MARK_HEADER = "X-Clark-Data"
@@ -281,9 +281,9 @@ VERSION = None            # issue 745: the running clark's version, given by __m
 
 
 def set_version(version):
-    """Give the server the version it is running."""
+    """Give the server the version it is running: a short string only; anything else is dropped."""
     global VERSION
-    VERSION = version
+    VERSION = version if isinstance(version, str) and len(version) <= 64 else None
 
 
 def set_data_mark(mark):
