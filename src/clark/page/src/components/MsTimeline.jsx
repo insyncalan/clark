@@ -9,18 +9,22 @@ import { Icon } from "./Icon.jsx";
 import { showDate, timelineSpan, monthStarts, clampZoom, labelLines, addDays, farRows, FAR_NOTE, MONTHS } from "../logic/milestones.js";
 import { dayNumber } from "../workItems.js";
 import { recall, remember } from "../logic/remember.js";
+import { printing } from "../stores/print.js";
 
 const PXD0 = 5, BASE = 76, LINE = 34;       // pixels a day at 100%, the strip's own height and each label line's (zoom scale)
 const MARGIN = 2;                               // spare pixels added to every measured label width (sub-pixel differences between fonts and systems)
+const PRINT_W = 680;                            // the printed line is this wide (an A4 page less its margins): the whole span fits, nothing scrolls (row 767)
 const LY0 = 50, T00 = 66, LANE = 40, GAP = 8;   // the line, the first label lane and each lane's height never shrink: a label is always readable
 
 export function MsTimeline({ rows: all, today, place, open }) {
   const far = farRows(all), rows = all.filter((r) => !far.includes(r));   // a date far outside 2000 to 2100 is named below the line, not drawn
   const wrap = useRef(null), centre = useRef(null);
   const [zoom, setZoom] = useState(() => clampZoom(recall(`tlZoom.${place}`, 1)));
-  const z = zoom;
+  const fit = printing.value;                     // while the browser prints, the line is drawn to fit the page, at the zoom of 100%
+  const z = fit ? 1 : zoom;
   const { start, end } = timelineSpan(rows, today);
-  const x = (iso) => Math.round((dayNumber(iso) - dayNumber(start)) * PXD0 * z);
+  const pxd = fit ? PRINT_W / Math.max(1, dayNumber(end) - dayNumber(start)) : PXD0;
+  const x = (iso) => Math.round((dayNumber(iso) - dayNumber(start)) * pxd * z);
   const W = x(end), RH = LANE, T0 = T00, LY = LY0;
   const labs = [];
   for (const r of rows) {
@@ -43,7 +47,8 @@ export function MsTimeline({ rows: all, today, place, open }) {
   const nLines = Math.max(1, ...labs.map((l) => l.line + 1));
   const need = T00 + nLines * LANE + 8;
   const height = Math.max(need, Math.round((BASE + nLines * LINE) * z)) + sb;   // the lanes and the box come from the same measured widths
-  const months = monthStarts(start, end);
+  const allMonths = monthStarts(start, end);
+  const months = fit ? allMonths.filter((_, i) => i % Math.ceil(allMonths.length / 10) === 0) : allMonths;   // on the page about ten names fit
   useLayoutEffect(() => {                              // measure the labels; if any width changed, lay them out again
     if (!strip.current) return;
     const next = {};
@@ -109,7 +114,7 @@ export function MsTimeline({ rows: all, today, place, open }) {
       <div class="mv-wrap" ref={wrap} tabindex="0" data-zoom-pct={Math.round(z * 100)} style={{ height: `${height}px`, maxHeight: `${Math.max(900, height)}px` }}
         aria-label="Milestone timeline; scroll sideways to see all of it; drag the bottom edge to zoom">
         <div class="mv-strip" ref={strip} style={{ width: `${W}px` }}>
-          {months.map((m) => <div class="mv-month" key={m} style={{ left: `${x(m)}px` }}>{MONTHS[+m.slice(5, 7) - 1].slice(0, 3)}{m.slice(5, 7) === "01" ? ` ${m.slice(0, 4)}` : ""}</div>)}
+          {months.map((m) => <div class="mv-month" key={m} style={{ left: `${x(m)}px` }}>{MONTHS[+m.slice(5, 7) - 1].slice(0, 3)}{m.slice(5, 7) === "01" || months.length < allMonths.length ? ` ${m.slice(0, 4)}` : ""}</div>)}
           <div class="mv-line" style={{ top: `${LY}px` }} />
           <div class="mv-today" data-today style={{ left: `${x(today)}px` }}><b>Today</b></div>
           {rows.map((r) => {
