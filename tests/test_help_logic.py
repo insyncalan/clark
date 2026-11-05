@@ -319,7 +319,7 @@ class Shown(unittest.TestCase):
 
     def test_a_held_entry_is_in_no_list_no_place_and_no_search(self):
         s = self.shown
-        SEC = ["start-jobs", "howto-write-the-weekly-report", "howto-set-the-health", "howto-publish-the-report", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-add-a-work-item", "howto-use-the-board", "howto-arrange-the-report", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-handle-a-slipped-milestone", "howto-undo-a-mistake", "howto-run-clark-with-docker",
+        SEC = ["start-jobs", "howto-write-the-weekly-report", "howto-set-the-health", "howto-publish-the-report", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-add-a-work-item", "howto-use-the-board", "howto-arrange-the-report", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-handle-a-slipped-milestone", "howto-connect-claude-or-chatgpt", "howto-undo-a-mistake", "howto-run-clark-with-docker",
                "ref-profile-circle", "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-freshness", "ref-archive-restore", "ref-at-a-glance", "ref-layouts", "ref-work-items",
                "ref-milestones-page", "ref-status-words", "ref-milestone-states", "ref-published-reports", "ref-diagnostics", "ref-dates-and-ids", "ref-using-help", "ref-keys"]
         GUIDES = ["guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-bring-in-an-excel-workbook", "guide-send-the-workbook-out", "guide-publish-to-the-client", "guide-hand-an-item-over", "guide-save-a-view", "guide-see-the-dashboard-as-at-a-day", "guide-back-up-and-restore-your-data"]      # #642 guides A, B and C: after the how-to and reference places
@@ -327,12 +327,12 @@ class Shown(unittest.TestCase):
         jobs = [e["place"] for g in s["tabs"]["start"] if g["group"] == "The five jobs" for e in g["entries"]]
         self.assertEqual(jobs, ["howto-add-a-work-item", "howto-write-the-weekly-report", "guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-publish-to-the-client"], "Start here lists the five jobs, all shown")
         self.assertTrue(all(p in SEC + GUIDES for p in jobs), "and each is a shown place")
-        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[1:16] + GUIDES)
+        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[1:17] + GUIDES)
         self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]],
                          ["ref-profile-circle", "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-at-a-glance", "ref-layouts", "ref-work-items", "ref-milestones-page", "ref-freshness", "ref-archive-restore",
                           "ref-status-words", "ref-milestone-states", "ref-published-reports", "ref-diagnostics", "ref-dates-and-ids", "ref-using-help", "ref-keys"])      # by group: Screens, Working with items, Milestones, Publishing, Settings and data, Keys and icons
         self.assertEqual(s["index"], SEC + GUIDES)
-        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (5, ["howto-set-the-health", "ref-section-templates", "ref-needs-from-you", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "ref-status-words", "howto-use-the-board", "howto-handle-a-slipped-milestone", "howto-add-a-work-item", "howto-write-the-weekly-report", "guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-publish-to-the-client", "howto-undo-a-mistake", "ref-keys"], ["work", "dashboard+edit", "publish", "settings#pubs", "milestones", "dashboard"]))
+        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (5, ["howto-set-the-health", "ref-section-templates", "ref-needs-from-you", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "ref-status-words", "howto-use-the-board", "howto-handle-a-slipped-milestone", "howto-add-a-work-item", "howto-write-the-weekly-report", "guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-publish-to-the-client", "howto-undo-a-mistake", "ref-keys"], ["work", "dashboard+edit", "publish", "settings#pubs", "milestones", "settings", "dashboard"]))
         self.assertEqual(s["q"]["sneak"], [], "no Sneak peek entry is shown")      # "ask clark" is left out: the board entry says \"clark remembers\", which the search reads as a match
         self.assertEqual(s["q"]["peek"], ["howto-write-the-weekly-report", "howto-add-a-work-item", "howto-undo-a-mistake", "ref-freshness"], "no peek entry of its own is shown; the weekly report, add a work item and undo entries say where the peek opens, and Freshness where it shows Raised and Last reviewed")
         self.assertEqual(s["q"]["movement"][:2], ["ref-milestones-page", "howto-handle-a-slipped-milestone"], "a search for movement finds the Movement entries")
@@ -340,7 +340,7 @@ class Shown(unittest.TestCase):
         self.assertEqual(s["q"]["publish"], ["howto-publish-the-report", "guide-publish-to-the-client", "ref-published-reports", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-add-a-work-item", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "guide-arrange-the-report", "guide-send-the-workbook-out", "guide-see-the-dashboard-as-at-a-day", "start-jobs", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-freshness", "ref-archive-restore",
                                              "ref-layouts", "ref-milestones-page", "ref-status-words", "ref-milestone-states"],
                          "the Published reports entries, then the entries that say what is or is not on the published page; only entries about Publish that are shown")
-        self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "guide-add-a-section-from-a-template", "guide-hand-an-item-over", "ref-section-templates"])
+        self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "howto-connect-claude-or-chatgpt", "guide-add-a-section-from-a-template", "guide-hand-an-item-over", "ref-section-templates"])
 
     def test_opening_help_at_a_held_place_is_an_unknown_place_and_a_shown_one_still_opens(self):
         w = self.shown["where"]
