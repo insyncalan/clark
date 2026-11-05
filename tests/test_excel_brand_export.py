@@ -189,6 +189,48 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertEqual(results["aiq"], ("1B1F3B", "Georgia", []))
 
 
+class Polish(Rig):
+    def test_the_palette_notes_are_logged_and_never_shown(self):
+        brand = self.brand(":root { --brand-navy: rgb(1, 2, 3); }")
+        with self.assertLogs("clark.excel", "WARNING") as logs:
+            path, shown = self.export(brand)
+        self.assertEqual(shown, [])                         # the list the person sees stays empty
+        ours = [r for r in logs.records if "brand-navy" in r.getMessage()]
+        self.assertEqual(len(ours), 1)
+        self.assertEqual(ours[0].levelname, "WARNING")
+        self.assertTrue(ours[0].getMessage().startswith("Brand colour brand-navy not used"))
+
+    def test_no_note_is_logged_for_a_good_or_missing_brand(self):
+        import logging
+        with self.assertNoLogs("clark.excel", logging.WARNING):
+            self.export(self.brand(None))
+
+    def test_the_id_name_columns_wrap_and_the_rest_are_unchanged(self):
+        rows = {"milestones": [{"id": "M1", "name": "Go live"}], "use_cases": [{"id": "U1", "title": "Pay"}],
+                "actions": [{"id": "A1", "description": "d", "milestone": "M1", "use_case": "U1", "owner": "Kim"}],
+                "raid": [{"id": "R1", "description": "d", "milestone": "M1", "use_case": "U1", "response_action": "r"}],
+                "decisions": [{"id": "D1", "decision": "d", "milestone": "M1", "use_case": "U1"}]}
+        wb = excel.workbook("ABC", rows, "2030-06-01")
+        for sheet in ("Actions", "Risks & Issues", "Decisions"):
+            ws = wb[sheet]
+            heads = {c.value: c.column_letter for c in ws[1]}
+            for name in [n for n in ("Milestone", "Use case") if n in heads]:
+                cell = ws[f"{heads[name]}2"]
+                self.assertTrue(cell.alignment.wrap_text, (sheet, name))
+                self.assertEqual(cell.alignment.vertical, "top")
+                self.assertEqual(ws.column_dimensions[heads[name]].width, 40)
+            self.assertEqual(ws[f"{heads['Use case']}2"].value, "U1: Pay")
+            for name in ("ID", "Owner", "Labels"):
+                if name in heads:
+                    self.assertFalse(ws[f"{heads[name]}2"].alignment.wrap_text, (sheet, name))
+            self.assertEqual(ws.auto_filter.ref[:2], "A1")
+            self.assertEqual(len([r for r in ws.row_dimensions.values() if r.height]), 0)     # no fixed row height: Excel fits wrapped rows
+        raid = wb["Risks & Issues"]
+        heads = {c.value: c.column_letter for c in raid[1]}
+        self.assertTrue(raid[f"{heads['Response action']}2"].alignment.wrap_text)
+        self.assertEqual(raid.column_dimensions[heads["Response action"]].width, 48)
+
+
 class CoverGutter(unittest.TestCase):
     def test_this_week_and_next_week_have_a_two_column_gutter_with_no_rule_across_it(self):
         from openpyxl import Workbook

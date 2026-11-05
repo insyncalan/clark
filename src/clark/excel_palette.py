@@ -27,6 +27,8 @@ EXTRA_PAIRS = (
     ("grey-50", "grey-700", "the cover's quiet rows"),
     ("white", "status-red-text", "a late date"),
     ("white", "brand-blue", "the cover's headings"),
+    ("brand-navy", "grey-100", "the cover's subtitle"),
+    ("grey-50", "brand-ink", "the cover's tiles"),
 )
 DECL = re.compile(r"(--[\w-]+)\s*:\s*([^;]+);")
 

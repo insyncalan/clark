@@ -33,6 +33,7 @@ run. The file is byte-for-byte the same for the same rows, the same day (see `mo
 import hashlib
 import io
 import json
+import logging
 import re
 import threading
 import uuid
@@ -774,8 +775,9 @@ def column_width(table, field):
 
 
 def wraps(table, field):
-    """Whether a column's text wraps: long text and the title column."""
-    return field in WIDE or field == TITLE_OF.get(table) or field == "open_items"
+    """Whether a column's text wraps: long text, the title column, and the "ID: name" Milestone and Use case columns of the other sheets."""
+    return (field in WIDE or field == TITLE_OF.get(table) or field == "open_items"
+            or (field in REF_TABLES and table not in ("milestones", "use_cases")))
 
 
 def freeze_cell(table, cols):
@@ -1188,7 +1190,9 @@ def export(path, project, rows_by_table, state_path, on=None, cover=None, brandi
                       f"overwritten ({path}). Import it, or choose another file name.")
     buf = io.BytesIO()
     logo = excel_picture.load(branding, warnings) if cover else None     # #133: the local brand logo, if there is one and it is safe
-    pal = excel_palette.palette(branding=branding)      # item 711: the local brand's light values, else the committed look; its notes (pal.warnings) are not shown to the person until the Head rules the words
+    pal = excel_palette.palette(branding=branding)      # item 711: the local brand's light values, else the committed look
+    for note in pal.warnings:           # the palette's notes are for the log only: no one is shown them
+        logging.getLogger("clark.excel").warning("%s", note)
     wb = workbook(project, rows_by_table, on, cover, mark=bool(logo), history=history, pal=pal)
     if reuse is None:                      # the same unchanged workbook exported again to its own path keeps its id
         try:

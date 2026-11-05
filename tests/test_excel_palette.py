@@ -121,6 +121,26 @@ class Brands(unittest.TestCase):
         p = ep.palette(css=":root { --status-red: #FF9999; }")        # the white-on-red INTERNAL tag
         self.assertEqual(p.tokens["status-red"], base.TOKENS["status-red"])
 
+    def test_the_cover_subtitle_pair_reverts_as_a_pair(self):
+        w = []
+        p = ep.palette(css=":root { --grey-100: #1F4050; --brand-navy: #0B2545; }", warnings=w)      # light text gone dark on the band
+        self.assertEqual(p.tokens["grey-100"], base.TOKENS["grey-100"])
+        self.assertEqual(p.tokens["brand-navy"], base.TOKENS["brand-navy"])
+        self.assertTrue(any("subtitle" in x for x in w), w)       # the grey status pair fails too, with its own note
+
+    def test_the_cover_tile_pair_reverts_as_a_pair(self):
+        w = []
+        p = ep.palette(css=":root { --brand-ink: #CCCCCC; --grey-50: #F4F4FA; }", warnings=w)
+        self.assertEqual((p.tokens["brand-ink"], p.tokens["grey-50"]), (base.TOKENS["brand-ink"], base.TOKENS["grey-50"]))
+        self.assertEqual(len(w), 1)
+        self.assertIn("tiles", w[0])
+
+    def test_passing_cover_pairs_keep_the_brand_values(self):
+        w = []
+        p = ep.palette(css=":root { --brand-navy: #0B2545; --grey-100: #EEEEEE; --brand-ink: #101820; --grey-50: #F4F4FA; }", warnings=w)
+        self.assertEqual((p.tokens["grey-100"], p.tokens["brand-ink"], p.tokens["grey-50"]), ("EEEEEE", "101820", "F4F4FA"))
+        self.assertEqual(w, [])
+
     def test_a_generic_or_bad_font(self):
         self.assertEqual(ep.palette(css=":root { --font-office: sans-serif, Calibri; }").font, "Calibri")
         w = []
