@@ -377,13 +377,13 @@ class Undo(Base):
         status, body = self.undo({"project": "ABC", "apply_id": step})
         self.assertEqual((status, body["message"]), (400, changes.NO_UNDO))
 
-    def test_an_assistant_step_on_a_use_case_is_not_undoable(self):
-        with self.s.step("assistant", USER, actor="clark") as st:      # a use case is not one of ask clark's kinds
+    def test_an_assistant_step_on_a_use_case_is_undoable_now_that_it_is_one_of_ask_clarks_kinds(self):      # issue 729 (it was not before)
+        with self.s.step("assistant", USER, actor="clark") as st:
             st.update("use_cases", self.demo.use_case, {"headline": "Changed by ask clark"})
         step = self.demo.last_step()
         status, body = self.undo({"project": "ABC", "apply_id": step})
-        self.assertEqual((status, body["message"]), (400, changes.NO_UNDO))
-        self.assertEqual(self.s.read("use_cases", ref=self.demo.use_case)["headline"], "Changed by ask clark")
+        self.assertEqual(status, 200, body)
+        self.assertNotEqual(self.s.read("use_cases", ref=self.demo.use_case)["headline"], "Changed by ask clark")
 
 
 class Source(unittest.TestCase):
