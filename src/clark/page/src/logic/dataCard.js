@@ -2,6 +2,9 @@
 // Preact, so a test can run them alone. The words are the prototype's (system/prototype/views.js, io.js), with the build's own where the
 // prototype names its browser database. Nothing here is sent: the server checks every request again.
 
+// Why Export and Import workbook are grey with no project open (issue 682; wording approved).
+export const IMPORT_NEEDS_PROJECT = "Add a project first.";
+
 export const DATA = {
   title: "Data",
   export: "Export workbook",

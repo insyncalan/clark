@@ -161,6 +161,8 @@ def shown_port(port):
 
 
 def start_line(address):
+    if platform.container_mode():      # #696: in Docker there is no window to leave open, and Ctrl+C is not how it is stopped
+        return f"Open {address} to use clark. Stop it with: docker compose -f docker/compose.yaml down"
     return f"Open {address} to use clark. Leave this window open. Press Ctrl+C to stop."
 
 
