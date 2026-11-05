@@ -4,24 +4,16 @@ tab it stays at the top right. Chrome is required: these tests fail, never skip,
 Run: python3 dev/run_tests.py test_mode_pill
 """
 import unittest
+from pathlib import Path
 
 from test_inline_67 import size
 from test_report_editor import Base
-from test_server import chrome, wait
+from test_server import chrome
 
 GROUP = "document.querySelector('[aria-label=\"View or Edit\"]')"
 COUNT = "document.querySelectorAll('[aria-label=\"View or Edit\"]').length"
 MODE = "document.querySelector('#report').dataset.mode"
 PLACE = (f"(function(){{var g={GROUP}; return [{COUNT}, !!g.closest('#report-bar'), !!g.closest('header.top')];}})()")
-
-def press(p, key, code, vk, want):
-    """Press a key until the Dashboard is in the wanted mode. The page can still be settling when the first press lands (a slow runner),
-    so a press that changed nothing is tried again a few times; a key that never works still fails."""
-    for _ in range(5):
-        p.key(key, code=code, vk=vk)
-        if wait(lambda: p.js(f"{MODE} === '{want}'"), 2):
-            return
-    p.until(f"{MODE} === '{want}'", f"{key.upper()} switches to {want}")
 
 
 class ModePill(Base):
@@ -62,8 +54,18 @@ class ModePill(Base):
     def test_the_v_and_e_keys_work_on_the_dashboard(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            press(p, "e", "KeyE", 69, "edit")
-            press(p, "v", "KeyV", 86, "view")
+            p.key("e", code="KeyE", vk=69)
+            p.until(f"{MODE} === 'edit'", "E")
+            p.key("v", code="KeyV", vk=86)
+            p.until(f"{MODE} === 'view'", "V")
+
+    def test_the_v_and_e_listener_is_installed_at_boot_not_by_the_switch(self):
+        # The switch moves between the top bar and the report bar; a listener that lived in it was missing before the report bar drew (the
+        # first E press on a slow runner was lost). boot.jsx installs it once, from the start.
+        page = Path(__file__).resolve().parents[1] / "src/clark/page/src"
+        self.assertNotIn("keydown", (page / "edit/Toggle.jsx").read_text(), "the switch adds no key listener of its own")
+        self.assertIn("tools.modeKeys.install()", (page / "boot.jsx").read_text())
+        self.assertIn("modeKeys: { install: installModeKeys }", (page / "edit/index.js").read_text())
 
     def test_the_keys_still_work_after_a_round_trip_through_another_tab(self):
         # keys.js acts on the Dashboard only; the switch moves between the top bar and the report bar, and one listener must survive that
@@ -73,8 +75,10 @@ class ModePill(Base):
             p.key("e", code="KeyE", vk=69)
             self.assertEqual(p.js("document.querySelector('[aria-label=\"View or Edit\"] [data-mode=\"edit\"]').getAttribute('aria-pressed')"), "false")
             self.tab(p, "dashboard")
-            press(p, "e", "KeyE", 69, "edit")
-            press(p, "v", "KeyV", 86, "view")
+            p.key("e", code="KeyE", vk=69)
+            p.until(f"{MODE} === 'edit'", "E")
+            p.key("v", code="KeyV", vk=86)
+            p.until(f"{MODE} === 'view'", "V: one listener, one switch")
 
     def test_no_overlap_at_the_four_widths_in_both_colours(self):
         with chrome() as cdp:
