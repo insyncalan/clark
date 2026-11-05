@@ -48,11 +48,12 @@ from openpyxl.cell.text import InlineFont
 from openpyxl.comments import Comment
 from openpyxl.formatting.rule import FormulaRule, Rule
 from openpyxl.packaging.custom import CustomPropertyList, StringProperty
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Protection, Side
 from openpyxl.styles.differential import DifferentialStyle
 from openpyxl.utils import get_column_letter
 from openpyxl.xml.functions import fromstring, tostring
 from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.worksheet.protection import SheetProtection
 
 from clark import excel_colours as colours
 from clark import excel_cover
@@ -185,10 +186,11 @@ class Styles:
 
 def _pal(pal):
     return pal if pal is not None else DEFAULT_PAL
-# The ID column (#85d, BRD FR-70d). There are no cell locks and no sheet protection: Excel refuses to sort a range that holds
-# a locked cell, and sorting must stay free. The import is the guard (a changed existing ID is refused for that row; a row with
-# no ID is a new item and gets the next free ID). The ID column is shaded (LOCKED fill) and these words are pinned by a test.
-# The Cover is unprotected on purpose, for the same reason.
+# The ID column (#85d, BRD FR-70d). Every sheet is protected with no password (item 727), so a locked cell is not changed by
+# mistake; Excel then refuses to sort a protected range, and a person who needs to sort chooses Review, Unprotect Sheet.
+# The protection is a convenience only: the import never reads it and is still the guard (a changed existing ID is refused for
+# that row; a row with no ID is a new item and gets the next free ID). The ID column is shaded (LOCKED fill) and these words
+# are pinned by a test.
 ID_NOTE = ("IDs are given by clark. Don't change or move an ID, and don't sort the ID column on its own: an ID moved to "
            "another row takes that row's details with it when the file is imported. Leave the ID empty on a new row.")
 ID_PROMPT_TITLE = "ID"
@@ -196,6 +198,29 @@ ID_PROMPT_EXISTING = "Don't change this ID: if it changes, this row's details go
 ID_PROMPT_NEW = "Leave the ID empty for a new item. clark gives it an ID when the file is imported."
 
 
+
+
+ALWAYS_LOCKED = {"id", "project"}      # on a data sheet, besides the sheet's own locked set and DERIVED (item 727)
+# Protected sheets allow: the autofilter, resizing and formatting, and inserting rows. In openpyxl a True flag means the action
+# is NOT allowed, so these are the ones set False. Sorting stays blocked (Excel does not sort a range with a locked cell), and
+# rows are not deleted on a protected sheet (an item is never removed by deleting its row: the import does not delete).
+ALLOWED_ON_PROTECTED = ("autoFilter", "formatCells", "formatColumns", "formatRows", "insertRows",
+                        "selectLockedCells", "selectUnlockedCells")
+UNLOCKED = Protection(locked=False)
+
+
+def locked_fields(locked):
+    """The fields of a data sheet that stay locked: its own locked set, what is worked out, the ID and the Project. Every
+    other column is editable, including one added later."""
+    return set(locked) | DERIVED | ALWAYS_LOCKED
+
+
+def protect_sheet(ws):
+    """Protect the sheet with no password (so no hash is stored); the person unprotects it from the Review tab."""
+    prot = SheetProtection(sheet=True)
+    for name in ALLOWED_ON_PROTECTED:
+        setattr(prot, name, False)
+    ws.protection = prot
 
 
 class Refused(Exception):
@@ -858,6 +883,7 @@ def write_history(wb, view, pal=None):
     if last:
         put(ws.max_row + 1, [history_cell(last)], italic=True)
     ws.freeze_panes = "A3"
+    protect_sheet(ws)
     return ws
 
 
@@ -877,6 +903,7 @@ def write_lists(wb, lists, pal=None):
             protect_text_cell(c)
             c.font = st.body_font
     ws.sheet_state = "hidden"
+    protect_sheet(ws)
     return ws
 
 
@@ -884,7 +911,7 @@ def write_lists(wb, lists, pal=None):
 
 COVER_NAME = "Cover"
 COVER_LABELS = {"exported": "Exported", "caution": "Caution", "return": "Sending changes back",
-                "where": "Where to make changes", "ids": "IDs"}
+                "where": "Where to make changes", "ids": "IDs", "locked": "Locked cells"}
 COVER_FONT = OFFICE_FONT
 COVER_COLUMNS = 12                  # the Cover's grid: 12 equal columns, text and tiles in merged cells
 COVER_SIZE = 10                     # body text, in points
@@ -1042,6 +1069,7 @@ def write_cover(wb, cover, mark=False, pal=None):
             _put(pal, ws, row, 4, last, text, _cover_font(pal, color=grey_text), grey_fill, top=edge)
             ws.row_dimensions[row].height = excel_cover.height(text, _span_chars(4, last))
     wb.active = 0
+    protect_sheet(ws)
     return ws
 
 
@@ -1095,6 +1123,9 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             if field in DATES:
                 for c in ws[f"{col}2:{col}{n_rows}"]:
                     c[0].number_format = DATE_FORMAT
+            if field not in locked_fields(locked):        # editable: the data rows and the blank rows for new items
+                for c in ws[f"{col}2:{col}{n_rows}"]:
+                    c[0].protection = UNLOCKED
             if field == "id":
                 id_prompt(ws, col, 2, len(rows) + 1, ID_PROMPT_EXISTING)
                 id_prompt(ws, col, len(rows) + 2, n_rows, ID_PROMPT_NEW)
@@ -1131,6 +1162,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             ws["A1"].comment = note
         ws.freeze_panes = freeze_cell(table, cols)
         ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(rows) + 1}"
+        protect_sheet(ws)
     if history is not None:
         write_history(wb, history, pal)
     if lists:

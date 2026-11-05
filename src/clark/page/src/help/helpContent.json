@@ -198,7 +198,7 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
-     "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, or press [[Enter]] in the empty box to use the Friday shown. Any other day is not accepted.",
+     "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, press [[Enter]] in the empty box to use the Friday shown, or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
      "Click the text under **Current state** and write where the project stands. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back. Write the Summary, This week and Next week sections the same way.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
      "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
@@ -282,6 +282,7 @@
      "In **Edit**, choose **Import from Word** from the same menu, choose a .docx file of up to 25 MB and press **Read the file**. Work items under a heading called Actions, Risks, Issues or Decisions are listed. Tick the ones you want, or use **Tick all**, and press the Add button, which reads **Add** and the number you ticked, such as Add 3 items. Nothing is added until you press it. The new items are shown to the client until you hide them with the eye, and Undo takes them all back.",
      "If clark refuses a file it says why in plain words and names the file. Choose the same file again once you have fixed it: **Read the file** comes on again."
     ],
+    "n": "The use case table in the Word report has a Commitment column.",
     "page": [
      "dashboard+edit"
     ]
@@ -443,7 +444,7 @@
     "s": [
      "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, named after today and the project.",
      "**Import**: press the up-arrow icon. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
-     "Press **Choose a file** (Excel or CSV). **Check the import** shows how many rows are new, updated or skipped, and the first few. Press **Import** to save them.",
+     "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, each with its rows and all ticked: untick any you do not want, then press **Continue**. **Check the import** then shows how many rows are new, updated or skipped, and the first few; press **Import** to save them.",
      "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
     ],
     "n": "The whole import is one step: one **Undo** takes it all back.",
@@ -549,7 +550,9 @@
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
      "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case's reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
-     "Each use case can carry a commitment: Candidate, Committed or Planned 2027. The client sees it beside the status.",
+     "A use case can carry a commitment: Candidate, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
+     "In Edit, a small menu beside the status reads **Set commitment** when there is none: choose a word, or **No flag** to clear it. Each choice is one change, with one Undo and one line in History.",
+     "A published file shows the chip but never the menu. A use case taken off the page with the eye is left out of the published file whole, chip and all.",
      "In the detail, write **Where it stands**, or add a next step as “Owner: what it is”.",
      "**Archive this use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Restore** or Undo brings it back."
     ],
@@ -564,10 +567,10 @@
     "w": "Edit › Use cases",
     "go": "dashboard+edit",
     "s": [
-     "In Edit, open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard.",
+     "In Edit, open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard. A use case with a commitment shows it as a small chip beside the status.",
      "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
      "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
-     "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list."
+     "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. In Edit, the small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History."
     ],
     "page": [
      "dashboard+edit"
@@ -1723,6 +1726,7 @@
       [
        "**The cover**: the project, the week ending and who it is for.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
+       "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF**, **Past reports** and **Dark mode**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports. **Dark mode** offers Light, Dark or System (the standard), is remembered in the same browser, and a printed page is always light.",
        "**Dashboard**: the report in the section style you chose, with **On this page** at the right.",
        "**Work items**: actions, risks and issues, and decisions shown to the client, with the type and Open, Closed or All switches, Filter by, a search box and Group by. Your choices are kept in your own browser only.",
        "**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.",
@@ -1888,7 +1892,7 @@
      ],
      [
       "p",
-      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY."
+      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Candidate, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
      ]
     ]
    },
@@ -2207,7 +2211,7 @@
    [
     "pencil",
     "Edit",
-    "Switch the Dashboard to Edit",
+    "Switch the Dashboard to Edit. It is on the **Edit** half of the **View** and **Edit** switch at the left of the report bar.",
     "Dashboard"
    ],
    [
@@ -2518,7 +2522,7 @@
      "pic": "excel-in-box"
     },
     {
-     "d": "The box **What to import** lists the sheets the workbook has, each with its number of rows, for example Actions (12 rows). They all start ticked. Tick the sheets you want and untick the rest: anything you leave unticked is not read and not changed. **Select all** ticks every sheet and **Clear** unticks them. With no sheet ticked, **Continue** is off. A sheet with more than 2,000 rows shows **more than 2,000 rows** and cannot be imported as it is. Pressing **Continue** with it ticked names the limit. Press **Continue**."
+     "d": "The box **What to import** lists the sheets the workbook has, each with its number of rows, for example Actions (12 rows). They all start ticked. Tick the sheets you want and untick the rest: anything you leave unticked is not read and not changed. **Select all** ticks every sheet and **Clear** unticks them. With no sheet ticked, **Continue** is off. A sheet with more than 2,000 rows shows **more than 2,000 rows**. It is refused whole when you press **Continue**, and the message says so."
     },
     {
      "d": "The box **Check the import** opens. A line gives the counts: how many rows are new, how many changed, how many are no longer in the workbook and how many are unchanged. Unchanged rows are left alone. Nothing has been saved yet. It counts only the sheets you ticked."
@@ -2560,7 +2564,7 @@
      "d": "Your browser saves one .xlsx file, and a message gives its name. Nothing is sent or published: the file is only on your computer."
     },
     {
-     "d": "Open the file. It opens on the Cover sheet. The first line is the project name, tagged INTERNAL. Below it come the report’s current state, the health and the at a glance tiles, and the text sections, as the published page shows them. Then comes an About this export block: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs."
+     "d": "Open the file. It opens on the Cover: a title band with the project name, tagged INTERNAL, and under it a line with Weekly report, the week ending and who it is for. Then come the sections the published page shows, in the report’s order: the current state, the At a glance tiles side by side (the health is one of them) and the text sections, with This week and Next week side by side when both have words. A quiet About this export block comes last: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs."
     },
     {
      "d": "After the Cover come the sheets of rows: Actions, Risks & Issues, Decisions, Milestones and Use cases. Each row is one item, with its ID in the first column. A History sheet follows with the record of changes, read only. Changes made on the Cover are ignored."
