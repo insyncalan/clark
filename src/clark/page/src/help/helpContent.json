@@ -1726,6 +1726,7 @@
       [
        "**The cover**: the project, the week ending and who it is for.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
+       "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF**, **Past reports** and **Dark mode**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports. **Dark mode** offers Light, Dark or System (the standard), is remembered in the same browser, and a printed page is always light.",
        "**Dashboard**: the report in the section style you chose, with **On this page** at the right.",
        "**Work items**: actions, risks and issues, and decisions shown to the client, with the type and Open, Closed or All switches, Filter by, a search box and Group by. Your choices are kept in your own browser only.",
        "**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.",
@@ -1891,7 +1892,7 @@
      ],
      [
       "p",
-      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. The Use cases sheet has a Commitment column that reads Candidate, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
+      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Candidate, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
      ]
     ]
    },
@@ -2563,7 +2564,7 @@
      "d": "Your browser saves one .xlsx file, and a message gives its name. Nothing is sent or published: the file is only on your computer."
     },
     {
-     "d": "Open the file. It opens on the Cover sheet. The first line is the project name, tagged INTERNAL. Below it come the report’s current state, the health and the at a glance tiles, and the text sections, as the published page shows them. Then comes an About this export block: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs."
+     "d": "Open the file. It opens on the Cover: a title band with the project name, tagged INTERNAL, and under it a line with Weekly report, the week ending and who it is for. Then come the sections the published page shows, in the report’s order: the current state, the At a glance tiles side by side (the health is one of them) and the text sections, with This week and Next week side by side when both have words. A quiet About this export block comes last: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs."
     },
     {
      "d": "After the Cover come the sheets of rows: Actions, Risks & Issues, Decisions, Milestones and Use cases. Each row is one item, with its ID in the first column. A History sheet follows with the record of changes, read only. Changes made on the Cover are ignored."
