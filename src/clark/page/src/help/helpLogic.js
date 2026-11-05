@@ -382,7 +382,7 @@ export function markParts(line, q) {
 }
 
 /** The sentence under the count (shown only when a guide ships: it says "the guide") and the two chip labels: the signed mockup's words (docs/handoff/v1.0/mockups/help-search.html). */
-export const RESULT_LEAD = "Each result names the guide, the step and the part of the screen it is about.";
+export const RESULT_LEAD = "Each result names the guide and the step it is about.";
 export const whereLabels = (w) => ({ step: w.step ? `Step ${w.step.n}${w.step.title ? ": " + w.step.title : ""}` : null, part: w.part ? `Screen part: ${w.part}` : null });
 const TAB_NAME = Object.fromEntries(CONTENT.tabs);
 /** The results as the panel shows them: a count line, then groups in the order How do I…, Reference, Start here. */
