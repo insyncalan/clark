@@ -1907,8 +1907,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .item-rows-edit .add-from { display: inline-block; margin-top: 6px; }
 .item-rows-edit .picker { margin-top: 10px; }
 
-/* Row 832: Work items sits straight on the tinted page, not inside a white bordered card. */
-.frame.work { background: transparent; border: 0; box-shadow: none; padding: 0; }
+/* Row 832: Work items sits straight on the tinted page, not inside a white bordered card. With no border or padding the last child margin ran out of the section, so the board pin stopped 16 px short of the top bar; flow-root keeps that margin inside. */
+.frame.work { background: transparent; border: 0; box-shadow: none; padding: 0; display: flow-root; }
 
 /* Row 832: Milestones sits on the tinted page; the viewer and timeline keep their card. */
 .frame.milestones { background: transparent; border: 0; box-shadow: none; padding: 0; }
