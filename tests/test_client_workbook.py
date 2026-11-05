@@ -27,7 +27,7 @@ from clark.store import open_store  # noqa: E402
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 PARTS = {"[Content_Types].xml", "_rels/.rels", "docProps/app.xml", "docProps/core.xml", "xl/workbook.xml", "xl/_rels/workbook.xml.rels",
          "xl/styles.xml", "xl/theme/theme1.xml", "xl/sharedStrings.xml"}
-SECRET = "ZQ-PLANTED-SECRET-MARKER-7F3A9C"
+PLANT_C = "ZQ-PLANTED-PLANT_C-MARKER-7F3A9C"
 FORMULA = '=HYPERLINK("https://x.invalid","click")'
 
 
@@ -41,14 +41,14 @@ def rich_plant():
     plant = fx.load()
     d = plant["data"]
     d["actions"].append({**d["actions"][0], "id": "PUB-A-020", "description": FORMULA, "client_message": "",
-                         "source": "Internal only " + SECRET})
+                         "source": "Internal only " + PLANT_C})
     for table in ("milestones", "actions", "raid", "decisions", "use_cases"):
         for row in d[table]:
             if row["id"] in plant["kept"]:
-                row["source"] = "ZQ-INTERNAL-ONLY " + SECRET
+                row["source"] = "ZQ-INTERNAL-ONLY " + PLANT_C
                 if table == "milestones":
-                    row["internal_note"] = "ZQ-INTERNAL-ONLY " + SECRET
-    plant["markers"]["secret"] = SECRET
+                    row["internal_note"] = "ZQ-INTERNAL-ONLY " + PLANT_C
+    plant["markers"]["secret"] = PLANT_C
     plant["markers"]["internal_only"] = "ZQ-INTERNAL-ONLY"
     return plant
 
