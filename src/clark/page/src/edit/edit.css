@@ -224,7 +224,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-passage { margin: 0; padding: 6px 10px; border-left: 3px solid var(--grey-300); background: var(--surface); }
 .ask-passage figcaption { font-size: var(--size-caption); overflow-wrap: anywhere; }
 .ask-passage blockquote { margin: var(--space-1) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--size-caption); }
-.ask-change { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); }
+.ask-change { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) 10px; border: 1px solid var(--grey-200); border-left: 3px solid var(--brand-blue); border-radius: var(--radius-sm); background: var(--grey-50); }
 .ask-change-head { display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
 .ask-diff { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--size-caption); }
 .ask-diff th, .ask-diff td { padding: 3px 6px; text-align: left; vertical-align: top; border-top: 1px solid var(--grey-200); overflow-wrap: anywhere; }
@@ -233,7 +233,10 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-confirm { display: flex; flex-direction: column; gap: 6px; }
 .ask-confirm p, .ask-change-line, .ask-refused { margin: 0; }
 .ask-confirm label { display: flex; gap: var(--space-2); align-items: flex-start; }
-.ask-change-actions { display: flex; justify-content: flex-end; }
+.ask-change-actions { display: flex; justify-content: flex-start; }
+.ask-change .btn.primary { min-height: 24px; padding: 2px 10px; border: 1px solid var(--brand-blue); border-radius: var(--radius-pill); background: var(--brand-blue); background-image: none; color: var(--text-on-brand); font-weight: var(--weight-medium); letter-spacing: normal; box-shadow: none; }
+.ask-change .btn.primary:hover { transform: none; box-shadow: none; }
+.ask-change .btn.primary:disabled { opacity: .55; cursor: default; }
 .ask-change-line.problem, .ask-refused { color: var(--text); border-left: 3px solid var(--status-amber); padding-left: var(--space-2); }
 .ask-change-line:focus-visible, .ask-change button:focus-visible, .ask-confirm input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 /* 'Needs from you' in Edit: the row's own buttons sit under its date; a row being edited is a row of fields; a row left out of the
@@ -349,8 +352,9 @@ table.items td.c-pick { vertical-align: middle; }
 /* Use cases page: detail */
 /* One use case on its own page (Edit only): the crumb, the title, two columns at 1400 px and one at 900 px; tokens only, 13 px text at least, 24 px targets, no sideways scroll. */
 .ucd { display: block; min-width: 0; }
-.ucd-crumb { margin: 0 0 6px; font-size: var(--size-caption); color: var(--text-muted); }
-.ucd-crumb a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); }
+.ucd-crumb { margin: 0 0 6px; font-family: var(--font-label); font-weight: var(--weight-semibold); font-size: var(--size-caption); text-transform: uppercase; letter-spacing: .1em; color: var(--text-muted); }
+.ucd-crumb a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); text-decoration: none; }
+.ucd-crumb a:hover { text-decoration: underline; text-underline-offset: 2px; }
 .ucd-crumb a:focus-visible, .ucd-card .link:focus-visible, .ucd-item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 .ucd-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; margin: 0 0 16px; }
 .ucd-titles { flex: 1 1 420px; min-width: 0; }
