@@ -171,24 +171,30 @@ class InTheWorkbook(unittest.TestCase):
         self.assertIn('PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"', types)
         ET.fromstring(types)
 
-    def test_the_drawing_anchors_at_the_right_of_the_band_scaled_to_the_row(self):
+    def test_the_drawing_anchors_at_the_left_of_the_band_scaled_to_the_row(self):
         (self.brand / "logo.png").write_bytes(self.png)
         root = ET.fromstring(self.export().read("xl/drawings/drawing1.xml"))
         anchor = root.find(XDR + "oneCellAnchor")
-        self.assertEqual(anchor.find(XDR + "from/" + XDR + "col").text, "1")
+        self.assertEqual(anchor.find(XDR + "from/" + XDR + "col").text, "0", "column A: the left of the band")
         self.assertEqual(anchor.find(XDR + "from/" + XDR + "row").text, "0")
         ext = anchor.find(XDR + "ext")
         self.assertEqual((int(ext.get("cx")), int(ext.get("cy"))), (120 * 9525, 40 * 9525))
         left = int(anchor.find(XDR + "from/" + XDR + "colOff").text)
-        self.assertEqual(left + 120 * 9525 + pic.MARK_MARGIN * 9525, pic.B_WIDTH_PIXELS * 9525)
-        self.assertEqual(load_workbook(self.path)["Cover"].row_dimensions[1].height, pic.COVER_ROW_POINTS)
+        self.assertEqual(left, pic.MARK_MARGIN * 9525)
+        self.assertLessEqual(left + 120 * 9525 + pic.MARK_MARGIN * 9525, pic.LEFT_PIXELS * 9525, "inside the two columns before the title")
+        top = int(anchor.find(XDR + "from/" + XDR + "rowOff").text)
+        self.assertLessEqual(top + 40 * 9525, pic.COVER_ROW_POINTS * 4 // 3 * 9525, "inside the title row")
+        ws = load_workbook(self.path)["Cover"]
+        self.assertEqual(ws.row_dimensions[1].height, pic.COVER_ROW_POINTS)
+        self.assertEqual(ws["C1"].value, "Harbour Lights upgrade", "the title starts after the logo")
+        self.assertIsNone(ws["A1"].value)
 
     def test_the_workbook_still_loads(self):
         (self.brand / "logo.png").write_bytes(self.png)
         self.export()
         wb = load_workbook(self.path)
         self.assertEqual(wb.sheetnames[0], "Cover")
-        self.assertEqual(wb["Cover"]["B1"].fill.fgColor.rgb[-6:], excel.colours.TOKENS["brand-navy"])
+        self.assertEqual(wb["Cover"]["A1"].fill.fgColor.rgb[-6:], excel.colours.TOKENS["brand-navy"], "the band is navy under the logo")
 
     def test_the_same_data_and_clock_give_the_same_bytes_and_dates(self):
         (self.brand / "logo.png").write_bytes(self.png)
@@ -211,7 +217,8 @@ class InTheWorkbook(unittest.TestCase):
         self.assertEqual(self.parts(z), [])
         self.assertNotIn("<drawing ", z.read("xl/worksheets/sheet1.xml").decode())
         self.assertNotIn("image/png", z.read("[Content_Types].xml").decode())
-        self.assertIsNone(load_workbook(self.path)["Cover"].row_dimensions[1].height)
+        ws = load_workbook(self.path)["Cover"]
+        self.assertEqual(ws["A1"].value, "Harbour Lights upgrade", "no logo: the title starts at the left edge")
 
     def test_a_bad_logo_is_refused_in_words_and_the_export_goes_ahead_without_it(self):
         (self.brand / "logo.png").write_bytes(make_png(3000, 10))
