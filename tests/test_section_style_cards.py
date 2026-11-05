@@ -77,7 +77,7 @@ class Cards(Base):
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
         p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
         p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
-        p.js(f"document.querySelector('#personal [data-appearance] input[value={look}]').click()")
+        p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={look}]').click()")
         p.until("document.documentElement.dataset.theme === 'dark'" if look == "dark" else "!document.documentElement.dataset.theme", f"{look} is on")
         p.js(JS_HELPERS)
         p.until("document.body.offsetHeight > 0 && getComputedStyle(document.querySelector('.secpick:not(:hover) input:not(:checked) + .secpick-card')).borderTopColor === __token('--grey-700')",

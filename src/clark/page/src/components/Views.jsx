@@ -113,7 +113,8 @@ export function Milestones({ tools }) {
 // The row of chips (item 440, S2) is a bar of its own under the head: it stays under the top bar as you scroll, and the chip of the card
 // you are reading is marked (aria-current). The prototype's other chips wait for their cards.
 const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
-  ["Safety", "Backups", "safety-h"], ["AskSettings", "Asking", "ask-settings-h"]];
+  ["Projects", "Projects", "projects-h"], ["Data", "Data", "data-card-h"], ["Safety", "Backups", "safety-h"], ["Update", "", "update-h"],
+  ["People", "People", "people-h"], ["AskSettings", "Asking", "ask-settings-h"]];       // in the order the cards are drawn; a card that is not on the page has no chip
 
 const cardOf = (headId) => { const head = document.getElementById(headId); return head ? head.closest("section") || head : null; };
 
@@ -181,8 +182,9 @@ export function Settings({ tools }) {
   const Data = tools && tools.Data;                    // the Data card (A-S11): Export to Excel; Edit only
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
   const Update = tools && tools.Update;                  // Version and updates; a published file has none
+  // a card's chip says its heading; an Edit-only card with no name here brings its own (`chip`), so a published file never holds it
   const NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays"];
-  const cards = CARDS.filter(([tool]) => tools && tools[tool] && (open || !NEEDS_PROJECT.includes(tool)));
+  const cards = CARDS.filter(([tool]) => tools && tools[tool] && (open || !NEEDS_PROJECT.includes(tool))).map(([tool, name, headId]) => [tool, name || tools[tool].chip || "", headId]);
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
   const People = tools && tools.People;                  // the People card (item 454): email, organisation, role, Paste from Excel; Edit's page only
   const Projects = tools && tools.Projects;              // the projects table (A-S6); a published file has none
