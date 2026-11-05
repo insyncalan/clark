@@ -22,14 +22,13 @@ BASE = {"start": "start-", "howto": "howto-", "reference": "ref-"}
 UI_NAMES = {"Version and updates", "clark version and updates"}     # the name of a Settings section (BRD FR-8a), shown as a name, not as the start of a sentence
 # 'Archive', 'Archive use case' and 'Show archived' are the owner's rule (we archive, never delete) and are not in the prototype, which still
 # says Delete; 'Delete section' is the label the page has today (edit/Gutter.jsx), kept as it is for the ruling.
-# 'Source folders for ask clark' is the name the product's Settings card still has; the prototype's card is now "Asking" (#170),
-# and the product build renames it (#47).
+# 'Ask about this project', 'Confirm and apply', 'Folders asking may read', 'Turn off asking' (#721) and the two long pills are the page's own words (edit/askWords.js, AskSettings.jsx, SneakPeek.jsx); the prototype words them differently.
 # 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
 # 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) is read on the page itself; the prototype words it differently. 'Shown to client' left this list with the tag on a work item row (#456: the eye column says it, and Help no longer bolds it)
 # 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
 # 'Keep the model I have' and 'Use it anyway' are the buttons of the Settings AI card (edit/AiSettings.jsx, #446); the prototype has no AI card. Claude and ChatGPT are named only as the two providers the card connects.
 # 'Show the files' and 'Put back the app and settings only' are the update card's own buttons (logic/update.js LABELS, item 445); the prototype has neither.
-CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Source folders for ask clark', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Use it anyway', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
+CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Ask about this project', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -100,7 +99,7 @@ class Shape(unittest.TestCase):
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
         self.assertEqual((len(STEPS), len(SECTIONS)), (37, 35))   # with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
-        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (36, 31))
+        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (34, 30))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
         for kind, rows, groups in (("task", STEPS, SRC["howto"]["groups"]), ("section", SECTIONS, SRC["reference"]["groups"])):
@@ -285,8 +284,8 @@ class WordingRound(unittest.TestCase):
         self.assertNotIn("until you press Add;", self.ALL)
 
     def test_examples_are_real_dates(self):                                                  # MEDIUM
-        self.assertIn("by 12-12-2026", self.ALL)
-        self.assertIn("forecast 12-12-2026", self.ALL)
+        self.assertIn("due Friday · move to tomorrow · by Friday", self.ALL)      # a date-free example: no made-up date reaches the built page
+        self.assertNotRegex(self.ALL, r"\b\d\d-\d\d-20\d\d\b")
         self.assertNotRegex(self.ALL, r"such as DD-MM-YYYY|forecast DD-MM-YYYY")
 
     def test_no_report_layout_choice_is_mentioned(self):                                     # MEDIUM

@@ -9,6 +9,7 @@ import { format } from "../router.js";
 import { isOn, liveOf } from "../logic/useCasesList.js";
 import { isOpen, dueField, showDate, ownerOf } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
+import { CommitChip } from "./CommitChip.jsx";
 
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];     // Done is grey: finished, and always said in its word
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -57,7 +58,10 @@ function Row({ s, shown, toggle, ed }) {
         {u.ref ? <span class="ucref num" data-ref>{refText(u.ref)}</span> : <span></span>}
         <span class="uctitle">{u.title}</span>
         {ed ? <ed.Headline u={u} /> : <span class="uchead">{u.headline}</span>}
-        {ed ? <ed.Status u={u} /> : <span class={`ucword rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>}
+        <span class="ucstc">
+          {ed ? <ed.Status u={u} /> : <span class={`ucword rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>}
+          {ed ? <ed.Commit u={u} /> : <CommitChip u={u} />}
+        </span>
         <span class="ucsteps num">{s.steps.length === 1 ? "1 next step" : s.steps.length ? `${s.steps.length} next steps` : "No open steps"}</span>
       </div>
       {shown ? (

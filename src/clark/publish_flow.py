@@ -30,10 +30,11 @@ import time
 import unicodedata
 from pathlib import Path
 
-from clark import changes, milestones, page, platform, publish, publish_pdf, section_files, to_client
+from clark import changes, milestones, page, past_files, platform, publish, publish_pdf, section_files, to_client
 from clark.store import Invalid, NumberTaken, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
+CLIENT_WORKBOOK = True      # item 713: every file made here carries the client workbook (or the too-large sentence) in its data block
 MIN_MARKER = 8                       # a shorter piece of text can't be searched for without finding it everywhere
 TEXT_FIELDS = {"milestones": ("name", "description"), "actions": ("description",), "raid": ("description",),
                "decisions": ("decision",), "use_cases": ("title", "headline")}
@@ -225,13 +226,14 @@ class Publisher:
             return 400, self.fail(code_of(asked["message"]), asked["message"])
         want_client, confirmed = asked["to_client"], asked["confirmed"]
         today = str(self.today())
-        try:
-            built = publish.build(store, code, today, self.branding, body.get("section_style"))
+        last = store.last_publish_folder(code)
+        try:       # item 713: the earlier reports are read from the folder last used here; the Save window's own folder is read again below
+            built = publish.build(store, code, today, self.branding, body.get("section_style"), workbook=CLIENT_WORKBOOK,
+                                  past_reports=past_files.listing(last, code) if last else None)
         except publish.PublishError as e:
             return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
         week = built["project"]["week_ending"]
         body_bytes, digest = built["body"], built["sha256"]
-        last = store.last_publish_folder(code)
         plan, same, markers = None, None, []
         self.folder_warning = None
         if want_client:
@@ -252,13 +254,23 @@ class Publisher:
         if "\x00" in str(chosen):         # a file name cannot hold a NUL; said in words, not a fault
             return 409, self.fail("local_failed", MESSAGES["local_failed"].format(name="The file"))
         dest = Path(chosen)
+        past = past_files.listing(dest.parent, code, dest.name)           # item 713: the folder the file is going to, not the one last used
+        if past != built["past_reports"]:
+            try:
+                keep = built["number"] if store.next_publication(code) == built["number"] else None
+                built = publish.build(store, code, today, self.branding, body.get("section_style"), keep, workbook=CLIENT_WORKBOOK,
+                                      past_reports=past)
+            except publish.PublishError as e:
+                return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
+            body_bytes, digest, week = built["body"], built["sha256"], built["project"]["week_ending"]
         if want_client:
             # The Save window may have been open a while. What the client is to get is made again now, so a flag turned off
             # meanwhile is honoured; if anything differs, every check before the copy runs again on the new file.
             try:
                 # #120: the same number while it is still the next one; else the file is made again with the new next number
                 keep = built["number"] if store.next_publication(code) == built["number"] else None
-                again = publish.build(store, code, today, self.branding, body.get("section_style"), keep)
+                again = publish.build(store, code, today, self.branding, body.get("section_style"), keep, workbook=CLIENT_WORKBOOK,
+                                       past_reports=past)
             except publish.PublishError as e:
                 return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
             # The client folder is checked again whether or not the file changed: it may have been swapped for a link (or
@@ -532,7 +544,7 @@ class Publisher:
             if store.read("projects", ref=code) is None:
                 return 404, self.fail("project_not_found")
             try:
-                built = publish.build(store, code, str(self.today()), self.branding, body.get("section_style"))
+                built = publish.build(store, code, str(self.today()), self.branding, body.get("section_style"), workbook=CLIENT_WORKBOOK)
             except publish.PublishError as e:
                 return 409, self.fail("preview_not_made", MESSAGES["preview_not_made"].format(reason=made_words(e)))
         finally:
