@@ -84,9 +84,11 @@ class Running:
     """A server on a free port in a thread, stopped by close() (which also drops the connections it holds, as stopping would)."""
 
     def __init__(self, data_for=DEMO.get, page_html=None, projects=lambda archived=False: PROJECTS, change=None, undo=None, sneak=None,
-                 publisher=StubPublisher()):
+                 publisher=StubPublisher(), section_body=None):
+        if section_body is None:
+            section_body = change      # #273: a test that stands in for the change handler stands in for a section's content too (the page sends it to its own route)
         self.httpd = Stoppable((sv.HOST, 0), data_for=data_for, page_html=page_html, projects=projects, change=change,
-                               undo=undo, sneak=sneak, publisher=publisher)
+                               undo=undo, sneak=sneak, publisher=publisher, section_body=section_body)
         self.port = self.httpd.server_port
         self.httpd.handle_error = self._quiet_when_the_client_leaves(self.httpd.handle_error)
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
@@ -319,10 +321,11 @@ class Saving(ServerTest):
         self.assertEqual(sv.POST_ROUTES["/api/word-import"], sv.word_import_route)
         self.assertEqual(sv.POST_ROUTES["/api/word-export"], sv.word_export_route)
         self.assertEqual(sv.POST_ROUTES["/api/section-image"], sv.section_image_route)
+        self.assertEqual(sv.POST_ROUTES["/api/section-body"], sv.section_body_route)      # #273
         self.assertEqual(sv.POST_ROUTES["/api/excel-import"], sv.excel_import_route)      # #444
         self.assertEqual(sv.POST_ROUTES["/api/project"], sv.project_save_route)
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page
-                                                "/api/change": sv.CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
+                                                "/api/change": sv.CHANGE_BODY_LIMIT, "/api/section-body": sv.SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                                                  "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
@@ -451,12 +454,14 @@ class Saving(ServerTest):
         status, _, data = running.api("POST", "/api/undo", b'{"a": "' + b"x" * 16 * 1024 + b'"}')
         self.assertEqual((status, json.loads(data)["message"]), (400, sv.MESSAGES["too_large"]))     # another route keeps the general words
 
-    def test_the_change_route_limit_is_two_largest_sections_plus_4_kb(self):
-        # a section's body (a template's up to 64 KB; "Needs from you" and the tracker up to 256 KB, each quote and backslash escaped twice) arrives through /api/change, so its limit is twice the largest body plus the request around it, worked out from the checker's own limits (#405)
+    def test_the_section_body_route_limit_is_two_largest_sections_plus_4_kb_and_change_is_16_kb(self):
+        # a section's body (a template's up to 64 KB; "Needs from you" and the tracker up to 256 KB, each quote and backslash escaped twice) arrives through /api/section-body (#273), so its limit is twice the largest body plus the request around it, worked out from the checker's own limits (#405); every other change keeps /api/change's 16 KB
         from clark import section_bodies
-        self.assertEqual(sv.CHANGE_BODY_LIMIT, sv.ESCAPE_FACTOR * max(section_bodies.LIMITS[section_bodies.NEEDS], section_bodies.LIMITS[section_bodies.TRACKER], *(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_bodies.TEMPLATES.values())) + sv.REQUEST_ENVELOPE)
+        self.assertEqual(sv.CHANGE_BODY_LIMIT, 16 * 1024)
+        self.assertEqual(sv.SECTION_BODY_LIMIT, sv.ESCAPE_FACTOR * max(section_bodies.LIMITS[section_bodies.NEEDS], section_bodies.LIMITS[section_bodies.TRACKER], *(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_bodies.TEMPLATES.values())) + sv.REQUEST_ENVELOPE)
         self.assertEqual(max(m.LIMIT for m in section_bodies.TEMPLATES.values() if not hasattr(m, "with_picture")), 64 * 1024)      # the picture templates' pictures come in through /api/section-image
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
+        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-body"], sv.SECTION_BODY_LIMIT)
 
     def test_the_undo_limit_sits_above_the_largest_batch_the_seam_accepts(self):
         """#268: 200 steps (twice the 100 a batch takes, the most the seam looks at) of 19 digits is a request the seam answers in

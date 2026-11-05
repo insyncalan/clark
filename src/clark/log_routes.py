@@ -27,7 +27,7 @@ A_REQUEST_FAILED = re.compile(r"^(GET|POST|HEAD|OPTIONS) (\S+) failed")
 READS = ("GET", "HEAD", "OPTIONS")
 # The routes a failed write on means "Saving a change did not work.", by name as the approved table lists them. The table's
 # projects, use cases, milestones and movement rows are reads only on the server (no write route), so a write to them cannot fail.
-SAVING_ROUTES = frozenset("""/api/change /api/undo /api/people /api/people/undo /api/profile /api/section-file
+SAVING_ROUTES = frozenset("""/api/change /api/section-body /api/undo /api/people /api/people/undo /api/profile /api/section-file
     /api/section-image""".split())
 ROUTE_SENTENCES = {
     "/api/publish": "Publishing did not work.",
