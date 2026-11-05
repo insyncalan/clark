@@ -7,7 +7,7 @@
 // with focus back on the row. One item at a time: the table has no ticked rows yet, so there is nothing to act on together.
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { data, project, mode, view, openPeek, item as peeked, closePeek } from "../stores/report.js";
+import { data, project, view, openPeek, item as peeked, closePeek } from "../stores/report.js";
 import { itemRows, announce } from "../stores/work.js";
 import { changeCell, changeRecord, say } from "../stores/changes.js";
 import { readDraftEmail, sendEmailSent } from "../api.js";
@@ -20,6 +20,7 @@ import { people, tableOf, canClearDue } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
 import { draftEntry, eyeChange, draftRequest, draftState, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
 import { openCard } from "./Board.jsx";
+import { isEditing } from "./editing.js";
 import { workSelection } from "../stores/selection.js";
 
 const ROW = "tr[data-id], article.bcard";
@@ -223,7 +224,7 @@ function holdBehind(scrim) {
 // each change in the dialog (the kind, the ticks, the options) asks for a new one, and the last answer wins. It sends and saves nothing.
 function DraftHost({ d }) {
   const root = useRef(null), asked = useRef(0);
-  const edit = mode.value === "edit";                 // View writes nothing (FR-11): no onSent, and "I sent it" is greyed
+  const edit = isEditing();                          // a Dashboard in View writes nothing (FR-11): no onSent, and "I sent it" is greyed; Work items have no mode (row 824)
   const close = () => {
     const from = d.from, id = d.id;
     draftOpen.value = null;
