@@ -43,6 +43,8 @@ fi
 # A download: the program files are in .app. The folder stays this one (so a relative --data means what it always did, and can
 # never land inside .app, which an update replaces), and python3 -m finds the stand-in package in .app through PYTHONPATH.
 if [ -d .app ]; then PYTHONPATH="$PWD/.app${PYTHONPATH:+:$PYTHONPATH}"; export PYTHONPATH; fi
+# Tell clark what to say when it asks a person to type a command: in a download that is this file (issue 694).
+export CLARK_TYPED="bash clark.command"
 # Row 760: in a download nothing but .app holds program files. An src, vendor or clark folder beside it is an older flat version
 # left by unzipping over it, and the older stand-in would start it instead, so nothing is started (this also covers --check).
 if [ -d .app ] && { [ -e src ] || [ -e vendor ] || [ -e clark ]; }; then
@@ -52,8 +54,6 @@ if [ -d .app ] && { [ -e src ] || [ -e vendor ] || [ -e clark ]; }; then
   read -r -n 1 -p "Press any key to close this window. " _
   exit 1
 fi
-# Tell clark what to say when it asks a person to type a command: in a download that is this file (issue 694).
-export CLARK_TYPED="bash clark.command"
 # These are typed in a Terminal, so they run as python3 -m would, and they give back their own exit code and wording.
 case "$1" in
   --check) shift; python3 -m clark.doctor "$@"; exit $? ;;
