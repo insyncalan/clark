@@ -1915,3 +1915,6 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 
 /* Row 832: Use cases sits on the tinted page, not inside a white bordered card. */
 .frame.ucl, .frame.ucpage { background: transparent; border: 0; box-shadow: none; padding: 0; }
+
+/* Row 832: the Settings head (title, help line, links) sits on the tinted page; the cards below keep theirs. */
+.frame.set-head { background: transparent; border: 0; box-shadow: none; padding: 0; }

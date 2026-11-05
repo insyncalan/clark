@@ -44,6 +44,15 @@ class Frames(Base):
     def test_row_832_use_cases_has_no_wrapping_card(self):
         self.flat("#usecases&p=ABC", "#usecases", "#usecases")
 
+    def test_row_832_the_settings_head_has_no_card_but_the_cards_below_keep_theirs(self):
+        self.flat("#settings&p=ABC", ".set-head", ".set-head")
+        for width, scheme, edit in CASES:
+            with self.subTest(width=width, scheme=scheme, edit=edit), chrome() as cdp:
+                sid = self.visit(cdp, width=width, edit=edit, hash_="#settings&p=ABC", wait_for=".set-head")
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
+                got = cdp.js("(() => { const c = getComputedStyle(document.querySelector('.frame.setting')); return [c.borderTopWidth, c.boxShadow !== 'none']; })()", sid)
+                self.assertEqual(got, ["1px", True], "a Settings card is still a card")
+
 
 if __name__ == "__main__":
     unittest.main()
