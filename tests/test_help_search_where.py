@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_help_search_where
 The pure part (buildIndex, resultsView) is bundled by the pinned esbuild and run in node (skips with no node), as in test_help_guides.py.
 The panel as drawn is driven in headless Chrome (a page built with a fixture guide: the real source ships no guide yet), at 1400 and 900 px,
-in the light and the dark theme. The words are the signed mockup's (docs/handoff/v1.0/mockups/help-search.html): "N results for “q”", the
+in the light and the dark theme. The words are the Head's ruling (issue 688), and the mockup (docs/handoff/v1.0/mockups/help-search.html) was updated to match: "N results for “q”", the
 sentence under it, "Step N: title" and "Screen part: ...". A step may carry `t` (its short title) and `part` (its screen part): both are data
 and both are optional; a chip with nothing to say is left off, never filled with invented words.
 """
@@ -104,6 +104,10 @@ class Logic(unittest.TestCase):
             self.assertFalse(any(x["id"].startswith("guide-") for x in v["rows"]), q)
             self.assertIsNone(v["lead"], q)
 
+    def test_the_mockup_carries_the_same_lead_as_the_code_and_this_test(self):
+        mock = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "handoff", "v1.0", "mockups", "help-search.html"), encoding="utf-8").read()
+        self.assertIn(f'<p class="lead">{LEAD}</p>', mock)
+
     def test_no_results_have_no_lead_and_the_no_results_words_are_unchanged(self):
         self.assertEqual(self.r["zzzqq"]["kind"], "empty")
         self.assertNotIn("lead", self.r["zzzqq"])
@@ -113,7 +117,7 @@ class Logic(unittest.TestCase):
         got = run_node(fixture_content(), """(() => { const idx = HL.buildIndex(); return ["wombat", "undo", "wombat undo", "wombat", "zzzqq"].map((q) => HL.resultsView(idx, q).lead || null); })()""")
         self.assertEqual(got, [LEAD, None, None, LEAD, None])
 
-    def test_the_count_line_and_the_lead_are_the_signed_words(self):
+    def test_the_count_line_and_the_lead_are_the_ruled_words(self):
         v = self.r["wombat"]
         self.assertEqual(v["lead"], LEAD)
         n = len(v["rows"])
