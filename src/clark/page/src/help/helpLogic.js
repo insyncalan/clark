@@ -381,7 +381,7 @@ export function markParts(line, q) {
   return out;
 }
 
-/** The sentence under the count (shown only when a guide ships: it says "the guide") and the two chip labels: the signed mockup's words (docs/handoff/v1.0/mockups/help-search.html). */
+/** The sentence under the count (shown only when a result is a guide: it says "the guide") and the two chip labels: the signed mockup's words (docs/handoff/v1.0/mockups/help-search.html). */
 export const RESULT_LEAD = "Each result names the guide and the step it is about.";
 export const whereLabels = (w) => ({ step: w.step ? `Step ${w.step.n}${w.step.title ? ": " + w.step.title : ""}` : null, part: w.part ? `Screen part: ${w.part}` : null });
 const TAB_NAME = Object.fromEntries(CONTENT.tabs);
@@ -398,7 +398,7 @@ export function resultsView(index, q) {
     r.where = { step: m && m.step ? { n: m.step, title: m.t } : null, part: (m && m.part) || null };
     r.text = r.where.step ? raw.replace(/^\d+\.\s+/, "") : raw;     // the step's number is in its chip, so the snippet drops it
   }));
-  return { kind: "results", count: res.length, line: `${res.length} result${res.length === 1 ? "" : "s"} for “${trimmed}”`, lead: guides().length ? RESULT_LEAD : null, groups };
+  return { kind: "results", count: res.length, line: `${res.length} result${res.length === 1 ? "" : "s"} for “${trimmed}”`, lead: res.some((r) => r.id.startsWith(GUIDE)) ? RESULT_LEAD : null, groups };
 }
 
 /** What a search with no match says. It points to the tabs (ask clark returns when it exists), and the word searched for is shown as text, never as markup. */
