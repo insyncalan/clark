@@ -11,7 +11,13 @@ export const DATA = {
 
 export const IMPORT = {
   pickTitle: "Import from Excel",
-  pickBody: "Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases are read (a History sheet from an export is left alone). A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows.",
+  pickBody: "Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases can be imported. You choose which after you pick a file (a History sheet from an export is left alone). A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows.",
+  sheetsTitle: "What to import",
+  sheetsBody: "Tick the sheets to import. Anything you leave unticked is not read and not changed.",
+  selectAll: "Select all",
+  clear: "Clear",
+  continue: "Continue",
+  tickOne: "Tick at least one sheet.",
   changesToCheck: "Changes to check",
   accept: "Accept",
   reject: "Reject",
@@ -39,6 +45,9 @@ export const IMPORT = {
   stale: "This page is out of date because clark was restarted after you opened it. Reload the page and try again.",
   fallback: "That could not be done. Reload the page. If it happens again, restart clark.",
 };
+
+// "Actions (12 rows)", "Decisions (1 row)", "Risks and issues (0 rows)": a sheet's name and how many rows it holds.
+export const sheetWord = (s) => `${s.name} (${s.rows} ${s.rows === 1 ? "row" : "rows"})`;
 
 // The columns the import reads, per sheet, as the prototype lists them in the first box (tests/test_settings_data_page.py checks them
 // against the export's own layout in excel.py, leaving out the ones that are worked out or never read back).

@@ -17,9 +17,13 @@ def quoted(name):
 
 
 class ImportWords(unittest.TestCase):
-    def test_the_first_box_says_what_the_prototype_says(self):
-        say = quoted("pickBody")
-        self.assertIn(say, re.sub(r"<[^>]+>", "", IO).replace("\n", " "))
+    def test_the_first_box_keeps_the_prototypes_rules_about_ids_and_refusals(self):
+        # #655: the sentence about which sheets are read is no longer the prototype's (the person chooses); the rest of it still is
+        text = re.sub(r"<[^>]+>", "", IO).replace("\n", " ")
+        for piece in ("A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. "
+                      "If a row breaks a rule, nothing is imported and you are told which rows.",):
+            self.assertIn(piece, quoted("pickBody"))
+            self.assertIn(piece, text)
 
     def test_the_data_card_says_what_the_prototype_says(self):
         views = (PROTO / "views.js").read_text(encoding="utf-8")
@@ -45,10 +49,19 @@ class ApprovedWordsArePinned(unittest.TestCase):
 
     def test_the_first_box(self):
         self.assertEqual(quoted("pickBody"),
-                         "Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases are read (a History sheet from an export is left alone). "
+                         "Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases can be imported. "
+                         "You choose which after you pick a file (a History sheet from an export is left alone). "
                          "A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. "
                          "If a row breaks a rule, nothing is imported and you are told which rows.")
         self.assertNotIn("(or RAID)", CARD)
+
+    def test_the_sheet_choice_words(self):
+        self.assertEqual(quoted("sheetsTitle"), "What to import")
+        self.assertEqual(quoted("sheetsBody"), "Tick the sheets to import. Anything you leave unticked is not read and not changed.")
+        self.assertEqual((quoted("selectAll"), quoted("clear")), ("Select all", "Clear"))
+        self.assertEqual(quoted("tickOne"), "Tick at least one sheet.")
+        self.assertEqual(quoted("continue"), "Continue")      # the wording the other two-step boxes (Publish, Word) already use
+        self.assertIn('`${s.name} (${s.rows} ${s.rows === 1 ? "row" : "rows"})`', CARD)
 
     def test_the_data_card_note_is_only_the_prototypes_sentence(self):
         self.assertEqual(quoted("note"), "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.")
