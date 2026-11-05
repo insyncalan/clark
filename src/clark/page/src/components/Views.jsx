@@ -217,7 +217,7 @@ function NoProject() {
       <section class="frame empty">
         <h1>No project open</h1>
         <p class="muted">There are no projects yet.</p>
-        {inContainer() ? null : <p class="muted">To look around with made-up projects, close clark and start it again with <code>python3 -m clark --demo</code>.</p>}
+        {inContainer() ? null : <p class="muted">To look around with made-up projects, close clark and start it again with <code>bash clark.command --demo</code>.</p>}
       </section>
     );
   }

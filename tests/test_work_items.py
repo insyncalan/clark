@@ -360,7 +360,7 @@ class RealBrowser(unittest.TestCase):
             sid = self.load_page(cdp, s.port, 1400, "#work")
             self.assertTrue(wait(lambda: "There are no projects yet." in (cdp.js("document.querySelector('main').innerText", sid) or "")))
             text = cdp.js("document.querySelector('main').innerText", sid)
-            self.assertIn("To look around with made-up projects, close clark and start it again with python3 -m clark --demo.", text)
+            self.assertIn("To look around with made-up projects, close clark and start it again with bash clark.command --demo.", text)
             self.assertNotIn("demo_data.py", text)
             self.assertNotIn("Choose a project", text)
 

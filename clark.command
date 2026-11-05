@@ -43,6 +43,8 @@ fi
 # A download: the program files are in .app. The folder stays this one (so a relative --data means what it always did, and can
 # never land inside .app, which an update replaces), and python3 -m finds the stand-in package in .app through PYTHONPATH.
 if [ -d .app ]; then PYTHONPATH="$PWD/.app${PYTHONPATH:+:$PYTHONPATH}"; export PYTHONPATH; fi
+# Tell clark what to say when it asks a person to type a command: in a download that is this file (issue 694).
+export CLARK_TYPED="bash clark.command"
 # These are typed in a Terminal, so they run as python3 -m would, and they give back their own exit code and wording.
 case "$1" in
   --check) shift; python3 -m clark.doctor "$@"; exit $? ;;
