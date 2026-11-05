@@ -81,8 +81,10 @@ class DownloadLayout(unittest.TestCase):
     @unittest.skipUnless(MAC, "the checks and the launcher are the Mac's")
     def test_check_runs_the_doctor_from_the_hidden_folder(self):
         data = self.tmp / "check data"
+        env = self.env()
+        del env["PYTHONDONTWRITEBYTECODE"]          # issue 743: clark.command itself must keep bytecode out, not the caller
         done = subprocess.run([BASH, str(self.clark / "clark.command"), "--check", "--data", str(data), "--port", str(free_port())],
-                              cwd=str(self.tmp), env=self.env(), stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                              cwd=str(self.tmp), env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True,
                               timeout=120)
         self.assertNotIn("Traceback", done.stdout + done.stderr)
         self.assertIn("Checking what clark needs on this computer...", done.stdout)
