@@ -402,6 +402,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-kv dd { margin: 0; overflow-wrap: anywhere; }
 .ucd-ms, .ucd-hist { margin: 0; padding: 0; }
 .ucd-ms li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 6px 0; }
+.ucd-ms .ucd-msname { font-size: var(--size-body); text-align: left; overflow-wrap: anywhere; }
+.ucd-msx { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; }
 .ucd-hist li { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; }
 .ucd-hw { overflow-wrap: anywhere; }
 .ucd-hm { font-size: var(--size-caption); color: var(--text-muted); }

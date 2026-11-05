@@ -4,8 +4,8 @@
 // from a menu, the eye with a button; each is ONE change with one Undo (stores/changes.js, kind use_cases, op update), and Archive
 // and Restore are the existing archive ops. In View, and for an archived use case, nothing here changes anything. The history is
 // read from the use cases route (api.js); an archived use case is read with the archived rows (the page's usual read leaves them
-// out). A work item row opens its peek beside the page (row 859): the page stays, Esc closes the
-// peek and the focus goes back to the row. "Open all N in Work items" is the one way from here to the Work items page.
+// out). A work item row and a linked milestone's name open their peek beside the page (row 859, row 860): the page stays, Esc closes the
+// peek and the focus goes back to the row or name. "Open all N in Work items" is the one way from here to the Work items page.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, rows, mode, fromFile, project, openWork, openPeek } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
@@ -18,6 +18,8 @@ import { cleanHtml } from "../logic/cleanHtml.js";
 import { isOpen, pillOf, dueCell, ownerOf, sortRows, showDate, todayIso, plural } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { refOf } from "../logic/useCasesList.js";
+import { milestoneRows } from "../logic/milestones.js";
+import { MsMark } from "./MsMark.jsx";
 import { CommitChip } from "./CommitChip.jsx";
 import { CommitMenu } from "../edit/CommitMenu.jsx";
 
@@ -257,7 +259,11 @@ export function UseCaseDetail({ id }) {
           </section>
           <section class="ucd-card" aria-labelledby="ucd-h-ms">
             <h2 id="ucd-h-ms" class="ucd-ch">Milestones</h2>
-            {ms.length ? <ul class="ucd-ms plain">{ms.map((m) => <li key={m.id} data-ms={m.id}><span>{m.name}</span><span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}{m.status === "Done" ? " · Done" : ""}</span></li>)}</ul>
+            {ms.length ? <ul class="ucd-ms plain">{ms.map((m) => {
+                const st = milestoneRows([m], todayIso(), false)[0];                 // the same state word and mark as the Milestones page (row 860)
+                return <li key={m.id} data-ms={m.id}><button type="button" class="link ucd-msname" data-ms-open={m.id} onClick={() => openPeek(m.id, "milestone")}>{m.name}</button>
+                  <span class="ucd-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span></span></li>;
+              })}</ul>
               : <p class="muted">No milestones: none of its work items is linked to one.</p>}
           </section>
           <section class="ucd-card" aria-labelledby="ucd-h-hist">

@@ -548,6 +548,21 @@ class Detail(unittest.TestCase):
                         self.assertEqual(cdp.js(f"document.querySelector('[data-item={item}]').title", sid), "", "the row no longer promises the Work items page")
                         self.peek_round(cdp, sid, f"[data-item={item}]", item)
 
+    def test_a_linked_milestone_opens_its_peek_and_shows_its_state_row_860(self):
+        ms = "TUL-M-005"
+        words = ["Achieved", "On track", "At risk", "Slipped", "Overdue", "Forecast", "Cancelled"]       # the Milestones page's own state words
+        for edit in (False, True):
+            for width in (1400, 900):
+                for scheme in ("light", "dark"):
+                    with self.subTest(edit=edit, width=width, scheme=scheme), chrome() as cdp:
+                        sid = self.open_detail(cdp, width, scheme, edit=edit)
+                        row = f"[data-ucd] [data-ms={ms}]"
+                        self.assertIn(cdp.js(f"document.querySelector('{row} [data-ms-state]').textContent.trim()", sid), words, "the row says the state in a word")
+                        self.assertTrue(cdp.js(f"!!document.querySelector('{row} [data-ms-state] svg')", sid), "with the Milestones page's mark")
+                        self.assertRegex(cdp.js(f"document.querySelector('{row}').textContent", sid), r"\d", "and the date")
+                        self.assertEqual(cdp.js(f"document.querySelector('{row} [data-ms-open]').tagName", sid), "BUTTON", "the name is a control")
+                        self.peek_round(cdp, sid, f"{row} [data-ms-open]", ms)
+
     # ---- the published file ----
     def test_the_published_file_has_none_of_the_component(self):
         view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
