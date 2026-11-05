@@ -655,6 +655,38 @@ class PinnedPublicFiles(unittest.TestCase):
             self.assertIs(type(size), int, path)
             self.assertTrue(0 < size <= pp.MAX_BYTES, path)
 
+    def test_the_next_pins_are_well_formed_and_each_real_file_is_its_current_or_its_next_pin(self):
+        self.assertEqual(sorted(ci_scan.NEXT_PUBLIC_FILES), sorted(ci_scan.ALLOWED_PUBLIC_FILES))
+        for path, (sha, size) in ci_scan.NEXT_PUBLIC_FILES.items():
+            self.assertTrue(re.fullmatch(r"[0-9a-f]{64}", sha), path)
+            self.assertTrue(type(size) is int and 0 < size <= pp.MAX_BYTES, path)
+        for path in ci_scan.ALLOWED_PUBLIC_FILES:
+            data = (ROOT / path).read_bytes()
+            have = (ci_scan.hashlib.sha256(data).hexdigest(), len(data))
+            self.assertIn(have, (ci_scan.ALLOWED_PUBLIC_FILES[path], ci_scan.NEXT_PUBLIC_FILES[path]), path)
+            altered = bytearray(data)
+            altered[len(altered) // 2] ^= 1
+            r = Repo()
+            self.addCleanup(r.close)
+            r.write(path, bytes(altered), "wb")
+            r.commit("add")
+            rc, out = r.scan()
+            self.assertEqual(rc, 1, out)
+            self.assertIn("is in the folder 'meet clark'", out)
+
+    def test_a_file_that_equals_the_next_pin_passes_and_an_altered_byte_of_it_is_refused(self):
+        nxt = {self.A: self.PDF + b"N", self.B: self.PDF + b"2N", self.C: self.PNG}
+        cur = self.table()
+        nxt_table = {k: (ci_scan.hashlib.sha256(v).hexdigest(), len(v)) for k, v in nxt.items()}
+        with mock.patch.object(ci_scan, "NEXT_PUBLIC_FILES", nxt_table):
+            r, (rc, out) = self.put(nxt, cur)
+            self.assertEqual(rc, 0, out)
+            bad = dict(nxt)
+            bad[self.A] = self.PDF + b"M"
+            r, (rc, out) = self.put(bad, cur)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("is in the folder 'meet clark'", out)
+
     def test_the_real_table_refuses_a_pdf_at_a_real_path_with_other_bytes(self):
         r = Repo()
         self.addCleanup(r.close)
