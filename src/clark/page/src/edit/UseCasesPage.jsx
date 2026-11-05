@@ -1,7 +1,7 @@
 // The Use cases page (the editor's page, in the main navigation beside Milestones): every use case of the project, selected for the
 // dashboard or not, and one use case's own page when the address names one (#usecases&p=CODE&uc=1.2, drawn by UseCaseDetail).
 // A row: its reference, its name (the button that opens it), where it stands, the status in words with a dot, the linked work items
-// and how many are open, the linked milestones, and the eye in words. The eye is the dashboard's own switch (use_cases.client_visible),
+// and how many are open, the linked milestones, and the eye (an icon alone; its words are the tooltip). The eye is the dashboard's own switch (use_cases.client_visible),
 // changed through the one change path with its Undo toast, in Edit; in View the same words are shown and nothing changes.
 // The list is ONE tab stop (the current row's name): Up and Down move between rows, Home and End to the first and last, Right to the
 // row's eye and Left back to its name. The search, the Status choice, the On the dashboard switch and the sort are remembered for each
@@ -64,9 +64,9 @@ function Row({ r, edit, stop, shown }) {
       <span class="ucl-wi num">{r.total ? <><b>{r.total}</b> linked<small>{r.open} open</small></> : "None linked"}</span>
       <span class="ucl-ms">{ms || <span class="muted">None</span>}</span>
       {edit
-        ? <button type="button" class="ucl-eye" tabIndex={-1} data-eye aria-label={`${r.ref || "Use case"} ${r.name}: ${eyeWords}. ${r.on ? "Take it off the dashboard" : "Put it on the dashboard"}`}
-            onFocus={() => { current.value = r.id; }} onClick={() => setEye(r, shown)}><Icon name={r.on ? "eye" : "eyeoff"} /><span>{eyeWords}</span></button>
-        : <span class="ucl-eye ucl-eye-ro" data-eye-words><Icon name={r.on ? "eye" : "eyeoff"} /><span>{eyeWords}</span></span>}
+        ? <button type="button" class="ucl-eye" tabIndex={-1} data-eye title={eyeWords} aria-label={`${r.ref || "Use case"} ${r.name}: ${eyeWords}. ${r.on ? "Take it off the dashboard" : "Put it on the dashboard"}`}
+            onFocus={() => { current.value = r.id; }} onClick={() => setEye(r, shown)}><Icon name={r.on ? "eye" : "eyeoff"} /></button>
+        : <span class="ucl-eye ucl-eye-ro" data-eye-words role="img" title={eyeWords} aria-label={eyeWords}><Icon name={r.on ? "eye" : "eyeoff"} /></span>}
     </li>
   );
 }
@@ -158,7 +158,7 @@ function UseCasesList() {
           </div>
         ) : (
           <div class="ucl-box" ref={list} onKeyDown={keys}>
-            <div class="ucl-row ucl-hd" aria-hidden="true"><span>Ref</span><span>Use case</span><span class="ucl-head">Where it stands</span><span>Status</span><span>Work items</span><span class="ucl-ms">Milestones</span><span>Home dashboard</span></div>
+            <div class="ucl-row ucl-hd" aria-hidden="true"><span>Ref</span><span>Use case</span><span class="ucl-head">Where it stands</span><span>Status</span><span>Work items</span><span class="ucl-ms">Milestones</span><span></span></div>
             <ul class="ucl-list" aria-label="Use cases">
               {shown.map((r) => <Row key={r.id} r={r} edit={edit} stop={r.id === stop} shown={shown} />)}
             </ul>

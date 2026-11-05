@@ -92,6 +92,29 @@ class TheCard(Card):
             self.assertTrue(any(w == "undo" for w, _r in self.sent), "Undo went through the board's own /api/undo")
             self.assertFalse(any(w == "change" for w, _r in self.sent), "Apply never used the hand-edit route")
 
+    def test_a_use_case_change_shows_in_plain_words_and_applies_with_undo(self):         # issue 729
+        uc = self.demo.use_case
+        with self.store.step("dashboard", USER) as st:
+            st.update("use_cases", uc, {"standing": "<p>Going <strong>well</strong></p>", "client_visible": 1})
+        self.says("CHANGE: " + json.dumps({"op": "change", "id": uc, "current_title": "Invoice matching", "status": "Flag",
+                                            "standing": "Two files are late."}))
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            cell = lambda f, w: p.js(f"document.querySelector('[data-ask-change] tr[data-field={f}] [data-{w}]').textContent")
+            label = lambda f: p.js(f"document.querySelector('[data-ask-change] tr[data-field={f}] th').textContent")
+            self.assertEqual((label("status"), cell("status", "before"), cell("status", "after")), ("Status", "On track", "Flag"))
+            self.assertEqual((label("standing"), cell("standing", "before"), cell("standing", "after")),
+                             ("Where it stands", "Going well", "Two files are late."))
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-change] tr[data-field=commitment]').length"), 0, "no commitment row")
+            p.js("document.querySelector('[data-ask-apply]').click()")
+            p.until("document.querySelector('[data-ask-line]') && document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
+            self.assertEqual(self.store.read("use_cases", ref=uc)["status"], "Flag")
+            p.js("document.querySelector('[data-ask-undo]').click()")
+            p.until("document.querySelector('[data-ask-line]').textContent === 'Undone. The old values are back.'", "Undone")
+            self.assertEqual(self.store.read("use_cases", ref=uc)["status"], "On track")
+
     def test_a_change_from_your_files_needs_the_box_and_enter_alone_never_applies(self):
         self.says(self.close_it(), "CITE: P5", files=(FILE,))
         with chrome() as cdp:

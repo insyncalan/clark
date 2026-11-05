@@ -1,8 +1,12 @@
 """The brand logo on the Excel Cover, with no Pillow and no committed picture (#133).
 
-The logo is part of the user's own brand (system/branding, which git ignores and which is not in the public copy). When an export
-runs it looks for the logo there, the same place the page finds its brand tokens (clark.page.local_tokens): `logo.png`, or
-`design-system/logo.png`, in system/branding. If there is none, the Cover has its navy band and title only. The logo is at the left of the title band.
+The logo is part of the user's own brand (system/branding, which is ignored by version control and is not in the public copy). When an
+export runs it looks for the logo there, the same place the page finds its brand tokens (clark.page.local_tokens): `logo.png`, or
+`design-system/logo.png`, or `assets/logo-*.png`, in system/branding, and for the cover picture (the wave) at `assets/cover-*.png`.
+Both load ONLY from the branding folder: a file that resolves (symlinks followed) to somewhere outside it is never read. With no
+branding folder at all the Cover shows clark's own committed icon as its logo (through the same safe loader) and no wave; a
+branding folder that exists but holds no logo gives a Cover with no logo (clark's mark never goes on a client's report), and a
+folder with no cover picture gives a Cover with no wave (there is no default wave). The logo is at the left of the title band.
 
 openpyxl's Image needs Pillow, so the picture is put in after openpyxl has saved, by editing the saved .xlsx (a zip) with the
 standard library only: embed() adds xl/media/<name>.png, a drawing part, the Cover's <drawing r:id/> element, the Cover's and
@@ -26,6 +30,8 @@ SIGNATURE = b"\x89PNG\r\n\x1a\n"
 MAX_BYTES = 1024 * 1024
 MAX_PIXELS = 2000
 LOCAL_LOGOS = ("logo.png", "design-system/logo.png")     # in the brand folder; the first that exists
+WAVE_GLOB = "assets/cover-*.png"            # the brand's cover picture, made once in the brand folder (clark never renders an SVG)
+OWN_LOGO = "assets/clark-icon-512.png"      # clark's own icon, under clark.page.HERE: the logo when there is no branding folder
 
 MARK_HEIGHT = 40                # pixels: the logo is scaled to this, inside a title row of COVER_ROW_POINTS
 COVER_ROW_POINTS = 36
@@ -34,6 +40,10 @@ LOGO_COLUMNS = 2                # the logo sits at the left of the title band, o
 LEFT_PIXELS = LOGO_COLUMNS * int(COVER_COL_WIDTH * 7 + 5)    # Excel's 7 pixels a character, plus 5, for each column
 MARK_MARGIN = 10
 EMU = 9525                      # EMUs in a pixel
+WAVE_ROW_POINTS = 60            # the band's picture row, under the subtitle, when the brand has a cover picture
+WAVE_HEIGHT = 72                # pixels: the cover picture is scaled to this, inside WAVE_ROW_POINTS
+WAVE_BAND_ROW = 2               # 0-based: after the title row and the subtitle row
+WAVE_ROOM = 12 * int(COVER_COL_WIDTH * 7 + 5) - 2 * MARK_MARGIN      # pixels across the Cover's 12 columns, less the margins
 
 LOG = logging.getLogger("clark.excel")
 
@@ -88,32 +98,61 @@ def _check_chunks(data, name):
         raise PictureRefused(f"{name} has extra data after the end of the picture.")
 
 
-def local_logo(branding=None):
-    """The path of the user's own brand logo, or None when there isn't one. `branding` defaults to system/branding."""
+def _inside(base, path):
+    """Whether `path`, with symlinks followed, is a regular file inside the folder `base` (also resolved)."""
+    try:
+        real = path.resolve()
+        return real.is_file() and real.is_relative_to(base.resolve())
+    except (OSError, RuntimeError, ValueError):
+        return False
+
+
+def branding_base(branding=None):
+    """The branding folder as a Path, or None when there is no such folder at all."""
     from clark import page          # the page's own idea of where the local brand lives
     base = Path(branding) if branding is not None else page.BRANDING
-    for name in LOCAL_LOGOS:
-        p = base / name
-        if p.is_file():
-            return p
-    assets = base / "assets"                    # a brand folder that keeps its pictures under assets/: logo-*.png, first by name
-    try:
-        found = sorted(q for q in assets.glob("logo-*.png") if q.is_file())
-    except OSError:
-        found = []
-    return found[0] if found else None
+    return base if base.is_dir() else None
+
+
+def _first_inside(base, patterns):
+    """The first file (by name) inside `base` that matches one of `patterns` (relative to base; `*` allowed), never one that
+    resolves to outside it."""
+    for pattern in patterns:
+        try:
+            found = sorted(q for q in base.glob(pattern) if _inside(base, q))
+        except (OSError, ValueError):
+            found = []
+        if found:
+            return found[0]
+    return None
+
+
+def local_logo(branding=None):
+    """The path of the user's own brand logo, or None when there isn't one (or there is no branding folder). `branding` defaults
+    to system/branding. Only a file inside the folder counts (see _inside)."""
+    base = branding_base(branding)
+    return None if base is None else _first_inside(base, (*LOCAL_LOGOS, "assets/logo-*.png"))
+
+
+def local_wave(branding=None):
+    """The path of the brand's cover picture (assets/cover-*.png, first by name), or None. No default: no folder, or none there,
+    means no wave."""
+    base = branding_base(branding)
+    return None if base is None else _first_inside(base, (WAVE_GLOB,))
+
+
+def own_logo():
+    """clark's own committed icon: the Cover's logo when there is no branding folder at all."""
+    from clark import page
+    return page.HERE / OWN_LOGO
 
 
 NOT_USED = "The brand logo was not used, so the Cover has no logo: {why}"
+NOT_USED_WAVE = "The brand cover picture was not used, so the Cover has no picture: {why}"
 
 
-def load(branding=None, warnings=None):
-    """(bytes, width, height) for the local brand logo, or None: no logo, or one that is refused. A refusal never stops the
-    export: the reason, in plain words (NOT_USED), is logged and, when `warnings` is a list, added to it, so the screen that
-    started the export can tell the person why the logo is missing (#133 LOW). Never raises for a bad logo."""
-    path = local_logo(branding)
-    if path is None:
-        return None
+def _read(path, text, warnings):
+    """(bytes, width, height) for a picture file, or None after logging why it was refused (and adding to `warnings`)."""
     try:
         try:
             with open(path, "rb") as f:
@@ -122,12 +161,30 @@ def load(branding=None, warnings=None):
             raise PictureRefused(f"{path.name} could not be read ({e.strerror or 'unreadable'}).") from None
         width, height = read_size(data, path.name)
     except PictureRefused as e:
-        text = NOT_USED.format(why=e)
-        LOG.warning("%s", text)
+        said = text.format(why=e)
+        LOG.warning("%s", said)
         if warnings is not None:
-            warnings.append(text)
+            warnings.append(said)
         return None
     return data, width, height
+
+
+def load(branding=None, warnings=None):
+    """(bytes, width, height) for the Cover's logo, or None. With no branding folder at all it is clark's own icon; with a folder
+    it is the folder's logo, or None when the folder holds none or a refused one. A refusal never stops the export: the reason, in
+    plain words (NOT_USED), is logged and, when `warnings` is a list, added to it, so the screen that started the export can tell
+    the person why the logo is missing (#133 LOW). Never raises for a bad logo."""
+    if branding_base(branding) is None:
+        path = own_logo()
+        return _read(path, NOT_USED, warnings) if path.is_file() else None
+    path = local_logo(branding)
+    return None if path is None else _read(path, NOT_USED, warnings)
+
+
+def load_wave(branding=None, warnings=None):
+    """(bytes, width, height) for the brand's cover picture, or None: no folder, no picture, or one that is refused (NOT_USED_WAVE)."""
+    path = local_wave(branding)
+    return None if path is None else _read(path, NOT_USED_WAVE, warnings)
 
 
 def layout(width, height):
@@ -144,21 +201,41 @@ def layout(width, height):
     return x * EMU, y * EMU, w * EMU, h * EMU
 
 
-def drawing_xml(width, height, rid="rId1", name="Brand logo"):
-    x, y, cx, cy = layout(width, height)
+def wave_layout(width, height):
+    """(x, y, cx, cy) in EMUs for the cover picture: scaled to WAVE_HEIGHT, kept inside the Cover's width, at the left, centred up
+    and down in the picture row (offsets from that row's left and top)."""
+    w, h = width * WAVE_HEIGHT / height, WAVE_HEIGHT
+    if w > WAVE_ROOM:
+        w, h = WAVE_ROOM, h * WAVE_ROOM / w
+    w, h = max(1, round(w)), max(1, round(h))
+    y = max(0, (WAVE_ROW_POINTS * 4 // 3 - h) // 2)
+    return MARK_MARGIN * EMU, y * EMU, w * EMU, h * EMU
+
+
+def _pic(n, rid, name, row, box):
+    x, y, cx, cy = box
+    return (
+        f'<xdr:oneCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>{x}</xdr:colOff><xdr:row>{row}</xdr:row>'
+        f'<xdr:rowOff>{y}</xdr:rowOff></xdr:from><xdr:ext cx="{cx}" cy="{cy}"/>'
+        f'<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="{n}" name="{escape(name)}" descr="{escape(name)}"/>'
+        '<xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>'
+        f'<xdr:blipFill><a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>'
+        f'<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm>'
+        '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>')
+
+
+def drawing_pictures_xml(pics):
+    """The drawing part for `pics`, a list of (rid, name, row, (x, y, cx, cy)): one picture each."""
+    body = "".join(_pic(i + 2, rid, name, row, box) for i, (rid, name, row, box) in enumerate(pics))
     return (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
         '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" '
         'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
-        f'xmlns:r="{NS_REL}">'
-        f'<xdr:oneCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>{x}</xdr:colOff><xdr:row>0</xdr:row>'
-        f'<xdr:rowOff>{y}</xdr:rowOff></xdr:from><xdr:ext cx="{cx}" cy="{cy}"/>'
-        f'<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="2" name="{escape(name)}" descr="{escape(name)}"/>'
-        '<xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>'
-        f'<xdr:blipFill><a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>'
-        f'<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm>'
-        '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>'
-    ).encode("utf-8")
+        f'xmlns:r="{NS_REL}">{body}</xdr:wsDr>').encode("utf-8")
+
+
+def drawing_xml(width, height, rid="rId1", name="Brand logo"):
+    return drawing_pictures_xml([(rid, name, 0, layout(width, height))])
 
 
 def _next_free(names, pattern):
@@ -190,23 +267,36 @@ def _cover_part(files, sheet_name):
     return None
 
 
-def embed(files, png, sheet_name="Cover"):
+def embed(files, png, sheet_name="Cover", wave=None):
     """`files` ({member name: bytes} of a saved .xlsx) with the PNG `png` added to the sheet called `sheet_name`: returns
     (replacements, additions), two dicts of member name to bytes, for the caller to write. Nothing is changed in `files`. Raises
-    PictureRefused if the workbook has no such sheet or is not laid out as openpyxl lays it out."""
-    width, height = read_size(png)
+    PictureRefused if the workbook has no such sheet or is not laid out as openpyxl lays it out. `png` (the logo) and `wave` (the
+    cover picture, in the band's picture row) may each be None, but not both."""
+    if png is None and wave is None:
+        raise PictureRefused("there is no picture to put on the Cover.")
+    pics, media_of = [], []
+    if png is not None:
+        pics.append(("rId1", "Brand logo", 0, layout(*read_size(png))))
+        media_of.append(png)
+    if wave is not None:
+        pics.append((f"rId{len(pics) + 1}", "Brand cover picture", WAVE_BAND_ROW, wave_layout(*read_size(wave, "the cover picture"))))
+        media_of.append(wave)
     part = _cover_part(files, sheet_name)
     if part is None or part not in files:
         raise PictureRefused(f"the workbook has no {sheet_name} sheet to put the logo on.")
     names = set(files)
-    media = _next_free(names, "xl/media/image{}.png")
     drawing = _next_free(names, "xl/drawings/drawing{}.xml")
     drawing_rels = "xl/drawings/_rels/" + drawing.rsplit("/", 1)[1] + ".rels"
     sheet_rels = part.rsplit("/", 1)[0] + "/_rels/" + part.rsplit("/", 1)[1] + ".rels"
     replace, add = {}, {}
-    add[media] = png
-    add[drawing] = drawing_xml(width, height)
-    add[drawing_rels] = _rels_xml([("rId1", REL_IMAGE, "../media/" + media.rsplit("/", 1)[1])])
+    items, taken = [], set(names)
+    for (rid, *_), data in zip(pics, media_of):
+        media = _next_free(taken, "xl/media/image{}.png")
+        taken.add(media)
+        add[media] = data
+        items.append((rid, REL_IMAGE, "../media/" + media.rsplit("/", 1)[1]))
+    add[drawing] = drawing_pictures_xml(pics)
+    add[drawing_rels] = _rels_xml(items)
 
     # The sheet's relationships: a new file, or one more entry in the existing one.
     target = "../drawings/" + drawing.rsplit("/", 1)[1]
