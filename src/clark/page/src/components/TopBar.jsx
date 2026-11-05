@@ -15,7 +15,7 @@ export function TopBar({ tools }) {
   const AskButton = tools && tools.AskButton && !fromFile.value ? tools.AskButton : null;     // ask clark: opens the ask panel, only while asking is on
   return (
     <header class="top">
-      <span class="logo" aria-label="clark"><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></span>
+      <button type="button" class="logo" aria-label="clark" onClick={() => show("dashboard")}><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></button>      {/* row 854: the logo goes Home, the first tab, same project */}
       <span class="divider"></span>
       {ProjectSwitch ? <ProjectSwitch name={name} /> : <span class="proj" id="project-name">{name || project.value || "No project open"}</span>}
       <nav class="tabs" role="tablist" aria-label="Views">
