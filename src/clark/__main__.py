@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import __version__, activity_read, ai_connect, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, server, sneak, store as clark_store, typed, updater as clark_updater, use_cases_read, word_route
+from clark import __version__, activity_read, ai_connect, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, server, sneak, store as clark_store, typed, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -436,7 +436,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                 folder = Path(args.data).expanduser() if args.data else platform.data_dir(home)
                 if not finish_unfinished_update(folder, err):
                     return 1
-                store = open_data(folder, onedrive_roots)
+                store = demo_seed.load_if_fresh(open_data(folder, onedrive_roots), onedrive_roots)      # #731: only a folder with nothing in it
                 code = only_project(store)
                 print(f"Using the data in {store.path.parent}", file=out, flush=True)
         except Usage as e:
@@ -502,6 +502,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      past=past_reports.PastReports(store.path),
                      publication_mark=changes.make_publication_mark(store.path, roots, by_user=who.who),
                      as_at=as_at.AsAt(store.path),
+                     demo=None if args.demo else demo_seed.Demo(store.path, roots),      # #731: --demo has its own demo, which is not removable
                      brand_picture=page.brand_picture,
                      updater=updates_seam,
                      **handlers)
