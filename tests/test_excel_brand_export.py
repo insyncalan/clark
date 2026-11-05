@@ -99,6 +99,12 @@ class WithABrand(Rig):
         self.assertTrue(bars)
         self.assertTrue(bars <= {base.TOKENS["status-red"], base.TOKENS["status-amber-text"], "046B5F", "B8C4D0"}, bars)                                       # the tile bars: the status tokens, or this brand's grey-300
 
+    def test_a_branded_workbook_is_still_protected(self):
+        path, _ = self.export(self.brand(BRAND_ONE, logo=True))
+        wb = load_workbook(str(path))
+        self.assertTrue(all(ws.protection.sheet for ws in wb.worksheets))
+        self.assertTrue(wb["Cover"]["A1"].protection.locked)
+
     def test_brand_two_like(self):
         self.check(BRAND_TWO, "1B1F3B", "7A1FA2", "Georgia")
 
