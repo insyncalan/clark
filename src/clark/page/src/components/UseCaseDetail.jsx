@@ -68,7 +68,7 @@ function whatWas(h) {
   if (h.field === "standing") return "edited where it stands";
   if (h.field === "client_visible") return h.after === "1" ? "put it on the dashboard" : "took it off the dashboard";
   if (h.field === "archived") return h.after === "1" ? "archived it" : "restored it";
-  if (h.field === "commitment") return `changed the ${nm} from ${h.before ? said(h.before) : "no flag"} to ${h.after ? said(h.after) : "no flag"}`;   // #709
+  if (h.field === "commitment") return `changed the ${nm} from ${h.before ? said(h.before) : "no flag"} to ${h.after ? said(h.after) : "no flag"}`;   // issue 709
   return `changed the ${nm} from ${said(h.before)} to ${said(h.after)}`;
 }
 

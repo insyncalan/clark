@@ -1,4 +1,4 @@
-// #709: the commitment chip in Edit: a small menu button like the status word. It lists the owner's three words (from data.commitments)
+// issue 709: the commitment chip in Edit: a small menu button like the status word. It lists the owner's three words (from data.commitments)
 // and "No flag"; a choice is ONE change (kind use_cases, update, commitment) with one Undo and one History line. With no flag it reads
 // "Set commitment", a quiet empty chip that only exists in Edit. View and the published file draw components/CommitChip.jsx instead.
 import { data } from "../stores/report.js";

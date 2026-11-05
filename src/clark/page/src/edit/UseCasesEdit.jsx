@@ -2,7 +2,7 @@
 // that Section.jsx and UseCases.jsx take from `tools.ucEdit`, so a published file and View have none of them:
 //   Add      the growing "+" in the section's header ("Add use case"); it opens the box "Add a use case" (ID, Use case, Status, Headline)
 //   Status   the status word on each row, a button in Edit; it opens a menu of the three words
-//   Commit   (#709) the commitment chip under the status: a menu of the three words and "No flag" (edit/CommitMenu.jsx)
+//   Commit   (issue 709) the commitment chip under the status: a menu of the three words and "No flag" (edit/CommitMenu.jsx)
 //   Headline the headline on each row, changed in place
 //   Name     the name in the opened row, changed in place
 //   FromRecord  "+ Add a use case from your project record (N)": the picker of the use cases that are not on the dashboard
