@@ -183,19 +183,14 @@ class ExcelTests(unittest.TestCase):
         ms = [(dv.type, dv.formula1) for dv in self.sheet("Milestones").data_validations.dataValidation]
         self.assertIn(("list", '"On track,At risk,Slipped,Overdue,Forecast,Achieved"'), ms)
 
-    def test_the_id_column_is_shaded_and_nothing_is_locked_or_protected(self):
-        """#85d: no cell locks and no sheet protection (Excel won't sort a range with locked cells; the Cover is unprotected on
-        purpose too). The ID column is shaded, with a header note and an input message on each ID cell."""
+    def test_the_id_column_is_shaded_and_locked_on_a_protected_sheet(self):
+        """#85d, item 727: each sheet is protected with no password (the locked cells are pinned in test_excel_protection). The ID
+        column is shaded, with a header note and an input message on each ID cell."""
         for name, table, cols, _ in excel.SHEETS:
             ws = self.sheet(name)
             n = len(self.d.store.read(table, "ABC"))
-            self.assertFalse(ws.protection.sheet, name)
+            self.assertTrue(ws.protection.sheet, name)
             self.assertGreater(n, 0)
-            default = (True, False)    # no cell carries a lock flag of its own: the ID is like the rest
-            for row in range(2, n + 2 + excel.EXTRA_ROWS):
-                for col in range(1, len(cols) + 1):
-                    c = ws.cell(row=row, column=col)
-                    self.assertEqual((c.protection.locked, c.protection.hidden), default, (name, row, col))
             for row in range(2, n + 2):
                 self.assertEqual(ws.cell(row=row, column=1).fill.fgColor.rgb[-6:], look.colour("grey-100"), (name, row))
             self.assertNotEqual(ws.cell(row=n + 2, column=1).fill.fgColor.rgb[-6:], look.colour("grey-100"))
