@@ -29,12 +29,14 @@ const state = signal(null);                    // null, or { id, x, y, fly: "" |
 // The element a menu belongs to, and where focus goes back to: a table row, or a card's own button.
 const homeOf = (el) => (el.matches("article.bcard") ? el.querySelector(".bc-main") || el : el);
 function refocus(id) {
-  setTimeout(() => {
+  const back = () => {
     const now = document.activeElement;
     if (now && now !== document.body && now.isConnected) return;
     const el = document.querySelector(`tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"]`);
     if (el) homeOf(el).focus({ preventScroll: true });
-  }, 0);
+  };
+  setTimeout(back, 0);
+  setTimeout(back, 150);                        // row 848: the change redraws the row after the first look, and the redrawn row had lost the focus; if nothing holds it by then, the row does
 }
 
 function openFor(el, x, y) {
