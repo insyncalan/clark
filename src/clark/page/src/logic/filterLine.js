@@ -11,8 +11,8 @@
 // two spellings of the same thing: `fromState` and `toState` go between them, so the At a glance tiles open a line that shows
 // what they counted and every older filter stays reachable. The address key `f` (filters.js encode / decode) is unchanged.
 //
-// Also here: saved views per project (lists, add, rename, archive, and whether the line differs from the saved one) and the
-// session memory of the line per project. Views are archived, never deleted.
+// Also here: saved views per project (lists, add, rename, delete, and whether the line differs from the saved one) and the
+// session memory of the line per project. A deleted view is gone.
 import { dayNumber, dueField, isOpen } from "../workItems.js";
 import { initial, FIELDS as STATE_FIELDS, NONE, dueBucket, hasReviewDates, isPublished, currentReviewDays, staleWords } from "../filters.js";
 
@@ -516,10 +516,10 @@ export function toState(line, rows, ctx) {
 }
 
 // ── Saved views, per project ─────────────────────────────────────────────────────────────────────────────────────────────
-// A view is {id, name, line, archived?}. Nothing is ever deleted: a view is archived (hidden from the tabs) and can be restored.
+// A view is {id, name, line}. A deleted view is gone for good (a view kept as archived by an older version stays hidden in the browser's store, untouched).
 
-// The five core views: always the first tabs, in this order, on every project. They cannot be renamed or archived and are never stored
-// with the person's own views. "All work items" is the one place for closed items.
+// The five core views: the first tabs, in this order, on every project that has not renamed or deleted them. They are never stored with the
+// person's own views; a new name or a delete is kept apart (CORE_KEY). "All work items" is the one place for closed items.
 export const CORE_VIEWS = [
   { id: "core-open", name: "Open items", line: "is:open", core: true },
   { id: "core-actions", name: "Actions", line: "type:action is:open", core: true },
@@ -529,7 +529,7 @@ export const CORE_VIEWS = [
 ];
 const CORE_IDS = CORE_VIEWS.map((v) => v.id);
 export const isCoreView = (view) => !!view && (view.core === true || CORE_IDS.includes(view.id));
-// The views a project starts with after the five core ones; they are the person's own, so they can be renamed and archived like any other.
+// The views a project starts with after the five core ones; they are the person's own, so they can be renamed and deleted like any other.
 export const DEFAULT_VIEWS = [
   { id: "overdue", name: "Overdue", line: "is:open due:overdue" },
   { id: "client", name: "Waiting on the client", line: "is:open is:needed" },
@@ -540,7 +540,6 @@ export const MAX_NAME = 40;
 
 export const visibleViews = (views) => (views || []).filter((v) => !v.archived);
 const mineVisible = (views) => visibleViews(views).filter((v) => !isCoreView(v));
-export const archivedViews = (views) => (views || []).filter((v) => v.archived);
 export const findView = (views, id) => (views || []).find((v) => v.id === id) || null;
 
 /** True when the line is not the saved line (the dot on the tab). Compared as the line reads, so spacing and order of words do not count. */
@@ -565,7 +564,7 @@ const nextId = (views) => { let n = (views || []).length + 1; const ids = new Se
 export function addView(views, name, line) {
   const vs = views || [], bad = nameProblem(vs, name, null);
   if (bad) return { ok: false, message: bad };
-  if (mineVisible(vs).length >= MAX_VIEWS) return { ok: false, message: `You can keep ${MAX_VIEWS} saved views. Archive one to make room.` };
+  if (mineVisible(vs).length >= MAX_VIEWS) return { ok: false, message: `You can keep ${MAX_VIEWS} saved views. Delete one to make room.` };
   const id = nextId(vs);
   return { ok: true, id, views: [...vs, { id, name: cleanName(name), line: String(line || "") }] };
 }
@@ -575,30 +574,24 @@ export function saveView(views, id, line) {
   return { ok: true, views: views.map((v) => (v.id === id ? { ...v, line: String(line || "") } : v)) };
 }
 export function renameView(views, id, name) {
-  if (!findView(views, id) || isCoreView(findView(views, id))) return { ok: false, message: "That view is not there any more." };
+  if (!findView(views, id)) return { ok: false, message: "That view is not there any more." };
   const bad = nameProblem(views, name, id);
   return bad ? { ok: false, message: bad } : { ok: true, views: views.map((v) => (v.id === id ? { ...v, name: cleanName(name) } : v)) };
 }
-/** Take a view off the tabs. It is kept (archived), and restoreView brings it back. */
-export function archiveView(views, id) {
-  if (!findView(views, id) || isCoreView(findView(views, id))) return { ok: false, message: "That view is not there any more." };
-  return { ok: true, views: views.map((v) => (v.id === id ? { ...v, archived: true } : v)) };
-}
-export function restoreView(views, id) {
-  const v = findView(views, id);
-  if (!v) return { ok: false, message: "That view is not there any more." };
-  const bad = nameProblem(views, v.name, id);
-  return bad ? { ok: false, message: bad } : { ok: true, views: views.map((x) => (x.id === id ? { ...x, archived: false } : x)) };
+/** Delete a view (a core view too). It is gone: there is no way back. */
+export function deleteView(views, id) {
+  if (!findView(views, id)) return { ok: false, message: "That view is not there any more." };
+  return { ok: true, views: views.filter((v) => v.id !== id) };
 }
 /** Why a saved view cannot be used, in plain words, or "" when it can (#589). A view whose line the filter line no longer reads (a word it
- *  does not know, or one this page cannot answer yet) is still listed, with this said beside it, so it can be renamed or archived. */
+ *  does not know, or one this page cannot answer yet) is still listed, with this said beside it, so it can be renamed or deleted. */
 export function viewTrouble(view, rows, ctx) {
   if (!view) return "";
   const errors = parse(view.line, rows, ctx).errors;
   if (!errors.length) return "";
   const first = /^(.+?[.?!])(\s|$)/.exec(String(errors[0].msg || ""));
   const why = first ? first[1] : "Its words are not ones the filter line knows.";
-  return `This view cannot be used any more. ${why} Rename it or archive it.`;
+  return `This view cannot be used any more. ${why} Rename it or delete it.`;
 }
 
 /** True for one of the views every project starts with, still as it was given (same id, same line). Such a view that the page cannot
@@ -615,6 +608,7 @@ export const viewCount = (view, rows, ctx) => apply(rows, view.line, ctx).length
 
 export const LINE_KEY = "clark.fline";
 export const VIEWS_KEY = "clark.fviews";
+export const CORE_KEY = "clark.fcore";           // per project: {names: {core id: new name}, gone: [core ids deleted]}
 
 function readAll(storage, key) {
   try {
@@ -643,12 +637,19 @@ const oldOpenItems = (v) => v.id === "open" && v.name === "Open items" && v.line
 export function viewsGet(storage, project) {
   const mine = storage ? readAll(storage, VIEWS_KEY)[project] : null;
   const own = (Array.isArray(mine) && mine.every(sane) ? mine : DEFAULT_VIEWS).filter((v) => !isCoreView(v) && !oldOpenItems(v)).map((v) => ({ ...v }));
-  const got = [...CORE_VIEWS.map((v) => ({ ...v })), ...own];
+  const kept = storage ? readAll(storage, CORE_KEY)[project] : null, names = (kept && kept.names) || {}, gone = Array.isArray(kept && kept.gone) ? kept.gone : [];
+  const core = CORE_VIEWS.filter((v) => !gone.includes(v.id)).map((v) => ({ ...v, name: typeof names[v.id] === "string" && names[v.id].trim() && names[v.id].length <= MAX_NAME ? names[v.id] : v.name }));
+  const got = [...core, ...own];
   return isPublished() ? got.filter((v) => lineIsClientSafe(v.line)) : got;
 }
 export function viewsPut(storage, project, views) {
   if (!storage) return false;
   const all = readAll(storage, VIEWS_KEY);
-  all[project] = (views || []).filter((v) => !isCoreView(v));            // the core views are never stored
-  return writeAll(storage, VIEWS_KEY, all);
+  all[project] = (views || []).filter((v) => !isCoreView(v));            // the core views are never stored with the person's own
+  const there = (views || []).filter(isCoreView), gone = CORE_IDS.filter((id) => !there.some((v) => v.id === id));
+  const names = {};
+  for (const v of there) { const was = CORE_VIEWS.find((c) => c.id === v.id); if (was && v.name !== was.name) names[v.id] = v.name; }
+  const core = readAll(storage, CORE_KEY);
+  if (gone.length || Object.keys(names).length) core[project] = { names, gone }; else delete core[project];
+  return writeAll(storage, VIEWS_KEY, all) && writeAll(storage, CORE_KEY, core);
 }

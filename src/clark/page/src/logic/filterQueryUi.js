@@ -111,7 +111,7 @@ export function troubleQuery(view, rows, ctx, extra) {
   const errors = parseFor(view.line, rows, ctx, extra).errors;
   if (!errors.length) return "";
   const first = /^(.+?[.?!])(\s|$)/.exec(messageOf(errors[0]));
-  return `This view cannot be used any more. ${first ? first[1] : "Its words are not ones the filter line knows."} Rename it or archive it.`;
+  return `This view cannot be used any more. ${first ? first[1] : "Its words are not ones the filter line knows."} Rename it or delete it.`;
 }
 export const heldBackQuery = (view, rows, ctx, extra) => isStartingView(view) && troubleQuery(view, rows, ctx, extra) !== "";
 

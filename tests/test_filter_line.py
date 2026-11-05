@@ -519,15 +519,25 @@ class SavedViews(Line):
         for x in views:
             self.assertEqual(self.parse(x["line"])["errors"], [], x)
 
-    def test_core_views_are_never_changed_or_stored(self):
+    def test_core_views_keep_their_line_can_be_renamed_and_deleted_and_are_stored_apart(self):
         views = self.v("viewsGet(null, 'ABC')")
         for cid in ("core-open", "core-actions", "core-risks", "core-decisions", "core-all"):
             self.assertFalse(self.v(f"saveView({lit(views)}, {lit(cid)}, 'is:open owner:me')")["ok"], cid)
-            self.assertFalse(self.v(f"renameView({lit(views)}, {lit(cid)}, 'Mine')")["ok"], cid)
-            self.assertFalse(self.v(f"archiveView({lit(views)}, {lit(cid)})")["ok"], cid)
+            self.assertTrue(self.v(f"renameView({lit(views)}, {lit(cid)}, 'Mine')")["ok"], cid)
+            self.assertEqual(len(self.v(f"deleteView({lit(views)}, {lit(cid)})")["views"]), 7, cid)
         got = self.val("(function(){ var s = {store: {}, getItem(k) { return k in this.store ? this.store[k] : null; }, setItem(k, v) { this.store[k] = String(v); }};"
                        f" T.fl.viewsPut(s, 'ABC', {lit(views)}); return JSON.parse(s.store['clark.fviews']).ABC.map(function (v) {{ return v.id; }}); }})()")
         self.assertEqual(got, ["overdue", "client", "mine"], "only the person's own views are stored")
+
+    def test_a_renamed_or_deleted_core_view_is_remembered_in_its_own_key_and_a_plain_set_stores_nothing_extra(self):
+        fake = "{store: {}, getItem(k) { return k in this.store ? this.store[k] : null; }, setItem(k, v) { this.store[k] = String(v); }}"
+        got = self.val(f"(function(){{ var s = {fake}; var v = T.fl.viewsGet(s, 'ABC'); T.fl.viewsPut(s, 'ABC', v); var plain = JSON.parse(s.store['clark.fcore']);"
+                       " v = T.fl.renameView(v, 'core-actions', 'Tasks').views; v = T.fl.deleteView(v, 'core-open').views; T.fl.viewsPut(s, 'ABC', v);"
+                       " return [plain, JSON.parse(s.store['clark.fcore']), T.fl.viewsGet(s, 'ABC').map(function (x) { return x.name; }), T.fl.viewsGet(s, 'DEF').length]; })()")
+        self.assertEqual(got[0], {}, "nothing changed: nothing extra is stored")
+        self.assertEqual(got[1], {"ABC": {"names": {"core-actions": "Tasks"}, "gone": ["core-open"]}})
+        self.assertEqual(got[2], ["Tasks", "Risks and issues", "Decisions", "All work items", "Overdue", "Waiting on the client", "My actions"])
+        self.assertEqual(got[3], 8, "another project is untouched")
 
     def test_a_stored_set_keeps_its_views_after_the_core_five(self):
         """#640: nothing stored is lost; an older stored plain Open items is replaced by the core one, a changed one stays."""
@@ -550,7 +560,7 @@ class SavedViews(Line):
         old = {"id": "old", "name": "Old", "line": "is:open colour:red"}
         said = self.v(f"viewTrouble({lit(old)}, {lit(ROWS)}, {lit(CTX)})")
         self.assertTrue(said.startswith("This view cannot be used any more. There is no \u201ccolour\u201d filter."), said)
-        self.assertTrue(said.endswith(" Rename it or archive it."), said)
+        self.assertTrue(said.endswith(" Rename it or delete it."), said)
         self.assertNotIn("Did you mean", said, "the message keeps to its first sentence")
         self.assertEqual(self.v(f"viewTrouble({lit(self.v('DEFAULT_VIEWS')[1])}, {lit(ROWS)}, {lit(CTX)})"), "")
         self.assertEqual(self.v(f"viewTrouble(null, {lit(ROWS)}, {lit(CTX)})"), "")
@@ -597,7 +607,7 @@ class SavedViews(Line):
         self.assertEqual(self.v(f"addView({lit(base)}, 'overdue', 'is:open')"), {"ok": False, "message": "A view called overdue already exists. Choose another name."})
         self.assertEqual(self.v(f"addView({lit(base)}, {lit('x' * 41)}, 'is:open')")["message"], "Keep the name to 40 characters or fewer.")
         full = [{"id": f"v{n}", "name": f"View {n}", "line": ""} for n in range(20)]
-        self.assertEqual(self.v(f"addView({lit(full)}, 'One more', '')")["message"], "You can keep 20 saved views. Archive one to make room.")
+        self.assertEqual(self.v(f"addView({lit(full)}, 'One more', '')")["message"], "You can keep 20 saved views. Delete one to make room.")
 
     def test_save_over_a_view(self):
         got = self.v(f"saveView({lit(self.v('DEFAULT_VIEWS'))}, 'overdue', 'is:open due:overdue owner:me')")
@@ -612,21 +622,14 @@ class SavedViews(Line):
         self.assertTrue(self.v(f"renameView({lit(base)}, 'mine', 'my actions')")["ok"], "the same name in other capitals is its own name")
         self.assertEqual(self.v(f"renameView({lit(base)}, 'mine', '')")["message"], "Give the view a name.")
 
-    def test_a_view_is_archived_never_deleted(self):
+    def test_a_deleted_view_is_gone_and_there_is_no_way_back(self):
         base = self.v("DEFAULT_VIEWS")
-        gone = self.v(f"archiveView({lit(base)}, 'client')")
-        self.assertEqual(len(gone["views"]), 3, "it is kept")
-        self.assertEqual([x["id"] for x in self.v(f"visibleViews({lit(gone['views'])})")], ["overdue", "mine"])
-        self.assertEqual([x["id"] for x in self.v(f"archivedViews({lit(gone['views'])})")], ["client"])
-        back = self.v(f"restoreView({lit(gone['views'])}, 'client')")
-        self.assertEqual([x["id"] for x in self.v(f"visibleViews({lit(back['views'])})")], ["overdue", "client", "mine"])
-        self.assertNotIn("removeView", self.val("Object.keys(T.fl)"))
-        self.assertNotIn("deleteView", self.val("Object.keys(T.fl)"))
-
-    def test_a_name_that_was_taken_while_archived_blocks_the_restore(self):
-        views = self.v(f"archiveView({lit(self.v('DEFAULT_VIEWS'))}, 'mine')")["views"]
-        views = self.v(f"addView({lit(views)}, 'My actions', 'is:open')")["views"]
-        self.assertEqual(self.v(f"restoreView({lit(views)}, 'mine')")["message"], "A view called My actions already exists. Choose another name.")
+        gone = self.v(f"deleteView({lit(base)}, 'client')")
+        self.assertEqual([x["id"] for x in gone["views"]], ["overdue", "mine"])
+        self.assertFalse(self.v(f"deleteView({lit(gone['views'])}, 'client')")["ok"])
+        keys = self.val("Object.keys(T.fl)")
+        for name in ("archiveView", "restoreView", "archivedViews"):
+            self.assertNotIn(name, keys)
 
     def test_new_ids_never_repeat(self):
         views = self.v("DEFAULT_VIEWS")
@@ -636,7 +639,7 @@ class SavedViews(Line):
 
     def test_the_functions_do_not_change_what_they_are_given(self):
         base = self.v("DEFAULT_VIEWS")
-        self.assertEqual(self.val(f"(function(){{ var v = {lit(base)}; T.fl.addView(v, 'A', ''); T.fl.archiveView(v, 'mine'); T.fl.renameView(v, 'mine', 'Z'); return v; }})()"), base)
+        self.assertEqual(self.val(f"(function(){{ var v = {lit(base)}; T.fl.addView(v, 'A', ''); T.fl.deleteView(v, 'mine'); T.fl.renameView(v, 'mine', 'Z'); return v; }})()"), base)
 
 
 class Memory(Line):
