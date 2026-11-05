@@ -11,7 +11,7 @@ Rules:
 - PER PAIR: a text-on-fill pair under 4.5:1 (each status tint and its text, the header, the title band, the tag, the quiet rows, the late
   text, the headings) gives up BOTH of its tokens to the committed values, with a warning.
 - The font is the first family of the brand's --font-office that look.py accepts and that is not a generic, else the committed one.
-Standard library only, Python 3.9. Not yet used by excel.py (a later step threads it through).
+Standard library only, Python 3.9. excel.export() builds the palette once and hands it to the workbook writers; its notes go to the log only.
 """
 import re
 from dataclasses import dataclass, field
@@ -20,6 +20,7 @@ from clark import excel_colours as base
 from clark import look
 
 MIN_CONTRAST = 4.5
+MAX_FONT_NAME = 31      # Excel's limit for a font name
 # (fill token, text token, what it draws), each checked at 4.5:1. The status pairs come from excel_colours.COLOURS.
 EXTRA_PAIRS = (
     ("brand-navy", "white", "the header and the title band"),
@@ -116,13 +117,32 @@ def _merged(brand_css):
     return ":root {\n" + "\n".join(f"{k}: {v};" for k, v in merged.items()) + "\n}", note
 
 
+MAX_BRAND_BYTES = 256 * 1024      # a brand's tokens.css bigger than this is not read
+
+
+def _brand_css(branding, notes):
+    """The local brand's token text (comments removed), or None. A file that is too big, not UTF-8 or unreadable never blocks an export:
+    the committed look is used and a note is added."""
+    from clark import page          # late: the page module is large and the committed palette needs none of it
+    try:
+        path = page.local_tokens_file(branding)
+        if path is None:
+            return None
+        if path.stat().st_size > MAX_BRAND_BYTES:
+            notes.append("The brand's tokens.css is too large to read; the committed look is used.")
+            return None
+        return page.strip_css_comments(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError):
+        notes.append("The brand's tokens.css cannot be read; the committed look is used.")
+        return None
+
+
 def palette(css=None, branding=None, warnings=None):
     """The workbook's palette. `css` is the brand's token text (default: the local brand, clark.page.local_tokens(branding), or none).
     `warnings` is an optional list that also receives each warning string."""
-    if css is None:
-        from clark import page          # late: the page module is large and the committed palette needs none of it
-        css = page.local_tokens(branding)
     notes = []
+    if css is None:
+        css = _brand_css(branding, notes)
     committed = dict(base.TOKENS)
     tokens, font = dict(committed), look.office_font()
     colours = dict(base.COLOURS)
@@ -146,7 +166,7 @@ def palette(css=None, branding=None, warnings=None):
             if not changed:
                 break
         try:
-            font = next(f for f in look.families("--font-office", merged) if f.lower() not in look.GENERIC)
+            font = next(f for f in look.families("--font-office", merged) if f.lower() not in look.GENERIC and len(f) <= MAX_FONT_NAME)
         except (look.LookError, StopIteration):
             font = look.office_font()
             if "--font-office" in (_declarations(css) or {}):

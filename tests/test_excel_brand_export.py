@@ -17,7 +17,7 @@ from openpyxl import load_workbook
 from clark import excel, excel_colours as base, excel_palette as palette, publish_flow
 from test_excel_picture import make_png
 
-ENERGY = """/* an invented teal look */
+BRAND_ONE = """/* an invented teal look */
 :root {
   --brand-navy: #0B2545; --brand-blue: #0A7C74; --brand-ink: #101820; --grey-300: #B8C4D0;
   --status-green-tint: #DDF5F0; --status-green-text: #046B5F;
@@ -26,7 +26,7 @@ ENERGY = """/* an invented teal look */
 :root[data-theme=dark] { --brand-navy: #FFEEDD; --brand-blue: #AB1234; --font-office: Verdana; --status-green-tint: #123456; }
 @media (prefers-color-scheme: dark) { :root { --brand-navy: #EEDDCC; --font-office: Tahoma; } }
 """
-AIQ = """:root[data-theme=dark] { --brand-navy: #ABCDEF; --font-office: Tahoma; }
+BRAND_TWO = """:root[data-theme=dark] { --brand-navy: #ABCDEF; --font-office: Tahoma; }
 :root { --brand-navy: #1B1F3B; --brand-blue: #7A1FA2; --grey-50: #F4F4FA; --font-office: Georgia; }
 """
 DARK_ONLY_VALUES = {"FFEEDD", "AB1234", "EEDDCC", "123456", "ABCDEF"}
@@ -93,30 +93,30 @@ class WithABrand(Rig):
         self.assertTrue(DARK_ONLY_VALUES.isdisjoint({v for c in cells.values() for v in c[:2] + c[3:] if v}))
         return wb, cells
 
-    def test_energy_like(self):
-        wb, cells = self.check(ENERGY, "0B2545", "0A7C74", "Segoe UI")
+    def test_brand_one_like(self):
+        wb, cells = self.check(BRAND_ONE, "0B2545", "0A7C74", "Segoe UI")
         bars = {c[3] for (sheet, _), c in cells.items() if sheet == "Cover" and c[3]}
         self.assertTrue(bars)
         self.assertTrue(bars <= {base.TOKENS["status-red"], base.TOKENS["status-amber-text"], "046B5F", "B8C4D0"}, bars)                                       # the tile bars: the status tokens, or this brand's grey-300
 
-    def test_aiq_like(self):
-        self.check(AIQ, "1B1F3B", "7A1FA2", "Georgia")
+    def test_brand_two_like(self):
+        self.check(BRAND_TWO, "1B1F3B", "7A1FA2", "Georgia")
 
     def test_the_cover_headings_use_the_brand_blue(self):
-        path, _ = self.export(self.brand(AIQ))
+        path, _ = self.export(self.brand(BRAND_TWO))
         with zipfile.ZipFile(path) as z:
             text = "".join(z.read(n).decode() for n in z.namelist() if n.startswith("xl/") and n.endswith(".xml"))
         self.assertIn("7A1FA2", text)
 
     def test_a_status_colour_reaches_the_conditional_formats(self):
-        path, _ = self.export(self.brand(ENERGY))
+        path, _ = self.export(self.brand(BRAND_ONE))
         with zipfile.ZipFile(path) as z:
             styles = z.read("xl/styles.xml").decode()
         self.assertIn("DDF5F0", styles)
         self.assertIn("046B5F", styles)
 
     def test_the_brand_logo_still_appears(self):
-        path, _ = self.export(self.brand(ENERGY, logo=True))
+        path, _ = self.export(self.brand(BRAND_ONE, logo=True))
         with zipfile.ZipFile(path) as z:
             self.assertIn("xl/media/image1.png", z.namelist())
         self.assertEqual(rgb(load_workbook(path)["Cover"]["A1"].fill.fgColor), "0B2545")
@@ -172,7 +172,7 @@ class ThroughThePublisher(unittest.TestCase):
         db = tmp / "clark.db"
         fx.build_db(db, fx.load())
         results = {}
-        for name, css in (("none", None), ("energy", ENERGY), ("aiq", AIQ)):
+        for name, css in (("none", None), ("one", BRAND_ONE), ("two", BRAND_TWO)):
             brand = tmp / name
             brand.mkdir()
             if css:
@@ -185,8 +185,8 @@ class ThroughThePublisher(unittest.TestCase):
             ws = load_workbook(out)["Actions"]["A1"]
             results[name] = (rgb(ws.fill.fgColor), ws.font.name, body["warnings"])
         self.assertEqual(results["none"], (base.HEADER_FILL, excel.OFFICE_FONT, []))
-        self.assertEqual(results["energy"], ("0B2545", "Segoe UI", []))
-        self.assertEqual(results["aiq"], ("1B1F3B", "Georgia", []))
+        self.assertEqual(results["one"], ("0B2545", "Segoe UI", []))
+        self.assertEqual(results["two"], ("1B1F3B", "Georgia", []))
 
 
 class Polish(Rig):
@@ -199,6 +199,14 @@ class Polish(Rig):
         self.assertEqual(len(ours), 1)
         self.assertEqual(ours[0].levelname, "WARNING")
         self.assertTrue(ours[0].getMessage().startswith("Brand colour brand-navy not used"))
+
+    def test_a_brand_file_that_is_not_utf8_does_not_block_the_export(self):
+        d = self.brand(None)
+        (d / "tokens.css").write_bytes(b"\xff\xfe\x00")
+        with self.assertLogs("clark.excel", "WARNING"):
+            path, shown = self.export(d)
+        self.assertEqual(shown, [])
+        self.assertEqual(rgb(load_workbook(path)["Actions"]["A1"].fill.fgColor), base.HEADER_FILL)
 
     def test_no_note_is_logged_for_a_good_or_missing_brand(self):
         import logging

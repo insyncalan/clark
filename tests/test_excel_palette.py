@@ -13,7 +13,7 @@ import _paths  # noqa: F401
 from clark import excel_colours as base
 from clark import excel_palette as ep
 
-ENERGY = """/* an invented teal look */
+BRAND_ONE = """/* an invented teal look */
 :root {
   --brand-navy: #0B2545; --brand-blue: #0A7C74; --brand-ink: #101820;
   --status-green-tint: #DDF5F0; --status-green-text: #046B5F;
@@ -21,7 +21,7 @@ ENERGY = """/* an invented teal look */
   --font-office: 'Segoe UI', sans-serif;
 }
 """
-AIQ = """:root { --brand-navy: #1B1F3B; --white: #FFF; --brand-blue: #7A1FA2; --grey-100: #EEE; --grey-700: #444;
+BRAND_TWO = """:root { --brand-navy: #1B1F3B; --white: #FFF; --brand-blue: #7A1FA2; --grey-100: #EEE; --grey-700: #444;
   --font-office: Georgia; }
 """
 NOWHERE = Path("/nonexistent-brand-folder")
@@ -65,9 +65,9 @@ class Brands(unittest.TestCase):
         (d / "tokens.css").write_text(text, encoding="utf-8")
         return d
 
-    def test_energy_like_brand_from_a_folder(self):
+    def test_brand_one_like_brand_from_a_folder(self):
         w = []
-        p = ep.palette(branding=self.brand(ENERGY), warnings=w)
+        p = ep.palette(branding=self.brand(BRAND_ONE), warnings=w)
         self.assertEqual(p.header_fill, "0B2545")
         self.assertEqual(p.tokens["brand-blue"], "0A7C74")
         self.assertEqual(p.hexes("green"), ("DDF5F0", "046B5F"))
@@ -77,8 +77,8 @@ class Brands(unittest.TestCase):
         self.assertEqual(p.warnings, w)
         self.assertTrue(contrast_ok(p))
 
-    def test_aiq_like_brand_three_digit_hex(self):
-        p = ep.palette(branding=self.brand(AIQ))
+    def test_brand_two_like_brand_three_digit_hex(self):
+        p = ep.palette(branding=self.brand(BRAND_TWO))
         self.assertEqual(p.header_text, "FFFFFF")
         self.assertEqual(p.header_fill, "1B1F3B")
         self.assertEqual(p.tokens["grey-100"], "EEEEEE")
@@ -149,6 +149,35 @@ class Brands(unittest.TestCase):
         self.assertEqual(len(w), 1)
         self.assertEqual(ep.palette(css=":root { --font-office: 'Bad<Name', Verdana; }").font, "Verdana")
 
+    def test_a_font_name_over_excels_31_characters_is_refused(self):
+        w = []
+        long = "A" * 32
+        p = ep.palette(css=":root { --font-office: %s; }" % long, warnings=w)
+        self.assertEqual(p.font, ep.look.office_font())
+        self.assertEqual(len(w), 1)
+        self.assertEqual(ep.palette(css=":root { --font-office: %s; }" % ("B" * 31)).font, "B" * 31)
+
+    def test_a_brand_file_that_cannot_be_read_gives_the_committed_look_and_a_note(self):
+        for data in (b"\xff\xfe\x00", b":root { --brand-navy: #123456; }" + b" " * ep.MAX_BRAND_BYTES):
+            d = Path(tempfile.mkdtemp())
+            self.addCleanup(shutil.rmtree, d, True)
+            (d / "tokens.css").write_bytes(data)
+            p = ep.palette(branding=d)
+            self.assertEqual(p.tokens, base.TOKENS)
+            self.assertEqual(len(p.warnings), 1)
+        d = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, d, True)
+        (d / "tokens.css").write_text(":root { --brand-navy: #123456; }")
+        real = Path.read_text
+
+        def read(self, *a, **k):
+            if self.parent == d:
+                raise OSError("denied")
+            return real(self, *a, **k)
+        with mock.patch.object(Path, "read_text", read):
+            p = ep.palette(branding=d)
+        self.assertEqual((p.tokens, len(p.warnings)), (base.TOKENS, 1))
+
     def test_unreadable_brand_text(self):
         p = ep.palette(css="nothing here")
         self.assertEqual(p.tokens, base.TOKENS)
@@ -162,7 +191,7 @@ class Brands(unittest.TestCase):
         self.assertEqual(base.TOKENS["brand-navy"], base.HEADER_FILL)        # the module constants are not touched
 
     def test_never_writes_to_disk(self):
-        d = self.brand(ENERGY)
+        d = self.brand(BRAND_ONE)
         before = sorted(p.name for p in d.iterdir())
         real_open = open
 
@@ -172,7 +201,7 @@ class Brands(unittest.TestCase):
         with mock.patch("builtins.open", guarded), mock.patch.object(Path, "write_text", side_effect=AssertionError), \
                 mock.patch.object(Path, "write_bytes", side_effect=AssertionError), mock.patch.object(Path, "mkdir", side_effect=AssertionError):
             ep.palette(branding=d)
-            ep.palette(css=AIQ)
+            ep.palette(css=BRAND_TWO)
         self.assertEqual(sorted(p.name for p in d.iterdir()), before)
 
 
