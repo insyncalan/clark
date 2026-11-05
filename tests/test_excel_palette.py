@@ -156,5 +156,34 @@ class Brands(unittest.TestCase):
         self.assertEqual(sorted(p.name for p in d.iterdir()), before)
 
 
+class LightOnly(unittest.TestCase):
+    LIGHT = ":root { --brand-navy: #0B2545; --grey-100: #DDEEFF; --font-office: Georgia; }"
+    DARK = ":root[data-theme=dark] { --brand-navy: #FFEEDD; --grey-100: #101010; --font-office: Verdana; }"
+    MEDIA = "@media (prefers-color-scheme: dark) { :root { --brand-navy: #EEDDCC; --grey-100: #202020; --font-office: Tahoma; } }"
+
+    def check_light(self, css):
+        w = []
+        p = ep.palette(css=css, warnings=w)
+        self.assertEqual((p.header_fill, p.tokens["grey-100"], p.font), ("0B2545", "DDEEFF", "Georgia"), css)
+        self.assertEqual(w, [], css)
+
+    def test_dark_after_light(self):
+        self.check_light(self.LIGHT + "\n" + self.DARK + "\n" + self.MEDIA)
+
+    def test_dark_before_light(self):
+        self.check_light(self.MEDIA + "\n" + self.DARK + "\n" + self.LIGHT)
+
+    def test_closing_braces_on_one_line(self):
+        self.check_light("/* c */ " + self.LIGHT + " " + self.DARK + " " + self.MEDIA)
+
+    def test_only_a_dark_block_is_the_committed_look(self):
+        for css in (self.DARK, self.MEDIA, self.DARK + self.MEDIA):
+            w = []
+            p = ep.palette(css=css, warnings=w)
+            self.assertEqual(p.tokens, base.TOKENS)
+            self.assertEqual(p.font, ep.look.office_font())
+            self.assertEqual(len(w), 1)         # one note that no light block was found, none per dark value
+
+
 if __name__ == "__main__":
     unittest.main()

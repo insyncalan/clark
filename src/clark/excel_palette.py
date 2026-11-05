@@ -74,16 +74,37 @@ class Palette:
         return self.tokens[fill], self.tokens[text]
 
 
+def _light_rules(css):
+    """The declarations text of every top-level rule whose selector is exactly `:root` (the light look). A dark selector
+    (`:root[data-theme=dark]`) and anything inside an at-rule (`@media (prefers-color-scheme: dark)`) is skipped whole, by brace depth,
+    so a dark value can never reach the workbook whatever the order of the blocks or where the closing braces sit."""
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    out, depth, start, selector, mark = [], 0, 0, "", 0
+    for i, ch in enumerate(css):
+        if ch == "{":
+            if depth == 0:
+                selector, mark = css[start:i].strip(), i + 1
+            depth += 1
+        elif ch == "}" and depth:
+            depth -= 1
+            if depth == 0:
+                if selector == ":root":
+                    out.append(css[mark:i])
+                start = i + 1
+    return out
+
+
 def _declarations(css):
-    try:
-        return dict(DECL.findall(look._block(look.LIGHT, css)))
-    except look.LookError:
+    """{name: value} of the light :root block(s), later ones over earlier; None when there is none."""
+    blocks = _light_rules(css)
+    if not blocks:
         return None
+    return {k: v.strip() for block in blocks for k, v in DECL.findall(block)}
 
 
 def _merged(brand_css):
     """(css text with the brand's names layered over the committed ones, warning or None)."""
-    committed = _declarations(look._css())
+    committed = _declarations(look._css()) or {}
     brand = _declarations(brand_css)
     note = None
     if brand is None:
