@@ -19,6 +19,7 @@ from unittest import mock
 
 from _paths import ROOT
 import package
+from clark import release_files
 
 
 def tracked(*paths):
@@ -40,24 +41,25 @@ class MacZipTest(unittest.TestCase):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
     def inside(self):
-        """The names in the zip, without the top folder."""
+        """The names in the zip, without the top folder (as placed: program files under .app/)."""
         return sorted(n[len(self.top) + 1:] for n in self.infos)
 
-    def test_one_top_folder_named_for_the_version(self):
+    def test_one_top_folder_called_clark_and_a_zip_named_for_the_version(self):
         self.assertEqual(f"clark-{package.version()}-mac.zip", self.zip.name)
         self.assertEqual({self.top}, {n.split("/")[0] for n in self.infos})
-        self.assertRegex(self.top, r"^clark-\d")
+        self.assertEqual("clark", self.top)
 
     def test_entries_are_exactly_the_file_list(self):
         expected = set()
         for item in package.listed("mac"):
             expected.update(tracked(item) if item.endswith("/") else [item])
         expected = {p for p in expected if not package.LEFT_OUT.search(p)} | {"START-HERE.txt", package.MANIFEST} | set(package.GENERATED_PAGES)     # #495: built, not tracked
+        expected = {release_files.place(p) for p in expected}       # issue 694: program files sit under .app/
         self.assertEqual(sorted(expected), self.inside())
         self.assertEqual(sorted(self.infos), list(self.infos), "entries are in sorted order")
 
     def test_nothing_from_outside_the_list(self):
-        for name in self.inside():
+        for name in (release_files.unplace(n) for n in self.inside()):
             with self.subTest(name=name):
                 self.assertFalse(name.startswith(("tests/", "docs/", "system/", "comms/", ".git", "dist/")))
                 self.assertFalse(name.startswith("dev/") and name != "dev/demo_data.py")
@@ -68,9 +70,9 @@ class MacZipTest(unittest.TestCase):
 
     def test_what_clark_needs_is_there(self):
         names = set(self.inside())
-        for needed in ("clark.command", "clark/__main__.py", "src/clark/__main__.py", "src/clark/page/page.html",
-                       "src/clark/schema.sql", "vendor/openpyxl/__init__.py", "vendor/et_xmlfile/__init__.py",
-                       "vendor/manifest.json", "README.md", "START-HERE.txt"):
+        for needed in ("clark.command", ".app/clark/__main__.py", ".app/src/clark/__main__.py", ".app/src/clark/page/page.html",
+                       ".app/src/clark/schema.sql", ".app/vendor/openpyxl/__init__.py", ".app/vendor/et_xmlfile/__init__.py",
+                       ".app/vendor/manifest.json", "README.md", "START-HERE.txt"):
             self.assertIn(needed, names)
 
     def test_licence_and_notice_are_in_the_zip(self):
@@ -81,7 +83,7 @@ class MacZipTest(unittest.TestCase):
         names = set(self.inside())
         with zipfile.ZipFile(self.zip) as z:
             files = json.loads(z.read(f"{self.top}/{package.MANIFEST}"))["files"]
-        for name in ("LICENSE", "NOTICE.md"):
+        for name in (".app/LICENSE", ".app/NOTICE.md"):
             with self.subTest(name=name):
                 self.assertIn(name, names)
                 self.assertIn(name, files)
@@ -89,7 +91,7 @@ class MacZipTest(unittest.TestCase):
                 self.assertGreater(files[name]["size"], 0)
 
     def test_demo_file_follows_the_switch(self):
-        self.assertEqual(package.INCLUDE_DEMO, "dev/demo_data.py" in self.inside())
+        self.assertEqual(package.INCLUDE_DEMO, ".app/dev/demo_data.py" in self.inside())
 
     def test_clark_command_keeps_its_run_bit(self):
         for name, info in self.infos.items():
@@ -114,7 +116,7 @@ class MacZipTest(unittest.TestCase):
             z.extractall(where)
         env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "PYTHONHOME", "PYTHONSTARTUP")}
         env["PYTHONDONTWRITEBYTECODE"] = "1"
-        run = subprocess.run([sys.executable, "-m", "clark", "--help"], cwd=str(where / self.top), env=env,
+        run = subprocess.run([sys.executable, "-m", "clark", "--help"], cwd=str(where / self.top / ".app"), env=env,
                              capture_output=True, text=True, timeout=60)
         self.assertEqual(0, run.returncode, run.stderr)
         self.assertIn("--data", run.stdout)
@@ -370,13 +372,83 @@ class ForClientTest(unittest.TestCase):
         target = self.build_small(root, out, banned=FICTIONAL)
         with zipfile.ZipFile(target) as z:
             names = sorted(z.namelist())
-            start = z.read("clark-0.0.1/START-HERE.txt").decode("utf-8")
-        self.assertEqual(["clark-0.0.1/README.md", "clark-0.0.1/START-HERE.txt", "clark-0.0.1/clark-release.json",
-                          "clark-0.0.1/clark.command", "clark-0.0.1/src/clark/__init__.py", "clark-0.0.1/src/clark/notes.py",
-                          "clark-0.0.1/src/clark/store.py"], names)
+            start = z.read("clark/START-HERE.txt").decode("utf-8")
+        self.assertEqual(["clark/.app/src/clark/__init__.py", "clark/.app/src/clark/notes.py", "clark/.app/src/clark/store.py",
+                          "clark/README.md", "clark/START-HERE.txt", "clark/clark-release.json", "clark/clark.command"], names)
         self.assertNotIn("team only", start)
         self.assertEqual(package.start_here("mac", for_client=True), start)
         self.assertIsNone(package.snapshot_problem(root))
+
+
+class PlacedLayoutTest(unittest.TestCase):
+    """issue 694: the zip holds one folder `clark`, program files in .app, the compose file changed in exactly one line,
+    and nothing that belongs to the person. Small temporary repos, plus the real build once."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="clark placed ")
+        cls.zip = package.build("mac", Path(cls.tmp) / "one", dirty=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_the_zip_keeps_its_versioned_name_and_the_folder_does_not(self):
+        self.assertEqual("clark", package.top_folder())
+        self.assertEqual(f"clark-{package.version()}-mac.zip", package.zip_name("mac"))
+
+    def test_the_manifest_keys_are_the_placed_names_and_the_updater_reads_the_real_zip(self):
+        import json
+        with zipfile.ZipFile(self.zip) as z:
+            members = {n[len("clark/"):] for n in z.namelist()}
+            files = json.loads(z.read("clark/" + package.MANIFEST))["files"]
+        self.assertEqual(members - {package.MANIFEST}, set(files))
+        for name in (".app/src/clark/__init__.py", ".app/clark/launch.py", "README.md", "docker/compose.yaml", "clark.command"):
+            self.assertIn(name, files)
+        self.assertFalse([n for n in files if n.startswith(("src/", "vendor/", "clark/"))])
+        import _signing
+        from clark import updates
+        _signing.trust_test_key(self)
+        _signing.sign_file(self.zip)
+        release = updates.read_release(self.zip, "mac", "0.0.0", package.schema_version())
+        self.assertEqual(package.version(), release.version)
+
+    def test_nothing_of_the_person_s_is_in_the_zip(self):
+        with zipfile.ZipFile(self.zip) as z:
+            for name in z.namelist():
+                with self.subTest(name=name):
+                    self.assertFalse(name.startswith(("clark/system", "clark/data")), name)
+                    self.assertFalse(name.startswith(("clark/.app/system", "clark/.app/data")), name)
+
+    def test_the_compose_file_in_the_zip_differs_in_the_one_working_dir_line(self):
+        repo = (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8").splitlines()
+        with zipfile.ZipFile(self.zip) as z:
+            made = z.read("clark/docker/compose.yaml").decode("utf-8").splitlines()
+        self.assertEqual(len(repo), len(made))
+        changed = [(a, b) for a, b in zip(repo, made) if a != b]
+        self.assertEqual([("    working_dir: /clark", "    working_dir: /clark/.app")], changed)
+        self.assertIn("        source: ..", made, "the bind stays the whole clark folder, so system/branding is seen")
+        self.assertEqual("    working_dir: /clark", next(ln for ln in repo if "working_dir" in ln), "the repo's own file is untouched")
+
+    def test_the_compose_change_is_refused_unless_the_line_is_found_exactly_once(self):
+        ok = b"a: 1\n    working_dir: /clark\nb: 2\n"
+        self.assertEqual(b"a: 1\n    working_dir: /clark/.app\nb: 2\n", package.compose_for_zip(ok))
+        for bad in (b"a: 1\n", b"    working_dir: /clark\n    working_dir: /clark\n", b"    working_dir: /clark/x\n",
+                    b"  working_dir: /clark\n"):
+            with self.subTest(bad=bad), self.assertRaises(package.Refused):
+                package.compose_for_zip(bad)
+
+    def test_a_tracked_path_under_system_or_data_refuses_the_build(self):
+        for kept in ("system/branding/logo.png", "data/clark.db", "System/x.txt"):
+            with self.subTest(kept=kept):
+                root = ForClientTest.snapshot(self, {kept: "mine\n"})
+                out = Path(self.tmp) / ("refused " + kept.replace("/", "-"))
+                with mock.patch.object(package, "SHARED", ("README.md", "src/clark/", kept.split("/")[0] + "/")), \
+                        mock.patch.object(package, "SYSTEMS", {"mac": ("clark.command",)}), \
+                        self.assertRaises(package.Refused) as said:
+                    package.build("mac", out, root=root, dirty=True)
+                self.assertIn(kept, str(said.exception))
+                self.assertFalse(out.exists())
 
 
 class DefaultAudienceTest(unittest.TestCase):
@@ -397,7 +469,7 @@ class DefaultAudienceTest(unittest.TestCase):
                 mock.patch.object(package, "SYSTEMS", {"mac": ("clark.command",)}):
             target = package.build("mac", out / "o", root=root)
         with zipfile.ZipFile(target) as z:
-            return z.read("clark-0.0.1/START-HERE.txt").decode("utf-8")
+            return z.read("clark/START-HERE.txt").decode("utf-8")
 
     def built_line(self, root):
         err, out = io.StringIO(), io.StringIO()

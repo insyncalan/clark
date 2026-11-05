@@ -47,7 +47,8 @@ DIST = ROOT / "dist"
 
 if str(Path(__file__).resolve().parents[2] / "src") not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
-from clark.release_files import (INCLUDE_DEMO, MANIFEST, NOT_BUILT_YET, RUN_BIT, SHARED, START_HERE, SYSTEMS)  # noqa: E402,F401
+from clark.release_files import (INCLUDE_DEMO, MANIFEST, NOT_BUILT_YET, RUN_BIT, SHARED, START_HERE, SYSTEMS, TOP,  # noqa: E402,F401
+                                 place, protected, unplace)
 
 # The one list of what the download holds is src/clark/release_files.py (shipped, so the updater reads the same list).
 
@@ -212,12 +213,16 @@ def tracked(root, paths):
 
 def files(system, root=ROOT):
     """The repo files that go in the zip for `system`, sorted (START-HERE.txt is not one: it is written here)."""
-    chosen = set()
+    chosen, kept = set(), set()
     for item in listed(system):
         found = tracked(root, [item]) if item.endswith("/") else [item]
         if not found or not all((Path(root) / p).is_file() for p in found):
             raise Refused(f"A file the download needs is missing: {item}. Restore it, then build again.")
+        kept.update(p for p in found if protected(p))
         chosen.update(p for p in found if not LEFT_OUT.search(p))
+    if kept:
+        raise Refused(f"The download must never hold the person's own folders (system, data), and git tracks files in them: "
+                      f"{', '.join(sorted(kept))}. Nothing was written. Untrack them, then build again.")
     if "src/clark/" in listed(system):
         for p in generated_pages(root):
             if not (Path(root) / p).is_file():
@@ -340,17 +345,42 @@ def manifest_bytes(system, content, top, root=ROOT, released=None, notes="", min
 
 
 def top_folder(root=ROOT):
-    return f"clark-{version(root)}"
+    """The one folder the zip unzips to: always `clark`, whatever the version (issue 694)."""
+    return TOP
 
 
 def zip_name(system, root=ROOT):
-    return f"{top_folder(root)}-{system}.zip"
+    """The zip file keeps its version: clark-<version>-<system>.zip."""
+    return f"clark-{version(root)}-{system}.zip"
+
+
+COMPOSE = "docker/compose.yaml"
+COMPOSE_WORKDIR = "    working_dir: /clark\n"
+COMPOSE_WORKDIR_HIDDEN = "    working_dir: /clark/.app\n"
+
+
+def compose_for_zip(data):
+    """The compose file as the zip holds it: the program files sit in .app, so the container starts there. Exactly one
+    `working_dir: /clark` line is changed (the bind of the whole folder stays, so system/branding is still seen);
+    anything else about it is refused, so a changed compose file never ships half-changed."""
+    text = data.decode("utf-8")
+    lines = [ln for ln in text.splitlines(keepends=True) if ln.rstrip("\r\n") == COMPOSE_WORKDIR.rstrip("\n")]
+    if len(lines) != 1:
+        raise Refused(f"{COMPOSE} must hold exactly one line '{COMPOSE_WORKDIR.strip()}' for the download to change, and it holds "
+                      f"{len(lines)}. Nothing was written. Fix the compose file or this tool, then build again.")
+    ending = lines[0][len(lines[0].rstrip("\r\n")):]
+    return text.replace(lines[0], COMPOSE_WORKDIR_HIDDEN.rstrip("\n") + ending).encode("utf-8")
+
+
+def placed_bytes(name, data):
+    """The bytes the zip holds for the repo file `name`: the file itself, except the compose file."""
+    return compose_for_zip(data) if name == COMPOSE else data
 
 
 def entries(system, root=ROOT):
     """Every name in the zip, in order."""
     top = top_folder(root)
-    return sorted(f"{top}/{p}" for p in files(system, root) + [START_HERE])
+    return sorted(f"{top}/{place(p)}" for p in files(system, root) + [START_HERE])
 
 
 def uncommitted(root, paths):
@@ -422,15 +452,16 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
         make_pages(root, twice=release)
     names = files(system, root)
     top = top_folder(root)
-    content = {f"{top}/{p}": ((root / p).read_bytes(), RUN_MODE if p in RUN_BIT else FILE_MODE) for p in names}
-    content[f"{top}/{START_HERE}"] = (start_here(system, for_client, root).encode("utf-8"), FILE_MODE)
+    content = {f"{top}/{place(p)}": (placed_bytes(p, (root / p).read_bytes()), RUN_MODE if p in RUN_BIT else FILE_MODE)
+               for p in names}
+    content[f"{top}/{place(START_HERE)}"] = (start_here(system, for_client, root).encode("utf-8"), FILE_MODE)
     if for_client:
-        shown_paths, hidden = name_guard_hits({n[len(top) + 1:]: data for n, (data, _) in content.items()}, banned)
+        shown_paths, hidden = name_guard_hits({unplace(n[len(top) + 1:]): data for n, (data, _) in content.items()}, banned)   # repo names, as the builder knows them
         if shown_paths or hidden:
             where = shown_paths + ([f"{hidden} file(s) whose own name holds one (not shown)"] if hidden else [])
             raise Refused("A zip for a client must hold no one's name, and the name guard found one in: "
                           f"{', '.join(where)}. Nothing was written. Take the name out, then build again.")
-    content[f"{top}/{MANIFEST}"] = (manifest_bytes(system, content, top, root, released, notes, min_from), FILE_MODE)
+    content[f"{top}/{place(MANIFEST)}"] = (manifest_bytes(system, content, top, root, released, notes, min_from), FILE_MODE)
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     target = out / zip_name(system, root)

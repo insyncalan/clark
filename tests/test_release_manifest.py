@@ -123,8 +123,8 @@ class WhatTheUpdaterReadsTest(unittest.TestCase):
     def test_every_listed_name_is_one_the_updater_accepts(self):
         for name in self.manifest["files"]:
             with self.subTest(name=name):
-                # package.py still writes repo names; the updater reads the name as placed in the zip (issue 694)
-                self.assertTrue(release_files.covers("mac", release_files.place(name)))
+                # the record names files as placed in the zip, which is how the updater reads them (issue 694)
+                self.assertTrue(release_files.covers("mac", name))
 
     def test_the_list_lives_only_in_release_files(self):
         source = (ROOT / "dev" / "tools" / "package.py").read_text(encoding="utf-8")
