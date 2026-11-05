@@ -1912,3 +1912,6 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .frame.milestones .msv { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: var(--space-5) 28px; }
 .frame.milestones .msv-sw { top: var(--space-5); right: 28px; }
 @media (max-width: 900px) { .frame.milestones .msv { padding: 18px var(--space-4); } .frame.milestones .msv-sw { top: 18px; right: var(--space-4); } }
+
+/* Row 832: Use cases sits on the tinted page, not inside a white bordered card. */
+.frame.ucl, .frame.ucpage { background: transparent; border: 0; box-shadow: none; padding: 0; }

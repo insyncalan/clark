@@ -41,6 +41,9 @@ class Frames(Base):
                 self.assertEqual(got, ["1px", True, True], "the viewer and timeline keep a card")
                 self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
 
+    def test_row_832_use_cases_has_no_wrapping_card(self):
+        self.flat("#usecases&p=ABC", "#usecases", "#usecases")
+
 
 if __name__ == "__main__":
     unittest.main()
