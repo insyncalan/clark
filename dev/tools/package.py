@@ -98,7 +98,7 @@ def make_pages(root=ROOT, twice=False):
 LEFT_OUT = re.compile(r"(^|/)(__pycache__|\.DS_Store)(/|\Z)|\.(pyc|db|log)\Z")
 
 TEAM_ONLY = "This download is for the team only; it is built from the private copy."
-PUBLIC_BUILD = "This download is built from the public repository; it holds none of the team's private notes."
+PUBLIC_BUILD = "This download holds none of the team's private notes."
 
 FIXED_TIME = (2000, 1, 1, 0, 0, 0)  # every entry's time, so two builds are byte for byte the same
 UNIX = 3                            # ZipInfo.create_system: the modes below are Unix modes
