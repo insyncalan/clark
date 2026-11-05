@@ -2,7 +2,7 @@
 // View removes, never hides: it draws only the sections that show (a hidden one is dropped) and renders no edit component at all,
 // so there is no input, text area, select, editable text, grip, menu or Add in the page. Edit (a page clark serves, with
 // `tools` from edit/) draws every section, a hidden one dimmed, with those parts. A published file passes no tools and is never Edit.
-import { useEffect } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { armHint } from "../stores/motion.js";
 import { data, mode, fromFile, dropAt, rebuilt } from "../stores/report.js";
 import { Section } from "./Section.jsx";
@@ -41,9 +41,29 @@ function jumpTo(anchor) {
   el.focus({ preventScroll: true });
 }
 
+// #679: View and Edit draw different heights (Edit adds rows, fields and left-out sections), so the switch keeps the section nearest the
+// top of the screen where it was. Read while the old DOM is still up (the render before the commit), put back before the paint.
+function nearestTop() {
+  const bar = document.querySelector(".top");
+  const line = bar ? bar.getBoundingClientRect().bottom : 0;
+  for (const el of document.querySelectorAll(".secs > .sec:not(.is-hidden)")) {
+    const r = el.getBoundingClientRect();
+    if (r.bottom > line + 1) return { id: el.dataset.id, top: r.top };
+  }
+  return null;
+}
+
 export function Dashboard({ tools }) {
   const d = data.value;
   const editing = !!(tools && tools.Gutter) && mode.value === "edit" && !fromFile.value;
+  const was = useRef({ editing, at: null });
+  if (was.current.editing !== editing) was.current = { editing, at: nearestTop() };
+  useLayoutEffect(() => {
+    const at = was.current.at;
+    was.current.at = null;
+    const el = at && document.querySelector(`.secs > .sec[data-id="${CSS.escape(at.id)}"]`);
+    if (el) window.scrollBy(0, el.getBoundingClientRect().top - at.top);
+  }, [editing]);
   const all = d.report_sections || [];
   // does not draw yet (only text bodies are drawn, #74). Rows are read from every section first (#95), so a section whose partner
   // is left out takes the full row and never pairs with the next one. The page clark serves is unchanged.
