@@ -78,6 +78,8 @@ MESSAGES = {
     "client_folder_refused": "{reason}",
     "settings_failed": "The client folder could not be saved. Nothing was changed. Try again.",
     "brand_styling": "The brand's styling file has a web link in it, so the report can't go out. Ask whoever looks after the brand to remove it.",
+    "brand_address": "The brand's styling file has a link to an address outside the report, so the report can't go out. Ask whoever looks after the brand to remove it.",
+    "brand_picture": "The brand's styling file has a picture in a form clark cannot put in the report, so the report can't go out. Ask whoever looks after the brand to change it.",
     "page_shape": "Something is wrong inside clark. Nothing was published. Tell the clark team, and say what you were doing.",
     **{k: publish_pdf.MESSAGES[k] for k in ("bad_pdf_request", "no_chrome", "pdf_failed")},
     "db_unreadable": "The records could not be read. Restart clark and try again.",
@@ -88,7 +90,8 @@ MESSAGES = {
 
 
 # The start of each PublishError that is about clark's own page or the brand's styling, and the fixed words that stand for it.
-_FAULTS = (("The brand's tokens.css", "brand_styling"), ("The page clark builds", "page_shape"),
+_FAULTS = (("The brand's tokens.css uses @import", "brand_address"), ("The brand's tokens.css names a font or image by address", "brand_address"),
+           ("The brand's tokens.css, or the page, embeds a picture", "brand_picture"), ("The brand's tokens.css", "brand_styling"), ("The page clark builds", "page_shape"),
            ("The page has a server token", "page_shape"))
 
 

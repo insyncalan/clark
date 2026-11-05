@@ -71,28 +71,35 @@ COVERED = [
      "test_documents_published::Absent::test_a_live_document_left_out_for_its_link_is_logged_by_id_only_and_the_file_is_unchanged_issue_610"),
     ("#723", "A held workbook with no check goes before a plan waiting for Apply.",
      "test_excel_sheet_choice::Followups::test_a_new_workbook_pushes_out_a_held_file_before_a_plan_waiting_for_apply"),
+    ("#737", "A sheet over the row limit is listed as more than 2,000 rows and ticking it is refused in words.",
+     "test_excel_sheet_choice::Listing::test_every_sheet_over_2000_rows_is_listed_as_over_the_limit_and_ticking_it_is_refused"),
+    ("#759", "Line 1 of START-HERE in a public download no longer says repository.",
+     "test_package::DefaultAudienceTest::test_the_public_line_one_is_the_ruled_sentence_and_never_says_repository"),
+    ("#754", "In Help the slash goes to the search box, and the ask key leaves Help alone.",
+     "test_help_pr_a::SlashInHelp::test_help_says_what_slash_does_in_help_with_its_condition_and_without_the_switch_name"),
+    ("#697", "The Settings links are a list down the left above 900 px and a row of chips at 900 px and narrower.",
+     "test_settings_head::Head::test_C_the_list_is_at_the_left_above_900_and_a_row_of_chips_at_900_and_narrower"),
+    ("#742", "The daily log follows --data: it is in the logs folder inside the data folder.",
+     "test_log_follows_data::Started::test_data_given_writes_inside_it_and_nothing_under_the_home"),
+    ("#760", "A folder of mixed versions is refused with a plain message.",
+     "test_mixed_folder::Folder::test_one_older_file_is_refused"),
+    ("#763", "A brand's own circle picture no longer stops Preview and Publish.",
+     "test_brand_circle::Route::test_publish_and_preview_pass_with_the_circle"),
+    ("#763", "An outside address in the brand file shows its own sentence on Publish and Preview.",
+     "test_brand_circle::Route::test_an_address_shows_its_own_sentence_on_publish_and_preview"),
+    ("#763", "A picture in another form shows its own sentence on Publish and Preview.",
+     "test_brand_circle::Route::test_another_picture_shows_its_own_sentence_on_publish_and_preview"),
+    ("#763", "The two brand refusal sentences are the approved words.",
+     "test_page_words::Words::test_a_brand_link_refusal_does_not_contradict_itself"),
+    ("#761", "The three public meet clark files are the regenerated ones, pinned by hash and size.",
+     "test_ci_scan::PinnedPublicFiles::test_the_next_pins_are_well_formed_and_each_real_file_is_its_current_or_its_next_pin"),
+    ("#761", "The public zip carries the meet clark folder at the top under its own name.",
+     "test_extra_folder::Build::test_each_folder_is_at_the_top_under_its_own_name"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has
 # landed; marker None means there is no pull request to look for yet).
-WAITING = [
-    ("#742", "The daily log follows --data: it is in the logs folder inside the data folder.",
-     "PR 722", "src/clark/platform.py", "def log_folder("),
-    ("#737", "A sheet over the row limit is listed as more than 2,000 rows.",
-     "PR 727", "src/clark/excel_route.py", "def header_map("),
-    ("#759", "Line 1 of START-HERE in a public download no longer says repository.",
-     "PR 717", "dev/tools/package.py", 'PUBLIC_BUILD = "This download holds none'),
-    ("#754", "In Help the slash goes to the search box, and the ask key leaves Help alone.",
-     "PR 735", "src/clark/page/src/help/helpContent.json", "except while Help is open"),
-    ("#760", "A folder of mixed versions is refused with a plain message.",
-     "PR 733", "src/clark/same_version.py", "def refuse"),
-    ("#761", "The meet clark PDFs and the overview picture show bash clark.command.",
-     "no pull request yet (issue 761)", None, None),
-    ("#763", "The brand's circle picture is accepted and a comment can no longer hide an address or a picture.",
-     "no pull request yet (issue 763)", None, None),
-    ("#728", "Sneak peek changes a milestone and a use case.",
-     "no pull request yet (issue 728)", None, None),
-]
+WAITING = []
 
 # (item, check, kind, why, what the person does)
 WALK_THROUGH = [
