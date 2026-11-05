@@ -53,6 +53,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from clark import excel_colours as colours
 from clark import excel_cover
+from clark import glance
 from clark import excel_picture
 from clark import look
 from clark import platform
@@ -101,13 +102,13 @@ SHEETS = [
         ("Owner", "owner"), ("Shown state", "shown_state"), ("State", "state"), ("State set by you", "state_set"),
         ("State reason", "state_reason"), ("Movement", "movement"), ("Achieved on", "actual_date"),
         ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Internal note", "internal_note"),
-        ("Source", "source"), ("Updated", "updated_at")],
-     {"id", "original_date", "shown_state", "source", "updated_at"}),
+        ("Source", "source"), ("Updated", "updated_at"), ("Open work items", "open_items")],
+     {"id", "original_date", "shown_state", "source", "updated_at", "open_items"}),
     ("Use cases", "use_cases", [                                       # clark's own table, in creaite's style
         ("ID", "id"), ("Use case", "title"), ("Project", "project"), ("Shown as", "ref"), ("Status", "status"),
         ("Headline", "headline"), ("Where it stands", "standing"), ("Order", "sort_order"),
-        ("Client-visible", "client_visible"), ("Source", "source"), ("Updated", "updated_at")],
-     {"id", "source", "updated_at"}),
+        ("Client-visible", "client_visible"), ("Source", "source"), ("Updated", "updated_at"), ("Open work items", "open_items")],
+     {"id", "source", "updated_at", "open_items"}),
 ]
 TABLES = tuple(t for _, t, _, _ in SHEETS)
 # The same layout as two lookups, for the import (#38): the sheet a table is written on, and each table's header label -> field.
@@ -118,7 +119,7 @@ DATES = {"due_date", "raised", "closed", "date", "baseline_date", "forecast_date
          "original_date"}
 YES_NO = {"client_visible", "state_set"}
 LABELLED = ("actions", "raid", "decisions")
-DERIVED = {"original_date", "shown_state"}    # clark: worked out for the sheet, never read back as a change
+DERIVED = {"original_date", "shown_state", "open_items"}    # clark: worked out for the sheet, never read back as a change
 WIDE = {"description", "decision", "client_message", "latest_update", "response_action", "reasoning", "options", "revisit",
         "state_reason", "internal_note", "source", "headline", "standing"}
 # clark: a NOT NULL DEFAULT '' text column. A blank cell there reads back as "" (creaite's blank_default, with no template: #24).
@@ -696,12 +697,51 @@ def add_late_rule(ws, col, n_rows, date_col, status_col, open_states):
     ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
 
 
+REF_CELL_LIMIT = 250        # characters a Milestone or Use case cell holds ("ID: name"); the name is cut, never the ID
+REF_TABLES = {"milestone": ("milestones", "name"), "use_case": ("use_cases", "title")}
+OPEN_TABLES = (("actions", "milestone"), ("raid", "milestone"), ("decisions", "milestone"),
+               ("actions", "use_case"), ("raid", "use_case"), ("decisions", "use_case"))
+
+
+def ref_text(item_id, name):
+    """What a Milestone or Use case cell shows: 'ID: name' (just the ID when there is no name). A very long name is cut with an
+    ellipsis so the cell stays under REF_CELL_LIMIT; the ID is never cut."""
+    name = " ".join(str(name or "").split())
+    if not name:
+        return item_id
+    room = REF_CELL_LIMIT - len(item_id) - 2
+    if len(name) > room:
+        name = name[:max(room - 1, 0)].rstrip() + "\u2026"
+    return f"{item_id}: {name}"
+
+
+def _ref_names(rows_by_table):
+    """{"milestone": {id: 'ID: name'}, "use_case": {id: 'ID: name'}} from the milestone and use case rows."""
+    return {f: {r["id"]: ref_text(r["id"], r.get(nf)) for r in rows_by_table.get(t, [])}
+            for f, (t, nf) in REF_TABLES.items()}
+
+
+def _open_items(rows_by_table):
+    """{(field, id): 'ID, ID'}: the open actions, risks and issues and decisions under each milestone and use case (glance.is_open:
+    status not Closed, Cancelled, Made or Withdrawn), in ID order."""
+    found = {}
+    for table, field in OPEN_TABLES:
+        for r in rows_by_table.get(table, []):
+            if r.get(field) and glance.is_open(r):
+                found.setdefault((field, r[field]), []).append(r["id"])
+    return {k: ", ".join(sorted(v)) for k, v in found.items()}
+
+
 def column_width(table, field):
     """A column's width by its kind: ID 10; the title 40 (48 when it is a long-text column); other long text 48; dates 12;
     flags and numbers 10; the Updated stamp 24 (it is text such as 2030-01-10 09:30:00.000); people, streams and labels 18;
     anything else 12."""
     if field == "id" or field in YES_NO or field in NUMBERS:
         return 10
+    if field in REF_TABLES and table not in ("milestones", "use_cases"):
+        return 40
+    if field == "open_items":
+        return 30
     if field in WIDE:
         return 48
     if field == TITLE_OF.get(table):
@@ -715,7 +755,7 @@ def column_width(table, field):
 
 def wraps(table, field):
     """Whether a column's text wraps: long text and the title column."""
-    return field in WIDE or field == TITLE_OF.get(table)
+    return field in WIDE or field == TITLE_OF.get(table) or field == "open_items"
 
 
 def freeze_cell(table, cols):
@@ -743,8 +783,8 @@ def _project_lists(project, rows_by_table):
     else:
         names = {r.get("name") for r in streams if r.get("name") and not r.get("archived")}
     out = {"workstream": sorted(names, key=lambda n: (n.lower(), n)),
-           "milestone": sorted(r["id"] for r in rows_by_table.get("milestones", [])),
-           "use_case": sorted(r["id"] for r in rows_by_table.get("use_cases", []))}
+           "milestone": [v for _, v in sorted(_ref_names(rows_by_table)["milestone"].items())],
+           "use_case": [v for _, v in sorted(_ref_names(rows_by_table)["use_case"].items())]}
     return {k: [to_cell(k, v) for v in vs] for k, vs in out.items() if vs}
 
 
@@ -890,6 +930,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
     the Cover as the first sheet (#85b); without it the workbook is as it was. `history` (history.view_for_project's result) adds
     the History sheet (#123) after the data sheets and before Lists."""
     lists = _project_lists(project, rows_by_table)
+    names, open_of = _ref_names(rows_by_table), _open_items(rows_by_table)
     ranges = {f: f"{LISTS_NAME}!${get_column_letter(i)}$2:${get_column_letter(i)}${len(vs) + 1}"
               for i, (f, vs) in enumerate(lists.items(), start=1)}
     wb = Workbook()
@@ -907,6 +948,10 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
         for r in rows:
             if table == "milestones":
                 r = {**r, "shown_state": milestone_state(r, on), "original_date": r.get("original_date") or r.get("baseline_date")}
+            if table in ("milestones", "use_cases"):
+                r = {**r, "open_items": open_of.get(("milestone" if table == "milestones" else "use_case", r["id"]))}
+            else:
+                r = {**r, **{f: names[f].get(r.get(f), r.get(f)) for f in REF_TABLES}}
             ws.append([to_cell(f, r.get(f)) for _, f in cols])
             for c in ws[ws.max_row]:
                 c.font = BODY_FONT

@@ -443,6 +443,21 @@ def read_date(value):
     raise ValueError(s)
 
 
+REF_FIELDS = ("milestone", "use_case")
+
+
+def resolve_ref(field, text):
+    """A Milestone or Use case cell as the id it names (item 710). The export writes 'ID: name'; a bare id is also fine. If the
+    text holds ': ' and what comes before the first ': ' is an item id, that is the id (the name after it is only a label, so a
+    renamed milestone still resolves and is no change); otherwise the whole text is the value and the store refuses it as it
+    always did. A name that itself contains ': ' is fine: only the first one counts."""
+    text = text.strip()
+    head, sep, _ = text.partition(": ")
+    if sep and writer.ITEM_ID.fullmatch(head.strip()):
+        return head.strip()
+    return text
+
+
 def from_cell(name, value, kind, label=None):
     """(stored value, None) or (None, why not). A blank cell is (None, None). (creaite excel_sync.from_cell: dates to
     YYYY-MM-DD, Yes/No to 1/0, blank to None; departure: it refuses what it can't read instead of passing it on.) `label` is
@@ -479,6 +494,8 @@ def from_cell(name, value, kind, label=None):
     if isinstance(value, (datetime, date)):
         return None, f"{label} is text, but the cell holds a date ({_got(value)})"
     text = excel.unescape_text(str(cell_text(value)))
+    if name in REF_FIELDS:
+        text = resolve_ref(name, text)
     return (clean_rich(name, text) if name in RICH_FIELDS else text), None      # as typed: no strip (spaces round-trip); undo #37's apostrophe
 
 
