@@ -16,6 +16,7 @@ let loading = null;
 /** Ask the server for the switch (once; a second call while it is out shares the answer). `force` asks again. */
 export function loadAsk(force) {
   if (loading && !force) return loading;
+  if (force) askStatus.value = "loading";      // asked again (Settings opens): the switch reads Checking until the answer, as on a first open, even when the top bar's ask button has already read it
   loading = askEnabledRead().then((r) => {
     const b = r.body;
     if (r.status === 200 && b && b.ok === true && typeof b.ask_enabled === "boolean") {
