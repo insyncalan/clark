@@ -3,7 +3,7 @@
 // Remove demo data, which asks first. Removing reads the project list again and lands on the empty screen when none remain.
 import { useEffect, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
-import { loadProjects, projects, project, openProjectAt } from "../stores/report.js";
+import { loadProjects, projects, project, openProjectAt, leaveProject } from "../stores/report.js";
 import { say, toast, undone } from "../stores/changes.js";
 import { Dialog } from "./Dialog.jsx";
 import { openBox, closeBox } from "./boxes.js";
@@ -37,7 +37,7 @@ export function DemoConfirm({ opener, onClose }) {
     if (r.removed === 0) { setNote(DEMO.none); return; }       // an edit had made every demo project the person's: nothing went, the banner goes, and the box says so (Cancel closes it)
     closeBox();
     await loadProjects();
-    if (!projects.value.some((p) => p.code === project.value)) window.location.hash = "#dashboard";     // the open project went: the empty screen
+    if (!projects.value.some((p) => p.code === project.value)) leaveProject();     // the open project went: the empty screen
   }
   return (
     <Dialog id="demo-confirm" opener={opener} title={DEMO.confirmTitle} onClose={onClose} first="#demo-cancel"

@@ -54,6 +54,16 @@ class DemoLine(unittest.TestCase):
             cdp.js("document.querySelector('#np-empty').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('#project-form')", "the project form")
 
+    def test_removing_the_demo_while_one_of_its_projects_is_open_lands_on_the_empty_screen_through_the_router(self):
+        with chrome() as cdp:
+            sid = navigate(cdp, self.s.port, "#work&p=TUL")
+            self.until(cdp, sid, "!!document.querySelector('#demo-banner')", "the banner")
+            cdp.js("document.querySelector('#demo-remove').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('#demo-go')", "the box")
+            cdp.js("document.querySelector('#demo-go').click()", sid)
+            self.until(cdp, sid, "!document.querySelector('#demo-banner') && document.querySelector('main').innerText.includes('There are no projects yet.')", "the empty screen")
+            self.assertNotIn("p=TUL", cdp.js("location.hash", sid))
+
     def test_a_stale_banner_after_edits_made_elsewhere_says_there_is_nothing_to_remove_and_goes(self):
         with chrome() as cdp:
             sid = navigate(cdp, self.s.port, "#dashboard")
