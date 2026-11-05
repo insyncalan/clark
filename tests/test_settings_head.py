@@ -97,6 +97,21 @@ class Head(Base):
             self.at_top(p, "personal-h")
             self.assertEqual(p.js("getComputedStyle(document.activeElement).outlineWidth"), "2px", "the heading shows the ring after the keyboard")
 
+    def test_C_a_wide_projects_table_scrolls_inside_its_own_box_and_never_makes_the_page_scroll_sideways(self):
+        # row 697: beside the left-hand list the cards have about 600 px at 901 px; the Projects table (about 620 px with a real project's
+        # columns) must scroll in its own box. The table is made wide here with one long unbroken word that cannot wrap, so the test does not depend on the data.
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p, w)
+                p.until("!!document.querySelector('#projects-table')", "the Projects table drew")
+                p.js("(function(){var c = document.querySelector('#projects-table tbody td'); c.textContent = 'W'.repeat(120); c.style.whiteSpace = 'nowrap'; c.style.overflowWrap = 'normal';})()")
+                self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "the page does not scroll sideways")
+                box = p.js("(function(){var b = document.querySelector('.proj-scroll'); return [getComputedStyle(b).overflowX, b.scrollWidth > b.clientWidth, b.getAttribute('tabindex'), b.getAttribute('role')];})()")
+                self.assertEqual(box[0], "auto", "the table has its own scroll box")
+                self.assertTrue(box[1], "and the wide table scrolls inside it")
+                self.assertEqual(box[2:], ["0", "group"], "the box can be reached with the keyboard")
+
     def test_C_the_list_is_at_the_left_above_900_and_a_row_of_chips_at_900_and_narrower(self):
         for w in WIDTHS:
             for mode in MODES:

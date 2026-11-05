@@ -673,6 +673,8 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .projects .proj-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .projects .proj-head h2 { margin: 0; }
 .projects .proj-head .btn[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); border-color: var(--brand-blue); }
+.projects .proj-scroll { max-width: 100%; overflow-x: auto; }   /* row 697: the table is wider than the cards beside the left-hand list at 901 px; it scrolls here, never the page */
+.projects .proj-scroll:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .projects table.proj-table { table-layout: auto; }
 .projects table.proj-table td.acts { text-align: right; white-space: nowrap; }
 .projects table.proj-table td.acts .btn + .btn { margin-left: 8px; }

@@ -83,6 +83,7 @@ export function Projects({ api = REAL }) {
       {state.phase === "failed" ? <p class="error" role="alert">{L.FAILED} <button type="button" class="btn sm" onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
       {state.phase === "ready" && !rows.length ? <p class="muted" id="projects-none">{state.gone.length ? L.ALL_ARCHIVED : L.NONE}</p> : null}
       {rows.length ? (
+        <div class="proj-scroll" tabIndex={0} role="group" aria-label={L.TITLE}>{/* row 697: the table scrolls inside its own box, so the left-hand list never makes the page scroll sideways */}
         <table class="items proj-table" id="projects-table" aria-label={L.TITLE}>
           <thead><tr>{L.COLUMNS.map((c) => <th key={c} scope="col">{c}</th>)}<th scope="col" aria-label="What you can do"></th></tr></thead>
           <tbody>
@@ -108,6 +109,7 @@ export function Projects({ api = REAL }) {
             ))}
           </tbody>
         </table>
+        </div>
       ) : null}
     </section>
   );
