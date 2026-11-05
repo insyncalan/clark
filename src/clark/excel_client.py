@@ -138,6 +138,7 @@ def write_sheet(wb, published, table):
             cell.alignment = Alignment(wrap_text=True, vertical="top")
             if field in DATE_FIELDS:
                 cell.number_format = excel.DATE_FORMAT
+                cell.alignment = Alignment(horizontal="left", wrap_text=True, vertical="top")      # a date is not flush to the next column's text
             excel.protect_text_cell(cell)
     ws.freeze_panes = "A5"
     return ws
