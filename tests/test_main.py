@@ -445,6 +445,19 @@ class InProcess(TempFolder):
                                                   f"Press Ctrl+C to stop.", "Stopped."])      # no project yet: no hash
         self.assertNotIn("report editor", out)
 
+    def test_in_a_container_the_start_line_names_the_published_port(self):
+        """item 652: the container listens on 8766 whatever CLARK_PORT says; the line names the port the person opens."""
+        def line(container, env):
+            with mock.patch.object(launcher.platform, "container_mode", lambda: container), mock.patch.dict("os.environ", env):
+                os.environ.pop("CLARK_PUBLISHED_PORT", None) if "CLARK_PUBLISHED_PORT" not in env else None
+                code, out, err, serve = self.run_main("--port", "8766")
+            return out
+        self.assertIn("Open http://127.0.0.1:8800/ to use clark.", line(True, {"CLARK_PUBLISHED_PORT": "8800"}))
+        for bad in ("", "x", "0", "70000", "-5", "88 00", "9" * 5000, "0" * 5000 + "8800"):
+            self.assertIn("Open http://127.0.0.1:8766/ to use clark.", line(True, {"CLARK_PUBLISHED_PORT": bad}), bad)
+        self.assertIn("Open http://127.0.0.1:8766/ to use clark.", line(True, {}))
+        self.assertIn("Open http://127.0.0.1:8766/ to use clark.", line(False, {"CLARK_PUBLISHED_PORT": "8800"}), "the Mac's line is unchanged")
+
     def stopped_update(self, **marker_changes):
         """A fixture app and data folder with an update's marker in it (nothing swapped yet), changed as asked. (fixture, marker file)"""
         from test_update_helper import Fixture

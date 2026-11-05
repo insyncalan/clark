@@ -28,7 +28,7 @@ SHOWN = """(() => {
   const H = HL, idx = H.buildIndex();
   return { content: H.content, places: H.placeIds(), tabs: Object.fromEntries(H.TABS.map((t) => [t.key, H.tabList(t.key)])),
     index: idx.map((e) => e.id), links: H.linksIn(), keys: H.keysList(false).length, jobs: H.jobs().length,
-    where: { held: H.placeOf("howto-publish-the-report", "reference"), kept: H.placeOf("ref-keys", "start"), heldRef: H.placeOf("ref-peek", "start"), startPart: H.placeOf("start-jobs", "reference") },
+    where: { held: H.placeOf("howto-find-work-items", "reference"), kept: H.placeOf("ref-keys", "start"), heldRef: H.placeOf("ref-peek", "start"), startPart: H.placeOf("start-jobs", "reference") },
     q: Object.fromEntries(["peek", "publish", "keys", "undo", "sneak", "ask clark", "movement", "diagnostics"].map((q) => [q, H.search(idx, q).map((x) => x.id)])) };
 })()"""
 
@@ -118,9 +118,10 @@ class Logic(unittest.TestCase):
 
     def test_how_do_i_lists_every_task_under_its_group(self):
         lst = self.r["lists"]["howto"]
-        self.assertEqual([g["group"] for g in lst], CONTENT["howto"]["groups"])
-        self.assertEqual(sum(len(g["entries"]) for g in lst), len(TASKS))
-        self.assertEqual(sum(len(g["entries"]) for g in lst), 34)   # with the People entry (#454)
+        self.assertEqual([g["group"] for g in lst], CONTENT["howto"]["groups"] + [""])      # the guides: one run with no heading, at the end
+        self.assertEqual(sum(len(g["entries"]) for g in lst[:-1]), len(TASKS))
+        self.assertEqual(sum(len(g["entries"]) for g in lst[:-1]), 35)   # with the People entry (#454) and Run clark with Docker
+        self.assertEqual([e["place"] for e in lst[-1]["entries"]], ["guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-bring-in-an-excel-workbook", "guide-send-the-workbook-out", "guide-publish-to-the-client", "guide-hand-an-item-over", "guide-save-a-view", "guide-see-the-dashboard-as-at-a-day", "guide-back-up-and-restore-your-data"])
         first = lst[0]["entries"][0]
         self.assertEqual(first, {"id": TASKS[0]["id"], "title": TASKS[0]["t"], "place": "howto-" + TASKS[0]["id"]})
 
@@ -131,13 +132,18 @@ class Logic(unittest.TestCase):
         self.assertTrue(all(e["place"].startswith("ref-") for g in lst for e in g["entries"]))
 
     def test_start_here_lists_its_seven_parts_and_an_unknown_tab_lists_nothing(self):
-        parts = [e["place"] for g in self.r["lists"]["start"] for e in g["entries"]]
-        self.assertEqual(parts, ["start-" + p for p in ("top", "loop", "first", "jobs", "where", "rules", "foot")])
+        """The seven parts in order; the jobs part is followed by the group of the five jobs (each opens its how-to entry) and the group of the other how-to entries."""
+        groups = self.r["lists"]["start"]
+        jobs = ["howto-add-a-work-item", "howto-write-the-weekly-report", "guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-publish-to-the-client"]      # three jobs open a guide (#642 guides A and B)
+        self.assertEqual([g["group"] for g in groups], ["Start here", "Start here", "Start here", "Start here", "The five jobs", "Also under How do I...", "Start here", "Start here", "Start here"])
+        self.assertEqual([g["entries"][0]["place"] for g in groups if g["group"] == "Start here"], ["start-" + p for p in ("top", "loop", "first", "jobs", "where", "rules", "foot")])
+        self.assertEqual([e["place"] for e in groups[4]["entries"]], jobs)
+        self.assertEqual(sorted(e["place"] for e in groups[5]["entries"]), sorted("howto-" + x["id"] for x in TASKS if "howto-" + x["id"] not in jobs))      # the how-to entries of the guide jobs are here
         self.assertEqual(self.r["noList"], [])
 
     def test_the_jobs_and_steps_of_start_here(self):
-        self.assertEqual(len(self.r["jobs"]), 12)
-        self.assertTrue(all(j["place"] == "howto-" + j["id"] for j in self.r["jobs"]))
+        self.assertEqual(len(self.r["jobs"]), 5)
+        self.assertTrue(all(j["place"] == ("guide-" if j["id"] in ("add-a-section-from-a-template", "arrange-the-report", "publish-the-report") else "howto-") + ("publish-to-the-client" if j["id"] == "publish-the-report" else j["id"]) for j in self.r["jobs"]))
         self.assertEqual((self.r["first"], self.r["loop"]), (5, 5))
 
     # ---- open Help at a place ----
@@ -164,7 +170,7 @@ class Logic(unittest.TestCase):
     def test_every_place_is_unique_and_the_count_is_right(self):
         p = self.r["places"]
         self.assertEqual(len(p), len(set(p)))
-        self.assertEqual(len(p), 7 + 34 + 35)   # with the People entries (#454)
+        self.assertEqual(len(p), 7 + 35 + 35 + 9)   # with the People entries (#454) and the nine guides (#642 guides A, B and C)
 
     # ---- search ----
     def test_search_finds_every_entry_by_its_title(self):
@@ -235,9 +241,9 @@ class Logic(unittest.TestCase):
         self.assertEqual([g["tab"] for g in v["groups"]], ["howto", "reference", "start"])
         self.assertEqual([g["name"] for g in v["groups"]], ["How do I…", "Reference", "Start here"])
         self.assertEqual(v["count"], sum(len(g["results"]) for g in v["groups"]))
-        self.assertEqual(v["line"], f"{v['count']} results")
+        self.assertEqual(v["line"], f"{v['count']} results for “undo”")
         one = self.r["view"]["keys"]
-        self.assertIn(one["line"], (f"{one['count']} results", "1 result"))
+        self.assertIn(one["line"], (f"{one['count']} results for “keys”", "1 result for “keys”"))
 
     def test_a_part_the_page_fills_in_is_searched_when_the_page_gives_its_lines(self):
         self.assertEqual(self.r["dyn"], ["ref-icons"])
@@ -286,7 +292,7 @@ class Logic(unittest.TestCase):
     # ---- links inside Help ----
     def test_every_link_inside_help_finds_its_place_and_every_screen_exists(self):
         links = self.r["links"]
-        self.assertGreater(len(links["inside"]), 20)
+        self.assertGreater(len(links["inside"]), 17)   # measured 18 on this tree (24 with the prototype's twelve jobs): the measured count less one
         self.assertEqual(sorted(set(links["inside"]) - set(self.r["places"])), [])
         screens = {"dashboard", "dashboard+edit", "work", "milestones", "settings", "publish", "preview", "ask"}
         self.assertEqual(sorted(s for s in links["screens"] if s.split("#")[0] not in screens), [])
@@ -313,31 +319,34 @@ class Shown(unittest.TestCase):
 
     def test_a_held_entry_is_in_no_list_no_place_and_no_search(self):
         s = self.shown
-        SEC = ["howto-set-the-health", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-use-the-board", "howto-arrange-the-report", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-handle-a-slipped-milestone",
+        SEC = ["start-jobs", "howto-write-the-weekly-report", "howto-set-the-health", "howto-publish-the-report", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-add-a-work-item", "howto-use-the-board", "howto-arrange-the-report", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-handle-a-slipped-milestone", "howto-undo-a-mistake", "howto-run-clark-with-docker",
                "ref-profile-circle", "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-freshness", "ref-archive-restore", "ref-at-a-glance", "ref-layouts", "ref-work-items",
                "ref-milestones-page", "ref-status-words", "ref-milestone-states", "ref-published-reports", "ref-diagnostics", "ref-dates-and-ids", "ref-using-help", "ref-keys"]
-        self.assertEqual(s["places"], SEC)
-        self.assertEqual(s["tabs"]["start"], [])
-        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[:10])
+        GUIDES = ["guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-bring-in-an-excel-workbook", "guide-send-the-workbook-out", "guide-publish-to-the-client", "guide-hand-an-item-over", "guide-save-a-view", "guide-see-the-dashboard-as-at-a-day", "guide-back-up-and-restore-your-data"]      # #642 guides A, B and C: after the how-to and reference places
+        self.assertEqual(s["places"], SEC + GUIDES)
+        jobs = [e["place"] for g in s["tabs"]["start"] if g["group"] == "The five jobs" for e in g["entries"]]
+        self.assertEqual(jobs, ["howto-add-a-work-item", "howto-write-the-weekly-report", "guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-publish-to-the-client"], "Start here lists the five jobs, all shown")
+        self.assertTrue(all(p in SEC + GUIDES for p in jobs), "and each is a shown place")
+        self.assertEqual([e["place"] for g in s["tabs"]["howto"] for e in g["entries"]], SEC[1:16] + GUIDES)
         self.assertEqual([e["place"] for g in s["tabs"]["reference"] for e in g["entries"]],
                          ["ref-profile-circle", "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-at-a-glance", "ref-layouts", "ref-work-items", "ref-milestones-page", "ref-freshness", "ref-archive-restore",
                           "ref-status-words", "ref-milestone-states", "ref-published-reports", "ref-diagnostics", "ref-dates-and-ids", "ref-using-help", "ref-keys"])      # by group: Screens, Working with items, Milestones, Publishing, Settings and data, Keys and icons
-        self.assertEqual(s["index"], SEC)
-        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (0, ["ref-section-templates", "ref-needs-from-you", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "ref-status-words", "howto-use-the-board", "howto-handle-a-slipped-milestone", "ref-keys"], ["dashboard+edit", "settings#pubs", "publish", "work", "milestones"]))
+        self.assertEqual(s["index"], SEC + GUIDES)
+        self.assertEqual((s["jobs"], s["links"]["inside"], s["links"]["screens"]), (5, ["howto-set-the-health", "ref-section-templates", "ref-needs-from-you", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "ref-status-words", "howto-use-the-board", "howto-handle-a-slipped-milestone", "howto-add-a-work-item", "howto-write-the-weekly-report", "guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-publish-to-the-client", "howto-undo-a-mistake", "ref-keys"], ["work", "dashboard+edit", "publish", "settings#pubs", "milestones", "dashboard"]))
         self.assertEqual(s["q"]["sneak"], [], "no Sneak peek entry is shown")      # "ask clark" is left out: the board entry says \"clark remembers\", which the search reads as a match
-        self.assertEqual(s["q"]["peek"], ["ref-freshness"], "no peek entry of its own is shown; Freshness says where the peek shows Raised and Last reviewed")
+        self.assertEqual(s["q"]["peek"], ["howto-write-the-weekly-report", "howto-add-a-work-item", "howto-undo-a-mistake", "ref-freshness"], "no peek entry of its own is shown; the weekly report, add a work item and undo entries say where the peek opens, and Freshness where it shows Raised and Last reviewed")
         self.assertEqual(s["q"]["movement"][:2], ["ref-milestones-page", "howto-handle-a-slipped-milestone"], "a search for movement finds the Movement entries")
         self.assertEqual(s["q"]["diagnostics"][0], "ref-diagnostics", "a search for diagnostics finds the Diagnostics entry")
-        self.assertEqual(s["q"]["publish"], ["ref-published-reports", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-freshness", "ref-archive-restore",
+        self.assertEqual(s["q"]["publish"], ["howto-publish-the-report", "guide-publish-to-the-client", "ref-published-reports", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-add-a-work-item", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "guide-arrange-the-report", "guide-send-the-workbook-out", "guide-see-the-dashboard-as-at-a-day", "start-jobs", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-freshness", "ref-archive-restore",
                                              "ref-layouts", "ref-milestones-page", "ref-status-words", "ref-milestone-states"],
                          "the Published reports entries, then the entries that say what is or is not on the published page; only entries about Publish that are shown")
-        self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "ref-section-templates"])
+        self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "guide-add-a-section-from-a-template", "guide-hand-an-item-over", "ref-section-templates"])
 
     def test_opening_help_at_a_held_place_is_an_unknown_place_and_a_shown_one_still_opens(self):
         w = self.shown["where"]
         self.assertEqual(w["held"], {"tab": "howto", "target": None, "known": False})
         self.assertEqual(w["heldRef"], {"tab": "reference", "target": None, "known": False})
-        self.assertEqual(w["startPart"], {"tab": "start", "target": None, "known": False})
+        self.assertEqual(w["startPart"], {"tab": "start", "target": "start-jobs", "known": True}, "the jobs part is shown now")
         self.assertEqual(w["kept"], {"tab": "reference", "target": "ref-keys", "known": True})
 
     def test_the_keys_that_are_shown_are_the_python_copy(self):

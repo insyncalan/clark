@@ -152,6 +152,8 @@ main { max-width: 1280px; margin: 0 auto; padding: 28px 24px 96px; }
 .menu .sep { height: 1px; margin: 4px 0; background: var(--grey-100); }
 .menu .lab { font-size: var(--fs-xs); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: 8px 10px 2px; }
 .menu small { display: block; font-size: 12px; color: var(--text-muted); }
+.menu [role^=menuitem] > span, .menu [role=option] > span { min-width: 0; }   /* #657: a row's hint wraps inside the menu (its width stays the same) */
+.menu small { white-space: normal; overflow-wrap: anywhere; }
 .menu .danger { color: var(--status-red-text); }
 
 /* ── work items: creaite's filter bar ── */

@@ -1,5 +1,5 @@
 """B-4: an Export icon beside Add on Work items, in View mode of the editor only (FR-70: hidden in Edit); the published file has none.
-The icon asks the route that already exists, GET /api/export. There is no Import icon: no Excel import route exists yet.
+The icon asks the route that already exists, GET /api/export. The Import icon (item 454) opens the same box as Settings > Data.
 
 Run: python3 dev/run_tests.py test_work_export_button
 Headless Chrome (required: fails, never skips, without it). Desktop only: 1400 and 900 px, light and dark.
@@ -62,7 +62,8 @@ class ExportButton(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelector('#expBtn').getAttribute('aria-label')", sid), "Export to Excel")
                 self.assertEqual(cdp.js("document.querySelector('#expBtn').getAttribute('data-tip')", sid), "Export to Excel")
                 self.assertEqual(cdp.js("document.querySelectorAll('#newBtn').length", sid), 1, "Add is still there")
-                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn').length", sid), 0, "no Import icon: no route yet")
+                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn').length", sid), 1, "the Import icon is beside Add")
+                self.assertEqual(cdp.js("document.querySelector('#impBtn').getAttribute('data-tip')", sid), "Import from Excel")
                 cdp.js("window.__asked = []; const f = window.fetch; window.fetch = (u, o) => { window.__asked.push(String(u)); return f(u, o); }", sid)
                 cdp.js("document.querySelector('#expBtn').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("window.__asked.some(u => u.startsWith('/api/export?project=ABC'))", sid)), "it asked GET /api/export")
