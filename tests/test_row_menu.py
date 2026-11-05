@@ -307,6 +307,7 @@ class Menu(board.Base):
             self.assertIn("Hide from the client", [e[1] for e in self.entries(cdp, sid)])
             key(cdp, sid, "Escape")
             self.shut(cdp, sid)
+            self.until(cdp, sid, f"document.activeElement.dataset.id === {json.dumps(shown)}", "focus back on the row")
             self.open_menu(cdp, sid, self.TABLE % hidden)
             self.assertIn("Show to the client", [e[1] for e in self.entries(cdp, sid)])
             cdp.js("document.body.insertAdjacentHTML('beforeend', '<div id=away style=\"position:fixed;left:0;top:0;width:30px;height:30px;z-index:60\"></div>')", sid)
@@ -764,6 +765,7 @@ class Menu(board.Base):
             self.until(cdp, sid, "document.querySelector('.de').contains(document.activeElement) && document.activeElement !== document.body", "focus back in the dialog")
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('[data-draft-email]')", "the dialog to close")
+            self.until(cdp, sid, f"document.activeElement.dataset.id === {json.dumps(a)}", "focus back on the row")
 
     def test_the_dialog_closes_when_the_page_changes(self):
         with chrome() as cdp:
@@ -930,6 +932,7 @@ class Menu(board.Base):
             self.wait_toast(cdp, sid, "done")
             self.assertEqual((self.row(a)["status"], self.steps()), ("Delayed", before + 1), "one step")
             self.shut(cdp, sid)
+            self.until(cdp, sid, f"document.activeElement.dataset.id === {json.dumps(a)}", "focus back on the row")
 
     def test_duplicate_of_a_sensitive_item_stays_hidden_from_the_report(self):
         with chrome() as cdp:
