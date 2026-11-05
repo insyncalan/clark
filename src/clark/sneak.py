@@ -20,7 +20,8 @@ from clark.edit_ai import unseen
 TABLES = (("actions", "action"), ("raid", None), ("decisions", "decision"))
 DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 PRIORITIES = {"urgent": "Urgent", "high": "High", "medium": "Medium", "low": "Low"}
-LABELS = {"due_date": "Due", "needed_by": "Needed by", "date": "Date", "owner": "Owner", "priority": "Priority", "status": "Status"}
+LABELS = {"due_date": "Due", "needed_by": "Needed by", "date": "Date", "owner": "Owner", "priority": "Priority", "status": "Status",
+          "forecast_date": "Forecast date", "actual_date": "Achieved date", "headline": "Headline", "commitment": "Commitment"}
 CONFIRM_STATUS = {"Cancelled", "Closed", "Made", "Withdrawn"}          # creaite's list, as far as it applies here (Open 1 on #42)
 MAX_WORDS = 400
 NUMERIC_DATE = re.compile(r"\b(\d{1,2})-(\d{1,2})-(\d{4})\b|\b(\d{4})-(\d{1,2})-(\d{1,2})\b")
@@ -141,6 +142,141 @@ def _owners(data):
     return names
 
 
+# A milestone (its forecast date, achieved date and status) and a use case (its status, headline and commitment) are read by the same
+# rules as a work item: words in, from → to out, nothing written. They are applied through the change route's milestones and
+# use_cases tables (changes.py CHANGE_KINDS), which is why a milestone's owner and agreed date, and a use case's dates, are left out.
+MS_DONE = re.compile(r"\b(done|achieved|complete|completed|finished|reached)\b", re.I)
+MS_PLANNED = re.compile(r"\b(reopen|re-open|open again|planned)\b", re.I)
+MS_CANCEL = re.compile(r"\bcancel\w*\b", re.I)
+MS_AGREED = re.compile(r"\b(agreed|baseline)\b", re.I)
+MS_NO_AGREED = "The agreed date isn't changed here. Moving it needs who agreed it, why and where. Nothing was changed."
+MS_NO_CANCEL = "A milestone can't be cancelled from here. Nothing was changed."
+MS_FUTURE = "The achieved date can't be after today, so nothing was changed."
+MS_NOTHING = ("I couldn't find a change in that. Here I can change a milestone's forecast date, its achieved date and its status. "
+              "Try, for example, “forecast Friday” or “done”.")
+UC_NOTHING = ("I couldn't find a change in that. Here I can change a use case's status, headline and commitment. "
+              "Try, for example, “high risk” or “headline: waiting on the vendor”.")
+UC_STATUSES = (("On track", re.compile(r"\bon\s+track\b", re.I)), ("High risk", re.compile(r"\bhigh\s+risk\b", re.I)),
+               ("Flag", re.compile(r"\bflag(?:ged)?\b", re.I)), ("Done", re.compile(r"\b(done|complete|completed|finished)\b", re.I)))
+UC_COMMITMENTS = (("Planned 2027", re.compile(r"\bplanned\s+2027\b", re.I)), ("Candidate", re.compile(r"\bcandidate\b", re.I)),
+                  ("Committed", re.compile(r"\bcommitted\b", re.I)))
+UC_CLEAR = re.compile(r"\b(?:no|remove\s+the|clear\s+the)\s+commitment\b", re.I)
+UC_HEADLINE = re.compile(r"\bheadline\b(?:\s+(?:is|to))?\s*[:=]?\s*(.*)$", re.I | re.S)
+UC_HEADLINE_MAX = 300
+UC_BAD_HEADLINE = "The headline needs words, up to 300 characters, so nothing was changed. Type it after “headline:”."
+UC_UNSURE = "I can't tell which one you mean, so nothing was changed. Say one status and one commitment, without “not”."
+UC_LEFT_OUT = "A use case has no due date, owner or priority here, so that part was left out."
+MS_OWNER_OUT = "A milestone's owner isn't changed here, so that part was left out."
+MS_PRIORITY_OUT = "A milestone has no priority, so that part was left out."
+PRIORITY = re.compile(r"\b(urgent|high|medium|low)\s+priority\b|\bpriority\s+(?:is\s+|to\s+)?(urgent|high|medium|low)\b", re.I)
+
+
+def _line(text):
+    """A typed one-line text with every character a reader cannot see gone, spaces made single, and quotes around it taken off."""
+    kept = "".join(c for c in unseen(text) if unicodedata.category(c) not in ("Cc", "Cf", "Zl", "Zp"))
+    return " ".join(kept.split()).strip(" \"'“”‘’")
+
+
+def _result(row, item_id, table, specs, notes, same, nothing):
+    """Turn [(field, new, to_text, confirm)] into the reading, or the plain words when nothing changes."""
+    changes = []
+    for field, new, text, confirm in specs:
+        old = row.get(field)
+        if new == old:
+            same.append(f"The {LABELS[field].lower()} is already {text}.")
+            continue
+        changes.append({"field": field, "label": LABELS[field], "from": old, "to": new,
+                        "from_text": _dmy(old) if field.endswith("_date") else (old or "—"), "to_text": text,
+                        "confirm": confirm, "new_name": False})
+    if not changes:
+        return {"ok": False, "message": " ".join(notes + same + ([] if notes or same else [nothing]))}
+    return {"ok": True, "id": item_id, "table": table, "changes": changes, "confirm": any(c["confirm"] for c in changes), "note": " ".join(notes)}
+
+
+def _read_milestone(data, row, item_id, words, now, known_owners=None):
+    """A milestone's forecast date, achieved date and status. Its owner and agreed date are not changed here (the change route does
+    not take the owner, and the agreed date moves only with who agreed it, why and where)."""
+    if MS_CANCEL.search(words):
+        return {"ok": False, "message": MS_NO_CANCEL}
+    m = OWNER.search(words)
+    rest = (words[:m.start()] + " " + words[m.end():]) if m else words
+    found, bad = dates_in(rest, now)
+    if bad:
+        return {"ok": False, "message": BAD_DATE}
+    if any(not 2000 <= d.year <= 2100 for d in found):
+        return {"ok": False, "message": "That year looks wrong, so nothing was changed. Type a year between 2000 and 2100."}
+    if len(set(found)) > 1:
+        return {"ok": False, "message": TWO_DATES}
+    if found and MS_AGREED.search(rest):
+        return {"ok": False, "message": MS_NO_AGREED}
+    done, planned = bool(MS_DONE.search(rest)), bool(MS_PLANNED.search(rest))
+    if (done and planned) or ((done or planned) and NEGATION.search(rest.replace("’", "'"))):
+        return {"ok": False, "message": UNSURE_STATUS}
+    status = "Done" if done else ("Planned" if planned else None)
+    now_status = status or row.get("status") or "Planned"
+    notes, same, specs = [], [], []
+    if found:
+        when = found[0]
+        text = _dmy(when.isoformat())
+        if now_status == "Done":
+            if when > now:
+                return {"ok": False, "message": MS_FUTURE}
+            specs.append(("actual_date", when.isoformat(), text, False))
+        else:
+            specs.append(("forecast_date", when.isoformat(), text, False))
+            if when < now:
+                notes.append(f"{text} is in the past.")
+        if re.search(r"\b(today|yesterday|tomorrow|" + "|".join(DAYS) + r")\b", NUMERIC_DATE.sub(" ", rest.lower())):
+            notes.append(f"Read as {text}.")
+    if m:
+        notes.append(MS_OWNER_OUT)
+    if PRIORITY.search(rest):
+        notes.append(MS_PRIORITY_OUT)
+    if status:
+        specs.append(("status", status, status, status == "Done"))
+    if DELETE.search(rest) and not specs:
+        return {"ok": False, "message": NO_DELETE}
+    if ARCHIVE.search(rest) and not specs:
+        return {"ok": False, "message": NO_ARCHIVE}
+    return _result(row, item_id, "milestones", specs, notes, same, MS_NOTHING)
+
+
+def _read_use_case(row, item_id, words, now):
+    """A use case's status, headline and commitment. The headline is everything after the word "headline" (so its own words are
+    never read as a status)."""
+    h = UC_HEADLINE.search(words)
+    rest = words[:h.start()] if h else words
+    notes, same, specs = [], [], []
+    got = [name for name, rx in UC_STATUSES if rx.search(rest)]
+    if "Flag" in got and "High risk" in got:
+        got.remove("Flag")
+    if len(got) > 1 or (got and NEGATION.search(rest.replace("’", "'"))):
+        return {"ok": False, "message": UNSURE_STATUS}
+    commits = [name for name, rx in UC_COMMITMENTS if rx.search(rest)]
+    clear = bool(UC_CLEAR.search(rest))
+    if len(commits) > 1 or (commits and clear):
+        return {"ok": False, "message": UC_UNSURE}
+    if h:
+        headline = _line(h.group(1))
+        if not headline or len(headline) > UC_HEADLINE_MAX:
+            return {"ok": False, "message": UC_BAD_HEADLINE}
+        specs.append(("headline", headline, headline, False))
+    if got:
+        specs.append(("status", got[0], got[0], got[0] == "Done"))
+    if commits:
+        specs.append(("commitment", commits[0], commits[0], False))
+    elif clear:
+        specs.append(("commitment", None, "None", False))
+    found, bad = dates_in(rest, now)
+    if bad:
+        return {"ok": False, "message": BAD_DATE}
+    if found or OWNER.search(rest) or PRIORITY.search(rest):
+        notes.append(UC_LEFT_OUT)
+    if (DELETE.search(rest) or ARCHIVE.search(rest)) and not specs:
+        return {"ok": False, "message": NO_DELETE if DELETE.search(rest) else NO_ARCHIVE}
+    return _result(row, item_id, "use_cases", specs, notes, same, UC_NOTHING)
+
+
 def read(data, item_id, words, now=None, known_owners=None):
     """Read `words` about one item. Returns {"ok": True, "id", "changes": [{field, label, from, to, from_text, to_text, confirm,
     new_name}], "confirm": bool, "note": text} or {"ok": False, "message": plain words}. Nothing is written."""
@@ -152,8 +288,12 @@ def read(data, item_id, words, now=None, known_owners=None):
     data = data if isinstance(data, dict) else {}
     kind, row = find_item(data, item_id)
     if row is None:
-        if any(isinstance(m, dict) and m.get("id") == item_id for m in data.get("milestones") or []):
-            return {"ok": False, "message": MILESTONE}
+        ms = next((m for m in data.get("milestones") or [] if isinstance(m, dict) and m.get("id") == item_id), None)
+        if ms is not None:
+            return _read_milestone(data, ms, item_id, words, now, known_owners)
+        uc = next((u for u in data.get("use_cases") or [] if isinstance(u, dict) and u.get("id") == item_id), None)
+        if uc is not None:
+            return _read_use_case(uc, item_id, words, now)
         return {"ok": False, "message": "That item isn't in this project any more. Reload the page."}
     changes, notes, same = [], [], []
 

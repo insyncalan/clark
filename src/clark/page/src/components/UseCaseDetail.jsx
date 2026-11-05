@@ -19,6 +19,8 @@ import { initial, setFilter } from "../filters.js";
 import { refOf } from "../logic/useCasesList.js";
 import { CommitChip } from "./CommitChip.jsx";
 import { CommitMenu } from "../edit/CommitMenu.jsx";
+import { SneakPeek, SneakButton } from "../edit/SneakPeek.jsx";
+import { wordsOpen } from "../stores/wordsState.js";
 
 const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -148,6 +150,22 @@ export function UseCaseDetail({ id }) {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
+  // Sneak peek (#728), Edit only, on a live use case: two slashes outside a field open the words box, Esc closes it before it leaves the page.
+  const words = editing && !!live;
+  useEffect(() => {
+    if (!words) return undefined;
+    let last = 0;
+    const onKey = (e) => {
+      if (e.defaultPrevented || e.isComposing) return;
+      if (e.key === "Escape") { if (wordsOpen.value) { e.preventDefault(); e.stopImmediatePropagation(); wordsOpen.value = false; } return; }
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !busy(e.target)) {
+        if (last && performance.now() - last < 1000) { e.preventDefault(); last = 0; wordsOpen.value = true; } else last = performance.now() || 1;
+      } else if (e.key !== "Shift") last = 0;
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => { document.removeEventListener("keydown", onKey, true); wordsOpen.value = false; };
+  }, [words, id]);
+
   const u = live || gone.row || (mine ? snap.current : null);
   const listAt = `#usecases&p=${code}`;
   const crumb = (label) => (
@@ -198,6 +216,7 @@ export function UseCaseDetail({ id }) {
         </div>
         {!ro ? (
           <div class="ucd-acts">
+            <SneakButton />
             <Menu label="Change status" ariaLabel="Change status" menuLabel="Status" id="ucd-status" btnCls="btn" left
               items={STATUSES.map(([name]) => ({ id: name, name, checked: u.status === name }))}
               onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
@@ -206,6 +225,7 @@ export function UseCaseDetail({ id }) {
           </div>
         ) : null}
       </div>
+      {words && wordsOpen.value ? <SneakPeek key={u.id} row={u} /> : null}
       {archived ? (
         <div class="ucd-note" data-archived-note>
           <p>This use case is archived, so it is read-only. It is out of the lists, the counts and the dashboard. Nothing in it was deleted.</p>
