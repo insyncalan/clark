@@ -56,7 +56,7 @@ TILES = [
     {"tile": "risks", "title": "High risks and issues", "value": 1, "detail": "of 4 open", "hidden": False},
     {"tile": "decisions", "title": "CANARY-HIDDEN-TILE", "value": 9, "detail": "", "hidden": True},
 ]
-STAMP = "Exported on 01-06-2030 at 20:30 (UTC+04:00)"
+STAMP = "01-06-2030 20:30 (UTC+04:00)"
 
 
 def build(**kw):
@@ -94,7 +94,7 @@ class TheLines(unittest.TestCase):
         i = [x["kind"] for x in got].index("about")
         self.assertEqual([x["kind"] for x in got][i:], ["about", "exported", "caution", "return", "where", "ids"])
         self.assertEqual(got[i]["text"], "About this export")
-        self.assertEqual(got[i + 1]["text"], "Exported on 01-06-2030 at 20:30 (UTC+04:00) by Sam Example")
+        self.assertEqual(got[i + 1]["text"], "01-06-2030 20:30 (UTC+04:00) by Sam Example")
         self.assertEqual(got[-1]["kind"], "ids", "the red Internal line is gone from the bottom: the title tag says it")
         self.assertNotIn("never share this with a client", "\n".join(texts(got)))
 
@@ -393,7 +393,7 @@ class InTheWorkbook(unittest.TestCase):
     def test_the_stamp_row_is_labelled_exported(self):
         ws = self.cover_sheet()
         (cell,) = [c for row in ws.iter_rows() for c in row if c.value == "Exported"]
-        self.assertTrue(ws.cell(row=cell.row, column=4).value.startswith("Exported on "))
+        self.assertTrue(ws.cell(row=cell.row, column=4).value.endswith(" by Sam Example"))
 
     def test_a_long_text_gets_a_taller_row_than_a_short_one(self):
         con = sqlite3.connect(self.s.path)
@@ -434,9 +434,9 @@ class InTheWorkbook(unittest.TestCase):
         text = self.cover_cells()
         self.assertIn("Example Programme", text)
         self.assertFalse(any(c.startswith("INTERNAL:") for c in text))
-        stamp = [c for c in text if c.startswith("Exported on ")]
+        stamp = [c for c in text if c.endswith(" by Sam Example")]
         self.assertEqual(len(stamp), 1)
-        self.assertRegex(stamp[0], r"^Exported on \d{2}-\d{2}-\d{4} at ([01]\d|2[0-3]):[0-5]\d \(UTC[+-]\d{2}:\d{2}\) by Sam Example$")
+        self.assertRegex(stamp[0], r"^\d{2}-\d{2}-\d{4} ([01]\d|2[0-3]):[0-5]\d \(UTC[+-]\d{2}:\d{2}\) by Sam Example$")
         self.assertIn(cover.CAUTION, text)
         self.assertTrue(any("Kim Example (kim.example@example.com)" in c for c in text))
         self.assertIn("On course.", text)
