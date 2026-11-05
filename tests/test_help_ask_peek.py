@@ -56,17 +56,20 @@ class HelpAskAndSneakPeek(unittest.TestCase):
                          "no other Help text carries top-bar ask words")
         self.assertNotRegex(" ".join(ALL), r"(?i)ask button|top-bar button|ask icon")
 
-    def test_sneak_peek_is_work_items_only(self):
-        self.assertNotRegex(SNEAK, r"(?i)milestone|use case|For a milestone|forecast 12|progress 40|achieved")
-        self.assertIn("work items only", entry("reference", "sneak-peek"))
-        self.assertIn("in Edit", entry("reference", "sneak-peek"))
+    def test_sneak_peek_says_what_it_can_change_and_that_it_is_edit_only(self):
+        self.assertNotRegex(SNEAK, r"(?i)progress 40|For a milestone|forecast 12")
+        e = entry("reference", "sneak-peek")
+        self.assertIn("a work item", e)
+        self.assertIn("a milestone or a use case", e)
+        self.assertIn("in Edit only", e)
+        self.assertIn("Not its owner or its agreed date", e)
 
     def test_no_up_key_recall(self):
         self.assertNotRegex(SNEAK + json.dumps(RAW["reference"]["keys"]), r"(?i)last instruction|\[\[Up\]\] brings back|empty (Sneak peek )?box|Sneak peek box")
         self.assertNotIn("[[Up]]", [k for k, d in RAW["reference"]["keys"] if "Sneak" in d])
 
     def test_no_fields_the_code_does_not_read(self):
-        for bad in ("show to client", "hide from client", "rename to", "use case 3.1", "update: …", "red · amber · green", "Make the change", "Not now", "next week", "agreed"):
+        for bad in ("show to client", "hide from client", "rename to", "use case 3.1", "update: …", "red · amber · green", "Make the change", "Not now", "next week"):
             self.assertNotIn(bad, SNEAK)
 
     def test_ask_clark_is_not_off_until_switched_on(self):

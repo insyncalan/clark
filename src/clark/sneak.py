@@ -45,7 +45,7 @@ BAD_YEAR = "That year looks wrong, so nothing was changed. Type a year between 2
 WORDS = {
     "hidden": "That {what} is hidden from the client (its eye is off), so nothing was changed. Turn its eye on first.",
     "nothing_milestone": "I couldn't find a change in that. Here I can change a milestone's forecast date, achieved date and status. "
-                         "Try, for example, “forecast Friday” or “achieved on 30-10-2026”.",
+                         "Try, for example, “forecast Friday” or “achieved yesterday”.",
     "nothing_use_case": "I couldn't find a change in that. Here I can change a use case's status, headline and commitment. "
                         "Try, for example, “flag, committed” or “headline: Go-live is on plan”.",
     "agreed_date": "Moving the agreed date needs who agreed it and why, so it can't be done here. Nothing was changed.",

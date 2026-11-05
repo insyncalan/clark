@@ -560,7 +560,7 @@ class Browser(unittest.TestCase):
             key(cdp, sid, "/")
             key(cdp, sid, "/")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak] .sn-in')", sid)), "two slashes open the box")
-            self.assertEqual(cdp.js("document.querySelector('.sn-in').placeholder", sid), "forecast Friday, achieved on 30-10-2026")
+            self.assertEqual(cdp.js("document.querySelector('.sn-in').placeholder", sid), "forecast Friday, achieved yesterday")
             cdp.js("(() => { const i = document.querySelector('.sn-in'); i.value = 'forecast 05-01-2030'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.sn-list li').length", sid) == 1))
             key(cdp, sid, "Enter")
@@ -569,6 +569,24 @@ class Browser(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)), "the toast offers Undo")
             cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
             self.assertTrue(wait(lambda: self.store.read("milestones", ref=ms)["forecast_date"] != "2030-01-05"))
+
+    def test_a_milestone_marked_done_asks_first_and_Enter_alone_changes_nothing(self):
+        """Achieved is decision-like: the line asks, Enter alone applies nothing, Confirm and apply makes one change."""
+        ms = next(m["id"] for m in self.data["milestones"] if m["status"] == "Planned" and m["id"] not in self.data.get("report_hidden", []))
+        with chrome() as cdp:
+            s, sid = self.load_page(cdp, 1400)
+            self.edit_mode(cdp, sid)
+            cdp.js(f"clarkPage.openPeek({json.dumps(ms)}, 'milestone')", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-sneak-open]')", sid)))
+            cdp.js("document.querySelector('#peek [data-sneak-open]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak] .sn-in')", sid)))
+            cdp.js("(() => { const i = document.querySelector('.sn-in'); i.value = 'done'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak-confirm]')", sid)), "Done asks first")
+            key(cdp, sid, "Enter")
+            time.sleep(0.5)
+            self.assertEqual(self.store.read("milestones", ref=ms)["status"], "Planned", "Enter alone changes nothing")
+            cdp.js("document.querySelector('[data-sneak-confirm-btn]').click()", sid)
+            self.assertTrue(wait(lambda: self.store.read("milestones", ref=ms)["status"] != "Planned"))
 
     def test_a_click_draws_the_peek_within_150_ms_measured_in_the_page(self):
         """The 150 ms open time (#42), measured: from the double-click event to the peek in the DOM, by the page's own clock. The best of
