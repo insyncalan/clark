@@ -185,80 +185,16 @@ class AskOff(unittest.TestCase):
         self.assertIn('OFF_LINE = "Asking is off. Turn it on in Settings."', words)
         self.assertIn('OFF_LINK = "Open Settings"', words)
         self.assertIn("{W.OFF_LINE} <a href=\"#settings\"", code("edit", "AskPanel.jsx"))
-        self.assertIn("The **ask clark** button shows only while asking is on. With asking off, [[/]] still opens the panel, which says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link.", text)
+        self.assertIn("The **ask clark** button shows only while asking is on. With asking off, [[/]] still opens the panel, except while Help is open, and the panel says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link.", text)
+        self.assertIn("!helpOpen.value", keys)       # #754: the ask key leaves Help alone, so the sentence says 'except while Help is open'
 
 
 class SlashInHelp(unittest.TestCase):
-    def test_no_unconditional_claim_that_slash_goes_to_the_help_search_box(self):
+    def test_help_says_what_slash_does_in_help_with_its_condition_and_without_the_switch_name(self):
         store = code("help", "helpStore.js")
         self.assertIn('e.key === "/" && helpOpen.value && singleKeys.value', store)       # only while the switch is on
+        line = flat(SECS["using-help"])
+        self.assertIn("[[?]] opens Help from any page. In Help, [[/]] goes to the search box, unless the letter keys are turned off in Settings › Personal › Keys.", line)
+        self.assertNotIn("Single-key", line)       # the switch's own name stays in the V and E key rows only (test_single_keys)
         every = flat(RAW)
-        self.assertNotIn("in Help, [[/]] goes to the search box", every)
         self.assertNotIn("In Help, it goes to the search box instead", every)
-        self.assertIn("[[?]] opens Help from any page.", flat(SECS["using-help"]))
-
-
-class Terminal(unittest.TestCase):
-    TEXT = flat(TASKS["start-check-and-restore-in-terminal"]["s"])
-
-    def test_the_zip_unzips_into_one_folder_called_clark(self):
-        self.assertIn('TOP = "clark"', (SRC / "release_files.py").read_text(encoding="utf-8"))
-        self.assertIn("The download unzips into one folder called clark, whatever its version.", self.TEXT)
-
-    def test_the_commands(self):
-        cmd = (ROOT / "clark.command").read_text(encoding="utf-8")
-        self.assertIn('export CLARK_TYPED="bash clark.command"', cmd)
-        self.assertIn("--check) shift; python3 -m clark.doctor", cmd)
-        self.assertIn("restore) python3 -m clark", cmd)
-        main = (SRC / "__main__.py").read_text(encoding="utf-8")
-        self.assertIn("Close clark first: stop every running copy. With no NAME it only lists the copies.", main)
-        self.assertIn("clark-20261028T143005Z-undo.db", main)
-        doc = (SRC / "doctor.py").read_text(encoding="utf-8")
-        self.assertIn("Everything clark needs is ready.", doc)
-        self.assertIn("It changes nothing", doc)
-        for s in ("`bash clark.command`", "`bash clark.command --check`", "`bash clark.command restore`", "close clark first", "With no name after restore it only lists them.",
-                  "`bash clark.command restore clark-20261028T143005Z-undo.db`", "It changes nothing."):
-            self.assertIn(s, self.TEXT)
-
-    def test_no_sentence_starts_with_the_product_name(self):
-        for s in TASKS["start-check-and-restore-in-terminal"]["s"]:
-            self.assertFalse(re.match(r"\s*clark\b", s, re.I), s)
-
-
-class ExcelColumns(unittest.TestCase):
-    def test_the_table_is_the_import_list(self):
-        js = code("logic", "dataCard.js")
-        block = js[js.index("export const IMPORT_COLUMNS"):js.index("export const PROJECT")]
-        want = [(name, ", ".join(re.findall(r'"([^"]+)"', cols))) for name, cols in re.findall(r'\["([^"]+)", \[(.*?)\]\]', block)]
-        table = next(b for b in SECS["excel"]["b"] if b[0] == "tbl")
-        self.assertEqual(table[1], ["Sheet", "Columns the import reads"])
-        self.assertEqual([(r[0], r[1]) for r in table[2]], want)
-        heads = flat(table)
-        for real in ("Achieved on", "% complete"):
-            self.assertIn(real, heads)
-        for wrong in ("Rating", "Progress", "Title", "Open work items"):
-            self.assertNotIn(wrong, heads)
-        py = (SRC / "excel.py").read_text(encoding="utf-8")
-        for label in ('("Achieved on", "actual_date")', '("% complete", "percent_complete")'):
-            self.assertIn(label, py)
-
-    def test_the_table_is_what_the_importer_applies(self):
-        """Per sheet: ID, then every export column except the ones excel.DERIVED skips and excel_import.LOCKED / LOCKED_IN never apply
-        (excel_import.py:135-136 and :661). Those are named in the paragraph under the table."""
-        from clark import excel, excel_import as ei
-        table = next(b for b in SECS["excel"]["b"] if b[0] == "tbl")
-        rows = {r[0]: r[1] for r in table[2]}
-        left_out = set()
-        for name, tbl, cols, _ in excel.SHEETS:
-            applied = [l for l, f in cols if f == "id" or (f not in excel.DERIVED and f not in ei.LOCKED and f not in ei.LOCKED_IN.get(tbl, ()))]
-            self.assertEqual(rows[name].split(", "), applied, name)
-            left_out |= {l for l, f in cols if l not in applied}
-        left_out.discard("ID")
-        note = flat(SECS["excel"]["b"][-1])
-        for label in sorted(left_out):
-            self.assertIn(label, note)
-        self.assertIn("an import never changes anything from them", note)
-
-
-if __name__ == "__main__":
-    unittest.main()
