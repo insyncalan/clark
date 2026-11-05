@@ -11,7 +11,9 @@ import unittest
 
 import _paths  # noqa: F401
 from openpyxl import load_workbook
-from test_excel_route import Base, encoded
+from pathlib import Path
+from _demo import USER as excel_route_user_const
+from test_excel_route import Base, encoded, ON as ON_DAY
 from clark import excel_import, excel_route
 
 TABLES = excel_import.CHOICE_ORDER
@@ -255,6 +257,108 @@ class Speed(Sheets):
         slow = time.perf_counter() - t
         self.assertEqual(big["counts"]["new"], 901)
         self.assertLess(quick, slow)
+
+
+class Hidden(Base):
+    """Issue 723: a hidden (or very hidden) data sheet is not listed, not read and behaves as an unticked sheet; clark's own hidden Lists sheet is still ignored."""
+    def setUp(self):
+        super().setUp()
+        with self.store.step("dashboard", excel_route_user_const) as st:
+            self.d1 = st.create("decisions", {"project": "ABC", "decision": "Use the shared drive", "date": "2026-10-02", "status": "Made", "source": "demo"})
+        fresh = self.tmp / "again" / "ABC work items.xlsx"          # a new export, now with a decision in it
+        fresh.parent.mkdir()
+        made = excel_import.excel.export_project(self.store, "ABC", fresh, self.tmp / "state2.json", on=ON_DAY)
+        record = excel_import.excel.load_state(self.tmp / "state2.json", made)
+        excel_import.excel.save_state(Path(self.store.path).parent / excel_import.excel.STATE_FILE,
+                                      excel_import.excel.id_key("ABC", record["export_id"]), record)
+        self.path.write_bytes(fresh.read_bytes())
+
+    def hide(self, state="hidden", sheet="Decisions", rows=True):
+        """Hide `sheet`; its stored decision row is deleted from it (so a read would offer it for archiving), a new row added, and a
+        broken one."""
+        wb = load_workbook(str(self.path))
+        ws = wb[sheet]
+        if rows:
+            ws.delete_rows(2, ws.max_row)
+            add_row(ws, "decisions", "A hidden new decision")
+            add_row(ws, "decisions", "A hidden broken decision", Status="Not a status")
+        ws.sheet_state = state
+        wb["Actions"].cell(2, {c.value: c.column for c in wb["Actions"][1]}["Description"]).value = "Draft the cut-over plan, version two"   # something visible to apply
+        wb.save(str(self.path))
+
+    def sheets(self):
+        return self.post(op="sheets", project="ABC", name="ABC work items.xlsx", data=encoded(self.path))
+
+    def decisions(self):
+        return [(r["id"], r["decision"], r["archived"]) for r in self.store.read("decisions", project="ABC")]
+
+    def test_a_hidden_sheet_is_not_listed_and_is_not_read_and_nothing_of_it_is_archived(self):
+        self.hide()
+        before = self.decisions()
+        status, got = self.sheets()
+        self.assertEqual([s["table"] for s in got["sheets"]], ["actions", "raid", "milestones", "use_cases"])
+        status, got = self.post(op="check", project="ABC", file=got["file"], sheets=["actions", "decisions"])
+        self.assertEqual((status, got["refused"], got["problems"]), (200, [], []), "its broken row blocks nothing")
+        self.assertEqual(got["counts"]["removed"], 0)
+        self.assertNotIn("decisions", {i["table"] for i in got["items"]})
+        self.assertNotIn("hidden", json.dumps(got))
+        self.assertEqual(self.post(op="apply", project="ABC", plan=got["plan"], accept="all", confirm=True)[0], 200)
+        self.assertEqual(self.decisions(), before, "no decision added, updated or archived")
+        self.assertEqual([d[1] for d in before], ["Use the shared drive"])
+
+    def test_a_very_hidden_sheet_is_the_same(self):
+        self.hide("veryHidden")
+        status, got = self.sheets()
+        self.assertNotIn("decisions", [s["table"] for s in got["sheets"]])
+        before = self.decisions()
+        status, got = self.post(op="check", project="ABC", file=got["file"], sheets=["decisions", "actions"])
+        self.assertEqual((got["refused"], got["counts"]["removed"]), ([], 0))
+        self.assertEqual(self.post(op="apply", project="ABC", plan=got["plan"], accept="all", confirm=True)[0], 200)
+        self.assertEqual(self.decisions(), before)
+
+    def test_the_check_with_sheets_omitted_does_not_read_a_hidden_sheet_either(self):
+        self.hide()
+        before = self.decisions()
+        status, got = self.check()
+        self.assertEqual((status, got["refused"], got["problems"], got["counts"]["removed"]), (200, [], [], 0))
+        self.assertNotIn("decisions", {i["table"] for i in got["items"]})
+        self.assertEqual(self.post(op="apply", project="ABC", plan=got["plan"], accept="all", confirm=True)[0], 200)
+        self.assertEqual(self.decisions(), before)
+        status, again = self.check()
+        self.assertFalse(again["already_imported"], "the file is not marked as imported as a whole: a sheet was left out")
+
+    def test_a_hidden_sheet_that_holds_the_only_data_leaves_nothing_to_compare(self):
+        wb = load_workbook(str(self.path))
+        for name in list(wb.sheetnames):
+            if name != "Decisions" and name != "Lists" and name != "History":
+                del wb[name]
+        wb["Decisions"].sheet_state = "hidden"
+        wb.save(str(self.path))
+        status, got = self.sheets()
+        self.assertEqual((status, got["sheets"]), (200, []))
+        before = self.decisions()
+        status, got = self.check()
+        self.assertEqual(got["items"], [])
+        self.assertIn("nothing to compare", json.dumps(got))
+        self.assertEqual(self.decisions(), before)
+
+    def test_the_hidden_lists_sheet_is_still_ignored_and_a_visible_decisions_sheet_is_read(self):
+        wb = load_workbook(str(self.path))
+        self.assertEqual(wb["Lists"].sheet_state, "hidden")
+        status, got = self.sheets()
+        self.assertEqual([s["table"] for s in got["sheets"]], ["actions", "raid", "decisions", "milestones", "use_cases"])
+        status, got = self.check()
+        self.assertEqual((status, got["refused"]), (200, []))
+
+    def test_a_hidden_duplicate_of_a_visible_sheet_is_not_a_second_sheet(self):
+        wb = load_workbook(str(self.path))
+        copy = wb.copy_worksheet(wb["Decisions"])
+        copy.title = "Decisions "
+        copy.sheet_state = "hidden"
+        wb.save(str(self.path))
+        status, got = self.sheets()
+        self.assertEqual(status, 200, got)
+        self.assertIn("decisions", [s["table"] for s in got["sheets"]])
 
 
 class Followups(Base):

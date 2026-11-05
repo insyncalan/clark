@@ -930,6 +930,11 @@ class _Reader:
 CHOICE_ORDER = ("actions", "raid", "decisions", "milestones", "use_cases")     # the order the person is offered the sheets in (#655)
 
 
+def _hidden(ws):
+    """A sheet that is hidden or very hidden in Excel (clark's own Lists sheet is one): it is not listed, not read, and behaves as a sheet left unticked (issue 723)."""
+    return getattr(ws, "sheet_state", "visible") != "visible"
+
+
 def list_sheets(path):
     """The sheets of the workbook at `path` that clark imports, for the person to choose from (#655): [{"table", "name", "rows"}] in
     CHOICE_ORDER, "rows" being the rows below the header with something in them. A sheet the file does not have is not listed; a
@@ -949,7 +954,7 @@ def list_sheets(path):
         found = {}
         for ws in wb.worksheets:
             table = SHEET_TABLES.get(re.sub(r"[\s_]+", " ", ws.title.strip().lower()))
-            if table is None:
+            if table is None or _hidden(ws):
                 continue
             if table in found:
                 raise Invalid(f"The workbook has two sheets for the same thing: “{found[table][0]}” and “{ws.title}”. Keep one of them and "
@@ -1026,7 +1031,7 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
         found, to_read, area = set(), [], 0
         for ws in wb.worksheets:
             table = SHEET_TABLES.get(re.sub(r"[\s_]+", " ", ws.title.strip().lower()))
-            if table is None or (sheets is not None and table not in sheets):
+            if table is None or _hidden(ws) or (sheets is not None and table not in sheets):
                 continue
             if table in found:
                 first = next(w.title for w, t in to_read if t == table)
@@ -1047,8 +1052,9 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
                           "clark will import in one go. Check this is the right file. Nothing was changed.")
         for ws, table in to_read:
             rd.sheet(ws, table)
-        rd.plan.partial = sheets is not None and any(
-            SHEET_TABLES.get(re.sub(r"[\s_]+", " ", w.title.strip().lower())) not in (None, *sheets) for w in wb.worksheets)
+        rd.plan.partial = any(                      # a hidden data sheet is never read, so it is left out like an unticked one (issue 723)
+            t is not None and (_hidden(w) or (sheets is not None and t not in sheets))
+            for w, t in ((w, SHEET_TABLES.get(re.sub(r"[\s_]+", " ", w.title.strip().lower()))) for w in wb.worksheets))
         if not found:
             rd.problem("The workbook has none of the sheets Actions, Risks & Issues, Decisions, Milestones or Use cases, so there is "
                        "nothing to compare.")
