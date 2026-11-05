@@ -872,6 +872,7 @@ _DQ_STRING = re.compile(r'"(?:[^"\\\n]|\\\r\n|\\.)*"?', re.S)
 _SQ_STRING = re.compile(r"'(?:[^'\\\n]|\\\r\n|\\.)*'?", re.S)
 _UNQUOTED_URL = re.compile(r"[\t\n\f\r ]*(?![\"'\t\n\f\r ])(?:[^)\\]|\\.)*\)?", re.S)
 _QUOTE_NEXT = re.compile(r"[\t\n\f\r ]*[\"']")
+_URL_NAME_ENDS = frozenset("lLcC \t\n\r\f")      # the last character of url( as written plainly (l) or as an escape (\6c, \6C, with or without a space)
 _IDENT_AT_END = re.compile(r"(?:[\w-]|[^\x00-\x7f]|\\(?:[0-9A-Fa-f]{1,6}[ \t\n\r\f]?|.))+\Z", re.S)
 
 
@@ -899,7 +900,7 @@ def _without_comments(css):
             piece = css[m.start():m.start() + 2]
         else:
             piece = "("
-            ident = _IDENT_AT_END.search(tail)
+            ident = _IDENT_AT_END.search(tail[-24:]) if tail[-1:] in _URL_NAME_ENDS else None      # "url" is at most 24 characters even spelled with escapes; most names end otherwise
             name = _CSS_ESCAPE.sub(_css_escape, ident.group(0)).lower() if ident else ""
             if name == "url" and not _QUOTE_NEXT.match(css, m.end()):
                 piece = "(" + _UNQUOTED_URL.match(css, m.end()).group(0)
