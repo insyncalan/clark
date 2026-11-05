@@ -18,7 +18,7 @@ def quoted(name):
 
 class ImportWords(unittest.TestCase):
     def test_the_first_box_says_what_the_prototype_says(self):
-        say = quoted("pickBody")
+        say = quoted("pickBody").replace("Risks & Issues", "Risks and issues")      # the prototype predates the sheet's new name
         self.assertIn(say, re.sub(r"<[^>]+>", "", IO).replace("\n", " "))
 
     def test_the_data_card_says_what_the_prototype_says(self):
@@ -45,7 +45,7 @@ class ApprovedWordsArePinned(unittest.TestCase):
 
     def test_the_first_box(self):
         self.assertEqual(quoted("pickBody"),
-                         "Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases are read (a History sheet from an export is left alone). "
+                         "Sheets called Actions, Risks & Issues, Decisions, Milestones and Use cases are read (a History sheet from an export is left alone). "
                          "A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. "
                          "If a row breaks a rule, nothing is imported and you are told which rows.")
         self.assertNotIn("(or RAID)", CARD)
