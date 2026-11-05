@@ -711,7 +711,8 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 .bib[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); border-color: var(--brand-blue); }
 .seg.icons button:focus-visible, .bib:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .bib .i, .seg.icons .i { width: 18px; height: 18px; }
-[data-tip]:hover::after, [data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--brand-navy); color: var(--white); font-size: var(--size-small); line-height: 1.4; white-space: nowrap; pointer-events: none; }
+[data-tip]:hover::after, [data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; z-index: 19;      /* row 774: under every menu and panel (lowest is .menu, 20), so a tip never covers one */ top: calc(100% + 6px); right: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--brand-navy); color: var(--white); font-size: var(--size-small); line-height: 1.4; white-space: nowrap; pointer-events: none; }
+[data-tip][aria-expanded="true"]::after, html[data-tip-off] [data-tip]::after { content: none; display: none; }      /* row 774: no tip on a button whose menu is open, nor after Esc until the pointer or a key moves on */
 /* Each group is its own bordered card (prototype `.group`): a grey heading bar, then the column names and the rows. */
 .wgroup { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); margin-bottom: var(--space-3); overflow: hidden; }
 .wgroup table.items { margin-top: 0; }
