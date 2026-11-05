@@ -1,0 +1,98 @@
+"""#721: what Help says about ask clark and Sneak peek is what the page does. Reads the whole helpContent.json (held entries too)."""
+import json
+import re
+import unittest
+
+from _help_shown import RAW
+from _paths import ROOT
+
+PAGE = ROOT / "src" / "clark" / "page" / "src"
+TOP_BAR_ASK_BUTTON = "ask" in (PAGE / "components" / "TopBar.jsx").read_text(encoding="utf-8").lower().replace("tasks", "")
+TEXT = json.dumps(RAW, ensure_ascii=False)
+
+
+def entry(kind, id_):
+    seq = RAW["howto"]["tasks"] if kind == "howto" else RAW["reference"]["sections"]
+    return json.dumps(next(x for x in seq if x["id"] == id_), ensure_ascii=False)
+
+
+def strings(o):
+    if isinstance(o, str):
+        yield o
+    elif isinstance(o, list):
+        for x in o:
+            yield from strings(x)
+    elif isinstance(o, dict):
+        for k, v in o.items():
+            if k not in ("id", "g", "go", "ic"):
+                yield from strings(v)
+
+
+SNEAK = "\n".join([entry("howto", "change-an-item-in-words"), entry("reference", "sneak-peek")])
+ASK = "\n".join([entry("howto", "check-the-report"), entry("reference", "ask-clark")])
+ALL = list(strings(RAW))
+
+
+class HelpAskAndSneakPeek(unittest.TestCase):
+    def test_no_mod_j(self):
+        self.assertNotRegex(TEXT, r"Mod\+J|Ctrl\+J|⌘\+?J")
+
+    def test_no_top_bar_ask_button_until_it_is_on_the_page(self):
+        if TOP_BAR_ASK_BUTTON:
+            self.skipTest("TopBar.jsx has an ask button")
+        bad = [s for s in ALL if re.search(r"(?i)ask clark.{0,40}top bar|top bar.{0,40}ask clark|from the top bar|\*\*ask clark\*\*: opens|ask button", s)]
+        self.assertEqual(bad, [])
+
+    def test_sneak_peek_is_work_items_only(self):
+        self.assertNotRegex(SNEAK, r"(?i)milestone|use case|For a milestone|forecast 12|progress 40|achieved")
+        self.assertIn("work items only", entry("reference", "sneak-peek"))
+        self.assertIn("in Edit", entry("reference", "sneak-peek"))
+
+    def test_no_up_key_recall(self):
+        self.assertNotRegex(SNEAK + json.dumps(RAW["reference"]["keys"]), r"(?i)last instruction|\[\[Up\]\] brings back|empty (Sneak peek )?box|Sneak peek box")
+        self.assertNotIn("[[Up]]", [k for k, d in RAW["reference"]["keys"] if "Sneak" in d])
+
+    def test_no_fields_the_code_does_not_read(self):
+        for bad in ("show to client", "hide from client", "rename to", "use case 3.1", "update: …", "red · amber · green", "Make the change", "Not now", "next week", "agreed"):
+            self.assertNotIn(bad, SNEAK)
+
+    def test_ask_clark_is_not_off_until_switched_on(self):
+        self.assertNotRegex(ASK + json.dumps(RAW["start"]) + json.dumps(RAW["reference"]["keys"]), r"(?i)off until|until you (switch|turn) (it )?on|Turn on asking|switch(ed)? on (in|from) Settings")
+        ref = entry("reference", "ask-clark")
+        self.assertIn("on from the first start", ref)
+        self.assertIn("**Turn off asking**", ref)
+        settings = (PAGE / "edit" / "AskSettings.jsx").read_text(encoding="utf-8")
+        for name in ("Turn off asking", "Folders asking may read", ">Asking<"):
+            self.assertIn(name, settings)
+
+    def test_ask_clark_changes_work_items_and_milestones_not_use_cases(self):
+        self.assertNotRegex(ASK, r"(?i)change[^\"]{0,40}use cases?\b(?! need)")
+        self.assertIn("never archives or restores anything", entry("reference", "ask-clark"))
+
+    def test_panel_buttons_and_pills_are_the_pages(self):
+        words = (PAGE / "edit" / "askWords.js").read_text(encoding="utf-8")
+        pills = re.findall(r'^  "(.+?)",$', re.search(r"SUGGESTIONS = \[(.*?)\];", words, re.S).group(1), re.M)
+        self.assertEqual(len(pills), 6)
+        for pill in pills:
+            self.assertIn(f"**{pill}**", entry("reference", "ask-clark"))
+        self.assertIn('NEW_CHAT = "New chat"', words)
+        self.assertIn('CLOSE = "Close"', words)
+        self.assertNotRegex(ASK, r"\*\*\+\*\*|\*\*×\*\*|What’s overdue|\*\*Next milestone|\*\*Use cases\*\*|Item IDs in an answer open|IDs open the item")
+        self.assertIn("**New chat**", ASK)
+        self.assertIn("**Close**", ASK)
+        self.assertNotRegex(ASK, r"double-click puts it back")
+
+    def test_slash_text_matches_the_key_code(self):
+        row = next(d for k, d in RAW["reference"]["keys"] if k == "[[/]]")
+        self.assertIn("no peek, menu or box is open", row)
+        self.assertNotRegex(row, r"(?i)ask clark[^.]*Single-key|Like the letter keys")
+        self.assertIn("search box", row)
+        self.assertNotIn("singleKeys", (PAGE / "edit" / "askPanelState.js").read_text(encoding="utf-8"))   # "/" for ask ignores that switch
+
+    def test_double_slash_is_in_the_peek_code(self):
+        self.assertRegex((PAGE / "components" / "Peek.jsx").read_text(encoding="utf-8"), r'e\.key === "/".*Words')
+        self.assertIn("[[/]] [[/]]", TEXT)
+
+
+if __name__ == "__main__":
+    unittest.main()
