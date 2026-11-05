@@ -23,12 +23,13 @@ from test_work_filters import need_chrome
 from test_work_items import FIXED_DATE, load_demo, page_target
 
 # Everything the line draws: its wrapper, the line, the input, the suggestions, the message and the saved-view tabs/menu.
-LINE_PARTS = [".fline-wrap", ".fline", "[data-fline]", "#fline-input", "#fline-list", "#fline-msg", ".flist", ".fchip .ft"]
+LINE_PARTS = [".fline-wrap", ".fline", "[data-fline]", "#fline-input", "#fline-list", "#fline-msg", ".flist", ".fchip .ft", ".fhi", ".fcount", "#fline-count", "#fline-x", "#clearFilter"]
 
 
 # Words and keys that only the filter line (the app's) carries; the published file's page must hold none of them (as on main).
 LINE_ONLY_WORDS = ["owner:me", "Archived work", "Needed from the client", "Saved views", "Filter by keyword or by field", "Set your name in Settings",
-                   "clark.fline", "clark.fviews", "Filter work items", "Remove the search word"]
+                   "clark.fline", "clark.fviews", "Filter work items", "Remove the search word",
+                   "No work items match.", "Clear filter", "Did you mean", "could mean more than one field", "Add a value after", "Unknown state"]
 
 
 def count_of(cdp, sid, selector):
@@ -66,7 +67,7 @@ class NotPublished(unittest.TestCase):
         self.addCleanup(lambda: (store.close(), shutil.rmtree(str(folder), ignore_errors=True)))
         projects = store.read("projects")
         data = {p["code"]: store.data_for(p["code"]) for p in projects}
-        s = Running(data_for=lambda code: copy.deepcopy(data.get(code)), projects=lambda archived=False: projects, page_html=lambda: testpage.html())
+        s = Running(data_for=lambda code, **kw: copy.deepcopy(data.get(code)), projects=lambda archived=False: projects, page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         with chrome() as cdp:
             sid = page_target(cdp)
