@@ -12,10 +12,10 @@ export const TITLE_MAX = 120;
 const list = () => (data.value && data.value.report_sections) || [];
 const indexOf = (id) => list().findIndex((s) => s.id === id);
 
-export function titleProblem(text) {
+export function titleProblem(text, max = TITLE_MAX) {
   if (!text) return "A title can't be blank. The old title was kept. Type a new title to change it.";
   const n = Array.from(text).length;
-  if (n > TITLE_MAX) return `A title can be ${TITLE_MAX} characters at most, and this one has ${n}. The old title was kept. Shorten it and try again.`;
+  if (n > max) return `A title can be ${max} characters at most, and this one has ${n}. The old title was kept. Shorten it and try again.`;
   return "";
 }
 

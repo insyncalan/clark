@@ -115,6 +115,7 @@ export function Peek({ tools }) {
   const forItem = !!p && p.kind !== "milestone";
   const Words = editing && forItem && tools.Words, WordsBtn = editing && forItem && tools.WordsButton;
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
+  const TitleBox = editing && forItem && tools.PeekTitle;
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest;      // the warning bar and Latest update (peek, Edit only)
   const showActivity = !!(Tabs && Activity && peekTab.value === "activity");
   if (p) shown.current = p.id;                            // kept after the peek closes, for the focus it returns
@@ -226,7 +227,7 @@ export function Peek({ tools }) {
       </div>
       {Warn && row ? <Warn key={`w-${row.id}`} row={row} /> : null}
       <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>
-      <h2 class="pk-title" tabIndex={-1}>{title}</h2>
+      <h2 class="pk-title" tabIndex={-1}>{TitleBox && row ? <TitleBox key={row.id} row={row} /> : title}</h2>
       {row && typeof row.not_reviewed === "boolean" && notReviewed(row, todayIso()) ? <p class="pk-stale"><span class="pk-chip" data-stale>{staleWords(row.review_days || undefined)}</span></p> : null}
       {Tabs ? <Tabs /> : null}
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
