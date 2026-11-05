@@ -97,7 +97,7 @@ class TheCard(Card):
         with self.store.step("dashboard", USER) as st:
             st.update("use_cases", uc, {"standing": "<p>Going <strong>well</strong></p>", "client_visible": 1})
         self.says("CHANGE: " + json.dumps({"op": "change", "id": uc, "current_title": "Invoice matching", "status": "Flag",
-                                            "standing": "Two files are late.", "commitment": "Committed"}))
+                                            "standing": "Two files are late."}))
         with chrome() as cdp:
             p = self.opened(cdp)
             self.ask_it(p)
@@ -107,8 +107,7 @@ class TheCard(Card):
             self.assertEqual((label("status"), cell("status", "before"), cell("status", "after")), ("Status", "On track", "Flag"))
             self.assertEqual((label("standing"), cell("standing", "before"), cell("standing", "after")),
                              ("Where it stands", "Going well", "Two files are late."))
-            self.assertEqual((label("commitment"), cell("commitment", "before"), cell("commitment", "after")),
-                             ("Commitment", "Not set", "Committed"))
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-change] tr[data-field=commitment]').length"), 0, "no commitment row")
             p.js("document.querySelector('[data-ask-apply]').click()")
             p.until("document.querySelector('[data-ask-line]') && document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
             self.assertEqual(self.store.read("use_cases", ref=uc)["status"], "Flag")

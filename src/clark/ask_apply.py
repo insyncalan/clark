@@ -54,7 +54,7 @@ FIELDS = {
                   "needed_by": "needed_by"},
     "milestones": {"title": "name", "name": "name", "owner": "owner", "agreed_date": "baseline_date", "workstream": "workstream",
                    "forecast_date": "forecast_date", "achieved_date": "actual_date", "status": "status"},
-    "use_cases": {"headline": "headline", "standing": "standing", "status": "status", "commitment": "commitment"},   # issue 729
+    "use_cases": {"headline": "headline", "standing": "standing", "status": "status"},   # issue 729: the commitment flag is read by the model, never changed by it
 }
 ASK_FIELDS = {t: {OP_NEW: tuple(f for f in ops[changes.NEW] if f != "type"), OP_CHANGE: ops[changes.UPDATE]}
               for t, ops in changes.ASK_FIELDS.items()}      # changes.ASK_FIELDS is the list; it is checked again there

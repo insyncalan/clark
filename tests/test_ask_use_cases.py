@@ -22,14 +22,14 @@ class UseCaseChanges(Base):
     def row(self):
         return self.s.read("use_cases", ref=self.uc)
 
-    def test_a_status_headline_standing_and_commitment_change_is_applied_once_and_undone_in_one_step(self):
+    def test_a_status_headline_and_standing_change_is_applied_once_and_undone_in_one_step(self):
         plan = self.planned({"op": "change", "id": self.uc, "current_title": "Invoice matching", "status": "Flag",
-                             "headline": "Late supplier files", "standing": "Two files are late.", "commitment": "Committed"})
-        self.assertEqual(sorted(plan["fields"]), ["commitment", "headline", "standing", "status"])
+                             "headline": "Late supplier files", "standing": "Two files are late."})
+        self.assertEqual(sorted(plan["fields"]), ["headline", "standing", "status"])
         self.assertEqual(self.row()["status"], "On track", "a dry run saves nothing")
         done = self.applied(plan["offer"])
         row = self.row()
-        self.assertEqual((row["status"], row["headline"], row["commitment"]), ("Flag", "Late supplier files", "Committed"))
+        self.assertEqual((row["status"], row["headline"], row["commitment"]), ("Flag", "Late supplier files", None))
         self.assertIn("Two files are late.", row["standing"])
         events = self.ask_events(self.uc)
         self.assertTrue(events)
@@ -43,9 +43,7 @@ class UseCaseChanges(Base):
         self.assertEqual((row["status"], row["headline"], row["commitment"]), ("On track", "Matches invoices to orders", None))
 
     def test_a_word_that_is_not_allowed_is_refused_in_the_editors_words(self):
-        for field, value, words in (("status", "Great", changes.UC_STATUS_WORDS), ("commitment", "Maybe", changes.UC_COMMITMENT_WORDS),
-                                    ("commitment", "committed", changes.UC_COMMITMENT_WORDS),
-                                    ("headline", "x" * 400, changes.UC_HEADLINE_WORDS)):
+        for field, value, words in (("status", "Great", changes.UC_STATUS_WORDS), ("headline", "x" * 400, changes.UC_HEADLINE_WORDS)):
             with self.subTest(field=field, value=value[:12]):
                 before = self.counts()
                 status, body = self.ask.plan("ABC", {"op": "change", "id": self.uc, field: value})
@@ -53,12 +51,20 @@ class UseCaseChanges(Base):
                 self.assertEqual(body["message"], words)
                 self.assertEqual(self.counts(), before)
 
-    def test_the_commitment_takes_only_the_three_words(self):
-        for word in ("Candidate", "Committed", "Planned 2027"):
+    def test_the_model_may_read_the_commitment_flag_but_a_proposal_to_change_it_is_refused(self):      # the Head's ruling
+        with self.s.step("dashboard", USER) as st:
+            st.update("use_cases", self.uc, {"commitment": "Candidate"})
+        for word in ("Candidate", "Committed", "Planned 2027", "", "Maybe", None):
             with self.subTest(word=word):
-                done = self.applied(self.planned({"op": "change", "id": self.uc, "commitment": word})["offer"])
-                self.assertEqual(self.row()["commitment"], word)
-                self.assertTrue(done["undoable"])
+                before = self.counts()
+                self.refused({"op": "change", "id": self.uc, "commitment": word}, "field_not_allowed")
+                self.refused({"op": "change", "id": self.uc, "status": "Flag", "commitment": word}, "field_not_allowed")
+                req = {"project": "ABC", "kind": "use_cases", "op": "update", "id": self.uc, "changes": {"commitment": word}}
+                status, body = self.ask.ask_change(req, dry=False)      # and the route itself, not only ask_apply
+                self.assertGreaterEqual(status, 400)
+                self.assertEqual(body["code"], "not_yet")
+                self.assertEqual(self.counts(), before)
+                self.assertEqual(self.row()["commitment"], "Candidate")
 
     def test_an_unknown_id_and_another_projects_use_case_are_refused(self):
         self.refused({"op": "change", "id": "ABC-U-099", "status": "Flag"}, "unknown_id")
@@ -77,8 +83,8 @@ class UseCaseChanges(Base):
             st.archive("use_cases", self.uc)
         self.refused({"op": "change", "id": self.uc, "status": "Flag"}, "unknown_id")
 
-    def test_only_the_four_fields_may_be_given(self):
-        for name in ("title", "ref", "client_visible", "sort_order", "archived_at", "internal_note"):
+    def test_only_the_three_fields_may_be_given(self):
+        for name in ("title", "ref", "commitment", "client_visible", "sort_order", "archived_at", "internal_note"):
             with self.subTest(name=name):
                 self.refused({"op": "change", "id": self.uc, name: "x"}, "field_not_allowed")
 
@@ -107,7 +113,9 @@ class UseCaseChanges(Base):
     def test_the_rules_name_use_cases_and_their_fields(self):
         self.assertIn("-U-", ask.RULES)
         self.assertIn("Planned 2027", ask.RULES)
-        self.assertEqual(changes.ASK_FIELDS["use_cases"][changes.UPDATE], ("headline", "status", "standing", "commitment"))
+        self.assertEqual(changes.ASK_FIELDS["use_cases"][changes.UPDATE], ("headline", "status", "standing"))
+        self.assertIn("never suggest changing it", ask.RULES)
+        self.assertNotIn("commitment", ask_apply.ASK_FIELDS["use_cases"][ask_apply.OP_CHANGE])
         self.assertNotIn("client_visible", ask_apply.ASK_FIELDS["use_cases"][ask_apply.OP_CHANGE])
 
 

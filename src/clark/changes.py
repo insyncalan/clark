@@ -2742,7 +2742,7 @@ ASK_FIELDS = {
     "milestones": {NEW: ("name", "owner", "baseline_date", "workstream"),
                    UPDATE: ("forecast_date", "actual_date", "status")},
     "use_cases": {NEW: (),                                                 # issue 729: a change only (no new use case, no name, no eye, no link); the same checks as the editor
-                  UPDATE: ("headline", "status", "standing", "commitment")},
+                  UPDATE: ("headline", "status", "standing")},
 }
 ASK_KEYS = {NEW: ("project", "kind", "op", "values"), UPDATE: ("project", "kind", "op", "id", "changes")}
 ASK_PART = {NEW: "values", UPDATE: "changes"}
