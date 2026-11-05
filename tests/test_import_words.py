@@ -18,8 +18,10 @@ def quoted(name):
 
 class ImportWords(unittest.TestCase):
     def test_the_first_box_says_what_the_prototype_says(self):
+        # The first two sentences were changed for item 655 (the person now chooses the sheets; pinned below); the rest is still the prototype's.
         say = quoted("pickBody")
-        self.assertIn(say, re.sub(r"<[^>]+>", "", IO).replace("\n", " "))
+        tail = say[say.index("A row whose ID exists"):]
+        self.assertIn(tail, re.sub(r"<[^>]+>", "", IO).replace("\n", " "))
 
     def test_the_data_card_says_what_the_prototype_says(self):
         views = (PROTO / "views.js").read_text(encoding="utf-8")
@@ -35,8 +37,10 @@ class ImportWords(unittest.TestCase):
         self.assertIn("Fix ${k === 1 ? 'it' : 'them'} in the workbook and import again. Nothing was changed.", IO)
 
     def test_the_check_screen_has_buttons_not_tick_boxes(self):
+        # item 655: the one place with tick boxes is the choice of sheets, before the check; the changes themselves stay buttons
         self.assertIn('type="radio"', BOX)
-        self.assertNotIn('type="checkbox"', BOX)
+        self.assertEqual(BOX.count('type="checkbox"'), 1)
+        self.assertIn('name="import-sheet"', BOX)
 
 
 class ApprovedWordsArePinned(unittest.TestCase):
@@ -45,7 +49,8 @@ class ApprovedWordsArePinned(unittest.TestCase):
 
     def test_the_first_box(self):
         self.assertEqual(quoted("pickBody"),
-                         "Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases are read (a History sheet from an export is left alone). "
+                         "Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases can be imported. You choose which after you pick a file "
+                         "(a History sheet from an export is left alone). "
                          "A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. "
                          "If a row breaks a rule, nothing is imported and you are told which rows.")
         self.assertNotIn("(or RAID)", CARD)
@@ -81,6 +86,33 @@ class ApprovedWordsArePinned(unittest.TestCase):
         self.assertIn("Not imported: {t}", BOX)
         self.assertIn("and {items.length - SHOWN} more, taken as Accept all is for the rest: new and changed rows with no problem.", BOX)
         self.assertNotIn("ticks above", BOX)
+
+
+class SheetChoiceWordsArePinned(unittest.TestCase):
+    """Item 655: the words of the choice of sheets, pinned exactly. Each is one the owner signs; a change fails here."""
+
+    def test_the_heading_the_two_links_the_button_and_the_none_line(self):
+        self.assertEqual(quoted("sheetsHead"), "What to import")
+        self.assertEqual(quoted("sheetsTick"), "Tick the sheets to import. Anything you leave unticked is not read and not changed.")
+        self.assertEqual((quoted("selectAll"), quoted("clear")), ("Select all", "Clear"))
+        self.assertEqual(quoted("check"), "Continue")
+        self.assertEqual(quoted("noSheets"), "Tick at least one sheet.")
+
+    def test_each_tick_is_the_sheets_own_name_and_no_other_word_is_added(self):
+        self.assertIn("L.sheetLabel(n, step.rows[n] || 0)}</label>", BOX)
+        self.assertIn("T.sheetsHead", BOX)
+        for key in ("selectAll", "clear", "noSheets", "check", "sheetsTick"):
+            self.assertIn(f"T.{key}", BOX)
+
+    def test_the_sheets_are_the_five_the_first_box_lists_and_a_history_sheet_is_never_offered(self):
+        self.assertIn("SHEET_NAMES = IMPORT_COLUMNS.map(([sheet]) => sheet)", CARD)
+        self.assertNotIn("History", re.search(r"export const IMPORT_COLUMNS.*?\n\];", CARD, re.S).group(0))
+
+    def test_the_choice_is_kept_in_this_browser_only(self):
+        self.assertIn('const MEMORY = "importSheets"', CARD)
+        remember = (ROOT / "src/clark/page/src/logic/remember.js").read_text(encoding="utf-8")
+        self.assertIn("window.localStorage", remember)
+        self.assertNotIn("api.", re.sub(r"//.*", "", CARD.split("const MEMORY")[1].split("export const ticked")[0]))
 
 
 if __name__ == "__main__":

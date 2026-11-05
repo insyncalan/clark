@@ -16,6 +16,7 @@ async function post(path, payload) {
 }
 
 export const saveProject = (req) => post("/api/project", req);
-export const checkWorkbook = (project, name, data) => post("/api/excel-import", { op: "check", project, name, data });
+export const sheetsOfWorkbook = (project, name, data) => post("/api/excel-import", { op: "sheets", project, name, data });
+export const checkWorkbook = (project, name, data, sheets) => post("/api/excel-import", { op: "check", project, name, data, ...(sheets ? { sheets } : {}) });
 export const applyWorkbook = (project, plan, accept, confirm) => post("/api/excel-import", { op: "apply", project, plan, accept, confirm: !!confirm });
 export const undoWorkbook = (project, applyId) => post("/api/excel-import", { op: "undo", project, apply_id: applyId });

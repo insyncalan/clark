@@ -6,14 +6,14 @@ import { useRef, useState } from "preact/hooks";
 import { Dialog } from "./Dialog.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { templateRequest, saveBlob } from "./publishApi.js";
-import { checkWorkbook, applyWorkbook, undoWorkbook } from "./dataApi.js";
+import { sheetsOfWorkbook, checkWorkbook, applyWorkbook, undoWorkbook } from "./dataApi.js";
 import * as L from "../logic/dataCard.js";
 
 const T = L.IMPORT;
 const MAX_FILE = 25 * 1024 * 1024;                       // clark's own limit (excel.MAX_FILE_BYTES); the server says it again
 const SHOWN = 300;                                       // the changes listed with a tick; any more follow what the server takes for "all"
 
-const REAL = { check: checkWorkbook, apply: applyWorkbook, undo: undoWorkbook };
+const REAL = { sheets: sheetsOfWorkbook, check: checkWorkbook, apply: applyWorkbook, undo: undoWorkbook };
 const readBytes = async (file) => new Uint8Array(await file.arrayBuffer());
 
 export function ImportWorkbook({ project, projectName, onClose, onDone, opener, api = REAL, read = readBytes, tpl = templateRequest }) {
@@ -21,6 +21,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   const [problem, setProblem] = useState("");
   const [saved, setSaved] = useState("");                    // the template, once the browser has been asked to save it
   const [ticks, setTicks] = useState({});
+  const [sheets, setSheets] = useState({});                  // the sheets the workbook has, ticked or not (item 655)
   const input = useRef(null);
 
   async function chosen(e) {
@@ -32,10 +33,29 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
     setStep({ at: "checking", file: file.name });
     let data;
     try { data = L.toBase64(await read(file)); } catch (err) { setStep({ at: "pick" }); setProblem(T.readFailed); return; }
-    const r = await api.check(project, file.name, data);
+    // Which of the five sheets the workbook has is asked first; only those are offered, ticked as the person last left them (item 655).
+    const found = await api.sheets(project, file.name, data);
+    if (!found.ok) { setStep({ at: "pick" }); setProblem(found.words); return; }
+    const names = Array.isArray(found.body.sheets) ? found.body.sheets : [];
+    if (!names.length) { await runCheck(file.name, data, undefined); return; }       // none of the five: the check says so in its own words
+    setSheets(L.startSheets(names, L.remembered()));
+    setStep({ at: "sheets", file: file.name, data, names, rows: found.body.rows || {} });
+  }
+
+  async function runCheck(name, data, ticked) {
+    setStep({ at: "checking", file: name });
+    const r = await api.check(project, name, data, ticked);
     if (!r.ok) { setStep({ at: "pick" }); setProblem(r.words); return; }
     setTicks(L.startTicks(r.body.items));
     setStep({ at: "plan", plan: r.body });
+  }
+
+  async function goOn() {
+    const chosenSheets = L.ticked(sheets, step.names);
+    if (!chosenSheets.length) return;
+    L.remember(sheets, step.names);                        // remembered when the check is asked for, not when a box is ticked
+    setProblem("");
+    await runCheck(step.file, step.data, chosenSheets);
   }
 
   // Get the template: an export's workbook with no rows (the server makes it; the page asks about no project). The browser saves it.
@@ -81,6 +101,22 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
         {saved ? <p class="muted" role="status" id="import-template-saved">{saved}</p> : null}
         <p class="error" role="alert" id="import-problem">{problem}</p>
         {fileInput}
+      </Dialog>
+    );
+  }
+  if (step.at === "sheets") {
+    const on = L.ticked(sheets, step.names);
+    return (
+      <Dialog key="sheets" id="import-box" opener={opener} title={T.pickTitle} onClose={onClose} first="#import-check"
+        foot={<>{cancel}<button type="button" class="btn pri" id="import-check" disabled={!on.length} onClick={goOn}>{T.check}</button></>}>
+        <p class="muted">{step.file} into {projectName}</p>
+        <div class="imp-sheets" id="import-sheets-pick" role="group" aria-labelledby="import-sheets-head">
+          <div class="st-bar"><b id="import-sheets-head">{T.sheetsHead}</b><span><button type="button" class="link" id="import-sheets-all" onClick={() => setSheets(L.startSheets(step.names, {}))}>{T.selectAll}</button> · <button type="button" class="link" id="import-sheets-clear" onClick={() => setSheets({})}>{T.clear}</button></span></div>
+          <p class="muted" id="import-sheets-tick">{T.sheetsTick}</p>
+          <div class="imp-sheet-list">{step.names.map((n) => <label key={n}><input type="checkbox" name="import-sheet" value={n} checked={!!sheets[n]} onChange={(e) => setSheets({ ...sheets, [n]: e.currentTarget.checked })} /> {L.sheetLabel(n, step.rows[n] || 0)}</label>)}</div>
+          {on.length ? null : <p class="muted" role="status" id="import-no-sheets">{T.noSheets}</p>}
+        </div>
+        <p class="error" role="alert" id="import-problem">{problem}</p>
       </Dialog>
     );
   }

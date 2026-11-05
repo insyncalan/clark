@@ -1,6 +1,7 @@
 // Settings › Data and Settings › Projects' forms (item 444): the words, and the plain rules for what the page sends and shows. No DOM and no
 // Preact, so a test can run them alone. The words are the prototype's (system/prototype/views.js, io.js), with the build's own where the
 // prototype names its browser database. Nothing here is sent: the server checks every request again.
+import { recall, remember as remember_ } from "./remember.js";
 
 export const DATA = {
   title: "Data",
@@ -11,7 +12,7 @@ export const DATA = {
 
 export const IMPORT = {
   pickTitle: "Import from Excel",
-  pickBody: "Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases are read (a History sheet from an export is left alone). A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows.",
+  pickBody: "Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases can be imported. You choose which after you pick a file (a History sheet from an export is left alone). A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows.",
   changesToCheck: "Changes to check",
   accept: "Accept",
   reject: "Reject",
@@ -23,6 +24,12 @@ export const IMPORT = {
   template: "Get the template",
   templateSaved: "Your browser has saved the template",     // then its name: a workbook with the right sheets and columns and no rows
   templateFailed: "The template could not be made. Reload the page. If it happens again, restart clark.",
+  sheetsHead: "What to import",
+  sheetsTick: "Tick the sheets to import. Anything you leave unticked is not read and not changed.",
+  selectAll: "Select all",
+  clear: "Clear",
+  noSheets: "Tick at least one sheet.",
+  check: "Continue",
   checkTitle: "Check the import",
   checking: "Reading the workbook.",
   cancel: "Cancel",
@@ -50,6 +57,28 @@ export const IMPORT_COLUMNS = [
   ["Milestones", ["ID", "Milestone", "Description", "Workstream", "Agreed", "Forecast", "Status", "Order", "% complete", "Owner", "State", "State reason", "Movement", "Achieved on", "Client-visible", "Client wording", "Internal note"]],
   ["Use cases", ["ID", "Use case", "Shown as", "Status", "Headline", "Where it stands", "Order", "Client-visible"]],
 ];
+
+// The sheets clark reads, as the workbook names them (the first of each pair above). The box offers the ones the workbook has, each with a
+// tick (item 655); the last choice is kept in this browser only (logic/remember.js: clark.importSheets), never in a project or on the server.
+export const SHEET_NAMES = IMPORT_COLUMNS.map(([sheet]) => sheet);
+const MEMORY = "importSheets";
+// The ticks the box starts with for the sheets offered: as last left, and a sheet never chosen before ticked. A saved value that is
+// missing or not an object of true and false is no memory: all ticked.
+export function startSheets(names, saved) {
+  const mem = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+  return Object.fromEntries(names.map((n) => [n, mem[n] !== false]));
+}
+export const remembered = () => recall(MEMORY, null);
+// Keep what the person chose for the sheets offered, over what was kept for the others.
+export function remember(on, names) {
+  const mem = remembered();
+  const kept = mem && typeof mem === "object" && !Array.isArray(mem) ? mem : {};
+  remember_(MEMORY, { ...kept, ...Object.fromEntries(names.map((n) => [n, !!on[n]])) });
+}
+// "Actions (12 rows)", "Decisions (1 row)": the sheet and how many rows it holds.
+export const sheetLabel = (name, rows) => `${name} (${rows} ${rows === 1 ? "row" : "rows"})`;
+// The sheets ticked, among those offered, in the box's order.
+export const ticked = (on, names) => (names || SHEET_NAMES).filter((n) => on[n]);
 
 export const PROJECT = {
   newTitle: "New project",
@@ -120,11 +149,15 @@ export function countsRow(r) {
   return row;
 }
 
+const SHEET_TABLE = { "Actions": "actions", "Risks and issues": "raid", "Decisions": "decisions", "Milestones": "milestones", "Use cases": "use_cases" };
+
 // The per-sheet line: "Work items: 1 new, 2 updated · Milestones: ... · Use cases: ..." (actions, risks and decisions are the Work items).
 export function sheetLine(r) {
+  const read = Array.isArray(r && r.sheets) ? r.sheets : SHEET_NAMES;      // an unticked sheet is not mentioned (item 655)
+  const has = (tables) => read.some((n) => tables.some((t) => SHEET_TABLE[n] === t));
   const of = (tables, kind) => ((r && r.items) || []).filter((i) => tables.includes(i.table) && i.kind === kind).length;
   const part = (name, tables) => `${name}: ${of(tables, "new")} new, ${of(tables, "changed")} updated`;
-  return [part("Work items", ["actions", "raid", "decisions"]), part("Milestones", ["milestones"]), part("Use cases", ["use_cases"])].join(" · ");
+  return [["Work items", ["actions", "raid", "decisions"]], ["Milestones", ["milestones"]], ["Use cases", ["use_cases"]]].filter(([, t]) => has(t)).map(([n, t]) => part(n, t)).join(" · ");
 }
 
 // The check's reply as the box shows it: the counts in a line, and the numbers each choice sends.
