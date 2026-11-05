@@ -694,7 +694,7 @@ class TheTakenName(Base):
 
     def test_the_same_file_already_there_copies_nothing_and_is_logged_with_its_path(self):
         # #120: every publish says its own number, so "the same file" is the one the next publish will make (Publication 2)
-        self.taken.write_bytes(publish.build(self.rig.store, "PUB", DAY, EMPTY_BRANDING)["body"])
+        self.taken.write_bytes(publish.build(self.rig.store, "PUB", DAY, EMPTY_BRANDING, workbook=publish_flow.CLIENT_WORKBOOK)["body"])
         status, got = self.rig.publish(to_client=True)
         self.assertEqual((status, got["ok"], got["action"]), (200, True, "nothing_to_do"))
         self.assertEqual(self.rig.rows()[-1]["client_path"], str(self.taken))
