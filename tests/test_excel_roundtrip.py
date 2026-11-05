@@ -152,7 +152,7 @@ class Reading(RoundTrip):
             for label, f in labels.items():
                 self.assertTrue(f in columns(self.s.con, table) or f in excel.DERIVED or f == xi.LABELS, (table, label, f))
         self.assertEqual({t: excel.SHEET_OF[t] for t in excel.TABLES},
-                         {"milestones": "Milestones", "actions": "Actions", "raid": "Risks and issues", "decisions": "Decisions",
+                         {"milestones": "Milestones", "actions": "Actions", "raid": "Risks & Issues", "decisions": "Decisions",
                           "use_cases": "Use cases"})
 
     def test_an_unchanged_export_imports_as_no_changes_and_nothing_is_ignored(self):
@@ -300,7 +300,7 @@ class ClientView(RoundTrip):
             tag = {None: "blank", "Yes": "yes", "No": "no"}[cv]
             for sheet, cells in (("Use cases", {"Use case": f"UC {tag}", "Shown as": f"9.{n}", "Status": "On track"}),
                                  ("Actions", {"Description": f"A {tag}"}),
-                                 ("Risks and issues", {"Type": "Risk", "Description": f"R {tag}", "Impact": "High", "Likelihood": "Low"}),
+                                 ("Risks & Issues", {"Type": "Risk", "Description": f"R {tag}", "Impact": "High", "Likelihood": "Low"}),
                                  ("Decisions", {"Decision": f"D {tag}", "Status": "Pending"})):
                 ws = wb[sheet]
                 head = {c.value: c.column for c in ws[1]}

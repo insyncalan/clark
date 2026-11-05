@@ -58,7 +58,7 @@ DRAWING = ('<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/200
            ).encode()
 
 
-def add_external_links(path, sheet="xl/worksheets/sheet3.xml"):
+def add_external_links(path, sheet="xl/worksheets/sheet2.xml"):
     """Rewrite the workbook at `path` with the external links of this module added (`sheet` is the Actions sheet of an export)."""
     with zipfile.ZipFile(path) as z:
         parts = {n: z.read(n) for n in z.namelist()}

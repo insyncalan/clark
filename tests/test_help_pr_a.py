@@ -185,7 +185,7 @@ class AskOff(unittest.TestCase):
         self.assertIn('OFF_LINE = "Asking is off. Turn it on in Settings."', words)
         self.assertIn('OFF_LINK = "Open Settings"', words)
         self.assertIn("{W.OFF_LINE} <a href=\"#settings\"", code("edit", "AskPanel.jsx"))
-        self.assertIn("The ask button in the top bar shows only while asking is on. With asking off, [[/]] still opens the panel, which says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link.", text)
+        self.assertIn("The speech-bubble button shows only while asking is on. With asking off, [[/]] still opens the panel, which says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link.", text)
 
 
 class SlashInHelp(unittest.TestCase):

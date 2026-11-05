@@ -160,14 +160,14 @@ class Words(unittest.TestCase):
         self.addCleanup(none.close)
         with chrome() as cdp:
             sid = navigate(cdp, none.port, "#dashboard")
-            self.shown(cdp, sid, ["No project open", "There are no projects yet.",
+            self.shown(cdp, sid, ["No project open", "There are no projects yet.", "New project",     # #731: the one button
                                   "To look around with made-up projects, close clark and start it again from the clark folder with bash clark.command --demo."])
         # item 427: in the container the Docker route has no --demo flag, so the page leaves that sentence out
         boxed = Running(data_for=self.fake, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda archived=False: [])
         self.addCleanup(boxed.close)
         with mock.patch.object(clark_platform, "container_mode", lambda: True), chrome() as cdp:
             sid = navigate(cdp, boxed.port, "#dashboard")
-            self.shown(cdp, sid, ["No project open", "There are no projects yet."])
+            self.shown(cdp, sid, ["No project open", "There are no projects yet.", "New project"])
             self.assertNotIn("made-up projects", cdp.js("document.body.innerText", sid))
         with chrome() as cdp:
             sid = self.visit(cdp)
@@ -402,6 +402,18 @@ class Words(unittest.TestCase):
         self.assertEqual(publish_flow.MESSAGES["page_shape"],
                          "Something is wrong inside clark. Nothing was published. Tell the clark team, and say what you were doing.")
         self.assertEqual(publish_flow.MESSAGES["local_not_html"], "The local copy's name must end in .html. Nothing was published.")
+
+    def test_the_demo_data_words_are_these_and_only_these(self):
+        """#731: the banner, its button and the box that asks first; every visible word of them is in logic/demoWords.js."""
+        text = (PAGE_SRC / "logic" / "demoWords.js").read_text(encoding="utf-8")
+        said = dict(re.findall(r'^\s+(\w+): "([^"]*)",?$', text, re.M))
+        self.assertEqual(said, {"banner": "This is demo data.", "remove": "Remove demo data", "confirmTitle": "Remove demo data?",
+                                "confirmBody": "Remove the demo projects? Your own projects are not touched. A safety copy is made first.",
+                                "cancel": "Cancel", "failed": "The demo data could not be removed. Nothing was changed.", "none": "There is no demo data to remove.",
+                                "newProject": "New project"})
+        for name in ("Demo.jsx", "demoApi.js"):
+            source = (PAGE_SRC / "edit" / name).read_text(encoding="utf-8")
+            self.assertNotRegex(re.sub(r"//.*", "", source), r">[A-Z][a-z]+ [a-z]", name)      # no sentence typed into the markup: it comes from DEMO
 
 
 if __name__ == "__main__":

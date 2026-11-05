@@ -29,7 +29,7 @@ SIGNED_DELETE = {"Move, hide and delete sections"}
 # A feature word in shown text needs proof that the page has it: a pattern that must match the page's own code (outside Help).
 FEATURES = [
     ("the peek", r"\bpeek\b", r"<Peek\b"),
-    ("Sneak peek", r"Sneak peek", r"Sneak peek"),
+    ("Sneak peek", r"Sneak peek", r"Sneak peek|Change an item with words"),      # the page names it by its button (edit/SneakPeek.jsx); "Sneak peek" itself is only in comments
     ("the board", r"\bboard\b", r'"Board"|>Board<'),
     ("ask clark", r"ask clark", r"ask clark"),
     ("Import and Export", r"\b(Import|Export|Excel)\b", r"\b(Import|Export)\b|Excel"),
@@ -116,11 +116,11 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "publish-the-report", "word-in-and-out", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone", "connect-claude-or-chatgpt", "undo-a-mistake", "start-check-and-restore-in-terminal", "run-clark-with-docker"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "status-words",
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "check-the-report", "publish-the-report", "word-in-and-out", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "change-an-item-in-words", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone", "connect-claude-or-chatgpt", "undo-a-mistake", "start-check-and-restore-in-terminal", "run-clark-with-docker"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "ask-clark", "status-words", "sneak-peek",
                           "milestone-states", "published-reports", "diagnostics", "dates-and-ids", "using-help", "keys"])
-        self.assertEqual(s["start"]["parts"], ["jobs"])      # only the jobs part is released (#642 step 3); the other six wait for their parts of clark
-        self.assertEqual(len(s["reference"]["keys"]), 36 - len(LATER["keys"]))
+        self.assertEqual(s["start"]["parts"], ["jobs", "where", "rules"])      # the jobs part (#642 step 3), and where and rules with ask clark and Sneak peek (#721); the other four wait for their parts of clark
+        self.assertEqual(len(s["reference"]["keys"]), 34 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones", "Settings and safety", "Advanced"])
         self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Publishing", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
@@ -134,7 +134,7 @@ class Held(unittest.TestCase):
         self.assertEqual(sorted(links - places), [])
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (37, 35, 36))   # 37 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (37, 35, 34))   # 36 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
 
 
 class AgainstThePage(unittest.TestCase):
@@ -173,8 +173,7 @@ class AgainstThePage(unittest.TestCase):
         """On the whole source (nothing held) the same checks fail: ask clark is not on the page (the board is, from #68). Publish left this list when its button and box reached the page (#43), Import and Export when Export did (#147), and the peek when Sneak peek did (#42); a feature that has arrived can no longer be absent, and the entries still listed prove the check bites."""
         everything = " ".join(list(strings(RAW["howto"]["tasks"])) + list(strings(RAW["start"])))
         absent = [n for n, shown, proof in FEATURES if re.search(shown, everything) and not re.search(proof, self.CODE)]
-        for want in ("Sneak peek",):            # "ask clark" left this list when its panel reached the page (#47a), and the peek when it did (#42), as Publish did (#43)
-            self.assertIn(want, absent)
+        self.assertEqual(absent, [])            # every feature word has arrived: "ask clark" (#47a), the peek (#42), Publish (#43) and Sneak peek (#721); the bold-name floor below is what still bites
         names = {b for b in re.findall(r"\*\*(.+?)\*\*", everything) if b not in self.HELPCODE}
         # the count falls as features reach the page: 190 bold names, 99 still absent at #147's merge with main, 83 with the section
         # gutter (#101), whose words Help names (Add a section, the grip ...), 76 with the AI menu and card (Accept, Discard, Show changes, Improve, Format notes ...), 73 with the peek's Activity tab (#42: Help now names Activity and no longer All, Updates and Source); lower this only when a feature lands, never to hide a missing one
@@ -224,7 +223,8 @@ class AgainstThePage(unittest.TestCase):
         # 26 measured with item 445 (the Update card now draws the names Choose zip, Review, Show the files and the others; 30 before): the two
         # update Help entries are held (helpLater.json) until the release key is pinned, but the floor counts the whole source (27 fails)
         # 23 measured on the merge of main (26 there, the update card of item 445) into the Help overhaul branch: both sides' names on the page together (24 fails)
-        self.assertGreaterEqual(len(names), 23)
+        # 16 measured with ask clark and Sneak peek released (#721): their corrected bold names are on the page (Ask about this project, Check this report, Apply, Confirm and apply, New chat, Close ...), 23 before
+        self.assertGreaterEqual(len(names), 16)
         # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
         # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
         # 56 measured on the merged tree after the next main merge (names printed): the milestone details toggle (C-M6) leaves the list on top of the Supporting documents section
@@ -232,7 +232,7 @@ class AgainstThePage(unittest.TestCase):
 
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
-        self.assertEqual(rows, ["[[?]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]",
+        self.assertEqual(rows, ["[[?]]", "[[/]]", "[[/]] [[/]]", "[[Esc]]", "[[Enter]]", "[[Shift+Enter]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]",
                                 "Click", "[[Mod]]+click", "[[Shift]]+click", "[[Mod+Shift]]+click", "[[Shift+Up]] [[Shift+Down]]",
                                 "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection", "[[O]] [[S]] [[P]] [[T]] [[C]]", "[[Shift+F10]]", "[[Mod+K]]",
                                 "[[Up]] [[Down]] [[Home]] [[End]]", "[[Up]] [[Down]] [[Left]] [[Right]]", "[[Enter]]"])
@@ -249,6 +249,14 @@ COMPUTED = {
     "this week\u2019s actions": "an example of what a card might be called, not a label",
     "decisions needed": "an example of what a card might be called, not a label",
     "3 of 12 selected": "the Hand over bar's count, built from the numbers (logic/handOver.js)",
+    "api key": "the words the secret screen reads before a question is sent (ask_secret words, secret_screen.py)",
+    "access key": "the words the secret screen reads before a question is sent (secret_screen.py)",
+    "move to Friday, owner Jo, high priority": "a worked example of words typed in Sneak peek (its own placeholder is the same kind of line, SneakPeek.jsx)",
+    "due Friday \u00b7 move to tomorrow \u00b7 by Friday": "words typed in Sneak peek, read by sneak.py (#721)",
+    "owner Jo \u00b7 assign to Sam \u00b7 give it to Priya": "words typed in Sneak peek, read by sneak.py (#721)",
+    "done \u00b7 closed \u00b7 reopen \u00b7 delayed \u00b7 cancelled": "words typed in Sneak peek, read by sneak.py (#721)",
+    "made \u00b7 decided \u00b7 withdrawn \u00b7 pending": "words typed in Sneak peek, read by sneak.py (#721)",
+    "urgent priority \u00b7 high priority \u00b7 medium priority \u00b7 low priority": "words typed in Sneak peek, read by sneak.py (#721)",
     "Hand over 30 items to Priya?": "the Hand over question, built from the count and the name (logic/handOver.js)",
     "Put back the backup from DD-MM-YYYY 09:30? What you have now is kept first": "the Restore question, built from the backup's date and time (a worked example)",
 }
@@ -369,7 +377,7 @@ class Wording(unittest.TestCase):
         import build_page
         html = build_page.build()
         self.assertNotIn("Open the report with a message", html)
-        self.assertNotIn("12-12-2026", html)
+        self.assertNotIn("click another item anywhere on the page and the peek moves to it", html)      # a held entry (the peek) is not in the page
 
 
 if __name__ == "__main__":
