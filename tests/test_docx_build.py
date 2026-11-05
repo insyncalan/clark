@@ -288,7 +288,7 @@ class WhatIsInIt(unittest.TestCase):
                 col = b["rows"][0].index("Priority")
                 self.assertTrue(all(r[col] in ("Urgent", "High", "Medium", "Low") for r in b["rows"][1:]))
 
-    def test_an_open_row_past_its_date_says_overdue_and_a_closed_one_does_not(self):
+    def test_an_open_row_past_its_date_says_overdue_and_a_closed_one_is_not_listed(self):
         p = copy.deepcopy(self.p)
         p["as_at"] = "2026-12-31"
         p["data"]["actions"][0]["status"] = "Closed"
@@ -299,7 +299,7 @@ class WhatIsInIt(unittest.TestCase):
 
         got = due_cells(p)
         self.assertEqual(got["PUB-A-002"], "06-11-2026 (overdue)")
-        self.assertEqual(got["PUB-A-001"], "06-11-2026")
+        self.assertNotIn("PUB-A-001", got)      # row 837: a closed action is not listed at all
         self.assertEqual(due_cells(self.p)["PUB-A-002"], "06-11-2026")
 
     def test_a_table_with_no_rows_says_none_recorded(self):
@@ -617,6 +617,67 @@ class WordTableWidths(unittest.TestCase):
             for name in names:
                 self.assertGreaterEqual(t["grid"][t["head"].index(name)], MIN_COL[name], f"{second} table, {name}")
             self.assertGreaterEqual(t["grid"][t["head"].index(wide)], 1800)
+
+
+# Row 837: the Word copy's Open actions and Risks and issues tables list only open items (the app's rule, glance.is_open).
+class WordOpenItemsOnly(unittest.TestCase):
+    def built(self):
+        p = copy.deepcopy(published())
+        d = p["data"]
+        acts, raid = d["actions"], d["raid"]
+        for status, n in (("Closed", 1), ("Cancelled", 2), ("Delayed", 3)):
+            a = dict(acts[0], id=f"ZQ-ACT-{n}", status=status, client_message=f"Zq action {status}", description="")
+            r = dict(raid[0], id=f"ZQ-RISK-{n}", status=status, client_message=f"Zq risk {status}", description="")
+            acts.append(a)
+            raid.append(r)
+        raid.append(dict(raid[0], id="ZQ-ISSUE-9", type="Issue", status="Closed", client_message="Zq issue Closed", description=""))
+        return p, every_text(docx_build.build(p))
+
+    def tables_text(self, p):
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(parts(docx_build.build(p))["word/document.xml"])
+        q = "{%s}" % W_NS["w"]
+        out = ""
+        for t in root.iter(q + "tbl"):
+            rows = t.findall("w:tr", W_NS)
+            head = ["".join(x.text or "" for x in c.iter(q + "t")) for c in rows[0].findall("w:tc", W_NS)]
+            if head[:2] in (["ID", "Action"], ["ID", "Type"]):
+                out += "".join(x.text or "" for x in t.iter(q + "t"))
+        return out
+
+    def test_a_closed_or_cancelled_action_or_risk_is_not_listed(self):
+        p, _ = self.built()
+        text = self.tables_text(p)
+        for gone in ("ZQ-ACT-1", "ZQ-ACT-2", "ZQ-RISK-1", "ZQ-RISK-2", "ZQ-ISSUE-9", "Zq action Closed", "Zq risk Cancelled"):
+            self.assertNotIn(gone, text)
+
+    def test_open_ones_are_still_listed(self):
+        p, _ = self.built()
+        text = self.tables_text(p)
+        for kept in ("ZQ-ACT-3", "ZQ-RISK-3", "PUB-A-001", "PUB-A-002", "PUB-001"):
+            self.assertIn(kept, text)
+
+    def test_the_tables_hold_only_the_open_rows(self):
+        p, _ = self.built()
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(parts(docx_build.build(p))["word/document.xml"])
+        q = "{%s}" % W_NS["w"]
+        counts = {}
+        for t in root.iter(q + "tbl"):
+            rows = t.findall("w:tr", W_NS)
+            head = ["".join(x.text or "" for x in c.iter(q + "t")) for c in rows[0].findall("w:tc", W_NS)]
+            if head[:2] in (["ID", "Action"], ["ID", "Type"]):
+                counts[head[1]] = len(rows) - 1
+        self.assertEqual(counts, {"Action": 3, "Type": 2})
+
+    def test_nothing_open_keeps_the_empty_state(self):
+        p = copy.deepcopy(published())
+        for k in ("actions", "raid"):
+            for r in p["data"][k]:
+                r["status"] = "Closed"
+        data = docx_build.build(p)
+        self.assertIn(docx_build.NONE, every_text(data))
+        self.assertFalse([b for b in blocks(data) if b.get("kind") == "table" and "Action" in str(b)[:300]])
 
 
 if __name__ == "__main__":
