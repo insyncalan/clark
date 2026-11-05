@@ -23,10 +23,26 @@ def prepare():
         sys.path.insert(0, folder)
 
 
+# Row 760: the same words as same_version.MESSAGE (a test keeps the two equal); said here when src/clark has no same_version.py,
+# which is itself a folder of mixed versions.
+MIXED = ("These clark files are not all from the same version, so clark will not start. "
+         "Move the clark folder aside (rename it) and unzip the download again.")
+
+
+def mixed(argv=None):
+    """After prepare(): whether the folder is mixed, said on stderr. First, before the imports in the real launcher, which a
+    missing or older file would break with a trace. With `argv`, nothing is refused while an interrupted update's marker exists."""
+    try:
+        from clark import same_version
+    except ImportError:
+        print(MIXED, file=sys.stderr, flush=True)
+        return True
+    return same_version.refuse(argv=argv)
+
+
 def hand_over():
     prepare()
-    from clark import same_version              # row 760: first, before the imports in the real launcher, which a missing or older file would break
-    if same_version.refuse(argv=sys.argv[1:]):
+    if mixed(sys.argv[1:]):
         return 1
     from clark import __main__ as real
     return real.run()

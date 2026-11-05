@@ -4,13 +4,12 @@ src/clark/launch.py. clark.command runs this.
 """
 import sys
 
-from clark.__main__ import prepare
+from clark.__main__ import mixed, prepare
 
 
 def hand_over():
     prepare()
-    from clark import same_version              # row 760: first, before the imports in the real launcher, which a missing or older file would break
-    if same_version.refuse(argv=sys.argv[1:]):
+    if mixed(sys.argv[1:]):                     # row 760: a folder of mixed versions never starts
         return 1
     from clark import launch as real
     return real.main()

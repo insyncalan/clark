@@ -189,6 +189,70 @@ class Folder(Download):
         self.assertEqual(1, code)
         self.assertEqual(["recover", "check"], order)
 
+    def test_a_src_without_same_version_is_refused_with_the_same_message(self):
+        (self.app / "src" / "clark" / "same_version.py").unlink()        # a half-copied unzip: an older src/clark
+        for module in ("clark", "clark.launch", "clark.doctor"):
+            with self.subTest(module=module):
+                proc, port = self.start(module)
+                out, err = proc.communicate(timeout=60)
+                self.assertEqual(1, proc.returncode, (out, err))
+                self.assertEqual(EXACT + "\n", err)
+                self.assertNotIn("Traceback", out + err)
+                self.assertFalse(listening(port))
+
+    def test_the_stand_ins_say_the_same_words_as_same_version(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("stand_in_main", ROOT / "clark" / "__main__.py")
+        stand_in = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(stand_in)
+        self.assertEqual(same_version.MESSAGE, stand_in.MIXED)
+
+    @unittest.skipUnless(shutil.which("bash"), "needs bash")
+    def test_clark_command_check_refuses_a_mixed_folder_too(self):
+        f = self.some_file()
+        f.write_bytes(f.read_bytes() + b"x")
+        env = dict(os.environ, CLARK_CHROME=os.environ.get("CLARK_CHROME", ""))
+        env.pop("PYTHONPATH", None)
+        done = subprocess.run(["bash", str(self.top / "clark.command"), "--check", "--data", str(self.data), "--port", "1"],
+                              cwd=str(self.tmp), env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
+        self.assertEqual(1, done.returncode, (done.stdout, done.stderr))
+        self.assertEqual(EXACT + "\n", done.stderr)
+        self.assertNotIn("Ready", done.stdout)
+
+    def command(self, *args):
+        env = dict(os.environ, CLARK_CHROME=os.environ.get("CLARK_CHROME", ""))
+        env.pop("PYTHONPATH", None)
+        return subprocess.run(["bash", str(self.top / "clark.command"), *args, "--data", str(self.data), "--port", "1"],
+                              cwd=str(self.tmp), env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
+
+    @unittest.skipUnless(shutil.which("bash"), "needs bash")
+    def test_src_vendor_or_clark_beside_app_is_refused_by_clark_command(self):
+        for name in ("src", "vendor", "clark"):
+            for kind in ("folder", "file"):
+                with self.subTest(name=name, kind=kind):
+                    path = self.top / name
+                    if kind == "folder":
+                        path.mkdir()
+                    else:
+                        path.write_text("x", encoding="utf-8")
+                    for args in (("--check",), ()):
+                        done = self.command(*args)
+                        self.assertEqual(1, done.returncode, (done.stdout, done.stderr))
+                        self.assertEqual(EXACT + "\n", done.stderr)
+                    shutil.rmtree(path) if kind == "folder" else path.unlink()
+
+    @unittest.skipUnless(shutil.which("bash"), "needs bash")
+    def test_a_clean_layout_with_the_persons_folders_beside_app_is_not_refused(self):
+        for name in ("system", "data", "meet clark", "intake", "docker"):
+            (self.top / name).mkdir(exist_ok=True)
+            (self.top / name / "a.txt").write_text("mine", encoding="utf-8")
+        (self.top / "START-HERE.txt").write_text("x", encoding="utf-8")
+        self.write_record()
+        done = self.command("--check")
+        self.assertNotIn(EXACT, done.stderr + done.stdout)
+        self.assertIn("Checking what clark needs", done.stdout)      # the doctor ran
+        self.starts()
+
     def test_launch_module_refuses_too(self):
         f = self.some_file()
         f.write_bytes(f.read_bytes() + b"x")
