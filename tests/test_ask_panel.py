@@ -278,6 +278,39 @@ class Panel(Base):
                 self.stub.status = lambda *_, b=body: (200, b)
                 self.failed_check_claims_nothing(self.opened(cdp, ready=False))
 
+    def test_a_panel_reopened_after_a_failed_check_reads_the_new_answer_and_works(self):
+        for how in ("500", "threw"):
+            for label, enabled, connected in (("ready", True, True), ("off", False, True), ("signed-out", True, False)):
+                with self.subTest(failed=how, then=label), chrome() as cdp:
+                    self.stub.calls.clear()
+                    self.stub.enabled, self.stub.connected = enabled, connected
+                    if how == "500":
+                        self.stub.status = lambda *_: (500, {"ok": False, "message": "That could not be done."})
+                        p = self.opened(cdp, ready=False)
+                    else:
+                        p = self.opened(cdp, ready=False, before="window.__realFetch = window.fetch; window.fetch = function (u) { if (String(u).indexOf('/api/ask/status') >= 0) return Promise.reject(new TypeError('network down')); return window.__realFetch.apply(this, arguments); };")
+                    self.failed_check_claims_nothing(p)
+                    p.key("Escape", code="Escape", vk=27)
+                    p.until("document.querySelector('#ask-panel') === null", "closed")
+                    self.stub.__dict__.pop("status", None)            # the server answers well again
+                    p.js("if (window.__realFetch) window.fetch = window.__realFetch")
+                    p.key("/", code="Slash", vk=191)
+                    p.until("!!document.querySelector('#ask-panel')", "reopened")
+                    if label == "ready":
+                        p.until("!document.querySelector('#ask-box').disabled", "ready")
+                        self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Ask about this project.")
+                        self.ask(p, "Hello")
+                        p.until("document.querySelector('#ask-panel').innerText.indexOf('The pilot goes live in March.') >= 0", "the answer")
+                        self.assertEqual(self.stub.count("ask"), 1)
+                    elif label == "off":
+                        p.until("!!document.querySelector('#ask-off')", "the off line")
+                        self.assertTrue(p.js("document.querySelector('#ask-box').disabled"))
+                    else:
+                        p.until("!!document.querySelector('#ask-signed-out')", "the sign-in line")
+                        self.assertTrue(p.js("document.querySelector('#ask-box').disabled"))
+                    if label != "ready":
+                        self.assertEqual(self.stub.count("ask"), 0)
+
     def test_a_good_answer_that_says_off_still_reads_as_off(self):
         self.stub.enabled = False
         with chrome() as cdp:
