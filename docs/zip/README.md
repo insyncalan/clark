@@ -62,7 +62,7 @@ For both:
 
 - **Keep it out of OneDrive, Dropbox and any other synced folder.** They can damage a database that is open.
 - **Never open the same data from `clark.command` and from Docker at the same time.** Stop one before you start the other. By default they use the same data.
-- **Safety copies** are made before every Undo, before every Excel import and once a day. The newest 14 are kept. Settings › Safety lists them and puts one back. If clark will not start, close it and type `bash clark.command restore` in Terminal to see them.
+- **Safety copies** are made before every Undo, before every Excel import and once a day. The newest 14 are kept. Settings › Backups lists them and puts one back. If clark will not start, close it and type `bash clark.command restore` in Terminal to see them.
 - **A copy off this computer.** In Settings › Backups, type a folder into **Copy my backups to** (a folder in OneDrive is fine). Each finished backup is also put there, and the same number is kept. It is off until you choose one. To read from it, close clark and type `bash clark.command restore --from FOLDER` in Terminal.
 
 To keep your data somewhere else, start clark with `bash clark.command --data FOLDER`. With Docker, put the folder's full path in quotes in `CLARK_DATA_DIR` in front of the command: `CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d`. A folder inside OneDrive cannot be used.
