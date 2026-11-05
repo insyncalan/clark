@@ -928,9 +928,9 @@ class Menu(board.Base):
             self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly')", "the list")
             self.assertEqual(self.box(cdp, sid), still, "the click did not move or resize the menu")
             self.assertEqual(self.steps(), before, "the click on the entry changes nothing")
-            click(cdp, sid, "[data-rm='s:Closed']")
+            click(cdp, sid, "[data-rm='s:Delayed']")
             self.wait_toast(cdp, sid, "done")
-            self.assertEqual((self.row(a)["status"], self.steps()), ("Closed", before + 1), "one step")
+            self.assertEqual((self.row(a)["status"], self.steps()), ("Delayed", before + 1), "one step")
             self.shut(cdp, sid)
             self.until(cdp, sid, f"document.activeElement.dataset.id === {json.dumps(a)}", "focus back on the row")
 
