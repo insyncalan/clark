@@ -113,7 +113,8 @@ export function Milestones({ tools }) {
 // The row of chips (item 440, S2) is a bar of its own under the head: it stays under the top bar as you scroll, and the chip of the card
 // you are reading is marked (aria-current). The prototype's other chips wait for their cards.
 const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
-  ["Safety", "Backups", "safety-h"], ["AskSettings", "Asking", "ask-settings-h"]];
+  ["Projects", "Projects", "projects-h"], ["Data", "Data", "data-card-h"], ["Safety", "Backups", "safety-h"], ["Update", "Version and updates", "update-h"],
+  ["People", "People", "people-h"], ["AskSettings", "Asking", "ask-settings-h"]];       // in the order the cards are drawn; a card that is not on the page has no chip
 
 const cardOf = (headId) => { const head = document.getElementById(headId); return head ? head.closest("section") || head : null; };
 

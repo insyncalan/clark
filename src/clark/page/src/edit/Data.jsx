@@ -12,7 +12,7 @@ export function Data() {
 
   return (
     <section class="frame setting" id="data-card" aria-labelledby="data-card-h">
-      <h2 id="data-card-h">{L.DATA.title}</h2>
+      <h2 id="data-card-h" tabIndex={-1}>{L.DATA.title}</h2>
       <div class="row">
         <button type="button" class="btn gb" id="export-workbook" data-export-workbook disabled={!data.value} onClick={() => exportExcel()}><Icon name="dl" />{L.DATA.export}</button>
         <button type="button" class="btn gb" id="import-workbook" data-import-workbook disabled={!data.value}

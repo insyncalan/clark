@@ -97,7 +97,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   const st = state.st;
   return (
     <section class="frame setting" id="update">
-      <h2>{L.TITLE}</h2>
+      <h2 id="update-h" tabIndex={-1}>{L.TITLE}</h2>
       <p class="muted">{L.INTRO}</p>
       {state.phase === "loading" ? <p class="muted">{L.LOADING}</p> : null}
       {state.phase === "failed" ? <p class="error">{state.message} <button type="button" class="btn sm" data-update-again onClick={load}>{L.LABELS.tryAgain}</button></p> : null}

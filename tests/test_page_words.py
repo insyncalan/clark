@@ -175,7 +175,7 @@ class Words(unittest.TestCase):
             cdp.js("document.querySelector('[data-view=settings]').click()", sid)
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
-                                  "Publishing", "Personal", "Freshness", "Logs and diagnostics", "Backups", "Asking",      # the chips: one for each card below, in the order they are on the page
+                                  "Publishing", "Personal", "Freshness", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "People", "Asking",      # the chips: one for each card below, in the order they are on the page
                                   "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
                                   "Local folder", "Always saved. Publish opens the save window where you last saved this report, so you choose the local folder there each time.",
                                   "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
@@ -193,7 +193,7 @@ class Words(unittest.TestCase):
                                   "Dashboard sections", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture.",
                                   "Roomy gaps", "The same, with more space between the sections.", "Grey headers", "Slim gaps, and each section title in a grey band, like the Work items groups.",
                                   "One card", "All the sections in one long card.",
-                                  "Appearance", "System", "Follows your Mac's setting.", "Light", "Always light.", "Dark", "Always dark.",      # #179
+                                  "Appearance", "System", "Light", "Dark", "Follows your Mac's setting.",      # #179
                                   "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
                                   "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
                                   "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
