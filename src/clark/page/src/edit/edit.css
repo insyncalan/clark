@@ -191,6 +191,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-pills::-webkit-scrollbar { display: none; }
 .ask-pills button { flex: none; min-height: 28px; padding: 3px var(--space-3); white-space: nowrap; font: inherit; font-size: var(--size-caption); line-height: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--ask-edge); border-radius: var(--radius-pill); cursor: pointer; transition: background-color var(--dur-instant) var(--ease-out), border-color var(--dur-instant) var(--ease-out); }
 .ask-pills button:hover { background: var(--brand-blue-tint); border-color: var(--brand-blue); }
+.ask-pills button:disabled { color: var(--text-muted); background: var(--surface); border-color: var(--ask-edge); cursor: default; opacity: .7; }
 .ask-pills button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .ask-work { display: flex; align-items: center; gap: 10px; margin: 0; font-size: var(--size-caption); font-style: italic; color: var(--text-muted); animation: ask-in 220ms var(--ease-enter); }
 .ask-quip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
