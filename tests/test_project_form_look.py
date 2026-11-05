@@ -21,11 +21,23 @@ MEASURE = """(() => {
   const r = (el) => el.getBoundingClientRect();
   const fields = ['#pN', '#pC', '#pCl', '#pW'].map((s) => { const e = q(s), c = getComputedStyle(e);
     return {id: s, bw: [c.borderTopWidth, c.borderRightWidth, c.borderBottomWidth, c.borderLeftWidth], bs: c.borderTopStyle, bc: c.borderTopColor, left: r(e).left, right: r(e).right}; });
-  const labels = ['pN', 'pC', 'pCl', 'pW'].map((id) => ({above: r(q('label[for=' + id + ']')).bottom <= r(q('#' + id)).top + 1}));
+  const labels = ['pN', 'pC', 'pCl', 'pW'].map((id) => { const l = r(q('label[for=' + id + ']')), e = r(q('#' + id));
+    return {left: l.right <= e.left + 1, sameRow: l.top < e.bottom && l.bottom > e.top, labelX: l.left, order: l.top}; });
   const form = q('#project-form .dlg-form'), fc = getComputedStyle(form);
   return {fields, labels, headLeft: r(q('#project-form-t')).left, formPad: fc.paddingLeft + '/' + fc.paddingTop,
-          boxTop: r(f).top, topbar: r(q('.top')).bottom, surface: getComputedStyle(q('#pN')).backgroundColor, boxBg: getComputedStyle(f).backgroundColor};
+          boxTop: r(f).top, boxBottom: r(f).bottom, boxLeft: r(f).left, boxRight: r(f).right, vw: document.documentElement.clientWidth, vh: innerHeight, fieldLeft: Math.min(...fields.map((x) => x.left)), topbar: r(q('.top')).bottom, surface: getComputedStyle(q('#pN')).backgroundColor, boxBg: getComputedStyle(f).backgroundColor};
 })()"""
+
+
+def lum(css):
+    nums = [float(x) for x in css[css.index("(") + 1:css.index(")")].replace("/", ",").replace(" ", ",").split(",") if x][:3]
+    ch = [(v / 255) / 12.92 if v / 255 <= 0.03928 else (((v / 255) + 0.055) / 1.055) ** 2.4 for v in nums]
+    return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2]
+
+
+def contrast(a, b):
+    hi, lo = sorted((lum(a), lum(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
 
 
 class Look(unittest.TestCase):
@@ -82,14 +94,22 @@ class Look(unittest.TestCase):
             for f in m["fields"]:
                 self.assertEqual(f["bw"], ["1px"] * 4, (kind, width, scheme, f["id"]))
                 self.assertEqual(f["bs"], "solid", (kind, width, scheme, f["id"]))
-                self.assertNotIn(f["bc"], ("rgba(0, 0, 0, 0)", m["surface"], m["boxBg"]), (kind, width, scheme, f["id"], "the border is seen against the box"))
+                for bg in (m["surface"], m["boxBg"]):
+                    self.assertGreaterEqual(contrast(f["bc"], bg), 1.5, (kind, width, scheme, f["id"], "the border is seen against the field and the box"))
 
-    def test_the_labels_are_stacked_above_their_fields_and_the_fields_are_flush_with_the_heading(self):
+    def test_each_label_is_left_of_its_field_on_one_row_in_two_columns(self):
         for kind, width, scheme, m in self.cases():
-            self.assertTrue(all(x["above"] for x in m["labels"]), (kind, width, scheme, "labels above"))
-            self.assertEqual(m["formPad"], "0px/0px", (kind, width, scheme, "no second indent on the fields"))
-            for f in m["fields"]:
-                self.assertAlmostEqual(f["left"], m["headLeft"], delta=1, msg=(kind, width, scheme, f["id"], "left edge as the heading's"))
+            self.assertTrue(all(x["left"] and x["sameRow"] for x in m["labels"]), (kind, width, scheme, "labels left of their fields"))
+            self.assertEqual(m["formPad"], "0px/0px", (kind, width, scheme, "no second indent"))
+            self.assertEqual(len({round(x["labelX"]) for x in m["labels"]}), 1, (kind, width, scheme, "one label column"))
+            self.assertEqual(len({round(f["left"]) for f in m["fields"]}), 1, (kind, width, scheme, "one field column"))
+            self.assertEqual([x["order"] for x in m["labels"]], sorted(x["order"] for x in m["labels"]), (kind, width, scheme, "order kept"))
+
+    def test_the_box_is_centred_across_and_in_the_space_below_the_top_bar(self):
+        for kind, width, scheme, m in self.cases():
+            self.assertAlmostEqual(m["boxLeft"], m["vw"] - m["boxRight"], delta=2, msg=(kind, width, scheme, "centred across"))
+            self.assertAlmostEqual(m["boxTop"] - m["topbar"] - 32, m["vh"] - m["boxBottom"] - 32, delta=2, msg=(kind, width, scheme, "centred down"))
+            self.assertGreater(m["boxTop"] - m["topbar"], 40, (kind, width, scheme, "not pinned to the top"))
 
     def test_the_box_still_starts_below_the_top_bar(self):            # row 758 kept
         for kind, width, scheme, m in self.cases():
