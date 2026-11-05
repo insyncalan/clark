@@ -139,7 +139,7 @@ class Base(unittest.TestCase):
         if self.hold_read is not None:
             self.hold_read.wait(20)
         if self.fail_read:
-            raise RuntimeError("the read failed on purpose")
+            raise RuntimeError("the read failed: Movement test marker")
         return self.read(code)
 
     def seam(self, real, which):
@@ -335,7 +335,7 @@ class Block(Base):
             self.hold_read.set()
             p.until("!!document.querySelector('#movement [role=alert]')", "it could not load")
             self.assertIn(mv.READ_FAILS, p.js("document.querySelector('#movement').textContent"))
-            self.assertNotIn("on purpose", p.js("document.body.innerHTML"), "the server's text is never shown")
+            self.assertNotIn("Movement test marker", p.js("document.body.innerHTML"), "the server's text is never shown")
             self.fail_read = False
             p.js("document.querySelector('#movement .again').click()")
             p.until("!!document.querySelector('#movement .mvm-sentence')", "Try again loads it")

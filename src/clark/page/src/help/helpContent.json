@@ -42,7 +42,7 @@
     "n": "Check",
     "t": "Check it",
     "ic": "chat",
-    "d": "Use ask clark to **Check this report**. It points out what looks wrong, such as an overdue action left off the page."
+    "d": "Use ask clark to **Check this report**. It reads the project’s data and says what looks wrong."
    },
    {
     "n": "You",
@@ -127,7 +127,7 @@
    ],
    [
     "ask clark",
-    "Checks the report and answers questions about the project. Opens from the top bar, or with [[/]].",
+    "Answers questions about the project and checks the report. Press [[/]], or open the palette with [[Mod+K]] and choose Ask about this project.",
     "ask"
    ],
    [
@@ -165,7 +165,7 @@
    "loop_return": "Next week starts the loop again from the same record. The history keeps every change, so nothing is lost between weeks.",
    "first_title": "Your first ten minutes",
    "where_title": "Where things are",
-   "keyline": "[[/]] ask clark · [[/]] [[/]] Sneak peek, with an item open · [[Esc]] close the top thing · [[Mod+Enter]] keep an edit · [[Alt+/]] AI on selected text · [[?]] Help",
+   "keyline": "ask: the speech-bubble button in the top bar, or press [[/]] · [[/]] [[/]] Sneak peek, with a work item open in Edit · [[Esc]] close the top thing · [[Mod+Enter]] keep an edit · [[Alt+/]] AI on selected text · [[?]] Help",
    "keyline_link": "All the keys",
    "rules_title": "Four rules",
    "foot": "Dates are shown DD-MM-YYYY.",
@@ -233,19 +233,19 @@
     "id": "check-the-report",
     "g": "Every week",
     "t": "Check the report with ask clark",
-    "w": "Top bar › ask clark · [[/]] · [[Mod+J]]",
+    "w": "[[/]] · [[Mod+K]] › Ask about this project",
     "go": "ask",
     "s": [
-     "Open **ask clark** from the top bar, or press [[/]] when you aren’t typing in a box and the peek is closed. It opens down the right-hand side.",
-     "Press **Check this report**. It lists what to look at: an overdue action left off the page, a health that doesn’t match the milestones, a missing reason, items on the page with no latest update, a use case On track with overdue work, an empty Summary, and no supporting documents from this week.",
-     "Some notes come with a button that fixes them at once, such as **Show them** or **Set it to At risk**. Each fix has **Undo**.",
-     "Ask anything else in your own words, or press a suggestion: **What’s overdue?**, **Which risks are red?**, **Next milestone?**, **Summarise this week** (with **Use it as the Summary**) and **Use cases**. Item IDs in an answer open the item.",
-     "**+** at the top starts a new chat. [[Esc]] or a click outside closes the panel. Drag its left edge to make it wider; a double-click puts it back."
+     "Press [[/]] when you aren’t typing in a box and no peek, menu or box is open, or press [[Mod+K]] and choose **Ask about this project**. It opens down the right-hand side.",
+     "Press **Check this report**. It reads the project’s data and says what looks wrong.",
+     "An answer may suggest a change to a work item or a milestone as a card that shows it now and as it would be. Nothing is saved until you press **Apply**; **Undo** takes it back. If the change came from one of your files, you tick a box first.",
+     "Ask anything else in your own words, or press a suggestion: **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week** or **Which use cases need attention?**.",
+     "**New chat** at the top starts again. **Close**, [[Esc]] or a click outside closes the panel. Drag its left edge to make it wider."
     ],
     "say": [
      "Check this report",
-     "draft an update for PDF-A-012",
-     "who has the most actions?"
+     "What is overdue?",
+     "Which risks are red?"
     ]
    },
    {
@@ -400,16 +400,16 @@
     "id": "change-an-item-in-words",
     "g": "Work items",
     "t": "Change an item with words (Sneak peek)",
-    "w": "An open peek › the sparkle, or [[/]] [[/]]",
+    "w": "A work item open in Edit › the sparkle, or [[/]] [[/]]",
     "go": "work",
     "s": [
-     "With an item or milestone open in the peek, press [[/]] twice quickly (when you aren’t typing in a box), or press the sparkle at the top, “Change an item with words”.",
+     "With a work item open in the peek in Edit, press [[/]] twice quickly (when you aren’t typing in a box), or press the sparkle at the top, “Change an item with words”.",
      "Type the change, for example “move to Friday, owner Jo, high priority”.",
-     "The words clark read are marked above the box, and a card shows each field before and after.",
-     "Press [[Enter]] (or [[Shift+Enter]]), or **Make the change**, to save it. **Not now** or [[Esc]] closes it. The fields that changed flash for a moment, and the message has **Undo**.",
-     "In an empty box, [[Up]] brings back your last instruction."
+     "Under the box, a line for each field shows what it is now and what it will become.",
+     "Press [[Enter]] to make every change shown, in one step ([[Shift+Enter]] makes them and keeps the box open). [[Esc]] closes the box. The fields that changed flash for a moment, and the message has **Undo**.",
+     "Closing an item, or making or withdrawing a decision, asks first: press **Confirm and apply** or [[Mod+Enter]]. A decision that is made cannot be undone from here."
     ],
-    "n": "If a name could be two people, it says so and asks for the full name. See [Sneak peek](#ref-sneak-peek) for every phrase it understands.",
+    "n": "If the owner is not already named in the project, the line is marked “new name”. See [Sneak peek](#ref-sneak-peek) for what it understands.",
     "page": [
      "work"
     ]
@@ -720,7 +720,7 @@
      "In **Settings › Projects**, press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
      "A new project opens on Work items, ready for an import.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
-     "Under the projects, set this project’s **Source folders for ask clark** and its **Publishing** folders.",
+     "Under the projects, set this project’s **Publishing** folders. The folders ask clark may read are in the **Asking** card, under **Folders asking may read**.",
      "The project name in the top bar switches projects, shows each one’s open items, and has **Project settings**."
     ],
     "page": [
@@ -860,7 +860,6 @@
        "**The logo** (or clark’s icon and name): back to the Dashboard.",
        "**The project name**: switch projects. Each shows its count of open items; **Project settings** is at the foot.",
        "**Dashboard**, **Work items** and **Milestones**: the three screens.",
-       "**ask clark**: opens the assistant down the right. The [[/]] beside it is its key.",
        "**The profile circle**: your initials (a person icon until you add your name). See [The profile circle](#ref-profile-circle)."
       ]
      ]
@@ -1306,20 +1305,24 @@
     "id": "ask-clark",
     "g": "Screens",
     "t": "ask clark",
-    "w": "Top bar · [[/]] · [[Mod+J]]",
+    "w": "[[/]] · [[Mod+K]] › Ask about this project",
     "b": [
      [
       "p",
-      "Its purpose is to help you make the report as accurate as it can be. It works from this project’s data and the source folders listed in Settings. It never reads mail, Teams or calendars."
+      "Its purpose is to help you make the report as accurate as it can be. It works from this project’s data and the source folders listed in Settings. It never reads mail, Teams or calendars. It can suggest changes to work items and to milestones, and a new work item or milestone. It never archives or restores anything, and it never takes one out."
+     ],
+     [
+      "p",
+      "Asking is on from the first start. Nothing is sent until you ask a question, and only while Claude or ChatGPT is connected and signed in on this computer. **Turn off asking** in the **Asking** card in Settings stops it."
      ],
      [
       "ul",
       [
-       "The suggestions sit in one row above the box (scroll it sideways for the rest): **Check this report**, **What’s overdue?**, **Which risks are red?**, **Next milestone?**, **Summarise this week**, **Use cases**.",
-       "Type a question and press [[Enter]] to send ([[Shift+Enter]] for a new line). While it works, an office quip shows in place of the suggestions, and they come back with the answer.",
-       "An answer’s IDs open the item; a milestone’s name opens the milestone. A button in an answer makes a change, with **Undo**.",
-       "**+** starts a new chat; **×**, [[Esc]] or a click outside closes it.",
-       "Drag its left edge to make it wider; a double-click puts it back."
+       "The suggestions sit in one row above the box (scroll it sideways for the rest): **Check this report**, **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week**, **Which use cases need attention?**",
+       "Type a question and press [[Enter]] to send ([[Shift+Enter]] for a new line). While it works, a short waiting line shows in place of the suggestions, and they come back with the answer.",
+       "An answer is plain text. A suggested change comes as a card: nothing is saved until you press **Apply**, and **Undo** takes it back. A change that came from one of your files asks you to tick a box first.",
+       "**New chat** starts again; **Close**, [[Esc]] or a click outside closes it.",
+       "Drag its left edge to make it wider."
       ]
      ],
      [
@@ -1340,7 +1343,7 @@
      [
       "ul",
       [
-       "**The top bar**: Close, Across the whole screen, Previous and Next, then the eye, the sparkle (Sneak peek), Copy link and **⋯** (Duplicate, Archive).",
+       "**The top bar**: Close, Across the whole screen, Previous and Next, then the eye, the sparkle (Sneak peek, in Edit), Copy link and **⋯** (Duplicate, Archive).",
        "**The line above the title**: the type, the ID, the project, and Client when it is shown to the client.",
        "**A warning**, when an action is overdue or due on a weekend, with fixes.",
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
@@ -1441,8 +1444,12 @@
     "id": "sneak-peek",
     "g": "Working with items",
     "t": "Sneak peek",
-    "w": "An open peek › the sparkle or [[/]] [[/]]",
+    "w": "A work item open in Edit › the sparkle or [[/]] [[/]]",
     "b": [
+     [
+      "p",
+      "Sneak peek changes work items only: an action, a risk, an issue or a decision. It works in Edit only, in the peek."
+     ],
      [
       "tbl",
       [
@@ -1451,75 +1458,30 @@
       ],
       [
        [
-        "due Friday · move to next week · by 12-12-2026 · on in 3 days",
-        "The due date (today, tomorrow, next week, in n days or weeks, a weekday, next Monday, DD-MM-YYYY)"
+        "due Friday · move to tomorrow · by Friday",
+        "The due date (today, yesterday, tomorrow, a weekday, or DD-MM-YYYY). A decision’s date is when it is needed, or when it was made"
        ],
        [
         "owner Jo · assign to Sam · give it to Priya",
-        "The owner (a second word counts when it has a capital)"
+        "The owner of an action, risk or issue (the name ends at a comma, or at a word such as due or priority). Not a decision’s"
        ],
        [
         "done · closed · reopen · delayed · cancelled",
-        "An action’s, risk’s or issue’s status"
+        "An action’s, risk’s or issue’s status (delayed: actions only)"
        ],
        [
-        "made · agreed · withdrawn · pending",
+        "made · decided · withdrawn · pending",
         "A decision’s status"
        ],
        [
-        "urgent · high priority · medium · low",
-        "The priority"
-       ],
-       [
-        "red · amber · green",
-        "A risk’s or issue’s colour"
-       ],
-       [
-        "show to client · hide from client",
-        "Client-visible"
-       ],
-       [
-        "use case 3.1",
-        "The use case"
-       ],
-       [
-        "rename to …",
-        "The title"
-       ],
-       [
-        "update: …",
-        "The latest update"
+        "urgent priority · high priority · medium priority · low priority",
+        "The priority of an action"
        ]
       ]
      ],
      [
-      "tbl",
-      [
-       "For a milestone",
-       "It changes"
-      ],
-      [
-       [
-        "forecast 12-12-2026 · move to next Friday",
-        "The forecast date"
-       ],
-       [
-        "achieved · done",
-        "Achieved today, progress 100%"
-       ],
-       [
-        "at risk · on track",
-        "The state"
-       ],
-       [
-        "progress 40%",
-        "The progress"
-       ],
-       [
-        "owner …, show to client, rename to …",
-        "As for an item"
-       ]
-      ]
+      "p",
+      "It reads your words with plain rules on this computer: no model is used and nothing is sent. [[Enter]] makes the changes shown as one step, with **Undo**; [[Shift+Enter]] makes them and keeps the box open; [[Esc]] closes it."
      ]
     ]
    },
@@ -1560,7 +1522,7 @@
      [
       "ul",
       [
-       "**The top bar**: Close, Across the whole screen, Previous and Next, the eye, the sparkle (Sneak peek) and **⋯** (Archive milestone).",
+       "**The top bar**: Close, Across the whole screen, Previous and Next, the eye and **⋯** (Archive milestone).",
        "**The chips**: the state, the agreed date, the forecast and the progress.",
        "**State**: the six states as buttons, and why it has the one it has.",
        "**Dates**: Agreed (the baseline) with **Rebaseline…** and the original date; Forecast, with how many days later than agreed. An achieved milestone shows its achieved date.",
@@ -1776,8 +1738,8 @@
         "Every project with its code, client, workstreams and item count; Open, Edit and Archive; **+** adds one."
        ],
        [
-        "Source folders for ask clark",
-        "The folders ask clark may read for this project. It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
+        "Asking",
+        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders ask clark may read for this project (**Folders asking may read**). It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
        ],
        [
         "AI",
@@ -1973,15 +1935,11 @@
    ],
    [
     "[[/]]",
-    "ask clark (when you aren’t typing in a box). In Help, it goes to the search box instead. Like the letter keys, it does nothing when Single-key shortcuts is off in Settings › Personal"
-   ],
-   [
-    "[[Mod+J]]",
-    "Open or close ask clark"
+    "ask clark, when you aren’t typing in a box and no peek, menu or box is open."
    ],
    [
     "[[/]] [[/]]",
-    "With a peek open: Sneak peek, change it in words. A single [[/]] opens ask clark after a moment"
+    "With a work item open in the peek in Edit: press twice quickly for Sneak peek, to change it in words. A single [[/]] does nothing while a peek is open"
    ],
    [
     "[[Esc]]",
@@ -1989,11 +1947,11 @@
    ],
    [
     "[[Enter]]",
-    "In a title, a heading or a cell: keep the change. On a row, a card, a tile or a milestone: open it. In Sneak peek: make the change"
+    "In a title, a heading or a cell: keep the change. On a row, a card, a tile or a milestone: open it. In Sneak peek: make the change (a change that closes an item or makes a decision asks you to confirm first)"
    ],
    [
     "[[Shift+Enter]]",
-    "In Sneak peek: make the change too. In ask clark: a new line"
+    "In Sneak peek: make the change and keep the box open. In ask clark: a new line"
    ],
    [
     "[[Mod+Enter]]",
@@ -2006,10 +1964,6 @@
    [
     "[[/]] in an editor",
     "The command menu, at the start of a line or after a space. [[Up]], [[Down]], [[Enter]] and [[Esc]] work in it"
-   ],
-   [
-    "[[Up]]",
-    "In an empty Sneak peek box: your last instruction"
    ],
    [
     "[[Up]] [[Down]] [[Enter]]",
@@ -2049,7 +2003,7 @@
    ],
    [
     "Double-click",
-    "On the left edge of the peek or ask clark: back to the usual width"
+    "On the left edge of the peek: back to the usual width"
    ],
    [
     "Click",
@@ -2097,7 +2051,7 @@
    ],
    [
     "[[Mod+K]]",
-    "The palette, from any page, even in a box: type to find a command, page, project, work item or milestone. [[Up]] and [[Down]] move, [[Enter]] runs it, [[Esc]] closes it and puts you back"
+    "The palette, from any page, even in a box: type to find a command, page, project, work item or milestone. [[Up]] and [[Down]] move, [[Enter]] runs it, [[Esc]] closes it and puts you back. It also opens ask clark: choose Ask about this project"
    ],
    [
     "[[Up]] [[Down]] [[Home]] [[End]]",
@@ -2169,9 +2123,9 @@
    ],
    [
     "sparkle",
-    "Sneak peek, Draft",
-    "Change an item with words; draft the latest update",
-    "The peek"
+    "Sneak peek",
+    "Change a work item with words",
+    "The peek, in Edit"
    ],
    [
     "close",
@@ -2280,12 +2234,6 @@
     "Appearance",
     "Choose System, Light or Dark",
     "The profile circle"
-   ],
-   [
-    "chat",
-    "ask clark",
-    "Open ask clark",
-    "The top bar"
    ],
    [
     "search",
