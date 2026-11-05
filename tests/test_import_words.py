@@ -65,7 +65,7 @@ class ApprovedWordsArePinned(unittest.TestCase):
         self.assertEqual((quoted("selectAll"), quoted("clear")), ("Select all", "Clear"))
         self.assertEqual(quoted("tickOne"), "Tick at least one sheet.")
         self.assertEqual(quoted("continue"), "Continue")      # the wording the other two-step boxes (Publish, Word) already use
-        self.assertIn('`${s.name} (${s.rows > SHEET_ROWS_SHOWN ? "more than 5,000 rows" : `${s.rows} ${s.rows === 1 ? "row" : "rows"}`})`', CARD)
+        self.assertIn('`${s.name} (${s.rows > SHEET_ROWS_SHOWN ? "more than 2,000 rows" : `${s.rows} ${s.rows === 1 ? "row" : "rows"}`})`', CARD)
 
     def test_the_data_card_note_is_only_the_prototypes_sentence(self):
         self.assertEqual(quoted("note"), "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.")
@@ -101,7 +101,7 @@ class ApprovedWordsArePinned(unittest.TestCase):
 
 
 class SheetRowWords(unittest.TestCase):
-    """#655: a sheet's row count in the "What to import" box. Above 5,000 the box says so in words, never a wrong number."""
+    """#655: a sheet's row count in the "What to import" box. Above 2,000 the box says so in words, never a wrong number."""
     def test_sheet_labels_from_the_page_function(self):
         node = shutil.which("node")
         if not node:
@@ -112,12 +112,12 @@ class SheetRowWords(unittest.TestCase):
             mod.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
             probe = Path(tmp) / "probe.mjs"
             probe.write_text('import { sheetWord } from "./dataCard.mjs";\n'
-                             'console.log(JSON.stringify([[\'Actions\', 12], [\'Decisions\', 1], [\'Milestones\', 0], [\'Actions\', 5000], [\'Actions\', 5001]]'
+                             'console.log(JSON.stringify([[\'Actions\', 12], [\'Decisions\', 1], [\'Milestones\', 0], [\'Actions\', 2000], [\'Actions\', 2001]]'
                              '.map(([name, rows]) => sheetWord({ name, rows }))));', encoding="utf-8")
             done = subprocess.run([node, str(probe)], capture_output=True, text=True)
             self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(json.loads(done.stdout), ["Actions (12 rows)", "Decisions (1 row)", "Milestones (0 rows)",
-                                                   "Actions (5000 rows)", "Actions (more than 5,000 rows)"])
+                                                   "Actions (2000 rows)", "Actions (more than 2,000 rows)"])
 
 
 if __name__ == "__main__":
