@@ -1,4 +1,5 @@
-// View or Edit, in the top bar (on the Dashboard, a pill at the left of the report bar: ReportBar draws it, TopBar then does not). Only a page that clark serves has it: a published file has no Edit button. Switching changes
+// View or Edit, in the top bar (on the Dashboard, a pill at the left of the report bar: ReportBar draws it, TopBar then does not).
+// Only a page that clark serves has it: a published file has no Edit button. Switching changes
 // what is drawn and nothing else: no reload, no address change, no history entry, nothing saved. On the Dashboard the plain keys V
 // and E do the same (keys.js, listened for from boot, so the key works whichever bar draws the switch).
 import { mode, data, status, view } from "../stores/report.js";

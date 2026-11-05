@@ -1353,7 +1353,7 @@
      ],
      [
       "p",
-      "The **ask clark** button shows only while asking is on. With asking off, [[/]] still opens the panel, which says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link."
+      "The **ask clark** button shows only while asking is on. With asking off, [[/]] still opens the panel, except while Help is open, and the panel says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link."
      ]
     ]
    },
@@ -1938,7 +1938,7 @@
        "Three tabs: **Start here**, **How do I…** and **Reference**. Help opens on the one you used last.",
        "The search box looks through all three as you type. Press [[Enter]] for the first result, [[Esc]] to clear it.",
        "A link with a › after it takes you to the screen it names.",
-       "[[?]] opens Help from any page."
+       "[[?]] opens Help from any page. In Help, [[/]] goes to the search box, unless the letter keys are turned off in Settings › Personal › Keys."
       ]
      ]
     ]
@@ -2522,7 +2522,7 @@
      "pic": "excel-in-box"
     },
     {
-     "d": "The box **What to import** lists the sheets the workbook has, each with its number of rows, for example Actions (12 rows). They all start ticked. Tick the sheets you want and untick the rest: anything you leave unticked is not read and not changed. **Select all** ticks every sheet and **Clear** unticks them. With no sheet ticked, **Continue** is off. A sheet with more than 5,000 rows shows **more than 5,000 rows**. Any sheet with more than 2,000 rows that have something in them is refused whole when you press **Continue**, and the message says so."
+     "d": "The box **What to import** lists the sheets the workbook has, each with its number of rows, for example Actions (12 rows). They all start ticked. Tick the sheets you want and untick the rest: anything you leave unticked is not read and not changed. **Select all** ticks every sheet and **Clear** unticks them. With no sheet ticked, **Continue** is off. A sheet with more than 2,000 rows shows **more than 2,000 rows**. It is refused whole when you press **Continue**, and the message says so."
     },
     {
      "d": "The box **Check the import** opens. A line gives the counts: how many rows are new, how many changed, how many are no longer in the workbook and how many are unchanged. Unchanged rows are left alone. Nothing has been saved yet. It counts only the sheets you ticked."

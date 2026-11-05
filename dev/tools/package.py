@@ -98,7 +98,7 @@ def make_pages(root=ROOT, twice=False):
 LEFT_OUT = re.compile(r"(^|/)(__pycache__|\.DS_Store)(/|\Z)|\.(pyc|db|log)\Z")
 
 TEAM_ONLY = "This download is for the team only; it is built from the private copy."
-PUBLIC_BUILD = "This download is built from the public repository; it holds none of the team's private notes."
+PUBLIC_BUILD = "This download holds none of the team's private notes."
 
 FIXED_TIME = (2000, 1, 1, 0, 0, 0)  # every entry's time, so two builds are byte for byte the same
 UNIX = 3                            # ZipInfo.create_system: the modes below are Unix modes
@@ -111,10 +111,10 @@ Getting started on a Mac
 These steps are for a Mac.
 
 What is in this folder: README.md says what clark is. START-HERE.txt is this
-page. The file clark.command starts clark. docker is for starting clark with
-Docker. system/branding holds your own logo and colours, if you add them. The
-program's own files are in a hidden folder called .app: you do not need to
-open it.
+page. Double-click clark.command to start clark. docker is for starting clark
+with Docker. system/branding holds your own logo and colours, if you add them.
+The program files are in a hidden folder called .app: you do not need to open
+it.
 
 If your Mac will not open clark.command (a work Mac often will not), or you
 already use Docker, use Docker instead. You only need Docker and Chrome.

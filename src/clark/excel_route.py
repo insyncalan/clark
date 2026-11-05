@@ -155,8 +155,9 @@ def _staged_file(req, clock):
         raise Refused(BAD_FILE) from None
     now = clock()                                          # the caller (changes._call) holds the one lock, so PLANS is ours here
     _expire(now)
-    while len(PLANS) >= MAX_PLANS:
-        _drop(PLANS.pop(min(PLANS, key=lambda k: PLANS[k]["at"])))
+    while len(PLANS) >= MAX_PLANS:                         # issue 723: a kept file with no check yet goes before a plan waiting for Apply
+        pool = [k for k in PLANS if PLANS[k]["plan"] is None] or list(PLANS)
+        _drop(PLANS.pop(min(pool, key=lambda k: PLANS[k]["at"])))
     folder = Path(tempfile.mkdtemp(prefix="clark-import-"))
     try:
         file = folder / (re.sub(r'[\\/:*?"<>|\x00-\x1f]', "_", shown)[:120].rstrip(". ") or "workbook")
@@ -186,7 +187,7 @@ def _sheets(store, req, project, clock):
     workbook is kept (as a check is) so the check that follows names it by `file` and the page does not send it again."""
     now, folder, file = _staged_file(req, clock)
     try:
-        listed = word_route._excel_import().list_sheets(file)
+        listed = word_route._excel_import().list_sheets(file, store)
     except BaseException:
         shutil.rmtree(folder, ignore_errors=True)
         raise

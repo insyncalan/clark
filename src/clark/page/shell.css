@@ -1015,11 +1015,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-top:hover { background: rgba(255,255,255,.14); }
 .hp-top:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tb-act { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 32px; height: 32px; padding: 0 6px; border-radius: var(--radius-sm); color: var(--white); font-size: var(--size-body); cursor: pointer; white-space: nowrap; }   /* the top bar's search and ask buttons */
-.tb-act:hover { background: rgba(255,255,255,.14); }
+.tb-act:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
 .tb-act:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tb-ico { width: 20px; height: 20px; flex: none; }
-.tb-ask { padding: 0 10px; border: 1px solid rgba(255,255,255,.35); }
-.tb-key { font: inherit; font-size: var(--size-small); padding: 1px 6px; border: 1px solid rgba(255,255,255,.35); border-radius: var(--radius-sm); }
+.tb-ask { padding: 0 10px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); }
+.tb-key { font: inherit; font-size: var(--size-small); padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius-sm); }
 @media (max-width: 1100px) { .tb-ask { padding: 0 6px; border-color: transparent; } .tb-ask-w, .tb-key { display: none; } }   /* icon only below 1100 px, so nothing in the bar overlaps */
 /* the Help peek (item 645): the item peek's frame (.peek) below the top bar, so the "?" button stays in view; text only */
 .hpk { top: var(--topbar); width: 380px; min-width: 0; max-width: 92vw; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5); color: var(--text); font-size: var(--size-small); line-height: var(--leading); }
@@ -1193,13 +1193,25 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn:disabled { cursor: default; opacity: .6; }
 .setting { margin-top: var(--space-4); }
 .set-head p { margin: 0; }
-/* The chips' bar (item 440, S2): it stays under the top bar as you scroll, on the page's own ground (carried out to both edges), and the
-   chip of the card in view is marked. Its height is kept clear when a card or a box is scrolled into view (--set-bar, Views.jsx). */
-.set-bar { position: sticky; top: var(--topbar); z-index: 15; margin-top: var(--space-3); padding: var(--space-2) 0; background: var(--grey-50); box-shadow: 0 0 0 100vmax var(--grey-50); clip-path: inset(0 -100vmax); }
-:root:has(.set-bar) { scroll-padding-top: var(--set-bar, 0px); }
-.set-bar + .setting { margin-top: var(--space-2); }
-.set-nav { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.set-chip { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 28px; padding: 3px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out); }      /* no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
+/* The Settings links (item 440, S2; issue 697). Above 900 px they are a list down the left, the cards at the right; the list stays under the top bar
+   as you scroll (and scrolls itself if the window is short). At 900 px and narrower it is the old bar of chips under the head, on the page's own
+   ground carried out to both edges, and its height is kept clear when a card or a box is scrolled into view (--set-bar, Views.jsx). */
+.set-layout { display: grid; grid-template-columns: minmax(150px, 14rem) minmax(0, 1fr); column-gap: var(--space-5); align-items: start; }
+.set-layout > .set-head { grid-column: 1 / -1; }
+.set-cards { grid-column: 2; min-width: 0; }
+.set-cards > :first-child { margin-top: 0; }
+.set-bar { grid-column: 1; position: sticky; top: var(--topbar); z-index: 15; margin-top: var(--space-4); padding: var(--space-2) var(--space-1); background: var(--grey-50); max-height: calc(100vh - var(--topbar) - var(--space-4)); overflow-y: auto; }
+.set-nav { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.set-nav li { display: block; }
+.set-chip { all: unset; box-sizing: border-box; display: flex; align-items: center; width: 100%; min-height: 28px; padding: 3px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out); }      /* no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
+@media (max-width: 900px) {
+  .set-layout { display: block; }
+  .set-bar { position: sticky; padding: var(--space-2) 0; margin-top: var(--space-3); max-height: none; overflow-y: visible; box-shadow: 0 0 0 100vmax var(--grey-50); clip-path: inset(0 -100vmax); }
+  :root:has(.set-bar) { scroll-padding-top: var(--set-bar, 0px); }
+  .set-bar + .set-cards > .setting:first-child { margin-top: var(--space-2); }
+  .set-nav { flex-direction: row; flex-wrap: wrap; gap: var(--space-2); }
+  .set-chip { display: inline-flex; width: auto; border-radius: var(--radius-pill); }
+}
 .set-chip:hover { border-color: var(--text-muted); background: var(--brand-blue-tint); }
 .set-chip[aria-current], .set-chip[aria-current]:hover { border-color: var(--brand-blue); background: var(--brand-blue); color: var(--text-on-brand); }      /* the same weight, so marking a chip never moves the row */
 .set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
@@ -1454,9 +1466,9 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .ask-folders li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-top: var(--space-1); }
 #ask-folder-path { flex: 1 1 260px; min-height: 32px; padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--size-small); }
 /* The Add a section box (#96): a modal over the page, desktop and 900 px. Tokens only; no text under 13 px. */
-.ad-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: var(--space-6) var(--space-4); background: color-mix(in srgb, var(--black) 45%, transparent); overflow: auto; }
+.ad-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: calc(var(--topbar) + var(--space-6)) var(--space-4) var(--space-6); background: color-mix(in srgb, var(--black) 45%, transparent); overflow: auto; }   /* row 758: a box starts below the top bar, never over it */
 .ad:focus { outline: none; }
-.ad { display: flex; flex-direction: column; width: min(900px, 100%); max-height: calc(100vh - 2 * var(--space-6)); max-height: calc(100dvh - 2 * var(--space-6)); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-body); color: var(--text); }
+.ad { display: flex; flex-direction: column; width: min(900px, 100%); max-height: calc(100vh - var(--topbar) - 2 * var(--space-6)); max-height: calc(100dvh - var(--topbar) - 2 * var(--space-6)); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-body); color: var(--text); }
 .ad-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-4) var(--space-5) var(--space-2); }
 .ad-head h2 { margin: 0; flex: 1 1 auto; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
 .ad-q { flex: 0 1 280px; min-width: 0; }

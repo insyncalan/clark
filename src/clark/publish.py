@@ -47,6 +47,7 @@ from clark import doclinks, milestones, page, platform, section_bodies
 from clark.store import COMMITMENTS, Invalid as StoreInvalid, NumberTaken, check_section_body, excluded_label_names, open_store
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
 
+LOG = logging.getLogger("clark.publish")
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused
 VERSION = 1                               # the data block's shape; the page refuses another
 KINDS = ("milestones", "actions", "raid", "decisions", "use_cases")
@@ -292,9 +293,16 @@ def documents(rows, code, hidden_ids, hidden_types):
     (report_hidden), and only while the Supporting documents section is not hidden; each through _document."""
     if "docs" in hidden_types:
         return []
-    kept = (_document(r) for r in sorted(rows or (), key=lambda r: (r.get("sort_order") or 0, str(r.get("id"))))
-            if r.get("archived") == 0 and r.get("project", code) == code and r.get("id") not in hidden_ids)
-    return [_pick(c, PUBLISH_FIELDS["documents"]) for c in kept if c]
+    live = [r for r in sorted(rows or (), key=lambda r: (r.get("sort_order") or 0, str(r.get("id"))))
+            if r.get("archived") == 0 and r.get("project", code) == code and r.get("id") not in hidden_ids]
+    out = []
+    for r in live:
+        c = _document(r)
+        if c:
+            out.append(_pick(c, PUBLISH_FIELDS["documents"]))
+        else:                          # issue 610: a live document that cannot be published is logged (its id only: no title, no address)
+            LOG.warning("Document %s is not in the published file: its link, title or kind cannot be used.", r.get("id"))
+    return out
 
 
 OPEN_STEPS = ("Open", "Delayed")                                # an action's statuses that are still to do
@@ -1324,7 +1332,7 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
                 raise PublishError(f"{e} The link that was at {dest.name} could not be put back, so this report is still there "
                                    "under that name.") from e
             if placed == "aside":                                        # said the same way as "kept"
-                raise PublishError(f"{e} The old report could not be put back in the folder. It is still there under a hidden name.") from e
+                raise PublishError(f"{e} The report could not be put back in the folder under its name. It is still in the folder under a hidden name.") from e
         else:
             take_back(dest, digest)
         raise PublishError(str(e)) from e

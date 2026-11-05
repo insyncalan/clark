@@ -22,7 +22,7 @@ import sys
 import time
 from pathlib import Path
 
-from clark import appfiles, platform, server, update_helper
+from clark import appfiles, platform, same_version, server, typed, update_helper
 from clark.__main__ import Usage, free_port_near, port_free, port_number
 
 NOTHING, OURS, OTHER_DATA, NOT_CLARK = "nothing", "ours", "other data folder", "not clark"
@@ -165,6 +165,8 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
     mark = appfiles.data_mark(folder)
     if not finish(folder, say):
         return 1
+    if same_version.refuse():                   # row 760: a folder of mixed versions never starts; after the recovery of an interrupted update, never before it
+        return 1
     seen = health(port, mark)
     if seen in (OTHER_DATA, NOT_CLARK):
         say(report(seen, port, folder, free))
@@ -213,7 +215,7 @@ def open_clark(url, say, environ, find_chrome, open_window, open_browser):
 
 
 def parser():
-    p = argparse.ArgumentParser(prog="python3 -m clark.launch", description="Start clark if it isn't running, and open its window.")
+    p = argparse.ArgumentParser(prog=typed.launch(), description="Start clark if it isn't running, and open its window.")
     p.add_argument("--data", metavar="FOLDER", help="the folder for clark's data (default: clark's own folder for your system)")
     p.add_argument("--port", metavar="N", help=f"the port number clark listens on (advanced; default: the CLARK_PORT setting, or {server.DEFAULT_PORT})")
     return p

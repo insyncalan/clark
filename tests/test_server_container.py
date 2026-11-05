@@ -141,6 +141,28 @@ class Compose(unittest.TestCase):
     def service(self):
         return (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8")
 
+    @staticmethod
+    def mounts(text):
+        """The service's volume list read by its structure (a "- " item and its keys), whatever the indentation or key order."""
+        items, inside, base = [], False, 0
+        for line in text.splitlines():
+            line = line.split("#", 1)[0].rstrip()
+            if not line.strip():
+                continue
+            indent, body = len(line) - len(line.lstrip()), line.strip()
+            if body == "volumes:":
+                inside, base = True, indent
+            elif inside and indent <= base:
+                inside = False
+            elif inside:
+                if body.startswith("- "):
+                    items.append({})
+                    body = body[2:]
+                key, _, value = body.partition(":")
+                if value.strip() and items:
+                    items[-1][key.strip()] = value.strip()
+        return items
+
     def test_it_runs_a_stock_python_image_pinned_by_tag_and_builds_nothing(self):
         """The owner's direction (item 427): only a stock Python image runs in Docker; nothing of clark is built into an image."""
         text = self.service()
@@ -164,12 +186,13 @@ class Compose(unittest.TestCase):
         """#695: Docker cannot make a mountpoint inside a read-only share, so a data target under /clark failed on a first start
         with CLARK_DATA_DIR named (no data folder beside compose.yaml yet). The data folder is mounted outside the share."""
         text = self.service()
-        targets = re.findall(r"(?m)^\s*target:\s*(\S+)\s*$", text)
-        shared = re.search(r"target: (\S+)\n\s*read_only: true", text).group(1)
-        self.assertEqual(shared, "/clark")
-        for t in targets:
-            if t != shared:
-                self.assertFalse(t.startswith(shared + "/"), f"{t} is inside the read-only share {shared}")
+        mounts = self.mounts(text)
+        shared = [m["target"] for m in mounts if m.get("read_only") == "true"]
+        self.assertEqual(shared, ["/clark"])
+        self.assertEqual(len(mounts), 2, "the code and the data folder, nothing else")
+        for m in mounts:
+            if m["target"] != shared[0]:
+                self.assertFalse(m["target"].startswith(shared[0] + "/"), f"{m['target']} is inside the read-only share {shared[0]}")
         self.assertIn("      - type: bind\n        source: ${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}\n        target: /data\n", text)
         self.assertIn('"--data", "/data"', text, "clark is told the folder that is mounted")
 
