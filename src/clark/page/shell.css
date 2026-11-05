@@ -613,16 +613,18 @@ input.sec-title { width: 100%; }
 .pk-row { display: grid; grid-template-columns: 130px 1fr; gap: var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); }
 .pk-row dt { color: var(--text-muted); font-size: var(--size-caption); }
 .pk-row dd { margin: 0; overflow-wrap: anywhere; }
-.wordsbox { margin-top: 20px; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--grey-50); }
+.wordsbox { position: sticky; bottom: var(--space-3); z-index: 2; margin-top: 20px; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }   /* a card that floats at the foot of the peek, not a panel below the list (row 776) */
 .sn-head { display: flex; align-items: center; gap: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
 .sn-head .i { width: 16px; height: 16px; }
 .sn-in { width: 100%; box-sizing: border-box; margin-top: var(--space-2); min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .sn-list { list-style: none; margin: 10px 0 0; padding: 0; }
-.sn-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding: var(--space-1) 0; }
+.sn-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: var(--space-1) 0; border-top: 1px solid var(--grey-100); }
+.sn-list li:first-child { border-top: 0; }
+.sn-to { padding: 0 var(--space-2); border-radius: var(--radius-lg); background: var(--brand-blue-tint); color: var(--text); }
 .sn-f { width: 70px; color: var(--text-muted); font-size: var(--size-caption); }
 .sn-from { color: var(--text-muted); text-decoration: line-through; }
 .sn-msg { margin: 10px 0 0; color: var(--status-red-text); }
-.sn-confirm { margin: var(--space-2) 0 0; }
+.sn-confirm { margin: var(--space-2) 0 0; font-size: var(--size-small); }
 .sn-confirm.flash { animation: sn-flash .9s; }
 .pk-row.flash { animation: sn-flash 1.4s; }
 @media (prefers-reduced-motion: reduce) { .pk-row.flash, .sn-confirm.flash { animation: none; background: var(--status-amber-tint); } }
