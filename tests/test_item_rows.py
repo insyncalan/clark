@@ -171,6 +171,32 @@ class ItemRows(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelectorAll('[data-nothing]').length", sid), 0)
 
 
+class CurrentStateInEdit(unittest.TestCase):
+    """Row 850: the Current state text stays on the page in Edit (it was replaced by a quiet line there)."""
+
+    def test_the_text_is_drawn_in_view_and_in_edit_in_both_themes_at_both_widths(self):
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        demo.update("projects", "ABC", {"current_state": "<p>Scanning is <strong>two thirds</strong> done ZQ-NOW</p>"})
+        s = Running(data_for=demo.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
+        self.addCleanup(s.close)
+        body = "(document.querySelector('[data-type=current] .sec-body') || {}).textContent || ''"
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, s.port)
+            p.ready()
+            for mode in ("view", "edit"):
+                if mode == "edit":
+                    p.edit()
+                for theme in ("light", "dark"):
+                    p.js("document.documentElement.setAttribute('data-theme', %r)" % theme)
+                    for w in (1400, 900):
+                        cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                        where = f"{mode} {theme} {w}"
+                        self.assertIn("two thirds", p.js(body), f"{where}: the Current state text is drawn")
+                        self.assertNotIn("Not shown on this page yet", p.js("document.querySelector('[data-type=current]').textContent"), where)
+                        self.assertGreater(p.js("document.querySelector('[data-type=current] .sec-body').getBoundingClientRect().height"), 10, where)
+
+
 def edit_server(test, store):
     """The page clark serves over a real store, with the real change and undo routes."""
     s = Running(data_for=store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING),
