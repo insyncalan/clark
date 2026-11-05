@@ -14,12 +14,14 @@ export function SheetChoice({ sheets, ticked, setTicked, opener, onClose, onCont
       foot={<><button type="button" class="btn quiet" data-close onClick={onClose}>{T.cancel}</button><button type="button" class="btn pri" id="import-continue" disabled={!on.length} onClick={onContinue}>{T.continue}</button></>}>
       <p>{T.sheetsBody}</p>
       <div class="st-bar"><span /><span><button type="button" class="link" id="import-select-all" onClick={() => set(true)}>{T.selectAll}</button> · <button type="button" class="link" id="import-clear" onClick={() => set(false)}>{T.clear}</button></span></div>
-      <ul class="imp-list" id="import-sheet-list" aria-label={T.sheetsTitle}>
+      <div role="group" aria-labelledby="import-box-t">
+      <ul class="imp-list" id="import-sheet-list">
         {sheets.map((s) => (
           <li key={s.table}><label><input type="checkbox" data-sheet={s.table} checked={!!ticked[s.table]} onChange={(e) => setTicked({ ...ticked, [s.table]: e.currentTarget.checked })} /> {L.sheetWord(s)}</label></li>
         ))}
       </ul>
-      {on.length ? null : <p class="muted" role="status" id="import-tick-one">{T.tickOne}</p>}
+      </div>
+      <p class="muted" role="status" aria-live="polite" id="import-tick-one">{on.length ? "" : T.tickOne}</p>
     </Dialog>
   );
 }

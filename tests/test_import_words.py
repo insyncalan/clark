@@ -1,7 +1,11 @@
 """Item 454: the Import from Excel words are the prototype's (system/prototype/io.js, views.js), read from the prototype itself so
 they cannot drift. No browser needed. Run: python3 dev/run_tests.py test_import_words
 """
+import json
 import re
+import shutil
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -96,15 +100,25 @@ class ApprovedWordsArePinned(unittest.TestCase):
         self.assertNotIn("ticks above", BOX)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class SheetRowWords(unittest.TestCase):
     """#655: a sheet's row count in the "What to import" box. Above 5,000 the box says so in words, never a wrong number."""
-    def test_a_sheet_over_5000_rows_says_more_than_5000_and_the_others_their_number(self):
-        from pathlib import Path
-        text = (Path(__file__).resolve().parents[1] / "src/clark/page/src/logic/dataCard.js").read_text(encoding="utf-8")
-        self.assertIn("more than 5,000 rows", text)
-        self.assertIn("SHEET_ROWS_SHOWN = 5000", text)
-        self.assertIn('s.rows === 1 ? "row" : "rows"', text)
+    def test_sheet_labels_from_the_page_function(self):
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("no node")
+        src = Path(__file__).resolve().parents[1] / "src/clark/page/src/logic/dataCard.js"
+        with tempfile.TemporaryDirectory() as tmp:
+            mod = Path(tmp) / "dataCard.mjs"
+            mod.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+            probe = Path(tmp) / "probe.mjs"
+            probe.write_text('import { sheetWord } from "./dataCard.mjs";\n'
+                             'console.log(JSON.stringify([[\'Actions\', 12], [\'Decisions\', 1], [\'Milestones\', 0], [\'Actions\', 5000], [\'Actions\', 5001]]'
+                             '.map(([name, rows]) => sheetWord({ name, rows }))));', encoding="utf-8")
+            done = subprocess.run([node, str(probe)], capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(json.loads(done.stdout), ["Actions (12 rows)", "Decisions (1 row)", "Milestones (0 rows)",
+                                                   "Actions (5000 rows)", "Actions (more than 5,000 rows)"])
+
+
+if __name__ == "__main__":
+    unittest.main()

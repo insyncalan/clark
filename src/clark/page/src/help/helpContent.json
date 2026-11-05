@@ -2527,7 +2527,7 @@
      "pic": "excel-in-button"
     },
     {
-     "d": "The box **Import from Excel** says which sheets can be imported: sheets called Actions, Risks & Issues, Decisions, Milestones and Use cases. Older workbooks with Risks and issues or RAID work too. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
+     "d": "The box **Import from Excel** says which sheets can be imported: sheets called Actions, Risks and issues (or RAID), Decisions, Milestones and Use cases. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
     },
     {
      "d": "Press **Choose a file** and pick an .xlsx workbook of up to 25 MB. A macro workbook (.xlsm) is turned away and nothing is saved; save a copy as an ordinary .xlsx workbook and choose that.",
