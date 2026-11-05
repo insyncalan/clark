@@ -822,17 +822,17 @@
      "What Docker does here. These steps are for a Mac, and you only need Docker and Chrome. If your Mac will not open clark.command (a work Mac often will not), or you already use Docker, use Docker instead. It replaces the Terminal window that runs clark's web server. You open localhost:8766 in Chrome and see clark, as before. Only the web server runs in Docker. Your project data and clark's own files stay in folders on your computer, shared into Docker. The first start downloads a stock Python image once and keeps it; nothing of clark is in it. Nothing else is installed. It can only be reached from this computer: another device is told \"This connection was refused\" and that clark is running in Docker and only answers this computer.",
      "Before the first start. Install Docker Desktop and open it first. Wait until it says it is running. If you start clark before that, Terminal says it cannot connect to the Docker API: open Docker Desktop, wait, and type the command again.",
      "Use the clark download. Start clark from the download (the zip file), not from a copy of the source code. A copy of the source has no built pages, and clark is shared into Docker read-only, so it cannot build them: it will say that the page could not be built. The message is: \"This copy of clark has no built page. Use the clark download, not a copy of the source code.\" Docker then stops.",
-     "Start. Every command below must be typed inside the clark folder: first cd into it. Open Terminal, type cd and a space, drag the unzipped clark folder into the Terminal window and press Return. Then type `docker compose -f docker/compose.yaml up -d` and press Return. The first time takes a few minutes. Then open localhost:8766 in Chrome. This start keeps its data in a folder called data beside the clark files, so on a first start it holds a new, empty set of projects. The Dashboard then says \"No project open\" and \"There are no projects yet.\" Your data is the data folder beside the clark files: keep it when you swap this folder for a newer download.",
-     "Use the projects you already have. To start with the data you keep for the Terminal route, put its folder in front of the command: `CLARK_DATA_DIR=\"$HOME/Library/Application Support/clark\" docker compose -f docker/compose.yaml up -d`. Use the same line every time you start. To use another folder, put its full path in quotes. A folder inside OneDrive cannot be used by clark.",
+     "Start. Every command below must be typed inside the clark folder: first cd into it. Open Terminal, type cd and a space, drag the unzipped clark folder into the Terminal window and press Return. Then type `docker compose -f docker/compose.yaml up -d` and press Return. The first time takes a few minutes. Then open localhost:8766 in Chrome. This start keeps its data in ~/Library/Application Support/clark, the same place clark.command uses, so you see the projects you already have, or an empty set on a first start. The Dashboard then says \"No project open\" and \"There are no projects yet.\" Your data is not in the clark folder, so you can swap that folder for a newer download. If you already have a folder called clark, rename or move it before you unzip a newer download, so the two do not clash.",
+     "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command's window before you start Docker. Neither route can always tell that the other is already using the folder.",
+     "Use another data folder. To keep your data somewhere else, put its full path in quotes in front of the command: `CLARK_DATA_DIR=\"/full/path\" docker compose -f docker/compose.yaml up -d`. Use the same line every time you start. A folder inside OneDrive cannot be used by clark. If you used Docker before and your data is in a data folder inside the old clark folder, stop clark, move that folder out of it, and name it this way.",
      "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d`, then open localhost:8800. It is still reachable only from this computer.",
      "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window.",
      "See what clark is doing. To see what Docker has said, type this in the same folder: `docker compose -f docker/compose.yaml logs --tail 50`",
-     "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command's window before you start Docker. Neither route can always tell that the other is already using the folder.",
      "If the page will not open. Check that Docker Desktop says it is running. Check that the address is exactly localhost:8766 (or your own port).",
      "If it says port 8766 is already used. Another clark is open: close it, or stop it with the Stop line above, then try again.",
      "If it says it cannot connect to Docker. Docker Desktop is not running yet. Open it and wait until it says it is running.",
      "If an installed clark window says clark is not running. The window is titled \"Start clark to use this window\" and says: \"Nothing is running at this address. Start it the way you started it: double-click clark.command in your clark folder, or, if you use Docker, open Terminal in that folder and type:\" then the start command, then \"Closing the last clark window stops clark after a minute. Docker keeps running until you stop it with:\" and the stop command, and a button Check again. With Docker, type the start command and choose Check again.",
-     "To go back to clark.command. Stop clark with the Stop line above, then double-click clark.command in the same folder. Docker and clark.command each keep their own data: clark.command shows the projects in ~/Library/Application Support/clark, and Docker shows the data folder beside the clark files, unless you started Docker with CLARK_DATA_DIR pointing at the same folder. If clark.command looks empty, that is why."
+     "To go back to clark.command. Stop clark with the Stop line above, then double-click clark.command in the same folder. Docker and clark.command use the same data unless you name another folder with CLARK_DATA_DIR. If clark.command looks empty, you started Docker with another folder."
     ]
    }
   ]
@@ -1454,7 +1454,7 @@
         "The due date (today, tomorrow, next week, in n days or weeks, a weekday, next Monday, DD-MM-YYYY)"
        ],
        [
-        "owner Jo · assign to Sam Rivers · give it to Priya",
+        "owner Jo · assign to Sam · give it to Priya",
         "The owner (a second word counts when it has a capital)"
        ],
        [
@@ -2652,7 +2652,7 @@
      "d": "Type the new person’s name in **Hand over to**. It suggests names from your people list, or the names already in the project if the list is empty. If the name matches no one, a line under the box asks you to check the spelling."
     },
     {
-     "d": "Press **Hand over** in the bar. It stays unavailable, with a line saying why, until you have ticked an item and named a person. Above 25 items a question comes first, such as “Hand over 30 items to Sam Rivers?”: press **Change** to go on, or **Cancel** to stop."
+     "d": "Press **Hand over** in the bar. It stays unavailable, with a line saying why, until you have ticked an item and named a person. Above 25 items a question comes first, such as “Hand over 30 items to Priya?”: press **Change** to go on, or **Cancel** to stop."
     },
     {
      "d": "To leave without handing anything over, press **Cancel** in the bar, or press Esc."
