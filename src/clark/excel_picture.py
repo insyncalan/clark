@@ -96,7 +96,12 @@ def local_logo(branding=None):
         p = base / name
         if p.is_file():
             return p
-    return None
+    assets = base / "assets"                    # a brand folder that keeps its pictures under assets/: logo-*.png, first by name
+    try:
+        found = sorted(q for q in assets.glob("logo-*.png") if q.is_file())
+    except OSError:
+        found = []
+    return found[0] if found else None
 
 
 NOT_USED = "The brand logo was not used, so the Cover has no logo: {why}"

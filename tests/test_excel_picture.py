@@ -78,6 +78,32 @@ class Lookup(unittest.TestCase):
         self.assertIsNone(pic.local_logo(self.brand))
         self.assertIsNone(pic.load(self.brand))
 
+    def test_a_logo_under_assets_is_found_when_there_is_no_top_level_logo(self):
+        (self.brand / "assets").mkdir()
+        (self.brand / "assets" / "logo-wide.png").write_bytes(make_png(8, 4))
+        (self.brand / "assets" / "logo-a.png").write_bytes(make_png(8, 4))
+        (self.brand / "assets" / "other.png").write_bytes(make_png(8, 4))
+        (self.brand / "assets" / "logo-b.svg").write_text("x", encoding="utf-8")
+        self.assertEqual(pic.local_logo(self.brand), self.brand / "assets" / "logo-a.png")       # first by name; other names are ignored
+
+    def test_a_top_level_logo_wins_over_assets(self):
+        (self.brand / "assets").mkdir()
+        (self.brand / "assets" / "logo-a.png").write_bytes(make_png(8, 4))
+        (self.brand / "logo.png").write_bytes(make_png(8, 4))
+        self.assertEqual(pic.local_logo(self.brand), self.brand / "logo.png")
+
+    def test_a_folder_named_like_a_logo_or_no_assets_folder_gives_none(self):
+        self.assertIsNone(pic.local_logo(self.brand))
+        (self.brand / "assets" / "logo-x.png").mkdir(parents=True)
+        self.assertIsNone(pic.local_logo(self.brand))
+
+    def test_the_assets_logo_reaches_the_workbook(self):
+        (self.brand / "assets").mkdir()
+        (self.brand / "assets" / "logo-mark.png").write_bytes(make_png(60, 20))
+        got = pic.load(self.brand)
+        self.assertIsNotNone(got)
+        self.assertEqual(got[1:], (60, 20))
+
     def test_the_default_folder_is_the_pages_local_brand(self):
         from clark import page
         old = page.BRANDING
