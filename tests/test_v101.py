@@ -154,8 +154,6 @@ WAITING = [
      "PR 683", "page/src/edit/edit.css", ".rbar .seg .mode .tb-ico"),
     ("#751", "The download carries its own README.md: the repository README without the pictures and without lines that name things outside the download.",
      "no pull request yet (issue 751)", "", None),
-    ("#735", "The report cover shows the logo and the wave picture on a distinct dark band.",
-     "no pull request yet (issue 735)", "", None),
 ]
 
 # (item, check, kind, why, what the person does)
