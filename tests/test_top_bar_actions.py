@@ -2,8 +2,9 @@
 
 Run: python3 dev/run_tests.py test_top_bar_actions
 Covers: both buttons are there with their exact aria-labels and titles, in the order search, ask, ?, avatar; a click on search opens the
-palette and a click on ask opens the ask panel; the ask button is not there while asking is off; no item of the bar overlaps another or
-runs past the window at 1400, 901, 900 and 800 px.
+palette and a click on ask opens the ask panel; the ask button is not drawn while asking is off (askOn, the switch the server keeps; being signed out of the provider does not hide it:
+the panel says so when it opens); the ask word and the / key hint hide at 1100 px and below and show at 1101; no item of the bar
+overlaps another or runs past the window at 1400, 901, 900 and 800 px, in light and in dark.
 """
 import sqlite3
 import unittest
@@ -52,15 +53,22 @@ class TopBarActions(Base):
 
     def test_the_bar_has_no_overlap_and_nothing_past_the_window(self):
         for width in (1400, 901, 900, 800):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    p = self.at(cdp, width)
+                    p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
+                    got = p.js(f"(function(){{var r=[...{ITEMS}].map(e => [e.className || e.id, e.getBoundingClientRect()]), bad=[];"
+                               "for (var i=0;i<r.length;i++){ if (r[i][1].right > document.documentElement.clientWidth + 0.5) bad.push('past ' + r[i][0]);"
+                               "for (var j=i+1;j<r.length;j++) if (r[i][1].left < r[j][1].right - 0.5 && r[j][1].left < r[i][1].right - 0.5 && r[i][1].top < r[j][1].bottom - 0.5 && r[j][1].top < r[i][1].bottom - 0.5 && r[i][1].width && r[j][1].width) bad.push(r[i][0] + ' over ' + r[j][0]);}"
+                               "return bad;})()")
+                    self.assertEqual(got, [], f"at {width} px, {theme}")
+
+    def test_the_ask_word_and_the_key_hint_hide_at_1100_px_and_below_and_show_at_1101(self):
+        for width, shown in ((1101, True), (1100, False), (1099, False), (1400, True)):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.at(cdp, width)
-                got = p.js(f"(function(){{var r=[...{ITEMS}].map(e => [e.className || e.id, e.getBoundingClientRect()]), bad=[];"
-                           "for (var i=0;i<r.length;i++){ if (r[i][1].right > document.documentElement.clientWidth + 0.5) bad.push('past ' + r[i][0]);"
-                           "for (var j=i+1;j<r.length;j++) if (r[i][1].left < r[j][1].right - 0.5 && r[j][1].left < r[i][1].right - 0.5 && r[i][1].top < r[j][1].bottom - 0.5 && r[j][1].top < r[i][1].bottom - 0.5 && r[i][1].width && r[j][1].width) bad.push(r[i][0] + ' over ' + r[j][0]);}"
-                           "return bad;})()")
-                self.assertEqual(got, [], f"at {width} px")
-                words = p.js("getComputedStyle(document.querySelector('.tb-ask-w')).display")
-                self.assertEqual(words == "none", width <= 1100)
+                got = p.js("['.tb-ask-w', '.tb-key'].map(s => getComputedStyle(document.querySelector(s)).display !== 'none')")
+                self.assertEqual(got, [shown, shown], f"at {width} px the ask word and the / key hint should be {'shown' if shown else 'hidden'}; got {got}")
 
     def test_a_long_project_name_at_901_and_900_px_light_and_dark_keeps_the_bar_inside_the_window(self):
         # The project name shortens first; the new buttons must not push anything out.

@@ -7,6 +7,7 @@ On Linux, in container mode only, platform.onedrive_roots() answers an empty lis
 NotBuiltYet, Windows always does, and the Mac branch is the same as before.
 """
 import io
+import logging
 import os
 import shutil
 import sys
@@ -193,10 +194,13 @@ class StartsOnLinuxInTheContainer(Case):
         self.assertEqual((code, served), (1, []))
         self.assertIn("Finding OneDrive on linux is not built yet", err)
 
-    def test_the_log_is_left_out_not_a_stop(self):
+    def test_the_log_goes_in_the_data_folder_in_the_container(self):
+        """Issue 742: the container is always started with --data, so its log is <data>/logs (there is no Library/Logs to use)."""
         self.linux()
         self.inside()
-        self.assertEqual(launcher.start_log(Path("/data"), lambda: []), (None, None, None))
+        log, handler, logs = launcher.start_log(Path("/data"), lambda: [])
+        self.addCleanup(logging.getLogger("clark").removeHandler, handler)
+        self.assertEqual(log.folder, Path("/data/logs"))
 
     def test_the_data_folder_check_passes_with_no_onedrive_to_check_against(self):
         self.linux()

@@ -47,6 +47,15 @@ if [ -d .app ]; then PYTHONPATH="$PWD/.app${PYTHONPATH:+:$PYTHONPATH}"; export P
 export CLARK_TYPED="bash clark.command"
 # Write no bytecode, on any run, before any clark code runs: a __pycache__ folder beside the program files would be an unknown entry the next update finds (issue 743).
 export PYTHONDONTWRITEBYTECODE=1
+# Row 760: in a download nothing but .app holds program files. An src, vendor or clark folder beside it is an older flat version
+# left by unzipping over it, and the older stand-in would start it instead, so nothing is started (this also covers --check).
+if [ -d .app ] && { [ -e src ] || [ -e vendor ] || [ -e clark ]; }; then
+  echo "These clark files are not all from the same version, so clark will not start. Move the clark folder aside (rename it) and unzip the download again." >&2
+  case "$1" in --check|restore) exit 1 ;; esac
+  echo
+  read -r -n 1 -p "Press any key to close this window. " _
+  exit 1
+fi
 # These are typed in a Terminal, so they run as python3 -m would, and they give back their own exit code and wording.
 case "$1" in
   --check) shift; python3 -m clark.doctor "$@"; exit $? ;;

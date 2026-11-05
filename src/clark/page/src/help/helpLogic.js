@@ -381,7 +381,7 @@ export function markParts(line, q) {
   return out;
 }
 
-/** The sentence under the count (shown only when a result is a guide: it says "the guide") and the two chip labels: the signed mockup's words (docs/handoff/v1.0/mockups/help-search.html). */
+/** The sentence under the count (shown only when a result is a guide: it says "the guide") and the two chip labels. The sentence is the Head's ruling (issue 688: no guide has a screen part, so it names the guide and the step only); the mockup (docs/handoff/v1.0/mockups/help-search.html) was updated to match. */
 export const RESULT_LEAD = "Each result names the guide and the step it is about.";
 export const whereLabels = (w) => ({ step: w.step ? `Step ${w.step.n}${w.step.title ? ": " + w.step.title : ""}` : null, part: w.part ? `Screen part: ${w.part}` : null });
 const TAB_NAME = Object.fromEntries(CONTENT.tabs);
