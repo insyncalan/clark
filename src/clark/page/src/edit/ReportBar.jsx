@@ -71,11 +71,12 @@ export function ReportBar() {
   };
   return (
     <div class="rbar" id="report-bar">
-      <label class="rbar-week">Week ending <input type="text" inputMode="numeric" placeholder="DD-MM-YYYY" title={stored ? undefined : "Not saved yet. Press Enter to use this Friday, or type a Friday"} id="week-ending" key={week} defaultValue={shownDay(week)} onBlur={save} onKeyDown={enter} /></label>
+      <label class="rbar-week">Week ending <input type="text" inputMode="numeric" placeholder="DD-MM-YYYY" title={stored ? undefined : "Not saved yet. Press Enter to use this Friday, or type a Friday"} id="week-ending" key={week} defaultValue={shownDay(week)} onBlur={save} onKeyDown={enter} />
       {canPick() ? <span class="rbar-cal">
         <button type="button" id="week-ending-btn" class="rbar-cal-btn" aria-label="Pick week ending date" title="Pick a Friday from the calendar" onClick={openPicker}>{CAL}</button>
         <input type="date" id="week-ending-pick" class="rbar-cal-pick" tabIndex={-1} aria-hidden="true" onChange={picked} />
       </span> : null}
+      </label>
       <WeekPicker />{/* item 344: the published weeks, beside Week ending in View and Edit; it only opens one, read only */}
       <span class="rbar-state" id="report-state">{editing ? "Editing · each change saves on its own" : published || "Draft · not published yet"}</span>
       {editing && hintOpen.value ? <span class="rbar-hint" id="report-hint">Drag to move, + to add a template</span> : null}
