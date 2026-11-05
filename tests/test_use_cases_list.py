@@ -248,7 +248,7 @@ class List(Setup):
                         ref: r.querySelector('.ucl-ref').textContent, name: r.querySelector('.ucl-go').textContent, head: r.querySelector('.ucl-name small').textContent,
                         status: r.querySelector('.ucl-st .pill').textContent, dot: getComputedStyle(r.querySelector('.ucl-st .pill'), '::before').content,
                         work: r.querySelector('.ucl-wi').innerText.replace(/\\s+/g, ' '), ms: r.querySelector('.ucl-ms-s') ? r.querySelector('.ucl-ms-s').textContent : '',
-                        eye: r.querySelector('.ucl-eye').textContent, label: r.querySelector('.ucl-go').getAttribute('aria-label') }))""")}
+                        eye: r.querySelector('.ucl-eye').title, label: r.querySelector('.ucl-go').getAttribute('aria-label') }))""")}
                     self.assertEqual(rows["UC 1.1"]["name"], "Invoice matching")
                     self.assertEqual(rows["UC 1.1"]["head"], "Matching is live for two suppliers")
                     self.assertEqual(rows["UC 1.1"]["status"], "On track")
@@ -302,14 +302,62 @@ class List(Setup):
                             continue
                         self.assertGreaterEqual(r, 4.5, f"{sel} at {width}px {'dark' if dark else 'light'}")
 
-    def test_view_shows_the_eye_in_words_only_and_edit_makes_it_a_switch(self):
+    def test_view_shows_the_eye_alone_and_edit_makes_it_a_switch(self):
         with chrome() as cdp:
             p = self.show(cdp)
             self.assertEqual(p.js("document.querySelectorAll('#usecases [data-eye]').length"), 0)
-            self.assertEqual(p.js("[...document.querySelectorAll('#usecases [data-eye-words]')].map(e => e.textContent)"), [ON, ON, OFF, OFF])
+            self.assertEqual(p.js("[...document.querySelectorAll('#usecases [data-eye-words]')].map(e => e.title)"), [ON, ON, OFF, OFF])
             p.js("document.querySelector('[data-mode=edit]').click()")
             p.until("document.querySelectorAll('#usecases [data-eye]').length === 4", "Edit makes each eye a button")
             self.assertEqual(p.js("document.querySelectorAll('#usecases [data-eye-words]').length"), 0)
+
+    def test_the_eye_is_an_icon_alone_with_a_tooltip_and_never_meets_the_commitment_chip(self):
+        """Issue 753: no heading and no words for 'show on report': the eye, a title on hover, the same words as the aria-label."""
+        self.store.con.execute("UPDATE use_cases SET commitment = 'Committed'")
+        self.store.con.commit()
+        for width in (1400, 900):
+            for dark in (False, True):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    p = self.show(cdp, width, dark, edit=True)
+                    self.assertNotIn("home dashboard", p.js("document.querySelector('#usecases .ucl-list').innerText").lower(), "no heading over the eye")
+                    self.assertEqual(p.js("document.querySelector('#usecases .ucl-hd').textContent.toLowerCase().includes('dashboard')"), False)
+                    got = p.js("""[...document.querySelectorAll('#usecases .ucl-row[data-uc]')].map(r => { const e = r.querySelector('.ucl-eye'), o = [r.querySelector('.ucl-st .pill'), r.querySelector('.cchip')];
+                        const b = e.getBoundingClientRect(), rr = r.getBoundingClientRect();
+                        return { words: e.textContent.trim(), shown: e.innerText.trim(), title: e.title, label: e.getAttribute('aria-label'), svg: e.querySelectorAll('svg').length,
+                          chip: !!o[1], inside: b.left >= rr.left && b.right <= rr.right && b.right <= innerWidth, small: Math.min(b.width, b.height),
+                          clash: o.filter(Boolean).some(x => { const c = x.getBoundingClientRect(); return b.left < c.right && c.left < b.right && b.top < c.bottom && c.top < b.bottom; }) }; })""")
+                    self.assertEqual(len(got), 4)
+                    for g in got:
+                        self.assertEqual((g["words"], g["shown"]), ("", ""), "no words beside the eye")
+                        self.assertEqual(g["svg"], 1)
+                        self.assertIn(g["title"], (ON, OFF))
+                        self.assertIn(g["title"], g["label"], "the aria-label keeps the same words")
+                        self.assertTrue(g["chip"] and g["inside"] and not g["clash"], g)
+                        self.assertGreaterEqual(g["small"], 24, "a target a finger can hit")
+                    self.assertEqual(sorted(g["title"] for g in got), [OFF, OFF, ON, ON])
+
+    def test_the_eye_toggles_with_a_click_enter_and_space_and_shows_a_focus_ring(self):
+        with chrome() as cdp:
+            p = self.show(cdp, edit=True)
+            sel = f"[data-uc=\"{self.uc3}\"] .ucl-eye"
+            self.assertEqual(p.js(f"document.querySelector('{sel}').title"), OFF)
+            p.js(f"document.querySelector('{sel}').focus()")
+            self.press(p, "Enter")
+            p.until(f"document.querySelector('{sel}') && document.querySelector('{sel}').title === '{ON}'", "Enter turned it on")
+            self.assertEqual(self.eye("1.10"), 1)
+            p.js(f"document.querySelector('{sel}').focus()")
+            self.press(p, " ")
+            p.until(f"document.querySelector('{sel}') && document.querySelector('{sel}').title === '{OFF}'", "Space turned it off")
+            self.assertEqual(self.eye("1.10"), 0)
+            p.js(f"document.querySelector('{sel}').focus()")
+            self.assertNotEqual(p.js(f"getComputedStyle(document.querySelector('{sel}')).outlineStyle"), "none", "a focus ring")
+            self.assertEqual(p.js("document.querySelectorAll('#usecases [data-eye]').length"), 4)
+
+    def test_view_has_the_eye_as_an_icon_with_a_tooltip_and_no_words_and_no_control(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            got = p.js("[...document.querySelectorAll('#usecases [data-eye-words]')].map(e => [e.textContent.trim(), e.title, e.tagName, e.querySelectorAll('svg').length])")
+            self.assertEqual(got, [["", ON, "SPAN", 1], ["", ON, "SPAN", 1], ["", OFF, "SPAN", 1], ["", OFF, "SPAN", 1]])
 
     def test_an_empty_project_says_so_in_plain_words(self):
         for table in ("actions",):
@@ -335,7 +383,7 @@ class Eye(Setup):
                 self.assertEqual(self.eye("1.10"), 1)
                 self.assertEqual(p.toast(), "UC 1.10 is on the dashboard.")
                 self.assertEqual(self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], before + 1, "one change is one step")
-                self.assertEqual(p.js(f"document.querySelector('[data-uc=\"{self.uc3}\"] .ucl-eye').textContent"), ON)
+                self.assertEqual(p.js(f"document.querySelector('[data-uc=\"{self.uc3}\"] .ucl-eye').title"), ON)
                 self.assertEqual(self.count(p), "Showing 4 of 4 · 3 on the dashboard")
                 self.assertEqual(p.js(f"document.activeElement === document.querySelector('[data-uc=\"{self.uc3}\"] .ucl-eye')"), True, "the eye keeps the focus")
                 p.js("document.querySelector('[data-view=dashboard]').click()")
@@ -345,7 +393,7 @@ class Eye(Setup):
                 p.js("history.back()")
                 p.until("!!document.querySelector('#usecases .ucl-row')", "back to the list")
                 p.js("document.querySelector('[data-undo]') && document.querySelector('[data-undo]').click()")
-                p.until("!!document.querySelector('[data-uc=\"%s\"] .ucl-eye') && document.querySelector('[data-uc=\"%s\"] .ucl-eye').textContent === '%s'" % (self.uc3, self.uc3, OFF), "the undo put it back")
+                p.until("!!document.querySelector('[data-uc=\"%s\"] .ucl-eye') && document.querySelector('[data-uc=\"%s\"] .ucl-eye').title === '%s'" % (self.uc3, self.uc3, OFF), "the undo put it back")
                 self.assertEqual(self.eye("1.10"), 0)
                 self.click(p, f"[data-uc=\"{self.uc1}\"] [data-eye]")                    # take 1.1 off
                 p.until("document.querySelector('.toast-text') && document.querySelector('.toast-text').textContent === 'UC 1.1 is no longer on the dashboard.'", "said")
@@ -370,7 +418,7 @@ class Eye(Setup):
             p.until("!!document.querySelector('.toast.problem')", "the toast")
             self.assertNotIn("Server text", p.toast())
             self.assertEqual(self.eye("1.10"), 0)
-            self.assertEqual(p.js(f"document.querySelector('[data-uc=\"{self.uc3}\"] .ucl-eye').textContent"), OFF)
+            self.assertEqual(p.js(f"document.querySelector('[data-uc=\"{self.uc3}\"] .ucl-eye').title"), OFF)
 
 
 class Narrowing(Setup):

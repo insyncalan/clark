@@ -201,8 +201,8 @@ export function UseCaseDetail({ id }) {
             <Menu label="Change status" ariaLabel="Change status" menuLabel="Status" id="ucd-status" btnCls="btn" left
               items={STATUSES.map(([name]) => ({ id: name, name, checked: u.status === name }))}
               onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
-            <span class={`ucd-eye${on ? " on" : ""}`} data-eye><Icon name={on ? "eye" : "eyeoff"} /><span>{on ? EYE.on : EYE.off}</span></span>
-            <button type="button" class="btn" data-eye-toggle onClick={() => send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard.")}>{on ? "Take off the dashboard" : "Put on the dashboard"}</button>
+            <button type="button" class={`ucd-eye${on ? " on" : ""}`} data-eye title={on ? EYE.on : EYE.off} aria-label={on ? EYE.on : EYE.off}
+              onClick={() => send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard.")}><Icon name={on ? "eye" : "eyeoff"} /></button>
           </div>
         ) : null}
       </div>

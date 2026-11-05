@@ -106,10 +106,10 @@ class TheLines(unittest.TestCase):
 
     def test_the_subtitle_has_the_week_and_the_client_as_the_page_band_shows_them(self):
         project = {**PROJECT, "week_ending": "2026-10-23", "client_name": "Example Client"}
-        self.assertEqual(build(project=project)[1], {"kind": "subtitle", "text": "Weekly report · Week ending 23-10-2026 · for Example Client"})
+        self.assertEqual(build(project=project)[1], {"kind": "subtitle", "text": "Weekly report · Week ending Friday 23 October 2026 · for Example Client"})
 
     def test_the_subtitle_leaves_out_a_part_with_no_data(self):
-        self.assertEqual(build(project={**PROJECT, "week_ending": "2026-10-23"})[1]["text"], "Weekly report · Week ending 23-10-2026")
+        self.assertEqual(build(project={**PROJECT, "week_ending": "2026-10-23"})[1]["text"], "Weekly report · Week ending Friday 23 October 2026")
         self.assertEqual(build(project={**PROJECT, "client_name": " Example Client "})[1]["text"], "Weekly report · for Example Client")
         self.assertEqual(build()[1]["text"], "Weekly report")
         self.assertEqual(build(project={**PROJECT, "week_ending": "", "client_name": None})[1]["text"], "Weekly report")
@@ -328,7 +328,7 @@ class InTheWorkbook(unittest.TestCase):
         ws = self.cover_sheet()
         title, tag, sub = ws["A1"], ws["K1"], ws["A2"]
         self.assertEqual((title.value, tag.value), ("Example Programme", "INTERNAL"))
-        self.assertEqual(sub.value, "Weekly report · Week ending 31-05-2030 · for Example Client")
+        self.assertEqual(sub.value, "Weekly report · Week ending Friday 31 May 2030 · for Example Client")
         self.assertEqual(tag.fill.fgColor.rgb[-6:], colours.TOKENS["status-red"], "the INTERNAL tag is red")
         for c in (title, sub):
             self.assertEqual(c.fill.fgColor.rgb[-6:], colours.TOKENS["brand-navy"])
@@ -358,7 +358,7 @@ class InTheWorkbook(unittest.TestCase):
     def test_the_cover_reads_in_the_dashboards_order_and_ends_with_the_about_block(self):
         ws = self.cover_sheet()
         col = [c.value for c in ws["A"] if c.value]
-        self.assertEqual(col[:3], ["Example Programme", "Weekly report · Week ending 31-05-2030 · for Example Client", "■  Current state"])
+        self.assertEqual(col[:3], ["Example Programme", "Weekly report · Week ending Friday 31 May 2030 · for Example Client", "■  Current state"])
         self.assertEqual([v for v in col if str(v).startswith("■")], ["■  Current state", "■  At a glance", "■  Summary"])
         tail = [c.value for c in ws["A"] if c.value][-7:]
         self.assertEqual(tail, ["About this export", "Exported", "Caution", "Sending changes back", "Where to make changes", "IDs",
