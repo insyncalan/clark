@@ -9,7 +9,7 @@ import unittest
 
 from test_server import chrome
 from test_work_board_page import Base
-from test_work_filters import click, key
+from test_work_filters import click, key, select_line
 
 CASES = [(w, s, e) for w in (1400, 900) for s in ("light", "dark") for e in (False, True)]
 
@@ -44,7 +44,7 @@ class Header(Base):
     # ---- row 808 ----
     def open_list(self, cdp, sid):
         click(cdp, sid, "#fline-input")
-        cdp.js("document.querySelector('#fline-input').select()", sid)
+        select_line(cdp, sid)
         key(cdp, sid, "Backspace")
         self.until(cdp, sid, "document.querySelector('#fline-list')", "the suggestion list")
 
@@ -55,7 +55,7 @@ class Header(Base):
             self.until(cdp, sid, "!document.querySelector('#fline-list')", "the list closed")
         else:
             click(cdp, sid, "#fline-input")
-            cdp.js("document.querySelector('#fline-input').select()", sid)
+            select_line(cdp, sid)
             key(cdp, sid, "Backspace")
             cdp.js("document.activeElement.blur()", sid)
             self.until(cdp, sid, "!document.querySelector('#fline-list')", "the list closed")
@@ -138,7 +138,7 @@ class Header(Base):
             self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
             click(cdp, sid, "#fvRevert")
             self.until(cdp, sid, "!document.querySelector('[data-dot]') && !document.querySelector('#fvRevert')", "discarded: no dot, no buttons")
-            self.until(cdp, sid, "document.querySelector('#fline-input').value.trim() === 'is:open'", "the saved line is back")
+            self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line.trim() === 'is:open'", "the saved line is back")
             # a made view: Save view writes the line into it
             click(cdp, sid, ".vtab[data-view-id=risky]")
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "the made view is open")
@@ -153,6 +153,42 @@ class Header(Base):
             self.until(cdp, sid, "!document.querySelector('[data-dot]') && !document.querySelector('#fvSave')", "saved: no dot")
             self.assertIn("no:owner", cdp.js("JSON.parse(localStorage.getItem('clark.fviews')).ABC.find((v) => v.id === 'risky').line", sid))
             self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
+        self.each(check)
+
+    # ---- row 845 ----
+    def test_row_845_accepted_filters_are_chips_each_with_its_own_remove_button(self):
+        chips = "[...document.querySelectorAll('[data-fline] [data-chip]')].map((e) => e.dataset.chip)"
+        line = "document.querySelector('[data-fline]').dataset.line"
+
+        def check(cdp, sid, width):
+            self.assertEqual(cdp.js(chips, sid), ["is:open"], "the starting line is a chip")
+            self.assertEqual(cdp.js("document.querySelector('#fline-input').placeholder", sid), "", "no placeholder once a chip exists")
+            self.assertEqual(cdp.js("document.querySelector('[data-chip] button').getAttribute('aria-label')", sid), "Remove the is filter")
+            click(cdp, sid, "#fline-input")
+            cdp.call("Input.insertText", {"text": "priority:High "}, sid)
+            self.until(cdp, sid, f"JSON.stringify({chips}) === JSON.stringify(['is:open', 'priority:High'])", "the accepted word became a chip")
+            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "", "the box is empty again")
+            self.assertEqual(cdp.js("document.querySelector('[data-chip=\"priority:High\"] button').getAttribute('aria-label')", sid), "Remove the Priority filter")
+            self.assertGreaterEqual(cdp.js("document.querySelector('[data-chip] button').getBoundingClientRect().height", sid), 22)
+            self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
+            # a plain word stays in the box
+            cdp.call("Input.insertText", {"text": "hello "}, sid)
+            self.assertEqual(cdp.js(chips, sid), ["is:open", "priority:High"])
+            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "hello ")
+            for _ in range(6):
+                key(cdp, sid, "Backspace")
+            self.until(cdp, sid, f"document.querySelector('#fline-input').value === ''", "the word is gone")
+            # Backspace in an empty box takes the last chip away
+            key(cdp, sid, "Backspace")
+            self.until(cdp, sid, f"JSON.stringify({chips}) === JSON.stringify(['is:open'])", "the last chip is gone")
+            self.until(cdp, sid, f"{line} === 'is:open'", "and the line follows")
+            # the x on a chip removes only that chip and returns the focus to the box
+            cdp.call("Input.insertText", {"text": "no:owner "}, sid)
+            self.until(cdp, sid, f"JSON.stringify({chips}) === JSON.stringify(['is:open', 'no:owner'])", "a second chip")
+            click(cdp, sid, "[data-chip='is:open'] button")
+            self.until(cdp, sid, f"JSON.stringify({chips}) === JSON.stringify(['no:owner'])", "only that chip is gone")
+            self.assertEqual(cdp.js("document.activeElement.id", sid), "fline-input")
+            self.until(cdp, sid, f"{line} === 'no:owner'", "the line follows")
         self.each(check)
 
     # ---- row 812 ----
@@ -199,12 +235,12 @@ class Header(Base):
             self.assertEqual(cdp.js("[...document.querySelectorAll('.fvrow > *')].map(e => e.className.split(' ')[0])", sid)[-2:], ["seg", "dd"], "the row ends with the layout switch and the View menu")
             # the saved view draws the word, the typed word filters, and the page does not scroll sideways
             click(cdp, sid, ".vtab[data-view-id=quiet]")
-            self.until(cdp, sid, "document.querySelector('#fline-input').value === 'is:open is:quiet'", "the saved view's line")
+            self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line === 'is:open is:quiet'", "the saved view's line")
             self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
-            click(cdp, sid, "#fline-input")
-            cdp.js("document.querySelector('#fline-input').select()", sid)
+            click(cdp, sid, "#fline-x")          # row 845: the saved line's filters are chips; Clear takes them away before the new word is typed
+            select_line(cdp, sid)
             cdp.call("Input.insertText", {"text": "is:incomplete"}, sid)
-            self.until(cdp, sid, "document.querySelector('#fline-input').value === 'is:incomplete'", "typed")
+            self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line === 'is:incomplete'", "typed")
             self.until(cdp, sid, "document.querySelector('.fhi .k-val')", "the typed word is a chip")
         self.each(check)
 

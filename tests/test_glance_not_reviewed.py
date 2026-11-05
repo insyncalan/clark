@@ -130,7 +130,7 @@ class NotReviewed(Setup):
             p.js("document.querySelector('[data-fig=stale]').click()")
             p.until("location.hash.startsWith('#work&p=ABC&f=')", "Work items opened")
             p.until(f"document.querySelectorAll('#work tbody tr[data-id]').length === {want}", f"the list holds the {want} it counted")
-            chips = p.js("document.querySelector('#fline-input').value.split(/\\s+/).filter(Boolean)")
+            chips = p.js("document.querySelector('[data-fline]').dataset.line.split(/\\s+/).filter(Boolean)")
             self.assertEqual(chips, ["is:open", "is:quiet"], "the line shows the Freshness filter")
 
     def test_the_setting_changes_the_tile_and_the_filter_at_once_and_a_bad_value_keeps_the_old_one(self):
@@ -172,7 +172,7 @@ class NotReviewed(Setup):
                 p.js("document.querySelector('[data-fig=stale]').click()")
                 p.until("!!document.querySelector('#fline-input')", "Work items with the Freshness filter")
                 self.assertFalse(p.js("!!document.querySelector('#freshMenu')"), "row 813: no Freshness pill; the filter is the typed word")
-                p.until("document.querySelector('#fline-input').value.includes('is:quiet')", "the tile opened the typed word")
+                p.until("document.querySelector('[data-fline]').dataset.line.includes('is:quiet')", "the tile opened the typed word")
                 p.js("document.querySelector('#fline-input').focus(); document.querySelector('#fline-input').select()")
                 p.type("is:")
                 p.until("!!document.querySelector('#fline-list [data-ins=\"is:quiet\"] .fl2')", "the suggestion for the word")

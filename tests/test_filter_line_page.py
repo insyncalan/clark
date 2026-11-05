@@ -14,7 +14,7 @@ from _new_page import reload_to_new_page_cdp
 import _testpage as testpage
 
 from test_server import Running, chrome, wait  # noqa: E402
-from test_work_filters import click, expect, key, need_chrome, page_rows, pause, set_line  # noqa: E402
+from test_work_filters import click, expect, key, need_chrome, page_rows, pause, select_line, set_line  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 INPUT = "#fline-input"
@@ -61,7 +61,7 @@ class Line(unittest.TestCase):
 
     def chips(self, cdp, sid):
         """The words of the line, as typed in the box (the box holds the whole line)."""
-        return cdp.js(r'''(document.querySelector('#fline-input').value.match(/(?:[^\s"]|"[^"]*")+/g) || [])''', sid)
+        return cdp.js(r'''(document.querySelector('[data-fline]').dataset.line.match(/(?:[^\s"]|"[^"]*")+/g) || [])''', sid)
 
     def tokens(self, cdp, sid, cls):
         return cdp.js(f"[...document.querySelectorAll('.fline .fhi .k-{cls}')].map(e => e.textContent)", sid)
@@ -172,7 +172,7 @@ class Line(unittest.TestCase):
             # its own "/" handler only runs where the ask panel has not taken the key.
             cdp.js("document.activeElement.blur()", sid)
             self.focus(cdp, sid)
-            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "is:open", "the slash itself is not typed")
+            self.assertEqual(cdp.js("document.querySelector('[data-fline]').dataset.line", sid), "is:open", "the slash itself is not typed")
             key(cdp, sid, "Escape")                                               # #640: the field list opens on focus and the examples wait until it is closed
             self.assertTrue(wait(lambda: cdp.js("getComputedStyle(document.querySelector('.fhints')).visibility", sid) == "visible"))
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.fhints')).visibility", sid), "visible", "the hint chips show while the line is focused")
@@ -221,7 +221,7 @@ class Line(unittest.TestCase):
                 self.assertIn("is:quiet", hints, "the demo carries review facts, so the word is offered")
                 self.assertGreaterEqual(cdp.js("Math.min(...[...document.querySelectorAll('.fhint')].map(h => h.getBoundingClientRect().height))", sid), 24)
                 click(cdp, sid, ".fhint[title*='Leave closed']")
-                self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == "is:open -status:Closed"))
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "is:open -status:Closed"))
                 self.assertTrue(wait(lambda: "-status:Closed" in self.chips(cdp, sid)))
                 pause(cdp, sid)
                 self.assertTrue(wait(lambda: self.shown(cdp, sid) == expect(self.rows(cdp, sid), "open", filters={"status": ["Closed"]}, nots=("status",))))
@@ -234,7 +234,7 @@ class Line(unittest.TestCase):
                     sid = self.load(cdp, s.port, width, theme=theme)
                     rows = self.rows(cdp, sid)
                     self.focus(cdp, sid)
-                    cdp.js("document.querySelector('#fline-input').select()", sid)
+                    select_line(cdp, sid)
                     self.type(cdp, sid, "st")
                     self.assertTrue(wait(lambda: "status:" in self.listed(cdp, sid)))
                     self.assertEqual(cdp.js("document.querySelector('#fline-input').getAttribute('aria-expanded')", sid), "true")
@@ -242,7 +242,7 @@ class Line(unittest.TestCase):
                     key(cdp, sid, "ArrowDown")
                     self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').getAttribute('aria-activedescendant')", sid) == "fo-0"))
                     key(cdp, sid, "Enter")                                           # a field: goes into the box, then its values are listed
-                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == "status:"))
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "status:"))
                     self.assertTrue(wait(lambda: "status:Open" in self.listed(cdp, sid)))
                     options = self.listed(cdp, sid)
                     key(cdp, sid, "ArrowUp")                                         # the arrows wrap round
@@ -252,7 +252,7 @@ class Line(unittest.TestCase):
                         key(cdp, sid, "ArrowDown")
                     self.assertEqual(cdp.js("document.querySelector('#fline-input').getAttribute('aria-activedescendant')", sid), f"fo-{idx}")
                     key(cdp, sid, "Enter")
-                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == "status:Closed "), "a value adds a space")
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "status:Closed"), "the accepted value is a chip")
                     self.assertTrue(wait(lambda: self.listed(cdp, sid)[:2] == ["is:", "type:"]), "and the list of fields opens again")
                     pause(cdp, sid)
                     self.assertTrue(wait(lambda: self.shown(cdp, sid) == expect(rows, "all", filters={"status": ["Closed"]})), "status:Closed alone (the box held the whole line)")
@@ -272,9 +272,9 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: "owner:" in self.listed(cdp, sid)))
             key(cdp, sid, "Escape")
             self.assertTrue(wait(lambda: cdp.js("!document.querySelector('#fline-list')", sid)), "Esc closes the list")
-            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "is:open priority:High type:action ow", "and keeps what was typed")
-            for _ in range(3):
-                key(cdp, sid, "Backspace")                                           # letters go, a chip never does on its own
+            self.assertEqual(cdp.js("document.querySelector('[data-fline]').dataset.line", sid), "is:open priority:High type:action ow", "and keeps what was typed")
+            for _ in range(2):
+                key(cdp, sid, "Backspace")                                           # the two letters go; only a Backspace in the then empty box takes a chip (row 845)
             self.assertEqual(self.chips(cdp, sid), ["is:open", "priority:High", "type:action"])
             pause(cdp, sid)
             self.assertEqual(self.shown(cdp, sid), expect([r for r in rows if r["kind"] == "action"], "open", filters={"priority": ["High"]}))
@@ -316,14 +316,17 @@ class Line(unittest.TestCase):
             for theme in THEMES:
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
-                    self.put(cdp, sid, 'is:open status:Open,Delayed priority:Urgent owner:"Fictional Owner" supplier')
-                    self.assertEqual(self.tokens(cdp, sid, "fld"), ["is:", "status:", "priority:", "owner:"])
-                    self.assertEqual(self.tokens(cdp, sid, "val"), ["open", "Open", "Delayed", "Urgent", '"Fictional Owner"'])
+                    self.put(cdp, sid, 'is:open status:Open,Delayed owner:"Fictional Owner" supplier priority:Urgent,Medium')
+                    self.assertEqual(self.chips(cdp, sid)[:4], ["is:open", "status:Open,Delayed", 'owner:"Fictional Owner"', "supplier"], "row 845: the complete filters are chips")
+                    self.assertEqual(cdp.js("[...document.querySelectorAll('[data-fline] [data-chip]')].map((e) => e.dataset.chip)", sid), ["is:open", "status:Open,Delayed", 'owner:"Fictional Owner"'])
+                    self.assertEqual(self.tokens(cdp, sid, "fld"), ["priority:"])
+                    self.assertEqual(self.tokens(cdp, sid, "val"), ["Urgent", "Medium"])
                     self.assertEqual(self.tokens(cdp, sid, "txt"), ["supplier"])
                     bg = lambda sel: cdp.js(f"getComputedStyle(document.querySelector({json.dumps(sel)})).backgroundColor", sid)
                     box = bg(".fline")
                     self.assertEqual(bg(".fline .k-fld"), "rgba(0, 0, 0, 0)", "a field name is plain")
                     self.assertNotEqual(bg(".fline .k-val"), box, "a value is a chip")
+                    self.assertNotEqual(bg(".fline .fchip"), box, "and so is a complete filter")
                     self.assertNotEqual(bg(".fline .k-val.r"), bg(".fline .k-val.a"), "single-select values carry their colour")
                     # the drawn text is exactly the typed text, and it sits on the typed text (the layer lines up with the input)
                     self.assertEqual(cdp.js("document.querySelector('.fline .fhi').textContent", sid), cdp.js("document.querySelector('#fline-input').value", sid))
@@ -354,17 +357,17 @@ class Line(unittest.TestCase):
             rows = self.rows(cdp, sid)
             before = self.shown(cdp, sid)
             self.focus(cdp, sid)
-            cdp.js("document.querySelector('#fline-input').select()", sid)
-            self.type(cdp, sid, "type:decision")
+            key(cdp, sid, "End")
+            self.type(cdp, sid, " type:decision")
             key(cdp, sid, "Enter")
             self.assertEqual(self.shown(cdp, sid), before, "Enter applies nothing")
             self.assertEqual(cdp.js("location.hash", sid), "#work&p=TUL")
             t0 = cdp.js("performance.now()", sid)
-            self.assertTrue(wait(lambda: self.shown(cdp, sid) == expect(rows, "all", "decision")), "the list follows the box")
+            self.assertTrue(wait(lambda: self.shown(cdp, sid) == expect(rows, "open", "decision")), "the list follows the box")
             waited = cdp.js("performance.now()", sid) - t0
             self.assertLess(waited, 3000)
             # a key inside the pause pushes the apply back: the list changes once, for the last text
-            cdp.js("document.querySelector('#fline-input').select()", sid)
+            select_line(cdp, sid)
             self.type(cdp, sid, "type:action")
             self.type(cdp, sid, " is:open")
             pause(cdp, sid)
@@ -384,7 +387,7 @@ class Line(unittest.TestCase):
                     inside = cdp.js("(() => { const x = document.querySelector('#fline-x').getBoundingClientRect(), b = document.querySelector('.fline').getBoundingClientRect(); return x.right <= b.right && x.left >= b.left && x.top >= b.top && x.bottom <= b.bottom; })()", sid)
                     self.assertTrue(inside, "inside the box, at the right end")
                     click(cdp, sid, "#fline-x")
-                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == ""))
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == ""))
                     self.assertFalse(cdp.js("!!document.querySelector('#fline-x')", sid), "no text, no x")
                     self.assertEqual(cdp.js("document.activeElement.id", sid), "fline-input", "the focus is in the box")
                     self.assertTrue(wait(lambda: self.shown(cdp, sid) == sorted(r["id"] for r in rows)), "the full view")
@@ -400,14 +403,14 @@ class Line(unittest.TestCase):
                         key(cdp, sid, "Tab")
                     self.assertEqual(cdp.js("document.activeElement.id", sid), "fline-x")
                     key(cdp, sid, "Enter")
-                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == ""))
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == ""))
                     self.assertTrue(wait(lambda: self.shown(cdp, sid) == sorted(r["id"] for r in rows)))
                     self.assertEqual(cdp.js("document.activeElement.id", sid), "fline-input")
                     # a clear inside the pause is not undone by the typed text arriving after it
                     self.type(cdp, sid, "supplier")
                     click(cdp, sid, "#fline-x")
                     pause(cdp, sid)
-                    self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "")
+                    self.assertEqual(cdp.js("document.querySelector('[data-fline]').dataset.line", sid), "")
 
     def test_no_match_shows_the_empty_state_with_a_clear_filter_link(self):
         s = self.serve()
@@ -424,7 +427,7 @@ class Line(unittest.TestCase):
                     self.assertEqual(cdp.js("document.querySelectorAll('#work-list .empty [class*=err]').length", sid), 0, "it is not an error")
                     click(cdp, sid, "#clearFilter")
                     self.assertTrue(wait(lambda: self.shown(cdp, sid) == sorted(r["id"] for r in rows)))
-                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == ""))
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == ""))
                     self.assertFalse(cdp.js("!!document.querySelector('#clearFilter')", sid))
 
     def test_words_the_page_cannot_answer_yet_are_not_offered_and_are_refused(self):
@@ -432,7 +435,7 @@ class Line(unittest.TestCase):
         with chrome() as cdp:
             sid = self.load(cdp, s.port)
             self.focus(cdp, sid)
-            cdp.js("document.querySelector('#fline-input').select()", sid)
+            select_line(cdp, sid)
             self.type(cdp, sid, "is:")
             self.assertTrue(wait(lambda: "is:open" in self.listed(cdp, sid)))
             offered = self.listed(cdp, sid)
@@ -456,7 +459,7 @@ class Line(unittest.TestCase):
                 self.watch(cdp, sid)
                 self.assertFalse(cdp.js("!!document.querySelector('#freshMenu')", sid), "row 813: no Freshness pill")
                 self.focus(cdp, sid)
-                cdp.js("document.querySelector('#fline-input').select()", sid)
+                select_line(cdp, sid)
                 self.type(cdp, sid, "is:")
                 self.assertTrue(wait(lambda: "is:quiet" in self.listed(cdp, sid)))
                 glosses = cdp.js("Object.fromEntries([...document.querySelectorAll('#fline-list [role=option]')].map(o => [o.dataset.ins, (o.querySelector('.fl2') || {}).textContent]))", sid)
@@ -472,7 +475,8 @@ class Line(unittest.TestCase):
                     self.assertFalse(cdp.js("!!document.querySelector('#freshMenu, [aria-label=Freshness]')", sid), "row 813: no Freshness pill in the row")
                     self.put(cdp, sid, "is:open is:incomplete")
                     self.assertTrue(wait(lambda: "is:incomplete" in self.chips(cdp, sid)), self.chips(cdp, sid))
-                    self.assertEqual(self.tokens(cdp, sid, "val"), ["open", "incomplete"], "the line's own words")
+                    self.assertEqual(self.chips(cdp, sid), ["is:open", "is:incomplete"], "the line's own words")
+                    self.assertEqual(self.tokens(cdp, sid, "val"), ["incomplete"], "the word being typed keeps its colour; the complete one is a chip")
                     rows = self.rows(cdp, sid)
                     want = sorted(r["id"] for r in rows if r["status"] not in ("Closed", "Cancelled", "Made", "Withdrawn")
                                   and (not str(r["owner"] or "").strip() or str(r["owner"]).strip().upper() == "TBC"
@@ -500,14 +504,14 @@ class Line(unittest.TestCase):
         with chrome() as cdp:
             sid = self.load(cdp, s.port)
             self.focus(cdp, sid)
-            cdp.js("document.querySelector('#fline-input').select()", sid)
+            select_line(cdp, sid)
             self.type(cdp, sid, "workstream:")
             self.assertTrue(wait(lambda: len(self.listed(cdp, sid)) > 0))
             offered = [o.split(":", 1)[1].strip('"') for o in self.listed(cdp, sid) if o.startswith("workstream:")]
             self.assertEqual([o for o in offered if o in streams][:len(streams)], [o for o in streams if o in offered], "the project's own order")
             for name in streams:
                 self.assertIn(name, offered)
-            cdp.js("document.querySelector('#fline-input').select()", sid)
+            select_line(cdp, sid)
             self.type(cdp, sid, "milestone:")
             self.assertTrue(wait(lambda: any(o.startswith("milestone:") for o in self.listed(cdp, sid))))
             got = " | ".join(self.listed(cdp, sid))
@@ -538,7 +542,8 @@ class Line(unittest.TestCase):
             sid = self.load(cdp, s.port)
             rows = self.rows(cdp, sid)
             self.put(cdp, sid, "is:open -owner:none priority:High,Medium client:internal due:next-7-days,later")
-            self.assertEqual(self.tokens(cdp, sid, "val"), ["open", "none", "High", "Medium", "internal", "next-7-days", "later"])
+            self.assertEqual(self.chips(cdp, sid), ["is:open", "-owner:none", "priority:High,Medium", "client:internal", "due:next-7-days,later"])
+            self.assertEqual(self.tokens(cdp, sid, "val"), ["next-7-days", "later"], "the word being typed keeps its colours; the complete ones are chips")
             self.assertEqual(self.shown(cdp, sid), expect(rows, "open", filters={"owner": ["(none)"], "priority": ["High", "Medium"], "client": ["no"], "due": ["soon", "later"]}, nots=("owner",)))
             self.assertIn("not:owner", cdp.js("location.hash", sid), "the address keeps the older state, so a link still opens the same list")
 
@@ -596,7 +601,9 @@ class Line(unittest.TestCase):
         with chrome() as cdp:
             sid = self.load(cdp, s.port)
             before = self.shown(cdp, sid)
-            self.put(cdp, sid, "is:open owner:" + ",".join(json.dumps(o) for o in owners))
+            click(cdp, sid, "#fline-input")
+            key(cdp, sid, "End")
+            self.type(cdp, sid, " owner:" + ",".join(json.dumps(o) for o in owners))
             self.assertTrue(wait(lambda: "not fit" in cdp.js("document.querySelector('#work-note').textContent", sid)))
             self.assertEqual(cdp.js("document.querySelector('#work-note').getAttribute('role')", sid), "status")
             self.assertFalse(cdp.js("clarkPage.filters()", sid), "nothing changed")
@@ -611,7 +618,7 @@ class Line(unittest.TestCase):
             self.put(cdp, sid, "is:closed type:decision client:internal priority:Urgent")
             self.assertTrue(wait(lambda: "No work items match." in cdp.js("document.querySelector('#work-list').innerText", sid)))
             click(cdp, sid, "#clearFilter")
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == ""))
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == ""))
             self.assertEqual(cdp.js("!!document.querySelector('#clearAll, #clearAll2, #clearFilter')", sid), False)
             self.assertEqual(cdp.js("location.hash", sid), "#work&p=TUL&f=mode:all")
 
@@ -806,7 +813,7 @@ class Line(unittest.TestCase):
                     self.assertEqual(cdp.js("!!document.querySelector('#fline-list')", sid), False, "closed until the box is entered")
                     self.focus(cdp, sid)                                              # the box holds the starting line: no list for a click into text
                     self.assertEqual(cdp.js("!!document.querySelector('#fline-list')", sid), False)
-                    cdp.js("document.querySelector('#fline-input').select()", sid)
+                    select_line(cdp, sid)
                     key(cdp, sid, "Backspace")
                     self.assertTrue(wait(lambda: self.listed(cdp, sid) == self.FIELDS_ALL), "the list of fields, is first, then the fields, then has and no")
                     self.assertEqual(cdp.js("document.querySelector('#fline-list').getAttribute('role')", sid), "listbox")
@@ -824,19 +831,19 @@ class Line(unittest.TestCase):
                     self.assertTrue(wait(lambda: self.listed(cdp, sid) == self.FIELDS_ALL))
                     key(cdp, sid, "ArrowDown")
                     key(cdp, sid, "Enter")
-                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == "type:"))
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "type:"))
                     self.assertTrue(wait(lambda: len(self.listed(cdp, sid)) > 4))
                     opts = self.listed(cdp, sid)
                     self.assertEqual(opts[:3], ["no:type", "has:type", "-type:"], "led by No, Has and Exclude")
                     self.assertEqual(cdp.js("[...document.querySelectorAll('#fline-list .fl1')].slice(0, 3).map(e => e.textContent)", sid), ["No Type", "Has Type", "Exclude Type"])
                     self.assertTrue(all(i.startswith("type:") and i != "type:" for i in opts[3:]), "then the field's values")
                     self.assertFalse(self.hints_visible(cdp, sid))
-                    cdp.js("document.querySelector('#fline-input').select()", sid)
+                    select_line(cdp, sid)
                     self.type(cdp, sid, "ow")                                         # typing narrows the list
                     self.assertTrue(wait(lambda: self.listed(cdp, sid) == ["owner:"]))
-                    cdp.js("document.querySelector('#fline-input').select()", sid)
+                    select_line(cdp, sid)
                     key(cdp, sid, "Backspace")
-                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == ""))
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == ""))
                     # Tab into the box from the control before it opens the list too
                     cdp.js("document.querySelector('#fline-input').blur()", sid)
                     cdp.js("document.querySelector('#viewMenu').focus()", sid)
@@ -855,14 +862,14 @@ class Line(unittest.TestCase):
             self.type(cdp, sid, "pri")
             self.assertTrue(wait(lambda: self.listed(cdp, sid) == ["priority:"]))
             key(cdp, sid, "Tab")                                                   # Tab takes the first suggestion
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == "priority:"))
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "priority:"))
             self.assertTrue(wait(lambda: "priority:Urgent" in self.listed(cdp, sid)))
             self.type(cdp, sid, "hi")
             self.assertTrue(wait(lambda: self.listed(cdp, sid) == ["priority:High"]), "narrowed as typed")
             key(cdp, sid, "ArrowDown")
             key(cdp, sid, "Tab")
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == "priority:High "))
-            self.assertEqual(cdp.js("document.querySelector('#fline-input').selectionStart", sid), len("priority:High "), "the caret is after the space")
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "priority:High"))
+            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "", "the accepted word left the box as a chip")
             self.assertTrue(wait(lambda: self.listed(cdp, sid) == self.FIELDS_ALL), "the field list is open again")
             # a No row, then another field after it
             self.type(cdp, sid, "ow")
@@ -870,7 +877,7 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: "no:owner" in self.listed(cdp, sid)))
             key(cdp, sid, "ArrowDown")
             key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == "priority:High no:owner "))
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "priority:High no:owner"))
             pause(cdp, sid)
             rows = self.rows(cdp, sid)
             self.assertEqual(self.shown(cdp, sid), expect(rows, "all", filters={"priority": ["High"], "owner": ["(none)"]}))
@@ -878,7 +885,7 @@ class Line(unittest.TestCase):
             self.type(cdp, sid, "status:")
             self.assertTrue(wait(lambda: "status:Closed" in self.listed(cdp, sid)))
             click(cdp, sid, "#fline-list [data-ins='status:Closed']")
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == "priority:High no:owner status:Closed "))
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "priority:High no:owner status:Closed"))
             self.assertEqual(cdp.js("document.activeElement.id", sid), "fline-input")
 
     def test_single_select_values_show_their_colour_and_other_values_do_not(self):

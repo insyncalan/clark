@@ -72,7 +72,7 @@ function SavedViews({ board }) {
   const said = active ? trouble(active) : "";
   const dirty = !!active && !said && Q.differsQuery(active, line, rows, ctx);
   // Row 844: the view the line matched stays the chosen tab when the line is then changed, so the dot shows on it and Discard changes has a view to go back to.
-  useEffect(() => { if (matching && mine !== matching.id) chosen.value = { ...chosen.value, [code]: matching.id }; }, [matching && matching.id, code]);
+  useEffect(() => { if (matching && !shown.some((v) => v.id === mine)) chosen.value = { ...chosen.value, [code]: matching.id }; }, [matching && matching.id, code]);
   const pick = (v) => { chosen.value = { ...chosen.value, [code]: v.id }; if (!trouble(v)) setLine(v.line); };
   // The open tab and its arrow are brought into view inside the scrolling row (the row alone moves, never the page).
   const tabsBox = useRef(null);
@@ -185,21 +185,39 @@ function SavedViews({ board }) {
 
 export function FilterLine({ board }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
-  const [draft, setDraft] = useState(line);               // the text in the box; the line (lineText) is what the list shows, and follows it after a pause
+  const first = useRef(null);
+  if (first.current === null) first.current = Q.splitLine(line, rows, ctx);
+  const live = useRef({ chips: first.current.chips, draft: first.current.rest });     // what the box holds right now, for a key that comes before the next draw
+  const [chips, setChipsRaw] = useState(first.current.chips);   // row 845: the complete filters, each a chip with its own remove button
+  const [draft, setDraftRaw] = useState(first.current.rest);    // the text in the box (plain words and the word being typed); the line (lineText) is what the list shows, and follows chips and box after a pause
   const [focused, setFocused] = useState(false);
   const [caret, setCaret] = useState(0);
   const [active, setActive] = useState(-1);                   // the suggestion the arrows are on (-1: none)
   const [closed, setClosed] = useState(false);                // Esc closed the list; typing opens it again
   const [touched, setTouched] = useState(false);              // something was typed or chosen since the focus came: a list is then wanted even after a space
+  const setChips = (v) => { live.current.chips = v; setChipsRaw(v); };
+  const setDraft = (v) => { live.current.draft = v; setDraftRaw(v); };
   const input = useRef(null), over = useRef(null), box = useRef(null), timer = useRef(0), applied = useRef(line), want = useRef(null);
   // A change that did not come from this box (a tab, a switch, Clear filter, another project) puts its line in the box and drops a pending apply.
   useEffect(() => {
-    if (line !== applied.current) { clearTimeout(timer.current); applied.current = line; setDraft(line); }
+    const now = lineText.value;      // the line as it is now, not as the draw that scheduled this saw it: a key can apply a newer one before the effect runs
+    if (now !== applied.current) { clearTimeout(timer.current); applied.current = now; const s = Q.splitLine(now, rows, ctx); setChips(s.chips); setDraft(s.rest); }
   }, [line]);
   useEffect(() => () => clearTimeout(timer.current), []);
   const apply = (text) => { applied.current = text; setLine(text); };
   const later = (text) => { clearTimeout(timer.current); timer.current = setTimeout(() => { if (text !== lineText.value) apply(text); }, PAUSE); };
-  const edit = (text) => { setDraft(text); later(text); };
+  // A change of the text: filters the caret has moved past become chips, the rest stays in the box.
+  const edit = (text, at) => {
+    const c = Q.commitDraft(text, at === undefined ? text.length : at, rows, ctx), next = c.chips.length ? [...live.current.chips, ...c.chips] : live.current.chips;
+    if (c.chips.length) { setChips(next); want.current = c.caret; }
+    setDraft(c.text); later(Q.joinLine(next, c.text));
+  };
+  const dropChip = (i) => {
+    clearTimeout(timer.current);
+    const next = live.current.chips.filter((_, j) => j !== i);
+    setChips(next); apply(Q.joinLine(next, live.current.draft));
+    if (input.current) input.current.focus();
+  };
   const readCaret = () => { if (input.current) setCaret(input.current.selectionStart || 0); };
   // The tokens are drawn in a layer over the (clear-text) input: it follows the input's own sideways scroll. A caret put by a choice is set here, after the draw.
   useLayoutEffect(() => {
@@ -209,19 +227,19 @@ export function FilterLine({ board }) {
   const parsed = Q.parseFor(draft, rows, ctx), shown = Q.pieces(draft, parsed, focused ? caret : undefined);
   const matches = Q.rowsFor(rows, line, ctx).length;
   const words = shown.filter((p) => p.cls === "err" && p.message).map((p) => p.message);
-  const notes = [...words, ...(Q.wantsMe(parsed, ctx) ? [Q.NO_ME] : [])];
+  const notes = [...words, ...(Q.wantsMe(Q.parseFor(Q.joinLine(chips, draft), rows, ctx), ctx) ? [Q.NO_ME] : [])];
   const options = focused ? Q.suggestions(draft, caret, rows, ctx) : [];
   const wordNow = Q.wordAt(draft, caret).word;
-  const listed = focused && !closed && options.length > 0 && (draft.trim() === "" || touched);
+  const listed = focused && !closed && options.length > 0 && ((draft.trim() === "" && chips.length === 0) || touched);
   const pick = (o) => {
     const r = Q.accept(draft, caret, o);
-    want.current = r.caret; edit(r.text); setActive(-1); setClosed(false); setTouched(true);
+    want.current = r.caret; edit(r.text, r.caret); setActive(-1); setClosed(false); setTouched(true);
     if (input.current) input.current.focus();
   };
   const clear = () => {
     clearTimeout(timer.current);
     chosen.value = { ...chosen.value, [code]: "" };
-    setDraft(""); apply("");
+    setChips([]); setDraft(""); apply("");
     if (input.current) input.current.focus();
   };
   const onKeyDown = (e) => {
@@ -230,6 +248,8 @@ export function FilterLine({ board }) {
       e.preventDefault();
       if (!listed) { setClosed(false); setTouched(true); setActive(e.key === "ArrowDown" ? 0 : options.length - 1); return; }
       setActive(e.key === "ArrowDown" ? (active + 1) % options.length : (active < 0 ? options.length : active) - 1);
+    } else if (e.key === "Backspace" && live.current.chips.length && e.target.selectionStart === 0 && e.target.selectionEnd === 0) {
+      e.preventDefault(); dropChip(live.current.chips.length - 1);        // an empty box takes the last chip away
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (listed && active >= 0 && options[active]) pick(options[active]);
@@ -277,13 +297,25 @@ export function FilterLine({ board }) {
     return () => document.removeEventListener("keydown", slash);
   }, []);
   const hints = FL.hints(ctx);
-  const useHint = (h) => { const t = (draft && !/\s$/.test(draft) ? draft + " " : draft) + h.text; setTouched(true); want.current = t.length; edit(t); if (input.current) input.current.focus(); };
+  const useHint = (h) => { const t = (draft && !/\s$/.test(draft) ? draft + " " : draft) + h.text + " "; setTouched(true); want.current = t.length; edit(t); if (input.current) input.current.focus(); };
   return (
     <div class="fline-wrap" ref={box}
       onFocusIn={() => setFocused(true)}
       onFocusOut={(e) => { if (!e.relatedTarget || !box.current.contains(e.relatedTarget)) leave(); }}>
       <SavedViews board={board} />
-      <div class={`fline${focused ? " on" : ""}`} data-fline>
+      <div class={`fline${focused ? " on" : ""}`} data-fline data-line={Q.joinLine(chips, draft)}>
+        {chips.length ? (
+          <span class="fchips" data-fchips>
+            {chips.map((c, i) => {
+              const name = Q.chipName(c, rows, ctx);
+              return (
+                <span class="fchip" key={`${i}|${c}`} data-chip={c}>{c}
+                  <button type="button" data-fx={c} aria-label={`Remove the ${name} filter`} onMouseDown={(e) => e.preventDefault()} onClick={() => dropChip(i)}>{"×"}</button>
+                </span>
+              );
+            })}
+          </span>
+        ) : null}
         <div class="fedit">
           <div class="fhi" ref={over} aria-hidden="true" data-fhi>
             <span class="fhs">{shown.map((p, i) => (
@@ -295,13 +327,13 @@ export function FilterLine({ board }) {
           <input ref={input} id="fline-input" type="text" role="combobox" autocomplete="off" spellcheck={false} aria-expanded={listed ? "true" : "false"} aria-controls={listed ? "fline-list" : undefined}
             aria-activedescendant={listed && active >= 0 ? `fo-${active}` : undefined}
             aria-label="Filter work items" aria-autocomplete="list" aria-describedby="fline-msg"
-            placeholder={FL.PLACEHOLDER} value={draft}
+            placeholder={chips.length ? undefined : FL.PLACEHOLDER} value={draft}
             onFocus={() => { setClosed(false); setTouched(false); readCaret(); }}
-            onInput={(e) => { edit(e.target.value); setCaret(e.target.selectionStart || 0); setActive(-1); setClosed(false); setTouched(true); }} onKeyDown={onKeyDown} onKeyUp={readCaret} onClick={readCaret}
+            onInput={(e) => { edit(e.target.value, e.target.selectionStart || 0); setCaret(e.target.selectionStart || 0); setActive(-1); setClosed(false); setTouched(true); }} onKeyDown={onKeyDown} onKeyUp={readCaret} onClick={readCaret}
             onScroll={() => { if (over.current && input.current) over.current.scrollLeft = input.current.scrollLeft; }} />
         </div>
         <span class="fcount num" id="fline-count" data-fcount>{`${matches} of ${rows.length}`}</span>
-        {draft ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
+        {draft || chips.length ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
       </div>
       {/* Row 808: the list floats over the page just under the box (it is out of the flow), so opening it pushes no row or card down. */}
       {listed ? (

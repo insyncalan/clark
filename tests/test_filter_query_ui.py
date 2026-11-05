@@ -97,6 +97,40 @@ class Pieces(unittest.TestCase):
         self.assertEqual([x["cls"] for x in self.pieces("status: type:action", 19)], ["err", "gap", "fld", "val"])
 
 
+class Chips(unittest.TestCase):
+    """Row 845: the complete filters of a line are chips; the box keeps the rest."""
+
+    def split(self, line):
+        return run_node(f"Q.splitLine({lit(line)}, {lit(ROWS)}, {lit(CTX)})")
+
+    def test_a_line_is_cut_into_its_filters_and_the_rest(self):
+        self.assertEqual(self.split('is:open status:Open,Pending supplier stat:x owner:"Owner One"'),
+                         {"chips": ["is:open", "status:Open,Pending", 'owner:"Owner One"'], "rest": "supplier stat:x"})
+        self.assertEqual(self.split(""), {"chips": [], "rest": ""})
+        self.assertEqual(self.split("status:"), {"chips": [], "rest": "status:"})
+
+    def test_the_chips_and_the_box_are_one_line_again(self):
+        self.assertEqual(run_node("Q.joinLine(['is:open', 'no:owner'], 'foo')"), "is:open no:owner foo")
+        self.assertEqual(run_node("Q.joinLine(['is:open'], '')"), "is:open")
+        self.assertEqual(run_node("Q.joinLine([], 'foo')"), "foo")
+
+    def test_a_filter_the_caret_has_moved_past_becomes_a_chip(self):
+        c = lambda text, caret: run_node(f"Q.commitDraft({lit(text)}, {caret}, {lit(ROWS)}, {lit(CTX)})")
+        self.assertEqual(c("status:Open ", 12), {"chips": ["status:Open"], "text": "", "caret": 0})
+        self.assertEqual(c("foo status:Open bar", 19), {"chips": ["status:Open"], "text": "foo bar", "caret": 7})
+        self.assertEqual(c("status:Open", 11), {"chips": [], "text": "status:Open", "caret": 11}, "the word still being typed stays")
+        self.assertEqual(c("stat:x ", 7), {"chips": [], "text": "stat:x ", "caret": 7}, "a word that cannot be used stays, with its message")
+        self.assertEqual(c("status: ", 8), {"chips": [], "text": "status: ", "caret": 8})
+        self.assertEqual(c("foo ", 4), {"chips": [], "text": "foo ", "caret": 4}, "a plain word stays")
+
+    def test_a_chips_remove_button_is_named_by_its_field(self):
+        n = lambda chip: run_node(f"Q.chipName({lit(chip)}, {lit(ROWS)}, {lit(CTX)})")
+        self.assertEqual(n("status:Open"), "Status")
+        self.assertEqual(n("-owner:none"), "Owner")
+        self.assertEqual(n("is:open"), "is")
+        self.assertEqual(n("no:owner"), "no")
+
+
 class Words(unittest.TestCase):
     def say(self, line):
         return run_node(f"Q.parseFor({lit(line)}, {lit(ROWS)}, {lit(CTX)}).errors.map(Q.messageOf)")

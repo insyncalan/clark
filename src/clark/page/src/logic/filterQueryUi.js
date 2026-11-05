@@ -212,3 +212,43 @@ export function accept(text, caret, opt) {
   const head = String(text).slice(0, start) + opt.ins + (opt.close ? " " : "");
   return { text: head + tail, caret: head.length };
 }
+
+// ── Chips: the words of the line that are complete filters (row 845) ───────────────────────────────────────────────────────
+// The line stays one text (the saved views, the count and the parser read it); the box draws the complete filters as chips, each with its own
+// remove button, and holds only the rest (plain words, a word still being typed, a word that cannot be used).
+
+const isChipToken = (t) => !t.error && t.kind !== "text";
+const spaceAt = (s, i) => i < s.length && /\s/.test(s[i]);
+
+/** A line cut in two: its complete filters (each as typed) and the rest of the line (plain words and unusable words, in order). */
+export function splitLine(line, rows, ctx, extra) {
+  const toks = parseFor(line, rows, ctx, extra).tokens;
+  return { chips: toks.filter(isChipToken).map((t) => t.raw), rest: toks.filter((t) => !isChipToken(t)).map((t) => t.raw).join(" ") };
+}
+
+/** The chips and the text in the box as one line. */
+export function joinLine(chips, draft) {
+  const d = draft || "";
+  return d === "" ? chips.join(" ") : [...chips, d].join(" ");
+}
+
+/** Complete filters the caret has moved past (a space follows them) leave the text and become chips: {chips: [typed], text, caret}. */
+export function commitDraft(text, caret, rows, ctx, extra) {
+  const done = parseFor(text, rows, ctx, extra).tokens.filter((t) => isChipToken(t) && t.end < caret && spaceAt(text, t.end));
+  if (!done.length) return { chips: [], text, caret };
+  let out = "", at = 0, back = 0;
+  for (const t of done) {
+    let e = t.end;
+    while (spaceAt(text, e)) e++;
+    out += text.slice(at, t.start); at = e;
+    back += Math.min(e, caret) - t.start;
+  }
+  return { chips: done.map((t) => t.raw), text: out + text.slice(at), caret: caret - back };
+}
+
+/** The word a chip's remove button names: the field's name, or the word typed before the colon (is, has, no). */
+export function chipName(chip, rows, ctx, extra) {
+  const t = parseFor(chip, rows, ctx, extra).tokens[0];
+  if (t && t.kind === "field") { const f = pageSchema(rows, ctx, extra).fields.find((x) => x.key === t.field); return f ? f.name : t.field; }
+  return String(chip).replace(/^-/, "").split(":")[0];
+}
