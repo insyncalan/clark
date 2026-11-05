@@ -168,7 +168,7 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Ask about this project.")
 
     def test_the_panel_title_reads_ask_clark_and_the_ready_line_is_unchanged(self):
-        # row 820: the title is Alan's own words; the ready line is a separate sentence and stays
+        # row 820: the title is the row's own words; the ready line is a separate sentence and stays
         self.stub.model = ""
         with chrome() as cdp:
             p = self.opened(cdp)
