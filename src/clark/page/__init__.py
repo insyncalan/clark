@@ -38,7 +38,17 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 PAGE = HERE / "page.html"
 VIEW_PAGE = HERE / "page-view.html"      # #65: the same page with no Edit part and no route that changes anything
-BRANDING = ROOT / "system" / "branding"
+HIDDEN_CODE = ".app"              # a download keeps its program files in this folder; the person's system/ folder sits beside it (issue 694)
+
+
+def branding_folder(root):
+    """The person's own branding folder for a code root: system/branding in the clark folder. In a download the code root is
+    the hidden .app folder, so the clark folder is its parent; a source checkout is never named .app and is its own."""
+    root = Path(root)
+    return (root.parent if root.name == HIDDEN_CODE else root) / "system" / "branding"
+
+
+BRANDING = branding_folder(ROOT)
 LOCAL_TOKENS = ("tokens.css", "design-system/tokens.css")     # the first that exists
 DEMO_ID = "brand-demo"            # the named hook: the local brand is layered after the element with this id
 PICTURE_DIR = "assets"            # beside the user's tokens.css
