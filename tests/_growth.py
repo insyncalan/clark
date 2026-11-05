@@ -5,9 +5,10 @@ larger run is far slower than any healthy scan (so a slowdown that stays linear 
 
 Why 4n and not 2n: a step of 2 puts linear at 2 and quadratic at 4, so the limit has to sit between them (3.5) and a milder-than-square cost
 (a mutation measured 3.70) is only just over it. A step of 4 puts linear at 4 and quadratic at 16. #651: a limit of 8 would let a cost
-between 3.5 and 8 pass (the old local limit for a step of 2 was 3.5), so the limit is 5: the 88 healthy ratios measured on a quiet Mac
-(04-11-2026) top out at 4.29, and a cost of n to the power 1.5 (8) fails. The macOS and Ubuntu runners are still to be measured: if a
-runner reads a healthy scan above 5, raise the limit there rather than loosening it for everyone.
+between 3.5 and 8 pass (the old local limit for a step of 2 was 3.5), so the limit was first set to 5: the 88 healthy ratios measured on a quiet Mac
+(04-11-2026) top out at 4.29, and a cost of n to the power 1.5 (8) fails. The hosted macOS runners then read 5.05 and 5.29 for a healthy scan
+(04-11-2026), so the limit is 6.5, still under 8. The Ubuntu runners have not been measured: they pass at 6.5, but the CI logs print no ratio for a
+passing test, so there is no figure for them. If a runner reads a healthy scan above 6.5, raise the limit there rather than loosening it for everyone.
 """
 import time
 
