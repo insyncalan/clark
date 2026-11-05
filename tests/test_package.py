@@ -564,7 +564,7 @@ class DefaultAudienceTest(unittest.TestCase):
     """The audience line of a default build (not --for-client) follows the tree: a tree that tracks any private-only path
     is for the team only, whatever else is true of it; a tree that tracks none is built from the public repository (#463).
     Small temporary repos only."""
-    PUBLIC = "This download is built from the public repository; it holds none of the team's private notes."
+    PUBLIC = "This download holds none of the team's private notes."
     TEAM = "This download is for the team only; it is built from the private copy."
 
     def tree(self, extra=None):
@@ -607,6 +607,14 @@ class DefaultAudienceTest(unittest.TestCase):
         self.assertTrue(line.endswith(self.PUBLIC), line)
         self.assertNotIn("team only", line)
 
+    def test_the_public_line_one_is_the_ruled_sentence_and_never_says_repository(self):
+        """Row 759: the public build's line 1 is exactly this sentence and has no word 'repository'."""
+        start = self.small_build(self.tree())
+        first = start.splitlines()[0]
+        self.assertEqual("This download holds none of the team's private notes.", first)
+        self.assertNotIn("repository", first.lower())
+        self.assertFalse(first.lower().startswith("clark"))
+
     def test_a_tree_that_still_tracks_a_private_path_stays_team_only(self):
         for path in ("dev/HEAD-LOG.md", "docs/DECISIONS.md", "docs/TEAM-AND-ROLES.md", "docs/public/README.md"):
             with self.subTest(path=path):
@@ -616,6 +624,7 @@ class DefaultAudienceTest(unittest.TestCase):
                 start = self.small_build(root)
                 self.assertEqual(self.TEAM, start.splitlines()[0])
                 self.assertNotIn("built from the public repository", start)
+                self.assertEqual("This download is for the team only; it is built from the private copy.", start.splitlines()[0])
                 line = self.built_line(root)
                 self.assertTrue(line.endswith(self.TEAM), line)
 
