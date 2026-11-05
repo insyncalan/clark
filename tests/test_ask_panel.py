@@ -179,6 +179,14 @@ class Panel(Base):
             self.assertEqual(sent[0], {"project": "ABC", "question": "When is go-live?", "earlier": []})
             self.assertEqual(sent[1]["earlier"], [{"role": "user", "text": "When is go-live?"}, {"role": "assistant", "text": "The pilot goes live in March."}])
 
+    def test_the_who_labels_are_for_a_reader_only_and_take_no_room(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "When is go-live?")
+            p.until("document.querySelectorAll('.ask-turn').length === 2", "the question and the answer")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ask-who')].map(e => e.textContent)"), ["You", "Answer"], "a reader still hears who spoke")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ask-who')].map(e => e.getBoundingClientRect().height <= 1)"), [True, True], "nothing is drawn above the bubble or the reply")
+
     def test_new_chat_drops_the_earlier_turns_so_a_refused_chat_can_start_again(self):
         with chrome() as cdp:
             p = self.opened(cdp)
