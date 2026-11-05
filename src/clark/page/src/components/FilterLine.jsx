@@ -228,7 +228,7 @@ export function FilterLine({ board }) {
   const matches = Q.rowsFor(rows, line, ctx).length;
   const words = shown.filter((p) => p.cls === "err" && p.message).map((p) => p.message);
   const notes = [...words, ...(Q.wantsMe(Q.parseFor(Q.joinLine(chips, draft), rows, ctx), ctx) ? [Q.NO_ME] : [])];
-  const options = focused ? Q.suggestions(draft, caret, rows, ctx) : [];
+  const options = focused ? Q.withCounts(Q.suggestions(draft, caret, rows, ctx), chips, rows, ctx) : [];
   const wordNow = Q.wordAt(draft, caret).word;
   const listed = focused && !closed && options.length > 0 && ((draft.trim() === "" && chips.length === 0) || touched);
   const pick = (o) => {
@@ -303,7 +303,7 @@ export function FilterLine({ board }) {
       onFocusIn={() => setFocused(true)}
       onFocusOut={(e) => { if (!e.relatedTarget || !box.current.contains(e.relatedTarget)) leave(); }}>
       <SavedViews board={board} />
-      <div class={`fline${focused ? " on" : ""}`} data-fline data-line={Q.joinLine(chips, draft)}>
+      <div class={`fline${focused ? " on" : ""}${words.length ? " bad" : ""}`} data-fline data-line={Q.joinLine(chips, draft)}>
         {chips.length ? (
           <span class="fchips" data-fchips>
             {chips.map((c, i) => {
@@ -344,6 +344,7 @@ export function FilterLine({ board }) {
               {o.tone ? <i class={`fdv ${o.tone}`} data-tone={o.tone} aria-hidden="true"></i> : null}
               <span class="fl1">{o.label}</span>
               {o.note ? <span class="fl2">{o.note}</span> : null}
+              {o.n !== undefined ? <span class="c num" data-n={o.n}>{o.n}</span> : null}
             </li>
           ))}
         </ul>
@@ -356,7 +357,7 @@ export function FilterLine({ board }) {
           {hints.map((h) => <button type="button" key={h.text} class="fhint" title={h.gloss} onMouseDown={(e) => e.preventDefault()} onClick={() => useHint(h)}>{h.text}</button>)}
         </div>
       }
-      <p class="fmsg" id="fline-msg" role="status" aria-live="polite">{notes.join(" ")}</p>
+      <p class={`fmsg${words.length ? " bad" : ""}`} id="fline-msg" role="status" aria-live="polite">{notes.join(" ")}</p>
     </div>
   );
 }

@@ -363,6 +363,8 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fhint:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .fmsg { margin: 6px 0 0; font-size: var(--size-small); color: var(--status-amber-text); }
 .fmsg:empty { display: none; }
+.fline.bad, .fline.bad:focus-within { border-color: var(--status-red); box-shadow: 0 0 0 1px var(--status-red); }   /* row 846: a word the line cannot use turns the box red */
+.fmsg.bad { color: var(--status-red-text); }
 .factive { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 10px 0 4px; font-size: var(--size-small); }
 
 /* Work items on a phone (item 130, point 5): compact controls, and each row is a small card that shows Status, Due and Priority under the

@@ -191,6 +191,32 @@ class Header(Base):
             self.until(cdp, sid, f"{line} === 'no:owner'", "the line follows")
         self.each(check)
 
+    # ---- row 846 ----
+    def test_row_846_each_suggested_value_shows_how_many_items_it_leaves_and_an_unknown_field_lists_the_valid_ones(self):
+        def check(cdp, sid, width):
+            click(cdp, sid, "#fline-input")
+            key(cdp, sid, "End")
+            cdp.call("Input.insertText", {"text": " status:"}, sid)
+            self.until(cdp, sid, "document.querySelector('#fline-list [data-ins^=\"status:\"]')", "the values")
+            got = cdp.js("[...document.querySelectorAll('#fline-list [data-ins^=\"status:\"]')].map((o) => [o.dataset.ins, o.querySelector('.c') ? o.querySelector('.c').textContent : null])", sid)
+            closing = [g for g in got if g[0] != "status:" and not g[0].startswith("-")]
+            self.assertTrue(closing and all(g[1] is not None and g[1].isdigit() for g in closing), f"a count beside every value: {closing}")
+            self.assertTrue(all(isinstance(g[1], str) for g in closing))
+            # choosing a value leaves exactly that many items (the open chip still counts)
+            pick = next(g for g in closing if g[0] == "status:Pending")
+            click(cdp, sid, "#fline-list [data-ins='status:Pending']")
+            self.until(cdp, sid, f"document.querySelector('#fline-count').textContent.startsWith('{pick[1]} of ')", "the count the list promised")
+            # an unknown field says which fields there are, and the box turns red
+            before = cdp.js("getComputedStyle(document.querySelector('.fline')).borderTopColor", sid)
+            cdp.call("Input.insertText", {"text": "zzz:a "}, sid)
+            self.until(cdp, sid, "document.querySelector('#fline-msg').textContent.startsWith('There is no')", "the message")
+            said = cdp.js("document.querySelector('#fline-msg').textContent", sid)
+            self.assertTrue(said.startswith("There is no “zzz” filter. You can filter by type:, status:, owner:"), said)
+            self.assertTrue(said.endswith("and is:, or type plain words to search titles."), said)
+            self.assertTrue(cdp.js("document.querySelector('.fline').classList.contains('bad')", sid))
+            self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('.fline')).borderTopColor", sid), before, "the box is red")
+        self.each(check)
+
     # ---- row 812 ----
     def test_row_812_table_and_board_are_a_two_icon_switch_and_group_by_stays_in_the_view_menu(self):
         def check(cdp, sid, width):

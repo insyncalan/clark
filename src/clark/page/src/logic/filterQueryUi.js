@@ -246,6 +246,22 @@ export function commitDraft(text, caret, rows, ctx, extra) {
   return { chips: done.map((t) => t.raw), text: out + text.slice(at), caret: caret - back };
 }
 
+const keyOfToken = (t) => (t.kind === "field" ? t.field : t.kind === "state" ? "is" : `${t.present ? "has" : "no"}:${(t.fields || []).join(",")}`);
+
+/** The suggestions with `n` on each row that closes a word: how many items the line would show with that choice in place of the chips on the
+ *  same field (row 846; the other chips still count). */
+export function withCounts(options, chips, rows, ctx, extra) {
+  if (!options.some((o) => o.close)) return options;
+  const held = chips.map((c) => ({ raw: c, tok: parseFor(c, rows, ctx, extra).tokens[0] }));
+  return options.map((o) => {
+    if (!o.close) return o;
+    const t = parseFor(o.ins, rows, ctx, extra).tokens[0];
+    if (!t || t.error || t.kind === "text") return o;
+    const k = keyOfToken(t), keep = held.filter((h) => !(h.tok && !h.tok.error && keyOfToken(h.tok) === k)).map((h) => h.raw);
+    return { ...o, n: rowsFor(rows, [...keep, o.ins].join(" "), ctx, extra).length };
+  });
+}
+
 /** The word a chip's remove button names: the field's name, or the word typed before the colon (is, has, no). */
 export function chipName(chip, rows, ctx, extra) {
   const t = parseFor(chip, rows, ctx, extra).tokens[0];

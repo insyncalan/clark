@@ -123,6 +123,12 @@ class Chips(unittest.TestCase):
         self.assertEqual(c("status: ", 8), {"chips": [], "text": "status: ", "caret": 8})
         self.assertEqual(c("foo ", 4), {"chips": [], "text": "foo ", "caret": 4}, "a plain word stays")
 
+    def test_a_value_row_counts_the_items_it_would_leave_with_the_chips_on_other_fields(self):
+        opts = [{"kind": "value", "ins": "status:Open", "label": "Open", "close": True}, {"kind": "value", "ins": "status:Closed", "label": "Closed", "close": True},
+                {"kind": "field", "ins": "owner:", "label": "owner:", "close": False}]
+        out = run_node(f"Q.withCounts({lit(opts)}, ['status:Closed', 'priority:High'], {lit(ROWS)}, {lit(CTX)})")
+        self.assertEqual([o.get("n") for o in out], [1, 0, None], "Open and High: one item; Closed replaces the chip on its own field, High is not Closed's: none")
+
     def test_a_chips_remove_button_is_named_by_its_field(self):
         n = lambda chip: run_node(f"Q.chipName({lit(chip)}, {lit(ROWS)}, {lit(CTX)})")
         self.assertEqual(n("status:Open"), "Status")
