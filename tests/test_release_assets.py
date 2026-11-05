@@ -169,7 +169,7 @@ class Check(unittest.TestCase):
     def test_the_checklist_builds_attaches_downloads_launches_and_only_then_publishes(self):
         text = (ROOT / "dev" / "RELEASING.md").read_text(encoding="utf-8")
         marks = ["dev/tools/package.py mac --release", "**Attach the zip.**", "**Download it back.**",
-                 "**Compare the digest.**", "Archive Utility", "com.apple.quarantine", "-m clark.doctor", "double-click `clark.command`", "/health", "It is already running",
+                 "**Compare the digest.**", "Archive Utility", "com.apple.quarantine", "bash clark.command --check", "double-click `clark.command`", "/health", "It is already running",
                  "**Publish the release.**", "dev/tools/check_release_assets.py"]
         spots = [text.index(m) for m in marks]
         self.assertEqual(spots, sorted(spots))
