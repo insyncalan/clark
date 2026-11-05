@@ -155,6 +155,28 @@ class Header(Base):
             self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
         self.each(check)
 
+    def test_row_844_the_saved_view_menu_opens_under_its_arrow_not_at_the_page_edge(self):
+        saved = [{"id": "risky", "name": "Risky", "line": "is:open type:risk"}]
+        probe = ("(() => { const a = document.querySelector('#viewTabMenu').getBoundingClientRect(), m = document.querySelector('#viewTabMenuList').getBoundingClientRect();"
+                 " return {al: a.left, ab: a.bottom, ml: m.left, mt: m.top, mr: m.right}; })()")
+
+        def check(cdp, sid, width):
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({ABC: %s}))" % __import__("json").dumps(saved), sid)
+            self.reload(cdp, sid)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]')", "the made view")
+            for tab in ("core-open", "risky"):         # the first tab (its arrow is near the page's left edge) and a later one
+                click(cdp, sid, f".vtab[data-view-id={tab}]")
+                self.until(cdp, sid, f"document.querySelector('.vtab[data-view-id={tab}]').getAttribute('aria-pressed') === 'true' && document.querySelector('#viewTabMenu')", f"{tab} chosen")
+                click(cdp, sid, "#viewTabMenu")
+                self.until(cdp, sid, "document.querySelector('#viewTabMenuList')", "the menu")
+                got = cdp.js(probe, sid)
+                self.assertLessEqual(abs(got["ml"] - got["al"]), 2, f"{tab}: the menu starts at its arrow {got}")
+                self.assertGreaterEqual(got["mt"], got["ab"], f"{tab}: below the arrow {got}")
+                self.assertLessEqual(got["mr"], width, f"{tab}: inside the page {got}")
+                key(cdp, sid, "Escape")
+                self.until(cdp, sid, "!document.querySelector('#viewTabMenuList')", "closed")
+        self.each(check)
+
     # ---- row 845 ----
     def test_row_845_accepted_filters_are_chips_each_with_its_own_remove_button(self):
         chips = "[...document.querySelectorAll('[data-fline] [data-chip]')].map((e) => e.dataset.chip)"

@@ -129,7 +129,7 @@ function SavedViews({ board }) {
         {shown.map((v) => {
           const on = !!active && active.id === v.id, dot = on && dirty, bad = trouble(v), count = bad ? 0 : Q.rowsFor(rows, v.line, ctx).length;
           // the small arrow sits right beside the open tab's name
-          const arrow = on && !fromFile.value ? <Menu label="" ariaLabel={`Options for ${v.name}`} id="viewTabMenu" btnCls="vtabmenu" menuId="viewTabMenuList" fixed menuLabel={`Options for ${v.name}`} items={tabItems} onPick={act} /> : null;
+          const arrow = on && !fromFile.value ? <Menu label="" ariaLabel={`Options for ${v.name}`} id="viewTabMenu" btnCls="vtabmenu" menuId="viewTabMenuList" fixed="start" menuLabel={`Options for ${v.name}`} items={tabItems} onPick={act} /> : null;
           if (bad) {          // no count: the line is not applied, so there is nothing to count
             return (
               <span class="vt" key={v.id}>
