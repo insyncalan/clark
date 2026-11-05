@@ -655,6 +655,20 @@ class PinnedPublicFiles(unittest.TestCase):
             self.assertIs(type(size), int, path)
             self.assertTrue(0 < size <= pp.MAX_BYTES, path)
 
+    def test_the_real_pins_equal_the_committed_files_and_an_altered_byte_is_refused(self):
+        for path, (sha, size) in ci_scan.ALLOWED_PUBLIC_FILES.items():
+            data = (ROOT / path).read_bytes()
+            self.assertEqual((ci_scan.hashlib.sha256(data).hexdigest(), len(data)), (sha, size), path)
+            altered = bytearray(data)
+            altered[len(altered) // 2] ^= 1
+            r = Repo()
+            self.addCleanup(r.close)
+            r.write(path, bytes(altered), "wb")
+            r.commit("add")
+            rc, out = r.scan()
+            self.assertEqual(rc, 1, out)
+            self.assertIn("is in the folder 'meet clark'", out)
+
     def test_the_real_table_refuses_a_pdf_at_a_real_path_with_other_bytes(self):
         r = Repo()
         self.addCleanup(r.close)
