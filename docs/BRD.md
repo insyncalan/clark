@@ -170,7 +170,7 @@ Programme managers spend hours each week turning their work items into a report 
 - **FR-68 (new):** **Claude and OpenAI are handled the same** ("Both openai and claude handled the same.. no differnetiation."). There is no per-project switch: ask clark sends the same passages to whichever provider the user signed in to. The connect box says so in plain words (FR-65).
 
 ### 5.8 Import and export
-- **FR-70:** A workbook export has the sheets Actions, Risks and issues, Decisions, Milestones and Use cases. Export buttons are icons with tooltips and are hidden in Edit mode.
+- **FR-70:** A workbook export has the sheets Actions, Risks & Issues, Decisions, Milestones and Use cases. Export buttons are icons with tooltips and are hidden in Edit mode.
 - **FR-71:** An import is shown as changes for the user to accept. Nothing is written until then.
 - **FR-70a (backlog, 28-10-2026):** **A better formatted, branded Excel export**: a cover sheet first (Current state, the At a glance health, Summary, This week, Next week and the text sections), the date it was exported and who exported it, a caution that it doesn't show changes made after that, and a note asking for updates to come back to the report's owner; frozen header panes, colour for status and priority, wrapped text and sensible widths; and AI help with the layout. The caution and the note use wording the owner approves (drafted in `comms/`).
 - **FR-70b (28-10-2026, the owner):** **The Cover follows Option A**: one column in the dashboard's order. Current state comes first, then At a glance with the health pill and tiles, then Summary, This week and Next week. The export details sit in a quiet "About this export" block at the bottom ("Option A").
