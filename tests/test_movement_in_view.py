@@ -1,10 +1,11 @@
 """#436 row 18: the Milestones page's Plan / Movement switch is in View as well as Edit (system/prototype/views.js:1188-95), with the
-prototype's hint that Movement is never published, and Movement in View is read-only.
+prototype's hint that Movement is never published. Row 823: the Milestones page has no mode, so Movement has its choices and the
+Internal note in View too.
 
 Run: CLARK_CHROME=/usr/local/bin/clark-chrome python3 dev/run_tests.py test_movement_in_view
 Without a browser: the published file holds no switch, no hint and nothing of Movement. With headless Chrome (fails, never skips,
-without it): in View the switch shows, Movement reads GET /api/movement and draws the sentence, the rows and the card with no
-choices, no note and no field, makes no change request, and a row still picks the card; back in Edit the choices return. At 1400
+without it): in View the switch shows, Movement reads GET /api/movement and draws the sentence, the rows and the card with its
+choices and note, makes no change request until one is used, and a row still picks the card; Edit looks the same. At 1400
 and 900 px, light and dark. The published file in the browser has neither the switch nor Movement.
 """
 import json
@@ -15,7 +16,7 @@ from pathlib import Path
 
 from _demo import USER, DemoStore
 from clark import movement_view as mv, publish
-from test_movement_page import AUDIT, EMPTY_BRANDING, PILOT, Base, js_constants
+from test_movement_page import AUDIT, GO_LIVE, EMPTY_BRANDING, PILOT, Base, js_constants
 from test_server import chrome, wait
 from test_work_items import page_target
 
@@ -29,7 +30,7 @@ class InView(Base):
         p.js("document.querySelector('[data-mspv=move]').click()")
         p.until("!!document.querySelector('#movement .mvm-card')", "Movement drew in View")
 
-    def test_view_has_the_switch_and_a_read_only_movement_at_1400_and_900_light_and_dark(self):
+    def test_view_has_the_switch_and_movement_with_its_choices_at_1400_and_900_light_and_dark(self):
         for width in (1400, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
@@ -39,7 +40,7 @@ class InView(Base):
                     p.until("!!document.querySelector('[data-mspage-switch]')", "View has the switch")
                     self.assertEqual(p.js("[...document.querySelectorAll('[data-mspv]')].map(b => b.textContent)"), ["Plan", "Movement"])
                     self.view_movement(p)
-                    self.assertEqual(p.js("document.querySelector('[data-mspage-hint]').textContent"), mv.HELP_LINE, "the prototype's hint")
+                    self.assertIn("Undo", p.js("document.querySelector('[data-mspage-hint]').textContent"), "the page is live: the hint says each move can be undone")
                     self.assertEqual(p.js("document.querySelector('[data-mspv=move]').getAttribute('aria-pressed')"), "true")
                     self.assertEqual(p.js("document.querySelector('#movement .tag').textContent"), mv.TAG_INTERNAL)
                     self.assertEqual(p.js("document.querySelector('.mvm-sentence').textContent"), "1 of 2 open milestones are behind their agreed date; 1 overdue.")
@@ -47,24 +48,36 @@ class InView(Base):
                     text = p.js("document.querySelector('.mvm-card').textContent")
                     for want in ("Original", "Agreed", "Forecast", "What changed", "Priya Example"):
                         self.assertIn(want, text)
-                    for never in ("Decide what to do", mv.HOLD_LABEL, mv.MOVE_LABEL, "Add a recovery action", "Escalate to steering", "Internal note"):
-                        self.assertNotIn(never, text, never)
-                    self.assertEqual(p.js(f"document.querySelectorAll('{CHOICES}').length"), 0, "no choice, no note, no form in View")
-                    self.assertEqual(p.js(FIELDS), [], "nothing to type in and nothing Edit-only in View")
+                    for want in ("Decide what to do", mv.HOLD_LABEL, mv.MOVE_LABEL, "Add a recovery action", "Escalate to steering", "Internal note"):
+                        self.assertIn(want, text, want)
+                    self.assertEqual(p.js("document.documentElement.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true", "this is View")
+                    self.assertEqual(p.js("!!document.querySelector('#mv-hold') && !!document.querySelector('#mv-move') && !!document.querySelector('#mvNote')"), True, "the choices and the note are there in View")
+                    self.assertEqual(p.js("!!document.querySelector('#movement[data-readonly]')"), False)
                     p.js("document.querySelector('.mvm-row[data-id=\"%s\"]').click()" % PILOT)
                     p.until("document.querySelector('#mv-card-h').textContent === 'Pilot live'", "a row still picks the card in View")
                     self.assertEqual(json.loads(p.js(AUDIT)), [])
                     dark = p.js("getComputedStyle(document.documentElement).colorScheme")
                     self.assertEqual("dark" in dark, theme == "dark", dark)
                     self.assertTrue(self.reads, "View reads what Edit reads: GET /api/movement")
-                    self.assertEqual(self.sent, [], "View changes nothing")
+                    self.assertEqual(self.sent, [], "nothing changes until a choice is used")
                     p.js("document.querySelector('[data-mode=edit]').click()")
-                    p.until("!!document.querySelector('#mv-hold') && !document.querySelector('#movement[data-readonly]')", "Edit has the choices again")
-                    self.assertIn("Undo", p.js("document.querySelector('[data-mspage-hint]').textContent"))
+                    p.until("!!document.querySelector('#mv-hold')", "Edit has the same choices")
                     p.js("document.querySelector('[data-mode=view]').click()")
-                    p.until("!document.querySelector('#mv-hold') && !!document.querySelector('#movement[data-readonly]')", "back in View it is read-only")
+                    p.until("!!document.querySelector('#mv-hold') && !!document.querySelector('#mvNote')", "and View still does")
                     p.js("document.querySelector('[data-mspv=plan]').click()")
                     p.until("!!document.querySelector('.msv') && !document.querySelector('#movement')", "Plan in View")
+
+    def test_hold_works_in_view_and_one_undo_takes_it_back(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.view_movement(p)
+            self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true", "this is View")
+            p.js("document.querySelector('#mv-hold').click()")
+            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Hold recorded in the note. Undo.'", "the Hold toast in View")
+            self.assertEqual(self.store.read("milestones", ref=GO_LIVE)["movement"], "hold")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
+            self.assertIsNone(self.store.read("milestones", ref=GO_LIVE)["movement"])
 
 
 class Published(unittest.TestCase):

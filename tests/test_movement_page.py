@@ -196,7 +196,7 @@ class Block(Base):
             self.assertEqual(p.js("document.querySelector('#mv-move').disabled"), True, "not slipped: no move")
             self.assertEqual(p.js("document.querySelector('#mv-why').textContent"), "This milestone hasn't slipped, so its agreed date can't be moved yet.")
             p.js("document.querySelector('[data-mode=view]').click()")
-            p.until("!!document.querySelector('#movement[data-readonly] .mvm-card') && !document.querySelector('#mv-hold')", "View keeps it, read-only")
+            p.until("!!document.querySelector('#movement .mvm-card') && !!document.querySelector('#mv-hold') && !document.querySelector('#movement[data-readonly]')", "View keeps the choices (row 823: the page has no mode)")
 
     def test_plan_movement_switch_is_in_view_and_edit_and_remembered(self):
         with chrome() as cdp:
