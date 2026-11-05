@@ -185,17 +185,19 @@ class AskOff(unittest.TestCase):
         self.assertIn('OFF_LINE = "Asking is off. Turn it on in Settings."', words)
         self.assertIn('OFF_LINK = "Open Settings"', words)
         self.assertIn("{W.OFF_LINE} <a href=\"#settings\"", code("edit", "AskPanel.jsx"))
-        self.assertIn("The **ask clark** button shows only while asking is on. With asking off, [[/]] still opens the panel, which says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link.", text)
+        self.assertIn("The **ask clark** button shows only while asking is on. With asking off, [[/]] still opens the panel, except while Help is open, and the panel says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link.", text)
+        self.assertIn("!helpOpen.value", keys)       # #754: the ask key leaves Help alone, so the sentence says 'except while Help is open'
 
 
 class SlashInHelp(unittest.TestCase):
-    def test_no_unconditional_claim_that_slash_goes_to_the_help_search_box(self):
+    def test_help_says_what_slash_does_in_help_with_its_condition_and_without_the_switch_name(self):
         store = code("help", "helpStore.js")
         self.assertIn('e.key === "/" && helpOpen.value && singleKeys.value', store)       # only while the switch is on
+        line = flat(SECS["using-help"])
+        self.assertIn("[[?]] opens Help from any page. In Help, [[/]] goes to the search box, unless the letter keys are turned off in Settings › Personal › Keys.", line)
+        self.assertNotIn("Single-key", line)       # the switch's own name stays in the V and E key rows only (test_single_keys)
         every = flat(RAW)
-        self.assertNotIn("in Help, [[/]] goes to the search box", every)
         self.assertNotIn("In Help, it goes to the search box instead", every)
-        self.assertIn("[[?]] opens Help from any page.", flat(SECS["using-help"]))
 
 
 class Terminal(unittest.TestCase):

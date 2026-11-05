@@ -67,7 +67,7 @@ export function openPanel() {
   const a = document.activeElement;
   opener = a && a !== document.body && a !== document.documentElement ? a : null;
   panelOpen.value = true;
-  panelState.value = "checking";           // reads as off-or-checking until the server has answered; nothing is sent meanwhile
+  panelState.value = "checking";           // reads as checking until the server has answered; no off or signed-out line and nothing is sent meanwhile
   readStatus();
 }
 

@@ -398,6 +398,31 @@ class Main(unittest.TestCase):
         self.assertRegex(self.said[0], r"^The data folder can't be made \(.+\)\. Check you can save files there, then try again\.$")
 
 
+class CheckLeavesNoBytecode(unittest.TestCase):
+    """issue 743: `bash clark.command --check` with the real python3 and without PYTHONDONTWRITEBYTECODE in the caller's
+    environment writes no __pycache__ folder into a copy of the clark folder (an update would find it as an unknown entry)."""
+
+    def test_check_writes_no_pycache_into_the_clark_folder(self):
+        py = shutil.which("python3")
+        if not (BASH and py):
+            self.skipTest("needs bash and python3")
+        with tempfile.TemporaryDirectory() as tmp:
+            top = Path(tmp).resolve() / "clark"
+            top.mkdir()
+            shutil.copy2(ROOT / "clark.command", top / "clark.command")
+            for name in ("src", "clark", "vendor"):
+                if (ROOT / name).is_dir():
+                    shutil.copytree(ROOT / name, top / name, ignore=shutil.ignore_patterns("__pycache__", "node_modules"))
+            home = Path(tmp).resolve() / "home"
+            home.mkdir()
+            env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "PYTHONHOME", "PYTHONDONTWRITEBYTECODE", "CLARK_PORT")}
+            env.update(HOME=str(home))
+            done = subprocess.run([BASH, str(top / "clark.command"), "--check", "--data", str(Path(tmp) / "data")], cwd=str(top), env=env,
+                                  stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", timeout=120)
+            self.assertIn("Checking what clark needs on this computer...", done.stdout, done.stdout + done.stderr)
+            self.assertEqual([], [str(p) for p in top.rglob("__pycache__")], "the check wrote bytecode into the clark folder")
+
+
 class Command(unittest.TestCase):
     """clark.command: what a double-click runs, with a fake python3 on a PATH of its own."""
 
@@ -432,6 +457,22 @@ class Command(unittest.TestCase):
         pwd, args = self.out.read_text(encoding="utf-8").splitlines()
         self.assertEqual(Path(pwd).resolve(), ROOT.resolve())
         self.assertEqual(args, "-m clark.launch --port 8801")
+
+    def test_every_run_is_told_to_write_no_bytecode_so_no_pycache_folder_appears_in_the_clark_folder(self):
+        """issue 743: --check, restore, --demo and a normal start all run python3 with PYTHONDONTWRITEBYTECODE set."""
+        py = self.bin / "python3"
+        py.write_text('#!/bin/sh\nif [ "$1" = "-c" ]; then exit 0; fi\n'
+                      f'echo "[$PYTHONDONTWRITEBYTECODE]" > "{self.out}"\nexit 0\n', encoding="utf-8")
+        py.chmod(0o755)
+        for args in (("--check",), ("restore", "x.zip"), ("--demo",), ("--port", "8801")):
+            with self.subTest(args=args):
+                self.out.unlink() if self.out.exists() else None
+                done = self.run_script(*args)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertEqual(self.out.read_text(encoding="utf-8").strip(), "[1]")
+        text = self.SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("export PYTHONDONTWRITEBYTECODE=1\n", text)
+        self.assertLess(text.index("export PYTHONDONTWRITEBYTECODE=1"), text.index("case \"$1\" in\n  --check)"))
 
     def test_the_launchers_exit_code_is_kept_and_nothing_is_said_when_it_went_well(self):
         self.python3(status=3)

@@ -1,7 +1,7 @@
 // What the ask panel says (#47a). Every sentence is here, so one test can read them all. None starts with the product's name; each
 // says what happened and what to do next.
 export const PANEL_TITLE = "Ask about this project";
-export const OFF_LINE = "Asking is off. Turn it on in Settings.";                     // shown while the switch is off or not yet known
+export const OFF_LINE = "Asking is off. Turn it on in Settings.";                     // shown only when the server has answered that the switch is off
 export const OFF_LINK = "Open Settings";
 export const SIGNED_OUT_LINE = "Claude is not signed in on this computer, so there is nothing to ask yet. Sign in to Claude on this computer, then open this panel again.";
 export const SETTINGS_LINK = "Open Settings";
@@ -117,5 +117,6 @@ export const FIELD_NAMES = {
   due_date: "Due", status: "Status", workstream: "Workstream", milestone: "Milestone", impact: "Impact", likelihood: "Likelihood",
   date: "Date", needed_by: "Needed by", baseline_date: "Agreed date", forecast_date: "Forecast", actual_date: "Achieved",
   closed: "Closed on", raised: "Raised", type: "Type",
+  headline: "Headline", standing: "Where it stands",      // a use case (issue 729): the words its editor uses
 };
 export const KIND_NAMES = { actions: "Action", decisions: "Decision", milestones: "Milestone", raid: "Risk or issue" };
