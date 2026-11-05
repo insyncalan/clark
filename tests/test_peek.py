@@ -354,19 +354,22 @@ class Browser(unittest.TestCase):
                 default = w()
                 client = cdp.js("document.documentElement.clientWidth", sid)
                 self.assertLessEqual(default, cdp.js("document.documentElement.clientWidth", sid))
-                edge = cdp.js("(() => { const b = document.querySelector('.pk-edge').getBoundingClientRect(); return [b.x + 3, b.y + 200]; })()", sid)
-                for kind, x in (("mousePressed", edge[0]), ("mouseMoved", client - 700), ("mouseReleased", client - 700)):
-                    cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": edge[1], "button": "left", "buttons": 1 if kind != "mouseReleased" else 0, "clickCount": 1}, sid)
-                self.assertTrue(wait(lambda: abs(w() - min(700, client)) <= 2), f"dragged to {w()}")
-                reload_to_new_page_cdp(cdp, sid)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
-                self.assertLessEqual(abs(w() - min(700, client)), 2, "kept after a reload")
-                cdp.js("document.querySelector('.pk-edge').focus()", sid)
-                for _ in range(40):
-                    key(cdp, sid, "ArrowLeft")
-                self.assertTrue(wait(lambda: w() == client), "never wider than the window")
-                cdp.js("document.querySelector('.pk-edge').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))", sid)
-                self.assertTrue(wait(lambda: w() == default), "double-click resets")
+                if width < 1000:      # row 847: below 1000 px the peek fills the window, so there is no width to drag, keep or reset
+                    self.assertEqual(default, client, "the peek takes the whole window below 1000 px")
+                else:
+                    edge = cdp.js("(() => { const b = document.querySelector('.pk-edge').getBoundingClientRect(); return [b.x + 3, b.y + 200]; })()", sid)
+                    for kind, x in (("mousePressed", edge[0]), ("mouseMoved", client - 700), ("mouseReleased", client - 700)):
+                        cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": edge[1], "button": "left", "buttons": 1 if kind != "mouseReleased" else 0, "clickCount": 1}, sid)
+                    self.assertTrue(wait(lambda: abs(w() - min(700, client)) <= 2), f"dragged to {w()}")
+                    reload_to_new_page_cdp(cdp, sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
+                    self.assertLessEqual(abs(w() - min(700, client)), 2, "kept after a reload")
+                    cdp.js("document.querySelector('.pk-edge').focus()", sid)
+                    for _ in range(40):
+                        key(cdp, sid, "ArrowLeft")
+                    self.assertTrue(wait(lambda: w() == client), "never wider than the window")
+                    cdp.js("document.querySelector('.pk-edge').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))", sid)
+                    self.assertTrue(wait(lambda: w() == default), "double-click resets")
                 click(cdp, sid, "[data-pk-wide]")
                 self.assertTrue(wait(lambda: w() == client), "across the whole screen")
 
