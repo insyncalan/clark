@@ -31,7 +31,7 @@ class SectionBody(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
-        self.running = Running(change=changes.make_change(self.store.path, [], USER), undo=changes.make_undo(self.store.path, [], USER))
+        self.running = Running(change=changes.make_change(self.store.path, [], USER), section_body=changes.make_section_body(self.store.path, [], USER), undo=changes.make_undo(self.store.path, [], USER))
         self.addCleanup(self.running.close)
         status, made = self.send("/api/change", {"project": "ABC", "kind": KIND, "op": "new", "values": {"type": "text", "title": "Notes"}})
         self.assertEqual(status, 200, made)
@@ -101,16 +101,41 @@ class SectionBody(unittest.TestCase):
         self.assertEqual(self.state(), before)
 
     def test_only_a_section_body_change_is_taken_here(self):
+        """The rule lives in the seam (changes.make_section_body); over the route its refusal is a 400 in the change path's words."""
         before = self.state()
-        for req in ({**self.body("<p>x</p>"), "kind": "actions"},
-                    {**self.body("<p>x</p>"), "op": "new"},
-                    {**self.body("<p>x</p>"), "changes": {"title": "Other", "body": "<p>x</p>"}},
-                    {**self.body("<p>x</p>"), "changes": {"title": "Other"}},
-                    {**self.body("<p>x</p>"), "changes": ["body"]}, [], "body"):
+        for req, words in (({**self.body("<p>x</p>"), "kind": "actions"}, changes.BAD_KIND),
+                           ({**self.body("<p>x</p>"), "op": "new"}, changes.BAD_OP),
+                           ({**self.body("<p>x</p>"), "op": "delete"}, changes.BAD_OP),
+                           ({**self.body("<p>x</p>"), "changes": {"title": "Other", "body": "<p>x</p>"}}, None),
+                           ({**self.body("<p>x</p>"), "changes": {"title": "Other"}}, changes.NOT_JSON_OBJECT),
+                           ({**self.body("<p>x</p>"), "changes": ["body"]}, changes.NOT_JSON_OBJECT),
+                           ({k: v for k, v in self.body("<p>x</p>").items() if k != "changes"}, changes.NOT_JSON_OBJECT),
+                           ([], changes.NOT_JSON_OBJECT), ("body", changes.NOT_JSON_OBJECT)):
             with self.subTest(req=req):
                 status, got = self.send(ROUTE, req)
-                self.assertEqual((status, got["ok"], got["message"]), (400, False, sv.MESSAGES["bad_request"]))
+                self.assertEqual((status, got["ok"]), (400, False))
+                self.assertEqual(got["message"], words or "That change doesn't take 'title'.")
         self.assertEqual(self.state(), before)
+
+    def test_the_seam_refuses_every_other_request_without_opening_the_store_and_takes_a_body_change(self):
+        seam = changes.make_section_body(self.store.path, [], USER)
+        for req in ({**self.body("<p>x</p>"), "op": "new"}, {**self.body("<p>x</p>"), "kind": "actions"},
+                    {**self.body("<p>x</p>"), "changes": {"body": "<p>x</p>", "title": "T"}},
+                    {**self.body("<p>x</p>"), "changes": {"title": "T"}}, {**self.body("<p>x</p>"), "changes": {}}, []):
+            with self.subTest(req=req):
+                status, got = seam(req)
+                self.assertEqual((status, got["ok"], got["code"]), (400, False, "refused"))
+        for op, words in (("new", changes.BAD_OP), ("delete", changes.BAD_OP), ("move", changes.BAD_OP), ("archive", changes.BAD_OP)):
+            self.assertEqual(seam({**self.body("<p>x</p>"), "op": op})[1]["message"], words, op)     # refused by the seam, not by what comes after
+        status, got = seam(self.body("<p>Kept</p>"))
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        self.assertEqual(self.stored(), "<p>Kept</p>")
+
+    def test_without_the_seam_the_route_says_saving_is_off(self):
+        other = Running()
+        self.addCleanup(other.close)
+        status, got = (lambda r: (r[0], json.loads(r[2])))(other.api("POST", ROUTE, json.dumps(self.body("<p>x</p>")).encode("utf-8")))
+        self.assertEqual((status, got["code"]), (503, "saving_off"))
 
     def test_the_other_checks_are_the_change_routes(self):
         status, got = self.send(ROUTE, {**self.body("<p>x</p>"), "id": "ABC-S-999"})

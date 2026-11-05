@@ -84,9 +84,9 @@ class Running:
     """A server on a free port in a thread, stopped by close() (which also drops the connections it holds, as stopping would)."""
 
     def __init__(self, data_for=DEMO.get, page_html=None, projects=lambda archived=False: PROJECTS, change=None, undo=None, sneak=None,
-                 publisher=StubPublisher()):
+                 publisher=StubPublisher(), section_body=None):
         self.httpd = Stoppable((sv.HOST, 0), data_for=data_for, page_html=page_html, projects=projects, change=change,
-                               undo=undo, sneak=sneak, publisher=publisher)
+                               undo=undo, sneak=sneak, publisher=publisher, section_body=section_body)
         self.port = self.httpd.server_port
         self.httpd.handle_error = self._quiet_when_the_client_leaves(self.httpd.handle_error)
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()

@@ -11,7 +11,7 @@ Routes:
 - GET  /api/movement     ?project=<CODE>: Milestones Movement (#136), owner only, never published: the view of the store's `milestone_moves` read (movement_read.py); without the seam, not found
 - GET  /api/activity     ?project=<CODE>&item=<ID>: one item's changes for the peek's Activity tab (#42), owner only, never published (activity_read.py); without the seam, not found
 - GET  /api/milestones   ?project=<CODE>: that project's milestones for the Calendar and its list (#146), read only: the `milestones` seam (milestone_feed.py); without the seam, not found
-- POST /api/section-body  a section's content (#273): a change of /api/change, report_sections update of `body` only, through the same `change(req)`; its own body limit
+- POST /api/section-body  a section's content (#273): a change of /api/change, report_sections update of `body` only, the logic is `section_body(req)`, from clark.changes (which refuses any other request); its own body limit
 - POST /api/change       one change to a project's report sections (#65); the logic is `change(req)`, from clark.changes
 - POST /api/undo         reverse one earlier step of the report's (#65); the logic is `undo(req)`
 - POST /api/section-image  one picture into a section template's slot, or out of it (#96 R1): one step, one Undo; the logic is
@@ -831,19 +831,11 @@ def change_route(handler, req):
     return seam_route(handler, handler.server.change, req)
 
 
-# The op the route takes, made from one string, not written alone: tests/test_store_writer.py reads a lone "update" string anywhere in src/
-# as SQL, and this is not SQL (as changes.py makes its ops). This server imports nothing from clark, so the word is copied here.
-_, SECTION_BODY_OP = "new update".split()
-
-
 def section_body_route(handler, req):
-    """POST /api/section-body (#273): the change of /api/change for a section's content, and only that: report_sections, update, `changes`
-    with a body and nothing else. It goes to the same change seam, so every check, the step, the Undo and the history are the same. Any
-    other request is the general bad_request. Checked like change_route before this runs, with its own body limit."""
-    changes = req.get("changes") if isinstance(req, dict) else None
-    if not (isinstance(req, dict) and req.get("kind") == "report_sections" and req.get("op") == SECTION_BODY_OP and isinstance(changes, dict) and set(changes) == {"body"}):
-        return handler.send(400, error_body("bad_request"))
-    return seam_route(handler, handler.server.change, req)
+    """POST /api/section-body (#273): the change of /api/change for a section's content, and only that. The seam (`section_body`, from
+    clark.changes) refuses any other request and does the rest as `change` does, so every check, the step, the Undo and the history
+    are the same. Checked like change_route before this runs, with its own body limit."""
+    return seam_route(handler, handler.server.section_body, req)
 
 
 def undo_route(handler, req):
@@ -1444,13 +1436,14 @@ class LocalServer(ThreadingHTTPServer):
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-                 people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None, demo=None):
+                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None):
         if server_address[0] != HOST and not (container_mode() and server_address[0] == CONTAINER_BIND):
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
         self.projects = projects or (lambda: [])
         self.change, self.undo, self.sneak = change, undo, sneak
         self.section_image = section_image    # changes.make_section_image (#96 R1); None: that route answers 503 saving_off
+        self.section_body = section_body      # changes.make_section_body (#273); None: that route answers 503 saving_off
         self.word_import, self.word_export = word_import, word_export
         self.demo = demo                      # demo_seed.Demo (#731); None: no demo data on show
         self.excel_import, self.project_save = excel_import, project_save      # #444: the workbook import, a project's new and edit; None: those routes answer 503
@@ -1509,7 +1502,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-          people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None, demo=None):
+          people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None):
     """Start the server on 127.0.0.1 (in the container, on its own addresses: see container_mode) and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
@@ -1518,7 +1511,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, ai=ai, ai_connect=ai_connect, updater=updater,
-                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo)
+                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)

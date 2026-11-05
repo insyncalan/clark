@@ -20,6 +20,7 @@ def real_handlers(path, data_for, who=USER, roots=None):
     return {"change": changes.make_change(path, roots, who),
             "undo": changes.make_undo(path, roots, who),
             "section_image": changes.make_section_image(path, roots, who),
+            "section_body": changes.make_section_body(path, roots, who),
             "sneak": sneak.make_read(data_for),
             "people": changes.make_people(path, roots, who),
             "people_undo": changes.make_people_undo(path, roots, who),

@@ -119,7 +119,7 @@ class PythonSide(unittest.TestCase):
         def change(req):
             calls.append(req)
             return 200, {"ok": True}
-        running = Running(change=change, undo=lambda req: (200, {"ok": True}))
+        running = Running(change=change, section_body=change, undo=lambda req: (200, {"ok": True}))
         self.addCleanup(running.close)
         fits = head.replace(b'"pad": ""', b'"pad": "' + b"x" * pad + b'"')
         self.assertEqual(len(fits), limit)

@@ -30,7 +30,7 @@ class Route(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
-        self.running = Running(change=changes.make_change(self.store.path, [], USER), undo=changes.make_undo(self.store.path, [], USER))
+        self.running = Running(change=changes.make_change(self.store.path, [], USER), section_body=changes.make_section_body(self.store.path, [], USER), undo=changes.make_undo(self.store.path, [], USER))
         self.addCleanup(self.running.close)
         status, _, data = self.running.api("POST", "/api/change", json.dumps(
             {"project": "ABC", "kind": KIND, "op": "new", "values": {"type": "needs", "title": "Needs from you"}}).encode())
