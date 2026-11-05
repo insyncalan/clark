@@ -87,5 +87,54 @@ class Title(Fields):
         self.assertNotIn("data-pk-title-in", view)
 
 
+class Wording(Fields):
+    BOX = "#peek [data-ce]"
+
+    def words(self, cdp, sid):
+        return cdp.js(f"(t => t ? t.textContent : null)(document.querySelector({json.dumps(self.BOX)}))", sid)
+
+    def type_words(self, cdp, sid, text):
+        cdp.js(f"document.querySelector({json.dumps(self.BOX)}).focus()", sid)
+        cdp.js(f"document.querySelector({json.dumps(self.BOX)}).textContent = {json.dumps(text)}", sid)
+
+    def test_the_client_wording_is_changed_in_place_and_undone_in_one_step(self):
+        was = (self.action(ACTION).get("client_message") or "").strip()
+        for width, dark in self.widths():
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                sent, sid = self.load(cdp, width, ACTION, dark=dark)
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-ce]').closest('.pk-row').querySelector('dt').textContent", sid), "Client wording")
+                self.assertEqual(self.words(cdp, sid), was)
+                self.assertTrue(self.inside(cdp, sid, BOX_PK), "the box fits the peek")
+                self.type_words(cdp, sid, "Plain words a client can read")
+                key(cdp, sid, "Enter")
+                self.assertTrue(wait(lambda: len(sent) == 1))
+                self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("actions", ACTION, {"client_message": "Plain words a client can read"}))
+                self.assertTrue(wait(lambda: f"Wording of {ACTION} changed." in self.toast(cdp, sid)))
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
+                cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
+                self.assertTrue(wait(lambda: self.words(cdp, sid) == was), "one Undo puts the old words back")
+
+    def test_escape_and_an_empty_text_put_the_old_words_back(self):
+        was = (self.action(ACTION).get("client_message") or "").strip()
+        with chrome() as cdp:
+            sent, sid = self.load(cdp, 1400, ACTION)
+            self.type_words(cdp, sid, "Typed and abandoned")
+            key(cdp, sid, "Escape")
+            self.assertTrue(wait(lambda: self.words(cdp, sid) == was))
+            self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "Esc leaves the peek open")
+            self.type_words(cdp, sid, "x" * 201)
+            key(cdp, sid, "Enter")
+            self.assertTrue(wait(lambda: "200 characters at most" in self.toast(cdp, sid)))
+            self.assertEqual((sent, self.words(cdp, sid)), ([], was))
+
+    def test_the_wording_box_is_edit_only(self):
+        peek = (SRC / "components/Peek.jsx").read_text(encoding="utf-8")
+        self.assertIn("editing && tools.PeekWording", peek)
+        self.assertNotIn("pk-ce", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
+
+
+BOX_PK = "#peek [data-ce]"
+
+
 if __name__ == "__main__":
     unittest.main()
