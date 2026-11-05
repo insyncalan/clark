@@ -287,7 +287,7 @@ COMMON = {
     "owner_id": "Owner (linked person)",
     "name": "Name", "description": "Description", "status": "Status", "owner": "Owner", "priority": "Priority",
     "due_date": "Due date", "raised": "Raised on", "closed": "Closed on", "workstream": "Workstream", "milestone": "Milestone",
-    "use_case": "Use case", "client_visible": "Shown to the client", "client_message": "Message to the client",
+    "use_case": "Use case", "client_visible": "Shown to the client", "client_action": "Needed from the client", "client_message": "Message to the client",
     "archived": "Archived", "source": "Source", "project": "Project", "sort_order": "Order", "latest_update": "Latest update",
     "state": "State", "state_reason": "Reason for the state", "state_set": "State set on", "baseline_date": "Agreed date",
     "forecast_date": "Forecast date", "actual_date": "Actual date", "percent_complete": "Percent complete",

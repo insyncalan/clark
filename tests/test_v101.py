@@ -293,6 +293,8 @@ class Notes(unittest.TestCase):
         """Gated so it is green before and after the #709 backend merges: while SCHEMA_VERSION is still 15 the step is not in
         main, so there is nothing to compare and the test skips; once it is not 15 it must be exactly the step the notes name."""
         found = schema_version()
+        if found > SCHEMA_AT_1_0_1:
+            self.skipTest("the layout has moved on past %d (now %d, a later release's step, row 811): these are 1.0.1's notes" % (SCHEMA_AT_1_0_1, found))
         if found == SCHEMA_AT_1_0_0:
             self.skipTest("SCHEMA_VERSION is still %d: the #709 layout step is not on main yet; the notes' words are asserted anyway" % found)
         self.assertEqual(found, SCHEMA_AT_1_0_1, "the notes name layout %d; store.py says %s" % (SCHEMA_AT_1_0_1, found))
@@ -327,6 +329,8 @@ class Cut(unittest.TestCase):
     def test_the_layout_step_is_in_at_the_cut(self):
         """The notes say a layout step is in, so at the cut SCHEMA_VERSION must be 16: this fails in a 1.0.1 copy while #709's backend is not merged."""
         self.cut_made()
+        if schema_version() > SCHEMA_AT_1_0_1:
+            self.skipTest("the layout has moved on past %d (a later release's step, row 811): these are 1.0.1's notes" % SCHEMA_AT_1_0_1)
         self.assertEqual(schema_version(), SCHEMA_AT_1_0_1, "the notes carry the layout paragraph: the #709 backend must be in main before the cut")
 
     def test_a_waiting_row_whose_pull_request_has_landed_has_been_moved_to_covered(self):
