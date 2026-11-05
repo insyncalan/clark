@@ -93,7 +93,8 @@ class Workflow(unittest.TestCase):
         self.assertIn("BRANCH: ${{ github.head_ref || github.ref_name }}", plan)
         self.assertIn("*,full-ci,*) FULL=1; MACOS=1 ;;", plan)
         self.assertIn("LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}", plan)
-        self.assertIn("push) FULL=1; MACOS=1 ;;", plan)
+        self.assertIn("push) FULL=1 ;;", plan)               # a push to main: full Ubuntu, NO macOS
+        self.assertNotIn("push) FULL=1; MACOS=1", plan)
         self.assertIn('workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;', plan)
         self.assertNotIn("actions/checkout", plan)               # seconds, nothing from the pull request runs here
 
@@ -181,9 +182,9 @@ class Workflow(unittest.TestCase):
         self.assertIn("test_no_real_names.py", out)
         self.assertIn("test_app_files.py", out)               # the reuse record's rows (docs/REUSE-FROM-CREAITE.md)
 
-    def test_four_shards_on_macos_and_the_macos_job_is_required_when_it_runs(self):
+    def test_two_shards_on_macos_and_the_macos_job_is_required_when_it_runs(self):
         mac = self.jobs["macos"]
-        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {("1", "4"), ("2", "4"), ("3", "4"), ("4", "4")})
+        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {("1", "2"), ("2", "2")})
         self.assertRegex(mac, r"runs-on: macos-latest")
         self.assertIn('python-version: "3.x"', mac)
         self.assertNotIn("--quick", mac)
