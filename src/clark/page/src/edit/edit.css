@@ -333,6 +333,11 @@ table.items td.c-pick { vertical-align: middle; }
   .top .tab { flex: none; white-space: nowrap; }
   .top .proj, .top .projbtn { min-width: 0; flex: 0 1 auto; max-width: 160px; }
 }
+@media (min-width: 641px) and (max-width: 900px) {      /* row 757: the logo, project name, mode switch and four buttons cannot share one row with five tabs from here down to 641 px (the tabs ran under the mode switch and Settings was cut off), so the tabs take a second row of the bar; the bar is two rows high */
+  :root { --topbar: calc(var(--topbar-row) * 2); }
+  .top { flex-wrap: wrap; row-gap: 0; }
+  .top .tabs { order: 1; flex: 1 1 100%; height: auto; align-self: stretch; }
+}
 
 /* Use cases page: detail */
 /* One use case on its own page (Edit only): the crumb, the title, two columns at 1400 px and one at 900 px; tokens only, 13 px text at least, 24 px targets, no sideways scroll. */
