@@ -4,7 +4,8 @@
 // so the table adds no new way to write and Undo is the one every step has. The state is the page's mirror of what a publish keeps
 // (logic/publishable.js): the flag, the hidden list and the labels that keep an item out.
 import { computed } from "@preact/signals";
-import { data, mode } from "../../stores/report.js";
+import { data } from "../../stores/report.js";
+import { isEditing } from "../editing.js";
 import { change } from "../../stores/changes.js";
 import { Icon } from "../../components/Icon.jsx";
 import { rulesFor, publishable } from "../../logic/publishable.js";
@@ -34,8 +35,8 @@ export function Eye({ row }) {
     else change({ kind: "report_hidden", op: "pick", ids: [row.id] }, `${row.id} shown to the client.`);
   };
   const words = on ? "Shown to the client" : "Hidden from the client";
-  // In View the mark is read only, as every other cell of the table is: no button, no click, no focus stop, and its words in text.
-  if (mode.value !== "edit") {
+  // Where the page is not editable (a Dashboard in View) the mark is read only: no button, no click, no focus stop, and its words in text.
+  if (!isEditing()) {
     return (
       <span class={`weye ro${on ? " on" : ""}`} role="img" aria-label={`${words}: ${row.title}`} title={on ? "In client reports" : "Internal only"}>
         <Icon name={on ? "eye" : "eyeoff"} />

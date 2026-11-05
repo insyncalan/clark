@@ -197,10 +197,10 @@ class RealBrowser(unittest.TestCase):
                         text = cdp.js("document.querySelector('#work').innerText", sid)
                         self.assertNotRegex(text, r"\d{4}-\d{2}-\d{2}", "dates read DD-MM-YYYY")
                         # #442: in View exactly the four picker cells (owner, due, priority, status) edit, as buttons carrying data-cell; nothing else does
-                        self.assertEqual(cdp.js("document.querySelectorAll('#work table input:not(.gtick), #work table button:not(.grp-b):not([data-cell]), #work table select,"
+                        self.assertEqual(cdp.js("document.querySelectorAll('#work table input:not(.gtick), #work table button:not(.grp-b):not(.weye):not([data-cell]), #work table select,"
                                                 " #work table textarea, #work table [contenteditable]').length", sid), 0, "nothing else in the list edits data (a group heading only opens and shuts its rows; its tick box only selects them)")
                         self.assertEqual(cdp.js("[...new Set([...document.querySelectorAll('#work table [data-cell]')].map(c => c.dataset.cell.split(':')[1]))].sort()", sid),
-                                         ["due", "owner", "priority", "status"], "the four picker cells show in View (the eye, Duplicate and Archive are not in the rows: they stay in Edit)")
+                                         ["due", "owner", "priority", "status"], "the four picker cells show in View (the eye is its own button since row 824)")
                         self.assertIn(f"{len(ids)} items", text)
             self.assertEqual(blocked, [], f"the policy blocked nothing: {blocked}")
 
