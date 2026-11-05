@@ -120,7 +120,7 @@ class Logic(unittest.TestCase):
         lst = self.r["lists"]["howto"]
         self.assertEqual([g["group"] for g in lst], CONTENT["howto"]["groups"] + [""])      # the guides: one run with no heading, at the end
         self.assertEqual(sum(len(g["entries"]) for g in lst[:-1]), len(TASKS))
-        self.assertEqual(sum(len(g["entries"]) for g in lst[:-1]), 35)   # with the People entry (#454) and Run clark with Docker
+        self.assertEqual(sum(len(g["entries"]) for g in lst[:-1]), 36)   # with the People entry (#454), Run clark with Docker and the AI card task (#446)
         self.assertEqual([e["place"] for e in lst[-1]["entries"]], ["guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-bring-in-an-excel-workbook", "guide-send-the-workbook-out", "guide-publish-to-the-client", "guide-hand-an-item-over", "guide-save-a-view", "guide-see-the-dashboard-as-at-a-day", "guide-back-up-and-restore-your-data"])
         first = lst[0]["entries"][0]
         self.assertEqual(first, {"id": TASKS[0]["id"], "title": TASKS[0]["t"], "place": "howto-" + TASKS[0]["id"]})
@@ -170,7 +170,7 @@ class Logic(unittest.TestCase):
     def test_every_place_is_unique_and_the_count_is_right(self):
         p = self.r["places"]
         self.assertEqual(len(p), len(set(p)))
-        self.assertEqual(len(p), 7 + 35 + 35 + 9)   # with the People entries (#454) and the nine guides (#642 guides A, B and C)
+        self.assertEqual(len(p), 7 + 36 + 35 + 9)   # with the People entries (#454), the AI card task (#446) and the nine guides (#642 guides A, B and C)
 
     # ---- search ----
     def test_search_finds_every_entry_by_its_title(self):

@@ -727,6 +727,23 @@
     ]
    },
    {
+    "id": "connect-claude-or-chatgpt",
+    "g": "Settings and safety",
+    "t": "Connect Claude or ChatGPT",
+    "w": "Settings › AI",
+    "go": "settings",
+    "s": [
+     "In **Settings**, find the **AI** card. It shows Claude and ChatGPT, each as **Connected** or **Not connected**.",
+     "Press **Connect** under the one you use. No password is asked for: the Claude or ChatGPT command already signed in on this computer is the one used. If it is not signed in, the card says what to do.",
+     "Connect Claude or ChatGPT for ask clark: the passages it sends leave this computer, go to the one you choose and count against that plan. No password or key is kept.",
+     "Choose the model in **Model for ask clark**. If you choose a smaller one, the card asks first: **Use it anyway** or **Keep the model I have**.",
+     "Disconnected. You're still signed in to Claude or ChatGPT on this computer, but clark won't use it."
+    ],
+    "page": [
+     "settings"
+    ]
+   },
+   {
     "id": "set-your-profile",
     "g": "Settings and safety",
     "t": "Set your profile",
@@ -1760,6 +1777,10 @@
        [
         "Source folders for ask clark",
         "The folders ask clark may read for this project. It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
+       ],
+       [
+        "AI",
+        "Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
        ],
        [
         "Publishing",

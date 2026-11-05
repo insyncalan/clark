@@ -101,7 +101,7 @@
   },
   {
    "fr": "FR-63, FR-64, FR-65, FR-66, FR-67, FR-68",
-   "feature": "Signing in to Claude or OpenAI, keys kept in the computer's keychain, model choice, limits",
+   "feature": "Signing in to Claude or OpenAI through the person's own subscription, model choice, limits",
    "suggest": "a Settings task and a Reference section once built"
   },
   {

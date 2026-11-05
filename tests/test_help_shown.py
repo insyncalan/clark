@@ -89,6 +89,21 @@ class Held(unittest.TestCase):
             for why in LATER[part].values():
                 self.assertTrue(why.strip())
 
+    def test_the_ai_card_help_is_held_and_quotes_the_card_verbatim(self):
+        """#446: the Connect Claude or ChatGPT task waits in helpLater.json until the card merges, and quotes the card's own words."""
+        task = next(t for t in RAW["howto"]["tasks"] if t["id"] == "connect-claude-or-chatgpt")
+        self.assertIn("connect-claude-or-chatgpt", LATER["howto"])
+        self.assertNotIn("connect-claude-or-chatgpt", [x["id"] for x in SHOWN["howto"]["tasks"]])
+        src = (ROOT / "src" / "clark" / "ai_connect.py").read_text(encoding="utf-8")
+        intro = "Connect Claude or ChatGPT for ask clark: the passages it sends leave this computer, go to the one you choose and count against that plan. No password or key is kept."
+        self.assertEqual(task["s"][2], intro)
+        self.assertIn("No password or key is kept.", src)
+        self.assertIn("Connect Claude or ChatGPT for ask clark: the passages it sends leave this computer, go to the one you choose and count against that plan. ", src)
+        self.assertEqual(task["s"][4], "Disconnected. You're still signed in to Claude or ChatGPT on this computer, but clark won't use it.")
+        self.assertIn("Disconnected. You're still signed in to {name} on this computer, but clark won't use it.", src)
+        self.assertIn("settings", LATER["reference"])
+        self.assertIn("No password or key is kept: the sign-in already on this computer is used.", json.dumps(RAW["reference"]["sections"]))
+
     def test_the_held_list_is_indented_evenly(self):
         """Every held id sits two spaces in, like its neighbours (a stray space once crept onto one line)."""
         text = (HELP / "helpLater.json").read_text(encoding="utf-8")
@@ -118,7 +133,7 @@ class Held(unittest.TestCase):
         self.assertEqual(sorted(links - places), [])
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (35, 35, 36))   # 35 and 35 with the People entries (#454), the Word entry written and Run clark with Docker; the People entries held
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (36, 35, 36))   # 36 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the held AI card task (#446); the People entries held
 
 
 class AgainstThePage(unittest.TestCase):
