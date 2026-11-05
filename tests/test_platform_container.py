@@ -252,8 +252,8 @@ class ContainerOneDrive(unittest.TestCase):
         text = (Path(__file__).resolve().parents[1] / "docker" / "compose.yaml").read_text(encoding="utf-8")
         self.assertIn("source: ..", text)                                     # the folder compose is started in, with the data in its data folder
         self.assertIn('--data", "/data"', text)
-        self.assertIn("source: ${CLARK_DATA_DIR:-../data}", text)             # a named data folder is the one shared in, and the one named to clark
-        self.assertIn('CLARK_DATA_SOURCE: "${CLARK_DATA_DIR:-${PWD:-}/data}"', text)   # no PWD (PowerShell) gives "/data": nothing is known, nothing refused
+        self.assertIn("source: ${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}", text)   # a named data folder is the one shared in, and the one named to clark
+        self.assertIn('CLARK_DATA_SOURCE: "${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}"', text)   # the same default, so the OneDrive check sees the folder that is mounted
 
 
 if __name__ == "__main__":
