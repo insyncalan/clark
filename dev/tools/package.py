@@ -1,7 +1,7 @@
 """Build the download for one system: one zip, clark-<version>-<system>.zip, that unzips to one folder, clark/, with the program
 files in its hidden .app/ folder (issue 694; #57, step 3 of docs/handoff/packaging-57.md).
 
-Run: python3 dev/tools/package.py mac [--out FOLDER] [--dirty] [--release] [--notes FILE]   # writes dist/clark-<version>-mac.zip
+Run: python3 dev/tools/package.py mac [--out FOLDER] [--dirty] [--release] [--notes FILE] [--extra-folder PATH]...   # writes dist/clark-<version>-mac.zip
      python3 dev/tools/package.py mac --for-client                # in a checkout of the scrubbed public snapshot only
      python3 dev/tools/package.py windows                         # not built yet (steps 6 and 7 of the note)
 
@@ -36,6 +36,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 import tempfile
@@ -47,7 +48,7 @@ DIST = ROOT / "dist"
 
 if str(Path(__file__).resolve().parents[2] / "src") not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
-from clark.release_files import (INCLUDE_DEMO, MANIFEST, NOT_BUILT_YET, RUN_BIT, SHARED, START_HERE, SYSTEMS, TOP,  # noqa: E402,F401
+from clark.release_files import (EXTRA_TOP, INCLUDE_DEMO, MANIFEST, NOT_BUILT_YET, RUN_BIT, SHARED, START_HERE, SYSTEMS, TOP,  # noqa: E402,F401
                                  place, protected, unplace)
 
 # The one list of what the download holds is src/clark/release_files.py (shipped, so the updater reads the same list).
@@ -258,8 +259,30 @@ def files(system, root=ROOT):
     return sorted(chosen)
 
 
-def start_here(system, for_client=False, root=ROOT):
+# issue 716: one sentence for each extra folder a download carries; said in START-HERE only when the folder is in the zip.
+EXTRA_SENTENCES = {"intake": "intake holds a sample workbook with made-up data, in the same layout clark exports.",
+                   "meet clark": "meet clark holds an overview and a getting-started guide as PDFs."}
+
+
+def with_extra_folders(text, names):
+    """`text` (START-HERE) with a sentence about each extra folder in `names` added to "What is in this folder", the paragraph
+    wrapped again so that no line starts with the product name."""
+    import re
+    import textwrap
+    head, found, rest = text.partition("What is in this folder:")
+    para, blank, tail = rest.partition("\n\n")
+    if not found or "system/branding holds" not in para:
+        raise Refused("START-HERE has no 'What is in this folder' paragraph to add the extra folders to.")
+    flat = " ".join(para.split()).replace("system/branding holds", " ".join(EXTRA_SENTENCES[n] for n in names) + " system/branding holds", 1)
+    glued = re.sub(r" (clark)", "\x00\\1", "What is in this folder: " + flat, flags=re.I)
+    return head + textwrap.fill(glued, width=78, break_on_hyphens=False).replace("\x00", " ") + blank + tail
+
+
+def start_here(system, for_client=False, root=ROOT, extra=()):
     text = START_HERE_MAC + (START_HERE_DEMO if INCLUDE_DEMO else "")
+    names = [n for n in EXTRA_SENTENCES if n in extra]       # intake first, then meet clark
+    if names:
+        text = with_extra_folders(text, names)
     return text if for_client else f"{audience(root)}\n\n{text}"
 
 
@@ -404,10 +427,92 @@ def placed_bytes(name, data):
     return compose_for_zip(data) if name == COMPOSE else data
 
 
-def entries(system, root=ROOT):
+# --- extra folders (issue 716) ----------------------------------------------------------------------------------------
+# Folders that are not in git (written at build time) go at the top of the clark folder under their own names. At most
+# EXTRA_MAX_BYTES of files in all of them; regular files only; a link anywhere refuses the build.
+EXTRA_MAX_BYTES = 5 * 1024 * 1024
+RESERVED_TOP = (".app", "README.md", START_HERE, MANIFEST, "clark.command", "clark.cmd", "docker", "system", "data", "clark")
+
+
+def extra_name(path):
+    """The top-level name an extra folder takes in the zip: its own name. A plain Refused if that can't be a safe name."""
+    text = str(path)
+    name = os.path.basename(os.path.abspath(text))
+    if not name or name.startswith(".") or "/" in name or "\\" in name or ".." in name or text.rstrip("/\\").endswith(".."):
+        raise Refused(f"The extra folder {text!r} has a name that can't be used (empty, starts with a dot, or holds "
+                      "a separator or ..). Nothing was written.")
+    if name.casefold() in [r.casefold() for r in RESERVED_TOP]:
+        raise Refused(f"The extra folder name {name!r} is one clark uses itself. Nothing was written. Rename the folder.")
+    if name not in EXTRA_TOP:
+        raise Refused(f"The extra folder name {name!r} is not one a download may carry ({', '.join(EXTRA_TOP)}). "
+                      "Nothing was written. Rename the folder or add the name to EXTRA_TOP in src/clark/release_files.py.")
+    return name
+
+
+def extra_content(folders):
+    """{name below the top folder: bytes} for every file in the extra `folders`, or Refused. Never follows a link."""
+    from clark import updates
+    out, seen, total = {}, set(), 0
+    for folder in folders:
+        name = extra_name(folder)
+        if name.casefold() in seen:
+            raise Refused(f"The extra folder {name!r} is given twice. Nothing was written.")
+        seen.add(name.casefold())
+        base = Path(os.path.abspath(str(folder)))
+        try:
+            st = os.lstat(base)
+        except OSError:
+            raise Refused(f"The extra folder {str(folder)!r} does not exist. Nothing was written.")
+        if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):
+            raise Refused(f"The extra folder {str(folder)!r} is not a folder (a link or a file does not count). Nothing was written.")
+        found, stack = [], [base]
+        while stack:
+            here = stack.pop()
+            try:
+                children = sorted(os.scandir(here), key=lambda e: e.name)
+            except OSError:
+                raise Refused(f"The extra folder {name!r} can't be read. Nothing was written.")
+            for e in children:
+                rel = Path(e.path).relative_to(base).as_posix()
+                if e.name.startswith(".") and e.name != ".DS_Store":
+                    raise Refused(f"The extra folder {name!r} holds a hidden file or folder: {rel}. Nothing was written. "
+                                  "Take it out of the folder; a download carries no hidden files.")
+                info = os.lstat(e.path)
+                if stat.S_ISLNK(info.st_mode):
+                    raise Refused(f"The extra folder {name!r} holds a link: {rel}. Nothing was written. Replace it with a real file.")
+                if stat.S_ISDIR(info.st_mode):
+                    stack.append(Path(e.path))
+                elif not stat.S_ISREG(info.st_mode):
+                    raise Refused(f"The extra folder {name!r} holds something that is not a regular file: {rel}. Nothing was written.")
+                elif not LEFT_OUT.search(rel):
+                    found.append((rel, e.path, info.st_size))
+        if not found:
+            raise Refused(f"The extra folder {name!r} holds no files. Nothing was written.")
+        for rel, path, size in sorted(found):
+            total += size
+            if total > EXTRA_MAX_BYTES:
+                raise Refused(f"The extra folders hold more than {EXTRA_MAX_BYTES // (1024 * 1024)} MB in all, so nothing was written.")
+            full = f"{name}/{rel}"
+            problem = updates.path_problem(full)
+            if problem:
+                raise Refused(f"The extra folder {name!r} holds a name that can't go in a download ({problem}): {rel}. Nothing was written.")
+            if protected(full):
+                raise Refused(f"The extra folder {name!r} would put a file in a folder that belongs to the person. Nothing was written.")
+            data = Path(path).read_bytes()
+            if len(data) != size:
+                raise Refused(f"A file in the extra folder {name!r} changed while it was read: {rel}. Nothing was written.")
+            out[full] = data
+    clash = updates.collisions(list(out))
+    if clash:
+        raise Refused("The extra folders hold names that clash on a Mac or Windows disk: " + ", ".join(clash[:5]) + ". Nothing was written.")
+    return out
+
+
+def entries(system, root=ROOT, extra_folders=()):
     """Every name in the zip, in order."""
     top = top_folder(root)
-    return sorted(f"{top}/{place(p)}" for p in files(system, root) + [START_HERE])
+    return sorted([f"{top}/{place(p)}" for p in files(system, root) + [START_HERE]]
+                  + [f"{top}/{n}" for n in extra_content(extra_folders)])
 
 
 def uncommitted(root, paths):
@@ -441,7 +546,7 @@ def entry(name, mode):
 
 
 def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=None, release=False, notes="",
-          released=None, min_from="0.0.0"):
+          released=None, min_from="0.0.0", extra_folders=()):
     """Build the zip for `system` into the folder `out`; its path. With `for_client`, only from the scrubbed snapshot
     and only when the name guard finds nothing (`banned` replaces the hashed list, for the tests)."""
     if system in NOT_BUILT_YET:
@@ -471,6 +576,7 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
             raise Refused(f"A zip for a client must be built from the scrubbed public snapshot, and {problem}. "
                           "Nothing was written. Build it in a checkout of the snapshot that dev/tools/publish_public.py "
                           "makes, or leave out --for-client to build one for the team.")
+    extra = extra_content(extra_folders)            # before anything is written; a plain Refused if a folder is not fit
     changed = [] if dirty else changed_files(uncommitted(root, list(listed(system))))
     if changed:
         raise Refused(f"Some of the files that go in the zip have changes that aren't committed: {', '.join(changed)}. "
@@ -481,7 +587,8 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
     top = top_folder(root)
     content = {f"{top}/{place(p)}": (placed_bytes(p, (root / p).read_bytes()), RUN_MODE if p in RUN_BIT else FILE_MODE)
                for p in names}
-    content[f"{top}/{place(START_HERE)}"] = (start_here(system, for_client, root).encode("utf-8"), FILE_MODE)
+    content[f"{top}/{place(START_HERE)}"] = (start_here(system, for_client, root, {n.split("/")[0] for n in extra}).encode("utf-8"), FILE_MODE)
+    content.update({f"{top}/{n}": (data, FILE_MODE) for n, data in extra.items()})      # issue 716: not in git, so not in `names`
     if for_client:
         shown_paths, hidden = name_guard_hits({unplace(n[len(top) + 1:]): data for n, (data, _) in content.items()}, banned)   # repo names, as the builder knows them
         if shown_paths or hidden:
@@ -527,12 +634,15 @@ def main(argv=None):
                    help="a zip for a client: only from the scrubbed public snapshot, and only if the name guard finds nothing")
     p.add_argument("--release", action="store_true", help="refuse a version that is not three numbers (a .dev build), a tree not at its tag vX.Y.Z, and --dirty")
     p.add_argument("--notes", metavar="FILE", help="a text file of release notes, kept in clark-release.json")
+    p.add_argument("--extra-folder", metavar="PATH", action="append", default=[],
+                   help="put this folder's files at the top of the clark folder under the folder's own name "
+                        f"({', '.join(EXTRA_TOP)}); repeat for more; at most 5 MB in all; never committed")
     p.add_argument("--min-from", metavar="X.Y.Z", default="0.0.0", help="the oldest version that may update to this one")
     args = p.parse_args(argv)
     try:
         notes = Path(args.notes).read_text(encoding="utf-8") if args.notes else ""
         target = build(args.system, args.out, dirty=args.dirty, for_client=args.for_client, release=args.release,
-                       notes=notes, min_from=args.min_from)
+                       notes=notes, min_from=args.min_from, extra_folders=args.extra_folder)
     except OSError:
         print("The release notes file can't be read. Check its name, then build again.", file=sys.stderr)
         return 1
