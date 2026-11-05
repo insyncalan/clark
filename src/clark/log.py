@@ -1,6 +1,6 @@
 """The daily log and what it may hold (#110, BRD FR-8b).
 
-One plain-text file a day in the log folder (`platform.log_dir()`), `clark-YYYY-MM-DD.log`, one line per entry:
+One plain-text file a day in the log folder (`platform.log_folder()`), `clark-YYYY-MM-DD.log`, one line per entry:
 
     2026-10-28 14:32:05 INFO  server       change saved  route=/api/change status=200 ms=12
 
@@ -511,5 +511,5 @@ def install(log, logger_name="clark"):
 
 
 def default(data=None, routes=None):
-    """The log for this computer: the platform's log folder, the level kept in the data folder."""
-    return Log(platform.log_dir(), data=data, routes=routes)
+    """The log for this computer: the platform's log folder for this data folder, the level kept in the data folder."""
+    return Log(platform.log_folder(data), data=data, routes=routes)
