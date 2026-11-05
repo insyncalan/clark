@@ -50,6 +50,7 @@ export async function setAsk(on) {
 }
 
 // What the page says to the owner while asking is off (one place, so every place that shows the off state says the same).
+export const askProvider = signal("Claude");           // #54: who a question goes to now, from the server; every line that says so reads this (askWords.named)
 export const ASK_OFF_LINE = "Asking is off. Turn it on in Settings.";
 export const ASK_CHECKING_LINE = "Checking whether asking is on…";
 export const ASK_UNAVAILABLE_LINE = "Asking is off, because clark could not check the setting just now. Reload the page to try again.";

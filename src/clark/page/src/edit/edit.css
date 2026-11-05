@@ -645,6 +645,16 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .uclink .pick li .type { margin-right: 4px; }
 .uclink .pick li .pill { margin-left: 4px; }
 @media (max-width: 900px) { .ucrow-ed > .ucbar { grid-template-columns: 32px 44px minmax(0, 1fr) minmax(0, 1fr) 96px 96px; } }
+/* Settings › AI: a tile for each provider, and the model. */
+.ai-provs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-3); margin-top: var(--space-3); }
+.ai-prov { border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: var(--space-3); }
+.ai-prov.on { border-color: var(--brand-blue); }
+.setting .ai-prov h3 { margin: 0 0 var(--space-1); font-size: var(--size-body); display: flex; gap: var(--space-2); align-items: center; }
+.ai-prov p { font-size: var(--size-caption); margin: 0 0 var(--space-2); }
+.ai-model { margin-top: var(--space-3); }
+.ai-model select { padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.ai-model select:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.ai-msg { margin: var(--space-2) 0 0; min-height: 1.4em; font-size: var(--size-small); }
 /* Settings › Projects (A-S6) */
 .projects .proj-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .projects .proj-head h2 { margin: 0; }
