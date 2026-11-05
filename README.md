@@ -2,26 +2,66 @@
 
 **The weekly project report, written from the work itself.**
 
-clark is a report editor for programme managers. It keeps a project's actions, risks, issues, decisions, milestones and use cases in one place on your own computer, with a history and Undo. You can move them in and out of Excel, and publish the weekly report as one web page you can send to a client. Nothing leaves your computer unless you publish a report.
+clark keeps a project's actions, risks, issues, decisions, milestones and use cases in one place on your own computer, and turns them into the weekly report you send to a client.
 
-> **Beta.** clark is in Beta until version 1.0. It works and is tested, but expect rough edges and changes between versions. It runs on a Mac today. Windows and Linux downloads come later.
+![The clark Dashboard in the light theme, showing a weekly report for the demo project: the current state, the project health and the use case summary.](docs/img/report-light.png)
+
+clark is a report editor for programme managers. It keeps a history of every change and lets you Undo. You can move your work in and out of Excel, and publish the weekly report as one web page you can send to a client. Nothing leaves your computer unless you publish a report.
+
+> **Beta.** This is the 1.0 build. It is still marked Beta because updating from inside clark is not switched on yet: install a new version by downloading it and replacing the old one. It works and is tested, but expect rough edges and changes between versions. It runs on a Mac today. Windows and Linux downloads come later.
 
 ## What you can do with it
 
-- **Write the weekly report** where you read it: switch between View and Edit, add and move sections, change a status, owner or date in place, and Undo anything.
-- **Keep the log.** Actions, risks, issues and decisions, each with an owner, a due date and a history.
-- **Track milestones** on a timeline or a calendar, with a slipped date shown against the agreed one.
-- **Choose what the client sees.** Each item and section can be left out of the published page with one click.
-- **Work with Excel.** Import a tracker you already have, and export your work items, milestones and use cases back out.
-- **Publish** as a single web page. It opens anywhere, with no server and no sign-in.
+### Write the weekly report
+
+Write it where you read it: switch between View and Edit, add and move sections, change a status, owner or date in place, and Undo anything.
+
+![The Dashboard in Edit mode, with a grip and a plus beside each section for moving it or adding a template.](docs/img/report-edit.png)
+
+### Keep the log
+
+Actions, risks, issues and decisions, each with an owner, a due date and a history. Read them as a table or as a board.
+
+![The Work items table for the demo project, grouped by workstream, with an owner, a due date, a priority and a status for each item.](docs/img/work-items-table.png)
+
+### Track milestones
+
+See them on a timeline or a calendar, with a slipped date shown against the agreed one.
+
+![The Milestones timeline for the demo project, with a dashed ring showing where a slipped milestone is now expected.](docs/img/milestones-timeline.png)
+
+### Choose what the client sees
+
+Each item and section can be left out of the published page with one click.
+
+![The section menu with the choice to leave a section out of the published page highlighted.](src/clark/page/help-pictures/arrange-leave-out.png)
+
+### Work with Excel
+
+Import a tracker you already have, and export your work items, milestones and use cases back out.
+
+![The Data card in Settings, with the Export workbook button highlighted beside the Import workbook button.](src/clark/page/help-pictures/excel-out-card.png)
+
+### Publish
+
+Publish as a single web page. It opens anywhere, with no server and no sign-in.
+
+![The top of a published report for the demo project, with the Dashboard, Work items and Milestones tabs.](docs/img/published-page.png)
 
 ## Install (Mac)
 
-1. Open this repository's **Releases** page and download the latest `clark-…-mac.zip`. Unzip it.
+1. Open this repository's **Releases** page and download the latest `clark-…-mac.zip` (for 1.0.0 it is `clark-1.0.0-mac.zip`). Unzip it. The download is not signed yet.
 2. clark needs **Google Chrome** and Python 3.9 or newer. To check your Mac is ready, open Terminal in the unzipped folder and type `python3 -m clark.doctor`. It tells you what to fix, if anything, and where to get it.
 3. Double-click `clark.command`. The file `START-HERE.txt` in the folder explains the prompts your Mac may show the first time.
 
 To look around with made-up projects first, open Terminal in the folder and type `python3 -m clark --demo --open`.
+
+If you would rather use Docker, open Help and read **Run clark with Docker**.
+
+## Read more
+
+- [clark at a glance](docs/marketing/clark-overview.pdf): a one-page overview.
+- [Getting started](docs/marketing/clark-getting-started.pdf): the first steps, with pictures.
 
 ## Where your data lives
 
@@ -33,7 +73,10 @@ Your data stays on your computer, in `~/Library/Application Support/clark/`. Tha
 
 To keep your data somewhere else, start clark with `python3 -m clark --data FOLDER`.
 
-## If something goes wrong
+## How to get help
+
+Open **Help** in clark for step-by-step guides and a short text for each main screen.
+
 
 Open an issue on this repository and say what you did, what you expected and what you saw. For a security problem, do not open an issue: email alan@januscollab.com (the steps are in `SECURITY.md`). If clark says it did not start, it names a log file (`server.log` in the data folder): please attach it. Do not attach your database or any real client information.
 
