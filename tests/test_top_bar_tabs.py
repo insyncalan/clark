@@ -101,9 +101,11 @@ class TopBarTabs(Base):
     # its existing words, and goes to the first tab (the Dashboard) of the same project, in View and in Edit.
     def home(self, width, theme, edit):
         with chrome() as cdp:
-            p = self.visit(cdp, "#work&p=ABC")
+            p = self.visit(cdp)       # ready() waits for the Dashboard's sections, so open there and go to Work items by its tab
             size(cdp, p, width, 700)
             p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
+            p.js("document.querySelector('.top .tab[data-view=work]').click()")
+            p.until("document.querySelector('.top .tab[aria-selected=true]').dataset.view === 'work'", "Work items did not open")
             if edit:
                 p.js("document.querySelector('.top [data-mode=edit]').click()")
             where = f"at {width} px, {theme}, {'Edit' if edit else 'View'}"
@@ -117,7 +119,7 @@ class TopBarTabs(Base):
             p.key("Enter", 0, "Enter", 13)
             p.until("location.hash.indexOf('#dashboard') === 0 && location.hash.indexOf('p=ABC') > 0", f"{where}: Enter on the logo does not go to the Dashboard of the same project")
             self.assertEqual(p.js("document.querySelector('.top .tab[aria-selected=true]').dataset.view"), "dashboard", f"{where}: the first tab is not the pressed one")
-            p.js("location.hash = '#work&p=ABC'")
+            p.js("document.querySelector('.top .tab[data-view=work]').click()")
             p.until("document.querySelector('.top .tab[aria-selected=true]').dataset.view === 'work'", f"{where}: could not return to Work items")
             p.js("document.querySelector('.top .logo').click()")
             p.until("location.hash.indexOf('#dashboard') === 0", f"{where}: a click on the logo does not go to the Dashboard")
