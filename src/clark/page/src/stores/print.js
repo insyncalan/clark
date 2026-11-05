@@ -4,6 +4,7 @@
 // what the tabs already draw. Only a published file asks for this; the editor never does.
 import { signal } from "@preact/signals";
 import { status, publication, asAt } from "./report.js";
+import { lightForPrint } from "./reader.js";
 import { wantsPrint, numberAsked, footLine, footRule } from "../logic/printView.js";
 
 export const printing = signal(false);
@@ -25,6 +26,7 @@ function foot(on) {
 // The page's print rules (shell.css) work under html.print-all, so they are on at once and the screen is never touched.
 function set(on) {
   printing.value = on;
+  lightForPrint(on);                                      // a page in Dark prints light (issue 713)
   foot(on);
   try { document.documentElement.classList.toggle("print-all", on); } catch (e) { /* no document: nothing to mark */ }
 }

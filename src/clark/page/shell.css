@@ -1788,6 +1788,32 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
 .ucp-body h2 { margin: 14px 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .ucp-headline { margin: 0 0 8px; }
+/* Issue 713, a published file only: the reader's badge and menu at the top right of the bar, and the box "Your profile". Tokens only.
+   The bar is dark in light and dark alike, so the badge uses the profile tokens. The bar's print rule hides all of it. */
+.cm-wrap { position: relative; display: inline-flex; flex: none; margin-left: auto; }
+.asat + .cm-wrap { margin-left: 0; }
+.cm-badge { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: var(--profile-size); height: var(--profile-size); border: 1px solid var(--profile-ring); border-radius: 50%; background: var(--profile-bg); color: var(--profile-fg); cursor: pointer; font-size: var(--size-caption); font-weight: var(--weight-medium); line-height: 1; }
+.cm-badge:hover, .cm-badge[aria-expanded="true"] { border-color: var(--profile-fg); }
+.cm-badge:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.cm-badge .i { width: 18px; height: 18px; }
+.ddmenu.cm-menu { min-width: 240px; max-width: calc(100vw - 16px); }
+.ddmenu .cm-row { overflow-wrap: anywhere; }
+.ddmenu a.cm-link { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
+.ddmenu a.cm-link:hover, .ddmenu a.cm-link:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.ddmenu .cm-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.cm-group { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 2px; }
+.cm-note { margin: 0; padding: 4px 14px 6px; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }
+.cm-scrim { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: color-mix(in srgb, var(--black) 45%, transparent); }
+.cm-box { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--space-2); width: min(420px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: var(--space-4) var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.cm-box h2 { margin: 0; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
+.cm-box label { font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); }
+.cm-field { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.cm-field:focus-visible, .cm-box .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.cm-box .cm-note { padding: 0; }
+.cm-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
+.cm-box .btn { min-height: 32px; }
+.cm-box .cm-save { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); }
+
 /* Printing: a published file printed from the browser (Save as PDF) shows every tab one after another, with no controls, in the light colours, and the page number in the foot. stores/print.js sets html.print-all and draws the stack while the browser prints; the screen never changes. */
 @page { size: A4; margin: 14mm 12mm 18mm; @bottom-right { content: "Page " counter(page); font-family: Arial, sans-serif; font-size: var(--size-caption); } }   /* the bottom-left foot, "Publication N · DD-MM-YYYY", is added by stores/print.js while the browser prints */
 @media print {
