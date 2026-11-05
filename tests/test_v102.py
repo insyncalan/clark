@@ -83,13 +83,15 @@ COVERED = [
      "test_log_follows_data::Started::test_data_given_writes_inside_it_and_nothing_under_the_home"),
     ("#760", "A folder of mixed versions is refused with a plain message.",
      "test_mixed_folder::Folder::test_one_older_file_is_refused"),
+    ("#761", "The three public meet clark files are the regenerated ones, pinned by hash and size.",
+     "test_ci_scan::PinnedPublicFiles::test_the_next_pins_are_well_formed_and_each_real_file_is_its_current_or_its_next_pin"),
+    ("#761", "The public zip carries the meet clark folder at the top under its own name.",
+     "test_extra_folder::Build::test_each_folder_is_at_the_top_under_its_own_name"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has
 # landed; marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#761", "The meet clark PDFs and the overview picture show bash clark.command.",
-     "no pull request yet (issue 761)", None, None),
     ("#763", "The brand's circle picture is accepted and a comment can no longer hide an address or a picture.",
      "no pull request yet (issue 763)", None, None),
     ("#728", "Sneak peek changes a milestone and a use case.",
