@@ -1015,11 +1015,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-top:hover { background: rgba(255,255,255,.14); }
 .hp-top:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tb-act { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 32px; height: 32px; padding: 0 6px; border-radius: var(--radius-sm); color: var(--white); font-size: var(--size-body); cursor: pointer; white-space: nowrap; }   /* the top bar's search and ask buttons */
-.tb-act:hover { background: rgba(255,255,255,.14); }
+.tb-act:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
 .tb-act:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tb-ico { width: 20px; height: 20px; flex: none; }
-.tb-ask { padding: 0 10px; border: 1px solid rgba(255,255,255,.35); }
-.tb-key { font: inherit; font-size: var(--size-small); padding: 1px 6px; border: 1px solid rgba(255,255,255,.35); border-radius: var(--radius-sm); }
+.tb-ask { padding: 0 10px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); }
+.tb-key { font: inherit; font-size: var(--size-small); padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius-sm); }
 @media (max-width: 1100px) { .tb-ask { padding: 0 6px; border-color: transparent; } .tb-ask-w, .tb-key { display: none; } }   /* icon only below 1100 px, so nothing in the bar overlaps */
 /* the Help peek (item 645): the item peek's frame (.peek) below the top bar, so the "?" button stays in view; text only */
 .hpk { top: var(--topbar); width: 380px; min-width: 0; max-width: 92vw; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5); color: var(--text); font-size: var(--size-small); line-height: var(--leading); }
@@ -1454,9 +1454,9 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .ask-folders li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-top: var(--space-1); }
 #ask-folder-path { flex: 1 1 260px; min-height: 32px; padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--size-small); }
 /* The Add a section box (#96): a modal over the page, desktop and 900 px. Tokens only; no text under 13 px. */
-.ad-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: var(--space-6) var(--space-4); background: color-mix(in srgb, var(--black) 45%, transparent); overflow: auto; }
+.ad-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: calc(var(--topbar) + var(--space-6)) var(--space-4) var(--space-6); background: color-mix(in srgb, var(--black) 45%, transparent); overflow: auto; }   /* row 758: a box starts below the top bar, never over it */
 .ad:focus { outline: none; }
-.ad { display: flex; flex-direction: column; width: min(900px, 100%); max-height: calc(100vh - 2 * var(--space-6)); max-height: calc(100dvh - 2 * var(--space-6)); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-body); color: var(--text); }
+.ad { display: flex; flex-direction: column; width: min(900px, 100%); max-height: calc(100vh - var(--topbar) - 2 * var(--space-6)); max-height: calc(100dvh - var(--topbar) - 2 * var(--space-6)); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-body); color: var(--text); }
 .ad-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-4) var(--space-5) var(--space-2); }
 .ad-head h2 { margin: 0; flex: 1 1 auto; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
 .ad-q { flex: 0 1 280px; min-width: 0; }

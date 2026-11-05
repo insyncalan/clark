@@ -77,6 +77,8 @@ class TopBarActions(Base):
                                "for (var j=i+1;j<r.length;j++) if (r[i][1].left < r[j][1].right - 0.5 && r[j][1].left < r[i][1].right - 0.5 && r[i][1].top < r[j][1].bottom - 0.5 && r[j][1].top < r[i][1].bottom - 0.5 && r[i][1].width && r[j][1].width) bad.push(r[i][0] + ' over ' + r[j][0]); }"
                                "return bad.concat(document.documentElement.scrollWidth > document.documentElement.clientWidth ? ['sideways scroll'] : []);})()")
                     self.assertEqual(got, [], f"at {width} px, {theme}, long name")
+                    clipped = p.js("(function(){ var s = document.querySelector('.top .projbtn > span'); return s ? [s.textContent.length > 40, s.scrollWidth > s.clientWidth] : null; })()")
+                    self.assertEqual(clipped, [True, True], f"at {width} px, {theme}: the long name is in the bar and is the part that gives way (its ellipsis)")
                     self.assertTrue(p.js("!!document.querySelector('#ask-btn') && !!document.querySelector('#pal-btn')"), "both buttons are there")
 
 

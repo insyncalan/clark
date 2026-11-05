@@ -88,14 +88,24 @@ def show_date(iso):
     return text
 
 
+def long_date(iso):
+    """'Friday 30 October 2026' from a stored YYYY-MM-DD that is a real day (the signed Option A wording); text that is not a
+    stored day is shown as stored. The day names and the months are English, whatever the computer's language."""
+    from clark import draft_email, milestone_rows
+    day = draft_email._as_day(str(iso or "").strip())
+    if day is None:
+        return str(iso or "").strip()
+    return f"{draft_email.WEEKDAYS[day.weekday()]} {day.day} {milestone_rows.MONTHS[day.month - 1]} {day.year}"
+
+
 def subtitle(project):
-    """'Weekly report · Week ending 23-10-2026 · for Example Client': the page's report band (coverLine in the page), from the
-    same two fields of the project row. A part with nothing to show is left out."""
+    """'Weekly report · Week ending Friday 23 October 2026 · for Example Client' (the signed Option A): from the same two fields
+    of the project row as the page's report band. A part with nothing to show is left out."""
     parts = [SUBTITLE_KIND]
     week = str(project.get("week_ending") or "").strip()
     client = str(project.get("client_name") or "").strip()
     if week:
-        parts.append(f"Week ending {show_date(week)}")
+        parts.append(f"Week ending {long_date(week)}")
     if client:
         parts.append(f"for {client}")
     return cut(" \u00b7 ".join(parts), 500)

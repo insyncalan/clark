@@ -6,11 +6,13 @@ import { useState } from "preact/hooks";
 import { project, reread, token } from "../stores/report.js";
 import { sendUndo } from "../api.js";
 import { showDate } from "../workItems.js";
+import { plainText } from "../logic/cleanHtml.js";
 import { panelState } from "./askPanelState.js";
 import * as W from "./askWords.js";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const shown = (v) => (v === null || v === undefined || v === "" ? W.NOT_SET : typeof v === "string" && DATE.test(v) ? showDate(v) : String(v));
+const shownIn = (f, v) => (f === "standing" && typeof v === "string" && v !== "" ? shown(plainText(v)) : shown(v));      // "Where it stands" is rich text: its words, not its tags
 // The server's refusals are fixed plain sentences (ask_apply.py); anything else is replaced by the page's own words.
 export const fixedLine = (m, fallback) => (typeof m === "string" && m.length > 0 && m.length <= 300 && !/[\u0000-\u001f<>]/.test(m) ? m : fallback);
 
@@ -101,8 +103,8 @@ function ChangeCard({ plan, passages }) {
           {fields.map((f) => (
             <tr key={f} data-field={f}>
               <th scope="row">{W.FIELD_NAMES[f] || f}</th>
-              <td data-before>{shown(before ? before[f] : null)}</td>
-              <td data-after>{shown(after[f])}</td>
+              <td data-before>{shownIn(f, before ? before[f] : null)}</td>
+              <td data-after>{shownIn(f, after[f])}</td>
             </tr>
           ))}
         </tbody>
