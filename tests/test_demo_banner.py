@@ -54,6 +54,23 @@ class DemoLine(unittest.TestCase):
             cdp.js("document.querySelector('#np-empty').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('#project-form')", "the project form")
 
+    def test_the_profile_circle_is_on_the_empty_screen_with_only_the_entries_that_need_no_project(self):
+        """Row 786: no project open still has the circle; Publish, Preview and Export wait for a project."""
+        with chrome() as cdp:
+            sid = navigate(cdp, self.s.port, "#dashboard")
+            self.until(cdp, sid, "!!document.querySelector('#demo-remove')", "the banner")
+            cdp.js("document.querySelector('#demo-remove').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('#demo-go')", "the box")
+            cdp.js("document.querySelector('#demo-go').click()", sid)
+            self.until(cdp, sid, "document.querySelector('main').innerText.includes('There are no projects yet.')", "the empty screen")
+            self.until(cdp, sid, "!!document.querySelector('#profile-btn')", "the profile circle")
+            cdp.js("document.querySelector('#profile-btn').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('#profile-menu')", "the menu")
+            shown = cdp.js("[].map.call(document.querySelectorAll('#profile-menu [role^=menuitem]'), function(e){return e.textContent.replace(/\\s+/g, ' ').trim()}).join('|')", sid)
+            self.assertRegex(shown, r"Settings")
+            self.assertRegex(shown, r"Help")
+            self.assertNotRegex(shown, r"Publish|Preview|Export")
+
     def test_removing_the_demo_while_one_of_its_projects_is_open_lands_on_the_empty_screen_through_the_router(self):
         with chrome() as cdp:
             sid = navigate(cdp, self.s.port, "#work&p=TUL")
