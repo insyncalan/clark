@@ -11,7 +11,7 @@ Same shape as test_v100.
                 forgotten at the cut.
   WALK_THROUGH  judgement or live only, with the reason and the one line a person follows. Skipped: 'needs a person'.
 
-Written after 1.0.0 was published (tag v1.0.0), from origin/main on 05-11-2026: everything merged after the tag, and a WAITING row for
+Written after 1.0.0 was published (tag v1.0.0), final on origin/main of 05-11-2026 (after PR 696): everything merged after the tag, and a WAITING row for
 every other v1.0.1 board row that a customer sees.
 The cut checks (version, release notes, hand-check sheet, the layout step) skip until the cut commit sets 1.0.1, then fail if wrong.
 The notes' own rules (title with (Beta), the Beta line, plain words) are read from the tree now.
@@ -143,31 +143,53 @@ COVERED = [
      "test_readme_links::ReadmeLinks::test_every_image_has_alt_text_and_is_small"),
     ("#751", "The download's README (docs/zip/README.md) shows no picture, names nothing outside the download, and every sentence is in the repository README.",
      "test_zip_readme::ZipReadme::test_every_sentence_is_in_the_root_readme"),
+    ("#710", "The Excel export shows ID: name in the Milestone and Use case cells and has Open work items.",
+     "test_excel_refs::Export::test_item_cells_show_id_then_name"),
+    ("#710", "Milestones and Use cases have an Open work items column.",
+     "test_excel_refs::Export::test_open_work_items_per_sheet"),
+    ("#711", "The Excel cover has the navy title band with the INTERNAL tag.",
+     "test_excel_cover::InTheWorkbook::test_the_title_band_is_navy_with_white_bold_title_the_subtitle_and_the_internal_tag_at_the_right"),
+    ("#711", "The Excel cover has three tiles, and This week and Next week side by side.",
+     "test_excel_cover::InTheWorkbook::test_this_week_and_next_week_are_beside_each_other_when_the_page_has_both"),
+    ("#711", "The Excel tabs run Cover, Actions, Risks & Issues, Decisions, Milestones, Use cases, History.",
+     "test_excel_cover::InTheWorkbook::test_cover_is_first_and_open_with_gridlines_off_and_the_band_frozen"),
+    ("#713", "The published report has a Report menu with Profile, Export to Excel, Export to PDF, Past reports and Dark mode.",
+     "test_client_menu::Menu::test_the_badge_is_named_and_the_rows_are_exactly_these_in_order"),
+    ("#713", "Publishing embeds the workbook, so Export to Excel shows in the published file.",
+     "test_client_workbook::Published::test_on_embeds_a_workbook_equal_to_the_stand_alone_one"),
+    ("#713", "Past reports lists the earlier reports kept in the same folder, and not the current one.",
+     "test_past_reports_list::Flow::test_the_second_report_lists_the_first_and_not_itself"),
+    ("#716", "The download has a meet clark folder with the overview and the Getting Started PDFs (also #750, #706, #707, #722).",
+     "test_ci_scan::PinnedPublicFiles::test_the_real_table_refuses_a_pdf_at_a_real_path_with_other_bytes"),
+    ("#741", "START-HERE carries no version number in its sentence about updating from inside clark.",
+     "test_package::MacZipTest::test_start_here_says_what_is_in_the_folder_and_how_to_swap_an_old_clark"),
+    ("#721", "Help says ask clark changes work items and milestones, never use cases.",
+     "test_help_ask_peek::HelpAskAndSneakPeek::test_ask_clark_changes_work_items_and_milestones_not_use_cases"),
+    ("#721", "Help says Sneak peek changes work items only, and the Start part has one top-bar button bullet.",
+     "test_help_ask_peek::HelpAskAndSneakPeek::test_sneak_peek_is_work_items_only"),
+    ("#731", "The first start opens with made-up demo projects and a banner 'This is demo data.' with a Remove demo data button.",
+     "test_demo_banner::DemoLine::test_the_banner_asks_first_and_then_the_page_lands_on_the_empty_screen_with_one_new_project_button"),
+    ("#731", "The demo projects load on a fresh data folder and never come back once removed.",
+     "test_demo_seed::Load::test_the_demo_is_never_put_back_once_removed"),
+    ("#731", "If you change anything in a demo project, that project is kept as yours; Remove demo data takes away only the demo projects you have not touched.",
+     "test_demo_seed::Remove::test_an_edit_to_a_demo_project_makes_it_the_persons"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#710", "The Excel export shows ID: name in the Milestone and Use case cells and has Open work items.",
-     "PR 672", "excel.py", '("Open work items", "open_items")'),
-    ("#711", "The Excel cover follows option A: title band, INTERNAL tag, tiles, tab order.",
-     "PR 672", "excel_palette.py", ""),
     ("#727", "The Excel export locks the cells people should not edit (sheet protection, no password).",
      "no pull request yet (issue 727)", "", None),
-    ("#713", "The published report has a Report menu with Profile, Export to Excel, Export to PDF, Past reports and Dark mode (Light, Dark, System default).",
-     "PR 681", "page/src/components/ClientMenu.jsx", "Report menu"),
-    ("#713", "Publishing makes the workbook that goes inside the published file, so Export to Excel and Past reports show there.",
-     "PR 687", "excel_client.py", ""),
-    ("#716", "The download has a meet clark folder with the overview and the Getting Started PDFs (also #706, #707, #722).",
-     "PR 693", "../../meet clark/clark-overview.pdf", ""),
-    ("#741", "START-HERE no longer carries a version number in its sentence about updating from inside clark.",
-     "PR 688", "../../dev/tools/package.py", "Updating from inside clark is switched off,"),
-    ("#721", "Help describes ask clark and Sneak peek as they behave, with one top-bar button bullet.",
-     "PR 685", "page/src/help/helpContent.json", "Sneak peek, with a work item open in Edit"),
-    ("#731", "The first start opens with made-up demo projects and a banner 'This is demo data.' with a Remove demo data button.",
-     "PR 689", "page/src/logic/demoWords.js", "This is demo data."),
     ("#751", "The download carries its own README.md: the repository README without the pictures and without lines that name things outside the download.",
-     "no pull request yet (issue 751)", "", None),     # docs/zip/README.md is on main (PR 691); the package step that puts it in the zip has no pull request yet
+     "PR 697", "release_files.py", "ZIP_README"),     # docs/zip/README.md is on main (PR 691); the package step that puts it in the zip is PR 697
+    ("#747", "Help describes the search button, the typed filter, the Settings chips, the Terminal commands and the real Excel columns (Help PR A; also #748).",
+     "PR 694", "page/src/help/helpContent.json", "start-check-and-restore-in-terminal"),
+    ("Help B1", "Help covers choosing which sheets to import and the Commitment flag in the Excel export (branch help-b1-r).",
+     "no pull request yet (branch help-b1-r)", "", None),
+    ("Help B2", "Help covers the Commitment flag on the page, the week-ending calendar and the pencil on Edit (branch help-b2-r).",
+     "no pull request yet (branch help-b2-r)", "", None),
+    ("Help B3", "Help covers the client Report menu and the Excel export cells (branch help-b3-r).",
+     "no pull request yet (branch help-b3-r)", "", None),
 ]
 
 # (item, check, kind, why, what the person does)
@@ -223,7 +245,7 @@ class Tables(unittest.TestCase):
 
     def test_each_waiting_check_names_its_pull_request_or_says_there_is_none(self):
         for item, check, pr, path, marker in WAITING:
-            self.assertRegex(pr, r"^(PR \d+|no pull request yet \(issue \d+\))$", check)
+            self.assertRegex(pr, r"^(PR \d+|no pull request yet \((issue \d+|branch [\w-]+)\))$", check)
             self.assertEqual(marker is None, pr.startswith("no pull request"), check)
 
     def test_the_sheet_has_a_row_for_every_waiting_pull_request_and_every_covered_item(self):
