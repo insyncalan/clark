@@ -5,7 +5,7 @@
 // Appearance (Light, Dark, System) is in the menu (#179); the top line is the name and email from Settings › Personal (#180).
 import { useEffect } from "preact/hooks";
 import { Menu } from "../components/Menu.jsx";
-import { data, tabs, show, project, mode, view } from "../stores/report.js";
+import { data, tabs, show, project, mode, view, status } from "../stores/report.js";
 import { openInNewTab } from "../router.js";
 import { openHelp } from "../help/helpStore.js";
 import { openPublish, lastLine } from "./Publish.jsx";
@@ -75,11 +75,14 @@ export async function exportExcel() {
 
 export function ProfileMenu() {
   useEffect(() => { loadProfile(); }, []);
-  if (!data.value) return null;      // like the Publish button it replaced: not until the report is loaded, or Publish would open without the project's client folder
-  const items = [{ id: "publish", name: "Publish…", tip: "Publish" }, { id: "preview", name: "Preview the page in a new tab", tip: "Preview" },
-    { id: "export", name: "Export to Excel", tip: "Export" }, { id: "word-export", name: "Export to Word" }];
-  if (mode.value === "edit") items.push({ id: "word-import", name: "Import from Word" });       // Edit only: it adds items
-  if (tabs.value.includes("settings")) items.push({ id: "published", name: "Published reports" }, { id: "settings", name: "Settings", tip: "Settings" });      // #443: Published reports opens Settings at its card, so it comes with Settings; after Export, as in the prototype; no short word, so the tooltip is as it was
+  // Row 786: with no project open the circle is still there, with the entries that need no project (Settings, Appearance, Help); Publish and the rest wait for the report, or Publish would open without the project's client folder
+  const open = !!data.value;
+  if (!open && status.value !== "none") return null;      // while the report loads (or failed) there is still no circle, as before
+  const items = open ? [{ id: "publish", name: "Publish…", tip: "Publish" }, { id: "preview", name: "Preview the page in a new tab", tip: "Preview" },
+    { id: "export", name: "Export to Excel", tip: "Export" }, { id: "word-export", name: "Export to Word" }] : [];
+  if (open && mode.value === "edit") items.push({ id: "word-import", name: "Import from Word" });       // Edit only: it adds items
+  if (open && tabs.value.includes("settings")) items.push({ id: "published", name: "Published reports" });
+  if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings", tip: "Settings" });      // #443: Published reports opens Settings at its card, so it comes with Settings; after Export, as in the prototype; no short word, so the tooltip is as it was
   items.push({ id: "help", name: "Help" });
   const tip = menuTip(items);
   const last = lastLine(latest.value);
@@ -109,7 +112,7 @@ export function ProfileMenu() {
   return (
     <>
       <Menu id="profile-btn" btnCls="me" icon="user" label="" chevron={false} ariaLabel={MENU_NAME} tip={tip} menuId="profile-menu" menuLabel={MENU_NAME} items={shown} onPick={pick} />
-      <Welcome />{/* #174: the first-run name prompt, asked once (Welcome.jsx) */}
+      {open ? <Welcome /> : null}{/* #174: the first-run name prompt, asked once (Welcome.jsx) */}
       {mode.value !== "edit" && view.value === "dashboard" ? <div class="toasts" role="status" aria-live="polite">{toast.value && toast.value.own ? <ToastCard t={toast.value} /> : <BarToast />}<MenuNote /></div> : null}      {/* the Dashboard in View: About you's own toast, with Undo, too (item 429), and one made in View (item 439) */}
     </>
   );
