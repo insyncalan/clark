@@ -29,7 +29,15 @@ export function AskPanel() {
   useGrow(box, open ? text : null);
 
   // Row 858: the box is usable while the check is out (what is typed stays, and so does focus); only Send waits for the answer.
-  useEffect(() => { if (open && (state === "ready" || state === "checking") && box.current) box.current.focus(); else if (open) { const c = document.getElementById("ask-panel"); if (c) c.focus(); } }, [open, state, panelFocus.value]);
+  // The answer arriving (a state change alone) moves focus only while it is still in the panel or nowhere: a person who has moved on keeps their place.
+  const seen = useRef({ open: false, bump: 0 });
+  useEffect(() => {
+    const fresh = seen.current.open !== open || seen.current.bump !== panelFocus.value;
+    seen.current = { open, bump: panelFocus.value };
+    const at = document.activeElement, c = document.getElementById("ask-panel");
+    if (!fresh && at && at !== document.body && !(c && c.contains(at))) return;
+    if (open && (state === "ready" || state === "checking") && box.current) box.current.focus(); else if (open && c) c.focus();
+  }, [open, state, panelFocus.value]);
   useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [list.length, busy]);
   useEffect(() => {
     if (!busy) { setQuip(""); return undefined; }
