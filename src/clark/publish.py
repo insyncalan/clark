@@ -33,6 +33,7 @@ import heapq
 from datetime import date
 import html as htmllib
 import json
+import logging
 import os
 import re
 import secrets
@@ -1040,9 +1041,6 @@ def data_block(published, as_at, number=None):
     style = published.get("style")
     block = {"v": VERSION, "as_at": as_at, "style": style if style in STYLES else DEFAULT_STYLE,
              "data": published["data"], "sections": published["sections"], "tabs": published["tabs"]}
-    for key in ("workbook", "workbook_note"):      # item 713: the client workbook, or the sentence that says there is none (excel_client.embed)
-        if key in published:
-            block[key] = published[key]
     if number:                         # #120: which publication this file is; the page's footer reads it. A preview has none
         block["publication"] = {"n": number}
     body = json.dumps(block, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
@@ -1094,7 +1092,7 @@ def read_inputs(store, code, as_at=None):
 
 
 # ===== Making the file =====
-def build(store, code, now=None, branding=None, section_style=None, number=None, workbook=False):
+def build(store, code, now=None, branding=None, section_style=None, number=None, workbook=False, past_reports=None):
     """Make the report once, in memory, and write nothing: {"body", "sha256", "project", "as_at", "published"}. `body` is the
     finished file's UTF-8 bytes, `published` is what select() kept (the same object render() was given). `now` is the publish
     date (YYYY-MM-DD); due dates and Overdue read as at that date. publish() and the To client route (#43) both start here, so
@@ -1104,7 +1102,9 @@ def build(store, code, now=None, branding=None, section_style=None, number=None,
     with (the rebuild keeps it), else Store.next_publication gives it; 0 means no number (a preview, which is not published).
     The number is returned too, for Store.log_publication, which refuses if another publication took it meanwhile.
     Item 713: `workbook` (off by default, so the bytes are as they were) makes the client workbook from `published` and puts it in
-    the data block (excel_client.embed: `workbook` or `workbook_note`); a workbook that cannot be made never stops the publish."""
+    the data block's data (excel_client.embed: `client_workbook` {name, base64}, or `client_workbook_too_large` True); a workbook that
+    cannot be made never stops the publish (it is logged by class name only). `past_reports` ([{week_ending, file}], from
+    past_files.listing) goes in the data as `past_reports` when it has rows; the caller reads the folder, so this module stays pure."""
     as_at = str(now or milestones.today())
     try:
         if not re.fullmatch(r"\d{4}-\d\d-\d\d", as_at):          # Python 3.11 and later also read 20261028
@@ -1121,17 +1121,23 @@ def build(store, code, now=None, branding=None, section_style=None, number=None,
     if workbook:
         from clark import excel_client           # not at the top: openpyxl is loaded only when a workbook is made
         try:
-            published.update(excel_client.embed(published))
-        except Exception:                          # the report is the thing: no spreadsheet is better than no report
-            pass
+            embedded = excel_client.embed(published)
+        except Exception as e:                     # the report is the thing: no spreadsheet is better than no report
+            logging.getLogger("clark.publish").warning("The client workbook could not be made (%s).", type(e).__name__)   # the class only: never a message or a row
+        else:
+            published["data"].update(embedded)
     project = published["data"]["project"]
+    here = file_name(code, project["week_ending"], as_at)          # the file being made is never one of its own earlier reports
+    past = [{"week_ending": r["week_ending"], "file": r["file"]} for r in past_reports or () if r["file"] != here]
+    if past:
+        published["data"]["past_reports"] = past
     n = store.next_publication(code) if number is None else number
     text = render(published, page.page_html(branding, view=True), as_at, project["name"], n)      # #65: the view-only page
     body = text.encode("utf-8")
     if len(body) > MAX_BYTES:
         raise PublishError(f"The report is {len(body) / 1048576:.1f} MB, which is over the {MAX_BYTES // 1048576} MB limit. "
                            "Remove or shrink the largest image or attachment, then publish again.")
-    return {"body": body, "sha256": hashlib.sha256(body).hexdigest(), "project": project, "as_at": as_at, "published": published, "number": n}
+    return {"body": body, "sha256": hashlib.sha256(body).hexdigest(), "project": project, "as_at": as_at, "published": published, "number": n, "past_reports": past}
 
 
 EARLIER_TOO_BIG = ("The file already there is too big to keep a copy of, so it was not replaced. "

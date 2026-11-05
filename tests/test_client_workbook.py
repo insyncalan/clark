@@ -20,6 +20,7 @@ from unittest import mock
 from _paths import ROOT, SRC, TOOLS  # noqa: F401
 
 import _publish_fixture as fx  # noqa: E402
+from _growth import assert_growth  # noqa: E402
 from openpyxl import load_workbook  # noqa: E402
 from clark import excel, excel_client, publish, publish_flow, secret_screen  # noqa: E402
 from clark.store import open_store  # noqa: E402
@@ -207,6 +208,31 @@ class Flag(unittest.TestCase):
             self.assertNotIn(bad, head)
 
 
+class Growth(unittest.TestCase):
+    """Making the workbook costs about the same per row at any size (the repo's growth check: t(4n) / t(n) at most GROWTH_LIMIT)."""
+
+    @staticmethod
+    def rows(n):
+        plant = fx.load()
+        base = plant["data"]["actions"][0]
+        plant["data"]["actions"] = [{**base, "id": "PUB-A-%05d" % i, "description": "Action %d" % i, "client_message": "Client wording %d" % i,
+                                     "milestone": None, "use_case": None} for i in range(n)]
+        return fx.inputs(plant)
+
+    def test_the_workbook_grows_in_step_with_the_rows(self):
+        def work(n):
+            inputs = self.rows(n)
+            excel_client.embed(publish.add_glance(publish.select(inputs), inputs))
+        assert_growth(self, work, 200, "client workbook")
+
+    def test_the_embedded_size_grows_in_step_with_the_rows(self):
+        def size(n):
+            inputs = self.rows(n)
+            return len(excel_client.embed(publish.add_glance(publish.select(inputs), inputs))["client_workbook"]["base64"])
+        small, big = size(200), size(800)
+        self.assertLess(big / small, 4.5, (small, big))
+
+
 class Edges(unittest.TestCase):
     def test_no_client_visible_rows(self):
         plant = fx.load()
@@ -241,15 +267,15 @@ class Edges(unittest.TestCase):
         pub = selected(fx.load())
         with mock.patch.object(excel_client, "MAX_WORKBOOK_BYTES", 100):
             got = excel_client.embed(pub)
-        self.assertEqual(got, {"workbook_note": "This report is too large to include a spreadsheet."})
-        self.assertEqual(excel_client.TOO_LARGE, "This report is too large to include a spreadsheet.")
+        self.assertEqual(got, {"client_workbook_too_large": True})
+        self.assertIs(got["client_workbook_too_large"], True)
 
     def test_under_the_cap_the_shape(self):
         got = excel_client.embed(selected(fx.load()))
-        self.assertEqual(set(got), {"workbook"})
-        self.assertEqual(set(got["workbook"]), {"name", "mime", "b64"})
-        self.assertTrue(got["workbook"]["name"].endswith(".xlsx"))
-        self.assertTrue(re.fullmatch(r"[A-Za-z0-9+/=]+", got["workbook"]["b64"]))
+        self.assertEqual(set(got), {"client_workbook"})
+        self.assertEqual(set(got["client_workbook"]), {"name", "base64"})
+        self.assertTrue(got["client_workbook"]["name"].endswith(".xlsx"))
+        self.assertTrue(re.fullmatch(r"[A-Za-z0-9+/=]+", got["client_workbook"]["base64"]))
         self.assertLess(excel_client.MAX_WORKBOOK_BYTES, publish.MAX_BYTES)
 
 
@@ -270,15 +296,13 @@ class Published(unittest.TestCase):
         a = publish.build(self.store, "PUB", self.day, EMPTY_BRANDING, number=1)
         b = publish.build(self.store, "PUB", self.day, EMPTY_BRANDING, number=1, workbook=False)
         self.assertEqual(a["body"], b["body"])
-        self.assertNotIn("workbook", self.block(a))
-        self.assertNotIn("workbook_note", self.block(a))
+        self.assertFalse({"client_workbook", "client_workbook_too_large", "past_reports"} & set(self.block(a)["data"]))
 
     def test_on_embeds_a_workbook_equal_to_the_stand_alone_one(self):
         built = publish.build(self.store, "PUB", self.day, EMPTY_BRANDING, number=1, workbook=True)
-        got = self.block(built)["workbook"]
-        data = base64.b64decode(got["b64"], validate=True)
+        got = self.block(built)["data"]["client_workbook"]
+        data = base64.b64decode(got["base64"], validate=True)
         self.assertEqual(data, excel_client.workbook_bytes(built["published"]))
-        self.assertEqual(got["mime"], excel_client.MIME)
         zipfile.ZipFile(io.BytesIO(data)).testzip()
         load_workbook(io.BytesIO(data))
         text = built["body"].decode("utf-8")
@@ -298,15 +322,19 @@ class Published(unittest.TestCase):
         with mock.patch.object(excel_client, "MAX_WORKBOOK_BYTES", 100):
             built = publish.build(self.store, "PUB", self.day, EMPTY_BRANDING, number=1, workbook=True)
         block = self.block(built)
-        self.assertEqual(block["workbook_note"], "This report is too large to include a spreadsheet.")
-        self.assertNotIn("workbook", block)
+        self.assertIs(block["data"]["client_workbook_too_large"], True)
+        self.assertNotIn("client_workbook", block["data"])
 
     def test_a_workbook_that_cannot_be_made_does_not_stop_the_publish(self):
-        with mock.patch.object(excel_client, "workbook_bytes", side_effect=ValueError("boom")):
-            built = publish.build(self.store, "PUB", self.day, EMPTY_BRANDING, number=1, workbook=True)
+        with self.assertLogs("clark.publish", level="WARNING") as logged:
+            with mock.patch.object(excel_client, "workbook_bytes", side_effect=ValueError("ZQ-ROW-TEXT")):
+                built = publish.build(self.store, "PUB", self.day, EMPTY_BRANDING, number=1, workbook=True)
+        self.assertEqual(len(logged.records), 1)
+        self.assertIn("ValueError", logged.output[0])
+        self.assertNotIn("ZQ-ROW-TEXT", logged.output[0], "the class name only, never the message")
         block = self.block(built)
-        self.assertNotIn("workbook", block)
-        self.assertNotIn("workbook_note", block)
+        self.assertFalse({"client_workbook", "client_workbook_too_large"} & set(block["data"]))
+        self.assertFalse({"workbook", "workbook_note"} & set(block))
 
     def test_the_flow_turns_it_on(self):
         self.assertIs(publish_flow.CLIENT_WORKBOOK, True)

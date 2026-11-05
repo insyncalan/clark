@@ -6,12 +6,11 @@ state `select` left out cannot reach it. Client wording (client_message) stands 
 It is read-only by intent: no export id (so the import will not accept it), no history, no hidden Lists sheet, no internal
 cover, no comments, no formulas, no links, no data rules. The author is the fixed neutral name the owner export uses.
 
-`embed(published)` returns what the page's data block carries, a dict with exactly one of two keys:
-    {"workbook": {"name": "<file name>.xlsx", "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                  "b64": "<the .xlsx, base64, no line breaks>"}}
-    {"workbook_note": "This report is too large to include a spreadsheet."}
-The page offers a download from `workbook` (a data: URI of mime and b64), or shows `workbook_note` in its place; with neither key
-there is nothing to offer. Over MAX_WORKBOOK_BYTES the workbook is not embedded.
+`embed(published)` returns what goes at the top level of the page's data (published["data"]), the names the page menu reads
+(clientMenu.js), a dict with exactly one key:
+    {"client_workbook": {"name": "<file name>.xlsx", "base64": "<the .xlsx, base64, no line breaks>"}}
+    {"client_workbook_too_large": True}        a real boolean, when the workbook is over MAX_WORKBOOK_BYTES; the page draws its own sentence
+With neither key there is nothing to offer.
 """
 import base64
 import html
@@ -28,8 +27,7 @@ from clark import excel
 from clark import excel_colours as colours
 from clark import platform, publish, sanitise
 
-MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-TOO_LARGE = "This report is too large to include a spreadsheet."
+NAME = re.compile(r'[^\\/:*?"<>|\x00-\x1f]{1,120}')      # what the page accepts as a download name
 # The cap: 1.5 MB of workbook (about 2 MB as base64). The published file is already refused over publish.MAX_BYTES (5 MB), and
 # the page, its styles and its data come first; 2 MB of text in the data block leaves room for them, and a 1.5 MB workbook is
 # some 30,000 rows of client text, far past any report.
@@ -176,8 +174,12 @@ def file_name(published):
 
 
 def embed(published):
-    """What the data block carries for the workbook: {"workbook": {...}} or, over the cap, {"workbook_note": TOO_LARGE}."""
+    """What the page's data holds for the workbook: {"client_workbook": {"name", "base64"}} or, over the cap,
+    {"client_workbook_too_large": True}."""
     data = workbook_bytes(published)
     if len(data) > MAX_WORKBOOK_BYTES:
-        return {"workbook_note": TOO_LARGE}
-    return {"workbook": {"name": file_name(published), "mime": MIME, "b64": base64.b64encode(data).decode("ascii")}}
+        return {"client_workbook_too_large": True}
+    name = file_name(published)
+    if not NAME.fullmatch(name):                  # the page's own rule for a download name
+        name = "report.xlsx"
+    return {"client_workbook": {"name": name, "base64": base64.b64encode(data).decode("ascii")}}
