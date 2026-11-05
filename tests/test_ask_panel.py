@@ -228,15 +228,28 @@ class Panel(Base):
             p.until("document.querySelector('#ask-panel') === null && location.hash.indexOf('settings') === 1", "the link went to Settings and closed the panel")
             self.assertEqual(self.stub.count("ask"), 0, "no question reached the server")
 
-    def test_it_reads_as_off_until_the_server_answers(self):
+    def test_it_says_nothing_of_off_or_signed_out_until_the_server_answers(self):
         self.stub.status_hold.clear()
         with chrome() as cdp:
             p = self.opened(cdp, ready=False)
-            self.assertTrue(p.js("!!document.querySelector('#ask-off')"), "off while the answer is awaited")
+            self.assertTrue(p.js("document.querySelector('#ask-off') === null && document.querySelector('#ask-signed-out') === null"), "no off or signed-out line while the answer is awaited")
+            self.assertNotIn("Asking is off", p.js("document.querySelector('#ask-panel').innerText"))
             self.assertTrue(p.js("document.querySelector('#ask-box').disabled"))
             self.stub.status_hold.set()
             p.until("!document.querySelector('#ask-box').disabled", "ready once the server said so")
             self.assertTrue(p.js("document.querySelector('#ask-off') === null"))
+
+    def test_a_slow_server_shows_no_off_line_until_it_answers_that_asking_is_off(self):
+        self.stub.enabled = False
+        self.stub.status_hold.clear()
+        with chrome() as cdp:
+            p = self.opened(cdp, ready=False)
+            time.sleep(0.5)
+            self.assertTrue(p.js("document.querySelector('#ask-off') === null"), "no off line while pending")
+            self.assertNotIn("Asking is off", p.js("document.querySelector('#ask-panel').innerText"))
+            self.stub.status_hold.set()
+            p.until("!!document.querySelector('#ask-off')", "the off line once the server said off")
+            self.assertIn("Asking is off", p.js("document.querySelector('#ask-panel').innerText"))
 
     def test_asking_that_the_server_turned_off_meanwhile_reads_as_off(self):
         with chrome() as cdp:
