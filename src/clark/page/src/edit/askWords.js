@@ -117,5 +117,6 @@ export const FIELD_NAMES = {
   due_date: "Due", status: "Status", workstream: "Workstream", milestone: "Milestone", impact: "Impact", likelihood: "Likelihood",
   date: "Date", needed_by: "Needed by", baseline_date: "Agreed date", forecast_date: "Forecast", actual_date: "Achieved",
   closed: "Closed on", raised: "Raised", type: "Type",
+  headline: "Headline", standing: "Where it stands", commitment: "Commitment",      // a use case (issue 729): the words its editor uses
 };
 export const KIND_NAMES = { actions: "Action", decisions: "Decision", milestones: "Milestone", raid: "Risk or issue" };
