@@ -141,6 +141,7 @@ def write_sheet(wb, published, table):
             cell.alignment = Alignment(wrap_text=True, vertical="top")
             if field in DATE_FIELDS:
                 cell.number_format = excel.DATE_FORMAT
+                cell.alignment = Alignment(horizontal="left", wrap_text=True, vertical="top")      # a date is not flush to the next column's text
             excel.protect_text_cell(cell)
             if EDITOR_FIELD.get(field, field) not in editor_locked:       # the export's rule (item 727): only these stay editable
                 cell.protection = excel.UNLOCKED
