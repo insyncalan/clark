@@ -266,10 +266,9 @@ function List({ Board, Cell, Eye, Bulk, HandOver, L }) {
       {Bulk ? <Bulk.Layer /> : null}
       <div class="factive">
         <span id="work-count" class="num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
-        {can ? <button type="button" class="link" id="clearAll" onClick={clear}>Clear all</button> : null}
       </div>
       {filtered.length === 0
-        ? <div class="empty"><p class="muted">No items match these filters.</p>{can ? <button type="button" class="btn" id="clearAll2" onClick={clear}>Clear all</button> : null}</div>
+        ? <div class="empty"><p class="muted">{L.empty.none}</p>{can ? <button type="button" class="link" id="clearFilter" onClick={clear}>{L.empty.clear}</button> : null}</div>
         : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} />}
     </div>
   );

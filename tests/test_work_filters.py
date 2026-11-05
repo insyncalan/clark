@@ -113,16 +113,22 @@ TYPE_LINES = {"all": "is:open", "action": "is:open type:action", "decision": "is
 
 
 def set_line(cdp, sid, text):
-    """Replace the one filter line (#153): click its box, take every chip off with Backspace, type the new line and press Enter."""
+    """Replace the one filter line (issue 662): click its box, select what is in it, type the new line, and wait for the pause after which the
+    list follows the box (the box holds the whole line, and the list changes about 400 ms after the last key, not on Enter)."""
     click(cdp, sid, "#fline-input")
-    for _ in range(20):
-        if cdp.js("document.querySelectorAll('.fline .fchip').length", sid) == 0:
-            break
-        key(cdp, sid, "Backspace")
+    cdp.js("document.querySelector('#fline-input').select()", sid)
     if text:
         cdp.call("Input.insertText", {"text": text}, sid)
-        key(cdp, sid, "Enter")
-    wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == "")
+    else:
+        key(cdp, sid, "Backspace")
+    wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == text)
+    pause(cdp, sid)
+
+
+def pause(cdp, sid):
+    """Wait out the filter line's pause: the line the page holds (the kept one) is the line in the box."""
+    wait(lambda: cdp.js("(() => { try { const k = JSON.parse(sessionStorage.getItem('clark.fline') || '{}'); const v = Object.values(k)[0]; "
+                        "return v === undefined ? document.querySelector('#fline-input').value === 'is:open' : v === document.querySelector('#fline-input').value; } catch (e) { return true; } })()", sid))
 
 
 def page_rows(data, code):
@@ -664,6 +670,7 @@ class RealBrowser(unittest.TestCase):
             # the filter line's suggestions and the Add menu take the dark values too (colours come from the tokens only)
             cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
             click(cdp, sid, "#fline-input")
+            cdp.js("document.querySelector('#fline-input').select()", sid)
             cdp.call("Input.insertText", {"text": "st"}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)))
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#fline-list')).backgroundColor", sid), "rgb(14, 45, 56)")

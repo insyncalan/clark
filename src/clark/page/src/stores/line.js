@@ -4,8 +4,9 @@
 // Only the served page's entry loads this file (see lineSlot.js).
 import { signal, computed } from "@preact/signals";
 import { project, rows, filterState, f, refusals, filterNote, filterCtx, setFilters } from "./report.js";
-import { decode, encode, fits, setMode as stateMode, setType as stateType, MODES, TYPES } from "../filters.js";
+import { decode, encode, fits, MODES, TYPES } from "../filters.js";
 import * as FL from "../logic/filterLine.js";
+import * as Q from "../logic/filterQueryUi.js";
 
 const session = () => { try { return window.sessionStorage; } catch (e) { return null; } };
 export const local = () => { try { return window.localStorage; } catch (e) { return null; } };
@@ -56,8 +57,8 @@ function usable(want) {
 function view(rows_, ctx) {
   const line = lineText.value;
   return {
-    state: FL.toState(line, rows_, ctx).state, rows: FL.apply(rows_, line, ctx),
-    can: FL.canClear(line, rows_, ctx), clear: () => setLine(FL.BASE),
+    state: FL.toState(line, rows_, ctx).state, rows: Q.rowsFor(rows_, line, ctx),
+    can: line.trim() !== "", clear: () => setLine(""),
   };
 }
 
@@ -70,19 +71,15 @@ function restore() {
 /** The app's Work items page opened with a state (a tile): keep it as the project's line. */
 function remember(code, state) { FL.linePut(session(), code, FL.fromState(state)); memo.value++; }
 
-// The type and Open / Closed / All switches (with the counts that were always shown): the line with that one thing changed, keeping
-// everything the older state cannot hold (a search word, `today`). A count is the number of rows that line would show.
-const rebuild = (line, rows_, ctx, change) => {
-  const t = FL.toState(line, rows_, ctx), next = FL.fromState(change(t.state));
-  return FL.normalise([next, ...t.rest].filter(Boolean).join(" "), rows_, ctx);
-};
+// The type and Open / Closed / All switches (with the counts that were always shown): the line with that one thing changed, everything else in it
+// left as typed. A count is the number of rows that line would show.
 function switches(rows_, ctx) {
   const line = lineText.value, st = FL.toState(line, rows_, ctx).state, n = {}, t = {};
-  for (const [v] of MODES) n[v] = FL.apply(rows_, rebuild(line, rows_, ctx, (s0) => stateMode(s0, v)), ctx).length;
-  for (const [v] of TYPES) t[v] = FL.apply(rows_, rebuild(line, rows_, ctx, (s0) => stateType(s0, v)), ctx).length;
+  for (const [v] of MODES) n[v] = Q.rowsFor(rows_, Q.withMode(line, v, rows_, ctx), ctx).length;
+  for (const [v] of TYPES) t[v] = Q.rowsFor(rows_, Q.withType(line, v, rows_, ctx), ctx).length;
   return { state: st, n, t };
 }
-const pickMode = (v) => setLine(rebuild(lineText.value, rows.value, filterCtx(), (s0) => stateMode(s0, v)));
-const pickType = (v) => setLine(rebuild(lineText.value, rows.value, filterCtx(), (s0) => stateType(s0, v)));
+const pickMode = (v) => setLine(Q.withMode(lineText.value, v, rows.value, filterCtx()));
+const pickType = (v) => setLine(Q.withType(lineText.value, v, rows.value, filterCtx()));
 
-export const LINE_CORE = { lineText, setLine, view, switches, pickMode, pickType, restore, remember, usable, base: FL.BASE, apply: (rows_, ctx) => FL.apply(rows_, lineText.value, ctx), toState: (rows_, ctx) => FL.toState(lineText.value, rows_, ctx).state };
+export const LINE_CORE = { empty: Q.EMPTY, lineText, setLine, view, switches, pickMode, pickType, restore, remember, usable, base: FL.BASE, apply: (rows_, ctx) => Q.rowsFor(rows_, lineText.value, ctx), toState: (rows_, ctx) => FL.toState(lineText.value, rows_, ctx).state };

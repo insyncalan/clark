@@ -82,7 +82,7 @@ function cut(line) {
 }
 const unquote = (s) => s.replace(/"/g, "");
 // The first colon outside quotes, or -1.
-function colonAt(s) {
+export function colonAt(s) {
   let q = false;
   for (let i = 0; i < s.length; i++) { if (s[i] === '"') q = !q; else if (s[i] === ":" && !q) return i; }
   return -1;

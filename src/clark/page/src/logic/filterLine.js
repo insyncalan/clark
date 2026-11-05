@@ -48,7 +48,7 @@ const isWords = () => [["open", "Open"], ["closed", "Closed"], ["overdue", "Open
 // a date to count from (hasReviewDates), or when the page says so; `is:incomplete` needs only the owner and the date, so it is always on.
 const NOT_YET = { needed: "Work needed from the client", archived: "Archived work" };
 const quietOn = (rows, ctx) => !!(ctx && ctx.isReady) || (rows || []).some((r) => r && r.reviewed) || hasReviewDates(rows);
-const isOn = (v, ctx, rows) => (v === "quiet" ? quietOn(rows, ctx) : !own(NOT_YET, v) || !!(ctx && ctx.isReady));
+export const isOn = (v, ctx, rows) => (v === "quiet" ? quietOn(rows, ctx) : !own(NOT_YET, v) || !!(ctx && ctx.isReady));
 const PLURAL = { owner: "owners", workstream: "workstreams", usecase: "use cases", milestone: "milestones" };
 const CLIENT_WORDS = [["shown", "Shown to the client"], ["internal", "Internal only"]];
 const gloss = () => ({ quiet: staleWords(), incomplete: "No owner or no date" });
@@ -121,7 +121,7 @@ const TYPED = {
   owner: { none: NONE }, priority: { none: NONE }, workstream: { none: NONE }, usecase: { none: NONE }, milestone: { none: NONE },
 };
 const SHOWN = { due: { soon: "next-7-days" }, client: { yes: "shown", no: "internal" } };
-const word = (field, v) => (v === NONE || (field === "due" && v === "none") ? "none" : (own(SHOWN, field) && own(SHOWN[field], v)) || v);
+export const word = (field, v) => (v === NONE || (field === "due" && v === "none") ? "none" : (own(SHOWN, field) && own(SHOWN[field], v)) || v);
 export const stored = (field, w) => { const m = TYPED[field]; return m && Object.prototype.hasOwnProperty.call(m, low(w)) ? m[low(w)] : w; };
 
 // The page may also pass the project's own lists in ctx: `workstreams` (names, in the project's order) and `milestones` (names, or
@@ -372,7 +372,7 @@ export function removeLast(line, rows, ctx) {
 export function addText(line, extra, rows, ctx) { return normalise(`${String(line || "").trim()} ${extra}`, rows, ctx); }
 
 // The one-line note beside each field when the box is opened empty (the list of fields, as the prototype shows it).
-const FIELD_NOTES = {
+export const FIELD_NOTES = {
   is: "Open, closed, overdue, not reviewed…", type: "Action, risk, issue or decision", status: "Where the item has got to", owner: "Who it is with",
   priority: "Urgent, High, Medium or Low", due: "Overdue, today, in the next 7 days…", workstream: "The workstream", usecase: "The use case it belongs to",
   milestone: "The milestone it feeds", client: "Shown to the client, or internal only", no: "Has no owner, date, workstream…",
