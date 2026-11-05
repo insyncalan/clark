@@ -138,7 +138,7 @@ class Page(Base):
             self.assertFalse(cdp.js("!!document.querySelector('#hand-over')", sid), "no owner filter")
         with chrome() as cdp:
             sid = self.load(cdp, SARA, edit=False)
-            self.assertFalse(cdp.js("!!document.querySelector('#hand-over')", sid), "not in View")
+            self.assertTrue(cdp.js("!!document.querySelector('#hand-over')", sid), "in View too: Work items have no mode (row 824)")
 
     # ---- pick mode ----
     def test_pick_mode_ticks_open_items_only_and_counts_them(self):
