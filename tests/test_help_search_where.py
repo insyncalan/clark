@@ -48,9 +48,9 @@ def fixture_content():
 
 PROBE = """(() => {
   const idx = HL.buildIndex(), out = {};
-  for (const q of ["wombat", "zebra", "quokka", "ocelot", "lemur", "numbat", "Fixture", "undo", "zzzqq"]) {
+  for (const q of ["wombat", "zebra", "quokka", "ocelot", "lemur", "numbat", "Fixture", "undo", "keyboard", "zzzqq"]) {
     const v = HL.resultsView(idx, q);
-    out[q] = { kind: v.kind, line: v.line, lead: v.lead, rows: v.groups.flatMap((g) => g.results.map((r) => ({ id: r.id, tab: r.tab, where: r.where, text: r.text, labels: HL.whereLabels(r.where) }))) };
+    out[q] = { kind: v.kind, title: v.title, line: v.line, lead: v.lead, rows: v.groups.flatMap((g) => g.results.map((r) => ({ id: r.id, tab: r.tab, where: r.where, text: r.text, labels: HL.whereLabels(r.where) }))) };
   }
   return out;
 })()"""
@@ -60,7 +60,7 @@ class Logic(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.r = run_node(fixture_content(), PROBE)
-        cls.shipped = run_node(RAW, "(() => { const v = HL.resultsView(HL.buildIndex(), 'undo'); return { kind: v.kind, lead: v.lead }; })()")
+        cls.shipped = run_node(RAW, "(() => { const v = HL.resultsView(HL.buildIndex(), 'undo'); return { kind: v.kind, lead: v.lead, guide: v.groups.some((g) => g.results.some((r) => r.id.startsWith('guide-'))) }; })()")
 
     def row(self, q, gid):
         return next(x for x in self.r[q]["rows"] if x["id"] == gid)
@@ -93,10 +93,25 @@ class Logic(unittest.TestCase):
         if rows[0]["where"]["step"]:
             self.assertTrue(1 <= rows[0]["where"]["step"]["n"] <= len(task["s"]))
 
-    def test_the_lead_names_the_guide_so_it_is_shown_only_when_a_guide_ships(self):
+    def test_the_lead_names_the_guide_so_it_is_shown_only_when_a_result_is_a_guide(self):
         self.assertEqual(self.shipped["kind"], "results")
-        self.assertEqual(self.shipped["lead"], LEAD if RAW["guides"] else None, "the sentence that says 'the guide' is shown when guides ship (nine do)")
+        self.assertEqual(self.shipped["lead"], LEAD if self.shipped["guide"] else None, "the sentence is shown iff a shipped guide is among the results")
         self.assertEqual(self.r["wombat"]["lead"], LEAD)
+        self.assertEqual(self.r["Fixture"]["lead"], LEAD)
+        for q in ("undo", "keyboard"):
+            v = self.r[q]
+            self.assertEqual(v["kind"], "results", q)
+            self.assertFalse(any(x["id"].startswith("guide-") for x in v["rows"]), q)
+            self.assertIsNone(v["lead"], q)
+
+    def test_no_results_have_no_lead_and_the_no_results_words_are_unchanged(self):
+        self.assertEqual(self.r["zzzqq"]["kind"], "empty")
+        self.assertNotIn("lead", self.r["zzzqq"])
+        self.assertEqual(self.r["zzzqq"]["title"], "Nothing in Help for “zzzqq”")
+
+    def test_the_lead_follows_the_result_set_as_it_changes(self):
+        got = run_node(fixture_content(), """(() => { const idx = HL.buildIndex(); return ["wombat", "undo", "wombat undo", "wombat", "zzzqq"].map((q) => HL.resultsView(idx, q).lead || null); })()""")
+        self.assertEqual(got, [LEAD, None, None, LEAD, None])
 
     def test_the_count_line_and_the_lead_are_the_signed_words(self):
         v = self.r["wombat"]
@@ -171,6 +186,23 @@ class Page(Base):
             self.assertEqual(p.js("document.querySelector('#hpRes a.hp-r[data-hit=\"guide-fx-plain\"] [data-where=step]').textContent"), "Step 1")
             self.search(cdp, p, "tapir")
             self.assertEqual(p.js("!!document.querySelector('#hpRes a.hp-r[data-hit=\"guide-fx-plain\"] [data-where]')"), False, "the result line names no step")
+
+    def test_the_lead_line_is_in_the_page_only_while_a_result_is_a_guide(self):
+        from test_server import chrome
+        lead = "document.querySelectorAll('#hpRes .hp-resl')"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            full_help_from_menu(p)
+            self.search(cdp, p, "wombat")
+            self.assertEqual(p.js(f"{lead}.length"), 1)
+            self.assertEqual(p.js(f"{lead}[0].textContent"), LEAD)
+            self.assertEqual(p.js("document.querySelector('#hpRes .hp-resl').getAttribute('role')"), None, "the sentence is not a live region")
+            self.search(cdp, p, "undo")
+            self.assertEqual(p.js(f"{lead}.length"), 0, "no guide result: no line and no empty element")
+            self.assertEqual(p.js("document.querySelectorAll('#hpRes [role=status]').length"), 1, "only the count line is announced")
+            self.assertEqual(p.js("document.querySelectorAll('#hpRes p:empty').length"), 0)
+            self.search(cdp, p, "wombat")
+            self.assertEqual(p.js(f"{lead}.length"), 1)
 
     def test_a_result_still_opens_its_guide(self):
         from test_server import chrome
