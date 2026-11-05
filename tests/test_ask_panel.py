@@ -219,16 +219,35 @@ class Panel(Base):
         self.stub.enabled = False
         with chrome() as cdp:
             p = self.opened(cdp, ready=False)
-            p.until("document.querySelector('#ask-off') && document.querySelector('#ask-status').textContent === ''", "the off line")
+            p.until("document.querySelector('#ask-off') && document.querySelector('#ask-status').textContent !== ''", "the off line")
+            self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Ask about this project.", "row 795: the greeting stays while asking is off")
+            self.assertTrue(p.js("document.querySelector('#ask-status').compareDocumentPosition(document.querySelector('#ask-off')) & Node.DOCUMENT_POSITION_FOLLOWING"), "the amber line sits under the status line")
             self.assertEqual(p.js("document.querySelector('#ask-off').firstChild.textContent.trim()"), "Asking is off. Turn it on in Settings.")
             self.assertTrue(p.js("document.querySelector('#ask-box').disabled"))
             self.assertTrue(p.js("document.querySelector('#ask-send').disabled"))
+            # row 795: the panel keeps its suggestions with asking off, but they are disabled and send nothing
+            self.assertEqual(p.js("document.querySelectorAll('#ask-pills button').length"), 6)
+            self.assertTrue(p.js("[...document.querySelectorAll('#ask-pills button')].every(b => b.disabled && b.getAttribute('aria-disabled') === 'true')"))
+            p.js("document.querySelector('#ask-pills button').click()")
+            p.js("document.querySelector('#ask-pills button').dispatchEvent(new MouseEvent('click', {bubbles: true}))")
+            self.assertEqual(p.js("document.querySelectorAll('.ask-turn').length"), 0, "a suggestion pressed with asking off adds nothing")
             p.js("document.querySelector('.ask-form').requestSubmit()")
             p.js("document.querySelector('#ask-box').value = 'hello'; document.querySelector('#ask-box').dispatchEvent(new Event('input'))")
             p.js("document.querySelector('.ask-form').requestSubmit()")
             p.js("document.querySelector('[data-ask-settings]').click()")
             p.until("document.querySelector('#ask-panel') === null && location.hash.indexOf('settings') === 1", "the link went to Settings and closed the panel")
             self.assertEqual(self.stub.count("ask"), 0, "no question reached the server")
+            # row 795: turning Asking back on restores working suggestions, the box and the greeting
+            self.stub.enabled = True
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel')", "reopened")
+            p.until("!document.querySelector('#ask-box').disabled", "ready again")
+            self.assertEqual(p.js("document.querySelector('#ask-off')"), None)
+            self.assertEqual(p.js("document.querySelectorAll('#ask-pills button').length"), 6)
+            self.assertTrue(p.js("[...document.querySelectorAll('#ask-pills button')].every(b => !b.disabled && !b.hasAttribute('aria-disabled'))"))
+            p.js("document.querySelector('#ask-pills button').click()")
+            p.until("document.querySelectorAll('.ask-turn').length === 2", "a suggestion asks again")
+            self.assertEqual(self.stub.count("ask"), 1)
 
     def test_it_says_nothing_of_off_or_signed_out_until_the_server_answers(self):
         self.stub.status_hold.clear()
