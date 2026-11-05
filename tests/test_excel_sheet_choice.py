@@ -94,15 +94,53 @@ class Listing(Sheets):
         wb.save(str(self.path))
         self.assertEqual({s["table"]: s["rows"] for s in self.sheets()[1]["sheets"]}["decisions"], 5001)
 
-    def test_a_sheet_of_exactly_5000_rows_shows_its_number(self):
+    def decisions_with(self, data_rows, stray=None):
+        """Decisions holding exactly `data_rows` rows with something in them (rows 2 and up), and a far-off cell at row `stray` if given."""
         wb = load_workbook(str(self.path))
         ws = wb["Decisions"]
-        for r in range(2, 5002):                      # data rows 2 to 5001: exactly 5,000 of them
-            ws.cell(r, 2).value = f"Filler {r}"
-        for r in range(5002, ws.max_row + 1):
+        for r in range(2, ws.max_row + 1):
             ws.cell(r, 2).value = None
+        for r in range(2, data_rows + 2):
+            ws.cell(r, 2).value = f"Filler {r}"
+        if stray:
+            ws.cell(stray, 1).value = "far off"
         wb.save(str(self.path))
-        self.assertEqual({s["table"]: s["rows"] for s in self.sheets()[1]["sheets"]}["decisions"], 5000)
+
+    def decisions_rows(self):
+        return {s["table"]: s["rows"] for s in self.sheets()[1]["sheets"]}["decisions"]
+
+    def test_a_sheet_of_4999_rows_shows_its_number(self):
+        # Row 1 is the header, so 4,999 data rows end at row 5,000: the last size the check's size test (MAX_SHEET_ROWS) lets through.
+        # (The check then refuses it in words for holding more than MAX_ROWS rows with something in them: a separate, lower limit.)
+        self.decisions_with(4999)
+        self.assertEqual(self.decisions_rows(), 4999)
+
+    def test_a_sheet_of_exactly_5000_rows_is_listed_as_over_the_limit_because_ticking_it_is_refused(self):
+        self.decisions_with(5000)
+        self.assertEqual(self.decisions_rows(), excel_import.MAX_SHEET_ROWS + 1)
+        status, listed = self.sheets()
+        status, got = self.post(op="check", project="ABC", file=listed["file"], sheets=["decisions"])
+        self.assertEqual(status, 400, "the list and the limit agree: what is labelled 'more than 5,000 rows' is refused")
+
+    def test_a_sheet_of_5001_rows_is_listed_as_over_the_limit(self):
+        self.decisions_with(5001)
+        self.assertEqual(self.decisions_rows(), excel_import.MAX_SHEET_ROWS + 1)
+
+    def test_a_few_rows_and_one_far_off_cell_is_listed_as_over_the_limit_as_the_check_reads_it(self):
+        self.decisions_with(3, stray=excel_import.MAX_SHEET_ROWS + 50)
+        self.assertEqual(self.decisions_rows(), excel_import.MAX_SHEET_ROWS + 1)
+
+    def test_a_stray_cell_inside_the_limit_does_not_change_the_count(self):
+        self.decisions_with(3)
+        plain = self.decisions_rows()
+        self.decisions_with(3, stray=excel_import.MAX_SHEET_ROWS)
+        self.assertEqual(self.decisions_rows(), plain + 1, "the stray cell's row is a row with something in it, nothing more")
+
+    def test_a_sheet_wider_than_the_limit_is_listed_as_over_the_limit_as_the_check_reads_it(self):
+        wb = load_workbook(str(self.path))
+        wb["Decisions"].cell(2, excel_import.MAX_SHEET_COLUMNS + 5).value = "far right"
+        wb.save(str(self.path))
+        self.assertEqual(self.decisions_rows(), excel_import.MAX_SHEET_ROWS + 1)
 
     def test_not_a_workbook_is_refused_in_words(self):
         status, got = self.post(op="sheets", project="ABC", name="x.xlsx", data=__import__("base64").b64encode(b"nope").decode())

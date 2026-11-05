@@ -917,8 +917,9 @@ def list_sheets(path):
     """The sheets of the workbook at `path` that clark imports, for the person to choose from (#655): [{"table", "name", "rows"}] in
     CHOICE_ORDER, "rows" being the rows below the header with something in them. A sheet the file does not have is not listed; a
     History sheet (or any other) is never listed. Nothing is compared or written, and no cell is built beyond the first
-    MAX_SHEET_ROWS + 1 rows below the header, so a huge sheet is counted up to one past the limit ("rows" is then above 5,000: the box says
-    "more than 5,000 rows"), not read (ticking it is what makes the check refuse it, in words)."""
+    MAX_SHEET_ROWS + 1 rows below the header. A sheet that read_workbook would refuse for its size (it reaches past row MAX_SHEET_ROWS, so
+    the header leaves 4,999 data rows, or past MAX_SHEET_COLUMNS, or has too many cells) is given "rows" = MAX_SHEET_ROWS + 1, above
+    5,000: the box says "more than 5,000 rows", so the list never promises what ticking would refuse. It is not read (ticking it is what makes the check refuse it, in words)."""
     path = Path(path)
     try:
         excel.check_workbook_size(path)
@@ -941,6 +942,13 @@ def list_sheets(path):
             for row in ws.iter_rows(min_row=2, max_row=MAX_SHEET_ROWS + 2, max_col=MAX_SHEET_COLUMNS, values_only=True):
                 if any(v is not None and not (isinstance(v, str) and not v.strip()) for v in row):
                     rows += 1
+            # The same test read_workbook applies: the sheet's reach (a far-off cell or a very wide sheet counts, empty cells included),
+            # not only the rows with something in them. A sheet with 5,000 rows with something in them reaches row 5,001 or further,
+            # so it is over the limit too. Such a sheet is given the count one past the limit: the page says "more than 5,000 rows".
+            reach_rows, reach_cols = ws.max_row or 0, ws.max_column or 0
+            if (reach_rows > MAX_SHEET_ROWS or reach_cols > MAX_SHEET_COLUMNS or reach_rows * reach_cols > MAX_SHEET_CELLS
+                    or rows >= MAX_SHEET_ROWS):
+                rows = MAX_SHEET_ROWS + 1
             found[table] = (ws.title, rows)
         return [{"table": t, "name": SHEET_NAMES[t], "rows": found[t][1]} for t in CHOICE_ORDER if t in found]
     finally:
