@@ -187,7 +187,7 @@ def _sheets(store, req, project, clock):
     workbook is kept (as a check is) so the check that follows names it by `file` and the page does not send it again."""
     now, folder, file = _staged_file(req, clock)
     try:
-        listed = word_route._excel_import().list_sheets(file)
+        listed = word_route._excel_import().list_sheets(file, store)
     except BaseException:
         shutil.rmtree(folder, ignore_errors=True)
         raise

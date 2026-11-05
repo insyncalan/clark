@@ -27,6 +27,23 @@ def tracked(*paths):
     return [p for p in out.decode("utf-8").split("\0") if p]
 
 
+PRODUCT_NAME_START = re.compile(r"^\s*(?:[-*]\s+|\d+[.)]\s+)?clark\b", re.IGNORECASE)     # CLARK_PORT=... is a setting, not the name
+
+
+def starts_with_product_name(text):
+    """The lines of `text` that start with the word clark (after indent and a list marker), in any case."""
+    return [line for line in text.splitlines() if PRODUCT_NAME_START.match(line)]
+
+
+class ProductNameGuardTest(unittest.TestCase):
+    def test_guard_trips_on_any_line_that_starts_with_the_name(self):
+        """issue 719: not only "clark's own": any START-HERE line starting with the word clark is caught; settings are not."""
+        for line in ("clark starts here.", "  Clark is a program.", "- clark.command starts it.", "3. CLARK keeps data.", "clark's own files"):
+            self.assertEqual([line], starts_with_product_name(f"fine line\n{line}\nfine"), line)
+        for line in ("        CLARK_PORT=8800 docker compose up -d", "Open clark.", "The clark folder"):
+            self.assertEqual([], starts_with_product_name(line), line)
+
+
 class MacZipTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -263,14 +280,14 @@ class MacZipTest(unittest.TestCase):
         """issue 694: the one-folder download is described, and an update by hand is told as six short numbered steps."""
         text = package.start_here("mac")
         flat = " ".join(text.split())
-        self.assertIn("What is in this folder: README.md says what clark is. START-HERE.txt is this page. The file clark.command starts clark. "
+        self.assertIn("What is in this folder: README.md says what clark is. START-HERE.txt is this page. Double-click clark.command to start clark. "
                       "docker is for starting clark with Docker. system/branding holds your own logo and colours, if you add them. "
-                      "The program's own files are in a hidden folder called .app: you do not need to open it.", flat)
+                      "The program files are in a hidden folder called .app: you do not need to open it.", flat)
         self.assertLess(flat.index("These steps are for a Mac."), flat.index("What is in this folder:"))
         self.assertIn("If an earlier Docker start kept your data in a data folder inside the clark folder, move that data folder out of the "
                       "clark folder first, or name it with CLARK_DATA_DIR. By default clark.command and Docker use the same data.", flat)
-        for line in text.splitlines():
-            self.assertFalse(line.lstrip().lower().startswith("clark's own"), line)     # a sentence does not start with the product name
+        for block in (text, package.START_HERE_MAC, package.START_HERE_DEMO):
+            self.assertEqual(starts_with_product_name(block), [])     # a sentence does not start with the product name
         self.assertLess(flat.index("What is in this folder:"), flat.index("If your Mac will not open"))
         steps = ["If you already have clark:", "1. Close clark.", "2. Rename your old clark folder (for example to clark-old) or move it away, "
                  "so the two folders do not clash.", "3. Unzip this download.", "4. If you added your own logo or colours, copy the "
@@ -547,7 +564,7 @@ class DefaultAudienceTest(unittest.TestCase):
     """The audience line of a default build (not --for-client) follows the tree: a tree that tracks any private-only path
     is for the team only, whatever else is true of it; a tree that tracks none is built from the public repository (#463).
     Small temporary repos only."""
-    PUBLIC = "This download is built from the public repository; it holds none of the team's private notes."
+    PUBLIC = "This download holds none of the team's private notes."
     TEAM = "This download is for the team only; it is built from the private copy."
 
     def tree(self, extra=None):
@@ -590,6 +607,14 @@ class DefaultAudienceTest(unittest.TestCase):
         self.assertTrue(line.endswith(self.PUBLIC), line)
         self.assertNotIn("team only", line)
 
+    def test_the_public_line_one_is_the_ruled_sentence_and_never_says_repository(self):
+        """Row 759: the public build's line 1 is exactly this sentence and has no word 'repository'."""
+        start = self.small_build(self.tree())
+        first = start.splitlines()[0]
+        self.assertEqual("This download holds none of the team's private notes.", first)
+        self.assertNotIn("repository", first.lower())
+        self.assertFalse(first.lower().startswith("clark"))
+
     def test_a_tree_that_still_tracks_a_private_path_stays_team_only(self):
         for path in ("dev/HEAD-LOG.md", "docs/DECISIONS.md", "docs/TEAM-AND-ROLES.md", "docs/public/README.md"):
             with self.subTest(path=path):
@@ -599,6 +624,7 @@ class DefaultAudienceTest(unittest.TestCase):
                 start = self.small_build(root)
                 self.assertEqual(self.TEAM, start.splitlines()[0])
                 self.assertNotIn("built from the public repository", start)
+                self.assertEqual("This download is for the team only; it is built from the private copy.", start.splitlines()[0])
                 line = self.built_line(root)
                 self.assertTrue(line.endswith(self.TEAM), line)
 

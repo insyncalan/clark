@@ -110,8 +110,8 @@ export function Milestones({ tools }) {
 
 // The Settings head: the title, a line of help and one chip for each card that is on the page. A chip scrolls to its card and moves
 // focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
-// The row of chips (item 440, S2) is a bar of its own under the head: it stays under the top bar as you scroll, and the chip of the card
-// you are reading is marked (aria-current). The prototype's other chips wait for their cards.
+// The links (item 440, S2; issue 697) are a list down the left of the cards above 900 px and the old row of chips under the head at 900 px and
+// narrower. Either way it stays under the top bar as you scroll, and the link of the card you are reading is marked (aria-current).
 const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
   ["Projects", "Projects", "projects-h"], ["Data", "Data", "data-card-h"], ["Safety", "Backups", "safety-h"], ["Update", "", "update-h"],
   ["People", "People", "people-h"], ["AskSettings", "Asking", "ask-settings-h"]];       // in the order the cards are drawn; a card that is not on the page has no chip
@@ -131,7 +131,8 @@ function goToCard(headId) {
 function cardHere(cards, picked) {
   const bar = document.querySelector(".set-bar");
   if (!bar || !cards.length) return "";
-  const edge = bar.getBoundingClientRect().bottom + 24, foot = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+  const top = document.querySelector(".top"), row = window.matchMedia("(max-width: 900px)").matches;      // a row of chips has the cards under it; a list at the left has them beside it
+  const edge = (row ? bar : top || bar).getBoundingClientRect().bottom + 24, foot = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
   const chosen = picked && cardOf(picked);
   if (foot && chosen && chosen.getBoundingClientRect().top < window.innerHeight) return picked;
   let here = cards[0][2];
@@ -145,7 +146,7 @@ function SettingsHead({ cards }) {
   const ids = cards.map(([, , headId]) => headId).join(" ");
   useEffect(() => {
     const mark = () => setHere(cardHere(cards, picked.current));
-    // the bar's height (one row of chips or two) is room the browser keeps clear when it scrolls a card or a box into view (shell.css)
+    // the row's height (one row of chips or two) is room the browser keeps clear when it scrolls a card or a box into view (shell.css); a list at the left takes none
     const bar = document.querySelector(".set-bar"), root = document.documentElement;
     const room = () => { root.style.setProperty("--set-bar", `${bar ? bar.offsetHeight : 0}px`); mark(); };
     const seen = bar && window.ResizeObserver ? new ResizeObserver(room) : null;
@@ -189,8 +190,9 @@ export function Settings({ tools }) {
   const People = tools && tools.People;                  // the People card (item 454): email, organisation, role, Paste from Excel; Edit's page only
   const Projects = tools && tools.Projects;              // the projects table (A-S6); a published file has none
   return (
-    <>
+    <div class="set-layout">
       <SettingsHead cards={cards} />
+      <div class="set-cards">
       {ClientFolder ? <ClientFolder /> : null}
       {PublishedReports ? <PublishedReports /> : null}
       {Personal ? <Personal /> : null}
@@ -202,7 +204,8 @@ export function Settings({ tools }) {
       {Update ? <Update /> : null}
       {People ? <People /> : null}
       {AskSettings ? <AskSettings /> : null}
-    </>
+      </div>
+    </div>
   );
 }
 
