@@ -126,6 +126,8 @@ WAITING = [
      "PR 677", "release_files.py", 'EXTRA_TOP = ("meet clark", "intake")'),
     ("#717", "The download has an intake folder with a sample workbook of made-up data.",
      "PR 677", "release_files.py", 'EXTRA_TOP = ("meet clark", "intake")'),
+    ("#741", "START-HERE no longer carries a version number in its sentence about updating from inside clark.",
+     "no pull request yet (issue 741)", "", None),
     ("#698", "The README covers both ways to start clark, the check command, where data lives and has pictures (also #708).",
      "PR 682", "../../README.md", "docs/img/clark-mascot.png"),
     ("#712", "The design prototype's Past reports page keeps only the Published reports list (prototype only).",
