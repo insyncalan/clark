@@ -33,6 +33,7 @@ import heapq
 from datetime import date
 import html as htmllib
 import json
+import logging
 import os
 import re
 import secrets
@@ -291,9 +292,16 @@ def documents(rows, code, hidden_ids, hidden_types):
     (report_hidden), and only while the Supporting documents section is not hidden; each through _document."""
     if "docs" in hidden_types:
         return []
-    kept = (_document(r) for r in sorted(rows or (), key=lambda r: (r.get("sort_order") or 0, str(r.get("id"))))
-            if r.get("archived") == 0 and r.get("project", code) == code and r.get("id") not in hidden_ids)
-    return [_pick(c, PUBLISH_FIELDS["documents"]) for c in kept if c]
+    live = [r for r in sorted(rows or (), key=lambda r: (r.get("sort_order") or 0, str(r.get("id"))))
+            if r.get("archived") == 0 and r.get("project", code) == code and r.get("id") not in hidden_ids]
+    out = []
+    for r in live:
+        c = _document(r)
+        if c:
+            out.append(_pick(c, PUBLISH_FIELDS["documents"]))
+        else:                          # issue 610: a live document that cannot be published is logged (its id only: no title, no address)
+            logging.getLogger(__name__).warning("Document %s is not in the published file: its link, title or kind cannot be used.", r.get("id"))
+    return out
 
 
 OPEN_STEPS = ("Open", "Delayed")                                # an action's statuses that are still to do
