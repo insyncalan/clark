@@ -133,7 +133,7 @@ WAITING = [
     ("#709", "A use case carries a Commitment flag (Candidate, Committed, Planned 2027 or none) in the data, the published report, the Word copy and Excel (layout step 16).",
      "PR 673", "store.py", "SCHEMA_VERSION = 16"),
     ("#709", "In Edit a Commitment menu beside the status sets the flag, and the chip shows on the use case, the Use cases tab and the Dashboard rows.",
-     "no pull request yet (issue 709)", "", None),
+     "PR 692", "page/src/edit/CommitMenu.jsx", "Set commitment"),
     ("#713", "The published report has a Report menu with Profile, Export to Excel, Export to PDF, Past reports and Dark mode (Light, Dark, System default).",
      "PR 681", "page/src/components/ClientMenu.jsx", "Report menu"),
     ("#713", "Publishing makes the workbook that goes inside the published file, so Export to Excel and Past reports show there.",
