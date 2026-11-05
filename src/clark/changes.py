@@ -2417,6 +2417,35 @@ def make_change(path, onedrive_roots=None, by_user=None):
     return change
 
 
+def _section_body_shape(req):
+    """Refused unless `req` is the one request POST /api/section-body takes (#273): report_sections, update, `changes` holding a body
+    and nothing else. The words are the change path's own for the same fault; everything after this is the change path itself."""
+    if not isinstance(req, dict):
+        raise Refused(NOT_JSON_OBJECT)
+    if req.get("kind") != "report_sections":
+        raise Refused(BAD_KIND)
+    if req.get("op") != UPDATE:
+        raise Refused(BAD_OP)
+    changes = req.get("changes")
+    if not isinstance(changes, dict) or "body" not in changes:
+        raise Refused(NOT_JSON_OBJECT)
+    for k in changes:
+        if k != "body":
+            raise Refused(f"That change doesn't take '{_shown(k)}'.")
+
+
+def make_section_body(path, onedrive_roots=None, by_user=None):
+    """The `section_body` the server calls for POST /api/section-body (#273), for the database at `path` (see make_change): a
+    section's content only, saved by the same code as a change, so the checks, the step, the Undo and the history are the same."""
+    def section_body(req):
+        try:
+            _section_body_shape(req)
+        except Refused as r:
+            return r.status, {**r.extra, "ok": False, "message": r.message, "code": r.code}
+        return _call(path, onedrive_roots, by_user, _do_change, req)
+    return section_body
+
+
 def make_section_image(path, onedrive_roots=None, by_user=None):
     """The `section_image` the server calls for POST /api/section-image (#96 R1), for the database at `path` (see make_change)."""
     def section_image(req):
