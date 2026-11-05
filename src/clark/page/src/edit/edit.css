@@ -191,6 +191,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-pills::-webkit-scrollbar { display: none; }
 .ask-pills button { flex: none; min-height: 28px; padding: 3px var(--space-3); white-space: nowrap; font: inherit; font-size: var(--size-caption); line-height: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--ask-edge); border-radius: var(--radius-pill); cursor: pointer; transition: background-color var(--dur-instant) var(--ease-out), border-color var(--dur-instant) var(--ease-out); }
 .ask-pills button:hover { background: var(--brand-blue-tint); border-color: var(--brand-blue); }
+.ask-pills button:disabled { color: var(--text-muted); background: var(--surface); border-color: var(--ask-edge); cursor: default; opacity: .7; }
 .ask-pills button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .ask-work { display: flex; align-items: center; gap: 10px; margin: 0; font-size: var(--size-caption); font-style: italic; color: var(--text-muted); animation: ask-in 220ms var(--ease-enter); }
 .ask-quip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -368,7 +369,9 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-arch { font-size: var(--size-caption); }
 .ucd-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .ucd-acts .btn, .ucd-note .btn { min-height: 32px; font-size: var(--size-body); color: var(--text); }
-.ucd-eye { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; }   /* issue 753: the eye alone, a button */
+.ucd-acts .btn { display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; height: 32px; padding-top: 0; padding-bottom: 0; }   /* row 791: a space between Change status and its chevron */
+.ucd-acts .btn .nch { width: 14px; height: 14px; flex: none; }
+.ucd-eye { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; }   /* row 791: as tall as its neighbours; issue 753: the eye alone, a button */
 .ucd-eye:hover { background: var(--grey-100); }
 .ucd-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ucd-eye.on { color: var(--status-blue-text); }
@@ -402,6 +405,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-kv dd { margin: 0; overflow-wrap: anywhere; }
 .ucd-ms, .ucd-hist { margin: 0; padding: 0; }
 .ucd-ms li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 6px 0; }
+.ucd-ms .ucd-msname { font-size: var(--size-body); text-align: left; overflow-wrap: anywhere; }
+.ucd-msx { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; }
 .ucd-hist li { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; }
 .ucd-hw { overflow-wrap: anywhere; }
 .ucd-hm { font-size: var(--size-caption); color: var(--text-muted); }

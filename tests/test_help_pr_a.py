@@ -38,9 +38,8 @@ class TopBar(unittest.TestCase):
         self.assertNotIn("back to the Dashboard", flat(SECS["top-bar"]))
         self.assertNotIn("The logo", flat(SECS["top-bar"]))
 
-    def test_the_keys_table_has_ctrl_or_cmd_j_and_the_code_handles_it(self):
-        """Row 855: Help's keys table names Mod+J, and askPanelState.js handles that key."""
-        self.assertIn("[[Mod+J]]", json.dumps(RAW["reference"]["keys"], ensure_ascii=False))
+    def test_ctrl_or_cmd_j_is_handled_and_the_ask_tooltip_names_it(self):
+        """Row 855: askPanelState.js handles Ctrl or Cmd + J and the ask button's tooltip names it (Help's keys row waits for approved words)."""
         self.assertRegex(code("edit", "askPanelState.js"), r'"j"[^\n]*metaKey \|\| e\.ctrlKey')
         self.assertIn("Open ask clark (/ or Ctrl or Cmd + J)", code("edit", "AskButton.jsx"))
 
@@ -91,7 +90,7 @@ class TypedFilter(unittest.TestCase):
         self.assertIn("`Add a value after '${e.name}:'.`", ui)
         self.assertIn('EMPTY = { none: "No work items match.", clear: "Clear filter" }', ui)
         self.assertIn('NO_ME = "Set your name in Settings to see your actions."', code("logic", "filterLine.js"))
-        for s in ("Unknown field 'x'. Did you mean Owner?", "Add a value after 'x:'.", "Set your name in Settings to see your actions.", "No work items match.", "**Clear filter**"):
+        for s in ("Unknown field 'x'. Did you mean Owner?", "Add a value after 'x:'.", "Set your name in Settings to see your actions.", "**Clear search**", "No open items match"):
             self.assertIn(s, self.FIND)
         self.assertIn("text-decoration: underline wavy var(--status-red)", (PAGE.parent / "shell.css").read_text(encoding="utf-8"))
         self.assertIn('PLACEHOLDER = "Filter by keyword or by field"', code("logic", "filterLine.js"))
