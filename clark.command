@@ -45,6 +45,8 @@ fi
 if [ -d .app ]; then PYTHONPATH="$PWD/.app${PYTHONPATH:+:$PYTHONPATH}"; export PYTHONPATH; fi
 # Tell clark what to say when it asks a person to type a command: in a download that is this file (issue 694).
 export CLARK_TYPED="bash clark.command"
+# Write no bytecode, on any run, before any clark code runs: a __pycache__ folder beside the program files would be an unknown entry the next update finds (issue 743).
+export PYTHONDONTWRITEBYTECODE=1
 # Row 760: in a download nothing but .app holds program files. An src, vendor or clark folder beside it is an older flat version
 # left by unzipping over it, and the older stand-in would start it instead, so nothing is started (this also covers --check).
 if [ -d .app ] && { [ -e src ] || [ -e vendor ] || [ -e clark ]; }; then
