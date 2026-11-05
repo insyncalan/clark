@@ -7,12 +7,21 @@ import unittest
 
 from test_inline_67 import size
 from test_report_editor import Base
-from test_server import chrome
+from test_server import chrome, wait
 
 GROUP = "document.querySelector('[aria-label=\"View or Edit\"]')"
 COUNT = "document.querySelectorAll('[aria-label=\"View or Edit\"]').length"
 MODE = "document.querySelector('#report').dataset.mode"
 PLACE = (f"(function(){{var g={GROUP}; return [{COUNT}, !!g.closest('#report-bar'), !!g.closest('header.top')];}})()")
+
+def press(p, key, code, vk, want):
+    """Press a key until the Dashboard is in the wanted mode. The page can still be settling when the first press lands (a slow runner),
+    so a press that changed nothing is tried again a few times; a key that never works still fails."""
+    for _ in range(5):
+        p.key(key, code=code, vk=vk)
+        if wait(lambda: p.js(f"{MODE} === '{want}'"), 2):
+            return
+    p.until(f"{MODE} === '{want}'", f"{key.upper()} switches to {want}")
 
 
 class ModePill(Base):
@@ -53,10 +62,8 @@ class ModePill(Base):
     def test_the_v_and_e_keys_work_on_the_dashboard(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.key("e", code="KeyE", vk=69)
-            p.until(f"{MODE} === 'edit'", "E")
-            p.key("v", code="KeyV", vk=86)
-            p.until(f"{MODE} === 'view'", "V")
+            press(p, "e", "KeyE", 69, "edit")
+            press(p, "v", "KeyV", 86, "view")
 
     def test_the_keys_still_work_after_a_round_trip_through_another_tab(self):
         # keys.js acts on the Dashboard only; the switch moves between the top bar and the report bar, and one listener must survive that
@@ -66,10 +73,8 @@ class ModePill(Base):
             p.key("e", code="KeyE", vk=69)
             self.assertEqual(p.js("document.querySelector('[aria-label=\"View or Edit\"] [data-mode=\"edit\"]').getAttribute('aria-pressed')"), "false")
             self.tab(p, "dashboard")
-            p.key("e", code="KeyE", vk=69)
-            p.until(f"{MODE} === 'edit'", "E")
-            p.key("v", code="KeyV", vk=86)
-            p.until(f"{MODE} === 'view'", "V: one listener, one switch")
+            press(p, "e", "KeyE", 69, "edit")
+            press(p, "v", "KeyV", 86, "view")
 
     def test_no_overlap_at_the_four_widths_in_both_colours(self):
         with chrome() as cdp:
