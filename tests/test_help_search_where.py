@@ -117,7 +117,7 @@ class Logic(unittest.TestCase):
         got = run_node(fixture_content(), """(() => { const idx = HL.buildIndex(); return ["wombat", "undo", "wombat undo", "wombat", "zzzqq"].map((q) => HL.resultsView(idx, q).lead || null); })()""")
         self.assertEqual(got, [LEAD, None, None, LEAD, None])
 
-    def test_the_count_line_and_the_lead_are_the_ruled_words(self):
+    def test_the_count_line_and_the_lead_are_the_signed_words(self):
         v = self.r["wombat"]
         self.assertEqual(v["lead"], LEAD)
         n = len(v["rows"])
