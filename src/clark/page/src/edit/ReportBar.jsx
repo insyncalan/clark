@@ -15,6 +15,7 @@ import { weekEndOf } from "../logic/board.js";
 import { latest, refreshLatest } from "./publishState.js";
 import { lastLine } from "./Publish.jsx";
 import { ownToast } from "./BarToast.jsx";
+import { Toggle } from "./Toggle.jsx";
 import { WeekPicker } from "./WeekPicker.jsx";
 
 // The drag hint shows the first time this browser enters Edit and stays until Edit is left; after that it is not shown again.
@@ -53,6 +54,7 @@ export function ReportBar() {
   };
   return (
     <div class="rbar" id="report-bar">
+      <Toggle pill />{/* #665: View | Edit, at the left of the bar on the Dashboard (prototype views.js:509) */}
       <label class="rbar-week">Week ending <input type="text" inputMode="numeric" placeholder="DD-MM-YYYY" title={stored ? undefined : "Not saved yet. Press Enter to use this Friday, or type a Friday"} id="week-ending" key={week} defaultValue={shownDay(week)} onBlur={save} onKeyDown={enter} /></label>
       <WeekPicker />{/* item 344: the published weeks, beside Week ending in View and Edit; it only opens one, read only */}
       <span class="rbar-state" id="report-state">{editing ? "Editing · each change saves on its own" : published || "Draft · not published yet"}</span>
