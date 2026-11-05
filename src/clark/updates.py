@@ -67,7 +67,8 @@ CHOSEN_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}-(mac|windows|linux){COPY_SUF
 SOURCE_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}{COPY_SUFFIX}\.zip\Z")     # GitHub's "Source code (zip)"
 VERSION_RE = re.compile(rf"{NUM}\.{NUM}\.{NUM}\Z")
 DEV_RE = re.compile(rf"{NUM}\.{NUM}\.{NUM}\.dev{NUM}?\Z")
-TOP_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}\Z")
+TOP_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}\Z")      # the top folder of a download made before issue 694: still recognised, never installed
+VERSION_FILE = release_files.place("src/clark/__init__.py")      # where a download holds its version; a flat install keeps it at src/clark/__init__.py
 HIDDEN_CATEGORIES = ("Cc", "Cf", "Cs", "Co", "Cn")   # controls (C0, DEL, C1), bidi and zero-width marks, unassigned
 BAD_CHARS = set('<>"|?*:\\')
 FILE_ATTRIBUTE_REPARSE_POINT = 0x400               # a Windows junction or other reparse point
@@ -464,18 +465,21 @@ def _read_counted(zf, info):
 
 
 def check_coverage(system, rels):
-    """Unsafe: anything outside release_files' list. Incomplete: anything the list needs that is missing."""
+    """Unsafe: anything outside release_files' list. Incomplete: anything the list needs that is missing.
+
+    `rels` are names as the zip holds them (program files below .app/, see release_files.place())."""
     extra = sorted(r for r in rels if not release_files.covers(system, r))
     if extra:
         raise UpdateError("unsafe", "outside the app's own list: " + names_for_log(extra))
     present = set(rels)
     missing = []
     for item in release_files.listed(system) + (release_files.START_HERE,):
+        placed = release_files.place(item)          # `rels` are names as the zip holds them
         if item.endswith("/"):
-            if not any(r.startswith(item) for r in present):
-                missing.append(item)
-        elif item not in present:
-            missing.append(item)
+            if not any(r.startswith(placed) for r in present):
+                missing.append(placed)
+        elif placed not in present:
+            missing.append(placed)
     if missing:
         raise UpdateError("incomplete", "missing: " + names_for_log(missing))
 
@@ -505,8 +509,15 @@ def read_release(path, system, installed_version, installed_schema, reinstall=Fa
             raise UpdateError("system", f"the manifest says {doc['system']}", theirs=SYSTEM_NAMES[doc["system"]],
                               ours=SYSTEM_NAMES.get(system, system))
         _check_structure(infos, max_total)
-        if not TOP_RE.match(top) or top != f"clark-{doc['version']}" or doc["version"] != version_in_name:
+        if doc["version"] != version_in_name:
             raise UpdateError("damaged", f"top folder {top!r}, manifest {doc['version']}, name {version_in_name}")
+        if top != release_files.TOP:
+            if not TOP_RE.match(top) or top != f"clark-{doc['version']}":
+                raise UpdateError("damaged", f"top folder {top!r}, manifest {doc['version']}, name {version_in_name}")
+            # A download in the old shape (one folder named for the version, program files at its top). Nothing newer than
+            # 1.0.0 is built that way, so it is never installed: say "older" or "same" when it is, else call it damaged.
+            check_version(Release(path, doc, top), installed_version, installed_schema, reinstall)
+            raise UpdateError("damaged", f"old layout: top folder {top!r}")
         members = {}
         for i in infos:
             head, _, rel = i.filename.partition("/")
@@ -515,6 +526,8 @@ def read_release(path, system, installed_version, installed_schema, reinstall=Fa
             problem = path_problem(rel)
             if problem:
                 raise UpdateError("unsafe", f"{problem}: {i.filename}")
+            if release_files.protected(rel):
+                raise UpdateError("unsafe", f"member in a folder that belongs to the person: {i.filename}")
             members[rel] = i
         clash = collisions(list(members))
         if clash:
@@ -525,7 +538,7 @@ def read_release(path, system, installed_version, installed_schema, reinstall=Fa
         if listed != set(rels):
             odd = sorted(listed ^ set(rels))
             raise UpdateError("incomplete", "manifest and members differ: " + names_for_log(odd))
-        bad_names = [r for r in doc["files"] if path_problem(r)]
+        bad_names = [r for r in doc["files"] if path_problem(r) or release_files.protected(r)]
         if bad_names:
             raise UpdateError("unsafe", "manifest names: " + names_for_log(bad_names))
         init_text = None
@@ -538,7 +551,7 @@ def read_release(path, system, installed_version, installed_schema, reinstall=Fa
             body = _read_counted(zf, info)
             if len(body) != row["size"] or hashlib.sha256(body).hexdigest() != row["sha256"]:
                 raise UpdateError("damaged", f"hash of {rel} differs from the manifest")
-            if rel == "src/clark/__init__.py":
+            if rel == VERSION_FILE:
                 init_text = body.decode("utf-8", "replace")
     found = re.search(r'^__version__ = "([^"]+)"', init_text or "", re.M)
     if not found or found.group(1) != doc["version"]:
@@ -583,7 +596,10 @@ def _is_link(path):
 
 
 def walk_app(app_dir):
-    """Every file under the app folder as a "/" name, never following a link; links are returned apart."""
+    """Every file under the app folder as a "/" name, never following a link; links are returned apart.
+
+    The top-level folders system and data (release_files.PROTECTED) are skipped whole: they are the person's, so a link
+    inside them can't stop an update either."""
     files, links = [], []
     base = Path(app_dir)
     stack = [base]
@@ -593,6 +609,8 @@ def walk_app(app_dir):
             with os.scandir(folder) as it:
                 for e in it:
                     rel = PurePosixPath(Path(e.path).relative_to(base)).as_posix()
+                    if folder == base and release_files.protected(e.name):
+                        continue            # the person's own system and data: never listed, backed up, counted or swapped
                     if _is_link(e.path):
                         links.append(rel)
                     elif e.is_dir(follow_symlinks=False):
@@ -641,7 +659,7 @@ def installed_record(app_dir):
 def check_record_names(record):
     """Every name in the installed record must be a safe relative name: it comes from a file on disk that anyone could have
     changed, and plan() joins it to the app folder."""
-    bad = [str(r) for r in record["files"] if not isinstance(r, str) or path_problem(r)]
+    bad = [str(r) for r in record["files"] if not isinstance(r, str) or path_problem(r) or release_files.protected(r)]
     if bad:
         raise UpdateError("unsafe", "unsafe names in the installed record: " + names_for_log(bad))
 

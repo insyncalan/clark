@@ -39,7 +39,7 @@ try:
 except ImportError:
     fcntl = None
 
-from clark import platform, published_copies, settings, store as clark_store, timefmt
+from clark import platform, published_copies, settings, store as clark_store, timefmt, typed
 from clark.store import Invalid
 
 # The default number of each kind of copy kept (whole number, 1 to 365). The number used is the data folder's settings.json
@@ -152,17 +152,19 @@ def is_refusal(text):
     return str(text).startswith(GATE_STARTS)
 
 
-RESTORE_HELP = "\n".join((                     # no line starts with the product name
-    "To put a backup back, close clark, then run this, with NAME the file name from the list above:",
-    "    python3 -m clark restore NAME",
-    "A file name with \"migrate\" in it is a backup taken just before clark updated the database.",
-    "A backup of what you have now is made first. Then the database being replaced is moved into a folder called",
-    "replaced-DATE inside the backups folder. Those folders hold whole old databases and are never removed",
-    "by clark: remove them yourself when you are sure you don't need them.",
-    "The backups are on this computer's disk, so they don't protect against losing the disk or the computer.",
-    "If that command isn't to hand: 1 Quit clark. 2 Open the backups folder, beside clark.db. 3 Choose the backup by its",
-    "date. The list above shows your local time, but a file's name carries UTC time (the Z at its end). 4 Move every",
-    "file whose name starts with clark.db out of the way, copy the chosen file in, rename it clark.db, and start clark."))
+def restore_help():
+    """What `restore` says after its list. A function, not a constant: the command typed depends on how clark was started (typed.py)."""
+    return "\n".join((                          # no line starts with the product name
+      "To put a backup back, close clark, then run this, with NAME the file name from the list above:",
+      f"    {typed.clark('restore NAME')}",
+      "A file name with \"migrate\" in it is a backup taken just before clark updated the database.",
+      "A backup of what you have now is made first. Then the database being replaced is moved into a folder called",
+      "replaced-DATE inside the backups folder. Those folders hold whole old databases and are never removed",
+      "by clark: remove them yourself when you are sure you don't need them.",
+      "The backups are on this computer's disk, so they don't protect against losing the disk or the computer.",
+      "If that command isn't to hand: 1 Quit clark. 2 Open the backups folder, beside clark.db. 3 Choose the backup by its",
+      "date. The list above shows your local time, but a file's name carries UTC time (the Z at its end). 4 Move every",
+      "file whose name starts with clark.db out of the way, copy the chosen file in, rename it clark.db, and start clark."))
 
 
 # ── Names, the folder, and what is in it ──────────────────────────────────────
@@ -229,10 +231,12 @@ def _unreadable(folder, error):
             "open it, then try again.")
 
 
-def valid_name(backups_dir, name, see="python3 -m clark restore"):
+def valid_name(backups_dir, name, see=None):
     """The path of the backup called `name` in `backups_dir`, or Invalid. One function for retention and both restores: the
     whole name must be a backup's name (so `..`, a path, `replaced-*` and `notes.txt` are refused), a regular file and not a
-    link, and directly in the folder. `see` is the command the refusal gives for listing them."""
+    link, and directly in the folder. `see` is the command the refusal gives for listing them
+    (default: restore with no name)."""
+    see = see or typed.clark("restore")
     text = str(name)
     folder = Path(backups_dir)
     try:
@@ -542,7 +546,7 @@ def bring_in(copy_folder, name, backups_dir, onedrive_roots=None):
     path. The name must be a whole backup name that is a regular file in `copy_folder`, and the file must be a good clark database (a
     corrupt one, or a file that isn't one, is refused with Invalid). A restore never writes into the copy folder. A copy of the same name
     already in the backups folder is used if it is the same file, and refused if it is not."""
-    chosen = valid_name(copy_folder, name, see="python3 -m clark restore --from FOLDER")
+    chosen = valid_name(copy_folder, name, see=typed.clark("restore --from FOLDER"))
     clark_store.check_copy(chosen)
     platform.check_data_dir(backups_dir, onedrive_roots, what="backups")
     backups_dir = platform.private_folder(backups_dir)
@@ -712,7 +716,7 @@ def _restore_path(path, name, folder, onedrive_roots, store):
     if live is not None and live != info["db_id"] and not _holds_nothing(path):
         raise Invalid(f"{chosen.name} is a backup of a different database, not this one, so it wasn't put back. To open it anyway, "
                       "copy it into a new, empty folder, rename it clark.db, then start clark where FOLDER is the new folder:"
-                      "\n    python3 -m clark --data FOLDER")
+                      "\n    " + typed.clark("--data FOLDER"))
     if store is not None:
         store.close()
     backed_up = False                         # whether a copy of what was here was really taken (the words the person reads depend on it)
