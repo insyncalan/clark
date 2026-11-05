@@ -190,6 +190,30 @@ class Picks(Fields):
         self.assertNotIn("data-pk-pick", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
 
 
+class Duplicate(Fields):
+    def test_duplicate_in_the_peek_adds_a_copy_opens_it_and_one_undo_takes_it_back(self):
+        a = self.action(ACTION)
+        before = len(self.data["actions"])
+        for width, dark in self.widths():
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                sent, sid = self.load(cdp, width, ACTION, dark=dark)
+                self.assertTrue(self.inside(cdp, sid, "[data-pk-dup]"), "the button fits the peek")
+                click(cdp, sid, "#peek [data-pk-dup]")
+                self.assertTrue(wait(lambda: len(sent) == 1))
+                self.assertEqual((sent[0]["kind"], sent[0]["op"], sent[0]["copy_of"]), ("actions", "new", ACTION))
+                self.assertEqual(sent[0]["values"], {"description": a["description"] + " (copy)"})
+                self.assertTrue(wait(lambda: f"a copy of {ACTION}." in self.toast(cdp, sid)))
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').dataset.peek", sid) != ACTION), "the copy opens in the peek")
+                self.assertEqual(len(self.store.data_for(self.code)["actions"]), before + 1)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
+                cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
+                self.assertTrue(wait(lambda: len(self.store.data_for(self.code)["actions"]) == before), "one Undo takes the copy back")
+
+    def test_the_button_is_edit_only(self):
+        self.assertIn("editing && forItem && tools.PeekDuplicate", (SRC / "components/Peek.jsx").read_text(encoding="utf-8"))
+        self.assertNotIn("data-pk-dup", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
+
+
 BOX_PK = "#peek [data-ce]"
 
 
