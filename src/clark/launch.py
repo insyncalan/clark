@@ -22,7 +22,7 @@ import sys
 import time
 from pathlib import Path
 
-from clark import appfiles, platform, server, update_helper
+from clark import appfiles, platform, same_version, server, update_helper
 from clark.__main__ import Usage, free_port_near, port_free, port_number
 
 NOTHING, OURS, OTHER_DATA, NOT_CLARK = "nothing", "ours", "other data folder", "not clark"
@@ -223,6 +223,8 @@ def main(argv=None, say=print, environ=None, home=None, onedrive_roots=None, **s
     """The command. `seams` are launch()'s fakes (start, health, find_chrome, ...)."""
     environ = os.environ if environ is None else environ
     args = parser().parse_args(argv)
+    if same_version.refuse():                   # row 760: a folder of mixed versions never starts (the message goes to the terminal)
+        return 1
     want = None
     try:
         port = port_number(args.port if args.port is not None else (environ.get("CLARK_PORT") or server.DEFAULT_PORT),

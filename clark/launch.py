@@ -9,6 +9,9 @@ from clark.__main__ import prepare
 
 def hand_over():
     prepare()
+    from clark import same_version              # row 760: first, before the imports in the real launcher, which a missing or older file would break
+    if same_version.refuse():
+        return 1
     from clark import launch as real
     return real.main()
 

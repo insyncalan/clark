@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, ai_connect, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, server, sneak, store as clark_store, typed, updater as clark_updater, use_cases_read, word_route
+from clark import activity_read, ai_connect, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, store as clark_store, typed, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -411,10 +411,14 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
     out, err = out or sys.stdout, err or sys.stderr
     environ = os.environ if environ is None else environ
     given = sys.argv[1:] if argv is None else list(argv)
+    if given[:1] == ["restore"] and same_version.refuse(err):
+        return 1
     if given[:1] == ["restore"]:
         return restore_main(given[1:], out, err, home, onedrive_roots)
     p = parser()
     args = p.parse_args(argv)
+    if same_version.refuse(err):                # row 760: a folder of mixed versions never starts
+        return 1
     store, scratch, code, handler = None, None, None, None
     try:
         try:
