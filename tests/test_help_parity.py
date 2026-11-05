@@ -102,7 +102,7 @@ COMPUTED = {
     "access key": "the words the secret screen reads before a question is sent (secret_screen.py)",
     "move to Friday, owner Jo, high priority": "a worked example of words typed in Sneak peek (#721)",
     "due Friday \u00b7 move to tomorrow \u00b7 by 12-12-2026": "words typed in Sneak peek, read by sneak.py (#721)",
-    "owner Jo \u00b7 assign to Sam Rivers \u00b7 give it to Priya": "words typed in Sneak peek, read by sneak.py (#721)",
+    "owner Jo \u00b7 assign to Sam \u00b7 give it to Priya": "words typed in Sneak peek, read by sneak.py (#721)",
     "done \u00b7 closed \u00b7 reopen \u00b7 delayed \u00b7 cancelled": "words typed in Sneak peek, read by sneak.py (#721)",
     "made \u00b7 decided \u00b7 withdrawn \u00b7 pending": "words typed in Sneak peek, read by sneak.py (#721)",
     "urgent priority \u00b7 high priority \u00b7 medium priority \u00b7 low priority": "words typed in Sneak peek, read by sneak.py (#721)",

@@ -7,7 +7,8 @@ from _help_shown import RAW
 from _paths import ROOT
 
 PAGE = ROOT / "src" / "clark" / "page" / "src"
-TOP_BAR_ASK_BUTTON = "ask" in (PAGE / "components" / "TopBar.jsx").read_text(encoding="utf-8").lower().replace("tasks", "")
+BUTTON = PAGE / "edit" / "AskButton.jsx"
+TOP_BAR_ASK_BUTTON = BUTTON.exists() and "AskButton" in (PAGE / "components" / "TopBar.jsx").read_text(encoding="utf-8")
 TEXT = json.dumps(RAW, ensure_ascii=False)
 
 
@@ -37,11 +38,24 @@ class HelpAskAndSneakPeek(unittest.TestCase):
     def test_no_mod_j(self):
         self.assertNotRegex(TEXT, r"Mod\+J|Ctrl\+J|⌘\+?J")
 
-    def test_no_top_bar_ask_button_until_it_is_on_the_page(self):
-        if TOP_BAR_ASK_BUTTON:
-            self.skipTest("TopBar.jsx has an ask button")
-        bad = [s for s in ALL if re.search(r"(?i)ask clark.{0,40}top bar|top bar.{0,40}ask clark|from the top bar|\*\*ask clark\*\*: opens|ask button", s)]
-        self.assertEqual(bad, [])
+    def test_the_top_bar_ask_button_is_described_as_the_page_has_it(self):
+        """The Help names a top-bar ask button only if the page has one, by the label and picture it really has (edit/AskButton.jsx)."""
+        about_bar = [s for s in ALL if re.search(r"(?i)top bar", s) and re.search(r"(?i)ask clark", s)]
+        if not TOP_BAR_ASK_BUTTON:
+            self.assertEqual(about_bar, [])
+            return
+        code = BUTTON.read_text(encoding="utf-8")
+        label = re.search(r'aria-label="([^"]+)"', code).group(1)
+        self.assertEqual(label, "ask clark")
+        self.assertIn("<svg", code)                       # the button draws a speech bubble (a rounded outline with a tail)
+        self.assertIn("M4 5.5A2.5 2.5 0 0 1 6.5 3h7", code)
+        self.assertIn("<kbd", code)                       # and shows its key, "/"
+        bullet = "**ask clark** button in the top bar (a speech bubble)"
+        for entry_text in (ASK, entry("reference", "top-bar"), json.dumps(RAW["start"]["where"], ensure_ascii=False)):
+            self.assertIn("top bar", entry_text)
+        self.assertIn("Open it with the " + bullet + ", or press [[/]].", entry("reference", "ask-clark"))
+        self.assertIn(bullet, entry("howto", "check-the-report"))
+        self.assertNotRegex(" ".join(ALL), r"(?i)ask button|top-bar button|ask icon")
 
     def test_sneak_peek_is_work_items_only(self):
         self.assertNotRegex(SNEAK, r"(?i)milestone|use case|For a milestone|forecast 12|progress 40|achieved")

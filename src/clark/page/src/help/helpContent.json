@@ -127,7 +127,7 @@
    ],
    [
     "ask clark",
-    "Answers questions about the project and checks the report. Press [[/]], or open the palette with [[Mod+K]] and choose Ask about this project.",
+    "Answers questions about the project and checks the report. Press the ask clark button in the top bar (a speech bubble) or [[/]], or open the palette with [[Mod+K]] and choose Ask about this project.",
     "ask"
    ],
    [
@@ -233,10 +233,10 @@
     "id": "check-the-report",
     "g": "Every week",
     "t": "Check the report with ask clark",
-    "w": "[[/]] · [[Mod+K]] › Ask about this project",
+    "w": "Top bar › ask clark · [[/]] · [[Mod+K]] › Ask about this project",
     "go": "ask",
     "s": [
-     "Press [[/]] when you aren’t typing in a box and no peek, menu or box is open, or press [[Mod+K]] and choose **Ask about this project**. It opens down the right-hand side.",
+     "Press the **ask clark** button in the top bar (a speech bubble), or press [[/]] when you aren’t typing in a box and no peek, menu or box is open, or press [[Mod+K]] and choose **Ask about this project**. It opens down the right-hand side.",
      "Press **Check this report**. It reads the project’s data and says what looks wrong.",
      "An answer may suggest a change to a work item or a milestone as a card that shows it now and as it would be. Nothing is saved until you press **Apply**; **Undo** takes it back. If the change came from one of your files, you tick a box first.",
      "Ask anything else in your own words, or press a suggestion: **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week** or **Which use cases need attention?**.",
@@ -859,6 +859,7 @@
        "**The logo** (or clark’s icon and name): back to the Dashboard.",
        "**The project name**: switch projects. Each shows its count of open items; **Project settings** is at the foot.",
        "**Dashboard**, **Work items** and **Milestones**: the three screens.",
+       "**ask clark**: the speech-bubble button opens the assistant down the right. The [[/]] beside it is its key. It shows while asking is on.",
        "**The profile circle**: your initials (a person icon until you add your name). See [The profile circle](#ref-profile-circle)."
       ]
      ]
@@ -1304,7 +1305,7 @@
     "id": "ask-clark",
     "g": "Screens",
     "t": "ask clark",
-    "w": "[[/]] · [[Mod+K]] › Ask about this project",
+    "w": "Top bar › ask clark · [[/]] · [[Mod+K]] › Ask about this project",
     "b": [
      [
       "p",
@@ -1317,8 +1318,9 @@
      [
       "ul",
       [
+       "Open it with the **ask clark** button in the top bar (a speech bubble), or press [[/]]. The button shows while asking is on.",
        "The suggestions sit in one row above the box (scroll it sideways for the rest): **Check this report**, **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week**, **Which use cases need attention?**",
-       "Type a question and press [[Enter]] to send ([[Shift+Enter]] for a new line). While it works, an office quip shows in place of the suggestions, and they come back with the answer.",
+       "Type a question and press [[Enter]] to send ([[Shift+Enter]] for a new line). While it works, a short waiting line shows in place of the suggestions, and they come back with the answer.",
        "An answer is plain text. A suggested change comes as a card: nothing is saved until you press **Apply**, and **Undo** takes it back. A change that came from one of your files asks you to tick a box first.",
        "**New chat** starts again; **Close**, [[Esc]] or a click outside closes it.",
        "Drag its left edge to make it wider."
@@ -1461,7 +1463,7 @@
         "The due date (today, yesterday, tomorrow, a weekday, or DD-MM-YYYY). A decision’s date is when it is needed, or when it was made"
        ],
        [
-        "owner Jo · assign to Sam Rivers · give it to Priya",
+        "owner Jo · assign to Sam · give it to Priya",
         "The owner of an action, risk or issue (the name ends at a comma, or at a word such as due or priority). Not a decision’s"
        ],
        [
@@ -2600,7 +2602,7 @@
      "d": "Type the new person’s name in **Hand over to**. It suggests names from your people list, or the names already in the project if the list is empty. If the name matches no one, a line under the box asks you to check the spelling."
     },
     {
-     "d": "Press **Hand over** in the bar. It stays unavailable, with a line saying why, until you have ticked an item and named a person. Above 25 items a question comes first, such as “Hand over 30 items to Sam Rivers?”: press **Change** to go on, or **Cancel** to stop."
+     "d": "Press **Hand over** in the bar. It stays unavailable, with a line saying why, until you have ticked an item and named a person. Above 25 items a question comes first, such as “Hand over 30 items to Priya?”: press **Change** to go on, or **Cancel** to stop."
     },
     {
      "d": "To leave without handing anything over, press **Cancel** in the bar, or press Esc."
