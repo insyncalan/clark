@@ -159,7 +159,7 @@ class Card(Base):
                 def word(table, name):
                     n = len([r for r in self.rig.store.read(table, "PUB") if not r.get("archived")])
                     return "%s (%d %s)" % (name, n, "row" if n == 1 else "rows")
-                self.assertEqual([r[0] for r in rows], [word("actions", "Actions"), word("raid", "Risks and issues"), word("decisions", "Decisions"),
+                self.assertEqual([r[0] for r in rows], [word("actions", "Actions"), word("raid", "Risks & Issues"), word("decisions", "Decisions"),
                                                         word("milestones", "Milestones"), word("use_cases", "Use cases")])
                 self.assertEqual(p.js("[...document.querySelectorAll('.st-bar button')].map(b => b.textContent)"), ["Select all", "Clear"])
                 self.assertEqual(p.js("document.querySelector('#import-continue').textContent"), "Continue")
@@ -218,7 +218,7 @@ class Card(Base):
             self.pick_file(p, base64.b64encode(path.read_bytes()).decode())
             p.until("!!document.querySelector('#import-continue')", "the sheet list")
             self.assertEqual(p.js("[...document.querySelectorAll('#import-sheet-list li')].map(li => li.innerText.trim().split(' (')[0])"),
-                             ["Actions", "Risks and issues", "Milestones", "Use cases"])
+                             ["Actions", "Risks & Issues", "Milestones", "Use cases"])
 
     def test_the_first_box_lists_each_sheets_columns_as_the_export_writes_them(self):
         from clark import excel_import
