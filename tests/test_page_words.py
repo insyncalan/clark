@@ -356,7 +356,9 @@ class Words(unittest.TestCase):
         from clark import publish, publish_flow
         page_text = "<html lang=\"en-GB\"><head><style>%s</style></head><body></body></html>"
         faults = {
-            "brand_styling": [page_text % "@import url(x.css);", page_text % "a{background:url(https://x.test/a.png)}"],
+            "brand_address": [page_text % "@import url(x.css);", page_text % "a{background:url(https://x.test/a.png)}"],
+            "brand_picture": [page_text % ".card{background:url(data:image/png;base64,AAAA)}"],
+            "brand_styling": [page_text % "<svg></svg>"],
             "page_shape": ['<html><body id="clark-boot"></body></html>', "<p>no html element here</p>",
                            "<html lang=\"en-GB\"><head><title>t</title></head>"],
         }
@@ -368,7 +370,7 @@ class Words(unittest.TestCase):
                     said = publish_flow.made_words(caught.exception)
                     self.assertEqual(said, publish_flow.MESSAGES[key])
                     self.assertIsNone(re.search(r"(?i)tokens\.css|@import|build_page|\btoken\b|\bbody\b|\bcss\b|python", said), said)
-        for key in ("brand_styling", "page_shape"):
+        for key in ("brand_styling", "brand_address", "brand_picture", "page_shape"):
             self.assertRegex(publish_flow.MESSAGES[key], r"(?i)(ask |tell )")     # each says what to do next
 
     def test_what_is_said_about_the_export_record_claims_no_more_than_the_file_being_exactly_what_clark_wrote(self):
@@ -393,6 +395,11 @@ class Words(unittest.TestCase):
         self.assertNotIn("is fine", joined)
         self.assertIn("not from anything you wrote: ask whoever looks after the brand to remove it.", joined)
         self.assertNotIn("is fine", publish_flow.MESSAGES["brand_styling"])
+        self.assertEqual(publish_flow.MESSAGES["brand_address"],
+                         "The brand's styling file has a link to an address outside the report, so the report can't go out. Ask whoever looks after the brand to remove it.")
+        self.assertEqual(publish_flow.MESSAGES["brand_picture"],
+                         "The brand's styling file has a picture in a form clark cannot put in the report, so the report can't go out. Ask whoever looks after the brand to change it.")
+        self.assertNotEqual(publish_flow.MESSAGES["brand_address"], publish_flow.MESSAGES["brand_picture"])
         self.assertEqual(publish_flow.MESSAGES["brand_styling"],
                          "The brand's styling file has a web link in it, so the report can't go out. Ask whoever looks after the brand to remove it.")
 
