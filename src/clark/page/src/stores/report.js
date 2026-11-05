@@ -37,6 +37,7 @@ export const status = signal(project.value ? "loading" : "none");   // none | lo
 export const data = signal(null);
 effect(() => setReviewDays(data.value && data.value.project ? data.value.project.review_after_days : undefined));   // #171: the words and rules for "not reviewed" follow the open project's own number (a file has none: 14)
 export const message = signal("");
+export const blockExtras = signal({});     // a published file: what its block holds BESIDE the data (issue 713): workbook, workbook_note, past_reports; read defensively by the client menu
 export const publication = signal(0);       // a published file: its publication number (#120), else 0; the footer reads it
 export const fromFile = signal(false);       // true when the page is a published file (#39): it never edits and never asks a server
 export const mode = signal("view");          // view | edit (#65): memory only, never in the database or the address, so a reload is View
@@ -251,6 +252,7 @@ function openPublished(p) {
   if (!tabs.value.includes(view.value)) view.value = tabs.value[0];
   project.value = p.data.project.code;
   asAt.value = p.as_at || "";
+  blockExtras.value = { workbook: p.workbook, workbook_note: p.workbook_note, past_reports: p.past_reports };
   publication.value = p.publication && Number.isInteger(p.publication.n) && p.publication.n >= 1 ? p.publication.n : 0;
   useFileStyle(p.style);                                  // the look it was published with (#45); a file written before that has the default
   data.value = { ...p.data, report_sections: Array.isArray(p.sections) ? p.sections : [] };     // the file holds only the sections that show

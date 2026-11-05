@@ -25,10 +25,20 @@ SPACE = """(function(){var o=document.documentElement; return [o.scrollWidth <= 
 
 
 def make(extra=None):
-    """A finished published file's text, with `extra` added to the data block's data (what publish will write for the menu)."""
+    """A finished published file's text, with `extra` added to the data block BESIDE "data" (where publish writes the workbook, its note and
+    the past reports: publish.data_block). The text is rendered by publish itself, then the block's JSON gets the extra keys, escaped the same way."""
     _, pub, _ = made()
-    pub["data"].update(extra or {})
-    return publish.render(pub, page.page_html(EMPTY_BRANDING, view=True), "2026-10-28", pub["data"]["project"]["name"])
+    text = publish.render(pub, page.page_html(EMPTY_BRANDING, view=True), "2026-10-28", pub["data"]["project"]["name"])
+    if not extra:
+        return text
+    start = text.index('id="clark-data">') + len('id="clark-data">')
+    end = text.index("</script>", start)
+    block = json.loads(text[start:end])
+    block.update(extra)
+    body = json.dumps(block, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    for ch in "<>&":
+        body = body.replace(ch, "\\u%04x" % ord(ch))
+    return text[:start] + body + text[end:]
 
 
 class Menu(unittest.TestCase):
@@ -224,7 +234,7 @@ class Menu(unittest.TestCase):
 
     def test_export_to_excel_is_drawn_only_with_a_workbook_and_downloads_it_from_a_blob(self):
         with chrome() as cdp:
-            js = self.open(cdp, {"client_workbook": {"name": "Report-2026-10-28.xlsx", "base64": SHEET}})
+            js = self.open(cdp, {"workbook": {"name": "Report-2026-10-28.xlsx", "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "b64": SHEET}})
             js("window.__got = []; var make = URL.createObjectURL; URL.createObjectURL = function(b){ window.__got.push([b.size, b.type]); return make.call(URL, b); };"
                "HTMLAnchorElement.prototype.click = function(){ window.__got.push([this.download, this.href.slice(0, 5)]); };")
             self.menu(cdp, js)
@@ -236,7 +246,7 @@ class Menu(unittest.TestCase):
 
     def test_a_too_large_report_shows_the_row_disabled_with_the_line(self):
         with chrome() as cdp:
-            js = self.open(cdp, {"client_workbook_too_large": True})
+            js = self.open(cdp, {"workbook_note": "This report is too large to include a spreadsheet."})
             self.menu(cdp, js)
             self.assertEqual(js(ROWS), ["profile", "excel", "pdf", "past", "dark"])
             self.assertEqual(js(f"(function(){{var r={MENU}.querySelector('[data-row=excel]'); return [r.getAttribute('aria-disabled'), r.textContent, r.nextElementSibling.textContent];}})()"),
@@ -247,7 +257,7 @@ class Menu(unittest.TestCase):
     def test_the_disabled_excel_row_can_be_reached_by_the_keys_and_does_nothing(self):
         # The row is aria-disabled but stays in the arrow-key order, so a keyboard user reaches it and hears why (its note is the description).
         with chrome() as cdp:
-            js = self.open(cdp, {"client_workbook_too_large": True})
+            js = self.open(cdp, {"workbook_note": "This report is too large to include a spreadsheet."})
             self.menu(cdp, js)
             js("window.__got = 0; URL.createObjectURL = function(){ window.__got++; return ''; }")
             js(f"{MENU}.querySelector('[data-row=profile]').focus()")
@@ -264,14 +274,31 @@ class Menu(unittest.TestCase):
             with self.subTest(name=name), chrome() as cdp:
                 js = self.open(cdp)
                 js("localStorage.setItem('clark.reader.name', " + json.dumps(name) + ")")
-                js("location.reload()")
-                # the reload is not over until the reloaded page answers with its badge: wait for the wanted initials themselves
-                wait(lambda: js(f"{BADGE}.textContent") == want, 15)
+                js("window.__old = 1; location.reload()")
+                # the reload is over when the NEW page answers: the old page still holds the marker, the new one does not
+                self.assertTrue(wait(lambda: js(f"window.__old === undefined && !!{BADGE} && document.documentElement.dataset.ready === '1'"), 15), "the page reloaded")
                 self.assertEqual(js(f"{BADGE}.textContent"), want, name)
+
+    def test_the_page_reads_the_keys_that_publish_really_writes(self):
+        # The contract with the publish side (excel_client.embed and publish.data_block): top-level "workbook" {name, mime, b64} and
+        # "workbook_note", beside "data". If publish renames them, this test and the page must change together.
+        src = (Path(__file__).resolve().parents[1] / "src/clark/page/src/logic/clientMenu.js").read_text(encoding="utf-8")
+        for piece in ("d.workbook", "w.b64", "workbook_note === TOO_LARGE", "d.past_reports"):
+            self.assertIn(piece, src)
+        store = (Path(__file__).resolve().parents[1] / "src/clark/page/src/stores/report.js").read_text(encoding="utf-8")
+        self.assertIn("blockExtras.value = { workbook: p.workbook, workbook_note: p.workbook_note, past_reports: p.past_reports }", store)
+        # and the data block holds them beside data, never inside it: a key inside "data" is not read
+        with chrome() as cdp:
+            js = self.open(cdp, {"workbook_note": "This report is too large to include a spreadsheet."})
+            self.menu(cdp, js)
+            self.assertEqual(js(ROWS), ["profile", "excel", "pdf", "past", "dark"])
+        text = make()
+        pub_text = text.replace('id="clark-data">', 'id="clark-data">', 1)
+        self.assertNotIn("client_workbook", pub_text)
 
     def test_a_bad_workbook_is_not_offered(self):
         with chrome() as cdp:
-            js = self.open(cdp, {"client_workbook": {"name": "x.xlsx", "base64": "not base64 !!"}, "past_reports": "nope"})
+            js = self.open(cdp, {"workbook": {"name": "x.xlsx", "mime": "x", "b64": "not base64 !!"}, "past_reports": "nope"})
             self.menu(cdp, js)
             self.assertEqual(js(ROWS), ["profile", "pdf", "past", "dark"])
 
@@ -298,7 +325,7 @@ class Menu(unittest.TestCase):
     # --- the bar ----------------------------------------------------------------------------------------------------------
 
     def test_no_overlap_and_no_sideways_scroll_at_these_widths_light_and_dark(self):
-        extra = {"past_reports": [{"week_ending": "2026-10-21", "file": "PUB-report-2026-10-21.html"}], "client_workbook": {"name": "a.xlsx", "base64": SHEET}}
+        extra = {"past_reports": [{"week_ending": "2026-10-21", "file": "PUB-report-2026-10-21.html"}], "workbook": {"name": "a.xlsx", "mime": "x", "b64": SHEET}}
         with chrome() as cdp:
             js = self.open(cdp, extra)
             for width in (1400, 901, 900, 800):
