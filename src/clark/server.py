@@ -52,6 +52,8 @@ Routes:
 - POST /api/people       one person writer: {op: add | edit | rename | merge | archive | restore | paste, ...}, one undoable step (#115; changes.make_people)
 - POST /api/people/undo  {apply_id}: reverse one people step (#115; changes.make_people_undo)
 - POST /api/excel-import a workbook to read back in, and the choice of what to take from it (#444; excel_route.py)
+- GET  /api/demo        whether the made-up demo projects are on show: {ok, demo} (#731)
+- POST /api/demo/clear removes the untouched demo projects, after a safety copy (#731; demo_seed.py)
 - POST /api/project     a new project, or a project's name, client and added workstreams (#444; project_route.py)
 - POST /api/word-import  a Word file to read into new items, and the choice to add them (#48); the logic is `word_import(req)`
 - POST /api/word-export  the report as a Word file, saved in the report folder, and in the client folder with To client (#48)
@@ -219,6 +221,7 @@ ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/
                      "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024, "/api/update/undo": 1024,
                      "/api/excel-import": (EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,      # #444: a workbook as text, like the Word one
                      "/api/project": 4 * 1024,      # #444: a name, a code, a client and a few workstreams
+                     "/api/demo/clear": 1024,      # #731: no words, only the token
                      "/api/section-file": 1024}     # #96: names a project and a section only; the file never comes in the request
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")      # creaite's projects.code CHECK: 3 to 7 characters
 CLIENT_LEFT = (BrokenPipeError, ConnectionResetError)  # the page went mid-reply: not a 500
@@ -1145,6 +1148,17 @@ def profile_route(method):
     return route
 
 
+def demo_route(method):
+    """GET /api/demo (is demo data on show) and POST /api/demo/clear (#731): hand the request to the server's `demo` (demo_seed.Demo),
+    which answers (status, body). Without one: not on show, and nothing to remove. Checked like change_route before this runs."""
+    def route(handler, *req):
+        if handler.server.demo is None:
+            return handler.send(200, {"ok": True, "demo": False}) if method == "status" else handler.send(503, error_body("saving_off"))
+        status, body = getattr(handler.server.demo, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
 def update_route(method):
     """A route that hands its request to the server's `updater` (updater.Updater), which answers (status, body). Without one: 503.
     An answer that says "restart" (an install or an undo was handed to the update helper) stops this server once it is sent, so
@@ -1178,7 +1192,7 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics"),
-              "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route}
+              "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route, "/api/demo": demo_route("status")}
 POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
@@ -1197,6 +1211,7 @@ POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/secti
                 "/api/draft-email/sent": draft_email_route("draft_email_sent"),
                 "/api/word-import": word_import_route, "/api/word-export": word_export_route,
                 "/api/excel-import": excel_import_route, "/api/project": project_save_route,     # #444
+               "/api/demo/clear": demo_route("remove"),     # #731
                 "/api/section-file": publisher_route("section_file")}     # later items: /api/import
 # ===== end of the page and the data =====
 
@@ -1403,7 +1418,7 @@ class LocalServer(ThreadingHTTPServer):
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-                 people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None):
+                 people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None, demo=None):
         if server_address[0] != HOST and not (container_mode() and server_address[0] == CONTAINER_BIND):
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -1411,6 +1426,7 @@ class LocalServer(ThreadingHTTPServer):
         self.change, self.undo, self.sneak = change, undo, sneak
         self.section_image = section_image    # changes.make_section_image (#96 R1); None: that route answers 503 saving_off
         self.word_import, self.word_export = word_import, word_export
+        self.demo = demo                      # demo_seed.Demo (#731); None: no demo data on show
         self.excel_import, self.project_save = excel_import, project_save      # #444: the workbook import, a project's new and edit; None: those routes answer 503
         self.page_html = page_html or placeholder_html
         self.logs = logs                      # log_routes.Logs (#110); None: those routes answer not found
@@ -1467,7 +1483,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-          people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None):
+          people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None, demo=None):
     """Start the server on 127.0.0.1 (in the container, on its own addresses: see container_mode) and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
@@ -1476,7 +1492,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, ai=ai, ai_connect=ai_connect, updater=updater,
-                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, past=past, as_at=as_at, publication_mark=publication_mark)
+                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)

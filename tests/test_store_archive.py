@@ -359,7 +359,8 @@ class NoOtherDelete(unittest.TestCase):
                     if "DELETE FROM" in text.upper():
                         found.append((path.name, fn.name))
         # #349: rewound_copy deletes only in a temporary copy of clark.db (the Dashboard as at a day); clark.db is opened read only there
-        self.assertEqual(sorted(set(found)), [("store.py", "delete_row"), ("store.py", "revert_group"), ("store.py", "rewound_copy")])
+        # #731: remove_demo deletes only the demo projects the person never touched (demo_seed.py decides which), after a safety copy
+        self.assertEqual(sorted(set(found)), [("store.py", "delete_row"), ("store.py", "remove_demo"), ("store.py", "revert_group"), ("store.py", "rewound_copy")])
 
 
 
