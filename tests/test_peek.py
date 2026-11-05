@@ -153,7 +153,7 @@ class Reader(unittest.TestCase):
         self.assertIn("already Closed", sneak.read(closed, "A-9", "done", NOW)["message"])
         self.assertIn("already Sam Reed", self.read("A-1", "owner Sam Reed")["message"])
         self.assertIn("Only an action can be delayed", self.read("R-1", "delayed")["message"])
-        self.assertIn("milestone", sneak.read({**DATA, "milestones": [{"id": "M-1"}]}, "M-1", "done", NOW)["message"])
+        self.assertTrue(sneak.read({**DATA, "milestones": [{"id": "M-1"}]}, "M-1", "done", NOW)["ok"], "a milestone is read now")
         self.assertIn("due date, the owner, the priority and the status", self.read("A-1", "gibberish")["message"])
 
     def test_archive_or_delete_in_the_words_says_so_plainly(self):
