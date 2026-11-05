@@ -162,8 +162,14 @@ class Workbook(unittest.TestCase):
         self.assertEqual(ws["A2"].value, "Week ending 23-10-2026")
 
 
+# Real commitment words: publish drops any other word (store.COMMITMENTS), so a planted stray word would never reach the file and
+# the "gone" assertions below would pass for the wrong reason. The kept use case carries one word, every hidden one another, and the
+# base use case a third; no other cell of the planted project holds either of these two.
+VISIBLE_FLAG, HIDDEN_FLAG = "Planned 2027", "Candidate"
+
+
 class Flag(unittest.TestCase):
-    """A use case's Commitment flag (a later change adds it to publish.PUBLISH_FIELDS): present only for a kept use case."""
+    """A use case's Commitment flag: present only for a kept use case."""
 
     def made(self, mutate=None):
         plant = fx.load()
@@ -171,7 +177,7 @@ class Flag(unittest.TestCase):
         extra = [("PUB-U-901", "ZQ-FLAG-EYEOFF", {"client_visible": 0}), ("PUB-U-902", "ZQ-FLAG-SENSITIVE", {}),
                  ("PUB-U-903", "ZQ-FLAG-ARCHIVED", {"archived": 1}), ("PUB-U-904", "ZQ-FLAG-VISIBLE", {})]
         for uid, title, over in extra:
-            plant["data"]["use_cases"].append({**base, "id": uid, "title": title, "commitment": "ZQ-WORD-" + uid[-3:], **over})
+            plant["data"]["use_cases"].append({**base, "id": uid, "title": title, "commitment": VISIBLE_FLAG if uid.endswith("904") else HIDDEN_FLAG, **over})
         plant["data"]["labels"]["PUB-U-902"] = ["Sensitive"]
         base["commitment"] = "Committed"
         if mutate:
@@ -183,11 +189,10 @@ class Flag(unittest.TestCase):
     def test_flag_only_for_kept_use_cases(self):
         names, raw, wb, cells = self.made()
         everything = "\n".join(list(raw.values()) + cells + names)
-        for gone in ("ZQ-FLAG-EYEOFF", "ZQ-FLAG-SENSITIVE", "ZQ-FLAG-ARCHIVED", "PUB-U-901", "PUB-U-902", "PUB-U-903",
-                     "ZQ-WORD-901", "ZQ-WORD-902", "ZQ-WORD-903"):
+        for gone in ("ZQ-FLAG-EYEOFF", "ZQ-FLAG-SENSITIVE", "ZQ-FLAG-ARCHIVED", "PUB-U-901", "PUB-U-902", "PUB-U-903", HIDDEN_FLAG):
             self.assertNotIn(gone, everything, gone)
         self.assertIn("ZQ-FLAG-VISIBLE", everything)
-        self.assertIn("ZQ-WORD-904", everything, "a visible use case's flag is published on purpose")
+        self.assertIn(VISIBLE_FLAG, everything, "a visible use case's flag is published on purpose")
         self.assertIn("Commitment", [c.value for c in wb["Use cases"][4]])
 
     def test_archiving_it_removes_the_flag(self):
@@ -196,7 +201,7 @@ class Flag(unittest.TestCase):
                 if u["id"] == "PUB-U-904":
                     u["archived"] = 1
         names, raw, wb, cells = self.made(archive)
-        self.assertNotIn("ZQ-WORD-904", "\n".join(list(raw.values()) + cells))
+        self.assertNotIn(VISIBLE_FLAG, "\n".join(list(raw.values()) + cells))
         self.assertNotIn("ZQ-FLAG-VISIBLE", "\n".join(cells))
 
     def test_the_column_follows_the_whitelist(self):
