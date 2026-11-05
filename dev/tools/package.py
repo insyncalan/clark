@@ -110,9 +110,10 @@ Getting started on a Mac
 These steps are for a Mac.
 
 What is in this folder: README.md says what clark is. START-HERE.txt is this
-page. clark.command starts clark. docker is for starting clark with Docker.
-system/branding holds your own logo and colours, if you add them. clark's own
-files are in a hidden folder called .app: you do not need to open it.
+page. The file clark.command starts clark. docker is for starting clark with
+Docker. system/branding holds your own logo and colours, if you add them. The
+program's own files are in a hidden folder called .app: you do not need to
+open it.
 
 If your Mac will not open clark.command (a work Mac often will not), or you
 already use Docker, use Docker instead. You only need Docker and Chrome.
@@ -137,6 +138,9 @@ newer download without losing anything. To use another folder, put its full
 path in CLARK_DATA_DIR in front of the command in step 3:
         CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d
 A folder inside OneDrive cannot be used by clark.
+If an earlier Docker start kept your data in a data folder inside the clark
+folder, move that data folder out of the clark folder first, or name it
+with CLARK_DATA_DIR.
 By default clark.command and Docker use the same data.
 IMPORTANT: Never open the same data from clark.command and from Docker at the
 same time: stop one before you start the other.
@@ -153,7 +157,7 @@ If you already have clark:
      so the two folders do not clash.
   3. Unzip this download.
   4. If you added your own logo or colours, copy the system/branding folder
-     from the old clark folder into the new one. clark never changes that
+     from the old clark folder into the new one. An update never changes that
      folder, but replacing the whole clark folder by hand removes it.
   5. If you use Docker and your data is in a data folder inside the old clark
      folder, move that data folder out of it before you delete the old folder,
