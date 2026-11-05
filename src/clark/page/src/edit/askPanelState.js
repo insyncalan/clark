@@ -13,7 +13,7 @@ const KEY = "clark.askWidth";
 
 export const panelOpen = signal(false);
 export const panelDisconnected = signal(false);      // #54: Disconnect was pressed in Settings, so "not signed in" would be untrue
-export const panelState = signal("checking");        // "checking" | "off" | "signed-out" | "ready"
+export const panelState = signal("checking");        // "checking" | "unknown" (the check failed: nothing is claimed) | "off" (the server said off) | "signed-out" | "ready"
 export const panelModel = signal("");                 // the model's name when the status route gives one
 export const panelWidth = signal(initialWidth());
 export const panelFocus = signal(0);                  // bumped to ask the panel to focus its question box
@@ -51,7 +51,10 @@ async function readStatus() {
   } catch (e) { r = null; }
   const b = r && r.status === 200 ? r.body : null;
   if (!panelOpen.value) return;
-  if (!b || b.ok !== true || b.ask_enabled !== true) { panelState.value = "off"; panelModel.value = ""; if (b && b.ask_enabled === false) askOn.value = false; return; }
+  // Only a good answer that says "off" reads as off. A check that failed (the request threw, the status was not 200, the body was not a
+  // good answer) says nothing about the switch, so the panel claims nothing and sends nothing.
+  if (!b || b.ok !== true || typeof b.ask_enabled !== "boolean") { panelState.value = "unknown"; panelModel.value = ""; return; }
+  if (b.ask_enabled === false) { panelState.value = "off"; panelModel.value = ""; askOn.value = false; return; }
   askOn.value = true;
   panelModel.value = typeof b.model === "string" ? b.model.slice(0, 60) : "";
   panelDisconnected.value = b.why === DISCONNECTED_LINE;
