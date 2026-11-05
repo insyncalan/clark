@@ -24,6 +24,7 @@ from _paths import ROOT
 TESTS = ROOT / "tests"
 VERSION = "1.0.0"
 SCHEMA_AT_0_9_0 = 15     # 0.9.0 reads layout 15; a layout step after it makes the notes say so
+SCHEMA_AT_1_0_0 = 15     # 1.0.0 reads layout 15 too (no step in it); a later release's step (#709, 16) is for its own notes, not these
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
@@ -145,8 +146,8 @@ class Notes(unittest.TestCase):
 
     def test_the_data_layout_paragraph_is_there_only_when_the_layout_changed(self):
         said = "This version includes a change to how clark stores your data" in self.text
-        self.assertEqual(said, schema_version() != SCHEMA_AT_0_9_0,
-                         "the notes must say a layout step is in exactly when SCHEMA_VERSION in store.py is not %d" % SCHEMA_AT_0_9_0)
+        self.assertEqual(said, SCHEMA_AT_1_0_0 != SCHEMA_AT_0_9_0,
+                         "the notes must say a layout step is in exactly when 1.0.0's layout is not %d" % SCHEMA_AT_0_9_0)
 
     def test_a_date_in_the_notes_is_day_first(self):
         self.assertIsNone(re.search(r"\b\d{4}-\d\d-\d\d\b", self.text), "a date in the notes is DD-MM-YYYY")

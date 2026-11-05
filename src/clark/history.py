@@ -295,7 +295,7 @@ COMMON = {
     "created": "Created on", "type": "Type", "response_action": "Response action", "impact": "Impact", "likelihood": "Likelihood",
     "made_by": "Made by", "date": "Date", "needed_by": "Needed by", "reasoning": "Reasoning", "options": "Options",
     "revisit": "Revisit on", "replaces": "Replaces", "decision": "Decision", "title": "Title", "ref": "Reference",
-    "headline": "Headline", "standing": "Where it stands", "labels": "Labels", "label_reason": "Reason for the label",
+    "headline": "Headline", "standing": "Where it stands", "commitment": "Commitment", "labels": "Labels", "label_reason": "Reason for the label",
     "label_suggested": "Label suggested", "label": "Label", "added_by": "Added by", "added_at": "Added on", "reason": "Reason",
     "suggested": "Suggested", "health": "Health", "week_ending": "Week ending", "summary": "Summary", "key_changes": "Key changes",
     "from_item": "From item", "to_item": "To item", "kind": "Kind", "item_id": "Item", "body": "Text", "beside": "Beside",
