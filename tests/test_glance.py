@@ -654,7 +654,7 @@ class Strip(unittest.TestCase):
         text = json.dumps(s, sort_keys=True)
         self.assertNotIn(PLANTED_MARKER, text)
         self.assertNotIn("ABC-U-002", text)
-        self.assertEqual(sorted(s["rows"][0]), sorted(["id", "ref", "title", "headline", "status", "colour", "class", "linked",
+        self.assertEqual(sorted(s["rows"][0]), sorted(["id", "ref", "title", "headline", "status", "commitment", "colour", "class", "linked",
                                                          "open", "overdue", "next_steps", "worst", "words", "steps_words"]))
         editor = g.use_case_strip(ucs, rows, ON)
         self.assertEqual([r["client_visible"] for r in editor["rows"]], [True, False, True])

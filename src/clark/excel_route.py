@@ -5,7 +5,11 @@ imports nothing from clark) hands a request to a seam made here and sends the (s
 its own: reading a workbook, staging the differences, the clash rules, the export's record and the apply with its one step are
 excel_import.py's (#38), the code the command line and the tests of the import already use.
 
-Three ops of one route:
+Four ops of one route:
+- "sheets" (#655): the same file handling as "check", but nothing is compared: it lists which of the five sheets the workbook has,
+  with each one's row count, and keeps the copy (named by `file`) so the check that follows does not send the workbook again.
+  "check" then takes `sheets`, the tables ticked: only those sheets are read, and an unticked one is not read, not changed and
+  not archived (excel_import.read_workbook enforces it here, whatever the page sends).
 - "check": a workbook (its bytes, as text the page sends) is put in a private temporary folder and read by excel_import.read_workbook
   against the named project. Nothing is written to the database. The reply lists every difference by number, in words (new,
   changed, no longer in the workbook), with the ones that would be refused and the ones that clash with a later change in clark.
@@ -42,8 +46,8 @@ ROUTE = "excel"                      # the step's route (store.ROUTES); excel_im
 MAX_PLANS = 4                        # checks waiting for a decision, at once
 PLAN_MINUTES = 30                    # how long one waits
 MAX_NAME = 255
-OPS = ("check", "apply", "undo")
-ALLOWED = {"check": ("op", "project", "name", "data"), "apply": ("op", "project", "plan", "accept", "confirm"),
+OPS = ("sheets", "check", "apply", "undo")
+ALLOWED = {"sheets": ("op", "project", "name", "data"), "check": ("op", "project", "name", "data", "file", "sheets"), "apply": ("op", "project", "plan", "accept", "confirm"),
            "undo": ("op", "project", "apply_id")}
 MAX_FILE_BYTES = 25 * 1024 * 1024     # excel.MAX_FILE_BYTES; a test says they agree
 
@@ -54,6 +58,7 @@ BAD_NAME = "The file's name could not be read. Choose the workbook again."
 BAD_FILE = "That file could not be read. Choose the workbook again."
 MACRO_BOOK = "{file} is a macro workbook, and clark imports only .xlsx workbooks. Nothing was saved."
 EXPIRED = "That import is no longer waiting. Choose the workbook again."
+BAD_SHEETS = "That could not be read. Reload the page and try again."
 BAD_ACCEPT = "Accept all, or give the numbers of the changes to accept."
 NEEDS_CONFIRM = ("clark has no record of exporting this workbook, so it is not applied until you confirm it. Check it is the right "
                  "file, then choose Import anyway.")
@@ -130,7 +135,8 @@ def _described(plan, key):
             "refused": [{"name": c.describe(), "why": c.problem} for c in plan.changes if c.problem]}
 
 
-def _check(store, req, project, clock):
+def _staged_file(req, clock):
+    """Validate the name and the workbook's text, decode it and put it in a private temporary folder: (now, folder, file)."""
     name = req.get("name")
     if not isinstance(name, str) or not name.strip() or len(name) > MAX_NAME:
         raise Refused(BAD_NAME)
@@ -157,20 +163,77 @@ def _check(store, req, project, clock):
         if file.suffix.lower() != ".xlsx":
             file = file.with_name(file.name + ".xlsx")
         file.write_bytes(raw)
-        plan = word_route._excel_import().read_workbook(store, file, project)
     except BaseException:
         shutil.rmtree(folder, ignore_errors=True)
         raise
+    return now, folder, file
+
+
+def _hold(project, plan, folder, file, now):
+    """Keep a copy of the workbook (and its plan, once there is one) for PLAN_MINUTES: returns its key."""
     key = secrets.token_urlsafe(12)
-    if plan.already_imported or any(c.problem for c in plan.changes):   # nothing is staged: nothing to wait for (a row that breaks a rule refuses the whole file)
-        shutil.rmtree(folder, ignore_errors=True)
-        return 200, _described(plan, None)
-    held = {"project": project, "plan": plan, "dir": folder, "at": now, "timer": None}
+    held = {"project": project, "plan": plan, "dir": folder, "file": file, "at": now, "timer": None}
     timer = threading.Timer(PLAN_MINUTES * 60 + 5, _expire_one, (key, held))
     timer.daemon = True                                    # never keeps the server from closing
     held["timer"] = timer
     PLANS[key] = held
     timer.start()
+    return key, held
+
+
+def _sheets(store, req, project, clock):
+    """#655: the sheets the workbook has among the five clark imports, each with its row count. Nothing is compared or written. The
+    workbook is kept (as a check is) so the check that follows names it by `file` and the page does not send it again."""
+    now, folder, file = _staged_file(req, clock)
+    try:
+        listed = word_route._excel_import().list_sheets(file)
+    except BaseException:
+        shutil.rmtree(folder, ignore_errors=True)
+        raise
+    key, _ = _hold(project, None, folder, file, now)
+    return 200, {"ok": True, "file": key, "name": file.name, "sheets": listed}
+
+
+def _wanted_sheets(value):
+    """The tables the person ticked: a list of distinct names from the five (at least one), or None when `sheets` was not sent (all)."""
+    if value is None:
+        return None
+    tables = word_route._excel_import().CHOICE_ORDER
+    if not isinstance(value, list) or not value or len(value) > len(tables) or any(not isinstance(t, str) or t not in tables for t in value) or len(set(value)) != len(value):
+        raise Refused(BAD_SHEETS)
+    return value
+
+
+def _check(store, req, project, clock):
+    wanted = _wanted_sheets(req.get("sheets"))
+    key = req.get("file")
+    if key is not None:                                    # the workbook kept by "sheets": it is read now, for the ticked sheets only
+        if wanted is None or "data" in req or "name" in req:
+            raise Refused(BAD_SHEETS)
+        now = clock()
+        _expire(now)
+        held = PLANS.get(key) if isinstance(key, str) else None
+        if held is None or held["project"] != project:
+            raise Refused(EXPIRED, 410, "expired")
+        plan = word_route._excel_import().read_workbook(store, held["file"], project, sheets=wanted)
+        if plan.already_imported or any(c.problem for c in plan.changes):
+            PLANS.pop(key, None)
+            _drop(held)
+            return 200, _described(plan, None)
+        held["plan"], held["at"] = plan, now
+        described = _described(plan, key)
+        plan.store = None
+        return 200, described
+    now, folder, file = _staged_file(req, clock)
+    try:
+        plan = word_route._excel_import().read_workbook(store, file, project, sheets=wanted)
+    except BaseException:
+        shutil.rmtree(folder, ignore_errors=True)
+        raise
+    if plan.already_imported or any(c.problem for c in plan.changes):   # nothing is staged: nothing to wait for (a row that breaks a rule refuses the whole file)
+        shutil.rmtree(folder, ignore_errors=True)
+        return 200, _described(plan, None)
+    key, _ = _hold(project, plan, folder, file, now)
     described = _described(plan, key)
     plan.store = None                                      # this call's store is closed when it returns; _apply gives the plan its own
     return 200, described
@@ -185,7 +248,7 @@ def _apply(store, who, req, project, clock):
     now = clock()
     _expire(now)
     held = PLANS.get(key) if isinstance(key, str) else None
-    if held is None or held["project"] != project:
+    if held is None or held["project"] != project or held["plan"] is None:
         raise Refused(EXPIRED, 410, "expired")
     plan = held["plan"]
     plan.store = store                                     # the live store of THIS call: the one read at the check is closed (refresh_ids reads it)
@@ -237,6 +300,8 @@ def _do_import(store, who, req, clock):
     op, project = _shape(req)
     if store.read("projects", ref=project) is None:
         raise Refused("There is no project with that code. Check the code, or choose a project from the list.", 404, "project_not_found")
+    if op == "sheets":
+        return _sheets(store, req, project, clock)
     if op == "check":
         return _check(store, req, project, clock)
     if op == "apply":

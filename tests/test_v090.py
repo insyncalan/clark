@@ -216,6 +216,8 @@ class Notes(unittest.TestCase):
                 self.assertNotIn("ask clark", line)
 
     def test_the_data_layout_paragraph_is_there_only_when_the_layout_changed(self):
+        if version() != VERSION:        # a cut check: live only at its own version (#709: 1.0.1 has a layout step of its own, and these notes are not its notes)
+            self.skipTest(f"the layout moves on after {VERSION} (now {schema_version()}), and a later release says so in its own notes")
         said = "This version includes a change to how clark stores your data" in self.text
         self.assertEqual(said, schema_version() != SCHEMA_AT_0_8_0,
                          "the notes must say a layout step is in exactly when SCHEMA_VERSION in store.py is not %d" % SCHEMA_AT_0_8_0)

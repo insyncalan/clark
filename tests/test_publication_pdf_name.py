@@ -48,11 +48,11 @@ class TheColumnAndTheStep(unittest.TestCase):
         return path
 
     def test_the_step_is_number_15_and_follows_step_14(self):
-        self.assertEqual(store_module.SCHEMA_VERSION, 15)
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, 15)       # #709 is step 16 after it
         steps = [n for n, _ in store_module.MIGRATIONS]
-        self.assertEqual(steps, list(range(2, 16)))
-        self.assertEqual(store_module.MIGRATIONS[-2], (14, store_module.migrate_review_after_days))
-        self.assertEqual(store_module.MIGRATIONS[-1], (15, store_module.migrate_publication_pdf_name))
+        self.assertEqual(steps, list(range(2, store_module.SCHEMA_VERSION + 1)))
+        self.assertIn((14, store_module.migrate_review_after_days), store_module.MIGRATIONS)
+        self.assertIn((15, store_module.migrate_publication_pdf_name), store_module.MIGRATIONS)
 
     def test_a_version_10_file_gets_the_column_keeps_every_row_and_is_copied_first(self):
         path = self.make_v10()
@@ -61,7 +61,7 @@ class TheColumnAndTheStep(unittest.TestCase):
         con.close()
         s = open_store(path, onedrive_roots=[])
         self.addCleanup(s.close)
-        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], "15")
+        self.assertEqual(s.con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()[0], str(store_module.SCHEMA_VERSION))
         self.assertEqual([tuple(r) for r in s.con.execute("SELECT number, local_path, pdf_name FROM publications ORDER BY seq")],
                          [(1, "/x/1.html", None), (2, "/x/2.html", None)])
         self.assertTrue(list((Path(path).parent / "backups").glob("*")), "a safety copy was taken before the step")
@@ -100,8 +100,8 @@ class TheColumnAndTheStep(unittest.TestCase):
         con = sqlite3.connect(path)
         before = list(con.iterdump())
         con.close()
-        steps = store_module.MIGRATIONS[:-1] + ((15, lambda c: (c.execute("ALTER TABLE publications ADD COLUMN pdf_name TEXT"),
-                                                                    c.execute("SELECT nonsense FROM nowhere"))),)
+        broken = lambda c: (c.execute("ALTER TABLE publications ADD COLUMN pdf_name TEXT"), c.execute("SELECT nonsense FROM nowhere"))  # noqa: E731
+        steps = tuple((n, broken if n == 15 else fn) for n, fn in store_module.MIGRATIONS)
         with mock.patch.object(store_module, "MIGRATIONS", steps):
             with self.assertRaises(Invalid):
                 open_store(path, onedrive_roots=[])

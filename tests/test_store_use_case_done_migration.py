@@ -88,7 +88,8 @@ def add_use_cases(path):
 def use_cases_of(path):
     con = sqlite3.connect(str(path))
     try:
-        return con.execute("SELECT rowid, * FROM use_cases ORDER BY rowid").fetchall()
+        kept = ", ".join(c[1] for c in con.execute("PRAGMA table_info(use_cases)") if c[1] != "commitment")   # #709 (step 16) adds a column: these steps keep every other
+        return con.execute(f"SELECT rowid, {kept} FROM use_cases ORDER BY rowid").fetchall()
     finally:
         con.close()
 
@@ -99,7 +100,7 @@ def every_row(path):
     try:
         names = [r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
                                            "AND name != 'meta' ORDER BY name")]
-        later = {"review_after_days"}                  # a column a later step adds (#171, step 14): what these older steps keep is every other one
+        later = {"review_after_days", "commitment"}   # columns a later step adds (#171, step 14; #709, step 16): what these older steps keep is every other one
         out = {}
         for n in names:
             kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if c[1] not in later)
@@ -392,7 +393,8 @@ class FrozenText(Base):
         def the_table(text):
             found = [st for st in store_module._statements(text) if "TABLE IF NOT EXISTS use_cases (" in st]
             self.assertEqual(len(found), 1)
-            return "\n".join(l for l in found[0].splitlines() if not l.startswith("--")).strip()
+            text = "\n".join(l for l in found[0].splitlines() if not l.startswith("--")).strip()
+            return re.sub(r",\n\s*commitment\s+TEXT\n", "\n", text)      # #709: the column step 16 adds is not in this step's frozen text
         self.assertEqual(the_table(store_module.SCHEMA_USE_CASES_DONE.read_text(encoding="utf-8")),
                          the_table(store_module.SCHEMA.read_text(encoding="utf-8")))
 
@@ -410,9 +412,7 @@ class FrozenText(Base):
     def test_the_step_does_not_read_the_live_schema(self):
         path = make_before(self.dir)
         real = store_module.SCHEMA.read_text(encoding="utf-8")
-        changed = real.replace("  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))\n);\n\nCREATE TABLE IF NOT EXISTS report_sections",
-                               "  updated_at    TEXT NOT NULL DEFAULT (datetime('now')),\n  later_column TEXT\n);\n\n"
-                               "CREATE TABLE IF NOT EXISTS report_sections")
+        changed = real.replace("  commitment    TEXT\n);", "  commitment    TEXT,\n  later_column TEXT\n);")
         self.assertNotEqual(real, changed, "the test must really change use_cases")
         fake = self.dir / "schema-later.sql"
         fake.write_text(changed, encoding="utf-8")

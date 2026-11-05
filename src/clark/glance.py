@@ -401,12 +401,12 @@ def use_case_strip(use_cases, work_rows_, today, for_client=False, kept=None):
     `use_case` is the id of the use case it belongs to). Rows come sorted by sort_order, then id. Archived use cases are left
     out. The client version takes BOTH lists from `kept` (`kept_rows(...)`, which is `publish.select`'s output), so the
     two arguments are ignored (pass None) and a use case or linked work item the page leaves out is never counted; `kept`
-    is required. Only a whitelist of fields is carried: id, ref, title, headline, status,
+    is required. Only a whitelist of fields is carried: id, ref, title, headline, status, commitment (#709: the flag, or None),
     colour and the counts. 'Where it stands' and the detail are the page's own reading of the row, not part of the strip.
 
     Returns {"total", "total_words", "counts": [{status, colour, class, count}] (statuses with none are left out, in the
     schema's order; the page draws the meter from the counts), "rows": [...]}. Each row: id, ref, title, headline, status,
-    colour, class, linked (all its work items), open, overdue, next_steps (open actions), worst (the worst colour among its
+    colour, class, commitment (#709), linked (all its work items), open, overdue, next_steps (open actions), worst (the worst colour among its
     open items: red, amber, green or None) and words ('No linked work items', 'No open work items', '2 open, 1 overdue')."""
     _need_today(today)
     if for_client:
@@ -427,7 +427,7 @@ def use_case_strip(use_cases, work_rows_, today, for_client=False, kept=None):
         words = ("No linked work items" if not mine else "No open work items" if not open_
                  else f"{len(open_)} open" + (f", {len(late)} overdue" if late else ""))
         row = {"id": u["id"], "ref": u.get("ref") or "", "title": u.get("title") or "", "headline": u.get("headline") or "",
-               "status": status, "colour": colour, "class": COLOUR_CLASS[colour], "linked": len(mine), "open": len(open_),
+               "status": status, "commitment": u.get("commitment"), "colour": colour, "class": COLOUR_CLASS[colour], "linked": len(mine), "open": len(open_),
                "overdue": len(late), "next_steps": len(steps), "worst": _worst(mine, today), "words": words,
                "steps_words": plural(len(steps), "next step", "next steps") if steps else "No open steps"}
         if not for_client:

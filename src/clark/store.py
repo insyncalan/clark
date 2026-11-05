@@ -34,7 +34,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 15          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 16          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -80,6 +80,10 @@ SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", 
 # registry in section_bodies.py (section_kinds/); tests/test_section_registry.py pins this list to that registry
 BODY_TYPES = ("text",) + section_bodies.BODY_TYPES   # the section types that may have a body; text is written only by its own item (#188), the others by changes.py through the checker
 DELETABLE_TYPES = BODY_TYPES                    # a section added by hand may be deleted; the built-in ones are hidden, never deleted
+# #709: the words of a use case's commitment flag, the owner's own, case exact. The ONE place they are written: changes.py, the Excel
+# import and export, the data feed to the page and the tests all read this tuple. No flag is NULL. SQL has no CHECK on the column,
+# so a fourth word later is a change here and not a layout step.
+COMMITMENTS = ("Candidate", "Committed", "Planned 2027")
 ALLOWED = {
     ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): every type of schema.sql's CHECK
     ("glance_tiles", "tile"): ("health", "overdue", "risks", "decisions"),
@@ -96,6 +100,7 @@ ALLOWED = {
     ("raid", "likelihood"): ("High", "Medium", "Low"),
     ("decisions", "status"): ("Pending", "Made", "Withdrawn"),
     ("use_cases", "status"): ("On track", "Flag", "High risk", "Done"),                            # clark
+    ("use_cases", "commitment"): COMMITMENTS,                                                      # #709: no flag is NULL, never a word
     ("links", "kind"): ("blocks",),
     ("labels", "behaviour"): ("warn", "exclude"),
     ("labels", "default_choice"): ("include", "exclude"),
@@ -2221,13 +2226,23 @@ def migrate_publication_pdf_name(con):
                     "AND pdf_name NOT GLOB '*[/\\]*'))")
 
 
+def migrate_use_case_commitment(con):
+    """Schema version 15 to 16 (#709): `use_cases.commitment`, the flag that says how firm a use case is (Candidate, Committed or
+    Planned 2027). NULL for every row already there: no flag is guessed. An optional column with no default and no CHECK (the words are
+    store.COMMITMENTS, so a fourth is not another layout step), added in place: no table is made again. Skipped when the column is
+    already there (a new database, or a second run). Runs inside the caller's transaction and does not touch the version (the runner
+    does). It is step 16 in MIGRATIONS."""
+    if "commitment" not in columns(con, "use_cases"):
+        con.execute("ALTER TABLE use_cases ADD COLUMN commitment TEXT")
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
               (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers),
               (11, migrate_use_case_done), (12, migrate_publication_trigger_client_path),
               (13, migrate_publication_shared_number),
-              (REVIEW_DAYS_STEP, migrate_review_after_days), (15, migrate_publication_pdf_name))
+              (REVIEW_DAYS_STEP, migrate_review_after_days), (15, migrate_publication_pdf_name), (16, migrate_use_case_commitment))
 
 
 def migration_plan(version, table=None):
@@ -2646,6 +2661,7 @@ class Store:
                 from clark import history                  # history imports this module, so it is read here
                 self.review_cache = history.ReviewCache()
             attach_freshness(con, out, review_days_for(out["project"]), self.review_cache)
+            out["commitments"] = list(COMMITMENTS)                 # #709: the flag's words, so the page never writes them itself
             return out
         finally:
             con.close()
