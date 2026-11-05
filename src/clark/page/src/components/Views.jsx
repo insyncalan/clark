@@ -172,15 +172,17 @@ function SettingsHead({ cards }) {
 }
 
 export function Settings({ tools }) {
-  const ClientFolder = tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
-  const PublishedReports = tools && tools.PublishedReports;      // the list of publications, with Open (#443); Edit's page only
+  const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Published reports, Freshness) are left out
+  const ClientFolder = open && tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
+  const PublishedReports = open && tools && tools.PublishedReports;      // the list of publications, with Open (#443); Edit's page only
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
-  const ReviewDays = tools && tools.ReviewDays;          // Freshness (item 160): the project's "Not reviewed after (days)"
+  const ReviewDays = open && tools && tools.ReviewDays;          // Freshness (item 160): the project's "Not reviewed after (days)"
   const Diagnostics = tools && tools.Diagnostics;        // logs and diagnostics (#110)
   const Data = tools && tools.Data;                    // the Data card (A-S11): Export to Excel; Edit only
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
   const Update = tools && tools.Update;                  // Version and updates; a published file has none
-  const cards = CARDS.filter(([tool]) => tools && tools[tool]);
+  const NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays"];
+  const cards = CARDS.filter(([tool]) => tools && tools[tool] && (open || !NEEDS_PROJECT.includes(tool)));
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
   const People = tools && tools.People;                  // the People card (item 454): email, organisation, role, Paste from Excel; Edit's page only
   const Projects = tools && tools.Projects;              // the projects table (A-S6); a published file has none

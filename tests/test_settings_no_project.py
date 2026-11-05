@@ -76,6 +76,32 @@ class Browser(unittest.TestCase):
                     cdp.js("document.querySelector('[data-view=settings]').click()", sid)
                     self.until(cdp, sid, "document.querySelector('#npBtn')", "Settings again from its tab")
 
+    def test_item_682_only_the_cards_that_work_show_and_import_says_why(self):
+        s = self.serve()
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, s.port, width, "light", "#settings")
+                self.until(cdp, sid, "document.querySelector('[data-mode=edit]')", "the Edit switch")
+                cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+                self.until(cdp, sid, "document.querySelector('#npBtn') && document.querySelector('#import-workbook')", "the cards")
+                for gone in ("client-folder-h", "review-days-h"):
+                    self.assertFalse(cdp.js(f"!!document.getElementById('{gone}')", sid), gone)
+                text = cdp.js("document.querySelector('main').innerText", sid)
+                for word in ("Publishing", "Choose folder", "Published reports", "Freshness"):
+                    self.assertNotIn(word, text)
+                chips = cdp.js("[...document.querySelectorAll('.set-chip')].map(c => c.textContent).join('|')", sid)
+                self.assertNotIn("Publishing", chips)
+                self.assertNotIn("Freshness", chips)
+                for kept in ("personal-h", "data-card-h", "safety-h", "diagnostics-h"):
+                    self.assertTrue(cdp.js(f"!!document.getElementById('{kept}')", sid), kept)
+                self.assertTrue(cdp.js("document.querySelector('#import-workbook').disabled", sid))
+                self.assertEqual(cdp.js("document.getElementById('import-why').textContent", sid), "Add a project first.")  # logic/dataCard.js IMPORT_NEEDS_PROJECT
+                self.assertEqual(cdp.js("document.querySelector('#import-workbook').getAttribute('aria-describedby')", sid), "import-why")
+                self.assertTrue(cdp.js("document.querySelector('#export-workbook').disabled", sid))
+                self.assertEqual(cdp.js("document.getElementById('export-why').textContent", sid), "Add a project first.")
+                self.assertEqual(cdp.js("document.querySelector('#export-workbook').getAttribute('aria-describedby')", sid), "export-why")
+                self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways page scroll")
+
     def test_the_other_four_screens_still_say_no_project_open(self):
         s = self.serve()
         for view in ("dashboard", "work", "milestones", "usecases"):
