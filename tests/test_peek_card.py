@@ -44,7 +44,7 @@ class CardBrowser(unittest.TestCase):
     edit_mode = tp.Browser.edit_mode
     ids_on_page = tp.Browser.ids_on_page
 
-    def open(self, cdp, sid, item):
+    def show_item(self, cdp, sid, item):
         cdp.js(f"location.hash = '#work&p={self.code}&item={item}'", sid)
         self.assertTrue(wait(lambda: cdp.js("(() => { const p = document.querySelector('#peek'); return !!p && p.dataset.peek === " + json.dumps(item) + " && !!p.querySelector('.pk-fields [data-row=status]'); })()", sid)), item)
         self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)), "the slide-in has ended")
@@ -94,7 +94,7 @@ class CardBrowser(unittest.TestCase):
                         for it in (item, dec):
                             where = f"{width} {mode} {theme} {it}"
                             with self.subTest(where):
-                                got = self.open(cdp, sid, it)
+                                got = self.show_item(cdp, sid, it)
                                 self.check(got, where, across=False)
                                 if it == item:
                                     click(cdp, sid, "[data-pk-wide]")
