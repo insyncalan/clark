@@ -783,7 +783,7 @@ class Live(unittest.TestCase):
             self.changed_once(before, "one item, from the peek")
 
     def test_the_view_peek_of_a_closed_risk_says_closed_and_its_rating_word_with_no_picker(self):
-        """#448 (done-when 5): in View the peek of a closed risk says Closed and its rating word; no picker, no internal field. The
+        """#448 (done-when 5): in View the peek of a closed risk says Closed and its rating word; its status picker closed (row 824: the peek edits in View too). The
         published file itself is checked in test_peek.ClosedRiskPublished."""
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
@@ -791,9 +791,9 @@ class Live(unittest.TestCase):
                 cdp.js("clarkPage.openPeek('TUL-008', 'item')", sid)
                 self.until(cdp, sid, "!!document.querySelector('#peek [data-pk-rating]')", "the peek says the rating word")
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status] dd').textContent.replace(/\\s+/g, ' ').trim()", sid), "Closed · Amber")
-                self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-cell], #peek .cell-pick, [data-pop]').length", sid), 0, "View has no picker")
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-pop]').length", sid), 0, "no picker is open until the status is chosen")
                 labels = cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid)
-                self.assertNotIn("Shown to client", labels)
+                self.assertIn("Shown to client", labels, "Work items have no mode: the peek edits in View too (row 824)")
 
     def rating_drawn(self, cdp, sid, ref):
         """The row's Priority cell and the Rating ticked in its status picker (opened and shut again)."""

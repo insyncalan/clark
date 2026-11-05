@@ -125,7 +125,7 @@ class ActivityBrowser(unittest.TestCase):
                 ids = self.ids_on_page(cdp, sid)
                 dblclick(cdp, sid, f"#work tbody tr[data-id='{ids[0]}'] .c-item")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
-                self.assertFalse(cdp.js("!!document.querySelector('#peek [role=tablist],[data-activity]')", sid), "no tabs in View")
+                self.assertTrue(cdp.js("!!document.querySelector('#peek [role=tablist],[data-activity]')", sid), "the tabs are in View too (row 824)")
                 key(cdp, sid, "Escape")
                 self.edit_mode(cdp, sid)
                 dblclick(cdp, sid, f"#work tbody tr[data-id='{ids[0]}'] .c-item")
