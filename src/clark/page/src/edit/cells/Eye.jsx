@@ -25,7 +25,7 @@ export function eyeOf(row) {
   return { on: publishable(raw, tableOf(row), st.rules), back: st.rules.hidden.has(row.id) && Number(raw.client_visible) === 1 };
 }
 
-export function Eye({ row }) {
+export function Eye({ row, card }) {   // `card`: the board's card, whose buttons never use the shared `ib` name (tests/test_ib_scope.py)
   const { on, back } = eyeOf(row);
   const go = (e) => {
     e.stopPropagation();
@@ -35,7 +35,7 @@ export function Eye({ row }) {
   };
   const words = on ? "Shown to the client" : "Hidden from the client";
   return (
-    <button type="button" class="ib weye" tabIndex={-1} aria-pressed={on ? "true" : "false"}
+    <button type="button" class={card ? "weye" : "ib weye"} tabIndex={-1} aria-pressed={on ? "true" : "false"}
       aria-label={`${on ? "Shown to the client" : "Not shown to the client"}: ${row.title}`}
       title={on ? "In client reports. Select to hide" : "Internal only. Select to show the client"} onClick={go}>
       <Icon name={on ? "eye" : "eyeoff"} />

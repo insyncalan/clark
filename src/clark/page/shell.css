@@ -791,7 +791,9 @@ table.items tr[data-id]:focus-visible { outline: 2px solid var(--brand-blue); ou
 .type.tl { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0; font-size: var(--size-small); font-weight: 600; line-height: 1; }
 .eye { display: inline-flex; color: var(--status-blue-text); }
 .eye .i { width: 16px; height: 16px; }
-.bc-top .weye { width: 24px; height: 24px; }      /* row 819: the card's eye is a button, the list eye's own */
+.bc-top .weye { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius); color: var(--grey-500); cursor: pointer; }      /* row 819: the card's eye is a button, the list eye's own, without the shared `ib` name */
+.bc-top .weye:hover { color: var(--text); background: var(--grey-100); }
+.bc-top .weye:focus-visible { outline: 2px solid var(--brand-blue); }
 .bc-top .weye[aria-pressed="true"] { color: var(--status-blue-text); }
 .bc-top .weye .i { width: 16px; height: 16px; }
 .bc-title { margin: var(--space-1) 0 6px; font-size: var(--size-small); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }

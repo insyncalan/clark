@@ -33,7 +33,7 @@ const cellKey = (lane, col) => `${lane == null ? "" : lane}\u0001${col}`;
 
 // The card's eye (row 819): the list's own eye, a button in View and Edit, one change with the list's toast and Undo.
 function CardEye({ card }) {
-  return <WorkEye row={{ id: card.id, title: card.title, kind: card.typeClass.slice(2), client: card.client }} />;
+  return <WorkEye card row={{ id: card.id, title: card.title, kind: card.typeClass.slice(2), client: card.client }} />;
 }
 
 // A card is picked like a table row (#195): a click selects it, Cmd or Ctrl+click adds or removes it, Shift+click a range in the
