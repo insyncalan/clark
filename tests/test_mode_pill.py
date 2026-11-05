@@ -3,6 +3,7 @@ tab it stays at the top right. Chrome is required: these tests fail, never skip,
 
 Run: python3 dev/run_tests.py test_mode_pill
 """
+import re
 import unittest
 from pathlib import Path
 
@@ -75,9 +76,12 @@ class ModePill(Base):
         # The switch moves between the top bar and the report bar; a listener that lived in it was missing before the report bar drew (the
         # first E press on a slow runner was lost). boot.jsx installs it once, from the start.
         page = Path(__file__).resolve().parents[1] / "src/clark/page/src"
-        self.assertNotIn("keydown", (page / "edit/Toggle.jsx").read_text(encoding="utf-8"), "the switch adds no key listener of its own")
-        self.assertIn("tools.modeKeys.install()", (page / "boot.jsx").read_text(encoding="utf-8"))
-        self.assertIn("modeKeys: { install: installModeKeys }", (page / "edit/index.js").read_text(encoding="utf-8"))
+        read = lambda name: (page / name).read_text(encoding="utf-8")
+        switch = read("edit/Toggle.jsx")
+        self.assertIsNone(re.search(r"keydown|keyup|onKey|addEventListener", switch), "the switch adds no key listener of its own")
+        self.assertIsNotNone(re.search(r"modeKeys\s*\.\s*install\s*\(", read("boot.jsx")), "boot installs the V and E listener")
+        self.assertIsNotNone(re.search(r"modeKeys\s*:\s*\{\s*install\s*:\s*installModeKeys", read("edit/index.js")), "the edit tools expose it")
+        self.assertIsNotNone(re.search(r"function\s+installModeKeys[^}]*addEventListener\(\s*[\"']keydown", read("edit/keys.js")), "keys.js adds the listener")
 
     def test_the_keys_still_work_after_a_round_trip_through_another_tab(self):
         # keys.js acts on the Dashboard only; the switch moves between the top bar and the report bar, and one listener must survive that
