@@ -14,7 +14,7 @@ import _publish_fixture as fx
 from _demo import DemoStore
 from openpyxl import load_workbook
 
-from clark import excel, excel_colours as base, publish_flow
+from clark import excel, excel_colours as base, excel_palette as palette, publish_flow
 from test_excel_picture import make_png
 
 ENERGY = """/* an invented teal look */
@@ -122,7 +122,10 @@ class WithABrand(Rig):
         self.assertEqual(rgb(load_workbook(path)["Cover"]["A1"].fill.fgColor), "0B2545")
 
     def test_a_bad_colour_falls_back_for_that_token_with_a_warning(self):
-        path, w = self.export(self.brand(":root { --brand-navy: rgb(1, 2, 3); --grey-100: #E0EEFF; }"))
+        d = self.brand(":root { --brand-navy: rgb(1, 2, 3); --grey-100: #E0EEFF; }")
+        path, shown = self.export(d)
+        w = palette.palette(branding=d).warnings          # the palette's own notes; none reach the person's warnings yet
+        self.assertEqual(shown, [])
         wb, _ = harvest(path)
         self.assertEqual(rgb(wb["Actions"]["A1"].fill.fgColor), base.HEADER_FILL)
         self.assertEqual(rgb(wb["Lists"]["A1"].fill.fgColor), base.HEADER_FILL)
@@ -130,7 +133,10 @@ class WithABrand(Rig):
         self.assertIn("brand-navy", w[0])
 
     def test_a_failing_pair_reverts(self):
-        path, w = self.export(self.brand(":root { --brand-navy: #E0E0E0; --white: #FFFFFF; }"))
+        d = self.brand(":root { --brand-navy: #E0E0E0; --white: #FFFFFF; }")
+        path, shown = self.export(d)
+        w = palette.palette(branding=d).warnings
+        self.assertEqual(shown, [])
         wb, _ = harvest(path)
         self.assertEqual((rgb(wb["Actions"]["A1"].fill.fgColor), rgb(wb["Actions"]["A1"].font.color)), (base.HEADER_FILL, base.HEADER_TEXT))
         self.assertEqual(len(w), 1)

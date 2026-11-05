@@ -1188,7 +1188,7 @@ def export(path, project, rows_by_table, state_path, on=None, cover=None, brandi
                       f"overwritten ({path}). Import it, or choose another file name.")
     buf = io.BytesIO()
     logo = excel_picture.load(branding, warnings) if cover else None     # #133: the local brand logo, if there is one and it is safe
-    pal = excel_palette.palette(branding=branding, warnings=warnings)      # item 711: the local brand's light values, else the committed look
+    pal = excel_palette.palette(branding=branding)      # item 711: the local brand's light values, else the committed look; its notes (pal.warnings) are not shown to the person until the Head rules the words
     wb = workbook(project, rows_by_table, on, cover, mark=bool(logo), history=history, pal=pal)
     if reuse is None:                      # the same unchanged workbook exported again to its own path keeps its id
         try:
