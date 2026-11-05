@@ -1,4 +1,4 @@
-"""The Excel export (#37; BRD FR-70): one project's actions, RAID, decisions, milestones and use cases as a workbook.
+"""The Excel export (#37; BRD FR-70): one project's actions, risks & issues, decisions, milestones and use cases as a workbook.
 
 Copied from creaite v2.6.9 (db5adb2), system/scripts/excel_sync.py: the sheet layout, the cell conversions (to_cell, from_cell,
 cell_text), the drop-downs and locked columns, and the guard against overwriting a workbook with edits not yet imported (a
@@ -72,15 +72,6 @@ STATE_LOCK = threading.RLock()
 # clark: + Workstream and Movement on milestones, + Use case on actions, RAID and decisions, + the Use cases sheet; Original
 # and Shown state are worked out, not columns (see DERIVED); no Labels on milestones or use cases, as in creaite.
 SHEETS = [
-    ("Milestones", "milestones", [
-        ("ID", "id"), ("Milestone", "name"), ("Project", "project"), ("Description", "description"),
-        ("Workstream", "workstream"), ("Original", "original_date"), ("Agreed", "baseline_date"),
-        ("Forecast", "forecast_date"), ("Status", "status"), ("Order", "sort_order"), ("% complete", "percent_complete"),
-        ("Owner", "owner"), ("Shown state", "shown_state"), ("State", "state"), ("State set by you", "state_set"),
-        ("State reason", "state_reason"), ("Movement", "movement"), ("Achieved on", "actual_date"),
-        ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Internal note", "internal_note"),
-        ("Source", "source"), ("Updated", "updated_at")],
-     {"id", "original_date", "shown_state", "source", "updated_at"}),
     ("Actions", "actions", [
         ("ID", "id"), ("Description", "description"), ("Project", "project"), ("Workstream", "workstream"),
         ("Owner", "owner"), ("Priority", "priority"), ("Due", "due_date"), ("Status", "status"),
@@ -88,7 +79,7 @@ SHEETS = [
         ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Milestone", "milestone"),
         ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"), ("Updated", "updated_at")],
      {"id", "source", "updated_at"}),
-    ("Risks and issues", "raid", [
+    ("Risks & Issues", "raid", [
         ("ID", "id"), ("Description", "description"), ("Project", "project"), ("Type", "type"),
         ("Workstream", "workstream"), ("Owner", "owner"), ("Response action", "response_action"),
         ("Due", "due_date"), ("Impact", "impact"), ("Likelihood", "likelihood"), ("Priority", "priority"),
@@ -103,6 +94,15 @@ SHEETS = [
         ("Client wording", "client_message"), ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"),
         ("Updated", "updated_at")],
      {"id", "source", "updated_at"}),
+    ("Milestones", "milestones", [
+        ("ID", "id"), ("Milestone", "name"), ("Project", "project"), ("Description", "description"),
+        ("Workstream", "workstream"), ("Original", "original_date"), ("Agreed", "baseline_date"),
+        ("Forecast", "forecast_date"), ("Status", "status"), ("Order", "sort_order"), ("% complete", "percent_complete"),
+        ("Owner", "owner"), ("Shown state", "shown_state"), ("State", "state"), ("State set by you", "state_set"),
+        ("State reason", "state_reason"), ("Movement", "movement"), ("Achieved on", "actual_date"),
+        ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Internal note", "internal_note"),
+        ("Source", "source"), ("Updated", "updated_at")],
+     {"id", "original_date", "shown_state", "source", "updated_at"}),
     ("Use cases", "use_cases", [                                       # clark's own table, in creaite's style
         ("ID", "id"), ("Use case", "title"), ("Project", "project"), ("Shown as", "ref"), ("Status", "status"),
         ("Headline", "headline"), ("Where it stands", "standing"), ("Order", "sort_order"),
@@ -956,7 +956,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
                 status_field, open_states = colours.LATE[(table, field)]
                 add_late_rule(ws, col, n_rows, col, get_column_letter([f for _, f in cols].index(status_field) + 1),
                               open_states)
-        if name == SHEETS[0][0]:
+        if table == "milestones":      # the internal note and the ID note stay on Milestones A1, whatever the sheet order
             note = Comment(INTERNAL_NOTE + "\n\n" + ID_NOTE, FIXED_NAME)    # one note per cell: both go on Milestones A1
             note.width, note.height = 320, 120
             ws["A1"].comment = note

@@ -35,7 +35,7 @@ EXPECTED = {
     "Actions": {"Project": (["ABC"], False), "Workstream": (WS, True), "Priority": (PRIORITY, False),
                 "Status": (["Open", "Delayed", "Closed", "Cancelled"], False), "Client-visible": (YES_NO, False),
                 "Milestone": (MS, True), "Use case": (UC, True)},
-    "Risks and issues": {"Project": (["ABC"], False), "Type": (["Risk", "Assumption", "Issue", "Dependency"], False),
+    "Risks & Issues": {"Project": (["ABC"], False), "Type": (["Risk", "Assumption", "Issue", "Dependency"], False),
              "Workstream": (WS, True), "Impact": (RATING, True), "Likelihood": (RATING, True),
              "Status": (["Open", "Closed", "Cancelled"], False), "Client-visible": (YES_NO, False),
              "Milestone": (MS, True), "Use case": (UC, True)},
@@ -111,7 +111,7 @@ class Lists(unittest.TestCase):
         self.check_sheet("Actions")
 
     def test_risks_and_issues(self):
-        self.check_sheet("Risks and issues")
+        self.check_sheet("Risks & Issues")
 
     def test_decisions(self):
         self.check_sheet("Decisions")
@@ -147,7 +147,7 @@ class Lists(unittest.TestCase):
             self.assertEqual(self.wb[name].sheet_state, "visible", name)
 
     def test_owner_is_free_text_with_a_note(self):
-        for name, label in (("Actions", "Owner"), ("Risks and issues", "Owner"), ("Milestones", "Owner"), ("Decisions", "Made by")):
+        for name, label in (("Actions", "Owner"), ("Risks & Issues", "Owner"), ("Milestones", "Owner"), ("Decisions", "Made by")):
             ws = self.wb[name]
             self.assertNotIn(label, rules_by_label(ws), name)
             letter = [c.column_letter for c in ws[1] if c.value == label][0]
@@ -163,7 +163,7 @@ class Lists(unittest.TestCase):
             for dv in ws.data_validations.dataValidation:
                 if dv.type == "custom" and dv.formula1 == "FALSE":
                     want = ("Priority follows Impact and Likelihood. Change those instead."
-                            if ws.title == "Risks and issues" and str(dv.sqref).startswith(
+                            if ws.title == "Risks & Issues" and str(dv.sqref).startswith(
                                 [c.column_letter for c in ws[1] if c.value == "Priority"][0] + "2:")
                             else "This column is filled in by clark. Leave it as it is.")
                     self.assertEqual(dv.error, want, ws.title)

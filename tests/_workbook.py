@@ -1,5 +1,5 @@
 """A small workbook maker for the Excel import tests (#38), in the shape the import expects (see src/clark/excel_import.py):
-sheets Actions, RAID, Decisions, Milestones, Use cases; row 1 the table's column names as store.columns() gives them; dates
+sheets Actions, Risks & Issues, Decisions, Milestones, Use cases; row 1 the table's column names as store.columns() gives them; dates
 as real Excel dates; flags as Yes or No. It stands in for the export (#37) until that is merged."""
 import re
 import zipfile

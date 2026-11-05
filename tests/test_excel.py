@@ -44,7 +44,7 @@ HEADERS = {
                    "Achieved on", "Client-visible", "Client wording", "Internal note", "Source", "Updated"],
     "Actions": ["ID", "Description", "Project", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Closed",
                 "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels", "Source", "Updated"],
-    "Risks and issues": ["ID", "Description", "Project", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood",
+    "Risks & Issues": ["ID", "Description", "Project", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood",
              "Priority", "Status", "Raised", "Closed", "Client-visible", "Client wording", "Milestone", "Use case", "Labels",
              "Source", "Updated"],
     "Decisions": ["ID", "Decision", "Project", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit",
@@ -130,12 +130,12 @@ class ExcelTests(unittest.TestCase):
 
     def test_each_sheet_and_its_headers(self):
         wb = load_workbook(self.d.path)
-        self.assertEqual(wb.sheetnames, ["Cover", "Milestones", "Actions", "Risks and issues", "Decisions", "Use cases", "History", "Lists"])
+        self.assertEqual(wb.sheetnames, ["Cover", "Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases", "History", "Lists"])
         for name, header in HEADERS.items():
             self.assertEqual([c.value for c in wb[name][1]], header, name)
 
     def test_every_kind_is_there(self):
-        types = {k: c.value for k, c in self.column(self.sheet("Risks and issues"), "Type").items()}
+        types = {k: c.value for k, c in self.column(self.sheet("Risks & Issues"), "Type").items()}
         self.assertEqual(types, {self.d.risk: "Risk", self.d.issue: "Issue"})
         self.assertEqual(set(self.column(self.sheet("Actions"), "ID")), {self.d.action, self.d.closed})
         decisions = set(self.column(self.sheet("Decisions"), "ID"))
@@ -220,6 +220,39 @@ class ExcelTests(unittest.TestCase):
         text = self.sheet("Milestones")["A1"].comment.text
         for line in text.splitlines():
             self.assertFalse(line.startswith("clark"), line)
+
+    def test_the_internal_and_id_notes_stay_on_milestones_a1_after_the_reorder(self):
+        wb = load_workbook(self.d.path)
+        self.assertIn("Never share it with a client", wb["Milestones"]["A1"].comment.text)
+        for name in ("Actions", "Risks & Issues", "Decisions", "Use cases"):
+            self.assertNotIn("Never share it with a client", wb[name]["A1"].comment.text, name)    # the internal note is on Milestones only
+        self.assertIn("IDs are given by clark", wb["Milestones"]["A1"].comment.text)              # and the ID note rides with it
+        self.assertEqual([n for n in wb.sheetnames if wb[n]["A1"].comment and "Never share" in wb[n]["A1"].comment.text], ["Milestones"])
+
+    def test_history_and_lists_are_last_and_unaffected(self):
+        wb = load_workbook(self.d.path)
+        self.assertEqual(wb.sheetnames[-2:], ["History", "Lists"])
+        self.assertEqual(wb["Lists"].sheet_state, "hidden")
+        self.assertEqual(wb["History"].sheet_state, "visible")
+
+    def test_every_sheet_named_in_a_formula_exists_and_needs_no_quotes(self):
+        import re
+        wb = load_workbook(self.d.path)
+        formulas = [str(d.attr_text) for d in wb.defined_names.values()]
+        for ws in wb.worksheets:
+            formulas += [f for dv in ws.data_validations.dataValidation for f in (dv.formula1, dv.formula2) if f]
+            for rules in ws.conditional_formatting:
+                for r in rules.rules:
+                    formulas += list(r.formula or [])
+            formulas += [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str) and c.value.startswith("=")]
+            formulas += [h.location for h in ws._hyperlinks if h.location]
+        named = {m for f in formulas for m in re.findall(r"('[^']+'|[A-Za-z_][\w.]*)!", f)}
+        self.assertIn("Lists", named)
+        for sheet in named:
+            self.assertIn(sheet.strip("'"), wb.sheetnames)
+            self.assertNotIn("'", sheet)                     # Lists has no space or ampersand, so no quotes are needed
+        for f in formulas:
+            self.assertNotIn("Risks", f)                     # no reference to the Risks & Issues sheet exists to need quoting
 
     def test_a_row_typed_with_an_empty_id_is_new_and_an_untouched_export_has_no_changes(self):
         from clark import excel_import as xi

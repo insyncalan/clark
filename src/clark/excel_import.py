@@ -4,9 +4,9 @@ Kept in its own file beside the export (`excel.py`, #37); it takes the export's 
 `Step.update`, `Step.cancel`), so the writer's rules, the history and Undo all apply. Never edits the store.
 
 THE WORKBOOK THE IMPORT READS (the one the export, #37, writes; its sheet names and labels are imported from excel.py):
-- Sheets: "Milestones", "Actions", "RAID" (also read as "Risks and issues"), "Decisions", "Use cases". Names are matched in any
-  case. A sheet that is missing is not compared, so nothing in its table is staged as removed. The old and the new names are both
-  read (#143): the RAID sheet or "Risks and issues"; the headers "Client messaging" or "Client wording", "Baseline" or "Agreed".
+- Sheets: "Actions", "Risks & Issues" (also read as "Risks and issues" or "RAID"), "Decisions", "Milestones", "Use cases". Sheets are
+  matched by name, never by position, in any case and with any spacing. A sheet that is missing is not compared, so nothing in its table is staged as removed. The old and the new names are both
+  read (#143): the sheet "Risks & Issues", "Risks and issues" or "RAID"; the headers "Client messaging" or "Client wording", "Baseline" or "Agreed".
   Two sheets or two columns that mean the same thing refuse the whole workbook, in words.
 - Row 1 is the header. A header is the export's label for the column (excel.COLUMN_OF: Agreed, Achieved on, % complete, Client
   wording, State set by you ...), or a database column name (schema.sql, as `store.columns()` lists them): id, project, description,
@@ -123,8 +123,8 @@ from clark.store import Invalid
 # The sheet names and header labels are the export's own (excel.SHEET_OF, excel.COLUMN_OF), so the two cannot drift apart.
 SHEET_NAMES = dict(excel.SHEET_OF)                                  # table → the sheet the export writes
 SHEET_TABLES = {name.lower(): table for table, name in SHEET_NAMES.items()}     # sheet name (lower case) → table
-SHEET_TABLES["risks and issues"] = "raid"          # the new name of the RAID sheet; both are read (#143)
-SHEET_TABLES["raid"] = "raid"                      # the old name, written out so workbooks exported before the rename still import (#143)
+SHEET_TABLES["risks and issues"] = "raid"          # the earlier name of the sheet (now "Risks & Issues"); still read (#143)
+SHEET_TABLES["raid"] = "raid"                      # the oldest name, written out so workbooks exported before the rename still import (#143)
 # Header names the export has used or will use (#143): the old and the new read as the same column. They are written out here
 # and not taken from excel.COLUMN_OF, so a rename in the export can never stop an older workbook from importing.
 HEADER_ALIASES = {"client messaging": "client_message", "client wording": "client_message",
@@ -980,7 +980,7 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False)
         for ws, table in to_read:
             rd.sheet(ws, table)
         if not found:
-            rd.problem("The workbook has none of the sheets Actions, RAID (or Risks and issues), Decisions, Milestones or Use cases, so there is "
+            rd.problem("The workbook has none of the sheets Actions, Risks & Issues, Decisions, Milestones or Use cases, so there is "
                        "nothing to compare.")
         else:
             for t in TABLE_ORDER:
