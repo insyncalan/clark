@@ -10,6 +10,8 @@ export function TopBar({ tools }) {
   const ProjectSwitch = tools && tools.ProjectSwitch && !fromFile.value ? tools.ProjectSwitch : null;     // the project switcher (A-D25)
   const Publish = tools && tools.Publish && !fromFile.value ? tools.Publish : null;     // only a page clark serves can publish
   const HelpButton = tools && tools.HelpButton && !fromFile.value ? tools.HelpButton : null;     // the "?" beside the profile circle: Help
+  const SearchButton = tools && tools.SearchButton && !fromFile.value ? tools.SearchButton : null;     // the search icon: opens the command palette
+  const AskButton = tools && tools.AskButton && !fromFile.value ? tools.AskButton : null;     // ask clark: opens the ask panel, only while asking is on
   return (
     <header class="top">
       <span class="logo" aria-label="clark"><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></span>
@@ -22,7 +24,9 @@ export function TopBar({ tools }) {
       </nav>
       {fromFile.value && asAt.value ? <span class="asat num">As at {shownDate(asAt.value)}</span> : null}
       {Publish ? <Publish /> : null}
-      {Toggle && view.value !== "dashboard" ? <Toggle /> : null}      {/* #665: on the Dashboard the switch is the report bar's pill, never drawn twice */}
+      {Toggle && view.value !== "dashboard" ? <Toggle /> : null}      {/* item 665: on the Dashboard the switch is the report bar's pill, never drawn twice */}
+      {SearchButton ? <SearchButton /> : null}
+      {AskButton ? <AskButton /> : null}
       {HelpButton ? <HelpButton /> : null}
       {ProfileMenu ? <ProfileMenu /> : null}
     </header>

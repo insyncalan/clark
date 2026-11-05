@@ -94,13 +94,13 @@ class PageKeys(Base):
 
     def settings_box(self, p):
         p.js("clarkPage.show('settings')")
-        p.until("!!document.querySelector('fieldset.keys input[type=checkbox]')", "Settings has the switch")
+        p.until("!!document.querySelector('fieldset.keys [role=switch]')", "Settings has the switch")
 
     def flip(self, p, on):
         """Use the real checkbox in Settings, then return to the Dashboard in View."""
         self.settings_box(p)
-        p.js("document.querySelector('fieldset.keys input[type=checkbox]').click()")
-        self.assertEqual(p.js("document.querySelector('fieldset.keys input[type=checkbox]').checked"), on)
+        p.js("document.querySelector('fieldset.keys [role=switch]').click()")
+        self.assertEqual(p.js("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked') === 'true'"), on)
         p.js("clarkPage.show('dashboard')")
         p.until("!!document.querySelector('#report')", "back on the Dashboard")
         p.js("document.activeElement.blur()")
@@ -220,7 +220,48 @@ class PageKeys(Base):
             time.sleep(0.3)
             self.assertTrue(p.js(VIEW), "E does nothing after a reload")
             self.settings_box(p)
-            self.assertIs(p.js("document.querySelector('fieldset.keys input[type=checkbox]').checked"), False, "Settings shows it off")
+            self.assertIs(p.js("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked') === 'true'"), False, "Settings shows it off")
+
+
+    def test_the_setting_is_a_switch_with_its_words_and_works_by_keyboard(self):       # item 677
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.settings_box(p)
+            self.assertEqual(p.js("document.querySelectorAll('fieldset.keys input').length"), 0, "no checkbox")
+            self.assertEqual(p.js("document.querySelector('fieldset.keys button.switch').getAttribute('role')"), "switch")
+            self.assertEqual(p.js("document.querySelector('fieldset.keys label').textContent.indexOf('Single-key shortcuts')"), 0)
+            self.assertTrue(p.js("document.getElementById('keys-line').textContent.startsWith('Letter keys such as V and E')"), "the line describes it")
+            self.assertEqual(p.js("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-label')"), "Single-key shortcuts", "the switch has a name of its own")
+            p.js("document.querySelector('fieldset.keys [role=switch]').focus()")
+            state = "document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked')"
+            for key, code, vk, text in ((" ", "Space", 32, " "), ("Enter", "Enter", 13, "\r")):
+                before = p.js(state)
+                for kind in ("keyDown", "keyUp"):         # a real key event, with its text, as a keyboard sends it
+                    p.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk,
+                                                          **({"text": text} if kind == "keyDown" else {})}, p.sid)
+                p.until(f"{state} !== '{before}'", f"{code} flips the switch")
+                time.sleep(0.3)
+                self.assertNotEqual(p.js(state), before, f"{code} toggles it once, not twice")
+
+
+    def test_the_off_switch_has_a_visible_track_in_light_and_dark(self):       # item 677: the track colour is a token that exists
+        from test_appearance import scheme
+        from test_settings_head import ratio, rgb
+        for mode in ("light", "dark"):
+            with self.subTest(mode=mode), chrome() as cdp:
+                p = self.visit(cdp)
+                scheme(p, mode)
+                self.settings_box(p)
+                if p.js("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked')") == "true":
+                    p.js("document.querySelector('fieldset.keys [role=switch]').click()")
+                p.until("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked') === 'false'", "the switch is off")
+                time.sleep(0.6)                                                       # the track's colour change takes 220 ms
+                track = p.js("getComputedStyle(document.querySelector('fieldset.keys [role=switch]')).backgroundColor")
+                card = p.js("getComputedStyle(document.querySelector('#personal')).backgroundColor")
+                self.assertNotIn("rgba(0, 0, 0, 0)", track, "the off track has a colour")
+                self.assertNotEqual(track, card)
+                self.assertGreaterEqual(ratio(rgb(track), rgb(card if "rgba(0, 0, 0, 0)" not in card else p.js("getComputedStyle(document.body).backgroundColor"))), 3,
+                                        "the off track can be told from the card")
 
 
 if __name__ == "__main__":
