@@ -45,6 +45,8 @@ fi
 if [ -d .app ]; then PYTHONPATH="$PWD/.app${PYTHONPATH:+:$PYTHONPATH}"; export PYTHONPATH; fi
 # Tell clark what to say when it asks a person to type a command: in a download that is this file (issue 694).
 export CLARK_TYPED="bash clark.command"
+# Write no bytecode, on any run, before any clark code runs: a __pycache__ folder beside the program files would be an unknown entry the next update finds (issue 743).
+export PYTHONDONTWRITEBYTECODE=1
 # These are typed in a Terminal, so they run as python3 -m would, and they give back their own exit code and wording.
 case "$1" in
   --check) shift; python3 -m clark.doctor "$@"; exit $? ;;
