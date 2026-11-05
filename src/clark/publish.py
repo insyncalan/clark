@@ -496,7 +496,7 @@ _PROPERTY = re.compile(r"\s*([\w-]+)\s*:")
 # The pieces of _CSS_PIECE, except that a run of words and punctuation with no string or bracket in it is one piece, not one per
 # word (a function name before its ( is still its own piece). The walk below reads only brackets, strings, { } ; and the end of a
 # piece, so it costs a step per bracket or string, not per word: an embedded font is a handful of steps, not thousands.
-_PICTURE_PIECE = re.compile(r"""\"(?:[^"\n]*)"?|'(?:[^'\n]*)'?|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|(?:[\w-]+(?![\w-])(?!\s*\()|[^"'()\w-])+|[\w-]+""")
+_PICTURE_PIECE = re.compile(r"""\"(?:[^"\n\r\f]*)"?|'(?:[^'\n\r\f]*)'?|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|(?:[\w-]+(?![\w-])(?!\s*\()|[^"'()\w-])+|[\w-]+""")
 
 
 def _escape_places(css, plain):
@@ -831,7 +831,7 @@ ADDRESS_FOUND = "a stylesheet address that isn't embedded data"
 
 
 _CSS_ESCAPE = re.compile(r"\\(?:([0-9A-Fa-f]{1,6})(?:\r\n|[ \t\n\r\f])?|(\r\n|[\n\r\f])|(.))", re.S)
-_CSS_PIECE = re.compile(r"""\"(?:[^"\n]*)"?|'(?:[^'\n]*)'?|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|[\w-]+|[^"'()\w-]+""")
+_CSS_PIECE = re.compile(r"""\"(?:[^"\n\r\f]*)"?|'(?:[^'\n\r\f]*)'?|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|[\w-]+|[^"'()\w-]+""")
 _IMAGE_FUNCTION = re.compile(r"(?:-[a-z]+-)?(?:image-set|src|image|cross-fade)$", re.I)
 _URL_OPEN = re.compile(r"url\(", re.I)
 
