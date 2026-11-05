@@ -217,3 +217,10 @@ export function quickDates(today) {
   const toFri = ((5 - wd + 7) % 7) || 7;
   return [["Today", today], ["Tomorrow", addDays(today, 1)], ["Friday", addDays(today, toFri)], ["Next week", addDays(today, 7)]];
 }
+
+// Issue 672: the one quick choice of the week ending picker: the Friday of the week being reported. On a Friday it is today (quickDates
+// would give the next one); a Saturday or Sunday gives the coming Friday; Monday to Thursday the Friday of that week.
+export function weekEndingQuick(today) {
+  const wd = new Date(dayNumber(today) * DAY).getUTCDay();
+  return ["Friday", addDays(today, (5 - wd + 7) % 7)];
+}
