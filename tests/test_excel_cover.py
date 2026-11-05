@@ -92,10 +92,10 @@ class TheLines(unittest.TestCase):
         headings = [x["text"] for x in got if x["kind"] == "heading"]
         self.assertEqual(headings, ["Current state", "At a glance", "Summary", "This week"])      # the sections' own order
         i = [x["kind"] for x in got].index("about")
-        self.assertEqual([x["kind"] for x in got][i:], ["about", "exported", "caution", "return", "where", "ids"])
+        self.assertEqual([x["kind"] for x in got][i:], ["about", "exported", "caution", "return", "where", "ids", "locked"])
         self.assertEqual(got[i]["text"], "About this export")
         self.assertEqual(got[i + 1]["text"], "01-06-2030 20:30 (UTC+04:00) by Sam Example")
-        self.assertEqual(got[-1]["kind"], "ids", "the red Internal line is gone from the bottom: the title tag says it")
+        self.assertEqual(got[-1]["kind"], "locked", "the red Internal line is gone from the bottom: the title tag says it")
         self.assertNotIn("never share this with a client", "\n".join(texts(got)))
 
     def test_the_tag_is_just_internal_and_no_note_means_no_tag(self):
@@ -209,7 +209,7 @@ class HostileText(unittest.TestCase):
 
     def test_empty_everything_still_gives_a_cover(self):
         got = cover.lines({}, [], [], STAMP)
-        self.assertEqual([x["kind"] for x in got], ["title", "subtitle", "about", "exported", "caution", "return", "where", "ids"])
+        self.assertEqual([x["kind"] for x in got], ["title", "subtitle", "about", "exported", "caution", "return", "where", "ids", "locked"])
 
 
 class PlainWords(unittest.TestCase):
@@ -360,8 +360,9 @@ class InTheWorkbook(unittest.TestCase):
         col = [c.value for c in ws["A"] if c.value]
         self.assertEqual(col[:3], ["Example Programme", "Weekly report · Week ending 31-05-2030 · for Example Client", "■  Current state"])
         self.assertEqual([v for v in col if str(v).startswith("■")], ["■  Current state", "■  At a glance", "■  Summary"])
-        tail = [c.value for c in ws["A"] if c.value][-6:]
-        self.assertEqual(tail, ["About this export", "Exported", "Caution", "Sending changes back", "Where to make changes", "IDs"])
+        tail = [c.value for c in ws["A"] if c.value][-7:]
+        self.assertEqual(tail, ["About this export", "Exported", "Caution", "Sending changes back", "Where to make changes", "IDs",
+                                "Locked cells"])
 
     def test_the_tiles_sit_side_by_side_with_a_label_a_big_number_and_a_sub_line(self):
         ws = self.cover_sheet()
