@@ -97,7 +97,7 @@ class Panel(Base):
             p.until("document.querySelectorAll('.hp-ref').length > 0", "Reference drew")
             self.assertEqual(p.js("document.querySelectorAll('.hp-ref').length"), len(shown_content()["reference"]["sections"]))
             self.assertEqual(p.js("document.querySelector('#hp-ref-keys .hp-keys tbody').children.length"), len(shown_content()["reference"]["keys"]))
-            self.assertEqual(p.js("document.querySelector('#hp-ref-keys .hp-keys').textContent.indexOf('Sneak peek')"), -1)
+            self.assertEqual(p.js("document.querySelector('#hp-ref-keys .hp-keys').textContent.indexOf('Mod+J')"), -1)      # #721: Sneak peek is shown now; the page has no Mod+J key
             self.assertEqual(p.js("document.querySelector('.hp-idx') && document.querySelectorAll('.hp-idx a').length"), len(shown_content()["reference"]["sections"]))
 
     def test_search_finds_what_is_shown_and_opens_in_place_and_not_what_is_held(self):
@@ -110,7 +110,7 @@ class Panel(Base):
             self.assertEqual(p.js("[...document.querySelectorAll('#hpRes .hp-resg h3')].map(h => h.textContent)"), ["Reference"])
             p.js("document.querySelector('#hpRes a.hp-r').click()")
             p.until("!document.querySelector('#hpRes') && !!document.querySelector('.hp-found')", "the result opened in place and flashed")
-            for word in ("sneak",):                              # "publish" and "peek" are in entries that say so (a row left out is not on the published page); test_help_logic pins those results exactly
+            for word in ("hdmi",):                              # "publish" and "peek" are in entries that say so (a row left out is not on the published page); test_help_logic pins those results exactly
                 p.js("var q=document.querySelector('#hpQ'); q.value=''; q.focus()")
                 p.type(word)
                 p.until("!!document.querySelector('.hp-none')", f"a held word ({word}) finds nothing")

@@ -134,7 +134,7 @@ class Found(Case):
             ws.cell(row=2, column=[c.value for c in ws[1]].index("Milestone") + 1).value = "Renamed in Excel"
 
         def sorted_column(wb):
-            ws = max(wb.worksheets[1:], key=lambda w: w.max_row if w.title in ("Actions", "Milestones", "RAID") else 0)
+            ws = max(wb.worksheets[1:], key=lambda w: w.max_row if w.title in ("Actions", "Milestones", "Risks & Issues") else 0)
             rows = [[c.value for c in r] for r in ws.iter_rows(min_row=2, max_row=ws.max_row) if any(c.value for c in r)]
             self.assertGreater(len(rows), 1, "a sheet with rows to sort")
             for i, values in enumerate(sorted(rows, key=lambda r: str(r[1]), reverse=True), start=2):
