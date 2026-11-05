@@ -10,6 +10,7 @@ import * as L from "../logic/update.js";
 const REAL = { status: A.updateStatus, review: A.reviewUpdate, install: A.installUpdate, arm: A.armUndo, undo: A.undoUpdate, who: A.whoAnswers };
 const realCopy = (t) => navigator.clipboard.writeText(t);
 
+Update.chip = L.TITLE;                                              // the Settings chip says the card's heading (components/Views.jsx)
 export function Update({ api = REAL, reload = () => window.location.reload(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)), copy = realCopy }) {
   const [state, setState] = useState({ phase: "loading", st: null, message: "" });
   const [panel, setPanel] = useState(null);           // null, or {id, view, reinstall}
@@ -97,7 +98,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   const st = state.st;
   return (
     <section class="frame setting" id="update">
-      <h2>{L.TITLE}</h2>
+      <h2 id="update-h" tabIndex={-1}>{L.TITLE}</h2>
       <p class="muted">{L.INTRO}</p>
       {state.phase === "loading" ? <p class="muted">{L.LOADING}</p> : null}
       {state.phase === "failed" ? <p class="error">{state.message} <button type="button" class="btn sm" data-update-again onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
