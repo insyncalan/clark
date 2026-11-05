@@ -87,6 +87,18 @@
 .pk-latest-text { cursor: text; }
 .pk-latest-text:hover { border-color: var(--grey-200); }
 .pk-latest-in { resize: vertical; border-color: var(--brand-blue); background: var(--surface); }
+/* Row 828: the milestone peek's own fields (MilestonePeek.jsx). Tokens only; the text fields borrow the Latest update look. */
+.pk-ms-text, .pk-ms-in { min-height: 28px; padding: 3px 8px; }
+.pk-ms-states { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.pk-ms-state, .pk-ms-eye { min-height: 28px; padding: 2px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); cursor: pointer; }
+.pk-ms-state:hover:not(:disabled), .pk-ms-eye:hover:not(:disabled) { background: var(--brand-blue-tint); }
+.pk-ms-state[aria-pressed="true"], .pk-ms-eye[aria-pressed="true"] { border-color: var(--brand-blue); background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.pk-ms-state:disabled, .pk-ms-eye:disabled { cursor: default; color: var(--text-muted); }
+.pk-ms-state:focus-visible, .pk-ms-eye:focus-visible, .pk-ms-select:focus-visible, .pk-ms-num:focus-visible, .pk-ms-progress input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-ms-progress { display: flex; align-items: center; gap: var(--space-2); }
+.pk-ms-progress input[type="range"] { flex: 1; min-width: 0; }
+.pk-ms-num { width: 4em; min-height: 28px; box-sizing: border-box; padding: 2px 6px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.pk-ms-select { max-width: 100%; min-height: 28px; padding: 2px 6px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .pk-latest-hint, .pk-latest-err { margin: 4px 0 0; font-size: var(--size-small); }
 .pk-latest-hint { color: var(--text-muted); }
 .pk-latest-err { color: var(--status-red-text); }
