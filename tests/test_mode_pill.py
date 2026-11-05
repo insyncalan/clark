@@ -1,0 +1,92 @@
+"""The View | Edit switch (#665): on the Dashboard it is a pill at the left of the report bar and not in the top bar; on every other
+tab it stays at the top right. Chrome is required: these tests fail, never skip, without it.
+
+Run: python3 dev/run_tests.py test_mode_pill
+"""
+import unittest
+
+from test_inline_67 import size
+from test_report_editor import Base
+from test_server import chrome
+
+GROUP = "document.querySelector('[aria-label=\"View or Edit\"]')"
+COUNT = "document.querySelectorAll('[aria-label=\"View or Edit\"]').length"
+MODE = "document.querySelector('#report').dataset.mode"
+PLACE = (f"(function(){{var g={GROUP}; return [{COUNT}, !!g.closest('#report-bar'), !!g.closest('header.top')];}})()")
+
+
+class ModePill(Base):
+    def tab(self, p, name):
+        p.js(f"document.querySelector('.tab[data-view=\"{name}\"]').click()")
+        p.until(f"document.querySelector('.tab[data-view=\"{name}\"]').getAttribute('aria-selected') === 'true'", f"{name} open")
+        p.until(f"{COUNT} === 1", f"{name}: one switch")
+
+    def test_on_the_dashboard_it_is_in_the_report_bar_at_its_left_and_not_in_the_top_bar(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.assertEqual(p.js(PLACE), [1, True, False])
+            got = p.js(f"(function(){{var g={GROUP}.getBoundingClientRect(), b=document.querySelector('#report-bar'), "
+                       "first=[...b.children].filter(c => c.getClientRects().length)[0], "
+                       "x=document.querySelector('#week-ending').getBoundingClientRect();"
+                       f"return [first === {GROUP}, g.left - b.getBoundingClientRect().left < 4, g.right <= x.left];}})()")
+            self.assertEqual(got, [True, True, True])
+
+    def test_on_the_other_tabs_it_stays_in_the_top_bar(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for name in ("work", "milestones", "usecases"):
+                self.tab(p, name)
+                self.assertEqual(p.js(PLACE), [1, False, True], name)
+            self.tab(p, "dashboard")
+            self.assertEqual(p.js(PLACE), [1, True, False])
+
+    def test_clicking_edit_and_view_switches_the_mode_and_keeps_aria_and_data_mode(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.js(f"{GROUP}.querySelector('[data-mode=\"edit\"]').click()")
+            p.until(f"{MODE} === 'edit'", "edit")
+            self.assertEqual(p.js(f"[...{GROUP}.querySelectorAll('button')].map(b => b.dataset.mode + b.getAttribute('aria-pressed') + b.textContent)"),
+                             ["viewfalseView", "edittrueEdit"])
+            p.js(f"{GROUP}.querySelector('[data-mode=\"view\"]').click()")
+            p.until(f"{MODE} === 'view'", "view")
+
+    def test_the_v_and_e_keys_work_on_the_dashboard(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.key("e", code="KeyE", vk=69)
+            p.until(f"{MODE} === 'edit'", "E")
+            p.key("v", code="KeyV", vk=86)
+            p.until(f"{MODE} === 'view'", "V")
+
+    def test_the_keys_still_work_after_a_round_trip_through_another_tab(self):
+        # keys.js acts on the Dashboard only; the switch moves between the top bar and the report bar, and one listener must survive that
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.tab(p, "work")
+            p.key("e", code="KeyE", vk=69)
+            self.assertEqual(p.js("document.querySelector('[aria-label=\"View or Edit\"] [data-mode=\"edit\"]').getAttribute('aria-pressed')"), "false")
+            self.tab(p, "dashboard")
+            p.key("e", code="KeyE", vk=69)
+            p.until(f"{MODE} === 'edit'", "E")
+            p.key("v", code="KeyV", vk=86)
+            p.until(f"{MODE} === 'view'", "V: one listener, one switch")
+
+    def test_no_overlap_at_the_four_widths_in_both_colours(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for scheme in ("light", "dark"):
+                p.js(f"document.documentElement.dataset.theme = '{scheme}'")
+                for w in (1400, 901, 900, 800):
+                    size(cdp, p, w, 700)
+                    p.js("window.scrollTo(0, 0)")
+                    got = p.js("(function(){var g=document.querySelector('[aria-label=\"View or Edit\"]').getBoundingClientRect(), bad=[];"
+                               "var bs=[...document.querySelectorAll('[aria-label=\"View or Edit\"] button')].map(b => b.getBoundingClientRect());"
+                               "for (const c of document.querySelectorAll('#report-bar > *')) { if (c === document.querySelector('[aria-label=\"View or Edit\"]')) continue;"
+                               "var r=c.getBoundingClientRect(); if (r.width && r.left < g.right && r.right > g.left && r.top < g.bottom && r.bottom > g.top) bad.push(c.className || c.id); }"
+                               "var o = bs[0].right > bs[1].left + 1;"
+                               "return [bad, o, g.right <= innerWidth, document.documentElement.scrollWidth <= innerWidth];})()")
+                    self.assertEqual(got, [[], False, True, True], f"{scheme} {w}")
+
+
+if __name__ == "__main__":
+    unittest.main()
