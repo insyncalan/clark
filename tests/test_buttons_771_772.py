@@ -1,4 +1,4 @@
-"""Rows 771 and 772: the main button is the aqua gradient pill (771), and the top bar's search button has an outline and the ask clark text is smaller (772).
+"""Rows 771 and 772: the main button is the aqua gradient pill, and the top bar's search button has an outline and the ask clark text is smaller.
 Chrome is required: these tests fail, never skip, without it.
 
 Run: python3 dev/run_tests.py test_buttons_771_772
@@ -61,6 +61,18 @@ class Buttons(Base):
             got = p.js("(function(){ var b = document.createElement('button'); b.className = 'btn pri'; b.textContent = 'Go'; document.body.appendChild(b); b.focus();"
                        "var s = getComputedStyle(b), r = [s.outlineStyle, s.outlineWidth]; b.remove(); return r;})()")
             self.assertEqual(got, ["solid", "2px"])
+
+    def test_the_search_button_has_an_outline_and_the_ask_text_is_smaller(self):
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    p = self.at(cdp, width, theme)
+                    got = p.js("(function(){ var q = s => document.querySelector(s), a = q('#pal-btn'), k = q('#ask-btn'), sa = getComputedStyle(a), sk = getComputedStyle(k), ra = a.getBoundingClientRect(), rk = k.getBoundingClientRect();"
+                               "return [sa.borderTopWidth, sa.borderTopStyle, ra.width, ra.height, sk.fontSize, rk.height, getComputedStyle(q('#ask-btn svg')).width];})()")
+                    self.assertEqual(got[:4], ["1px", "solid", 38, 28], "the search button is a bordered 38 by 28 box")
+                    self.assertEqual(got[4], "14px", "ask clark text is 14 px")
+                    self.assertEqual(got[5], 34, "the ask button is 34 px tall")
+                    self.assertEqual(got[6], "16px", "the bubble icon is 16 px")
 
 
 if __name__ == "__main__":
