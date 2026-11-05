@@ -6,6 +6,7 @@ step 16 of MIGRATIONS (STEP below). Fictional data only.
 
 Run: python3 dev/run_tests.py test_store_commitment_migration
 """
+import hashlib
 import shutil
 import sqlite3
 import tempfile
@@ -198,6 +199,182 @@ class Migrating(Base):
                 open_store(path, onedrive_roots=[])
         self.assertIn("newer clark", str(e.exception))
         self.assertEqual(dump(path), was)
+
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def integrity(path):
+    con = sqlite3.connect(str(path))
+    try:
+        return con.execute("PRAGMA integrity_check").fetchone()[0]
+    finally:
+        con.close()
+
+
+class FailingCommit:
+    """A connection that does everything the real one does except that COMMIT fails (the disk, a lock): the real one is untouched."""
+
+    def __init__(self, con):
+        self._con = con
+
+    def __getattr__(self, name):
+        return getattr(self._con, name)
+
+    def execute(self, sql, *args):
+        if sql.strip().upper() == "COMMIT":
+            raise sqlite3.OperationalError("disk I/O error")
+        return self._con.execute(sql, *args)
+
+
+class AFailureAtTheStepLeavesTheOldFileUsable(Base):
+    """The step fails after its ALTER (or the commit fails): the 1.0.0 file is whole, at 15, with no column, and opens fine later."""
+
+    def broken_step(self):
+        def step(con):
+            store_module.migrate_use_case_commitment(con)            # the ALTER is done ...
+            raise RuntimeError("the step stopped")                   # ... and then the step fails
+        return tuple((n, step if n == STEP else fn) for n, fn in store_module.MIGRATIONS)
+
+    def assert_still_the_old_file(self, path, rows, text):
+        self.assertIn("Nothing was changed", text)
+        self.assertEqual(version(path), BEFORE)
+        self.assertEqual(integrity(path), "ok")
+        self.assertNotIn("commitment", [c[1] for c in use_case_columns(path)])
+        self.assertEqual(every_row(path), rows)
+        (copy,) = self.copies()                                   # the safety copy was taken first, and is a whole version-15 database
+        self.assertEqual(version(copy), BEFORE)
+        self.assertEqual(integrity(copy), "ok")
+        self.assertNotIn("commitment", [c[1] for c in use_case_columns(copy)])
+        self.assertEqual(every_row(copy), rows)
+
+    def assert_a_second_open_migrates(self, path, rows):
+        s = open_store(path, onedrive_roots=[])
+        try:
+            self.assertEqual(version(path), NOW)
+            self.assertEqual(s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
+        finally:
+            s.close()
+        self.assertEqual(integrity(path), "ok")
+        self.assertEqual(flags(path), {"ABC-U-001": None, "ABC-U-002": None, "ABC-U-003": None})
+        after = every_row(path)
+        self.assertEqual({t: after[t] for t in rows}, rows)
+        self.assertEqual(use_case_columns(path)[-1][1:], ("commitment", "TEXT", 0, None, 0))
+
+    def test_a_step_that_fails_after_its_alter_rolls_back_and_the_second_open_migrates(self):
+        path = make_at(self.dir, STEP - 1)
+        add_use_cases(path)
+        rows = every_row(path)
+        with mock.patch.object(store_module, "MIGRATIONS", self.broken_step()):
+            with self.assertRaises(Invalid) as e:
+                open_store(path, onedrive_roots=[])
+        self.assertEqual(str(e.exception), store_module.MIGRATE_FAILED)
+        self.assert_still_the_old_file(path, rows, str(e.exception))
+        self.assert_a_second_open_migrates(path, rows)
+
+    def test_a_failure_in_the_step_is_the_plain_refusal_for_bring_up_to_date_too(self):
+        path = make_at(self.dir, STEP - 1)
+        add_use_cases(path)
+        rows = every_row(path)
+        con = connect(path)
+        try:
+            with mock.patch.object(store_module, "MIGRATIONS", self.broken_step()):
+                with self.assertRaises(Invalid) as e:
+                    store_module.bring_up_to_date(con, path, [])
+            self.assertFalse(con.in_transaction)
+            self.assertEqual(con.execute("PRAGMA foreign_keys").fetchone()[0], 1)         # switched back on after the failure
+        finally:
+            con.close()
+        self.assert_still_the_old_file(path, rows, str(e.exception))
+        self.assert_a_second_open_migrates(path, rows)
+
+    def test_a_commit_that_fails_leaves_the_old_file_and_the_second_open_migrates(self):
+        path = make_at(self.dir, STEP - 1)
+        add_use_cases(path)
+        rows = every_row(path)
+        con = connect(path)
+        try:
+            with self.assertRaises(Invalid) as e:
+                store_module.bring_up_to_date(FailingCommit(con), path, [])
+            self.assertFalse(con.in_transaction)                       # rolled back, not left open
+        finally:
+            con.close()
+        self.assert_still_the_old_file(path, rows, str(e.exception))
+        self.assert_a_second_open_migrates(path, rows)
+
+
+class AnOlderClarkRefusesAVersion16Backup(Base):
+    """A clark of the previous release (SCHEMA_VERSION 15, no step 16) is given a version-16 file or backup: it refuses, changes nothing."""
+
+    def older(self):
+        return mock.patch.multiple(store_module, SCHEMA_VERSION=STEP - 1,
+                                   MIGRATIONS=tuple(m for m in store_module.MIGRATIONS if m[0] < STEP))
+
+    def made(self):
+        """A live version-15 file with data, and a version-16 backup of it in its backups folder."""
+        path = make_at(self.dir, STEP - 1)
+        add_use_cases(path)
+        s = open_store(path, onedrive_roots=[])
+        try:
+            self.assertEqual(version(path), NOW)
+            copy = backup.make(path, self.dir / "backups", [], "undo")
+        finally:
+            s.close()
+        self.assertEqual(version(copy), NOW)
+        return path, copy
+
+    def refused_by_the_older_clark(self, target):
+        with self.older():
+            with self.assertRaises(Invalid) as e:
+                open_store(target, onedrive_roots=[])
+        self.assertEqual(str(e.exception), store_module.NEWER_DATA)
+        self.assertEqual(str(e.exception), "This data needs a newer clark. Nothing was changed. Install the latest clark, then try again.")
+
+    def test_opening_a_version_16_file_by_the_older_logic_is_refused_and_the_bytes_are_the_same(self):
+        path, _ = self.made()
+        was = sha(path)
+        self.refused_by_the_older_clark(path)
+        self.assertEqual(sha(path), was)
+        self.assertEqual(version(path), NOW)
+
+    def test_a_version_16_backup_copied_in_as_the_database_is_refused_by_the_older_logic_and_its_rows_stay(self):
+        # not byte for byte: a connection to a backup (journal mode DELETE) switches it to WAL, a header flag; the rows and version are what is checked
+        _, copy = self.made()
+        fresh = Path(tempfile.mkdtemp(dir=str(self.dir)))
+        shutil.copyfile(str(copy), str(fresh / "clark.db"))
+        was = dump(fresh / "clark.db")
+        self.refused_by_the_older_clark(fresh / "clark.db")
+        self.assertEqual(dump(fresh / "clark.db"), was)
+        self.assertEqual(version(fresh / "clark.db"), NOW)
+        self.assertEqual(integrity(fresh / "clark.db"), "ok")
+
+    def test_the_restore_of_a_version_16_backup_by_the_older_logic_refuses_and_changes_nothing(self):
+        path, copy = self.made()
+        # the live file is a different, older state: the restore would replace it if it were allowed
+        with self.older():
+            was_backups = sorted(p.name for p in copy.parent.iterdir())
+            was_copy, was_live = sha(copy), sha(path)
+            with self.assertRaises(Invalid) as e:
+                backup.restore_path(path, copy.name, copy.parent, [])
+        self.assertIn("newer clark", str(e.exception))
+        self.assertIn("update clark", str(e.exception))
+        self.assertEqual(sha(copy), was_copy)
+        self.assertEqual(sha(path), was_live)
+        self.assertEqual(sorted(p.name for p in copy.parent.iterdir()), was_backups)         # no restore copy, no replaced- folder
+        self.assertFalse(list(path.parent.glob("*.restoring*")))
+        self.assertEqual(version(path), NOW)
+
+    def test_the_restore_into_a_fresh_folder_by_the_older_logic_refuses_too(self):
+        path, copy = self.made()
+        fresh = Path(tempfile.mkdtemp(dir=str(self.dir)))
+        was = sha(copy)
+        with self.older():
+            with self.assertRaises(Invalid) as e:
+                backup.restore_path(fresh / "clark.db", copy.name, copy.parent, [])
+        self.assertIn("newer clark", str(e.exception))
+        self.assertEqual(sha(copy), was)
+        self.assertFalse((fresh / "clark.db").exists())
 
 
 class TheColumnTakesNoCheck(Base):
