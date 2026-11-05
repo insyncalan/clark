@@ -129,19 +129,27 @@ class Absent(Published):
              "https://zq:" + "pw@zq-cred.example.com/"))]
         quiet = self.plant("ZQ-QUIET-HIDDEN", "https://192.0.2.9/x")
         self.hide(quiet)
-        self.plant("ZQ-QUIET-ARCHIVED", "https://192.0.2.10/x", archived=1)
+        archived = self.plant("ZQ-QUIET-ARCHIVED", "https://192.0.2.10/x", archived=1)
+        other = self.plant("ZQ-QUIET-OTHER", "https://192.0.2.11/x", project="ZZZ")
         with self.assertLogs("clark.publish", level="WARNING") as logged:
             text = self.text()
         said = "\n".join(logged.output)
         for ref in dropped:
             self.assertIn(f"Document {ref} is not in the published file", said)
-        for ref in (kept, quiet):
-            self.assertNotIn(ref, said, msg="a published, hidden or archived document is not reported as dropped")
+        for ref in (kept, quiet, archived, other):
+            self.assertNotIn(ref, said, msg="a published, hidden, archived or other-project document is not reported as dropped")
         self.assertNotIn("ARCHIVED", said)
         for word in ("192.0.2", "198.51.100", "203.0.113", "ZQ-DROPPED", "zq-cred", "ZQ-DATA", "10.0.0.1"):
             self.assertNotIn(word, said, msg="the log carries ids only, never a title or an address")
             self.not_in_file(text, word, "a dropped link is still not in the published file", ignore_case=True)
         self.assertEqual([d["title"] for d in self.built()["published"]["data"]["documents"]], ["ZQ-KEPT-TITLE"])
+        # the store hands over this project's rows only, so the project check in documents() is asked directly, with a row of another project
+        with self.assertLogs("clark.publish", level="WARNING") as direct:
+            publish.documents([{"project": "ZZZ", "id": "ZZZ-L-900", "title": "t", "kind": "Report", "url": "https://192.0.2.12/x", "archived": 0},
+                               {"project": "ABC", "id": "ABC-L-901", "title": "t", "kind": "Report", "url": "https://192.0.2.13/x", "archived": 0}],
+                              "ABC", set(), set())
+        self.assertNotIn("ZZZ-L-900", "\n".join(direct.output), msg="another project's document is not reported as dropped")
+        self.assertIn("ABC-L-901", "\n".join(direct.output))
 
     def test_a_hidden_documents_section_carries_no_document(self):
         self.plant("ZQ-IN-HIDDEN-SECTION", "https://zq-section.example.com/x", date="2033-03-03")
