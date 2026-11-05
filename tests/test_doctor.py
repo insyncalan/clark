@@ -146,6 +146,28 @@ class DataFolder(DoctorCase):
         self.assertNotIn("(OneDrive-Fictional Ltd)", "\n".join(lines), "the OneDrive folder's own name isn't said")
 
 
+class TypedCommands(DoctorCase):
+    """issue 694: in a download (clark.command sets CLARK_TYPED) the doctor says bash clark.command; in a checkout, python3 -m."""
+
+    def test_a_download_says_bash_clark_command(self):
+        root = self.onedrive()
+        with mock.patch.dict(os.environ, {"CLARK_TYPED": "bash clark.command"}):
+            code, lines = self.run_doctor(["--data", str(root / "clark")])
+            self.assertIn("Type bash clark.command --data and a space, drag the folder you chose into the window", "\n".join(lines))
+            self.assertEqual(lines[-1], "1 thing to fix before clark can start. Fix it, then run bash clark.command --check again.")
+            self.assertEqual(doctor.parser().prog, "bash clark.command --check")
+            self.assertNotIn("python3 -m", "\n".join(lines))
+
+    def test_a_checkout_says_python3_m(self):
+        root = self.onedrive()
+        env = {k: v for k, v in os.environ.items() if k != "CLARK_TYPED"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            code, lines = self.run_doctor(["--data", str(root / "clark")])
+            self.assertIn("Type python3 -m clark --data and a space, drag the folder", "\n".join(lines))
+            self.assertEqual(lines[-1], "1 thing to fix before clark can start. Fix it, then run python3 -m clark.doctor again.")
+            self.assertEqual(doctor.parser().prog, "python3 -m clark.doctor")
+
+
 class AppFolder(DoctorCase):
     def test_windows_says_file_explorer(self):
         with mock.patch.object(pl, "onedrive_roots", return_value=[self.onedrive()]):

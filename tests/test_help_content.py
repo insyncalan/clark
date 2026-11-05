@@ -70,6 +70,25 @@ def words():
 
 
 class Shape(unittest.TestCase):
+    def test_the_docker_entry_says_the_shared_data_default_and_keeps_the_two_routes_warning_after_start(self):
+        """issue 694: Docker keeps its data where clark.command does, outside the clark folder. The warning is a step of its own right
+        after Start, and the old 'each keep their own data' wording is gone."""
+        steps = [t["s"] for t in SRC["howto"]["tasks"] if t["id"] == "run-clark-with-docker"][0]
+        at = [i for i, s in enumerate(steps) if s.startswith("Start. ")][0]
+        self.assertTrue(steps[at + 1].startswith("Never use two routes on the same data at once. "), steps[at + 1][:60])
+        self.assertTrue(steps[at + 2].startswith("Use another data folder. "), steps[at + 2][:60])
+        text = " ".join(steps)
+        self.assertIn("This start keeps its data in ~/Library/Application Support/clark, the same place clark.command uses, so you see "
+                      "the projects you already have, or an empty set on a first start.", steps[at])
+        self.assertIn("Your data is not in the clark folder, so you can swap that folder for a newer download.", steps[at])
+        self.assertIn("If you already have a folder called clark, rename or move it before you unzip a newer download, so the two do not clash.", steps[at])
+        self.assertIn('CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d', steps[at + 2])
+        self.assertIn("stop clark, move that folder out of it, and name it this way.", steps[at + 2])
+        self.assertIn("Docker and clark.command use the same data unless you name another folder with CLARK_DATA_DIR. "
+                      "If clark.command looks empty, you started Docker with another folder.", text)
+        for gone in ("beside the clark files", "each keep their own data", "Use the projects you already have"):
+            self.assertNotIn(gone, text)
+
     def test_three_tabs_from_one_source(self):
         self.assertEqual(SRC["tabs"], [["start", "Start here"], ["howto", "How do I…"], ["reference", "Reference"]])
 

@@ -2200,8 +2200,8 @@ class Migrate(Backed):
         self.assertEqual(kinds, {"daily": "daily", "undo": "before an undo", "import": "before an import",
                                  "changes": "before a change", "restore": "restored copy", "migrate": "before an update"})
         self.assertNotIn("migrate", " ".join(kinds.values()))
-        self.assertIn("with \"migrate\" in it is a backup taken just before clark updated the database", backup.RESTORE_HELP)
-        self.assertFalse(any(line.lower().startswith("clark") for line in backup.RESTORE_HELP.splitlines()))
+        self.assertIn("with \"migrate\" in it is a backup taken just before clark updated the database", backup.restore_help())
+        self.assertFalse(any(line.lower().startswith("clark") for line in backup.restore_help().splitlines()))
 
     def test_retention_keeps_the_newest_migrate_copy_whatever_the_other_families_do(self):
         first = backup.make(self.path, self.folder, [], family="migrate")
@@ -2423,8 +2423,8 @@ class Words(Backed):
         self.assertEqual(backup.shown(Path.home() / "x" / "backups"), "~/x/backups", "a message never carries the user name")
 
     def test_the_restore_text_says_copies_share_the_disk_and_replaced_folders_are_yours_to_remove(self):
-        text = " ".join(backup.RESTORE_HELP.split())
-        self.assertNotRegex(backup.RESTORE_HELP, r"(?m)^clark|wal|shm", "no line starts with the product name; no jargon")
+        text = " ".join(backup.restore_help().split())
+        self.assertNotRegex(backup.restore_help(), r"(?m)^clark|wal|shm", "no line starts with the product name; no jargon")
         for words in ("on this computer's disk", "protect against losing the disk", "are never removed", 
                       "remove them yourself", "python3 -m clark restore", "Move every file whose name starts with clark.db out of the way",
                       "a folder called replaced-DATE", "a file's name carries UTC time"):
