@@ -21,6 +21,10 @@ import { refOf } from "../logic/useCasesList.js";
 const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
 export const NAME_MAX = 120, HEAD_MAX = 300;
+// The two prompts of the "Where it stands" card (#659), said once: the editing form, the use case page and the row all use these. They are only
+// shown where a person can type; the read-only page draws "No headline yet" / "Not written yet." as text, never a prompt.
+export const HEADLINE_PROMPT = "Today's position, in one line";
+export const STANDING_PROMPT = "What is done, what is happening now, and what is next. Add anything that is blocked or at risk.";
 const SHOW = 8;
 const EYE = { on: "On the dashboard", off: "Not on the dashboard" };
 
@@ -183,7 +187,7 @@ export function UseCaseDetail({ id }) {
             <span>{sub} · {plural(ms.length, "milestone")}</span>
           </p>
           <p class="ucd-line">
-            <Line value={u.headline} label={`One line on where ${refWords(u)} stands`} cls="ucd-headline" field="headline" max={HEAD_MAX} empty="One line on where it stands" ro={ro}
+            <Line value={u.headline} label={`Headline for ${refWords(u)}`} cls="ucd-headline" field="headline" max={HEAD_MAX} empty={ro ? "No headline yet" : HEADLINE_PROMPT} ro={ro}
               problem={(t) => (Array.from(t).length > HEAD_MAX ? `A headline can be ${HEAD_MAX} characters at most. The old headline was kept.` : "")}
               onSave={(t) => send({ headline: t }, "Headline changed.")} />
           </p>
@@ -208,7 +212,7 @@ export function UseCaseDetail({ id }) {
         <div class="ucd-main">
           <section class="ucd-card" aria-labelledby="ucd-h-std">
             <h2 id="ucd-h-std" class="ucd-ch"><span>Where it stands</span>{!ro ? <span class="ucd-hint">Click the text to change it</span> : null}</h2>
-            {!ro ? <RichField field="standing" id={u.id} value={u.standing} label={`where ${refWords(u)} stands`} empty="Not written yet. Click to write."
+            {!ro ? <RichField field="standing" id={u.id} value={u.standing} label={`where ${refWords(u)} stands`} empty={STANDING_PROMPT}
               save={(html) => send({ standing: html }, "Text saved.")} />
               : safe(u.standing) ? <div class="prose ucd-std" dangerouslySetInnerHTML={{ __html: safe(u.standing) }} /> : <p class="muted">Not written yet.</p>}
           </section>

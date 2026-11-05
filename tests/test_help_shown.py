@@ -24,6 +24,8 @@ SHOWN = shown_content()
 # The one place a record is really deleted today: a text section's menu (edit/Gutter.jsx). The owner has not ruled on it, so Help
 # describes the button exactly as the page labels it. FOR THE RULING (the owner / the review): archive it too, or keep Delete.
 SECTION_DELETE = "Delete section"
+# Signed by the owner on 04-11-2026, build notes: the Start here job and its entry are named this on the signed mockups. Exact strings only.
+SIGNED_DELETE = {"Move, hide and delete sections"}
 # A feature word in shown text needs proof that the page has it: a pattern that must match the page's own code (outside Help).
 FEATURES = [
     ("the peek", r"\bpeek\b", r"<Peek\b"),
@@ -72,6 +74,7 @@ def shown_texts():
     s = SHOWN
     out = list(strings(s["start"]) if s["start"]["parts"] else [])
     out += list(strings(s["howto"]["tasks"])) + list(strings(s["reference"]["sections"]))
+    out += [x for g in s["guides"] for x in strings({k: v for k, v in g.items() if k != "next"})]       # the guides' words (next is a list of places)
     return out
 
 
@@ -97,12 +100,12 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["set-the-health", "word-in-and-out", "find-a-past-publication", "save-as-a-pdf", "use-the-board", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "publish-the-report", "word-in-and-out", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone", "undo-a-mistake", "run-clark-with-docker"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "status-words",
                           "milestone-states", "published-reports", "diagnostics", "dates-and-ids", "using-help", "keys"])
-        self.assertEqual(s["start"]["parts"], [])
+        self.assertEqual(s["start"]["parts"], ["jobs"])      # only the jobs part is released (#642 step 3); the other six wait for their parts of clark
         self.assertEqual(len(s["reference"]["keys"]), 36 - len(LATER["keys"]))
-        self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones"])
+        self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones", "Settings and safety", "Advanced"])
         self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Publishing", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
         self.assertEqual(len(LATER["reference"]) + len(s["reference"]["sections"]), len(RAW["reference"]["sections"]))
@@ -115,7 +118,7 @@ class Held(unittest.TestCase):
         self.assertEqual(sorted(links - places), [])
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (34, 35, 36))   # 34 and 35 with the People entries (#454) and the Word entry written; the People entries held
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (35, 35, 36))   # 35 and 35 with the People entries (#454), the Word entry written and Run clark with Docker; the People entries held
 
 
 class AgainstThePage(unittest.TestCase):
@@ -202,7 +205,10 @@ class AgainstThePage(unittest.TestCase):
         # 37 measured on the merge of main (39 there, the project switcher's menu) into the refreshed Version and updates card (38): both sides' names on the page together (38 fails)
         # 35 measured on the merge of main (37 there, the Word screens) into the refreshed Version and updates card (37): both sides' names on the page together (36 fails)
         # 30 measured on the merge of main (32 there, the Settings Data card and Projects table) into the refreshed Version and updates card (35): both sides' names on the page together (31 fails)
-        self.assertGreaterEqual(len(names), 30)
+        # 26 measured with item 445 (the Update card now draws the names Choose zip, Review, Show the files and the others; 30 before): the two
+        # update Help entries are held (helpLater.json) until the release key is pinned, but the floor counts the whole source (27 fails)
+        # 23 measured on the merge of main (26 there, the update card of item 445) into the Help overhaul branch: both sides' names on the page together (24 fails)
+        self.assertGreaterEqual(len(names), 23)
         # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
         # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
         # 56 measured on the merged tree after the next main merge (names printed): the milestone details toggle (C-M6) leaves the list on top of the Supporting documents section
@@ -223,8 +229,12 @@ COMPUTED = {
     "3 days late": "Due, built from the date (workItems.js dueCell)",
     "In 5 days": "Due, built from the date (workItems.js dueCell)",
     "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
+    "DPP-report-2026-10-30.html": "a worked example of the file name Publish builds from the project's code and the week ending (its form is checked by test_help_content.PublishFileName)",
     "this week\u2019s actions": "an example of what a card might be called, not a label",
     "decisions needed": "an example of what a card might be called, not a label",
+    "3 of 12 selected": "the Hand over bar's count, built from the numbers (logic/handOver.js)",
+    "Hand over 30 items to Sam Rivers?": "the Hand over question, built from the count and the name (logic/handOver.js)",
+    "Put back the backup from DD-MM-YYYY 09:30? What you have now is kept first": "the Restore question, built from the backup's date and time (a worked example)",
 }
 
 
@@ -258,6 +268,14 @@ class ReleasedLabels(unittest.TestCase):
         entries = SHOWN["howto"]["tasks"] + SHOWN["reference"]["sections"]
         self.assertEqual(self.missing(entries), [], "a released Help entry names something the page does not have: reword it or hold the entry")
 
+    def test_every_label_in_a_shown_guide_is_on_the_page(self):
+        """#642: the control names in a guide's steps and result line are strings of the page, so a renamed button fails here."""
+        self.assertTrue(SHOWN["guides"])
+        self.assertEqual(self.missing(SHOWN["guides"]), [], "a guide names something the page does not have: reword it or hold the guide")
+        named = {x for g in SHOWN["guides"] for x in labels_of(g)}
+        for want in ("Edit", "Add a section", "Add section", "Move up", "Leave out of the published page", "Include in the published page", "Delete section"):
+            self.assertIn(want, named)
+
     def test_the_check_fails_on_a_made_up_label(self):
         """Mutation check: a label the page does not have, as a bold name, a quoted word and a table row, is each reported."""
         bad = {"id": "x", "b": [["p", "Press **Frobnicate** or see \u201cWidget zone\u201d."], ["tbl", ["A", "B"], [["Gizmo row", "c"]]]]}
@@ -276,8 +294,12 @@ class NeverDelete(unittest.TestCase):
         return [s for s in strings(RAW)] + [s for s in strings(LATER)]
 
     def test_no_delete_in_the_words_except_the_section_button_as_the_page_labels_it(self):
+        """Signed by the owner on 04-11-2026, build notes (the signed mockups): the string in SIGNED_DELETE is allowed, exactly, and no other
+        Help word may say "delete" except the Delete section button's own name."""
         found = []
         for s in self.user_text():
+            if s in SIGNED_DELETE:
+                continue
             rest = s.replace(SECTION_DELETE, "")
             found += re.findall(r"(?i)\b(delet\w*)\b", rest)
         self.assertEqual(found, [])
@@ -285,7 +307,7 @@ class NeverDelete(unittest.TestCase):
     def test_the_section_button_is_named_as_the_page_names_it(self):
         self.assertIn(f"**{SECTION_DELETE}**", json.dumps(RAW, ensure_ascii=False))
         self.assertIn(f'text: "{SECTION_DELETE}"', (PAGE_SRC / "edit" / "Gutter.jsx").read_text(encoding="utf-8"))
-        self.assertEqual(sum(s.count(SECTION_DELETE) for s in self.user_text()), 1)
+        self.assertEqual(sum(s.count(SECTION_DELETE) for s in self.user_text()), 2)      # the how-to entry and the Move, hide and delete sections guide (#642)
 
     def test_archive_says_what_it_does(self):
         text = " ".join(self.user_text())

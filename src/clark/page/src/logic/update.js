@@ -28,6 +28,15 @@ export const COPIED = "The release notes are copied.";
 export const NOT_COPIED = "The release notes couldn't be copied. Select them and copy them yourself.";
 export const SLOW = "The new version is taking a while to start. Close every clark window, then open clark again.";
 export const DISARMED = "Undo update was not confirmed in time, so nothing was changed.";
+// The card's labelled rows (the prototype's Installed / Update / Install from a file / Last update) and the hint lines under the Update
+// and Install from a file rows. The file hint names only the update for this computer; it names neither the other download nor the
+// file type (updates.py: a sentence a person reads holds no word for the file type).
+export const ROWS = { installed: "Installed", update: "Update", file: "Install from a file", last: "Last update" };
+export const HINTS = {
+  upToDate: "Download the new version from the clark releases page, then choose it below.",
+  ready: (v) => `Version ${v} is ready to install.`,
+  file: "The update attached to the release for your computer. Keep its .sig file in the same folder.",
+};
 export const LABELS = { choose: "Choose zip…", install: "Install", installAgain: "Install again", cancel: "Cancel", copy: "Copy",
   files: "Show the files", undo: "Undo update", undoConfirm: "Undo update", appOnly: "Put back the app and settings only", tryAgain: "Try again" };
 
@@ -58,14 +67,16 @@ export function reviewView(r) {
   };
 }
 
-// The status block: one of "blocked", "update" (a button "Review X.Y.Z") or "line" ("Up to date.").
+// The status block: one of "blocked", "update" (a button "Review X.Y.Z" and the version it names) or "line" ("Up to date."), and the
+// last update without the words "Last update: " in front (the row's label says them).
 export function statusView(s) {
   return {
     installed: text(s.installed, 200),
     blocked: s.blocked ? text(s.blocked, 600) : "",
     review: s.available && typeof s.available.label === "string" ? text(s.available.label, 40) : "",
+    version: s.available && typeof s.available.version === "string" ? text(s.available.version, 40) : "",
     line: s.line ? text(s.line, 200) : "",
-    last: s.last && typeof s.last.line === "string" ? text(s.last.line, 200) : "",
+    last: s.last && typeof s.last.line === "string" ? text(s.last.line, 200).replace(/^Last update: /, "") : "",
     notice: s.notice ? text(s.notice, 600) : "",
   };
 }

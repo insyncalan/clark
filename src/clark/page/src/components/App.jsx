@@ -41,8 +41,11 @@ export function App({ tools: given }) {
   const Layer = tools && tools.HelpLayer;                // Help (#82) sits over the open page; a published file has none
   const Pal = tools && tools.Palette;                    // the command palette (#198); a published file has none
   const Ask = tools && tools.AskPanel;                   // the ask panel (#47a) sits over the open page; a published file has none
+  const HPeek = tools && tools.HelpPeek;                 // the Help peek (#645) sits at the right edge over the open page; a published file has none
   const stacked = fromFile.value && printing.value && status.value === "ready";
-  const body = status.value === "ready" ? <>{past ? <AsAtBanner /> : null}<Page tools={tools} /><Leaving /></> : <Gate />;
+  // #656: with no project open Settings still opens, for its Projects card (Add project) and its Data card: a first install has no other way to make a project
+  const bare = status.value === "none" && view.value === "settings" && !fromFile.value && !!tools && !!tools.Projects;
+  const body = bare ? <Settings tools={tools} /> : status.value === "ready" ? <>{past ? <AsAtBanner /> : null}<Page tools={tools} /><Leaving /></> : <Gate />;
   const AddDialog = tools && tools.AddDialog;
   const Boxes = tools && tools.Boxes;                    // the boxes Settings opens (item 444): the project form and Import workbook; a published file has none
   const UcBoxes = tools && tools.ucEdit && tools.ucEdit.Boxes;      // the Dashboard's use case boxes (#455): beside <main>, which they make inert
@@ -53,6 +56,7 @@ export function App({ tools: given }) {
       <main id="main" aria-busy={status.value === "loading" && !isFile() ? "true" : undefined}>{stacked ? <PrintStack tools={tools} /> : Layer ? <Layer>{body}</Layer> : body}</main>
       {publication.value ? <footer class="pubfoot num" id="publication-footer">{asAt.value ? `Published ${plainDate(asAt.value)}. ` : ""}Publication {publication.value}{asAt.value ? ` · ${plainDate(asAt.value)}` : ""}. View only.</footer> : null}
       {Ask ? <Ask /> : null}
+      {HPeek && status.value === "ready" ? <HPeek /> : null}
       {status.value === "ready" ? <Peek tools={tools} /> : null}
       {Toast ? <Toast /> : null}
       {RowMenu ? <RowMenu /> : null}

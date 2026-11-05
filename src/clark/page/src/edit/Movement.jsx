@@ -7,6 +7,7 @@
 // (stores/changes.js). In View (#436 row 18) it is read-only: the rows and the card, no choices and no note. Words: edit/movementWords.js.
 import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
+import { useGrow } from "./useGrow.js";
 import { project, mode, fromFile, data, reread, openPeek } from "../stores/report.js";
 import { changeMilestone, say, undone } from "../stores/changes.js";
 import { dayNumber, showDate, todayIso } from "../workItems.js";
@@ -200,6 +201,7 @@ function MoveForm({ r }) {
 function Note({ r }) {
   const m = milestoneRow(r.id), saved = (m && m.internal_note) || "", box = useRef(null);
   useEffect(() => { if (box.current) box.current.value = saved; }, [r.id, saved]);
+  useGrow(box, saved + r.id);
   const save = async (e) => {
     const text = e.currentTarget.value.trim();
     if (text === saved.trim()) return;
@@ -210,7 +212,7 @@ function Note({ r }) {
   return (
     <>
       <h4>{W.NOTE_HEADING}</h4>
-      <textarea ref={box} class="field mvm-note" id="mvNote" rows="4" maxlength="2000" placeholder={W.NOTE_PLACEHOLDER} aria-describedby="mvNote-help" onBlur={save}></textarea>
+      <textarea ref={box} class="field mvm-note grow" id="mvNote" rows="3" maxlength="2000" placeholder={W.NOTE_PLACEHOLDER} aria-describedby="mvNote-help" onBlur={save}></textarea>
       <p class="muted mvm-help" id="mvNote-help">{W.NOTE_HELP}</p>
     </>
   );

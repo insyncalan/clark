@@ -76,76 +76,37 @@
   ],
   "jobs": [
    [
-    "write-the-weekly-report",
-    "Write this week’s report",
-    "Current state, summary and health, in place.",
-    "dashboard+edit"
-   ],
-   [
     "add-a-work-item",
     "Add a work item",
-    "An action, risk, issue or decision.",
+    "Put a new task on the plan and say who owns it.",
     "work"
    ],
    [
-    "find-work-items",
-    "Find any work item",
-    "Type, Open or Closed, filters and search.",
-    "work"
-   ],
-   [
-    "use-the-board",
-    "Move work on the board",
-    "Drag a card to change it, with Undo.",
-    "work"
-   ],
-   [
-    "change-an-item-in-the-peek",
-    "Change an item",
-    "Everything about it, in the peek.",
-    "work"
-   ],
-   [
-    "choose-what-the-client-sees",
-    "Choose what the client sees",
-    "The eye, and Add from your project record.",
+    "write-the-weekly-report",
+    "Write this week’s report",
+    "Fill in the status, the highlights and the next steps.",
     "dashboard+edit"
    ],
    [
-    "update-a-milestone",
-    "Update a milestone",
-    "State, dates, progress and client wording.",
-    "milestones"
+    "add-a-section-from-a-template",
+    "Add a section from a template",
+    "Start a new section from a ready-made layout.",
+    "dashboard+edit",
+    "add-a-section-from-a-template"
    ],
    [
-    "handle-a-slipped-milestone",
-    "Deal with a slipped milestone",
-    "Hold, rebaseline, recover or escalate.",
-    "milestones"
-   ],
-   [
-    "import-and-export",
-    "Import or export Excel",
-    "One workbook in, one workbook out.",
-    "work"
-   ],
-   [
-    "check-the-report",
-    "Check the report",
-    "ask clark finds what looks wrong.",
-    "ask"
+    "arrange-the-report",
+    "Move, hide and delete sections",
+    "Change the order of the report, or take parts out.",
+    "dashboard+edit",
+    "arrange-the-report"
    ],
    [
     "publish-the-report",
-    "Publish the report",
-    "Local, to the client, and Word.",
-    "publish"
-   ],
-   [
-    "undo-a-mistake",
-    "Undo a mistake",
-    "Every change has a way back.",
-    "dashboard"
+    "Publish to the client",
+    "Check the report, then send the finished copy.",
+    "publish",
+    "publish-to-the-client"
    ]
   ],
   "where": [
@@ -203,15 +164,20 @@
    "loop_intro": "Every week follows the same five steps. Only the last one sends anything anywhere, and only when you say so.",
    "loop_return": "Next week starts the loop again from the same record. The history keeps every change, so nothing is lost between weeks.",
    "first_title": "Your first ten minutes",
-   "jobs_title": "Twelve jobs",
-   "jobs_intro": "Pick a job. Its title opens the steps; the arrow takes you to the screen.",
    "where_title": "Where things are",
    "keyline": "[[/]] ask clark · [[/]] [[/]] Sneak peek, with an item open · [[Esc]] close the top thing · [[Mod+Enter]] keep an edit · [[Alt+/]] AI on selected text · [[?]] Help",
    "keyline_link": "All the keys",
    "rules_title": "Four rules",
    "foot": "Dates are shown DD-MM-YYYY.",
-   "foot_link": "How do I…: step by step for every job"
-  }
+   "foot_link": "How do I…: step by step for every job",
+   "undo_lead": "Made a mistake?",
+   "undo_link": "Undo the last change",
+   "jobs_head": "Start here",
+   "jobs_lead": "Pick a job and follow the steps. Each one is short.",
+   "jobs_title": "The five jobs",
+   "jobs_more": "Also under How do I..."
+  },
+  "undo": "undo-a-mistake"
  },
  "howto": {
   "groups": [
@@ -220,7 +186,8 @@
    "The report",
    "Milestones",
    "Writing",
-   "Settings and safety"
+   "Settings and safety",
+   "Advanced"
   ],
   "tasks": [
    {
@@ -231,12 +198,19 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
-     "Set **Week ending** to the Friday the report covers (press Enter in the empty box to use this week’s Friday; any other day is not accepted). The cover shows it as “Week ending Friday 30 October 2026”.",
-     "Click the text under **Current state** and write where the project stands. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] cancels.",
-     "Write **Summary**, **This week** and **Next week** the same way. In an empty section, type [[/]] and choose **Draft with AI** for a first draft from the project.",
+     "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, or press [[Enter]] in the empty box to use the Friday shown. Any other day is not accepted.",
+     "Click the text under **Current state** and write where the project stands. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back. Write the Summary, This week and Next week sections the same way.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
      "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
      "Press **View** to read the report as the client will."
+    ],
+    "page": [
+     "dashboard+edit"
+    ],
+    "next": [
+     "howto-set-the-health",
+     "howto-add-a-work-item",
+     "howto-publish-the-report"
     ]
    },
    {
@@ -250,6 +224,9 @@
      "Write why in the box beside it, in a line or two. It saves when you leave the box; [[Esc]] puts the old reason back.",
      "A change of health needs a reason: without one, nothing is changed.",
      "The tile takes the health’s colour."
+    ],
+    "page": [
+     "dashboard+edit"
     ]
    },
    {
@@ -278,14 +255,19 @@
     "w": "Profile circle › Publish…",
     "go": "publish",
     "s": [
-     "Press your profile circle at the top right and choose **Publish…**. It opens the Dashboard first.",
-     "**Local** is always ticked. The save window opens where you last saved for this project, and you choose the folder and the name.",
-     "Tick **To client** to send it to the client folder set in Settings › Publishing as well. With no folder set, the box is off and says so. A line reminds you that the client will see the page.",
-     "Tick **Also a Word document** for a Word copy in the folder last used for this project. With **To client** ticked it is copied to the client folder as well. If a Word file with that name is already in the folder, you are asked whether to add a number or replace it. A copy already in the client folder is never replaced: the new one gets a number.",
-     "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”; press it to close the box. The line at the top of the Dashboard says when it was published, and whether to the client or locally.",
+     "Press your profile circle at the top right and choose **Publish…**.",
+     "**Local** is always ticked: the save window opens where you last saved for this project, and you choose the folder and the name. Tick **To client** to send it to the client folder set in Settings as well. With no folder set, the box is off and says so.",
+     "Tick **Also a PDF** for the page as it prints: your browser’s print box opens, and you choose Save as PDF. Tick **Also a Word document** for a Word copy in the folder last used for this project. If a Word file with that name is already in the folder, you are asked whether to add a number or replace it. A copy already in the client folder is never replaced: the new one gets a number.",
+     "A line reminds you that the client will see the page, and only what is shown in View. If a work item shown to the client still has its placeholder title, the box warns you; it does not stop you, so rename the item or turn off its eye first.",
+     "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”; press it to close the box. If the name is already taken, a box asks what to do.",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
     ],
-    "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on), shown at the foot of the page with its date. A Word copy takes the next number as well. Each publish adds a line to History."
+    "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on). The line at the top of the Dashboard says when it was last published, and whether to the client or locally.",
+    "next": [
+     "howto-save-as-a-pdf",
+     "howto-word-in-and-out",
+     "howto-find-a-past-publication"
+    ]
    },
    {
     "id": "word-in-and-out",
@@ -299,6 +281,9 @@
      "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it.",
      "In **Edit**, choose **Import from Word** from the same menu, choose a .docx file of up to 25 MB and press **Read the file**. Work items under a heading called Actions, Risks, Issues or Decisions are listed. Tick the ones you want, or use **Tick all**, and press the Add button, which reads **Add** and the number you ticked, such as Add 3 items. Nothing is added until you press it. The new items are shown to the client until you hide them with the eye, and Undo takes them all back.",
      "If clark refuses a file it says why in plain words and names the file. Choose the same file again once you have fixed it: **Read the file** comes on again."
+    ],
+    "page": [
+     "dashboard+edit"
     ]
    },
    {
@@ -311,6 +296,9 @@
      "Press your profile circle and choose **Published reports**, or go to Settings and find the **Published reports** card for the open project.",
      "Each row has the publication's number, the date and time, where it went and who published it. The newest is first, and the card lists the latest ten.",
      "Press **Open** to see the kept copy of the page in a new tab, as it was published. A row that says **Not kept** has no copy to open."
+    ],
+    "page": [
+     "settings#pubs"
     ]
    },
    {
@@ -331,13 +319,22 @@
     "id": "add-a-work-item",
     "g": "Work items",
     "t": "Add a work item",
-    "w": "Work items · Dashboard › Edit · any editor",
+    "w": "Work items › the + at the top right",
     "go": "work",
     "s": [
-     "On **Work items**, press the **+** at the top right. Point at it and it shows what it adds, following the type switch: **Add action**, **Add decision**, and on All or Risks and issues a menu of Action, Risk, Issue and Decision.",
-     "The new item opens in the peek with its title selected: type over it. It is client-visible to start with, due in a week (a decision is dated today).",
-     "In the report’s Edit mode, the last row of each list adds one: type “Owner: what it is”, for example “Jo Ellis: send the test plan”, and press [[Enter]]. A use case’s next steps add an action the same way.",
-     "Selected text in any editor can become an item too: **Make into** in the AI menu ([Improve wording with AI](#howto-improve-wording-with-ai))."
+     "On **Work items**, press the **+** at the top right. Point at it and it shows what it adds, following the type switch: **Add action**, **Add decision**, **Add risk or issue** (a menu of Risk and Issue) and, on All, **Add item** (a menu of Action, Risk, Issue and Decision). You can do this in View as well as in Edit.",
+     "The new item is made at once and opens in the peek with its title selected: type over it. A message at the foot of the page says it was added, with **Undo**.",
+     "Its due date (a week from today; a decision’s needed-by date is today), and an action’s priority, are placeholders. Change them in the list or in the peek.",
+     "A new item is shown to the client to start with. While one still has its placeholder title, the Publish box warns you. Rename it, or turn off its eye, before you publish.",
+     "In Edit on the Dashboard, the last row of each list adds one too: type “Owner: what it is” (the owner, a colon, then what it is) and press [[Enter]]."
+    ],
+    "page": [
+     "work"
+    ],
+    "next": [
+     "howto-use-the-board",
+     "howto-write-the-weekly-report",
+     "howto-publish-the-report"
     ]
    },
    {
@@ -353,6 +350,9 @@
      "The filters that are on show as chips beside the count of items. **×** on a chip removes it; **Clear all** removes everything, the type and the search too. In the app it goes back to the open items.",
      "The search box finds words in the ID, title, owner, description, latest update and use case as you type.",
      "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N work items” and the use case's reference), opens Work items already filtered to what it counts."
+    ],
+    "page": [
+     "work"
     ]
    },
    {
@@ -370,7 +370,10 @@
      "Press a column’s heading to collapse it, and again to open it. The full-screen icon gives the board the whole window; [[Esc]] leaves it.",
      "Every move has **Undo** in the message. Click a card, or press [[Enter]] on it, to open it."
     ],
-    "n": "A move that doesn’t fit says so: an action can’t be Made, and nothing changes its type by moving."
+    "n": "A move that doesn’t fit says so: an action can’t be Made, and nothing changes its type by moving.",
+    "page": [
+     "work"
+    ]
    },
    {
     "id": "change-an-item-in-the-peek",
@@ -388,7 +391,10 @@
      "In Edit, the **Activity** tab under the title shows the item’s history: who changed what, how and when, newest first. **Details** goes back to the fields.",
      "With the peek open, click another item anywhere on the page and the peek moves to it. A click elsewhere, or [[Esc]], closes it. The up and down arrows at the top step through the list."
     ],
-    "n": "Drag the peek’s left edge to make it wider (a double-click puts it back), or press the corners icon to take it across the whole screen. Your width is kept."
+    "n": "Drag the peek’s left edge to make it wider (a double-click puts it back), or press the corners icon to take it across the whole screen. Your width is kept.",
+    "page": [
+     "work"
+    ]
    },
    {
     "id": "change-an-item-in-words",
@@ -403,7 +409,10 @@
      "Press [[Enter]] (or [[Shift+Enter]]), or **Make the change**, to save it. **Not now** or [[Esc]] closes it. The fields that changed flash for a moment, and the message has **Undo**.",
      "In an empty box, [[Up]] brings back your last instruction."
     ],
-    "n": "If a name could be two people, it says so and asks for the full name. See [Sneak peek](#ref-sneak-peek) for every phrase it understands."
+    "n": "If a name could be two people, it says so and asks for the full name. See [Sneak peek](#ref-sneak-peek) for every phrase it understands.",
+    "page": [
+     "work"
+    ]
    },
    {
     "id": "choose-what-the-client-sees",
@@ -418,7 +427,10 @@
      "Milestones, use cases, supporting documents and tiles have their own eye and their own **Add back**. A whole section is left out from its options: **Leave out of the published page**.",
      "An item’s **Client wording** (in the peek’s Details) is used on the page in place of its title. A milestone has the same, under **Client view**."
     ],
-    "n": "The report’s lists show only client-visible items. Everything else is left out of the published file altogether."
+    "n": "The report’s lists show only client-visible items. Everything else is left out of the published file altogether.",
+    "page": [
+     "dashboard+edit"
+    ]
    },
    {
     "id": "import-and-export",
@@ -432,12 +444,15 @@
      "Press **Choose a file** (Excel or CSV). **Check the import** shows how many rows are new, updated or skipped, and the first few. Press **Import** to save them.",
      "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
     ],
-    "n": "The whole import is one step: one **Undo** takes it all back."
+    "n": "The whole import is one step: one **Undo** takes it all back.",
+    "page": [
+     "work"
+    ]
    },
    {
     "id": "arrange-the-report",
     "g": "The report",
-    "t": "Arrange the report’s sections",
+    "t": "Move, hide and delete sections",
     "w": "Dashboard › Edit",
     "go": "dashboard+edit",
     "s": [
@@ -447,6 +462,9 @@
      "To rearrange the page, pick up a section by its move button and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a narrow window a pair stacks.",
      "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "A section left out stays in Edit, greyed, and disappears in View and on the published page."
+    ],
+    "page": [
+     "dashboard+edit"
     ]
    },
    {
@@ -462,6 +480,9 @@
      "Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.",
      "The new section opens ready to fill in, in place. A template with nothing in it yet is left out of what the client sees.",
      "One **Undo** takes the new section away again. See [Section templates](#ref-section-templates) for what each one is for."
+    ],
+    "page": [
+     "dashboard+edit"
     ]
    },
    {
@@ -476,6 +497,9 @@
      "Each row has **Edit**, **Leave out** (or **Include**) and **Remove**. A row you leave out stays in Edit and is not shown in View or on the published page.",
      "A date that has passed shows the word **Overdue** beside it. In View and on the published page the section is a table you can read but not change.",
      "Each row you add, change, leave out or remove is one change with its own **Undo**."
+    ],
+    "page": [
+     "dashboard+edit"
     ]
    },
    {
@@ -491,6 +515,9 @@
      "The figures at the top are worked out for you: Achieved and Planned are the totals of all the lines. A line, a group or the whole that is behind plan shows ▼ and how many points behind. If the weights do not add up to 100%, a note under the section in Edit says so. Change a weight to fix it.",
      "Pick the **Health** (On track, At risk or Off track), write a line about it, and switch on the Tasks, Agents or Workflows columns if you want them. Each of those columns holds a count you type for every line. In View and on the published page the section can be read but not changed.",
      "Each line, group or setting you change is one change with its own **Undo**."
+    ],
+    "page": [
+     "dashboard+edit"
     ]
    },
    {
@@ -505,7 +532,10 @@
      "In Edit, drag a tile to reorder it, or press [[Alt+Left]] or [[Alt+Right]]. The eye hides a tile: it is left out of the published page.",
      "Right-click a tile in Edit for **Outline colour**: **Automatic, from the data**, Green, Amber, Red or **No colour**."
     ],
-    "n": "The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or an open risk or issue is rated Urgent or High, amber when something waits, and green otherwise."
+    "n": "The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or an open risk or issue is rated Urgent or High, amber when something waits, and green otherwise.",
+    "page": [
+     "dashboard"
+    ]
    },
    {
     "id": "keep-the-use-cases",
@@ -519,6 +549,9 @@
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "In the detail, write **Where it stands**, or add a next step as “Owner: what it is”.",
      "**Archive this use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Restore** or Undo brings it back."
+    ],
+    "page": [
+     "dashboard"
     ]
    },
    {
@@ -532,6 +565,9 @@
      "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
      "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
      "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list."
+    ],
+    "page": [
+     "dashboard+edit"
     ]
    },
    {
@@ -545,6 +581,9 @@
      "Give it a title, a kind (Minutes, Actions list, Report, Slides, Plan or Other), the link and a date, then press **Add**.",
      "**⋯** on a document edits or removes it. The eye takes it off the page; **+ Add back a document** brings it back.",
      "In View, and on the published page, the title and the arrow open the document in a new tab."
+    ],
+    "page": [
+     "dashboard+edit"
     ]
    },
    {
@@ -557,6 +596,9 @@
      "**Personal › Dashboard sections** is yours alone: **Slim gaps** (the standard), **Roomy gaps**, **Grey headers** or **One card**.",
      "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
      "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
+    ],
+    "page": [
+     "settings"
     ]
    },
    {
@@ -573,6 +615,9 @@
      "**Progress** is set by hand with the slider or the number. Add a **Description**, the **Owner** and the **Workstream**.",
      "**Client view**: **Visible to client**, and the **Client wording** used on the page in place of the name.",
      "**Linked work items** lists the items tied to it. Link one from the item’s peek, under Details, Milestone."
+    ],
+    "page": [
+     "milestones"
     ]
    },
    {
@@ -590,7 +635,10 @@
      "**Legend**, at the right under the milestones, explains every mark when you point at it or tab to it.",
      "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all** shows the rest. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept."
     ],
-    "n": "On the published page, Slipped reads “Expected later” and Overdue reads “Late”."
+    "n": "On the published page, Slipped reads “Expected later” and Overdue reads “Late”.",
+    "page": [
+     "milestones"
+    ]
    },
    {
     "id": "handle-a-slipped-milestone",
@@ -605,6 +653,9 @@
      "Its card shows the original, agreed and forecast dates, its progress and its owner, then **What changed**: each change, with who made it and when.",
      "Under **Decide what to do**, choose **Hold: keep the forecast, agreed date unchanged**, or **Move the agreed date**. A move asks for **New agreed date (DD-MM-YYYY)**, **Who agreed it**, a **Reason** and a **Source**, and says what will happen before you press **Move the agreed date**. **Keep the date** closes it with no change. A milestone that has not slipped cannot be moved.",
      "**Hold** and **Move the agreed date** each change the record at once, and each has its own **Undo**. A move keeps the original date and records a decision."
+    ],
+    "page": [
+     "milestones"
     ]
    },
    {
@@ -618,6 +669,9 @@
      "Click a row to choose it. Its card shows the dates, how often it moved, and **What changed**.",
      "Then decide: **Hold** (adds a dated line to the **Internal note** and keeps the agreed date), **Move the agreed date** (you say who agreed it, why and where; the original date is kept), **Add a recovery action** (a High priority action due in 7 days, linked to the milestone, in its workstream or the first open one) or **Escalate to steering** (a Pending decision needed in 7 days, named for the milestone: a decision can’t be linked to a milestone). Each new item opens in the peek, with a line saying how far behind the milestone is. A new item starts hidden from the client (its eye is off), so neither it nor that line reaches the client until you show it.",
      "Write an **Internal note**. It saves when you leave the box and is never published."
+    ],
+    "page": [
+     "milestones"
     ]
    },
    {
@@ -632,7 +686,10 @@
      "Type [[/]] at the start of a line or after a space for the command menu: Text, Heading 1 to 3, lists, a checklist, a quote, a divider and the AI options. Type to narrow it; [[Up]] and [[Down]] move, [[Enter]] inserts, [[Esc]] closes.",
      "Click away, or press [[Mod+Enter]], to keep the text. [[Esc]] cancels the edit."
     ],
-    "n": "Titles, headings and table cells are plain text: [[Enter]] keeps the change and [[Esc]] puts it back."
+    "n": "Titles, headings and table cells are plain text: [[Enter]] keeps the change and [[Esc]] puts it back.",
+    "page": [
+     "dashboard+edit"
+    ]
    },
    {
     "id": "improve-wording-with-ai",
@@ -647,7 +704,10 @@
      "The answer is a suggestion: your text is unchanged until you press **Accept** ([[Mod+Enter]]). **Show changes** marks what goes and what comes, word by word. **Try again** asks again; **Discard** ([[Esc]]) drops it.",
      "After you accept, the editor’s undo ([[Mod+Z]]) takes it back."
     ],
-    "n": "Item fields and client wording offer Improve and Ask; report sections offer Structure and Format notes as well."
+    "n": "Item fields and client wording offer Improve and Ask; report sections offer Structure and Format notes as well.",
+    "page": [
+     "dashboard+edit"
+    ]
    },
    {
     "id": "set-up-a-project",
@@ -661,6 +721,9 @@
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Source folders for ask clark** and its **Publishing** folders.",
      "The project name in the top bar switches projects, shows each one’s open items, and has **Project settings**."
+    ],
+    "page": [
+     "settings"
     ]
    },
    {
@@ -673,6 +736,9 @@
      "Fill in your **Name**, **Alias**, **Email**, **Phone number** and **Organisation**.",
      "Each saves when you leave the box (or press [[Enter]]), with **Undo**.",
      "Your full name goes on every change you make, in each item’s history. Your initials fill the circle at the top right."
+    ],
+    "page": [
+     "settings#personal"
     ]
    },
    {
@@ -686,7 +752,10 @@
      "Press **Paste from Excel**, then paste rows copied from a sheet: name, email, organisation and role, separated by tabs. A first row of headings is skipped. A preview shows what happens to each row, and names every row that needs fixing.",
      "Press **Add to the list**. People are matched by name, so the owner pickers keep working on names. One **Undo**, in the card, takes the whole paste back."
     ],
-    "n": "The table is read-only apart from the paste."
+    "n": "The table is read-only apart from the paste.",
+    "page": [
+     "settings#people"
+    ]
    },
    {
     "id": "undo-a-mistake",
@@ -695,25 +764,58 @@
     "w": "The message at the foot of the page · the peek’s history",
     "go": "dashboard",
     "s": [
-     "Every change shows a message at the foot of the page with **Undo**, for about six seconds.",
-     "A step of several changes undoes as one: an import, **Add from your project record**, an archive with everything in it, a board move across a lane and a column.",
-     "In Edit, the peek’s **Activity** tab shows each change to the item: who made it, how, what it was, what it became, and when. A milestone’s moves are also in **Movement › What changed**.",
-     "To take back several changes at once, tick them in the **Activity** tab (click, [[Mod]] and click, or [[Shift]] and click for a run; the top box ticks all that can be undone), then press **Undo** with the number. It shows what will go back and what stays, and asks again above 25. One **Undo** in the message takes them all back. [[Esc]] clears the choice.",
-     "In an editor, the undo button or [[Mod+Z]] steps back through your typing. [[Esc]] cancels the whole edit."
+     "Every change shows a message at the foot of the page with **Undo**, for about 20 seconds. Press **Undo** and the change goes back.",
+     "A step of several changes goes back as one, such as **Add from your project record**.",
+     "In Edit, the peek’s **Activity** tab shows each change to the item: who made it, how, what it was, what it became, and when.",
+     "To take back several changes at once, tick them in the **Activity** tab (click, [[Mod]] and click, or [[Shift]] and click for a run), then press **Undo** with the number. It shows what will go back and what stays, and asks again above 25. **Clear** or [[Esc]] drops the choice.",
+     "In an editor, the **Undo** button or [[Mod+Z]] steps back through your typing. [[Esc]] cancels the whole edit."
+    ],
+    "page": [
+     "dashboard"
+    ],
+    "next": [
+     "howto-arrange-the-report",
+     "ref-archive-restore"
     ]
    },
    {
     "id": "update-clark",
     "g": "Settings and safety",
     "t": "Update clark",
-    "w": "Settings › clark version and updates",
+    "w": "Settings › Version and updates",
     "go": "settings#update",
     "s": [
-     "Open [Settings](go:settings#update) and find **clark version and updates**. **Installed** is the version you have now.",
-     "Download the new release, clark-X.Y.Z.zip, from the release page. If it is in Downloads, **Update** shows **Review X.Y.Z**; otherwise press **Choose zip…** and pick the file. Not the source code zip.",
-     "Read the review: the version change, the release notes, the files replaced and added. Your projects, settings and published reports are kept, and everything is backed up first.",
-     "Press **Install clark X.Y.Z**. When it is done, restart clark to finish.",
-     "To go back, press **Undo update** in the **Last update** row, then **Confirm undo** within five seconds. More in [Updating clark](#ref-updating-clark)."
+     "Open [Settings](go:settings#update) and find **Version and updates**. **Installed** is the version you have now.",
+     "From the clark releases page, download the update attached to the release for your computer, and its .sig file. If they are in Downloads, **Update** shows **Review X.Y.Z**; otherwise press **Choose zip…** under **Install from a file** and pick the update.",
+     "Read the review: the version change, the release notes, the files replaced, added and removed. Your projects, settings and published reports are kept, and a copy of your data is made first.",
+     "Press **Install**. The new version starts by itself and the page reloads.",
+     "To go back, press **Undo update** in the **Last update** row, then press it again within five seconds. More in [Updating clark](#ref-updating-clark)."
+    ],
+    "page": [
+     "settings#update"
+    ]
+   },
+   {
+    "id": "run-clark-with-docker",
+    "g": "Advanced",
+    "t": "Run clark with Docker",
+    "w": "Terminal · Docker Desktop",
+    "go": "",
+    "s": [
+     "What Docker does here. These steps are for a Mac, and you only need Docker and Chrome. If your Mac will not open clark.command (a work Mac often will not), or you already use Docker, use Docker instead. It replaces the Terminal window that runs clark's web server. You open localhost:8766 in Chrome and see clark, as before. Only the web server runs in Docker. Your project data and clark's own files stay in folders on your computer, shared into Docker. The first start downloads a stock Python image once and keeps it; nothing of clark is in it. Nothing else is installed. It can only be reached from this computer: another device is told \"This connection was refused\" and that clark is running in Docker and only answers this computer.",
+     "Before the first start. Install Docker Desktop and open it first. Wait until it says it is running. If you start clark before that, Terminal says it cannot connect to the Docker API: open Docker Desktop, wait, and type the command again.",
+     "Use the clark download. Start clark from the download (the zip file), not from a copy of the source code. A copy of the source has no built pages, and clark is shared into Docker read-only, so it cannot build them: it will say that the page could not be built. The message is: \"This copy of clark has no built page. Use the clark download, not a copy of the source code.\" Docker then stops.",
+     "Start. Every command below must be typed inside the clark folder: first cd into it. Open Terminal, type cd and a space, drag the unzipped clark folder into the Terminal window and press Return. Then type `docker compose -f docker/compose.yaml up -d` and press Return. The first time takes a few minutes. Then open localhost:8766 in Chrome. This start keeps its data in a folder called data beside the clark files, so on a first start it holds a new, empty set of projects. The Dashboard then says \"No project open\" and \"There are no projects yet.\" Your data is the data folder beside the clark files: keep it when you swap this folder for a newer download.",
+     "Use the projects you already have. To start with the data you keep for the Terminal route, put its folder in front of the command: `CLARK_DATA_DIR=\"$HOME/Library/Application Support/clark\" docker compose -f docker/compose.yaml up -d`. Use the same line every time you start. To use another folder, put its full path in quotes. A folder inside OneDrive cannot be used by clark.",
+     "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d`, then open localhost:8800. It is still reachable only from this computer.",
+     "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window.",
+     "See what clark is doing. To see what Docker has said, type this in the same folder: `docker compose -f docker/compose.yaml logs --tail 50`",
+     "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command's window before you start Docker. Neither route can always tell that the other is already using the folder.",
+     "If the page will not open. Check that Docker Desktop says it is running. Check that the address is exactly localhost:8766 (or your own port).",
+     "If it says port 8766 is already used. Another clark is open: close it, or stop it with the Stop line above, then try again.",
+     "If it says it cannot connect to Docker. Docker Desktop is not running yet. Open it and wait until it says it is running.",
+     "If an installed clark window says clark is not running. The window is titled \"Start clark to use this window\" and says: \"Nothing is running at this address. Start it the way you started it: double-click clark.command in your clark folder, or, if you use Docker, open Terminal in that folder and type:\" then the start command, then \"Closing the last clark window stops clark after a minute. Docker keeps running until you stop it with:\" and the stop command, and a button Check again. With Docker, type the start command and choose Check again.",
+     "To go back to clark.command. Stop clark with the Stop line above, then double-click clark.command in the same folder. Docker and clark.command each keep their own data: clark.command shows the projects in ~/Library/Application Support/clark, and Docker shows the data folder beside the clark files, unless you started Docker with CLARK_DATA_DIR pointing at the same folder. If clark.command looks empty, that is why."
     ]
    }
   ]
@@ -795,6 +897,10 @@
       "p",
       "At the right edge, **On this page** is a quiet line for each section; the current one is longer and darker, and a warm one needs a look. Point at it, or tab to it, for the list with counts (late, red, slipped, flagged, pending) and **Back to top**. In a narrow window the lines become an **On this page** button at the bottom right; press it for the same list."
      ]
+    ],
+    "page": [
+     "dashboard",
+     "dashboard+edit"
     ]
    },
    {
@@ -926,6 +1032,9 @@
        ]
       ]
      ]
+    ],
+    "page": [
+     "dashboard+edit"
     ]
    },
    {
@@ -942,6 +1051,9 @@
       "p",
       "A row past its date shows the word **Overdue**, so it does not rely on colour. **Leave out** keeps a row in Edit but off the published page. On the published page the section is a table, and it is left out altogether when no row is shown. See [Ask the client for what you need](#howto-ask-for-what-you-need)."
      ]
+    ],
+    "page": [
+     "dashboard+edit"
     ]
    },
    {
@@ -1683,24 +1795,30 @@
       "p",
       "**Paste from Excel** takes rows of name, email, organisation and role, separated by tabs; a heading row is skipped. A name that matches a person updates that person; a new name is added. Nothing is added while a row needs fixing. One **Undo** reverses a paste. Owner pickers still work on names."
      ]
+    ],
+    "page": [
+     "settings#people"
     ]
    },
    {
     "id": "updating-clark",
     "g": "Settings and data",
     "t": "Updating clark",
-    "w": "Settings › clark version and updates",
+    "w": "Settings › Version and updates",
     "b": [
      [
       "ul",
       [
-       "**Installed** is the version you have. **Update** says **Up to date**, or **Review X.Y.Z** when a newer clark-X.Y.Z.zip is in Downloads. There is no online check.",
-       "**Choose zip…** takes a release file you saved. It must be named clark-X.Y.Z.zip, from the release page: not the source code zip.",
-       "**Review** shows the version change, the release notes (**Copy the notes**), how many files are replaced and added, and that your projects, settings and published reports are kept.",
-       "Everything is backed up first, and if a step fails clark puts the old version back. A release is checked file by file against its list of checksums before anything changes.",
-       "**Undo update** goes back to the version before: press it, then **Confirm undo** within five seconds."
+       "**Installed** is the version you have. **Update** says Up to date, or shows **Review X.Y.Z** when a newer update is in Downloads. There is no online check.",
+       "**Choose zip…**, under **Install from a file**, takes an update you saved: the one attached to the release for your computer, with its .sig file in the same folder.",
+       "**Review** shows the version change, the release notes (**Copy**), the files replaced, added and removed (**Show the files**), and that your projects, settings and published reports are kept.",
+       "A copy of your data is made first, and if a step fails clark puts the old version back. An update is checked against its signature, and file by file against its list of checksums, before anything changes.",
+       "**Undo update** goes back to the version before: press it, then press it again within five seconds. If your data has changed since the update, the second button is **Put back the app and settings only**."
       ]
      ]
+    ],
+    "page": [
+     "settings#update"
     ]
    },
    {
@@ -1718,6 +1836,9 @@
        "**Errors in the last 7 days** lists what went wrong, how many times and when last, or says None."
       ]
      ]
+    ],
+    "page": [
+     "settings"
     ]
    },
    {
@@ -2193,5 +2314,502 @@
     "The line on the timeline; the marked day on the calendar."
    ]
   ]
- }
+ },
+ "context": [
+  {
+   "page": "dashboard",
+   "title": "The Dashboard",
+   "s": [
+    "This is the weekly report, laid out as the client reads it.",
+    "**At a glance** shows the project health and the count tiles; press a count to open Work items filtered to it.",
+    "The sections under it are the report’s text and lists, one after another.",
+    "Press **Edit** to change the report, and choose **Publish** in your profile circle’s menu when it is ready."
+   ],
+   "full": "ref-sections"
+  },
+  {
+   "page": "dashboard+edit",
+   "title": "The Dashboard in Edit",
+   "s": [
+    "In Edit you change the report itself: its text, its tiles and its sections.",
+    "Add a section from the **Add a section** box, and rename any heading in place.",
+    "Your profile circle’s menu has **Publish**, **Export to Word**, **Import from Word** and **Export to Excel**.",
+    "Press **View** to see the report as it will read."
+   ],
+   "full": "howto-arrange-the-report"
+  },
+  {
+   "page": "work",
+   "title": "Work items",
+   "s": [
+    "Work items lists the actions, risks, issues and decisions for the project in one place.",
+    "Choose **Open**, **Closed** or **All** to say which items to list.",
+    "Narrow the list with **Search work items** and the filter line; **Clear all** puts it back.",
+    "The **View** menu holds **Layout** and **Group by**, so you can switch between a table and a board."
+   ],
+   "full": "ref-work-items"
+  },
+  {
+   "page": "milestones",
+   "title": "Milestones",
+   "s": [
+    "Milestones shows every milestone for the project, including internal ones.",
+    "Switch between **Timeline** and **Calendar** at the top right.",
+    "The **Legend** explains the marks, and a milestone that is not shown to the client has the tag **Internal only**.",
+    "In Edit, use **Add milestone** to add one.",
+    "Use the **Movement** switch next to **Plan** to see which are behind their agreed date."
+   ],
+   "full": "ref-milestones-page"
+  },
+  {
+   "page": "settings",
+   "title": "Settings",
+   "s": [
+    "Settings holds what belongs to the whole project and to you, one card for each job.",
+    "The row of chips under the title takes you to a card.",
+    "Below, one short line says what each card is for."
+   ],
+   "full": "howto-find-a-past-publication",
+   "cards": [
+    {
+     "card": "publishing",
+     "title": "Publishing",
+     "line": "Where Publish saves the report, and the client folder it is copied to."
+    },
+    {
+     "card": "pubs",
+     "title": "Published reports",
+     "line": "The numbered copies you have published, each with Open to see it as it was."
+    },
+    {
+     "card": "personal",
+     "title": "Personal",
+     "line": "How the Dashboard sections look, Light or Dark, your name and the single-key shortcuts."
+    },
+    {
+     "card": "freshness",
+     "title": "Freshness",
+     "line": "How many days an open item can go without a review before it counts as not reviewed."
+    },
+    {
+     "card": "diagnostics",
+     "title": "Logs and diagnostics",
+     "line": "The logs and checks to look at when something goes wrong."
+    },
+    {
+     "card": "projects",
+     "title": "Projects",
+     "line": "Every project, with Open, Edit and Archive; Show archived lists archived projects, each with Restore."
+    },
+    {
+     "card": "data",
+     "title": "Data",
+     "line": "Export the project to an Excel workbook, or import one after you have seen what would change."
+    },
+    {
+     "card": "backups",
+     "title": "Backups",
+     "line": "The daily copies of your data, to preview or put back."
+    },
+    {
+     "card": "people",
+     "title": "People",
+     "line": "Who is on the project, with their emails and roles."
+    },
+    {
+     "card": "update",
+     "title": "Version and updates",
+     "line": "The installed version of clark."
+    }
+   ]
+  }
+ ],
+ "guides": [
+  {
+   "id": "add-a-section-from-a-template",
+   "t": "Add a section from a template",
+   "job": "Start a new section from a layout, in the place you choose.",
+   "steps": [
+    {
+     "d": "On the **Dashboard**, press **Edit**. Each section now has a control at the left of its card: a move button and, under it, a **+**."
+    },
+    {
+     "d": "Point at the section you want the new one to follow and press its **+**. Or click the move button to open the section’s menu and choose **Add a template below…**.",
+     "pic": "templates-add-box"
+    },
+    {
+     "d": "The **Add a section** box opens with the cursor in **Search templates**. On the left, pick a kind: **All templates**, **Text and pictures**, **Figures**, **Work items**, **Files and links**, **People and dates** or **Notes**. Or type a word to find a template by name.",
+     "pic": "templates-dialog"
+    },
+    {
+     "d": "Choose a template in the list, such as **Key figures, four** or **Callout**. [[Up]] and [[Down]] move through them. The box on the right says what the chosen one is for and what it **Holds**."
+    },
+    {
+     "d": "Under **Where it goes**, choose **On its own row**, or **Beside** the section above, which gives each of the two half the width. **Beside** is greyed out, with the reason under it, when the template cannot be half width or the section above is not on a row of its own.",
+     "pic": "templates-place"
+    },
+    {
+     "d": "Press **Add section**, or press [[Enter]]. Press **Cancel**, or [[Esc]], to close the box and add nothing."
+    }
+   ],
+   "result": "The new section sits below the one you chose, with its heading ready to rename. It starts empty, and an empty section is left out of what the client sees until you fill it. One **Undo** takes it away again.",
+   "next": [
+    "guide-arrange-the-report",
+    "ref-section-templates",
+    "howto-publish-the-report"
+   ]
+  },
+  {
+   "id": "arrange-the-report",
+   "t": "Move, hide and delete sections",
+   "job": "Change the order of the report, put two sections side by side, or take parts out.",
+   "steps": [
+    {
+     "d": "On the **Dashboard**, press **Edit**. Each section has a move button at the left of its card (in the margin on a wide window, inside the card on a narrow one). It is faint until you point at the section or tab to it.",
+     "pic": "arrange-grip"
+    },
+    {
+     "d": "To move a section, drag its move button and drop it. A line between two rows puts it on a row of its own. The cover stays at the top. Without a mouse, focus the button and press [[Alt+Up]] or [[Alt+Down]]."
+    },
+    {
+     "d": "Click the move button, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
+     "pic": "arrange-menu"
+    },
+    {
+     "d": "To move one step, choose **Move up** or **Move down**. A choice that cannot be used is greyed out, with the reason under it."
+    },
+    {
+     "d": "To put a section beside another, choose **Place beside the next section**. Each takes half the width, and a row never holds more than two. For a section already in a pair the menu says **Full width** instead; choose it to give the section a row of its own."
+    },
+    {
+     "d": "To keep a section out of the client’s copy, choose **Leave out of the published page**. It stays in Edit, greyed, with a small eye mark under its **+** and the tag **Left out of the published page**. Choose **Include in the published page** to bring it back.",
+     "pic": "arrange-leave-out"
+    },
+    {
+     "d": "A text section, and the Needs from you section, also have **Delete section** in the menu. It removes the section from the report."
+    }
+   ],
+   "result": "Edit shows the sections in their new order, and the published page follows it. A section you left out is greyed in Edit and gone from View and from the published page. **Undo** puts back a move, a section left out or a section removed.",
+   "next": [
+    "guide-add-a-section-from-a-template",
+    "howto-undo-a-mistake",
+    "howto-publish-the-report"
+   ]
+  },
+  {
+   "id": "bring-in-an-excel-workbook",
+   "t": "Bring in an Excel workbook",
+   "job": "Read a workbook into the project, see every change before anything is saved, and choose which to keep.",
+   "steps": [
+    {
+     "d": "Press your profile circle and choose **Settings**. Find the **Data** card: it has two buttons, **Export workbook** and **Import workbook**. Press **Import workbook**.",
+     "pic": "excel-in-button"
+    },
+    {
+     "d": "The box **Import from Excel** says what is read: sheets called Actions, Risks and issues (or RAID), Decisions, Milestones and Use cases. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
+    },
+    {
+     "d": "Press **Choose a file** and pick an .xlsx workbook of up to 25 MB. A macro workbook (.xlsm) is turned away and nothing is saved; save a copy as an ordinary .xlsx workbook and choose that.",
+     "pic": "excel-in-box"
+    },
+    {
+     "d": "The box **Check the import** opens. A line gives the counts: how many rows are new, how many changed, how many are no longer in the workbook and how many are unchanged. Unchanged rows are left alone. Nothing has been saved yet."
+    },
+    {
+     "d": "Read the list under the counts. Each change has a tick and a tag: **New** rows will be added, **Changed** rows will update the item already in clark, and a row tagged Not in the workbook would archive its item. A line under a change says what differs. A change that would be refused says why and cannot be ticked."
+    },
+    {
+     "d": "Untick any change you do not want. New and changed rows start ticked, except a change that clashes: a line under it says it changed in clark after the workbook was made, and it starts unticked. Rows tagged Not in the workbook also start unticked. If clark has no record of exporting the workbook, it warns you, and the button reads **Import anyway**."
+    },
+    {
+     "d": "Press the button at the foot, which reads Import and the number you ticked, such as Import 3 changes. The whole import is one step."
+    },
+    {
+     "d": "The box says what was done. Press **Undo this import** to put the project back as it was before, or **Close** to keep it. The project’s pages then show the new and changed items."
+    }
+   ],
+   "result": "The box tells you what was added and updated, the rows you left are untouched, and one press of Undo this import takes the whole import back.",
+   "next": [
+    "guide-send-the-workbook-out",
+    "howto-undo-a-mistake"
+   ]
+  },
+  {
+   "id": "send-the-workbook-out",
+   "t": "Send the workbook out",
+   "job": "Save the project as an Excel workbook, know what is in it, and take changes back in.",
+   "steps": [
+    {
+     "d": "On **Work items**, in View, press the **Export to Excel** icon in the page header, beside the add button. The icon is not there in Edit, so use step 2 or 3 instead.",
+     "pic": "excel-out-icon"
+    },
+    {
+     "d": "Or press your profile circle and choose **Export to Excel**. It gives the same workbook from any screen.",
+     "pic": "excel-out-menu"
+    },
+    {
+     "d": "Or choose **Settings** from the profile circle, find the **Data** card and press **Export workbook**. It is the same export again.",
+     "pic": "excel-out-card"
+    },
+    {
+     "d": "Your browser saves one .xlsx file, and a message gives its name. Nothing is sent or published: the file is only on your computer."
+    },
+    {
+     "d": "Open the file. It opens on the Cover sheet. The first line is the project name, tagged INTERNAL. Below it come the report’s current state, the health and the at a glance tiles, and the text sections, as the published page shows them. Then comes an About this export block: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs."
+    },
+    {
+     "d": "After the Cover come the sheets of rows: Milestones, Actions, Risks and issues, Decisions and Use cases. Each row is one item, with its ID in the first column. A History sheet follows with the record of changes, read only. Changes made on the Cover are ignored."
+    },
+    {
+     "d": "The workbook includes internal notes and Sensitive items, so never send it to a client. To send changes back, edit the rows on the data sheets, leave every ID as it is, and import the file with **Import workbook**."
+    }
+   ],
+   "result": "A single Excel workbook is saved by your browser, opening on a Cover sheet, with one sheet for each kind of work and one row for each item.",
+   "next": [
+    "guide-bring-in-an-excel-workbook",
+    "ref-work-items"
+   ]
+  },
+  {
+   "id": "publish-to-the-client",
+   "t": "Publish to the client",
+   "job": "Check the report, then save the finished copy locally and, if you choose, send it to the client.",
+   "steps": [
+    {
+     "d": "To look first, press your profile circle and choose **Preview the page in a new tab**. It shows what the client will see, and nothing is saved."
+    },
+    {
+     "d": "Press your profile circle and choose **Publish…**. The box **Publish the report** opens. The line under its title gives the project, the week ending, the number this publication will have, such as this will be Publication 4, and when and where the last one went.",
+     "pic": "publish-menu"
+    },
+    {
+     "d": "**Local** is always ticked, and the box says you choose the folder and name in the save window. Tick **To client** to copy it to the client folder as well. With no client folder set, that tick is off and a link takes you to Settings, Publishing to set one.",
+     "pic": "publish-dialog"
+    },
+    {
+     "d": "If you want them, tick **Also a PDF** (your browser’s print box opens and you choose Save as PDF) and **Also a Word document** (a Word copy of the report, saved in the folder last used for this project)."
+    },
+    {
+     "d": "With **To client** ticked, a line says the client will see the page, and the Word report if you ticked it, and only what is shown in View mode. A hidden section or a work item with its eye turned off is not included."
+    },
+    {
+     "d": "If a work item the client would see still has its placeholder title, such as New action, the box warns you with a count. It does not stop you. To fix it, press **Cancel**, rename the item or turn off its eye, and open **Publish…** again."
+    },
+    {
+     "d": "Press the button at the foot, which reads **Publish locally**, or **Publish and send to the client** when To client is ticked. A spinner shows while it works. If the file name is taken, the box asks what to do: **Add a number**, **Rename it** or, where it is allowed, **Overwrite the existing file**."
+    },
+    {
+     "d": "The button turns green and reads Published, with the publication number in brackets, such as Publication 4. Press it to close the box."
+    }
+   ],
+   "result": "The button shows a green tick and Published with its publication number. The saved page is the one the client sees, and the next publication gets the next number.",
+   "next": [
+    "howto-save-as-a-pdf",
+    "howto-word-in-and-out",
+    "howto-find-a-past-publication",
+    "ref-published-reports"
+   ]
+  },
+  {
+   "id": "hand-an-item-over",
+   "t": "Hand an item over",
+   "job": "Give several open work items to someone else in one step, with one Undo to take it back.",
+   "steps": [
+    {
+     "d": "Press **Edit** at the top of the page, then open **Work items**. Handing over is not offered in View."
+    },
+    {
+     "d": "Click the filter box, which says **Filter by keyword or by field**, and filter by owner: type owner: and pick the person from the suggestions. The hand-over button only appears while an owner filter is on, and not when the filter is “is not”."
+    },
+    {
+     "d": "Press **Hand over**, beside the button that adds an item. A tick box appears on each open item, and a bar opens above the list. Closed and archived items are not offered."
+    },
+    {
+     "d": "Tick the items to give away: click a row, or press Space on it. **All** ticks every item offered, and **None** clears the ticks. The bar counts them, such as “3 of 12 selected”. While you are ticking, the keys for changing an item are switched off."
+    },
+    {
+     "d": "Type the new person’s name in **Hand over to**. It suggests names from your people list, or the names already in the project if the list is empty. If the name matches no one, a line under the box asks you to check the spelling."
+    },
+    {
+     "d": "Press **Hand over** in the bar. It stays unavailable, with a line saying why, until you have ticked an item and named a person. Above 25 items a question comes first, such as “Hand over 30 items to Sam Rivers?”: press **Change** to go on, or **Cancel** to stop."
+    },
+    {
+     "d": "To leave without handing anything over, press **Cancel** in the bar, or press Esc."
+    },
+    {
+     "d": "If you change your mind after handing over, press **Undo** on the message that appears, or press Ctrl+Z (Cmd+Z on a Mac). The whole hand over goes back in one step."
+    }
+   ],
+   "result": "The bar closes and a message says what was handed over. Any item that could not take the change is left out and named in that message. The items now show their new owner, and **Undo** puts them back with their old owner.",
+   "next": [
+    "howto-undo-a-mistake",
+    "ref-work-items",
+    "howto-add-a-work-item"
+   ]
+  },
+  {
+   "id": "save-a-view",
+   "t": "Save a view",
+   "job": "Keep a set of filters on Work items under a name, so you can come back to it with one press.",
+   "steps": [
+    {
+     "d": "Open **Work items**, in View or in Edit. Above the table are the saved views as tabs, and under them the filter line. Click the filter line and type a word or pick a field from the list, then press Enter. Each filter becomes a chip, and the table shows only the items that match. Press the x on a chip to take that filter off."
+    },
+    {
+     "d": "When the table shows what you want, press **+ New view**, at the end of the tabs."
+    },
+    {
+     "d": "A box opens with the label **Name for the new view**. Type a name of up to 40 characters, then press **Save**. A name that is empty, too long or already used by another view is refused, and a line beside the box says why."
+    },
+    {
+     "d": "The new view appears as a tab, with the number of items it shows beside its name, and it is the open tab. The view is kept in your browser, for this project."
+    },
+    {
+     "d": "To come back to it later, press its tab. The filter line is set to what you saved. The tabs Open items, Actions, Risks and issues, Decisions and All work items are on every project."
+    },
+    {
+     "d": "If you change the filter line while a view is open, a small dot shows on its tab. Press the small arrow beside the open tab’s name and choose **Save changes** to keep the new filters under the same name, or **Save as a new view…** to keep them as another view. The five tabs that every project has cannot be changed this way, so use **Save as a new view…** for them."
+    },
+    {
+     "d": "To rename one of your own views, open it, press the small arrow beside its name and choose **Rename…**. Type the new name in the box labelled **New name for this view** and press **Save**."
+    },
+    {
+     "d": "To remove a view you no longer want, open it, press the small arrow and choose **Archive**. It leaves the tabs but is kept. To get it back, press the small arrow beside an open tab and choose **Bring back** followed by its name."
+    }
+   ],
+   "result": "Your view is a tab on Work items with its item count. Pressing it sets the filter line to your saved filters, and a dot on the tab tells you when the line has changes you have not saved.",
+   "next": [
+    "ref-work-items",
+    "howto-add-a-work-item",
+    "howto-undo-a-mistake"
+   ]
+  },
+  {
+   "id": "see-the-dashboard-as-at-a-day",
+   "t": "See the Dashboard as it stood on a past day",
+   "job": "Look at the Dashboard as it stood at the end of a past day, read only, and come back to this week.",
+   "steps": [
+    {
+     "d": "Open the **Dashboard**. Beside **Week ending** on the report bar there is a drop-down that reads **Published weeks**. It is there in View and in Edit, and only once the project has a publication."
+    },
+    {
+     "d": "To look at a week you published, pick it from the list. Each line reads like DD-MM-YYYY · Publication 3, newest first. A page that was kept opens in a new browser tab exactly as it was published."
+    },
+    {
+     "d": "A line that ends in rebuilt has no kept page. Picking it shows the Dashboard as it stood on the day that publication was made, rebuilt from the change history, in this same tab."
+    },
+    {
+     "d": "To choose any other day, pick **Dashboard as at a day…** at the foot of the list. Settings opens at **Published reports**, and the day box in the **Dashboard as at a day** card is ready for you."
+    },
+    {
+     "d": "Type the day as DD-MM-YYYY and press **Show**. A day that has not happened yet, or from before the project existed, is turned away with a line saying so. Pick another day."
+    },
+    {
+     "d": "The Dashboard now shows the project as it stood at the end of that day. A banner at the top reads “You are looking at the dashboard as at” and the day, and under it “Read only · this was not published in this form”. Due dates and overdue marks are worked out as at that day."
+    },
+    {
+     "d": "The report on this page cannot be changed, and there is no Edit, no Publish and no Help while you look. Look as long as you like: nothing is saved."
+    },
+    {
+     "d": "Press **Back to now** in the banner. You are back on this week’s Dashboard, read fresh from clark."
+    }
+   ],
+   "result": "You have seen the Dashboard as it stood at the end of a past day, and nothing in the project has changed. You are back on this week’s Dashboard.",
+   "next": [
+    "howto-find-a-past-publication",
+    "ref-published-reports",
+    "howto-publish-the-report"
+   ]
+  },
+  {
+   "id": "back-up-and-restore-your-data",
+   "t": "Back up and restore your data",
+   "job": "See the copies clark keeps of your data, look inside one, and put one back if you need to.",
+   "steps": [
+    {
+     "d": "Press your profile circle and choose **Settings**, then find the **Backups** card. It says that a copy of your data is kept each day, and before an undo or an import."
+    },
+    {
+     "d": "Read the line under the title. It gives the date and time of the latest backup, or says there are no backups yet: the first one is made when you save your first change of the day. If the latest copy is damaged, the line says so."
+    },
+    {
+     "d": "Read the list, newest first. Each row shows the date and time, the kind (Daily, Before an undo, Before an import, Before a change, Before a restore or Before an update) and the size. Under the list, a line says how many backups are kept of each kind; the oldest are removed after that."
+    },
+    {
+     "d": "To look inside a copy, press **Preview** on its row. A box says when the backup is from and how many projects, work items and milestones it holds, then how many you have now. Nothing is changed by looking."
+    },
+    {
+     "d": "If the box says the backup is of a different database, it cannot be put back over yours and there is no **Restore** button. Press **Close** to leave it."
+    },
+    {
+     "d": "To put a copy back, press **Restore** on its row, or on the preview box. The box asks, for example, “Put back the backup from DD-MM-YYYY 09:30? What you have now is kept first.” Your current data is replaced by the copy, so everything you saved after that copy was made is no longer in your pages. Before it swaps, clark keeps a copy of what you have now, and it shows in the list as Before a restore."
+    },
+    {
+     "d": "Press **Put it back** to go ahead, or **Cancel** to stop with nothing changed. If your data changed after you pressed **Preview**, clark refuses and asks you to look at the backup again."
+    },
+    {
+     "d": "The page reloads and one line says that the backup was restored and that your data from before is kept in case you need it. There is no Undo button for a restore: to go back, look in the list for the Before a restore copy and put that one back."
+    }
+   ],
+   "result": "Your pages show the data from the copy you chose, a line confirms the restore, and a Before a restore copy of the data you had is in the list.",
+   "next": [
+    "howto-undo-a-mistake",
+    "ref-profile-circle"
+   ]
+  }
+ ],
+ "pictures": [
+  {
+   "id": "templates-add-box",
+   "alt": "The plus button at the left of a section, ringed."
+  },
+  {
+   "id": "templates-dialog",
+   "alt": "The Add a section box, with the kinds of template on the left and the list of templates beside them."
+  },
+  {
+   "id": "templates-place",
+   "alt": "The foot of the Add a section box, with the Where it goes choices ringed."
+  },
+  {
+   "id": "arrange-grip",
+   "alt": "The move button at the left of a section, ringed."
+  },
+  {
+   "id": "arrange-menu",
+   "alt": "A section’s menu, with Move up and Leave out of the published page marked 1 and 2."
+  },
+  {
+   "id": "arrange-leave-out",
+   "alt": "A section’s menu, with Leave out of the published page ringed."
+  },
+  {
+   "id": "excel-in-button",
+   "alt": "The Data card in Settings, with the Import workbook button ringed."
+  },
+  {
+   "id": "excel-in-box",
+   "alt": "The Import from Excel box, with the Choose a file button ringed."
+  },
+  {
+   "id": "excel-out-icon",
+   "alt": "The Export to Excel icon in the page header, ringed."
+  },
+  {
+   "id": "excel-out-menu",
+   "alt": "The profile menu, with Export to Excel ringed."
+  },
+  {
+   "id": "excel-out-card",
+   "alt": "The Data card in Settings, with the Export workbook button ringed."
+  },
+  {
+   "id": "publish-menu",
+   "alt": "The profile menu, with Publish… ringed."
+  },
+  {
+   "id": "publish-dialog",
+   "alt": "The Publish the report box, with the To client choice ringed."
+  }
+ ]
 }

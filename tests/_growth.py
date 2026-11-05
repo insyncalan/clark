@@ -4,13 +4,15 @@
 larger run is far slower than any healthy scan (so a slowdown that stays linear is still caught).
 
 Why 4n and not 2n: a step of 2 puts linear at 2 and quadratic at 4, so the limit has to sit between them (3.5) and a milder-than-square cost
-(a mutation measured 3.70) is only just over it. A step of 4 puts linear at 4 and quadratic at 16, so a limit of 8 is a factor of two from
-each (a cost of n to the power 1.5 gives 8, and the limit fails anything above it).
+(a mutation measured 3.70) is only just over it. A step of 4 puts linear at 4 and quadratic at 16. #651: a limit of 8 would let a cost
+between 3.5 and 8 pass (the old local limit for a step of 2 was 3.5), so the limit is 5: the 88 healthy ratios measured on a quiet Mac
+(04-11-2026) top out at 4.29, and a cost of n to the power 1.5 (8) fails. The macOS and Ubuntu runners are still to be measured: if a
+runner reads a healthy scan above 5, raise the limit there rather than loosening it for everyone.
 """
 import time
 
 GROWTH_STEP = 4         # the larger run is GROWTH_STEP times the size of the smaller one
-GROWTH_LIMIT = 8        # t(4n) / t(n): linear is 4, n to the power 1.5 is 8, quadratic is 16, cubic is 64. Above 8 means the work is growing faster than n to the power 1.5; a square is a factor of two over it and linear a factor of two under.
+GROWTH_LIMIT = 6.5      # t(4n) / t(n): linear is 4, n to the power 1.5 is 8, quadratic is 16, cubic is 64. Above 6.5 means the work is growing faster than n to the power 1.35; healthy scans measured up to 4.29 on a quiet Mac (#651) and up to 5.29 on the hosted macOS runners (04-11-2026: 5.05, 5.29 failed a limit of 5), so the limit sits between those and n to the power 1.5 (8).
 GROWTH_FLOOR = 0.01     # CPU seconds; a faster t(n) than this is raised to it, so timer noise cannot fail a very quick run
 ABSOLUTE_CAP = 400      # CPU seconds for the larger run. Only a backstop for a scan that stays linear but gets a hundred times slower: the quietest-box t(4n) of the slowest test is about 36 s (test_secret_screen), so this is ten times that and a loaded box (CPU time inflates under contention) cannot trip it. The ratio above is the real guard.
 
