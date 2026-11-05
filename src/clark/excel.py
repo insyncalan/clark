@@ -915,6 +915,8 @@ COVER_LABELS = {"exported": "Exported", "caution": "Caution", "return": "Sending
 COVER_FONT = OFFICE_FONT
 COVER_COLUMNS = 12                  # the Cover's grid: 12 equal columns, text and tiles in merged cells
 COVER_SIZE = 10                     # body text, in points
+COVER_TITLE_SIZE = 22               # the title band: the report title, in points
+COVER_SUBTITLE_SIZE = 12            # and its subtitle line
 COVER_CHARS = 1.05                  # characters of body text to a column-width unit, a little under what Arial 10 fits
 TILE_BAR = {"red": "status-red", "amber": "status-amber-text", "green": "status-green-text"}     # a tile's left bar: the status tokens
 
@@ -970,7 +972,7 @@ def _heading(pal, ws, row, first, last, text):
     ws.row_dimensions[row].height = 22
 
 
-def write_cover(wb, cover, mark=False, pal=None):
+def write_cover(wb, cover, mark=False, pal=None, wave=False):
     """The Cover sheet, first in the workbook and the one it opens on (item 85b): a 12-column grid with the gridlines off, text
     blocks and tiles in merged cells, laid out as Option A of the signed mockup: the navy title band (the logo at its left when
     `mark`, the INTERNAL tag at its right, a subtitle line under the title), Current state, At a glance tiles side by side, the
@@ -986,6 +988,7 @@ def write_cover(wb, cover, mark=False, pal=None):
     navy, white, ink = t["brand-navy"], t["white"], t["brand-ink"]
     grey_fill, grey_text, rule = t["grey-50"], t["grey-700"], t["grey-300"]
     last = COVER_COLUMNS
+    band_edge = Side(style="thick", color=t["brand-blue"])       # a distinct edge under the dark band
     row = 0
     start = 1
     for line in cover:
@@ -997,19 +1000,30 @@ def write_cover(wb, cover, mark=False, pal=None):
             end = last - 2 if tag else last
             for col in range(1, last + 1):
                 ws.cell(row=row, column=col).fill = PatternFill("solid", fgColor=navy)
-            _put(pal, ws, row, start, end, text, _cover_font(pal, bold=True, size=16, color=white), navy,
+            _put(pal, ws, row, start, end, text, _cover_font(pal, bold=True, size=COVER_TITLE_SIZE, color=white), navy,
                  Alignment(wrap_text=True, vertical="center"))
             if tag:
                 _put(pal, ws, row, last - 1, last, tag, _cover_font(pal, bold=True, size=11, color=white), t["status-red"],
                      Alignment(horizontal="center", vertical="center"))
             ws.row_dimensions[row].height = max(excel_picture.COVER_ROW_POINTS,
-                                                excel_cover.height(text, _span_chars(start, end, 16), 20, 22))
+                                                excel_cover.height(text, _span_chars(start, end, COVER_TITLE_SIZE), 20, 30))
         elif kind == "subtitle":
             row += 1
             for col in range(1, last + 1):
                 ws.cell(row=row, column=col).fill = PatternFill("solid", fgColor=navy)
-            _put(pal, ws, row, start, last, text, _cover_font(pal, color=t["grey-100"]), navy, Alignment(wrap_text=True, vertical="top"))
-            ws.row_dimensions[row].height = excel_cover.height(text, _span_chars(start, last), 20)
+            edge = None if wave else band_edge
+            for col in range(1, start):
+                ws.cell(row=row, column=col).border = Border(bottom=edge)
+            _put(pal, ws, row, start, last, text, _cover_font(pal, size=COVER_SUBTITLE_SIZE, color=t["grey-100"]), navy,
+                 Alignment(wrap_text=True, vertical="top"), bottom=edge)
+            ws.row_dimensions[row].height = excel_cover.height(text, _span_chars(start, last, COVER_SUBTITLE_SIZE), 20, 17)
+            if wave:        # the brand's cover picture sits in a dark row of its own under the subtitle (drawn after the save)
+                row += 1
+                for col in range(1, last + 1):
+                    c = ws.cell(row=row, column=col)
+                    c.fill = PatternFill("solid", fgColor=navy)
+                    c.border = Border(bottom=band_edge)
+                ws.row_dimensions[row].height = excel_picture.WAVE_ROW_POINTS
             ws.freeze_panes = ws.cell(row=row + 1, column=1)
         elif kind == "heading":
             row += 2                           # a short blank row first
@@ -1073,7 +1087,7 @@ def write_cover(wb, cover, mark=False, pal=None):
     return ws
 
 
-def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=None, pal=None):
+def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=None, pal=None, wave=False):
     """The workbook for one project, from {table: [row, ...]} (creaite excel_sync.cmd_export, the sheet part). Rows are dicts
     with the table's columns; labelled rows may carry `labels` (comma-separated) and milestones `original_date`. A missing
     table is an empty sheet. `on` is the day Shown state is worked out for (today by default). `cover` (excel_cover.lines) adds
@@ -1168,7 +1182,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
     if lists:
         write_lists(wb, lists, pal)
     if cover:
-        write_cover(wb, cover, mark, pal)
+        write_cover(wb, cover, mark, pal, wave)
     return wb
 
 
@@ -1227,7 +1241,8 @@ def export(path, project, rows_by_table, state_path, on=None, cover=None, brandi
     pal = excel_palette.palette(branding=branding)      # item 711: the local brand's light values, else the committed look
     for note in pal.warnings:           # the palette's notes are for the log only: no one is shown them
         logging.getLogger("clark.excel").warning("%s", note)
-    wb = workbook(project, rows_by_table, on, cover, mark=bool(logo), history=history, pal=pal)
+    wave = excel_picture.load_wave(branding, warnings) if cover else None     # the brand's cover picture: only from the branding folder
+    wb = workbook(project, rows_by_table, on, cover, mark=bool(logo), history=history, pal=pal, wave=bool(wave))
     if reuse is None:                      # the same unchanged workbook exported again to its own path keeps its id
         try:
             mine = _books(state_path).get(_key(path)) or {}
@@ -1243,13 +1258,13 @@ def export(path, project, rows_by_table, state_path, on=None, cover=None, brandi
     # openpyxl sets "modified" to the real time as it saves, so core.xml is written again with the export's own stamp.
     wb.properties.modified = wb.properties.created
     replace, add = {"docProps/core.xml": tostring(wb.properties.to_tree())}, {}
-    if logo:
-        # The logo goes in after openpyxl has saved, by editing the zip's members (standard library only); the write below is
+    if logo or wave:
+        # The logo and the cover picture go in after openpyxl has saved, by editing the zip's members (standard library only); the write below is
         # the atomic one. If the saved file is not laid out as expected the Cover goes without a mark.
         try:
             with zipfile.ZipFile(io.BytesIO(buf.getvalue())) as z:
                 files = {n: z.read(n) for n in z.namelist()}
-            more, add = excel_picture.embed(files, logo[0], COVER_NAME)
+            more, add = excel_picture.embed(files, logo[0] if logo else None, COVER_NAME, wave[0] if wave else None)
             replace.update(more)
         except excel_picture.PictureRefused as e:
             text = excel_picture.NOT_USED.format(why=e)         # the same plain sentence as a refused logo file
