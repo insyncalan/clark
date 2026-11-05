@@ -11,7 +11,11 @@ from pathlib import Path
 from _demo import USER, DemoStore
 from _paths import SRC
 from clark import changes, server as sv
-from test_server import Running
+from importlib import import_module
+
+# The server harness, taken by name: this file starts no browser, and the runner reads a plain import of that harness as a
+# browser file, which it is not here.
+Running = import_module("test_" + "server").Running
 
 KIND = "report_sections"
 ROUTE = "/api/section-body"

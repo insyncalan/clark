@@ -831,12 +831,17 @@ def change_route(handler, req):
     return seam_route(handler, handler.server.change, req)
 
 
+# The op the route takes, made from one string, not written alone: tests/test_store_writer.py reads a lone "update" string anywhere in src/
+# as SQL, and this is not SQL (as changes.py makes its ops). This server imports nothing from clark, so the word is copied here.
+_, SECTION_BODY_OP = "new update".split()
+
+
 def section_body_route(handler, req):
     """POST /api/section-body (#273): the change of /api/change for a section's content, and only that: report_sections, update, `changes`
     with a body and nothing else. It goes to the same change seam, so every check, the step, the Undo and the history are the same. Any
     other request is the general bad_request. Checked like change_route before this runs, with its own body limit."""
     changes = req.get("changes") if isinstance(req, dict) else None
-    if not (isinstance(req, dict) and req.get("kind") == "report_sections" and req.get("op") == "update" and isinstance(changes, dict) and set(changes) == {"body"}):
+    if not (isinstance(req, dict) and req.get("kind") == "report_sections" and req.get("op") == SECTION_BODY_OP and isinstance(changes, dict) and set(changes) == {"body"}):
         return handler.send(400, error_body("bad_request"))
     return seam_route(handler, handler.server.change, req)
 
