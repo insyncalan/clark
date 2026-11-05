@@ -106,6 +106,18 @@ class Protected(Base):
         for label in ("Description", "Owner", "Priority", "Due", "Status", "Client wording", "Milestone", "Use case", "Labels"):
             self.assertFalse(ws.cell(blank, labels.index(label) + 1).protection.locked, label)
 
+    def test_the_commitment_column_is_editable_and_keeps_its_drop_down_on_a_protected_sheet(self):
+        ws = self.wb["Use cases"]
+        self.assertTrue(ws.protection.sheet)
+        labels = [c.value for c in ws[1]]
+        col = labels.index("Commitment") + 1
+        letter = ws.cell(1, col).column_letter
+        for r in (2, 3, ws.max_row):
+            self.assertFalse(ws.cell(r, col).protection.locked, f"Commitment row {r}")
+        rules = [dv for dv in ws.data_validations.dataValidation if f"{letter}2" in str(dv.sqref)]
+        self.assertTrue(rules, "the drop-down is still on the Commitment column")
+        self.assertIn("Planned 2027", rules[0].formula1)
+
     def test_a_column_that_is_not_locked_is_editable_by_design(self):
         self.assertEqual(excel.locked_fields({"id"}), {"id", "project", "original_date", "shown_state", "open_items"})
         self.assertNotIn("commitment", excel.locked_fields({"id", "source"}))
