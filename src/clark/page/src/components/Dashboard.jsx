@@ -41,16 +41,24 @@ function jumpTo(anchor) {
   el.focus({ preventScroll: true });
 }
 
-// #679: View and Edit draw different heights (Edit adds rows, fields and left-out sections), so the switch keeps the section nearest the
-// top of the screen where it was. Read while the old DOM is still up (the render before the commit), put back before the paint.
+// Row 679 and row 756: View and Edit draw different heights (Edit adds rows, fields and left-out sections), so the switch keeps the section the
+// person is reading where it was: the first one with a real strip of itself (MIN_SEEN) below the top bar. The one nearest the bar by its
+// bottom edge was wrong whenever only a thin tail of it showed above the next section: that tail was held, and the section being read
+// moved by whatever the tail gained in Edit. When no section shows that much, the one that shows most. Read while the old DOM is still
+// up (the render before the commit), put back before the paint.
+const MIN_SEEN = 64;
 function nearestTop() {
   const bar = document.querySelector(".top");
   const line = bar ? bar.getBoundingClientRect().bottom : 0;
+  let best = null;
+  let most = 0;
   for (const el of document.querySelectorAll(".secs > .sec:not(.is-hidden)")) {
     const r = el.getBoundingClientRect();
-    if (r.bottom > line + 1) return { id: el.dataset.id, top: r.top };
+    const seen = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, line);
+    if (seen >= MIN_SEEN) return { id: el.dataset.id, top: r.top };
+    if (seen > most) { most = seen; best = { id: el.dataset.id, top: r.top }; }
   }
-  return null;
+  return best;
 }
 
 export function Dashboard({ tools }) {
