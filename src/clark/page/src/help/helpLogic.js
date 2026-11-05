@@ -10,13 +10,14 @@ import RAW from "clark-help-content";      // helpContent.json; the build aliase
 import LATER from "./helpLater.json";
 
 const PREFIX = { howto: "howto-", reference: "ref-", start: "start-" };
+const GUIDE = "guide-";     // a step-by-step guide (#642): its place sits under the How do I… tab
 export const START_PARTS = ["top", "loop", "first", "jobs", "where", "rules", "foot"];
 // What each held part of Start here takes with it: the source's fields, emptied while the part is held.
 const START_FIELDS = {
   top: { hero: { label: "", title: "", lead: "" } },
   loop: { loop: [], text: ["loop_title", "loop_intro", "loop_return"] },
   first: { first: [], text: ["first_title"] },
-  jobs: { jobs: [], text: ["jobs_title", "jobs_intro"] },
+  jobs: { jobs: [], undo: "", text: ["jobs_head", "jobs_lead", "jobs_title", "jobs_more", "undo_lead", "undo_link"] },
   where: { where: [], text: ["where_title", "keyline", "keyline_link"] },
   rules: { rules: [], text: ["rules_title"] },
   foot: { text: ["foot", "foot_link"] },
@@ -40,6 +41,12 @@ export function shownContent(raw, later) {
   }
   c.howto.tasks = c.howto.tasks.filter((x) => !(x.id in (L.howto || {})));
   c.reference.sections = c.reference.sections.filter((x) => !(x.id in (L.reference || {})));
+  c.guides = (c.guides || []).filter((x) => !(x.id in (L.guides || {})));
+  // A job on Start here is shown only while the entry it opens is shown: a job whose entry is held keeps its words held (never shown,
+  // never a dead link). The Undo link beside the jobs follows the same rule.
+  const shownTask = (id) => c.howto.tasks.some((x) => x.id === id);
+  c.start.jobs = c.start.jobs.filter((j) => shownTask(j[0]));
+  if (!shownTask(c.start.undo)) { c.start.undo = ""; c.start.text.undo_lead = ""; c.start.text.undo_link = ""; }
   c.howto.groups = c.howto.groups.filter((g) => c.howto.tasks.some((x) => x.g === g));
   c.reference.groups = c.reference.groups.filter((g) => c.reference.sections.some((x) => x.g === g));
   const heldKeys = new Set((L.keys || []).map((k) => k.at));
@@ -76,22 +83,113 @@ export function plain(s, mac = false) {
 // ---------- the tab lists ----------
 export const tasks = () => CONTENT.howto.tasks;
 export const sections = () => CONTENT.reference.sections;
-export const jobs = () => CONTENT.start.jobs.map(([id, title, does, go]) => ({ id, place: `howto-${id}`, title, does, go }));
+// A job opens its guide (its fifth word, a guide id) while that guide is shown, and its how-to entry otherwise; the entry stays under How do I….
+const jobPlace = (id, guide) => (guide && (CONTENT.guides || []).some((g) => g.id === guide) ? GUIDE + guide : `howto-${id}`);
+export const jobs = () => CONTENT.start.jobs.map(([id, title, does, go, guide]) => ({ id, place: jobPlace(id, guide), title, does, go }));
 export const firstTen = () => CONTENT.start.first;
 export const loopSteps = () => CONTENT.start.loop;
+/** The small "Undo" link beside the jobs: { lead, link, place }, or null while the entry it opens is held. */
+export const undoLink = () => (CONTENT.start.undo && CONTENT.start.text.undo_link ? { lead: CONTENT.start.text.undo_lead, link: CONTENT.start.text.undo_link, place: PREFIX.howto + CONTENT.start.undo } : null);
 
 /** A tab as its groups, each with its entries (id, title, place): the contents list down the side of How do I… and Reference. */
 export function tabList(tab) {
   const by = (groups, list, pre) => groups.map((g) => ({ group: g, entries: list.filter((x) => x.g === g).map((x) => ({ id: x.id, title: x.t, place: pre + x.id })) }));
-  if (tab === "howto") return by(CONTENT.howto.groups, tasks(), PREFIX.howto);
+  if (tab === "howto") {
+    const g = guides();        // guides have no group: their own run at the end, with no heading (the contents list gives no new words)
+    return by(CONTENT.howto.groups, tasks(), PREFIX.howto).concat(g.length ? [{ group: "", entries: g.map((x) => ({ id: x.id, title: x.title, place: x.place })) }] : []);
+  }
   if (tab === "reference") return by(CONTENT.reference.groups, sections(), PREFIX.reference);
-  if (tab === "start") return CONTENT.start.parts.length ? [{ group: "Start here", entries: CONTENT.start.parts.map((p) => ({ id: p, title: startTitle(p), place: PREFIX.start + p })) }] : [];
+  if (tab === "start") {
+    // The parts of Start here, and after the jobs part the jobs it shows (each opens its entry under How do I…).
+    const out = [], T = CONTENT.start.text;
+    for (const p of CONTENT.start.parts) {
+      out.push({ group: p === "jobs" ? T.jobs_head : "Start here", entries: [{ id: p, title: startTitle(p), place: PREFIX.start + p }] });
+      if (p === "jobs") {
+        const js = jobs(), ids = new Set(js.filter((j) => j.place.startsWith(PREFIX.howto)).map((j) => j.id));   // a job that opens a guide leaves its how-to entry under "Also under How do I..."
+        out.push({ group: T.jobs_title, entries: js.map((j) => ({ id: j.id, title: j.title, place: j.place })) });
+        const more = tasks().filter((x) => !ids.has(x.id));
+        if (more.length) out.push({ group: T.jobs_more, entries: more.map((x) => ({ id: x.id, title: x.t, place: PREFIX.howto + x.id })) });
+      }
+    }
+    return out;
+  }
   return [];
 }
 
 function startTitle(part) {
   const t = CONTENT.start.text;
-  return { top: CONTENT.start.hero.title, loop: t.loop_title, first: t.first_title, jobs: t.jobs_title, where: t.where_title, rules: t.rules_title, foot: "Start here" }[part];
+  return { top: CONTENT.start.hero.title, loop: t.loop_title, first: t.first_title, jobs: t.jobs_head, where: t.where_title, rules: t.rules_title, foot: "Start here" }[part];
+}
+
+// ---------- the guides (#642 step 2) ----------
+// A guide: { id, t (title), job (one line: what it gets done), steps: [{ d (what to do), pic? (a picture id) }], result (what you
+// should see), next: [places] }, in content.guides; the pictures it may show are declared once in content.pictures ([{ id, alt }]).
+// The numbers are the steps' order. A guide with a `page` list is context for that screen too (contextFor).
+/** The guides as the panel needs them: the steps numbered from 1, the text with its markup taken off in `text`. */
+export const guides = () => (CONTENT.guides || []).map((g) => ({
+  id: g.id, place: GUIDE + g.id, title: g.t, job: g.job, result: g.result, next: (g.next || []).slice(), page: (g.page || []).slice(),
+  steps: (g.steps || []).map((s, i) => ({ n: i + 1, d: s.d, text: plain(s.d), pic: s.pic || null, t: s.t || null, part: s.part || null })),
+}));
+/** One guide by id (null when there is none). */
+export const guide = (id) => guides().find((g) => g.id === id) || null;
+/** The ids of the pictures declared for the guides. */
+export const pictureIds = () => (CONTENT.pictures || []).map((p) => p.id);
+/**
+ * What a step draws for its picture: { src, alt }, or null (the step draws no picture at all) when it has none, the picture is not
+ * declared, or `urlOf` (the page's pictureUrl) has no picture for the id. Never a broken image.
+ */
+export function stepPicture(step, urlOf) {
+  if (!step || !step.pic) return null;
+  const decl = (CONTENT.pictures || []).find((p) => p.id === step.pic);
+  const src = decl && typeof urlOf === "function" ? urlOf(step.pic) : null;
+  return src ? { src, alt: decl.alt || "" } : null;
+}
+
+/** The title of a place in Help, or null when the place does not exist. */
+export function placeTitle(place) {
+  const w = String(place);
+  const by = (list, pre, title) => { const x = list.find((e) => pre + e.id === w); return x ? title(x) : null; };
+  if (w.startsWith(PREFIX.start)) return CONTENT.start.parts.includes(w.slice(PREFIX.start.length)) ? startTitle(w.slice(PREFIX.start.length)) : null;
+  return by(tasks(), PREFIX.howto, (x) => x.t) || by(sections(), PREFIX.reference, (x) => x.t) || by(guides(), GUIDE, (x) => x.title);
+}
+
+/** The "what next" links of a guide: [{ place, title, known }]. A link to a place that does not exist is known: false, title null. */
+export function nextLinks(id) {
+  const g = guide(id), known = new Set(placeIds());
+  return g ? g.next.map((place) => ({ place, known: known.has(place), title: known.has(place) ? placeTitle(place) : null })) : [];
+}
+
+/** The "What next" links of any entry, from its `next` list of places: [{ place, title }]. A place that is not shown (held, or not a
+ *  place) is left out, so a link never goes nowhere; each place once, in the order given. */
+export function nextOf(places) {
+  const known = new Set(placeIds()), seen = new Set(), out = [];
+  for (const p of Array.isArray(places) ? places : []) {
+    if (!known.has(p) || seen.has(p)) continue;
+    seen.add(p);
+    out.push({ place: p, title: placeTitle(p) });
+  }
+  return out;
+}
+
+// ---------- the places visited (the way back beside Back) ----------
+// A small history: the places left behind, the latest last. Plain functions on arrays, so the store only holds the value.
+export const TRAIL_MAX = 20;
+/** The history after going from `from` to `to`: `from` is added unless it is empty or the same place. Never changes the list given. */
+export function trailVisit(trail, from, to) {
+  const t = Array.isArray(trail) ? trail.slice() : [];
+  if (!from || from === to || t[t.length - 1] === from) return t;
+  t.push(from);
+  return t.slice(-TRAIL_MAX);
+}
+/** Going back one place: { place, trail } (place null and the same history when there is none). */
+export function trailBack(trail) {
+  const t = Array.isArray(trail) ? trail.slice() : [];
+  return { place: t.length ? t.pop() : null, trail: t };
+}
+/** The place a tab opens at: its first entry in the contents list (null when it has none). */
+export function firstPlace(tab) {
+  const l = tabList(tab);
+  return l.length && l[0].entries.length ? l[0].entries[0].place : null;
 }
 
 // ---------- the keys and the icons ----------
@@ -106,7 +204,7 @@ export const milestoneMarks = () => CONTENT.reference.milestone_states.concat(CO
 /** Every place Help can open at: "start-top", "howto-publish-the-report", "ref-keys" and so on. */
 export function placeIds() {
   return CONTENT.start.parts.map((p) => PREFIX.start + p)
-    .concat(tasks().map((x) => PREFIX.howto + x.id), sections().map((x) => PREFIX.reference + x.id));
+    .concat(tasks().map((x) => PREFIX.howto + x.id), sections().map((x) => PREFIX.reference + x.id), guides().map((g) => g.place));
 }
 
 /**
@@ -118,7 +216,7 @@ export function placeOf(where, lastTab = "start") {
   const w = typeof where === "string" ? where.trim() : "";
   if (!w) return { tab: last, target: null, known: true };
   if (TAB_KEYS.includes(w)) return { tab: w, target: null, known: true };
-  const tab = TAB_KEYS.find((t) => w.startsWith(PREFIX[t]));
+  const tab = w.startsWith(GUIDE) ? "howto" : TAB_KEYS.find((t) => w.startsWith(PREFIX[t]));
   if (!tab) return { tab: last, target: null, known: false };
   return placeIds().includes(w) ? { tab, target: w, known: true } : { tab, target: null, known: false };
 }
@@ -140,11 +238,48 @@ export function allText() {
 export function linksIn() {
   const inside = new Set(), screens = new Set(), re = /\]\((#|go:)([^)]+)\)/g;
   for (const s of allText()) for (const m of s.matchAll(re)) (m[1] === "#" ? inside : screens).add(m[2]);
-  for (const j of CONTENT.start.jobs) { inside.add(`howto-${j[0]}`); screens.add(j[3]); }
+  for (const j of CONTENT.start.jobs) { inside.add(jobPlace(j[0], j[4])); screens.add(j[3]); }
   for (const t of tasks()) if (t.go) screens.add(t.go);
   for (const w of CONTENT.start.where) if (w[2]) screens.add(w[2]);
+  if (CONTENT.start.undo && CONTENT.start.text.undo_link) inside.add(PREFIX.howto + CONTENT.start.undo);
   inside.add("ref-keys");   // the Start here key line links to it
   return { inside: [...inside], screens: [...screens] };
+}
+
+// ---------- context for a screen (#645 step 1) ----------
+/**
+ * What Help has for a screen: [{ tab, id, title, place }], the how-to entries first, then the reference sections, then the guides,
+ * each in the order of the source. `page` is a screen of LIVE_SCREENS (helpStore.js) or a Settings card ("settings#personal"); an
+ * entry names its screens in its `page` list. A screen includes the entries of its cards; a card includes its own entries and the
+ * ones for the whole screen. Held entries are not in CONTENT, so they are never returned. A screen nothing names gives [].
+ */
+export function contextFor(page) {
+  const w = String(page == null ? "" : page), screen = w.split("#")[0];
+  const on = (x) => (x.page || []).some((p) => p === w || (p.split("#")[0] === screen && (w === screen || p === screen)));
+  const row = (tab, pre, id, title) => ({ tab, id, title, place: pre + id });
+  return [
+    ...tasks().filter(on).map((x) => row("howto", PREFIX.howto, x.id, x.t)),
+    ...sections().filter(on).map((x) => row("reference", PREFIX.reference, x.id, x.t)),
+    ...(CONTENT.guides || []).filter(on).map((g) => row("howto", GUIDE, g.id, g.t)),
+  ];
+}
+
+/**
+ * The context text of a screen (#645 step 2), for the peek: { page, title, s (the sentences, with their markup), lines (the same,
+ * plain), full (the place to open in the full Help, or null when that place is not shown: a held place is never a target), fullTitle,
+ * cards }. `cards` is [{ card, title, line }] for Settings, the short line for each card, and [] for every other screen. A card
+ * ("settings#pubs") gets its screen's text. A screen with no text gives null.
+ */
+export function contextText(page) {
+  const screen = String(page == null ? "" : page).split("#")[0];
+  const c = (CONTENT.context || []).find((x) => x.page === screen);
+  if (!c) return null;
+  const shown = new Set(placeIds());
+  const full = shown.has(c.full) ? c.full : null;
+  return {
+    page: c.page, title: c.title, s: c.s.slice(), lines: c.s.map((l) => plain(l)), full, fullTitle: full ? placeTitle(full) : null,
+    cards: (c.cards || []).map((k) => ({ card: k.card, title: k.title, line: plain(k.line) })),
+  };
 }
 
 // ---------- search ----------
@@ -157,10 +292,14 @@ const stems = (w) => {
 };
 const hit = (q, t) => stems(q).some((c) => c.length >= 2 && t.startsWith(c));
 
-function entry(tab, id, title, lines) {
-  const ls = lines.map((l) => plain(l)).filter(Boolean);
-  return { tab, id, title, lines: ls, tw: wordsOf(title), lw: ls.map(wordsOf) };
+// `meta` (optional) is one note for each line, in step with `lines`: { step: n, t: step title | null, part: screen part | null } for a
+// numbered step, null for any other line (#642 step 4: a result shows where it lives). `part` is the step's own screen part, only.
+function entry(tab, id, title, lines, meta = null) {
+  const ls = [], ms = [];
+  lines.forEach((l, i) => { const t = plain(l); if (t) { ls.push(t); ms.push(meta ? meta[i] || null : null); } });
+  return { tab, id, title, lines: ls, meta: ms, tw: wordsOf(title), lw: ls.map(wordsOf) };
 }
+const stepMeta = (n, t, part) => ({ step: n, t: t || null, part: part || null });
 
 function refLines(sec, dynamic) {
   const R = CONTENT.reference, out = [];
@@ -185,12 +324,15 @@ export function buildIndex(dynamic = null) {
   if (on("top")) add("start", "start-top", S.hero.title, [S.hero.label, S.hero.lead]);
   if (on("loop")) add("start", "start-loop", T.loop_title, [T.loop_intro, ...S.loop.map((x) => `${x.t}. ${x.d}`), T.loop_return]);
   if (on("first")) add("start", "start-first", T.first_title, S.first.map((x) => `${x.t}. ${x.d}`));
-  if (on("jobs")) add("start", "start-jobs", T.jobs_title, [T.jobs_intro, ...S.jobs.map((j) => `${j[1]} ${j[2]}`)]);
+  if (on("jobs")) add("start", "start-jobs", T.jobs_title, [T.jobs_lead, ...S.jobs.map((j) => `${j[1]} ${j[2]}`)]);
   if (on("where")) add("start", "start-where", T.where_title, [...S.where.map((w) => `${w[0]}. ${w[1]}`), T.keyline]);
   if (on("rules")) add("start", "start-rules", T.rules_title, S.rules.map((r) => `${r[0]}. ${r[1]}`));
   if (on("foot")) add("start", "start-foot", "Start here", [T.foot, T.foot_link]);
-  tasks().forEach((x) => add("howto", PREFIX.howto + x.id, x.t, ["Where: " + x.w, ...x.s, ...(x.n ? [x.n] : []), ...(x.say ? ["Or ask clark: " + x.say.join(" ")] : [])]));
+  tasks().forEach((x) => add("howto", PREFIX.howto + x.id, x.t, ["Where: " + x.w, ...x.s, ...(x.n ? [x.n] : []), ...(x.say ? ["Or ask clark: " + x.say.join(" ")] : [])],
+    [null, ...x.s.map((_, i) => stepMeta(i + 1))]));
   sections().forEach((x) => add("reference", PREFIX.reference + x.id, x.t, refLines(x, dynamic)));
+  guides().forEach((g) => add("howto", g.place, g.title, [g.job, ...g.steps.map((s) => `${s.n}. ${s.d}`), g.result ? "What you should see: " + g.result : ""],
+    [null, ...g.steps.map((s) => stepMeta(s.n, s.t, s.part))]));
   return idx;
 }
 
@@ -239,6 +381,9 @@ export function markParts(line, q) {
   return out;
 }
 
+/** The sentence under the count (shown only when a guide ships: it says "the guide") and the two chip labels: the signed mockup's words (docs/handoff/v1.0/mockups/help-search.html). */
+export const RESULT_LEAD = "Each result names the guide, the step and the part of the screen it is about.";
+export const whereLabels = (w) => ({ step: w.step ? `Step ${w.step.n}${w.step.title ? ": " + w.step.title : ""}` : null, part: w.part ? `Screen part: ${w.part}` : null });
 const TAB_NAME = Object.fromEntries(CONTENT.tabs);
 /** The results as the panel shows them: a count line, then groups in the order How do I…, Reference, Start here. */
 export function resultsView(index, q) {
@@ -247,7 +392,13 @@ export function resultsView(index, q) {
   const res = search(index, q);
   if (!res.length) return { kind: "empty", count: 0, groups: [], ...noResults(trimmed) };
   const groups = ["howto", "reference", "start"].map((t) => ({ tab: t, name: TAB_NAME[t], results: res.filter((r) => r.tab === t) })).filter((g) => g.results.length);
-  return { kind: "results", count: res.length, line: `${res.length} result${res.length === 1 ? "" : "s"}`, groups };
+  groups.forEach((g) => g.results.forEach((r) => {
+    // where the best line lives: the step (only when that line is a numbered step) and the screen part (the step's own: a how-to step has none, and its task's whole Where is not one step's part)
+    const e = index[r.n], m = r.line >= 0 ? e.meta[r.line] : null, raw = r.line < 0 ? e.lines[0] || "" : e.lines[r.line];
+    r.where = { step: m && m.step ? { n: m.step, title: m.t } : null, part: (m && m.part) || null };
+    r.text = r.where.step ? raw.replace(/^\d+\.\s+/, "") : raw;     // the step's number is in its chip, so the snippet drops it
+  }));
+  return { kind: "results", count: res.length, line: `${res.length} result${res.length === 1 ? "" : "s"} for “${trimmed}”`, lead: guides().length ? RESULT_LEAD : null, groups };
 }
 
 /** What a search with no match says. It points to the tabs (ask clark returns when it exists), and the word searched for is shown as text, never as markup. */

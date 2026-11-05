@@ -59,11 +59,20 @@ import { MsEye } from "./MsEye.jsx";
 import { MsAddBack } from "./MsAddBack.jsx";
 import { MsLayers } from "./MsLayers.jsx";
 import { ArchivedMilestones } from "./ArchivedMilestones.jsx";
-import { installKeys, openHelp, closeHelp, helpOpen } from "../help/helpStore.js";
+import { HelpPeek } from "../help/HelpPeek.jsx";
+import { addOverlay } from "../components/pick.js";
+import { installKeys, openHelp, closeHelp, helpOpen, setCloseOthers, closeContext } from "../help/helpStore.js";
+import { effect } from "@preact/signals";
+
+// One right-hand panel at a time: the Help peek closes the ask panel as it opens, and the ask panel opening closes the Help peek.
+setCloseOthers(() => closePanel());
+addOverlay("#help-peek");                                   // Esc and clicks in the Help peek are the peek's, not the Work selection's
+effect(() => { if (panelOpen.value) closeContext({ focus: false }); });
+import { pictureUrl } from "../help/helpPictures.js";
 import { templateEdit } from "./templates/index.js";
 import { HAND_OVER } from "./HandOver.jsx";
 
 // Help (#82) is among them: a published file has no Help panel and no "?" key.
 // `clean` is the page's own cleaner for a saved body that View draws as text (Section.jsx); a body it refuses draws as nothing.
 const clean = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
-export const EDIT = { clean, glance: GLANCE, Personal, Data, Boxes, ReviewDays, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, ItemRowsEdit, richOn, Gutter, ExportBtn, ImportBtn, ArchivedItems, ArchivedPill, ProjectSwitch, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, PeekLatest, PeekWarn, Cell, Eye, Publish, ReportBar, ProfileMenu, PublishedReports, exportExcel, ClientFolder, Safety, Update, Projects, Diagnostics, pageErrors: installPageErrors, AskSettings, People, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MsEye, MsAddBack, MsLayers, ArchivedMilestones, UseCasesPage, ucEdit: UCEDIT, Board, RowMenu, HelpLayer, HelpButton, AddDialog, addItem, Palette, templateEdit, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk }, HandOver: HAND_OVER };
+export const EDIT = { clean, glance: GLANCE, Personal, Data, Boxes, ReviewDays, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, ItemRowsEdit, richOn, Gutter, ExportBtn, ImportBtn, ArchivedItems, ArchivedPill, ProjectSwitch, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, PeekLatest, PeekWarn, Cell, Eye, Publish, ReportBar, ProfileMenu, PublishedReports, exportExcel, ClientFolder, Safety, Update, Projects, Diagnostics, pageErrors: installPageErrors, AskSettings, People, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MsEye, MsAddBack, MsLayers, ArchivedMilestones, UseCasesPage, ucEdit: UCEDIT, Board, RowMenu, HelpLayer, HelpButton, HelpPeek, AddDialog, addItem, Palette, templateEdit, AskPanel, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys, pictureUrl }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk }, HandOver: HAND_OVER };
