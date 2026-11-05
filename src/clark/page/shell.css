@@ -26,6 +26,8 @@ a { color: var(--status-blue-text); }
 .top .projbtn { display: inline-flex; max-width: 260px; min-width: 0; }
 @media (max-width: 1000px) { .top { gap: 10px; } }
 .top .modes { flex: none; }   /* View and Edit keep their width: the bar's other items give way, not these */
+.top .tabs { flex: none; }   /* item 681: the tabs keep their words on one line; the project name (its ellipsis) gives way first */
+.top .tab { white-space: nowrap; }
 .top .dd:has(> .projbtn) { min-width: 0; }   /* the project name gives way (its ellipsis) before the bar runs past a 901 px window, now the wordmark is 24 px */
 .projbtn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabs { display: flex; height: 100%; }
@@ -122,7 +124,7 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 
 /* The contents minimap (FR-18, #67): short lines at the right edge; hover or focus opens the list. Tokens only. */
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.toc { position: fixed; right: 6px; top: 50%; transform: translateY(-50%); z-index: 25; }
+.toc { position: fixed; right: 18px; top: 50%; transform: translateY(-50%); z-index: 25; }
 .toc-lines { all: unset; display: grid; align-content: center; min-height: 24px; box-sizing: border-box; gap: 7px; justify-items: end; padding: 10px var(--space-1) 10px 14px; cursor: pointer; border-radius: var(--radius); }
 .toc-lines:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .toc-lines i { display: block; width: 12px; height: 2px; border-radius: 2px; background: var(--grey-700); transition: width var(--dur-state) var(--ease-out), background-color var(--dur-state) var(--ease-out); }

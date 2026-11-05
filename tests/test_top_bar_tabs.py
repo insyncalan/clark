@@ -1,0 +1,65 @@
+"""#681: the top bar at 1400, 901, 900 and 800 px, light and dark: every tab label is whole on one line, nothing is clipped or
+overlapped, and the page does not scroll sideways. Chrome is required: these tests fail, never skip, without it.
+
+Run: python3 dev/run_tests.py test_top_bar_tabs
+"""
+import unittest
+
+from test_inline_67 import size
+from test_report_editor import Base
+from test_server import chrome
+
+WIDTHS = (1400, 901, 900, 800)
+
+# For each tab: its box, the box of its text, and the line height. Then the bar's other items, and the page's sideways scroll.
+MEASURE = """(function(){
+  var bar = document.querySelector('header.top').getBoundingClientRect(), out = {tabs: [], items: [], bar: [bar.left, bar.right]};
+  document.querySelectorAll('.top .tab').forEach(function(t){
+    var r = t.getBoundingClientRect(), s = document.createRange(); s.selectNodeContents(t);
+    var lines = new Set(Array.from(s.getClientRects()).filter(function(q){ return q.width > 0; }).map(function(q){ return Math.round(q.top); }));
+    out.tabs.push({name: t.textContent.trim(), left: r.left, right: r.right, lines: lines.size, over: t.scrollWidth > t.clientWidth + 1});
+  });
+  Array.from(document.querySelector('header.top').children).forEach(function(c){
+    var r = c.getBoundingClientRect(); if (r.width > 0) out.items.push({cls: c.className, left: r.left, right: r.right});
+  });
+  out.scroll = [document.documentElement.scrollWidth, document.documentElement.clientWidth];
+  return out;
+})()"""
+
+
+class TopBarTabs(Base):
+    def measure(self, width, theme, long_name=False, edit=False):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            size(cdp, p, width, 700)
+            p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
+            if edit:
+                p.js("document.querySelector('.top [data-mode=edit]').click()")
+            if long_name:       # the longest name a person is likely to give a project: it must shorten, never push a tab out
+                p.js("(function(){ var s = document.querySelector('.top .projbtn > span') || document.querySelector('.top .proj'); "
+                     "s.textContent = 'Customer onboarding programme, phase two, northern region'; })()")
+            return p.js(MEASURE)
+
+    def check(self, width, theme, long_name=False, edit=False):
+        got = self.measure(width, theme, long_name, edit)
+        where = f"at {width} px, {theme}{', long name' if long_name else ''}{', Edit' if edit else ''}"
+        self.assertGreaterEqual(len(got["tabs"]), 3, where)
+        for t in got["tabs"]:
+            self.assertEqual(t["lines"], 1, f"{where}: the {t['name']!r} tab is on {t['lines']} lines")
+            self.assertFalse(t["over"], f"{where}: the {t['name']!r} tab is wider than its box")
+            self.assertGreaterEqual(t["left"], got["bar"][0], f"{where}: {t['name']!r} starts left of the bar")
+            self.assertLessEqual(t["right"], got["bar"][1] + 0.5, f"{where}: {t['name']!r} runs past the bar")
+        items = sorted(got["items"], key=lambda i: i["left"])
+        for a, b in zip(items, items[1:]):
+            self.assertLessEqual(a["right"], b["left"] + 0.5, f"{where}: {a['cls']!r} overlaps {b['cls']!r}")
+        self.assertLessEqual(items[-1]["right"], got["bar"][1] + 0.5, f"{where}: {items[-1]['cls']!r} is clipped by the window")
+        self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"{where}: the page scrolls sideways {got['scroll']}")
+
+
+for _w in WIDTHS:
+    for _t in ("light", "dark"):
+        setattr(TopBarTabs, f"test_at_{_w}_{_t}", lambda self, w=_w, t=_t: self.check(w, t))
+        setattr(TopBarTabs, f"test_at_{_w}_{_t}_long_name_in_edit", lambda self, w=_w, t=_t: self.check(w, t, True, True))
+
+if __name__ == "__main__":
+    unittest.main()
