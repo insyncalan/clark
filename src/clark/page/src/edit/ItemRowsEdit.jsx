@@ -129,7 +129,7 @@ export function ItemRowsEdit({ type }) {
   const hidden = hiddenIds(d), shownIds = new Set(shown.map((r) => r.id));
   const left = all.filter((r) => !shownIds.has(r.id) && canPick.has(r.id));                  // the rows a person can put back
   const text = type === "decisions" ? "decision" : "description";                            // the picker reads the client's wording, never the team's own text
-  const here = { [type]: (d[type] || []).filter((r) => left.some((x) => x.id === r.id)).map((r) => ({ ...r, [text]: r.client_message })) };   // and offers this section's kind only
+  const here = { [type]: (d[type] || []).filter((r) => left.some((x) => x.id === r.id)).map((r) => ({ ...r, [text]: words[r.id] })) };   // and offers this section's kind only
   const n = idsOf(pickable(here, hidden, "", [])).length;
   const add = (ids) => change({ kind: "report_hidden", op: "pick", ids, place: "report" }, ids.length === 1 ? `${ids[0]} is on the page.` : `${ids.length} items are on the page.`).then((r) => { if (r) setPick(false); });
   return (
