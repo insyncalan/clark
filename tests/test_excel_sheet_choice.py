@@ -15,7 +15,7 @@ from test_excel_route import Base, encoded
 from clark import excel_import, excel_route
 
 TABLES = excel_import.CHOICE_ORDER
-SHEET = {"actions": "Actions", "raid": "Risks and issues", "decisions": "Decisions", "milestones": "Milestones", "use_cases": "Use cases"}
+SHEET = {"actions": "Actions", "raid": "Risks & Issues", "decisions": "Decisions", "milestones": "Milestones", "use_cases": "Use cases"}
 TITLE = {"actions": "Description", "raid": "Description", "decisions": "Decision", "milestones": "Milestone", "use_cases": "Use case"}
 EXTRA = {"raid": {"Type": "Risk"}, "decisions": {"Status": "Pending"}, "use_cases": {"Status": "On track"}}
 

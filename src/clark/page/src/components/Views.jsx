@@ -210,7 +210,8 @@ export function Settings({ tools }) {
 const inContainer = () => typeof document !== "undefined" && document.documentElement.dataset.container === "1";
 
 // The "No project open" screen: the projects to choose from or, when there are none (or the list could not be read), what to do.
-function NoProject() {
+function NoProject({ tools }) {
+  const NewProject = tools && tools.NewProjectButton;      // #731: the Edit page's one button here (a published file has no empty screen)
   const list = projects.value, state = projectsState.value;
   if (state === "loading") return <Empty title="No project open">Looking for projects.</Empty>;
   if (state === "failed") return <Empty title="No project open" action={<button type="button" class="again" onClick={tryAgain}>Try again</button>}>{message.value}</Empty>;
@@ -219,6 +220,7 @@ function NoProject() {
       <section class="frame empty">
         <h1>No project open</h1>
         <p class="muted">There are no projects yet.</p>
+        {NewProject ? <p><NewProject /></p> : null}
         {inContainer() ? null : <p class="muted">To look around with made-up projects, close clark and start it again from the clark folder with <code>bash clark.command --demo</code>.</p>}
       </section>
     );
@@ -232,9 +234,9 @@ function NoProject() {
   );
 }
 
-export function Gate() {
+export function Gate({ tools }) {
   const s = status.value;
-  if (s === "none") return <NoProject />;
+  if (s === "none") return <NoProject tools={tools} />;
   if (s === "loading") return isFile() ? <Empty title="Loading">Opening {project.value}.</Empty> : <Loading key={project.value} />;
   if (s === "missing") return <Empty title="That project isn't here">{message.value || "Check the project's code."}</Empty>;
   if (s === "failed") return <Empty title="Something went wrong" action={<button type="button" class="again" onClick={tryAgain}>Try again</button>}>{message.value}</Empty>;

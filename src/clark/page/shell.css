@@ -1249,6 +1249,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .asat-pick p.muted { margin: 0 0 8px; }
 .asat-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .asat-row input { width: 9em; max-width: 100%; box-sizing: border-box; min-height: 32px; padding: 4px 8px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.demo-banner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); box-sizing: border-box; padding: var(--space-2) var(--space-4); background: var(--status-amber-tint); color: var(--text); border-bottom: 1px solid var(--status-amber); font-size: var(--size-small); }   /* one line over every view of the Edit page while demo data is on show */
+@media print { .demo-banner { display: none; } }
 .pv-banner { display: flex; gap: 10px; align-items: flex-start; background: var(--status-amber-tint); color: var(--text); border: 1px solid var(--status-amber); border-radius: var(--radius-lg); padding: 10px 14px; margin: 0 0 12px; position: sticky; top: calc(var(--topbar) + 8px); z-index: 5; overflow-wrap: anywhere; }
 .pv-banner p { margin: 0; font-size: var(--size-small); } .pv-banner b { font-weight: var(--weight-medium); } .pv-banner small { color: var(--text-muted); font-size: var(--size-caption); }
 .pv-banner .link { display: inline-flex; align-items: center; min-height: 24px; box-sizing: border-box; }
