@@ -1977,6 +1977,10 @@
     "ask clark, when you aren’t typing in a box and no peek, menu or box is open."
    ],
    [
+    "[[Mod+J]]",
+    "ask clark, from any page, even in a box, unless a menu or box is open or Help is open"
+   ],
+   [
     "[[/]] [[/]]",
     "With a work item open in the peek in Edit: press twice quickly for Sneak peek, to change it in words. A single [[/]] does nothing while a peek is open"
    ],
