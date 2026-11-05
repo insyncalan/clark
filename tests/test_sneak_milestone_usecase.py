@@ -138,6 +138,39 @@ class UseCase(unittest.TestCase):
         self.assertIn("isn't in this project", read("U-77", "done")["message"])
 
 
+class Forms(unittest.TestCase):
+    """Parsing cases, some from the earlier partial of this row."""
+
+    def test_a_forecast_date_in_each_form(self):
+        for words in ("forecast 30-10-2026", "forecast 2026-10-30", "move to Friday", "forecast date Friday"):
+            with self.subTest(words=words):
+                self.assertEqual(read("M-1", words)["changes"][0]["to"], "2026-10-30")
+
+    def test_a_done_milestone_can_be_reopened_with_a_new_forecast(self):
+        r = read("M-2", "reopen, forecast 2026-12-01")
+        self.assertEqual({c["field"] for c in r["changes"]}, {"forecast_date", "status", "actual_date"})
+        self.assertFalse(r["confirm"])
+
+    def test_a_status_in_each_form(self):
+        for words, status in (("high risk", "High risk"), ("flag it", "Flag"), ("flagged", "Flag"), ("completed", "Done"), ("flag it as high risk", "High risk")):
+            with self.subTest(words=words):
+                self.assertEqual(read("U-1", words)["changes"][0]["to"], status)
+
+    def test_a_headline_is_everything_after_the_word_and_its_words_are_not_a_status(self):
+        for words in ("headline: waiting on the vendor", "headline is waiting on the vendor", "headline to “waiting on the vendor”"):
+            with self.subTest(words=words):
+                self.assertEqual(lines(read("U-1", words)), {"headline": ("Steady", "waiting on the vendor")})
+        r = read("U-1", "flag, headline: all done now")
+        self.assertEqual(list(lines(r)), ["status", "headline"])
+        self.assertFalse(r["confirm"])
+
+    def test_every_field_offered_is_one_the_change_route_takes(self):
+        for item, table in (("M-1", "milestones"), ("M-2", "milestones"), ("U-1", "use_cases"), ("U-3", "use_cases")):
+            for words in ("done", "reopen", "forecast Friday", "achieved on 20-10-2026", "flag, candidate, headline: x", "no flag"):
+                for c in (read(item, words).get("changes") or []):
+                    self.assertIn(c["field"], changes.CHANGE_KINDS[table]["update"])
+
+
 class Seam(unittest.TestCase):
     def test_the_route_seam_asks_for_the_archived_rows_only_when_the_item_is_not_live(self):
         asked = []

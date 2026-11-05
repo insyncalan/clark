@@ -111,9 +111,9 @@ export function Peek({ tools }) {
   const p = peek.value;
   const box = useRef(null), back = useRef(null), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
   const editing = !!tools && !fromFile.value && mode.value === "edit";
-  // The words box changes work items only (sneak.py refuses a milestone), so a milestone peek has no sparkle and no `//`.
+  // The words box changes a work item or a milestone; a use case has no peek (its own page, UseCaseDetail, has the box). The warning bar and Latest update are an item's only.
   const forItem = !!p && p.kind !== "milestone";
-  const Words = editing && forItem && tools.Words, WordsBtn = editing && forItem && tools.WordsButton;
+  const Words = editing && !!p && tools.Words, WordsButton = editing && !!p && tools.WordsButton;
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest;      // the warning bar and Latest update (peek, Edit only)
   const showActivity = !!(Tabs && Activity && peekTab.value === "activity");
@@ -235,7 +235,7 @@ export function Peek({ tools }) {
           {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} /> : <MilestoneFields m={m} />}
           {Latest && row ? <Latest key={row.id} row={row} /> : null}
         </div>}
-      {Words && wordsOpen.value && row ? <Words key={row.id} row={row} /> : null}
+      {Words && wordsOpen.value && (row || m) ? <Words key={p.id} row={row || m} kind={milestone ? "milestone" : "item"} /> : null}
       </div>
     </aside>
   );

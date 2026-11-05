@@ -390,6 +390,8 @@ def read_use_case(data, row, words, now):
     rest = NO_COMMIT.sub(" ", rest)
     low = rest.lower()
     got = {name for name, rx in USE_CASE_STATUS if re.search(rx, low)}
+    if got == {"Flag", "High risk"}:                    # "flag it as high risk": the risk is the status, the flag is the verb
+        got.discard("Flag")
     if len(got) > 1 or (got and NEGATION.search(rest.replace("’", "'"))):
         return {"ok": False, "message": UNSURE_STATUS}
     values = {}
