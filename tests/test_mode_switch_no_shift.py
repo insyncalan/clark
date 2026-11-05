@@ -1,8 +1,8 @@
 """#679: pressing V or E (or the View | Edit switch) must not move the page. Run: python3 dev/run_tests.py test_mode_switch_no_shift
 
 Real browser, the committed test page, the demo project (long: all sections, plus planted work items). At the top, the middle and
-the bottom of the page, switch View to Edit and back and measure every section's top and height; the section nearest the top of the
-screen must stay within 1 px of where it was. At 1400 and 900 px, light and dark, with a short page and a long one.
+the bottom of the page, switch View to Edit and back and measure every section's top and height; the section being read (row 756: the first with 64 px of itself under the top bar, not a thin tail of the one before) must stay within
+1 px of where it was. At 1400 and 900 px, light and dark, with a short page and a long one.
 """
 import json
 import os
@@ -21,8 +21,13 @@ MEASURE = """(() => {
 
 NEAREST = """(() => {
   const line = document.querySelector('.top').getBoundingClientRect().bottom;
-  for (const e of document.querySelectorAll('.secs > .sec:not(.is-hidden)')) { const r = e.getBoundingClientRect(); if (r.bottom > line + 1) return [e.dataset.id, r.top]; }
-  return null;
+  let best = null, most = 0;
+  for (const e of document.querySelectorAll('.secs > .sec:not(.is-hidden)')) {
+    const r = e.getBoundingClientRect(); const seen = Math.min(r.bottom, innerHeight) - Math.max(r.top, line);
+    if (seen >= 64) return [e.dataset.id, r.top];
+    if (seen > most) { most = seen; best = [e.dataset.id, r.top]; }
+  }
+  return best;
 })()"""
 
 
