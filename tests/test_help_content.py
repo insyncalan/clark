@@ -28,7 +28,7 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) is read on the page itself; the prototype words it differently. 'Shown to client' left this list with the tag on a work item row (#456: the eye column says it, and Help no longer bolds it)
 # 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
 # 'Show the files' and 'Put back the app and settings only' are the update card's own buttons (logic/update.js LABELS, item 445); the prototype has neither.
-CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Keep the date', 'Movement › What changed', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
+CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Keep the date', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Source folders for ask clark', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -46,6 +46,11 @@ def texts(o, path=""):
         for k, v in o.items():
             if k not in skip and k != "about":
                 yield from texts(v, f"{path}.{k}")
+
+
+# The Docker entry (Advanced) is for the Terminal: it names addresses, a command and what Terminal and Docker print, so the rules
+# about addresses, file names and plain words are not applied to its own paragraphs (every other rule still is).
+DOCKER = {s for t in SRC["howto"]["tasks"] if t["id"] == "run-clark-with-docker" for s in t["s"]}
 
 
 def words():
@@ -68,10 +73,13 @@ class Shape(unittest.TestCase):
         self.assertEqual(SRC["tabs"], [["start", "Start here"], ["howto", "How do I…"], ["reference", "Reference"]])
 
     def test_the_counts(self):
-        """Start here: five loop steps, five first-ten-minutes steps, twelve jobs, six places, four rules. The prototype's counts."""
+        """Start here: five loop steps, five first-ten-minutes steps, five jobs (the owner's five, 04-11-2026; the prototype had twelve), six places, four rules."""
         self.assertEqual((len(START["loop"]), len(START["first"]), len(START["jobs"]), len(START["where"]), len(START["rules"])),
-                         (5, 5, 12, 6, 4))
-        self.assertEqual((len(STEPS), len(SECTIONS)), (34, 35))   # with the People entries (#454), held, and the Word entry
+                         (5, 5, 5, 6, 4))
+        self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
+                         "the owner's order; bringing in an Excel workbook is not one of them")
+        self.assertIn(START["undo"], [t["id"] for t in STEPS])
+        self.assertEqual((len(STEPS), len(SECTIONS)), (35, 35))   # with the People entries (#454), held, and the Word entry, and Run clark with Docker
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (36, 31))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -108,7 +116,8 @@ class Shape(unittest.TestCase):
             self.assertIn(j[0], ids)
         screens = set(re.search(r"export const SCREENS = \[(.*?)\]", LOGIC).group(1).replace('"', "").replace(" ", "").split(","))
         for t in STEPS:
-            self.assertIn(t["go"].split("#")[0], screens, t["id"])
+            if t["id"] != "run-clark-with-docker":      # the Docker entry is run in Terminal: it opens no screen
+                self.assertIn(t["go"].split("#")[0], screens, t["id"])
 
 
 class KeysVE(unittest.TestCase):
@@ -137,7 +146,7 @@ class Places(unittest.TestCase):
     def test_every_link_inside_help_finds_its_place(self):
         links = {m for s in self.all_strings() for m in re.findall(r"\]\(#([^)]+)\)", s)}
         links |= {"howto-" + j[0] for j in START["jobs"]} | {"ref-keys"}
-        self.assertGreater(len(links), 20)
+        self.assertGreater(len(links), 16)   # measured 17 on this tree (18 before the four entries were released and the jobs list gained none); it was 24 with the prototype's twelve jobs. The floor is the measured count less one.
         self.assertEqual(sorted(links - self.ids), [])
 
     def test_every_screen_help_sends_you_to_exists(self):
@@ -169,7 +178,7 @@ class Words(unittest.TestCase):
     AMERICAN = re.compile(r"\b(color|colors|colored|organize|organized|center|behavior|favorite|gray|customize|license|canceled)\b", re.I)
 
     def test_no_internal_jargon_or_paths_or_creaite(self):
-        found = [(p, s) for p, s in words() if self.JARGON.search(s) or self.PATH.search(s)]
+        found = [(p, s) for p, s in words() if s not in DOCKER and (self.JARGON.search(s) or self.PATH.search(s))]
         self.assertEqual(found, [])
 
     def test_no_line_starts_with_the_product_name_and_the_name_is_lower_case(self):
@@ -185,7 +194,7 @@ class Words(unittest.TestCase):
         self.assertEqual(shown, [])
 
     def test_no_real_looking_email_or_address(self):
-        self.assertEqual([(p, s) for p, s in words() if re.search(r"[\w.]+@[\w.]+|https?://", s)], [])
+        self.assertEqual([(p, s) for p, s in words() if s not in DOCKER and re.search(r"[\w.]+@[\w.]+|https?://", s)], [])
 
     def test_nothing_is_named_that_clark_does_not_have(self):
         """creaite's mail, calendar and meeting features are not clark's, nor are the report layouts that are only in the backlog (FR-4)."""

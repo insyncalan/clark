@@ -135,6 +135,8 @@ class Opening(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.key("?", 0, "Slash", 191)
+            p.until("!!document.querySelector('#help-peek')", "? opened the peek")
+            p.js("document.querySelector('#help-peek [data-hpk-full]').click()")   # the foot link opens the full Help
             p.until("!!document.querySelector('#help')", "Help opened")
             p.show()
             p.key("Escape", 0, "Escape", 27)
@@ -358,6 +360,8 @@ class Looks(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.key("?", 0, "Slash", 191)
+            p.until("!!document.querySelector('#help-peek')", "? opened the peek")
+            p.js("document.querySelector('#help-peek [data-hpk-full]').click()")   # the foot link opens the full Help
             p.until("!!document.querySelector('#help')", "Help opened")
             p.js("document.querySelector('#hpTab-reference').click()")
             p.until("!!document.querySelector('#hp-ref-keys .hp-keys')", "the keys table drew")
