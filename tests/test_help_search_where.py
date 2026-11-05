@@ -25,7 +25,7 @@ from test_help_nav_page import set_size, set_theme, SIZES, THEMES
 from test_report_editor import Base
 import build_page  # noqa: E402
 
-LEAD = "Each result names the guide, the step and the part of the screen it is about."
+LEAD = "Each result names the guide and the step it is about."
 SHOTS = os.environ.get("CLARK_HELP_SHOTS", "")       # a folder: the browser test saves a screenshot of each search into it
 
 # Fixture guides (test only). The first has a title and a screen part on every step; the second has neither.
