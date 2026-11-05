@@ -170,6 +170,29 @@ class Header(Base):
             self.until(cdp, sid, "document.querySelector('.fhi .k-val')", "the typed word is a chip")
         self.each(check)
 
+    # ---- row 807 ----
+    def test_row_807_a_selected_card_has_no_check_mark_but_still_shows_it_is_selected_and_a_list_row_keeps_its_tick(self):
+        def check(cdp, sid, width):
+            self.board(cdp, sid, "status")
+            card = "#work-board article.bcard .bc-main"
+            click(cdp, sid, card)
+            self.until(cdp, sid, "document.querySelector('#work-board article.bcard.picked')", "a card is selected")
+            got = cdp.js("(() => { const a = document.querySelector('#work-board article.bcard.picked'), c = getComputedStyle(a);"
+                         " return {tick: !!a.querySelector('.tick'), svg: a.querySelectorAll('.bc-title svg').length, label: a.querySelector('.bc-main').getAttribute('aria-label'),"
+                         " border: c.borderTopColor, shadow: c.boxShadow, other: getComputedStyle(document.querySelector('#work-board article.bcard:not(.picked)')).borderTopColor}; })()", sid)
+            self.assertFalse(got["tick"], "no check mark on the selected card")
+            self.assertEqual(got["svg"], 0)
+            self.assertIn(", selected", got["label"], "a screen reader still hears it")
+            self.assertNotEqual(got["border"], got["other"], "the border shows the selection")
+            self.assertNotEqual(got["shadow"], "none")
+            # the list row keeps its tick
+            self.view_pick(cdp, sid, "layout:table")
+            self.until(cdp, sid, "document.querySelector('table.items')", "the table")
+            click(cdp, sid, "table.items tbody tr[data-id] .c-item .t")
+            self.until(cdp, sid, "document.querySelector('table.items tbody tr.picked')", "a row is selected")
+            self.assertTrue(cdp.js("!!document.querySelector('table.items tbody tr.picked .c-item .tick')", sid), "the list row keeps its tick")
+        self.each(check)
+
 
 if __name__ == "__main__":
     unittest.main()
