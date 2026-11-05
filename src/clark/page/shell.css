@@ -1015,11 +1015,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-top:hover { background: rgba(255,255,255,.14); }
 .hp-top:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tb-act { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 32px; height: 32px; padding: 0 6px; border-radius: var(--radius-sm); color: var(--white); font-size: var(--size-body); cursor: pointer; white-space: nowrap; }   /* the top bar's search and ask buttons */
-.tb-act:hover { background: rgba(255,255,255,.14); }
+.tb-act:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
 .tb-act:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tb-ico { width: 20px; height: 20px; flex: none; }
-.tb-ask { padding: 0 10px; border: 1px solid rgba(255,255,255,.35); }
-.tb-key { font: inherit; font-size: var(--size-small); padding: 1px 6px; border: 1px solid rgba(255,255,255,.35); border-radius: var(--radius-sm); }
+.tb-ask { padding: 0 10px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); }
+.tb-key { font: inherit; font-size: var(--size-small); padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius-sm); }
 @media (max-width: 1100px) { .tb-ask { padding: 0 6px; border-color: transparent; } .tb-ask-w, .tb-key { display: none; } }   /* icon only below 1100 px, so nothing in the bar overlaps */
 /* the Help peek (item 645): the item peek's frame (.peek) below the top bar, so the "?" button stays in view; text only */
 .hpk { top: var(--topbar); width: 380px; min-width: 0; max-width: 92vw; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5); color: var(--text); font-size: var(--size-small); line-height: var(--leading); }
