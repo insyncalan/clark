@@ -121,7 +121,7 @@ def write_sheet(wb, published, table):
     cols = columns(table)
     editor_locked = excel.locked_fields(EDITOR_LOCKED[table])
     name, sub = title_text(published)
-    for r,(text, font) in enumerate(((name, TITLE), (sub, SUB)), start=1):
+    for r, (text, font) in enumerate(((name, TITLE), (sub, SUB)), start=1):
         for c in range(1, len(cols) + 1):
             ws.cell(row=r, column=c).fill = HEAD_FILL
         cell = ws.cell(row=r, column=1, value=excel.cell_text(text))
