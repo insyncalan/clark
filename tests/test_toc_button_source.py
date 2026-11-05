@@ -72,7 +72,7 @@ class Look(unittest.TestCase):
             self.assertIn(f"var({token})", b)
 
     def test_the_rail_at_1400_is_untouched_by_the_narrow_rules(self):
-        self.assertIn(".toc { position: fixed; right: 6px; top: 50%; transform: translateY(-50%); z-index: 25; }", CSS)
+        self.assertIn(".toc { position: fixed; right: 18px; top: 50%; transform: translateY(-50%); z-index: 25; }", CSS)   # #675: 18 px from the edge, as in the prototype (it was 6)
         self.assertIn(".toc-ico, .toc-lbl { display: none; }", CSS)          # the words and the icon only show in the narrow block
 
     def test_reduced_motion_drops_the_slide_at_900(self):
