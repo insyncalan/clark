@@ -47,6 +47,7 @@ from clark import doclinks, milestones, page, platform, section_bodies
 from clark.store import COMMITMENTS, Invalid as StoreInvalid, NumberTaken, check_section_body, excluded_label_names, open_store
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
 
+LOG = logging.getLogger("clark.publish")
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused
 VERSION = 1                               # the data block's shape; the page refuses another
 KINDS = ("milestones", "actions", "raid", "decisions", "use_cases")
@@ -300,7 +301,7 @@ def documents(rows, code, hidden_ids, hidden_types):
         if c:
             out.append(_pick(c, PUBLISH_FIELDS["documents"]))
         else:                          # issue 610: a live document that cannot be published is logged (its id only: no title, no address)
-            logging.getLogger(__name__).warning("Document %s is not in the published file: its link, title or kind cannot be used.", r.get("id"))
+            LOG.warning("Document %s is not in the published file: its link, title or kind cannot be used.", r.get("id"))
     return out
 
 
