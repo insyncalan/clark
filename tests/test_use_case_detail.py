@@ -410,6 +410,18 @@ class Detail(unittest.TestCase):
             self.assertEqual(self.row()["client_visible"], 1)
             self.until(cdp, sid, "document.querySelector('[data-eye]').title === 'On the dashboard'", "Undo put it back")
 
+    def test_change_status_has_room_between_its_words_and_chevron_and_the_controls_are_as_tall(self):
+        """Row 791."""
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width=width, scheme=scheme)
+                    got = cdp.js("""(() => { const b = document.querySelector('#ucd-status'), t = b.querySelector('span').getBoundingClientRect(), c = b.querySelector('svg').getBoundingClientRect();
+                        const e = document.querySelector('[data-eye]').getBoundingClientRect(), r = b.getBoundingClientRect();
+                        return { gap: c.left - t.right, eye: e.height, btn: r.height }; })()""", sid)
+                    self.assertGreaterEqual(got["gap"], 4, got)
+                    self.assertGreaterEqual(got["eye"], got["btn"] - 1, got)
+
     def test_the_eye_has_no_words_beside_it_works_from_the_keyboard_and_never_meets_the_commitment_chip(self):
         """Issue 753."""
         for width in (1400, 900):
