@@ -1,4 +1,4 @@
-// The ask panel's state and keys (#47a). Edit pages only. "/" outside a field opens it (not while a peek is open); Esc or a click outside closes it and puts
+// The ask panel's state and keys (#47a). Edit pages only. "/" outside a field (or Ctrl or Cmd + J anywhere) opens it (not while a peek is open); Esc or a click outside closes it and puts
 // focus back; the width is remembered in this browser (a convenience only). Nothing is sent while asking is off: the status route
 // is asked when the panel opens, and until it answers (or when it cannot) the panel reads as off.
 import { signal, effect } from "@preact/signals";
@@ -98,6 +98,13 @@ const otherLayer = () => !!document.querySelector("dialog[open], [role=dialog], 
 export function installAskKeys() {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && panelOpen.value) { e.preventDefault(); closePanel(); return; }
+    // Ctrl or Cmd + J (row 855, the prototype's): opens the panel from anywhere, a field included (it types nothing), as Ctrl or Cmd + K does for the palette.
+    if ((e.key || "").toLowerCase() === "j" && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && !e.isComposing && !e.defaultPrevented) {
+      if (otherLayer() || helpOpen.value) return;
+      e.preventDefault();
+      if (!e.repeat) openPanel();
+      return;
+    }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     // An open peek keeps "/" for its own two slashes (the words box); the ask button still opens the panel there.
     if (e.key === "/" && !e.defaultPrevented && !typing(e.target) && !otherLayer() && !helpOpen.value && !peek.value) { e.preventDefault(); openPanel(); }

@@ -38,6 +38,11 @@ class TopBar(unittest.TestCase):
         self.assertNotIn("back to the Dashboard", flat(SECS["top-bar"]))
         self.assertNotIn("The logo", flat(SECS["top-bar"]))
 
+    def test_ctrl_or_cmd_j_is_handled_and_the_ask_tooltip_names_it(self):
+        """Row 855: askPanelState.js handles Ctrl or Cmd + J and the ask button's tooltip names it (Help's keys row waits for approved words)."""
+        self.assertRegex(code("edit", "askPanelState.js"), r'"j"[^\n]*metaKey \|\| e\.ctrlKey')
+        self.assertIn("Open ask clark (/ or Ctrl or Cmd + J)", code("edit", "AskButton.jsx"))
+
     def test_the_search_button_and_palette_sentence(self):
         text = flat(SECS["top-bar"])
         self.assertIn("The magnifying glass opens **Go to or do**, the same box as [[Mod+K]].", text)
