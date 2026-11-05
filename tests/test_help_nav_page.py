@@ -22,7 +22,7 @@ from test_help_navigation import MOCKUP
 import build_page  # noqa: E402
 
 TOPBAR = 56
-HELD_PLACES = ("howto-find-work-items", "howto-check-the-report", "howto-import-and-export", "howto-improve-wording-with-ai", "ref-peek")     # still held: never shown, never linked
+HELD_PLACES = ("howto-find-work-items", "howto-import-and-export", "howto-improve-wording-with-ai", "ref-peek")     # still held: never shown, never linked
 SIZES = (1400, 900)
 THEMES = ("light", "dark")
 
@@ -142,7 +142,7 @@ class Nav(Base):
         with chrome() as cdp:
             p = self.in_help(cdp)
             self.assertEqual(p.js("[...document.querySelectorAll('.hp-idx a')].map(a => a.textContent)"),
-                             ["Start here"] + [j[1] for j in shown_content()["start"]["jobs"]] + [x["t"] for x in shown_content()["howto"]["tasks"] if x["id"] not in [j[0] for j in shown_content()["start"]["jobs"] if len(j) < 5]])   # a job that opens a guide leaves its how-to entry in the list
+                             ["Start here"] + [j[1] for j in shown_content()["start"]["jobs"]] + [x["t"] for x in shown_content()["howto"]["tasks"] if x["id"] not in [j[0] for j in shown_content()["start"]["jobs"] if len(j) < 5]] + [shown_content()["start"]["text"]["where_title"], shown_content()["start"]["text"]["rules_title"]])   # a job that opens a guide leaves its how-to entry in the list
             self.assertEqual(p.js("document.querySelector('.hp-idx a[aria-current]').textContent"), "Start here")
             self.assertEqual(p.js("getComputedStyle(document.querySelector('.hp-idx')).position"), "sticky")
 
@@ -283,7 +283,7 @@ def fixture_content():
                     "next": ["howto-arrange-the-report", "howto-find-work-items", "ref-keys", "howto-nothing-here"]}]
     for t in c["howto"]["tasks"]:
         if t["id"] == "set-the-health":
-            t["next"] = ["guide-fixture-guide", "howto-check-the-report"]
+            t["next"] = ["guide-fixture-guide", "howto-find-work-items"]
     return c
 
 

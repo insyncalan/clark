@@ -7,7 +7,7 @@ import { Icon } from "./Icon.jsx";
 import { moves } from "../stores/report.js";
 
 // The items a key can move between: every item that is not disabled.
-export const menuItemsIn = (box) => (box ? [...box.querySelectorAll("[role^=menuitem]")].filter((b) => b.getAttribute("aria-disabled") !== "true") : []);
+export const menuItemsIn = (box) => (box ? [...box.querySelectorAll("[role^=menuitem]")].filter((b) => b.getAttribute("aria-disabled") !== "true" || b.hasAttribute("data-keep")) : []);      // data-keep: a disabled row that stays reachable by the keys so its reason is read out (the client menu)
 
 // Up, Down (wrapping), Home and End between `items`: true when the key was one of them (it is then used up).
 export function menuMove(e, items) {
