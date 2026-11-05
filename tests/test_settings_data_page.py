@@ -75,7 +75,15 @@ class Card(Base):
         p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
         p.until("!!document.querySelector('#data-card')", "the Data card drew")
 
-    def choose(self, p, b64):
+    def choose(self, p, b64, through=True):
+        """Choose the file; with `through` also press Continue on the sheet list (#655) when the file got that far."""
+        self.pick_file(p, b64)
+        if through:
+            p.until("!!document.querySelector('#import-continue') || !!document.querySelector('#import-problem').textContent", "the sheet list or a refusal")
+            if p.js("!!document.querySelector('#import-continue')"):
+                p.js("document.querySelector('#import-continue').click()")
+
+    def pick_file(self, p, b64):
         p.js("""(() => { const bin = atob(%s), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
           const dt = new DataTransfer(); dt.items.add(new File([a], 'PUB work items.xlsx')); const inp = document.querySelector('#import-file');
           inp.files = dt.files; inp.dispatchEvent(new Event('change', {bubbles: true})); })()""" % json.dumps(b64))
@@ -126,6 +134,91 @@ class Card(Base):
                 self.assertEqual(self.rig.store.read("actions", ref=action)["description"], old)
                 p.js("document.querySelector('#import-close').click()")
                 p.until("!document.querySelector('#import-box')", "the box closed")
+
+    def open_box(self, p):
+        self.open_settings(p)
+        p.js("document.querySelector('#import-workbook').click()")
+        p.until("!!document.querySelector('#import-box')", "the box opened")
+
+    def test_after_a_file_is_chosen_the_box_lists_its_sheets_all_ticked_with_their_rows(self):
+        """#655: What to import."""
+        b64, action, old = workbook(self.rig, self.tmp.name, "Agree the cut-over plan, version two")
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                self.open_box(p)
+                self.assertIn("You choose which after you pick a file", p.js("document.querySelector('#import-box').innerText"))
+                self.pick_file(p, b64)
+                p.until("!!document.querySelector('#import-continue')", "the sheet list")
+                self.assertEqual(p.js("document.querySelector('#import-box-t').textContent"), "What to import")
+                self.assertEqual(p.js("document.querySelector('#import-box p').textContent"),
+                                 "Tick the sheets to import. Anything you leave unticked is not read and not changed.")
+                rows = p.js("[...document.querySelectorAll('#import-sheet-list li')].map(li => [li.innerText.trim(), li.querySelector('input').checked])")
+                self.assertEqual([r[1] for r in rows], [True] * 5, "all ticked to start")
+                def word(table, name):
+                    n = len([r for r in self.rig.store.read(table, "PUB") if not r.get("archived")])
+                    return "%s (%d %s)" % (name, n, "row" if n == 1 else "rows")
+                self.assertEqual([r[0] for r in rows], [word("actions", "Actions"), word("raid", "Risks and issues"), word("decisions", "Decisions"),
+                                                        word("milestones", "Milestones"), word("use_cases", "Use cases")])
+                self.assertEqual(p.js("[...document.querySelectorAll('.st-bar button')].map(b => b.textContent)"), ["Select all", "Clear"])
+                self.assertEqual(p.js("document.querySelector('#import-continue').textContent"), "Continue")
+                self.assertFalse(p.js("document.querySelector('#import-continue').disabled"))
+                self.assertEqual(p.js("document.querySelector('#import-tick-one').textContent"), "", "the status line is there, empty, while a sheet is ticked")
+                self.assertEqual(p.js("(() => { const g = document.querySelector('#import-sheet-list').closest('[role=group]'); return [g.getAttribute('aria-labelledby'), document.getElementById(g.getAttribute('aria-labelledby')).textContent]; })()"), ["import-box-t", "What to import"])
+                self.assertEqual(p.js("[document.querySelector('#import-tick-one').getAttribute('role'), document.querySelector('#import-tick-one').getAttribute('aria-live')]"), ["status", "polite"])
+                self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
+                p.js("document.querySelector('#import-clear').click()")
+                p.until("document.querySelector('#import-continue').disabled", "Continue off with no tick")
+                self.assertEqual(p.js("document.querySelector('#import-tick-one').textContent"), "Tick at least one sheet.")
+                self.assertEqual(p.js("document.querySelectorAll('#import-sheet-list input:checked').length"), 0)
+                p.js("document.querySelector('#import-select-all').click()")
+                p.until("!document.querySelector('#import-continue').disabled", "Select all ticks them again")
+                self.assertEqual(p.js("document.querySelectorAll('#import-sheet-list input:checked').length"), 5)
+                self.assertEqual(self.rig.store.read("actions", ref=action)["description"], old, "choosing and listing write nothing")
+
+    def test_only_the_ticked_sheets_are_checked_and_an_unticked_one_is_left_alone(self):
+        b64, action, old = workbook(self.rig, self.tmp.name, "Agree the cut-over plan, version two")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_box(p)
+            self.pick_file(p, b64)
+            p.until("!!document.querySelector('#import-continue')", "the sheet list")
+            p.js("document.querySelector('[data-sheet=actions]').click()")              # Actions unticked
+            p.js("document.querySelector('#import-continue').click()")
+            p.until("!!document.querySelector('#import-none') || !!document.querySelector('#import-summary')", "the check")
+            self.assertEqual(p.js("document.querySelector('#import-box-t').textContent"), "Check the import")
+            self.assertEqual(p.js("document.querySelectorAll('.imp-list li').length"), 0, "the Actions change is not even listed")
+            self.assertEqual(self.rig.store.read("actions", ref=action)["description"], old)
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_box(p)
+            self.pick_file(p, b64)
+            p.until("!!document.querySelector('#import-continue')", "the sheet list")
+            p.js("document.querySelector('#import-clear').click()")
+            p.js("document.querySelector('[data-sheet=actions]').click()")              # only Actions ticked
+            p.js("document.querySelector('#import-continue').click()")
+            p.until("!!document.querySelector('#import-summary')", "the check")
+            self.assertIn("1 updated", p.js("document.querySelector('#import-summary').textContent"))
+            self.assertEqual(p.js("document.querySelectorAll('.imp-list li').length"), 1)
+            p.js("document.querySelector('#import-go').click()")
+            p.until("!!document.querySelector('#import-result')", "the result")
+            self.assertEqual(self.rig.store.read("actions", ref=action)["description"], "Agree the cut-over plan, version two")
+
+    def test_a_sheet_the_file_does_not_have_is_not_shown(self):
+        from openpyxl import load_workbook
+        b64, _, _ = workbook(self.rig, self.tmp.name, "Agree the cut-over plan, version two")
+        path = Path(self.tmp.name) / "PUB work items.xlsx"
+        wb = load_workbook(str(path))
+        del wb["Decisions"]
+        wb.save(str(path))
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_box(p)
+            self.pick_file(p, base64.b64encode(path.read_bytes()).decode())
+            p.until("!!document.querySelector('#import-continue')", "the sheet list")
+            self.assertEqual(p.js("[...document.querySelectorAll('#import-sheet-list li')].map(li => li.innerText.trim().split(' (')[0])"),
+                             ["Actions", "Risks and issues", "Milestones", "Use cases"])
 
     def test_the_first_box_lists_each_sheets_columns_as_the_export_writes_them(self):
         from clark import excel_import
