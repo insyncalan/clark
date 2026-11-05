@@ -54,7 +54,7 @@ class Preview(Case):
         self.assertEqual(s2, 200)
         self.assertTrue(r.getheader("Content-Type").startswith("text/html"))
         self.assertIn("Content-Security-Policy", dict(r.getheaders()))
-        want = publish.build(self.rig.store, "PUB", base.DAY, base.EMPTY_BRANDING)["body"]
+        want = publish.build(self.rig.store, "PUB", base.DAY, base.EMPTY_BRANDING, workbook=publish_flow.CLIENT_WORKBOOK)["body"]
         self.assertEqual(page, want)
         self.assertEqual(get(self.rig, body["url"], token=False)[0], 404)       # one visit
 

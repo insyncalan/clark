@@ -1040,6 +1040,9 @@ def data_block(published, as_at, number=None):
     style = published.get("style")
     block = {"v": VERSION, "as_at": as_at, "style": style if style in STYLES else DEFAULT_STYLE,
              "data": published["data"], "sections": published["sections"], "tabs": published["tabs"]}
+    for key in ("workbook", "workbook_note"):      # item 713: the client workbook, or the sentence that says there is none (excel_client.embed)
+        if key in published:
+            block[key] = published[key]
     if number:                         # #120: which publication this file is; the page's footer reads it. A preview has none
         block["publication"] = {"n": number}
     body = json.dumps(block, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
@@ -1091,7 +1094,7 @@ def read_inputs(store, code, as_at=None):
 
 
 # ===== Making the file =====
-def build(store, code, now=None, branding=None, section_style=None, number=None):
+def build(store, code, now=None, branding=None, section_style=None, number=None, workbook=False):
     """Make the report once, in memory, and write nothing: {"body", "sha256", "project", "as_at", "published"}. `body` is the
     finished file's UTF-8 bytes, `published` is what select() kept (the same object render() was given). `now` is the publish
     date (YYYY-MM-DD); due dates and Overdue read as at that date. publish() and the To client route (#43) both start here, so
@@ -1099,7 +1102,9 @@ def build(store, code, now=None, branding=None, section_style=None, number=None)
     person chose on the page (section_style() keeps it only if it is one of STYLES); the file carries it in its own data block.
     #120: the file carries its publication number (its footer reads "Publication N"): `number` is the one the caller made the file
     with (the rebuild keeps it), else Store.next_publication gives it; 0 means no number (a preview, which is not published).
-    The number is returned too, for Store.log_publication, which refuses if another publication took it meanwhile."""
+    The number is returned too, for Store.log_publication, which refuses if another publication took it meanwhile.
+    Item 713: `workbook` (off by default, so the bytes are as they were) makes the client workbook from `published` and puts it in
+    the data block (excel_client.embed: `workbook` or `workbook_note`); a workbook that cannot be made never stops the publish."""
     as_at = str(now or milestones.today())
     try:
         if not re.fullmatch(r"\d{4}-\d\d-\d\d", as_at):          # Python 3.11 and later also read 20261028
@@ -1113,6 +1118,12 @@ def build(store, code, now=None, branding=None, section_style=None, number=None)
     if inputs["data"]["project"].get("archived"):           # #126: checked here, not in select (glance.kept_rows calls select and must still work)
         raise PublishError("An archived project can't be published. Restore it first.")
     published = add_glance(select(inputs), inputs)
+    if workbook:
+        from clark import excel_client           # not at the top: openpyxl is loaded only when a workbook is made
+        try:
+            published.update(excel_client.embed(published))
+        except Exception:                          # the report is the thing: no spreadsheet is better than no report
+            pass
     project = published["data"]["project"]
     n = store.next_publication(code) if number is None else number
     text = render(published, page.page_html(branding, view=True), as_at, project["name"], n)      # #65: the view-only page

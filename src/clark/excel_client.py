@@ -1,0 +1,183 @@
+"""The client-view workbook (item 713): what a client may see, as a spreadsheet, made at publish time.
+
+`workbook_bytes(published)` takes what `publish.select()` (then `add_glance`) returns and writes an .xlsx of ONLY those rows and fields:
+the same rows the published page shows, never a second filter. It reads nothing else (no store, no inputs), so a row, field or
+state `select` left out cannot reach it. Client wording (client_message) stands in for a row's own text where the page shows it.
+It is read-only by intent: no export id (so the import will not accept it), no history, no hidden Lists sheet, no internal
+cover, no comments, no formulas, no links, no data rules. The author is the fixed neutral name the owner export uses.
+
+`embed(published)` returns what the page's data block carries, a dict with exactly one of two keys:
+    {"workbook": {"name": "<file name>.xlsx", "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                  "b64": "<the .xlsx, base64, no line breaks>"}}
+    {"workbook_note": "This report is too large to include a spreadsheet."}
+The page offers a download from `workbook` (a data: URI of mime and b64), or shows `workbook_note` in its place; with neither key
+there is nothing to offer. Over MAX_WORKBOOK_BYTES the workbook is not embedded.
+"""
+import base64
+import html
+import io
+import re
+from datetime import datetime
+
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
+from openpyxl.xml.functions import tostring
+
+from clark import excel
+from clark import excel_colours as colours
+from clark import platform, publish, sanitise
+
+MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+TOO_LARGE = "This report is too large to include a spreadsheet."
+# The cap: 1.5 MB of workbook (about 2 MB as base64). The published file is already refused over publish.MAX_BYTES (5 MB), and
+# the page, its styles and its data come first; 2 MB of text in the data block leaves room for them, and a 1.5 MB workbook is
+# some 30,000 rows of client text, far past any report.
+MAX_WORKBOOK_BYTES = 1_500_000
+
+# One line to change when the brand palette reaches the export: pass the brand's colours here (the committed ones for now).
+PALETTE = {"fill": colours.HEADER_FILL, "text": colours.HEADER_TEXT}
+
+FONT = excel.OFFICE_FONT
+BODY = Font(name=FONT, size=11)
+HEAD = Font(name=FONT, size=11, bold=True, color=PALETTE["text"])
+TITLE = Font(name=FONT, size=16, bold=True, color=PALETTE["text"])
+SUB = Font(name=FONT, size=11, color=PALETTE["text"])
+HEAD_FILL = PatternFill("solid", fgColor=PALETTE["fill"])
+
+# (header, field, width) per table: only fields the file carries (publish.PUBLISH_FIELDS). Headers are the export's own.
+COLUMNS = {
+    "actions": [("ID", "id", 12), ("Description", "_words", 50), ("Workstream", "workstream", 16), ("Owner", "owner", 16),
+                ("Priority", "priority", 10), ("Due", "due_date", 12), ("Status", "status", 12), ("Raised", "raised", 12),
+                ("Closed", "closed", 12), ("Latest update", "latest_update", 40)],
+    "raid": [("ID", "id", 12), ("Type", "type", 10), ("Description", "_words", 50), ("Workstream", "workstream", 16),
+             ("Owner", "owner", 16), ("Due", "due_date", 12), ("Impact", "impact", 10), ("Likelihood", "likelihood", 10),
+             ("Priority", "priority", 10), ("Status", "status", 12), ("Raised", "raised", 12), ("Closed", "closed", 12)],
+    "decisions": [("ID", "id", 12), ("Decision", "_words", 50), ("Status", "status", 12), ("Made by", "made_by", 16),
+                  ("Needed by", "needed_by", 12), ("Date", "date", 12), ("Revisit", "revisit", 12)],
+    "milestones": [("ID", "id", 12), ("Milestone", "name", 30), ("Description", "_words", 50), ("Workstream", "workstream", 16),
+                   ("Original", "original_date", 12), ("Agreed", "baseline_date", 12), ("Forecast", "forecast_date", 12),
+                   ("Shown state", "state_word", 14), ("% complete", "percent_complete", 11), ("Owner", "owner", 16),
+                   ("State reason", "state_reason", 40), ("Achieved on", "actual_date", 12)],
+    "use_cases": [("ID", "id", 12), ("Use case", "title", 30), ("Shown as", "ref", 12), ("Status", "status", 12),
+                  ("Headline", "headline", 40), ("Where it stands", "standing", 60)],
+}
+COMMITMENT = ("Commitment", "commitment", 14)      # a use case's flag: a column only while the file carries it (publish.PUBLISH_FIELDS)
+OWN_TEXT = {"actions": "description", "raid": "description", "decisions": "decision", "milestones": "description"}
+RICH = {"standing"}                      # HTML the editor wrote: shown as its text
+DATE_FIELDS = excel.DATES | {"revisit"}
+BLOCKS = re.compile(r"</(?:p|div|li|h[1-6]|blockquote|pre|tr)>|<br\s*/?>|<hr\s*/?>", re.I)
+TAGS = re.compile(r"<[^>]*>")
+SECTION_OF = {"actions": "actions", "raid": "raid", "decisions": "decisions", "milestones": "milestones", "use_cases": "usecases"}
+
+
+def plain(value):
+    """Cleaned HTML as plain text, one line per block."""
+    clean = sanitise.clean_html(value or "")
+    text = html.unescape(TAGS.sub("", BLOCKS.sub("\n", clean)))
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+def value_of(table, row, field):
+    if field == "_words":
+        return (row.get("client_message") or "").strip() or row.get(OWN_TEXT[table])
+    if field in RICH:
+        return plain(row.get(field))
+    return row.get(field)
+
+
+def rows_of(published, table):
+    rows = list(published["data"].get(table) or [])
+    if table == "milestones":
+        rows = [r for r in rows if r.get("status") != "Cancelled"]      # as the page leaves them out
+    return rows
+
+
+def sheet_tables(published):
+    """The tables whose section the page shows, in the export's own sheet order."""
+    shown = {s.get("type") for s in published["sections"]}
+    return [t for t in excel.SHEET_OF if t in COLUMNS and SECTION_OF[t] in shown]
+
+
+def title_text(published):
+    p = published["data"].get("project") or {}
+    week = p.get("week_ending")
+    sub = f"Week ending {excel.to_cell('date', week):%d-%m-%Y}" if week else f"As at {published['as_at']}"
+    return (p.get("name") or p.get("code") or ""), sub
+
+
+def columns(table):
+    """The sheet's columns: COLUMNS[table], each only if publish.PUBLISH_FIELDS carries its field (the whitelist; "_words" stands for
+    the text field and its client wording), plus the use case flag when the file carries it."""
+    allowed = set(publish.PUBLISH_FIELDS[table]) | {"_words", "state_word", "original_date"}
+    cols = [c for c in COLUMNS[table] if c[1] in allowed]
+    if table == "use_cases" and COMMITMENT[1] in publish.PUBLISH_FIELDS[table]:
+        cols.insert(4, COMMITMENT)
+    return cols
+
+
+def write_sheet(wb, published, table):
+    ws = wb.create_sheet(excel.SHEET_OF[table])
+    cols = columns(table)
+    name, sub = title_text(published)
+    for r, (text, font) in enumerate(((name, TITLE), (sub, SUB)), start=1):
+        for c in range(1, len(cols) + 1):
+            ws.cell(row=r, column=c).fill = HEAD_FILL
+        cell = ws.cell(row=r, column=1, value=excel.cell_text(text))
+        cell.font = font
+        excel.protect_text_cell(cell)
+    ws.row_dimensions[1].height = 26
+    for i, (label, _, width) in enumerate(cols, start=1):
+        head = ws.cell(row=4, column=i, value=label)
+        head.font, head.fill = HEAD, HEAD_FILL
+        head.alignment = Alignment(wrap_text=True, vertical="center")
+        ws.column_dimensions[get_column_letter(i)].width = width
+    for n, row in enumerate(rows_of(published, table), start=5):
+        for i, (_, field, _) in enumerate(cols, start=1):
+            v = value_of(table, row, field)
+            cell = ws.cell(row=n, column=i, value=None if v in (None, "") else excel.to_cell("date" if field in DATE_FIELDS else field, v))
+            cell.font = BODY
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+            if field in DATE_FIELDS:
+                cell.number_format = excel.DATE_FORMAT
+            excel.protect_text_cell(cell)
+    ws.freeze_panes = "A5"
+    return ws
+
+
+def workbook_bytes(published):
+    """The client workbook as .xlsx bytes (the same bytes for the same published content)."""
+    wb = Workbook()
+    wb.remove(wb.active)
+    for table in sheet_tables(published):
+        write_sheet(wb, published, table)
+    name, sub = title_text(published)
+    if not wb.sheetnames:                       # no table section on the page: one sheet with the title band alone
+        ws = wb.create_sheet(excel.SHEET_OF["actions"])
+        for cell, text in ((ws["A1"], name), (ws["A2"], sub)):
+            cell.value = excel.cell_text(text)
+            cell.font = BODY
+            excel.protect_text_cell(cell)
+    props = wb.properties
+    props.creator = props.lastModifiedBy = excel.FIXED_NAME
+    stamp = datetime.fromisoformat(published["as_at"] + "T00:00:00")
+    props.created = props.modified = stamp
+    props.title = excel.cell_text(name)
+    out = io.BytesIO()
+    wb.save(out)
+    props.created = props.modified = stamp
+    # openpyxl sets "modified" to the real time as it saves, so core.xml is written again with the published day
+    return excel.fixed_zip(out.getvalue(), {"docProps/core.xml": tostring(props.to_tree())})
+
+
+def file_name(published):
+    project = published["data"].get("project") or {}
+    return platform.safe_name(f"{project.get('code') or 'report'}-report-{project.get('week_ending') or published['as_at']}.xlsx")
+
+
+def embed(published):
+    """What the data block carries for the workbook: {"workbook": {...}} or, over the cap, {"workbook_note": TOO_LARGE}."""
+    data = workbook_bytes(published)
+    if len(data) > MAX_WORKBOOK_BYTES:
+        return {"workbook_note": TOO_LARGE}
+    return {"workbook": {"name": file_name(published), "mime": MIME, "b64": base64.b64encode(data).decode("ascii")}}

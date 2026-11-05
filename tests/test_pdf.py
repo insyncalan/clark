@@ -1129,7 +1129,7 @@ class TheReviewFindings(unittest.TestCase):
 
     def test_the_same_report_already_in_the_client_folder_says_no_pdf_was_copied(self):
         # #120: every publish says its own number, so "the same report" is the one the next publish will make (Publication 2)
-        self.report.write_bytes(publish.build(self.rig.store, "PUB", DAY, EMPTY_BRANDING)["body"])
+        self.report.write_bytes(publish.build(self.rig.store, "PUB", DAY, EMPTY_BRANDING, workbook=True)["body"])
         status, got = self.go(to_client=True, pdf=True)
         self.assertEqual((status, got["ok"], got["action"], got["pdf_saved"]), (200, True, "nothing_to_do", False), got)
         self.assertIn(publish_pdf.MESSAGES["pdf_client_same"], got["message"])
