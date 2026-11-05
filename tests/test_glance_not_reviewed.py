@@ -170,11 +170,13 @@ class NotReviewed(Setup):
                 p.until(f"document.querySelector('[data-fig=stale] .dd') && document.querySelector('[data-fig=stale] .dd').textContent === 'Not reviewed for more than 7 days, of {self.open_items()} open items'", "the page has the new number before the tile is clicked")
                 self.assertEqual(self.project()["review_after_days"], 7)
                 p.js("document.querySelector('[data-fig=stale]').click()")
-                p.until("!!document.querySelector('#freshMenu')", "Work items with the Freshness filter")
-                p.js("document.querySelector('#freshMenu').click()")
-                p.until("!!document.querySelector('#freshMenu[aria-expanded=true]')", "the Freshness menu opened")
-                names = p.js("[...document.querySelectorAll('[role=menu] [role^=menuitem]')].map(e => e.textContent.trim())")
-                self.assertEqual(names[0], "Not reviewed in 7 days (on)", "the filter's value says the new number")
+                p.until("!!document.querySelector('#fline-input')", "Work items with the Freshness filter")
+                self.assertFalse(p.js("!!document.querySelector('#freshMenu')"), "row 813: no Freshness pill; the filter is the typed word")
+                p.until("document.querySelector('#fline-input').value.includes('is:quiet')", "the tile opened the typed word")
+                p.js("document.querySelector('#fline-input').focus(); document.querySelector('#fline-input').select()")
+                p.type("is:")
+                p.until("!!document.querySelector('#fline-list [data-ins=\"is:quiet\"] .fl2')", "the suggestion for the word")
+                self.assertEqual(p.js("document.querySelector('#fline-list [data-ins=\"is:quiet\"] .fl2').textContent"), "Not reviewed in 7 days", "the filter's value says the new number")
 
     def test_the_history_says_who_how_and_when_the_number_changed(self):
         with chrome() as cdp:

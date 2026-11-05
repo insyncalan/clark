@@ -65,7 +65,7 @@ class OneMenu(Base):
             self.board(cdp, sid, "status")
             self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout], #swimlanes').length", sid), 0)
             self.only_the_archived_pill_in_the_bar(cdp, sid)
-            self.assertEqual(cdp.js("document.querySelectorAll('#work .wbar [aria-haspopup=menu], #work .fline-wrap [aria-haspopup=menu], #work .lanebar [aria-haspopup=menu]').length", sid), 3, "Freshness, View and the open tab's arrow, nothing else")
+            self.assertEqual(cdp.js("document.querySelectorAll('#work .wbar [aria-haspopup=menu], #work .fline-wrap [aria-haspopup=menu], #work .lanebar [aria-haspopup=menu]').length", sid), 2, "View and the open tab's arrow, nothing else (row 813: no Freshness pill)")
             self.assertTrue(cdp.js("!!document.querySelector('.lanebar #board-full')", sid), "full screen stays on the board bar")
 
     def test_each_entry_works(self):

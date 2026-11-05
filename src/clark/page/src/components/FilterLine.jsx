@@ -2,7 +2,7 @@
 // logic/filterQueryParse.js and shown with its tokens drawn over the text (field names plain, values as coloured chips, a token that cannot be
 // used underlined in red with its words), the match count sits inside the box on the right, an x clears it, and the list changes about 400 ms
 // after the last key, not on Enter. The pure parts (pieces, messages, the rows a line shows) are in logic/filterQueryUi.js; saved views as
-// tabs, the Freshness menu and the one View menu stay as they were. The list of suggestions (fields, then a field's values) is step 5 of the issue. "/" focuses the line only where nothing took the key first.
+// tabs and the one View menu stay as they were (row 813 took the Freshness menu away; its words stay in the typed line). The list of suggestions (fields, then a field's values) is step 5 of the issue. "/" focuses the line only where nothing took the key first.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { rows as allRows, project, filterCtx, fromFile, peek } from "../stores/report.js";
@@ -27,18 +27,6 @@ const viewsRev = signal(0);
 function viewsOf(code) { void viewsRev.value; return FL.viewsGet(local(), code); }
 function saveViews(code, views) { FL.viewsPut(local(), code, views); viewsRev.value++; }
 
-// Freshness: the two plain values, each a toggle for the line's word. The words are the line's own (is:quiet, is:incomplete) and are
-// never shown alone: the menu and the chips read "Not reviewed in 14 days" and "No owner or no date".
-const FRESH = ["quiet", "incomplete"];
-function FreshnessMenu() {
-  const rows = allRows.value, ctx = filterCtx(), line = lineText.value;
-  const parsed = Q.parseFor(line, rows, ctx);
-  const isW = (t, w) => t.kind === "state" && !t.negate && t.states.length === 1 && t.states[0] === w;
-  const on = (w) => parsed.tokens.some((t) => isW(t, w));
-  const items = FL.offers("is", rows, ctx).filter(([v]) => FRESH.includes(v)).map(([v, label]) => ({ id: v, name: label, on: on(v) }));
-  const pick = (w) => setLine(on(w) ? Q.withoutTokens(line, (t) => isW(t, w), rows, ctx) : `${line.trim()} is:${w}`.trim());
-  return <Menu label="Freshness" ariaLabel="Freshness" id="freshMenu" btnCls="btn sm" menuId="freshMenuList" menuLabel="Freshness" items={items.map((i) => ({ id: i.id, name: i.on ? `${i.name} (on)` : i.name }))} onPick={pick} />;
-}
 
 // The View menu's Group by and Swimlanes entries (row 812: Table and Board are the two-icon switch beside it; the prototype's words: "Group by", then on the board "Swimlanes" with
 // "No lanes", "Workstream lanes", "Type lanes"; the lane Group by uses is not offered). `board` is false where there is no board.
@@ -163,7 +151,6 @@ function SavedViews({ board }) {
         })}
         {fromFile.value ? null : <button type="button" class="vnew" id="viewNew" onClick={() => act("saveas")}>{"+ New view"}</button>}
       </div>
-      <FreshnessMenu />
       {fromFile.value || !board ? null : <LayoutSwitch />}
       {fromFile.value ? null : <Menu label="View" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={lay.items} onPick={act} />}
       </div>

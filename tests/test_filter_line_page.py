@@ -446,7 +446,7 @@ class Line(unittest.TestCase):
             self.assertEqual(self.shown(cdp, sid), sorted(r["id"] for r in self.rows(cdp, sid)))
 
     def test_the_freshness_words_follow_the_projects_own_number_of_days(self):
-        """#171: the project's review_after_days (in its row of the data) is what the menu says, in the singular for one day."""
+        """#171 and row 813: the project's review_after_days (in its row of the data) is what the suggestion for the typed word says, in the singular for one day."""
         for days, words in ((3, "Not reviewed in 3 days"), (1, "Not reviewed in 1 day"), (365, "Not reviewed in 365 days")):
             self.data["TUL"]["project"]["review_after_days"] = days
             self.addCleanup(self.data["TUL"]["project"].__setitem__, "review_after_days", 14)
@@ -454,23 +454,23 @@ class Line(unittest.TestCase):
             with self.subTest(days=days), chrome() as cdp:
                 sid = self.load(cdp, s.port)
                 self.watch(cdp, sid)
-                click(cdp, sid, "#freshMenu")
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#freshMenu[aria-expanded=true]')", sid)))
-                names = cdp.js("[...document.querySelectorAll('[role=menu] [role^=menuitem]')].map(e => e.textContent.trim())", sid)
-                self.assertEqual(names, [words, "No owner or no date"])
+                self.assertFalse(cdp.js("!!document.querySelector('#freshMenu')", sid), "row 813: no Freshness pill")
+                self.focus(cdp, sid)
+                cdp.js("document.querySelector('#fline-input').select()", sid)
+                self.type(cdp, sid, "is:")
+                self.assertTrue(wait(lambda: "is:quiet" in self.listed(cdp, sid)))
+                glosses = cdp.js("Object.fromEntries([...document.querySelectorAll('#fline-list [role=option]')].map(o => [o.dataset.ins, (o.querySelector('.fl2') || {}).textContent]))", sid)
+                self.assertEqual((glosses["is:quiet"], glosses["is:incomplete"]), (words, "No owner or no date"))
 
-    def test_the_freshness_menu_gives_the_two_plain_values_and_the_chips_say_them_in_plain_words(self):
+    def test_the_freshness_pill_is_gone_and_the_typed_words_still_filter_and_say_themselves_in_plain_words(self):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     self.watch(cdp, sid)
-                    click(cdp, sid, "#freshMenu")
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#freshMenu[aria-expanded=true]')", sid)))
-                    names = cdp.js("[...document.querySelectorAll('[role=menu] [role^=menuitem]')].map(e => e.textContent.trim())", sid)
-                    self.assertEqual(names, ["Not reviewed in 14 days", "No owner or no date"], "the demo carries review facts, so both values are offered")
-                    click(cdp, sid, "[role=menu] [role^=menuitem]:nth-child(2)")
+                    self.assertFalse(cdp.js("!!document.querySelector('#freshMenu, [aria-label=Freshness]')", sid), "row 813: no Freshness pill in the row")
+                    self.put(cdp, sid, "is:open is:incomplete")
                     self.assertTrue(wait(lambda: "is:incomplete" in self.chips(cdp, sid)), self.chips(cdp, sid))
                     self.assertEqual(self.tokens(cdp, sid, "val"), ["open", "incomplete"], "the line's own words")
                     rows = self.rows(cdp, sid)
@@ -480,10 +480,8 @@ class Line(unittest.TestCase):
                                   and True)
                     self.assertEqual(self.shown(cdp, sid), want)
                     self.assertIn("reviewed", cdp.js("location.hash", sid), "the address keeps the older Freshness filter")
-                    click(cdp, sid, "#freshMenu")
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu] [role^=menuitem]')", sid)))
-                    click(cdp, sid, "[role=menu] [role^=menuitem]:nth-child(2)")
-                    self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open"]), "picking it again takes it off")
+                    self.put(cdp, sid, "is:open")
+                    self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open"]), "taking the word off")
                     self.assertEqual(cdp.js("window.__errs", sid), [])
 
     def test_an_address_with_a_freshness_filter_opens_work_items_with_no_error(self):

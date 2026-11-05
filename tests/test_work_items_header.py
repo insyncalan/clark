@@ -148,6 +148,28 @@ class Header(Base):
             self.assertEqual(self.checked(cdp, sid, "layout:"), ["layout:table"])
         self.each(check)
 
+    # ---- row 813 ----
+    def test_row_813_no_freshness_pill_and_the_filter_is_still_there_by_typing_and_by_a_saved_view(self):
+        saved = [{"id": "quiet", "name": "Gone quiet", "line": "is:open is:quiet"}]
+
+        def check(cdp, sid, width):
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({ABC: %s}))" % __import__("json").dumps(saved), sid)
+            self.reload(cdp, sid)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=quiet]')", "the saved view")
+            self.assertEqual(cdp.js("document.querySelectorAll('#freshMenu, #freshMenuList, [aria-label=Freshness]').length", sid), 0, "no Freshness pill")
+            self.assertFalse(cdp.js("[...document.querySelectorAll('.fvrow .btn')].some(b => /Freshness/.test(b.textContent))", sid))
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.fvrow > *')].map(e => e.className.split(' ')[0])", sid)[-2:], ["seg", "dd"], "the row ends with the layout switch and the View menu")
+            # the saved view draws the word, the typed word filters, and the page does not scroll sideways
+            click(cdp, sid, ".vtab[data-view-id=quiet]")
+            self.until(cdp, sid, "document.querySelector('#fline-input').value === 'is:open is:quiet'", "the saved view's line")
+            self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
+            click(cdp, sid, "#fline-input")
+            cdp.js("document.querySelector('#fline-input').select()", sid)
+            cdp.call("Input.insertText", {"text": "is:incomplete"}, sid)
+            self.until(cdp, sid, "document.querySelector('#fline-input').value === 'is:incomplete'", "typed")
+            self.until(cdp, sid, "document.querySelector('.fhi .k-val')", "the typed word is a chip")
+        self.each(check)
+
 
 if __name__ == "__main__":
     unittest.main()
