@@ -167,7 +167,7 @@ class Brands(unittest.TestCase):
             self.assertEqual(len(p.warnings), 1)
         d = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, d, True)
-        (d / "tokens.css").write_text(":root { --brand-navy: #123456; }")
+        (d / "tokens.css").write_text(":root { --brand-navy: #123456; }", encoding="utf-8")
         real = Path.read_text
 
         def read(self, *a, **k):

@@ -210,8 +210,10 @@ class Polish(Rig):
 
     def test_no_note_is_logged_for_a_good_or_missing_brand(self):
         import logging
-        with self.assertNoLogs("clark.excel", logging.WARNING):
+        with self.assertLogs("clark.excel", logging.WARNING) as logs:       # (assertNoLogs is Python 3.10+): only the sentinel may be logged
+            logging.getLogger("clark.excel").warning("sentinel")
             self.export(self.brand(None))
+        self.assertEqual([r.getMessage() for r in logs.records], ["sentinel"])
 
     def test_the_id_name_columns_wrap_and_the_rest_are_unchanged(self):
         rows = {"milestones": [{"id": "M1", "name": "Go live"}], "use_cases": [{"id": "U1", "title": "Pay"}],
