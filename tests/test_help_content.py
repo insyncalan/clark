@@ -284,7 +284,8 @@ class WordingRound(unittest.TestCase):
         self.assertNotIn("until you press Add;", self.ALL)
 
     def test_examples_are_real_dates(self):                                                  # MEDIUM
-        self.assertIn("by 12-12-2026", self.ALL)
+        self.assertIn("due Friday · move to tomorrow · by Friday", self.ALL)      # a date-free example: no made-up date reaches the built page
+        self.assertNotRegex(self.ALL, r"\b\d\d-\d\d-20\d\d\b")
         self.assertNotRegex(self.ALL, r"such as DD-MM-YYYY|forecast DD-MM-YYYY")
 
     def test_no_report_layout_choice_is_mentioned(self):                                     # MEDIUM
