@@ -26,6 +26,8 @@ a { color: var(--status-blue-text); }
 .top .projbtn { display: inline-flex; max-width: 260px; min-width: 0; }
 @media (max-width: 1000px) { .top { gap: 10px; } }
 .top .modes { flex: none; }   /* View and Edit keep their width: the bar's other items give way, not these */
+.top .tabs { flex: none; }   /* item 681: the tabs keep their words on one line; the project name (its ellipsis) gives way first */
+.top .tab { white-space: nowrap; }
 .top .dd:has(> .projbtn) { min-width: 0; }   /* the project name gives way (its ellipsis) before the bar runs past a 901 px window, now the wordmark is 24 px */
 .projbtn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabs { display: flex; height: 100%; }
