@@ -105,6 +105,7 @@ def use_cases_of(data, shown):
         steps = [r for k, r in open_ if k == "action"]
         out.append({"id": u["id"], "ref": plain(u.get("ref")), "name": plain(u.get("title")),
                     "headline": plain(u.get("headline")), "status": plain(u.get("status")),
+                    "commitment": plain(u.get("commitment"), True),         # #709: one of store.COMMITMENTS, or null (no flag)
                     "standing": rich(u.get("standing")), "on_dashboard": u["id"] in shown,
                     "linked": len(mine), "open": len(open_),
                     "next_steps": [_step(r) for r in steps],
@@ -113,7 +114,7 @@ def use_cases_of(data, shown):
 
 
 HISTORY_MAX = 40
-HISTORY_FIELDS = ("title", "headline", "status", "standing", "client_visible", "archived")
+HISTORY_FIELDS = ("title", "headline", "status", "standing", "client_visible", "archived", "commitment")
 SHORT = 120
 
 

@@ -354,8 +354,8 @@ def section_usecases(published, ctx, title, sec, kept):
         return "".join(out) + para(run(NONE))
     out.append(para(run(strip["total_words"] + ": " + ", ".join(f"{c['count']} {c['status']}" for c in strip["counts"]))))
     rows = [[word_cell(u["ref"], ctx), word_cell(u["title"], ctx), word_cell(u["status"], ctx, colour=u["colour"]),
-             word_cell(u["headline"], ctx), word_cell(u["words"], ctx)] for u in strip["rows"]]
-    out.append(table(ctx, ["Ref", "Use case", "Status", "Headline", "Work items"], [8, 28, 12, 32, 20], rows))
+             word_cell(u.get("commitment") or "", ctx), word_cell(u["headline"], ctx), word_cell(u["words"], ctx)] for u in strip["rows"]]
+    out.append(table(ctx, ["Ref", "Use case", "Status", "Commitment", "Headline", "Work items"], [7, 24, 11, 12, 28, 18], rows))
     standing = {u["id"]: u.get("standing") for u in kept["use_cases"]}
     for u in strip["rows"]:
         body = rich(standing.get(u["id"]), ctx)

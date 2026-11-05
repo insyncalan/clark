@@ -457,6 +457,10 @@ def from_cell(name, value, kind, label=None):
             return read_date(value), None
         except (ValueError, OverflowError):
             return None, f"{label} must be a date, shown DD-MM-YYYY (got {_got(value)})"
+    if name == "commitment":                                    # #709: the owner's words, case exact (spaces round the word are not part of it); never guessed
+        if str(value).strip() in writer.COMMITMENTS:
+            return str(value).strip(), None
+        return None, f"{label} must be one of {', '.join(writer.COMMITMENTS[:-1])} or {writer.COMMITMENTS[-1]}, or left empty (got {_got(value)})"
     if name in FLAGS:
         s = str(value).strip().lower()
         if s in ("yes", "y", "1", "true", "1.0"):
@@ -793,6 +797,8 @@ class _Reader:
                 self.problem(f"{sheet}, row {rn}, {rid}: {err}; the row was left out", sheet, rn, rid, f)
                 bad = True
                 continue
+            if f == "commitment" and v is None:
+                continue                                # #709: an empty Commitment cell leaves the flag as it is (never clears it)
             old = cur[f]
             if f == LABELS and sorted(n.lower() for n in writer.label_names(v)) == sorted(n.lower() for n in writer.label_names(old)):
                 continue                                # the same labels, in any order or case
