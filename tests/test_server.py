@@ -85,6 +85,8 @@ class Running:
 
     def __init__(self, data_for=DEMO.get, page_html=None, projects=lambda archived=False: PROJECTS, change=None, undo=None, sneak=None,
                  publisher=StubPublisher(), section_body=None):
+        if section_body is None:
+            section_body = change      # #273: a test that stands in for the change handler stands in for a section's content too (the page sends it to its own route)
         self.httpd = Stoppable((sv.HOST, 0), data_for=data_for, page_html=page_html, projects=projects, change=change,
                                undo=undo, sneak=sneak, publisher=publisher, section_body=section_body)
         self.port = self.httpd.server_port
