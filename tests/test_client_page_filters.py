@@ -209,9 +209,6 @@ class ClientPageFilters(unittest.TestCase):
                 self.assertEqual(self.ids(cdp, sid), ["PUB-A-101"])
                 cdp.js("(() => {" + typed % json.dumps("zzz-nothing") + "})()", sid)
                 self.settle(cdp, sid, "!!document.querySelector('#work-list .empty')")
-                # row 789: the words said back, and the button is Clear search
-                self.assertEqual(cdp.js("document.querySelector('#work-list .empty p').textContent", sid), 'No items match "zzz-nothing".')
-                self.assertEqual(cdp.js("document.querySelector('#clearAll2').textContent", sid), "Clear search")
                 self.click(cdp, sid, "#clearAll2")
                 self.settle(cdp, sid, "document.querySelector('#q').value === ''")
 

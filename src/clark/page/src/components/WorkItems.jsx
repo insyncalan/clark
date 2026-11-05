@@ -245,7 +245,7 @@ function PublishedList({ Board, Cell, Eye, Bulk }) {
         {canClearAll ? <button type="button" class="link" id="clearAll" onClick={clear}>Clear all</button> : null}
       </div>
       {filtered.length === 0
-        ? <div class="empty"><p class="muted">{words ? `No ${st.mode === "open" ? "open items" : "items"} match "${query.value.trim()}".` : "No items match these filters."}</p>{canClearAll ? <button type="button" class="btn" id="clearAll2" onClick={clear}>{words ? "Clear search" : "Clear all"}</button> : null}</div>
+        ? <div class="empty"><p class="muted">No items match these filters.</p>{canClearAll ? <button type="button" class="btn" id="clearAll2" onClick={clear}>Clear all</button> : null}</div>
         : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={Cell} Eye={Eye} />}
     </div>
   );
