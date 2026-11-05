@@ -40,13 +40,14 @@ def listed_files(version="0.3.1"):
 
 def make_zip(folder, version="0.3.1", files=None, manifest=None, system=SYSTEM, name=None, top=None, tweak=None,
              modes=None, schema=2, min_from="0.0.0", notes="Fixes a typo.\n", extra=None, skip_manifest=False, rows=None,
-             sign=True, placed=True):
+             sign=True, placed=True, top_files=None):
     """Write a fake download into `folder`; its path. `tweak(files)` changes the member bytes AFTER the manifest has been
     made (so a hash then differs); `extra` adds raw members (name -> bytes); `rows(files_doc)` changes the manifest rows."""
     # `files` and `modes` are keyed by repo names (src/clark/store.py); the zip holds them placed (.app/src/clark/store.py), as
     # package.py writes them (issue 694). `placed=False` writes the old shape: repo names straight under the top folder.
     place = release_files.place if placed else (lambda rel: rel)
     files = {place(rel): body for rel, body in dict(listed_files(version) if files is None else files).items()}
+    files.update(top_files or {})        # already-placed names: an extra top-level folder (issue 716), e.g. "meet clark/a.md"
     modes = {place(rel): m for rel, m in (modes or {}).items()}
     doc = {"product": "clark", "version": version, "system": system, "released": "2026-10-27", "notes": notes,
            "schema_version": schema, "min_from": min_from,

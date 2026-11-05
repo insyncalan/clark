@@ -76,7 +76,7 @@ CHANGE_KINDS = {
                             "client_message", "movement", "internal_note")},
     # #164: an EXISTING use case's name, headline, status, standing text and eye (client_visible). Only `update` here: the
     # archive and restore ops below are #126's, and there is no new, move or delete for use cases.
-    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible"), NEW: ("ref", "title", "status", "headline"), LINK: ()},   # #455: and a NEW one (below); #485: link work items to it (no fields: the items' own use_case is set)
+    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible", "commitment"), NEW: ("ref", "title", "status", "headline", "commitment"), LINK: ()},   # #455: and a NEW one (below); #485: link work items to it (no fields: the items' own use_case is set)
     # #67: the eye on a report row. `new` hides the row from the report and `delete` shows it again; both take only the item's id
     # (no values: the row is the pair project + item, and the project is the request's).
     # `pick` is the picker's Add (see _do_pick): it puts several hidden rows back on the page in one step.
@@ -102,7 +102,7 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
             "projects": ("health", "health_reason", "week_ending", "review_after_days", "archived", "active"),       # #126: a project's own archive or restore step sets the flag and `active`
             "milestones": ("archived", "baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
                            "client_message", "movement", "internal_note"),     # #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
-            "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible"), "documents": ("archived",) + DOC_FIELDS, "workstreams": ("archived",)}
+            "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible", "commitment"), "documents": ("archived",) + DOC_FIELDS, "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
 CHANGE_KINDS["actions"][NEW] = ("description", "client_message", "client_visible", "owner", "priority", "due_date", "workstream", "milestone", "latest_update", "use_case")      # #485: a next step added from a use case's row names it; #67: a row added in the report: no id,
 CHANGE_KINDS["raid"][NEW] = ("type", "description", "client_message", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible")   # raised, status or source
@@ -261,6 +261,8 @@ STORE_WORDS = (("must be a date stored as", NOT_A_DATE), ("is not a real date", 
 UC_NAME_WORDS = f"A use case needs a name of 1 to {UC_NAME_LIMIT} characters, with no line breaks or hidden characters."
 UC_HEADLINE_WORDS = f"A headline can be at most {UC_HEADLINE_LIMIT} characters, with no line breaks or hidden characters."
 UC_STATUS_WORDS = "A use case's status can be On track, Flag, High risk or Done."
+UC_COMMITMENTS = clark_store.COMMITMENTS                 # #709: the flag's words, defined once in the store (its writers and the page read it too)
+UC_COMMITMENT_WORDS = "A use case's commitment can be " + ", ".join(UC_COMMITMENTS[:-1]) + " or " + UC_COMMITMENTS[-1] + ", or none."
 UC_STANDING_WORDS = "That text can't be saved. It may be too long, or not text."
 UC_REF_WORDS = f"A use case needs an ID of 1 to {UC_REF_LIMIT} characters, with no line breaks or hidden characters."
 UC_REF_USED = "That ID is already used by another use case of this project."
@@ -1205,6 +1207,13 @@ def _checked_use_case_changes(fields):
             if not isinstance(v, str) or v not in clark_store.ALLOWED[("use_cases", "status")]:
                 raise Refused(UC_STATUS_WORDS)
             out[k] = v
+        elif k == "commitment":                                     # #709: one of the three words, case exact; "" or None is no flag (NULL)
+            if v is None or v == "":
+                out[k] = None
+            elif not isinstance(v, str) or v not in UC_COMMITMENTS:
+                raise Refused(UC_COMMITMENT_WORDS)
+            else:
+                out[k] = v
         elif k == "standing":
             try:
                 out[k] = sanitise.clean_html(v)
@@ -1218,7 +1227,7 @@ def _checked_use_case_changes(fields):
 def _use_case_shown(row):
     """What a reply says of a use case: its own editable fields (the standing text is already clean)."""
     return {"id": row["id"], "title": row["title"], "headline": row["headline"], "status": row["status"],
-            "standing": row["standing"], "client_visible": row["client_visible"]}
+            "standing": row["standing"], "client_visible": row["client_visible"], "commitment": row["commitment"]}
 
 
 def _do_new_use_case(store, by_user, req, project, table, columns, place):
@@ -1897,7 +1906,7 @@ def _eligible(rows, project, hand_over=False):
                               and stamp_ok(r) and _row_is_ours(r, project, project_step, flagged) for r in rows)
 
 
-UC_FIELD_NAMES = {"title": "name", "headline": "headline", "standing": "standing text"}
+UC_FIELD_NAMES = {"title": "name", "headline": "headline", "standing": "standing text", "commitment": "commitment"}
 ITEM_FIELD_NAMES = {"description": "title", "decision": "title", "status": "status", "workstream": "workstream", "owner": "owner", "priority": "priority",
                     "due_date": "due date", "milestone": "milestone", "made_by": "decider", "needed_by": "needed-by date",
                     "date": "decision date", "closed": "closing date", "use_case": "use case", "impact": "impact", "likelihood": "likelihood",
@@ -1947,6 +1956,8 @@ def _use_case_words(f, to, name):
         return f"{name} is shown to the client again" if to == "1" else f"{name} is hidden from the client again"
     if f == "status":
         return f"the status of {name} is back to {to}" if to in clark_store.ALLOWED[("use_cases", "status")] else f"the status of {name}"
+    if f == "commitment":                                           # #709: the word it was, or that it had none
+        return f"the commitment of {name} is back to {to}" if to in UC_COMMITMENTS else f"the commitment of {name} is cleared again"
     return f"the {UC_FIELD_NAMES.get(f, 'details')} of {name}"
 
 

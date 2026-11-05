@@ -1452,25 +1452,14 @@ table.items.arch tr.arch { cursor: pointer; }
 .pk-archnote p { margin: 0; flex: 1; }
 .pk-ro .pk-title { color: var(--text-muted); cursor: default; }
 .pk-rofacts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 12px 0 16px; font-size: 14px; } .pk-rofacts dt { color: var(--text-muted); } .pk-rofacts dd { margin: 0; color: var(--text); }
-/* Past reports (a mockup for review, #125): the way in, then the past shown behind a banner in a tinted, inert frame with a faint watermark */
+/* Published reports (a mockup for review, issue 125): the list, then the past shown behind a banner in a tinted, inert frame with a faint watermark */
 .pv { max-width: 1180px; margin: 0 auto; }
 .pv .pv-h { margin: 0; font-size: 22px; font-weight: 500; color: var(--heading); }
 .pv-intro { font-size: 14px; margin: 0 0 14px; }
-.pv-ways { margin-bottom: 12px; flex-wrap: wrap; }
 .pv-way { margin-bottom: 16px; }
 .pv-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .pv-bar label { font-size: 14px; display: flex; align-items: center; gap: 8px; }
 .pv-bar select { width: auto; max-width: 100%; }
-.pv-hint { font-size: 13px; }
-.pv-tl { display: flex; align-items: flex-start; gap: 0; overflow-x: auto; padding: 6px 2px 2px; }
-.pv-tl-i { flex: 1 1 0; min-width: 76px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); position: relative; }
-.pv-tl-i::before { content: ""; position: absolute; top: 9px; left: -50%; right: 50%; height: 2px; background: var(--grey-300); z-index: 0; }
-.pv-tl-i:first-child::before { display: none; }
-.pv-dot { all: unset; position: relative; z-index: 1; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--grey-500); cursor: pointer; background: var(--status-grey); }
-.pv-dot.G { background: var(--status-green); } .pv-dot.A { background: var(--status-amber); } .pv-dot.R { background: var(--status-red); }
-.pv-dot.on { box-shadow: 0 0 0 3px var(--brand-blue); }
-.pv-dot.now { cursor: default; background: var(--surface); box-shadow: 0 0 0 2px var(--brand-blue); }
-.pv-dot:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 3px; }
 .pv-banner { display: flex; gap: 10px; align-items: flex-start; background: var(--status-amber-tint); color: var(--text); border: 1px solid var(--status-amber); border-radius: var(--radius-lg); padding: 10px 14px; margin-bottom: 12px; position: sticky; top: calc(var(--topbar) + 8px); z-index: 5; }
 .pv-banner p { margin: 0; font-size: 14px; } .pv-banner b { font-weight: 500; } .pv-banner small { color: var(--text-muted); font-size: 13px; }
 .pv-b-ic { color: var(--status-amber-text); padding-top: 2px; }

@@ -43,7 +43,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from clark import doclinks, milestones, page, platform, section_bodies
-from clark.store import Invalid as StoreInvalid, NumberTaken, check_section_body, excluded_label_names, open_store
+from clark.store import COMMITMENTS, Invalid as StoreInvalid, NumberTaken, check_section_body, excluded_label_names, open_store
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
 
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused
@@ -74,7 +74,7 @@ PUBLISH_FIELDS = {
              "priority", "status", "raised", "closed", "client_message", "milestone", "use_case"),
     "decisions": ("id", "decision", "made_by", "client_message", "date", "status", "needed_by",
                   "revisit", "replaces", "use_case"),
-    "use_cases": ("id", "ref", "title", "status", "headline", "standing", "sort_order"),
+    "use_cases": ("id", "ref", "title", "status", "headline", "standing", "sort_order", "commitment"),   # #709: the flag goes with the use case
     "links": ("from_item", "to_item", "kind"),
     "documents": ("title", "kind", "url", "date"),        # #74: never its id, place or archive flag
 }
@@ -363,6 +363,8 @@ def select(inputs):
             if k == "use_cases":                              # plain text the editor wrote: hidden characters out, cut at a limit
                 for f in ("ref", "title", "headline"):
                     c[f] = reason_text(c[f])
+                if c.get("commitment") not in COMMITMENTS:         # #709: only the owner's words reach the file; anything else reads as no flag
+                    c["commitment"] = None
             ref(c, "milestone", "milestones")
             ref(c, "use_case", "use_cases")
             ref(c, "replaces", "decisions")

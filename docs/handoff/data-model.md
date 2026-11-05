@@ -253,7 +253,8 @@ CREATE TABLE IF NOT EXISTS use_cases (
   client_visible INTEGER NOT NULL DEFAULT 1 CHECK (client_visible IN (0,1)),
   source        TEXT NOT NULL,
   archived      INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
-  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  commitment    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS report_sections (
@@ -394,6 +395,7 @@ These are copied from `tracker.py`'s `suggested_state` and `milestone_state` at 
 ## The client flag per row
 - There is **one report output**, managed by the editor (the owner, 28-10-2026, #24: "No - a single report output managed by the user / editor. Client visible is toggled on by default for all work items").
 - `client_visible` defaults to 1 on every work item, milestone and use case. The editor turns it off for a row that shouldn't be published.
+- `use_cases.commitment` (#709, schema version 16) is NULL (no flag) or one of `Candidate`, `Committed`, `Planned 2027` (`store.COMMITMENTS`, the one list). The column has no CHECK, so a fourth word is no layout step. A new use case has none. The published file carries it with the use case (the eye still hides the whole use case); an Excel import with an empty Commitment cell leaves it as it is.
 - A row carrying an `exclude` label (Sensitive) never goes out, as in creaite. `internal_note` is never published.
 - The published file only takes client-visible rows that aren't in `report_hidden`. Its build drops the others, so they are never in the file at all. creaite's separate client checks (`client_leak.py`, `client_output.py`, `client_check.py`) aren't copied. The build's own tests check that a hidden row, a row with the flag off, a Sensitive row and an internal note are each absent from the file.
 

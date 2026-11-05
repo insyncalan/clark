@@ -1138,8 +1138,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .pubbar { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-3); }
 .pubbar + .modes { margin-left: 0; }
-.me { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; color: var(--white); cursor: pointer; }
-.me:hover { background: rgba(255,255,255,.14); }
+.me { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 2px solid color-mix(in srgb, var(--white) 25%, transparent); border-radius: 50%; background: var(--brand-cyan); color: var(--brand-navy); cursor: pointer; }   /* issue 732: filled aqua with a navy mark, as the prototype's profile circle */
+.me:hover { border-color: color-mix(in srgb, var(--white) 60%, transparent); }
 .me:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .me .i { width: 18px; height: 18px; }
 .top .dd { position: relative; display: inline-flex; }
