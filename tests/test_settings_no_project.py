@@ -102,6 +102,54 @@ class Browser(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelector('#export-workbook').getAttribute('aria-describedby')", sid), "export-why")
                 self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways page scroll")
 
+    # ---- item 701: the same no-project Settings, checked in both themes at 900 and 1400 px ------------------------------------------------
+    # the card names the task uses, and the heading each one wears on the page
+    WORKING = {"Personal": "Personal", "Projects": "Projects", "People": "People", "Data": "Data", "Safety": "Backups", "Update": "Version and updates", "Diagnostics": "Logs and diagnostics", "AI": "AI"}
+    PROBE = """(() => {
+        const rgb = (c) => { const m = c.match(/[\\d.]+/g).map(Number); return {r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1}; };
+        const over = (t, b) => ({r: t.r * t.a + b.r * (1 - t.a), g: t.g * t.a + b.g * (1 - t.a), b: t.b * t.a + b.b * (1 - t.a), a: 1});
+        const bg = (el) => { const dark = matchMedia('(prefers-color-scheme: dark)').matches; let c = dark ? {r: 0, g: 0, b: 0, a: 1} : {r: 255, g: 255, b: 255, a: 1}; const l = []; for (let e = el; e; e = e.parentElement) l.push(rgb(getComputedStyle(e).backgroundColor)); for (const x of l.reverse()) c = over(x, c); return c; };
+        const hex = (c) => '#' + [c.r, c.g, c.b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+        const out = {};
+        for (const id of ['import-why', 'export-why']) {
+            const el = document.getElementById(id); if (!el) { out[id] = null; continue; }
+            const fg = over(rgb(getComputedStyle(el).color), bg(el));
+            const r = el.getBoundingClientRect();
+            out[id] = {text: el.textContent, fg: hex(fg), bg: hex(bg(el)), visible: r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden'};
+        }
+        return JSON.stringify(out);
+    })()"""
+
+    def test_item_701_no_project_settings_in_light_and_dark_at_900_and_1400(self):
+        from test_dark_contrast import ratio
+        s = self.serve()
+        for width in (900, 1400):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.visit(cdp, s.port, width, scheme, "#settings")
+                    self.until(cdp, sid, "document.querySelector('[data-mode=edit]')", "the Edit switch")
+                    cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+                    self.until(cdp, sid, "document.querySelector('#npBtn') && document.querySelector('#import-workbook') && document.querySelector('#import-why')", "the cards")
+                    heads = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('main h2, main h3')].map(h => h.textContent.trim()))", sid))
+                    for card, head in self.WORKING.items():
+                        self.assertTrue(head in heads, f"{card} card missing from {heads}")
+                    for gone in ("Publishing", "Published reports", "Freshness"):
+                        self.assertFalse(any(gone in h for h in heads), f"{gone} card still shown: {heads}")
+                    chips = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('.set-chip')].map(c => c.textContent.trim()))", sid))
+                    self.assertTrue(chips, "the section chips show")
+                    for gone in ("Publishing", "Published reports", "Freshness"):
+                        self.assertFalse(any(gone in c for c in chips), f"{gone} chip still shown: {chips}")
+                    probe = json.loads(cdp.js(self.PROBE, sid))
+                    for which in ("import", "export"):
+                        why = probe[which + "-why"]
+                        self.assertIsNotNone(why, which + "-why missing")
+                        self.assertEqual(why["text"], "Add a project first.")
+                        self.assertTrue(why["visible"], which + "-why not visible")
+                        self.assertEqual(cdp.js("(() => { const b = document.getElementById('%s-workbook'); const d = document.getElementById(b.getAttribute('aria-describedby')); return !!d && d.id === '%s-why' && d.textContent === 'Add a project first.' && d.getBoundingClientRect().height > 0; })()" % (which, which), sid), True)
+                        self.assertGreaterEqual(ratio(why["fg"], why["bg"]), 4.5, f"{which}-why text {why['fg']} on {why['bg']} in {scheme}")
+                    self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways page scroll")
+                    self.assertTrue(cdp.js("document.body.scrollWidth <= window.innerWidth", sid), "no sideways body scroll")
+
     def test_the_other_four_screens_still_say_no_project_open(self):
         s = self.serve()
         for view in ("dashboard", "work", "milestones", "usecases"):
