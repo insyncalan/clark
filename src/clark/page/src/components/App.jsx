@@ -56,7 +56,7 @@ export function App({ tools: given }) {
       <TopBar tools={tools} />
       {DemoBanner ? <DemoBanner /> : null}
       <main id="main" aria-busy={status.value === "loading" && !isFile() ? "true" : undefined}>{stacked ? <PrintStack tools={tools} /> : Layer ? <Layer>{body}</Layer> : body}</main>
-      {publication.value ? <footer class="pubfoot num" id="publication-footer">{asAt.value ? `Published ${plainDate(asAt.value)}. ` : ""}Publication {publication.value}{asAt.value ? ` · ${plainDate(asAt.value)}` : ""}. View only.</footer> : null}
+      {publication.value ? <footer class="pubfoot num" id="publication-footer">{asAt.value ? `Published ${plainDate(asAt.value)}. ` : ""}Publication {publication.value}.</footer> : null}
       {Ask ? <Ask /> : null}
       {HPeek && status.value === "ready" ? <HPeek /> : null}
       {status.value === "ready" ? <Peek tools={tools} /> : null}

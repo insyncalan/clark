@@ -429,7 +429,7 @@ class Numbers120(unittest.TestCase):
         app = read(PAGE / "src" / "components" / "App.jsx")
         self.assertIn('id="publication-footer"', app)
         self.assertIn("Publication {publication.value}", app)
-        self.assertIn("View only.", app)
+        self.assertNotIn("View only.", app)   # row 785
         self.assertIn("Published ${plainDate(asAt.value)}. ", app)
         self.assertIn('block["publication"] = {"n": number}', read(SRC / "clark" / "publish.py"))
         self.assertIn(".pubfoot", read(SHELL))
@@ -564,7 +564,7 @@ EXTRA_WALK_THROUGH = [
     ("559.3", "judgement", "only a person can judge the published Weekly snapshot reads as a report for a client",
      "Publish a demo project, open the file and press the Weekly snapshot tab: a band with the project's name, then Progress, Plans, Highlights, Next week (and Risks and issues if flagged), nothing editable; then open the running page and see it has no such tab."),
     ("120.4", "live only", "the footer must be seen in a real file opened from disk",
-     "Publish twice, open each file from its folder and read the foot: Publication 1 and Publication 2, each with its date, and View only."),
+     "Publish twice, open each file from its folder and read the foot: Publication 1 and Publication 2, each with its date once."),
     ("495.4", "live only", "a fresh checkout and a downloaded zip are the only places the build can truly be proved",
      "Clone fresh into an empty folder and run python3 -m clark --demo --open: the first start builds the pages. Unzip a release into another empty folder and run the same: no bundler runs."),
     ("570.5", "judgement", "whether a Saturday or Sunday 'This week' running to the coming Friday is what a person expects (an open question)",
