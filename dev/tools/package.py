@@ -111,10 +111,10 @@ Getting started on a Mac
 These steps are for a Mac.
 
 What is in this folder: README.md says what clark is. START-HERE.txt is this
-page. The file clark.command starts clark. docker is for starting clark with
-Docker. system/branding holds your own logo and colours, if you add them. The
-program's own files are in a hidden folder called .app: you do not need to
-open it.
+page. Double-click clark.command to start clark. docker is for starting clark
+with Docker. system/branding holds your own logo and colours, if you add them.
+The program files are in a hidden folder called .app: you do not need to open
+it.
 
 If your Mac will not open clark.command (a work Mac often will not), or you
 already use Docker, use Docker instead. You only need Docker and Chrome.
