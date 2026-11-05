@@ -130,7 +130,7 @@ class NotReviewed(Setup):
             p.js("document.querySelector('[data-fig=stale]').click()")
             p.until("location.hash.startsWith('#work&p=ABC&f=')", "Work items opened")
             p.until(f"document.querySelectorAll('#work tbody tr[data-id]').length === {want}", f"the list holds the {want} it counted")
-            chips = p.js("[...document.querySelectorAll('.fline .fchip .ft')].map(c => c.textContent)")
+            chips = p.js("document.querySelector('#fline-input').value.split(/\\s+/).filter(Boolean)")
             self.assertEqual(chips, ["is:open", "is:quiet"], "the line shows the Freshness filter")
 
     def test_the_setting_changes_the_tile_and_the_filter_at_once_and_a_bad_value_keeps_the_old_one(self):

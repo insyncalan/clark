@@ -73,7 +73,7 @@ export function People() {
   return (
     <section class="frame setting people" id="people" aria-labelledby="people-h">
       <div class="pp-h">
-        <h2 id="people-h">People</h2>
+        <h2 id="people-h" tabIndex={-1}>People</h2>
         <button type="button" class="btn sm" id="ppPasteBtn" ref={pasteBtn} aria-expanded={open ? "true" : "false"} aria-controls="ppPaste" onClick={toggle}>Paste from Excel</button>
       </div>
       <p class="muted pp-intro">Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.</p>
