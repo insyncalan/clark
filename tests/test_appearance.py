@@ -42,7 +42,7 @@ class Appearance(Base):
                 "return !!document.querySelector('#profile-menu'); })()", "the menu opened")
 
     def in_settings(self, p):
-        return p.js("[...document.querySelectorAll('#personal [data-appearance] input')].filter(i => i.checked).map(i => i.value)")
+        return p.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].filter(i => i.getAttribute('aria-pressed') === 'true').map(i => i.dataset.themePick)")
 
     def in_menu(self, p):
         return p.js("[...document.querySelectorAll('#profile-menu [role=menuitemradio]')].filter(i => i.getAttribute('aria-checked') === 'true').map(i => i.textContent.replace('✓', ''))")
@@ -62,12 +62,25 @@ class Appearance(Base):
                 p.width(w)
                 self.open_settings(p)
                 self.assertEqual(p.js("document.querySelector('#personal [data-appearance] legend').textContent"), "Appearance")
-                self.assertEqual(p.js("[...document.querySelectorAll('#personal [data-appearance] b')].map(b => b.textContent)"), ORDER)
+                self.assertEqual(p.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].map(b => b.textContent)"), ORDER)
                 self.assertEqual(self.in_settings(p), ["system"])
-                self.assertEqual(p.js("document.querySelector('#personal [data-appearance] input[value=system]').closest('label').textContent"),
-                                 "SystemFollows your Mac's setting.")
+                self.assertEqual(p.js("document.querySelector('#personal [data-appearance-line]').textContent"),
+                                 "Follows your Mac's setting.", "the chosen one's line is under the control")
                 self.assertEqual(p.js("document.documentElement.dataset.theme"), "auto")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
+
+    def test_C_appearance_is_a_segmented_control_not_radio_buttons(self):       # item 677
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                self.open_settings(p)
+                self.assertEqual(p.js("document.querySelectorAll('#personal [data-appearance] input').length"), 0, "no radio buttons")
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('#personal [data-appearance] .seg')).borderRadius"), "999px", "the page's .seg pill")
+                self.assertEqual(p.js("document.querySelector('#personal [data-appearance] .seg').getAttribute('role')"), "group")
+                p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').click()")
+                self.assertEqual(self.in_settings(p), ["dark"], "one is pressed")
+                self.assertEqual(p.js("document.querySelector('#personal [data-appearance-line]').textContent"), "Always dark.", "the line follows the choice")
 
     def test_C_system_follows_the_computer_both_ways_with_no_reload_and_light_and_dark_do_not(self):
         with chrome() as cdp:
@@ -83,7 +96,7 @@ class Appearance(Base):
             self.assertGreater(light, 200, "System: light when the computer is light")
             self.assertEqual(p.js("window.__same"), 1, "the same page throughout: no reload")
             for choice, want in (("light", "light"), ("dark", "dark")):
-                p.js(f"document.querySelector('#personal [data-appearance] input[value={choice}]').click()")
+                p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={choice}]').click()")
                 for computer in ("dark", "light"):
                     scheme(p, computer)
                     self.assertEqual("dark" if self.lightness(p) < 90 else "light", want, f"{choice} chosen, computer {computer}")
@@ -107,7 +120,7 @@ class Appearance(Base):
             p = self.page(cdp)
             self.open_settings(p)
             p.js("window.__same = 1")
-            p.js("document.querySelector('#personal [data-appearance] input[value=dark]').click()")
+            p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').click()")
             self.open_menu(p)
             self.assertEqual(self.in_menu(p), ["Dark"], "a change in Settings shows in the menu")
             p.js("document.querySelector('#profile-menu [data-kind=look-light]').click()")
