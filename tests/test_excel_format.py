@@ -376,7 +376,8 @@ class Formatting(unittest.TestCase):
             for _, table, cols, _ in excel.SHEETS:
                 fields = [f for _, f in cols if f not in excel.DERIVED and f != "labels"]
                 stored = {r["id"]: {f: r[f] for f in fields} for r in d.store.read(table, "ABC")}
-                got = {r["id"]: {f: r.get(f) for f in fields} for r in back[table]}
+                got = {r["id"]: {f: (r.get(f).split(": ")[0] if f in excel.REF_TABLES and r.get(f) else r.get(f)) for f in fields}
+                       for r in back[table]}      # item 710: the cell reads ID: name; the import takes the ID
                 self.assertEqual(got, stored, table)
         finally:
             d.close()

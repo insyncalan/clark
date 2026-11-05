@@ -41,7 +41,7 @@ ON = "2030-06-01"
 HEADERS = {
     "Milestones": ["ID", "Milestone", "Project", "Description", "Workstream", "Original", "Agreed", "Forecast", "Status",
                    "Order", "% complete", "Owner", "Shown state", "State", "State set by you", "State reason", "Movement",
-                   "Achieved on", "Client-visible", "Client wording", "Internal note", "Source", "Updated"],
+                   "Achieved on", "Client-visible", "Client wording", "Internal note", "Source", "Updated", "Open work items"],
     "Actions": ["ID", "Description", "Project", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Closed",
                 "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels", "Source", "Updated"],
     "Risks and issues": ["ID", "Description", "Project", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood",
@@ -50,7 +50,7 @@ HEADERS = {
     "Decisions": ["ID", "Decision", "Project", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit",
                   "Replaces", "Client-visible", "Client wording", "Use case", "Labels", "Source", "Updated"],
     "Use cases": ["ID", "Use case", "Project", "Shown as", "Status", "Headline", "Where it stands", "Order", "Client-visible",
-                  "Source", "Updated"],
+                  "Source", "Updated", "Open work items"],
 }
 
 
@@ -169,7 +169,8 @@ class ExcelTests(unittest.TestCase):
         for _, table, cols, _ in excel.SHEETS:
             fields = [f for _, f in cols if f not in excel.DERIVED and f != "labels"]
             stored = {r["id"]: {f: r[f] for f in fields} for r in self.d.store.read(table, "ABC")}
-            got = {r["id"]: {f: r.get(f) for f in fields} for r in back[table]}
+            got = {r["id"]: {f: (r.get(f).split(": ")[0] if f in excel.REF_TABLES and r.get(f) else r.get(f)) for f in fields}
+                   for r in back[table]}      # item 710: the cell reads ID: name
             self.assertEqual(got, stored, table)
         labels = {r["id"]: r["labels"] for r in back["actions"]}
         self.assertEqual(labels, {self.d.action: "Sensitive", self.d.closed: None})
