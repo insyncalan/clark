@@ -179,6 +179,14 @@ class Panel(Base):
             self.assertEqual(sent[0], {"project": "ABC", "question": "When is go-live?", "earlier": []})
             self.assertEqual(sent[1]["earlier"], [{"role": "user", "text": "When is go-live?"}, {"role": "assistant", "text": "The pilot goes live in March."}])
 
+    def test_the_who_labels_are_for_a_reader_only_and_take_no_room(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "When is go-live?")
+            p.until("document.querySelectorAll('.ask-turn').length === 2", "the question and the answer")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ask-who')].map(e => e.textContent)"), ["You", "Answer"], "a reader still hears who spoke")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ask-who')].map(e => e.getBoundingClientRect().height <= 1)"), [True, True], "nothing is drawn above the bubble or the reply")
+
     def test_new_chat_drops_the_earlier_turns_so_a_refused_chat_can_start_again(self):
         with chrome() as cdp:
             p = self.opened(cdp)
@@ -219,16 +227,35 @@ class Panel(Base):
         self.stub.enabled = False
         with chrome() as cdp:
             p = self.opened(cdp, ready=False)
-            p.until("document.querySelector('#ask-off') && document.querySelector('#ask-status').textContent === ''", "the off line")
+            p.until("document.querySelector('#ask-off') && document.querySelector('#ask-status').textContent !== ''", "the off line")
+            self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Ask about this project.", "row 795: the greeting stays while asking is off")
+            self.assertTrue(p.js("document.querySelector('#ask-status').compareDocumentPosition(document.querySelector('#ask-off')) & Node.DOCUMENT_POSITION_FOLLOWING"), "the amber line sits under the status line")
             self.assertEqual(p.js("document.querySelector('#ask-off').firstChild.textContent.trim()"), "Asking is off. Turn it on in Settings.")
             self.assertTrue(p.js("document.querySelector('#ask-box').disabled"))
             self.assertTrue(p.js("document.querySelector('#ask-send').disabled"))
+            # row 795: the panel keeps its suggestions with asking off, but they are disabled and send nothing
+            self.assertEqual(p.js("document.querySelectorAll('#ask-pills button').length"), 6)
+            self.assertTrue(p.js("[...document.querySelectorAll('#ask-pills button')].every(b => b.disabled && b.getAttribute('aria-disabled') === 'true')"))
+            p.js("document.querySelector('#ask-pills button').click()")
+            p.js("document.querySelector('#ask-pills button').dispatchEvent(new MouseEvent('click', {bubbles: true}))")
+            self.assertEqual(p.js("document.querySelectorAll('.ask-turn').length"), 0, "a suggestion pressed with asking off adds nothing")
             p.js("document.querySelector('.ask-form').requestSubmit()")
             p.js("document.querySelector('#ask-box').value = 'hello'; document.querySelector('#ask-box').dispatchEvent(new Event('input'))")
             p.js("document.querySelector('.ask-form').requestSubmit()")
             p.js("document.querySelector('[data-ask-settings]').click()")
             p.until("document.querySelector('#ask-panel') === null && location.hash.indexOf('settings') === 1", "the link went to Settings and closed the panel")
             self.assertEqual(self.stub.count("ask"), 0, "no question reached the server")
+            # row 795: turning Asking back on restores working suggestions, the box and the greeting
+            self.stub.enabled = True
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel')", "reopened")
+            p.until("!document.querySelector('#ask-box').disabled", "ready again")
+            self.assertEqual(p.js("document.querySelector('#ask-off')"), None)
+            self.assertEqual(p.js("document.querySelectorAll('#ask-pills button').length"), 6)
+            self.assertTrue(p.js("[...document.querySelectorAll('#ask-pills button')].every(b => !b.disabled && !b.hasAttribute('aria-disabled'))"))
+            p.js("document.querySelector('#ask-pills button').click()")
+            p.until("document.querySelectorAll('.ask-turn').length === 2", "a suggestion asks again")
+            self.assertEqual(self.stub.count("ask"), 1)
 
     def test_it_says_nothing_of_off_or_signed_out_until_the_server_answers(self):
         self.stub.status_hold.clear()

@@ -92,6 +92,30 @@ class Switcher(unittest.TestCase):
                             self.assertTrue(seen["clear"], "the switch does not sit over the bar beside it")
                             self.assertTrue(seen["noScroll"], "no page-wide scroll")
 
+    def test_the_calendar_scales_are_one_capsule_with_the_active_one_filled_and_today_as_tall(self):
+        """Row 790."""
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sid = self.visit(cdp, width, "#milestones&p=TUL", theme=theme)
+                    cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal-sc')", sid)))
+                    got = cdp.js("""(() => { const g = document.querySelector('.cal-sc'), bs = [...g.querySelectorAll('button')], c = getComputedStyle(g);
+                        const on = bs.find(b => b.getAttribute('aria-current') === 'true'), off = bs.find(b => b !== on), today = document.querySelector('[data-cal="0"]');
+                        const bg = (e) => getComputedStyle(e).backgroundImage + '|' + getComputedStyle(e).backgroundColor;
+                        return { n: bs.length, wrapBorder: parseFloat(c.borderTopWidth), wrapRadius: parseFloat(c.borderTopLeftRadius), btnBorders: bs.map(b => parseFloat(getComputedStyle(b).borderTopWidth)),
+                          btnRadius: bs.map(b => parseFloat(getComputedStyle(b).borderTopLeftRadius)), onWeight: +getComputedStyle(on).fontWeight, offWeight: +getComputedStyle(off).fontWeight,
+                          filled: bg(on) !== bg(off), today: today.getBoundingClientRect().height, seg: g.getBoundingClientRect().height }; })()""", sid)
+                    self.assertEqual(got["n"], 3)
+                    self.assertGreaterEqual(got["wrapBorder"], 1, got)
+                    self.assertGreaterEqual(got["wrapRadius"], 16, "a capsule")
+                    self.assertEqual(got["btnBorders"], [0, 0, 0], "no outline of their own")
+                    self.assertEqual(got["btnRadius"], [0, 0, 0], got)
+                    self.assertGreater(got["onWeight"], got["offWeight"], "the active word is bold")
+                    self.assertTrue(got["filled"], "the active segment is filled")
+                    self.assertGreaterEqual(got["today"], 36, got)
+                    self.assertLessEqual(abs(got["today"] - got["seg"]), 2, "Today and the capsule are as tall")
+
     def test_the_choice_is_still_remembered_for_each_place_and_the_keys_work(self):
         port = self.serve()
         with chrome() as cdp:

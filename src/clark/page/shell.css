@@ -147,7 +147,7 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .toc-top:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 /* At 900 px and narrower the rail gives way to an "On this page" button at the bottom right of the window, which opens the same list
    above it (the narrow contents button). The button is the rail's own button, so the keys and the focus rules are the same. Drawn on both pages (the
-   editor and a published file). It sits clear of the toasts (bottom left); the page keeps 72 px free under its last line (main, above). */
+   editor and a published file). It sits clear of the toasts (bottom centre); the page keeps 72 px free under its last line (main, above). */
 .toc-ico, .toc-lbl { display: none; }
 @media (max-width: 900px) {
   .toc { right: var(--space-4); bottom: var(--space-4); top: auto; transform: none; }
@@ -581,10 +581,10 @@ input.sec-title { width: 100%; }
 .menu-why { padding: 0 var(--space-3) 6px; font-size: var(--size-caption); color: var(--text-muted); }
 .sec-add { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 28px; margin: var(--space-1) 0 6px; border: 1px dashed var(--grey-300); border-radius: var(--radius-sm); font-size: var(--size-caption); color: var(--text-muted); cursor: pointer; }
 .sec-add:hover { border-color: var(--grey-500); color: var(--text); }
-.toasts { position: fixed; left: 16px; bottom: 16px; z-index: 40; max-width: min(640px, calc(100vw - 32px)); }
-.toast { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-3); padding: 10px 14px; border-radius: var(--radius); border-left: 4px solid var(--brand-cyan); background: var(--brand-navy); color: var(--white); box-shadow: var(--shadow); font-size: var(--size-body); }
-.toast.problem { border-left-color: var(--status-red); }
-.toast-text { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.toasts { position: fixed; left: 0; right: 0; bottom: 16px; z-index: 40; width: fit-content; max-width: min(640px, calc(100vw - 32px)); margin-inline: auto; }   /* a pill centred at the foot (row 781) */
+.toast { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-4); border-radius: var(--radius-pill); border: 1px solid transparent; background: var(--brand-navy); color: var(--white); box-shadow: var(--shadow); font-size: var(--size-body); }
+.toast.problem { border-color: var(--status-red); }
+.toast-text { flex: 1 1 auto; text-align: center; min-width: 0; overflow-wrap: anywhere; }
 .toast-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 28px; padding: 0 var(--space-2); border-radius: var(--radius-sm); font-size: var(--size-caption); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; color: var(--white); }
 .toast-btn:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
 .toast-btn:focus-visible { outline-color: var(--brand-cyan); }
@@ -1099,12 +1099,13 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .cal-ms span { flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; }   /* the full name, wrapped, nothing is cut (the prototype, app.css:668) */ .cal-ms .ms-i { width: 14px; height: 14px; flex: none; margin-top: 1px; }
 .cal-ms:hover { background: var(--brand-blue-tint); } .cal-ms:focus-visible { outline: 2px solid var(--brand-blue); }
 .cal-ms.ghost { background: transparent; border: 1px dashed var(--status-red); color: var(--status-red-text); }
-.cal-sc { margin-left: auto; display: inline-flex; gap: 2px; } .cal-sc button { font-size: var(--size-caption); padding: var(--space-1) var(--space-3); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); cursor: pointer; }
-.cal-sc button[aria-current="true"] { background: var(--brand-blue-tint); border-color: var(--brand-blue); color: var(--heading); }
+.cal-sc { margin-left: auto; }   /* row 790: one capsule (the .seg look), the active scale filled like the other capsules */
+.cal-sc button { font-size: var(--size-caption); padding: 0 var(--space-3); min-height: 36px; display: inline-flex; align-items: center; }
+.cal-sc button[aria-current="true"] { background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); font-weight: var(--weight-semibold); }
 .cal-wk .cal-d { min-height: 180px; }
 .cal-q { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .cal-qm { all: unset; display: inline-block; font-weight: var(--weight-medium); color: var(--heading); margin: 0 0 var(--space-2); cursor: pointer; border-radius: var(--radius-sm); padding: 0 var(--space-1); } .cal-qm:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; } .cal-qm:hover { color: var(--status-blue-text); text-decoration: underline; }
-.cal-q .cal-d { min-height: 44px; padding: 2px; } .cal-q .cal-ms:not(.ghost) span { display: none; }   /* a dashed "Expected: name" chip is kept whole, here too */
+.cal-q .cal-d { min-height: 44px; padding: 2px; } .cal-q .cal-ms span { display: none; } .cal-q .cal-ms { justify-content: center; }   /* Quarter: every milestone is its mark only, a slipped one keeps its dashed outline; the name, date and state are its tooltip and its accessible name (row 821) */
 .cal:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 4px; }
 .cal-d[data-d]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }   /* a day is a tab stop, as in the prototype (issue 481) */
 .cal-far { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin: 0 0 var(--space-3); color: var(--status-amber-text); }
@@ -1129,6 +1130,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mlg-ghost { width: 12px; height: 12px; border: 2px dashed var(--status-red); border-radius: 50%; } .mlg-today { width: 2px; height: 16px; background: var(--heading); }
 
 .mv-bar .btn, .cal-bar .btn { padding: var(--space-1) 10px; font-size: var(--size-caption); }
+.cal-bar .btn { min-height: 36px; }   /* row 790: Today as tall as the scale capsule */
 
 /* Item 130, point 9: a text-style button is at least 24 px tall and wide (the project list's names), with the same look: the text stays put. */
 .link { display: inline-flex; align-items: center; box-sizing: border-box; min-height: 24px; min-width: 24px; }
