@@ -104,12 +104,12 @@ SHEETS = [
         ("Owner", "owner"), ("Shown state", "shown_state"), ("State", "state"), ("State set by you", "state_set"),
         ("State reason", "state_reason"), ("Movement", "movement"), ("Achieved on", "actual_date"),
         ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Internal note", "internal_note"),
-        ("Source", "source"), ("Updated", "updated_at"), ("Open work items", "open_items")],
+        ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
      {"id", "original_date", "shown_state", "source", "updated_at", "open_items"}),
     ("Use cases", "use_cases", [                                       # clark's own table, in creaite's style
         ("ID", "id"), ("Use case", "title"), ("Project", "project"), ("Shown as", "ref"), ("Status", "status"),
         ("Headline", "headline"), ("Where it stands", "standing"), ("Order", "sort_order"),
-        ("Client-visible", "client_visible"), ("Source", "source"), ("Updated", "updated_at"), ("Open work items", "open_items")],
+        ("Client-visible", "client_visible"), ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
      {"id", "source", "updated_at", "open_items"}),
 ]
 TABLES = tuple(t for _, t, _, _ in SHEETS)
@@ -248,7 +248,7 @@ def day(on=None):
 
 
 def exported_text(on=None):
-    """'Exported on DD-MM-YYYY at HH:MM (UTC+04:00)' in the user's local time (#75), for the cover (#85b). The zone is named by
+    """'DD-MM-YYYY HH:MM (UTC+04:00)' in the user's local time (#75), for the cover (#85b). The zone is named by
     its UTC offset, not its name: zone names ('Gulf Standard Time', or just '+04') differ between systems, an offset does not.
     The moment is the export's own (moment(on): the clock, or midnight UTC at the start of `on`), shown through clark.timefmt,
     so it depends on the machine's zone by design: a cover carrying it differs between zones for the same data and clock."""
@@ -256,7 +256,7 @@ def exported_text(on=None):
     shown = local_text(stamp)
     offset = int(parse(stamp).astimezone().utcoffset().total_seconds() // 60)
     sign, offset = ("+" if offset >= 0 else "-"), abs(offset)
-    return f"Exported on {shown[:10]} at {shown[11:]} (UTC{sign}{offset // 60:02d}:{offset % 60:02d})"
+    return f"{shown[:10]} {shown[11:]} (UTC{sign}{offset // 60:02d}:{offset % 60:02d})"
 
 
 def file_hash(path):

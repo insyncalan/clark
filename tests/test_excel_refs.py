@@ -83,11 +83,13 @@ class Export(RoundTrip):
         self.assertNotIn(done, uc + risk)
         self.assertNotIn(made, uc)
 
-    def test_open_work_items_is_the_last_column_derived_and_in_the_filter(self):
+    def test_open_work_items_sits_before_source_and_updated_derived_and_in_the_filter(self):
         self.assertIn("open_items", excel.DERIVED)
         for name in ("Milestones", "Use cases"):
             ws = load_workbook(str(self.path))[name]
-            self.assertEqual(ws.cell(1, ws.max_column).value, "Open work items")
+            heads = [c.value for c in ws[1]]
+            self.assertEqual(heads[-3:], ["Open work items", "Source", "Updated"], name)
+            self.assertEqual(heads.count("Open work items"), 1)
             self.assertTrue(ws.auto_filter.ref.startswith("A1:" + ws.cell(1, ws.max_column).column_letter), ws.auto_filter.ref)
 
 
