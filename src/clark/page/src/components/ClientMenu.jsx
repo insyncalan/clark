@@ -41,7 +41,7 @@ function ProfileBox({ onClose }) {
   const has = readerName.value !== "";
   const [text, setText] = useState(readerName.value);
   useEffect(() => {
-    const held = [document.getElementById("main"), ...[...document.querySelectorAll(".top > :not(.cmenu)")]].filter(Boolean);
+    const held = [document.getElementById("main"), ...[...document.querySelectorAll(".top > :not(.cm-wrap)")]].filter(Boolean);
     held.forEach((el) => el.setAttribute("inert", ""));
     if (field.current) { field.current.focus(); field.current.select(); }
     return () => held.forEach((el) => el.removeAttribute("inert"));
@@ -87,7 +87,7 @@ export function ClientMenu() {
   const run = (fn) => () => { close("pick"); fn(); };
   const item = (row, label, fn, extra) => <button type="button" class="cm-row" role="menuitem" tabIndex={-1} data-row={row} onClick={run(fn)} {...extra}>{label}</button>;
   return (
-    <span class="cmenu">
+    <span class="cm-wrap">
       <button type="button" class="cm-badge" id="client-menu-btn" ref={btn} aria-label={WORDS.menu} title={WORDS.menu} data-tip={WORDS.menu}
         aria-haspopup="menu" aria-expanded={open ? "true" : "false"} aria-controls={open ? "client-menu" : undefined}
         onKeyDown={(e) => { if (e.key === "ArrowDown" && !open) { e.preventDefault(); setOpen(true); } }}

@@ -186,7 +186,7 @@ class Menu(unittest.TestCase):
             js("window.dispatchEvent(new Event('beforeprint'))")
             self.assertTrue(wait(lambda: js("document.documentElement.classList.contains('print-all')")))
             self.assertEqual(js("[document.documentElement.dataset.theme || 'none', getComputedStyle(document.querySelector('.top')).display]"), ["none", "none"])
-            self.assertEqual(js("document.querySelector('.cmenu').getClientRects().length + ' ' + getComputedStyle(document.body).backgroundColor"), "0 rgb(255, 255, 255)")
+            self.assertEqual(js("document.querySelector('.cm-wrap').getClientRects().length + ' ' + getComputedStyle(document.body).backgroundColor"), "0 rgb(255, 255, 255)")
             cdp.call("Emulation.setEmulatedMedia", {"media": ""}, self.sid)
             js("window.dispatchEvent(new Event('afterprint'))")
             self.assertEqual(js("document.documentElement.dataset.theme"), "dark", "back to the reader's choice afterwards")
@@ -265,7 +265,8 @@ class Menu(unittest.TestCase):
                 js = self.open(cdp)
                 js("localStorage.setItem('clark.reader.name', " + json.dumps(name) + ")")
                 js("location.reload()")
-                self.assertTrue(wait(lambda: js("!!document.querySelector('#client-menu-btn')"), 15))
+                # the reload is not over until the reloaded page answers with its badge: wait for the wanted initials themselves
+                wait(lambda: js(f"{BADGE}.textContent") == want, 15)
                 self.assertEqual(js(f"{BADGE}.textContent"), want, name)
 
     def test_a_bad_workbook_is_not_offered(self):
@@ -308,7 +309,7 @@ class Menu(unittest.TestCase):
                     self.assertEqual(js(SPACE), [True, True], "no sideways scroll " + here)
                     bad = js("(function(){var b=document.querySelector('#client-menu-btn').getBoundingClientRect(), out=[];"
                              "if (b.right > document.documentElement.clientWidth || b.left < 0) out.push('badge off screen');"
-                             "[...document.querySelectorAll('.top > *')].forEach(function(e){ if (e.classList.contains('cmenu')) return; var r=e.getBoundingClientRect();"
+                             "[...document.querySelectorAll('.top > *')].forEach(function(e){ if (e.classList.contains('cm-wrap')) return; var r=e.getBoundingClientRect();"
                              "if (r.width && r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top) out.push(e.className); });return out;})()")
                     self.assertEqual(bad, [], "the badge overlaps nothing " + here)
                     js(f"if (!{MENU}) {BADGE}.click()")
@@ -324,16 +325,16 @@ class Editor(Base):
     def test_the_editor_has_no_client_badge_and_keeps_its_own_theme(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            self.assertEqual(p.js("[document.querySelectorAll('#client-menu-btn, .cmenu').length, !!document.querySelector('#profile-btn')]"), [0, True])
+            self.assertEqual(p.js("[document.querySelectorAll('#client-menu-btn, .cm-wrap').length, !!document.querySelector('#profile-btn')]"), [0, True])
             p.js("localStorage.setItem('clark.reader.look', 'dark')")
             p.reload()
-            self.assertEqual(p.js("[document.querySelectorAll('.cmenu').length, document.documentElement.dataset.theme || 'none']"), [0, "auto"], "the editor's own appearance, not the reader's")
+            self.assertEqual(p.js("[document.querySelectorAll('.cm-wrap').length, document.documentElement.dataset.theme || 'none']"), [0, "auto"], "the editor's own appearance, not the reader's")
 
 
 class Words(unittest.TestCase):
     def test_the_css_for_the_menu_has_tokens_only(self):
         css = (Path(__file__).resolve().parent.parent / "src/clark/page/shell.css").read_text(encoding="utf-8")
-        mine = "\n".join(l for l in css.splitlines() if re.search(r"\.cm(enu|-)|\.ddmenu(\.cm-menu|\.cm| \.cm| a\.cm)|\.asat \+ \.cmenu", l))
+        mine = "\n".join(l for l in css.splitlines() if re.search(r"\.cm(-|-wrap)|\.ddmenu(\.cm-menu|\.cm| \.cm| a\.cm)|\.asat \+ \.cm-wrap", l))
         self.assertGreater(len(mine), 500)
         self.assertNotIn("rgba(", mine)
         self.assertNotRegex(mine, r"font-size:\s*\d")

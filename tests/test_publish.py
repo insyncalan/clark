@@ -1135,11 +1135,11 @@ class RealBrowser(unittest.TestCase):
             # The milestone block (.msv) holds buttons that only change how the view is drawn: the Timeline / Calendar switch, zoom,
             # Today, the arrows, the scale, a quarter's month heading, Legend, "Show all" and Reset. Only these are allowed in a file;
             # any other button there (an eye, Export, Hold) is an Edit control and fails, as does every button outside the block.
-            # The reader's badge (.cmenu, issue 713) is the one other button: it changes only how the page looks for them (their own Light / Dark choice).
+            # The reader's badge (.cm-wrap, issue 713) is the one other button: it changes only how the page looks for them (their own Light / Dark choice).
             allow = "[data-msvb], [data-mv], [data-cal], [data-scale-b], [data-goto], [data-msall], [data-zreset], .mlg-b"
             found = cdp.js("({fields: document.querySelectorAll('input, textarea, select, form, [contenteditable]').length, "
                            "design: document.designMode, editable: document.body.isContentEditable, "
-                           "buttons: [...document.querySelectorAll('button')].filter(b => !b.classList.contains('tab') && !b.closest('.msv') && !b.closest('.toc') && !b.closest('.cmenu')).length, "
+                           "buttons: [...document.querySelectorAll('button')].filter(b => !b.classList.contains('tab') && !b.closest('.msv') && !b.closest('.toc') && !b.closest('.cm-wrap')).length, "
                            f"unlisted: [...document.querySelectorAll('.msv button')].filter(b => !b.matches({json.dumps(allow)})).map(b => b.className + ' ' + b.textContent).length, "
                            "settings: !!document.querySelector('[data-view=settings]'), mode: document.documentElement.dataset.mode})", sid)
         self.assertEqual(found, {"fields": 0, "design": "off", "editable": False, "buttons": 0, "unlisted": 0, "settings": False, "mode": "view"})

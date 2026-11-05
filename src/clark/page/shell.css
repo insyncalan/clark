@@ -1765,8 +1765,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ucp-headline { margin: 0 0 8px; }
 /* Issue 713, a published file only: the reader's badge and menu at the top right of the bar, and the box "Your profile". Tokens only.
    The bar is dark in light and dark alike, so the badge uses the profile tokens. The bar's print rule hides all of it. */
-.cmenu { position: relative; display: inline-flex; flex: none; margin-left: auto; }
-.asat + .cmenu { margin-left: 0; }
+.cm-wrap { position: relative; display: inline-flex; flex: none; margin-left: auto; }
+.asat + .cm-wrap { margin-left: 0; }
 .cm-badge { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: var(--profile-size); height: var(--profile-size); border: 1px solid var(--profile-ring); border-radius: 50%; background: var(--profile-bg); color: var(--profile-fg); cursor: pointer; font-size: var(--size-caption); font-weight: var(--weight-medium); line-height: 1; }
 .cm-badge:hover, .cm-badge[aria-expanded="true"] { border-color: var(--profile-fg); }
 .cm-badge:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
