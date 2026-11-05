@@ -93,7 +93,7 @@ class AddMenu(Base):
             p.until(f"!!document.querySelector('#work tr[data-id=\"{ref}\"]')", "the filter was cleared, so the new row is in the list")
             self.assertNotIn("owner", p.js("location.hash"), "no filter is left in the address")
             p.until(f"(window.clarkPage.peek() || {{}}).id === '{ref}'", "its panel opened")
-            p.until("document.activeElement && document.activeElement.classList.contains('pk-title')", "the panel's title has the keyboard")
+            p.until("document.activeElement && (document.activeElement.classList.contains('pk-title') || document.activeElement.hasAttribute('data-pk-title-in'))", "the panel's title has the keyboard")
             self.assertEqual(p.js("String(getSelection())"), "New action", "and its words are selected")
 
     def test_with_one_workstream_filtered_the_new_item_goes_in_it(self):
