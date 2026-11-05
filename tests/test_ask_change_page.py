@@ -203,6 +203,24 @@ class TheCard(Card):
                     self.assertTrue(r, "Apply is inside the panel")
 
 
+    def test_the_card_has_a_quiet_look_and_a_small_flat_apply(self):         # row 780
+        self.says(self.close_it())
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                for theme in ("light", "dark"):
+                    p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                    css = lambda sel, prop: p.js(f"getComputedStyle(document.querySelector('{sel}'))['{prop}']")  # noqa: E731
+                    self.assertEqual(css("[data-ask-change]", "borderLeftWidth"), "3px", f"{width} {theme}: the card has an accent edge")
+                    self.assertEqual(css("[data-ask-apply]", "backgroundImage"), "none", f"{width} {theme}: Apply is flat, not the pill gradient")
+                    self.assertEqual(css("[data-ask-apply]", "boxShadow"), "none", f"{width} {theme}: no glow")
+                    self.assertEqual(css("[data-ask-apply]", "minHeight"), "24px")
+                    self.assertEqual(p.js("document.querySelector('[data-ask-apply]').textContent"), "Apply", "the words are unchanged")
+
+
 class Words(unittest.TestCase):
     def test_every_new_sentence_is_plain_and_starts_with_what_happened_or_the_next_step(self):
         said = dict(re.findall(r'export const ([A-Z_]+) = "((?:[^"\\]|\\.)*)"', WORDS))
