@@ -226,7 +226,7 @@ class Detail(unittest.TestCase):
                     self.assertEqual(js("document.querySelector('[data-ucd] [data-ucd-field=title]').value"), u["title"])
                     self.assertEqual(js("document.querySelector('[data-ucd] [data-ucd-field=headline]').value"), u["headline"])
                     self.assertEqual(js("document.querySelector('[data-ucd] [data-word]').textContent"), "Flag", "the status is a word, not only a colour")
-                    self.assertRegex(js("document.querySelector('.ucd-sub').textContent"), r"^Flag2 of 2 work items open · 1 milestone$")
+                    self.assertRegex(js("document.querySelector('.ucd-sub').textContent"), r"^FlagCommitted2 of 2 work items open · 1 milestone$")
                     self.assertEqual(js("document.querySelector('[data-eye]').textContent"), "On the dashboard")
                     self.assertEqual(js("document.querySelector('[data-eye-toggle]').textContent"), "Take off the dashboard")
                     self.assertEqual(js("[...document.querySelectorAll('#ucd-status')].length"), 1)
@@ -300,6 +300,31 @@ class Detail(unittest.TestCase):
             self.undo(cdp, sid)
             self.assertEqual(self.row()["standing"], was)
             self.until(cdp, sid, "!document.querySelector('[data-rich=standing]').textContent.includes('Added by the test.')", "Undo draws it as it was")
+
+    def test_the_commitment_is_one_change_with_one_undo_and_the_history_says_it_in_words(self):
+        """#709: the chip in the detail is a menu in Edit; a choice is one change, one Undo, and a History line from the old word to the new."""
+        with chrome() as cdp:
+            sid = self.open_detail(cdp)
+            was = self.row()["commitment"]
+            self.assertEqual(was, "Committed", "the demo's first TUL use case")
+            self.assertEqual(cdp.js("document.querySelector('.ucd-sub [data-uc-commit] button').getAttribute('aria-label')", sid), "Commitment: Committed. Change")
+            before = self.steps()
+            cdp.js("document.querySelector('.ucd-sub [data-uc-commit] button').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('[role=menu][aria-label=Commitment]')", "the menu opened")
+            cdp.js("[...document.querySelectorAll('[role=menu][aria-label=Commitment] [role^=menuitem]')].find(e => e.textContent.includes('Planned 2027')).click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "the toast offers Undo")
+            self.assertEqual(self.steps(), before + 1, "one choice is one step")
+            self.assertEqual(self.row()["commitment"], "Planned 2027")
+            self.assertEqual((self.sent[-1][1]["op"], self.sent[-1][1]["changes"]), ("update", {"commitment": "Planned 2027"}))
+            self.until(cdp, sid, "[...document.querySelectorAll('[data-history] li')].some(l => /changed the Commitment from Committed to Planned 2027/.test(l.textContent))", "the history says so")
+            self.undo(cdp, sid)
+            self.assertEqual(self.row()["commitment"], was)
+            cdp.js("document.querySelector('.ucd-sub [data-uc-commit] button').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('[role=menu][aria-label=Commitment]')", "the menu opened again")
+            cdp.js("[...document.querySelectorAll('[role=menu][aria-label=Commitment] [role^=menuitem]')].find(e => e.textContent.includes('No flag')).click()", sid)
+            self.until(cdp, sid, "[...document.querySelectorAll('[data-history] li')].some(l => /changed the Commitment from Committed to no flag/.test(l.textContent))", "a clear reads as no flag")
+            self.assertIsNone(self.row()["commitment"])
+            self.until(cdp, sid, "document.querySelector('.ucd-sub [data-uc-commit] button').textContent === 'Set commitment'", "the quiet Set commitment affordance")
 
     def test_the_title_and_the_headline_are_one_change_each_with_one_undo_and_a_blank_title_is_refused(self):
         with chrome() as cdp:
