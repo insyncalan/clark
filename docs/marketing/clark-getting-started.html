@@ -42,10 +42,17 @@ dl.rules dt { font-weight: 600; color: var(--navy); }
 dl.rules dd { margin: 0; color: var(--grey-700); }
 b { font-weight: 600; }
 
+.cover { position: relative; }
+.cover figure.meet { margin: 0 0 0 auto; text-align: center; break-inside: avoid; }
+.cover figure.meet img { width: 84px; height: 84px; max-height: none; border: 0; box-shadow: none; border-radius: 10px; display: block; }
+.cover figcaption { margin-top: 3px; font-size: 9pt; font-weight: 600; color: var(--cyan); }
+figure.end { float: right; margin: 0 0 8px 14px; }
+figure.end img { width: 64px; height: 64px; max-height: none; border: 0; box-shadow: none; border-radius: 8px; }
+
 </style>
 </head>
 <body>
-<header class="cover"><img class="mark" src="img/clark-icon-512.png" alt=""><div><p class="eyebrow">clark 1.0.0 · Beta · for Mac</p><h1>Getting started with clark</h1></div></header>
+<header class="cover"><img class="mark" src="img/clark-icon-512.png" alt=""><div><p class="eyebrow">clark 1.0.0 · Beta · for Mac</p><h1>Getting started with clark</h1></div><figure class="meet"><img src="img/clark-mascot.png" alt="The clark character: a figure in glasses and a blue suit."><figcaption>Meet clark.</figcaption></figure></header>
 <p class="big">Keep one project record. Shape the weekly report from it. Publish it.</p>
 <p class="lead">clark is a report editor for programme managers. It keeps a project's actions, risks, issues, decisions, milestones and use cases in one place on your own computer, with a history and Undo.</p>
 <p class="contents">Contents: What you need, page 1 · Install and first start, page 1 · Look around with made-up data, page 2 · Your first five things, page 3 · Where your data lives, page 7 · If something goes wrong, page 7</p>
@@ -208,6 +215,7 @@ b { font-weight: 600; }
 <pre>python3 -m clark restore</pre>
 <p>If it says nothing was started because clark is already open in another Terminal window, or another program is using the connection it needs, close that Terminal window or program, then double-click clark.command again.</p>
 <p>If it says port 8766 is already used, another clark is open: close it, or stop it with the command in step 5 of the Docker steps, then try again. If it says it cannot connect to Docker, Docker Desktop is not running yet.</p>
+<figure class="end"><img src="img/clark-mascot.png" alt="The clark character: a figure in glasses and a blue suit."></figure>
 <p>Made a mistake? Every change saves on its own, and the message at the foot of the page offers Undo.</p>
 </body>
 </html>

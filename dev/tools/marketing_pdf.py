@@ -45,8 +45,9 @@ def run_chrome(args):
     if not path:
         raise Refused("Chrome was not found. Install Google Chrome, or set CLARK_CHROME to its file.")
     profile = tempfile.mkdtemp(prefix="clark-marketing-")
-    cmd = [path, "--headless", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars",
-           "--user-data-dir=" + profile, *args]
+    # the shared builder puts in the keychain flags; this run prints or photographs a page, so its DevTools pipe is not wanted
+    cmd = run_support.chrome_command(path, profile, "--hide-scrollbars")[:-2]      # the last two are the pipe flag and the blank page
+    cmd += args
     proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                             start_new_session=True)
     try:

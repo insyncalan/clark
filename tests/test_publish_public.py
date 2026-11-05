@@ -1540,6 +1540,13 @@ KNOWN_PUBLIC = frozenset({
     "docs/img/milestones-calendar.png", "docs/img/milestones-timeline.png", "docs/img/peek.png",
     "docs/img/published-page.png", "docs/img/report-dark.png", "docs/img/report-edit.png", "docs/img/report-light.png",
     "docs/img/work-items-board.png", "docs/img/work-items-dark.png", "docs/img/work-items-table.png",
+    # #706 #707: the overview and the Getting Started guide for clark 1.0.0, with the demo-data pictures they use
+    "docs/marketing/clark-overview.html", "docs/marketing/clark-overview.pdf", "docs/marketing/clark-overview.png",
+    "docs/marketing/clark-getting-started.html", "docs/marketing/clark-getting-started.pdf",
+    "docs/marketing/img/arrange-grip.png", "docs/marketing/img/arrange-leave-out.png", "docs/marketing/img/arrange-menu.png",
+    "docs/marketing/img/clark-icon-512.png", "docs/marketing/img/clark-mascot.png", "docs/marketing/img/excel-in-box.png",
+    "docs/marketing/img/publish-dialog.png", "docs/marketing/img/publish-menu.png", "docs/marketing/img/templates-add-box.png",
+    "docs/marketing/img/templates-dialog.png", "docs/marketing/img/templates-place.png",
 })
 
 
