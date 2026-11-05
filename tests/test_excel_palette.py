@@ -1,0 +1,160 @@
+"""Item 711 (4a): the Excel palette reads the local brand over the committed look (clark.excel_palette), pure and uncached.
+
+Run: python3 dev/run_tests.py test_excel_palette
+Every brand here is invented in a temporary folder; nothing is read from or written to system/branding.
+"""
+import shutil
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+import _paths  # noqa: F401
+from clark import excel_colours as base
+from clark import excel_palette as ep
+
+ENERGY = """/* an invented teal look */
+:root {
+  --brand-navy: #0B2545; --brand-blue: #0A7C74; --brand-ink: #101820;
+  --status-green-tint: #DDF5F0; --status-green-text: #046B5F;
+  --teal: #13A89E; --status-blue-text: var(--teal-dark); --teal-dark: #0A6F68;
+  --font-office: 'Segoe UI', sans-serif;
+}
+"""
+AIQ = """:root { --brand-navy: #1B1F3B; --white: #FFF; --brand-blue: #7A1FA2; --grey-100: #EEE; --grey-700: #444;
+  --font-office: Georgia; }
+"""
+NOWHERE = Path("/nonexistent-brand-folder")
+
+
+def contrast_ok(p):
+    return all(ep.contrast_ratio(p.tokens[f], p.tokens[t]) >= 4.5 for f, t, _ in ep._pairs(p.colours))
+
+
+class Committed(unittest.TestCase):
+    def check_default(self, p):
+        self.assertEqual(p.tokens, base.TOKENS)
+        self.assertEqual(p.colours, base.COLOURS)
+        self.assertEqual((p.header_fill, p.header_text, p.late_text), (base.HEADER_FILL, base.HEADER_TEXT, base.LATE_TEXT))
+        self.assertEqual(p.font, ep.look.office_font())
+        self.assertEqual(p.warnings, [])
+        for name in base.COLOURS:
+            self.assertEqual(p.hexes(name), base.hexes(name))
+        self.assertEqual(len(p.tokens), 17)
+
+    def test_no_brand_is_the_module_constants(self):
+        self.check_default(ep.palette(branding=NOWHERE))
+
+    def test_empty_branding_dir(self):
+        d = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, d, True)
+        self.check_default(ep.palette(branding=d))
+
+    def test_committed_pairs_pass(self):
+        self.assertTrue(contrast_ok(ep.palette(branding=NOWHERE)))
+
+    def test_contrast_ratio(self):
+        self.assertAlmostEqual(ep.contrast_ratio("#000", "#FFFFFF"), 21.0)
+        self.assertAlmostEqual(ep.contrast_ratio("FFFFFF", "ffffff"), 1.0)
+
+
+class Brands(unittest.TestCase):
+    def brand(self, text):
+        d = Path(tempfile.mkdtemp(prefix="clark-pal-"))
+        self.addCleanup(shutil.rmtree, d, True)
+        (d / "tokens.css").write_text(text, encoding="utf-8")
+        return d
+
+    def test_energy_like_brand_from_a_folder(self):
+        w = []
+        p = ep.palette(branding=self.brand(ENERGY), warnings=w)
+        self.assertEqual(p.header_fill, "0B2545")
+        self.assertEqual(p.tokens["brand-blue"], "0A7C74")
+        self.assertEqual(p.hexes("green"), ("DDF5F0", "046B5F"))
+        self.assertEqual(p.tokens["status-blue-text"], "0A6F68")        # a var() chain through a brand-only name
+        self.assertEqual(p.tokens["grey-100"], base.TOKENS["grey-100"])  # untouched names stay committed
+        self.assertEqual(p.font, "Segoe UI")
+        self.assertEqual(p.warnings, w)
+        self.assertTrue(contrast_ok(p))
+
+    def test_aiq_like_brand_three_digit_hex(self):
+        p = ep.palette(branding=self.brand(AIQ))
+        self.assertEqual(p.header_text, "FFFFFF")
+        self.assertEqual(p.header_fill, "1B1F3B")
+        self.assertEqual(p.tokens["grey-100"], "EEEEEE")
+        self.assertEqual(p.tokens["grey-700"], "444444")
+        self.assertEqual(p.font, "Georgia")
+        self.assertEqual(p.warnings, [])
+        self.assertTrue(contrast_ok(p))
+
+    def test_only_some_tokens(self):
+        p = ep.palette(css=":root { --brand-navy: #123456; }")
+        self.assertEqual(p.header_fill, "123456")
+        self.assertEqual({k: v for k, v in p.tokens.items() if k != "brand-navy"},
+                         {k: v for k, v in base.TOKENS.items() if k != "brand-navy"})
+        self.assertEqual(p.font, ep.look.office_font())
+
+    def test_function_colours_fall_back_per_token_with_a_warning(self):
+        for bad in ("rgb(10, 20, 30)", "hsl(200, 50%, 20%)", "color-mix(in srgb, #000, #fff 20%)"):
+            w = []
+            p = ep.palette(css=":root { --brand-navy: %s; --grey-100: #DDEEFF; }" % bad, warnings=w)
+            self.assertEqual(p.header_fill, base.HEADER_FILL, bad)
+            self.assertEqual(p.tokens["grey-100"], "DDEEFF", bad)         # the other token is kept
+            self.assertEqual(len(w), 1, bad)
+            self.assertIn("brand-navy", w[0])
+            self.assertEqual(p.warnings, w)
+
+    def test_a_failing_status_pair_reverts_as_a_pair(self):
+        w = []
+        p = ep.palette(css=":root { --status-amber-tint: #FFFF00; --status-amber-text: #FFFF99; --status-red-tint: #FFEEEE; }", warnings=w)
+        self.assertEqual(p.hexes("amber"), base.hexes("amber"))      # both reverted, not only the text
+        self.assertEqual(p.tokens["status-red-tint"], "FFEEEE")      # a passing pair elsewhere is kept
+        self.assertEqual(len(w), 1)
+        self.assertIn("status-amber-tint", w[0])
+
+    def test_a_failing_header_pair_reverts_both(self):
+        p = ep.palette(css=":root { --brand-navy: #DDDDDD; --white: #FFFFFF; }")
+        self.assertEqual((p.header_fill, p.header_text), (base.HEADER_FILL, base.HEADER_TEXT))
+        self.assertTrue(p.warnings)
+
+    def test_a_failing_cover_pair_reverts(self):
+        p = ep.palette(css=":root { --status-red: #FF9999; }")        # the white-on-red INTERNAL tag
+        self.assertEqual(p.tokens["status-red"], base.TOKENS["status-red"])
+
+    def test_a_generic_or_bad_font(self):
+        self.assertEqual(ep.palette(css=":root { --font-office: sans-serif, Calibri; }").font, "Calibri")
+        w = []
+        p = ep.palette(css=":root { --font-office: serif; }", warnings=w)
+        self.assertEqual(p.font, ep.look.office_font())
+        self.assertEqual(len(w), 1)
+        self.assertEqual(ep.palette(css=":root { --font-office: 'Bad<Name', Verdana; }").font, "Verdana")
+
+    def test_unreadable_brand_text(self):
+        p = ep.palette(css="nothing here")
+        self.assertEqual(p.tokens, base.TOKENS)
+        self.assertEqual(len(p.warnings), 1)
+
+    def test_no_cache_between_calls(self):
+        a = ep.palette(css=":root { --brand-navy: #0B2545; }")
+        b = ep.palette(css=":root { --brand-navy: #1B1F3B; }")
+        c = ep.palette(branding=NOWHERE)
+        self.assertEqual((a.header_fill, b.header_fill, c.header_fill), ("0B2545", "1B1F3B", base.HEADER_FILL))
+        self.assertEqual(base.TOKENS["brand-navy"], base.HEADER_FILL)        # the module constants are not touched
+
+    def test_never_writes_to_disk(self):
+        d = self.brand(ENERGY)
+        before = sorted(p.name for p in d.iterdir())
+        real_open = open
+
+        def guarded(f, mode="r", *a, **k):
+            self.assertFalse(set(mode) & set("wax+"), f"{f} opened for writing")
+            return real_open(f, mode, *a, **k)
+        with mock.patch("builtins.open", guarded), mock.patch.object(Path, "write_text", side_effect=AssertionError), \
+                mock.patch.object(Path, "write_bytes", side_effect=AssertionError), mock.patch.object(Path, "mkdir", side_effect=AssertionError):
+            ep.palette(branding=d)
+            ep.palette(css=AIQ)
+        self.assertEqual(sorted(p.name for p in d.iterdir()), before)
+
+
+if __name__ == "__main__":
+    unittest.main()
