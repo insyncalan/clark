@@ -268,7 +268,7 @@ function List({ Board, Cell, Eye, Bulk, HandOver, L }) {
         <span id="work-count" class="num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
       </div>
       {filtered.length === 0
-        ? <div class="empty"><p class="muted">{L.empty.none}</p>{can ? <button type="button" class="link" id="clearFilter" onClick={clear}>{L.empty.clear}</button> : null}</div>
+        ? <div class="empty"><p class="muted">{v.empty.none}</p>{can ? <button type="button" class="link" id="clearFilter" onClick={clear}>{v.empty.clear}</button> : null}{v.empty.hint ? <p class="muted" id="empty-hint">{v.empty.hint}</p> : null}</div>
         : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} />}
     </div>
   );

@@ -1,6 +1,6 @@
 // issue 709: the commitment chip in Edit: a small menu button like the status word. It lists the owner's three words (from data.commitments)
 // and "No flag"; a choice is ONE change (kind use_cases, update, commitment) with one Undo and one History line. With no flag it reads
-// "Set commitment", a quiet empty chip that only exists in Edit. View and the published file draw components/CommitChip.jsx instead.
+// "Set commitment" (row 791: the open menu is headed "Commitment"), a quiet empty chip that only exists in Edit. View and the published file draw components/CommitChip.jsx instead.
 import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
 import { Menu } from "../components/Menu.jsx";
@@ -22,7 +22,7 @@ export function CommitMenu({ u, left }) {
     <span class="ucst uccm" data-uc-commit={u.id} data-edit-only>
       <Menu label={w || SET_WORDS} labelCls={`cchip ${w ? commitClass(w) : "cc-set"}`} btnCls="ucw-btn" left={left} chevron={false}
         ariaLabel={w ? `Commitment: ${w}. Change` : "Commitment: none. Set commitment"} menuLabel="Commitment" id={`uccm-${u.id}`}
-        items={[...words.map((n) => ({ id: n, name: n, checked: w === n })), { id: NONE, name: NO_FLAG, checked: !w }]} onPick={pick} />
+        items={[{ id: "head", lab: "Commitment" }, ...words.map((n) => ({ id: n, name: n, checked: w === n })), { id: NONE, name: NO_FLAG, checked: !w }]} onPick={pick} />
     </span>
   );
 }
