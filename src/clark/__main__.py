@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, ai_connect, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, server, sneak, store as clark_store, updater as clark_updater, use_cases_read, word_route
+from clark import activity_read, ai_connect, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, server, sneak, store as clark_store, typed, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -51,12 +51,13 @@ class Usage(Quiet):
     """A mistake in the options: one plain line, the hint to --help, and exit code 2 (as the parser's own errors)."""
 
 
-HINT = "Run python3 -m clark --help to see the options."
+def hint():
+    return f"Run {typed.clark('--help')} to see the options."
 
 
 def stop_with_usage(text):
     """A mistake in the options: one plain line, the hint to --help, and exit code 2 (as argparse's own errors)."""
-    print(f"{text}\n{HINT}", file=sys.stderr)
+    print(f"{text}\n{hint()}", file=sys.stderr)
     sys.exit(2)
 
 
@@ -71,7 +72,7 @@ class Parser(argparse.ArgumentParser):
         elif missing:
             text = f"{missing.group(1)} needs a value after it."
         else:
-            text = "These options can't be read. Run python3 -m clark --help to see the options."
+            text = f"These options can't be read. {hint()}"
         stop_with_usage(text)
 
 
@@ -87,12 +88,12 @@ class RestoreParser(Parser):
             text = f"{missing.group(1)} needs a value after it."
         else:
             text = "These options aren't recognised."           # argparse's own words are technical; the next line points to --help
-        print(f"{text}\nRun python3 -m clark restore --help to see the options.", file=sys.stderr)
+        print(f"{text}\nRun {typed.clark('restore --help')} to see the options.", file=sys.stderr)
         sys.exit(2)
 
 
 def restore_parser():
-    p = RestoreParser(prog="python3 -m clark restore",
+    p = RestoreParser(prog=typed.clark("restore"),
                       description="List clark's backups, or put one back. Close clark first: stop every running copy. With no NAME it only lists the copies.")
     p.add_argument("name", nargs="?", metavar="NAME", help="the backup to put back (as listed, for example clark-20261028T143005Z-undo.db)")
     p.add_argument("--data", metavar="FOLDER", help="the folder for clark's data (default: clark's own folder for your system)")
@@ -102,8 +103,8 @@ def restore_parser():
 
 
 def parser():
-    p = Parser(prog="python3 -m clark", description="Start clark on this computer. Only this computer can reach it.",
-               epilog="To list the backups or put one back: python3 -m clark restore --help")
+    p = Parser(prog=typed.clark(), description="Start clark on this computer. Only this computer can reach it.",
+               epilog=f"To list the backups or put one back: {typed.clark('restore --help')}")
     p.add_argument("--data", metavar="FOLDER", help="the folder for clark's data (default: clark's own folder for your system)")
     p.add_argument("--port", metavar="N", help=f"the port clark listens on (default: the CLARK_PORT setting, or {server.DEFAULT_PORT})")
     p.add_argument("--open", action="store_true", help="also open the page in your browser")
@@ -310,7 +311,7 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
             for row in found:
                 print(f"  {row['when']}  {row['kind']:<17} {row['name']}", file=out)
             print("To put one back, close clark, then run this, with NAME the file name from the list above and FOLDER this folder:\n"
-                  "    python3 -m clark restore --from FOLDER NAME", file=out, flush=True)
+                  f"    {typed.clark('restore --from FOLDER NAME')}", file=out, flush=True)
             return 0
         if args.name is None:
             found = backup.listing(folder / "backups")
@@ -321,7 +322,7 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
             print(f"Backups in {folder_shown}, newest first (times are your local time):", file=out)
             for row in found:
                 print(f"  {row['when']}  {row['kind']:<17} {row['name']}", file=out)
-            print(backup.RESTORE_HELP, file=out, flush=True)
+            print(backup.restore_help(), file=out, flush=True)
             return 0
         database = folder / DB_NAME
         locked = folder.is_dir()

@@ -123,6 +123,7 @@ class WhatTheUpdaterReadsTest(unittest.TestCase):
     def test_every_listed_name_is_one_the_updater_accepts(self):
         for name in self.manifest["files"]:
             with self.subTest(name=name):
+                # the record names files as placed in the zip, which is how the updater reads them (issue 694)
                 self.assertTrue(release_files.covers("mac", name))
 
     def test_the_list_lives_only_in_release_files(self):

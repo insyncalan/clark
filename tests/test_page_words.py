@@ -161,7 +161,7 @@ class Words(unittest.TestCase):
         with chrome() as cdp:
             sid = navigate(cdp, none.port, "#dashboard")
             self.shown(cdp, sid, ["No project open", "There are no projects yet.",
-                                  "To look around with made-up projects, close clark and start it again with python3 -m clark --demo."])
+                                  "To look around with made-up projects, close clark and start it again from the clark folder with bash clark.command --demo."])
         # item 427: in the container the Docker route has no --demo flag, so the page leaves that sentence out
         boxed = Running(data_for=self.fake, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda archived=False: [])
         self.addCleanup(boxed.close)

@@ -73,7 +73,9 @@ STAGING_PREFIX = ".clark-update-"
 LOG_LIMIT = 1024 * 1024
 WAIT_CLOSE_SECONDS = 30
 WAIT_START_SECONDS = 15
-FIRST = ("src", "vendor", "python")
+HIDDEN = ".app"                        # the one hidden folder that holds the program files of a download (issue 694); mirrors release_files.HIDDEN
+PROTECTED = ("system", "data")         # top-level folders that are the person's: never swapped, moved, counted or removed; mirrors release_files.PROTECTED
+FIRST = (HIDDEN, "src", "vendor", "python")        # .app is one entry for all program files; src and vendor are the flat layout (a source checkout, an older download)
 LAST = ("clark", "clark.command", "clark.cmd")
 SKIP_DIRS = {"__pycache__"}
 SKIP_FILES = {".DS_Store"}
@@ -260,7 +262,7 @@ class Seams:
 
     def start_server(self, app_dir, data_dir, port, log_path):
         """Start clark detached from the app folder's own files, as the launcher does. The process id."""
-        env = {**os.environ, "CLARK_LAUNCHED": "1", "CLARK_PORT": str(port), "PYTHONPATH": str(Path(app_dir) / "src")}
+        env = {**os.environ, "CLARK_LAUNCHED": "1", "CLARK_PORT": str(port), "PYTHONPATH": str(code_root(app_dir) / "src")}
         process = self.platform.start_detached([self.helper_python(), "-m", "clark", "--data", str(data_dir), "--port", str(port)],
                                                env, log_path, cwd=str(data_dir), on=self._on())
         return process.pid
@@ -286,8 +288,8 @@ class Seams:
                 "import clark\n"
                 "for m in pkgutil.iter_modules(clark.__path__):\n"
                 "    importlib.import_module('clark.' + m.name)\n")
-        app = Path(app_dir)
-        status, errors = self.platform.run_python_check(self.helper_python(), code, [app / "src", app / "vendor"], timeout=120)
+        root = code_root(app_dir)
+        status, errors = self.platform.run_python_check(self.helper_python(), code, [root / "src", root / "vendor"], timeout=120)
         if status != 0:
             raise StepError("damaged", "a module does not import: " + errors[-300:])
 
@@ -368,9 +370,22 @@ def marker_path(data_dir):
     return updates_dir(data_dir) / MARKER_NAME
 
 
+def protected_name(rel):
+    """Whether `rel` ("/" or backslash names) is, or is inside, one of the person's own folders (case does not matter on a Mac disk)."""
+    return rel.replace("\\", "/").split("/")[0].casefold() in PROTECTED
+
+
+def code_root(app_dir):
+    """The folder that holds src/ and vendor/: `<app>/.app` when that is a real folder (a download in the hidden-folder layout),
+    else the app folder itself (a source checkout, or an install from before issue 694)."""
+    hidden = Path(app_dir) / HIDDEN
+    return hidden if hidden.is_dir() and not hidden.is_symlink() else Path(app_dir)
+
+
 def order_entries(names):
-    """The fixed swap order: src, vendor, python, the rest (sorted), the stand-in and launchers, and the record last."""
-    names = set(names)
+    """The fixed swap order: .app (then src, vendor, python), the rest (sorted), the stand-in and launchers, and the record last.
+    Names that are the person's own (system, data) are never entries."""
+    names = {n for n in names if not protected_name(n)}
     ordered = [n for n in FIRST if n in names]
     ordered += sorted(n for n in names if n not in FIRST and n not in LAST and n != MANIFEST)
     ordered += [n for n in LAST if n in names]
@@ -412,6 +427,8 @@ def begin(data_dir, app_dir, staging, stamp, from_version, to_version, installed
     updates.check_record_names(new)
     state = read_db_state(Path(data_dir) / DB_NAME) or {}          # a read-only look; no database, or one that can't be read: no data step later
     shipped = sorted(set(old["files"]) | set(new["files"]) | {MANIFEST})
+    if any(protected_name(rel) for rel in shipped):         # check_record_names refuses these first; this is the second lock
+        raise updates.UpdateError("unsafe", "a record names the person's own folder")
     names = order_entries({rel.split("/")[0] for rel in shipped})
     entries = [{"name": n, "had_old": os.path.lexists(app / n), "in_new": os.path.lexists(staging / n)} for n in names]
     marker = {
@@ -728,6 +745,7 @@ class Run:
     def __init__(self, marker_file, seams=None, fault=None, trace=None, home=None):
         self.marker_file = Path(marker_file)
         self.m = read_json(self.marker_file)
+        self.m["entries"] = [e for e in self.m.get("entries", []) if not protected_name(str(e.get("name", "")))]   # never act on the person's own folders, whatever the marker says
         self.seams = seams or Seams()
         self.fault = fault
         self.trace = trace
