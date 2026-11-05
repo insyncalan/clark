@@ -140,8 +140,6 @@ WAITING = [
      "PR 687", "excel_client.py", ""),
     ("#716", "The download has a meet clark folder with the overview and the Getting Started PDFs (also #706, #707, #722).",
      "PR 677", "release_files.py", 'EXTRA_TOP = ("meet clark", "intake")'),
-    ("#717", "The download has an intake folder with a sample workbook of made-up data.",
-     "PR 677", "release_files.py", 'EXTRA_TOP = ("meet clark", "intake")'),
     ("#741", "START-HERE no longer carries a version number in its sentence about updating from inside clark.",
      "PR 688", "../../dev/tools/package.py", "Updating from inside clark is switched off,"),
     ("#698", "The README covers both ways to start clark, the check command, where data lives and has pictures (also #708).",
