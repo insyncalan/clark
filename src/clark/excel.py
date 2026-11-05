@@ -1,4 +1,4 @@
-"""The Excel export (#37; BRD FR-70): one project's actions, RAID, decisions, milestones and use cases as a workbook.
+"""The Excel export (#37; BRD FR-70): one project's actions, risks & issues, decisions, milestones and use cases as a workbook.
 
 Copied from creaite v2.6.9 (db5adb2), system/scripts/excel_sync.py: the sheet layout, the cell conversions (to_cell, from_cell,
 cell_text), the drop-downs and locked columns, and the guard against overwriting a workbook with edits not yet imported (a
@@ -33,6 +33,7 @@ run. The file is byte-for-byte the same for the same rows, the same day (see `mo
 import hashlib
 import io
 import json
+import logging
 import re
 import threading
 import uuid
@@ -42,6 +43,8 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
+from openpyxl.cell.rich_text import CellRichText, TextBlock
+from openpyxl.cell.text import InlineFont
 from openpyxl.comments import Comment
 from openpyxl.formatting.rule import FormulaRule, Rule
 from openpyxl.packaging.custom import CustomPropertyList, StringProperty
@@ -53,6 +56,8 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from clark import excel_colours as colours
 from clark import excel_cover
+from clark import glance
+from clark import excel_palette
 from clark import excel_picture
 from clark import look
 from clark import platform
@@ -73,15 +78,6 @@ STATE_LOCK = threading.RLock()
 # clark: + Workstream and Movement on milestones, + Use case on actions, RAID and decisions, + the Use cases sheet; Original
 # and Shown state are worked out, not columns (see DERIVED); no Labels on milestones or use cases, as in creaite.
 SHEETS = [
-    ("Milestones", "milestones", [
-        ("ID", "id"), ("Milestone", "name"), ("Project", "project"), ("Description", "description"),
-        ("Workstream", "workstream"), ("Original", "original_date"), ("Agreed", "baseline_date"),
-        ("Forecast", "forecast_date"), ("Status", "status"), ("Order", "sort_order"), ("% complete", "percent_complete"),
-        ("Owner", "owner"), ("Shown state", "shown_state"), ("State", "state"), ("State set by you", "state_set"),
-        ("State reason", "state_reason"), ("Movement", "movement"), ("Achieved on", "actual_date"),
-        ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Internal note", "internal_note"),
-        ("Source", "source"), ("Updated", "updated_at")],
-     {"id", "original_date", "shown_state", "source", "updated_at"}),
     ("Actions", "actions", [
         ("ID", "id"), ("Description", "description"), ("Project", "project"), ("Workstream", "workstream"),
         ("Owner", "owner"), ("Priority", "priority"), ("Due", "due_date"), ("Status", "status"),
@@ -89,7 +85,7 @@ SHEETS = [
         ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Milestone", "milestone"),
         ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"), ("Updated", "updated_at")],
      {"id", "source", "updated_at"}),
-    ("Risks and issues", "raid", [
+    ("Risks & Issues", "raid", [
         ("ID", "id"), ("Description", "description"), ("Project", "project"), ("Type", "type"),
         ("Workstream", "workstream"), ("Owner", "owner"), ("Response action", "response_action"),
         ("Due", "due_date"), ("Impact", "impact"), ("Likelihood", "likelihood"), ("Priority", "priority"),
@@ -104,11 +100,20 @@ SHEETS = [
         ("Client wording", "client_message"), ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"),
         ("Updated", "updated_at")],
      {"id", "source", "updated_at"}),
+    ("Milestones", "milestones", [
+        ("ID", "id"), ("Milestone", "name"), ("Project", "project"), ("Description", "description"),
+        ("Workstream", "workstream"), ("Original", "original_date"), ("Agreed", "baseline_date"),
+        ("Forecast", "forecast_date"), ("Status", "status"), ("Order", "sort_order"), ("% complete", "percent_complete"),
+        ("Owner", "owner"), ("Shown state", "shown_state"), ("State", "state"), ("State set by you", "state_set"),
+        ("State reason", "state_reason"), ("Movement", "movement"), ("Achieved on", "actual_date"),
+        ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Internal note", "internal_note"),
+        ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
+     {"id", "original_date", "shown_state", "source", "updated_at", "open_items"}),
     ("Use cases", "use_cases", [                                       # clark's own table, in creaite's style
         ("ID", "id"), ("Use case", "title"), ("Project", "project"), ("Shown as", "ref"), ("Status", "status"),
         ("Commitment", "commitment"), ("Headline", "headline"), ("Where it stands", "standing"), ("Order", "sort_order"),
-        ("Client-visible", "client_visible"), ("Source", "source"), ("Updated", "updated_at")],
-     {"id", "source", "updated_at"}),
+        ("Client-visible", "client_visible"), ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
+     {"id", "source", "updated_at", "open_items"}),
 ]
 TABLES = tuple(t for _, t, _, _ in SHEETS)
 # The same layout as two lookups, for the import (#38): the sheet a table is written on, and each table's header label -> field.
@@ -119,7 +124,7 @@ DATES = {"due_date", "raised", "closed", "date", "baseline_date", "forecast_date
          "original_date"}
 YES_NO = {"client_visible", "state_set"}
 LABELLED = ("actions", "raid", "decisions")
-DERIVED = {"original_date", "shown_state"}    # clark: worked out for the sheet, never read back as a change
+DERIVED = {"original_date", "shown_state", "open_items"}    # clark: worked out for the sheet, never read back as a change
 WIDE = {"description", "decision", "client_message", "latest_update", "response_action", "reasoning", "options", "revisit",
         "state_reason", "internal_note", "source", "headline", "standing"}
 # clark: a NOT NULL DEFAULT '' text column. A blank cell there reads back as "" (creaite's blank_default, with no template: #24).
@@ -163,6 +168,23 @@ TITLE_OF = {"milestones": "name", "actions": "description", "raid": "description
 SHORT_NAMES = {"owner", "made_by", "workstream", "labels"}      # people, streams and labels: a little wider than a status
 NUMBERS = {"sort_order", "percent_complete"}
 LOCKED = PatternFill("solid", fgColor=colours.TOKENS["grey-100"])      # the page's quiet grey, for a column the import never reads
+# The default (committed, no brand) palette, which the constants above and the functions below use when no `pal` is given. An export
+# builds its own with excel_palette.palette(branding=...) (item 711): the local brand's light values over the committed ones.
+DEFAULT_PAL = excel_palette.committed()
+
+
+class Styles:
+    """The fills and fonts one workbook draws with, from its palette: the module constants for the default one."""
+    def __init__(self, pal):
+        self.pal = pal
+        self.header = PatternFill("solid", fgColor=pal.header_fill)
+        self.header_font = Font(name=pal.font, bold=True, color=pal.header_text)
+        self.body_font = Font(name=pal.font, size=11)
+        self.locked = PatternFill("solid", fgColor=pal.tokens["grey-100"])
+
+
+def _pal(pal):
+    return pal if pal is not None else DEFAULT_PAL
 # The ID column (#85d, BRD FR-70d). There are no cell locks and no sheet protection: Excel refuses to sort a range that holds
 # a locked cell, and sorting must stay free. The import is the guard (a changed existing ID is refused for that row; a row with
 # no ID is a new item and gets the next free ID). The ID column is shaded (LOCKED fill) and these words are pinned by a test.
@@ -247,7 +269,7 @@ def day(on=None):
 
 
 def exported_text(on=None):
-    """'Exported on DD-MM-YYYY at HH:MM (UTC+04:00)' in the user's local time (#75), for the cover (#85b). The zone is named by
+    """'DD-MM-YYYY HH:MM (UTC+04:00)' in the user's local time (#75), for the cover (#85b). The zone is named by
     its UTC offset, not its name: zone names ('Gulf Standard Time', or just '+04') differ between systems, an offset does not.
     The moment is the export's own (moment(on): the clock, or midnight UTC at the start of `on`), shown through clark.timefmt,
     so it depends on the machine's zone by design: a cover carrying it differs between zones for the same data and clock."""
@@ -255,7 +277,7 @@ def exported_text(on=None):
     shown = local_text(stamp)
     offset = int(parse(stamp).astimezone().utcoffset().total_seconds() // 60)
     sign, offset = ("+" if offset >= 0 else "-"), abs(offset)
-    return f"Exported on {shown[:10]} at {shown[11:]} (UTC{sign}{offset // 60:02d}:{offset % 60:02d})"
+    return f"{shown[:10]} {shown[11:]} (UTC{sign}{offset // 60:02d}:{offset % 60:02d})"
 
 
 def file_hash(path):
@@ -672,17 +694,17 @@ def lock_column(ws, col, n_rows, label, message=None):
     ws.add_data_validation(dv)
 
 
-def _dxf(name):
+def _dxf(name, pal=None):
     """The look of a colour name as a conditional format: the token's light fill and dark text."""
-    fill, text = colours.hexes(name)
+    fill, text = _pal(pal).hexes(name)
     return DifferentialStyle(font=Font(color=text), fill=PatternFill(fill_type="solid", start_color=fill, end_color=fill))
 
 
-def add_colour_rules(ws, col, n_rows, values):
+def add_colour_rules(ws, col, n_rows, values, pal=None):
     """One rule per value: a cell equal to the word gets that word's colour, so a value changed in Excel recolours itself. The
     word is a fixed literal from excel_colours, never data."""
     for value, name in values.items():
-        rule = Rule(type="cellIs", operator="equal", formula=['"' + value + '"'], dxf=_dxf(name))
+        rule = Rule(type="cellIs", operator="equal", formula=['"' + value + '"'], dxf=_dxf(name, pal))
         ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
 
 
@@ -692,10 +714,45 @@ def late_formula(date_col, status_col, open_states):
     return f"AND(ISNUMBER(${date_col}2),${date_col}2<TODAY(),OR({is_open}))"
 
 
-def add_late_rule(ws, col, n_rows, date_col, status_col, open_states):
+def add_late_rule(ws, col, n_rows, date_col, status_col, open_states, pal=None):
     """Red text on the date of an open item past its date. A formula rule, evaluated by Excel against today's date."""
-    rule = FormulaRule(formula=[late_formula(date_col, status_col, open_states)], font=Font(color=colours.LATE_TEXT))
+    rule = FormulaRule(formula=[late_formula(date_col, status_col, open_states)], font=Font(color=_pal(pal).late_text))
     ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
+
+
+REF_CELL_LIMIT = 250        # characters a Milestone or Use case cell holds ("ID: name"); the name is cut, never the ID
+REF_TABLES = {"milestone": ("milestones", "name"), "use_case": ("use_cases", "title")}
+OPEN_TABLES = (("actions", "milestone"), ("raid", "milestone"), ("decisions", "milestone"),
+               ("actions", "use_case"), ("raid", "use_case"), ("decisions", "use_case"))
+
+
+def ref_text(item_id, name):
+    """What a Milestone or Use case cell shows: 'ID: name' (just the ID when there is no name). A very long name is cut with an
+    ellipsis so the cell stays under REF_CELL_LIMIT; the ID is never cut."""
+    name = " ".join(str(name or "").split())
+    if not name:
+        return item_id
+    room = REF_CELL_LIMIT - len(item_id) - 2
+    if len(name) > room:
+        name = name[:max(room - 1, 0)].rstrip() + "\u2026"
+    return f"{item_id}: {name}"
+
+
+def _ref_names(rows_by_table):
+    """{"milestone": {id: 'ID: name'}, "use_case": {id: 'ID: name'}} from the milestone and use case rows."""
+    return {f: {r["id"]: ref_text(r["id"], r.get(nf)) for r in rows_by_table.get(t, [])}
+            for f, (t, nf) in REF_TABLES.items()}
+
+
+def _open_items(rows_by_table):
+    """{(field, id): 'ID, ID'}: the open actions, risks and issues and decisions under each milestone and use case (glance.is_open:
+    status not Closed, Cancelled, Made or Withdrawn), in ID order."""
+    found = {}
+    for table, field in OPEN_TABLES:
+        for r in rows_by_table.get(table, []):
+            if r.get(field) and glance.is_open(r):
+                found.setdefault((field, r[field]), []).append(r["id"])
+    return {k: ", ".join(sorted(v)) for k, v in found.items()}
 
 
 def column_width(table, field):
@@ -704,6 +761,10 @@ def column_width(table, field):
     anything else 12."""
     if field == "id" or field in YES_NO or field in NUMBERS:
         return 10
+    if field in REF_TABLES and table not in ("milestones", "use_cases"):
+        return 40
+    if field == "open_items":
+        return 30
     if field in WIDE:
         return 48
     if field == TITLE_OF.get(table):
@@ -716,8 +777,9 @@ def column_width(table, field):
 
 
 def wraps(table, field):
-    """Whether a column's text wraps: long text and the title column."""
-    return field in WIDE or field == TITLE_OF.get(table)
+    """Whether a column's text wraps: long text, the title column, and the "ID: name" Milestone and Use case columns of the other sheets."""
+    return (field in WIDE or field == TITLE_OF.get(table) or field == "open_items"
+            or (field in REF_TABLES and table not in ("milestones", "use_cases")))
 
 
 def freeze_cell(table, cols):
@@ -745,8 +807,8 @@ def _project_lists(project, rows_by_table):
     else:
         names = {r.get("name") for r in streams if r.get("name") and not r.get("archived")}
     out = {"workstream": sorted(names, key=lambda n: (n.lower(), n)),
-           "milestone": sorted(r["id"] for r in rows_by_table.get("milestones", [])),
-           "use_case": sorted(r["id"] for r in rows_by_table.get("use_cases", []))}
+           "milestone": [v for _, v in sorted(_ref_names(rows_by_table)["milestone"].items())],
+           "use_case": [v for _, v in sorted(_ref_names(rows_by_table)["use_case"].items())]}
     return {k: [to_cell(k, v) for v in vs] for k, vs in out.items() if vs}
 
 
@@ -769,24 +831,25 @@ def history_cell(value):
     return text if len(text) <= HISTORY_CELL_LIMIT else text[:HISTORY_CELL_LIMIT - 1] + "\u2026"
 
 
-def write_history(wb, view):
+def write_history(wb, view, pal=None):
     """The History sheet (#123), after the data sheets: `view` is exactly what history.view_for_project returns, so the sheet and
     the Activity tab show the same rows. Row 1 is the internal note and the footnote, row 2 the header (frozen with it), then the
     rows newest first, then the closing line (or the empty words). Every cell is a text cell in the look's office font; the import never reads it."""
+    st = Styles(_pal(pal))
     ws = wb.create_sheet(HISTORY_NAME)
 
     def put(row, values, **kw):
         for i, v in enumerate(values, start=1):
             c = ws.cell(row=row, column=i, value=v)
             protect_text_cell(c)            # text is text: a value starting "=" is never a formula
-            c.font = Font(name=HISTORY_FONT, **kw)
+            c.font = Font(name=st.pal.font, **kw)
             c.alignment = Alignment(wrap_text=i in (6, 7), vertical="top")
 
     put(1, [history_cell(HISTORY_NOTE + " " + view["footnote"])], italic=True)
     ws.append([label for label, _, _ in HISTORY_COLUMNS])
     for i, (label, _, width) in enumerate(HISTORY_COLUMNS, start=1):
         head = ws.cell(row=2, column=i)
-        head.font, head.fill = Font(name=HISTORY_FONT, bold=True, color=colours.HEADER_TEXT), HEADER
+        head.font, head.fill = Font(name=st.pal.font, bold=True, color=st.pal.header_text), st.header
         head.alignment = Alignment(wrap_text=True, vertical="center")
         ws.column_dimensions[get_column_letter(i)].width = width
     for r in view["rows"]:
@@ -798,20 +861,21 @@ def write_history(wb, view):
     return ws
 
 
-def write_lists(wb, lists):
+def write_lists(wb, lists, pal=None):
     """The hidden Lists sheet: one column per project list, a header in row 1 (the ranges the drop-downs point at are those of
     `workbook`, in the same order). Hidden, not very hidden, so a person can unhide it; the import reads sheets by name and never opens it."""
+    st = Styles(_pal(pal))
     ws = wb.create_sheet(LISTS_NAME)
     for i, field in enumerate(lists, start=1):
         col = get_column_letter(i)
         head = ws.cell(row=1, column=i, value=LIST_HEADS[field])
-        head.font, head.fill = HEADER_FONT, HEADER
+        head.font, head.fill = st.header_font, st.header
         head.alignment = Alignment(wrap_text=True, vertical="center")
         ws.column_dimensions[col].width = 24
         for n, v in enumerate(lists[field], start=2):
             c = ws.cell(row=n, column=i, value=v)
             protect_text_cell(c)
-            c.font = BODY_FONT
+            c.font = st.body_font
     ws.sheet_state = "hidden"
     return ws
 
@@ -819,9 +883,13 @@ def write_lists(wb, lists):
 # ── Export ────────────────────────────────────────────────────────────────────
 
 COVER_NAME = "Cover"
-COVER_LABELS = {"internal": "Internal", "caution": "Caution", "return": "Sending changes back",
+COVER_LABELS = {"exported": "Exported", "caution": "Caution", "return": "Sending changes back",
                 "where": "Where to make changes", "ids": "IDs"}
 COVER_FONT = OFFICE_FONT
+COVER_COLUMNS = 12                  # the Cover's grid: 12 equal columns, text and tiles in merged cells
+COVER_SIZE = 10                     # body text, in points
+COVER_CHARS = 1.05                  # characters of body text to a column-width unit, a little under what Arial 10 fits
+TILE_BAR = {"red": "status-red", "amber": "status-amber-text", "green": "status-green-text"}     # a tile's left bar: the status tokens
 
 
 def _cover_cell(value):
@@ -831,67 +899,162 @@ def _cover_cell(value):
     return cell_text(excel_cover.cut(value))
 
 
-def _cover_font(**kw):
-    return Font(name=COVER_FONT, **kw)
+def _cover_font(pal, **kw):
+    kw.setdefault("size", COVER_SIZE)
+    return Font(name=pal.font, **kw)
 
 
-def write_cover(wb, cover, mark=False):
-    """The Cover sheet, first in the workbook and the one it opens on (#85b): one label column and one wide wrapped text column,
-    no merged cells (Excel does not fit a merged cell's height to its text), frozen below the title band (row 1). The look's
-    office font throughout. `cover` is excel_cover.lines(). Not a table: the import never reads it."""
+def _span_chars(first, last, size=COVER_SIZE):
+    """About how many characters of `size` point text fit in columns first..last."""
+    return (last - first + 1) * excel_picture.COVER_COL_WIDTH * COVER_CHARS * COVER_SIZE / size
+
+
+def _put(pal, ws, row, first, last, value="", font=None, fill=None, align=None, top=None, bottom=None, left=None):
+    """Fill columns first..last of `row` as one merged cell holding `value`: the fill and the borders go on every cell of the
+    range (a merged cell draws from them), the text on the first. The text is a text cell, never a formula."""
+    if last > first:
+        ws.merge_cells(start_row=row, start_column=first, end_row=row, end_column=last)
+    for col in range(first, last + 1):
+        c = ws.cell(row=row, column=col)
+        if fill:
+            c.fill = PatternFill("solid", fgColor=fill)
+        c.border = Border(top=top, bottom=bottom, left=left if col == first else None)
+        c.font = font or _cover_font(pal)
+    c = ws.cell(row=row, column=first)
+    c.value = _cover_cell(value) if value != "" else None
+    protect_text_cell(c)
+    c.alignment = align or Alignment(wrap_text=True, vertical="top")
+    return c
+
+
+def _tile_widths(n):
+    """The grid columns for each of n tiles side by side: health (first) twice as wide as the others when there are three."""
+    return {1: [12], 2: [6, 6], 3: [6, 3, 3]}.get(n) or [12 // n] * (n - 1) + [12 - 12 // n * (n - 1)]
+
+
+def _heading(pal, ws, row, first, last, text):
+    """A section heading: the brand-blue square, the title and a grey rule under it."""
+    t = pal.tokens
+    square = TextBlock(InlineFont(rFont=pal.font, sz=12, b=True, color=t["brand-blue"]), "\u25a0  ")
+    words = TextBlock(InlineFont(rFont=pal.font, sz=12, b=True, color=t["brand-ink"]), cell_text(excel_cover.cut(text, 200)))
+    c = _put(pal, ws, row, first, last, "", _cover_font(pal, size=12, bold=True), None,
+             Alignment(vertical="center"), bottom=Side(style="thin", color=t["grey-300"]))
+    c.value = CellRichText(square, words)
+    ws.row_dimensions[row].height = 22
+
+
+def write_cover(wb, cover, mark=False, pal=None):
+    """The Cover sheet, first in the workbook and the one it opens on (item 85b): a 12-column grid with the gridlines off, text
+    blocks and tiles in merged cells, laid out as Option A of the signed mockup: the navy title band (the logo at its left when
+    `mark`, the INTERNAL tag at its right, a subtitle line under the title), Current state, At a glance tiles side by side, the
+    Summary, This week and Next week side by side, and a quiet About this export block. Excel does not fit a merged cell's height
+    to its text, so every row's height is estimated from the text (excel_cover.height). Frozen below the band. The look's office
+    font throughout. `cover` is excel_cover.lines(). Not a table: the import never reads it."""
     ws = wb.create_sheet(COVER_NAME, 0)
-    ws.column_dimensions["A"].width = 24
-    ws.column_dimensions["B"].width = 100
-    navy, white = colours.TOKENS["brand-navy"], colours.TOKENS["white"]
-    blue, grey_fill, grey_text = colours.TOKENS["brand-blue"], colours.TOKENS["grey-50"], colours.TOKENS["grey-700"]
-    quiet = ("about", "exported", "caution", "return", "where", "ids", "internal")
+    ws.sheet_view.showGridLines = False
+    for col in range(1, COVER_COLUMNS + 1):
+        ws.column_dimensions[get_column_letter(col)].width = excel_picture.COVER_COL_WIDTH
+    pal = _pal(pal)
+    t = pal.tokens
+    navy, white, ink = t["brand-navy"], t["white"], t["brand-ink"]
+    grey_fill, grey_text, rule = t["grey-50"], t["grey-700"], t["grey-300"]
+    last = COVER_COLUMNS
+    row = 0
+    start = 1
     for line in cover:
         kind, text = line["kind"], line["text"]
-        label = line.get("tag", "") if kind == "title" else COVER_LABELS.get(kind, "")
-        if kind in ("heading", "about"):
-            label, text = text, ""
-        ws.append([_cover_cell(label), _cover_cell(text)])
-        row = ws.max_row
-        a, b = ws.cell(row=row, column=1), ws.cell(row=row, column=2)
-        for c in (a, b):
-            protect_text_cell(c)        # text is text: openpyxl would make a string starting "=" a formula
-            c.alignment = Alignment(wrap_text=True, vertical="top")
-            c.font = _cover_font()
         if kind == "title":
-            for c in (a, b):
-                c.fill = PatternFill("solid", fgColor=navy)
-                c.font = _cover_font(bold=True, size=14, color=white)
-            if label:                   # the INTERNAL tag is red, as in Option A (white on the page's red, 5:1)
-                a.fill = PatternFill("solid", fgColor=colours.TOKENS["status-red"])
+            row += 1
+            start = excel_picture.LOGO_COLUMNS + 1 if mark else 1
+            tag = line.get("tag", "")
+            end = last - 2 if tag else last
+            for col in range(1, last + 1):
+                ws.cell(row=row, column=col).fill = PatternFill("solid", fgColor=navy)
+            _put(pal, ws, row, start, end, text, _cover_font(pal, bold=True, size=16, color=white), navy,
+                 Alignment(wrap_text=True, vertical="center"))
+            if tag:
+                _put(pal, ws, row, last - 1, last, tag, _cover_font(pal, bold=True, size=11, color=white), t["status-red"],
+                     Alignment(horizontal="center", vertical="center"))
+            ws.row_dimensions[row].height = max(excel_picture.COVER_ROW_POINTS,
+                                                excel_cover.height(text, _span_chars(start, end, 16), 20, 22))
+        elif kind == "subtitle":
+            row += 1
+            for col in range(1, last + 1):
+                ws.cell(row=row, column=col).fill = PatternFill("solid", fgColor=navy)
+            _put(pal, ws, row, start, last, text, _cover_font(pal, color=t["grey-100"]), navy, Alignment(wrap_text=True, vertical="top"))
+            ws.row_dimensions[row].height = excel_cover.height(text, _span_chars(start, last), 20)
+            ws.freeze_panes = ws.cell(row=row + 1, column=1)
         elif kind == "heading":
-            a.font = _cover_font(bold=True, size=12, color=blue)
-            a.border = Border(left=Side(style="thick", color=blue))
-        elif kind == "health" and line.get("colour") in colours.COLOURS:     # the health pill, coloured as on the page
-            fill, ink = colours.hexes(line["colour"])
-            b.fill = PatternFill("solid", fgColor=fill)
-            b.font = _cover_font(bold=True, color=ink)
-        elif kind == "tile":
-            b.fill = PatternFill("solid", fgColor=grey_fill)
-        if kind in quiet:
-            for c in (a, b):
-                c.fill = PatternFill("solid", fgColor=grey_fill)
-                c.font = _cover_font(bold=(kind == "about" and c is a), color=grey_text)
-        if label and kind in ("caution", "return", "where", "ids", "internal"):
-            a.font = _cover_font(bold=True, color=grey_text)
-    ws.freeze_panes = "A2"
-    if mark:
-        ws.row_dimensions[1].height = excel_picture.COVER_ROW_POINTS      # room for the brand mark (#133), which excel_picture.embed adds
+            row += 2                           # a short blank row first
+            ws.row_dimensions[row - 1].height = 8
+            _heading(pal, ws, row, 1, last, text)
+        elif kind == "text":
+            row += 1
+            _put(pal, ws, row, 1, last, text)
+            ws.row_dimensions[row].height = excel_cover.height(text, _span_chars(1, last))
+        elif kind == "pair":
+            left_end, right_start = last // 2 - 1, last // 2 + 2      # columns 1-5 and 8-12: a two column gutter (6-7) with no rule across it
+            row += 2
+            ws.row_dimensions[row - 1].height = 8
+            _heading(pal, ws, row, 1, left_end, line["left"]["title"])
+            _heading(pal, ws, row, right_start, last, line["right"]["title"])
+            row += 1
+            _put(pal, ws, row, 1, left_end, line["left"]["text"])
+            _put(pal, ws, row, right_start, last, line["right"]["text"])
+            ws.row_dimensions[row].height = max(excel_cover.height(line["left"]["text"], _span_chars(1, left_end)),
+                                                excel_cover.height(line["right"]["text"], _span_chars(right_start, last)))
+        elif kind == "tiles":
+            tiles = line["tiles"]
+            first = 1
+            rows = (row + 1, row + 2, row + 3)
+            sub = 15
+            for tile, w in zip(tiles, _tile_widths(len(tiles))):
+                end = first + w - 1
+                bar = Side(style="thick", color=t[TILE_BAR.get(tile["colour"], "grey-300")])
+                _put(pal, ws, rows[0], first, end, tile["title"], _cover_font(pal, color=grey_text), grey_fill, left=bar)
+                health = tile["tile"] == "health"
+                if health:       # the pill: the page's colour for the status, with the words in it, so it reads in black and white too
+                    pill_end = min(end, first + 1)
+                    fill, pen = pal.hexes(tile["colour"]) if tile["colour"] in pal.colours else (grey_fill, ink)
+                    _put(pal, ws, rows[1], first, pill_end, tile["value"], _cover_font(pal, bold=True, size=12, color=pen), fill,
+                         Alignment(horizontal="center", vertical="center"), left=bar)
+                    if end > pill_end:
+                        _put(pal, ws, rows[1], pill_end + 1, end, "", None, grey_fill)
+                else:
+                    _put(pal, ws, rows[1], first, end, tile["value"], _cover_font(pal, bold=True, size=22, color=ink), grey_fill,
+                         Alignment(horizontal="left", vertical="center"), left=bar)
+                _put(pal, ws, rows[2], first, end, tile["detail"], _cover_font(pal, color=ink if health else grey_text), grey_fill, left=bar)
+                sub = max(sub, excel_cover.height(tile["detail"], _span_chars(first, end) - 1))
+                first = end + 1
+            ws.row_dimensions[rows[0]].height = 18
+            ws.row_dimensions[rows[1]].height = 32
+            ws.row_dimensions[rows[2]].height = sub
+            row += 3
+        elif kind == "about":                  # the About this export block: a quiet grey panel
+            row += 2
+            ws.row_dimensions[row - 1].height = 14
+            _put(pal, ws, row, 1, last, text, _cover_font(pal, bold=True, color=ink), grey_fill, Alignment(vertical="center"))
+            ws.row_dimensions[row].height = 20
+        else:                                  # one row of that block: its label at the left, its words beside it
+            row += 1
+            edge = Side(style="thin", color=rule)
+            _put(pal, ws, row, 1, 3, COVER_LABELS.get(kind, ""), _cover_font(pal, bold=True, color=grey_text), grey_fill, top=edge)
+            _put(pal, ws, row, 4, last, text, _cover_font(pal, color=grey_text), grey_fill, top=edge)
+            ws.row_dimensions[row].height = excel_cover.height(text, _span_chars(4, last))
     wb.active = 0
     return ws
 
 
-def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=None):
+def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=None, pal=None):
     """The workbook for one project, from {table: [row, ...]} (creaite excel_sync.cmd_export, the sheet part). Rows are dicts
     with the table's columns; labelled rows may carry `labels` (comma-separated) and milestones `original_date`. A missing
     table is an empty sheet. `on` is the day Shown state is worked out for (today by default). `cover` (excel_cover.lines) adds
     the Cover as the first sheet (#85b); without it the workbook is as it was. `history` (history.view_for_project's result) adds
     the History sheet (#123) after the data sheets and before Lists."""
+    pal = _pal(pal)
+    st = Styles(pal)
     lists = _project_lists(project, rows_by_table)
+    names, open_of = _ref_names(rows_by_table), _open_items(rows_by_table)
     ranges = {f: f"{LISTS_NAME}!${get_column_letter(i)}$2:${get_column_letter(i)}${len(vs) + 1}"
               for i, (f, vs) in enumerate(lists.items(), start=1)}
     wb = Workbook()
@@ -909,20 +1072,24 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
         for r in rows:
             if table == "milestones":
                 r = {**r, "shown_state": milestone_state(r, on), "original_date": r.get("original_date") or r.get("baseline_date")}
+            if table in ("milestones", "use_cases"):
+                r = {**r, "open_items": open_of.get(("milestone" if table == "milestones" else "use_case", r["id"]))}
+            else:
+                r = {**r, **{f: names[f].get(r.get(f), r.get(f)) for f in REF_TABLES}}
             ws.append([to_cell(f, r.get(f)) for _, f in cols])
             for c in ws[ws.max_row]:
-                c.font = BODY_FONT
+                c.font = st.body_font
                 protect_text_cell(c)        # text is text: openpyxl would make a string starting "=" a formula, "#N/A" an error
         n_rows = len(rows) + 1 + EXTRA_ROWS
         for i, (label, field) in enumerate(cols, start=1):
             col = get_column_letter(i)
             head = ws.cell(row=1, column=i)
-            head.font, head.fill = HEADER_FONT, HEADER
+            head.font, head.fill = st.header_font, st.header
             head.alignment = Alignment(wrap_text=True, vertical="center")
             ws.column_dimensions[col].width = column_width(table, field)
-            ws.column_dimensions[col].font = BODY_FONT        # the empty rows below the data, which a person fills in
+            ws.column_dimensions[col].font = st.body_font        # the empty rows below the data, which a person fills in
             for c in ws[f"{col}2:{col}{n_rows}"]:
-                c[0].font = BODY_FONT           # the data and the spare rows, so typed entries match (#85)
+                c[0].font = st.body_font           # the data and the spare rows, so typed entries match (#85)
             for c in ws[f"{col}2:{col}{len(rows) + 1}"]:
                 c[0].alignment = Alignment(wrap_text=wraps(table, field), vertical="top")
             if field in DATES:
@@ -938,7 +1105,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
                     lock_column(ws, col, n_rows, label, "Priority follows Impact and Likelihood. Change those instead."
                                 if (table, field) == ("raid", "priority") else None)
                 for c in ws[f"{col}2:{col}{len(rows) + 1}"]:
-                    c[0].fill = LOCKED
+                    c[0].fill = st.locked
             blank = field not in YES_NO and (table, field) not in NOT_BLANK
             if field == "project":
                 if project:         # the import template (project None) is for any project: no code in it, and the cell stays free
@@ -953,23 +1120,23 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
                 add_note(ws, col, n_rows, "Owner" if field == "owner" else "Made by",
                          "Type the person's name.")
             if (table, field) in colours.BY_FIELD:      # clark (#85c): colour follows the value, by conditional format
-                add_colour_rules(ws, col, n_rows, colours.BY_FIELD[(table, field)])
+                add_colour_rules(ws, col, n_rows, colours.BY_FIELD[(table, field)], pal)
             if (table, field) in colours.LATE:
                 status_field, open_states = colours.LATE[(table, field)]
                 add_late_rule(ws, col, n_rows, col, get_column_letter([f for _, f in cols].index(status_field) + 1),
-                              open_states)
-        if name == SHEETS[0][0]:
+                              open_states, pal)
+        if table == "milestones":      # the internal note and the ID note stay on Milestones A1, whatever the sheet order
             note = Comment(INTERNAL_NOTE + "\n\n" + ID_NOTE, FIXED_NAME)    # one note per cell: both go on Milestones A1
             note.width, note.height = 320, 120
             ws["A1"].comment = note
         ws.freeze_panes = freeze_cell(table, cols)
         ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(rows) + 1}"
     if history is not None:
-        write_history(wb, history)
+        write_history(wb, history, pal)
     if lists:
-        write_lists(wb, lists)
+        write_lists(wb, lists, pal)
     if cover:
-        write_cover(wb, cover, mark)
+        write_cover(wb, cover, mark, pal)
     return wb
 
 
@@ -1025,7 +1192,10 @@ def export(path, project, rows_by_table, state_path, on=None, cover=None, brandi
                       f"overwritten ({path}). Import it, or choose another file name.")
     buf = io.BytesIO()
     logo = excel_picture.load(branding, warnings) if cover else None     # #133: the local brand logo, if there is one and it is safe
-    wb = workbook(project, rows_by_table, on, cover, mark=bool(logo), history=history)
+    pal = excel_palette.palette(branding=branding)      # item 711: the local brand's light values, else the committed look
+    for note in pal.warnings:           # the palette's notes are for the log only: no one is shown them
+        logging.getLogger("clark.excel").warning("%s", note)
+    wb = workbook(project, rows_by_table, on, cover, mark=bool(logo), history=history, pal=pal)
     if reuse is None:                      # the same unchanged workbook exported again to its own path keeps its id
         try:
             mine = _books(state_path).get(_key(path)) or {}

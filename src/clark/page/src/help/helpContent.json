@@ -439,7 +439,7 @@
     "w": "Work items toolbar · Settings › Data · profile circle",
     "go": "work",
     "s": [
-     "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks and issues, Decisions, Milestones and Use cases, named after today and the project.",
+     "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, named after today and the project.",
      "**Import**: press the up-arrow icon. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
      "Press **Choose a file** (Excel or CSV). **Check the import** shows how many rows are new, updated or skipped, and the first few. Press **Import** to save them.",
      "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
@@ -1838,12 +1838,12 @@
       ],
       [
        [
-        "Actions, Risks and issues, Decisions",
+        "Actions, Risks & Issues, Decisions",
         "ID, Type, Workstream, Title, Owner, Due, Status, Priority, Rating, Use case, Milestone, Client-visible, Client wording, Description, Latest update"
        ],
        [
         "Milestones",
-        "ID, Milestone, Workstream, Original, Agreed, Forecast, Achieved, State, Progress, Owner, Client-visible, Description"
+        "ID, Milestone, Workstream, Original, Agreed, Forecast, Achieved, State, Progress, Owner, Client-visible, Description, Open work items"
        ],
        [
         "Use cases",
@@ -2476,7 +2476,7 @@
      "pic": "excel-in-button"
     },
     {
-     "d": "The box **Import from Excel** says which sheets can be imported: sheets called Actions, Risks and issues (or RAID), Decisions, Milestones and Use cases. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
+     "d": "The box **Import from Excel** says which sheets can be imported: sheets called Actions, Risks & Issues (or Risks and issues, or RAID), Decisions, Milestones and Use cases. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
     },
     {
      "d": "Press **Choose a file** and pick an .xlsx workbook of up to 25 MB. A macro workbook (.xlsm) is turned away and nothing is saved; save a copy as an ordinary .xlsx workbook and choose that.",
@@ -2528,7 +2528,7 @@
      "d": "Open the file. It opens on the Cover sheet. The first line is the project name, tagged INTERNAL. Below it come the report’s current state, the health and the at a glance tiles, and the text sections, as the published page shows them. Then comes an About this export block: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs."
     },
     {
-     "d": "After the Cover come the sheets of rows: Milestones, Actions, Risks and issues, Decisions and Use cases. Each row is one item, with its ID in the first column. A History sheet follows with the record of changes, read only. Changes made on the Cover are ignored."
+     "d": "After the Cover come the sheets of rows: Actions, Risks & Issues, Decisions, Milestones and Use cases. Each row is one item, with its ID in the first column. A History sheet follows with the record of changes, read only. Changes made on the Cover are ignored."
     },
     {
      "d": "The workbook includes internal notes and Sensitive items, so never send it to a client. To send changes back, edit the rows on the data sheets, leave every ID as it is, and import the file with **Import workbook**."
