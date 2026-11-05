@@ -2,6 +2,7 @@
 // that Section.jsx and UseCases.jsx take from `tools.ucEdit`, so a published file and View have none of them:
 //   Add      the growing "+" in the section's header ("Add use case"); it opens the box "Add a use case" (ID, Use case, Status, Headline)
 //   Status   the status word on each row, a button in Edit; it opens a menu of the three words
+//   Commit   (#709) the commitment chip under the status: a menu of the three words and "No flag" (edit/CommitMenu.jsx)
 //   Headline the headline on each row, changed in place
 //   Name     the name in the opened row, changed in place
 //   FromRecord  "+ Add a use case from your project record (N)": the picker of the use cases that are not on the dashboard
@@ -29,6 +30,7 @@ import { RichField } from "./RichField.jsx";
 import { KIND_WORDS, todayIso } from "../workItems.js";
 import { splitStep, knownNames, stepValues, linkable, narrow, KINDS, linkedWords } from "../logic/ucRow.js";
 import { peopleList } from "../stores/handover.js";
+import { CommitMenu } from "./CommitMenu.jsx";
 
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -298,4 +300,4 @@ export function Boxes() {
 }
 
 /** The Edit parts as one object, `tools.ucEdit`. */
-export const UCEDIT = { Add, Status, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, Boxes, added };
+export const UCEDIT = { Add, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, Boxes, added };

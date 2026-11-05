@@ -16,6 +16,7 @@ import { listOf, ucFor, tidy, recalled, keep, shownOf, onCounts, narrowed, count
 import { UseCaseDetail } from "../components/UseCaseDetail.jsx";
 import { Menu } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { CommitChip } from "../components/CommitChip.jsx";
 
 const RAG = { "On track": "g", Flag: "a", "High risk": "r", Done: "n" };
 const kept = {};                                              // project -> state: a browser that refuses storage still narrows the list
@@ -59,7 +60,7 @@ function Row({ r, edit, stop, shown }) {
         {ms ? <small class="ucl-ms-s">Milestones: {ms}</small> : null}
       </span>
       <span class="ucl-head" title={r.headline}>{r.headline || "No headline yet"}</span>
-      <span class="ucl-st"><span class={`pill ${RAG[r.status] || "n"}`} data-status>{r.status}</span></span>
+      <span class="ucl-st"><span class={`pill ${RAG[r.status] || "n"}`} data-status>{r.status}</span><CommitChip u={r} /></span>
       <span class="ucl-wi num">{r.total ? <><b>{r.total}</b> linked<small>{r.open} open</small></> : "None linked"}</span>
       <span class="ucl-ms">{ms || <span class="muted">None</span>}</span>
       {edit
