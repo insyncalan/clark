@@ -338,6 +338,29 @@ class Detail(unittest.TestCase):
             self.assertIsNone(self.row()["commitment"])
             self.until(cdp, sid, "document.querySelector('.ucd-sub [data-uc-commit] button').textContent === 'Set commitment'", "the quiet Set commitment affordance")
 
+    def test_the_commitment_menu_is_headed_commitment(self):
+        """row 791: the open commitment menu starts with the one word Commitment (a heading, not a command), over the three words and No flag;
+        at 1400 and 900 px, light and dark. Screenshots go to CLARK_SHOTS when it is set."""
+        import base64
+        import os
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width, scheme)
+                    js = lambda e: cdp.js(e, sid)  # noqa: E731
+                    js("document.querySelector('.ucd-sub [data-uc-commit] button').click()")
+                    self.until(cdp, sid, "!!document.querySelector('[role=menu][aria-label=Commitment]')", "the menu opened")
+                    menu = "document.querySelector('[role=menu][aria-label=Commitment]')"
+                    self.assertEqual(js(f"[...{menu}.querySelectorAll('.lab')].map(e => e.textContent.trim())"), ["Commitment"])
+                    self.assertEqual(js(f"{menu}.firstElementChild.querySelector('.lab') !== null || {menu}.firstElementChild.classList.contains('lab')"), True, "the heading is first")
+                    self.assertEqual(js(f"[...{menu}.querySelectorAll('[role=menuitemradio]')].map(e => e.textContent.replace('\u2713', '').trim())"),
+                                     ["Candidate", "Committed", "Planned 2027", "No flag"], "the heading is not a pickable row")
+                    self.assertEqual(js(f"{menu}.querySelector('[aria-checked=true]').textContent.replace('\u2713', '').trim()"), "Committed")
+                    shots = os.environ.get("CLARK_SHOTS")
+                    if shots:
+                        png = cdp.call("Page.captureScreenshot", {"format": "png"}, sid)["data"]
+                        Path(shots, f"791-commitment-menu-{width}-{scheme}.png").write_bytes(base64.b64decode(png))
+
     def test_the_title_and_the_headline_are_one_change_each_with_one_undo_and_a_blank_title_is_refused(self):
         with chrome() as cdp:
             sid = self.open_detail(cdp)
@@ -421,6 +444,18 @@ class Detail(unittest.TestCase):
             self.undo(cdp, sid)
             self.assertEqual(self.row()["client_visible"], 1)
             self.until(cdp, sid, "document.querySelector('[data-eye]').title === 'On the dashboard'", "Undo put it back")
+
+    def test_change_status_has_room_between_its_words_and_chevron_and_the_controls_are_as_tall(self):
+        """Row 791."""
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width=width, scheme=scheme)
+                    got = cdp.js("""(() => { const b = document.querySelector('#ucd-status'), t = b.querySelector('span').getBoundingClientRect(), c = b.querySelector('svg').getBoundingClientRect();
+                        const e = document.querySelector('[data-eye]').getBoundingClientRect(), r = b.getBoundingClientRect();
+                        return { gap: c.left - t.right, eye: e.height, btn: r.height }; })()""", sid)
+                    self.assertGreaterEqual(got["gap"], 4, got)
+                    self.assertGreaterEqual(got["eye"], got["btn"] - 1, got)
 
     def test_the_eye_has_no_words_beside_it_works_from_the_keyboard_and_never_meets_the_commitment_chip(self):
         """Issue 753."""
