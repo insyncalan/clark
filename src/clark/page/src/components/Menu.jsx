@@ -41,13 +41,18 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, chil
     window.addEventListener("resize", shut);
     return () => { window.removeEventListener("scroll", shut, true); window.removeEventListener("resize", shut); };
   }, []);
-  useLayoutEffect(() => { (menuItemsIn(box.current)[0] || box.current).focus({ preventScroll: true }); }, []);
+  // Row 800: opened with the mouse (the button does not show a focus ring), the first item takes the focus without a ring until a key is used.
+  useLayoutEffect(() => {
+    if (anchor && !anchor.matches(":focus-visible")) box.current.dataset.pointer = "1";
+    (menuItemsIn(box.current)[0] || box.current).focus({ preventScroll: true });
+  }, []);
   useLayoutEffect(() => {                        // not after the next frame: a click away that quick still closes it
     const away = (e) => { if (!box.current.contains(e.target) && !(anchor && anchor.contains(e.target))) closeRef.current("away"); };
     document.addEventListener("pointerdown", away, true);
     return () => document.removeEventListener("pointerdown", away, true);
   }, [anchor]);
   const keys = (e) => {
+    delete box.current.dataset.pointer;
     if (menuMove(e, menuItemsIn(box.current))) return;
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose("esc"); }
     else if (e.key === "Tab") onClose("tab");

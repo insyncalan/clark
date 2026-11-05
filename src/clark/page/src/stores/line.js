@@ -58,7 +58,7 @@ function view(rows_, ctx) {
   const line = lineText.value;
   return {
     state: FL.toState(line, rows_, ctx).state, rows: Q.rowsFor(rows_, line, ctx),
-    can: line.trim() !== "", clear: () => setLine(""),
+    can: line.trim() !== "", clear: () => setLine(""), empty: Q.emptyWords(line, rows_, ctx),
   };
 }
 
