@@ -1,4 +1,5 @@
-"""#662 step 2: the parser of the filter line's text (src/clark/page/src/logic/filterQueryParse.js), a pure function.
+"""#662 steps 2 and 3: the parser of the filter line's text (logic/filterQueryParse.js) and its evaluation over work items
+(logic/filterQueryEval.js), both pure functions.
 
 Run: python3 dev/run_tests.py test_filter_query
 Quick tier: no browser. The module is bundled by the pinned esbuild and run in node (skipped when node is not on the machine).
@@ -180,6 +181,181 @@ class Parse(unittest.TestCase):
 
     def test_the_parser_does_not_look_at_rows(self):
         self.assertEqual(run_node("FQ.parseQuery.length"), 2)
+
+
+TODAY = "2026-10-29"
+ME = "Owner One"
+CTX = {"today": TODAY, "me": ME}
+
+
+def row(id, kind, title, status, owner, priority=None, due=None, **more):
+    r = {"id": id, "kind": kind, "title": title, "status": status, "owner": owner, "priority": priority, "workstream": "", "uc": "",
+         "milestone": "", "client": False, "due_date": due}
+    r.update(more)
+    return r
+
+
+# Fictional. Today is a Thursday.
+ROWS = [
+    row("T-A-001", "action", "Draft the cut-over plan", "Open", ME, "High", "2026-10-20", workstream="Build", uc="Use case 1.1", milestone="Go live"),
+    row("T-A-002", "action", "Book the training room", "Open", "TBC", "Low", "2026-11-01"),
+    row("T-A-003", "action", "Send the invitations", "Delayed", "Owner Two", "Urgent", "2026-11-05", workstream="Data", uc="Use case 2"),
+    row("T-A-004", "action", "Order the laptops", "Open", ME, "Medium", "2026-12-01", workstream="Data", client=True),
+    row("T-A-005", "action", "Archive the old files", "Closed", "Owner Two", "Medium", "2026-10-05"),
+    row("T-R-001", "risk", "Supplier slips", "Open", ME, "High", "2026-11-03", workstream="Build", reviewed="2026-10-01", client_action=True),
+    row("T-R-002", "issue", "Test system is down", "Open", "", "High"),
+    row("T-R-003", "assumption", "Users have laptops", "Open", "Owner Two", "Low", workstream="Data"),
+    row("T-D-001", "decision", "Use the new tool", "Pending", ME, None, None, needed_by="2026-11-20"),
+    row("T-D-002", "decision", "Pick a supplier", "Pending", "Owner Two", None, None),
+    row("T-D-003", "decision", "Use the shared calendar", "Made", "Owner Two", None, None, date="2026-10-01"),
+    row("T-D-004", "decision", "Go with the old plan", "Withdrawn", "Owner Two", None, None),
+]
+ALL = [r["id"] for r in ROWS]
+CLOSED = ["T-A-005", "T-D-003", "T-D-004"]
+
+
+class Evaluate(unittest.TestCase):
+    def ids(self, line, ctx=CTX, rows=ROWS, extra=None):
+        # `of` cannot travel as JSON: the probe attaches the custom field's reader to the field it is given
+        probe = (f"(() => {{ const x = {lit(extra or [])}.map((f) => ({{ ...f, of: (r) => r.region ? [r.region] : ['(none)'] }})); "
+                 f"return FQ.evaluateQuery({lit(rows)}, {lit(line)}, {lit(ctx)}, x).map((r) => r.id); }})()")
+        return run_node(probe)
+
+    def test_empty_line_shows_everything(self):
+        self.assertEqual(self.ids(""), ALL)
+        self.assertEqual(self.ids("   "), ALL)
+
+    def test_free_text_matches_the_title_in_any_case(self):
+        self.assertEqual(self.ids("laptops"), ["T-A-004", "T-R-003"])
+        self.assertEqual(self.ids("LAPTOP"), ["T-A-004", "T-R-003"])
+        self.assertEqual(self.ids('"the old"'), ["T-A-005", "T-D-004"])
+        self.assertEqual(self.ids("order laptops"), ["T-A-004"])           # two words: both
+        self.assertEqual(self.ids("nothing like this"), [])
+
+    def test_one_value_and_the_names_ignore_case(self):
+        self.assertEqual(self.ids("priority:Urgent"), ["T-A-003"])
+        self.assertEqual(self.ids("PRIORITY:urgent"), ["T-A-003"])
+        self.assertEqual(self.ids("status:Delayed"), ["T-A-003"])
+        self.assertEqual(self.ids("type:decision"), ["T-D-001", "T-D-002", "T-D-003", "T-D-004"])
+        self.assertEqual(self.ids("client:shown"), ["T-A-004"])
+
+    def test_comma_is_or_within_a_field(self):
+        self.assertEqual(self.ids("type:risk,issue"), ["T-R-001", "T-R-002"])
+        self.assertEqual(self.ids("priority:Urgent,Low"), ["T-A-002", "T-A-003", "T-R-003"])
+
+    def test_space_is_and_across_fields(self):
+        self.assertEqual(self.ids("priority:Urgent,High workstream:Data"), ["T-A-003"])
+        self.assertEqual(self.ids("priority:Urgent,High workstream:Build"), ["T-A-001", "T-R-001"])
+        self.assertEqual(self.ids("type:action laptops"), ["T-A-004"])
+        self.assertEqual(self.ids('owner:"Owner One" type:action'), ["T-A-001", "T-A-004"])
+
+    def test_exclude(self):
+        self.assertEqual(self.ids("-status:Closed"), [i for i in ALL if i != "T-A-005"])
+        self.assertEqual(self.ids("-status:Closed,Made,Withdrawn"), [i for i in ALL if i not in CLOSED])
+        self.assertEqual(self.ids("-type:action,decision,assumption"), ["T-R-001", "T-R-002"])
+        self.assertEqual(self.ids("-status:NoSuchStatus"), ALL)
+
+    def test_has_and_no(self):
+        self.assertEqual(self.ids("no:owner"), ["T-R-002"])
+        self.assertEqual(self.ids("has:owner"), [i for i in ALL if i != "T-R-002"])
+        self.assertEqual(self.ids("no:priority"), ["T-D-001", "T-D-002", "T-D-003", "T-D-004"])
+        self.assertEqual(self.ids("has:priority,workstream no:priority"), [])
+        self.assertEqual(self.ids("no:workstream,priority"), ["T-A-002", "T-A-005", "T-R-002", "T-D-001", "T-D-002", "T-D-003", "T-D-004"])     # a list is OR
+        self.assertEqual(self.ids("-no:owner"), self.ids("has:owner"))
+        self.assertEqual(self.ids("has:due"), [i for i in ALL if i not in ("T-R-002", "T-R-003", "T-D-002", "T-D-004")])
+        self.assertEqual(self.ids("no:due"), ["T-R-002", "T-R-003", "T-D-002", "T-D-004"])      # a closed item with a date has a date
+        self.assertEqual(self.ids("has:type"), ALL)                                                # a field every item has
+        self.assertEqual(self.ids("no:type"), [])
+
+    def test_is_states(self):
+        self.assertEqual(self.ids("is:closed"), CLOSED)
+        self.assertEqual(self.ids("is:open"), [i for i in ALL if i not in CLOSED])
+        self.assertEqual(self.ids("-is:open"), CLOSED)
+        self.assertEqual(self.ids("is:open no:owner"), ["T-R-002"])
+        self.assertEqual(self.ids("is:overdue"), ["T-A-001"])
+        self.assertEqual(self.ids("is:incomplete"), ["T-A-002", "T-R-002", "T-D-002"])
+        self.assertEqual(self.ids("is:open,closed"), ALL)
+
+    def test_at_me_is_the_signed_in_person(self):
+        self.assertEqual(self.ids("owner:@me"), ["T-A-001", "T-A-004", "T-R-001", "T-D-001"])
+        self.assertEqual(self.ids("owner:@me type:action"), ["T-A-001", "T-A-004"])
+        self.assertEqual(self.ids("-owner:@me type:action"), ["T-A-002", "T-A-003", "T-A-005"])
+        self.assertEqual(self.ids("owner:@me,\"Owner Two\" type:risk,assumption"), ["T-R-001", "T-R-003"])
+        self.assertEqual(self.ids("owner:@ME"), self.ids("owner:@me"))
+        self.assertEqual(self.ids("owner:me"), self.ids("owner:@me"))                  # the older spelling still reads
+        # clark knows nobody: it matches no item and the line does not widen
+        self.assertEqual(self.ids("owner:@me", {"today": TODAY, "me": ""}), [])
+        self.assertEqual(self.ids("owner:@me", {"today": TODAY}), [])
+        self.assertEqual(self.ids("-owner:@me", {"today": TODAY, "me": ""}), ALL)
+
+    def test_an_unknown_or_ambiguous_field_filters_nothing(self):
+        self.assertEqual(self.ids("stat:Open"), ALL)
+        self.assertEqual(self.ids("-state:Merged"), ALL)                        # the reference tool returned nothing here
+        self.assertEqual(self.ids("stat:Open type:risk,issue"), ["T-R-001", "T-R-002"])      # the other token still applies
+        self.assertEqual(self.ids("no:stat is:closed"), CLOSED)
+        self.assertEqual(self.ids("is:opn type:risk"), ["T-R-001"])
+        self.assertEqual(self.ids("status:"), ALL)
+        # two fields with one name: neither is guessed
+        dup = [{"key": "status2", "name": "Status", "none": True}]
+        self.assertEqual(self.ids("status:Closed", extra=dup), ALL)
+        self.assertEqual(self.ids("status:Closed type:action", extra=dup), ["T-A-001", "T-A-002", "T-A-003", "T-A-004", "T-A-005"])
+
+    def test_a_value_that_nothing_has_matches_nothing(self):
+        self.assertEqual(self.ids("status:Merged"), [])
+        self.assertEqual(self.ids("owner:Nobody"), [])
+
+    def test_dates_and_the_older_value_words(self):
+        self.assertEqual(self.ids("due:overdue"), ["T-A-001"])
+        self.assertEqual(self.ids("due:next-7-days"), ["T-A-002", "T-A-003", "T-R-001"])
+        self.assertEqual(self.ids("due:none"), ["T-R-002", "T-R-003", "T-D-002", "T-D-004"])
+        self.assertEqual(self.ids("usecase:\"Use case 1.1\""), ["T-A-001"])
+        self.assertEqual(self.ids("use-case:1"), ["T-A-001"])                                    # the group: 1 reaches 1.1
+        self.assertEqual(self.ids("usecase:2"), ["T-A-003"])
+        self.assertEqual(self.ids("milestone:\"go live\""), ["T-A-001"])
+
+    def test_custom_fields_work_by_themselves(self):
+        rows = [{**r, "region": "EMEA" if i % 3 == 0 else ("APAC" if i % 3 == 1 else "")} for i, r in enumerate(ROWS)]
+        extra = [{"key": "region", "name": "Sales region", "none": True}]
+        emea = [r["id"] for i, r in enumerate(ROWS) if i % 3 == 0]
+        self.assertEqual(self.ids('"sales region":emea', rows=rows, extra=extra), emea)
+        self.assertEqual(self.ids("sales-region:EMEA,APAC type:action", rows=rows, extra=extra), ["T-A-001", "T-A-002", "T-A-004", "T-A-005"])
+        self.assertEqual(self.ids("no:region", rows=rows, extra=extra), [r["id"] for i, r in enumerate(ROWS) if i % 3 == 2])
+        self.assertEqual(self.ids("has:region -region:APAC", rows=rows, extra=extra), emea)
+        self.assertEqual(self.ids("region:EMEA", rows=rows), ALL)                 # no such field without it: ignored, not guessed
+
+    def test_the_order_of_the_items_is_kept(self):
+        rev = list(reversed(ROWS))
+        got = run_node(f"FQ.evaluateQuery({lit(rev)}, 'type:action', {lit(CTX)}).map((r) => r.id)")
+        self.assertEqual(got, ["T-A-005", "T-A-004", "T-A-003", "T-A-002", "T-A-001"])
+
+    def test_the_parsed_line_can_be_used_again(self):
+        got = run_node(f"(() => {{ const p = FQ.parseQuery('type:risk'); return [FQ.evaluateQuery({lit(ROWS)}, p, {lit(CTX)}).length, FQ.evaluateQuery({lit(ROWS)}, p, {lit(CTX)}).length]; }})()")
+        self.assertEqual(got, [1, 1])
+
+    def test_nothing_in_an_item_is_changed(self):
+        self.assertEqual(run_node(f"(() => {{ const rows = {lit(ROWS)}; const before = JSON.stringify(rows); FQ.evaluateQuery(rows, 'is:open owner:@me', {lit(CTX)}); return before === JSON.stringify(rows); }})()"), True)
+
+    def test_1000_items_evaluate_well_inside_100_ms(self):
+        """A generous bound (the work is a few milliseconds on a laptop): the point is that it does not grow badly. The line is a long one."""
+        probe = f"""(() => {{
+          const kinds = ['action','risk','issue','decision'], st = ['Open','Pending','Closed','Delayed'], ws = ['Build','Data','Run'], pr = ['Urgent','High','Medium','Low'];
+          const rows = Array.from({{ length: 1000 }}, (_, i) => ({{ id: 'X-' + i, kind: kinds[i % 4], title: 'Item number ' + i + ' about the supplier', status: st[i % 4],
+            owner: i % 5 ? 'Owner ' + (i % 7) : '', priority: pr[i % 4], workstream: ws[i % 3], uc: 'Use case ' + (i % 4), milestone: 'M' + (i % 5),
+            due_date: '2026-' + String(10 + (i % 3)).padStart(2, '0') + '-' + String(1 + (i % 28)).padStart(2, '0') }}));
+          const line = 'supplier type:action,risk,issue -status:Closed priority:Urgent,High,Medium no:milestone,owner is:open owner:@me workstream:Build,Data due:overdue -usecase:2 bogus:x';
+          const ctx = {{ today: '2026-10-29', me: 'Owner 3' }};
+          FQ.evaluateQuery(rows, line, ctx);                          // a first run warms the engine
+          const t0 = performance.now();
+          const n = FQ.evaluateQuery(rows, line, ctx).length;
+          const dt = performance.now() - t0;
+          const t1 = performance.now();
+          const m = FQ.evaluateQuery(rows, 'supplier -status:Closed owner:@me', ctx).length;
+          return {{ ms: dt, ms2: performance.now() - t1, n, m }};
+        }})()"""
+        got = run_node(probe)
+        self.assertLess(got["ms"], 100, got)
+        self.assertLess(got["ms2"], 100, got)
+        self.assertGreater(got["m"], 0, got)
 
 
 if __name__ == "__main__":

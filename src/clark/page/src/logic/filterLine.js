@@ -122,7 +122,7 @@ const TYPED = {
 };
 const SHOWN = { due: { soon: "next-7-days" }, client: { yes: "shown", no: "internal" } };
 const word = (field, v) => (v === NONE || (field === "due" && v === "none") ? "none" : (own(SHOWN, field) && own(SHOWN[field], v)) || v);
-const stored = (field, w) => { const m = TYPED[field]; return m && Object.prototype.hasOwnProperty.call(m, low(w)) ? m[low(w)] : w; };
+export const stored = (field, w) => { const m = TYPED[field]; return m && Object.prototype.hasOwnProperty.call(m, low(w)) ? m[low(w)] : w; };
 
 // The page may also pass the project's own lists in ctx: `workstreams` (names, in the project's order) and `milestones` (names, or
 // {name, date}, which are put in date order). They come first; any other value the rows have follows.
