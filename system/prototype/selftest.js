@@ -2359,7 +2359,7 @@
     C.go('dashboard'); await sleep(100);
   });
 
-  /* ── Past reports (a mockup, #125): three ways in, each opens a past report behind the "you are looking at the past" banner, with nothing editable ── */
+  /* ── Published reports (a mockup, #125): one way in, the list; Open shows a past report behind the "you are looking at the past" banner, with nothing editable ── */
   await step('past reports mockup', async () => {
     C.pastReset(); C.go('dashboard'); await sleep(120);
     click($('#meBtn')); await sleep(40); ok('past: the profile menu has Past reports (mockup)', $$('.menu [data-i]').some(e => /^Past reports \(mockup\)/.test(e.textContent.trim())));
@@ -2368,20 +2368,10 @@
     const signal = (when, n) => { const b = $('#pvBanner'), f = $('#pvFrame'), t = b ? b.textContent.replace(/\s+/g, ' ') : '';
       return !!b && t.includes(`You are looking at ${when}, as it was published. Back to now`) && t.includes(`Publication ${n}`) && !!$('#pvBack') && !!f && f.hasAttribute('inert')
         && !f.querySelector('input,textarea,select,button,[contenteditable],a[href]') && getComputedStyle(f).borderTopStyle !== 'none'; };
-    /* mockup 1: the week picker beside "Week ending" */
-    ok('past: the week picker lists this week and the past publications', $('#pvWeek') && [...$('#pvWeek').options].map(o => o.value).join() === 'now,7,6,5,4');
-    $('#pvWeek').value = '7'; $('#pvWeek').dispatchEvent(new Event('change', { bubbles: true })); await sleep(120);
-    ok('past 1 (week picker): a past week opens behind the banner, read only, nothing editable', signal('21-10-2026', 7), ($('#pvBanner') || {}).textContent);
-    click($('[data-pv-mode=asat]')); await sleep(100);
-    ok('past 1: "As at that date" says it is rebuilt from the history, in a dashed frame', /You are looking at the dashboard as at 23-10-2026, rebuilt from the change history\. Back to now/.test($('#pvBanner').textContent.replace(/\s+/g, ' ')) && $('#pvFrame').hasAttribute('inert') && getComputedStyle($('#pvFrame')).borderTopStyle === 'dashed');
-    click($('[data-pv-mode=pub]')); await sleep(80);
-    $('#pvWeek').value = 'now'; $('#pvWeek').dispatchEvent(new Event('change', { bubbles: true })); await sleep(100); ok('past 1: choosing this week again closes the past', !$('#pvBanner') && !!$('#pvNone'));
-    /* mockup 2: the Published reports list */
-    click($('[data-pv-way=list]')); await sleep(100); ok('past 2 (published reports): the list shows each publication with Open', $$('#pvList [data-pv-open]').length === 4);
-    click($('#pvList [data-pv-open="6"]')); await sleep(120); ok('past 2: Open shows the publication behind the banner, read only, nothing editable', signal('14-10-2026', 6), ($('#pvBanner') || {}).textContent);
-    /* mockup 3: the timeline of publications */
-    click($('[data-pv-way=timeline]')); await sleep(100); ok('past 3 (timeline): a dot per publication, then Now', $$('#pvTimeline [data-pv-tl]').length === 4 && !!$('#pvTimeline .pv-dot.now'));
-    click($('#pvTimeline [data-pv-tl="7"]')); await sleep(120); ok('past 3: a dot opens that publication behind the banner, read only, nothing editable', signal('21-10-2026', 7) && $('[data-pv-tl="7"]').getAttribute('aria-pressed') === 'true', ($('#pvBanner') || {}).textContent);
+    ok('past: the heading, the intro and the tag are the one-way words, with no switch, picker or timeline', $('.pv-h').textContent === 'Published reports' && $('.pv-intro').textContent === 'The publications on this page are made up; nothing here changes the project.' && !!$('.pv .tag') && $('.pv .tag').textContent === 'Mockup for review' && !$('[data-pv-way]') && !$('#pvWeek') && !$('#pvTimeline') && !$('[data-pv-mode]'));
+    ok('past: the list shows each publication with Open', $$('#pvList [data-pv-open]').length === 4);
+    click($('#pvList [data-pv-open="6"]')); await sleep(120); ok('past: Open shows the publication behind the banner, read only, nothing editable', signal('14-10-2026', 6), ($('#pvBanner') || {}).textContent);
+    click($('#pvList [data-pv-open="7"]')); await sleep(120); ok('past: another Open shows that publication instead', signal('21-10-2026', 7), ($('#pvBanner') || {}).textContent);
     ok('past: no sideways scroll with the past open', document.documentElement.scrollWidth <= innerWidth + 1, document.documentElement.scrollWidth);
     click($('#pvBack')); await sleep(150); ok('past: Back to now goes to this week\'s dashboard', C.UI.view === 'dashboard' && !$('#pvBanner') && !!$('.sheet'));
     C.pastReset();

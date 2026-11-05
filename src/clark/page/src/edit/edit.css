@@ -571,17 +571,21 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .rbar .modes.seg { margin-left: 0; flex: none; padding: 3px; gap: 2px; background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-pill); overflow: visible; }   /* #665: the prototype's .seg, on the page background */
 .rbar .seg .mode { min-width: 0; min-height: 28px; padding: 0 14px; border-radius: var(--radius-pill); font-size: var(--size-small); color: var(--text-muted); }
 .rbar .seg .mode:hover { color: var(--text); }
-.rbar .seg .mode[aria-pressed="true"] { background: var(--brand-navy); color: var(--white); }
+.rbar .seg .mode[aria-pressed="true"] { background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); }   /* the aqua pill with dark text, in light and dark alike */
 .rbar .seg .mode:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-:root[data-theme=dark] .rbar .seg .mode[aria-pressed="true"] { background: var(--brand-blue); color: var(--text-on-brand); }   /* navy is the page's own dark here: the chosen half takes the accent */
-@media (prefers-color-scheme: dark) { :root[data-theme=auto] .rbar .seg .mode[aria-pressed="true"] { background: var(--brand-blue); color: var(--text-on-brand); } }
+.rbar .seg .mode { gap: var(--space-1); }
+.rbar .seg .mode .tb-ico { width: 14px; height: 14px; }
 .rbar-week { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); }
-.rbar-week input { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); padding: 3px 8px; min-height: 28px; }
+.rbar-week input { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius); padding: 3px 8px; min-height: 28px; }
 .rbar-week input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.rbar-weekbox { display: inline-flex; align-items: center; gap: 8px; }
+.rbar-cal { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; min-height: 28px; padding: 0; color: var(--text-muted); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); cursor: pointer; }
+.rbar-cal:hover { color: var(--text); }
+.rbar-cal:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 /* item 344: the week picker beside Week ending (the prototype's #wkPast), in View and Edit; picking only opens, it changes nothing */
 .rbar-past { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); padding: 3px 8px; min-height: 28px; width: auto; max-width: min(260px, 100%); box-sizing: border-box; }
 .rbar-past:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-.rbar-state { padding: 2px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); }
+.rbar-state { font-size: var(--size-caption); padding: 2px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); }
 .rbar-hint { color: var(--text-muted); }
 
 /* The eye on a milestone row (edit/MsEye.jsx): the row's cells and the eye sit side by side; the eye is a real button, 28 px square. */
@@ -712,6 +716,15 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .ad.dlg .imp-refused ul { margin: var(--space-1) 0 0; padding-left: 1.125rem; }
 .ad.dlg .imp-refused .imp-after { margin: 8px 0 0; }
 @media (max-width: 900px) { .ad.dlg, .ad.dlg.wide { width: 100%; } }
+
+/* a switch (item 677): Settings > Personal > Keys; a button with role switch, as the prototype draws it */
+.sw { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: var(--size-small); }
+.sw small { display: block; font-size: var(--size-caption); font-weight: 400; color: var(--text-muted); }
+.switch { all: unset; box-sizing: border-box; position: relative; width: 44px; height: 24px; border-radius: 999px; background: var(--grey-500); cursor: pointer; flex: none; transition: background-color var(--dur-state) var(--ease-out); }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); box-shadow: var(--shadow); transition: transform var(--dur-state) var(--ease-out); }
+.switch[aria-checked="true"] { background: var(--brand-blue); }
+.switch[aria-checked="true"]::after { transform: translateX(20px); }
+.switch:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 
 /* The AI suggestion card (#72): roles and tokens only; no status colour (each already means something else). */
 .aic { margin: .5rem 0; padding: .75rem .875rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }

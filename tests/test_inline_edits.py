@@ -215,6 +215,16 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.js("E.quickDates('2026-10-28')"), [["Today", "2026-10-28"], ["Tomorrow", "2026-10-29"], ["Friday", "2026-10-30"], ["Next week", "2026-11-04"]])
         self.assertEqual(self.js("E.quickDates('2026-10-30')")[2], ["Friday", "2026-11-06"], "on a Friday, the next one")
 
+    def test_the_week_ending_pickers_friday(self):
+        # issue 672: a Friday is today; Saturday and Sunday give the coming one; Monday to Thursday the one of that week; the task quick list is as it was
+        for today, friday in [("2031-05-09", "2031-05-09"), ("2031-05-10", "2031-05-16"), ("2031-05-11", "2031-05-16"), ("2031-05-12", "2031-05-16"),
+                              ("2031-05-13", "2031-05-16"), ("2031-05-14", "2031-05-16"), ("2031-05-15", "2031-05-16"),
+                              ("2031-05-31", "2031-06-06"), ("2031-06-01", "2031-06-06"), ("2031-12-27", "2032-01-02"),
+                              ("2031-12-28", "2032-01-02"), ("2031-12-29", "2032-01-02")]:
+            with self.subTest(today=today):
+                self.assertEqual(self.js(f"E.weekEndingQuick('{today}')"), ["Friday", friday])
+        self.assertEqual(self.js("E.quickDates('2031-05-09')")[2], ["Friday", "2031-05-16"], "the task quick list still gives the next Friday")
+
 
 # ---- part 2: the real page, the real routes, a real store ----
 def key(cdp, sid, name, alt=False):

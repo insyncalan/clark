@@ -1,0 +1,214 @@
+// The filter line's box, as plain functions (issue 662, steps 4 and 5): what the typed text looks like (its highlighted pieces), the words
+// for a token that cannot be used, the rows a line shows, and the list of suggestions with how a chosen one changes the text. No DOM,
+// no store, no clock: the component (components/FilterLine.jsx) draws these and owns the timing. It reads the parser and the evaluation of
+// issue 662 (filterQueryParse.js, filterQueryEval.js), so a field added to the schema, or passed in as `extra`, is understood here too.
+import { LINE_FIELDS, FIELD_NOTES, NO_ME, offers, isOn, word as typedWord, isStartingView } from "./filterLine.js";
+import { NONE } from "../filters.js";
+import { parseQuery, schemaOf, resolveField, squash, colonAt } from "./filterQueryParse.js";
+import { evaluateQuery } from "./filterQueryEval.js";
+
+const low = (s) => String(s == null ? "" : s).toLowerCase();
+const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+const quoted = (v) => (/[\s,":]/.test(v) ? `"${String(v).replace(/"/g, "")}"` : String(v));
+
+// ── The schema the page answers ───────────────────────────────────────────────────────────────────────────────────────────
+
+const cache = { rows: null, key: "", schema: null, extra: null };
+/** schemaOf() less the `is:` words this page cannot answer yet (the page turns them on with ctx.isReady), so such a word reads as an unknown state. */
+export function pageSchema(rows, ctx, extra) {
+  const c = ctx || {}, key = `${c.isReady ? 1 : 0}${c.quietReady ? 1 : 0}`;
+  if (cache.rows === rows && cache.key === key && cache.extra === (extra || null) && cache.schema) return cache.schema;
+  const base = schemaOf(extra || []);
+  const schema = { ...base, states: base.states.filter((s) => isOn(s, c, rows)) };
+  Object.assign(cache, { rows, key, schema, extra: extra || null });
+  return schema;
+}
+export const parseFor = (line, rows, ctx, extra) => parseQuery(line, pageSchema(rows, ctx, extra));
+
+/** The rows a line shows, in their order. */
+export const rowsFor = (rows, line, ctx, extra) => evaluateQuery(rows, parseFor(line, rows, ctx, extra), ctx, extra);
+
+// ── The words for a token that cannot be used ─────────────────────────────────────────────────────────────────────────────
+
+/** The sentence for a token the parser could not use ("" when there is nothing to say). */
+export function messageOf(e) {
+  if (!e) return "";
+  const first = e.suggestions && e.suggestions[0];
+  switch (e.code) {
+    case "unknown-field": return first ? `Unknown field '${e.name}'. Did you mean ${first.name}?` : `Unknown field '${e.name}'.`;
+    case "ambiguous-field": return `'${e.name}' could mean more than one field. Use the full name.`;
+    case "unknown-state": return first ? `Unknown state '${e.name}'. Did you mean ${first.name}?` : `Unknown state '${e.name}'.`;
+    case "missing-value": return `Add a value after '${e.name}:'.`;
+    default: return "";
+  }
+}
+
+/** The words of the empty state (the list shows them; they live here so the published file's code holds none of them). */
+export const EMPTY = { none: "No work items match.", clear: "Clear filter" };
+
+/** True when `@me` (or the older `me`) is asked of the owner and no name is set. */
+export function wantsMe(parsed, ctx) {
+  if (String((ctx && ctx.me) || "").trim()) return false;
+  return parsed.terms.some((t) => t.kind === "field" && t.field === "owner" && t.values.some((v) => ["@me", "me"].includes(low(v))));
+}
+export { NO_ME };
+
+// ── Colours of the single-select values ───────────────────────────────────────────────────────────────────────────────────
+// The pill colours the list already uses: a priority is red, amber or green (workItems.colourOf); a status is as its pill reads.
+const TONES = {
+  priority: { urgent: "r", high: "r", medium: "a", low: "g" },
+  status: { open: "b", pending: "b", delayed: "a", closed: "n", cancelled: "n", made: "g", withdrawn: "n" },
+};
+export const toneOf = (field, value) => (has(TONES, field) && has(TONES[field], low(value)) ? TONES[field][low(value)] : "");
+
+// ── The typed text, in pieces ─────────────────────────────────────────────────────────────────────────────────────────────
+
+function splitCommas(s) {
+  const out = []; let cur = "", q = false;
+  for (const ch of s) { if (ch === '"') { q = !q; cur += ch; } else if (ch === "," && !q) { out.push(cur); cur = ""; } else cur += ch; }
+  out.push(cur);
+  return out;
+}
+
+/** The line cut into pieces to draw: [{text, cls: "gap" | "txt" | "fld" | "val" | "sep" | "err", tone?, message?, start?, end?}].
+ *  Together the pieces are exactly the line. Field names are plain, values are chips, an unusable token is "err" with its words.
+ *  `caret`: a token still being typed (a field name with nothing after the colon yet) is not marked while the caret is in it. */
+export function pieces(line, parsed, caret) {
+  const out = []; let at = 0;
+  const push = (text, cls, extra) => { if (text) out.push({ text, cls, ...extra }); };
+  for (const t of parsed.tokens) {
+    if (t.start > at) push(line.slice(at, t.start), "gap");
+    at = t.end;
+    const typing = t.error && t.error.code === "missing-value" && caret !== undefined && caret >= t.start && caret <= t.end;
+    if (t.error && !typing) { push(t.raw, "err", { message: messageOf(t.error), start: t.start, end: t.end }); continue; }
+    if (t.kind === "text" || typing) { push(t.raw, "txt"); continue; }
+    const ci = colonAt(t.raw);
+    push(t.raw.slice(0, ci + 1), "fld");
+    splitCommas(t.raw.slice(ci + 1)).forEach((v, i) => {
+      if (i) push(",", "sep");
+      push(v, "val", { tone: t.kind === "field" ? toneOf(t.field, v.replace(/"/g, "")) : "" });
+    });
+  }
+  if (at < line.length) push(line.slice(at), "gap");
+  return out;
+}
+
+// ── Saved views: the same line, however it is spaced or ordered ───────────────────────────────────────────────────────────
+
+const keyOf = (p) => p.tokens.map((t) => {
+  if (t.error || t.kind === "text") return `"${low(t.raw.replace(/"/g, ""))}`;
+  const list = (t.values || t.states || t.fields || []).map(low).sort().join(",");
+  return `${t.negate ? "-" : ""}${t.kind}:${t.field || ""}:${list}${t.kind === "presence" ? (t.present ? "+" : "-") : ""}`;
+}).sort().join(" ");
+/** True when the line is not the view's saved line (the dot on the tab). */
+export function differsQuery(view, line, rows, ctx, extra) {
+  if (!view) return false;
+  return keyOf(parseFor(view.line, rows, ctx, extra)) !== keyOf(parseFor(line, rows, ctx, extra));
+}
+/** Why a saved view cannot be used, in the words the tab row already has, or "" when it can. */
+export function troubleQuery(view, rows, ctx, extra) {
+  if (!view) return "";
+  const errors = parseFor(view.line, rows, ctx, extra).errors;
+  if (!errors.length) return "";
+  const first = /^(.+?[.?!])(\s|$)/.exec(messageOf(errors[0]));
+  return `This view cannot be used any more. ${first ? first[1] : "Its words are not ones the filter line knows."} Rename it or archive it.`;
+}
+export const heldBackQuery = (view, rows, ctx, extra) => isStartingView(view) && troubleQuery(view, rows, ctx, extra) !== "";
+
+// ── The Open / Closed / All and type switches, written on the text ────────────────────────────────────────────────────────
+
+const RAID = "risk,issue,assumption,dependency";
+const isModeTok = (t) => t.kind === "state" && !t.negate && t.states.every((s) => s === "open" || s === "closed");
+const isTypeTok = (t) => t.kind === "field" && t.field === "type" && !t.negate;
+function groups(line, rows, ctx, extra) {
+  const p = parseFor(line, rows, ctx, extra);
+  return { mode: p.tokens.filter(isModeTok).map((t) => t.raw), type: p.tokens.filter(isTypeTok).map((t) => t.raw), rest: p.tokens.filter((t) => !isModeTok(t) && !isTypeTok(t)).map((t) => t.raw) };
+}
+const join = (g) => [...g.mode, ...g.type, ...g.rest].join(" ");
+/** The line with the Open / Closed / All switch changed ("all": no `is:open` or `is:closed`); everything else in the line stays as typed. */
+export function withMode(line, mode, rows, ctx, extra) {
+  const g = groups(line, rows, ctx, extra);
+  return join({ ...g, mode: mode === "open" || mode === "closed" ? [`is:${mode}`] : [] });
+}
+/** The line with the type switch changed ("all": no `type:`). */
+export function withType(line, type, rows, ctx, extra) {
+  const g = groups(line, rows, ctx, extra);
+  const w = type === "risk" ? RAID : type === "action" || type === "decision" ? type : "";
+  return join({ ...g, type: w ? [`type:${w}`] : [] });
+}
+/** The line with every token that `pred(token)` is true of taken out. */
+export function withoutTokens(line, pred, rows, ctx, extra) {
+  return parseFor(line, rows, ctx, extra).tokens.filter((t) => !pred(t)).map((t) => t.raw).join(" ");
+}
+
+// ── Autocomplete ──────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** The word the caret is in (or just after): {start, word}. White space inside quotes does not end a word. */
+export function wordAt(text, caret) {
+  const s = String(text || "").slice(0, caret === undefined ? undefined : caret);
+  let start = 0, q = false;
+  for (let i = 0; i < s.length; i++) { if (s[i] === '"') q = !q; else if (/\s/.test(s[i]) && !q) start = i + 1; }
+  return { start, word: s.slice(start) };
+}
+
+const noteOf = (key) => (has(FIELD_NOTES, key) ? FIELD_NOTES[key] : "");
+const fieldRow = (key, neg) => ({ kind: "field", ins: `${neg ? "-" : ""}${key}:`, label: `${neg ? "-" : ""}${key}:`, note: noteOf(key), close: false });
+
+/** What to offer for the word the caret is in. [{kind: "field" | "lead" | "value", ins, label, note, tone?, close}]:
+ *  - an empty word: every filterable field, `is:` first, then the built-in fields, the custom ones, `has:` and `no:`; narrowed as it is typed
+ *  - after `field:`: "No X", "Has X", "Exclude X", then the field's values (a `close` row ends the word: a space follows, then the field list again)
+ *  - after `is:`, `has:`, `no:`: the states, or the fields. */
+export function suggestions(text, caret, rows, ctx, extra) {
+  const schema = pageSchema(rows, ctx, extra), c = ctx || {};
+  const { word } = wordAt(text, caret);
+  const neg = word.startsWith("-"), body = neg ? word.slice(1) : word, ci = colonAt(body);
+  if (ci < 0) {
+    const n = squash(body);
+    const fit = (key, name) => !n || squash(key).startsWith(n) || squash(name || key).startsWith(n);
+    const out = [];
+    if (fit("is")) out.push(fieldRow("is", neg));
+    for (const f of [...schema.fields.filter((x) => !x.custom), ...schema.fields.filter((x) => x.custom)]) if (fit(f.key, f.name)) out.push(fieldRow(f.key, neg));
+    if (!neg) for (const q of ["has", "no"]) if (fit(q)) out.push(fieldRow(q, false));
+    return out;
+  }
+  const name = body.slice(0, ci).replace(/"/g, "").trim(), rest = body.slice(ci + 1);
+  const cut = rest.lastIndexOf(",") + 1, done = rest.slice(0, cut), part = low(rest.slice(cut).replace(/"/g, ""));
+  const taken = done.split(",").map((v) => low(v.replace(/"/g, "").trim())).filter(Boolean);
+  const pre = neg ? "-" : "", q = squash(name);
+  if (q === "has" || q === "no") {
+    const p = squash(part);
+    return schema.fields.filter((f) => !taken.includes(squash(f.key)) && (!p || squash(f.key).startsWith(p) || squash(f.name).startsWith(p)))
+      .map((f) => ({ kind: "value", ins: `${pre}${q}:${done}${f.key}`, label: f.key, note: f.name, close: true }));
+  }
+  if (q === "is") {
+    return offers("is", rows, c).filter(([v]) => schema.states.includes(v) && !taken.includes(v) && (!part || v.startsWith(part)))
+      .map(([v, l]) => ({ kind: "value", ins: `${pre}is:${done}${v}`, label: v, note: low(l) !== v ? l : "", close: true }));
+  }
+  const r = resolveField(name, schema);
+  if (!r.field) return [];
+  const k = r.field, F = schema.fields.find((f) => f.key === k);
+  const out = [];
+  if (!done && !part && !neg) {
+    out.push({ kind: "lead", ins: `no:${k}`, label: `No ${F.name}`, note: "", close: true });
+    out.push({ kind: "lead", ins: `has:${k}`, label: `Has ${F.name}`, note: "", close: true });
+    out.push({ kind: "lead", ins: `-${k}:`, label: `Exclude ${F.name}`, note: "", close: false });
+  }
+  if (!has(LINE_FIELDS, k)) return out;                                          // a custom field: the three lead rows only
+  for (const [v, l] of offers(k, rows, c)) {
+    if (v === NONE || v === "none") continue;                                    // "nothing there" is the lead row "No X"
+    const typed = k === "owner" && v === "me" ? "@me" : typedWord(k, v);
+    if (taken.includes(low(typed))) continue;
+    if (part && !low(typed).includes(part) && !low(l).includes(part)) continue;
+    out.push({ kind: "value", ins: `${pre}${k}:${done}${quoted(typed)}`, label: typed, note: l !== typed ? l : "", tone: toneOf(k, typed), close: true });
+  }
+  return out;
+}
+
+/** The text and caret after choosing `opt` for the word the caret is in. A choice that ends the word adds one space after it. */
+export function accept(text, caret, opt) {
+  const { start } = wordAt(text, caret);
+  let tail = String(text).slice(caret);
+  if (opt.close && /^\s/.test(tail)) tail = tail.slice(1);
+  const head = String(text).slice(0, start) + opt.ins + (opt.close ? " " : "");
+  return { text: head + tail, caret: head.length };
+}

@@ -235,10 +235,10 @@ class RealBrowser(unittest.TestCase):
             small = cdp.js("[...document.querySelectorAll('#work, #work *')].filter(e => e.childNodes.length && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())"
                            " && parseFloat(getComputedStyle(e).fontSize) < 12).map(e => e.className)", sid)
             self.assertEqual(small, [], "text is at least 12 px")
-            cdp.js("document.querySelector('#fline-input').focus()", sid)
+            cdp.js("document.querySelector('#fline-input').focus(); document.querySelector('#fline-input').select()", sid)
             cdp.call("Input.insertText", {"text": "st"}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)))
-            targets = cdp.js("[...document.querySelectorAll('#work .vtab, #work .fchip button, #work .newb, #work .fhint, #fline-list .fopt')]"
+            targets = cdp.js("[...document.querySelectorAll('#work .vtab, #work .fx, #work .newb, #work .fhint, #fline-list .fopt')]"
                              ".filter(e => { const r = e.getBoundingClientRect(); return r.height < 24 || r.width < 24; }).map(e => e.className || e.textContent)", sid)
             self.assertEqual(targets, [], "targets are at least 24 px")
             self.assertEqual(cdp.js("(() => { const r = document.querySelector('#fline-list').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth; })()", sid), True)
@@ -360,7 +360,7 @@ class RealBrowser(unittest.TestCase):
             sid = self.load_page(cdp, s.port, 1400, "#work")
             self.assertTrue(wait(lambda: "There are no projects yet." in (cdp.js("document.querySelector('main').innerText", sid) or "")))
             text = cdp.js("document.querySelector('main').innerText", sid)
-            self.assertIn("To look around with made-up projects, close clark and start it again with python3 -m clark --demo.", text)
+            self.assertIn("To look around with made-up projects, close clark and start it again from the clark folder with bash clark.command --demo.", text)
             self.assertNotIn("demo_data.py", text)
             self.assertNotIn("Choose a project", text)
 

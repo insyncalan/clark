@@ -38,19 +38,70 @@ START_HERE = "START-HERE.txt"   # written by package.py, not taken from the repo
 MANIFEST = "clark-release.json" # written by package.py from the files it zips; it does not list itself
 
 
+# --- where a name sits inside the zip (issue 694) -------------------------------------------------------------------------
+# The repository stays flat (src/ at its root). Only the zip puts the program files in one hidden folder, so the list above
+# is never edited for it: place() maps any name the list produces to its place in the zip.
+TOP = "clark"                   # the one folder the zip unzips to, whatever the version (the zip file keeps clark-<version>-<system>.zip)
+HIDDEN = ".app"                 # the one hidden folder that holds every program file
+CODE_ROOT_MARK = HIDDEN + "/"
+# What stays visible at the top of the clark folder. A name ending in "/" is a folder.
+AT_TOP = ("README.md", "START-HERE.txt", "clark.command", "clark.cmd", MANIFEST, "docker/")
+# Top-level names that belong to the person. They are never in a zip, never listed, backed up, replaced or removed.
+PROTECTED = ("system", "data")
+# Extra top-level folders a release may carry beside the program files (issue 716): files the Head puts in at build time
+# (dev/tools/package.py --extra-folder), never tracked by git. The allow-list is closed: a reader accepts a folder only if
+# its exact name is here, so a stray folder in a download is still refused as outside the list.
+EXTRA_TOP = ("meet clark", "intake")
+
+
 def listed(system):
     """The list for `system`: SHARED plus its own files."""
     return SHARED + SYSTEMS[system]
 
 
+def protected(rel):
+    """Whether `rel` (a "/" name) is, or is inside, a folder that belongs to the person. Case does not matter: a Mac disk
+    treats System and system as one folder."""
+    head = rel.replace("\\", "/").split("/")[0].casefold()
+    return head in PROTECTED
+
+
+def extra(rel):
+    """Whether `rel` (a name below the top folder, "/" only) is a file inside one of the declared extra top-level folders."""
+    head, sep, rest = rel.partition("/")
+    return bool(sep and rest) and head in EXTRA_TOP
+
+
+def at_top(rel):
+    """Whether the repo-relative name `rel` stays at the top of the clark folder."""
+    return any(rel == item or (item.endswith("/") and rel.startswith(item)) for item in AT_TOP)
+
+
+def place(rel):
+    """Where the repo-relative name `rel` (a file, or a folder ending in "/") sits in the zip, below the top folder."""
+    return rel if at_top(rel) else CODE_ROOT_MARK + rel
+
+
+def unplace(placed):
+    """The inverse of place(): the repo-relative name of a name in the zip."""
+    return placed[len(CODE_ROOT_MARK):] if placed.startswith(CODE_ROOT_MARK) else placed
+
+
 def covers(system, rel):
-    """Whether the file `rel` (relative to the top folder, "/" only) belongs to a download for `system`."""
+    """Whether the file `rel` (its place in the zip, below the top folder, "/" only) belongs to a download for `system`.
+
+    Anything protected is refused first, whatever the list says."""
+    if protected(rel):
+        return False
     if rel in (START_HERE, MANIFEST):
         return True
+    if extra(rel):                      # a declared extra folder (issue 716); optional, so check_coverage never asks for it
+        return True
     for item in listed(system):
+        placed = place(item)
         if item.endswith("/"):
-            if rel.startswith(item):
+            if rel.startswith(placed):
                 return True
-        elif rel == item:
+        elif rel == placed:
             return True
     return False
