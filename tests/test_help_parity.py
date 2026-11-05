@@ -98,6 +98,14 @@ COMPUTED = {
     "DPP-report-2026-10-30.html": "a worked example of the file name Publish builds (its form is checked by test_help_content.PublishFileName)",
     "In 5 days": "Due, built from the date (workItems.js dueCell)",
     "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
+    "api key": "the words the secret screen reads before a question is sent (secret_screen.py)",
+    "access key": "the words the secret screen reads before a question is sent (secret_screen.py)",
+    "move to Friday, owner Jo, high priority": "a worked example of words typed in Sneak peek (#721)",
+    "due Friday \u00b7 move to tomorrow \u00b7 by Friday": "words typed in Sneak peek, read by sneak.py (#721)",
+    "owner Jo \u00b7 assign to Sam \u00b7 give it to Priya": "words typed in Sneak peek, read by sneak.py (#721)",
+    "done \u00b7 closed \u00b7 reopen \u00b7 delayed \u00b7 cancelled": "words typed in Sneak peek, read by sneak.py (#721)",
+    "made \u00b7 decided \u00b7 withdrawn \u00b7 pending": "words typed in Sneak peek, read by sneak.py (#721)",
+    "urgent priority \u00b7 high priority \u00b7 medium priority \u00b7 low priority": "words typed in Sneak peek, read by sneak.py (#721)",
 }
 
 

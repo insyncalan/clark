@@ -417,6 +417,34 @@ class InProcess(TempFolder):
         code = launcher.main(list(argv), out=out, err=err, serve=serve, **kw)
         return code, out.getvalue(), err.getvalue(), serve
 
+    def test_a_new_data_folder_opens_with_the_demo_projects_once_and_only_once(self):
+        # #731: no flag, no other words: the rule is the folder holding nothing at all
+        data = self.tmp / "fresh-data"
+        code, out, err, serve = self.run_main("--data", str(data), "--port", "8123")
+        self.assertEqual((code, err), (0, ""))
+        self.assertIn(f"Using the data in {data}", out)
+        (call,) = serve.calls
+        self.assertEqual([p["code"] for p in call["projects"]()], ["MOSS", "TUL"])
+        self.assertEqual(call["demo"].status()[1], {"ok": True, "demo": True})
+        self.assertEqual(call["demo"].remove({})[0], 200)
+        code, out, err, serve = self.run_main("--data", str(data), "--port", "8123")        # the next start: removed once stays removed
+        (call,) = serve.calls
+        self.assertEqual(call["projects"](), [])
+        self.assertEqual(call["demo"].status()[1], {"ok": True, "demo": False})
+
+    def test_a_data_folder_that_has_data_does_not_get_the_demo(self):
+        data = self.tmp / "old-data"
+        from clark import store as clark_store
+        data.mkdir()
+        s = clark_store.open_store(data / "clark.db", onedrive_roots=[])
+        with s.step("dashboard", "Test Person") as st:
+            st.create("projects", {"code": "REAL", "name": "Our own project"})
+        s.close()
+        code, out, err, serve = self.run_main("--data", str(data), "--port", "8123")
+        (call,) = serve.calls
+        self.assertEqual([p["code"] for p in call["projects"]()], ["REAL"])
+        self.assertEqual(call["demo"].status()[1]["demo"], False)
+
     def test_the_launcher_passes_no_ai_service_yet(self):
         # #72 slice 4: the AI routes run under ask clark's prompt (passages, CITE and CHANGE lines), so the launcher keeps ai= out:
         # the routes answer 404 and Settings > AI reads as off. Slice 5 gives suggestions their own prompt and turns this on.
@@ -428,8 +456,8 @@ class InProcess(TempFolder):
         code, out, err, serve = self.run_main("--port", "8123")
         self.assertEqual((code, err), (0, ""))
         (call,) = serve.calls
-        self.assertEqual(sorted(call), ["activity", "ai_connect", "app_settings", "as_at", "ask", "ask_folders", "brand_picture", "change", "data_for", "draft_email", "draft_email_sent", "err", "excel_import", "logs", "milestones", "movement", "out", "page_html", "past", "people", "people_list", "people_undo", "port", "profile", "project_save", "projects", "publication_mark", "publisher", "safety", "section_image", "sneak", "undo", "updater", "use_cases",
-                                        "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route; #443: past (the Published reports list and Open); #349: as_at; #282: updater (Settings, Version and updates); #345: publication_mark (Archive and Restore); item 444: excel_import and project_save
+        self.assertEqual(sorted(call), ["activity", "ai_connect", "app_settings", "as_at", "ask", "ask_folders", "brand_picture", "change", "data_for", "demo", "draft_email", "draft_email_sent", "err", "excel_import", "logs", "milestones", "movement", "out", "page_html", "past", "people", "people_list", "people_undo", "port", "profile", "project_save", "projects", "publication_mark", "publisher", "safety", "section_image", "sneak", "undo", "updater", "use_cases",
+                                        "word_export", "word_import"])      # #48: + the two Word routes; #47: asking, its switch and its folders; #50: the Draft email two; #42: activity and sneak; #96 R1: the picture route; #443: past (the Published reports list and Open); #349: as_at; #282: updater (Settings, Version and updates); #345: publication_mark (Archive and Restore); item 444: excel_import and project_save; #731: demo
         self.assertTrue(callable(call["as_at"].read))
         self.assertTrue(callable(call["past"].listing) and callable(call["past"].visit) and callable(call["past"].take))
         self.assertTrue(callable(call["updater"].status) and callable(call["updater"].install))

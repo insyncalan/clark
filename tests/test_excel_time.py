@@ -7,6 +7,7 @@ Needs time.tzset (POSIX); without it these tests are skipped.
 import contextlib
 import json
 import os
+import re
 import shutil
 import tempfile
 import time
@@ -66,18 +67,24 @@ class ExcelTimeTests(unittest.TestCase):
         return path.read_bytes(), entry, path
 
     def test_exported_text_is_the_local_time_in_each_zone(self):
-        for tz, want in ((DUBAI, "Exported on 02-06-2030 at 00:30 (UTC+04:00)"), (NEW_YORK, "Exported on 01-06-2030 at 16:30 (UTC-04:00)")):
+        for tz, want in ((DUBAI, "02-06-2030 00:30 (UTC+04:00)"), (NEW_YORK, "01-06-2030 16:30 (UTC-04:00)")):
             with self.subTest(tz=tz), zone(tz), mock.patch.object(excel, "clock", lambda: NOW):
                 self.assertEqual(excel.exported_text(), want)
 
+    def test_exported_text_has_the_cover_format_exactly(self):
+        pat = re.compile(r"^\d{2}-\d{2}-\d{4} \d{2}:\d{2} \(UTC[+-]\d{2}:\d{2}\)$")      # no 'Exported on', no 'at'
+        for tz in (DUBAI, NEW_YORK):
+            with self.subTest(tz=tz), zone(tz), mock.patch.object(excel, "clock", lambda: NOW):
+                self.assertRegex(excel.exported_text(), pat)
+
     def test_exported_text_follows_the_zone_rules_in_winter(self):
         winter = datetime(2030, 1, 15, 12, 0, 0)             # New York is UTC-5 (EST) then; Dubai has no daylight saving
-        for tz, want in ((DUBAI, "Exported on 15-01-2030 at 16:00 (UTC+04:00)"), (NEW_YORK, "Exported on 15-01-2030 at 07:00 (UTC-05:00)")):
+        for tz, want in ((DUBAI, "15-01-2030 16:00 (UTC+04:00)"), (NEW_YORK, "15-01-2030 07:00 (UTC-05:00)")):
             with self.subTest(tz=tz), zone(tz), mock.patch.object(excel, "clock", lambda: winter):
                 self.assertEqual(excel.exported_text(), want)
 
     def test_exported_text_with_a_pinned_day_is_midnight_utc_in_the_local_zone(self):
-        for tz, want in ((DUBAI, "Exported on 01-06-2030 at 04:00 (UTC+04:00)"), (NEW_YORK, "Exported on 31-05-2030 at 20:00 (UTC-04:00)")):
+        for tz, want in ((DUBAI, "01-06-2030 04:00 (UTC+04:00)"), (NEW_YORK, "31-05-2030 20:00 (UTC-04:00)")):
             with self.subTest(tz=tz), zone(tz):
                 self.assertEqual(excel.exported_text("2030-06-01"), want)
 

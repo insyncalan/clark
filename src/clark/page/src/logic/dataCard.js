@@ -14,7 +14,7 @@ export const DATA = {
 
 export const IMPORT = {
   pickTitle: "Import from Excel",
-  pickBody: "Sheets called Actions, Risks and issues, Decisions, Milestones and Use cases can be imported. You choose which after you pick a file (a History sheet from an export is left alone). A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows.",
+  pickBody: "Sheets called Actions, Risks & Issues, Decisions, Milestones and Use cases can be imported. You choose which after you pick a file (a History sheet from an export is left alone). A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows.",
   sheetsTitle: "What to import",
   sheetsBody: "Tick the sheets to import. Anything you leave unticked is not read and not changed.",
   selectAll: "Select all",
@@ -49,7 +49,7 @@ export const IMPORT = {
   fallback: "That could not be done. Reload the page. If it happens again, restart clark.",
 };
 
-// "Actions (12 rows)", "Decisions (1 row)", "Risks and issues (0 rows)", "Actions (more than 5,000 rows)": a sheet's name and how many rows it holds.
+// "Actions (12 rows)", "Decisions (1 row)", "Risks & Issues (0 rows)", "Actions (more than 5,000 rows)": a sheet's name and how many rows it holds.
 export const SHEET_ROWS_SHOWN = 5000;       // the count stops one past this (excel_import.list_sheets), so a bigger sheet is named, never given a wrong number
 export const sheetWord = (s) => `${s.name} (${s.rows > SHEET_ROWS_SHOWN ? "more than 5,000 rows" : `${s.rows} ${s.rows === 1 ? "row" : "rows"}`})`;
 
@@ -58,7 +58,7 @@ export const sheetWord = (s) => `${s.name} (${s.rows > SHEET_ROWS_SHOWN ? "more 
 export const COLUMNS_INTRO = "Columns, in any order (only the name or title is needed):";
 export const IMPORT_COLUMNS = [
   ["Actions", ["ID", "Description", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
-  ["Risks and issues", ["ID", "Description", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood", "Status", "Raised", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
+  ["Risks & Issues", ["ID", "Description", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood", "Status", "Raised", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
   ["Decisions", ["ID", "Decision", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit", "Replaces", "Client-visible", "Client wording", "Use case", "Labels"]],
   ["Milestones", ["ID", "Milestone", "Description", "Workstream", "Agreed", "Forecast", "Status", "Order", "% complete", "Owner", "State", "State reason", "Movement", "Achieved on", "Client-visible", "Client wording", "Internal note"]],
   ["Use cases", ["ID", "Use case", "Shown as", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible"]],
