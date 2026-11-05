@@ -2,7 +2,8 @@
 // (edit/index.js), so the published page, which is given none, has no switch and no Movement. In View, Movement is read-only and the
 // hint says it is never published. The choice is remembered in this browser.
 import { useState } from "preact/hooks";
-import { mode, fromFile } from "../stores/report.js";
+import { isEditing } from "./editing.js";
+import { fromFile } from "../stores/report.js";
 import { recall, remember } from "../logic/remember.js";
 import { Movement } from "./Movement.jsx";
 import { HEADING, HELP_LINE } from "./movementWords.js";
@@ -13,7 +14,7 @@ const PLAN_HINT = "Every milestone is on the timeline. The list shows where each
 export function MilestonesPage({ plan }) {
   const [view, setView] = useState(() => (recall("msp.view", "plan") === "move" ? "move" : "plan"));
   if (fromFile.value) return plan;
-  const editing = mode.value === "edit";
+  const editing = isEditing();
   const choose = (v) => { remember("msp.view", v); setView(v); };
   return (
     <>

@@ -8,7 +8,8 @@
 import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { useGrow } from "./useGrow.js";
-import { project, mode, fromFile, data, reread, openPeek } from "../stores/report.js";
+import { isEditing } from "./editing.js";
+import { project, fromFile, data, reread, openPeek } from "../stores/report.js";
 import { changeMilestone, say, undone } from "../stores/changes.js";
 import { dayNumber, showDate, todayIso } from "../workItems.js";
 import { addDays } from "../logic/milestones.js";
@@ -261,7 +262,7 @@ function Decide({ r }) {
 }
 
 export function Movement() {
-  const code = project.value, again = undone.value, editing = mode.value === "edit", served = !fromFile.value;
+  const code = project.value, again = undone.value, editing = isEditing(), served = !fromFile.value;
   useEffect(() => { form.value = null; picked.value = ""; if (served) load(); }, [code, editing]);
   useEffect(() => { if (again && served) load(); }, [again]);
   if (!served) return null;
