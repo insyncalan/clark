@@ -930,7 +930,7 @@
      ],
      [
       "p",
-      "A single click on a work item row, outside its fields, opens it in the peek. The owner, status, priority and due date change in place, in View or Edit; in Edit every part of the row does."
+      "Double-click a work item row, or click its ID, to open it in the peek; with the peek already open a single click moves it. The owner, status, priority and due date change in place, in View or Edit; in Edit every part of the row does."
      ],
      [
       "p",

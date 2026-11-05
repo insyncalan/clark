@@ -262,5 +262,23 @@ class ExcelColumns(unittest.TestCase):
         self.assertIn("an import never changes anything from them", note)
 
 
+class PeekOpens(unittest.TestCase):
+    """Issue 806: Help says how a work item row opens in the peek, and the code does exactly that."""
+
+    def test_a_click_selects_and_a_double_click_opens_on_work_items_and_the_board(self):
+        rows, pick, board = code("components", "WorkItems.jsx"), code("components", "pick.js"), code("edit", "Board.jsx")
+        self.assertIn("onDblClick={dbl}", rows)
+        self.assertIn("pickOpen(row.id)", rows)
+        self.assertIn("sel.click(id, {}, drawnOrder()); opener(id); }", pick)      # pickOpen: a double click selects only that item and opens it
+        self.assertIn("item.value !== id) opener(id)", pick)      # a single click opens only when a peek is already open: it moves
+        self.assertIn("onDblClick", board)
+
+    def test_help_says_so(self):
+        text = flat(RAW)
+        self.assertIn("Double-click a work item row, or click its ID, to open it in the peek; with the peek already open a single click moves it.", text)
+        self.assertNotIn("A single click on a work item row, outside its fields, opens it in the peek", text)
+        self.assertIn("Double-click a row or a card, press", text)
+
+
 if __name__ == "__main__":
     unittest.main()
