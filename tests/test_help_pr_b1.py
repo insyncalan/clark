@@ -47,10 +47,10 @@ class SheetChoice(unittest.TestCase):
 
     def test_guide_row_limits(self):
         body = flat(RAW)
-        self.assertIn("shows **more than 5,000 rows**. Any sheet with more than 2,000 rows that have something in them is refused whole when you press **Continue**, and the message says so.", body)
+        self.assertIn("shows **more than 2,000 rows**. It is refused whole when you press **Continue**, and the message says so.", body)
         self.assertNotIn("cannot be imported as it is", body)
         self.assertIn("MAX_ROWS = 2000", text("excel_import.py"))
-        self.assertIn("SHEET_ROWS_SHOWN = 5000", (PAGE / "logic" / "dataCard.js").read_text(encoding="utf-8"))
+        self.assertIn("SHEET_ROWS_SHOWN = 2000", (PAGE / "logic" / "dataCard.js").read_text(encoding="utf-8"))
 
 
 class Commitment(unittest.TestCase):
