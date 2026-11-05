@@ -173,6 +173,12 @@ COVERED = [
      "test_demo_seed::Load::test_the_demo_is_never_put_back_once_removed"),
     ("#731", "If you change anything in a demo project, that project is kept as yours; Remove demo data takes away only the demo projects you have not touched.",
      "test_demo_seed::Remove::test_an_edit_to_a_demo_project_makes_it_the_persons"),
+    ("#751", "The download carries its own README.md: the repository README without the pictures and without lines that name things outside the download.",
+     "test_package::MacZipTest::test_the_zips_readme_is_the_zip_readme_and_not_the_repositorys"),
+    ("#747", "Help describes the search button, the typed filter, the Settings chips, the Terminal commands and the real Excel columns.",
+     "test_help_pr_a::TopBar::test_the_search_button_and_palette_sentence"),
+    ("#755", "The README and the download's README name the Settings card that lists the safety copies, Backups.",
+     "test_zip_readme::ZipReadme::test_every_sentence_is_in_the_root_readme"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
@@ -180,16 +186,12 @@ COVERED = [
 WAITING = [
     ("#727", "The Excel export locks the cells people should not edit (sheet protection, no password).",
      "no pull request yet (issue 727)", "", None),
-    ("#751", "The download carries its own README.md: the repository README without the pictures and without lines that name things outside the download.",
-     "PR 697", "release_files.py", "ZIP_README"),     # docs/zip/README.md is on main (PR 691); the package step that puts it in the zip is PR 697
-    ("#747", "Help describes the search button, the typed filter, the Settings chips, the Terminal commands and the real Excel columns (Help PR A; also #748).",
-     "PR 694", "page/src/help/helpContent.json", "start-check-and-restore-in-terminal"),
-    ("Help B1", "Help covers choosing which sheets to import and the Commitment flag in the Excel export (branch help-b1-r).",
-     "no pull request yet (branch help-b1-r)", "", None),
-    ("Help B2", "Help covers the Commitment flag on the page, the week-ending calendar and the pencil on Edit (branch help-b2-r).",
-     "no pull request yet (branch help-b2-r)", "", None),
-    ("Help B3", "Help covers the client Report menu and the Excel export cells (branch help-b3-r).",
-     "no pull request yet (branch help-b3-r)", "", None),
+    ("Help B1", "Help covers choosing which sheets to import and the Commitment flag in the Excel export (branch help-b1-m).",
+     "no pull request yet (branch help-b1-m)", "", None),
+    ("Help B2", "Help covers the Commitment flag on the page, the week-ending calendar and the pencil on Edit (branch help-b2-m).",
+     "no pull request yet (branch help-b2-m)", "", None),
+    ("Help B3", "Help covers the client Report menu and the Excel export cells (branch help-b3-m).",
+     "no pull request yet (branch help-b3-m)", "", None),
 ]
 
 # (item, check, kind, why, what the person does)
