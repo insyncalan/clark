@@ -551,6 +551,53 @@ class Detail(unittest.TestCase):
             self.until(cdp, sid, "!document.querySelector('[role=menu]')", "Esc closed the menu")
             self.assertEqual(cdp.js("location.hash", sid), "#dashboard&p=TUL", "and stayed on the page")
 
+    # ---- the peek beside the page (rows 859 and 860) ----
+    def peek_round(self, cdp, sid, opener, shown):
+        """Open the peek from `opener` (a selector) with the mouse or Enter, check it, close it with Esc, and check the page stayed and the focus came back."""
+        hash_before = cdp.js("location.hash", sid)
+        self.until(cdp, sid, f"!!document.querySelector({json.dumps(opener)})", "the opener is drawn")
+        for how in ("click", "enter"):
+            if how == "click":
+                click(cdp, sid, opener)
+            else:
+                cdp.js(f"document.querySelector({json.dumps(opener)}).focus()", sid)
+                key(cdp, sid, "Enter")
+            self.until(cdp, sid, f"!!document.querySelector('#peek[data-peek={shown}]')", f"{how}: the peek shows {shown}")
+            self.assertTrue(cdp.js("!!document.querySelector('[data-ucd]') && !!document.querySelector('[data-ucd]').offsetParent", sid), "the use case page stays")
+            self.assertNotRegex(cdp.js("location.hash", sid), r"^#work", "and the address did not leave for Work items")
+            self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways scroll")
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('#peek')", f"{how}: Esc closed the peek")
+            self.assertEqual(cdp.js("location.hash", sid), hash_before, "Esc closed the peek and did not leave the page")
+            self.assertTrue(cdp.js("!!document.querySelector('[data-ucd]')", sid), "the page is still there")
+            self.until(cdp, sid, f"document.activeElement === document.querySelector({json.dumps(opener)})", f"{how}: the focus is back on the opener")
+
+    def test_a_work_item_row_opens_its_peek_beside_the_page_row_859(self):
+        data = self.read("TUL")
+        item = sorted(r["id"] for k in ("actions", "raid", "decisions") for r in data[k] if r.get("use_case") == UC)[0]
+        for edit in (False, True):
+            for width in (1400, 900):
+                for scheme in ("light", "dark"):
+                    with self.subTest(edit=edit, width=width, scheme=scheme), chrome() as cdp:
+                        sid = self.open_detail(cdp, width, scheme, edit=edit)
+                        self.assertEqual(cdp.js(f"document.querySelector('[data-item={item}]').title", sid), "", "the row no longer promises the Work items page")
+                        self.peek_round(cdp, sid, f"[data-item={item}]", item)
+
+    def test_a_linked_milestone_opens_its_peek_and_shows_its_state_row_860(self):
+        ms = "TUL-M-005"
+        words = ["Achieved", "On track", "At risk", "Slipped", "Overdue", "Forecast", "Cancelled"]       # the Milestones page's own state words
+        for edit in (False, True):
+            for width in (1400, 900):
+                for scheme in ("light", "dark"):
+                    with self.subTest(edit=edit, width=width, scheme=scheme), chrome() as cdp:
+                        sid = self.open_detail(cdp, width, scheme, edit=edit)
+                        row = f"[data-ucd] [data-ms={ms}]"
+                        self.assertIn(cdp.js(f"document.querySelector('{row} [data-ms-state]').textContent.trim()", sid), words, "the row says the state in a word")
+                        self.assertTrue(cdp.js(f"!!document.querySelector('{row} [data-ms-state] svg')", sid), "with the Milestones page's mark")
+                        self.assertRegex(cdp.js(f"document.querySelector('{row}').textContent", sid), r"\d", "and the date")
+                        self.assertEqual(cdp.js(f"document.querySelector('{row} [data-ms-open]').tagName", sid), "BUTTON", "the name is a control")
+                        self.peek_round(cdp, sid, f"{row} [data-ms-open]", ms)
+
     # ---- the published file ----
     def test_the_published_file_has_none_of_the_component(self):
         view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")

@@ -155,7 +155,13 @@ class Look(Base):
                         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                         p.js(f"document.documentElement.dataset.theme = '{theme}'")
                         self.check_measures(p, f"{width} {theme} {state}")
-                        self.assertEqual(p.js("document.querySelector('#ask-pills')"), None, "no suggestions while it cannot ask")
+                        if state == "off":                  # row 795: asking off keeps the greeting and the suggestions, disabled
+                            self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim()"), "Ready. Ask about this project.")
+                            self.assertEqual(p.js("document.querySelectorAll('#ask-pills button').length"), 6)
+                            self.assertTrue(p.js("[...document.querySelectorAll('#ask-pills button')].every(b => b.disabled)"), f"{width} {theme}: pills disabled")
+                            self.assertEqual(p.js("document.querySelector('#ask-pills').scrollWidth > 0 && document.documentElement.scrollWidth <= document.documentElement.clientWidth"), True)
+                        else:
+                            self.assertEqual(p.js("document.querySelector('#ask-pills')"), None, "no suggestions while it is not set up")
 
     def test_the_suggestions_are_one_row_that_scrolls_sideways(self):
         with chrome() as cdp:
