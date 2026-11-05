@@ -117,6 +117,37 @@ class Header(Base):
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.vtab[data-view-id=mine]')).borderBottomWidth", sid), "2px")
         self.each(check)
 
+    # ---- row 812 ----
+    def test_row_812_table_and_board_are_a_two_icon_switch_and_group_by_stays_in_the_view_menu(self):
+        def check(cdp, sid, width):
+            pair = ("[...document.querySelectorAll('#work .fvrow [role=group][aria-label=Layout] button')].map(b => [b.dataset.lay, b.getAttribute('aria-label'), b.title, b.getAttribute('aria-pressed'), b.textContent, !!b.querySelector('svg'),"
+                    " Math.round(b.getBoundingClientRect().width), Math.round(b.getBoundingClientRect().height)])")
+            got = cdp.js(pair, sid)
+            self.assertEqual([g[:6] for g in got], [["table", "Table", "Table", "true", "", True], ["board", "Board", "Board", "false", "", True]], "icons, not words, named Table and Board")
+            self.assertTrue(all(g[6] >= 32 and g[7] >= 28 for g in got), f"each icon is a target of a fair size: {got}")
+            self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid), "the page does not scroll sideways")
+            self.assertEqual(cdp.js("document.querySelectorAll('#work [aria-haspopup=menu]').length >= 1 && !document.querySelector('#work .fvrow [aria-label^=\"View:\"][data-lay]')", sid), True)
+            # the View menu keeps Group by (and no Layout); its words and button name are unchanged
+            click(cdp, sid, "#viewMenu")
+            self.until(cdp, sid, "document.querySelector('#viewMenuList')", "the View menu")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('#viewMenuList .lab')].map(l => l.textContent)", sid), ["Group by"])
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid), "View: table, grouped by Workstream")
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('#viewMenuList')", "closed")
+            # pressing Board: the board draws, the switch follows, and the menu gains the swimlanes; Table brings the table back
+            click(cdp, sid, "#work [data-lay=board]")
+            self.until(cdp, sid, "document.querySelector('#work-board')", "the board")
+            self.assertEqual(self.checked(cdp, sid, "layout:"), ["layout:board"])
+            click(cdp, sid, "#viewMenu")
+            self.until(cdp, sid, "document.querySelector('#viewMenuList')", "the View menu on the board")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('#viewMenuList .lab')].map(l => l.textContent)", sid), ["Group by", "Swimlanes"])
+            key(cdp, sid, "Escape")
+            cdp.js("document.querySelector('#work [data-lay=table]').focus()", sid)
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "document.querySelector('table.items') && !document.querySelector('#work-board')", "the table from the keyboard")
+            self.assertEqual(self.checked(cdp, sid, "layout:"), ["layout:table"])
+        self.each(check)
+
 
 if __name__ == "__main__":
     unittest.main()

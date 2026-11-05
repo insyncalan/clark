@@ -10,6 +10,7 @@ import { lineText, setLine, local } from "../stores/line.js";
 import * as FL from "../logic/filterLine.js";
 import * as Q from "../logic/filterQueryUi.js";
 import { Menu } from "./Menu.jsx";
+import { Icon } from "./Icon.jsx";
 import { work, setWork, announce } from "../stores/work.js";
 import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
 
@@ -39,17 +40,29 @@ function FreshnessMenu() {
   return <Menu label="Freshness" ariaLabel="Freshness" id="freshMenu" btnCls="btn sm" menuId="freshMenuList" menuLabel="Freshness" items={items.map((i) => ({ id: i.id, name: i.on ? `${i.name} (on)` : i.name }))} onPick={pick} />;
 }
 
-// The View menu's Layout, Group by and Swimlanes entries (the prototype's words: "Group by", then on the board "Swimlanes" with
+// The View menu's Group by and Swimlanes entries (row 812: Table and Board are the two-icon switch beside it; the prototype's words: "Group by", then on the board "Swimlanes" with
 // "No lanes", "Workstream lanes", "Type lanes"; the lane Group by uses is not offered). `board` is false where there is no board.
 export function layoutItems(w, board) {
   const onBoard = board && w.view === "board", g = onBoard ? boardGroup(w.group) : w.group;
   const lane = onBoard && w.lane && w.lane !== g && LANE_GROUPS.includes(w.lane) ? w.lane : "none";
   const out = [];
-  if (board) out.push({ id: "lab-layout", lab: "Layout" }, ...["table", "board"].map((k) => ({ id: `layout:${k}`, name: k === "table" ? "Table" : "Board", checked: (w.view === "board") === (k === "board") })), { id: "sep-layout", sep: true });
   out.push({ id: "lab-group", lab: "Group by" }, ...GROUPS.filter((x) => !onBoard || x.id !== "nothing").map((x) => ({ id: `group:${x.id}`, name: x.label, checked: x.id === g })));
   if (onBoard) out.push({ id: "sep-lanes", sep: true }, { id: "lab-lanes", lab: "Swimlanes" }, { id: "lane:none", name: "No lanes", checked: lane === "none" },
     ...LANE_GROUPS.filter((x) => x !== g).map((x) => ({ id: `lane:${x}`, name: `${groupLabel(x)} lanes`, checked: lane === x })));
   return { items: out, label: `View: ${onBoard ? "board" : board ? "table" : ""}${board ? ", " : ""}grouped by ${groupLabel(g)}${lane !== "none" ? `, ${groupLabel(lane).toLowerCase()} lanes` : ""}` };
+}
+
+// Row 812: Table and Board as a two-icon switch (the words "Table" and "Board" name the buttons; "Layout" names the pair).
+function LayoutSwitch() {
+  const onBoard = work.value.view === "board";
+  return (
+    <div class="seg lsw" role="group" aria-label="Layout">
+      {["table", "board"].map((k) => {
+        const word = k === "table" ? "Table" : "Board";
+        return <button type="button" key={k} data-lay={k} aria-label={word} title={word} aria-pressed={onBoard === (k === "board") ? "true" : "false"} onClick={() => pickLayout(`layout:${k}`)}><Icon name={k} /></button>;
+      })}
+    </div>
+  );
 }
 
 function pickLayout(id) {
@@ -151,6 +164,7 @@ function SavedViews({ board }) {
         {fromFile.value ? null : <button type="button" class="vnew" id="viewNew" onClick={() => act("saveas")}>{"+ New view"}</button>}
       </div>
       <FreshnessMenu />
+      {fromFile.value || !board ? null : <LayoutSwitch />}
       {fromFile.value ? null : <Menu label="View" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={lay.items} onPick={act} />}
       </div>
       {form ? (
