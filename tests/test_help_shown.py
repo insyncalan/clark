@@ -248,7 +248,7 @@ COMPUTED = {
     "this week\u2019s actions": "an example of what a card might be called, not a label",
     "decisions needed": "an example of what a card might be called, not a label",
     "3 of 12 selected": "the Hand over bar's count, built from the numbers (logic/handOver.js)",
-    "Hand over 30 items to Sam Rivers?": "the Hand over question, built from the count and the name (logic/handOver.js)",
+    "Hand over 30 items to Priya?": "the Hand over question, built from the count and the name (logic/handOver.js)",
     "Put back the backup from DD-MM-YYYY 09:30? What you have now is kept first": "the Restore question, built from the backup's date and time (a worked example)",
 }
 
