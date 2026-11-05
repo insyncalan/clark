@@ -202,6 +202,31 @@ class Refusals(unittest.TestCase):
         (self.meet / ".DS_Store").write_bytes(b"x")
         self.assertNotIn("meet clark/.DS_Store", package.extra_content([self.meet]))
 
+    def test_a_hidden_file_or_folder_is_refused_and_named(self):
+        """A stray .env or .git folder in an extra folder must not be shipped: any name that starts with a dot is refused
+        (only .DS_Store is still left out silently); refusal() also checks that nothing was written."""
+        for hidden in (".env", ".git/config", ".hidden/notes.txt", "sub/.secret"):
+            with self.subTest(hidden=hidden):
+                tmp = tempfile.mkdtemp(prefix="clark extra ")
+                self.addCleanup(shutil.rmtree, tmp, True)
+                folder = make_folder(tmp, "meet clark", MEET)
+                target = folder / hidden
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(b"x")
+                case = type("C", (), {"tmp": tmp, "assertRaises": self.assertRaises, "assertFalse": self.assertFalse,
+                                      "assertNotIn": self.assertNotIn})()
+                message = refusal(case, folder)
+                self.assertIn("hidden file or folder", message)
+                self.assertIn(hidden.split("/")[0] if hidden.split("/")[0].startswith(".") else hidden, message)
+                self.assertIn("Nothing was written", message)
+
+    def test_a_hidden_file_in_a_second_folder_is_refused_too(self):
+        intake = make_folder(self.tmp, "intake", {"sample.xlsx": b"x"})
+        (intake / ".env").write_bytes(b"x")
+        message = refusal(self, self.meet, intake)
+        self.assertIn("'intake'", message)
+        self.assertIn(".env", message)
+
 
 class Reader(unittest.TestCase):
     def setUp(self):

@@ -474,6 +474,9 @@ def extra_content(folders):
                 raise Refused(f"The extra folder {name!r} can't be read. Nothing was written.")
             for e in children:
                 rel = Path(e.path).relative_to(base).as_posix()
+                if e.name.startswith(".") and e.name != ".DS_Store":
+                    raise Refused(f"The extra folder {name!r} holds a hidden file or folder: {rel}. Nothing was written. "
+                                  "Take it out of the folder; a download carries no hidden files.")
                 info = os.lstat(e.path)
                 if stat.S_ISLNK(info.st_mode):
                     raise Refused(f"The extra folder {name!r} holds a link: {rel}. Nothing was written. Replace it with a real file.")
