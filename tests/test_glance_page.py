@@ -448,7 +448,7 @@ class Styles(Setup):
             p = self.show(cdp, hash_="#settings&p=ABC", settings=True)
             p.until("!!document.querySelector('#personal')", "Personal")
             self.assertEqual(p.js("[...document.querySelectorAll('input[name=secstyle]')].map(i => i.value)"), ["slim", "roomy", "grey", "card"])
-            self.assertEqual(p.js("document.querySelector('input[name=secstyle]:checked').value"), "slim", "Slim gaps is the default")
+            self.assertEqual(p.js("document.querySelector('input[name=secstyle]:checked').value"), "card", "One card is the default")
             for value in ("roomy", "grey", "card", "slim"):
                 p.js(f"document.querySelector('input[name=secstyle][value={value}]').click()")
                 p.until(f"document.documentElement.dataset.secstyle === '{value}'", f"{value} applied")
