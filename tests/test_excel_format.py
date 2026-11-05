@@ -114,7 +114,7 @@ class Formatting(unittest.TestCase):
 
     def test_header_and_the_id_and_title_columns_are_frozen_on_every_sheet(self):
         wb = load_workbook(self.build(self.everything()))
-        titles = {"Milestones": "Milestone", "Actions": "Description", "Risks and issues": "Description", "Decisions": "Decision",
+        titles = {"Milestones": "Milestone", "Actions": "Description", "Risks & Issues": "Description", "Decisions": "Decision",
                   "Use cases": "Use case"}
         for name, title in titles.items():
             ws = wb[name]
@@ -141,7 +141,7 @@ class Formatting(unittest.TestCase):
         rows = {"actions": [action(1), action(2), action(3)], "raid": []}
         wb = load_workbook(self.build(rows))
         self.assertEqual(wb["Actions"].auto_filter.ref, "A1:R4")
-        self.assertEqual(wb["Risks and issues"].auto_filter.ref, "A1:U1")
+        self.assertEqual(wb["Risks & Issues"].auto_filter.ref, "A1:U1")
         for name, table, cols, _ in excel.SHEETS:
             self.assertTrue(wb[name].auto_filter.ref.startswith("A1:"), name)
 
@@ -157,7 +157,7 @@ class Formatting(unittest.TestCase):
     def test_the_looks_office_font_on_the_header_and_the_data_cells_of_each_data_sheet(self):
         wb = load_workbook(self.build(self.everything()))
         font = look.office_font()
-        for name in ("Milestones", "Actions", "Risks and issues", "Decisions", "Use cases"):
+        for name in ("Milestones", "Actions", "Risks & Issues", "Decisions", "Use cases"):
             ws = wb[name]
             self.assertEqual(ws["A1"].font.name, font, (name, "header"))
             self.assertEqual(ws["B2"].font.name, font, (name, "data"))
@@ -265,7 +265,7 @@ class Formatting(unittest.TestCase):
                          {"Open": "blue", "Delayed": "amber", "Closed": "grey", "Cancelled": "grey"})
         self.assertEqual(colours.BY_FIELD[("raid", "status")], {"Open": "blue", "Closed": "grey", "Cancelled": "grey"})
         wb = load_workbook(self.build(self.everything()))
-        for sheet, label, table in (("Actions", "Status", "actions"), ("Risks and issues", "Status", "raid")):
+        for sheet, label, table in (("Actions", "Status", "actions"), ("Risks & Issues", "Status", "raid")):
             ws = wb[sheet]
             col = [c.column_letter for c in ws[1] if c.value == label][0]
             for value, colour in colours.BY_FIELD[(table, "status")].items():
@@ -313,7 +313,7 @@ class Formatting(unittest.TestCase):
         """An open item past its date: a red-text formula rule on Due (Needed by on decisions), true for a real date before
         today on an open row only. The formula is a fixed literal that names columns, never data."""
         wb = load_workbook(self.build(self.everything()))
-        want = {"Actions": ("Due", "Status", ("Delayed", "Open")), "Risks and issues": ("Due", "Status", ("Open",)),
+        want = {"Actions": ("Due", "Status", ("Delayed", "Open")), "Risks & Issues": ("Due", "Status", ("Open",)),
                 "Decisions": ("Needed by", "Status", ("Pending",))}
         for name, (date_label, status_label, states) in want.items():
             ws = wb[name]
@@ -376,7 +376,8 @@ class Formatting(unittest.TestCase):
             for _, table, cols, _ in excel.SHEETS:
                 fields = [f for _, f in cols if f not in excel.DERIVED and f != "labels"]
                 stored = {r["id"]: {f: r[f] for f in fields} for r in d.store.read(table, "ABC")}
-                got = {r["id"]: {f: r.get(f) for f in fields} for r in back[table]}
+                got = {r["id"]: {f: (r.get(f).split(": ")[0] if f in excel.REF_TABLES and r.get(f) else r.get(f)) for f in fields}
+                       for r in back[table]}      # item 710: the cell reads ID: name; the import takes the ID
                 self.assertEqual(got, stored, table)
         finally:
             d.close()

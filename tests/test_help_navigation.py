@@ -92,7 +92,8 @@ class TheFiveJobs(unittest.TestCase):
         # the two jobs that open a guide leave their how-to entries here, so those stay reachable
         others = [t["id"] for t in shown_content()["howto"]["tasks"] if t["id"] not in JOBS or t["id"] in GUIDE_JOBS]
         self.assertEqual(r[2][1], ["howto-" + i for i in others], "the other shown how-to entries, in the source's order")
-        self.assertEqual(len(r), 3)
+        self.assertEqual(r[3:], [["Start here", ["start-where"]], ["Start here", ["start-rules"]]], "where and rules are released with ask clark and Sneak peek (#721)")
+        self.assertEqual(len(r), 5)
 
     def test_the_jobs_part_is_searchable_by_its_words(self):
         r = run_node(RAW, "(() => HL.search(HL.buildIndex(), 'ready-made').map((x) => x.id))()")
@@ -161,7 +162,7 @@ class TheNewEntries(unittest.TestCase):
         self.assertEqual(r[0], "howto-publish-the-report")
 
     def test_the_remaining_held_entries_stay_held(self):
-        for i in ("check-the-report", "improve-wording-with-ai", "find-work-items", "import-and-export", "update-a-milestone"):
+        for i in ("improve-wording-with-ai", "find-work-items", "import-and-export", "update-a-milestone"):
             self.assertIn(i, LATER["howto"], i)
             self.assertNotIn(i, [t["id"] for t in shown_content()["howto"]["tasks"]])
 
