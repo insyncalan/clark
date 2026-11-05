@@ -246,18 +246,14 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .type.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
 .type.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
 @media (max-width: 900px) { table.items .c-due { width: 134px; } }
-/* Row 834: a row is the title (two lines at most), then ONE line for the id and links, and the owner on one line (prototype rows are 61-81 px).
-   Each gives way with an ellipsis; the phone card below 641 px keeps its own wrapping. */
+/* Row 834: a row is the title (two lines at most), then ONE line for the id and links (prototype rows are 61-81 px).
+   The title and the line give way with an ellipsis; an owner name may take two lines (test_edit_cells_layout pins that); the phone card below 641 px keeps its own wrapping. */
 @media (min-width: 641px) {
   table.items td.c-item .meta { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   table.items td.c-item .t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-  table.items th.c-status, table.items td.c-status { padding-left: var(--space-2); padding-right: 0; }   /* the narrower Status column still holds the longest pill and its caret */
+  table.items th.c-status, table.items td.c-status { padding-left: var(--space-1); padding-right: 0; }   /* the narrower Status column still holds the longest pill and its caret */
   table.items td.c-status .cell-pick { gap: var(--space-1); }
-  table.items td.c-status .pill { padding-left: var(--space-2); padding-right: var(--space-2); }
-  table.items td.c-owner .who { align-items: center; max-width: 100%; }
-  table.items td.c-owner .who > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  table.items td.c-owner .cell-pick[data-cell$=":owner"] { white-space: nowrap; }
-  table.items td.c-owner .cell-pick[data-cell$=":owner"] .cell-val { min-width: 0; overflow: hidden; }
+  table.items td.c-status .pill { padding-left: var(--space-2); padding-right: var(--space-2); gap: var(--space-1); }
 }
 /* The letter badge before an item's title (prototype `.type` in a work item row): one letter, so no word can break in it ("Dependency" no
    longer sits in a column of its own). The words are its tooltip and its spoken name. Colours as the board card's word badge. */
