@@ -99,8 +99,8 @@ export function installAskKeys() {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && panelOpen.value) { e.preventDefault(); closePanel(); return; }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    // An open peek keeps "/" for its own two slashes (the words box); the ask button still opens the panel there.
-    if (e.key === "/" && !e.defaultPrevented && !typing(e.target) && !otherLayer() && !helpOpen.value && !peek.value) { e.preventDefault(); openPanel(); }
+    // An open peek, or a use case open in Edit (it has the sparkle), keeps "/" for its own two slashes (the words box); the ask button still opens the panel there.
+    if (e.key === "/" && !e.defaultPrevented && !typing(e.target) && !otherLayer() && !helpOpen.value && !peek.value && !document.querySelector("[data-ucd] [data-sneak-open]")) { e.preventDefault(); openPanel(); }
   }, true);
   document.addEventListener("mousedown", (e) => {
     if (!panelOpen.value) return;
