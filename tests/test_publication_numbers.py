@@ -546,13 +546,158 @@ class ThroughThePublisher(unittest.TestCase):
         finally:
             os.symlink, publish.platform.move_unless_exists = real_sym, real_move
         self.assertIn("Another publication was made", str(caught.exception), "the refusal is still given")
-        self.assertIn("The old report could not be put back in the folder. It is still there under a hidden name.",
+        self.assertIn("The report could not be put back in the folder under its name. It is still in the folder under a hidden name.",
                       str(caught.exception), "the owner's sentence (A), verbatim")
         self.assertNotIn(".aside", str(caught.exception), "no hidden name or path in the message")
         names = [p.name for p in folder.iterdir()]
         self.assertEqual(len(names), 1)
         self.assertTrue(names[0].endswith(".aside"), "the report is kept under its aside name, not lost")
         self.assertTrue((folder / names[0]).read_bytes().startswith(b"<!doctype html"))
+
+    # issue 616: every return path of put_link_back, and what the person is told (or not) by the caller.
+    PLAIN = "Another publication was made"
+    KEPT = "The link that was at {name} could not be put back, so this report is still there under that name."
+    ASIDE = "The report could not be put back in the folder under its name. It is still in the folder under a hidden name."
+
+    def _plain_refuse(self, *a, **kw):
+        raise OSError(13, "Permission denied")
+
+    def _patch(self, obj, name, value):
+        real = getattr(obj, name)
+        setattr(obj, name, value)
+        self.addCleanup(setattr, obj, name, real)
+
+    def _ours_at(self, folder, data=b"ours"):
+        dest = folder / "PUB-report.html"
+        dest.write_bytes(data)
+        return dest, hashlib.sha256(data).hexdigest()
+
+    def _hidden(self, folder):
+        return sorted(p for p in folder.iterdir() if p.name.endswith(".aside"))
+
+    def test_616_path_kept_rename_fails_and_the_file_is_ours(self):
+        """kept (path 1): the file cannot be moved aside and is still ours: left in place, nothing hidden."""
+        folder = self._folder()
+        dest, digest = self._ours_at(folder)
+        self._patch(os, "rename", self._plain_refuse)
+        self.assertEqual(publish.put_link_back(dest, folder / "x.html", digest), "kept")
+        self.assertEqual(dest.read_bytes(), b"ours")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
+
+    def test_616_path_other_rename_fails_and_the_file_is_not_ours(self):
+        """other-silent (path 2): cannot be moved aside and is not ours: left alone."""
+        folder = self._folder()
+        dest, _ = self._ours_at(folder, b"theirs")
+        self._patch(os, "rename", self._plain_refuse)
+        self.assertEqual(publish.put_link_back(dest, folder / "x.html", "0" * 64), "other")
+        self.assertEqual(dest.read_bytes(), b"theirs")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
+
+    def test_616_path_other_theirs_is_put_back(self):
+        """other-silent (path 3): a file that is not ours was moved aside and put straight back, byte for byte."""
+        folder = self._folder()
+        dest, _ = self._ours_at(folder, b"theirs")
+        self.assertEqual(publish.put_link_back(dest, folder / "x.html", "0" * 64), "other")
+        self.assertEqual(dest.read_bytes(), b"theirs")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
+
+    def test_616_path_other_theirs_and_the_name_was_taken_meanwhile(self):
+        """other-silent (path 4): theirs cannot go back because the name is taken: theirs stays under its hidden name, not deleted."""
+        folder = self._folder()
+        dest, _ = self._ours_at(folder, b"theirs")
+        self._patch(publish.platform, "move_unless_exists", lambda *a, **kw: False)
+        self.assertEqual(publish.put_link_back(dest, folder / "x.html", "0" * 64), "other")
+        self.assertEqual([p.read_bytes() for p in self._hidden(folder)], [b"theirs"])
+
+    def test_616_path_aside_theirs_cannot_be_put_back(self):
+        """aside (path 5): their file cannot be put back at all: it exists under the hidden name, dest is empty."""
+        folder = self._folder()
+        dest, _ = self._ours_at(folder, b"theirs")
+        self._patch(publish.platform, "move_unless_exists", self._plain_refuse)
+        self.assertEqual(publish.put_link_back(dest, folder / "x.html", "0" * 64), "aside")
+        self.assertFalse(dest.exists())
+        self.assertEqual([p.read_bytes() for p in self._hidden(folder)], [b"theirs"])
+
+    def test_616_path_kept_the_link_cannot_be_made_and_ours_goes_back(self):
+        """kept (path 6): the link cannot be made; our file is put back at its name."""
+        folder = self._folder()
+        dest, digest = self._ours_at(folder)
+        self._patch(os, "symlink", self._plain_refuse)
+        self.assertEqual(publish.put_link_back(dest, folder / "x.html", digest), "kept")
+        self.assertEqual(dest.read_bytes(), b"ours")
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
+
+    def test_616_path_other_the_link_cannot_be_made_and_the_name_was_taken(self):
+        """other-silent (path 7): link cannot be made, the name was taken meanwhile: ours is the extra copy and is cleared."""
+        folder = self._folder()
+        dest, digest = self._ours_at(folder)
+        self._patch(os, "symlink", self._plain_refuse)
+        self._patch(publish.platform, "move_unless_exists", lambda *a, **kw: False)
+        self.assertEqual(publish.put_link_back(dest, folder / "x.html", digest), "other")
+        self.assertEqual(list(folder.iterdir()), [])
+
+    def test_616_path_aside_the_link_cannot_be_made_and_ours_cannot_go_back(self):
+        """aside (path 8): link cannot be made and our report cannot go back: kept under the hidden name."""
+        folder = self._folder()
+        dest, digest = self._ours_at(folder)
+        self._patch(os, "symlink", self._plain_refuse)
+        self._patch(publish.platform, "move_unless_exists", self._plain_refuse)
+        self.assertEqual(publish.put_link_back(dest, folder / "x.html", digest), "aside")
+        self.assertFalse(dest.exists())
+        self.assertEqual([p.read_bytes() for p in self._hidden(folder)], [b"ours"])
+
+    def test_616_the_caller_says_kept_unchanged(self):
+        store, folder, dest = self._link_rig()
+        self._patch(os, "symlink", self._plain_refuse)
+        with self.assertRaises(publish.PublishError) as caught:
+            self._lost_race(store, folder, overwrite=True)
+        msg = str(caught.exception)
+        self.assertTrue(msg.startswith(self.PLAIN))
+        self.assertTrue(msg.endswith(self.KEPT.format(name=dest.name)))
+        self.assertEqual([p.name for p in folder.iterdir()], [dest.name])
+        self.assertTrue(dest.read_bytes().startswith(b"<!doctype html"))
+
+    def test_616_the_caller_says_the_ruled_aside_sentence_and_nothing_leaks(self):
+        store, folder, dest = self._link_rig()
+        self._patch(os, "symlink", self._plain_refuse)
+        self._patch(publish.platform, "move_unless_exists", self._plain_refuse)
+        with self.assertRaises(publish.PublishError) as caught:
+            self._lost_race(store, folder, overwrite=True)
+        msg = str(caught.exception)
+        self.assertTrue(msg.startswith(self.PLAIN))
+        self.assertTrue(msg.endswith(" " + self.ASIDE))
+        self.assertNotIn("could not be put back in the folder. It is still there", msg, "the old sentence is gone")
+        for leak in (".aside", dest.name, str(folder), "Permission"):
+            self.assertNotIn(leak, msg)
+        self.assertEqual(len(self._hidden(folder)), 1, "the report is kept under the hidden name")
+
+    def _assert_caller_silent(self, store, folder, dest):
+        with self.assertRaises(publish.PublishError) as caught:
+            self._lost_race(store, folder, overwrite=True)
+        msg = str(caught.exception)
+        self.assertTrue(msg.startswith(self.PLAIN))
+        for added in ("put back", "hidden", "still there", "link", dest.name):
+            self.assertNotIn(added, msg, "'other' adds no sentence: the publish reports its own plain error")
+
+    def test_616_the_caller_stays_silent_when_the_file_is_not_ours(self):
+        """other-silent via the caller: another program's file is at the name when the link is to be put back."""
+        store, folder, dest = self._link_rig()
+        real = os.rename
+
+        def swap_then_rename(src, dst, *a, **kw):
+            if str(dst).endswith(".aside"):
+                Path(src).write_bytes(b"someone else's report")
+            return real(src, dst, *a, **kw)
+        self._patch(os, "rename", swap_then_rename)
+        self._assert_caller_silent(store, folder, dest)
+        self.assertEqual(dest.read_bytes(), b"someone else's report", "their file is never deleted or overwritten")
+
+    def test_616_the_caller_stays_silent_when_the_name_was_taken_meanwhile(self):
+        """other-silent via the caller: the link cannot be made and the name was taken meanwhile."""
+        store, folder, dest = self._link_rig()
+        self._patch(os, "symlink", self._plain_refuse)
+        self._patch(publish.platform, "move_unless_exists", lambda *a, **kw: False)
+        self._assert_caller_silent(store, folder, dest)
 
     def test_put_link_back_says_which_failure_it_was(self):
         folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
