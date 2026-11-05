@@ -207,6 +207,38 @@ class Settings(unittest.TestCase):
             self.assertEqual(js("document.querySelector('#ask-state').innerText"), ON, "the older answer did not overwrite it")
             self.assertEqual(js("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed')"), "true")
 
+    def test_a_change_answered_after_a_newer_read_was_started_does_not_touch_the_switch(self):
+        # Press "Turn off asking" (a change, held), then open Settings again (a newer read, held). The newer read answers first (on); the
+        # change answers last. askState.js numbers its requests, so the late change answer must leave the page as the newer read set it:
+        # on. Both kinds of late answer are tried: the change kept (off) and the change refused (setAsk's "off anyway" branch). Without
+        # the `stale` check in setAsk, either one would turn the page off.
+        import json
+        import time
+        answers = ((200, {"ok": True, "ask_enabled": False, "saved": True}), (500, {"ok": False}))
+        with chrome() as cdp:
+            js = self.show_page(cdp)
+            self.until(lambda: js("(document.querySelector('#ask-state') || {}).innerText"), ON, "asking is on to begin with")
+            js("""window.__q = []; const real = window.fetch;
+                  window.answer = (i, status, body) => window.__q[i](new Response(JSON.stringify(body), {status: status, headers: {'Content-Type': 'application/json'}}));
+                  window.fetch = function (url) { if (String(url).indexOf('/api/ask-enabled') >= 0) return new Promise((r) => { window.__q.push(r); });
+                                                  return real.apply(this, arguments); };""")
+            for status, body in answers:
+                with self.subTest(late=status):
+                    self.until(lambda: js("(document.querySelector('[data-ask-switch]') || {disabled: true}).disabled"), False, "the switch can be pressed")
+                    first = js("window.__q.length")
+                    js("document.querySelector('[data-ask-switch]').click()")
+                    self.until(lambda: js("window.__q.length"), first + 1, "the change is out")
+                    js("location.hash = '#dashboard&p=ABC'")
+                    self.assertTrue(wait(lambda: js("!document.querySelector('#ask-settings')"), 10))
+                    js("location.hash = '#settings&p=ABC'")
+                    self.until(lambda: js("window.__q.length"), first + 2, "the newer read is out")
+                    js(f"window.answer({first + 1}, 200, {{ok: true, ask_enabled: true, saved: true}})")      # the newer read answers first: on
+                    self.until(lambda: js("(document.querySelector('#ask-state') || {}).innerText"), ON, "the newer answer shows")
+                    js(f"window.answer({first}, {status}, {json.dumps(body)})")                              # the older change answers last
+                    time.sleep(1)
+                    self.assertEqual(js("document.querySelector('#ask-state').innerText"), ON, "the late change answer did not touch the page")
+                    self.assertEqual(js("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed')"), "true")
+
     def test_a_file_that_cannot_keep_the_switch_reads_as_off_and_turning_it_on_is_refused_in_plain_words(self):
         self.s.httpd.app_settings = service(make_db(self.folder(), ready=False, cleanup=self.addCleanup))      # a data file made before the settings step
         with chrome() as cdp:
