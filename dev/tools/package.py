@@ -165,8 +165,8 @@ If you already have clark:
   6. Double-click clark.command. Your Mac may ask you to confirm clark.command
      again: do as in step 2 under "Without Docker" below.
 Your projects are not in the old clark folder: they stay in
-~/Library/Application Support/clark. In clark 1.0.0, updating from inside clark
-is switched off, so install this version by hand.
+~/Library/Application Support/clark. Updating from inside clark is switched off,
+so install this version by hand.
 
 Without Docker:
 

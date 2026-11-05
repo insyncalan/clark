@@ -226,8 +226,10 @@ class MacZipTest(unittest.TestCase):
                  "whole clark folder by hand removes it.", "5. If you use Docker and your data is in a data folder inside the old clark "
                  "folder, move that data folder out of it before you delete the old folder, or start Docker with CLARK_DATA_DIR naming it.",
                  '6. Double-click clark.command. Your Mac may ask you to confirm clark.command again: do as in step 2 under "Without Docker" below.',
-                 "Your projects are not in the old clark folder: they stay in ~/Library/Application Support/clark. In clark 1.0.0, updating "
+                 "Your projects are not in the old clark folder: they stay in ~/Library/Application Support/clark. Updating "
                  "from inside clark is switched off, so install this version by hand."]
+        line = flat[flat.index("Updating from inside clark"):][:90]
+        self.assertNotRegex(line, r"\d+\.\d+", "the updating sentence carries no version number")
         at = -1
         for part in steps:
             found = flat.find(part)
