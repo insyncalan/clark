@@ -2,6 +2,7 @@
 // for each use case the client may see, the next steps and milestones to show) and draws it. It changes nothing and asks for nothing.
 import { data } from "../stores/report.js";
 import { printing } from "../stores/print.js";
+import { CommitChip } from "./CommitChip.jsx";
 
 export function UseCasesTab() {
   const d = data.value;
@@ -18,7 +19,7 @@ export function UseCasesTab() {
         const ms = p.milestones.map((id) => marks[id]).filter(Boolean);
         return (
           <details class="ucp" key={u.id} open={printing.value}>
-            <summary><span class="num">{u.ref}</span> <span class="ucp-title">{u.title}</span> <span class="muted">{u.status}</span></summary>
+            <summary><span class="num">{u.ref}</span> <span class="ucp-title">{u.title}</span> <span class="muted">{u.status}</span><CommitChip u={u} /></summary>
             <div class="ucp-body">
               {u.headline ? <p class="ucp-headline">{u.headline}</p> : null}
               {u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : null}

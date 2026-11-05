@@ -1535,6 +1535,8 @@ KNOWN_PUBLIC = frozenset({
     ".gitattributes", ".gitignore", "LICENSE", "NOTICE.md", "README.md", "SECURITY.md", "clark.command",
     "docs/ARCHITECTURE.md", "docs/BRD.md", "docs/DESIGN-SYSTEM.md", "docs/DESIGN-SYSTEM-COMPONENTS.md", "docs/PROJECT-BRIEF.md", "docs/REUSE-FROM-CREAITE.md", "docs/RULES.md",
     "docs/publishing-the-public-copy.md", "docs/testing-on-linux.md",
+    # #751: the README at the top of the release zip: every sentence is word for word from README.md (tests/test_zip_readme.py)
+    "docs/zip/README.md",
     # #93: the README's pictures, taken from the fictional demo data (the prototype and `python3 -m clark --demo`)
     "docs/img/app-work-items-dark.png", "docs/img/app-work-items-light.png", "docs/img/ask-clark.png",
     "docs/img/clark-mascot.png",
