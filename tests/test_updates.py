@@ -97,7 +97,7 @@ def real_download(case, schema=2):
         case.skipTest("package.py does not build the placed layout yet")
     root = Path(tempfile.mkdtemp(prefix="clark repo "))
     case.addCleanup(shutil.rmtree, root, True)
-    for rel, text in {"README.md": "A fictional readme.\n", "src/clark/__init__.py": '__version__ = "0.3.1"\n',
+    for rel, text in {"README.md": "A fictional readme.\n", "docs/zip/README.md": "A fictional download readme.\n", "src/clark/__init__.py": '__version__ = "0.3.1"\n',
                       "src/clark/store.py": f"SCHEMA_VERSION = {schema}\n", "clark.command": "#!/bin/bash\n"}.items():
         (root / rel).parent.mkdir(parents=True, exist_ok=True)
         (root / rel).write_text(text, encoding="utf-8")

@@ -14,7 +14,7 @@ whom it was exported, the caution, sending changes back, where to make changes a
 there: the title band's tag says it.
 Nothing else of a project reaches the Cover; every line is built from the fields named below, so no other field can leak in.
 
-The sentences are constants so that changing one is one edit: CAUTION, RETURN_WITH, RETURN_ANYONE, WHERE_TO_EDIT, IDS.
+The sentences are constants so that changing one is one edit: CAUTION, RETURN_WITH, RETURN_ANYONE, WHERE_TO_EDIT, IDS, LOCKED_CELLS.
 """
 from clark import sanitise
 
@@ -31,8 +31,11 @@ MORE = " … (continues in clark)"
 LIMIT = 32000                 # under Excel's 32,767 characters in one cell, with room for MORE
 IDS = ("Please don't change or move IDs. Each ID stays with its own row: if you change one, or sort only the ID column, "
        "the details go to another item when the file is imported. Leave the ID empty for a new item.")                                       # #128: says what the import (#129) really does with an ID
+LOCKED_CELLS = ("Some cells are locked so they are not changed by mistake, such as the ID column and the columns clark works out. "
+                "To change them, choose Review, then Unprotect Sheet. There is no password. "
+                "Excel will not sort a protected sheet; unprotect it first.")
 SUBTITLE_KIND = "Weekly report"
-KINDS = ("title", "subtitle", "heading", "text", "tiles", "pair", "about", "exported", "caution", "return", "where", "ids")
+KINDS = ("title", "subtitle", "heading", "text", "tiles", "pair", "about", "exported", "caution", "return", "where", "ids", "locked")
 LINE_POINTS = 13.5            # one line of the 10 point body text, for the row heights
 MAX_ROW_POINTS = 409          # Excel's tallest row
 
@@ -177,7 +180,8 @@ def lines(project, sections, tiles, exported, by=None, owner=None, email=None, i
     out += [_line("about", ABOUT),
             _line("exported", cut(f"{stamp} by {str(by).strip()}" if by and str(by).strip() else stamp, 400)),
             _line("caution", CAUTION), _line("return", cut(return_note(owner, email), 1000)),
-            _line("where", WHERE_TO_EDIT), _line("ids", IDS)]
+            _line("where", WHERE_TO_EDIT), _line("ids", IDS),
+            _line("locked", LOCKED_CELLS)]
     return out
 
 

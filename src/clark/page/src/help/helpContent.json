@@ -198,7 +198,7 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
-     "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, or press [[Enter]] in the empty box to use the Friday shown. Any other day is not accepted.",
+     "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, press [[Enter]] in the empty box to use the Friday shown, or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
      "Click the text under **Current state** and write where the project stands. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back. Write the Summary, This week and Next week sections the same way.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
      "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
@@ -282,6 +282,7 @@
      "In **Edit**, choose **Import from Word** from the same menu, choose a .docx file of up to 25 MB and press **Read the file**. Work items under a heading called Actions, Risks, Issues or Decisions are listed. Tick the ones you want, or use **Tick all**, and press the Add button, which reads **Add** and the number you ticked, such as Add 3 items. Nothing is added until you press it. The new items are shown to the client until you hide them with the eye, and Undo takes them all back.",
      "If clark refuses a file it says why in plain words and names the file. Choose the same file again once you have fixed it: **Read the file** comes on again."
     ],
+    "n": "The use case table in the Word report has a Commitment column.",
     "page": [
      "dashboard+edit"
     ]
@@ -346,9 +347,11 @@
     "s": [
      "The first switch picks the type: **All**, **Actions**, **Risks and issues** or **Decisions**.",
      "The second picks **Open**, **Closed** or **All**, each with its count.",
-     "**Filter by** has Workstream, Status, Due, Owner, Priority, Use case, Milestone and Client, and Freshness once some item has a date it can go by. Each opens a list with a count beside every value: tick the ones you want, choose **is** or **is not**, and close the list to apply it. **Select all** and **Clear** are at the top. A dot marks a filter that is on.",
-     "The filters that are on show as chips beside the count of items. **×** on a chip removes it; **Clear all** removes everything, the type and the search too. In the app it goes back to the open items.",
-     "The search box finds words in the ID, title, owner, description, latest update and use case as you type.",
+     "Click the filter line, which says **Filter by keyword or by field**, and type. A plain word finds the items with it in the title or the ID. A list of fields and values opens under the line: choose from it, or keep typing.",
+     "To pick a field, type field:value, for example status:Open or priority:High,Urgent. The fields are type, status, owner, priority, due, workstream, usecase, milestone, client and is. A comma means or, a space between two parts means and, and a - in front means not, as in -status:Closed. no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you (set your name in Settings first).",
+     "A word it cannot use gets a red wavy underline and is not applied. A message under the line says why, such as Unknown field 'x'. Did you mean Owner? or Add a value after 'x:'. If you ask for owner:@me before your name is set, it says Set your name in Settings to see your actions.",
+     "The count at the right reads, for example, 12 of 40. **Clear filter** (the **×**) empties the line. When nothing matches, the list says No work items match. and offers **Clear filter**.",
+     "A published file has no filter line. It has a **Search work items** box, which finds words in the ID, the description, the owner, the latest update, the client wording and the use case, and a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone. Each opens a list with a count beside every value: tick the ones you want and choose **is any of** or **is not**. **Select all** and **Clear** are at the top. The filters that are on show as chips beside the count; **×** on a chip removes it, and **Clear all** removes the filters and the search but keeps the type and Open, Closed or All.",
      "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N work items” and the use case's reference), opens Work items already filtered to what it counts."
     ],
     "page": [
@@ -441,7 +444,7 @@
     "s": [
      "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, named after today and the project.",
      "**Import**: press the up-arrow icon. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
-     "Press **Choose a file** (Excel or CSV). **Check the import** shows how many rows are new, updated or skipped, and the first few. Press **Import** to save them.",
+     "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, each with its rows and all ticked: untick any you do not want, then press **Continue**. **Check the import** then shows how many rows are new, updated or skipped, and the first few; press **Import** to save them.",
      "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
     ],
     "n": "The whole import is one step: one **Undo** takes it all back.",
@@ -547,7 +550,9 @@
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
      "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case's reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
-     "Each use case can carry a commitment: Candidate, Committed or Planned 2027. The client sees it beside the status.",
+     "A use case can carry a commitment: Candidate, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
+     "In Edit, a small menu beside the status reads **Set commitment** when there is none: choose a word, or **No flag** to clear it. Each choice is one change, with one Undo and one line in History.",
+     "A published file shows the chip but never the menu. A use case taken off the page with the eye is left out of the published file whole, chip and all.",
      "In the detail, write **Where it stands**, or add a next step as “Owner: what it is”.",
      "**Archive this use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Restore** or Undo brings it back."
     ],
@@ -562,10 +567,10 @@
     "w": "Edit › Use cases",
     "go": "dashboard+edit",
     "s": [
-     "In Edit, open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard.",
+     "In Edit, open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard. A use case with a commitment shows it as a small chip beside the status.",
      "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
      "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
-     "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list."
+     "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. In Edit, the small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History."
     ],
     "page": [
      "dashboard+edit"
@@ -814,6 +819,20 @@
     ]
    },
    {
+    "id": "start-check-and-restore-in-terminal",
+    "g": "Advanced",
+    "t": "Start, check or restore from Terminal (Mac)",
+    "w": "Terminal · clark.command",
+    "go": "",
+    "s": [
+     "The download unzips into one folder called clark, whatever its version. Only the zip file keeps the version in its name.",
+     "To start clark, double-click clark.command in that folder. Or open Terminal, type cd and a space, drag the clark folder into the Terminal window, press Return, then type `bash clark.command` and press Return.",
+     "To check that this Mac is ready, type `bash clark.command --check` in the same place. It prints a line for each thing clark needs, says what to fix, and ends by saying everything is ready or how many things to fix. It changes nothing.",
+     "To list the backups, close clark first, then type `bash clark.command restore`. With no name after restore it only lists them.",
+     "To put one back, close clark first and add the backup’s name after restore, as the list shows it, for example `bash clark.command restore clark-20261028T143005Z-undo.db`."
+    ]
+   },
+   {
     "id": "run-clark-with-docker",
     "g": "Advanced",
     "t": "Run clark with Docker",
@@ -857,11 +876,14 @@
      [
       "ul",
       [
-       "**The logo** (or clark’s icon and name): back to the Dashboard.",
        "**The project name**: switch projects. Each shows its count of open items; **Project settings** is at the foot.",
        "**Dashboard**, **Work items** and **Milestones**: the three screens.",
        "**The profile circle**: your initials (a person icon until you add your name). See [The profile circle](#ref-profile-circle)."
       ]
+     ],
+     [
+      "p",
+      "The magnifying glass opens **Go to or do**, the same box as [[Mod+K]]. Type to find a command (Publish, Preview the page in a new tab, Export to Excel, Settings, Ask about this project, Help or Appearance), a page, a project, a work item or a milestone, then press [[Enter]]. A published file has no such button."
      ]
     ]
    },
@@ -1281,8 +1303,8 @@
      ],
      [
       "p",
-      "Every filter can be **is** or **is not**. Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board).",
-      "A line under the filters shows how many items match, with a chip for each filter (the **×** removes it) and **Clear all**. When nothing matches, the list says so and offers **Clear all**."
+      "The filter line takes a plain word, which finds the items with it in the title or the ID, or field:value, such as status:Open or priority:High,Urgent. A comma means or, a space means and, a - in front means not, no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you. The count at the right reads, for example, 12 of 40, and **Clear filter** (the **×**) empties the line. When nothing matches, the list says No work items match. A published file has a **Search work items** box and a **Filter by** row instead, where each filter can be **is any of** or **is not**, and **Clear all** removes the chips.",
+      "Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
      ]
     ]
    },
@@ -1328,6 +1350,10 @@
      [
       "p",
       "Passwords and keys: a question, or a passage from a source folder, that looks like a password or a key is not sent. A password or key with a name in front of it is not sent when its value looks like one: letters mixed with digits or symbols, or a word in quotes. A plain word with nothing else in it, typed after the name without quotes, is still sent, because clark cannot tell it from an ordinary word. A short mixed value typed after “api key” or “access key” (such as v2beta3) is not sent, on purpose, even when it is not a key. Take any real password out of a question before you send it."
+     ],
+     [
+      "p",
+      "The **ask clark** button shows only while asking is on. With asking off, [[/]] still opens the panel, which says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link."
      ]
     ]
    },
@@ -1700,6 +1726,7 @@
       [
        "**The cover**: the project, the week ending and who it is for.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
+       "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF**, **Past reports** and **Dark mode**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports. **Dark mode** offers Light, Dark or System (the standard), is remembered in the same browser, and a printed page is always light.",
        "**Dashboard**: the report in the section style you chose, with **On this page** at the right.",
        "**Work items**: actions, risks and issues, and decisions shown to the client, with the type and Open, Closed or All switches, Filter by, a search box and Group by. Your choices are kept in your own browser only.",
        "**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.",
@@ -1719,6 +1746,10 @@
     "t": "Settings",
     "b": [
      [
+      "p",
+      "A bar of chips under the title takes you to a card: Publishing, Personal, Freshness, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn. The chip of the card you are reading is marked. Publishing and Freshness need an open project. Published reports also needs one and has a card but no chip."
+     ],
+     [
       "tbl",
       [
        "Card",
@@ -1726,12 +1757,12 @@
       ],
       [
        [
-        "Profile",
-        "Name, Alias, Email, Phone number and Organisation. On this computer only."
+        "Personal",
+        "Dashboard sections (Slim gaps, Roomy gaps, Grey headers, One card), Appearance (System, Light or Dark), About you (your name, Alias and Email) and Keys (Single-key shortcuts)."
        ],
        [
-        "Personal",
-        "Dashboard sections (Slim gaps, Roomy gaps, Grey headers, One card) and Appearance (Light, Dark or System)."
+        "Published reports",
+        "The numbered copies you have published, each with **Open** to see it as it was."
        ],
        [
         "Projects",
@@ -1742,8 +1773,8 @@
         "The switch for asking (**Turn off asking**; it is on from the first start) and the folders ask clark may read for this project (**Folders asking may read**). It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
        ],
        [
-        "AI",
-        "Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
+        "AI (under Asking)",
+        "A card of its own, drawn straight after the Asking card and without a chip. Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
        ],
        [
         "Publishing",
@@ -1834,26 +1865,34 @@
       "tbl",
       [
        "Sheet",
-       "Columns"
+       "Columns the import reads"
       ],
       [
        [
-        "Actions, Risks & Issues, Decisions",
-        "ID, Type, Workstream, Title, Owner, Due, Status, Priority, Rating, Use case, Milestone, Client-visible, Client wording, Description, Latest update"
+        "Actions",
+        "ID, Description, Workstream, Owner, Priority, Due, Status, Raised, Latest update, Client-visible, Client wording, Milestone, Use case, Labels"
+       ],
+       [
+        "Risks & Issues",
+        "ID, Description, Type, Workstream, Owner, Response action, Due, Impact, Likelihood, Status, Raised, Client-visible, Client wording, Milestone, Use case, Labels"
+       ],
+       [
+        "Decisions",
+        "ID, Decision, Status, Made by, Needed by, Date, Reasoning, Options, Revisit, Replaces, Client-visible, Client wording, Use case, Labels"
        ],
        [
         "Milestones",
-        "ID, Milestone, Workstream, Original, Agreed, Forecast, Achieved, State, Progress, Owner, Client-visible, Description, Open work items"
+        "ID, Milestone, Description, Workstream, Agreed, Forecast, Status, Order, % complete, Owner, State, State reason, Movement, Achieved on, Client-visible, Client wording, Internal note"
        ],
        [
         "Use cases",
-        "ID, Shown as, Use case, Status, Commitment, Headline, Where it stands, Client-visible, Open work items"
+        "ID, Use case, Shown as, Status, Commitment, Headline, Where it stands, Order, Client-visible"
        ]
       ]
      ],
      [
       "p",
-      "On import, columns can be in any order and only the title or name is needed. Client-visible reads Yes or No. Dates can be DD-MM-YYYY."
+      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Candidate, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
      ]
     ]
    },
@@ -1899,7 +1938,7 @@
        "Three tabs: **Start here**, **How do I…** and **Reference**. Help opens on the one you used last.",
        "The search box looks through all three as you type. Press [[Enter]] for the first result, [[Esc]] to clear it.",
        "A link with a › after it takes you to the screen it names.",
-       "[[?]] opens Help from any page; in Help, [[/]] goes to the search box."
+       "[[?]] opens Help from any page."
       ]
      ]
     ]
@@ -2172,7 +2211,7 @@
    [
     "pencil",
     "Edit",
-    "Switch the Dashboard to Edit",
+    "Switch the Dashboard to Edit. It is on the **Edit** half of the **View** and **Edit** switch at the left of the report bar.",
     "Dashboard"
    ],
    [
@@ -2314,7 +2353,7 @@
    "s": [
     "Work items lists the actions, risks, issues and decisions for the project in one place.",
     "Choose **Open**, **Closed** or **All** to say which items to list.",
-    "Narrow the list with **Search work items** and the filter line; **Clear all** puts it back.",
+    "Narrow the list by typing in the filter line, a word or a field such as status:Open. The **×** at its right empties it.",
     "The **View** menu holds **Layout** and **Group by**, so you can switch between a table and a board."
    ],
    "full": "ref-work-items"
@@ -2483,7 +2522,7 @@
      "pic": "excel-in-box"
     },
     {
-     "d": "The box **What to import** lists the sheets the workbook has, each with its number of rows, for example Actions (12 rows). They all start ticked. Tick the sheets you want and untick the rest: anything you leave unticked is not read and not changed. **Select all** ticks every sheet and **Clear** unticks them. With no sheet ticked, **Continue** is off. A sheet with more than 5,000 rows shows **more than 5,000 rows** and cannot be imported as it is. Pressing **Continue** with it ticked names the limit. Press **Continue**."
+     "d": "The box **What to import** lists the sheets the workbook has, each with its number of rows, for example Actions (12 rows). They all start ticked. Tick the sheets you want and untick the rest: anything you leave unticked is not read and not changed. **Select all** ticks every sheet and **Clear** unticks them. With no sheet ticked, **Continue** is off. A sheet with more than 5,000 rows shows **more than 5,000 rows**. Any sheet with more than 2,000 rows that have something in them is refused whole when you press **Continue**, and the message says so."
     },
     {
      "d": "The box **Check the import** opens. A line gives the counts: how many rows are new, how many changed, how many are no longer in the workbook and how many are unchanged. Unchanged rows are left alone. Nothing has been saved yet. It counts only the sheets you ticked."
@@ -2525,7 +2564,7 @@
      "d": "Your browser saves one .xlsx file, and a message gives its name. Nothing is sent or published: the file is only on your computer."
     },
     {
-     "d": "Open the file. It opens on the Cover sheet. The first line is the project name, tagged INTERNAL. Below it come the report’s current state, the health and the at a glance tiles, and the text sections, as the published page shows them. Then comes an About this export block: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs."
+     "d": "Open the file. It opens on the Cover: a title band with the project name, tagged INTERNAL, and under it a line with Weekly report, the week ending and who it is for. Then come the sections the published page shows, in the report’s order: the current state, the At a glance tiles side by side (the health is one of them) and the text sections, with This week and Next week side by side when both have words. A quiet About this export block comes last: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs."
     },
     {
      "d": "After the Cover come the sheets of rows: Actions, Risks & Issues, Decisions, Milestones and Use cases. Each row is one item, with its ID in the first column. A History sheet follows with the record of changes, read only. Changes made on the Cover are ignored."
