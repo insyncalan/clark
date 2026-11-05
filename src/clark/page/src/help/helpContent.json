@@ -346,9 +346,11 @@
     "s": [
      "The first switch picks the type: **All**, **Actions**, **Risks and issues** or **Decisions**.",
      "The second picks **Open**, **Closed** or **All**, each with its count.",
-     "**Filter by** has Workstream, Status, Due, Owner, Priority, Use case, Milestone and Client, and Freshness once some item has a date it can go by. Each opens a list with a count beside every value: tick the ones you want, choose **is** or **is not**, and close the list to apply it. **Select all** and **Clear** are at the top. A dot marks a filter that is on.",
-     "The filters that are on show as chips beside the count of items. **×** on a chip removes it; **Clear all** removes everything, the type and the search too. In the app it goes back to the open items.",
-     "The search box finds words in the ID, title, owner, description, latest update and use case as you type.",
+     "Click the filter line, which says **Filter by keyword or by field**, and type. A plain word finds the items with it in the title or the ID. A list of fields and values opens under the line: choose from it, or keep typing.",
+     "To pick a field, type field:value, for example status:Open or priority:High,Urgent. The fields are type, status, owner, priority, due, workstream, usecase, milestone, client and is. A comma means or, a space between two parts means and, and a - in front means not, as in -status:Closed. no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you (set your name in Settings first).",
+     "A word it cannot use gets a red wavy underline and is not applied. A message under the line says why, such as Unknown field 'x'. Did you mean Owner? or Add a value after 'x':. If you ask for owner:@me before your name is set, it says Set your name in Settings to see your actions.",
+     "The count at the right reads, for example, 12 of 40. **Clear filter** (the **×**) empties the line. When nothing matches, the list says No work items match. and offers **Clear filter**.",
+     "A published file has no filter line. It has a **Search work items** box, which finds words in the ID, the description, the owner, the latest update, the client wording and the use case, and a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone. Each opens a list with a count beside every value: tick the ones you want and choose **is any of** or **is not**. **Select all** and **Clear** are at the top. The filters that are on show as chips beside the count; **×** on a chip removes it, and **Clear all** removes the filters and the search but keeps the type and Open, Closed or All.",
      "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N work items” and the use case's reference), opens Work items already filtered to what it counts."
     ],
     "page": [
@@ -813,6 +815,20 @@
     ]
    },
    {
+    "id": "start-check-and-restore-in-terminal",
+    "g": "Advanced",
+    "t": "Start, check or restore from Terminal (Mac)",
+    "w": "Terminal · clark.command",
+    "go": "",
+    "s": [
+     "The download unzips into one folder called clark, whatever its version. Only the zip file keeps the version in its name.",
+     "To start clark, double-click clark.command in that folder. Or open Terminal, type cd and a space, drag the clark folder into the Terminal window, press Return, then type `bash clark.command` and press Return.",
+     "To check that this Mac is ready, type `bash clark.command --check` in the same place. It prints a line for each thing clark needs, says what to fix, and ends by saying everything is ready or how many things to fix. It changes nothing.",
+     "To list the backups, close clark first, then type `bash clark.command restore`. With no name after restore it only lists them.",
+     "To put one back, close clark first and add the backup’s name after restore, as the list shows it, for example `bash clark.command restore clark-20261028T143005Z-undo.db`."
+    ]
+   },
+   {
     "id": "run-clark-with-docker",
     "g": "Advanced",
     "t": "Run clark with Docker",
@@ -856,12 +872,15 @@
      [
       "ul",
       [
-       "**The logo** (or clark’s icon and name): back to the Dashboard.",
        "**The project name**: switch projects. Each shows its count of open items; **Project settings** is at the foot.",
        "**Dashboard**, **Work items** and **Milestones**: the three screens.",
        "**ask clark**: opens the assistant down the right. The [[/]] beside it is its key.",
        "**The profile circle**: your initials (a person icon until you add your name). See [The profile circle](#ref-profile-circle)."
       ]
+     ],
+     [
+      "p",
+      "The magnifying glass opens **Go to or do**, the same box as [[Mod+K]]. Type to find a command (Publish, Preview the page in a new tab, Export to Excel, Settings, Ask about this project, Help or Appearance), a page, a project, a work item or a milestone, then press [[Enter]]. A published file has no such button."
      ]
     ]
    },
@@ -1281,8 +1300,8 @@
      ],
      [
       "p",
-      "Every filter can be **is** or **is not**. Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board).",
-      "A line under the filters shows how many items match, with a chip for each filter (the **×** removes it) and **Clear all**. When nothing matches, the list says so and offers **Clear all**."
+      "The filter line takes a plain word, which finds the items with it in the title or the ID, or field:value, such as status:Open or priority:High,Urgent. A comma means or, a space means and, a - in front means not, no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you. The count at the right reads, for example, 12 of 40, and **Clear filter** (the **×**) empties the line. When nothing matches, the list says No work items match. A published file has a **Search work items** box and a **Filter by** row instead, where each filter can be **is any of** or **is not**, and **Clear all** removes the chips.",
+      "Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
      ]
     ]
    },
@@ -1324,6 +1343,10 @@
      [
       "p",
       "Passwords and keys: a question, or a passage from a source folder, that looks like a password or a key is not sent. A password or key with a name in front of it is not sent when its value looks like one: letters mixed with digits or symbols, or a word in quotes. A plain word with nothing else in it, typed after the name without quotes, is still sent, because clark cannot tell it from an ordinary word. A short mixed value typed after “api key” or “access key” (such as v2beta3) is not sent, on purpose, even when it is not a key. Take any real password out of a question before you send it."
+     ],
+     [
+      "p",
+      "The ask button in the top bar shows only while asking is on. With asking off, [[/]] still opens the panel, which says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link."
      ]
     ]
    },
@@ -1756,6 +1779,10 @@
     "t": "Settings",
     "b": [
      [
+      "p",
+      "A bar of chips under the title takes you to a card: Publishing, Personal, Freshness, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn. The chip of the card you are reading is marked. Publishing and Freshness need an open project. Published reports also needs one and has a card but no chip."
+     ],
+     [
       "tbl",
       [
        "Card",
@@ -1763,12 +1790,12 @@
       ],
       [
        [
-        "Profile",
-        "Name, Alias, Email, Phone number and Organisation. On this computer only."
+        "Personal",
+        "Dashboard sections (Slim gaps, Roomy gaps, Grey headers, One card), Appearance (System, Light or Dark), About you (your name, Alias and Email, kept on this computer only) and Keys (Single-key shortcuts)."
        ],
        [
-        "Personal",
-        "Dashboard sections (Slim gaps, Roomy gaps, Grey headers, One card) and Appearance (Light, Dark or System)."
+        "Published reports",
+        "The numbered copies you have published, each with **Open** to see it as it was."
        ],
        [
         "Projects",
@@ -1779,8 +1806,8 @@
         "The folders ask clark may read for this project. It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
        ],
        [
-        "AI",
-        "Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
+        "AI (under Asking)",
+        "A card of its own, drawn straight after the Asking card and without a chip. Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
        ],
        [
         "Publishing",
@@ -1871,20 +1898,28 @@
       "tbl",
       [
        "Sheet",
-       "Columns"
+       "Columns the import reads"
       ],
       [
        [
-        "Actions, Risks and issues, Decisions",
-        "ID, Type, Workstream, Title, Owner, Due, Status, Priority, Rating, Use case, Milestone, Client-visible, Client wording, Description, Latest update"
+        "Actions",
+        "ID, Description, Workstream, Owner, Priority, Due, Status, Raised, Latest update, Client-visible, Client wording, Milestone, Use case, Labels"
+       ],
+       [
+        "Risks and issues",
+        "ID, Description, Type, Workstream, Owner, Response action, Due, Impact, Likelihood, Status, Raised, Client-visible, Client wording, Milestone, Use case, Labels"
+       ],
+       [
+        "Decisions",
+        "ID, Decision, Status, Made by, Needed by, Date, Reasoning, Options, Revisit, Replaces, Client-visible, Client wording, Use case, Labels"
        ],
        [
         "Milestones",
-        "ID, Milestone, Workstream, Original, Agreed, Forecast, Achieved, State, Progress, Owner, Client-visible, Description"
+        "ID, Milestone, Description, Workstream, Agreed, Forecast, Status, Order, % complete, Owner, State, State reason, Movement, Achieved on, Client-visible, Client wording, Internal note"
        ],
        [
         "Use cases",
-        "ID, Shown as, Use case, Status, Headline, Where it stands, Client-visible, Open work items"
+        "ID, Use case, Shown as, Status, Headline, Where it stands, Order, Client-visible"
        ]
       ]
      ],
@@ -2365,7 +2400,7 @@
    "s": [
     "Work items lists the actions, risks, issues and decisions for the project in one place.",
     "Choose **Open**, **Closed** or **All** to say which items to list.",
-    "Narrow the list with **Search work items** and the filter line; **Clear all** puts it back.",
+    "Narrow the list by typing in the filter line, a word or a field such as status:Open. The **×** at its right empties it.",
     "The **View** menu holds **Layout** and **Group by**, so you can switch between a table and a board."
    ],
    "full": "ref-work-items"

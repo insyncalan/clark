@@ -29,7 +29,7 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
 # 'Keep the model I have' and 'Use it anyway' are the buttons of the Settings AI card (edit/AiSettings.jsx, #446); the prototype has no AI card. Claude and ChatGPT are named only as the two providers the card connects.
 # 'Show the files' and 'Put back the app and settings only' are the update card's own buttons (logic/update.js LABELS, item 445); the prototype has neither.
-CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Source folders for ask clark', 'Use it anyway', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
+CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Source folders for ask clark', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Use it anyway', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -99,7 +99,7 @@ class Shape(unittest.TestCase):
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
-        self.assertEqual((len(STEPS), len(SECTIONS)), (36, 35))   # with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
+        self.assertEqual((len(STEPS), len(SECTIONS)), (37, 35))   # with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (36, 31))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -136,7 +136,7 @@ class Shape(unittest.TestCase):
             self.assertIn(j[0], ids)
         screens = set(re.search(r"export const SCREENS = \[(.*?)\]", LOGIC).group(1).replace('"', "").replace(" ", "").split(","))
         for t in STEPS:
-            if t["id"] != "run-clark-with-docker":      # the Docker entry is run in Terminal: it opens no screen
+            if t["id"] not in ("run-clark-with-docker", "start-check-and-restore-in-terminal"):      # these entries are run in Terminal: they open no screen
                 self.assertIn(t["go"].split("#")[0], screens, t["id"])
 
 
@@ -388,8 +388,10 @@ class LowWordsRound(unittest.TestCase):
 
 
     def test_work_items_names_the_chips_and_clear_all_the_page_draws(self):
-        self.assertIn("A line under the filters shows how many items match, with a chip for each filter", self.ALL)
-        self.assertIn("When nothing matches, the list says so and offers **Clear all**", self.ALL)
+        # the app draws only the filter line (WorkItems.jsx, the L branch); the chips and Clear all are the published file's (PublishedList)
+        self.assertIn("**Clear filter** (the **×**) empties the line", self.ALL)
+        self.assertIn("A published file has a **Search work items** box and a **Filter by** row instead", self.ALL)
+        self.assertIn("**Clear all** removes the filters and the search but keeps the type and Open, Closed or All", self.ALL)
 
     def test_milestone_at_risk_uses_the_pages_own_legend_words(self):
         """The page has no control that sets a state; its legend says 'Marked at risk by the project team.'"""
@@ -411,7 +413,7 @@ class HelpMatchesThePage(unittest.TestCase):
         names = (self.SRC / "filters.js").read_text(encoding="utf-8")
         self.assertIn('reviewed: "Freshness"', names)
         find = next(t for t in STEPS if t["id"] == "find-work-items")
-        self.assertIn("Milestone and Client, and Freshness once some item has a date it can go by", " ".join(find["s"]))
+        self.assertIn("a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone", " ".join(find["s"]))     # the published file's row: no Client, no Freshness (filters.js fieldList)
         table = next(b for sec in SECTIONS if sec["id"] == "work-items" for b in sec["b"] if b[0] == "tbl" and b[1] == ["Filter", "Values"])
         self.assertEqual(table[2][-1][0], "Freshness")
         self.assertIn("Not reviewed in 14 days", table[2][-1][1])
