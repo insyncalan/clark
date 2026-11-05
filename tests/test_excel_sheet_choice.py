@@ -85,6 +85,25 @@ class Listing(Sheets):
         wb.save(str(self.path))
         self.assertEqual({s["table"]: s["rows"] for s in self.sheets()[1]["sheets"]}["decisions"], 1)
 
+    def test_a_sheet_over_5000_rows_is_counted_to_one_past_the_limit_never_to_a_wrong_number(self):
+        # The box says "more than 5,000 rows" for it (dataCard.sheetWord); the count stops at 5,001 so the page can tell 5,000 from more.
+        wb = load_workbook(str(self.path))
+        ws = wb["Decisions"]
+        for r in range(2, 5003):                      # data rows 2 to 5002: 5,001 of them
+            ws.cell(r, 2).value = f"Filler {r}"
+        wb.save(str(self.path))
+        self.assertEqual({s["table"]: s["rows"] for s in self.sheets()[1]["sheets"]}["decisions"], 5001)
+
+    def test_a_sheet_of_exactly_5000_rows_shows_its_number(self):
+        wb = load_workbook(str(self.path))
+        ws = wb["Decisions"]
+        for r in range(2, 5002):                      # data rows 2 to 5001: exactly 5,000 of them
+            ws.cell(r, 2).value = f"Filler {r}"
+        for r in range(5002, ws.max_row + 1):
+            ws.cell(r, 2).value = None
+        wb.save(str(self.path))
+        self.assertEqual({s["table"]: s["rows"] for s in self.sheets()[1]["sheets"]}["decisions"], 5000)
+
     def test_not_a_workbook_is_refused_in_words(self):
         status, got = self.post(op="sheets", project="ABC", name="x.xlsx", data=__import__("base64").b64encode(b"nope").decode())
         self.assertEqual(status, 400)

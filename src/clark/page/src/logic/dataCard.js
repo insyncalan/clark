@@ -49,8 +49,9 @@ export const IMPORT = {
   fallback: "That could not be done. Reload the page. If it happens again, restart clark.",
 };
 
-// "Actions (12 rows)", "Decisions (1 row)", "Risks and issues (0 rows)": a sheet's name and how many rows it holds.
-export const sheetWord = (s) => `${s.name} (${s.rows} ${s.rows === 1 ? "row" : "rows"})`;
+// "Actions (12 rows)", "Decisions (1 row)", "Risks and issues (0 rows)", "Actions (more than 5,000 rows)": a sheet's name and how many rows it holds.
+export const SHEET_ROWS_SHOWN = 5000;       // the count stops one past this (excel_import.list_sheets), so a bigger sheet is named, never given a wrong number
+export const sheetWord = (s) => `${s.name} (${s.rows > SHEET_ROWS_SHOWN ? "more than 5,000 rows" : `${s.rows} ${s.rows === 1 ? "row" : "rows"}`})`;
 
 // The columns the import reads, per sheet, as the prototype lists them in the first box (tests/test_settings_data_page.py checks them
 // against the export's own layout in excel.py, leaving out the ones that are worked out or never read back).

@@ -61,7 +61,7 @@ class ApprovedWordsArePinned(unittest.TestCase):
         self.assertEqual((quoted("selectAll"), quoted("clear")), ("Select all", "Clear"))
         self.assertEqual(quoted("tickOne"), "Tick at least one sheet.")
         self.assertEqual(quoted("continue"), "Continue")      # the wording the other two-step boxes (Publish, Word) already use
-        self.assertIn('`${s.name} (${s.rows} ${s.rows === 1 ? "row" : "rows"})`', CARD)
+        self.assertIn('`${s.name} (${s.rows > SHEET_ROWS_SHOWN ? "more than 5,000 rows" : `${s.rows} ${s.rows === 1 ? "row" : "rows"}`})`', CARD)
 
     def test_the_data_card_note_is_only_the_prototypes_sentence(self):
         self.assertEqual(quoted("note"), "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.")
@@ -98,3 +98,13 @@ class ApprovedWordsArePinned(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SheetRowWords(unittest.TestCase):
+    """#655: a sheet's row count in the "What to import" box. Above 5,000 the box says so in words, never a wrong number."""
+    def test_a_sheet_over_5000_rows_says_more_than_5000_and_the_others_their_number(self):
+        from pathlib import Path
+        text = (Path(__file__).resolve().parents[1] / "src/clark/page/src/logic/dataCard.js").read_text(encoding="utf-8")
+        self.assertIn("more than 5,000 rows", text)
+        self.assertIn("SHEET_ROWS_SHOWN = 5000", text)
+        self.assertIn('s.rows === 1 ? "row" : "rows"', text)

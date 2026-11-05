@@ -911,7 +911,8 @@ def list_sheets(path):
     """The sheets of the workbook at `path` that clark imports, for the person to choose from (#655): [{"table", "name", "rows"}] in
     CHOICE_ORDER, "rows" being the rows below the header with something in them. A sheet the file does not have is not listed; a
     History sheet (or any other) is never listed. Nothing is compared or written, and no cell is built beyond the first
-    MAX_SHEET_ROWS + 1 rows, so a huge sheet is counted, not read (ticking it is what makes the check refuse it, in words)."""
+    MAX_SHEET_ROWS + 1 rows below the header, so a huge sheet is counted up to one past the limit ("rows" is then above 5,000: the box says
+    "more than 5,000 rows"), not read (ticking it is what makes the check refuse it, in words)."""
     path = Path(path)
     try:
         excel.check_workbook_size(path)
@@ -931,7 +932,7 @@ def list_sheets(path):
                 raise Invalid(f"The workbook has two sheets for the same thing: “{found[table][0]}” and “{ws.title}”. Keep one of them and "
                               "import again. Nothing was changed.")
             rows = 0
-            for row in ws.iter_rows(min_row=2, max_row=MAX_SHEET_ROWS + 1, max_col=MAX_SHEET_COLUMNS, values_only=True):
+            for row in ws.iter_rows(min_row=2, max_row=MAX_SHEET_ROWS + 2, max_col=MAX_SHEET_COLUMNS, values_only=True):
                 if any(v is not None and not (isinstance(v, str) and not v.strip()) for v in row):
                     rows += 1
             found[table] = (ws.title, rows)
