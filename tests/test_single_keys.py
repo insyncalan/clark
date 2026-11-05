@@ -237,5 +237,25 @@ class PageKeys(Base):
             p.until(f"document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked') !== '{was}'", "Space flips the switch")
 
 
+    def test_the_off_switch_has_a_visible_track_in_light_and_dark(self):       # item 677: the track colour is a token that exists
+        from test_appearance import scheme
+        from test_settings_head import ratio, rgb
+        for mode in ("light", "dark"):
+            with self.subTest(mode=mode), chrome() as cdp:
+                p = self.visit(cdp)
+                scheme(p, mode)
+                self.settings_box(p)
+                if p.js("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked')") == "true":
+                    p.js("document.querySelector('fieldset.keys [role=switch]').click()")
+                p.until("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked') === 'false'", "the switch is off")
+                time.sleep(0.6)                                                       # the track's colour change takes 220 ms
+                track = p.js("getComputedStyle(document.querySelector('fieldset.keys [role=switch]')).backgroundColor")
+                card = p.js("getComputedStyle(document.querySelector('#personal')).backgroundColor")
+                self.assertNotIn("rgba(0, 0, 0, 0)", track, "the off track has a colour")
+                self.assertNotEqual(track, card)
+                self.assertGreaterEqual(ratio(rgb(track), rgb(card if "rgba(0, 0, 0, 0)" not in card else p.js("getComputedStyle(document.body).backgroundColor"))), 1.5,
+                                        "the off track can be told from the card")
+
+
 if __name__ == "__main__":
     unittest.main()
