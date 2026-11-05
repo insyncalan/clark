@@ -102,7 +102,7 @@ button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; fo
 .teye .i { width: 16px; height: 16px; }
 .tgrip:hover, .teye:hover { background: var(--grey-100); color: var(--text); }
 .tgrip:focus-visible, .teye:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.tcell.is-hidden .fig { border-style: dashed; border-color: var(--grey-300); background: var(--grey-100); padding-bottom: 54px; }   /* room under the figures for the tag at the bottom (two lines at 190 px), so it never sits over the chip or the detail */   /* not opacity: that dims the text below 4.5:1 */
+.tcell.is-hidden .fig { border-style: dashed; border-color: var(--grey-300); background: transparent; padding-bottom: 54px; }   /* room under the figures for the tag at the bottom (two lines at 190 px), so it never sits over the chip or the detail */   /* not opacity: that dims the text below 4.5:1 */
 .thid { position: absolute; left: 12px; bottom: 6px; z-index: 2; }
 /* In Edit the grip and the eye sit in a tile's top right corner (4 + 24 + 2 + 24 = 54 px from its edge). The label line keeps clear of them:
    the 54 px less the tile's border and padding (17 px) and a 4 px gap is 41 px, so a long label wraps rather than runs under a control.
