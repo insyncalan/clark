@@ -165,18 +165,14 @@ def _ico_ok(d):
 # The pins are of the CURRENT files. When the files are regenerated, re-pin them here, in a reviewed change to this protected file.
 ALLOWED_PUBLIC_DIR = "meet clark"
 ALLOWED_PUBLIC_FILES = {
-    "meet clark/clark-getting-started.pdf": ("f3b02f691de60fadd64255bdf5902bc3ebd2b3cf822fbbc289c20d15c1e22c3d", 674103),
-    "meet clark/clark-overview.pdf": ("88590860921d47da28ad0d84289af4bacf4b0e95b7bde28e435fe5fcdaf77cdd", 355754),
-    "meet clark/clark-overview.png": ("f8f13fd264de64d1eefba0824624e8cf507b5b1e14ca7cc1dc315baec5aa3f51", 833201),
-}
-# The NEXT pins: the files of the next regeneration. A pin table is read from the BASE branch by the scan, so a change that swaps the
-# files cannot pass until the base already knows their pins. A file is let through if it equals the CURRENT or the NEXT pin of its path.
-# Sequence: add the next pins here (this table), merge; then swap the files and the tables together, emptying this one.
-NEXT_PUBLIC_FILES = {
     "meet clark/clark-getting-started.pdf": ("007349fb61ddbcf6c455051d273a2d02b11cd55ca71e0c32f74e8d4312c11a36", 673039),
     "meet clark/clark-overview.pdf": ("59767dad3442ec28b561ebd4502a76cb936170c757308ca0eee9206e3135b7a2", 356840),
     "meet clark/clark-overview.png": ("1555b04fc39634dd52636c8832da99fbbfc49daea5c55cd5a8fd38b8a4991632", 843013),
 }
+# The NEXT pins: the files of the next regeneration. A pin table is read from the BASE branch by the scan, so a change that swaps the
+# files cannot pass until the base already knows their pins. A file is let through if it equals the CURRENT or the NEXT pin of its path.
+# Sequence: add the next pins here (this table), merge; then swap the files and the tables together, emptying this one.
+NEXT_PUBLIC_FILES = {}
 PDF_LANG_KEY = b"/La" + b"ng (en-GB)"            # the only bytes taken out of a pinned PDF before the listed-word scan
 
 
