@@ -21,3 +21,8 @@ def clark(rest=""):
 def doctor():
     """The command that checks what this computer needs."""
     return "bash clark.command --check" if _set() else "python3 -m clark.doctor"
+
+
+def launch():
+    """The command that starts clark and opens its window (clark.command's normal start, `python3 -m clark.launch` in a checkout)."""
+    return "bash clark.command" if _set() else "python3 -m clark.launch"

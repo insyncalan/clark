@@ -36,9 +36,34 @@ class TopBarTabs(Base):
             if edit:
                 p.js("document.querySelector('.top [data-mode=edit]').click()")
             if long_name:       # the longest name a person is likely to give a project: it must shorten, never push a tab out
-                p.js("(function(){ var s = document.querySelector('.top .projbtn > span') || document.querySelector('.top .proj'); "
-                     "s.textContent = 'Customer onboarding programme, phase two, northern region'; })()")
+                self.assertTrue(p.js("(function(){ var s = document.querySelector('.top .projbtn > span') || document.querySelector('.top .proj'); "
+                                     "if (!s) return false; s.textContent = 'Customer onboarding programme, phase two, northern region'; return true; })()"),
+                                f"at {width} px, {theme}: the long-name check found no project name in the top bar ('.top .projbtn > span' or '.top .proj'), "
+                                "so it did not test a long name at all; the bar's markup has changed")
             return p.js(MEASURE)
+
+    def box(self, p, selector):
+        return p.js(f"(function(){{ var e = document.querySelector({selector!r}); if (!e) return null; var r = e.getBoundingClientRect(); return [r.width, e.scrollWidth, e.clientWidth]; }})()")
+
+    def switch_widths(self, width, theme):
+        out = []
+        for edit in (False, True):       # a fresh page each: the name is lengthened after the mode is set, as check() does
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                size(cdp, p, width, 700)
+                p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
+                p.until("!!document.querySelector('.modes')", f"at {width} px, {theme}: the View/Edit switch (.modes; on the Dashboard it is the report bar's pill, off it the top bar's) never appeared")
+                if edit:
+                    p.js("document.querySelector('.modes [data-mode=edit]').click()")
+                p.js("document.querySelector('.top .projbtn > span').textContent = 'Customer onboarding programme, phase two, northern region'")
+                out.append(self.box(p, ".modes"))
+        return out
+
+    def tab_style(self, width):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            size(cdp, p, width, 700)
+            return p.js("(function(){ var s = getComputedStyle(document.querySelector('.top .tab')); return [s.paddingLeft, s.paddingRight, s.whiteSpace]; })()")
 
     def check(self, width, theme, long_name=False, edit=False):
         got = self.measure(width, theme, long_name, edit)
@@ -54,6 +79,23 @@ class TopBarTabs(Base):
             self.assertLessEqual(a["right"], b["left"] + 0.5, f"{where}: {a['cls']!r} overlaps {b['cls']!r}")
         self.assertLessEqual(items[-1]["right"], got["bar"][1] + 0.5, f"{where}: {items[-1]['cls']!r} is clipped by the window")
         self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"{where}: the page scrolls sideways {got['scroll']}")
+
+    # Under 1 px: the pressed segment is set in the medium weight, which makes its word about half a pixel wider; a real shift is far more.
+    def test_the_view_edit_switch_is_the_same_width_in_view_and_in_edit_with_a_long_name(self):
+        for width in WIDTHS:
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme):
+                    view, edit = self.switch_widths(width, theme)
+                    self.assertIsNotNone(view, f"at {width} px, {theme}: no '.modes' (the View and Edit switch) on the page")
+                    self.assertAlmostEqual(view[0], edit[0], delta=1, msg=f"at {width} px, {theme}: the View/Edit switch is {view[0]} px wide in View and {edit[0]} px in Edit")
+                    self.assertLessEqual(view[1], view[2] + 1, f"at {width} px, {theme}: the View/Edit switch is squeezed narrower than its content")
+
+    def test_the_tabs_tighten_their_padding_at_1000_px_and_below_and_never_wrap(self):
+        for width, pad in ((1400, "14px"), (1001, "14px"), (1000, "8px"), (900, "8px"), (800, "8px"), (600, "6px")):
+            with self.subTest(width=width):
+                left, right, wrap = self.tab_style(width)
+                self.assertEqual([left, right], [pad, pad], f"at {width} px the tab padding should be {pad}; got {left} and {right}")
+                self.assertEqual(wrap, "nowrap", f"at {width} px a tab label may wrap onto a second line (white-space is {wrap!r})")
 
 
 for _w in WIDTHS:

@@ -105,5 +105,49 @@ class LauncherScript(unittest.TestCase):
             self.assertIn(usage, run.stdout)
 
 
+class UsageLine(unittest.TestCase):
+    """issue 744: the usage line `--help` and a bad option print is the typed command, through a real process."""
+
+    def run_clark(self, argv, typed_value, via_command=False):
+        env = {k: v for k, v in os.environ.items() if k not in ("CLARK_TYPED", "PYTHONPATH")}
+        if typed_value:
+            env["CLARK_TYPED"] = typed_value
+        if via_command:
+            argv = ["bash", "clark.command", *argv]
+        else:
+            argv = ["python3", "-m", *argv]
+            env["PYTHONPATH"] = str(ROOT / "src")
+        return subprocess.run(argv, cwd=str(ROOT), env=env, capture_output=True, text=True, timeout=60)
+
+    def test_launch_help_in_both_modes(self):
+        run = self.run_clark(["clark.launch", "--help"], BASH)
+        self.assertEqual(0, run.returncode, run.stderr)
+        self.assertEqual("usage: bash clark.command [-h] [--data FOLDER] [--port N]", run.stdout.splitlines()[0])
+        self.assertNotIn("python3 -m clark.launch", run.stdout)
+        run = self.run_clark(["clark.launch", "--help"], "")
+        self.assertEqual("usage: python3 -m clark.launch [-h] [--data FOLDER] [--port N]", run.stdout.splitlines()[0])
+
+    def test_launch_bad_option_in_both_modes(self):
+        run = self.run_clark(["clark.launch", "--nope"], BASH)
+        self.assertEqual(2, run.returncode)
+        self.assertEqual("usage: bash clark.command [-h] [--data FOLDER] [--port N]", run.stderr.splitlines()[0])
+        self.assertNotIn("python3 -m clark.launch", run.stderr)
+        run = self.run_clark(["clark.launch", "--nope"], "")
+        self.assertEqual("usage: python3 -m clark.launch [-h] [--data FOLDER] [--port N]", run.stderr.splitlines()[0])
+
+    def test_the_other_help_screens_in_both_modes(self):
+        for argv, down, check in ((["clark", "--help"], "usage: bash clark.command ", "usage: python3 -m clark "),
+                                  (["clark", "restore", "--help"], "usage: bash clark.command restore ", "usage: python3 -m clark restore "),
+                                  (["clark.doctor", "--help"], "usage: bash clark.command --check ", "usage: python3 -m clark.doctor ")):
+            self.assertTrue(self.run_clark(argv, BASH).stdout.startswith(down), argv)
+            self.assertTrue(self.run_clark(argv, "").stdout.startswith(check), argv)
+
+    def test_clark_command_forwards_help_to_the_launch_parser(self):
+        run = self.run_clark(["--help"], "", via_command=True)
+        self.assertEqual(0, run.returncode, run.stderr)
+        self.assertEqual("usage: bash clark.command [-h] [--data FOLDER] [--port N]", run.stdout.splitlines()[0])
+        self.assertNotIn("python3 -m clark.launch", run.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

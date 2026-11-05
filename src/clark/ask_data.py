@@ -35,7 +35,7 @@ SHOWN = {
     "raid": ("type", "status", "owner", "priority", "impact", "likelihood", "due_date", "raised", "closed", "client_message",
              "workstream", "milestone", "use_case"),
     "decisions": ("status", "made_by", "date", "needed_by", "revisit", "replaces", "client_message", "use_case"),
-    "use_cases": ("ref", "status", "headline", "standing"),
+    "use_cases": ("ref", "status", "commitment", "headline", "standing"),
 }
 WORDS = re.compile(r"[^\W_]{3,}", re.UNICODE)
 _TAG = re.compile(r"<[^>]*>")

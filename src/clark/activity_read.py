@@ -4,6 +4,8 @@ The server imports nothing from clark, so this is the seam it is given (as it is
 the project's, opens its own read-only connection, asks history.activity_for_item and keeps only what the tab draws: for each
 change, who made it, how, when, what changed and from what to what, newest first, and, for a change Undo several would refuse, the
 plain reason (`undo_refused`, else "") so the tab withholds the tick. Writes nothing. No publishing module uses it.
+It is thin in what it does, not in what it loads: it imports `changes` (a large module) for the one function undo_refusals, which
+shares its checks with Undo several, so importing it keeps the tab and Undo in step.
 Standard library only, Python 3.9."""
 from clark import changes, history
 from clark.store import Store, connect

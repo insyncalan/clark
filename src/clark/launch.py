@@ -22,7 +22,7 @@ import sys
 import time
 from pathlib import Path
 
-from clark import appfiles, platform, server, update_helper
+from clark import appfiles, platform, server, typed, update_helper
 from clark.__main__ import Usage, free_port_near, port_free, port_number
 
 NOTHING, OURS, OTHER_DATA, NOT_CLARK = "nothing", "ours", "other data folder", "not clark"
@@ -213,7 +213,7 @@ def open_clark(url, say, environ, find_chrome, open_window, open_browser):
 
 
 def parser():
-    p = argparse.ArgumentParser(prog="python3 -m clark.launch", description="Start clark if it isn't running, and open its window.")
+    p = argparse.ArgumentParser(prog=typed.launch(), description="Start clark if it isn't running, and open its window.")
     p.add_argument("--data", metavar="FOLDER", help="the folder for clark's data (default: clark's own folder for your system)")
     p.add_argument("--port", metavar="N", help=f"the port number clark listens on (advanced; default: the CLARK_PORT setting, or {server.DEFAULT_PORT})")
     return p
