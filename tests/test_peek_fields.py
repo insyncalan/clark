@@ -133,6 +133,63 @@ class Wording(Fields):
         self.assertNotIn("pk-ce", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
 
 
+class Picks(Fields):
+    def shown(self, cdp, sid, field):
+        return cdp.js(f"(b => b ? b.textContent : null)(document.querySelector('#peek [data-pk-pick={field}]'))", sid)
+
+    def test_workstream_milestone_and_use_case_are_chosen_in_the_peek_each_with_one_undo(self):
+        a = self.action(ACTION)
+        other_ws = next(w["name"] for w in self.data["workstreams"] if w["name"] != a["workstream"] and w["status"] != "Closed" and not w.get("archived"))
+        other_ms = next(m for m in self.data["milestones"] if m["id"] != a["milestone"] and not m.get("archived"))
+        other_uc = next(u for u in self.data["use_cases"] if u["id"] != a["use_case"] and not u.get("archived"))
+        cases = [("workstream", other_ws, other_ws, "Workstream"), ("milestone", other_ms["id"], other_ms["name"], "Milestone"),
+                 ("use_case", other_uc["id"], f"Use case {other_uc['ref']}", "Use case")]
+        for width, dark in self.widths():
+            for field, value, words, name in cases:
+                with self.subTest(width=width, dark=dark, field=field), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, ACTION, dark=dark)
+                    was = self.shown(cdp, sid, field)
+                    self.assertTrue(self.inside(cdp, sid, f"[data-pk-pick={field}]"), "the button fits the peek")
+                    click(cdp, sid, f"#peek [data-pk-pick={field}]")
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu] [role=menuitemradio]')", sid)))
+                    self.assertTrue(cdp.js("document.querySelector('[role=menu]').contains(document.activeElement)", sid), "the focus is in the list")
+                    cdp.js("[...document.querySelectorAll('[role=menu] [data-value]')].find(b => b.dataset.value === " + json.dumps(value) + ").click()", sid)     # by script: a long list may reach below the window
+                    self.assertTrue(wait(lambda: len(sent) == 1))
+                    self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("actions", ACTION, {field: value}))
+                    self.assertTrue(wait(lambda: self.shown(cdp, sid, field) == words))
+                    self.assertTrue(wait(lambda: f"{name} of {ACTION} changed to {words}." in self.toast(cdp, sid)))
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
+                    cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
+                    self.assertTrue(wait(lambda: self.shown(cdp, sid, field) == was), "one Undo puts it back")
+
+    def test_none_clears_a_choice_and_escape_leaves_it_as_it_was(self):
+        with chrome() as cdp:
+            sent, sid = self.load(cdp, 1400, ACTION)
+            was = self.shown(cdp, sid, "milestone")
+            click(cdp, sid, "#peek [data-pk-pick=milestone]")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu]')", sid)))
+            key(cdp, sid, "Escape")
+            self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('[role=menu]')", sid)))
+            self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "Esc leaves the peek open")
+            self.assertEqual((sent, self.shown(cdp, sid, "milestone")), ([], was))
+            click(cdp, sid, "#peek [data-pk-pick=milestone]")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu]')", sid)))
+            cdp.js("document.querySelector(\"[role=menu] [data-value='']\").click()", sid)
+            self.assertTrue(wait(lambda: len(sent) == 1 and sent[0]["changes"] == {"milestone": None}))
+            self.assertTrue(wait(lambda: self.shown(cdp, sid, "milestone") == "No milestone"))
+
+    def test_a_decision_has_a_use_case_choice_and_no_workstream_or_milestone_choice(self):
+        ref = self.data["decisions"][0]["id"]
+        with chrome() as cdp:
+            sent, sid = self.load(cdp, 1400, ref)
+            self.assertEqual(cdp.js("[...document.querySelectorAll('#peek [data-pk-pick]')].map(b => b.dataset.pkPick)", sid), ["use_case"])
+
+    def test_the_choices_are_edit_only(self):
+        peek = (SRC / "components/Peek.jsx").read_text(encoding="utf-8")
+        self.assertIn("editing && tools.PeekPick", peek)
+        self.assertNotIn("data-pk-pick", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
+
+
 BOX_PK = "#peek [data-ce]"
 
 

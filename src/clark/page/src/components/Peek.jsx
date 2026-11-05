@@ -51,7 +51,7 @@ function Row({ name, children, ref_, key_ }) {          // key_: which field thi
 }
 
 // ItemFields and Edge are also the archived peek's (ArchivedItems.jsx in the Edit part, item 450 row 39): the same rows, read only.
-export function ItemFields({ row, editing, Cell, Wording }) {
+export function ItemFields({ row, editing, Cell, Wording, Pick }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner);
   // #448: a closed risk or issue's pill reads Closed; it keeps its rating word beside it (the prototype's "Closed · Amber"), here and in a published file.
   const kept = (row.kind === "risk" || row.kind === "issue") && !isOpen(row) && row.priority ? colourOf(row.priority).word : "";
@@ -67,9 +67,9 @@ export function ItemFields({ row, editing, Cell, Wording }) {
         {Cell ? <Cell row={row} field="status" said={pill.text} place="peek"><span class={`pill ${pill.class}`}>{pill.text}</span></Cell> : <span class={`pill ${pill.class}`}>{pill.text}</span>}
         {kept ? <span class="pk-rating" data-pk-rating> · {kept}</span> : null}
       </Toned></Row>
-      <Row name="Workstream">{text(row.workstream)}</Row>
-      <Row name="Milestone">{text(row.milestone)}</Row>
-      <Row name="Use case">{text(row.uc)}</Row>
+      <Row name="Workstream">{Pick && row.kind !== "decision" ? <Pick row={row} field="workstream" /> : text(row.workstream)}</Row>
+      <Row name="Milestone">{Pick && row.kind !== "decision" ? <Pick row={row} field="milestone" /> : text(row.milestone)}</Row>
+      <Row name="Use case">{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
       {editing ? <Row name="Shown to client">{row.client ? "Yes" : "No"}</Row> : null}
       {Wording ? <Row name="Client wording"><Wording row={row} /></Row> : null}
       {typeof row.not_reviewed === "boolean" ? <>
@@ -234,7 +234,7 @@ export function Peek({ tools }) {
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
       {showActivity ? <Activity key={p.id} id={p.id} />
         : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
-          {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} /> : <MilestoneFields m={m} />}
+          {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : <MilestoneFields m={m} />}
           {Latest && row ? <Latest key={row.id} row={row} /> : null}
         </div>}
       {Words && wordsOpen.value && row ? <Words key={row.id} row={row} /> : null}
