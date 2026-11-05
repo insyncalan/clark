@@ -172,9 +172,13 @@ class Archived(Base):
             self.assertFalse(cdp.js("document.querySelector('.msv').textContent.includes('Go live')", sid), "gone from the Plan again")
             for ref in self.gone:
                 self.restore_in_peek(cdp, sid, ref)
-                self.until(cdp, sid, f"document.querySelector('{PILL}').textContent === 'Show archived ({1 if ref == self.gone[0] else 0})'", "the count")
+                if ref == self.gone[0]:
+                    self.until(cdp, sid, f"document.querySelector('{PILL}').textContent === 'Show archived (1)'", "the count")
+                else:
+                    self.until(cdp, sid, f"!document.querySelector('{PILL}')", "the button goes with the last one")
             self.until(cdp, sid, "!document.querySelector('#ms-archived, #ms-archived-pill, #ms-archived-list')", "with none left the button and the box go (row 822)")
             self.assertNotIn("No archived milestones", cdp.js("document.querySelector('#milestones').textContent", sid))
+            self.until(cdp, sid, "document.activeElement && document.activeElement.closest('#milestones h1') !== null", "focus goes to the page heading, not the body")
 
     def test_a_failed_read_never_says_zero_and_keeps_the_last_good_rows(self):
         from test_server import chrome
