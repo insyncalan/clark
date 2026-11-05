@@ -244,6 +244,29 @@ class Menu(unittest.TestCase):
             js("window.__got = 0; URL.createObjectURL = function(){ window.__got++; return ''; }")
             self.pick(cdp, js, "[data-row=excel]")
             self.assertEqual(js("window.__got"), 0)
+    def test_the_disabled_excel_row_can_be_reached_by_the_keys_and_does_nothing(self):
+        # The row is aria-disabled but stays in the arrow-key order, so a keyboard user reaches it and hears why (its note is the description).
+        with chrome() as cdp:
+            js = self.open(cdp, {"client_workbook_too_large": True})
+            self.menu(cdp, js)
+            js("window.__got = 0; URL.createObjectURL = function(){ window.__got++; return ''; }")
+            js(f"{MENU}.querySelector('[data-row=profile]').focus()")
+            self.key(cdp, "ArrowDown", 40)
+            self.assertTrue(wait(lambda: js("document.activeElement.getAttribute('data-row')") == "excel"), "the arrow key reaches the disabled row")
+            self.assertEqual(js("document.activeElement.getAttribute('aria-describedby') === document.querySelector('.cm-note').id"), True)
+            self.key(cdp, "Enter", 13)
+            self.key(cdp, "ArrowDown", 40)
+            self.assertTrue(wait(lambda: js("document.activeElement.getAttribute('data-row')") == "pdf"), "and the next arrow goes on to the next row")
+            self.assertEqual(js("window.__got"), 0, "Enter on it did nothing")
+
+    def test_initials_skip_marks_that_are_not_letters_and_never_exceed_two(self):
+        for name, want in (("(Bob) Smith", "BS"), ("(Bob)", "B"), ("\u00df \u00df", "SS"), ("ada king lovelace", "AL"), ("42 !!", "")):
+            with self.subTest(name=name), chrome() as cdp:
+                js = self.open(cdp)
+                js("localStorage.setItem('clark.reader.name', " + json.dumps(name) + ")")
+                js("location.reload()")
+                self.assertTrue(wait(lambda: js("!!document.querySelector('#client-menu-btn')"), 15))
+                self.assertEqual(js(f"{BADGE}.textContent"), want, name)
 
     def test_a_bad_workbook_is_not_offered(self):
         with chrome() as cdp:

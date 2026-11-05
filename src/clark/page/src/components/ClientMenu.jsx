@@ -98,7 +98,7 @@ export function ClientMenu() {
         <MenuPanel label={WORDS.menu} id="client-menu" cls="cm-menu" anchor={btn.current} onClose={close}>
           {item("profile", WORDS.profile, () => setBox(true))}
           {book ? item("excel", WORDS.excel, () => download(book)) : null}
-          {big ? <button type="button" class="cm-row" role="menuitem" aria-disabled="true" tabIndex={-1} data-row="excel" aria-describedby="client-menu-big">{WORDS.excel}</button> : null}
+          {big ? <button type="button" class="cm-row" role="menuitem" aria-disabled="true" data-keep="1" tabIndex={-1} data-row="excel" aria-describedby="client-menu-big">{WORDS.excel}</button> : null}
           {big ? <div class="cm-note" id="client-menu-big" role="presentation">{WORDS.big}</div> : null}
           {item("pdf", WORDS.pdf, () => { printReport(); })}
           <div class="cm-group" role="group" aria-labelledby="client-menu-past" data-row="past">

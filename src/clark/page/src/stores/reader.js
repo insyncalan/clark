@@ -15,11 +15,13 @@ const write = (k, v) => { try { if (v === null) window.localStorage.removeItem(k
 /** The name as it is kept: trimmed, spaces squeezed, cut to a sane length; "" when there is none. */
 export const cleanName = (s) => String(s == null ? "" : s).replace(/\s+/g, " ").trim().slice(0, NAME_MAX);
 
-/** Up to two letters: the first letters of the first and last words of the name ("Ada Lovelace" gives "AL"); "" for no name. */
+/** Up to two letters: the first letter of the first and of the last word of the name ("Ada Lovelace" gives "AL"; "(Bob) Smith" gives "BS");
+ *  "" for no name. A mark that is not a letter is skipped, and upper-casing that widens a letter ("ß" gives "SS") is cut back to two. */
 export function initialsOf(name) {
-  const words = cleanName(name).split(" ").filter(Boolean).map((w) => Array.from(w)[0]);
+  const first = (w) => Array.from(w).find((c) => /\p{L}/u.test(c)) || "";
+  const words = cleanName(name).split(" ").map(first).filter(Boolean);
   const pick = words.length > 1 ? [words[0], words[words.length - 1]] : words;
-  return pick.join("").toUpperCase();
+  return Array.from(pick.join("").toUpperCase()).slice(0, 2).join("");
 }
 
 export const readerName = signal(cleanName(read(NAME_KEY)));
