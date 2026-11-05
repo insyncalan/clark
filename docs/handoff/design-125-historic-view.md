@@ -21,7 +21,7 @@ A design note for review, 29-10-2026. Nothing is built in the product. Mockups: 
 **Relies on:** (a) #120; (c) #118 and the data copies; (b) #123 history (FR-43a, never pruned).
 
 ## 3. How does a person get there?
-**Recommendation: the week picker beside "Week ending" (mockup 1).** It is where people already look at the week. It lists this week (the draft) and each published week with its number; picking one opens it in the past view. The **Published reports list** (mockup 2; built in the prototype under Settings for #120) stays as the full record, with Open on each row. The **timeline** (mockup 3) reads well but repeats the list: do not build it now. One item's history stays in the peek's Activity tab (#123).
+**Recommendation as first written (29-10-2026; the owner has since chosen one way, see The mockups below): the week picker beside "Week ending" (mockup 1).** It is where people already look at the week. It lists this week (the draft) and each published week with its number; picking one opens it in the past view. The **Published reports list** (mockup 2; built in the prototype under Settings for #120) stays as the full record, with Open on each row. The **timeline** (mockup 3) reads well but repeats the list: do not build it now. One item's history stays in the peek's Activity tab (#123).
 **Relies on:** #120 (the list of publications), the Dashboard's report bar.
 
 ## 4. How is "this is the past" shown?
@@ -59,7 +59,7 @@ About 150 KB of each file is the page's own code, the same every week; the data 
 **Relies on:** the data copies from 1.
 
 ## The mockups (in the prototype)
-Profile menu › Past reports (mockup). Three ways in, chosen with the switch at the top: **Week picker** (with "As published" or "As at that date"), **Published reports** (Open on each row) and **Timeline** (a dot per publication, coloured by health, then Now). Each opens the same past view: the banner, the tinted frame and watermark, a report with nothing editable, and "Back to now". The publications in the mockup are made up. The self-test checks that each way in opens and shows the banner, that nothing in the frame can be edited, and that "Back to now" returns to the Dashboard.
+Profile menu › Past reports (mockup) (the menu wording "Published reports (mockup)" waits for the owner to confirm). **One way in, not three (05-11-2026, the owner's change):** the page is now the **Published reports** list only, with Open on each row. The Week picker (with its "As published" or "As at that date" choice), the Timeline and the switch between the ways were dropped, and the heading "Past reports" became "Published reports". Open shows the past view: the banner, the tinted frame and watermark, a report with nothing editable, and "Back to now". The publications in the mockup are made up. The self-test checks the heading, the intro and that the switch, picker and timeline are gone, that Open shows the banner, that nothing in the frame can be edited, and that "Back to now" returns to the Dashboard.
 
 ## Follow-on build items (for a teammate to file; not filed)
 | # | Title | Size | Tier | Depends on |

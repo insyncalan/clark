@@ -238,7 +238,7 @@
     return [...new Set(D.S.items.filter(use).map(i => i.owner).concat(D.S.milestones.filter(use).map(m => m.owner)).filter(Boolean))].sort(); };
 
   /* ── the shell ── */
-  const VIEWS = { dashboard: 'Dashboard', work: 'Work items', milestones: 'Milestones', usecases: 'Use cases', settings: 'Settings', help: 'Help', past: 'Past reports', pastpub: 'Past publication' };
+  const VIEWS = { dashboard: 'Dashboard', work: 'Work items', milestones: 'Milestones', usecases: 'Use cases', settings: 'Settings', help: 'Help', past: 'Published reports', pastpub: 'Past publication' };
   C.drawTop = () => {
     const p = C.P();
     C.$('#projBtn .v').textContent = p ? p.name : 'No project';
