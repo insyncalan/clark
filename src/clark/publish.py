@@ -496,7 +496,7 @@ _PROPERTY = re.compile(r"\s*([\w-]+)\s*:")
 # The pieces of _CSS_PIECE, except that a run of words and punctuation with no string or bracket in it is one piece, not one per
 # word (a function name before its ( is still its own piece). The walk below reads only brackets, strings, { } ; and the end of a
 # piece, so it costs a step per bracket or string, not per word: an embedded font is a handful of steps, not thousands.
-_PICTURE_PIECE = re.compile(r"""\"(?:[^"\n\r\f]*)"?|'(?:[^'\n\r\f]*)'?|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|(?:[\w-]+(?![\w-])(?!\s*\()|[^"'()\w-])+|[\w-]+""")
+_PICTURE_PIECE = re.compile(r"""(?s:\"[^"\\\n\r\f]*(?:\\.[^"\\\n\r\f]*)*"?|'[^'\\\n\r\f]*(?:\\.[^'\\\n\r\f]*)*'?)|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|(?:[\w-]+(?![\w-])(?!\s*\()|(?s:\\.|\\)|[^"'()\w\\-])+|[\w-]+""")
 
 
 def _escape_places(css, plain):
@@ -856,21 +856,27 @@ ADDRESS_FOUND = "a stylesheet address that isn't embedded data"
 
 
 _CSS_ESCAPE = re.compile(r"\\(?:([0-9A-Fa-f]{1,6})(?:\r\n|[ \t\n\r\f])?|(\r\n|[\n\r\f])|(.))", re.S)
-_CSS_PIECE = re.compile(r"""\"(?:[^"\n\r\f]*)"?|'(?:[^'\n\r\f]*)'?|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|[\w-]+|[^"'()\w-]+""")
+_CSS_PIECE = re.compile(r"""(?s:\"[^"\\\n\r\f]*(?:\\.[^"\\\n\r\f]*)*"?|'[^'\\\n\r\f]*(?:\\.[^'\\\n\r\f]*)*'?)|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|[\w-]+|(?:(?s:\\.|\\)|[^"'()\w\\-])+""")
 _IMAGE_FUNCTION = re.compile(r"(?:-[a-z]+-)?(?:image-set|src|image|cross-fade)$", re.I)
 _URL_OPEN = re.compile(r"url\(", re.I)
+
+
+_NOT_DECODED = frozenset("\"'\\\n\r\f")      # an escape for one of these stays as typed: it is a character of a name or a string, never a quote, a backslash or a line end
 
 
 def _css_escape(m):
     if m.group(1):
         n = int(m.group(1), 16)
-        return chr(n) if 0 < n <= 0x10FFFF and not 0xD800 <= n <= 0xDFFF else "\ufffd"
-    return "" if m.group(2) else m.group(3)
+        c = chr(n) if 0 < n <= 0x10FFFF and not 0xD800 <= n <= 0xDFFF else "\ufffd"
+        return m.group(0) if c in _NOT_DECODED else c
+    if m.group(2):
+        return "\\\n"                 # a backslash and a line end stays one (as LF): in a string it joins the lines, outside one it is a break between tokens
+    return m.group(0) if m.group(3) in _NOT_DECODED else m.group(3)
 
 
 _COMMENT_STOP = re.compile(r"/\*|[\"'\\(]")
-_DQ_STRING = re.compile(r'"(?:[^"\\\n]|\\\r\n|\\.)*"?', re.S)
-_SQ_STRING = re.compile(r"'(?:[^'\\\n]|\\\r\n|\\.)*'?", re.S)
+_DQ_STRING = re.compile(r'"(?:[^"\\\n\r\f]|\\\r\n|\\.)*"?', re.S)
+_SQ_STRING = re.compile(r"'(?:[^'\\\n\r\f]|\\\r\n|\\.)*'?", re.S)
 _UNQUOTED_URL = re.compile(r"[\t\n\f\r ]*(?![\"'\t\n\f\r ])(?:[^)\\]|\\.)*\)?", re.S)
 _QUOTE_NEXT = re.compile(r"[\t\n\f\r ]*[\"']")
 _URL_NAME_ENDS = frozenset("lLcC \t\n\r\f")      # the last character of url( as written plainly (l) or as an escape (\6c, \6C, with or without a space)
@@ -892,6 +898,8 @@ def _without_comments(css):
         tail = (tail + css[pos:m.start()])[-64:]
         c = m.group(0)
         if c == "/*":
+            out.append(" ")                 # a comment ends the token before it (red/**/image-set( is red, then image-set( ), as in a browser
+            tail = (tail + " ")[-64:]
             j = css.find("*/", m.end())
             pos = m.end() if j < 0 else j + 2
             continue

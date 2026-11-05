@@ -27,17 +27,22 @@ SENTENCE = {publish.IMPORT_FOUND: "uses @import", publish.ADDRESS_FOUND: "names 
 
 
 class Cases(unittest.TestCase):
-    def three_ways(self, css):
-        """The css as a style block, as a brand tokens.css layered into the real page, and spliced into the page's own style."""
+    def three_ways(self, css, wide=True):
+        """The css as a style block, as a brand tokens.css layered into the real page, and spliced into the page's own style.
+        (wide=False: the style block alone; building the page takes about a second.) A tokens.css is built into the page with its
+        comments cut out, so what the scan reads there is what the browser reads: the comment cases are the style block's and the page's."""
         yield "style", "<style>" + css + "</style>"
-        with tempfile.TemporaryDirectory() as tmp:
-            (Path(tmp) / "tokens.css").write_text(css, encoding="utf-8", newline="")
-            yield "tokens", page.page_html(tmp)
+        if not wide:
+            return
+        if "/*" not in css:
+            with tempfile.TemporaryDirectory() as tmp:
+                (Path(tmp) / "tokens.css").write_text(css, encoding="utf-8", newline="")
+                yield "tokens", page.page_html(tmp)
         html = page.PAGE.read_text(encoding="utf-8")
         yield "page", html.replace("</style>", css + "\n</style>", 1)
 
-    def refuse(self, css, found):
-        for how, text in self.three_ways(css):
+    def refuse(self, css, found, wide=True):
+        for how, text in self.three_ways(css, wide):
             with self.subTest(how=how, css=css):
                 with self.assertRaises(PublishError) as ctx:
                     publish.check_brand(text)
@@ -47,7 +52,7 @@ class Cases(unittest.TestCase):
         for opener in OPEN:
             for end_name, end in ENDS.items():
                 for name, (tail, found) in BAD.items():
-                    with self.subTest(end=end_name, tail=name):
+                        self.refuse(opener + end + tail, found, wide=(name in ("image-set string", "import") and opener[-2] == "\""))
                         self.refuse(opener + end + tail, found)
 
     def test_the_scan_pieces_stop_at_cr_and_ff(self):
@@ -84,6 +89,62 @@ class Cases(unittest.TestCase):
                         with self.assertRaises(PublishError) as ctx:
                             publish.check_brand(text)
                         self.assertIn("embeds a picture in its style", str(ctx.exception))
+
+    def tails(self, q):
+        return {
+            "url": "url(//example.invalid/a)",
+            "import": "@import %s//example.invalid/a%s;" % (q, q),
+            "image-set": "image-set(%s//example.invalid/a%s 1x)" % (q, q),
+        }
+
+    def found_for(self, name):
+        return publish.IMPORT_FOUND if name == "import" else publish.ADDRESS_FOUND
+
+    def test_family_1_cr_and_ff_end_a_string_for_the_comment_cutter_too(self):
+        # a string opened before the line end, a quote inside a later string that is no comment, and a real address between them
+        for end_name, end in ENDS.items():
+            for q in ('"', "'"):
+                for name, tail in self.tails(q).items():
+                    wide = q == '"' and name == "image-set" and end_name in ("CR", "FF")
+                    with self.subTest(end=end_name, q=q, tail=name):
+                        self.refuse("a{x:%s%s} b{y:%s/*%s} c{background:%s} d{z:%s*/%s}" % (q, end, q, q, tail, q, q), self.found_for(name), wide)
+                        self.refuse("a{x:%s%s%s /* %s %s /* */}" % (q, end, q, q, tail), self.found_for(name), wide)
+
+    def test_family_2_a_comment_is_a_break_between_tokens(self):
+        for end_name, end in ENDS.items():
+            for q in ('"', "'"):
+                for name, tail in self.tails(q).items():
+                    wide = q == '"' and name == "image-set" and end_name in ("CR", "FF")
+                    with self.subTest(end=end_name, q=q, tail=name):
+                        self.refuse("a{background:red%s/**/%s}" % (end, tail), self.found_for(name), wide)
+                        self.refuse("a{background:red/**/%s}" % tail, self.found_for(name), wide)
+                        self.refuse("a{background:no-repeat/**/src(%s//example.invalid/a%s)}" % (q, q), publish.ADDRESS_FOUND, wide)
+                        self.refuse("a{background:u/**/rl(src(/**/%s//example.invalid/a%s)}" % (q, q), publish.ADDRESS_FOUND, wide)
+
+    def test_family_3_an_escape_never_turns_into_a_quote_or_a_line_end(self):
+        for end_name, end in ENDS.items():
+            for q in ('"', "'"):
+                for name, tail in self.tails(q).items():
+                    wide = q == '"' and name == "image-set" and end_name in ("CR", "FF")
+                    for esc in ("\\27", "\\22", "\\27 ", "\\000022"):
+                        with self.subTest(end=end_name, q=q, tail=name, esc=esc):
+                            self.refuse("a{b:%s%s;background:%s}" % (esc, end, tail), self.found_for(name), wide)
+                            self.refuse("a{b:x%s%sy;background:%s}" % (esc, end, tail), self.found_for(name), wide)
+                    with self.subTest(end=end_name, q=q, tail=name, kind="other escapes"):
+                        self.refuse("a{b:\\%s;background:%s}" % (q, tail), self.found_for(name), wide)            # an escaped quote outside a string
+                        self.refuse("a{b:%s\\a %s;background:%s}" % (q, q, tail), self.found_for(name), wide)      # an escaped line end inside one
+                        self.refuse("a{b:%s\\\\%s;background:%s}" % (q, q, tail), self.found_for(name), wide)      # an escaped backslash
+                        self.refuse("a{b:red\\%s;background:%s}" % (end, tail), self.found_for(name), wide)       # backslash, line end, outside a string
+                        self.refuse("a{background:red\\%simage-set(%s//example.invalid/a%s 1x)}" % (end, q, q), publish.ADDRESS_FOUND, wide)
+
+    def test_the_escape_cases_that_are_fine_are_published(self):
+        good = ['a{content:"\\"x\\"";color:red}', "a{content:'\\'x\\'';color:red}", 'a{content:"\\27 \\22 ";color:red}',
+                'a{content:"x\\\r\ny";color:red}', 'a{b:red/**/blue;c:red /* x */ green}\r\n',
+                'a{content:"\\\\"}b{color:red}', ':root{--n:\\27 a\\27 }']
+        for css in good:
+            for how, text in self.three_ways(css):
+                with self.subTest(how=how, css=css):
+                    publish.check_brand(text)
 
     def test_the_old_cases_still_behave(self):
         self.refuse('a{content:"x\nb{background:url(//example.invalid/a)}', publish.ADDRESS_FOUND)
