@@ -225,8 +225,9 @@ class Switch(Base):
             sid = page_target(cdp)
             cdp.call("Page.enable", {}, sid)
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED + "Storage.prototype.setItem = function () { throw new Error('blocked'); };"}, sid)
+            cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)           # as visit() does: a busy runner's other Chromes must not take the focus
             cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#work&p=ABC"}, sid)
-            self.until(cdp, sid, "!!document.querySelector('#viewMenu')")
+            self.until(cdp, sid, "document.documentElement.dataset.ready === '1' && !!document.querySelector('#viewMenu') && !!document.querySelector('#work-list tr[data-id]')", "the work items drawn, rows and View menu")
             self.view_pick(cdp, sid, "layout:board")
             self.until(cdp, sid, "!!document.querySelector('#work-board')", "the board, though nothing could be kept")
 
