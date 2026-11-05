@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import activity_read, ai_connect, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, store as clark_store, typed, updater as clark_updater, use_cases_read, word_route
+from clark import __version__, activity_read, ai_connect, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, store as clark_store, typed, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -411,14 +411,12 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
     out, err = out or sys.stdout, err or sys.stderr
     environ = os.environ if environ is None else environ
     given = sys.argv[1:] if argv is None else list(argv)
-    if given[:1] == ["restore"] and same_version.refuse(err):
+    if given[:1] == ["restore"] and same_version.refuse(err, argv=given):
         return 1
     if given[:1] == ["restore"]:
         return restore_main(given[1:], out, err, home, onedrive_roots)
     p = parser()
     args = p.parse_args(argv)
-    if same_version.refuse(err):                # row 760: a folder of mixed versions never starts
-        return 1
     store, scratch, code, handler = None, None, None, None
     try:
         try:
@@ -435,10 +433,14 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                 scratch = tempfile.mkdtemp(prefix="clark-demo-")
                 store = clark_store.open_store(demo_database(scratch), onedrive_roots=[])
                 code = DEMO_CODE
+                if same_version.refuse(err, argv=given):        # row 760: a folder of mixed versions never starts
+                    return 1
                 print("Using fictional demo data in a temporary folder; it is removed when you stop.", file=out, flush=True)
             else:
                 folder = Path(args.data).expanduser() if args.data else platform.data_dir(home)
                 if not finish_unfinished_update(folder, err):
+                    return 1
+                if same_version.refuse(err, argv=given):        # row 760: after the recovery of an interrupted update, never before it
                     return 1
                 store = demo_seed.load_if_fresh(open_data(folder, onedrive_roots), onedrive_roots)      # #731: only a folder with nothing in it
                 code = only_project(store)
@@ -465,6 +467,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         server.set_open_files(appfiles.open_files())
         server.set_idle(idle.Idle.from_environ(environ) if idle.launched(environ) else None)
         server.set_data_mark(appfiles.data_mark(store.path.parent))
+        server.set_version(__version__)
         shown = ServerOutput(out, code, open_url if args.open else None, err)
         projects = projects_of(store.path, roots)
         log, handler, logs = start_log(store.path.parent, projects, home, scratch)

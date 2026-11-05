@@ -165,6 +165,8 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
     mark = appfiles.data_mark(folder)
     if not finish(folder, say):
         return 1
+    if same_version.refuse():                   # row 760: a folder of mixed versions never starts; after the recovery of an interrupted update, never before it
+        return 1
     seen = health(port, mark)
     if seen in (OTHER_DATA, NOT_CLARK):
         say(report(seen, port, folder, free))
@@ -223,8 +225,6 @@ def main(argv=None, say=print, environ=None, home=None, onedrive_roots=None, **s
     """The command. `seams` are launch()'s fakes (start, health, find_chrome, ...)."""
     environ = os.environ if environ is None else environ
     args = parser().parse_args(argv)
-    if same_version.refuse():                   # row 760: a folder of mixed versions never starts (the message goes to the terminal)
-        return 1
     want = None
     try:
         port = port_number(args.port if args.port is not None else (environ.get("CLARK_PORT") or server.DEFAULT_PORT),

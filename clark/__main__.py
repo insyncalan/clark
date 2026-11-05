@@ -26,7 +26,7 @@ def prepare():
 def hand_over():
     prepare()
     from clark import same_version              # row 760: first, before the imports in the real launcher, which a missing or older file would break
-    if same_version.refuse():
+    if same_version.refuse(argv=sys.argv[1:]):
         return 1
     from clark import __main__ as real
     return real.run()

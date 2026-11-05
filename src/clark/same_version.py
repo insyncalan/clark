@@ -8,7 +8,12 @@ different means the folder is mixed, and clark does not start. A file on disk th
 Only a download is checked. A source checkout has no .app folder, and a download folder with no clark-release.json is not
 checked either (nothing to compare with). A clark-release.json that cannot be read, or that does not hold the expected list, is
 refused with the same message: a download always carries a good one, so a broken one means the folder is damaged, and the
-way out (unzip the download again) is the same. Standard library only, Python 3.9.
+way out (unzip the download again) is the same.
+
+A file that exists only in an older version (the new list does not name it) is ignored on purpose, row 760: a complete unzip -o
+over an old folder passes, and this check catches a folder that was only partly overwritten. An interrupted in-app update is also
+a mixed folder, but its marker (updates/.installing.json in the data folder) means recovery has to run first, so refuse() does
+nothing while the marker exists; the launcher checks again after the recovery. Standard library only, Python 3.9.
 """
 import hashlib
 import json
@@ -16,7 +21,7 @@ import sys
 from pathlib import Path, PurePosixPath
 
 MESSAGE = ("These clark files are not all from the same version, so clark will not start. "
-           "Delete the clark folder and unzip the download again.")
+           "Move the clark folder aside (rename it) and unzip the download again.")
 MANIFEST = "clark-release.json"
 HIDDEN = ".app"
 CHECKED = ("clark.command",)            # the one program file that sits outside .app
@@ -88,8 +93,38 @@ def _mixed(code_root=None):
     return False
 
 
-def refuse(err=None, code_root=None):
-    """Print the message to the terminal and return True when the folder is mixed; False otherwise."""
+def _data_folder(argv):
+    """The data folder these arguments name (--data FOLDER or --data=FOLDER), else clark's own default; None when it can't be told."""
+    try:
+        from clark import platform
+        given = None
+        for i, arg in enumerate(argv):
+            if arg == "--data" and i + 1 < len(argv):
+                given = argv[i + 1]
+            elif arg.startswith("--data="):
+                given = arg[len("--data="):]
+        return Path(given).expanduser() if given else platform.data_dir()
+    except Exception:  # noqa: BLE001  not told: the check then goes on as if there were no marker
+        return None
+
+
+def recovering(argv):
+    """Whether the data folder `argv` names holds the marker of an update that stopped part way (the very path update_helper writes)."""
+    data = _data_folder(argv)
+    if data is None:
+        return False
+    try:
+        from clark import update_helper
+        return update_helper.marker_path(data).exists()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def refuse(err=None, code_root=None, argv=None):
+    """Print the message to the terminal and return True when the folder is mixed; False otherwise. With `argv` (the start's
+    arguments), nothing is refused while an interrupted update's marker exists: the launcher finishes that first (row 760)."""
+    if argv is not None and recovering(argv):
+        return False
     if not mixed(code_root):
         return False
     print(MESSAGE, file=err or sys.stderr, flush=True)

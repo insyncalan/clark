@@ -17,6 +17,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _paths import ROOT, TOOLS
 
@@ -25,7 +26,7 @@ import package  # noqa: E402
 from clark import same_version  # noqa: E402
 
 EXACT = ("These clark files are not all from the same version, so clark will not start. "
-         "Delete the clark folder and unzip the download again.")
+         "Move the clark folder aside (rename it) and unzip the download again.")
 
 
 def free_port():
@@ -141,6 +142,52 @@ class Folder(Download):
     def test_old_launcher_file_is_refused(self):
         (self.top / "clark.command").write_text("#!/bin/bash\n# older\n", encoding="utf-8")
         self.assertTrue(same_version._mixed(self.app))
+
+    def marker(self):
+        from clark import update_helper
+        path = update_helper.marker_path(self.data)         # the very path the update code writes
+        path.parent.mkdir(parents=True)
+        path.write_text("{}", encoding="utf-8")
+        return path
+
+    def test_mixed_folder_with_an_update_marker_is_left_to_the_recovery(self):
+        f = self.some_file()
+        f.write_bytes(f.read_bytes() + b"x")
+        self.marker()
+        argv = ["--data", str(self.data)]
+        self.assertTrue(same_version.recovering(argv))
+        self.assertTrue(same_version.recovering(["--data=" + str(self.data)]))
+        err = io.StringIO()
+        self.assertFalse(same_version.refuse(err, self.app, argv=argv))
+        self.assertEqual("", err.getvalue())
+        proc, port = self.start()                               # the real launcher: the recovery runs (it says its own words), no refusal
+        out, err = proc.communicate(timeout=60)
+        self.assertNotIn(EXACT, out + err)
+        self.assertNotEqual("", out + err)
+
+    def test_mixed_folder_without_the_marker_is_refused(self):
+        f = self.some_file()
+        f.write_bytes(f.read_bytes() + b"x")
+        self.assertFalse(same_version.recovering(["--data", str(self.data)]))
+        err = io.StringIO()
+        self.assertTrue(same_version.refuse(err, self.app, argv=["--data", str(self.data)]))
+        self.assertEqual(EXACT + "\n", err.getvalue())
+
+    def test_the_launcher_checks_after_the_recovery(self):
+        from clark import launch
+        order = []
+        with mock.patch.object(same_version, "refuse", lambda *a, **k: order.append("check") or True):
+            launch.launch(0, self.data, lambda text: None, finish=lambda folder, say: order.append("recover") or True)
+        self.assertEqual(["recover", "check"], order)
+
+    def test_the_hand_started_server_checks_after_the_recovery(self):
+        from clark import __main__ as real
+        order = []
+        with mock.patch.object(same_version, "refuse", lambda *a, **k: order.append("check") or True), \
+                mock.patch.object(real, "finish_unfinished_update", lambda folder, err: order.append("recover") or True):
+            code = real.main(["--data", str(self.data), "--port", "1"], out=io.StringIO(), err=io.StringIO(), is_free=lambda port: True)
+        self.assertEqual(1, code)
+        self.assertEqual(["recover", "check"], order)
 
     def test_launch_module_refuses_too(self):
         f = self.some_file()
