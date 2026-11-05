@@ -54,6 +54,23 @@ class DemoLine(unittest.TestCase):
             cdp.js("document.querySelector('#np-empty').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('#project-form')", "the project form")
 
+    def test_a_stale_banner_after_edits_made_elsewhere_says_there_is_nothing_to_remove_and_goes(self):
+        with chrome() as cdp:
+            sid = navigate(cdp, self.s.port, "#dashboard")
+            self.until(cdp, sid, "!!document.querySelector('#demo-banner')", "the banner")
+            other = clark_store.open_store(self.folder / "clark.db", onedrive_roots=[])      # the person's edits reach both demo projects behind the page's back
+            for code in ("TUL", "MOSS"):
+                with other.step("dashboard", "someone@example.test") as st:
+                    st.create("actions", {"project": code, "description": "Added by the person", "raised": "2026-10-01", "source": "test"})
+            other.close()
+            cdp.js("document.querySelector('#demo-remove').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('#demo-go')", "the box")
+            cdp.js("document.querySelector('#demo-go').click()", sid)
+            self.until(cdp, sid, "!document.querySelector('#demo-banner') && document.querySelector('#demo-none') && document.querySelector('#demo-none').innerText === 'There is no demo data to remove.'", "the sentence in the box and no banner")
+            cdp.js("document.querySelector('#demo-cancel').click()", sid)
+            self.until(cdp, sid, "!document.querySelector('#demo-confirm')", "the box closed")
+            self.assertEqual(len(clark_store.open_store(self.folder / "clark.db", onedrive_roots=[]).read("projects")), 2)      # nothing was removed
+
     def test_the_banner_is_hidden_in_print_and_a_published_report_has_no_part_of_it(self):
         css = (Path(page.PAGE).parent / "shell.css").read_text(encoding="utf-8")
         self.assertRegex(css, r"@media print \{ \.demo-banner \{ display: none; \} \}")

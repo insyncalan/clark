@@ -12,12 +12,12 @@ export async function readDemo() {
   }
 }
 
-// {ok: true} or {ok: false, message}
+// {ok: true, removed} or {ok: false, message}
 export async function sendDemoRemove() {
   try {
     const r = await fetch("/api/demo/clear", { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: "{}", cache: "no-store" });
     const body = await r.json().catch(() => null);
-    if (r.ok && body && body.ok === true) return { ok: true };
+    if (r.ok && body && body.ok === true) return { ok: true, removed: typeof body.removed === "number" ? body.removed : 1 };
     const said = body && typeof body.message === "string" && body.message.length <= 400 && r.status === 400 ? body.message : "";
     return { ok: false, message: said || DEMO.failed };
   } catch (e) {
