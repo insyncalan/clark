@@ -1035,6 +1035,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 
 /* Milestones (item 44a): the timeline, the rail list, the Calendar and the Legend. Tokens only; no font under 13px. */
 .msv { position: relative; margin-top: var(--space-2); }
+.msv[data-place="page"] { margin-top: var(--space-3); padding: var(--space-4) var(--space-5); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }   /* row 835: the Milestones page puts the timeline or calendar and the list in one card, as the prototype does; the Dashboard block stays flat */
+.msv[data-place="page"] .msv-sw { top: var(--space-4); right: var(--space-5); }
 .msv-sw { position: absolute; right: 0; top: 0; z-index: 3; display: flex; gap: 2px; padding: 2px; border-radius: var(--radius); background: var(--surface); }
 .ib { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius); color: var(--grey-500); cursor: pointer; }
 .ib:hover { color: var(--text); background: var(--grey-100); } .ib:focus-visible { outline: 2px solid var(--brand-blue); }
