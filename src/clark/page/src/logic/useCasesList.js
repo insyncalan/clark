@@ -4,6 +4,7 @@
 // "on the dashboard" when it is set, and a published file only ever holds the ones that were.
 import { isOpen, plural } from "../workItems.js";
 import { recall, remember } from "./remember.js";
+import { commitWord } from "./commitment.js";
 
 export const STATUS_WORDS = ["On track", "Flag", "High risk", "Done"];        // the schema's four, in the order the Status filter lists them
 const WORST_FIRST = ["High risk", "Flag", "On track", "Done"];                 // Done is finished: it sorts last
@@ -49,9 +50,9 @@ export function listOf(d, all) {
   return liveOf(d).map((u) => {
     const linked = all.filter((r) => link[r.id] === u.id), open = linked.filter(isOpen);
     const mine = [...(ms[u.id] || [])].map((id) => msById[id]).sort((a, b) => (when(a) < when(b) ? -1 : when(a) > when(b) ? 1 : a.name < b.name ? -1 : 1));
-    const row = { u, id: u.id, ref: refOf(u), name: nameOf(u), headline: u.headline || "", status: u.status, on: isOn(u), total: linked.length, open: open.length,
+    const row = { u, id: u.id, ref: refOf(u), name: nameOf(u), headline: u.headline || "", status: u.status, commitment: commitWord(u), on: isOn(u), total: linked.length, open: open.length,
       ms: mine.map((m) => ({ id: m.id, name: m.name })) };
-    row.text = [u.ref, row.ref, row.name, row.headline, plainText(u.standing), ...row.ms.map((m) => m.name)].join(" ").toLowerCase();
+    row.text = [u.ref, row.ref, row.name, row.headline, plainText(u.standing), row.commitment, ...row.ms.map((m) => m.name)].join(" ").toLowerCase();
     return row;
   });
 }
@@ -107,7 +108,7 @@ export function shownOf(rows, f) {
 export const countWords = (shown, rows) => `Showing ${shown} of ${rows.length} · ${rows.filter((r) => r.on).length} on the dashboard`;
 
 /** The row said in plain words, for its name button: the reference, the name, the status, the work items and the dashboard. */
-export const rowSay = (r) => [r.ref || "Use case", r.name, r.status, r.total ? `${r.open} of ${plural(r.total, "work item")} open` : "No work items", r.on ? ON_WORDS : OFF_WORDS].join(", ");
+export const rowSay = (r) => [r.ref || "Use case", r.name, r.status, ...(r.commitment ? [r.commitment] : []), r.total ? `${r.open} of ${plural(r.total, "work item")} open` : "No work items", r.on ? ON_WORDS : OFF_WORDS].join(", ");
 
 // ---- remembered for each project, in this browser only ----
 const STORE = "ucPage";
