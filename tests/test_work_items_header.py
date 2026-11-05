@@ -117,6 +117,44 @@ class Header(Base):
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.vtab[data-view-id=mine]')).borderBottomWidth", sid), "2px")
         self.each(check)
 
+    # ---- row 844 ----
+    def test_row_844_a_changed_view_keeps_its_tab_with_a_dot_and_save_view_and_discard_changes_act_on_it(self):
+        saved = [{"id": "risky", "name": "Risky", "line": "is:open type:risk"}]
+
+        def check(cdp, sid, width):
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({ABC: %s}))" % __import__("json").dumps(saved), sid)
+            self.reload(cdp, sid)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]')", "the made view")
+            # a fresh load: Open items is the chosen tab; a typed change leaves it chosen, with the dot and Discard changes (a core view cannot be saved over)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=core-open]').getAttribute('aria-pressed') === 'true'", "Open items is chosen")
+            click(cdp, sid, "#fline-input")
+            key(cdp, sid, "End")
+            cdp.call("Input.insertText", {"text": " no:owner "}, sid)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=core-open] [data-dot]')", "the dot on Open items")
+            self.assertEqual(cdp.js("document.querySelectorAll('.vtab[aria-pressed=true]').length", sid), 1, "a tab stays chosen")
+            self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), "core-open")
+            self.assertEqual(cdp.js("!!document.querySelector('#fvSave')", sid), False, "a core view cannot be saved over")
+            self.assertEqual(cdp.js("document.querySelector('#fvRevert').textContent", sid), "Discard changes")
+            self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
+            click(cdp, sid, "#fvRevert")
+            self.until(cdp, sid, "!document.querySelector('[data-dot]') && !document.querySelector('#fvRevert')", "discarded: no dot, no buttons")
+            self.until(cdp, sid, "document.querySelector('#fline-input').value.trim() === 'is:open'", "the saved line is back")
+            # a made view: Save view writes the line into it
+            click(cdp, sid, ".vtab[data-view-id=risky]")
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "the made view is open")
+            click(cdp, sid, "#fline-input")
+            key(cdp, sid, "End")
+            cdp.call("Input.insertText", {"text": " no:owner "}, sid)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky] [data-dot]')", "the dot on the made view")
+            got = cdp.js("(() => { const b = document.querySelector('#fvSave'); return b ? [b.textContent, b.getBoundingClientRect().height] : null; })()", sid)
+            self.assertEqual(got[0], "Save view")
+            self.assertGreaterEqual(got[1], 24)
+            click(cdp, sid, "#fvSave")
+            self.until(cdp, sid, "!document.querySelector('[data-dot]') && !document.querySelector('#fvSave')", "saved: no dot")
+            self.assertIn("no:owner", cdp.js("JSON.parse(localStorage.getItem('clark.fviews')).ABC.find((v) => v.id === 'risky').line", sid))
+            self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
+        self.each(check)
+
     # ---- row 812 ----
     def test_row_812_table_and_board_are_a_two_icon_switch_and_group_by_stays_in_the_view_menu(self):
         def check(cdp, sid, width):

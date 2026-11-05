@@ -67,9 +67,12 @@ function SavedViews({ board }) {
   const nameBox = useRef(null);
   const [form, setForm] = useState(null);                 // null, or {mode: "saveas" | "rename" | "delete" | "note", name, error}
   const mine = chosen.value[code];
-  const active = shown.find((v) => v.id === mine) || shown.find((v) => !trouble(v) && !Q.differsQuery(v, line, rows, ctx)) || null;
+  const matching = shown.find((v) => !trouble(v) && !Q.differsQuery(v, line, rows, ctx)) || null;
+  const active = shown.find((v) => v.id === mine) || matching;
   const said = active ? trouble(active) : "";
   const dirty = !!active && !said && Q.differsQuery(active, line, rows, ctx);
+  // Row 844: the view the line matched stays the chosen tab when the line is then changed, so the dot shows on it and Discard changes has a view to go back to.
+  useEffect(() => { if (matching && mine !== matching.id) chosen.value = { ...chosen.value, [code]: matching.id }; }, [matching && matching.id, code]);
   const pick = (v) => { chosen.value = { ...chosen.value, [code]: v.id }; if (!trouble(v)) setLine(v.line); };
   // The open tab and its arrow are brought into view inside the scrolling row (the row alone moves, never the page).
   const tabsBox = useRef(null);
@@ -84,9 +87,10 @@ function SavedViews({ board }) {
     show();
     window.addEventListener("resize", show);      // a narrower window can push the open tab out of the box
     return () => window.removeEventListener("resize", show);
-  }, [active && active.id, shown.length]);
+  }, [active && active.id, shown.length, dirty]);      // dirty: Save view and Discard changes take room beside the tabs, so the open tab is brought into view again
   const act = (id) => {
     if (/^(layout|group|lane):/.test(id)) pickLayout(id);
+    else if (id === "discard" && active) { pick(active); const el = document.querySelector('.vtab[aria-pressed="true"]'); if (el) el.focus(); }
     else if (id === "save" && active) { const r = FL.saveView(all, active.id, line.trim()); if (r.ok) saveViews(code, r.views); }
     else if (id === "saveas") setForm({ mode: "saveas", name: "", error: "" });
     else if (id === "rename" && active) setForm({ mode: "rename", name: active.name, error: "" });
@@ -112,7 +116,7 @@ function SavedViews({ board }) {
     return () => clearTimeout(t);
   }, [form && form.mode]);
   const lay = layoutItems(work.value, !!board);
-  // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Delete on any view, a core one too.
+  // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Delete on any view, a core one too. Save view and Discard changes sit beside the tabs while the dot shows (Save view never on a core view).
   const core = !!active && FL.isCoreView(active);
   const tabItems = [];
   if (active && dirty && !core) tabItems.push({ id: "save", name: "Save changes" });
@@ -147,6 +151,12 @@ function SavedViews({ board }) {
         })}
         {fromFile.value ? null : <button type="button" class="vnew" id="viewNew" onClick={() => act("saveas")}>{"+ New view"}</button>}
       </div>
+      {fromFile.value || !dirty ? null : (
+        <span class="fvacts">
+          {core ? null : <button type="button" class="btn sm" id="fvSave" onClick={() => act("save")}>Save view</button>}
+          <button type="button" class="link" id="fvRevert" onClick={() => act("discard")}>Discard changes</button>
+        </span>
+      )}
       {fromFile.value || !board ? null : <LayoutSwitch />}
       {fromFile.value ? null : <Menu label="View" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={lay.items} onPick={act} />}
       </div>

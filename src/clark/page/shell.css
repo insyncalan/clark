@@ -1879,6 +1879,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .vtabmenu:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .vtabmenu .nch { width: 14px; height: 14px; }
 .vnew { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: calc(var(--space-6) + var(--space-1)); padding: 6px 10px; margin-bottom: -1px; border-bottom: 2px solid transparent; cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.fvacts { display: flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }   /* row 844: Save view and Discard changes beside the tabs while the dot shows */
 .vnew:hover { color: var(--text); }
 .vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: var(--radius-sm); }
 .lsw { flex: none; margin-bottom: var(--space-1); }   /* row 812: the Table and Board two-icon switch, a .seg of two icon buttons */
