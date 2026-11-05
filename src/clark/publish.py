@@ -515,6 +515,29 @@ def _escape_places(css, plain):
     return starts, ends
 
 
+# The still circle picture a person's own brand may put on the top bar: `.logo { background: url(data:image/png;base64,...) ... }`,
+# a rule on exactly `.logo` at the top level (no media query around it), setting `background` or `background-image`, with one
+# embedded picture of an image type in the declaration, written out as base64 and no longer than CIRCLE_MAX characters. The words
+# before and after the url( are plain keywords and lengths (no bracket, string or escape). It is data, so it reaches nothing.
+CIRCLE_MAX = 262144
+_CIRCLE_HEAD = re.compile(r"\s*background(?:-image)?\s*:[^;{}()\"'\\]*\Z", re.I)
+_CIRCLE_TAIL = re.compile(r"\s*[\"']?\s*\)[^;{}()\"'\\]*(?:;|\}|\Z)")
+_CIRCLE_DATA = re.compile(r"\s*[\"']?\s*data:(image/[a-z+]+);base64,([A-Za-z0-9+/=]+)", re.I)
+
+
+def _circle_picture(plain, decl, start, blocks, mime, spelled_out):
+    """True if the data: picture whose url( begins at plain[start] is the circle picture described above."""
+    if len(blocks) != 1 or blocks[0][0] != ".logo" or not LOOK_PICTURE_TYPE.match(mime.strip().lower()):
+        return False
+    if not _CIRCLE_HEAD.match(plain[decl:start]):
+        return False
+    d = _CIRCLE_DATA.match(plain, plain.index("(", start) + 1)
+    if d is None or len(d.group(2)) > CIRCLE_MAX:
+        return False
+    tail = _CIRCLE_TAIL.match(plain, d.end())
+    return bool(tail) and spelled_out(blocks[0][1], tail.end())
+
+
 def _picture_as_data(css, work=None):
     """True if style text has a data: URL that is not a font, the logo rule or one of the look's named pictures. Read as a browser
     reads it (css_plain), with the same pieces css_findings reads: url( and the string arguments of image functions. A running
@@ -556,7 +579,9 @@ def _picture_as_data(css, work=None):
             if spelled_out(decl, len(plain) if close < 0 else close + 1):       # its name and its url(...), each as typed
                 return False
         logo = LOGO_RULE.match(plain, blocks[0][1]) if len(blocks) == 1 else None      # the rule's own block, nothing around it
-        return not (logo and start < logo.end() and spelled_out(blocks[0][1], logo.end()))
+        if logo and start < logo.end() and spelled_out(blocks[0][1], logo.end()):
+            return False
+        return not _circle_picture(plain, decl, start, blocks, mime, spelled_out)
 
     for m in _PICTURE_PIECE.finditer(plain):
         work.spend()
@@ -843,27 +868,54 @@ def _css_escape(m):
     return "" if m.group(2) else m.group(3)
 
 
+_COMMENT_STOP = re.compile(r"/\*|[\"'\\(]")
+_DQ_STRING = re.compile(r'"(?:[^"\\\n]|\\\r\n|\\.)*"?', re.S)
+_SQ_STRING = re.compile(r"'(?:[^'\\\n]|\\\r\n|\\.)*'?", re.S)
+_UNQUOTED_URL = re.compile(r"[\t\n\f\r ]*(?![\"'\t\n\f\r ])(?:[^)\\]|\\.)*\)?", re.S)
+_QUOTE_NEXT = re.compile(r"[\t\n\f\r ]*[\"']")
+_URL_NAME_ENDS = frozenset("lLcC \t\n\r\f")      # the last character of url( as written plainly (l) or as an escape (\6c, \6C, with or without a space)
+_IDENT_AT_END = re.compile(r"(?:[\w-]|[^\x00-\x7f]|\\(?:[0-9A-Fa-f]{1,6}[ \t\n\r\f]?|.))+\Z", re.S)
+
+
 def _without_comments(css):
-    """`css` with each /* ... */ cut out (a comment with no end is cut at its start only: what follows is still read)."""
-    pos, out = 0, []
+    """`css` with each /* ... */ cut out, as a browser's reader finds comments: not inside a string (a "/*" in a string is no
+    comment, so it cannot swallow a real address up to a later */), not after a backslash (\\/* is no comment), and not inside an
+    unquoted url( (url(a/*) is a whole address, so a real address after it is still read). A comment with no end is cut at its
+    start only: what follows is still read (stricter than a browser, which hides it). Nothing real is ever hidden by a comment."""
+    pos, out, tail = 0, [], ""
     while True:
-        i = css.find("/*", pos)
-        if i < 0:
+        m = _COMMENT_STOP.search(css, pos)
+        if m is None:
             out.append(css[pos:])
             return "".join(out)
-        out.append(css[pos:i])
-        j = css.find("*/", i + 2)
-        if j < 0:
-            out.append(css[i + 2:])
-            return "".join(out)
-        pos = j + 2
+        out.append(css[pos:m.start()])
+        tail = (tail + css[pos:m.start()])[-64:]
+        c = m.group(0)
+        if c == "/*":
+            j = css.find("*/", m.end())
+            pos = m.end() if j < 0 else j + 2
+            continue
+        if c in "\"'":
+            piece = (_DQ_STRING if c == '"' else _SQ_STRING).match(css, m.start()).group(0)
+        elif c == "\\":
+            piece = css[m.start():m.start() + 2]
+        else:
+            piece = "("
+            ident = _IDENT_AT_END.search(tail[-24:]) if tail[-1:] in _URL_NAME_ENDS else None      # "url" is at most 24 characters even spelled with escapes; most names end otherwise
+            name = _CSS_ESCAPE.sub(_css_escape, ident.group(0)).lower() if ident else ""
+            if name == "url" and not _QUOTE_NEXT.match(css, m.end()):
+                piece = "(" + _UNQUOTED_URL.match(css, m.end()).group(0)
+        out.append(piece)
+        tail = (tail + piece)[-64:]
+        pos = m.start() + len(piece)
 
 
 def css_plain(css):
     """Style text as a browser's reader sees it: each null byte read as U+FFFD (not dropped), no comments, each \\75 or \\u escape
-    turned into the character it stands for (so \\75rl( and u/**/rl( are url( and \\69mport is import). One forward pass at each step."""
-    css = _without_comments(css.replace("\x00", "\ufffd"))
-    return _without_comments(_CSS_ESCAPE.sub(_css_escape, css))
+    turned into the character it stands for (so \\75rl( and u/**/rl( are url( and \\69mport is import). One forward pass at each step.
+    Comments are cut before the escapes are turned into characters, never after: an escape cannot make a comment (\\2f* is no
+    comment), so it cannot hide what follows it either."""
+    return _CSS_ESCAPE.sub(_css_escape, _without_comments(css.replace("\x00", "\ufffd")))
 
 
 _DATA_START = re.compile(r"[\"' ]*data:", re.I)
@@ -899,7 +951,7 @@ def css_findings(css, work=None):
         return found             # no bracket, @ or escape: no url(, no @import (u/**/rl( keeps its bracket, \40 import its backslash)
     # a browser reads a null byte as U+FFFD; the guard also reads the text with it dropped (the stricter reading kept from before)
     plains = [css_plain(css)] + ([css_plain(css.replace("\x00", ""))] if "\x00" in css else [])
-    for text in [css] + plains:
+    for text in [_without_comments(css)] + plains:      # the text as typed, less its comments: a url( in a comment reaches nothing
         if re.search(r"@\s*import", text, re.I):
             found.add(IMPORT_FOUND)
         if _url_outside(text, work):

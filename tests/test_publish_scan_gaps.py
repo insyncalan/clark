@@ -512,3 +512,133 @@ class BrandPictures(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BrandCircleAndComments(unittest.TestCase):
+    """The brand's still circle picture (`.logo { background: url(data:image/...;base64,...) }`) is data, so it is accepted in its
+    one place; an address of any kind is still refused; and url() or @import text inside a CSS comment reaches nothing, but a
+    comment never hides a real address outside it. Every refusal leaves nothing published (render raises before any file is made).
+    The picture bytes here are invented."""
+
+    PIC = "data:image/png;base64,iVBORw0KGgo="
+    EVIL = "http://evil.example/x.png"
+
+    def style(self, css):
+        return "<style>" + css + "</style>"
+
+    def circle(self, value=None, selector=".logo", prop="background", tail=" left center / contain no-repeat"):
+        return "%s { width: 5px; height: 2px; %s: url(%s)%s; }" % (selector, prop, value or self.PIC, tail)
+
+    def test_the_circle_picture_is_accepted(self):
+        for css in (self.circle(), self.circle(prop="background-image", tail=""), self.circle(value='"%s"' % self.PIC),
+                    self.circle(selector=".LOGO"), self.circle(value=self.PIC.replace("png", "jpeg")),
+                    self.circle(value=self.PIC.replace("png", "webp")), self.circle(value=self.PIC.replace("png", "gif")),
+                    self.circle(value=self.PIC.replace("png", "svg+xml")), self.circle().replace("url(", "URL( ").replace(")", " )"),
+                    "/* the circle: url(http://evil.example/a.png) */\n" + self.circle()):
+            with self.subTest(css):
+                publish.check_brand(self.style(css))
+                self.assertEqual(publish.outside_addresses(self.style(css)), [])
+
+    def test_the_circle_picture_is_accepted_in_a_real_finished_page(self):
+        publish.check_brand(spliced(self.style(self.circle())))
+
+    def refused(self, css, words):
+        with self.assertRaises(PublishError, msg=css) as caught:
+            publish.check_brand(self.style(css))
+        self.assertIn(words, str(caught.exception), css)
+
+    def test_a_picture_in_any_other_form_or_place_is_still_refused_as_a_picture(self):
+        too_big = "data:image/png;base64," + "A" * (publish.CIRCLE_MAX + 4)
+        for css in (self.circle(selector=".card"), self.circle(selector=".logo-icon"), self.circle(selector=".logo .wm"),
+                    self.circle(selector=".a, .logo"), self.circle(selector="a.logo"), self.circle(prop="list-style-image", tail=""),
+                    self.circle(prop="content", tail=""), self.circle(prop="mask", tail=""),
+                    self.circle(value=self.PIC.replace("png", "html")), self.circle(value=self.PIC.replace("png", "x-icon")),
+                    self.circle(value=too_big), self.circle(value=self.PIC.replace("base64,", "")),
+                    self.circle(value=self.PIC.replace("iVBORw0KGgo=", "not base64!")),
+                    "@media print{%s}" % self.circle(), "@media print{.a{x:y}} .b{%s}" % self.circle().replace(".logo {", ""),
+                    self.circle(tail=", url(%s)" % self.PIC), self.circle(tail=" url(%s)" % self.PIC),
+                    self.circle(selector=".l\\6fgo"),
+                    self.circle().replace("background", "backg\\72ound"), self.circle().replace("url(", "u\\72l("),
+                    ".logo{background:image-set(\"%s\" 1x)}" % self.PIC, ".logo{background:cross-fade(url(%s), red)}" % self.PIC):
+            with self.subTest(css[:80]):
+                self.refused(css, "embeds a picture")
+
+    def test_an_escaped_data_word_is_no_circle(self):
+        with self.assertRaises(PublishError):
+            publish.check_brand(self.style(self.circle(value=self.PIC.replace("data", "d\\61ta"))))
+
+    def test_an_address_is_refused_in_every_spelling(self):
+        for bad in ("http://evil.example/x.png", "https://evil.example/x.png", "HTTPS://EVIL.EXAMPLE/x.png", "//evil.example/x.png",
+                    "javascript:alert(1)", "file:///etc/passwd", "ftp://evil.example/x", "evil.example/x.png", "x.png", "/x.png",
+                    "blob:abc", "about:blank"):
+            for form in ("url(%s)", 'url("%s")', "url('%s')", "url( %s )", "URL(%s)", "u\\72l(%s)", "\\75rl(%s)", "url(%s",
+                         "u/**/rl(%s)"):
+                css = ".a{background:" + form % bad + "}"
+                with self.subTest(css):
+                    with self.assertRaises(PublishError, msg=css):
+                        publish.check_brand(self.style(css))
+        for css in ("@import 'x.css';", '@import url("https://evil.example/x.css");', "@IMPORT url(//evil.example/x.css);",
+                    "@/**/import 'x.css';", "@\\69mport 'x.css';", "@font-face{src:url(https://evil.example/f.woff2)}",
+                    ".logo{background:url(//evil.example/x.png)}", ".logo{background:url(%s)}" % self.EVIL,
+                    ".logo{background:url(DATA:image/png;base64,AAAA ) , url(%s)}" % self.EVIL,
+                    ".a{background:image-set('//evil.example/x.png' 1x)}", ".a{background:src('http://evil.example/x.png')}"):
+            with self.subTest(css):
+                self.refused(css, "would reach outside the file")
+
+    def test_a_circle_does_not_make_an_address_next_to_it_pass(self):
+        for css in (self.circle() + ".a{background:url(%s)}" % self.EVIL, ".a{background:url(%s)}" % self.EVIL + self.circle(),
+                    self.circle(tail=" url(%s)" % self.EVIL), self.circle(tail="; background: url(%s)" % self.EVIL)):
+            with self.subTest(css[:80]):
+                with self.assertRaises(PublishError):
+                    publish.check_brand(self.style(css))
+
+    def test_text_inside_a_comment_reaches_nothing(self):
+        for css in (".a{} /* url(%s) */" % self.EVIL, "/* url(%s) */ .a{}" % self.EVIL, ".a{ /* url(//evil.example/x) */ color:red}",
+                    "/* @import url(//evil.example/x.css); */ .a{}", "/* @import 'x.css' */", ".a{color:red} /*\nurl(%s)\n*/" % self.EVIL,
+                    "/* /* url(%s) */ .a{}" % self.EVIL, "/*/ url(%s) */ .a{}" % self.EVIL, "/**/ .a{} /***/",
+                    "/* url( */ .a{} /* ) */"):
+            with self.subTest(css):
+                publish.check_brand(self.style(css))
+                self.assertEqual(publish.outside_addresses(self.style(css)), [])
+
+    def test_a_comment_never_hides_a_real_address_outside_it(self):
+        e = self.EVIL
+        for css in ("/* x */ .a{background:url(%s)}" % e, ".a{background:url(%s)} /* x */" % e, ".a{background:/* x */url(%s)}" % e,
+                    ".a{background:url(/* x */%s)}" % e, "/* a */ /* b */ .a{background:url(%s)}" % e,
+                    "/* url(%s) */ .a{background:url(%s)}" % (e, e),
+                    ".a{} /* url(x) */ @import 'x.css'; /* y */",
+                    # a comment that is not closed: what follows is still read (stricter than a browser)
+                    ".a{} /* url(%s)" % e, ".a{background:url(%s)} /*" % e,
+                    # nested-looking: the first */ ends it, so the address after it is outside the comment
+                    "/* /* x */ .a{background:url(%s)} /* y */" % e, "/* /* */ url(%s) */" % e,
+                    # a /* inside a string is no comment, so it cannot hide an address up to a later */
+                    '.a{content:"/*"} .b{background:url(%s)} /* */' % e, ".a{content:'/*'} .b{background:url(%s)} /* */" % e,
+                    '.a{content:"\\""} .b{content:"/*"} .c{background:url(%s)} /* */' % e,
+                    '.a{content:"x\\\n/*"} .b{background:url(%s)} /* */' % e,
+                    # an escaped slash is no comment opener; an escape cannot spell a comment or hide an address in one
+                    ".a{content:\\/*} .b{background:url(%s)} /* */" % e, ".a{x:\\2f*} .b{background:url(%s)} /* */" % e,
+                    '.a{content:"/*"} .b{background:\\75rl(%s)} /* */' % e, ".a{x:\\2f* y} .b{background:\\75rl(%s)} /* */" % e,
+                    # a /* inside an unquoted url( is part of its address
+                    ".a{background:url(a/*)} .b{background:url(%s)} /* */" % e, ".a{background:\\75rl(a/*)} .b{background:url(%s)} /* */" % e,
+                    ".a{background:URL( a/*)} .b{background:url(%s)} /* */" % e,
+                    ):
+            with self.subTest(css):
+                with self.assertRaises(PublishError, msg=css):
+                    publish.check_brand(self.style(css))
+                self.assertTrue(publish.outside_addresses(self.style(css)), css)
+                self.assertTrue(publish.outside_addresses(spliced(self.style(css))), css)
+
+    def test_a_comment_in_a_style_attribute_or_a_second_style_follows_the_same_rule(self):
+        e = self.EVIL
+        self.assertEqual(publish.outside_addresses('<p style="color:red /* url(%s) */">x</p>' % e), [])
+        self.assertTrue(publish.outside_addresses('<p style="/* x */ background:url(%s)">x</p>' % e))
+        self.assertTrue(publish.outside_addresses('<style>/* a</style><style>b{background:url(%s)}</style>' % e))
+
+    def test_a_refused_brand_publishes_nothing(self):
+        """render() is what makes the file; check_brand raises before any text of the file is made."""
+        for css in (".a{background:url(%s)}" % self.EVIL, self.circle(selector=".card"), "@import 'x.css';",
+                    '.a{content:"/*"} .b{background:url(%s)} /* */' % self.EVIL):
+            text = real().replace("</style>", css + "</style>", 1)
+            with self.subTest(css[:60]):
+                with self.assertRaises(PublishError):
+                    publish.render({"data": {}, "sections": [], "tabs": []}, text, "2026-10-28", "t")
