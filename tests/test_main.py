@@ -254,7 +254,10 @@ class RunsAsAProcess(TempFolder):
         self.assertEqual(get(port, "/api/data?project=TUL", headers={"X-Clark-Token": "wrong"})[0], 403)
         self.assertEqual(p.stop(), 0)
         self.assertEqual((db.stat().st_size, db.read_bytes()[:16]), marker)       # opened again, not made again
-        self.assertEqual([x.name for x in folder.iterdir() if not x.name.startswith(("clark.db", ".clark-lock"))], [])
+        # Issue 742: an explicit --data holds the daily log too (<data>/logs), and nothing goes to the home's Library/Logs
+        self.assertEqual([x.name for x in folder.iterdir() if not x.name.startswith(("clark.db", ".clark-lock"))], ["logs"])
+        self.assertTrue(list((folder / "logs").glob("clark-*.log")))
+        self.assertFalse((self.tmp / "Library" / "Logs").exists())
 
     def test_a_data_folder_inside_onedrive_is_refused_and_nothing_is_made(self):
         cloud = self.tmp / "Library" / "CloudStorage" / "OneDrive-DemoOrg"
@@ -272,6 +275,9 @@ class RunsAsAProcess(TempFolder):
         p.address_line()
         self.assertEqual(p.stop(), 0)
         self.assertTrue((pl.data_dir(self.tmp, on=pl.MAC) / "clark.db").is_file())
+        # Issue 742: a real install (the default data folder) keeps the log in Library/Logs/clark, not inside the data folder
+        self.assertTrue(list((self.tmp / "Library" / "Logs" / "clark").glob("clark-*.log")))
+        self.assertFalse((pl.data_dir(self.tmp, on=pl.MAC) / "logs").exists())
 
     def test_argument_errors_are_plain(self):
         for args, text in ((["--port", "abc"], "The start-up number (set with --port) must be a whole number from 1 to 65535. Change it, then start clark again."),

@@ -7,7 +7,9 @@ the new ones win where both have a file, and the older version's other files sta
 changed file and a missing one), extract the second over the first, and say what is true of the merged folder today.
 
 Where the behaviour is a gap, the test states what happens NOW and names the gap in a comment ("GAP issue 746"), so a later
-fix makes that line fail and the line is then turned round. Nothing here changes a guarded file. Finder's own Archive Utility
+fix makes that line fail and the line is then turned round. Row 760 closed the gap for a partly overwritten .app: clark now
+checks its files against clark-release.json on start and refuses a mixed folder (src/clark/same_version.py); those tests pin
+the refusal. Nothing here changes a guarded file. Finder's own Archive Utility
 puts a second unzip in "clark 2" instead of merging; the merge is `unzip -o`, `ditto -x -k`, or a copy of one folder over another.
 Run: python3 dev/run_tests.py test_unzip_merge
 """
@@ -15,6 +17,7 @@ import hashlib
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -25,7 +28,7 @@ from types import SimpleNamespace
 
 from _paths import ROOT
 import package
-from clark import release_files, updates
+from clark import release_files, same_version, updates
 
 BASH, UNZIP, DITTO = shutil.which("bash"), shutil.which("unzip"), shutil.which("ditto")
 PY3 = shutil.which("python3")
@@ -118,6 +121,27 @@ def running(folder, home):
     return version, Path(where)
 
 
+REFUSAL = ("These clark files are not all from the same version, so clark will not start. "
+           "Move the clark folder aside (rename it) and unzip the download again.")
+
+
+def start_demo(folder, home):
+    """Run the real start (`python3 -m clark`, as clark.command does) in `folder`. --demo is used so that no data folder, and on
+    Linux no OneDrive finder, is needed. Returns (exit code, stdout, stderr, whether anything listened on its port after)."""
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    env = clean_env(home)
+    if (Path(folder) / ".app").is_dir():
+        env["PYTHONPATH"] = str(Path(folder) / ".app")
+    done = subprocess.run([PY3, "-m", "clark", "--demo", "--port", str(port)], cwd=str(folder), env=env, capture_output=True,
+                          text=True, timeout=60, stdin=subprocess.DEVNULL)
+    with socket.socket() as probe:
+        probe.settimeout(0.5)
+        listening = probe.connect_ex(("127.0.0.1", port)) == 0
+    return done.returncode, done.stdout, done.stderr, listening
+
+
 @unittest.skipUnless(PY3, "needs python3")
 class Merge(unittest.TestCase):
     @classmethod
@@ -192,6 +216,15 @@ class Merge(unittest.TestCase):
                 self.assertEqual(self.newv, version)
                 self.assertEqual((folder / ".app" / "src" / "clark" / "__init__.py").resolve(), came_from.resolve())
 
+    def test_a_complete_merge_passes_the_start_check_and_the_older_versions_extras_are_ignored(self):
+        # Row 760, on purpose: a file only the older version had is not in the newer record, so it is ignored. A complete
+        # unzip -o passes; the check catches a folder that was only partly overwritten (the next tests).
+        for how in METHODS:
+            with self.subTest(how=how):
+                _, folder = self.install_old_then_new(how)
+                self.assertEqual(sorted(OLD_ONLY), self.leftovers(folder))
+                self.assertFalse(same_version._mixed(folder / ".app"))
+
     def test_the_persons_system_and_data_are_untouched_and_the_zips_hold_neither(self):
         for how in METHODS:
             with self.subTest(how=how):
@@ -232,24 +265,56 @@ class Merge(unittest.TestCase):
         self.assertIn("README.md", plan.replaced)           # the updater would replace the stale file at the next update
         self.assertEqual([], plan.by_hand)                  # and the folder matches its own (older) record
 
-    def test_a_mixed_tree_whose_record_is_the_newer_one_starts_without_a_word_and_only_the_updater_names_the_stale_file(self):
+    def test_a_mixed_tree_whose_record_is_the_newer_one_is_refused_by_the_start_and_the_updater_names_the_stale_file(self):
         where, folder = self.install_old_then_new("overwrite")
         stale = ".app/src/clark/__init__.py"
         (folder / stale).write_bytes(self.old[stale][0])    # one file stayed the older version's
-        version, _ = running(folder, where)
-        # GAP issue 746: nothing checks the files against clark-release.json when clark starts, so the older version's
-        # __init__ runs with the newer version's other files, silently.
-        self.assertEqual(OLDV, version)
+        # Row 760 (was GAP issue 746): the start checks the files against clark-release.json and refuses.
+        code, out, err, listening = start_demo(folder, where)
+        self.assertEqual(1, code, (out, err))
+        self.assertEqual(REFUSAL + "\n", err)
+        self.assertFalse(listening, "no server was started")
         plan = updates.plan(SimpleNamespace(files=self.new_manifest["files"]), folder)
         self.assertEqual([stale], plan.replaced)
-        self.assertEqual([stale], plan.by_hand)             # only an update run finds it, and replaces it
+        self.assertEqual([stale], plan.by_hand)             # the updater names it too
 
-    def test_nothing_in_the_start_path_reads_the_record(self):
-        """The reason for the GAP above, stated so a fix shows: none of the start-up files names the record."""
-        for name in ("clark.command", "src/clark/launch.py", "src/clark/doctor.py", "src/clark/__main__.py"):
+    @unittest.skipUnless(UNZIP, "needs unzip")
+    def test_two_real_zips_unzipped_over_each_other_with_the_newer_record_missing_are_refused(self):
+        """The mixed folder as unzip -o leaves it when it stops early: the older release is in place, then the newer one is
+        unzipped over it, every file but the record (the newer record was not written). Built with the real tool, not by hand."""
+        where = Path(tempfile.mkdtemp(prefix="stopped ", dir=str(self.tmp)))
+        extract_over(self.old_zip, where, "unzip -o")
+        subprocess.run([UNZIP, "-q", "-o", str(self.new_zip), "-x", f"{TOP}/{package.MANIFEST}", "-d", str(where)],
+                       check=True, timeout=120)
+        folder = where / TOP
+        self.assertEqual(OLDV, json.loads((folder / package.MANIFEST).read_text(encoding="utf-8"))["version"])
+        self.assertEqual(self.new[".app/src/clark/__init__.py"][0], (folder / ".app/src/clark/__init__.py").read_bytes())
+        code, out, err, listening = start_demo(folder, where)
+        self.assertEqual(1, code, (out, err))
+        self.assertEqual(REFUSAL + "\n", err)
+        self.assertFalse(listening)
+
+    @unittest.skipUnless(UNZIP, "needs unzip")
+    def test_two_real_zips_where_the_newer_unzip_stopped_after_the_record_are_refused(self):
+        """The other order: the newer record is in, but part of the newer files are not (unzip -o of only .app/vendor)."""
+        where = Path(tempfile.mkdtemp(prefix="halfway ", dir=str(self.tmp)))
+        extract_over(self.old_zip, where, "unzip -o")
+        subprocess.run([UNZIP, "-q", "-o", str(self.new_zip), f"{TOP}/{package.MANIFEST}", f"{TOP}/.app/vendor/*", "-d", str(where)],
+                       check=True, timeout=120)
+        folder = where / TOP
+        self.assertEqual(self.newv, json.loads((folder / package.MANIFEST).read_text(encoding="utf-8"))["version"])
+        code, out, err, listening = start_demo(folder, where)
+        self.assertEqual(1, code, (out, err))
+        self.assertEqual(REFUSAL + "\n", err)
+        self.assertFalse(listening)
+
+    def test_the_start_path_now_reads_the_record(self):
+        """Was test_nothing_in_the_start_path_reads_the_record (the reason for the GAP). Row 760: the check reads the record, and
+        both the launcher and the stand-ins call it, so a fix that drops it shows here."""
+        self.assertIn("clark-release.json", (ROOT / "src/clark/same_version.py").read_text(encoding="utf-8"))
+        for name in ("src/clark/launch.py", "src/clark/__main__.py", "clark/launch.py", "clark/__main__.py", "clark/doctor.py"):
             text = (ROOT / name).read_text(encoding="utf-8")
-            self.assertNotIn("clark-release.json", text, name)
-            self.assertNotIn("INSTALLED_RECORD", text, name)
+            self.assertTrue("same_version" in text or "mixed(" in text, name)
 
     def test_an_older_flat_folder_merged_under_the_new_download_starts_the_older_version(self):
         where = Path(tempfile.mkdtemp(prefix="flat ", dir=str(self.tmp)))
@@ -261,8 +326,10 @@ class Merge(unittest.TestCase):
         extract_over(self.new_zip, where, "overwrite")
         self.assertTrue((folder / ".app").is_dir() and (folder / "src").is_dir(), "both shapes are now in one folder")
         version, came_from = running(folder, where)
-        # GAP issue 746: the older stand-in clark/ at the top of the folder is found first (the current folder leads sys.path
-        # for `python3 -m`), so the older flat src/ starts and the new .app is never used; nothing says so.
+        # GAP issue 746, STILL OPEN after row 760: the older stand-in clark/ at the top of the folder is found first (the current
+        # folder leads sys.path for `python3 -m`), so the older flat src/ starts and the new .app is never used; nothing says so.
+        # The check lives in the newer files, and with a really old stand-in none of them runs, so it cannot catch this. (This
+        # fixture's flat zip carries the NEWER stand-ins, so running() here only does prepare(); a real start refuses, next test.)
         self.assertEqual(OLDV, version)
         self.assertEqual((folder / "src" / "clark" / "__init__.py").resolve(), came_from.resolve())
         updates.check_app_folder(folder)                    # and the updater still takes the folder
@@ -270,6 +337,25 @@ class Merge(unittest.TestCase):
         self.assertIn("src/clark/__init__.py", plan.left)   # the older flat files are listed as the person's own
         for rel, data in PERSONS.items():
             self.assertEqual(data, (folder / rel).read_bytes())
+
+    @unittest.skipUnless(BASH, "needs bash")
+    def test_the_flat_plus_app_folder_is_refused_by_clark_command_before_python_starts(self):
+        """Row 760 (the GAP above): .app with src beside it is refused by the bash launcher, whichever stand-in is there."""
+        where = Path(tempfile.mkdtemp(prefix="flat2 ", dir=str(self.tmp)))
+        extract_over(self.flat_zip, where, "overwrite")
+        extract_over(self.new_zip, where, "overwrite")
+        stub = self.tmp / "stub-bin"
+        stub.mkdir(exist_ok=True)
+        (stub / "python3").write_text("#!/bin/sh\necho STUB-PYTHON-RAN >&2\nexit 0\n", encoding="utf-8")
+        (stub / "python3").chmod(0o755)
+        for args in ([], ["--check"]):
+            with self.subTest(args=args):
+                env = clean_env(where)
+                env["PATH"] = str(stub) + os.pathsep + env["PATH"]
+                done = subprocess.run([BASH, str(where / TOP / "clark.command")] + args, cwd=str(where), env=env,
+                                      stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
+                self.assertEqual(1, done.returncode, (done.stdout, done.stderr))
+                self.assertEqual(REFUSAL + "\n", done.stderr)       # and the stub python (which would say so) never ran
 
     def run_check(self, where, folder, data):
         done = subprocess.run([BASH, str(folder / "clark.command"), "--check", "--data", str(data), "--port", "1"],
@@ -308,6 +394,17 @@ class Merge(unittest.TestCase):
             (folder / f".clark-old-{stamp}" / ".app" / "which.txt").write_text(text, encoding="utf-8")
         self.run_check(where, folder, data)
         self.assertEqual("named", (folder / ".app" / "which.txt").read_text(encoding="utf-8"))
+
+    @unittest.skipUnless(BASH and UNZIP, "needs bash and unzip")
+    def test_check_refuses_the_mixed_folder_too_instead_of_saying_ready(self):
+        where = Path(tempfile.mkdtemp(prefix="doctor ", dir=str(self.tmp)))
+        extract_over(self.old_zip, where, "unzip -o")
+        subprocess.run([UNZIP, "-q", "-o", str(self.new_zip), "-x", f"{TOP}/{package.MANIFEST}", "-d", str(where)],
+                       check=True, timeout=120)
+        done = self.run_check(where, where / TOP, where / "d")
+        self.assertEqual(1, done.returncode, (done.stdout, done.stderr))
+        self.assertEqual(REFUSAL + "\n", done.stderr)
+        self.assertNotIn("Ready", done.stdout)
 
     @unittest.skipUnless(MAC and BASH, "the real start through clark.command and the doctor's own checks are the Mac's; run it on "
                                        "a Mac before a release")
