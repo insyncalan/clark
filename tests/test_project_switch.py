@@ -31,6 +31,21 @@ class ProjectSwitch(Base):
             self.assertEqual(len(p.js(ITEMS)), 1, "the one project")
             self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return e.textContent})"), ["Project settings"])
 
+    def test_C_the_switcher_is_a_bordered_box_with_the_chevron_at_the_right(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.until("document.querySelector('#project-name').tagName === 'BUTTON'", "the menu button")
+            for w in WIDTHS:
+                p.width(w)
+                box = p.js("(function(){var b=document.querySelector('#project-name'),r=b.getBoundingClientRect(),c=b.querySelector('.nch').getBoundingClientRect(),"
+                           "s=getComputedStyle(b);return {w:r.width,bw:parseFloat(s.borderTopWidth),right:r.right-c.right,bar:document.documentElement.scrollWidth-window.innerWidth}})()")
+                self.assertGreater(box["bw"], 0, "the box has a border")
+                self.assertLessEqual(box["w"], 220.5)
+                self.assertLess(box["right"], 16, "the chevron sits at the right edge of the box")
+                self.assertLessEqual(box["bar"], 0, "no sideways overflow")
+            p.width(1400)
+            self.assertAlmostEqual(p.js("document.querySelector('#project-name').getBoundingClientRect().width"), 220, delta=1)
+
     def test_C_the_menu_lists_the_projects_with_open_counts_and_Project_settings(self):
         self.rig.httpd.projects = lambda archived=False: TWO
         with chrome() as cdp:
