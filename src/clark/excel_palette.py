@@ -158,3 +158,8 @@ def _pairs(colours):
     for name, (fill, text) in colours.items():
         yield fill, text, f"the {name} status"
     yield from EXTRA_PAIRS
+
+
+def committed():
+    """The committed (no brand) palette, with no brand read and nothing warned: what excel.py draws with when no palette is given."""
+    return Palette(dict(base.TOKENS), dict(base.COLOURS), look.office_font(), [])

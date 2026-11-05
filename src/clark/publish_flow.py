@@ -573,7 +573,7 @@ class Publisher:
                 # import finds the record by that id, from any folder and after an edit or a re-save); the workbook itself stays
                 # in the temporary folder, which is removed. Each export has its own id, so neither replaces the other, and
                 # save_state and prune_hash_records hold excel.STATE_LOCK, so two exports at once both keep their record.
-                made = excel.export_project(store, code, folder / name, folder / "state.json", on=today, warnings=warnings,
+                made = excel.export_project(store, code, folder / name, folder / "state.json", on=today, warnings=warnings, branding=self.branding,
                                        exported_by=self.by_user(), reuse=excel.latest_export(here / excel.STATE_FILE, code))      # the name publish records; the owner has no source yet (projects has none), so the Cover says "the person who sent it to you"
                 data = Path(made).read_bytes()
                 record = excel.load_state(folder / "state.json", made)
