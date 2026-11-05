@@ -244,6 +244,18 @@ class Detail(unittest.TestCase):
                     self.assertEqual(small, [], "every control is at least 24 px")
                     self.assertEqual(js(CONTRAST), [], "text is 13 px or more and has a contrast of 4.5:1")
 
+    def test_the_crumb_is_tracked_capitals_and_its_link_is_not_underlined(self):
+        # row 777: the same small capitals line as the other pages' crumbs; the link is indigo, underlined only on hover.
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width, scheme)
+                    js = lambda e: cdp.js(e, sid)  # noqa: E731
+                    self.assertEqual(js("getComputedStyle(document.querySelector('.ucd-crumb')).textTransform"), "uppercase")
+                    self.assertEqual(js("getComputedStyle(document.querySelector('.ucd-crumb')).letterSpacing === 'normal'"), False)
+                    self.assertIn("none", js("getComputedStyle(document.querySelector('.ucd-crumb a')).textDecorationLine"))
+                    self.assertEqual(js("document.querySelector('.ucd-crumb').textContent"), "Use cases › UC 1.1", "the words are unchanged")
+
     def test_the_empty_where_it_stands_card_says_what_to_write_and_the_longer_prompt_fits(self):
         """#659: the owner's words, in the headline box (a placeholder, so the box keeps a plain name for a screen reader) and in the
         text box; the longer one wraps inside its card at 1400 and 900 px, light and dark. Screenshots go to CLARK_SHOTS when it is set."""
