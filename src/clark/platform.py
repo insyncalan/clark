@@ -179,12 +179,17 @@ def inside_onedrive(path, roots=None):
     return None
 
 
-def shown(path):
+def shown(path, home=None):
     """A folder or file as a person reads it in a message: under the home folder it is written from "~", so the user's name is
-    never in a message that might be copied into a report or an email."""
-    path = Path(path)
+    never in a message that might be copied into a report or an email. A path that is not under the home folder is shown as it is
+    (#696). A home folder of "/" (a container's) is no home folder: everything is under it, so nothing is written from "~"."""
+    path, home = Path(path), Path(home or Path.home())
+    if home == Path(home.anchor) or not path.is_absolute():
+        return str(path)
+    if path == home:
+        return "~"
     try:
-        return "~/" + path.relative_to(Path.home()).as_posix()
+        return "~/" + path.relative_to(home).as_posix()
     except ValueError:
         return str(path)
 
