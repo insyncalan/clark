@@ -656,14 +656,14 @@ class PinnedPublicFiles(unittest.TestCase):
             self.assertTrue(0 < size <= pp.MAX_BYTES, path)
 
     def test_the_next_pins_are_well_formed_and_each_real_file_is_its_current_or_its_next_pin(self):
-        self.assertEqual(sorted(ci_scan.NEXT_PUBLIC_FILES), sorted(ci_scan.ALLOWED_PUBLIC_FILES))
+        self.assertTrue(set(ci_scan.NEXT_PUBLIC_FILES) <= set(ci_scan.ALLOWED_PUBLIC_FILES))   # empty once the files are swapped
         for path, (sha, size) in ci_scan.NEXT_PUBLIC_FILES.items():
             self.assertTrue(re.fullmatch(r"[0-9a-f]{64}", sha), path)
             self.assertTrue(type(size) is int and 0 < size <= pp.MAX_BYTES, path)
         for path in ci_scan.ALLOWED_PUBLIC_FILES:
             data = (ROOT / path).read_bytes()
             have = (ci_scan.hashlib.sha256(data).hexdigest(), len(data))
-            self.assertIn(have, (ci_scan.ALLOWED_PUBLIC_FILES[path], ci_scan.NEXT_PUBLIC_FILES[path]), path)
+            self.assertIn(have, (ci_scan.ALLOWED_PUBLIC_FILES[path], ci_scan.NEXT_PUBLIC_FILES.get(path)), path)
             altered = bytearray(data)
             altered[len(altered) // 2] ^= 1
             r = Repo()
