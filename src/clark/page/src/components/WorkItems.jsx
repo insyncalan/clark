@@ -16,7 +16,7 @@
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect } from "preact/hooks";
 import { cursor, stopOf as stopOfIds, moveTo } from "../listKeys.js";
-import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile, filterCtx, query, setQuery, asAt } from "../stores/report.js";
+import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, fromFile, filterCtx, query, setQuery, asAt } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
 import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnOrder, installSelectionRules } from "./pick.js";
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
@@ -294,7 +294,7 @@ export function WorkItems({ tools }) {
         {tools ? (
           <div class="hacts">
             {tools.ImportBtn && !fromFile.value ? <tools.ImportBtn /> : null}   {/* item 454: Import from Excel, the same box as Settings; never in a published file */}
-            {tools.ExportBtn && mode.value !== "edit" ? <tools.ExportBtn /> : null}   {/* the workbook download: View only (FR-70), and never in a published file */}
+            {tools.ExportBtn ? <tools.ExportBtn /> : null}   {/* the workbook download: always on this page (row 824), and never in a published file */}
             {tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: in Edit, with the Owner filter on */}
             <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={adder(tools)} />   {/* a published file is read only: no Add (#204) */}
           </div>

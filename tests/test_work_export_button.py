@@ -1,4 +1,4 @@
-"""B-4: an Export icon beside Add on Work items, in View mode of the editor only (FR-70: hidden in Edit); the published file has none.
+"""B-4: an Export icon beside Add on Work items, in the editor on every mode (row 824; FR-70 hid it in Edit); the published file has none.
 The icon asks the route that already exists, GET /api/export. The Import icon (item 454) opens the same box as Settings > Data.
 
 Run: python3 dev/run_tests.py test_work_export_button
@@ -49,7 +49,7 @@ class ExportButton(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#work h1')", sid)))
                 self.assertEqual(cdp.js("document.querySelectorAll('#expBtn').length", sid), 0)
 
-    def test_the_editor_shows_it_in_view_not_in_edit_and_it_asks_the_export_route(self):
+    def test_the_editor_shows_it_in_view_and_in_edit_and_it_asks_the_export_route(self):
         demo = DemoStore()
         self.addCleanup(demo.close)
         s = Running(data_for=demo.store.data_for, page_html=lambda: page.page_html(tempfile.mkdtemp()))
@@ -69,7 +69,7 @@ class ExportButton(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("window.__asked.some(u => u.startsWith('/api/export?project=ABC'))", sid)), "it asked GET /api/export")
                 cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'true'", sid)))
-                self.assertEqual(cdp.js("document.querySelectorAll('#expBtn').length", sid), 0, "hidden in Edit (FR-70)")
+                self.assertEqual(cdp.js("document.querySelectorAll('#expBtn').length", sid), 1, "this page has no mode: still there (row 824)")
                 self.assertEqual(cdp.js("document.querySelectorAll('#newBtn').length", sid), 1)
 
 
