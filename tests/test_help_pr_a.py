@@ -140,7 +140,9 @@ class SettingsChips(unittest.TestCase):
         self.assertIn('<nav class="set-bar"', views)
         self.assertIn('aria-current={here === headId ? "location" : undefined}', views)
         self.assertIn('NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays"]', views)
-        self.assertIn("Publishing and Freshness need an open project. Published reports also needs one and has a card but no chip.", self.TEXT)
+        self.assertIn("Publishing and Freshness need an open project. Published reports also needs one and has a card but no link.", self.TEXT)
+        self.assertIn("A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title)", self.TEXT)
+        self.assertIn("The link of the card you are reading is marked.", self.TEXT)
 
     def test_published_reports_has_no_chip(self):
         views = code("components", "Views.jsx")
