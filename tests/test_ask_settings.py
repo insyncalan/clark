@@ -182,6 +182,31 @@ class Settings(unittest.TestCase):
             self.assertTrue(wait(lambda: js("window.__held(), document.querySelector('#ask-state').innerText") == ON, 20))
             self.assertEqual(js("document.querySelector('[data-ask-switch]').disabled"), False)
 
+    def test_two_overlapping_reads_answered_in_reverse_order_leave_the_newer_answer_on_screen(self):
+        # Settings asks again each time it opens. Open it twice quickly, then let the SECOND ask answer first (on) and the FIRST last (off):
+        # the older answer must not overwrite the newer one (askState.js numbers its requests).
+        with chrome() as cdp:
+            sid = navigate(cdp, self.s.port, "#dashboard&p=ABC")
+            js = lambda e: cdp.js(e, sid)          # noqa: E731
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#report')"), 20))
+            js("""window.__q = []; const real = window.fetch;
+                  window.answer = (i, on) => window.__q[i](new Response(JSON.stringify({ok: true, ask_enabled: on, saved: true}), {status: 200, headers: {'Content-Type': 'application/json'}}));
+                  window.fetch = function (url) { if (String(url).indexOf('/api/ask-enabled') >= 0) return new Promise((r) => { window.__q.push(r); });
+                                                  return real.apply(this, arguments); };
+                  location.hash = '#settings&p=ABC'""")
+            self.assertTrue(wait(lambda: js("window.__q.length") == 1, 10), "the first ask is out")
+            js("location.hash = '#dashboard&p=ABC'")
+            self.assertTrue(wait(lambda: js("!document.querySelector('#ask-settings')"), 10))
+            js("location.hash = '#settings&p=ABC'")
+            self.assertTrue(wait(lambda: js("window.__q.length") == 2, 10), "the second ask is out")
+            js("window.answer(1, true)")                                  # the newer ask answers first: on
+            self.assertTrue(wait(lambda: js("(document.querySelector('#ask-state') || {}).innerText") == ON, 10), "the newer answer shows")
+            js("window.answer(0, false)")                                 # the older ask answers last: off, and is ignored
+            import time
+            time.sleep(1)
+            self.assertEqual(js("document.querySelector('#ask-state').innerText"), ON, "the older answer did not overwrite it")
+            self.assertEqual(js("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed')"), "true")
+
     def test_a_file_that_cannot_keep_the_switch_reads_as_off_and_turning_it_on_is_refused_in_plain_words(self):
         self.s.httpd.app_settings = service(make_db(self.folder(), ready=False, cleanup=self.addCleanup))      # a data file made before the settings step
         with chrome() as cdp:

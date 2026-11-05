@@ -456,6 +456,65 @@ class Command(unittest.TestCase):
         self.assertFalse(self.out.exists())
         self.assertIn("xcode-select --install", done.stdout)
 
+    def hidden(self):
+        """A download-shaped folder: this script beside a .app folder, run from elsewhere."""
+        top = Path(self.tmp.name) / "top"
+        (top / ".app").mkdir(parents=True)
+        shutil.copy2(self.SCRIPT, top / "clark.command")
+        py = self.bin / "python3"
+        py.write_text('#!/bin/sh\nif [ "$1" = "-c" ]; then exit 0; fi\n'
+                      f'{{ pwd; echo "$PYTHONPATH"; echo "$@"; }} > "{self.out}"\nexit ${{FAKE_STATUS:-0}}\n', encoding="utf-8")
+        py.chmod(0o755)
+        return top
+
+    def run_hidden(self, top, *args, status=None, pythonpath=None):
+        env = {"PATH": str(self.bin), "HOME": self.tmp.name}
+        if status is not None:
+            env["FAKE_STATUS"] = str(status)
+        if pythonpath:
+            env["PYTHONPATH"] = pythonpath
+        return subprocess.run([BASH, str(top / "clark.command"), *args], cwd=self.tmp.name, env=env,
+                              stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30)
+
+    def test_in_a_download_python_is_pointed_at_the_dot_app_folder_and_the_folder_stays_the_top_one(self):
+        top = self.hidden()
+        done = self.run_hidden(top, "--port", "8801", pythonpath="/mine")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        pwd, path, args = self.out.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(Path(pwd).resolve(), top.resolve())
+        self.assertEqual(f"{top}/.app:/mine", path)
+        self.assertEqual("-m clark.launch --port 8801", args)
+
+    def test_a_checkout_is_run_exactly_as_before_no_pythonpath_added(self):
+        self.python3()
+        self.run_script("--port", "8801")
+        self.assertEqual(2, len(self.out.read_text(encoding="utf-8").splitlines()))
+
+    def test_check_runs_the_doctor_with_the_rest_of_the_options_and_keeps_its_exit_code_without_a_pause(self):
+        top = self.hidden()
+        done = self.run_hidden(top, "--check", "--data", "/some where", "--port", "9", status=3)
+        self.assertEqual(3, done.returncode)
+        self.assertEqual("", done.stdout + done.stderr, "no 'Press any key' after the doctor, which says its own words")
+        self.assertEqual("-m clark.doctor --data /some where --port 9", self.out.read_text(encoding="utf-8").splitlines()[2])
+
+    def test_check_works_in_a_checkout_too(self):
+        self.python3()
+        self.assertEqual(0, self.run_script("--check").returncode)
+        self.assertEqual("-m clark.doctor", self.out.read_text(encoding="utf-8").splitlines()[1])
+
+    def test_restore_and_demo_go_to_the_plain_launcher_as_python_m_clark_does(self):
+        top = self.hidden()
+        for args in (("restore",), ("restore", "2026-01-02", "--data", "/d"), ("--demo", "--open"), ("--port", "8801", "--demo")):
+            with self.subTest(args=args):
+                done = self.run_hidden(top, *args, status=4)
+                self.assertEqual((4, ""), (done.returncode, done.stdout + done.stderr))
+                self.assertEqual("-m clark " + " ".join(args), self.out.read_text(encoding="utf-8").splitlines()[2])
+
+    def test_check_given_later_is_not_a_command_it_goes_to_the_launcher_as_today(self):
+        top = self.hidden()
+        self.run_hidden(top, "--port", "8801", "--check")
+        self.assertEqual("-m clark.launch --port 8801 --check", self.out.read_text(encoding="utf-8").splitlines()[2])
+
     def test_it_installs_and_downloads_nothing(self):
         text = self.SCRIPT.read_text(encoding="utf-8")
         for word in ("curl", "wget", "pip", "brew", "sudo", "http"):
@@ -491,29 +550,36 @@ class StoppedBetweenTwoMoves(unittest.TestCase):
 
     STAMP = "20261030T101500Z"
 
-    def layout(self, tmp, missing):
+    def layout(self, tmp, missing, hidden=False):
+        """An installed copy with an update stopped part way. `hidden`: the download's layout, program files in .app (issue 694)."""
         from clark import update_helper as h
         app, data = Path(tmp) / "clark-app", Path(tmp) / "data"
+        code = app / ".app" if hidden else app
+        pre = ".app/" if hidden else ""
         for name in ("src", "vendor", "clark"):
             if (ROOT / name).exists():
-                shutil.copytree(ROOT / name, app / name, ignore=shutil.ignore_patterns("__pycache__"))
+                shutil.copytree(ROOT / name, code / name, ignore=shutil.ignore_patterns("__pycache__"))
         shutil.copy2(ROOT / "clark.command", app / "clark.command")
         files = {p.relative_to(app).as_posix(): p for p in sorted(app.rglob("*")) if p.is_file()}
         record = {"product": "clark", "version": "0.0.1", "schema_version": 1, "files": {
             rel: {"sha256": h.sha256_of(p), "size": p.stat().st_size, "mode": "644"} for rel, p in files.items()}}
         (app / h.MANIFEST).write_text(json.dumps(record), encoding="utf-8")
         staging = app / (h.STAGING_PREFIX + self.STAMP)
-        (staging / "src" / "clark").mkdir(parents=True)
-        (staging / "src" / "clark" / "__init__.py").write_text("NEW = 1\n", encoding="utf-8")
-        new = {"schema_version": 1, "files": {"src/clark/__init__.py": {
-            "sha256": h.sha256_of(staging / "src" / "clark" / "__init__.py"), "size": 8, "mode": "644"}}}
+        new_src = staging / pre / "src" / "clark"
+        new_src.mkdir(parents=True)
+        (new_src / "__init__.py").write_text("NEW = 1\n", encoding="utf-8")
+        new = {"schema_version": 1, "files": {pre + "src/clark/__init__.py": {
+            "sha256": h.sha256_of(new_src / "__init__.py"), "size": 8, "mode": "644"}}}
         (staging / h.MANIFEST).write_text(json.dumps(new), encoding="utf-8")
         data.mkdir()
         from test_update_helper import age_marker
         age_marker(h.begin(data, app, staging, self.STAMP, "0.0.1", "0.0.2", 1, 1, 1, "X-Clark-Mark", "m", check=False))
         old = app / (h.OLD_PREFIX + self.STAMP)
         old.mkdir()
-        os.rename(app / missing, old / missing)                  # the stop: the old one is away, the new one is not in yet
+        if hidden:
+            os.rename(code, old / ".app")             # the whole .app is one swap: the old one is away, the new one is not in yet
+        else:
+            os.rename(app / missing, old / missing)                  # the stop: the old one is away, the new one is not in yet
         return app, data, old
 
     def run_command(self, app, data):
@@ -533,25 +599,39 @@ class StoppedBetweenTwoMoves(unittest.TestCase):
                                                               "PYTHONPATH": str(hook)},
                               stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120)
 
-    def check(self, missing):
+    def check(self, missing, hidden=False):
         from clark import update_helper as h
         with tempfile.TemporaryDirectory() as tmp:
-            app, data, old = self.layout(tmp, missing)
+            app, data, old = self.layout(tmp, missing, hidden)
+            code = app / ".app" if hidden else app
             done = self.run_command(app, data)
             self.assertNotIn("Traceback", done.stderr + done.stdout)
             self.assertNotIn("ModuleNotFoundError", done.stderr + done.stdout)
-            self.assertTrue((app / "src" / "clark" / "launch.py").is_file())
-            self.assertTrue((app / "clark" / "__init__.py").is_file())
+            self.assertTrue((code / "src" / "clark" / "launch.py").is_file())
+            self.assertTrue((code / "clark" / "__init__.py").is_file())
             self.assertFalse(h.marker_path(data).exists(), "the update was not finished")
             self.assertEqual(h.read_result(data)["status"], "rolled_back")
             self.assertIn("The last update stopped part way, so the old version was put back.", done.stdout)
-            self.assertFalse((app / "src" / "clark" / "newmod.py").exists())
+            self.assertFalse((code / "src" / "clark" / "newmod.py").exists())
+
+    def test_no_dot_app_after_a_stop_in_the_middle_of_the_one_swap_is_recovered_in_a_download(self):
+        """issue 694: in a download one rename moves every program file, so one stop leaves no .app at all."""
+        self.check(".app", hidden=True)
 
     def test_no_src_after_a_stop_between_the_two_moves_is_recovered_by_the_launcher_file(self):
         self.check("src")
 
     def test_no_clark_stand_in_after_a_stop_between_the_two_moves_is_recovered_too(self):
         self.check("clark")
+
+    def test_a_leftover_dot_app_with_no_marker_is_never_put_back(self):
+        from clark import update_helper as h
+        with tempfile.TemporaryDirectory() as tmp:
+            app, data, old = self.layout(tmp, ".app", hidden=True)
+            h.marker_path(data).unlink()
+            self.run_command(app, data)
+            self.assertFalse((app / ".app").exists())
+            self.assertTrue((old / ".app").is_dir())
 
     def test_a_leftover_set_aside_folder_with_no_marker_is_never_put_back(self):
         # LOW 1 of #473: a set-aside folder from an older update, no marker: putting it back would install an older version

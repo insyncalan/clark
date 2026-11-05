@@ -280,9 +280,9 @@ class OneSetOfBytesTest(SignedBase):
         os.replace(evil, path)                                                      # swapped on disk after the check
         app = Path(self.fresh())
         staging = ui.stage(release, app, "20261101T000000Z")
-        self.assertNotEqual(b"evil\n", (staging / "src" / "clark" / "x.py").read_bytes())
-        self.assertEqual(release.files["src/clark/x.py"]["sha256"],
-                         hashlib.sha256((staging / "src" / "clark" / "x.py").read_bytes()).hexdigest())
+        self.assertNotEqual(b"evil\n", (staging / ".app" / "src" / "clark" / "x.py").read_bytes())
+        self.assertEqual(release.files[".app/src/clark/x.py"]["sha256"],
+                         hashlib.sha256((staging / ".app" / "src" / "clark" / "x.py").read_bytes()).hexdigest())
 
     def test_staging_never_falls_back_to_the_file_on_disk(self):
         release = self.read(make_zip(self.tmp))
