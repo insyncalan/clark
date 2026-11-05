@@ -53,7 +53,7 @@ class Card(Base):
     def opened(self, cdp):
         p = self.visit(cdp)
         p.key("/", code="Slash", vk=191)
-        p.until("!!document.querySelector('#ask-panel') && !document.querySelector('#ask-box').disabled", "the panel is ready")
+        p.until("!!document.querySelector('#ask-panel') && !document.querySelector('#ask-send').disabled", "the panel is ready")
         return p
 
     def ask_it(self, p, text="What should change?"):
