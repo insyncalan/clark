@@ -1,5 +1,5 @@
-"""Build the download for one system: one zip with one top folder, clark-<version>/ (#57, step 3 of
-docs/handoff/packaging-57.md).
+"""Build the download for one system: one zip, clark-<version>-<system>.zip, that unzips to one folder, clark/, with the program
+files in its hidden .app/ folder (issue 694; #57, step 3 of docs/handoff/packaging-57.md).
 
 Run: python3 dev/tools/package.py mac [--out FOLDER] [--dirty] [--release] [--notes FILE]   # writes dist/clark-<version>-mac.zip
      python3 dev/tools/package.py mac --for-client                # in a checkout of the scrubbed public snapshot only
