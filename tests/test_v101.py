@@ -179,19 +179,19 @@ COVERED = [
      "test_help_pr_a::TopBar::test_the_search_button_and_palette_sentence"),
     ("#755", "The README and the download's README name the Settings card that lists the safety copies, Backups.",
      "test_zip_readme::ZipReadme::test_every_sentence_is_in_the_root_readme"),
+    ("#727", "The Excel export locks the cells people should not edit (sheet protection, no password).",
+     "test_excel_protection::Protected::test_every_sheet_is_protected_with_no_password"),
+    ("#748", "Help covers choosing which sheets to import and the Commitment flag in the Excel export.",
+     "test_help_pr_b1::SheetChoice::test_import_step_three"),
+    ("#748", "Help covers the Commitment flag on the page, the week-ending calendar and the pencil on Edit.",
+     "test_help_pr_b2::Commitment::test_keep_the_use_cases_sentences"),
+    ("#748", "Help covers the client Report menu and the Excel export cells.",
+     "test_help_pr_b3::ReportMenu::test_the_bullet_and_the_code_behind_each_sentence"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
 # marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#727", "The Excel export locks the cells people should not edit (sheet protection, no password).",
-     "no pull request yet (issue 727)", "", None),
-    ("Help B1", "Help covers choosing which sheets to import and the Commitment flag in the Excel export (branch help-b1-m).",
-     "no pull request yet (branch help-b1-m)", "", None),
-    ("Help B2", "Help covers the Commitment flag on the page, the week-ending calendar and the pencil on Edit (branch help-b2-m).",
-     "no pull request yet (branch help-b2-m)", "", None),
-    ("Help B3", "Help covers the client Report menu and the Excel export cells (branch help-b3-m).",
-     "no pull request yet (branch help-b3-m)", "", None),
 ]
 
 # (item, check, kind, why, what the person does)
