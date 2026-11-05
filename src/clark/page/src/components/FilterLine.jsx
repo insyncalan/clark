@@ -227,8 +227,8 @@ export function FilterLine({ board }) {
       e.preventDefault(); e.stopPropagation(); setClosed(true); setActive(-1);
     }
   };
-  // Leaving the line closes the list. The list is in the page flow, so closing it moves the rows: while the button is still down (a click on a
-  // row or card took the focus) the closing waits for the button to come up, so the row under the pointer is still the one that is clicked.
+  // Leaving the line closes the list. While the button is still down (a click on a row or card took the focus) the closing waits for the
+  // button to come up, so the click still lands on the row under the pointer.
   const down = useRef(false), late = useRef(false);
   const leave = () => {
     if (down.current) { late.current = true; return; }
@@ -290,7 +290,7 @@ export function FilterLine({ board }) {
         <span class="fcount num" id="fline-count" data-fcount>{`${matches} of ${rows.length}`}</span>
         {draft ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
       </div>
-      {/* The list sits in the page flow under the box, not over the table or board: the first rows and cards stay clickable while it is open. */}
+      {/* Row 808: the list floats over the page just under the box (it is out of the flow), so opening it pushes no row or card down. */}
       {listed ? (
         <ul class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
           {options.map((o, i) => (

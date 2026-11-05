@@ -298,7 +298,8 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .factive.pub .fchip { padding: 2px 4px 2px 10px; }
 .factive.pub .fchip button { width: 22px; height: 22px; }
 /* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
-.fline-wrap { margin-top: 12px; }
+:root { --layer-list: 26; }   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
+.fline-wrap { position: relative; margin-top: 12px; }
 .fviews { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
 .vtabs { display: flex; flex-wrap: nowrap; gap: 4px 6px; min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none; padding: 3px; margin: -3px; }   /* room for the focus outline, which the scrolling box would cut */
 .vtabs::-webkit-scrollbar { display: none; }
@@ -338,7 +339,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fchip button { all: unset; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
 .fchip button:hover { background: var(--grey-200); }
 .fchip button:focus-visible { outline: 2px solid var(--brand-blue); }
-.flist { margin: 4px 0 0; padding: 6px 0; list-style: none; width: min(420px, 100%); max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
+.flist { position: absolute; z-index: var(--layer-list); left: 0; margin: 4px 0 0; padding: 6px 0; list-style: none; width: min(420px, 100%); max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
 .fopt { display: flex; align-items: baseline; gap: 10px; padding: 4px 12px; min-height: calc(var(--space-6) - var(--space-1)); box-sizing: border-box; cursor: pointer; color: var(--text); }
 .fopt:hover, .fopt[aria-selected="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .fopt .fl1 { font-weight: var(--weight-medium); }

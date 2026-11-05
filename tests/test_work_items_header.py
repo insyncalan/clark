@@ -9,6 +9,7 @@ import unittest
 
 from test_server import chrome
 from test_work_board_page import Base
+from test_work_filters import click, key
 
 CASES = [(w, s, e) for w in (1400, 900) for s in ("light", "dark") for e in (False, True)]
 
@@ -39,6 +40,42 @@ class Header(Base):
                          "return Math.round(t.getBoundingClientRect().top - a.bottom); })()", sid)
             self.assertLessEqual(gap, 12, f"the list follows the filter line closely ({gap}px)")
         self.each(check)
+
+    # ---- row 808 ----
+    def open_list(self, cdp, sid):
+        click(cdp, sid, "#fline-input")
+        cdp.js("document.querySelector('#fline-input').select()", sid)
+        key(cdp, sid, "Backspace")
+        self.until(cdp, sid, "document.querySelector('#fline-list')", "the suggestion list")
+
+    def floats(self, cdp, sid, board):
+        if board:
+            self.board(cdp, sid, "status")
+            cdp.js("document.activeElement.blur()", sid)
+            self.until(cdp, sid, "!document.querySelector('#fline-list')", "the list closed")
+        else:
+            click(cdp, sid, "#fline-input")
+            cdp.js("document.querySelector('#fline-input').select()", sid)
+            key(cdp, sid, "Backspace")
+            cdp.js("document.activeElement.blur()", sid)
+            self.until(cdp, sid, "!document.querySelector('#fline-list')", "the list closed")
+        probe = "(() => { const a = document.querySelector('#work-list').getBoundingClientRect().top, b = document.querySelector('#work-list').getBoundingClientRect().height; return [Math.round(a), Math.round(b)]; })()"
+        before = cdp.js(probe, sid)
+        self.open_list(cdp, sid)
+        self.assertEqual(cdp.js(probe, sid), before, "opening the list moves nothing and changes no height")
+        got = cdp.js("(() => { const l = document.querySelector('#fline-list'), s = getComputedStyle(l), r = l.getBoundingClientRect(), b = document.querySelector('[data-fline]').getBoundingClientRect(), w = document.querySelector('#work-list').getBoundingClientRect();"
+                     " return {pos: s.position, z: +s.zIndex, gap: Math.round(r.top - b.bottom), left: Math.round(r.left - b.left), over: r.bottom > w.top}; })()", sid)
+        self.assertEqual(got["pos"], "absolute")
+        self.assertGreater(got["z"], 25)
+        self.assertLessEqual(got["gap"], 8)
+        self.assertEqual(got["left"], 0)
+        self.assertTrue(got["over"], "the list lies over the page below the box")
+
+    def test_row_808_the_suggestion_list_floats_over_the_table_and_pushes_nothing(self):
+        self.each(lambda cdp, sid, width: self.floats(cdp, sid, False))
+
+    def test_row_808_the_suggestion_list_floats_over_the_board_and_pushes_nothing(self):
+        self.each(lambda cdp, sid, width: self.floats(cdp, sid, True))
 
 
 if __name__ == "__main__":

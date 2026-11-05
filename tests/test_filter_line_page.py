@@ -902,27 +902,26 @@ class Line(unittest.TestCase):
             self.assertEqual(opts[:4], ["no:owner", "has:owner", "-owner:", "owner:@me"])
             self.assertFalse([o for o in opts if o.lower().endswith(":none")])
 
-    def test_the_open_list_sits_above_the_rows_never_over_them_and_the_first_row_is_still_clickable(self):
-        """The list of fields is in the page flow under the box: it covers no row, and a click on the first row while it is open still reaches the row."""
+    def test_the_open_list_floats_over_the_page_and_pushes_nothing_down(self):
+        """Row 808: the list of fields floats over the rows just under the box; opening it moves no row; a row below it is still reached."""
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
+                    top = "document.querySelector('#work-list').getBoundingClientRect().top"
+                    before = cdp.js(top, sid)
                     self.put(cdp, sid, "")
                     self.assertTrue(wait(lambda: self.listed(cdp, sid) == self.FIELDS_ALL), "the list of fields is open")
-                    geo = cdp.js("(() => { const l = document.querySelector('#fline-list').getBoundingClientRect(), r = document.querySelector('#work tbody tr[data-id]').getBoundingClientRect(); return {lb: l.bottom, rt: r.top}; })()", sid)
-                    self.assertLessEqual(geo["lb"], geo["rt"], "the open list ends above the first row")
-                    # the point at the middle of the first row's text is the row's own, not the list's
-                    hit = cdp.js("(() => { const t = document.querySelector('#work tbody tr[data-id] td'); const r = t.getBoundingClientRect(); window.scrollTo(0, window.scrollY + r.top - 200); const q = t.getBoundingClientRect(); const e = document.elementFromPoint(q.left + 4, q.top + q.height / 2); return !!e && !e.closest('#fline-list') && !!e.closest('tr[data-id]'); })()", sid)
-                    self.assertTrue(hit, "a point on the first row reaches the row")
-                    # a real click on the row while the list is open: the click lands on the row (it is not moved away by the list closing)
-                    cdp.js("window.__hit = null; document.addEventListener('click', e => { const r = e.target.closest('tr[data-id]'); window.__hit = r ? r.dataset.id : ''; }, true)", sid)
-                    first = cdp.js("document.querySelector('#work tbody tr[data-id]').dataset.id", sid)
-                    cdp.js("window.scrollTo(0, 0)", sid)
-                    click(cdp, sid, "#work tbody tr[data-id] td")
-                    self.assertTrue(wait(lambda: cdp.js("window.__hit", sid) == first), "the click reached the first row")
-                    self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#fline-list')", sid)), "and the list closes")
+                    self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#fline-list')).position", sid), "absolute")
+                    self.assertGreater(int(cdp.js("getComputedStyle(document.querySelector('#fline-list')).zIndex", sid)), 25, "above the menus")
+                    geo = cdp.js("(() => { const l = document.querySelector('#fline-list').getBoundingClientRect(), b = document.querySelector('[data-fline]').getBoundingClientRect(); return {lt: l.top, lb: l.bottom, bb: b.bottom, ll: l.left, bl: b.left}; })()", sid)
+                    self.assertLess(abs(geo["lt"] - geo["bb"]), 8, "the list is just under the box")
+                    self.assertLess(abs(geo["ll"] - geo["bl"]), 2, "at the box's left")
+                    self.assertEqual(cdp.js(top, sid), before, "the list below the box did not move")
+                    self.assertGreater(geo["lb"], before, "the list lies over the first rows")
+                    own = cdp.js("(() => { const l = document.querySelector('#fline-list').getBoundingClientRect(); const e = document.elementFromPoint(l.left + 40, l.top + 20); return !!e && !!e.closest('#fline-list'); })()", sid)
+                    self.assertTrue(own, "the list is the top layer where it lies")
 
     def test_the_five_core_tabs_come_first_with_counts_that_match_the_rows_and_have_no_rename_or_archive(self):
         s = self.serve()
