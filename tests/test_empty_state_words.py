@@ -50,6 +50,15 @@ class EmptyStateWordsTest(unittest.TestCase):
         for old in ("One line on where", "Where the use case stands", "Not written yet. Click to write."):
             self.assertNotIn(old, read(page.PAGE))
             self.assertNotIn(old, read(page.VIEW_PAGE))
+        self.assertIn('empty={ro ? "No headline yet" : HEADLINE_PROMPT}', read(COMPONENTS / "UseCaseDetail.jsx"))   # the read-only page says it as text, not as a prompt
+        self.assertIn("No headline yet", read(page.PAGE))
+
+    def test_prototype_use_case_prompts_are_the_approved_ones(self):
+        text = read(ROOT / "system/prototype/usecases.js")
+        self.assertIn("Today's position, in one line", text)
+        self.assertIn("What is done, what is happening now, and what is next. Add anything that is blocked or at risk.", text)
+        for old in ("One line on where", "Where the use case stands"):
+            self.assertNotIn(old, text)
 
     def test_prototype_says_not_written_yet_for_use_cases(self):
         text = read(ROOT / "system/prototype/usecases.js")

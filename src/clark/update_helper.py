@@ -743,17 +743,19 @@ class Run:
         write_json(self.marker_file, self.m)
 
     def log(self, step, ok, seconds, detail=""):
-        line = " ".join(["%s" % time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), self.m["stamp"],
-                         f"{self.m['from']}->{self.m['to']}", step, "ok" if ok else "failed", f"{seconds:.2f}s"])
-        if detail:
-            line += " " + tilde(detail, self.home).replace("\n", " ")[:300]
         try:
+            line = " ".join(["%s" % time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), self.m["stamp"],
+                             f"{self.m['from']}->{self.m['to']}", step, "ok" if ok else "failed", f"{seconds:.2f}s"])
+            if detail:
+                line += " " + tilde(detail, self.home).replace("\n", " ")[:300]
             self.log_file.parent.mkdir(parents=True, exist_ok=True)
+            if self.log_file.is_symlink():
+                return                       # a planted link would be written through: no line is better than that
             if self.log_file.exists() and self.log_file.stat().st_size > LOG_LIMIT:
                 self.log_file.write_bytes(b"")
             with open(self.log_file, "a", encoding="utf-8") as f:
                 f.write(line + "\n")
-        except OSError:
+        except (OSError, ValueError, KeyError):
             pass                             # the log never stops an update
 
     def step(self, name, action, after=True):
@@ -1022,7 +1024,7 @@ class Run:
             record["data_restore_pending"] = {"reason": REASONS.get(error.key, REASONS["stopped"])}
             write_json(record_file, record)
         except (OSError, ValueError, TypeError, AttributeError):
-            pass                                         # the message still says what to do; the log has the reason
+            self.log("keep_pending", False, 0, "the pending update state could not be saved")   # fixed words: no path, no error text
 
     def data_words(self, message):
         """The sentence for a way back that touched the data (or tried to), else `message` unchanged."""

@@ -19,7 +19,7 @@ HELD = json.loads((HELP / "helpHeld.json").read_text(encoding="utf-8"))
 LOGIC = (HELP / "helpLogic.js").read_text(encoding="utf-8")
 PROTO = ROOT / "system" / "prototype"
 BASE = {"start": "start-", "howto": "howto-", "reference": "ref-"}
-UI_NAMES = {"clark version and updates"}     # the name of a Settings section (BRD FR-8a), shown as a name, not as the start of a sentence
+UI_NAMES = {"Version and updates", "clark version and updates"}     # the name of a Settings section (BRD FR-8a), shown as a name, not as the start of a sentence
 # 'Archive', 'Archive use case' and 'Show archived' are the owner's rule (we archive, never delete) and are not in the prototype, which still
 # says Delete; 'Delete section' is the label the page has today (edit/Gutter.jsx), kept as it is for the ruling.
 # 'Source folders for ask clark' is the name the product's Settings card still has; the prototype's card is now "Asking" (#170),

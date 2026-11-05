@@ -824,6 +824,45 @@ class PersonsFilesTest(unittest.TestCase):
                 self.assertEqual((fx.app / rel).read_bytes(), data, rel)
 
 
+class KeepPendingLogTest(unittest.TestCase):
+    """keep_pending does not raise when update.json cannot be written, and now says so in update.log (fixed words, no path)."""
+
+    def run_keep(self, fail):
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            fx.begin()
+            backup = fx.data / "updates" / "backup"
+            backup.mkdir(parents=True)
+            (backup / "update.json").write_text("{}", encoding="utf-8")
+            run = h.Run(h.marker_path(fx.data), FakeSeams())
+            real = h.write_json
+
+            def write(path, doc):
+                if fail and Path(path).name == "update.json":
+                    raise OSError(28, f"No space left on device: {path}")
+                return real(path, doc)
+            h.write_json = write
+            try:
+                result = run.keep_pending(h.Refused("stopped", "x"), None, None)
+            finally:
+                h.write_json = real
+            lines = (h.updates_dir(fx.data) / h.LOG_NAME).read_text(encoding="utf-8").splitlines()
+            return result, [ln for ln in lines if " keep_pending " in ln], t
+
+    def test_a_failed_write_is_logged_in_fixed_words_and_does_not_raise(self):
+        result, found, t = self.run_keep(True)
+        self.assertIsNone(result)
+        self.assertEqual(len(found), 1, found)
+        self.assertTrue(found[0].endswith(" keep_pending failed 0.00s the pending update state could not be saved"), found[0])
+        self.assertNotIn(t, found[0])
+        self.assertNotIn("space", found[0])
+
+    def test_nothing_is_logged_when_the_write_works(self):
+        result, found, _ = self.run_keep(False)
+        self.assertIsNone(result)
+        self.assertEqual(found, [])
+
+
 class LogTest(unittest.TestCase):
     def test_one_line_per_step_paths_with_a_tilde_and_no_file_contents(self):
         with tempfile.TemporaryDirectory() as t:
@@ -854,6 +893,29 @@ class LogTest(unittest.TestCase):
             run_with(fx)
             self.assertLess(log.stat().st_size, 10000)
             self.assertNotIn("xxxx", log.read_text(encoding="utf-8"))
+
+
+class LogHardeningTest(unittest.TestCase):
+    def test_a_log_that_is_a_link_is_not_written_through(self):
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            log = h.updates_dir(fx.data) / h.LOG_NAME
+            log.parent.mkdir(parents=True, exist_ok=True)
+            target = Path(t) / "elsewhere.txt"
+            target.write_text("kept", encoding="utf-8")
+            log.symlink_to(target)
+            run_with(fx)
+            self.assertEqual(target.read_text(encoding="utf-8"), "kept")
+
+    def test_a_line_that_cannot_be_built_or_encoded_does_not_stop_the_update(self):
+        with tempfile.TemporaryDirectory() as t:
+            fx = Fixture(t)
+            fx.begin()
+            run = h.Run(h.marker_path(fx.data), FakeSeams())
+            run.m.pop("stamp")
+            run.log("health", True, 0.1)
+            run.m["stamp"] = "\ud800"
+            run.log("health", True, 0.1)
 
 
 class PlainWordsTest(unittest.TestCase, PlainWordsMixin):
