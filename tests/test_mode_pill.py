@@ -51,6 +51,18 @@ class ModePill(Base):
             p.js(f"{GROUP}.querySelector('[data-mode=\"view\"]').click()")
             p.until(f"{MODE} === 'view'", "view")
 
+    def test_the_chosen_half_is_the_aqua_pill_with_dark_text_in_both_themes_edit_has_a_pencil_and_the_chip_is_12px(self):
+        for theme in ("light", "dark"):
+            with self.subTest(theme=theme), chrome() as cdp:
+                p = self.visit(cdp)
+                p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                got = p.js(f"(function(){{var b={GROUP}.querySelector('[aria-pressed=\"true\"]'), s=getComputedStyle(b), r=document.querySelector('#report-state');"
+                           "var root=getComputedStyle(document.documentElement);"
+                           "return [s.backgroundImage.indexOf('linear-gradient') === 0, s.color === (function(){var e=document.createElement('i'); e.style.color=root.getPropertyValue('--pill-fg'); document.body.appendChild(e); var c=getComputedStyle(e).color; e.remove(); return c;})(), "
+                           f"getComputedStyle(r).fontSize, !!{GROUP}.querySelector('[data-mode=\"edit\"] svg[aria-hidden=\"true\"]'), !{GROUP}.querySelector('[data-mode=\"view\"] svg'), "
+                           "getComputedStyle(document.querySelector('#week-ending')).borderRadius !== '4px'];})()")
+                self.assertEqual(got, [True, True, "12px", True, True, True])
+
     def test_the_v_and_e_keys_work_on_the_dashboard(self):
         with chrome() as cdp:
             p = self.visit(cdp)
