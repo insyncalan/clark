@@ -398,7 +398,7 @@ export function resultsView(index, q) {
     r.where = { step: m && m.step ? { n: m.step, title: m.t } : null, part: (m && m.part) || null };
     r.text = r.where.step ? raw.replace(/^\d+\.\s+/, "") : raw;     // the step's number is in its chip, so the snippet drops it
   }));
-  return { kind: "results", count: res.length, line: `${res.length} result${res.length === 1 ? "" : "s"} for “${trimmed}”`, lead: guides().length ? RESULT_LEAD : null, groups };
+  return { kind: "results", count: res.length, line: `${res.length} result${res.length === 1 ? "" : "s"} for “${trimmed}”`, lead: res.some((r) => String(r.id).startsWith(GUIDE)) ? RESULT_LEAD : null, groups };      // the line speaks of "the guide": only under a result list that holds one
 }
 
 /** What a search with no match says. It points to the tabs (ask clark returns when it exists), and the word searched for is shown as text, never as markup. */

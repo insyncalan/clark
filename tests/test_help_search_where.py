@@ -60,7 +60,7 @@ class Logic(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.r = run_node(fixture_content(), PROBE)
-        cls.shipped = run_node(RAW, "(() => { const v = HL.resultsView(HL.buildIndex(), 'undo'); return { kind: v.kind, lead: v.lead }; })()")
+        cls.shipped = run_node(RAW, "(() => { const v = HL.resultsView(HL.buildIndex(), 'undo'); return { kind: v.kind, lead: v.lead, hasGuide: v.groups.some((g) => g.results.some((r) => String(r.id).startsWith('guide-'))) }; })()")
 
     def row(self, q, gid):
         return next(x for x in self.r[q]["rows"] if x["id"] == gid)
@@ -95,8 +95,14 @@ class Logic(unittest.TestCase):
 
     def test_the_lead_names_the_guide_so_it_is_shown_only_when_a_guide_ships(self):
         self.assertEqual(self.shipped["kind"], "results")
-        self.assertEqual(self.shipped["lead"], LEAD if RAW["guides"] else None, "the sentence that says 'the guide' is shown when guides ship (nine do)")
+        self.assertEqual(self.shipped["lead"], LEAD if self.shipped["hasGuide"] else None, "the sentence that says 'the guide' is shown when a guide is among the results")
         self.assertEqual(self.r["wombat"]["lead"], LEAD)
+
+    def test_the_lead_is_not_shown_under_results_that_hold_no_guide(self):
+        # Guides ship (the fixtures), but the search for "undo" finds no guide: a line that names "the guide" would promise one that is not there.
+        rows = self.r["undo"]["rows"]
+        self.assertTrue(rows and not any(x["id"].startswith("guide-") for x in rows), rows)
+        self.assertIsNone(self.r["undo"]["lead"])
 
     def test_the_count_line_and_the_lead_are_the_signed_words(self):
         v = self.r["wombat"]
