@@ -1,3 +1,4 @@
+import { ClientMenu } from "./ClientMenu.jsx";
 import { TITLES, SHORT_TITLES, tabs, view, show, project, data, fromFile, asAt } from "../stores/report.js";
 
 // A calendar date is shown DD-MM-YYYY (RULES.md); stored YYYY-MM-DD. Never shifted by a time zone.
@@ -25,6 +26,7 @@ export function TopBar({ tools }) {
       {Toggle && view.value !== "dashboard" ? <Toggle /> : null}      {/* #665: on the Dashboard the switch is the report bar's pill, never drawn twice */}
       {HelpButton ? <HelpButton /> : null}
       {ProfileMenu ? <ProfileMenu /> : null}
+      {fromFile.value ? <ClientMenu /> : null}      {/* issue 713: the reader's badge and menu, a published file only */}
     </header>
   );
 }
