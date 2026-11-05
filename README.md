@@ -1,4 +1,8 @@
+<img src="docs/img/clark-mascot.png" alt="clark, the mascot: a friendly figure in glasses and a blue suit" width="140" align="right">
+
 # clark
+
+Meet clark.
 
 **The weekly project report, written from the work itself.**
 

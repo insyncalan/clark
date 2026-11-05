@@ -13,12 +13,13 @@ README = (ROOT / "README.md").read_text(encoding="utf-8")
 # branch is green on its own; once the marketing branch lands, the names below can be removed and the links are checked too.
 NOT_HERE_YET = {"docs/marketing/clark-overview.pdf", "docs/marketing/clark-getting-started.pdf"}
 IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)\)")
+HTML_IMAGE = re.compile(r"<img\s[^>]*>", re.I)
 LINK = re.compile(r"(?<!!)\[[^\]]*\]\(([^)\s]+)\)")
 MAX_BYTES = 400 * 1024
 
 
 def targets():
-    found = [m.group(2) for m in IMAGE.finditer(README)] + [m.group(1) for m in LINK.finditer(README)]
+    found = [m.group(2) for m in IMAGE.finditer(README)] + [re.search(r'src="([^"]+)"', h).group(1) for h in HTML_IMAGE.findall(README)] + [m.group(1) for m in LINK.finditer(README)]
     return [t for t in found if not re.match(r"[a-z]+:|#", t)]
 
 
@@ -40,6 +41,16 @@ class ReadmeLinks(unittest.TestCase):
         for alt, path in images:
             self.assertGreaterEqual(len(alt.split()), 4, path)
             self.assertLessEqual((ROOT / path).stat().st_size, MAX_BYTES, path)
+
+    def test_the_html_image_has_alt_text_and_is_small(self):
+        tags = HTML_IMAGE.findall(README)
+        self.assertEqual(len(tags), 1)
+        alt = re.search(r'alt="([^"]*)"', tags[0])
+        self.assertIsNotNone(alt)
+        self.assertGreaterEqual(len(alt.group(1).split()), 4)
+        path = ROOT / re.search(r'src="([^"]+)"', tags[0]).group(1)
+        self.assertTrue(path.is_file())
+        self.assertLessEqual(path.stat().st_size, MAX_BYTES)
 
     def test_no_banned_word_or_name(self):
         self.assertFalse(banned_in(README))
