@@ -1747,7 +1747,7 @@
     "b": [
      [
       "p",
-      "A bar of chips under the title takes you to a card: Publishing, Personal, Freshness, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn. The chip of the card you are reading is marked. Publishing and Freshness need an open project. Published reports also needs one and has a card but no chip."
+      "A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title): Publishing, Personal, Freshness, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn. The link of the card you are reading is marked. Publishing and Freshness need an open project. Published reports also needs one and has a card but no link."
      ],
      [
       "tbl",
@@ -1774,7 +1774,7 @@
        ],
        [
         "AI (under Asking)",
-        "A card of its own, drawn straight after the Asking card and without a chip. Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
+        "A card of its own, drawn straight after the Asking card and without a link. Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
        ],
        [
         "Publishing",
@@ -2375,7 +2375,7 @@
    "title": "Settings",
    "s": [
     "Settings holds what belongs to the whole project and to you, one card for each job.",
-    "The row of chips under the title takes you to a card.",
+    "The list at the left of the cards takes you to a card (a row of chips under the title in a narrow window).",
     "Below, one short line says what each card is for."
    ],
    "full": "howto-find-a-past-publication",
