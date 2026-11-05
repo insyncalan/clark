@@ -154,7 +154,7 @@ class SettingsChips(unittest.TestCase):
         self.assertLess(ask.index("</section>"), ask.index("<AiSettings />"))
         ai = code("edit", "AiSettings.jsx")
         self.assertIn('<section class="frame setting" id="ai-settings">', ai)
-        self.assertIn("A card of its own, drawn straight after the Asking card and without a chip.", self.TEXT)
+        self.assertIn("A card of its own, drawn straight after the Asking card and without a link.", self.TEXT)
         self.assertIn("AI (under Asking)", self.TEXT)
 
     def test_personal_holds_the_appearance_about_you_and_keys(self):
