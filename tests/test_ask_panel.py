@@ -223,6 +223,12 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelector('#ask-off').firstChild.textContent.trim()"), "Asking is off. Turn it on in Settings.")
             self.assertTrue(p.js("document.querySelector('#ask-box').disabled"))
             self.assertTrue(p.js("document.querySelector('#ask-send').disabled"))
+            # #795: the panel keeps its suggestions with asking off, but they are disabled and send nothing
+            self.assertEqual(p.js("document.querySelectorAll('#ask-pills button').length"), 6)
+            self.assertTrue(p.js("[...document.querySelectorAll('#ask-pills button')].every(b => b.disabled && b.getAttribute('aria-disabled') === 'true')"))
+            p.js("document.querySelector('#ask-pills button').click()")
+            p.js("document.querySelector('#ask-pills button').dispatchEvent(new MouseEvent('click', {bubbles: true}))")
+            self.assertEqual(p.js("document.querySelectorAll('.ask-turn').length"), 0, "a suggestion pressed with asking off adds nothing")
             p.js("document.querySelector('.ask-form').requestSubmit()")
             p.js("document.querySelector('#ask-box').value = 'hello'; document.querySelector('#ask-box').dispatchEvent(new Event('input'))")
             p.js("document.querySelector('.ask-form').requestSubmit()")

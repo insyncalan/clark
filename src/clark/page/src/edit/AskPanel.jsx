@@ -146,9 +146,9 @@ export function AskPanel() {
           <span class="ask-dots" aria-hidden="true"><i /><i /><i /></span>
           <span class="ask-quip" id="ask-quip" aria-hidden="true">{quip}</span>
         </p>
-      ) : state === "ready" ? (
+      ) : state === "ready" || state === "off" ? (
         <div class="ask-pills" id="ask-pills" role="group" aria-label={W.PILLS_LABEL}>
-          {W.SUGGESTIONS.map((q) => <button type="button" key={q} onClick={() => send(null, q)}>{q}</button>)}
+          {W.SUGGESTIONS.map((q) => <button type="button" key={q} disabled={state === "off"} aria-disabled={state === "off" ? "true" : undefined} onClick={() => send(null, q)}>{q}</button>)}
         </div>
       ) : null}
       {state === "ready" || state === "signed-out" ? <p class="ask-sent" id="ask-sent">{W.named(W.SENT_LINE, askProvider.value)}</p> : null}
