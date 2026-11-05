@@ -42,6 +42,8 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
+from openpyxl.cell.rich_text import CellRichText, TextBlock
+from openpyxl.cell.text import InlineFont
 from openpyxl.comments import Comment
 from openpyxl.formatting.rule import FormulaRule, Rule
 from openpyxl.packaging.custom import CustomPropertyList, StringProperty
@@ -857,9 +859,13 @@ def write_lists(wb, lists):
 # ── Export ────────────────────────────────────────────────────────────────────
 
 COVER_NAME = "Cover"
-COVER_LABELS = {"internal": "Internal", "caution": "Caution", "return": "Sending changes back",
+COVER_LABELS = {"exported": "Exported", "caution": "Caution", "return": "Sending changes back",
                 "where": "Where to make changes", "ids": "IDs"}
 COVER_FONT = OFFICE_FONT
+COVER_COLUMNS = 12                  # the Cover's grid: 12 equal columns, text and tiles in merged cells
+COVER_SIZE = 10                     # body text, in points
+COVER_CHARS = 1.05                  # characters of body text to a column-width unit, a little under what Arial 10 fits
+TILE_BAR = {"red": "status-red", "amber": "status-amber-text", "green": "status-green-text"}     # a tile's left bar: the status tokens
 
 
 def _cover_cell(value):
@@ -870,55 +876,146 @@ def _cover_cell(value):
 
 
 def _cover_font(**kw):
+    kw.setdefault("size", COVER_SIZE)
     return Font(name=COVER_FONT, **kw)
 
 
+def _span_chars(first, last, size=COVER_SIZE):
+    """About how many characters of `size` point text fit in columns first..last."""
+    return (last - first + 1) * excel_picture.COVER_COL_WIDTH * COVER_CHARS * COVER_SIZE / size
+
+
+def _put(ws, row, first, last, value="", font=None, fill=None, align=None, top=None, bottom=None, left=None):
+    """Fill columns first..last of `row` as one merged cell holding `value`: the fill and the borders go on every cell of the
+    range (a merged cell draws from them), the text on the first. The text is a text cell, never a formula."""
+    if last > first:
+        ws.merge_cells(start_row=row, start_column=first, end_row=row, end_column=last)
+    for col in range(first, last + 1):
+        c = ws.cell(row=row, column=col)
+        if fill:
+            c.fill = PatternFill("solid", fgColor=fill)
+        c.border = Border(top=top, bottom=bottom, left=left if col == first else None)
+        c.font = font or _cover_font()
+    c = ws.cell(row=row, column=first)
+    c.value = _cover_cell(value) if value != "" else None
+    protect_text_cell(c)
+    c.alignment = align or Alignment(wrap_text=True, vertical="top")
+    return c
+
+
+def _tile_widths(n):
+    """The grid columns for each of n tiles side by side: health (first) twice as wide as the others when there are three."""
+    return {1: [12], 2: [6, 6], 3: [6, 3, 3]}.get(n) or [12 // n] * (n - 1) + [12 - 12 // n * (n - 1)]
+
+
+def _heading(ws, row, first, last, text):
+    """A section heading: the brand-blue square, the title and a grey rule under it."""
+    t = colours.TOKENS
+    square = TextBlock(InlineFont(rFont=COVER_FONT, sz=12, b=True, color=t["brand-blue"]), "\u25a0  ")
+    words = TextBlock(InlineFont(rFont=COVER_FONT, sz=12, b=True, color=t["brand-ink"]), cell_text(excel_cover.cut(text, 200)))
+    c = _put(ws, row, first, last, "", _cover_font(size=12, bold=True), None,
+             Alignment(vertical="center"), bottom=Side(style="thin", color=t["grey-300"]))
+    c.value = CellRichText(square, words)
+    ws.row_dimensions[row].height = 22
+
+
 def write_cover(wb, cover, mark=False):
-    """The Cover sheet, first in the workbook and the one it opens on (#85b): one label column and one wide wrapped text column,
-    no merged cells (Excel does not fit a merged cell's height to its text), frozen below the title band (row 1). The look's
-    office font throughout. `cover` is excel_cover.lines(). Not a table: the import never reads it."""
+    """The Cover sheet, first in the workbook and the one it opens on (item 85b): a 12-column grid with the gridlines off, text
+    blocks and tiles in merged cells, laid out as Option A of the signed mockup: the navy title band (the logo at its left when
+    `mark`, the INTERNAL tag at its right, a subtitle line under the title), Current state, At a glance tiles side by side, the
+    Summary, This week and Next week side by side, and a quiet About this export block. Excel does not fit a merged cell's height
+    to its text, so every row's height is estimated from the text (excel_cover.height). Frozen below the band. The look's office
+    font throughout. `cover` is excel_cover.lines(). Not a table: the import never reads it."""
     ws = wb.create_sheet(COVER_NAME, 0)
-    ws.column_dimensions["A"].width = 24
-    ws.column_dimensions["B"].width = 100
-    navy, white = colours.TOKENS["brand-navy"], colours.TOKENS["white"]
-    blue, grey_fill, grey_text = colours.TOKENS["brand-blue"], colours.TOKENS["grey-50"], colours.TOKENS["grey-700"]
-    quiet = ("about", "exported", "caution", "return", "where", "ids", "internal")
+    ws.sheet_view.showGridLines = False
+    for col in range(1, COVER_COLUMNS + 1):
+        ws.column_dimensions[get_column_letter(col)].width = excel_picture.COVER_COL_WIDTH
+    t = colours.TOKENS
+    navy, white, ink = t["brand-navy"], t["white"], t["brand-ink"]
+    grey_fill, grey_text, rule = t["grey-50"], t["grey-700"], t["grey-300"]
+    last = COVER_COLUMNS
+    row = 0
+    start = 1
     for line in cover:
         kind, text = line["kind"], line["text"]
-        label = line.get("tag", "") if kind == "title" else COVER_LABELS.get(kind, "")
-        if kind in ("heading", "about"):
-            label, text = text, ""
-        ws.append([_cover_cell(label), _cover_cell(text)])
-        row = ws.max_row
-        a, b = ws.cell(row=row, column=1), ws.cell(row=row, column=2)
-        for c in (a, b):
-            protect_text_cell(c)        # text is text: openpyxl would make a string starting "=" a formula
-            c.alignment = Alignment(wrap_text=True, vertical="top")
-            c.font = _cover_font()
         if kind == "title":
-            for c in (a, b):
-                c.fill = PatternFill("solid", fgColor=navy)
-                c.font = _cover_font(bold=True, size=14, color=white)
-            if label:                   # the INTERNAL tag is red, as in Option A (white on the page's red, 5:1)
-                a.fill = PatternFill("solid", fgColor=colours.TOKENS["status-red"])
+            row += 1
+            start = excel_picture.LOGO_COLUMNS + 1 if mark else 1
+            tag = line.get("tag", "")
+            end = last - 2 if tag else last
+            for col in range(1, last + 1):
+                ws.cell(row=row, column=col).fill = PatternFill("solid", fgColor=navy)
+            _put(ws, row, start, end, text, _cover_font(bold=True, size=16, color=white), navy,
+                 Alignment(wrap_text=True, vertical="center"))
+            if tag:
+                _put(ws, row, last - 1, last, tag, _cover_font(bold=True, size=11, color=white), t["status-red"],
+                     Alignment(horizontal="center", vertical="center"))
+            ws.row_dimensions[row].height = max(excel_picture.COVER_ROW_POINTS,
+                                                excel_cover.height(text, _span_chars(start, end, 16), 20, 22))
+        elif kind == "subtitle":
+            row += 1
+            for col in range(1, last + 1):
+                ws.cell(row=row, column=col).fill = PatternFill("solid", fgColor=navy)
+            _put(ws, row, start, last, text, _cover_font(color=t["grey-100"]), navy, Alignment(wrap_text=True, vertical="top"))
+            ws.row_dimensions[row].height = excel_cover.height(text, _span_chars(start, last), 20)
+            ws.freeze_panes = ws.cell(row=row + 1, column=1)
         elif kind == "heading":
-            a.font = _cover_font(bold=True, size=12, color=blue)
-            a.border = Border(left=Side(style="thick", color=blue))
-        elif kind == "health" and line.get("colour") in colours.COLOURS:     # the health pill, coloured as on the page
-            fill, ink = colours.hexes(line["colour"])
-            b.fill = PatternFill("solid", fgColor=fill)
-            b.font = _cover_font(bold=True, color=ink)
-        elif kind == "tile":
-            b.fill = PatternFill("solid", fgColor=grey_fill)
-        if kind in quiet:
-            for c in (a, b):
-                c.fill = PatternFill("solid", fgColor=grey_fill)
-                c.font = _cover_font(bold=(kind == "about" and c is a), color=grey_text)
-        if label and kind in ("caution", "return", "where", "ids", "internal"):
-            a.font = _cover_font(bold=True, color=grey_text)
-    ws.freeze_panes = "A2"
-    if mark:
-        ws.row_dimensions[1].height = excel_picture.COVER_ROW_POINTS      # room for the brand mark (#133), which excel_picture.embed adds
+            row += 2                           # a short blank row first
+            ws.row_dimensions[row - 1].height = 8
+            _heading(ws, row, 1, last, text)
+        elif kind == "text":
+            row += 1
+            _put(ws, row, 1, last, text)
+            ws.row_dimensions[row].height = excel_cover.height(text, _span_chars(1, last))
+        elif kind == "pair":
+            half = last // 2
+            row += 2
+            ws.row_dimensions[row - 1].height = 8
+            _heading(ws, row, 1, half, line["left"]["title"])
+            _heading(ws, row, half + 1, last, line["right"]["title"])
+            row += 1
+            _put(ws, row, 1, half, line["left"]["text"])
+            _put(ws, row, half + 1, last, line["right"]["text"], align=Alignment(wrap_text=True, vertical="top", indent=1))
+            ws.row_dimensions[row].height = max(excel_cover.height(line["left"]["text"], _span_chars(1, half)),
+                                                excel_cover.height(line["right"]["text"], _span_chars(half + 1, last) - 2))
+        elif kind == "tiles":
+            tiles = line["tiles"]
+            first = 1
+            rows = (row + 1, row + 2, row + 3)
+            sub = 15
+            for tile, w in zip(tiles, _tile_widths(len(tiles))):
+                end = first + w - 1
+                bar = Side(style="thick", color=t[TILE_BAR.get(tile["colour"], "grey-300")])
+                _put(ws, rows[0], first, end, tile["title"], _cover_font(color=grey_text), grey_fill, left=bar)
+                health = tile["tile"] == "health"
+                if health:       # the pill: the page's colour for the status, with the words in it, so it reads in black and white too
+                    pill_end = min(end, first + 1)
+                    fill, pen = colours.hexes(tile["colour"]) if tile["colour"] in colours.COLOURS else (grey_fill, ink)
+                    _put(ws, rows[1], first, pill_end, tile["value"], _cover_font(bold=True, size=12, color=pen), fill,
+                         Alignment(horizontal="center", vertical="center"), left=bar)
+                    if end > pill_end:
+                        _put(ws, rows[1], pill_end + 1, end, "", None, grey_fill)
+                else:
+                    _put(ws, rows[1], first, end, tile["value"], _cover_font(bold=True, size=22, color=ink), grey_fill,
+                         Alignment(horizontal="left", vertical="center"), left=bar)
+                _put(ws, rows[2], first, end, tile["detail"], _cover_font(color=ink if health else grey_text), grey_fill, left=bar)
+                sub = max(sub, excel_cover.height(tile["detail"], _span_chars(first, end) - 1))
+                first = end + 1
+            ws.row_dimensions[rows[0]].height = 18
+            ws.row_dimensions[rows[1]].height = 32
+            ws.row_dimensions[rows[2]].height = sub
+            row += 3
+        elif kind == "about":                  # the About this export block: a quiet grey panel
+            row += 2
+            ws.row_dimensions[row - 1].height = 14
+            _put(ws, row, 1, last, text, _cover_font(bold=True, color=ink), grey_fill, Alignment(vertical="center"))
+            ws.row_dimensions[row].height = 20
+        else:                                  # one row of that block: its label at the left, its words beside it
+            row += 1
+            edge = Side(style="thin", color=rule)
+            _put(ws, row, 1, 3, COVER_LABELS.get(kind, ""), _cover_font(bold=True, color=grey_text), grey_fill, top=edge)
+            _put(ws, row, 4, last, text, _cover_font(color=grey_text), grey_fill, top=edge)
+            ws.row_dimensions[row].height = excel_cover.height(text, _span_chars(4, last))
     wb.active = 0
     return ws
 

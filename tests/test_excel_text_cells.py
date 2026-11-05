@@ -238,9 +238,12 @@ class TheCover(unittest.TestCase):
                 ws = excel.write_cover(wb, cover.lines(project, sections, [], datetime(2030, 6, 1, 9, 0)))
                 wb.save(path)
                 seen = {c.value: c for row in load_workbook(path)["Cover"].iter_rows() for c in row if c.value}
-                for want in (lead + "Name", lead + "Section", lead + "Now."):
+                for want in (lead + "Name", lead + "Now."):
                     self.assertIn(want, seen)
                     self.assertEqual((seen[want].data_type, seen[want].quotePrefix), ("s", True), want)
+                # the heading follows the blue square, so it never starts a formula and needs no prefix
+                self.assertIn("\u25a0  " + lead + "Section", seen)
+                self.assertNotEqual(seen["\u25a0  " + lead + "Section"].data_type, "f")
                 self.assertNotIn(b"<f>", b"".join(v for n, v in parts(path).items() if "worksheets/sheet" in n))
                 self.assertGreater(ws.max_row, 1)
 
@@ -253,7 +256,7 @@ class TheCover(unittest.TestCase):
         excel.write_cover(wb, cover.lines(project, [{"type": "current", "title": "'=Section"}], [], datetime(2030, 6, 1, 9, 0)))
         wb.save(path)
         seen = {c.value for row in load_workbook(path)["Cover"].iter_rows() for c in row if c.value}
-        for want in ("'=Name", "'=Section", "'+Now."):
+        for want in ("'=Name", "\u25a0  '=Section", "'+Now."):
             self.assertIn(want, seen)
         self.assertFalse([v for v in seen if isinstance(v, str) and v.startswith("''")])
 
