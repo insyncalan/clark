@@ -24,7 +24,7 @@ a { color: var(--status-blue-text); }
 .projbtn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .projbtn .nch { width: 14px; height: 14px; }
 .top .projbtn { display: inline-flex; max-width: 260px; min-width: 0; }
-@media (max-width: 1000px) { .top { gap: 10px; } }
+@media (max-width: 1000px) { .top { gap: 10px; } .top .tab { padding: 0 8px; } .top .tab::after { left: 8px; right: 8px; } }   /* item 664: the search and ask buttons need the room at 901 px; the tabs keep whole words */
 .top .modes { flex: none; }   /* View and Edit keep their width: the bar's other items give way, not these */
 .top .tabs { flex: none; }   /* item 681: the tabs keep their words on one line; the project name (its ellipsis) gives way first */
 .top .tab { white-space: nowrap; }
