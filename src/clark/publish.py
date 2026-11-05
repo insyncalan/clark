@@ -1331,7 +1331,7 @@ def publish(store, code, folder, *, by_user, overwrite=False, now=None, branding
                 raise PublishError(f"{e} The link that was at {dest.name} could not be put back, so this report is still there "
                                    "under that name.") from e
             if placed == "aside":                                        # said the same way as "kept"
-                raise PublishError(f"{e} The old report could not be put back in the folder. It is still there under a hidden name.") from e
+                raise PublishError(f"{e} The report could not be put back in the folder under its name. It is still in the folder under a hidden name.") from e
         else:
             take_back(dest, digest)
         raise PublishError(str(e)) from e
