@@ -52,7 +52,7 @@ class Bar(Base):
                 self.assertEqual(p.js("document.querySelector('#week-ending').labels[0].textContent.trim()"), "Week ending")
                 self.assertEqual(p.js("document.querySelector('#report-state').textContent"), "Draft · not published yet")
                 self.assertIsNone(p.js("document.querySelector('#report-hint')"))
-                self.assertEqual(p.js("document.querySelectorAll('#report-bar input').length"), 1, "one field, in the bar only")
+                self.assertEqual(p.js("document.querySelectorAll('#report-bar input:not(.rbar-cal-pick)').length"), 1, "one field, in the bar only")
                 p.edit()
                 p.until("!!document.querySelector('#report-hint')", "Edit's notes")
                 self.assertEqual(p.js("document.querySelector('#week-ending').type"), "text", "never a native date input")
@@ -196,6 +196,56 @@ class Bar(Base):
                 p.edit()
                 self.type_week(p, bad)
                 p.until("/Pick Friday %s/.test(document.body.textContent)" % friday, "the coming Friday")
+
+    def pick_day(self, p, iso):
+        """Choose a day in the hidden date input as the browser's picker does (value set, then a change event)."""
+        p.js("(() => { const d = document.querySelector('#week-ending-pick'); d.value = %s; d.dispatchEvent(new Event('change', { bubbles: true })); })()" % json.dumps(iso))
+
+    def test_a_calendar_button_sits_beside_the_typed_box_with_its_words(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            p.until("!!document.querySelector('#week-ending')", "the field")
+            self.assertEqual(p.js("document.querySelector('#week-ending-btn').getAttribute('aria-label')"), "Pick week ending date")
+            self.assertEqual(p.js("document.querySelector('#week-ending-btn').title"), "Pick a Friday from the calendar")
+            self.assertEqual(p.js("document.querySelector('#week-ending').type"), "text", "the typed box is as it was")
+            self.assertEqual(p.js("document.querySelector('#week-ending-pick').type"), "date")
+
+    def test_the_button_is_not_drawn_where_the_browser_has_no_show_picker(self):
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, self.s.port, "#dashboard&p=ABC")
+            cdp.call("Page.enable", {}, p.sid)
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": "delete HTMLInputElement.prototype.showPicker"}, p.sid)
+            p.reload()
+            self.assertEqual(p.js("typeof HTMLInputElement.prototype.showPicker"), "undefined")
+            p.until("!!document.querySelector('#week-ending')", "the field")
+            self.assertEqual(p.js("document.querySelectorAll('#week-ending-btn, #week-ending-pick').length"), 0)
+
+    def test_the_button_opens_the_browsers_picker(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.js("window.__shown = 0; HTMLInputElement.prototype.showPicker = function () { window.__shown++; }")
+            p.js("document.querySelector('#week-ending-btn').click()")
+            self.assertEqual(p.js("window.__shown"), 1)
+
+    def test_a_friday_picked_from_the_calendar_is_saved_like_a_typed_one(self):
+        self.set_week("2031-05-02")
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.pick_day(p, "2031-05-09")
+            p.saved()
+            self.assertEqual(self.week(), "2031-05-09")
+            self.assertEqual(p.toast(), "Week ending changed to 09-05-2031.")
+            self.assertEqual(p.js("document.querySelector('#week-ending').value"), "09-05-2031")
+
+    def test_a_day_picked_from_the_calendar_that_is_not_a_friday_gets_the_existing_message(self):
+        self.set_week("2031-05-02")
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.pick_day(p, "2031-05-05")
+            p.until("/Week ending is a Friday. Pick Friday 09-05-2031./.test(document.body.textContent)", "the existing words")
+            self.assertEqual(p.js("document.querySelector('#week-ending').value"), "02-05-2031")
+            self.assertEqual(self.week(), "2031-05-02")
 
     def test_the_bar_takes_its_friday_from_the_boards_helper(self):
         src = (PAGE / "src" / "edit" / "ReportBar.jsx").read_text(encoding="utf-8")

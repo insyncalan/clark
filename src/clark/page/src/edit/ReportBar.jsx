@@ -24,6 +24,11 @@ const hintOpen = signal(!recall("dragHintSeen", false));
 export const isFriday = (iso) => new Date(iso + "T00:00:00Z").getUTCDay() === 5;
 export const notFriday = (iso) => `Week ending is a Friday. Pick Friday ${shownDay(weekEndOf(iso))}.`;
 
+// item 672: a calendar button beside the typed box opens the browser's own date picker (showPicker on a hidden date input); a day picked
+// goes through the same save as a typed one. Where the browser has no showPicker the button is not drawn and the box is all there is.
+const canPick = () => typeof HTMLInputElement !== "undefined" && typeof HTMLInputElement.prototype.showPicker === "function";
+const CAL = <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5" /><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" /></svg>;
+
 export function ReportBar() {
   const editing = mode.value === "edit";
   useEffect(() => { refreshLatest(); }, [project.value]);
@@ -51,9 +56,26 @@ export function ReportBar() {
     if (e.key !== "Enter") return;
     if (!stored && parseDay(e.currentTarget.value.trim()) === week) save(e, true); else e.currentTarget.blur();
   };
+  const openPicker = () => {
+    const d = document.getElementById("week-ending-pick"), t = document.getElementById("week-ending");
+    if (!d || !t) return;
+    const typed = parseDay(t.value.trim());
+    d.value = typed || week;
+    try { d.showPicker(); } catch (e) { /* the browser refused (no gesture): the typed box still works */ }
+  };
+  const picked = (e) => {
+    const iso = e.currentTarget.value, t = document.getElementById("week-ending");
+    if (!iso || !t) return;
+    t.value = shownDay(iso);
+    save({ currentTarget: t }, true);
+  };
   return (
     <div class="rbar" id="report-bar">
       <label class="rbar-week">Week ending <input type="text" inputMode="numeric" placeholder="DD-MM-YYYY" title={stored ? undefined : "Not saved yet. Press Enter to use this Friday, or type a Friday"} id="week-ending" key={week} defaultValue={shownDay(week)} onBlur={save} onKeyDown={enter} /></label>
+      {canPick() ? <span class="rbar-cal">
+        <button type="button" id="week-ending-btn" class="rbar-cal-btn" aria-label="Pick week ending date" title="Pick a Friday from the calendar" onClick={openPicker}>{CAL}</button>
+        <input type="date" id="week-ending-pick" class="rbar-cal-pick" tabIndex={-1} aria-hidden="true" onChange={picked} />
+      </span> : null}
       <WeekPicker />{/* item 344: the published weeks, beside Week ending in View and Edit; it only opens one, read only */}
       <span class="rbar-state" id="report-state">{editing ? "Editing · each change saves on its own" : published || "Draft · not published yet"}</span>
       {editing && hintOpen.value ? <span class="rbar-hint" id="report-hint">Drag to move, + to add a template</span> : null}
