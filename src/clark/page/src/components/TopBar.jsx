@@ -24,7 +24,7 @@ export function TopBar({ tools }) {
       </nav>
       {fromFile.value && asAt.value ? <span class="asat num">As at {shownDate(asAt.value)}</span> : null}
       {Publish ? <Publish /> : null}
-      {Toggle ? <Toggle /> : null}
+      {Toggle && view.value !== "dashboard" ? <Toggle /> : null}      {/* item 665: on the Dashboard the switch is the report bar's pill, never drawn twice */}
       {SearchButton ? <SearchButton /> : null}
       {AskButton ? <AskButton /> : null}
       {HelpButton ? <HelpButton /> : null}
