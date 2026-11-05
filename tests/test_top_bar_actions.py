@@ -62,6 +62,23 @@ class TopBarActions(Base):
                 words = p.js("getComputedStyle(document.querySelector('.tb-ask-w')).display")
                 self.assertEqual(words == "none", width <= 1100)
 
+    def test_a_long_project_name_at_901_and_900_px_light_and_dark_keeps_the_bar_inside_the_window(self):
+        # Jarvis's delta read of PR 661: the project name shortens first; the new buttons must not push anything out.
+        for width in (901, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    p = self.at(cdp, width)
+                    p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
+                    p.js("document.querySelector('.top [data-mode=edit]') && document.querySelector('.top [data-mode=edit]').click()")
+                    p.js("(function(){ var s = document.querySelector('.top .projbtn > span') || document.querySelector('.top .proj'); "
+                         "s.textContent = 'Customer onboarding programme, phase two, northern region'; })()")
+                    got = p.js(f"(function(){{var r=[...{ITEMS}].map(e => [e.className || e.id, e.getBoundingClientRect()]), bad=[];"
+                               "for (var i=0;i<r.length;i++){ if (r[i][1].right > document.documentElement.clientWidth + 0.5) bad.push('past ' + r[i][0]);"
+                               "for (var j=i+1;j<r.length;j++) if (r[i][1].left < r[j][1].right - 0.5 && r[j][1].left < r[i][1].right - 0.5 && r[i][1].width && r[j][1].width) bad.push(r[i][0] + ' over ' + r[j][0]); }"
+                               "return bad.concat(document.documentElement.scrollWidth > document.documentElement.clientWidth ? ['sideways scroll'] : []);})()")
+                    self.assertEqual(got, [], f"at {width} px, {theme}, long name")
+                    self.assertTrue(p.js("!!document.querySelector('#ask-btn') && !!document.querySelector('#pal-btn')"), "both buttons are there")
+
 
 if __name__ == "__main__":
     unittest.main()

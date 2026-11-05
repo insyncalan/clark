@@ -12,12 +12,15 @@ export const askStatus = signal("loading");      // "loading" | "ready" | "unava
 export const askSaved = signal(true);            // false: this computer's saved data cannot keep the choice yet (it reads as off)
 
 let loading = null;
+let latest = 0;       // the number of the newest request (a read or a change): an answer to an older one is ignored, so a slow answer never overwrites a newer one
 
 /** Ask the server for the switch (once; a second call while it is out shares the answer). `force` asks again. */
 export function loadAsk(force) {
   if (loading && !force) return loading;
+  const mine = ++latest;
   if (force) askStatus.value = "loading";      // asked again (Settings opens): the switch reads Checking until the answer, as on a first open, even when the top bar's ask button has already read it
   loading = askEnabledRead().then((r) => {
+    if (mine !== latest) return;      // a newer request (another read, or a change) is out: its answer is the one to show
     const b = r.body;
     if (r.status === 200 && b && b.ok === true && typeof b.ask_enabled === "boolean") {
       askOn.value = b.ask_enabled;
@@ -35,6 +38,7 @@ export function loadAsk(force) {
  *  turning it OFF could not be kept, it is off in this window anyway and the answer says it was not saved. Resolves to
  *  {ok, message}. */
 export async function setAsk(on) {
+  ++latest;      // any read still out is now older than this change
   const r = await askEnabledChange(!!on);
   const b = r.body;
   if (r.status === 200 && b && b.ok === true && typeof b.ask_enabled === "boolean") {
