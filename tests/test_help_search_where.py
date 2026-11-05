@@ -104,6 +104,19 @@ class Logic(unittest.TestCase):
             self.assertFalse(any(x["id"].startswith("guide-") for x in v["rows"]), q)
             self.assertIsNone(v["lead"], q)
 
+    def test_the_lead_is_shown_when_a_guide_is_among_other_results_and_not_otherwise(self):
+        c = fixture_content()
+        c["guides"].append({"id": "fx-undo", "t": "Fixture undo guide", "job": "Take back a change.",
+                            "steps": [{"d": "Press undo on the toolbar."}], "result": "The change is gone.", "next": ["ref-keys"]})
+        got = run_node(c, """(() => { const idx = HL.buildIndex(); return ["undo", "keyboard"].map((q) => { const v = HL.resultsView(idx, q), ids = v.groups.flatMap((g) => g.results.map((r) => r.id));
+          return { lead: v.lead || null, guides: ids.filter((i) => i.startsWith("guide-")).length, others: ids.filter((i) => !i.startsWith("guide-")).length }; }); })()""")
+        undo, keys = got
+        self.assertGreater(undo["guides"], 0, "the search holds a guide")
+        self.assertGreater(undo["others"], 0, "and results that are not guides: a mixed set")
+        self.assertEqual(undo["lead"], LEAD, "one guide among others is enough for the line")
+        self.assertEqual(keys["guides"], 0)
+        self.assertIsNone(keys["lead"], "no guide among the results: no line")
+
     def test_the_mockup_carries_the_same_lead_as_the_code_and_this_test(self):
         mock = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "handoff", "v1.0", "mockups", "help-search.html"), encoding="utf-8").read()
         self.assertIn(f'<p class="lead">{LEAD}</p>', mock)
