@@ -1,4 +1,4 @@
-// #662 step 3: a parsed filter line (filterQueryParse.js) applied to work items. A pure function over the items: no DOM, no store, no
+// issue 662 step 3: a parsed filter line (filterQueryParse.js) applied to work items. A pure function over the items: no DOM, no store, no
 // clock (today and the signed-in name come in through `ctx`). The line is compiled once into one test per term, and each item is
 // then tested with no further parsing, so 1,000 items cost a few milliseconds.
 //

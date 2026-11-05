@@ -112,8 +112,14 @@ class Words(unittest.TestCase):
         out = run_node(f"Q.messageOf({{code: 'ambiguous-field', name: 'phase'}})")
         self.assertEqual(out, "'phase' could mean more than one field. Use the full name.")
 
-    def test_an_unknown_state_with_no_near_word_has_no_sentence_yet(self):
-        self.assertEqual(self.say("is:qqqqqqqq"), [""])
+    def test_an_unknown_state_with_no_near_word_still_gets_a_sentence(self):
+        self.assertEqual(self.say("is:zzzzzz"), ["Unknown state 'zzzzzz'."])
+        self.assertEqual(self.say("is:qqqqqqqq"), ["Unknown state 'qqqqqqqq'."])
+
+    def test_a_very_long_field_name_is_answered_at_once(self):
+        out = run_node(f"(() => {{ const t = Date.now(); const m = Q.parseFor({lit('x' * 200000 + ':1')}, {lit(ROWS)}, {lit(CTX)}).errors.map(Q.messageOf); return [m.length, Date.now() - t < 300]; }})()")
+        self.assertEqual(out[0], 1)
+        self.assertTrue(out[1])
 
     def test_the_page_cannot_answer_some_states_yet(self):
         self.assertEqual(len(self.say("is:needed")), 1)                  # an error (the token filters nothing), with no approved sentence

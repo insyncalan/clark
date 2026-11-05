@@ -1,4 +1,4 @@
-// #662 step 2: the parser of the filter line's text. A pure function: no DOM, no store, no clock. It lives next to filterLine.js
+// issue 662 step 2: the parser of the filter line's text. A pure function: no DOM, no store, no clock. It lives next to filterLine.js
 // (which keeps working for the tabs and views) and reads the same field list the columns and the line use (LINE_FIELDS), so a
 // field added there, or passed in as `extra`, is understood with no change here.
 //
@@ -43,9 +43,10 @@ function distance(a, b) {
 }
 
 /** The names closest to a word that is not one: [{key, name}], best first, at most `max`. Never applied, only offered. */
+const MAX_SUGGEST_NAME = 60;
 export function suggestFields(name, schema, max = 3) {
   const n = squash(name);
-  if (!n) return [];
+  if (!n || n.length > MAX_SUGGEST_NAME) return [];      // a very long word is never a near miss, and measuring it is slow
   const scored = schema.fields.map((f) => {
     const cands = [squash(f.key), squash(f.name)];
     const d = Math.min(...cands.map((c) => distance(n, c)));
