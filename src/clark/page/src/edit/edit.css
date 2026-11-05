@@ -740,3 +740,12 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .rt-host { min-height: 6rem; min-height: calc(3lh + 1rem); resize: vertical; overflow: auto; }
 .rt-host .ProseMirror { min-height: 3lh; padding-bottom: 1lh; }
 .de-preview { min-height: calc(3lh + 1.5rem); max-height: 60vh; resize: vertical; }
+
+/* a switch (item 677): Settings > Personal > Keys; a button with role switch, as the prototype draws it */
+.sw { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 15px; }
+.sw small { display: block; font-size: 13px; font-weight: 400; color: var(--text-muted); }
+.switch { all: unset; box-sizing: border-box; position: relative; width: 44px; height: 24px; border-radius: 999px; background: var(--control-border); cursor: pointer; flex: none; transition: background-color var(--dur-state) var(--ease-out); }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform var(--dur-state) var(--ease-out); }
+.switch[aria-checked="true"] { background: var(--brand-blue); }
+.switch[aria-checked="true"]::after { transform: translateX(20px); }
+.switch:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }

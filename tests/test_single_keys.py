@@ -94,13 +94,13 @@ class PageKeys(Base):
 
     def settings_box(self, p):
         p.js("clarkPage.show('settings')")
-        p.until("!!document.querySelector('fieldset.keys input[type=checkbox]')", "Settings has the switch")
+        p.until("!!document.querySelector('fieldset.keys [role=switch]')", "Settings has the switch")
 
     def flip(self, p, on):
         """Use the real checkbox in Settings, then return to the Dashboard in View."""
         self.settings_box(p)
-        p.js("document.querySelector('fieldset.keys input[type=checkbox]').click()")
-        self.assertEqual(p.js("document.querySelector('fieldset.keys input[type=checkbox]').checked"), on)
+        p.js("document.querySelector('fieldset.keys [role=switch]').click()")
+        self.assertEqual(p.js("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked') === 'true'"), on)
         p.js("clarkPage.show('dashboard')")
         p.until("!!document.querySelector('#report')", "back on the Dashboard")
         p.js("document.activeElement.blur()")
@@ -220,7 +220,21 @@ class PageKeys(Base):
             time.sleep(0.3)
             self.assertTrue(p.js(VIEW), "E does nothing after a reload")
             self.settings_box(p)
-            self.assertIs(p.js("document.querySelector('fieldset.keys input[type=checkbox]').checked"), False, "Settings shows it off")
+            self.assertIs(p.js("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked') === 'true'"), False, "Settings shows it off")
+
+
+    def test_the_setting_is_a_switch_with_its_words_and_works_by_keyboard(self):       # item 677
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.settings_box(p)
+            self.assertEqual(p.js("document.querySelectorAll('fieldset.keys input').length"), 0, "no checkbox")
+            self.assertEqual(p.js("document.querySelector('fieldset.keys button.switch').getAttribute('role')"), "switch")
+            self.assertEqual(p.js("document.querySelector('fieldset.keys label').textContent.indexOf('Single-key shortcuts')"), 0)
+            self.assertTrue(p.js("document.getElementById('keys-line').textContent.startsWith('Letter keys such as V and E')"), "the line describes it")
+            was = p.js("document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked')")
+            p.js("document.querySelector('fieldset.keys [role=switch]').focus()")
+            p.key(" ", code="Space", vk=32)
+            p.until(f"document.querySelector('fieldset.keys [role=switch]').getAttribute('aria-checked') !== '{was}'", "Space flips the switch")
 
 
 if __name__ == "__main__":
