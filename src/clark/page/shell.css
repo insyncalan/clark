@@ -23,13 +23,13 @@ a { color: var(--status-blue-text); }
 .projbtn:hover { background: rgba(255,255,255,.14); }
 .projbtn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .projbtn .nch { width: 14px; height: 14px; }
-.top .projbtn { display: inline-flex; max-width: 260px; min-width: 0; }
+.top .projbtn { display: inline-flex; justify-content: space-between; width: 220px; max-width: 100%; min-width: 0; border: 1px solid var(--grey-500); }   /* a bordered box with the chevron at its right edge; it narrows (the name's ellipsis) rather than run the bar past 900 px */
 @media (max-width: 1000px) { .top { gap: 10px; } .top .tab { padding: 0 8px; } .top .tab::after { left: 8px; right: 8px; } }   /* item 664: the search and ask buttons need the room at 901 px; the tabs keep whole words */
 .top .modes { flex: none; }   /* View and Edit keep their width: the bar's other items give way, not these */
 .top .tabs { flex: none; }   /* item 681: the tabs keep their words on one line; the project name (its ellipsis) gives way first */
 .top .tab { white-space: nowrap; }
 .top .dd:has(> .projbtn) { min-width: 0; }   /* the project name gives way (its ellipsis) before the bar runs past a 901 px window, now the wordmark is 24 px */
-.projbtn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.projbtn > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabs { display: flex; height: 100%; }
 .pubfoot { max-width: 1200px; margin: 24px auto 16px; padding: 0 16px; font-size: var(--size-small); color: var(--text-muted); }   /* item 120 */
 .asat { margin-left: auto; font-size: var(--size-caption); color: rgba(255,255,255,.75); }
