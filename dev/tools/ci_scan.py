@@ -15,6 +15,7 @@ maintainer's review for changes to .github/** (CODEOWNERS or a ruleset), and the
 from a notice into a refusal. CI_SCAN_IDENTITY=warn turns the commit-address rule into a notice.
 """
 import argparse
+import hashlib
 import os
 import re
 import sys
@@ -155,6 +156,34 @@ def _ico_ok(d):
     return max(ends) == len(d)
 
 
+# The one exception to "a PDF is refused" (issue 722, the owner's decision): the three client-facing files of the folder
+# 'meet clark'. A file is let through ONLY if its path is a key here, it is a plain file (mode 100644), AND its size and SHA-256
+# are exactly these; anything else under that folder (a fourth file, a renamed one, a changed byte, another letter case, a link,
+# the name as a file) is refused. What is skipped for such a file: the "program or unlisted binary" refusal, and ONE string in
+# the listed-word scan, the PDF language key (it spells the same as a listed word and is in every PDF Chrome writes). Every
+# other scan still reads it: size limit, secrets, the listed-word scan of all other bytes and of its path, picture shape (the PNG).
+# The pins are of the CURRENT files. When the files are regenerated, re-pin them here, in a reviewed change to this protected file.
+ALLOWED_PUBLIC_DIR = "meet clark"
+ALLOWED_PUBLIC_FILES = {
+    "meet clark/clark-getting-started.pdf": ("f3b02f691de60fadd64255bdf5902bc3ebd2b3cf822fbbc289c20d15c1e22c3d", 674103),
+    "meet clark/clark-overview.pdf": ("88590860921d47da28ad0d84289af4bacf4b0e95b7bde28e435fe5fcdaf77cdd", 355754),
+    "meet clark/clark-overview.png": ("f8f13fd264de64d1eefba0824624e8cf507b5b1e14ca7cc1dc315baec5aa3f51", 833201),
+}
+PDF_LANG_KEY = b"/Lang (en-GB)"            # the only bytes taken out of a pinned PDF before the listed-word scan
+
+
+def in_allowed_dir(path):
+    """The path is the folder's name or below it, in any letter case or Unicode form (so 'Meet Clark/x' is caught too)."""
+    folded = pp.unicodedata.normalize("NFC", path).casefold()
+    return folded == ALLOWED_PUBLIC_DIR or folded.startswith(ALLOWED_PUBLIC_DIR + "/")
+
+
+def pinned_ok(mode, path, size, data):
+    """True only for a plain file at an exact pinned path whose size and SHA-256 are the pinned ones."""
+    pin = ALLOWED_PUBLIC_FILES.get(path)
+    return bool(pin) and mode == "100644" and size == pin[1] and len(data) == size and hashlib.sha256(data).hexdigest() == pin[0]
+
+
 PICTURES = {".png": _png_ok, ".jpg": _jpeg_ok, ".jpeg": _jpeg_ok, ".gif": _gif_ok, ".webp": _webp_ok, ".ico": _ico_ok,
             ".woff": _woff_ok(b"wOFF", 24), ".woff2": _woff_ok(b"wOF2", 28)}     # edit here, in a reviewed change
 
@@ -231,9 +260,17 @@ class Scan:
                   if len(folded.get(pp.unicodedata.normalize("NFC", e.path).casefold(), ())) > 1][:1])
         self.add("no private-only paths (notes, branding, assistant settings)",
                  ["%s is in a folder kept private" % self.label(e) for e in self.entries if pp.is_excluded(e.path)])
+        pinned = {e.index for e, d in text if pinned_ok(e.mode, e.path, e.size, d)}
+        self.add("the folder 'meet clark' holds only its pinned files, byte for byte",
+                 ["%s is in the folder 'meet clark', which holds only its listed files with their exact contents" % self.label(e)
+                  for e, d in zip(self.entries, self.blobs) if in_allowed_dir(e.path) and e.index not in pinned])
         bad = []
         for e, data in text:
             ext = os.path.splitext(e.path)[1].lower()
+            if e.index in pinned:                     # not a program or archive: it is the pinned file. A picture's shape is still checked.
+                if ext in PICTURES and not PICTURES[ext](data):
+                    bad.append("%s has a picture or font name but is not a well-formed one, or has data after its end" % self.label(e))
+                continue
             binary = b"\0" in data[:8000] and not (data[:2] in (b"\xff\xfe", b"\xfe\xff"))
             kind = next((k for m, k in MAGIC if data.startswith(m)), None)
             if not kind and (binary or ext in ARCHIVE_SUFFIXES):          # short signatures count only with a NUL or a name
@@ -247,7 +284,8 @@ class Scan:
         kept = [(e, d) for e, d in zip(self.entries, self.blobs) if 0 <= e.size <= pp.MAX_BYTES]
         scanned = ([e for e, _ in kept], [d for _, d in kept])
         self.add("no secrets", pp.secret_findings(*scanned))
-        self.add("no listed words (people, private repos, hosting)", pp.guard_findings(*scanned))
+        listed = [d.replace(PDF_LANG_KEY, b"") if e.index in pinned and e.path.endswith(".pdf") else d for e, d in kept]
+        self.add("no listed words (people, private repos, hosting)", pp.guard_findings(scanned[0], listed))
         self.identity()
         self.workflows(text, by_number)
 

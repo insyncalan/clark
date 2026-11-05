@@ -613,6 +613,166 @@ class Scan(unittest.TestCase):
         self.assertIn("could not run", out.getvalue())
 
 
+class PinnedPublicFiles(unittest.TestCase):
+    """Issue 722: the three files of the folder 'meet clark' are the only PDFs (and the only files in that folder) let through,
+    and only byte for byte. The tests use tiny fake files and a fake table (the seam is ci_scan.ALLOWED_PUBLIC_FILES); the real
+    table is checked for its shape only."""
+    PDF = b"%PDF-1.4\n1 0 obj\n<</Title (fake)>>\nendobj\n/Lang (en-GB)\n%%EOF\n"
+    PNG = png()
+    A, B, C = "meet clark/one.pdf", "meet clark/two.pdf", "meet clark/three.png"
+
+    def table(self, extra=None):
+        files = {self.A: self.PDF, self.B: self.PDF + b"2", self.C: self.PNG}
+        files.update(extra or {})
+        return {k: (ci_scan.hashlib.sha256(v).hexdigest(), len(v)) for k, v in files.items()}
+
+    def put(self, files, table=None, fork=False):
+        r = Repo()
+        self.addCleanup(r.close)
+        for name, data in files.items():
+            r.write(name, data, "wb")
+        r.commit("add")
+        with mock.patch.object(ci_scan, "ALLOWED_PUBLIC_FILES", table if table is not None else self.table()):
+            return r, r.scan(fork)
+
+    def good(self):
+        return {self.A: self.PDF, self.B: self.PDF + b"2", self.C: self.PNG}
+
+    def refused(self, files, needle, table=None):
+        r, (rc, out) = self.put(files, table)
+        self.assertEqual(rc, 1, out)
+        self.assertIn(needle, out)
+        return out
+
+    def test_the_real_table_has_exactly_three_well_formed_pins(self):
+        table = ci_scan.ALLOWED_PUBLIC_FILES
+        self.assertEqual(len(table), 3)
+        self.assertEqual(sorted(table), ["meet clark/clark-getting-started.pdf", "meet clark/clark-overview.pdf",
+                                         "meet clark/clark-overview.png"])
+        for path, (sha, size) in table.items():
+            self.assertTrue(path.startswith("meet clark/") and path.count("/") == 1, path)
+            self.assertTrue(re.fullmatch(r"[0-9a-f]{64}", sha), path)
+            self.assertIs(type(size), int, path)
+            self.assertTrue(0 < size <= pp.MAX_BYTES, path)
+
+    def test_the_real_table_refuses_a_pdf_at_a_real_path_with_other_bytes(self):
+        r = Repo()
+        self.addCleanup(r.close)
+        r.write("meet clark/clark-overview.pdf", self.PDF, "wb")
+        r.commit("add")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("is a PDF", out)
+
+    def test_the_pinned_files_pass(self):
+        r, (rc, out) = self.put(self.good())
+        self.assertEqual((rc, out.count("REFUSED")), (0, 0), out)
+
+    def test_the_pdf_language_key_is_the_only_listed_word_allowance(self):
+        key = ci_scan.PDF_LANG_KEY.decode()
+        self.assertEqual(pp.guard_kinds("", self.PDF), {"a person's name"})      # as the scan reads it: the key alone is a hit
+        self.assertEqual(pp.guard_kinds("", self.PDF.replace(ci_scan.PDF_LANG_KEY, b"")), set())
+        self.assertEqual(key, "/Lang (en-GB)")
+
+    def test_one_changed_byte_is_refused(self):
+        for name in (self.A, self.C):
+            with self.subTest(name):
+                files = self.good()
+                files[name] = files[name][:-1] + b"X" if name == self.A else files[name][:-1] + b"\0"
+                out = self.refused(files, "which holds only its listed files")
+                if name == self.A:
+                    self.assertIn("is a PDF", out)
+
+    def test_a_longer_file_with_the_same_start_is_refused(self):
+        files = self.good()
+        files[self.A] += b"\n"
+        self.refused(files, "which holds only its listed files")
+
+    def test_a_fourth_file_in_the_folder_is_refused(self):
+        for extra in ("meet clark/four.md", "meet clark/four.pdf", "meet clark/sub/four.txt", "meet clark/.hidden"):
+            with self.subTest(extra):
+                files = self.good()
+                files[extra] = b"hello\n"
+                out = self.refused(files, "which holds only its listed files")
+                self.assertEqual(out.count("which holds only"), 1, out)
+
+    def test_a_renamed_file_is_refused(self):
+        files = self.good()
+        files["meet clark/renamed.pdf"] = files.pop(self.A)
+        self.refused(files, "meet clark/renamed.pdf) is in the folder")
+
+    def test_a_pinned_file_at_another_path_is_refused(self):
+        for path in ("docs/one.pdf", "one.pdf", "meet-clark/one.pdf", "meet  clark/one.pdf", "meet clark /one.pdf"):
+            with self.subTest(path):
+                self.refused({path: self.PDF}, "is a PDF")
+
+    def test_the_letter_case_of_the_folder_must_match(self):
+        for path in ("Meet Clark/one.pdf", "MEET CLARK/one.pdf", "meet clark/ONE.PDF", "Meet clark/other.md"):
+            with self.subTest(path):
+                self.refused({path: self.PDF}, "is in the folder 'meet clark'")
+
+    def test_the_folder_name_as_a_file_is_refused(self):
+        for name in ("meet clark", "Meet Clark"):
+            with self.subTest(name):
+                self.refused({name: b"text\n"}, "is in the folder 'meet clark'")
+
+    def test_a_link_at_a_pinned_path_is_refused(self):
+        r = Repo()
+        self.addCleanup(r.close)
+        os.makedirs(os.path.join(r.path, "meet clark"))
+        os.symlink("/etc/hosts", os.path.join(r.path, self.A))
+        r.commit("add")
+        with mock.patch.object(ci_scan, "ALLOWED_PUBLIC_FILES", self.table()):
+            rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("is a link or submodule", out)
+        self.assertIn("is in the folder 'meet clark'", out)
+
+    def test_the_executable_bit_is_refused(self):
+        r = Repo()
+        self.addCleanup(r.close)
+        for name, data in self.good().items():
+            r.write(name, data, "wb")
+        os.chmod(os.path.join(r.path, self.A), 0o755)
+        r.commit("add")
+        with mock.patch.object(ci_scan, "ALLOWED_PUBLIC_FILES", self.table()):
+            rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("is in the folder 'meet clark'", out)
+
+    def test_a_pinned_file_is_still_read_for_secrets_and_listed_words(self):
+        for kind, evil, needle in (("secret", b"\n" + SECRET.encode() + b"\n", "file #1: "), ("name", b"\n" + LISTED.encode() + b" wrote this\n",
+                                                                                                  "a person's name")):
+            with self.subTest(kind):
+                bad = self.PDF + evil               # a file whose OWN pin is this exact content: only the content scans can stop it
+                files = {self.A: bad}
+                out = self.refused(files, needle, self.table({self.A: bad}))
+                self.assertNotIn(LISTED, out)
+                self.assertNotIn(SECRET, out)
+                self.assertNotIn("holds only its listed files", out)
+                self.assertNotIn("is a PDF", out)
+
+    def test_a_pinned_picture_is_still_checked_for_its_shape(self):
+        bad = png_with_text()
+        files = {self.C: bad}
+        out = self.refused(files, "not a well-formed one", self.table({self.C: bad}))
+        self.assertNotIn("holds only its listed files", out)
+
+    def test_a_pinned_file_over_the_size_limit_is_refused(self):
+        big = self.PDF + b"a" * 64
+        with mock.patch.object(pp, "MAX_BYTES", 40):
+            self.refused({self.A: big}, "is over 5 MB", self.table({self.A: big}))
+
+    def test_a_pinned_file_at_a_path_that_holds_a_listed_word_is_refused(self):
+        path = "meet clark/" + LISTED.lower() + ".pdf"
+        self.refused({path: self.PDF}, "a listed word in its path", self.table({path: self.PDF}))
+
+    def test_a_table_entry_does_not_let_a_second_copy_through(self):
+        files = self.good()
+        files["meet clark/copy.pdf"] = files[self.A]               # same bytes as a pinned file, another path
+        self.refused(files, "copy.pdf) is in the folder")
+
+
 class Workflow(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
