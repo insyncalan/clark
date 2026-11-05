@@ -95,7 +95,7 @@ class CardBrowser(unittest.TestCase):
                             where = f"{width} {mode} {theme} {it}"
                             with self.subTest(where):
                                 got = self.show_item(cdp, sid, it)
-                                self.check(got, where, across=False)
+                                self.check(got, where, across=width < 1000)
                                 if it == item:
                                     click(cdp, sid, "[data-pk-wide]")
                                     self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').classList.contains('wide')", sid)))
