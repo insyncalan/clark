@@ -17,6 +17,8 @@ import { cleanHtml } from "../logic/cleanHtml.js";
 import { isOpen, pillOf, dueCell, ownerOf, sortRows, showDate, todayIso, plural } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { refOf } from "../logic/useCasesList.js";
+import { CommitChip } from "./CommitChip.jsx";
+import { CommitMenu } from "../edit/CommitMenu.jsx";
 
 const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -54,7 +56,7 @@ function when(stamp) {
   return { day: `${two(t.getDate())}-${two(t.getMonth() + 1)}-${t.getFullYear()}`, time: `${two(t.getHours())}:${two(t.getMinutes())}` };
 }
 
-const FIELD_WORDS = { title: "name", headline: "headline", status: "status", standing: "text of where it stands", client_visible: "dashboard choice", archived: "archive state" };
+const FIELD_WORDS = { title: "name", headline: "headline", status: "status", commitment: "Commitment", standing: "text of where it stands", client_visible: "dashboard choice", archived: "archive state" };
 const HOW = { assistant: "with the assistant", excel: "from Excel", client: "from the client", team: "by the team", migrate: "when the data was moved" };
 const said = (v) => (v === null || v === undefined || v === "" ? "nothing" : String(v).split("\n")[0]);
 
@@ -66,6 +68,7 @@ function whatWas(h) {
   if (h.field === "standing") return "edited where it stands";
   if (h.field === "client_visible") return h.after === "1" ? "put it on the dashboard" : "took it off the dashboard";
   if (h.field === "archived") return h.after === "1" ? "archived it" : "restored it";
+  if (h.field === "commitment") return `changed the ${nm} from ${h.before ? said(h.before) : "no flag"} to ${h.after ? said(h.after) : "no flag"}`;   // #709
   return `changed the ${nm} from ${said(h.before)} to ${said(h.after)}`;
 }
 
@@ -184,6 +187,7 @@ export function UseCaseDetail({ id }) {
           <p class="ucd-sub">
             {archived ? <span class="tag ucd-arch">Archived</span> : null}
             <span class={`ucd-word rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>
+            {ro ? <CommitChip u={u} /> : <CommitMenu u={u} left />}
             <span>{sub} · {plural(ms.length, "milestone")}</span>
           </p>
           <p class="ucd-line">
