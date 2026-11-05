@@ -15,7 +15,7 @@ What to expect: we aim to reply within 5 working days, tell you whether we agree
 
 ## What clark stores, and where
 
-- **Everything stays on your own computer.** clark keeps your work items, milestones and use cases in one database file, `clark.db`, in the system's app data folder (on a Mac, `~/Library/Application Support/clark`). Settings are beside it, and the daily log is in `~/Library/Logs/clark`.
+- **Everything stays on your own computer.** clark keeps your work items, milestones and use cases in one database file, `clark.db`, in the system's app data folder (on a Mac, `~/Library/Application Support/clark`). Settings are beside it, and the daily log is in `~/Library/Logs/clark` (when you start clark with `--data` on a folder of your own, the log is in the `logs` folder inside that folder instead).
 - **Backups are on the same computer.** clark makes a daily copy of the database in a backups folder beside it. Keep clark's data folder out of folders that a service such as OneDrive syncs: if it is in one, that service copies your data, not clark. If you want a copy off the computer, Settings › Backups has an optional **Copy my backups to** folder, which may be in OneDrive: only finished backup files are put there, never the live database.
 - **Reports and Excel files are saved where you choose.** A published report is one self-contained HTML page. clark does not send it anywhere; you share it yourself.
 - **clark listens on your own computer only.** The page you use is served on `127.0.0.1`, your own computer's private address, which other computers cannot reach. Every request for your data also needs a secret code (a token) that changes each time clark starts.
