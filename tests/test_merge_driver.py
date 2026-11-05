@@ -338,6 +338,18 @@ class MergeDriverTests(unittest.TestCase):
         r = self.hostile_merge(lambda probe: (self.repo / "src" / "clark" / "extra_hook.py").write_text(self.payload(probe), encoding="utf-8"))
         self.assertIn("src/clark/extra_hook.py", r.stderr)
 
+    def test_a_picture_retake_arriving_through_a_merge_is_refused_aloud(self):
+        def plant(probe):
+            pic = next((self.repo / "src" / "clark" / "page" / "help-pictures").glob("*.png"))
+            pic.write_bytes(pic.read_bytes() + b"retake")
+        said = "the merge changes a Help picture, the list of shots or the pins (src/clark/page/help-pictures/"
+        r = self.hostile_merge(plant, why=said)          # git merge exits non-zero (the driver's 1) and both pages hold markers
+        self.assertIn("Run python3 dev/tools/build_page.py, then python3 dev/tools/help_pictures.py --check, and commit the rebuilt pins "
+                      "together with the pictures", r.stderr)
+        self.assertNotIn("will not run code", r.stderr)
+        for page in PAGES:
+            self.assertIn("<<<<<<<", (self.repo / page).read_text(encoding="utf-8"))
+
     def test_a_changed_esbuild_py_is_refused(self):
         self.hostile_merge(lambda probe: self.prepend("dev/tools/esbuild.py", probe))
 

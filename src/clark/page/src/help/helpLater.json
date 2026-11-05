@@ -4,16 +4,12 @@
   "top": "Publish",
   "loop": "the peek, Import, ask clark and Publish",
   "first": "Import and the profile circle",
-  "jobs": "the how-to entries",
   "where": "Work items tools, Milestones, ask clark and Settings",
   "rules": "Publish and ask clark",
   "foot": "the how-to entries"
  },
  "howto": {
-  "write-the-weekly-report": "text sections and Draft with AI",
   "check-the-report": "ask clark",
-  "publish-the-report": "Publish",
-  "add-a-work-item": "adding work items",
   "find-work-items": "work item filters",
   "change-an-item-in-the-peek": "the peek",
   "change-an-item-in-words": "Sneak peek",
@@ -30,7 +26,6 @@
   "improve-wording-with-ai": "the AI menu",
   "set-up-a-project": "project settings",
   "set-your-profile": "the profile",
-  "undo-a-mistake": "history",
   "update-clark": "updates",
   "show-progress": "the Progress tracker template (it can be added once it is in the Add a section box)",
   "add-people-details": "the People card (#454), with Help's other Settings entries"
