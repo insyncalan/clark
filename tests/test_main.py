@@ -27,6 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from clark import __main__ as launcher  # noqa: E402
 from clark import platform as pl  # noqa: E402
+from clark import __version__ as clark_version  # noqa: E402
 from clark import server  # noqa: E402
 
 WAIT = 30           # seconds to wait for the address line, or for the process to stop
@@ -176,7 +177,7 @@ class RunsAsAProcess(TempFolder):
         self.assertEqual(port_of(line), port)
         self.assertEqual(line, f"Open http://127.0.0.1:{port}/#dashboard&p=TUL to use clark. Leave this window open. "
                                f"Press Ctrl+C to stop.")
-        self.assertEqual(get(port, "/health"), (200, '{"ok": true}'))
+        self.assertEqual(get(port, "/health"), (200, json.dumps({"ok": True, "version": clark_version})))      # issue 745
         status, page = get(port, "/")
         self.assertEqual(status, 200)
         self.assertIn('id="app"', page)                     # the real page (#35), not the server's placeholder
@@ -335,7 +336,7 @@ class RunsFromTheTopFolder(TempFolder):
             self.assertIsNotNone(line, proc.stderr.read() if proc.poll() is not None else "it stopped")
             if line.startswith("Open http://"):
                 break
-        self.assertEqual(get(port, "/health"), (200, '{"ok": true}'))
+        self.assertEqual(get(port, "/health"), (200, json.dumps({"ok": True, "version": clark_version})))      # issue 745
         proc.send_signal(signal.SIGINT)
         self.assertEqual(proc.wait(timeout=WAIT), 0)
 

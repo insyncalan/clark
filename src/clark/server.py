@@ -4,7 +4,7 @@ Copied from creaite v2.6.9 (db5adb2) system/scripts/live_server.py, only what cl
 function. Later items add their routes to GET_ROUTES and POST_ROUTES, where the one dispatcher checks the token first.
 
 Routes:
-- GET  /health           {"ok": true} only (and "this_data" when asked with X-Clark-Data, #71); the Host is checked as everywhere
+- GET  /health           {"ok": true, "version": "x.y.z"} only (and "this_data" when asked with X-Clark-Data, #71); the Host is checked as everywhere
 - GET  /                 the page, with this run's token in a JSON data block (id="clark-boot"), never run as a script
 - GET  /api/projects     the projects the page can ask for: [{"code", "name", "open"?}], from the store (`projects`, #31); `open` is the count of open work items (#439)
 - GET  /api/data         ?project=<CODE>: one project's data, from the store (`data_for`, #31)
@@ -274,6 +274,13 @@ def token_ok(sent):
 # always refused. __main__ gives the server its mark (clark.appfiles.data_mark); with none set, "this_data" is false.
 MARK_HEADER = "X-Clark-Data"
 DATA_MARK = None
+VERSION = None            # issue 745: the running clark's version, given by __main__ (this server imports nothing from clark); /health says it
+
+
+def set_version(version):
+    """Give the server the version it is running."""
+    global VERSION
+    VERSION = version
 
 
 def set_data_mark(mark):
@@ -285,6 +292,8 @@ def set_data_mark(mark):
 def health_answer(asked):
     """What /health says: {"ok": true}, plus "this_data" only when `asked` (the X-Clark-Data header) is not empty."""
     out = {"ok": True}
+    if VERSION is not None:
+        out["version"] = VERSION
     if asked:
         out["this_data"] = DATA_MARK is not None and asked == DATA_MARK
     return out
