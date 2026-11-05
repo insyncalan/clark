@@ -77,6 +77,46 @@ class Header(Base):
     def test_row_808_the_suggestion_list_floats_over_the_board_and_pushes_nothing(self):
         self.each(lambda cdp, sid, width: self.floats(cdp, sid, True))
 
+    # ---- row 809 ----
+    def test_row_809_views_are_text_tabs_on_a_rule_the_same_for_made_and_user_views(self):
+        mine = [{"id": "mine", "name": "My own", "line": "is:open type:risk"}]
+
+        def check(cdp, sid, width):
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({ABC: %s}))" % __import__("json").dumps(mine), sid)
+            self.reload(cdp, sid)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=mine]')", "the made view")
+            probe = ("(() => { const css = (e) => getComputedStyle(e), box = document.querySelector('.fvrow'), bb = box.getBoundingClientRect();"
+                     " const one = (e) => { const c = css(e), r = e.getBoundingClientRect(); return {radius: c.borderTopLeftRadius, bg: c.backgroundColor, l: c.borderLeftWidth, t: c.borderTopWidth, b: c.borderBottomWidth, bc: c.borderBottomColor, color: c.color, w: c.fontWeight, gap: Math.round(r.bottom - bb.bottom)}; };"
+                     " const tabs = [...document.querySelectorAll('.vtab')];"
+                     " return {rule: css(box).borderBottomWidth, ruleColor: css(box).borderBottomColor, tabs: tabs.map((e) => [e.dataset.viewId, e.getAttribute('aria-pressed') === 'true', one(e)]),"
+                     " badge: one(document.querySelector('.vtab em')), made: one(document.querySelector('.vtab[data-view-id=mine]')), neu: one(document.querySelector('#viewNew')),"
+                     " scrolls: /auto|scroll/.test(css(document.querySelector('.vtabs')).overflowX), fits: document.documentElement.scrollWidth <= innerWidth}; })()")
+            got = cdp.js(probe, sid)
+            self.assertEqual(got["rule"], "1px", "a thin rule under the row")
+            self.assertTrue(got["scrolls"], "the row scrolls inside its own box")
+            self.assertTrue(got["fits"], "the page does not scroll sideways")
+            for vid, on, st in got["tabs"] + [("new", False, got["neu"])]:
+                self.assertEqual(st["radius"], "0px", f"{vid}: not a pill")
+                self.assertEqual((st["l"], st["t"]), ("0px", "0px"), f"{vid}: no outline box")
+                self.assertEqual(st["bg"], "rgba(0, 0, 0, 0)", f"{vid}: no fill")
+                if on:
+                    self.assertEqual(st["b"], "2px", "the open tab has the underline")
+                    self.assertEqual(st["gap"], 0, "and it sits on the rule (its foot is the rule's foot)")
+                    self.assertNotEqual(st["bc"], "rgba(0, 0, 0, 0)")
+                else:
+                    self.assertEqual(st["bc"], "rgba(0, 0, 0, 0)", f"{vid}: no underline")
+            self.assertEqual([t[1] for t in got["tabs"]].count(True), 1, "one tab is open")
+            self.assertEqual(got["made"]["radius"], got["tabs"][0][2]["radius"], "the made view looks like a predefined one")
+            self.assertEqual(got["made"]["b"], got["tabs"][0][2]["b"])
+            self.assertEqual(got["made"]["color"], got["neu"]["color"], "a view that is not open is drawn in the one muted colour")
+            self.assertNotEqual(got["badge"]["radius"], "0px", "the count is in a round badge")
+            self.assertNotEqual(got["badge"]["bg"], "rgba(0, 0, 0, 0)")
+            # the made view can be opened, and then it is the one with the underline
+            click(cdp, sid, ".vtab[data-view-id=mine]")
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=mine]').getAttribute('aria-pressed') === 'true'", "the made view is open")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.vtab[data-view-id=mine]')).borderBottomWidth", sid), "2px")
+        self.each(check)
+
 
 if __name__ == "__main__":
     unittest.main()

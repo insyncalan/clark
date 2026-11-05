@@ -123,6 +123,7 @@ function SavedViews({ board }) {
   for (const v of archived) tabItems.push({ id: `restore:${v.id}`, name: `Bring back ${v.name}${trouble(v) ? " (cannot be used now)" : ""}` });
   return (
     <div class="fviews">
+      <div class="fvrow">
       <div class="vtabs" role="group" aria-label="Saved views" ref={tabsBox}>
         {shown.map((v) => {
           const on = !!active && active.id === v.id, dot = on && dirty, bad = trouble(v), count = bad ? 0 : Q.rowsFor(rows, v.line, ctx).length;
@@ -151,6 +152,7 @@ function SavedViews({ board }) {
       </div>
       <FreshnessMenu />
       {fromFile.value ? null : <Menu label="View" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={lay.items} onPick={act} />}
+      </div>
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setForm(null); } }}>
           {form.mode === "note" ? null : (

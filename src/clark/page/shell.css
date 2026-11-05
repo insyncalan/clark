@@ -301,22 +301,25 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 :root { --layer-list: 26; }   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
 .fline-wrap { position: relative; margin-top: 12px; }
 .fviews { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
-.vtabs { display: flex; flex-wrap: nowrap; gap: 4px 6px; min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none; padding: 3px; margin: -3px; }   /* room for the focus outline, which the scrolling box would cut */
+.fvrow { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--space-3); flex: 1 1 100%; min-width: 0; border-bottom: 1px solid var(--grey-200); }   /* row 809: the views are text tabs on a thin rule; the row of tabs scrolls inside its own box and the menus keep their place at the right */
+.fvrow > .dd { flex: none; margin-bottom: var(--space-1); }
+.fvrow > .vtabs + .dd { margin-left: auto; }
+.vtabs { display: flex; flex-wrap: nowrap; gap: 2px; min-width: 0; flex: 0 1 auto; max-width: 100%; overflow-x: auto; scrollbar-width: none; padding: 3px; margin: -3px; }   /* room for the focus outline, which the scrolling box would cut */
 .vtabs::-webkit-scrollbar { display: none; }
 .vtabs > * { flex: none; }
-.vtab { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; min-height: calc(var(--space-6) - var(--space-1)); border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); cursor: pointer; font-size: var(--size-small); color: var(--text); }
-.vtab:hover { background: var(--grey-50); }
-.vtab[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); border-color: var(--brand-blue); font-weight: var(--weight-medium); }
-.vtab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.vtab em { font-style: normal; color: var(--text-muted); }
-.vtab[aria-pressed="true"] em { color: inherit; }
+.vtab { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; min-height: calc(var(--space-6) + var(--space-1)); margin-bottom: -1px; border-bottom: 2px solid transparent; cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.vtab:hover { color: var(--text); }
+.vtab[aria-pressed="true"] { color: var(--heading); font-weight: var(--weight-medium); border-bottom-color: var(--brand-blue); }
+.vtab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: var(--radius-sm); }
+.vtab em { font-style: normal; font-weight: var(--weight-regular); font-size: var(--size-caption); min-width: 22px; padding: 1px 6px; border-radius: var(--radius-pill); background: var(--grey-100); color: var(--text); text-align: center; }
+.vtab[aria-pressed="true"] em { color: var(--text); }
 .fdot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand-blue); flex: none; }
 .vform { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; flex: 1 1 100%; font-size: var(--size-small); }
 .vform input { box-sizing: border-box; min-height: calc(var(--space-6) - var(--space-1)); padding: 2px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: var(--size-small); }
 .vform input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .vmsg { color: var(--status-red-text); }
 .vmsg:empty { display: none; }
-.vtab[data-broken="true"] { border-style: dashed; }
+.vtab[data-broken="true"] { border-bottom-style: dashed; border-bottom-color: var(--border); }
 .vbad { flex: 1 1 100%; margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
 .vbad:empty { display: none; }
 .fline { position: relative; display: flex; flex-wrap: nowrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
@@ -1870,14 +1873,14 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
-.vt { display: inline-flex; align-items: center; gap: 2px; }
-.vtabmenu { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; color: var(--text-muted); }
+.vt { display: inline-flex; align-items: flex-end; gap: 2px; }
+.vtabmenu { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; align-self: center; cursor: pointer; color: var(--text-muted); }
 .vtabmenu:hover { background: var(--grey-100); color: var(--text); }
 .vtabmenu:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .vtabmenu .nch { width: 14px; height: 14px; }
-.vnew { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; padding: 3px 10px; border-radius: var(--radius-pill); cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
-.vnew:hover { background: var(--grey-100); color: var(--text); }
-.vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.vnew { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: calc(var(--space-6) + var(--space-1)); padding: 6px 12px; margin-bottom: -1px; border-bottom: 2px solid transparent; cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.vnew:hover { color: var(--text); }
+.vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: var(--radius-sm); }
 .fx { all: unset; box-sizing: border-box; flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: var(--size-body); line-height: 1; }
 .fx:hover { background: var(--grey-100); color: var(--text); }
 .fx:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
