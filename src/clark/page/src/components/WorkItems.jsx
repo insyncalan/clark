@@ -16,7 +16,7 @@
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect } from "preact/hooks";
 import { cursor, stopOf as stopOfIds, moveTo } from "../listKeys.js";
-import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, closePeek, peek, mode, fromFile, filterCtx, query, setQuery, asAt } from "../stores/report.js";
+import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, mode, fromFile, filterCtx, query, setQuery, asAt } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
 import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnOrder, installSelectionRules } from "./pick.js";
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
@@ -68,8 +68,7 @@ function keys(e, row) {
   } else {
     if (selecting() && pickKeys(e, row.id, (id) => focusRow(tr, id, cell), { space: !cell })) return;
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || (selecting() && e.shiftKey)) return;
-    if (!cell && (e.key === "Enter" || (e.key === "ArrowRight" && mode.value !== "edit"))) { e.preventDefault(); openPeek(row.id, "item"); return; }   // Right opens the peek in View; in Edit it walks the cells
-    if (!cell && e.key === "ArrowLeft" && mode.value !== "edit" && peek.value) { e.preventDefault(); closePeek(); return; }   // Left from a row closes an open peek; only a key on the row itself (never one inside the peek)
+    if (!cell && e.key === "Enter") { e.preventDefault(); openPeek(row.id, "item"); return; }   // Enter opens the peek; the arrows always walk the cells (this page has no mode)
   }
   const rows = Array.from(tr.closest("#work-list").querySelectorAll("tr[data-id]")), at = rows.indexOf(tr);   // across the groups (each its own card and table), never a group heading
   const cells = Array.from(tr.querySelectorAll(CELLS)), c = cells.indexOf(cell);
