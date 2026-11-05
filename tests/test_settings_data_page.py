@@ -142,7 +142,7 @@ class Card(Base):
         want = {name: [label for label, field in cols if field == "id" or field not in (set(locked) | excel_import.LOCKED)]
                 for name, _, cols, locked in excel.SHEETS}
         self.assertEqual({name: cols for name, cols in shown}, want)
-        self.assertEqual([name for name, _ in shown], ["Actions", "Risks and issues", "Decisions", "Milestones", "Use cases"])
+        self.assertEqual([name for name, _ in shown], ["Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases"])
 
     def test_a_file_that_is_not_a_workbook_is_said_in_words_in_the_first_box(self):
         with chrome() as cdp:

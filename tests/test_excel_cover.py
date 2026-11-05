@@ -262,7 +262,7 @@ class InTheWorkbook(unittest.TestCase):
 
     def test_cover_is_first_and_open_with_no_merged_cells_and_the_top_row_frozen(self):
         wb = load_workbook(self.path)
-        self.assertEqual(wb.sheetnames, ["Cover", "Milestones", "Actions", "Risks and issues", "Decisions", "Use cases", "History", "Lists"])
+        self.assertEqual(wb.sheetnames, ["Cover", "Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases", "History", "Lists"])
         self.assertEqual(wb.active.title, "Cover")
         self.assertEqual(list(wb["Cover"].merged_cells.ranges), [])
         self.assertEqual(wb["Cover"].freeze_panes, "A2")      # below the title band
