@@ -91,7 +91,7 @@ class Card(unittest.TestCase):
             self.assertEqual(settings.ai_read(self.d)["model"], "haiku")
 
     def test_it_fits_and_reads_at_both_widths_in_light_and_dark(self):
-        contrast = """(()=>{const lum=(c)=>{const m=c.match(/[\d.]+/g).map(Number).slice(0,3).map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});return .2126*m[0]+.7152*m[1]+.0722*m[2];};
+        contrast = r"""(()=>{const lum=(c)=>{const m=c.match(/[\d.]+/g).map(Number).slice(0,3).map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});return .2126*m[0]+.7152*m[1]+.0722*m[2];};
           const worst=[...document.querySelectorAll('[data-ai-tile] p, [data-ai-tile] h3, .ai-model label')].map(el=>{let bg=null;for(let e=el;e&&!bg;e=e.parentElement){const c=getComputedStyle(e).backgroundColor;if(!/rgba\(.*, 0\)|transparent/.test(c))bg=c;}
             const a=lum(getComputedStyle(el).color),b=lum(bg||'rgb(255,255,255)');return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);});return Math.min(...worst);})()"""
         with chrome() as cdp:
