@@ -79,15 +79,15 @@ COVERED = [
      "test_help_pr_a::SlashInHelp::test_help_says_what_slash_does_in_help_with_its_condition_and_without_the_switch_name"),
     ("#697", "The Settings links are a list down the left above 900 px and a row of chips at 900 px and narrower.",
      "test_settings_head::Head::test_C_the_list_is_at_the_left_above_900_and_a_row_of_chips_at_900_and_narrower"),
+    ("#742", "The daily log follows --data: it is in the logs folder inside the data folder.",
+     "test_log_follows_data::Started::test_data_given_writes_inside_it_and_nothing_under_the_home"),
+    ("#760", "A folder of mixed versions is refused with a plain message.",
+     "test_mixed_folder::Folder::test_one_older_file_is_refused"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has
 # landed; marker None means there is no pull request to look for yet).
 WAITING = [
-    ("#742", "The daily log follows --data: it is in the logs folder inside the data folder.",
-     "PR 722", "src/clark/platform.py", "def log_folder("),
-    ("#760", "A folder of mixed versions is refused with a plain message.",
-     "PR 733", "src/clark/same_version.py", "def refuse"),
     ("#761", "The meet clark PDFs and the overview picture show bash clark.command.",
      "no pull request yet (issue 761)", None, None),
     ("#763", "The brand's circle picture is accepted and a comment can no longer hide an address or a picture.",
