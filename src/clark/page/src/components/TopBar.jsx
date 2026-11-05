@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "preact/hooks";
 import { ClientMenu } from "./ClientMenu.jsx";
 import { TITLES, SHORT_TITLES, tabs, view, show, project, data, fromFile, asAt } from "../stores/report.js";
 
@@ -13,12 +14,17 @@ export function TopBar({ tools }) {
   const HelpButton = tools && tools.HelpButton && !fromFile.value ? tools.HelpButton : null;     // the "?" beside the profile circle: Help
   const SearchButton = tools && tools.SearchButton && !fromFile.value ? tools.SearchButton : null;     // the search icon: opens the command palette
   const AskButton = tools && tools.AskButton && !fromFile.value ? tools.AskButton : null;     // ask clark: opens the ask panel, only while asking is on
+  const row = useRef(null);
+  useEffect(() => {      // row 757: where the tab row scrolls inside its own box (narrow windows), the open tab is brought into it; no animation
+    const on = row.current && row.current.querySelector('[aria-selected="true"]');
+    if (on && on.scrollIntoView) on.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "auto" });
+  }, [view.value, tabs.value.length]);
   return (
     <header class="top">
       <span class="logo" aria-label="clark"><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></span>
       <span class="divider"></span>
       {ProjectSwitch ? <ProjectSwitch name={name} /> : <span class="proj" id="project-name">{name || project.value || "No project open"}</span>}
-      <nav class="tabs" role="tablist" aria-label="Views">
+      <nav class="tabs" ref={row} role="tablist" aria-label="Views">
         {tabs.value.map((v) => (
           <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} onClick={() => show(v)}>{SHORT_TITLES[v] ? <><span class="tl-full">{TITLES[v]}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : TITLES[v]}</button>
         ))}
