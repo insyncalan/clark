@@ -282,6 +282,7 @@
      "In **Edit**, choose **Import from Word** from the same menu, choose a .docx file of up to 25 MB and press **Read the file**. Work items under a heading called Actions, Risks, Issues or Decisions are listed. Tick the ones you want, or use **Tick all**, and press the Add button, which reads **Add** and the number you ticked, such as Add 3 items. Nothing is added until you press it. The new items are shown to the client until you hide them with the eye, and Undo takes them all back.",
      "If clark refuses a file it says why in plain words and names the file. Choose the same file again once you have fixed it: **Read the file** comes on again."
     ],
+    "n": "The use case table in the Word report has a Commitment column.",
     "page": [
      "dashboard+edit"
     ]
@@ -443,7 +444,7 @@
     "s": [
      "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks and issues, Decisions, Milestones and Use cases, named after today and the project.",
      "**Import**: press the up-arrow icon. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
-     "Press **Choose a file** (Excel or CSV). **Check the import** shows how many rows are new, updated or skipped, and the first few. Press **Import** to save them.",
+     "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, each with its rows and all ticked: untick any you do not want, then press **Continue**. **Check the import** then shows how many rows are new, updated or skipped, and the first few; press **Import** to save them.",
      "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
     ],
     "n": "The whole import is one step: one **Undo** takes it all back.",
@@ -1925,7 +1926,7 @@
      ],
      [
       "p",
-      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, and Priority on Risks and issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY."
+      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, and Priority on Risks and issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. The Use cases sheet has a Commitment column that reads Candidate, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
      ]
     ]
    },
@@ -2569,7 +2570,7 @@
      "pic": "excel-in-box"
     },
     {
-     "d": "The box **What to import** lists the sheets the workbook has, each with its number of rows, for example Actions (12 rows). They all start ticked. Tick the sheets you want and untick the rest: anything you leave unticked is not read and not changed. **Select all** ticks every sheet and **Clear** unticks them. With no sheet ticked, **Continue** is off. A sheet with more than 5,000 rows shows **more than 5,000 rows** and cannot be imported as it is. Pressing **Continue** with it ticked names the limit. Press **Continue**."
+     "d": "The box **What to import** lists the sheets the workbook has, each with its number of rows, for example Actions (12 rows). They all start ticked. Tick the sheets you want and untick the rest: anything you leave unticked is not read and not changed. **Select all** ticks every sheet and **Clear** unticks them. With no sheet ticked, **Continue** is off. A sheet with more than 5,000 rows shows **more than 5,000 rows**. Any sheet with more than 2,000 rows that have something in them is refused whole when you press **Continue**, and the message says so."
     },
     {
      "d": "The box **Check the import** opens. A line gives the counts: how many rows are new, how many changed, how many are no longer in the workbook and how many are unchanged. Unchanged rows are left alone. Nothing has been saved yet. It counts only the sheets you ticked."
