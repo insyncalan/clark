@@ -137,6 +137,14 @@ class Cases(unittest.TestCase):
                         self.refuse("a{b:red\\%s;background:%s}" % (end, tail), self.found_for(name), wide)       # backslash, line end, outside a string
                         self.refuse("a{background:red\\%simage-set(%s//example.invalid/a%s 1x)}" % (end, q, q), publish.ADDRESS_FOUND, wide)
 
+    def test_a_comment_is_read_both_ways_for_an_embedded_picture_too(self):
+        for css in ('a{background:u/**/rl(data:image/png;base64,AAAA)}', 'a{background:red/**/image-set("data:image/png;base64,AAAA" 1x)}'):
+            for how, text in self.three_ways(css, wide=False):
+                with self.subTest(how=how, css=css):
+                    with self.assertRaises(PublishError) as ctx:
+                        publish.check_brand(text)
+                    self.assertIn("embeds a picture in its style", str(ctx.exception))
+
     def test_the_escape_cases_that_are_fine_are_published(self):
         good = ['a{content:"\\"x\\"";color:red}', "a{content:'\\'x\\'';color:red}", 'a{content:"\\27 \\22 ";color:red}',
                 'a{content:"x\\\r\ny";color:red}', 'a{b:red/**/blue;c:red /* x */ green}\r\n',
