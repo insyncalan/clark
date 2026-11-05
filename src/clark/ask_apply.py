@@ -40,8 +40,8 @@ CLAIMS = ("current_title", "current_owner")
 FORM = ("op", "kind", "id", "project", "source") + CLAIMS
 KINDS = {"action": ("actions", None), "risk": ("raid", "Risk"), "issue": ("raid", "Issue"),
          "assumption": ("raid", "Assumption"), "dependency": ("raid", "Dependency"), "decision": ("decisions", None),
-         "milestone": ("milestones", None)}
-TITLE = {"actions": "description", "raid": "description", "decisions": "decision", "milestones": "name"}
+         "milestone": ("milestones", None), "use case": ("use_cases", None)}
+TITLE = {"actions": "description", "raid": "description", "decisions": "decision", "milestones": "name", "use_cases": "title"}
 OWNER = {"actions": "owner", "raid": "owner", "decisions": "made_by", "milestones": "owner"}
 # The plain names a suggestion may use, per table, and the column each one is. A column must also be in changes.CHANGE_KINDS for
 # the op, and in ASK_FIELDS: so no archive flag, no use case link, no client wording, no agreed date moved (that is a rebaseline).
@@ -54,11 +54,12 @@ FIELDS = {
                   "needed_by": "needed_by"},
     "milestones": {"title": "name", "name": "name", "owner": "owner", "agreed_date": "baseline_date", "workstream": "workstream",
                    "forecast_date": "forecast_date", "achieved_date": "actual_date", "status": "status"},
+    "use_cases": {"headline": "headline", "standing": "standing", "status": "status"},   # issue 729: the commitment flag is read by the model, never changed by it
 }
 ASK_FIELDS = {t: {OP_NEW: tuple(f for f in ops[changes.NEW] if f != "type"), OP_CHANGE: ops[changes.UPDATE]}
               for t, ops in changes.ASK_FIELDS.items()}      # changes.ASK_FIELDS is the list; it is checked again there
-ID_KINDS = (("actions", r"-A-\d{3}"), ("decisions", r"-D-\d{3}"), ("milestones", r"-M-\d{3}"), ("raid", r"-\d{3}"))
-ANY_ITEM = re.compile(r"[A-Z][A-Z0-9]{2,6}-(?:[ADM]-)?\d{3}")
+ID_KINDS = (("actions", r"-A-\d{3}"), ("decisions", r"-D-\d{3}"), ("milestones", r"-M-\d{3}"), ("use_cases", r"-U-\d{3}"), ("raid", r"-\d{3}"))
+ANY_ITEM = re.compile(r"[A-Z][A-Z0-9]{2,6}-(?:[ADMU]-)?\d{3}")
 SOURCE_ID = re.compile(r"P[1-9]\d{0,2}")
 
 NOT_A_CHANGE = "That suggestion isn't in a form clark can use. Nothing was changed. Ask again, or make the change yourself."
@@ -149,6 +150,8 @@ def read_suggestion(project, change, from_source=False):
         if kind is None or ref is not None or claims:
             raise Refusal("not_a_change", NOT_A_CHANGE)
         table, raid_type = kind
+        if table == "use_cases":                     # issue 729: a use case can be changed, not added, by asking
+            raise Refusal("not_a_change", NOT_A_CHANGE)
     else:
         if not isinstance(ref, str) or not ANY_ITEM.fullmatch(ref):
             raise Refusal("not_a_change", NOT_A_CHANGE)
@@ -157,6 +160,8 @@ def read_suggestion(project, change, from_source=False):
             raise Refusal("other_project", OTHER_PROJECT)
         if kind is not None and kind[0] != table:
             raise Refusal("wrong_kind", WRONG_KIND)
+        if table == "use_cases" and "current_owner" in claims:      # a use case has no owner to claim
+            raise Refusal("not_a_change", NOT_A_CHANGE)
         raid_type = None
     fields = {}
     for name, value in change.items():

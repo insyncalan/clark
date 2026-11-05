@@ -814,6 +814,23 @@ class Health(ServerTest):
         status, msg, data = self.s.ask("GET", "/health")
         self.assertEqual((status, data), (200, b'{"ok": true}'))
 
+    def test_health_says_the_version_it_runs(self):
+        """Issue 745: with a version given (as __main__ does), /health adds it and nothing else; the status and "ok" are as before."""
+        with mock.patch.object(sv, "VERSION", "7.8.9"):
+            status, _, data = self.s.ask("GET", "/health")
+        self.assertEqual((status, json.loads(data)), (200, {"ok": True, "version": "7.8.9"}))
+
+    def test_health_version_leaks_no_path(self):
+        with mock.patch.object(sv, "VERSION", "7.8.9"), mock.patch.object(sv, "DATA_MARK", appfiles.data_mark("/some/folder")):
+            data = self.s.ask("GET", "/health", {"X-Clark-Data": sv.DATA_MARK})[2].decode()
+        self.assertEqual(set(json.loads(data)), {"ok", "version", "this_data"})
+        self.assertNotIn("/some/folder", data)
+        self.assertNotIn(str(ROOT), data)
+
+    def test_main_gives_the_server_its_version(self):
+        src = (ROOT / "src" / "clark" / "__main__.py").read_text(encoding="utf-8")
+        self.assertIn("server.set_version(__version__)", src)
+
 
 class OpenRoutes(ServerTest):
     """#71: exactly six fixed files answer without the token (design-71-launcher.md, section 1); everything else still needs it."""
