@@ -1971,7 +1971,7 @@
        "Three tabs: **Start here**, **How do I…** and **Reference**. Help opens on the one you used last.",
        "The search box looks through all three as you type. Press [[Enter]] for the first result, [[Esc]] to clear it.",
        "A link with a › after it takes you to the screen it names.",
-       "[[?]] opens Help from any page; in Help, [[/]] goes to the search box."
+       "[[?]] opens Help from any page."
       ]
      ]
     ]
@@ -2007,7 +2007,7 @@
    ],
    [
     "[[/]]",
-    "ask clark (when you aren’t typing in a box). In Help, it goes to the search box instead. Like the letter keys, it does nothing when Single-key shortcuts is off in Settings › Personal"
+    "ask clark (when you aren’t typing in a box)"
    ],
    [
     "[[Mod+J]]",

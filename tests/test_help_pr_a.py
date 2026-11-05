@@ -188,6 +188,16 @@ class AskOff(unittest.TestCase):
         self.assertIn("The ask button in the top bar shows only while asking is on. With asking off, [[/]] still opens the panel, which says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link.", text)
 
 
+class SlashInHelp(unittest.TestCase):
+    def test_no_unconditional_claim_that_slash_goes_to_the_help_search_box(self):
+        store = code("help", "helpStore.js")
+        self.assertIn('e.key === "/" && helpOpen.value && singleKeys.value', store)       # only while the switch is on
+        every = flat(RAW)
+        self.assertNotIn("in Help, [[/]] goes to the search box", every)
+        self.assertNotIn("In Help, it goes to the search box instead", every)
+        self.assertIn("[[?]] opens Help from any page.", flat(SECS["using-help"]))
+
+
 class Terminal(unittest.TestCase):
     TEXT = flat(TASKS["start-check-and-restore-in-terminal"]["s"])
 
