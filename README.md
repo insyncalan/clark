@@ -58,7 +58,7 @@ Publish as a single web page. It opens anywhere, with no server and no sign-in.
 
 Download the latest `clark-…-mac.zip` from this repository's **Releases** page and unzip it. You then start clark in one of two ways. Both use the same program and the same pages.
 
-**Double-click.** Open the folder called `clark` and double-click `clark.command`. This needs Google Chrome and Python 3.9 or newer. The file `START-HERE.txt` explains the prompts your Mac may show the first time.
+**Double-click.** Open the folder called `clark` and double-click `clark.command`. This needs Python 3.9 or newer. Google Chrome works best. The file `START-HERE.txt` explains the prompts your Mac may show the first time.
 
 **Docker.** If your Mac will not open `clark.command`, or you would rather not use Python on your computer, install Docker, open Terminal in the unzipped `clark` folder and type `docker compose -f docker/compose.yaml up -d`. Then open http://localhost:8766. To stop it, type `docker compose -f docker/compose.yaml down`. Only your own computer can reach it. `START-HERE.txt` has the same steps, with more detail.
 
