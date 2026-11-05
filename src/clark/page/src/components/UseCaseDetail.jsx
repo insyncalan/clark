@@ -4,9 +4,10 @@
 // from a menu, the eye with a button; each is ONE change with one Undo (stores/changes.js, kind use_cases, op update), and Archive
 // and Restore are the existing archive ops. In View, and for an archived use case, nothing here changes anything. The history is
 // read from the use cases route (api.js); an archived use case is read with the archived rows (the page's usual read leaves them
-// out). Work items open filtered to the use case: there is no peek on the page yet.
+// out). A work item row opens its peek beside the page (row 859): the page stays, Esc closes the
+// peek and the focus goes back to the row. "Open all N in Work items" is the one way from here to the Work items page.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { data, rows, mode, fromFile, project, openWork } from "../stores/report.js";
+import { data, rows, mode, fromFile, project, openWork, openPeek } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
 import { readUseCaseHistory, readArchivedUseCase } from "../api.js";
@@ -141,7 +142,7 @@ export function UseCaseDetail({ id }) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== "Escape" || e.defaultPrevented || e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (busy(document.activeElement) || busy(e.target) || document.querySelector("dialog[open],[role=dialog],[role=alertdialog],[role=menu]")) return;
+      if (busy(document.activeElement) || busy(e.target) || document.querySelector("dialog[open],[role=dialog],[role=alertdialog],[role=menu],[data-peek]")) return;   // an open peek takes the first Esc (row 859)
       if (back.current) back.current.click();
     };
     document.addEventListener("keydown", onKey);
@@ -229,11 +230,9 @@ export function UseCaseDetail({ id }) {
                 {work.map((r) => {
                   const due = r.kind === "decision" || r.kind === "action" ? dueCell(r, todayIso()).date : "", who = ownerOf(r.owner).text, pill = pillOf(r, todayIso());
                   const extra = [who !== "—" ? who : "", due && due !== "—" ? `Due ${due}` : r.kind === "action" ? "No due date" : ""].filter(Boolean).join(" · ") || "No owner";
-                  const mode_ = isOpen(r) ? "open" : "all";
                   return (
                     <li key={r.id}>
-                      <button type="button" class="ucd-item" data-item={r.id} title={`Show ${r.id} in Work items`}
-                        onClick={() => openWork({ ...setFilter(initial(), "use_case", [label], false), mode: mode_ })}>
+                      <button type="button" class="ucd-item" data-item={r.id} onClick={() => openPeek(r.id, "item")}>
                         <span class="ucd-id num">{r.id}</span><span class="ucd-t">{r.title}</span>
                         <span class={`pill ${pill.class}`}>{pill.text}</span><span class="ucd-x">{extra}</span>
                       </button>
