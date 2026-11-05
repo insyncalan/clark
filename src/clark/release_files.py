@@ -48,6 +48,10 @@ CODE_ROOT_MARK = HIDDEN + "/"
 AT_TOP = ("README.md", "START-HERE.txt", "clark.command", "clark.cmd", MANIFEST, "docker/")
 # Top-level names that belong to the person. They are never in a zip, never listed, backed up, replaced or removed.
 PROTECTED = ("system", "data")
+# Extra top-level folders a release may carry beside the program files (issue 716): files the Head puts in at build time
+# (dev/tools/package.py --extra-folder), never tracked by git. The allow-list is closed: a reader accepts a folder only if
+# its exact name is here, so a stray folder in a download is still refused as outside the list.
+EXTRA_TOP = ("meet clark", "intake")
 
 
 def listed(system):
@@ -60,6 +64,12 @@ def protected(rel):
     treats System and system as one folder."""
     head = rel.replace("\\", "/").split("/")[0].casefold()
     return head in PROTECTED
+
+
+def extra(rel):
+    """Whether `rel` (a name below the top folder, "/" only) is a file inside one of the declared extra top-level folders."""
+    head, sep, rest = rel.partition("/")
+    return bool(sep and rest) and head in EXTRA_TOP
 
 
 def at_top(rel):
@@ -84,6 +94,8 @@ def covers(system, rel):
     if protected(rel):
         return False
     if rel in (START_HERE, MANIFEST):
+        return True
+    if extra(rel):                      # a declared extra folder (issue 716); optional, so check_coverage never asks for it
         return True
     for item in listed(system):
         placed = place(item)
