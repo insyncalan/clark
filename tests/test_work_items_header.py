@@ -206,13 +206,12 @@ class Header(Base):
             pick = next(g for g in closing if g[0] == "status:Pending")
             click(cdp, sid, "#fline-list [data-ins='status:Pending']")
             self.until(cdp, sid, f"document.querySelector('#fline-count').textContent.startsWith('{pick[1]} of ')", "the count the list promised")
-            # an unknown field says which fields there are, and the box turns red
+            # an unknown field turns the box red
             before = cdp.js("getComputedStyle(document.querySelector('.fline')).borderTopColor", sid)
             cdp.call("Input.insertText", {"text": "zzz:a "}, sid)
-            self.until(cdp, sid, "document.querySelector('#fline-msg').textContent.startsWith('There is no')", "the message")
+            self.until(cdp, sid, "document.querySelector('#fline-msg').textContent.startsWith('Unknown field')", "the message")
             said = cdp.js("document.querySelector('#fline-msg').textContent", sid)
-            self.assertTrue(said.startswith("There is no “zzz” filter. You can filter by type:, status:, owner:"), said)
-            self.assertTrue(said.endswith("and is:, or type plain words to search titles."), said)
+            self.assertEqual(said, "Unknown field 'zzz'.")
             self.assertTrue(cdp.js("document.querySelector('.fline').classList.contains('bad')", sid))
             self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('.fline')).borderTopColor", sid), before, "the box is red")
         self.each(check)

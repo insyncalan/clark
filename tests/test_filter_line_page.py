@@ -291,7 +291,7 @@ class Line(unittest.TestCase):
                 sid = self.load(cdp, s.port, theme=theme)
                 before = self.shown(cdp, sid)
                 self.put(cdp, sid, "is:open stat:Open")
-                self.assertTrue(wait(lambda: self.say(cdp, sid).startswith("There is no \u201cstat\u201d filter. Did you mean status? You can filter by type:, status:")))
+                self.assertTrue(wait(lambda: self.say(cdp, sid) == "Unknown field 'stat'. Did you mean Status?"))
                 self.assertEqual(self.shown(cdp, sid), before, "the table is not emptied")
                 self.assertEqual(self.tokens(cdp, sid, "err"), ["stat:Open"])
                 self.assertEqual(cdp.js("document.querySelector('.fline .k-err').title", sid), cdp.js("document.querySelector('#fline-msg').textContent", sid), "the tooltip says it")
@@ -299,7 +299,7 @@ class Line(unittest.TestCase):
                 self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.fline .k-err')).pointerEvents", sid), "auto", "it can be hovered")
                 self.assertEqual(cdp.js("document.querySelector('#fline-msg').getAttribute('aria-live')", sid), "polite")
                 self.put(cdp, sid, "is:open colour:red")
-                self.assertTrue(wait(lambda: self.say(cdp, sid).startswith("There is no \u201ccolour\u201d filter.")))
+                self.assertTrue(wait(lambda: self.say(cdp, sid).startswith("Unknown field 'colour'.")))
                 self.put(cdp, sid, "is:open priority:High bogus:x")                   # the good token is applied; the bad one is not
                 self.assertEqual(self.shown(cdp, sid), expect(self.rows(cdp, sid), "open", filters={"priority": ["High"]}))
                 self.assertEqual(self.tokens(cdp, sid, "err"), ["bogus:x"])
