@@ -14,6 +14,7 @@ from pathlib import Path
 from clark import page, publish
 from test_publish import EMPTY_BRANDING, block, made, opened, tearDownModule  # noqa: F401
 from test_report_editor import Base
+from _new_page import reload_to_new_page, reload_to_new_page_cdp
 from test_server import chrome, wait
 
 NAME = "ZQ-NAME Probe"            # a distinctive name: it must be found in the browser's storage and nowhere in the file
@@ -25,20 +26,10 @@ SPACE = """(function(){var o=document.documentElement; return [o.scrollWidth <= 
 
 
 def make(extra=None):
-    """A finished published file's text, with `extra` added to the data block BESIDE "data" (where publish writes the workbook, its note and
-    the past reports: publish.data_block). The text is rendered by publish itself, then the block's JSON gets the extra keys, escaped the same way."""
+    """A finished published file's text, with `extra` added to the data block's data (what publish will write for the menu)."""
     _, pub, _ = made()
-    text = publish.render(pub, page.page_html(EMPTY_BRANDING, view=True), "2026-10-28", pub["data"]["project"]["name"])
-    if not extra:
-        return text
-    start = text.index('id="clark-data">') + len('id="clark-data">')
-    end = text.index("</script>", start)
-    block = json.loads(text[start:end])
-    block.update(extra)
-    body = json.dumps(block, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
-    for ch in "<>&":
-        body = body.replace(ch, "\\u%04x" % ord(ch))
-    return text[:start] + body + text[end:]
+    pub["data"].update(extra or {})
+    return publish.render(pub, page.page_html(EMPTY_BRANDING, view=True), "2026-10-28", pub["data"]["project"]["name"])
 
 
 class Menu(unittest.TestCase):
@@ -46,7 +37,7 @@ class Menu(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
 
-    def open(self, cdp, extra=None, width=1400, text=None, name="report.html"):
+    def show(self, cdp, extra=None, width=1400, text=None, name="report.html"):
         path = Path(self.tmp.name) / name
         path.write_text(text if text is not None else make(extra), encoding="utf-8")
         sid = opened(cdp, path.as_uri(), width)
@@ -70,7 +61,7 @@ class Menu(unittest.TestCase):
 
     def test_the_badge_is_named_and_the_rows_are_exactly_these_in_order(self):
         with chrome() as cdp:
-            js = self.open(cdp)
+            js = self.show(cdp)
             self.assertEqual(js(f"[{BADGE}.getAttribute('aria-label'), {BADGE}.title, {BADGE}.getAttribute('aria-haspopup'), {BADGE}.getAttribute('aria-expanded'), "
                                 f"!!{BADGE}.querySelector('svg'), {BADGE}.tagName]"), ["Report menu", "Report menu", "menu", "false", True, "BUTTON"])
             self.menu(cdp, js)
@@ -91,7 +82,7 @@ class Menu(unittest.TestCase):
 
     def test_profile_saves_a_name_the_badge_shows_initials_and_remove_clears_it(self):
         with chrome() as cdp:
-            js = self.open(cdp)
+            js = self.show(cdp)
             self.menu(cdp, js)
             self.pick(cdp, js, "[data-row=profile]")
             self.assertTrue(wait(lambda: js("document.activeElement.id") == "client-profile-name"), "the name field has the focus")
@@ -121,7 +112,7 @@ class Menu(unittest.TestCase):
 
     def test_escape_and_cancel_close_the_box_and_change_nothing(self):
         with chrome() as cdp:
-            js = self.open(cdp)
+            js = self.show(cdp)
             self.menu(cdp, js)
             self.pick(cdp, js, "[data-row=profile]")
             self.assertTrue(wait(lambda: js("!!document.querySelector('#client-profile')")))
@@ -139,7 +130,7 @@ class Menu(unittest.TestCase):
 
     def test_the_name_and_the_dark_choice_live_only_in_this_browser(self):
         with chrome() as cdp:
-            js = self.open(cdp, {"past_reports": [{"week_ending": "2026-10-21", "file": "PUB-report-2026-10-21.html"}]})
+            js = self.show(cdp, {"past_reports": [{"week_ending": "2026-10-21", "file": "PUB-report-2026-10-21.html"}]})
             self.menu(cdp, js)
             self.pick(cdp, js, "[data-row=profile]")
             self.assertTrue(wait(lambda: js("!!document.querySelector('#client-profile')")))
@@ -162,22 +153,21 @@ class Menu(unittest.TestCase):
 
     def test_the_name_is_remembered_after_a_reload(self):
         with chrome() as cdp:
-            js = self.open(cdp)
+            js = self.show(cdp)
             js(f"localStorage.setItem('clark.reader.name', {json.dumps(NAME)})")
-            cdp.call("Page.reload", {}, self.sid)
-            self.assertTrue(wait(lambda: js(f"!!{BADGE} && {BADGE}.textContent") == "ZP"))
+            reload_to_new_page_cdp(cdp, self.sid, ready=f"!!{BADGE} && {BADGE}.textContent === 'ZP'", what="the reloaded page shows the initials")
+            self.assertEqual(js(f"{BADGE}.textContent"), "ZP")
 
     # --- dark mode --------------------------------------------------------------------------------------------------------
 
     def test_dark_mode_switches_the_theme_and_survives_a_reload(self):
         with chrome() as cdp:
-            js = self.open(cdp)
+            js = self.show(cdp)
             self.assertEqual(js("document.documentElement.dataset.theme || 'none'"), "auto", "System is the default and follows the computer")
             self.menu(cdp, js)
             self.pick(cdp, js, "[data-look=dark]")
             self.assertEqual(js("document.documentElement.dataset.theme"), "dark")
-            cdp.call("Page.reload", {}, self.sid)
-            self.assertTrue(wait(lambda: js("document.documentElement.dataset.ready") == "1" and js(f"!!{BADGE}")))
+            reload_to_new_page_cdp(cdp, self.sid, ready=f"document.documentElement.dataset.ready === '1' && !!{BADGE}", what="the reloaded page drew its badge")
             self.assertEqual(js("document.documentElement.dataset.theme"), "dark")
             self.menu(cdp, js)
             self.assertEqual(js(f"{MENU}.querySelector('[data-look=dark]').getAttribute('aria-checked')"), "true")
@@ -189,7 +179,7 @@ class Menu(unittest.TestCase):
 
     def test_a_dark_page_prints_light_and_the_bar_with_the_menu_does_not_print(self):
         with chrome() as cdp:
-            js = self.open(cdp)
+            js = self.show(cdp)
             self.menu(cdp, js)
             self.pick(cdp, js, "[data-look=dark]")
             cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, self.sid)
@@ -203,7 +193,7 @@ class Menu(unittest.TestCase):
 
     def test_export_to_pdf_calls_the_browsers_print(self):
         with chrome() as cdp:
-            js = self.open(cdp)
+            js = self.show(cdp)
             js("window.__printed = 0; window.print = function(){ window.__printed++; }")
             self.menu(cdp, js)
             self.pick(cdp, js, "[data-row=pdf]")
@@ -215,7 +205,7 @@ class Menu(unittest.TestCase):
         past = [{"week_ending": "2026-10-14", "file": "PUB-report-2026-10-14.html"}, {"week_ending": "2026-10-21", "file": "PUB-report-2026-10-21.html"},
                 {"week_ending": "2026-10-07", "file": "../elsewhere/x.html"}, {"week_ending": "bad", "file": "y.html"}, {"week_ending": "2026-09-30", "file": "https://x.test/a.html"}]
         with chrome() as cdp:
-            js = self.open(cdp, {"past_reports": past})
+            js = self.show(cdp, {"past_reports": past})
             self.menu(cdp, js)
             self.assertEqual(js(f"[...{MENU}.querySelectorAll('a')].map(a => [a.textContent, a.title, a.getAttribute('href'), a.getAttribute('role')])"),
                              [["21-10-2026", "Report of 21-10-2026", "PUB-report-2026-10-21.html", "menuitem"],
@@ -225,7 +215,7 @@ class Menu(unittest.TestCase):
 
     def test_no_past_reports_says_so(self):
         with chrome() as cdp:
-            js = self.open(cdp)
+            js = self.show(cdp)
             self.menu(cdp, js)
             self.assertEqual(js(f"{MENU}.querySelector('[data-row=past]').lastElementChild.textContent"), "No earlier reports.")
             self.assertEqual(js(f"{MENU}.querySelectorAll('[data-row=past] a').length"), 0)
@@ -234,7 +224,7 @@ class Menu(unittest.TestCase):
 
     def test_export_to_excel_is_drawn_only_with_a_workbook_and_downloads_it_from_a_blob(self):
         with chrome() as cdp:
-            js = self.open(cdp, {"workbook": {"name": "Report-2026-10-28.xlsx", "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "b64": SHEET}})
+            js = self.show(cdp, {"client_workbook": {"name": "Report-2026-10-28.xlsx", "base64": SHEET}})
             js("window.__got = []; var make = URL.createObjectURL; URL.createObjectURL = function(b){ window.__got.push([b.size, b.type]); return make.call(URL, b); };"
                "HTMLAnchorElement.prototype.click = function(){ window.__got.push([this.download, this.href.slice(0, 5)]); };")
             self.menu(cdp, js)
@@ -246,7 +236,7 @@ class Menu(unittest.TestCase):
 
     def test_a_too_large_report_shows_the_row_disabled_with_the_line(self):
         with chrome() as cdp:
-            js = self.open(cdp, {"workbook_note": "This report is too large to include a spreadsheet."})
+            js = self.show(cdp, {"client_workbook_too_large": True})
             self.menu(cdp, js)
             self.assertEqual(js(ROWS), ["profile", "excel", "pdf", "past", "dark"])
             self.assertEqual(js(f"(function(){{var r={MENU}.querySelector('[data-row=excel]'); return [r.getAttribute('aria-disabled'), r.textContent, r.nextElementSibling.textContent];}})()"),
@@ -257,7 +247,7 @@ class Menu(unittest.TestCase):
     def test_the_disabled_excel_row_can_be_reached_by_the_keys_and_does_nothing(self):
         # The row is aria-disabled but stays in the arrow-key order, so a keyboard user reaches it and hears why (its note is the description).
         with chrome() as cdp:
-            js = self.open(cdp, {"workbook_note": "This report is too large to include a spreadsheet."})
+            js = self.show(cdp, {"client_workbook_too_large": True})
             self.menu(cdp, js)
             js("window.__got = 0; URL.createObjectURL = function(){ window.__got++; return ''; }")
             js(f"{MENU}.querySelector('[data-row=profile]').focus()")
@@ -272,33 +262,14 @@ class Menu(unittest.TestCase):
     def test_initials_skip_marks_that_are_not_letters_and_never_exceed_two(self):
         for name, want in (("(Bob) Smith", "BS"), ("(Bob)", "B"), ("\u00df \u00df", "SS"), ("ada king lovelace", "AL"), ("42 !!", "")):
             with self.subTest(name=name), chrome() as cdp:
-                js = self.open(cdp)
+                js = self.show(cdp)
                 js("localStorage.setItem('clark.reader.name', " + json.dumps(name) + ")")
-                js("window.__old = 1; location.reload()")
-                # the reload is over when the NEW page answers: the old page still holds the marker, the new one does not
-                self.assertTrue(wait(lambda: js(f"window.__old === undefined && !!{BADGE} && document.documentElement.dataset.ready === '1'"), 15), "the page reloaded")
+                reload_to_new_page(js, ready=f"!!{BADGE} && document.documentElement.dataset.ready === '1'", what="the reloaded page drew its badge")
                 self.assertEqual(js(f"{BADGE}.textContent"), want, name)
-
-    def test_the_page_reads_the_keys_that_publish_really_writes(self):
-        # The contract with the publish side (excel_client.embed and publish.data_block): top-level "workbook" {name, mime, b64} and
-        # "workbook_note", beside "data". If publish renames them, this test and the page must change together.
-        src = (Path(__file__).resolve().parents[1] / "src/clark/page/src/logic/clientMenu.js").read_text(encoding="utf-8")
-        for piece in ("d.workbook", "w.b64", "workbook_note === TOO_LARGE", "d.past_reports"):
-            self.assertIn(piece, src)
-        store = (Path(__file__).resolve().parents[1] / "src/clark/page/src/stores/report.js").read_text(encoding="utf-8")
-        self.assertIn("blockExtras.value = { workbook: p.workbook, workbook_note: p.workbook_note, past_reports: p.past_reports }", store)
-        # and the data block holds them beside data, never inside it: a key inside "data" is not read
-        with chrome() as cdp:
-            js = self.open(cdp, {"workbook_note": "This report is too large to include a spreadsheet."})
-            self.menu(cdp, js)
-            self.assertEqual(js(ROWS), ["profile", "excel", "pdf", "past", "dark"])
-        text = make()
-        pub_text = text.replace('id="clark-data">', 'id="clark-data">', 1)
-        self.assertNotIn("client_workbook", pub_text)
 
     def test_a_bad_workbook_is_not_offered(self):
         with chrome() as cdp:
-            js = self.open(cdp, {"workbook": {"name": "x.xlsx", "mime": "x", "b64": "not base64 !!"}, "past_reports": "nope"})
+            js = self.show(cdp, {"client_workbook": {"name": "x.xlsx", "base64": "not base64 !!"}, "past_reports": "nope"})
             self.menu(cdp, js)
             self.assertEqual(js(ROWS), ["profile", "pdf", "past", "dark"])
 
@@ -306,7 +277,7 @@ class Menu(unittest.TestCase):
 
     def test_keys_arrows_move_escape_closes_and_focus_returns_to_the_badge(self):
         with chrome() as cdp:
-            js = self.open(cdp)
+            js = self.show(cdp)
             js(f"{BADGE}.focus()")
             self.key(cdp, "ArrowDown", 40)
             self.assertTrue(wait(lambda: js(f"!!{MENU}")), "Down opens it")
@@ -325,9 +296,9 @@ class Menu(unittest.TestCase):
     # --- the bar ----------------------------------------------------------------------------------------------------------
 
     def test_no_overlap_and_no_sideways_scroll_at_these_widths_light_and_dark(self):
-        extra = {"past_reports": [{"week_ending": "2026-10-21", "file": "PUB-report-2026-10-21.html"}], "workbook": {"name": "a.xlsx", "mime": "x", "b64": SHEET}}
+        extra = {"past_reports": [{"week_ending": "2026-10-21", "file": "PUB-report-2026-10-21.html"}], "client_workbook": {"name": "a.xlsx", "base64": SHEET}}
         with chrome() as cdp:
-            js = self.open(cdp, extra)
+            js = self.show(cdp, extra)
             for width in (1400, 901, 900, 800):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
                 for theme in ("light", "dark"):

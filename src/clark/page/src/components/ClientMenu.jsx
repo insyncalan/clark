@@ -6,7 +6,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Icon } from "./Icon.jsx";
 import { MenuPanel, useMenuState } from "./Menu.jsx";
-import { blockExtras } from "../stores/report.js";
+import { data } from "../stores/report.js";
 import { printReport } from "../stores/print.js";
 import { readerName, setReaderName, removeReader, initialsOf, look, setLook } from "../stores/reader.js";
 import { workbookOf, tooLarge, pastReportsOf, bytesOf } from "../logic/clientMenu.js";
@@ -77,7 +77,7 @@ export function ClientMenu() {
   const [open, setOpen] = useMenuState();
   const [box, setBox] = useState(false);
   const btn = useRef(null), back = useRef(false);
-  const d = blockExtras.value, book = workbookOf(d), big = !book && tooLarge(d), past = pastReportsOf(d);
+  const d = data.value, book = workbookOf(d), big = !book && tooLarge(d), past = pastReportsOf(d);
   const name = readerName.value, ini = initialsOf(name), mode = look.value;
   const close = (how) => { back.current = how === "esc" || how === "pick"; setOpen(false); };
   // Focus goes back to the badge only if nothing took it: the box has put focus in itself, and the menu must not steal it.

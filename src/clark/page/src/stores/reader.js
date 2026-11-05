@@ -1,7 +1,7 @@
 // What the reader of a published file keeps for themselves (issue 713), in their own browser only: the name in their profile and the
 // Light / Dark / System choice. Both live in localStorage and nowhere else: never in the file, the data block, an address or a
 // workbook. Every read and write is inside try/catch, because storage can be blocked (a private window, a policy) or full; then
-// the page works and simply forgets. A published file only: the editor has its own appearance (stores/appearance.js) and profile.
+// the page works and simply forgets. A published file only: the editor keeps its own look and profile.
 import { signal } from "@preact/signals";
 
 export const NAME_KEY = "clark.reader.name";
@@ -36,7 +36,7 @@ const stored = () => { const v = read(LOOK_KEY); return LOOKS.includes(v) ? v : 
 export const look = signal(stored());
 
 let forPrint = false;                      // while the browser prints the page is always light
-let started = false;                       // only a published file starts it: the editor's own appearance is never touched here
+let started = false;                       // only a published file starts it: the editor's own look is never touched here
 function paint() {
   if (!started) return;
   try {
