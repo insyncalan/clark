@@ -209,6 +209,25 @@ class Table(unittest.TestCase):
                         self.assertEqual(got["wide"], [], where + ": a cell has text wider than its box")
                         self.assertLessEqual(got["sw"], got["vw"], where + ": the page scrolls sideways")
 
+    def test_row_834_the_item_column_and_the_rows_are_as_compact_as_the_prototype(self):
+        # Row 834: at 900 px the fixed columns left the Item column 228 px wide, so titles wrapped and rows were 102-124 px tall
+        # (prototype: Item column 290, rows 61-81). The fixed columns total the prototype's 576; a row is at most 81 + 2 px.
+        probe = """(() => { const th = document.querySelector('#work table.items th.c-item, #work table.items th:first-child');
+          const fixed = ['c-eye', 'c-owner', 'c-due', 'c-prio', 'c-status'].map((c) => { const e = document.querySelector('#work table.items th.' + c); return e ? e.getBoundingClientRect().width : 0; });
+          const rows = [...document.querySelectorAll('#work tbody tr[data-id]')].map((r) => Math.round(r.getBoundingClientRect().height));
+          return JSON.stringify({ item: Math.round(th.getBoundingClientRect().width), fixed: Math.round(fixed.reduce((a, b) => a + b, 0)), max: Math.max(...rows), n: rows.length }); })()"""
+        with chrome() as cdp:
+            for width in (1400, 900):
+                for mode in ("view", "edit"):
+                    for theme in ("light", "dark"):
+                        where = f"{width} px, {mode}, {theme}"
+                        got = json.loads(cdp.js(probe, self.load(cdp, width, mode, theme)))
+                        self.assertGreater(got["n"], 0, where)
+                        self.assertLessEqual(got["fixed"], 576 + 2, where + ": the fixed columns total the prototype's 576")
+                        self.assertLessEqual(got["max"], 81 + 2, where + ": a row is at most the prototype's tallest")
+                        if width == 900:   # the rest of the gap to the prototype's 290 is the page card (row 832), which is not this row's
+                            self.assertGreaterEqual(got["item"], 236, where + ": the Item column is not narrower than 236")
+
     def test_the_eye_shows_who_the_client_sees(self):
         with chrome() as cdp:
             got = {r["id"]: r for r in self.measure(cdp, self.load(cdp, 1400))["rows"]}
