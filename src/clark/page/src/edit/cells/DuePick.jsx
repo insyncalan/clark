@@ -9,7 +9,8 @@ import { dueField, showDate, dayNumber } from "../../workItems.js";
 
 const WEEK = [["M", "Monday"], ["T", "Tuesday"], ["W", "Wednesday"], ["T", "Thursday"], ["F", "Friday"], ["S", "Saturday"], ["S", "Sunday"]];
 
-export function DuePick({ row, anchor, today, onPick, onClose }) {
+// `label` and `quick` are optional: the week ending box (issue 672) names its own panel and offers only Friday. Left out, both are as ever.
+export function DuePick({ row, anchor, today, onPick, onClose, label, quick: choices }) {
   const value = dayNumber(dueField(row)) === null ? "" : dueField(row);
   const [at, setAt] = useState(value || today);
   const [month, setMonth] = useState((value || today).slice(0, 7));
@@ -35,9 +36,9 @@ export function DuePick({ row, anchor, today, onPick, onClose }) {
     }
   };
   const flip = (n) => { const ym = addMonths(month, n); now.current = `${ym}-01`; setMonth(ym); setAt(`${ym}-01`); };
-  const quick = quickDates(today).concat(canClearDue(row) ? [["No date", ""]] : []);
+  const quick = choices || quickDates(today).concat(canClearDue(row) ? [["No date", ""]] : []);
   return (
-    <Pop anchor={anchor} label={`${what} of ${row.id}`} cls="cdate" onClose={onClose}>
+    <Pop anchor={anchor} label={label || `${what} of ${row.id}`} cls="cdate" onClose={onClose}>
       <div class="cp-h">
         <button type="button" class="cp-m" data-month="-1" aria-label="Previous month" onClick={() => flip(-1)}>{"‹"}</button>
         <b class="cp-t" aria-live="polite">{monthTitle(month)}</b>
