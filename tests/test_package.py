@@ -108,18 +108,24 @@ class MacZipTest(unittest.TestCase):
         self.assertEqual([], [n for n in names if n.startswith(("docs/", ".app/docs/"))])
         self.assertEqual([], [n for n in names if n.lower().endswith((".png", ".jpg", ".jpeg", ".gif")) and not n.startswith((".app/src/", ".app/vendor/"))])
 
-    def test_a_release_or_client_zip_refuses_without_the_zip_readme(self):
+    def test_every_build_refuses_without_the_zip_readme(self):
+        """#751: a plain, a --dirty, a release and a client build all refuse when docs/zip/README.md is missing, in the same words;
+        none can ship the repository's own README.md by mistake."""
+        said = ("A release or a client zip carries docs/zip/README.md as its README.md, and that file is missing. "
+                "Nothing was written. Restore it, then build again.")
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "repo"
             (root / "src/clark").mkdir(parents=True)
             (root / "README.md").write_text("A repository README.\n", encoding="utf-8")
             (root / "src/clark/__init__.py").write_text('__version__ = "0.0.1"\n', encoding="utf-8")
             (root / "src/clark/store.py").write_text("SCHEMA_VERSION = 1\n", encoding="utf-8")
-            with mock.patch.object(package, "SHARED", ("README.md", "src/clark/")), mock.patch.object(package, "tag_problem", return_value=None):
-                with self.assertRaises(package.Refused) as caught:
-                    package.build("mac", Path(tmp) / "out", root=root, release=True)
-            self.assertIn("docs/zip/README.md", str(caught.exception))
-            self.assertFalse((Path(tmp) / "out").exists() and any((Path(tmp) / "out").iterdir()))
+            for kind, kwargs in (("plain", {}), ("dirty", {"dirty": True}), ("release", {"release": True}), ("client", {"for_client": True, "dirty": False})):
+                with self.subTest(kind=kind), mock.patch.object(package, "SHARED", ("README.md", "src/clark/")), \
+                        mock.patch.object(package, "tag_problem", return_value=None), mock.patch.object(package, "snapshot_problem", return_value=None):
+                    with self.assertRaises(package.Refused) as caught:
+                        package.build("mac", Path(tmp) / "out", root=root, **kwargs)
+                    self.assertEqual(said, str(caught.exception))
+                    self.assertFalse((Path(tmp) / "out").exists() and any((Path(tmp) / "out").iterdir()))
 
     def test_licence_and_notice_are_in_the_zip(self):
         """#639: LICENSE and NOTICE.md travel with the code; the list, the zip and the manifest all hold them."""

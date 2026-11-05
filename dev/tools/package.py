@@ -240,10 +240,9 @@ def tracked(root, paths):
 
 
 def zip_source(name, root=ROOT):
-    """The repo file the zip's `name` is read from: docs/zip/README.md for README.md when that file is there, else the name
-    itself (a small test repo has only a README.md). A release or a client build refuses to go on without docs/zip/README.md."""
-    src = source(name)
-    return src if (Path(root) / src).is_file() else name
+    """The repo file the zip's `name` is read from: docs/zip/README.md for README.md (release_files.source). Every build refuses
+    to go on without it (build() says so in plain words), so the repository's own README.md can never be shipped by mistake."""
+    return source(name)
 
 
 def files(system, root=ROOT):
@@ -583,7 +582,7 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
             raise Refused(f"A zip for a client must be built from the scrubbed public snapshot, and {problem}. "
                           "Nothing was written. Build it in a checkout of the snapshot that dev/tools/publish_public.py "
                           "makes, or leave out --for-client to build one for the team.")
-    if (release or for_client) and "README.md" in listed(system) and not (root / ZIP_README).is_file():
+    if "README.md" in listed(system) and not (root / ZIP_README).is_file():
         raise Refused(f"A release or a client zip carries {ZIP_README} as its README.md, and that file is missing. "
                       "Nothing was written. Restore it, then build again.")
     extra = extra_content(extra_folders)            # before anything is written; a plain Refused if a folder is not fit
