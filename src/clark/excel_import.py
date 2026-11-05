@@ -153,6 +153,7 @@ MAX_SHEET_ROWS, MAX_SHEET_COLUMNS = 5000, 100        # the area a sheet may span
 MAX_SHEET_CELLS, MAX_TOTAL_CELLS = 200000, 400000     # rows times columns, empty cells included: one sheet, and all the sheets read together
 MAX_TEXT = 10000                                    # characters in one text cell; a longer one is refused (a hostile file can hold megabytes)
 MAX_ROWS = 2000                                     # rows with something in them, per sheet; a bigger sheet is refused whole
+OVER_LIMIT = MAX_ROWS + 1                           # what list_sheets gives a sheet read_workbook would refuse: the page says "more than 2,000 rows"
 
 
 def clean_rich(field, text):
@@ -655,25 +656,7 @@ class _Reader:
         if table in writer.LABELLED:
             cols = cols + [LABELS]
             info[LABELS] = ("TEXT", False, None)
-        labels = {label.lower(): f for label, f in excel.COLUMN_OF[table].items()}
-        for alias, f in HEADER_ALIASES.items():
-            if f in labels.values():
-                labels[alias] = f
-        header, named = {}, {}
-        ignored = []
-        for i, h in enumerate(next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ())):
-            if h is None or h is _FORMULA or not str(h).strip():
-                continue
-            k = labels.get(str(h).strip().lower()) or _key(h)       # the export's label first, then a column name
-            if k in excel.DERIVED:
-                continue                                  # worked out by the export (Original, Shown state): never read back
-            if k in cols and k in header:
-                raise Invalid(f"The {sheet} sheet has two columns for the same thing: “{named[k]}” and “{str(h).strip()}”. Keep one of "
-                              "them and import again. Nothing was changed.")
-            if k in cols:
-                header[k], named[k] = i, str(h).strip()
-            else:
-                ignored.append(str(h).strip())
+        header, named, ignored = header_map(next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ()), table, cols, sheet)
         if "id" not in header:
             self.problem(f"{sheet}: there is no id column, so the sheet was skipped (every row would look new)", sheet)
             return
@@ -927,16 +910,79 @@ class _Reader:
         self.given[self.stage(kind="new", table=table, sheet=sheet, row=rn, after=values, fp=fp).n] = given
 
 
+def header_map(first_row, table, cols, sheet):
+    """(header, named, ignored) for a sheet's first row: header[column] = its position, named[column] = the heading as written,
+    ignored = headings the import does not know. read_workbook and list_sheets read the heading row the same way (issue 737)."""
+    labels = {label.lower(): f for label, f in excel.COLUMN_OF[table].items()}
+    for alias, f in HEADER_ALIASES.items():
+        if f in labels.values():
+            labels[alias] = f
+    header, named = {}, {}
+    ignored = []
+    for i, h in enumerate(first_row):
+        if h is None or h is _FORMULA or not str(h).strip():
+            continue
+        k = labels.get(str(h).strip().lower()) or _key(h)       # the export's label first, then a column name
+        if k in excel.DERIVED:
+            continue                                  # worked out by the export (Original, Shown state): never read back
+        if k in cols and k in header:
+            raise Invalid(f"The {sheet} sheet has two columns for the same thing: “{named[k]}” and “{str(h).strip()}”. Keep one of "
+                          "them and import again. Nothing was changed.")
+        if k in cols:
+            header[k], named[k] = i, str(h).strip()
+        else:
+            ignored.append(str(h).strip())
+    return header, named, ignored
+
+
 CHOICE_ORDER = ("actions", "raid", "decisions", "milestones", "use_cases")     # the order the person is offered the sheets in (#655)
 
 
-def list_sheets(path):
-    """The sheets of the workbook at `path` that clark imports, for the person to choose from (#655): [{"table", "name", "rows"}] in
-    CHOICE_ORDER, "rows" being the rows below the header with something in them. A sheet the file does not have is not listed; a
-    History sheet (or any other) is never listed. Nothing is compared or written, and no cell is built beyond the first
-    MAX_SHEET_ROWS + 1 rows below the header. A sheet that read_workbook would refuse for its size (it reaches past row MAX_SHEET_ROWS, so
-    the header leaves 4,999 data rows, or past MAX_SHEET_COLUMNS, or has too many cells) is given "rows" = MAX_SHEET_ROWS + 1, above
-    5,000: the box says "more than 5,000 rows", so the list never promises what ticking would refuse. It is not read (ticking it is what makes the check refuse it, in words)."""
+def _blank(v):
+    return v is None or (isinstance(v, str) and not v.strip())
+
+
+def _rows_counted(ws, table, cols):
+    """How many rows read_workbook would count against MAX_ROWS in this sheet, stopping once it is past the limit: a row counts when
+    its ID cell has something in it, or any column the import reads does (a formula cell counts; a row whose ID is a formula is
+    left out; cells under a heading the import does not know are not looked at). `cols` None (no store to name the columns) counts
+    every row with anything in it, which is never fewer."""
+    first = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ())
+    header = None
+    if cols is not None:
+        try:
+            header = header_map(first, table, cols, ws.title)[0]
+        except Invalid:
+            header = None                         # two columns for one thing: the check says so; here every cell is looked at
+    if header is not None and "id" not in header:
+        return 0                                  # no id column: the sheet is skipped
+    rows = 0
+    for row in ws.iter_rows(min_row=2, max_row=MAX_SHEET_ROWS + 2, max_col=MAX_SHEET_COLUMNS):
+        if header is None:
+            used = any(not _blank(c.value) for c in row)
+        else:
+            at = {k: (row[i] if i < len(row) else None) for k, i in header.items()}
+            if at["id"] is not None and at["id"].data_type == "f":
+                continue
+            used = any(c is not None and (c.data_type == "f" or not _blank(c.value)) for c in at.values())
+        if used:
+            rows += 1
+            if rows > MAX_ROWS:
+                break
+    return rows
+
+
+def list_sheets(path, store=None):
+    """The sheets of the workbook at `path` that clark imports, for the person to choose from (issue 655): [{"table", "name", "rows"}]
+    in CHOICE_ORDER, "rows" being the rows below the header read_workbook would count. A sheet the file does not have is not listed;
+    a History sheet (or any other) is never listed. Nothing is compared or written.
+    A sheet that read_workbook would refuse for its size is given "rows" = OVER_LIMIT (MAX_ROWS + 1), whatever its real size: the
+    box says "more than 2,000 rows", so the list never promises what ticking would refuse. That is every refusal read_workbook makes
+    of one sheet: more than MAX_ROWS rows counted as the reader counts them (with `store`, exactly; without, never fewer), a reach
+    past row MAX_SHEET_ROWS or column MAX_SHEET_COLUMNS, or more than MAX_SHEET_CELLS cells (empty ones included). (The total across
+    sheets, MAX_TOTAL_CELLS, is not shown here.) The reach is the workbook's own dimension record, as read_workbook uses it; a
+    workbook whose record understates the sheet is counted only as far as row MAX_SHEET_ROWS + 2 (cheap, about 0.2 s) and is not
+    corrected: the check still refuses it in words. The sheet is not read (ticking it is what makes the check refuse it, in words)."""
     path = Path(path)
     try:
         excel.check_workbook_size(path)
@@ -955,17 +1001,14 @@ def list_sheets(path):
             if table in found:
                 raise Invalid(f"The workbook has two sheets for the same thing: “{found[table][0]}” and “{ws.title}”. Keep one of them and "
                               "import again. Nothing was changed.")
-            rows = 0
-            for row in ws.iter_rows(min_row=2, max_row=MAX_SHEET_ROWS + 2, max_col=MAX_SHEET_COLUMNS, values_only=True):
-                if any(v is not None and not (isinstance(v, str) and not v.strip()) for v in row):
-                    rows += 1
-            # The same test read_workbook applies: the sheet's reach (a far-off cell or a very wide sheet counts, empty cells included),
-            # not only the rows with something in them. A sheet with 5,000 rows with something in them reaches row 5,001 or further,
-            # so it is over the limit too. Such a sheet is given the count one past the limit: the page says "more than 5,000 rows".
             reach_rows, reach_cols = ws.max_row or 0, ws.max_column or 0
-            if (reach_rows > MAX_SHEET_ROWS or reach_cols > MAX_SHEET_COLUMNS or reach_rows * reach_cols > MAX_SHEET_CELLS
-                    or rows >= MAX_SHEET_ROWS):
-                rows = MAX_SHEET_ROWS + 1
+            if reach_rows > MAX_SHEET_ROWS or reach_cols > MAX_SHEET_COLUMNS or reach_rows * reach_cols > MAX_SHEET_CELLS:
+                rows = OVER_LIMIT                                 # the reader's size tests, before any row is looked at
+            else:
+                cols = None
+                if store is not None:
+                    cols = writer.columns(store.con, table) + ([LABELS] if table in writer.LABELLED else [])
+                rows = min(_rows_counted(ws, table, cols), OVER_LIMIT)
             found[table] = (ws.title, rows)
         return [{"table": t, "name": SHEET_NAMES[t], "rows": found[t][1]} for t in CHOICE_ORDER if t in found]
     finally:
