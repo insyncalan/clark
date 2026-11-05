@@ -93,7 +93,7 @@ class WhatItReturns(Base):
     def test_only_the_named_fields_are_returned(self):
         u = self.by_id["PUB-U-001"]
         self.assertEqual(set(u), {"id", "ref", "name", "headline", "status", "standing", "on_dashboard", "linked", "open",
-                                  "next_steps", "milestones"})
+                                  "next_steps", "milestones", "commitment"})     # #709: + the flag
         self.assertEqual(set(u["next_steps"][0]), {"id", "description", "owner", "due_date", "status", "client_visible"})
         self.assertEqual(set(u["milestones"][0]), {"id", "name", "baseline_date", "forecast_date", "status", "client_visible"})
         text = json.dumps(self.body)

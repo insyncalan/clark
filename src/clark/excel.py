@@ -57,6 +57,7 @@ from clark import excel_picture
 from clark import look
 from clark import platform
 from clark.milestones import STATES, milestone_state
+from clark.store import COMMITMENTS
 from clark.timefmt import local_text, parse
 
 EXTRA_ROWS = 500          # rows below the data that keep drop-downs and formats for new entries
@@ -105,7 +106,7 @@ SHEETS = [
      {"id", "source", "updated_at"}),
     ("Use cases", "use_cases", [                                       # clark's own table, in creaite's style
         ("ID", "id"), ("Use case", "title"), ("Project", "project"), ("Shown as", "ref"), ("Status", "status"),
-        ("Headline", "headline"), ("Where it stands", "standing"), ("Order", "sort_order"),
+        ("Commitment", "commitment"), ("Headline", "headline"), ("Where it stands", "standing"), ("Order", "sort_order"),
         ("Client-visible", "client_visible"), ("Source", "source"), ("Updated", "updated_at")],
      {"id", "source", "updated_at"}),
 ]
@@ -132,6 +133,7 @@ CHOICES = {
     ("milestones", "movement"): ["hold", "rebaseline", "recover", "escalate"],         # clark: FR-53
     ("decisions", "status"): ["Pending", "Made", "Withdrawn"],
     ("use_cases", "status"): ["On track", "Flag", "High risk", "Done"],                  # clark
+    ("use_cases", "commitment"): list(COMMITMENTS),                                      # #709: the store's own words; a blank is allowed (no flag)
     "priority": ["Urgent", "High", "Medium", "Low"],
     "type": ["Risk", "Assumption", "Issue", "Dependency"],
     "impact": ["High", "Medium", "Low"],
