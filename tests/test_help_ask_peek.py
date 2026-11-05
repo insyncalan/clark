@@ -50,11 +50,10 @@ class HelpAskAndSneakPeek(unittest.TestCase):
         self.assertIn("<svg", code)                       # the button draws a speech bubble (a rounded outline with a tail)
         self.assertIn("M4 5.5A2.5 2.5 0 0 1 6.5 3h7", code)
         self.assertIn("<kbd", code)                       # and shows its key, "/"
-        bullet = "**ask clark** button in the top bar (a speech bubble)"
-        for entry_text in (ASK, entry("reference", "top-bar"), json.dumps(RAW["start"]["where"], ensure_ascii=False)):
-            self.assertIn("top bar", entry_text)
-        self.assertIn("Open it with the " + bullet + ", or press [[/]].", entry("reference", "ask-clark"))
-        self.assertIn(bullet, entry("howto", "check-the-report"))
+        one = "ask: the speech-bubble button in the top bar, or press [[/]]"
+        self.assertIn(one, RAW["start"]["text"]["keyline"])        # the one place the Help names the button
+        self.assertEqual([s for s in ALL if "top bar" in s and re.search(r"(?i)\bask\b", s) and one not in s], [],
+                         "no other Help text carries top-bar ask words")
         self.assertNotRegex(" ".join(ALL), r"(?i)ask button|top-bar button|ask icon")
 
     def test_sneak_peek_is_work_items_only(self):
