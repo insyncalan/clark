@@ -20,12 +20,16 @@ export function TopBar({ tools }) {
     if (on && on.scrollIntoView) on.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "auto" });
   };
   useEffect(showOpen, [view.value, tabs.value.length]);
-  useEffect(() => {      // the row also narrows after that (the mode switch joins the bar when the Dashboard is left): bring the open tab in again
-    if (!row.current || typeof ResizeObserver === "undefined") return undefined;
-    const watch = new ResizeObserver(showOpen);
-    watch.observe(row.current);
-    return () => watch.disconnect();
-  }, []);
+  useEffect(() => {      // the row narrows or its tabs widen after that (the mode switch joins the bar, the fonts load): bring the open tab in again, on the next frame, once the layout has settled
+    if (!row.current) return undefined;
+    let frame = 0;
+    const later = () => { if (frame) cancelAnimationFrame(frame); frame = requestAnimationFrame(() => { frame = 0; showOpen(); }); };
+    const watch = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(later);
+    if (watch) { watch.observe(row.current); Array.from(row.current.children).forEach((t) => watch.observe(t)); }
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(later);
+    later();
+    return () => { if (watch) watch.disconnect(); if (frame) cancelAnimationFrame(frame); };
+  }, [tabs.value.length]);
   return (
     <header class="top">
       <span class="logo" aria-label="clark"><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></span>

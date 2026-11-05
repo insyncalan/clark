@@ -1,4 +1,4 @@
-"""#681, row 757: the top bar at 1400, 901, 900 and 800 px, light and dark, on the Dashboard, Use cases and Settings, in View and Edit, with a long
+"""#681, row 757: the top bar at 1400, 901 and 900 px, light and dark, on the Dashboard, Use cases and Settings, in View and Edit, with a long
 project name: every tab label is whole on one line, the bar stays one 56 px row, the project name shortens first, then the tab row scrolls inside
 its own box with the open tab fully inside it, nothing is clipped or overlapped, and the page does not scroll sideways. Chrome is required: these
 tests fail, never skip, without it.
@@ -12,7 +12,7 @@ from test_inline_67 import size
 from test_report_editor import Base
 from test_server import chrome
 
-WIDTHS = (1400, 901, 900, 800)
+WIDTHS = (1400, 901, 900)      # the owner's scope is 1400 and 900 px (901 is the neighbour that must not move)
 
 # Each tab's box and line count; the bar's top-level items (the tab row among them); the tab row's scroll; the project name's box; the page's sideways scroll.
 MEASURE = """(function(){
@@ -146,6 +146,8 @@ class TopBarTabs(Base):
             p.until("(function(){ var row = document.querySelector('.top .tabs').getBoundingClientRect(), "
                     "t = document.querySelector('.top .tab[aria-selected=true]').getBoundingClientRect(); return t.right <= row.right + 0.5 && t.left >= row.left - 0.5; })()",
                     "the open tab comes back into the tab row")
+            # it must still be whole after the layout and the fonts have settled
+            p.js("new Promise(r => setTimeout(r, 1500))")
             got = p.js("(function(){ var row = document.querySelector('.top .tabs').getBoundingClientRect(), "
                        "t = document.querySelector('.top .tab[aria-selected=true]').getBoundingClientRect(); return [t.left, t.right, row.left, row.right]; })()")
             self.assertGreaterEqual(got[0], got[2] - 0.5, f"Settings starts left of the tab row {got}")
@@ -159,6 +161,7 @@ for _w in WIDTHS:
         setattr(TopBarTabs, f"test_settings_at_{_w}_{_t}", lambda self, w=_w, t=_t: self.check(w, t, False, False, "Settings"))
         setattr(TopBarTabs, f"test_settings_at_{_w}_{_t}_long_name_in_edit", lambda self, w=_w, t=_t: self.check(w, t, True, True, "Settings"))
         setattr(TopBarTabs, f"test_settings_at_{_w}_{_t}_long_name_in_view", lambda self, w=_w, t=_t: self.check(w, t, True, False, "Settings"))
+        setattr(TopBarTabs, f"test_work_items_at_{_w}_{_t}_long_name_in_edit", lambda self, w=_w, t=_t: self.check(w, t, True, True, "Work items"))
         setattr(TopBarTabs, f"test_use_cases_at_{_w}_{_t}_long_name_in_view", lambda self, w=_w, t=_t: self.check(w, t, True, False, "Use cases"))
 
 if __name__ == "__main__":
