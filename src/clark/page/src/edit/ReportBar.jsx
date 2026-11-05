@@ -18,7 +18,7 @@ import { ownToast } from "./BarToast.jsx";
 import { Toggle } from "./Toggle.jsx";
 import { WeekPicker } from "./WeekPicker.jsx";
 import { DuePick } from "./cells/DuePick.jsx";
-import { quickDates } from "./itemEdit.js";
+import { weekEndingQuick } from "./itemEdit.js";
 
 // The drag hint shows the first time this browser enters Edit and stays until Edit is left; after that it is not shown again.
 const hintOpen = signal(!recall("dragHintSeen", false));
@@ -60,7 +60,7 @@ export function ReportBar() {
     el.value = shownDay(day);
     saveFrom(el, true);
   };
-  const friday = quickDates(todayIso()).filter(([text]) => text === "Friday");       // the one quick choice: the week ending cannot be cleared here
+  const friday = [weekEndingQuick(todayIso())];       // the one quick choice: the week ending cannot be cleared here
   const enter = (e) => {       // Enter on the Friday shown, with no week kept, saves it; Enter on anything else leaves the box, and leaving saves
     if (e.key !== "Enter") return;
     if (!stored && parseDay(e.currentTarget.value.trim()) === week) save(e, true); else e.currentTarget.blur();
