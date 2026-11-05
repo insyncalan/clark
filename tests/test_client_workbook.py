@@ -27,7 +27,7 @@ from clark.store import open_store  # noqa: E402
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 PARTS = {"[Content_Types].xml", "_rels/.rels", "docProps/app.xml", "docProps/core.xml", "xl/workbook.xml", "xl/_rels/workbook.xml.rels",
          "xl/styles.xml", "xl/theme/theme1.xml", "xl/sharedStrings.xml"}
-SECRET = "AKIAABCDEFGHIJKLMNOP"
+SECRET = "ZQ-PLANTED-SECRET-MARKER-7F3A9C"
 FORMULA = '=HYPERLINK("https://x.invalid","click")'
 
 
