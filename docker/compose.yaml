@@ -13,10 +13,12 @@ services:
     image: python:3.12.12-slim-bookworm
     working_dir: /clark
     # The same start as the Terminal route's: python3 -m clark checks the pages (and in a checkout would build them), then serves.
-    command: ["python3", "-m", "clark", "--data", "/clark/data", "--port", "8766"]
+    command: ["python3", "-m", "clark", "--data", "/data", "--port", "8766"]
     ports:
       - "127.0.0.1:${CLARK_PORT:-8766}:8766"
-    # clark's code is shared in read-only, so the container cannot change it; only the data folder can be written.
+    # clark's code is shared in read-only, so the container cannot change it; only the data folder can be written. The data folder
+    # is mounted at /data, NOT inside /clark: Docker cannot make a mountpoint inside a read-only share, so a /clark/data target
+    # failed on a first start with CLARK_DATA_DIR named (no data folder yet beside this file).
     # The download holds its built pages. A source checkout must build them first on the computer: python3 dev/tools/build_page.py
     volumes:
       - type: bind
@@ -25,7 +27,7 @@ services:
         read_only: true
       - type: bind
         source: ${CLARK_DATA_DIR:-../data}
-        target: /clark/data
+        target: /data
         bind:
           create_host_path: true
     # Not root: the container writes the data folder as an ordinary user. UID and GID are read when they are exported (Linux);
