@@ -386,8 +386,8 @@ class InTheWorkbook(unittest.TestCase):
         self.make()
         ws = self.cover_sheet()
         this, nxt = self.find_like("This week"), self.find_like("Next week")
-        self.assertEqual((this.row, this.column, nxt.row, nxt.column), (this.row, 1, this.row, 7))
-        self.assertEqual((ws.cell(row=this.row + 1, column=1).value, ws.cell(row=this.row + 1, column=7).value),
+        self.assertEqual((this.row, this.column, nxt.row, nxt.column), (this.row, 1, this.row, 8))
+        self.assertEqual((ws.cell(row=this.row + 1, column=1).value, ws.cell(row=this.row + 1, column=8).value),
                          ("Book the rooms.", "Open the office."))
 
     def test_the_stamp_row_is_labelled_exported(self):
