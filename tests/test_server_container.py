@@ -154,11 +154,24 @@ class Compose(unittest.TestCase):
         """clark's code and its data stay in the unzipped folder on the computer: nothing is kept only inside the container."""
         text = self.service()
         self.assertIn("      - type: bind\n        source: ..\n        target: /clark\n        read_only: true\n", text)
-        self.assertIn("      - type: bind\n        source: ${CLARK_DATA_DIR:-../data}\n        target: /clark/data\n        bind:\n"
+        self.assertIn("      - type: bind\n        source: ${CLARK_DATA_DIR:-../data}\n        target: /data\n        bind:\n"
                       "          create_host_path: true\n", text)
         self.assertRegex(text, r"(?m)^    working_dir: /clark$")
         self.assertEqual(len(re.findall(r"(?m)^\s*target:", text)), 2, "the code (read-only) and its data folder, nothing else")
         self.assertEqual(text.count("read_only: true"), 2, "the code mount and the container itself; the data mount is the one written")
+
+    def test_no_mount_target_sits_inside_the_read_only_share(self):
+        """#695: Docker cannot make a mountpoint inside a read-only share, so a data target under /clark failed on a first start
+        with CLARK_DATA_DIR named (no data folder beside compose.yaml yet). The data folder is mounted outside the share."""
+        text = self.service()
+        targets = re.findall(r"(?m)^\s*target:\s*(\S+)\s*$", text)
+        shared = re.search(r"target: (\S+)\n\s*read_only: true", text).group(1)
+        self.assertEqual(shared, "/clark")
+        for t in targets:
+            if t != shared:
+                self.assertFalse(t.startswith(shared + "/"), f"{t} is inside the read-only share {shared}")
+        self.assertIn("      - type: bind\n        source: ${CLARK_DATA_DIR:-../data}\n        target: /data\n", text)
+        self.assertIn('"--data", "/data"', text, "clark is told the folder that is mounted")
 
     def test_it_runs_as_an_ordinary_user_not_root(self):
         """item 462: a stock image runs as root, and would write the owner's folder as root."""
@@ -170,7 +183,7 @@ class Compose(unittest.TestCase):
     def test_the_command_starts_clark_as_the_terminal_does_with_the_mounted_data(self):
         """python3 -m clark builds the pages (page.ensure_built, item 495) before it serves, as on the Terminal route."""
         text = self.service()
-        self.assertIn('    command: ["python3", "-m", "clark", "--data", "/clark/data", "--port", "8766"]', text)
+        self.assertIn('    command: ["python3", "-m", "clark", "--data", "/data", "--port", "8766"]', text)
         self.assertTrue((ROOT / "clark" / "__main__.py").is_file(), "the stand-in that python3 -m clark runs from /clark")
         main = (ROOT / "src" / "clark" / "__main__.py").read_text(encoding="utf-8")
         self.assertLess(main.index("page.ensure_built()"), main.index("done = serve("))
