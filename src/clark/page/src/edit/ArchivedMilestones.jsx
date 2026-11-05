@@ -6,7 +6,8 @@
 // The rows are read from GET /api/data?archived=only, into this block's own state and never into the page's data, so an archived
 // row cannot reach the Plan, the published file, the export or Ask. They are read again whenever the project's data is read again
 // (after a restore or an undo). If a read fails, the rows last read for this project stay; with none yet, the button is left out
-// rather than say 0. A project change clears the rows.
+// rather than say 0. With 0 archived milestones the button and the box are both left out (row 822); the first archived milestone
+// brings them back. A project change clears the rows.
 import { signal } from "@preact/signals";
 import { useEffect, useState } from "preact/hooks";
 import { project, data, peek, closePeek } from "../stores/report.js";
@@ -33,6 +34,7 @@ export function ArchivedMilestones() {
   const rows = got && got.code === code ? got.list : null;
   if (rows === null) return null;
   const n = rows.length, on = shown.value;
+  if (n === 0) return null;                                       // nothing archived: no button, no empty box (row 822)
   const look = (r, e) => {
     if (peek.value) closePeek();                                  // the page's own peek and this one never stand together
     archivedOpen.value = { code, row: r, opener: e.currentTarget };
