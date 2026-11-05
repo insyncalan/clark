@@ -142,7 +142,10 @@ class TopBarTabs(Base):
             p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
             p.js("(function(){ var s = document.createElement('span'); s.id = 'test-spacer'; s.style.cssText = 'flex:none;width:90px;height:1px'; "
                  "document.querySelector('.top .tabs').after(s); })()")
-            p.js("new Promise(r => setTimeout(r, 300))")
+            # A bounded wait, not a fixed sleep: under load the observer's re-scroll can land after 300 ms. A real regression still fails at the end of it.
+            p.until("(function(){ var row = document.querySelector('.top .tabs').getBoundingClientRect(), "
+                    "t = document.querySelector('.top .tab[aria-selected=true]').getBoundingClientRect(); return t.right <= row.right + 0.5 && t.left >= row.left - 0.5; })()",
+                    "the open tab comes back into the tab row")
             got = p.js("(function(){ var row = document.querySelector('.top .tabs').getBoundingClientRect(), "
                        "t = document.querySelector('.top .tab[aria-selected=true]').getBoundingClientRect(); return [t.left, t.right, row.left, row.right]; })()")
             self.assertGreaterEqual(got[0], got[2] - 0.5, f"Settings starts left of the tab row {got}")
