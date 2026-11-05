@@ -1,4 +1,5 @@
-// The keys V and E (#103): on the Dashboard they switch to View and Edit, the same as the two buttons (Toggle.jsx, which listens).
+// The keys V and E: on the Dashboard they switch to View and Edit, the same as the two buttons in Toggle.jsx. The listener is
+// installed once, at boot (boot.jsx calls installModeKeys), not by the switch, so it is there whichever bar draws the switch.
 // A plain key only: with a modifier, a held key or an input method composing, and anywhere focus is in a field, the editor, a
 // menu, a dialog or the open peek, the key belongs to that and is left alone. A screen reader's own V and E in browse mode never
 // reach the page, so they are not taken either.

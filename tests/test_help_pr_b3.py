@@ -113,7 +113,7 @@ class ExcelCells(unittest.TestCase):
             self.assertIn(sentence, step)
         cv, ex = py("excel_cover.py"), py("excel.py")
         self.assertIn('SUBTITLE_KIND', cv)
-        self.assertIn('parts.append(f"Week ending {show_date(week)}")', cv)
+        self.assertIn('parts.append(f"Week ending {long_date(week)}")', cv)
         self.assertIn('parts.append(f"for {client}")', cv)
         self.assertIn('title["tag"] = INTERNAL_TAG', cv)
         self.assertIn('== "this week" and nxt.get("type") == "text"', cv)

@@ -2727,7 +2727,7 @@ def make_publication_mark(path, onedrive_roots=None, by_user=None):
 # - the row before and after are read from the data inside that step, never from the request;
 # - `dry=True` (the default) runs it all in a step that is always rolled back (Store.step(dry=True)): what would be saved, saving nothing;
 # - an Apply may carry `expect`, the `before` its dry run showed: if the row is not that now, nothing is written.
-ASK_KINDS = ("actions", "raid", "decisions", "milestones")
+ASK_KINDS = ("actions", "raid", "decisions", "milestones", "use_cases")
 ASK_OPS = (NEW, UPDATE)
 # The fields ask clark may give, per kind and op: narrower than CHANGE_KINDS (no use case link, no client wording, no state, no
 # Movement, no agreed date moved: that is a rebaseline). Checked here, the one guarded chokepoint; ask_apply reads it from here.
@@ -2741,6 +2741,8 @@ ASK_FIELDS = {
                   UPDATE: ("decision", "made_by", "status", "date", "needed_by")},
     "milestones": {NEW: ("name", "owner", "baseline_date", "workstream"),
                    UPDATE: ("forecast_date", "actual_date", "status")},
+    "use_cases": {NEW: (),                                                 # issue 729: a change only (no new use case, no name, no eye, no link); the same checks as the editor
+                  UPDATE: ("headline", "status", "standing")},
 }
 ASK_KEYS = {NEW: ("project", "kind", "op", "values"), UPDATE: ("project", "kind", "op", "id", "changes")}
 ASK_PART = {NEW: "values", UPDATE: "changes"}
@@ -2795,13 +2797,13 @@ def _do_ask(store, by_user, req, dry, expect):
     if kind not in ASK_KINDS or op not in ASK_OPS or any(k not in ASK_KEYS[op] for k in req):
         raise Refused(ASK_NOT_YET, code="not_yet")
     part = req.get(ASK_PART[op])
-    if not isinstance(part, dict) or any(f not in ASK_FIELDS[kind][op] for f in part):
+    if not ASK_FIELDS[kind][op] or not isinstance(part, dict) or any(f not in ASK_FIELDS[kind][op] for f in part):
         raise Refused(ASK_NOT_YET, code="not_yet")
     if store.ask_enabled() is not True:
         raise Refused(ASK_OFF, 409, "asking_off")
     ref = req.get("id") if op == UPDATE else None
     if op == UPDATE and not _belongs(kind, ref, project):
-        raise Refused(NO_MILESTONE if kind == "milestones" else ITEM_NOT_MINE)
+        raise Refused(NO_MILESTONE if kind == "milestones" else NO_USE_CASE if kind == "use_cases" else ITEM_NOT_MINE)
     if expect is not None and not isinstance(expect, dict):
         raise Refused(STALE)
     ask = _AskStore(store, dry, expect, kind, ref)
