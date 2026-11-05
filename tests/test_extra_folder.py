@@ -392,3 +392,27 @@ class Install(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StartHereExtra(unittest.TestCase):
+    """issue 716: START-HERE says what each extra folder holds, only when that folder is in the zip."""
+
+    def test_the_sentences_appear_only_for_the_folders_given(self):
+        none = package.start_here("mac")
+        self.assertNotIn("intake holds", none)
+        self.assertNotIn("meet clark holds", none)
+        both = " ".join(package.start_here("mac", extra=("meet clark", "intake")).split())
+        self.assertIn("intake holds a sample workbook with made-up data, in the same layout clark exports. "
+                      "meet clark holds an overview and a getting-started guide as PDFs. system/branding holds", both)
+        one = " ".join(package.start_here("mac", extra=("intake",)).split())
+        self.assertIn("intake holds a sample workbook", one)
+        self.assertNotIn("meet clark holds", one)
+        self.assertIn("What is in this folder: README.md says what clark is.", both)
+
+    def test_no_line_starts_with_the_product_name_and_the_rest_is_unchanged(self):
+        text = package.start_here("mac", extra=("meet clark", "intake"))
+        for line in text.splitlines():
+            self.assertFalse(line.lstrip().lower().startswith(("clark ", "clark.", "clark's")), line)
+        plain = package.start_here("mac")
+        self.assertEqual(text.split("What is in this folder:")[0], plain.split("What is in this folder:")[0])
+        self.assertEqual(text.split("\n\n", 3)[-1].split("If your Mac will not open")[1], plain.split("If your Mac will not open")[1])

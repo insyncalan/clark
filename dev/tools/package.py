@@ -259,8 +259,30 @@ def files(system, root=ROOT):
     return sorted(chosen)
 
 
-def start_here(system, for_client=False, root=ROOT):
+# issue 716: one sentence for each extra folder a download carries; said in START-HERE only when the folder is in the zip.
+EXTRA_SENTENCES = {"intake": "intake holds a sample workbook with made-up data, in the same layout clark exports.",
+                   "meet clark": "meet clark holds an overview and a getting-started guide as PDFs."}
+
+
+def with_extra_folders(text, names):
+    """`text` (START-HERE) with a sentence about each extra folder in `names` added to "What is in this folder", the paragraph
+    wrapped again so that no line starts with the product name."""
+    import re
+    import textwrap
+    head, found, rest = text.partition("What is in this folder:")
+    para, blank, tail = rest.partition("\n\n")
+    if not found or "system/branding holds" not in para:
+        raise Refused("START-HERE has no 'What is in this folder' paragraph to add the extra folders to.")
+    flat = " ".join(para.split()).replace("system/branding holds", " ".join(EXTRA_SENTENCES[n] for n in names) + " system/branding holds", 1)
+    glued = re.sub(r" (clark)", "\x00\\1", "What is in this folder: " + flat, flags=re.I)
+    return head + textwrap.fill(glued, width=78, break_on_hyphens=False).replace("\x00", " ") + blank + tail
+
+
+def start_here(system, for_client=False, root=ROOT, extra=()):
     text = START_HERE_MAC + (START_HERE_DEMO if INCLUDE_DEMO else "")
+    names = [n for n in EXTRA_SENTENCES if n in extra]       # intake first, then meet clark
+    if names:
+        text = with_extra_folders(text, names)
     return text if for_client else f"{audience(root)}\n\n{text}"
 
 
@@ -562,7 +584,7 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
     top = top_folder(root)
     content = {f"{top}/{place(p)}": (placed_bytes(p, (root / p).read_bytes()), RUN_MODE if p in RUN_BIT else FILE_MODE)
                for p in names}
-    content[f"{top}/{place(START_HERE)}"] = (start_here(system, for_client, root).encode("utf-8"), FILE_MODE)
+    content[f"{top}/{place(START_HERE)}"] = (start_here(system, for_client, root, {n.split("/")[0] for n in extra}).encode("utf-8"), FILE_MODE)
     content.update({f"{top}/{n}": (data, FILE_MODE) for n, data in extra.items()})      # issue 716: not in git, so not in `names`
     if for_client:
         shown_paths, hidden = name_guard_hits({unplace(n[len(top) + 1:]): data for n, (data, _) in content.items()}, banned)   # repo names, as the builder knows them
