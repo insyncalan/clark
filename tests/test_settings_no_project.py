@@ -95,8 +95,11 @@ class Browser(unittest.TestCase):
                 for kept in ("personal-h", "data-card-h", "safety-h", "diagnostics-h"):
                     self.assertTrue(cdp.js(f"!!document.getElementById('{kept}')", sid), kept)
                 self.assertTrue(cdp.js("document.querySelector('#import-workbook').disabled", sid))
-                self.assertEqual(cdp.js("document.getElementById('import-why').textContent", sid), "Add a project first.")  # pending a ruling: logic/dataCard.js IMPORT_NEEDS_PROJECT
+                self.assertEqual(cdp.js("document.getElementById('import-why').textContent", sid), "Add a project first.")  # logic/dataCard.js IMPORT_NEEDS_PROJECT
                 self.assertEqual(cdp.js("document.querySelector('#import-workbook').getAttribute('aria-describedby')", sid), "import-why")
+                self.assertTrue(cdp.js("document.querySelector('#export-workbook').disabled", sid))
+                self.assertEqual(cdp.js("document.getElementById('export-why').textContent", sid), "Add a project first.")
+                self.assertEqual(cdp.js("document.querySelector('#export-workbook').getAttribute('aria-describedby')", sid), "export-why")
                 self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways page scroll")
 
     def test_the_other_four_screens_still_say_no_project_open(self):
