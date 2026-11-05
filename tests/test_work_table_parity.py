@@ -228,6 +228,22 @@ class Table(unittest.TestCase):
                         if width == 900:   # the rest of the gap to the prototype's 290 is the page card (row 832), which is not this row's
                             self.assertGreaterEqual(got["item"], 236, where + ": the Item column is not narrower than 236")
 
+    def test_row_833_the_view_and_filter_area_is_as_compact_as_the_prototype_and_the_examples_take_no_room(self):
+        # Row 833: the area was 82 px taller than the prototype and the first group started 101 px lower, partly because the hidden
+        # examples row kept 33 px. The prototype's first group starts at y=305; the page card (row 832) still adds its 33 px here.
+        probe = """(() => { const q = (s) => document.querySelector(s), h = q('.fline-wrap'), v = q('.fviews'), f = q('.fline'), x = q('.fhints'), g = q('#work .wgroup');
+          return JSON.stringify({ wrap: Math.round(h.getBoundingClientRect().height), views: Math.round(v.getBoundingClientRect().height), line: Math.round(f.getBoundingClientRect().height),
+            hintPos: getComputedStyle(x).position, hintVis: getComputedStyle(x).visibility, group: Math.round(g.getBoundingClientRect().top + scrollY), vtabs: v.querySelector('.vtabs').getBoundingClientRect().height }); })()"""
+        with chrome() as cdp:
+            for width in (1400, 900):
+                for mode in ("view", "edit"):
+                    for theme in ("light", "dark"):
+                        where = f"{width} px, {mode}, {theme}"
+                        got = json.loads(cdp.js(probe, self.load(cdp, width, mode, theme)))
+                        self.assertEqual((got["hintPos"], got["hintVis"]), ("absolute", "hidden"), where + ": the examples float over the list and are hidden at rest")
+                        self.assertLessEqual(got["wrap"], got["views"] + 8 + got["line"] + 2, where + ": the examples keep no room under the box")
+                        self.assertLessEqual(got["group"], 305 + 33 + 2, where + ": the first group starts at the prototype's y plus the page card")
+
     def test_the_eye_shows_who_the_client_sees(self):
         with chrome() as cdp:
             got = {r["id"]: r for r in self.measure(cdp, self.load(cdp, 1400))["rows"]}

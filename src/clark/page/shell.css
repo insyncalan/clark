@@ -312,7 +312,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .factive.pub .fchip button { width: 22px; height: 22px; }
 /* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
 :root { --layer-list: 26; }   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
-.fline-wrap { position: relative; margin-top: 12px; }
+.fline-wrap { position: relative; margin-top: var(--space-2); }
 .fviews { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
 .fvrow { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--space-2); flex: 1 1 100%; min-width: 0; border-bottom: 1px solid var(--grey-200); }   /* row 809: the views are text tabs on a thin rule; the row of tabs scrolls inside its own box and the menus keep their place at the right */
 .fvrow > .dd { flex: none; margin-bottom: var(--space-1); }
@@ -367,7 +367,8 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fdv.g { background: var(--status-green); }
 .fdv.n { background: var(--status-grey); }
 .fopt .c { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); }
-.fhints { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; min-height: 26px; visibility: hidden; }
+/* Row 833: the examples float over what is below the line (they take no room of their own, hidden or shown), so the list starts right under the box. */
+.fhints { position: absolute; z-index: var(--layer-list); left: 0; right: 0; top: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin-top: var(--space-1); visibility: hidden; }
 .fhints.on { visibility: visible; }
 .fhl { font-size: var(--size-small); color: var(--text-muted); }
 .fhint { all: unset; box-sizing: border-box; padding: 2px 10px; min-height: 24px; display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: var(--radius-pill); cursor: pointer; font-size: var(--size-small); color: var(--text-muted); background: var(--surface); }
