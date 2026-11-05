@@ -31,8 +31,9 @@ MORE = " … (continues in clark)"
 LIMIT = 32000                 # under Excel's 32,767 characters in one cell, with room for MORE
 IDS = ("Please don't change or move IDs. Each ID stays with its own row: if you change one, or sort only the ID column, "
        "the details go to another item when the file is imported. Leave the ID empty for a new item.")                                       # #128: says what the import (#129) really does with an ID
-LOCKED_CELLS = ("Some cells are locked so they are not changed by mistake: the ID column and the columns clark works out. To change "
-                "them, choose Review, then Unprotect Sheet. There is no password.")
+LOCKED_CELLS = ("Some cells are locked so they are not changed by mistake, such as the ID column and the columns clark works out. "
+                "To change them, choose Review, then Unprotect Sheet. There is no password. "
+                "Excel will not sort a protected sheet; unprotect it first.")
 SUBTITLE_KIND = "Weekly report"
 KINDS = ("title", "subtitle", "heading", "text", "tiles", "pair", "about", "exported", "caution", "return", "where", "ids", "locked")
 LINE_POINTS = 13.5            # one line of the 10 point body text, for the row heights

@@ -145,8 +145,9 @@ class Protected(Base):
         self.assertTrue(ws.conditional_formatting)
 
     def test_the_cover_line(self):
-        want = ("Some cells are locked so they are not changed by mistake: the ID column and the columns clark works out. "
-                "To change them, choose Review, then Unprotect Sheet. There is no password.")
+        want = ("Some cells are locked so they are not changed by mistake, such as the ID column and the columns clark works out. "
+                "To change them, choose Review, then Unprotect Sheet. There is no password. "
+                "Excel will not sort a protected sheet; unprotect it first.")
         self.assertEqual(excel_cover.LOCKED_CELLS, want)
         texts = [c.value for row in self.wb["Cover"].iter_rows() for c in row if c.value]
         self.assertIn("Locked cells", texts)
