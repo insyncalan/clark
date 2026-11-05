@@ -382,7 +382,7 @@
     "id": "change-an-item-in-the-peek",
     "g": "Work items",
     "t": "Change an item in the peek",
-    "w": "Any work item: a row, a card or its ID",
+    "w": "Any work item: a row or a card",
     "go": "work",
     "s": [
      "Click a row or a card, or press [[Enter]] on it. The item opens in the **peek** at the right, and the page stays where it was.",
