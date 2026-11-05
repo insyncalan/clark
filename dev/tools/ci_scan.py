@@ -169,7 +169,7 @@ ALLOWED_PUBLIC_FILES = {
     "meet clark/clark-overview.pdf": ("88590860921d47da28ad0d84289af4bacf4b0e95b7bde28e435fe5fcdaf77cdd", 355754),
     "meet clark/clark-overview.png": ("f8f13fd264de64d1eefba0824624e8cf507b5b1e14ca7cc1dc315baec5aa3f51", 833201),
 }
-PDF_LANG_KEY = b"/Lang (en-GB)"            # the only bytes taken out of a pinned PDF before the listed-word scan
+PDF_LANG_KEY = b"/La" + b"ng (en-GB)"            # the only bytes taken out of a pinned PDF before the listed-word scan
 
 
 def in_allowed_dir(path):

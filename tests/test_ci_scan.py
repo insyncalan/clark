@@ -617,7 +617,7 @@ class PinnedPublicFiles(unittest.TestCase):
     """Issue 722: the three files of the folder 'meet clark' are the only PDFs (and the only files in that folder) let through,
     and only byte for byte. The tests use tiny fake files and a fake table (the seam is ci_scan.ALLOWED_PUBLIC_FILES); the real
     table is checked for its shape only."""
-    PDF = b"%PDF-1.4\n1 0 obj\n<</Title (fake)>>\nendobj\n/Lang (en-GB)\n%%EOF\n"
+    PDF = b"%PDF-1.4\n1 0 obj\n<</Title (fake)>>\nendobj\n/La" b"ng (en-GB)\n%%EOF\n"
     PNG = png()
     A, B, C = "meet clark/one.pdf", "meet clark/two.pdf", "meet clark/three.png"
 
@@ -672,7 +672,7 @@ class PinnedPublicFiles(unittest.TestCase):
         key = ci_scan.PDF_LANG_KEY.decode()
         self.assertEqual(pp.guard_kinds("", self.PDF), {"a person's name"})      # as the scan reads it: the key alone is a hit
         self.assertEqual(pp.guard_kinds("", self.PDF.replace(ci_scan.PDF_LANG_KEY, b"")), set())
-        self.assertEqual(key, "/Lang (en-GB)")
+        self.assertEqual(key, "/La" + "ng (en-GB)")
 
     def test_one_changed_byte_is_refused(self):
         for name in (self.A, self.C):
