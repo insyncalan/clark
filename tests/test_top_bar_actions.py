@@ -63,7 +63,7 @@ class TopBarActions(Base):
                 self.assertEqual(words == "none", width <= 1100)
 
     def test_a_long_project_name_at_901_and_900_px_light_and_dark_keeps_the_bar_inside_the_window(self):
-        # Jarvis's delta read of PR 661: the project name shortens first; the new buttons must not push anything out.
+        # The project name shortens first; the new buttons must not push anything out.
         for width in (901, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:

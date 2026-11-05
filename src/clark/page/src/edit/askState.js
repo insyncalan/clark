@@ -38,17 +38,17 @@ export function loadAsk(force) {
  *  turning it OFF could not be kept, it is off in this window anyway and the answer says it was not saved. Resolves to
  *  {ok, message}. */
 export async function setAsk(on) {
-  ++latest;      // any read still out is now older than this change
+  const mine = ++latest;      // any read still out is now older than this change
   const r = await askEnabledChange(!!on);
+  const stale = mine !== latest;      // a newer read or change was started meanwhile: this answer is told to the caller but does not touch the page
   const b = r.body;
   if (r.status === 200 && b && b.ok === true && typeof b.ask_enabled === "boolean") {
-    askOn.value = b.ask_enabled;
-    askStatus.value = "ready";
+    if (!stale) { askOn.value = b.ask_enabled; askStatus.value = "ready"; }
     return { ok: true, message: b.message || "" };
   }
   const why = words(r, "save the asking switch");
   if (!on) {
-    askOn.value = false;
+    if (!stale) askOn.value = false;
     return { ok: false, message: `Asking is off in this window, but that was not saved, so it will be on again after a reload. ${why}` };
   }
   return { ok: false, message: why };
