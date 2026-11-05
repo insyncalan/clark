@@ -2543,6 +2543,56 @@ class Store:
         sql = f"SELECT * FROM {_table(kind)}" + (" WHERE " + " AND ".join(where) if where else "")
         return [dict(r) for r in self.con.execute(sql, args)]
 
+    def mark_demo(self, identity):
+        """#731: a file just built from the demo (dev/demo_data.py) takes this installation's own identity (meta created_at, device,
+        db_id, and the device on each step) and records which projects and steps are the demo (meta demo_projects, demo_applies):
+        what demo_seed.py reads to know what Remove may take away. One transaction. No table changes."""
+        con = self.con
+        con.execute("BEGIN IMMEDIATE")
+        try:
+            for k, v in identity.items():
+                con.execute("UPDATE meta SET v = ? WHERE k = ?", (v, k))
+            con.execute("UPDATE applies SET device = ?", (identity["device"],))
+            con.execute("INSERT INTO meta (k, v) VALUES ('demo_projects', ?)", (json.dumps([r[0] for r in con.execute("SELECT code FROM projects ORDER BY code")]),))
+            con.execute("INSERT INTO meta (k, v) VALUES ('demo_applies', ?)", (json.dumps([r[0] for r in con.execute("SELECT apply_id FROM applies ORDER BY apply_id")]),))
+            con.execute("COMMIT")
+        except BaseException:
+            con.execute("ROLLBACK")
+            raise
+
+    def remove_demo(self, found):
+        """#731: remove the demo projects in `found` ({code: [(table, key), ...]}, every row each holds, worked out and checked by
+        demo_seed.py) in ONE transaction: the rows, their change history, the demo steps left with nothing, and the meta note that
+        the demo is gone for good (demo_removed). Nothing else is touched. The caller has already taken the safety copy."""
+        con = self.con
+        con.execute("PRAGMA defer_foreign_keys = ON")
+        con.execute("BEGIN IMMEDIATE")
+        try:
+            made = set(json.loads((con.execute("SELECT v FROM meta WHERE k = 'demo_applies'").fetchone() or ["[]"])[0]))
+            for code, keys in found.items():
+                for table, key in keys:
+                    if table == "links":
+                        con.execute("DELETE FROM links WHERE from_item = ? AND to_item = ? AND kind = ?", key.split("|"))
+                    elif table == "item_labels":
+                        con.execute("DELETE FROM item_labels WHERE item_id = ? AND label = ?", key.split("|"))
+                for sql in ("DELETE FROM actions WHERE project = ?", "DELETE FROM raid WHERE project = ?", "DELETE FROM decisions WHERE project = ?",
+                            "DELETE FROM use_cases WHERE project = ?", "DELETE FROM milestones WHERE project = ?", "DELETE FROM workstreams WHERE project = ?",
+                            "DELETE FROM updates WHERE project = ?", "DELETE FROM report_sections WHERE project = ?", "DELETE FROM glance_tiles WHERE project = ?",
+                            "DELETE FROM report_hidden WHERE project = ?", "DELETE FROM documents WHERE project = ?", "DELETE FROM source_folders WHERE project = ?",
+                            "DELETE FROM projects WHERE code = ?"):
+                    con.execute(sql, (code,))
+                con.executemany("DELETE FROM change_log WHERE tbl = ? AND item_id = ?", sorted(keys))
+                con.executemany("DELETE FROM item_events WHERE item_id = ?", [(key,) for _, key in sorted(keys)])
+            for apply_id in made:
+                if not con.execute("SELECT 1 FROM change_log WHERE apply_id = ? UNION ALL SELECT 1 FROM item_events WHERE apply_id = ?", (apply_id, apply_id)).fetchone():
+                    con.execute("DELETE FROM applies WHERE apply_id = ?", (apply_id,))
+            con.execute("INSERT OR REPLACE INTO meta (k, v) VALUES ('demo_removed', '1')")
+            con.execute("DELETE FROM meta WHERE k IN ('demo_projects', 'demo_applies')")
+            con.execute("COMMIT")
+        except BaseException:
+            con.execute("ROLLBACK")
+            raise
+
     def live_holder_of_freed_email(self, person_ids):
         """#115: read only. For people whose email a step cleared, the name of a live person who now holds that address, or None.
         It is why an Undo of the merge can't give the address back."""
