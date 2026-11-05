@@ -1454,7 +1454,7 @@
         "The due date (today, tomorrow, next week, in n days or weeks, a weekday, next Monday, DD-MM-YYYY)"
        ],
        [
-        "owner Jo · assign to Sam Rivers · give it to Priya",
+        "owner Jo · assign to Sam · give it to Priya",
         "The owner (a second word counts when it has a capital)"
        ],
        [
@@ -2652,7 +2652,7 @@
      "d": "Type the new person’s name in **Hand over to**. It suggests names from your people list, or the names already in the project if the list is empty. If the name matches no one, a line under the box asks you to check the spelling."
     },
     {
-     "d": "Press **Hand over** in the bar. It stays unavailable, with a line saying why, until you have ticked an item and named a person. Above 25 items a question comes first, such as “Hand over 30 items to Sam Rivers?”: press **Change** to go on, or **Cancel** to stop."
+     "d": "Press **Hand over** in the bar. It stays unavailable, with a line saying why, until you have ticked an item and named a person. Above 25 items a question comes first, such as “Hand over 30 items to Priya?”: press **Change** to go on, or **Cancel** to stop."
     },
     {
      "d": "To leave without handing anything over, press **Cancel** in the bar, or press Esc."
