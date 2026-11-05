@@ -78,6 +78,21 @@ class Base(unittest.TestCase):
 
 
 class Dialog(Base):
+    def test_C_look_follows_the_prototype(self):
+        """Issue 796: Local, To client, Word, PDF; regular option titles; the box is 35 rem; the title is the heading-3 size."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            for w in WIDTHS:
+                p.width(w)
+                p.open_publish()
+                self.assertEqual(p.js("[...document.querySelectorAll('#publish-dialog .pubopts input')].map(i => i.id)"),
+                                 ["pub-local", "pub-client", "pub-word", "pub-pdf"], "Word comes before PDF")
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('#publish-dialog .pubopts b')).fontWeight"), "400", "regular titles")
+                self.assertEqual(p.js("document.querySelector('#publish-dialog').getBoundingClientRect().width"), 560, "the box is 560 px")
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('#pub-title')).fontSize"), "20px", "the title is the heading-3 size")
+                p.js("document.querySelector('[data-cancel]').click()")
+                p.until("!document.querySelector('#publish-dialog')", "the dialog closed")
+
     def test_C_dialog_defaults(self):
         with chrome() as cdp:
             p = self.page(cdp)
@@ -159,9 +174,9 @@ class Dialog(Base):
             p.key(" ", code="Space", vk=32)
             p.until("document.querySelector('#pub-client').checked", "Space ticks it")
             p.key("Tab", code="Tab", vk=9)
-            self.assertEqual(p.js("document.activeElement.id"), "pub-pdf", "Tab goes to the PDF tick, then the Word tick")
+            self.assertEqual(p.js("document.activeElement.id"), "pub-word", "Tab goes to the Word tick, then the PDF tick")
             p.key("Tab", code="Tab", vk=9)
-            self.assertEqual(p.js("document.activeElement.id"), "pub-word", "Tab goes to the Word tick, then Cancel")
+            self.assertEqual(p.js("document.activeElement.id"), "pub-pdf", "Tab goes to the PDF tick, then Cancel")
             p.key("Tab", code="Tab", vk=9)
             self.assertEqual(p.js("document.activeElement.hasAttribute('data-cancel')"), True, "then to the button")
             p.key("Tab", code="Tab", vk=9)

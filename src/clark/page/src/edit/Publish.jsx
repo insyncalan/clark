@@ -42,7 +42,7 @@ function Dialog() {
   const working = s.phase === "working", clash = s.clash;
   const placeholders = placeholderItems(d);
   return (
-    <dialog id="publish-dialog" class="dlg" aria-labelledby="pub-title" ref={el} onCancel={(e) => { e.preventDefault(); cancel(); }}>
+    <dialog id="publish-dialog" class="dlg dlg-pub" aria-labelledby="pub-title" ref={el} onCancel={(e) => { e.preventDefault(); cancel(); }}>
       <form class="dlg-form" onSubmit={(e) => { e.preventDefault(); go(); }}>
         <h2 id="pub-title">{s.phase === "clash" ? clash.title : s.phase === "wordclash" ? "The Word file name is taken" : "Publish the report"}</h2>
         {s.phase === "clash" || s.phase === "wordclash" ? null : (
@@ -83,12 +83,12 @@ function Dialog() {
               <span><b>Local</b><small>Always. You choose the folder and name in the save window.</small></span></label>
             <label class={`pubopt${s.saved ? "" : " off"}`}><input type="checkbox" id="pub-client" checked={s.ticked} disabled={!s.saved || working} onChange={(e) => tick(e.currentTarget.checked)} />
               <span><b>To client</b><small>{s.saved ? `Copied to the client folder: ${folderName(s.saved)}` : <>{NO_FOLDER_LEAD}<button type="button" class="link" id="pub-to-set" disabled={working} onClick={toPublishingCard}>{NO_FOLDER_LINK}</button>.</>}</small></span></label>
+            <label class="pubopt"><input type="checkbox" id="pub-word" checked={s.word} disabled={working} onChange={(e) => tickWord(e.currentTarget.checked)} />
+              <span><b>Also a Word document</b><small>A Word copy of the report, saved in the folder last used for this project.</small></span></label>
             {/* the prototype's words (system/prototype/io.js:348); the note under the tick (WORDING: owner to rule) */}
             <label class="pubopt"><input type="checkbox" id="pub-pdf" checked={s.pdf} disabled={working} onChange={(e) => tickPdf(e.currentTarget.checked)} />
               <span><b>Also a PDF</b><small>The page as it prints: the tabs one after another, no controls, with the publication number in the foot</small>
                 {s.pdf ? <small id="pub-pdf-note">Your browser’s print box opens; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address.</small> : null}</span></label>
-            <label class="pubopt"><input type="checkbox" id="pub-word" checked={s.word} disabled={working} onChange={(e) => tickWord(e.currentTarget.checked)} />
-              <span><b>Also a Word document</b><small>A Word copy of the report, saved in the folder last used for this project.</small></span></label>
           </div>
         )}
         {/* item 437 rows 29 and 56: the second sentence is the prototype's (io.js, #pubWarn) */}

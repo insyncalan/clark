@@ -1151,6 +1151,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .dlg-warn { margin: 10px 0 0; font-size: var(--size-caption); }
 .pubopts, .pub-clash { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-3) 0 0; padding: 0; border: 0; min-width: 0; }
 .pubopt { display: flex; align-items: flex-start; gap: 10px; padding: var(--space-2) 10px; border: 1px solid var(--grey-200); border-radius: var(--radius); cursor: pointer; }
+.dlg-pub { width: min(35rem, calc(100vw - var(--space-6))); }          /* issue 796: the prototype's box is 560 px */
+.dlg-pub h2 { font-size: var(--size-h3); }
+.dlg-pub .pubopts .pubopt b { font-weight: var(--weight-regular); font-size: var(--size-body); }
 .pubopt.off { color: var(--text-muted); }
 .pubopt input { margin: 3px 0 0; flex: none; width: 16px; height: 16px; }
 .pubopt span { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
