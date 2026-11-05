@@ -27,3 +27,10 @@ export function modeKey(e) {
   mode.value = next;
   return true;
 }
+
+/** Listen for V and E from the moment the page starts (boot.jsx), not when a component mounts: the switch is drawn in the top bar or in the
+ *  report bar, and a key pressed before either exists, or while one is replaced by the other, must still be heard. modeKey itself
+ *  decides whether the page is on the Dashboard with a report open. */
+export function installModeKeys() {
+  document.addEventListener("keydown", modeKey);
+}
