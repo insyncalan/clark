@@ -8,6 +8,7 @@ import { startDrag } from "./drag.js";
 import { askToAdd } from "./addSection.js";
 import { note } from "./notes.js";
 import { useMenuState } from "../components/Menu.jsx";
+import { Icon } from "../components/Icon.jsx";
 import { handleHint, HINT_WORDS } from "../stores/motion.js";
 
 // An item that cannot apply stays in the menu, unavailable, with the reason on it.
@@ -23,17 +24,17 @@ export function Gutter({ section, count }) {
 
   const items = (() => {
     const out = [
-      { act: "add", text: "Add a template below…", run: () => askToAdd(section.id, grip.current) },
-      { act: "up", text: "Move up", ...why(canStep(section.id, -1)), run: () => moveUp(section.id, "menu", "options") },
-      { act: "down", text: "Move down", ...why(canStep(section.id, 1)), run: () => moveDown(section.id, "menu", "options") },
+      { act: "add", icon: "plus", text: "Add a template below…", run: () => askToAdd(section.id, grip.current) },
+      { act: "up", icon: "up", sepBefore: true, key: "Alt ↑", text: "Move up", ...why(canStep(section.id, -1)), run: () => moveUp(section.id, "menu", "options") },
+      { act: "down", icon: "down", key: "Alt ↓", text: "Move down", ...why(canStep(section.id, 1)), run: () => moveDown(section.id, "menu", "options") },
       inPair(section.id)
-        ? { act: "full", text: "Full width", run: () => fullWidth(section.id, "menu", "options") }
-        : { act: "beside", text: "Place beside the next section", ...why(canBeside(section.id)), run: () => besideNext(section.id, "menu", "options") },
+        ? { act: "full", icon: "rows", text: "Full width", run: () => fullWidth(section.id, "menu", "options") }
+        : { act: "beside", icon: "board", text: "Place beside the next section", ...why(canBeside(section.id)), run: () => besideNext(section.id, "menu", "options") },
       section.hidden
-        ? { act: "show", text: "Include in the published page", run: () => setHidden(section.id, false, "menu", "options") }
-        : { act: "hide", text: "Leave out of the published page", run: () => setHidden(section.id, true, "menu", "options") },
+        ? { act: "show", icon: "eye", sepBefore: true, text: "Include in the published page", run: () => setHidden(section.id, false, "menu", "options") }
+        : { act: "hide", icon: "eyeoff", sepBefore: true, text: "Leave out of the published page", run: () => setHidden(section.id, true, "menu", "options") },
     ];
-    if (canDelete) out.push({ act: "delete", text: "Delete section", run: () => remove(section.id, "menu") });
+    if (canDelete) out.push({ act: "delete", icon: "trash", danger: true, text: "Delete section", run: () => remove(section.id, "menu") });
     return out;
   })();
 
@@ -100,8 +101,9 @@ export function Gutter({ section, count }) {
       {open ? (
         <div class="menu" role="menu" ref={menu} data-edit-only aria-label={`Options for ${section.title}`} onKeyDown={onMenuKey}>
           {items.map((it) => [
-            <button type="button" role="menuitem" class="menu-item" key={it.act} data-act={it.act} aria-disabled={it.off ? "true" : undefined}
-              aria-describedby={it.off ? `why-${section.id}-${it.act}` : undefined} onClick={() => pick(it)}>{it.text}</button>,
+            it.sepBefore ? <div class="menu-sep" key={`${it.act}-sep`} role="separator" /> : null,
+            <button type="button" role="menuitem" class={`menu-item${it.danger ? " danger" : ""}`} key={it.act} data-act={it.act} data-key={it.key} aria-disabled={it.off ? "true" : undefined}
+              aria-describedby={it.off ? `why-${section.id}-${it.act}` : undefined} onClick={() => pick(it)}><Icon name={it.icon} />{it.text}</button>,
             it.off ? <div class="menu-why" key={`${it.act}-why`} id={`why-${section.id}-${it.act}`} role="none">{it.reason}</div> : null,
           ])}
         </div>

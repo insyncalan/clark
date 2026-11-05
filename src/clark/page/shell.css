@@ -573,12 +573,16 @@ table.tracker tr.tr-none td { text-align: left; }
 .sec-title { display: inline-block; min-width: 4ch; max-width: 100%; padding: 0 var(--space-1); margin: 0 -4px 0 0; border-radius: var(--radius-sm); font: inherit; color: inherit; background: transparent; border: 1px solid transparent; overflow-wrap: anywhere; cursor: text; }
 .sec-title:hover { border-color: var(--grey-300); }
 input.sec-title { width: 100%; }
-.menu { position: absolute; left: 30px; top: 0; z-index: 20; display: flex; flex-direction: column; min-width: 260px; max-width: calc(100vw - 40px); padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
-.menu-item { all: unset; box-sizing: border-box; display: block; min-height: 32px; padding: 6px var(--space-3); border-radius: var(--radius-sm); font-size: var(--size-body); color: var(--text); cursor: pointer; }
+.menu { position: absolute; left: 30px; top: 0; z-index: 20; display: flex; flex-direction: column; min-width: 260px; max-width: calc(100vw - 40px); padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }
+.menu-item { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); min-height: 32px; padding: 6px var(--space-3); border-radius: var(--radius-sm); font-size: var(--size-small); color: var(--text); cursor: pointer; }
 .menu-item:hover { background: var(--grey-100); }
+.menu-item > .i { flex: none; width: 16px; height: 16px; color: var(--text-muted); }      /* row 782: an icon before each entry */
+.menu-item[data-key]::after { content: attr(data-key); margin-left: auto; padding-left: var(--space-4); font-size: var(--size-small); color: var(--text-muted); }      /* the key that does it, from the item's data-key */
+.menu-item.danger, .menu-item.danger > .i { color: var(--status-red-text); }
+.menu-sep { height: 1px; margin: var(--space-1) 0; background: var(--border); }
 .menu-item[aria-disabled="true"] { color: var(--text-muted); cursor: default; }
 .menu-item[aria-disabled="true"]:hover { background: transparent; }
-.menu-why { padding: 0 var(--space-3) 6px; font-size: var(--size-caption); color: var(--text-muted); }
+.menu-why { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }      /* row 782: the reason is read out (aria-describedby) and shown on a click, not as a line in the list */
 .sec-add { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 28px; margin: var(--space-1) 0 6px; border: 1px dashed var(--grey-300); border-radius: var(--radius-sm); font-size: var(--size-caption); color: var(--text-muted); cursor: pointer; }
 .sec-add:hover { border-color: var(--grey-500); color: var(--text); }
 .toasts { position: fixed; left: 16px; bottom: 16px; z-index: 40; max-width: min(640px, calc(100vw - 32px)); }

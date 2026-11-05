@@ -1156,6 +1156,29 @@ class Gutter(Base):
             self.assertEqual(p.js(self.MENU_TEXTS % "ABC-S-007")[3], "Full width")
             self.assertEqual(p.js("document.querySelector('.menu').getAttribute('role')"), "menu")
 
+    def test_the_menu_is_the_prototypes_icons_hints_dividers_and_14_px(self):
+        """Row 782: a rounded menu, an icon per entry, Alt-arrow hints, dividers, 14 px text, no reason line in the list."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            for theme in ("light", "dark"):
+                p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                for w in (1400, 900):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    self.open_menu(p, "ABC-S-001")           # the first section: Move up cannot apply
+                    m = p.js("""(function(){var items=[...document.querySelectorAll('.menu-item')], m=document.querySelector('.menu'), why=document.querySelector('.menu-why');
+                        return {icons: items.map(e => !!e.querySelector('svg.i')), size: items.map(e => getComputedStyle(e).fontSize),
+                          seps: document.querySelectorAll('.menu [role=separator]').length, radius: parseFloat(getComputedStyle(m).borderTopLeftRadius),
+                          up: getComputedStyle(document.querySelector('[data-act=up]'), '::after').content, down: getComputedStyle(document.querySelector('[data-act=down]'), '::after').content,
+                          whyH: why ? why.getBoundingClientRect().height : null};})()""")
+                    self.assertTrue(all(m["icons"]), f"an icon on every entry ({theme} {w})")
+                    self.assertEqual(set(m["size"]), {"14px"}, f"{theme} {w}")
+                    self.assertGreaterEqual(m["seps"], 2, f"dividers ({theme} {w})")
+                    self.assertGreaterEqual(m["radius"], 12, f"a rounded menu ({theme} {w})")
+                    self.assertEqual((m["up"], m["down"]), ('"Alt ↑"', '"Alt ↓"'), f"the key hints ({theme} {w})")
+                    self.assertLessEqual(m["whyH"], 1, f"the reason is not a line in the list ({theme} {w})")
+                    p.key("Escape", code="Escape", vk=27)
+
     def test_the_plus_and_the_menu_entry_ask_for_a_section_below(self):
         with chrome() as cdp:
             p = self.visit(cdp)
