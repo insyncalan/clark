@@ -218,13 +218,22 @@ def vendor_modules(vendor=None):
     return out
 
 
+def page_limits():
+    """#942: the limits the server holds that the page must agree with, by the name the page source reads them under. One source:
+    clark.changes holds the number, the build writes it into the page (esbuild --define), so the two cannot drift."""
+    from clark import changes
+    return {"__CLARK_ITEM_TITLE_MAX__": changes.ITEM_TITLE_MAX}      # a work item's title, in characters (PeekTitle.jsx)
+
+
 def preact_flags(held=True, inline_pictures=False):
-    """JSX through esbuild (the automatic runtime, from Preact), each library specifier mapped to its vendored file, and Help's words."""
+    """JSX through esbuild (the automatic runtime, from Preact), each library specifier mapped to its vendored file, Help's words, and
+    the server's limits the page shares (page_limits)."""
     return ["--jsx=automatic", "--jsx-import-source=preact", "--loader:.jsx=jsx",
             *(f"--alias:{spec}={path}" for spec, path in vendor_modules()),
             f"--alias:tiptap={VENDOR_TIPTAP / 'tiptap.module.js'}",      # the editor (#66); only the Edit entry imports it
             f"--alias:clark-help-content={help_content_path(held)}",
-            f"--alias:clark-help-pictures={help_pictures_path(inline_pictures)}"]      # the editing page only: see help_pictures_path
+            f"--alias:clark-help-pictures={help_pictures_path(inline_pictures)}",      # the editing page only: see help_pictures_path
+            *(f"--define:{name}={json.dumps(value)}" for name, value in page_limits().items())]
 
 
 def bundle(entry=ENTRY):
