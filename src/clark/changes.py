@@ -411,7 +411,7 @@ def _checked_item_changes(fields, blank_clears=()):
     flag = {k: _flag(v) for k, v in fields.items() if k in ("client_visible", "client_action")}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
     fields = {k: v for k, v in fields.items() if k not in flag}
     for k, v in fields.items():
-        if v is None and k in ITEM_NOT_NULL or v is not None and (not isinstance(v, str) or not v.strip() or len(v) > 200):
+        if v is None and k in ITEM_NOT_NULL or v is not None and (not isinstance(v, str) or not v.strip() or len(v) > ITEM_TITLE_MAX):
             raise Refused(ITEM_VALUE_WORDS)
         if isinstance(v, str) and not _plain_text(v):
             raise Refused(ITEM_TEXT_WORDS)

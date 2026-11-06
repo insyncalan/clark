@@ -45,6 +45,25 @@ def bundle(entry_text, tmp, limits=None, name="t.cjs"):
     return out
 
 
+class TextFields(unittest.TestCase):
+    """#942 follow-up: a work item's other text fields (decision, client wording, workstream, ...) are held to the SAME number as the title,
+    read from changes.ITEM_TITLE_MAX, so there is one 200 in changes.py and the two limits cannot drift."""
+    FIELDS = ("description", "decision", "client_message", "workstream")
+
+    def test_a_text_field_of_the_limit_is_accepted_and_one_more_is_refused(self):
+        for field in self.FIELDS:
+            with self.subTest(field=field):
+                got = changes._checked_item_changes({field: "t" * changes.ITEM_TITLE_MAX}, blank_clears=("client_message",))
+                self.assertEqual(len(got[field]), changes.ITEM_TITLE_MAX)
+                with self.assertRaises(changes.Refused):
+                    changes._checked_item_changes({field: "t" * (changes.ITEM_TITLE_MAX + 1)}, blank_clears=("client_message",))
+
+    def test_changes_py_holds_the_number_once_for_these_limits(self):
+        src = (ROOT / "src" / "clark" / "changes.py").read_text(encoding="utf-8")
+        self.assertEqual(len(re.findall(r"^ITEM_TITLE_MAX\s*=\s*200\b", src, re.M)), 1, "the one literal")
+        self.assertEqual(re.findall(r"len\([^)]*\)\s*>\s*200\b", src), [], "a length limit written as a bare 200; use changes.ITEM_TITLE_MAX")
+
+
 class Server(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
