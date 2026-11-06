@@ -407,7 +407,6 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-eye .ic, .ucd-eye svg { width: 16px; height: 16px; flex: none; }
 .ucd-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: 0 0 16px; padding: 10px 16px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--grey-100); }
 .ucd-note p { margin: 0; flex: 1 1 360px; }
-.ucd-note .btn.pri { background: var(--brand-navy); border-color: var(--brand-navy); color: var(--text-on-brand); }
 .ucd-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .ucd-main, .ucd-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .ucd-card { padding: 16px 20px; border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); min-width: 0; }
