@@ -1963,6 +1963,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-title { overflow-wrap: anywhere; color: var(--text); }
 .wl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: var(--size-small); color: var(--text-muted); }
 .wl-meta .av { width: 22px; height: 22px; font-size: var(--size-small); }
+.cr-wl .wl-meta .av { width: auto; min-width: 22px; height: 22px; padding: 0 var(--space-1); box-sizing: border-box; border-radius: 11px; font-size: var(--size-caption); line-height: 1; }      /* row 799: the snapshot's work lists only; WM at the 13 px floor is 24.3 px wide and clips a 22 or 24 px circle, so two letters widen it to a 22 px-high pill (no 12 px token exists; test_font holds 13 px) */
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
