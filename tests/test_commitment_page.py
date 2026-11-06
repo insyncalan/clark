@@ -122,17 +122,16 @@ class View(Flags):
             p.until("document.querySelectorAll('.ucl-list .ucl-row').length === 1", "the search finds the flagged one by its word")
             self.assertEqual(p.js(CHIPS % ".ucl-list"), ["Committed"])
 
-    def test_the_detail_shows_the_chip_in_view_and_none_draws_nothing(self):
+    def test_the_detail_commitment_is_the_menu_with_no_edit_mode_row_825(self):
         with self.store.step("dashboard", USER) as st:
             st.update("use_cases", self.demo.use_case, {"commitment": "Planned 2027"})
         with chrome() as cdp:
             p = self.show(cdp, 1400, False, "#usecases&p=ABC&uc=1.1", settings=True)
             p.until("!!document.querySelector('.ucd-sub')", "the detail drew")
-            self.assertEqual(p.js(CHIPS % ".ucd-sub"), ["Planned 2027"])
-            self.assertEqual(p.js("document.querySelectorAll('.ucd-sub button').length"), 0)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucd-sub [data-uc-commit] button')].map(e => e.textContent.trim())"), ["Planned 2027"])
             p = self.show(cdp, 1400, False, "#usecases&p=ABC&uc=1.2", settings=True)
             p.until("!!document.querySelector('.ucd-sub')", "the detail drew")
-            self.assertEqual(p.js("document.querySelectorAll('.ucd-sub .cchip').length"), 0)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucd-sub [data-uc-commit] button')].map(e => e.textContent.trim())"), ["Set commitment"], "no flag: the quiet menu")
 
 
 class Fit(Flags):

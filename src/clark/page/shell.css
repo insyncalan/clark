@@ -614,16 +614,18 @@ input.sec-title { width: 100%; }
 .pk-row { display: grid; grid-template-columns: 130px 1fr; gap: var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); }
 .pk-row dt { color: var(--text-muted); font-size: var(--size-caption); }
 .pk-row dd { margin: 0; overflow-wrap: anywhere; }
-.wordsbox { margin-top: 20px; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--grey-50); }
+.wordsbox { position: sticky; bottom: var(--space-3); z-index: 2; margin-top: 20px; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }   /* a card that floats at the foot of the peek, not a panel below the list (row 776) */
 .sn-head { display: flex; align-items: center; gap: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
 .sn-head .i { width: 16px; height: 16px; }
 .sn-in { width: 100%; box-sizing: border-box; margin-top: var(--space-2); min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .sn-list { list-style: none; margin: 10px 0 0; padding: 0; }
-.sn-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding: var(--space-1) 0; }
+.sn-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: var(--space-1) 0; border-top: 1px solid var(--grey-100); }
+.sn-list li:first-child { border-top: 0; }
+.sn-to { padding: 0 var(--space-2); border-radius: var(--radius-lg); background: var(--brand-blue-tint); color: var(--text); }
 .sn-f { width: 70px; color: var(--text-muted); font-size: var(--size-caption); }
 .sn-from { color: var(--text-muted); text-decoration: line-through; }
 .sn-msg { margin: 10px 0 0; color: var(--status-red-text); }
-.sn-confirm { margin: var(--space-2) 0 0; }
+.sn-confirm { margin: var(--space-2) 0 0; font-size: var(--size-small); }
 .sn-confirm.flash { animation: sn-flash .9s; }
 .pk-row.flash { animation: sn-flash 1.4s; }
 @media (prefers-reduced-motion: reduce) { .pk-row.flash, .sn-confirm.flash { animation: none; background: var(--status-amber-tint); } }
@@ -741,10 +743,10 @@ table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--stat
 .lh-in { position: sticky; left: 0; display: inline-flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-1); }
 .lc { color: var(--text-muted); font-weight: var(--weight-light); }
 .cols { display: flex; align-items: stretch; gap: var(--space-3); }
-.col { flex: 0 0 272px; width: 272px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); position: relative; }
+.col { flex: 0 0 272px; width: 272px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); position: relative; }
 .col.shut { flex-basis: 44px; width: 44px; }
 .col.over { outline: 2px solid var(--brand-blue); outline-offset: -1px; background: var(--brand-blue-tint); }
-.col-h { position: sticky; top: 0; z-index: 3; margin: 0; height: 40px; background: var(--surface); border-radius: var(--radius-lg) var(--radius-lg) 0 0; font-size: var(--size-small); font-weight: var(--weight-medium); }
+.col-h { position: sticky; top: 0; z-index: 3; margin: 0; height: 40px; border-bottom: 1px solid var(--grey-200); background: var(--surface); border-radius: var(--radius-lg) var(--radius-lg) 0 0; font-size: var(--size-small); font-weight: var(--weight-medium); }
 .lane.has .col-h { top: 40px; }
 .col-b { all: unset; box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); cursor: pointer; border-top: 3px solid transparent; border-radius: var(--radius-lg) var(--radius-lg) 0 0; color: var(--heading); }
 .col .nd { margin: 0; padding: var(--space-1) var(--space-3) 0; font-size: var(--size-small); }
@@ -760,7 +762,7 @@ body.col-resizing { cursor: col-resize; user-select: none; -webkit-user-select: 
 .col.drop-before { box-shadow: -6px 0 0 -3px var(--brand-blue); }
 .col-b { touch-action: none; }
 .col-b .dot { display: none; width: 9px; height: 9px; border-radius: 50%; background: var(--status-grey); flex: none; }
-.col-b .cn { margin-left: auto; color: var(--text-muted); font-weight: var(--weight-light); }
+.col-b .cn { margin-left: auto; color: var(--text-muted); font-weight: var(--weight-light); background: var(--grey-100); border-radius: var(--radius-lg); padding: 0 7px; }
 .col.tone-blue .col-b { border-top-color: var(--status-blue); color: var(--status-blue-text); } .col.tone-blue .dot { background: var(--status-blue); }
 .col.tone-amber .col-b { border-top-color: var(--status-amber); color: var(--status-amber-text); } .col.tone-amber .dot { background: var(--status-amber); }
 .col.tone-red .col-b { border-top-color: var(--status-red); color: var(--status-red-text); } .col.tone-red .dot { background: var(--status-red); }
@@ -770,11 +772,12 @@ body.col-resizing { cursor: col-resize; user-select: none; -webkit-user-select: 
 .col.shut .col-b { flex-direction: column; justify-content: flex-start; padding: 10px 0; gap: 10px; height: 160px; }
 .col.shut .col-b .cl { writing-mode: vertical-rl; }
 .col.shut .col-b .cn { margin-left: 0; order: -1; }
-.col-body { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); min-height: 64px; }
+.col-body { display: flex; flex-direction: column; gap: var(--space-2); padding: 10px var(--space-2) 14px; min-height: 64px; }
 .col-body .none { margin: var(--space-2) var(--space-1); font-size: var(--size-small); }
 .bwrap { position: relative; }
 .bcard { position: relative; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius); box-shadow: var(--shadow); padding: 7px 10px; }
 .board[data-editing="1"] .bcard { cursor: grab; user-select: none; -webkit-user-select: none; }
+.bcard:hover { border-color: var(--grey-300); }
 .bcard.sel { border-color: var(--brand-blue); }
 .bcard.picked { border-color: var(--brand-blue); box-shadow: 0 0 0 2px var(--brand-blue), var(--shadow); background: color-mix(in srgb, var(--brand-blue-tint) 60%, var(--surface)); }
 .col-h { display: flex; align-items: center; }
