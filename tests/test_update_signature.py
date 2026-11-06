@@ -372,6 +372,27 @@ class PlaceholderKeyTest(Base):
         junk.write_bytes(b"not a zip at all")
         self.refuses(junk, "damaged")
 
+    def test_a_file_whose_hash_differs_from_the_manifest_is_refused_with_the_placeholder_key(self):
+        """Same length, different bytes: only the hash check can see it. Nothing signs the file here, so this check is what stands."""
+        def same_length(files):
+            old = files[".app/src/clark/x.py"]
+            files[".app/src/clark/x.py"] = bytes(b ^ 1 for b in old)
+        path = make_zip(self.fresh(), sign=False, tweak=same_length)
+        self.assertFalse(Path(str(path) + ".sig").exists())
+        with self.assertRaises(updates.UpdateError) as caught:
+            self.read(path, public_key=None)
+        self.assertEqual("damaged", caught.exception.key)
+        self.assertIn("hash of", caught.exception.detail)
+
+    def test_a_file_whose_size_differs_from_the_manifest_is_refused_with_the_placeholder_key(self):
+        def wrong_size(rows):
+            rows[".app/src/clark/x.py"]["size"] += 1
+        path = make_zip(self.fresh(), sign=False, rows=wrong_size)
+        with self.assertRaises(updates.UpdateError) as caught:
+            self.read(path, public_key=None)
+        self.assertEqual("damaged", caught.exception.key)
+        self.assertIn("size of", caught.exception.detail)
+
     def test_a_real_key_passed_in_still_refuses_unsigned_and_wrongly_signed(self):
         path = make_zip(self.tmp, sign=False)
         self.refuses(path, "unsigned", public_key=sg.TEST_PUBLIC)
