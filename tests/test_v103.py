@@ -5,7 +5,7 @@ Run: python3 dev/run_tests.py test_v103
 
 Same shape as test_v102.
   COVERED       a merged row a person can see, already covered by a test elsewhere. test_every_covering_test_named_here_exists
-                fails if one goes missing. Rows 273 and 802 have no visible change (NO_VISIBLE_CHANGE).
+                fails if one goes missing. Rows 273, 802 and 827 have no visible change (NO_VISIBLE_CHANGE).
   WAITING       a row that is not on main yet but has a marker in the source that appears when it lands (item, check, pull request,
                 a file under the top folder, the text in it). Skipped, with the pull request. After the cut commit has set the
                 version and the marker is there, the row fails until it is moved to COVERED with its test. Empty today: the
@@ -87,10 +87,19 @@ COVERED = [
      "test_ask_panel::Panel::test_row_858_the_box_keeps_its_words_and_the_panel_is_usable_while_it_checks"),
     ("#800", 'No heavy ring on a mouse open.',
      "test_client_menu::Words::test_row_800_the_menu_source_marks_a_mouse_open_and_the_css_drops_the_ring_for_it"),
+    ("#837", "The Word copy lists only open actions, risks and issues.",
+     "test_docx_build::WordOpenItemsOnly::test_a_closed_or_cancelled_action_or_risk_is_not_listed"),
+    ("#837", "The open items are still listed in the Word copy.",
+     "test_docx_build::WordOpenItemsOnly::test_open_ones_are_still_listed"),
+    ("#767", "The printed Milestones timeline is drawn to the page width and does not scroll.",
+     "test_pdf_print::Source::test_the_printed_timeline_is_drawn_to_the_page_and_does_not_scroll"),
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
-NO_VISIBLE_CHANGE = {"273", "802"}
+NO_VISIBLE_CHANGE = {"273", "802", "827"}
+
+# Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
+PARTLY_MERGED = {"767"}
 
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has
 # landed; marker None means there is no pull request to look for yet).
@@ -236,7 +245,7 @@ class StatusTable(unittest.TestCase):
         merged = {r[0] for r in table_rows(read_sheet()) if r[2] == "MERGED"}
         self.assertEqual(sorted(NO_VISIBLE_CHANGE - merged), [], "listed as no visible change but not MERGED in the table")
         for item, check, where in COVERED:
-            self.assertIn(item.lstrip("#"), merged, f"{item} is covered but not MERGED in the table")
+            self.assertIn(item.lstrip("#"), merged | PARTLY_MERGED, f"{item} is covered but not MERGED in the table")
 
     def test_no_row_in_the_table_is_both_merged_and_still_waiting_in_this_file(self):
         waiting_here = {i.lstrip("#") for i, *_ in WAITING}
