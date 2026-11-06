@@ -357,6 +357,8 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fopt .c { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); }
 .fhints { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; min-height: 26px; visibility: hidden; }
 .fhints.on { visibility: visible; }
+.fgloss { flex-basis: 100%; font-size: var(--size-small); color: var(--text); }   /* row 845: the plain meaning of the chip the pointer or focus is on */
+.fgloss[hidden] { display: none; }
 .fhl { font-size: var(--size-small); color: var(--text-muted); }
 .fhint { all: unset; box-sizing: border-box; padding: 2px 10px; min-height: 24px; display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: var(--radius-pill); cursor: pointer; font-size: var(--size-small); color: var(--text-muted); background: var(--surface); }
 .fhint:hover { background: var(--grey-100); color: var(--text); }

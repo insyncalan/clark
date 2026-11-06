@@ -2677,7 +2677,7 @@
      "d": "To come back to it later, press its tab. The filter line is set to what you saved. Every project starts with the tabs Open items, Actions, Risks and issues, Decisions and All work items."
     },
     {
-     "d": "If you change the filter line while a view is open, a small dot shows on its tab. Press the small arrow beside the open tab’s name and choose **Save changes** to keep the new filters under the same name, or **Save as a new view…** to keep them as another view. The five tabs that every project has cannot be changed this way, so use **Save as a new view…** for them."
+     "d": "If you change the filter line while a view is open, a small dot shows on its tab, and **Save view** and **Discard changes** appear beside the tabs. Press **Save view** to keep the new filters under the same name, and a message at the foot of the page says View saved with the name. Press **Discard changes** to put the filter line back to what the view had. The small arrow beside the open tab’s name has the same **Save changes**, and **Save as a new view…** keeps the new filters as another view. The five tabs that every project has cannot be saved over, so they have no **Save view**. Use **Save as a new view…** for them. **Discard changes** is there on them too."
     },
     {
      "d": "To rename a view, open it, press the small arrow beside its name and choose **Rename…**. Type the new name in the box labelled **New name for this view** and press **Save**."

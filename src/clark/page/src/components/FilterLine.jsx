@@ -12,6 +12,7 @@ import * as Q from "../logic/filterQueryUi.js";
 import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce } from "../stores/work.js";
+import { say } from "../stores/changes.js";
 import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
 
 export const PAUSE = 400;                                // ms after the last key before the typed line is applied (the owner's 300 to 500)
@@ -91,7 +92,7 @@ function SavedViews({ board }) {
   const act = (id) => {
     if (/^(layout|group|lane):/.test(id)) pickLayout(id);
     else if (id === "discard" && active) { pick(active); const el = document.querySelector('.vtab[aria-pressed="true"]'); if (el) el.focus(); }
-    else if (id === "save" && active) { const r = FL.saveView(all, active.id, line.trim()); if (r.ok) saveViews(code, r.views); }
+    else if (id === "save" && active) { const r = FL.saveView(all, active.id, line.trim()); if (r.ok) { saveViews(code, r.views); say("done", `View saved: ${active.name}`); } }
     else if (id === "saveas") setForm({ mode: "saveas", name: "", error: "" });
     else if (id === "rename" && active) setForm({ mode: "rename", name: active.name, error: "" });
     else if (id === "delete" && active) setForm({ mode: "delete", name: "", error: "" });
@@ -194,6 +195,7 @@ export function FilterLine({ board }) {
   const [caret, setCaret] = useState(0);
   const [active, setActive] = useState(-1);                   // the suggestion the arrows are on (-1: none)
   const [closed, setClosed] = useState(false);                // Esc closed the list; typing opens it again
+  const [gloss, setGloss] = useState("");                    // the plain meaning of the chip the pointer or focus is on, shown in the examples line
   const [touched, setTouched] = useState(false);              // something was typed or chosen since the focus came: a list is then wanted even after a space
   const setChips = (v) => { live.current.chips = v; setChipsRaw(v); };
   const setDraft = (v) => { live.current.draft = v; setDraftRaw(v); };
@@ -297,6 +299,7 @@ export function FilterLine({ board }) {
     return () => document.removeEventListener("keydown", slash);
   }, []);
   const hints = FL.hints(ctx);
+  const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
   const useHint = (h) => { const t = (draft && !/\s$/.test(draft) ? draft + " " : draft) + h.text + " "; setTouched(true); want.current = t.length; edit(t); if (input.current) input.current.focus(); };
   return (
     <div class="fline-wrap" ref={box}
@@ -309,7 +312,8 @@ export function FilterLine({ board }) {
             {chips.map((c, i) => {
               const name = Q.chipName(c, rows, ctx);
               return (
-                <span class="fchip" key={`${i}|${c}`} data-chip={c}>{c}
+                <span class="fchip" key={`${i}|${c}`} data-chip={c} data-gloss={`${c}: ${meaning(c)}`}
+                  onMouseEnter={() => setGloss(`${c}: ${meaning(c)}`)} onMouseLeave={() => setGloss("")} onFocusIn={() => setGloss(`${c}: ${meaning(c)}`)} onFocusOut={() => setGloss("")}>{c}
                   <button type="button" data-fx={c} aria-label={`Remove the ${name} filter`} onMouseDown={(e) => e.preventDefault()} onClick={() => dropChip(i)}>{"×"}</button>
                 </span>
               );
@@ -355,6 +359,7 @@ export function FilterLine({ board }) {
         <div class={`fhints${focused && !listed ? " on" : ""}`} role="group" aria-label="Examples" aria-hidden={focused && !listed ? undefined : "true"}>
           <span class="fhl">Try</span>
           {hints.map((h) => <button type="button" key={h.text} class="fhint" title={h.gloss} onMouseDown={(e) => e.preventDefault()} onClick={() => useHint(h)}>{h.text}</button>)}
+          <span class="fgloss" id="fline-gloss" aria-hidden="true" hidden={!gloss}>{gloss}</span>
         </div>
       }
       <p class={`fmsg${words.length ? " bad" : ""}`} id="fline-msg" role="status" aria-live="polite">{notes.join(" ")}</p>

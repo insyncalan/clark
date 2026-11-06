@@ -9,7 +9,7 @@ import unittest
 
 from test_server import chrome
 from test_work_board_page import Base
-from test_work_filters import click, key, select_line
+from test_work_filters import click, hover, key, select_line
 
 CASES = [(w, s, e) for w in (1400, 900) for s in ("light", "dark") for e in (False, True)]
 
@@ -231,11 +231,65 @@ class Header(Base):
             # an unknown field turns the box red
             before = cdp.js("getComputedStyle(document.querySelector('.fline')).borderTopColor", sid)
             cdp.call("Input.insertText", {"text": "zzz:a "}, sid)
-            self.until(cdp, sid, "document.querySelector('#fline-msg').textContent.startsWith('Unknown field')", "the message")
+            self.until(cdp, sid, "document.querySelector('#fline-msg').textContent.startsWith('There is no')", "the message")
             said = cdp.js("document.querySelector('#fline-msg').textContent", sid)
-            self.assertEqual(said, "Unknown field 'zzz'.")
+            self.assertEqual(said, "There is no \u201czzz\u201d filter. You can filter by type:, status:, owner:, priority:, due:, workstream:, usecase:, milestone:, client: and is:, or type plain words to search titles.")
             self.assertTrue(cdp.js("document.querySelector('.fline').classList.contains('bad')", sid))
             self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('.fline')).borderTopColor", sid), before, "the box is red")
+        self.each(check)
+
+    def test_row_846_a_mistyped_field_names_the_nearest_one(self):
+        def check(cdp, sid, width):
+            click(cdp, sid, "#fline-input")
+            key(cdp, sid, "End")
+            cdp.call("Input.insertText", {"text": " stauts:a "}, sid)
+            self.until(cdp, sid, "document.querySelector('#fline-msg').textContent.startsWith('There is no')", "the message")
+            said = cdp.js("document.querySelector('#fline-msg').textContent", sid)
+            self.assertTrue(said.startswith("There is no \u201cstauts\u201d filter. Did you mean status? You can filter by type:"), said)
+        self.each(check)
+
+    # ---- row 844: the toast ----
+    def test_row_844_save_view_says_what_was_saved_in_the_toast(self):
+        saved = [{"id": "risky", "name": "Risky", "line": "is:open type:risk"}]
+
+        def check(cdp, sid, width):
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({ABC: %s}))" % __import__("json").dumps(saved), sid)
+            self.reload(cdp, sid)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]')", "the made view")
+            click(cdp, sid, ".vtab[data-view-id=risky]")
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "open")
+            self.assertFalse(cdp.js("!!document.querySelector('.toast')", sid), "no message before")
+            click(cdp, sid, "#fline-input")
+            key(cdp, sid, "End")
+            cdp.call("Input.insertText", {"text": " no:owner "}, sid)
+            self.until(cdp, sid, "document.querySelector('#fvSave')", "Save view")
+            click(cdp, sid, "#fvSave")
+            self.until(cdp, sid, "document.querySelector('.toast .toast-text')", "the message")
+            self.assertEqual(cdp.js("document.querySelector('.toast .toast-text').textContent", sid), "View saved: Risky")
+            self.assertFalse(cdp.js("!!document.querySelector('.toast [data-undo]')", sid), "a saved view has no Undo to offer")
+            self.assertTrue(cdp.js("(() => { const r = document.querySelector('.toast').getBoundingClientRect(); return r.height > 0 && r.bottom <= innerHeight && r.right <= innerWidth; })()", sid), "it is on the screen")
+        self.each(check)
+
+    # ---- row 845: a chip's meaning ----
+    def test_row_845_a_chip_says_what_it_means_in_the_examples_line_on_hover_and_focus(self):
+        gloss = "(() => { const g = document.querySelector('#fline-gloss'); const r = g.getBoundingClientRect(); const v = getComputedStyle(g.parentElement).visibility; return [g.textContent, r.height > 0, v]; })()"
+
+        def check(cdp, sid, width):
+            click(cdp, sid, "#fline-input")
+            cdp.call("Input.insertText", {"text": "priority:High,Urgent -status:Closed "}, sid)
+            self.until(cdp, sid, "document.querySelectorAll('[data-fline] [data-chip]').length === 3", "three chips")
+            key(cdp, sid, "Escape")      # the suggestions close, so the examples line (where the meaning is said) shows
+            self.until(cdp, sid, "document.querySelector('.fhints.on')", "the examples line")
+            self.assertFalse(cdp.js(gloss, sid)[1], "nothing is said until a chip is pointed at")
+            hover(cdp, sid, "[data-chip='priority:High,Urgent']")
+            self.until(cdp, sid, "document.querySelector('#fline-gloss').textContent !== ''", "the meaning on hover")
+            self.assertEqual(cdp.js(gloss, sid), ["priority:High,Urgent: Priority is High or Urgent", True, "visible"])
+            cdp.js("document.querySelector('[data-chip=\"-status:Closed\"] button').focus()", sid)
+            self.until(cdp, sid, "document.querySelector('#fline-gloss').textContent.startsWith('-status:Closed')", "the meaning on focus")
+            self.assertEqual(cdp.js("document.querySelector('#fline-gloss').textContent", sid), "-status:Closed: Status is not Closed")
+            click(cdp, sid, "#fline-input")
+            hover(cdp, sid, "#fline-input")
+            self.until(cdp, sid, "document.querySelector('#fline-gloss').hidden", "the meaning goes when the pointer and focus leave")
         self.each(check)
 
     # ---- row 812 ----
