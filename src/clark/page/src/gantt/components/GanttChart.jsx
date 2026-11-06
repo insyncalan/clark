@@ -99,11 +99,12 @@ export function GanttChart({
       if (showOpen && !e.target.closest("[data-g-showwrap]")) setShowOpen(false);
       if (menu && !e.target.closest("[data-g-addmenu], [data-g-add]")) setMenu(null);
       if (box && !e.target.closest("[data-g-box]")) setBox(null);
+      if (sel && !e.target.closest("[data-g-bar], [data-g-detail], [data-g-box], [data-g-addmenu], [data-g-add]")) setSel(null);      // a click anywhere else lets go of the selected line
     };
     document.addEventListener("keydown", onKey);
     document.addEventListener("pointerdown", onDown, true);
     return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("pointerdown", onDown, true); };
-  }, [box, menu, showOpen, full]);
+  }, [box, menu, showOpen, full, sel]);
 
   const leftW = PAD + (edit ? 28 : 0) + 40 + cw.name + cols.reduce((n, k) => n + 4 + cw[k], 0) + PAD;
   const fit = fitPpd(Math.max(200, width - leftW), range);

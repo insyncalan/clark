@@ -44,7 +44,7 @@ export function TopBar({ tools }) {
       </nav>
       {fromFile.value && asAt.value ? <span class="asat num">As at {shownDate(asAt.value)}</span> : null}
       {Publish ? <Publish /> : null}
-      {Toggle && view.value !== "dashboard" && view.value !== "settings" ? <Toggle /> : null}      {/* item 665: on the Dashboard the switch is the report bar's pill, never drawn twice; row 826: Settings has no switch */}
+      {Toggle && view.value !== "dashboard" && view.value !== "gantt" && view.value !== "settings" ? <Toggle /> : null}      {/* item 665: on the Dashboard and the Gantt page the switch is the bar's pill, never drawn twice; row 826: Settings has no switch */}
       {SearchButton ? <SearchButton /> : null}
       {AskButton ? <AskButton /> : null}
       {HelpButton ? <HelpButton /> : null}
