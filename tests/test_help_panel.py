@@ -31,11 +31,17 @@ def keys_in_help(p):
 
 
 def full_help_from_menu(p, what="Help opened from the profile menu"):
-    """The profile menu's Help entry opens the FULL Help (on the tab used last); "?" and the top-bar button open the context peek where a screen has text."""
+    """The profile menu's Help entry opens the context peek like "?" (row 896); this goes one click further, to the FULL Help (on the tab used last)."""
     p.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)   # a click with no key press before it leaves the page unfocused
     p.js("document.querySelector('#profile-btn').click()")
     p.until("!!document.querySelector('#profile-menu')", "profile menu")
     p.js("[...document.querySelectorAll('#profile-menu [role=menuitem]')].find(e => e.textContent === 'Help').click()")
+    p.until("!!document.querySelector('#help') || !!document.querySelector('#help-peek')", what)
+    if p.js("!!document.querySelector('#help-peek')"):          # row 896: the entry opens the peek; the full Help is its foot link, which opens on the entry the text names
+        last = p.js("localStorage.getItem('clark.helpTab') || 'start'")
+        p.js("document.querySelector('#help-peek [data-hpk-full]').click()")
+        p.until("!!document.querySelector('#hpTab-%s')" % last, what)
+        p.js("window.clarkPage.help.open(%r)" % last)      # the tab used last, which these tests are about (open() starts a fresh history)
     p.until("!!document.querySelector('#help') && !document.querySelector('#profile-menu')", what)
 
 
@@ -86,7 +92,13 @@ class Panel(Base):
         with chrome() as cdp:
             p = self.in_help(cdp)
             self.assertEqual(p.js("[...document.querySelectorAll('.hp-tabs [role=tab]')].map(b => b.textContent)"), ["Start here", "How do I…", "Reference"])
-            self.assertEqual(p.js("document.querySelectorAll('.hp-steps li, .hp-first li').length"), 0, "no held entry on Start here")
+            self.assertEqual(p.js("document.querySelectorAll('.hp-first li').length"), 0, "no held entry on Start here")
+            # row 903: the hero card and The loop (five steps, the last a Your call step) sit above the jobs
+            self.assertEqual(p.js("document.querySelectorAll('.hp-hero h2').length"), 1, "the hero card")
+            self.assertEqual(p.js("document.querySelectorAll('.hp-steps li').length"), 5, "the loop has five steps")
+            self.assertEqual(p.js("document.querySelectorAll('.hp-steps li.gate').length"), 1, "one Your call step")
+            self.assertEqual(p.js("var h=document.querySelector('.hp-hero'),l=document.querySelector('.hp-loop'),j=document.querySelector('.hp-start-jobs');"
+                                  "!!(h.compareDocumentPosition(l) & 4) && !!(l.compareDocumentPosition(j) & 4)"), True, "hero, loop, then the jobs")
             self.assertEqual(p.js("document.querySelectorAll('.hp-job').length"), len(shown_content()["start"]["jobs"]), "the jobs whose entries are shown (#642 step 3)")
             self.assertFalse(p.js("!!document.querySelector('#hp-later')"))
             p.js("document.querySelector('#hpTab-howto').click()")
@@ -153,37 +165,39 @@ class Panel(Base):
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('#help') && document.activeElement && document.activeElement.hasAttribute('data-drag')", "Esc put focus back on the handle")
             self.assertEqual(p.js("document.activeElement.closest('.sec').dataset.id"), p.js("window.__id"))
-            # the Back button does the same, and a part of the top bar is the same element still
+            # Esc does the same from a part of the top bar, which is a part of the top bar is the same element still
             p.js("document.querySelector('.mode[data-mode=view]').focus()")
             full_help_from_key(p, "Help opened from the View button")
-            p.js("document.querySelector('#hpBack').click()")
-            p.until("!document.querySelector('#help') && document.activeElement && document.activeElement.dataset.mode === 'view'", "Back put focus back on View")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#help') && document.activeElement && document.activeElement.dataset.mode === 'view'", "Esc put focus back on View")
 
-    def test_the_top_bar_has_a_help_button_and_help_has_a_back_button(self):
-        """C-H5 (prototype index.html #helpBtn): a "?" in the top bar opens Help on the tab used last; Help says Back, and Back puts the
-        person where they were, with focus on the button that opened Help. Both widths."""
+    def test_the_top_bar_has_no_help_button_and_help_has_no_back_button(self):
+        """Row 899: the top bar has no "?" button. Help is reached by the ? key, the palette and the profile menu; Help has no Back button
+        (row 779): Esc puts the person where they were. Both widths."""
         from test_server import chrome
         with chrome() as cdp:
             p = self.visit(cdp)
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                self.assertEqual(p.js("(function(){var b=document.querySelector('header.top #help-btn');return b&&[b.textContent,b.getAttribute('aria-label'),b.title,b.getBoundingClientRect().width>=24,b.getBoundingClientRect().height>=24,b.getBoundingClientRect().right<=innerWidth]})()"),
-                                 ["?", "Help", "Help (?)", True, True, True], f"{w}: the button is in the top bar, named Help, big enough, in view")
-                self.assertTrue(p.js("var a=document.querySelector('#help-btn').getBoundingClientRect(), b=document.querySelector('#profile-btn').getBoundingClientRect(); a.right <= b.left"), "beside the circle, before it")
-                # The button opens the context peek on a screen with text (the Dashboard has some); the profile menu's Help is the full Help.
-                p.js("document.querySelector('#help-btn').focus(); document.querySelector('#help-btn').click()")
-                p.until("!!document.querySelector('#help-peek')", f"{w}: the button opened the peek")
-                self.assertEqual(p.js("document.querySelector('#help')"), None, f"{w}: the button does not open the full Help here")
-                p.js("document.querySelector('#help-btn').click()")
-                p.until("!document.querySelector('#help-peek') && !document.querySelector('.peek.leaving')", f"{w}: the button closed the peek")
+                self.assertEqual(p.js("document.querySelector('#help-btn')"), None, f"{w}: no Help button in the top bar")
+                self.assertTrue(p.js("var b=document.querySelector('#profile-btn').getBoundingClientRect(); b.right<=innerWidth"), f"{w}: the profile circle is in view")
+                # The ? key opens the context peek on a screen with text (the Dashboard has some); the profile menu's Help is the full Help.
+                p.key("?", code="Slash", vk=191)
+                p.until("!!document.querySelector('#help-peek')", f"{w}: the ? key opened the peek")
+                self.assertEqual(p.js("document.querySelector('#help')"), None, f"{w}: the key does not open the full Help here")
+                p.key("?", code="Slash", vk=191)
+                p.until("!document.querySelector('#help-peek') && !document.querySelector('.peek.leaving')", f"{w}: the ? key closed the peek")
                 p.js("document.querySelector('#profile-btn').focus()")
                 full_help_from_menu(p, f"{w}: the profile menu's Help opened Help")
-                self.assertEqual(p.js("document.querySelector('#hpBack').textContent"), "Back")
+                self.assertEqual(p.js("document.querySelector('#hpBack')"), None, "no Back button: Esc leaves Help (prototype help.js:725)")
                 self.assertEqual(p.js("document.querySelector('#hpClose')"), None, "no Close Help button any more")
-                self.assertIn("Esc or Back takes you where you were", p.js("document.querySelector('.hp-head p').textContent"))
+                self.assertIn("Esc takes you where you were", p.js("document.querySelector('.hp-head p').textContent"))
+                self.assertNotIn("Back", p.js("document.querySelector('.hp-head p').textContent"), "the line names no Back that is not there")
+                p.until("document.getAnimations().length === 0", f"{w}: settled before measuring")
+                self.assertTrue(p.js("var s=document.querySelector('.hp-search').getBoundingClientRect(), h=document.querySelector('.hp-head h1').getBoundingClientRect(); s.left > h.right && s.top < h.bottom + 40 && s.right <= innerWidth"), f"{w}: search at the top right, level with the title")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), f"{w}: no sideways scroll")
-                p.js("document.querySelector('#hpBack').click()")
-                p.until("!document.querySelector('#help') && !!document.querySelector('#report') && document.activeElement.id === 'profile-btn'", f"{w}: Back returned to the page and the profile button that opened Help")
+                p.key("Escape", code="Escape", vk=27)
+                p.until("!document.querySelector('#help') && !!document.querySelector('#report') && document.activeElement.id === 'profile-btn'", f"{w}: Esc returned to the page and the profile button that opened Help")
 
     def test_help_is_a_page_of_cards_with_a_search_icon_and_a_key_chip(self):
         """C-H6 and C-H7: no outer frame; the search box has its icon and a "/" chip that goes while the box is used; the Reference

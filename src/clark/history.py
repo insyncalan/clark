@@ -353,7 +353,10 @@ def how_text(route, place, src_ref):
         return HOW_UNDO_MANY if src_ref == BATCH_UNDO else HOW_UNDO
     if route == "excel":
         name = re.sub(r"\s+", " ", str(src_ref or "")).strip()
-        if name[:len(EXCEL_PREFIX)].lower() == EXCEL_PREFIX.lower():
+        wrapped = re.fullmatch(r"by excel import \((.*)\)", name, re.IGNORECASE)      # what the import stores: "by Excel import (x.xlsx)"
+        if wrapped:
+            name = wrapped.group(1).strip()
+        elif name[:len(EXCEL_PREFIX)].lower() == EXCEL_PREFIX.lower():
             name = name[len(EXCEL_PREFIX):].strip()
         name = re.split(r"[\\/]", name)[-1].strip()[:FILE_NAME_LIMIT]
         return f"{HOW_EXCEL} ({name})" if name else HOW_EXCEL

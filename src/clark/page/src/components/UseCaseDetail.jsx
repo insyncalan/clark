@@ -9,6 +9,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, rows, fromFile, project, openWork, openPeek } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
+import { blink } from "../stores/motion.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
 import { readUseCaseHistory, readArchivedUseCase } from "../api.js";
 import { Menu } from "./Menu.jsx";
@@ -110,7 +111,7 @@ export function Line({ value, label, cls, field, max, empty, ro, onSave, problem
 const OWN = '[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],dialog';
 const busy = (e) => !!e && e.nodeType === 1 && (e.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName) || !!e.closest(OWN));
 
-export function UseCaseDetail({ id }) {
+export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and link parts (edit/UseCasesEdit.jsx), given by the page; a published file has none
   const d = data.value, code = project.value;
   const editing = !fromFile.value;                                         // row 825: no View|Edit switch here; only a published file is read-only
   const live = d && (d.use_cases || []).find((u) => u.id === id) || null;
@@ -225,7 +226,7 @@ export function UseCaseDetail({ id }) {
               items={STATUSES.map(([name]) => ({ id: name, name, checked: u.status === name }))}
               onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
             <button type="button" class={`ucd-eye${on ? " on" : ""}`} data-eye title={on ? EYE.on : EYE.off} aria-label={on ? EYE.on : EYE.off}
-              onClick={() => send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard.")}><Icon name={on ? "eye" : "eyeoff"} /></button>
+              onClick={(e) => { blink(e); send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard."); }}><Icon name={on ? "eye" : "eyeoff"} /></button>
           </div>
         ) : null}
       </div>
@@ -264,6 +265,7 @@ export function UseCaseDetail({ id }) {
                 })}
               </ul>
             ) : <p class="muted" data-no-work>No work items are linked to this use case yet.</p>}
+            {!ro && ed ? <div class="ucx-addrow" data-addrow><ed.NextStep u={u} /><ed.LinkButton u={u} /></div> : null}
           </section>
           {!ro ? (
             <p class="ucd-foot"><button type="button" class="link" data-archive onClick={() => archive("archive")}>Archive this use case (it can be restored; nothing is deleted)</button></p>

@@ -1,9 +1,10 @@
 // #174: the first-run welcome. The first time clark is opened with no name in Settings › Personal › About you, a small card asks for
 // it. It saves through the same route as About you (stores/profile.js), so the name is kept by clark in the data folder, not here.
-// It never blocks the page and never takes the focus. It is asked once: it is never shown again once a name is saved (here or in
+// It never blocks the page. Row 857: when it opens it puts the focus in the Name box (unless the person is already in something
+// else), Tab stays inside it and Esc is Not now, like every dialog. It is asked once: it is never shown again once a name is saved (here or in
 // Settings) or once Not now is chosen; that answer is remembered in this browser (clark.welcome). Skipping changes nothing else: a
 // change made with no name in Settings carries this computer's login name, as before.
-import { useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { profile, profileRead, setProfile, welcomeHeld } from "../stores/profile.js";
 
 const KEY = "clark.welcome";
@@ -25,6 +26,12 @@ export function Welcome() {
   const [said, setSaid] = useState("");
   const [busy, setBusy] = useState(false);
   const box = useRef(null);
+  const card = useRef(null);
+  const shown = !(gone || welcomeHeld.value || !profileRead.value || profile.value.name);
+  useEffect(() => {
+    const a = document.activeElement;
+    if (shown && box.current && (!a || a === document.body || a === document.documentElement)) box.current.focus();
+  }, [shown]);
   if (gone || welcomeHeld.value || !profileRead.value || profile.value.name) return null;
   const close = () => { remember(); setGone(true); };
   const save = async () => {
@@ -37,8 +44,14 @@ export function Welcome() {
     setSaid(r.message || "");
   };
   return (
-    <section class="welcome" role="dialog" aria-modal="false" aria-labelledby="welcome-h" aria-describedby="welcome-ask" data-welcome
-      onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } }}>
+    <section class="welcome" role="dialog" aria-modal="false" aria-labelledby="welcome-h" aria-describedby="welcome-ask" data-welcome ref={card}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") { e.stopPropagation(); close(); return; }
+        if (e.key !== "Tab") return;
+        const tabs = [...card.current.querySelectorAll("input, button:not([disabled])")];
+        const end = tabs[e.shiftKey ? 0 : tabs.length - 1];
+        if (document.activeElement === end) { e.preventDefault(); tabs[e.shiftKey ? tabs.length - 1 : 0].focus(); }
+      }}>
       <h2 id="welcome-h">{WELCOME_WORDS.head}</h2>
       <p id="welcome-ask">{WELCOME_WORDS.ask}</p>
       <form class="fld" onSubmit={(e) => { e.preventDefault(); save(); }}>

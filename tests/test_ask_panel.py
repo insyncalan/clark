@@ -39,6 +39,7 @@ class Stub:
         self.answer = "The pilot goes live in March."
         self.provider, self.why = "", ""         # #54: who the server says a question goes to, and its reason when nothing can answer
         self.stopped = False
+        self.sources = []                        # row 890: [{"id", "label"}] the answer used
 
     def status(self, *_):
         self.calls.append(("status", None))
@@ -55,7 +56,7 @@ class Stub:
         self.hold.wait(30)
         if self.stopped:
             return 200, {"ok": False, "code": "no_answer", "message": "That was stopped before an answer came back."}
-        return 200, {"ok": True, "answer": self.answer, "parsed": True, "cites": [], "sources": [], "flags": [], "changes": [], "notes": []}
+        return 200, {"ok": True, "answer": self.answer, "parsed": True, "cites": [], "sources": self.sources, "flags": [], "changes": [], "notes": []}
 
     def stop(self, body=None):
         self.calls.append(("stop", body))
@@ -79,6 +80,7 @@ class Panel(Base):
             p.js(before)
         p.key("/", code="Slash", vk=191)
         p.until("!!document.querySelector('#ask-panel')", "the panel opened on /")
+        p.until("document.querySelector('#ask-panel').getAnimations().length === 0", "the panel has finished rising (row 885): its grip is where it is measured")
         if ready:
             p.until("!document.querySelector('#ask-send').disabled", "the panel is ready to take a question")
         return p
@@ -167,6 +169,15 @@ class Panel(Base):
             p = self.opened(cdp)
             self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Ask about this project.")
 
+    def test_the_panel_title_reads_ask_clark_and_the_ready_line_is_unchanged(self):
+        # row 820: the title is the row's own words; the ready line is a separate sentence and stays
+        self.stub.model = ""
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.assertEqual(p.js("document.querySelector('#ask-panel h2').textContent.trim()"), "ask clark")
+            self.assertEqual(p.js("document.querySelector('#ask-panel').getAttribute('aria-label')"), "ask clark")
+            self.assertIn("Ask about this project", p.js("document.querySelector('#ask-status').textContent"))
+
     def test_a_reply_is_shown_and_sent_with_the_project_and_the_earlier_turns(self):
         with chrome() as cdp:
             p = self.opened(cdp)
@@ -209,6 +220,53 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelectorAll('.ask-log img, .ask-log b, .ask-log script').length"), 0)
             self.assertEqual(p.js("document.querySelectorAll('.ask-turn')[1].querySelector('.ask-text').textContent"), self.stub.answer)
             self.assertEqual(p.js("typeof window.__pwn"), "undefined")
+
+    # ----- row 890: the Sources disclosure under an answer -----
+    def answered(self, p):
+        self.ask(p, "Where did that come from?")
+        p.until("document.querySelectorAll('.ask-turn').length === 2", "the answer")
+
+    def test_sources_are_closed_by_default_and_list_the_files_the_answer_used(self):
+        self.stub.sources = [{"id": "P1", "label": "plan.xlsx"}, {"id": "P2", "label": "notes.docx"}]
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.answered(p)
+            self.assertEqual(p.js("document.querySelectorAll('.ask-sources').length"), 1)
+            self.assertEqual(p.js("document.querySelector('.ask-sources summary').textContent.trim()"), "Sources")
+            self.assertFalse(p.js("document.querySelector('.ask-sources').open"))
+            self.assertEqual(p.js("[...document.querySelectorAll('.ask-sources li')].map((l) => l.textContent)"), ["plan.xlsx", "notes.docx"])
+            self.assertFalse(p.js("document.querySelector('.ask-sources li').checkVisibility()"), "the names show only when it is opened")
+            p.js("document.querySelector('.ask-sources summary').click()")
+            self.assertTrue(p.js("document.querySelector('.ask-sources').open"))
+            self.assertTrue(p.js("document.querySelector('.ask-sources li').checkVisibility()"))
+
+    def test_sources_open_and_close_on_enter_and_space(self):
+        self.stub.sources = [{"id": "P1", "label": "plan.xlsx"}]
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.answered(p)
+            for key, code, vk, text in (("Enter", "Enter", 13, "\r"), (" ", "Space", 32, " ")):
+                p.js("document.querySelector('.ask-sources summary').focus()")
+                for want in (True, False):
+                    for kind in ("keyDown", "keyUp"):       # a real key press: the keyDown carries the character, as a keyboard's does
+                        cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk,
+                                                            **({"text": text} if kind == "keyDown" else {})}, p.sid)
+                    p.until("document.querySelector('.ask-sources').open === %s" % ("true" if want else "false"), f"{code} {'opened' if want else 'closed'} it")
+
+    def test_sources_drop_the_part_suffix_and_list_each_file_once(self):
+        labels = ["x/a.md", "x/a.md (part 2)", "x/b.md (part 3)", "notes.xlsx", "the part two plan.md"]
+        self.stub.sources = [{"id": "P%d" % i, "label": t} for i, t in enumerate(labels)]
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.answered(p)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ask-sources li')].map((l) => l.textContent)"),
+                             ["x/a.md", "x/b.md", "notes.xlsx", "the part two plan.md"])
+
+    def test_no_sources_control_when_the_answer_has_no_sources(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.answered(p)
+            self.assertEqual(p.js("document.querySelectorAll('.ask-sources').length"), 0)
 
     def test_stop_calls_the_route_and_leaves_the_chat_as_it_was(self):
         self.stub.hold.clear()
@@ -481,6 +539,7 @@ class Panel(Base):
                     p.key("/", code="Slash", vk=191)
                     p.until("!!document.querySelector('#ask-panel')", f"opened at {width} {theme}")
                     p.until("!document.querySelector('#ask-send').disabled", "ready")
+                    p.until("document.querySelector('#ask-panel').getAnimations().length === 0", "the panel has finished rising (row 885)")
                     r = p.js("(function(){var r=document.querySelector('#ask-panel').getBoundingClientRect();return {l:r.left,r:r.right,t:r.top,b:r.bottom,w:r.width}})()")
                     edge = p.js("document.documentElement.clientWidth")      # the window less a classic scroll bar (Linux shows one; a Mac hides it)
                     self.assertLessEqual(width - edge, 20)
@@ -519,7 +578,7 @@ class Words(unittest.TestCase):
     def test_the_published_page_has_no_panel(self):
         from clark import page
         html = (ROOT / "src" / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
-        for needle in ("ask-panel", "/api/ask", "billed to the Claude account", "Claude is not signed in"):
+        for needle in ("ask-panel", "ask-sources", "/api/ask", "billed to the Claude account", "Claude is not signed in"):
             self.assertNotIn(needle, html)
         self.assertIn("ask-panel", (ROOT / "src" / "clark" / "page" / "page.html").read_text(encoding="utf-8"))
 

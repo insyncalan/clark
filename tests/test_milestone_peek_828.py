@@ -86,7 +86,7 @@ class Fields(Base):
 
     def undo(self, p):
         p.js("document.querySelector('.toast [data-undo]').click()")
-        p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
+        p.until("/^Undone[.:]/.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "Undone")
 
     def test_the_fields_are_there_on_the_milestones_page_in_view_and_not_on_the_dashboard_in_view(self):
         with chrome() as cdp:

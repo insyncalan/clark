@@ -83,6 +83,7 @@ class Ask(Panel):
                     Rules.check(self, lambda: p.js(SIZE % sel), put, lambda: put(""),
                                 lambda: p.js(f"(e => {{ e.style.height = (e.offsetHeight + 20) + 'px'; e.dispatchEvent(new Event('pointerup')); }})({sel})"),
                                 width, f"ask {width} {theme}")
+                    p.until("document.querySelector('#ask-panel').getAnimations().length === 0", "the panel has finished rising (row 885)")
                     panel = p.js("(r => ({b: r.bottom, h: innerHeight}))(document.querySelector('#ask-panel').getBoundingClientRect())")
                     self.assertLessEqual(panel["b"], panel["h"] + 1, "the panel stays inside the window")
                     p.key("Escape", code="Escape", vk=27)

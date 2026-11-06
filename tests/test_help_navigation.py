@@ -86,7 +86,8 @@ class TheFiveJobs(unittest.TestCase):
 
     def test_the_contents_list_of_start_here_has_the_three_groups(self):
         r = run_node(RAW, "HL.tabList('start').map((g) => [g.group, g.entries.map((e) => e.place)])")
-        self.assertEqual(r[0], ["Start here", ["start-jobs"]])
+        self.assertEqual(r[:3], [["Start here", ["start-top"]], ["Start here", ["start-loop"]], ["Start here", ["start-jobs"]]], "the hero card and the loop come first (row 903)")
+        r = r[2:]
         self.assertEqual(r[1], ["The five jobs", [JOB_PLACES[i] for i in JOBS]])
         self.assertEqual(r[2][0], "Also under How do I...")
         # the two jobs that open a guide leave their how-to entries here, so those stay reachable
@@ -177,7 +178,7 @@ class WhatNext(unittest.TestCase):
     def test_a_held_place_is_never_a_what_next_link(self):
         held = ["howto-" + i for i in LATER["howto"]] + ["ref-" + i for i in LATER["reference"]]
         self.assertTrue(held)
-        r = run_node(RAW, "HL.nextOf(%s)" % json.dumps(held + ["start-top"]))
+        r = run_node(RAW, "HL.nextOf(%s)" % json.dumps(held + ["start-first"]))
         self.assertEqual(r, [])
 
     def test_no_next_list_gives_nothing(self):
@@ -204,34 +205,13 @@ class WhatNext(unittest.TestCase):
 
 
 class History(unittest.TestCase):
-    """The small history of places (helpLogic.js trailVisit, trailBack, firstPlace) behind the way back beside Back."""
+    """The place a tab opens at (helpLogic.js firstPlace)."""
     def run_trail(self, probe):
         return run_node(RAW, probe)
 
-    def test_a_visit_adds_the_place_left_and_never_the_same_twice_in_a_row(self):
-        r = self.run_trail("(() => { let t = []; t = HL.trailVisit(t, 'a', 'b'); t = HL.trailVisit(t, 'b', 'c'); const x = t.slice(); t = HL.trailVisit(t, 'c', 'c');"
-                           " t = HL.trailVisit(t, 'b', 'd'); return { x, t }; })()")
-        self.assertEqual(r["x"], ["a", "b"])
-        self.assertEqual(r["t"], ["a", "b"], "moving to the place you are at changes nothing, and b is already the latest")
-
-    def test_back_gives_the_latest_place_and_a_shorter_history(self):
-        r = self.run_trail("(() => { const t = ['a', 'b', 'c']; const one = HL.trailBack(t); const two = HL.trailBack(one.trail); return { t, one, two, none: HL.trailBack([]), bad: HL.trailBack(null) }; })()")
-        self.assertEqual(r["t"], ["a", "b", "c"], "the history given is not changed")
-        self.assertEqual(r["one"], {"place": "c", "trail": ["a", "b"]})
-        self.assertEqual(r["two"], {"place": "b", "trail": ["a"]})
-        self.assertEqual(r["none"], {"place": None, "trail": []})
-        self.assertEqual(r["bad"], {"place": None, "trail": []})
-
-    def test_nothing_is_added_from_nowhere_and_the_history_is_capped(self):
-        r = self.run_trail("(() => { let t = []; t = HL.trailVisit(t, null, 'a'); t = HL.trailVisit(t, '', 'a'); const empty = t.slice();"
-                           " for (let i = 0; i < 50; i++) t = HL.trailVisit(t, 'p' + i, 'p' + (i + 1)); return { empty, n: t.length, cap: HL.TRAIL_MAX, last: t[t.length - 1], first: t[0] }; })()")
-        self.assertEqual(r["empty"], [])
-        # 20: the cap is a choice (a reader keeps a handful of places in mind), not a measurement
-        self.assertEqual((r["cap"], r["n"], r["last"], r["first"]), (20, 20, "p49", "p30"))
-
     def test_a_tab_opens_at_its_first_entry(self):
         r = self.run_trail("({ start: HL.firstPlace('start'), howto: HL.firstPlace('howto'), reference: HL.firstPlace('reference'), none: HL.firstPlace('nothing') })")
-        self.assertEqual(r["start"], "start-jobs")
+        self.assertEqual(r["start"], "start-top")
         self.assertEqual(r["howto"], "howto-" + shown_content()["howto"]["tasks"][0]["id"])
         self.assertEqual(r["reference"], "ref-" + shown_content()["reference"]["sections"][0]["id"])
         self.assertIsNone(r["none"])

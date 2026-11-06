@@ -119,7 +119,7 @@ class Held(unittest.TestCase):
         self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "check-the-report", "publish-the-report", "word-in-and-out", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "change-an-item-in-words", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone", "connect-claude-or-chatgpt", "undo-a-mistake", "start-check-and-restore-in-terminal", "run-clark-with-docker"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "ask-clark", "status-words", "sneak-peek",
                           "milestone-states", "published-reports", "diagnostics", "dates-and-ids", "using-help", "keys"])
-        self.assertEqual(s["start"]["parts"], ["jobs", "where", "rules"])      # the jobs part (#642 step 3), and where and rules with ask clark and Sneak peek (#721); the other four wait for their parts of clark
+        self.assertEqual(s["start"]["parts"], ["top", "loop", "jobs", "where", "rules"])      # the hero and the loop (row 903) above the jobs; first and foot wait for their parts of clark
         self.assertEqual(len(s["reference"]["keys"]), 34 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones", "Settings and safety", "Advanced"])
         self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Publishing", "Settings and data", "Keys and icons"])
@@ -223,9 +223,10 @@ class AgainstThePage(unittest.TestCase):
         # 26 measured with item 445 (the Update card now draws the names Choose zip, Review, Show the files and the others; 30 before): the two
         # update Help entries are held (helpLater.json) until the release key is pinned, but the floor counts the whole source (27 fails)
         # 23 measured on the merge of main (26 there, the update card of item 445) into the Help overhaul branch: both sides' names on the page together (24 fails)
-        # 16 measured with ask clark and Sneak peek released (#721): their corrected bold names are on the page (Ask about this project, Check this report, Apply, Confirm and apply, New chat, Close ...), 23 before
+        # 16 measured with ask clark and Sneak peek released (#721): their corrected bold names are on the page (ask clark, Check this report, Apply, Confirm and apply, New chat, Close ...), 23 before
         # 15 measured with row 828 (the milestone peek's own fields: State, Progress, Visible to client and Client wording are on the page now, 16 before)
         self.assertGreaterEqual(len(names), 15)
+
         # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
         # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
         # 56 measured on the merged tree after the next main merge (names printed): the milestone details toggle (C-M6) leaves the list on top of the Supporting documents section

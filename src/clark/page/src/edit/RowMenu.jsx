@@ -200,8 +200,10 @@ function Panel({ s }) {
     if (id === "link") { close("pick"); copied(linkFor(row, project.value, location.origin + location.pathname, format), `Link to ${row.id} copied.`); return undefined; }
     if (id === "copyid") { close("pick"); copied(row.id, `${row.id} copied.`); return undefined; }
     if (id === "archive") {
-      return record({ kind: tableOf(row), op: "archive", id: row.id, place: "menu" }, { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.` })
-        .then((r) => { if (r && peeked.value === row.id) closePeek(); });
+      const rows = Array.from(document.querySelectorAll(ROW)), at = rows.findIndex((el) => el.dataset.id === row.id), nb = rows[at + 1] || rows[at - 1];   // row 865: the row leaves, so focus goes to its neighbour
+      const sel = (id) => `tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"] .bc-main`;
+      return record({ kind: tableOf(row), op: "archive", id: row.id, place: "menu" }, { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.`, focus: sel(row.id) })
+        .then((r) => { if (r && peeked.value === row.id) closePeek(); if (r && nb && nb.dataset.id) refocus(nb.dataset.id); });
     }
     if (id === "dup") {
       const raw = rawOf(d, row);

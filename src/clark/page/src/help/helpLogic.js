@@ -171,21 +171,6 @@ export function nextOf(places) {
   return out;
 }
 
-// ---------- the places visited (the way back beside Back) ----------
-// A small history: the places left behind, the latest last. Plain functions on arrays, so the store only holds the value.
-export const TRAIL_MAX = 20;
-/** The history after going from `from` to `to`: `from` is added unless it is empty or the same place. Never changes the list given. */
-export function trailVisit(trail, from, to) {
-  const t = Array.isArray(trail) ? trail.slice() : [];
-  if (!from || from === to || t[t.length - 1] === from) return t;
-  t.push(from);
-  return t.slice(-TRAIL_MAX);
-}
-/** Going back one place: { place, trail } (place null and the same history when there is none). */
-export function trailBack(trail) {
-  const t = Array.isArray(trail) ? trail.slice() : [];
-  return { place: t.length ? t.pop() : null, trail: t };
-}
 /** The place a tab opens at: its first entry in the contents list (null when it has none). */
 export function firstPlace(tab) {
   const l = tabList(tab);
@@ -262,6 +247,12 @@ export function contextFor(page) {
     ...sections().filter(on).map((x) => row("reference", PREFIX.reference, x.id, x.t)),
     ...(CONTENT.guides || []).filter(on).map((g) => row("howto", GUIDE, g.id, g.t)),
   ];
+}
+
+/** The how-to articles whose "go" page is `page` (a screen, or a Settings card: its screen), as [{ title, place }] in the source's order (row 896). Held articles are not in CONTENT. */
+export function articlesFor(page) {
+  const screen = String(page == null ? "" : page).split("#")[0];
+  return tasks().filter((x) => x.go && String(x.go).split("#")[0] === screen).map((x) => ({ title: x.t, place: PREFIX.howto + x.id }));
 }
 
 /**
