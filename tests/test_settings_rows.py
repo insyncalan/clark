@@ -37,7 +37,7 @@ class Rows(Head):
     def across(self, check):
         for w in WIDTHS:
             for mode in MODES:
-                for edit in (False, True):
+                for edit in (False,):          # row 826: Settings has no View|Edit switch, so there is no Edit variant of this page
                     with self.subTest(width=w, mode=mode, edit=edit), chrome() as cdp:
                         p = self.page(cdp)
                         self.drawn(p, w, mode, edit)
