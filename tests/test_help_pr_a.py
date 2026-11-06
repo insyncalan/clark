@@ -31,12 +31,14 @@ def flat(o):
 
 
 class TopBar(unittest.TestCase):
-    def test_the_logo_bullet_is_gone_because_the_logo_goes_nowhere(self):
-        top = code("components", "TopBar.jsx")
-        logo = re.search(r'<span class="logo"[^>]*>', top).group(0)
-        self.assertNotIn("onClick", logo)
+    def test_the_help_has_no_logo_bullet_the_logo_has_no_help_line_of_its_own(self):      # row 854: the logo is now a Home button; Help gained no new sentence
         self.assertNotIn("back to the Dashboard", flat(SECS["top-bar"]))
         self.assertNotIn("The logo", flat(SECS["top-bar"]))
+
+    def test_ctrl_or_cmd_j_is_handled_and_the_ask_tooltip_names_it(self):
+        """Row 855: askPanelState.js handles Ctrl or Cmd + J and the ask button's tooltip names it (Help's keys row waits for approved words)."""
+        self.assertRegex(code("edit", "askPanelState.js"), r'"j"[^\n]*metaKey \|\| e\.ctrlKey')
+        self.assertIn("Open ask clark (/ or Ctrl or Cmd + J)", code("edit", "AskButton.jsx"))
 
     def test_the_search_button_and_palette_sentence(self):
         text = flat(SECS["top-bar"])
@@ -85,7 +87,7 @@ class TypedFilter(unittest.TestCase):
         self.assertIn("`Add a value after '${e.name}:'.`", ui)
         self.assertIn('EMPTY = { none: "No work items match.", clear: "Clear filter" }', ui)
         self.assertIn('NO_ME = "Set your name in Settings to see your actions."', code("logic", "filterLine.js"))
-        for s in ("Unknown field 'x'. Did you mean Owner?", "Add a value after 'x:'.", "Set your name in Settings to see your actions.", "No work items match.", "**Clear filter**"):
+        for s in ("Unknown field 'x'. Did you mean Owner?", "Add a value after 'x:'.", "Set your name in Settings to see your actions.", "**Clear search**", "No open items match"):
             self.assertIn(s, self.FIND)
         self.assertIn("text-decoration: underline wavy var(--status-red)", (PAGE.parent / "shell.css").read_text(encoding="utf-8"))
         self.assertIn('PLACEHOLDER = "Filter by keyword or by field"', code("logic", "filterLine.js"))

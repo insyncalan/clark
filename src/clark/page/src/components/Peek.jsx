@@ -1,13 +1,14 @@
-// The peek (#42a): one work item's or milestone's fields beside the list. Read only in View and in a published file: fields and
+// The peek (#42a): one work item's or milestone's fields beside the list. Read only on a Dashboard in View and in a published file: fields and
 // nothing else (no history, no words box, no /api/ text). `tools.Words`, `tools.WordsButton`, `tools.PeekTabs` and
-// `tools.PeekActivity` (Details and Activity, #42) are the Edit part.
+// `tools.PeekActivity` (Details and Activity, #42) are the editing part (every page but a Dashboard in View).
 // The address holds which item is open (router.js, #63); Previous and Next replace that entry, Esc and Close go through
 // closePeek(). The width is dragged from the left edge (keys too), double-click resets it.
 // The arrow keys (#246, #289): Up and Down on one of its buttons step like Previous and Next, an arrow that moves the focus to
 // another row or card moves the peek with it, and Esc puts the focus on the row of the item shown. Nothing else takes an arrow.
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { signal } from "@preact/signals";
-import { data, rows, peek, openPeek, closePeek, mode, fromFile } from "../stores/report.js";
+import { data, rows, peek, openPeek, closePeek, fromFile } from "../stores/report.js";
+import { isEditing } from "../edit/editing.js";
 import { width, wide, setWidth, resetWidth, MIN, peekTab } from "../stores/peekState.js";
 import { staleWords, notReviewed } from "../filters.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso, isOpen, colourOf } from "../workItems.js";
@@ -111,7 +112,7 @@ export function Edge() {
 export function Peek({ tools }) {
   const p = peek.value;
   const box = useRef(null), back = useRef(null), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
-  const editing = !!tools && !fromFile.value && mode.value === "edit";
+  const editing = !!tools && !fromFile.value && isEditing();      // every page but a Dashboard in View (row 824)
   // The words box changes work items only (sneak.py refuses a milestone), so a milestone peek has no sparkle and no `//`.
   const forItem = !!p && p.kind !== "milestone";
   const Words = editing && forItem && tools.Words, WordsBtn = editing && forItem && tools.WordsButton;
@@ -139,7 +140,9 @@ export function Peek({ tools }) {
         const now = document.querySelector(sel);
         if (now) el = now;
       }
-      if (el && el.isConnected && el.focus) el.focus();
+      const now = document.activeElement;                                          // a click on another row (a Shift click that closes the peek) has put the focus there already: leave it
+      const elsewhere = now && now !== document.body && now.isConnected && !now.closest("#peek");
+      if (!elsewhere && el && el.isConnected && el.focus) el.focus();
     };
   }, [!!p]);                                              // eslint-disable-line react-hooks/exhaustive-deps
   // After a step the focus is never left on a button that has just turned off (Next at the last item) or on the page: it goes to Close.

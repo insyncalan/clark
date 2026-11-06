@@ -37,7 +37,7 @@ class Source(unittest.TestCase):
         self.assertIn(".bc-main:focus-visible { outline: 2px solid", CSS)
 
     def test_help_lists_every_key(self):
-        for words in ("Work items table: move the cursor", "Work items board: move from card to card", "In Edit, [[Enter]] on a cell opens that cell", "[[Right]] opens it and [[Left]] closes it again", "[[Esc]] closes it and returns to the row"):   # #381: the peek keys are in Help too
+        for words in ("Work items table: move the cursor", "Work items board: move from card to card", "[[Enter]] on a cell opens that cell", "[[Right]] and [[Left]] move across the cells of the row", "[[Esc]] closes the open item and returns to the row"):   # #381: the peek keys are in Help too
             self.assertIn(words, HELP)
 
 
@@ -74,15 +74,15 @@ class Keys(ie.Live):
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"location.hash.includes('item={rows[1]}')", "Enter opens the cursor row's peek")
 
-    def test_right_opens_the_peek_and_left_from_the_row_closes_it_but_the_peek_keeps_its_arrows(self):
+    def test_enter_opens_the_peek_and_the_arrows_never_open_or_close_it_while_the_peek_keeps_its_arrows(self):
         for width in (1400, 900):
             with self.subTest(width=width), ie.chrome() as cdp:
                 sid = self.open_page(cdp, width, edit=False)
                 rows = cdp.js(ROWS, sid)
                 cdp.js("window.__seen = []; window.addEventListener('keydown', (e) => window.__seen.push([e.key, e.defaultPrevented]))", sid)
                 cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
-                key(cdp, sid, "ArrowRight")
-                self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Right opens the peek")
+                key(cdp, sid, "Enter")
+                self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Enter opens the peek (row 824: Right walks the cells)")
                 self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "focus is in the peek")
                 # Left and Right with the focus inside the peek are not taken: the peek's tabs and the page keep them. Up and Down are the
                 # peek's own (#246, the peek steps to the item before or after in the list it was opened from), so they are taken.
@@ -112,13 +112,13 @@ class Keys(ie.Live):
                 key(cdp, sid, "Escape")
                 self.until(cdp, sid, "!location.hash.includes('item=')", "Esc closes the peek")
                 self.until(cdp, sid, f"{FOCUS} === '{rows[0]}'", "focus returns to the row")
-                key(cdp, sid, "ArrowRight")
-                self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Right opens it again")
+                key(cdp, sid, "Enter")
+                self.until(cdp, sid, f"location.hash.includes('item={rows[0]}')", "Enter opens it again")
                 self.until(cdp, sid, "!!document.activeElement.closest('#peek')", "and the focus has moved into the peek, so it cannot move there after the row is focused")
                 cdp.js(f"document.querySelector('#work tr[data-id=\"{rows[0]}\"]').focus()", sid)
                 self.until(cdp, sid, f"{FOCUS} === '{rows[0]}'", "the row has the focus before Left is pressed")
                 key(cdp, sid, "ArrowLeft")
-                self.until(cdp, sid, "!location.hash.includes('item=')", "Left from the row closes the peek")
+                self.assertTrue(cdp.js(f"location.hash.includes('item={rows[0]}')", sid), "Left from the row no longer closes the peek (row 824)")
 
     def test_rows_and_cards_say_their_place_in_the_list(self):
         for width in (1400, 900):
