@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { ClientMenu } from "./ClientMenu.jsx";
 import { TITLES, SHORT_TITLES, tabs, view, show, project, data, fromFile, asAt } from "../stores/report.js";
 
@@ -19,7 +19,7 @@ export function TopBar({ tools }) {
     const on = row.current && row.current.querySelector('[aria-selected="true"]');
     if (on && on.scrollIntoView) on.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "auto" });
   };
-  useEffect(showOpen, [view.value, tabs.value.length]);
+  useLayoutEffect(showOpen, [view.value, tabs.value.length]);      // a layout effect: the tab is in view in the step that draws the new open tab, not a frame or more later (Preact runs an ordinary effect after the paint)
   useEffect(() => {      // the row narrows or its tabs widen after that (the mode switch joins the bar, the fonts load): bring the open tab in again, on the next frame, once the layout has settled
     if (!row.current) return undefined;
     let frame = 0;
