@@ -553,6 +553,28 @@ class Sections(Base):
             self.assertEqual(len(self.sent), n)
             self.assertEqual(self.ids_in_store()[0], "ABC-S-001")
 
+    def test_row_865_undo_after_a_move_names_the_move_and_focus_returns_to_the_handle(self):
+        """Row 865: Cmd or Ctrl+Z after a section move says "Undone: <the move's own words>" and the focus is back on the moved
+        section's handle, not on the page; at 1400 and 900 px, light and dark."""
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    p = self.visit(cdp)
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    p.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}")
+                    p.edit()
+                    p.js("document.querySelector('[data-id=\"ABC-S-004\"] [data-drag]').focus()")
+                    p.key("ArrowUp", ALT, code="ArrowUp", vk=38)
+                    p.order_is(IDS[:2] + ["ABC-S-004", "ABC-S-003"] + IDS[4:], "the move")
+                    said = p.toast()
+                    self.assertTrue(said and not said.startswith("Undone"), said)
+                    p.js("document.activeElement.blur()")
+                    p.key("z", 2, code="KeyZ", vk=90)
+                    p.order_is(IDS, "Cmd+Z undid the move")
+                    p.toast_is("Undone: " + said)
+                    self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-drag]') && document.activeElement.closest('.sec').dataset.id === 'ABC-S-004'"), 5),
+                                    "focus is back on the moved section's handle")
+
     def test_move_by_dragging_the_handle(self):
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -769,7 +791,7 @@ class Sections(Base):
             for ref in ("ABC-S-001", "ABC-S-002", "ABC-S-004", "ABC-S-008"):
                 p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()")
                 p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .menu')", "menu")
-                self.assertIsNone(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-act=delete]')"), f"{ref} is not a text section")
+                self.assertIsNotNone(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-act=delete]')"), f"{ref} offers Delete section too (row 906)")
                 p.key("Escape", code="Escape", vk=27)
             p.menu("ABC-S-005", "delete")
             p.order_is([i for i in IDS if i != "ABC-S-005"], "deleted")
@@ -1142,8 +1164,8 @@ class Gutter(Base):
             self.assertEqual(p.js("[...document.querySelectorAll('.menu-item')].map(e => e.dataset.act)"),
                              ["add", "up", "down", "beside", "hide", "delete"])
             p.key("Escape", code="Escape", vk=27)
-            self.open_menu(p, "ABC-S-002")           # not a text section: no Delete
-            self.assertEqual(p.js(self.MENU_TEXTS % "ABC-S-002")[-1], "Leave out of the published page")
+            self.open_menu(p, "ABC-S-002")           # not a text section: Delete section too (row 906)
+            self.assertEqual(p.js(self.MENU_TEXTS % "ABC-S-002")[-1], "Delete section")
             p.key("Escape", code="Escape", vk=27)
             p.menu("ABC-S-002", "hide")
             p.saved()

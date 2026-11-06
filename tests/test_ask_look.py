@@ -83,6 +83,7 @@ MEASURE = r"""(function () {
 JARGON = re.compile(r"\b(path|request|JSON|API|token|tag|attribute|stylesheet|CSS)s?\b", re.I)
 DATE = re.compile(r"\b\d{4}-\d{1,2}-\d{1,2}\b|\b\d{1,2}[/.]\d{1,2}[/.]\d{2,4}\b|\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.? \d{1,2}\b|\b\d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b|\b(Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day\b|\b(19|20)\d\d\b")
 PRODUCT = re.compile(r"^(ask )?clark\b", re.I)
+TITLE = "ask clark"                      # row 820: the one string allowed to start with the product's name
 # A capital letter inside a sentence is a name unless it is a word the panel is known to use.
 KNOWN = {"Claude", "Anthropic", "Settings", "Ask", "Apply", "Undo", "Stop", "Wi", "Fi", "HDMI", "IT"}
 
@@ -281,7 +282,8 @@ class Strings(Base):
         self.assertGreater(len(sentences), 2, where)
         for s in sentences:
             self.assertIsNone(JARGON.search(s), f"{where}: jargon in {s!r}")
-            self.assertIsNone(PRODUCT.match(s), f"{where}: starts with the product's name: {s!r}")
+            # row 820: the panel TITLE is the product's own name by the row's exact words; every other sentence still must not start with it
+            self.assertIsNone(PRODUCT.match(s) if s != TITLE else None, f"{where}: starts with the product's name: {s!r}")
             self.assertIsNone(DATE.search(s), f"{where}: a date in {s!r}")
             inside = re.findall(r"(?<=[a-z,;] )([A-Z][a-z]+)", s)
             for w in inside:

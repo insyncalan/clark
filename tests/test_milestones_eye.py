@@ -106,9 +106,9 @@ class Editor(unittest.TestCase):
     def until(self, expr, what, seconds=10):
         self.assertTrue(wait(lambda: self.js(expr), seconds), what)
 
-    def key(self, key, code, vk, text=""):
+    def key(self, key, code, vk, text="", modifiers=0):
         for kind in ("keyDown", "keyUp"):
-            args = {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk}
+            args = {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk, "modifiers": modifiers}
             if text and kind == "keyDown":
                 args["text"] = text
             self.cdp.call("Input.dispatchKeyEvent", args, self.sid)
@@ -287,6 +287,20 @@ class Editor(unittest.TestCase):
             self.visit(cdp, "#milestones&p=ABC")
             self.assertEqual(sorted(r["id"] for r in self.js(SEE % ".frame")["rows"]), sorted(NAMES), "the Milestones page keeps every milestone")
             self.assertIsNone(self.add_line(), "the line is the Dashboard's only")
+
+    def test_row_865_undo_of_the_eye_names_the_milestone_and_focus_returns_to_its_eye_at_both_widths_in_both_themes(self):
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    self.visit(cdp, width=width, theme=theme)
+                    self.press("ABC-M-002")
+                    self.until("!document.querySelector(\".secs .msl-row[data-ms='ABC-M-002']\")", "the row left the Dashboard")
+                    self.until("document.querySelector('.toast .toast-text').textContent === 'Training done taken off the page.'", "the toast")
+                    self.js("document.activeElement && document.activeElement.blur()")
+                    self.key("z", "KeyZ", 90, modifiers=2)
+                    self.until("document.querySelector('.toast .toast-text').textContent === 'Undone: Training done taken off the page.'", "Undo names the change")
+                    self.until("document.activeElement && document.activeElement.dataset.msEye === 'ABC-M-002'", "focus is on the milestone's eye")
+                    self.assertEqual(self.left_out(), [])
 
     def test_pressing_again_includes_it_and_that_has_its_own_undo(self):
         self.store_hide("ABC-M-003")
