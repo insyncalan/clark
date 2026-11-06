@@ -360,7 +360,9 @@ class Header(Base):
             self.assertIn(", selected", got["label"], "a screen reader still hears it")
             self.assertNotEqual(got["border"], got["other"], "the border shows the selection")
             self.assertNotEqual(got["shadow"], "none")
-            # the list row keeps its tick
+            # the list row keeps its tick (the details panel the click opened covers the switch, so it is closed first)
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('#peek:not([hidden])') || document.querySelector('#peek').getBoundingClientRect().width === 0 || getComputedStyle(document.querySelector('#peek')).display === 'none'", "the details panel closed")
             self.view_pick(cdp, sid, "layout:table")
             self.until(cdp, sid, "document.querySelector('table.items')", "the table")
             click(cdp, sid, "table.items tbody tr[data-id] .c-item .t")
