@@ -64,7 +64,7 @@ class NarrowBrowser(unittest.TestCase):
 
     def test_the_rule_is_in_the_stylesheet(self):
         css = SHELL.read_text(encoding="utf-8")
-        self.assertIn("@media (max-width: 999px) { .peek:not(.hpk) { width: 100% !important; } }", css)
+        self.assertIn("@media (max-width: 999px) { .peek:not(.hpk) { width: 100% !important; } .peek:not(.hpk) .pk-edge { display: none; } }", css)      # the drag handle goes with the width it can no longer change
 
 
 if __name__ == "__main__":
