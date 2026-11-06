@@ -64,6 +64,12 @@ export const TEMPLATES = [
     description: "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.", holds: ["Heading", "Row: what is needed", "From", "By"] },
   { id: "link-preview", name: "Link preview", kind: "files", fit: ["full"], type: "linkcard", title: "Link preview", body: "", ready: true,
     description: "A web page shown as a card you write: a dashboard, a news item, a recording.", holds: ["Heading", "Link", "Card text"] },
+  { id: "current-state", name: "Current state", kind: "text", fit: ["full", "half"], type: "text", title: "Current state", body: "", ready: true,
+    description: "The state of the project in a few lines, to sit beside another section.", holds: ["Heading", "Text"] },
+  { id: "plan-summary", name: "Plan summary", kind: "text", fit: ["full", "half"], type: "text", title: "Plan summary", ready: true,
+    body: "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>",
+    description: "Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.",
+    holds: ["Heading", "Rich text: headings, lists, quote, links", "AI menu"] },
   { id: "one-doc", name: "One document", kind: "files", fit: ["half", "full"], type: "onedoc", title: "Document", body: "", ready: true,
     description: "A single file to read.", holds: ["Heading", "File", "Text"] },
 ];
