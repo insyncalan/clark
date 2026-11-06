@@ -1795,7 +1795,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title): Publishing, Personal, Freshness, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn. The link of the card you are reading is marked. Publishing and Freshness need an open project. Published reports also needs one and has a card but no link."
+      "A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title): Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
      ],
      [
       "tbl",
@@ -2447,6 +2447,11 @@
      "card": "freshness",
      "title": "Freshness",
      "line": "How many days an open item can go without a review before it counts as not reviewed."
+    },
+    {
+     "card": "gantt",
+     "title": "Gantt",
+     "line": "Whether the project has a Gantt tab, for you and for the client, and what the tab is called."
     },
     {
      "card": "diagnostics",

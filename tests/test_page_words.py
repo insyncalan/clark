@@ -175,7 +175,7 @@ class Words(unittest.TestCase):
             cdp.js("document.querySelector('[data-view=settings]').click()", sid)
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
-                                  "Publishing", "Personal", "Freshness", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "People", "Asking",      # the chips: one for each card below, in the order they are on the page
+                                  "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "People", "Asking",      # the chips: one for each card below, in the order they are on the page
                                   "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
                                   "Local folder", "Always saved. Publish opens the save window where you last saved this report, so you choose the local folder there each time.",
                                   "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
@@ -202,6 +202,10 @@ class Words(unittest.TestCase):
                                   "Freshness",          # #160: the project's "Not reviewed after (days)"
                                   "When an open item counts as not reviewed in this project. It sets the peek's note and the Freshness filter.",
                                   "Not reviewed after (days)", "A whole number from 1 to 365. The default is 14. Not in the published report.",
+                                  "Gantt",          # #926: the project's Gantt tab setting
+                                  "Whether this project has a Gantt tab, and who sees it. The client sees only the lines you have put on the client view.",
+                                  "Show the Gantt to me", "Show the Gantt to the client", "It appears in a published report only when at least one line is shown to the client.",
+                                  "Tab name", "Up to 30 characters. The default is Gantt. You can also click the tab's name while editing the Gantt page.",
                                   "Logs and diagnostics",      # #110
                                   "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
                                   "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",
