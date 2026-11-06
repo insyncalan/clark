@@ -329,9 +329,8 @@ class EditRows(unittest.TestCase):
             self.assertEqual(mine["description"], "Supplier may deliver late", "the team's own text is untouched")
             # the store has it before the page has read it again: wait for the row to draw what clark saved
             p.until(f"document.querySelector({row!r} + ' [data-f=title]').textContent === 'Supplier delivery may slip by a week'", "the row draws the saved wording")
-            self.type_into(p, row + " [data-f=title]", "", ending="Enter")
-            self.assertIn("can't be blank", p.toast())
-            p.until(f"document.querySelector({row!r} + ' [data-f=title]').textContent === 'Supplier delivery may slip by a week'", "a blank wording puts the saved words back")
+            self.type_into(p, row + " [data-f=title]", "", ending="Enter")                  # a blank wording clears it (row 893; test_clear_wording_in_place)
+            p.until(f"document.querySelector({row!r} + ' [data-f=title]').textContent === 'Supplier may deliver late'", "a cleared wording falls back to the item's title")
             # the owner, through its own picker
             p.js(f"document.querySelector({act!r} + ' [data-cell$=\":owner\"]').click()")
             p.until("!!document.querySelector('.menu, .cp, [role=dialog]')", "the owner picker opened")
