@@ -287,7 +287,7 @@ COMMON = {
     "owner_id": "Owner (linked person)",
     "name": "Name", "description": "Description", "status": "Status", "owner": "Owner", "priority": "Priority",
     "due_date": "Due date", "raised": "Raised on", "closed": "Closed on", "workstream": "Workstream", "milestone": "Milestone",
-    "use_case": "Use case", "client_visible": "Shown to the client", "client_message": "Message to the client",
+    "use_case": "Use case", "client_visible": "Shown to the client", "client_action": "Needed from the client", "client_message": "Message to the client",
     "archived": "Archived", "source": "Source", "project": "Project", "sort_order": "Order", "latest_update": "Latest update",
     "state": "State", "state_reason": "Reason for the state", "state_set": "State set on", "baseline_date": "Agreed date",
     "forecast_date": "Forecast date", "actual_date": "Actual date", "percent_complete": "Percent complete",
@@ -492,10 +492,13 @@ def _display(con, rows, keep):
     titles = _Titles(con)
     undos = _undo_events(con)
     out, folded = [], {}
+    texted = {(r["apply_id"], r["tbl"], r["item_id"]) for r in rows if r["field"] in ("owner", "made_by")}
     for r in rows:
         ends = _ends(r["tbl"], r["item_id"])
         if r["via"] == SEED_VIA or not keep(r, ends):      # a new project's starting sections are not a person's change
             continue
+        if r["field"] == "owner_id" and (r["apply_id"], r["tbl"], r["item_id"]) in texted:
+            continue                                       # row 866: the link written beside an owner edit is the same change, not a second line
         undo = r["route"] == "undo" or r["undoes"] is not None
         again = undo and r["undoes"] in undos              # this Undo reverses an earlier Undo
         undo_kind = "Undo undone" if again else "Undone"

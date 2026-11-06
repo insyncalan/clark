@@ -56,6 +56,11 @@ class Archived(Base):
     def open_peek(self, cdp, sid, ref):
         click(cdp, sid, f"{ROWS}[data-id='{ref}'] .ma-name")
         self.until(cdp, sid, f"!!document.querySelector('#archived-peek[data-archived-peek=\"{ref}\"]')", "the archived peek")
+        self.settled(cdp, sid)
+
+    def settled(self, cdp, sid):
+        """A click on Close aims at where the button is now: wait for the slide in to end first (rows 827 and 874)."""
+        self.until(cdp, sid, "!document.querySelector('#archived-peek').getAnimations({subtree: true}).some(a => a.playState === 'running')", "the slide in to end")
 
     def restore_in_peek(self, cdp, sid, ref):
         self.open_peek(cdp, sid, ref)

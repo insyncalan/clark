@@ -105,6 +105,8 @@ COMPUTED = {
     "owner Jo \u00b7 assign to Sam \u00b7 give it to Priya": "words typed in Sneak peek, read by sneak.py (#721)",
     "done \u00b7 closed \u00b7 reopen \u00b7 delayed \u00b7 cancelled": "words typed in Sneak peek, read by sneak.py (#721)",
     "made \u00b7 decided \u00b7 withdrawn \u00b7 pending": "words typed in Sneak peek, read by sneak.py (#721)",
+    "forecast Friday \u00b7 achieved yesterday \u00b7 done \u00b7 reopen": "words typed in Sneak peek, read by sneak.py (row 728)",
+    "flag \u00b7 high risk \u00b7 on track \u00b7 done \u00b7 committed \u00b7 candidate \u00b7 planned 2027 \u00b7 no flag \u00b7 headline": "words typed in Sneak peek, read by sneak.py (row 728)",
     "urgent priority \u00b7 high priority \u00b7 medium priority \u00b7 low priority": "words typed in Sneak peek, read by sneak.py (#721)",
 }
 
@@ -221,7 +223,7 @@ class MovementEntries(unittest.TestCase):
         self.assertIn("data-edit-only", self.BLOCK)
         self.assertIn("never published", self.WORDS)
         ref = json.dumps(entry("ref", "milestones-page"), ensure_ascii=False)
-        self.assertIn("In Edit, **Movement** is under the list", ref)
+        self.assertIn("**Movement** is under the list", ref)
         self.assertNotIn("Plan", " ".join(strings(entry("ref", "milestones-page"))))        # the page has no tab called Plan
 
     def test_the_rows_keys_are_the_arrows(self):

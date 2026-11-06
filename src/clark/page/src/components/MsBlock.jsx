@@ -2,11 +2,12 @@
 // Legend. The same block is the Milestones page, the Dashboard's Milestones section and, in a published file, both places; there
 // it starts on Timeline, shows only what the file holds (its rows are already the client's), and says the client's words.
 import { useState } from "preact/hooks";
-import { data, asAt, fromFile, mode, openPeek } from "../stores/report.js";
+import { data, asAt, fromFile, openPeek } from "../stores/report.js";
 import { milestoneRows, todayIso } from "../logic/milestones.js";
 import { leftOutIds } from "../logic/picker.js";
 import { recall, remember } from "../logic/remember.js";
 import { Icon } from "./Icon.jsx";
+import { isEditing } from "../logic/editing.js";
 import { MsTimeline } from "./MsTimeline.jsx";
 import { MsCalendar } from "./MsCalendar.jsx";
 import { MsList } from "./MsList.jsx";
@@ -22,11 +23,11 @@ export function MsBlock({ place, tools }) {
   const dash = !client && place !== "page";
   const off = dash ? new Set(leftOutIds(data.value)) : null;
   const rows = milestoneRows(data.value.milestones, today, client).filter((r) => !dash || (r.clientVisible && !off.has(r.id)));
-  const AddBack = dash && tools && tools.MsAddBack && mode.value === "edit" ? tools.MsAddBack : null;
+  const AddBack = dash && tools && tools.MsAddBack && isEditing() ? tools.MsAddBack : null;
   const [view, setView] = useState(() => (client ? "line" : recall(`msv.${place}`, "line") === "cal" ? "cal" : "line"));
   const choose = (v) => { if (!client) remember(`msv.${place}`, v); setView(v); };
   const open = client ? null : (id) => openPeek(id, "milestone");   // a published file has nothing to open: its marks, labels, chips and rows are plain text
-  const Eye = !client && tools && tools.MsEye && mode.value === "edit" ? tools.MsEye : null;
+  const Eye = !client && tools && tools.MsEye && isEditing() ? tools.MsEye : null;
   const left = Eye ? new Set(leftOutIds(data.value)) : null;      // the ids left out of the published page
   if (!rows.length) return <><p class="muted" data-no-milestones>No milestones are shown yet.</p>{AddBack ? <AddBack /> : null}</>;
   return (

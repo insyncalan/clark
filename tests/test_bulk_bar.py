@@ -12,7 +12,7 @@ import unittest
 
 from _paths import SRC
 
-from test_multi_select import CTRL, META, MOD, SHIFT, press, tap  # noqa: E402
+from test_multi_select import CTRL, META, MOD, SHIFT, peek_away, press, tap  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 import _testpage as testpage  # noqa: E402
 from test_work_board_page import Base as PageBase  # noqa: E402
@@ -146,6 +146,7 @@ class Page(Base):
 
     def pick(self, cdp, sid, ids):
         tap(cdp, sid, self.rsel(ids[0]))
+        peek_away(cdp, sid, cdp.js("innerWidth", sid))      # row 847: below 1000 px the first click's peek covers the list
         for rid in ids[1:]:
             tap(cdp, sid, self.rsel(rid), MOD)
         self.assertEqual(cdp.js("clarkPage.selected()", sid), ids)
