@@ -1,6 +1,6 @@
 // The section templates' Edit parts (#96): store type -> Edit component, all eighteen up front, so a template's builder changes only
 // its own file here. Handed to the page as tools.templateEdit (edit/index.js); never in a published file.
-import { TEMPLATE_TYPES } from "../../templates/types.js";
+import { TEMPLATE_TYPES, PENDING_TYPES } from "../../templates/types.js";
 import { Edit as textimage } from "./TextImage.jsx";
 import { Edit as headline } from "./Headline.jsx";
 import { Edit as figures4 } from "./Figures4.jsx";
@@ -19,11 +19,17 @@ import { Edit as contacts } from "./Contacts.jsx";
 import { Edit as checklist } from "./Checklist.jsx";
 import { Edit as keydates } from "./KeyDates.jsx";
 import { Edit as onedoc } from "./OneDoc.jsx";
+import { Edit as gantt } from "./GanttSection.jsx";
 
 const EDITS = { textimage, headline, figures4, figures3, gallery, table, doclinks, linkcard, raid3, raid4, workitems, callout, imagecap, quote, contacts, checklist, keydates, onedoc };
 export const TEMPLATE_EDITS = Object.freeze(Object.fromEntries(TEMPLATE_TYPES.map((t) => [t, EDITS[t]])));
 
+// The Edit parts of the types the page is ready for before the store takes them (types.js PENDING_TYPES).
+const PENDING = { gantt };
+export const PENDING_EDITS = Object.freeze(Object.fromEntries(PENDING_TYPES.map((t) => [t, PENDING[t]])));
+
 // The Edit part for a section type, or null when it is not a template.
 export function templateEdit(type) {
-  return Object.prototype.hasOwnProperty.call(TEMPLATE_EDITS, type) ? TEMPLATE_EDITS[type] : null;
+  const has = (o) => Object.prototype.hasOwnProperty.call(o, type);
+  return has(TEMPLATE_EDITS) ? TEMPLATE_EDITS[type] : has(PENDING_EDITS) ? PENDING_EDITS[type] : null;
 }
