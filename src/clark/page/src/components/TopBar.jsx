@@ -11,7 +11,6 @@ export function TopBar({ tools }) {
   const ProfileMenu = tools && tools.ProfileMenu && !fromFile.value ? tools.ProfileMenu : null;     // the profile circle's menu (#77)
   const ProjectSwitch = tools && tools.ProjectSwitch && !fromFile.value ? tools.ProjectSwitch : null;     // the project switcher (A-D25)
   const Publish = tools && tools.Publish && !fromFile.value ? tools.Publish : null;     // only a page clark serves can publish
-  const HelpButton = tools && tools.HelpButton && !fromFile.value ? tools.HelpButton : null;     // the "?" beside the profile circle: Help
   const SearchButton = tools && tools.SearchButton && !fromFile.value ? tools.SearchButton : null;     // the search icon: opens the command palette
   const AskButton = tools && tools.AskButton && !fromFile.value ? tools.AskButton : null;     // ask clark: opens the ask panel, only while asking is on
   const row = useRef(null);
@@ -47,7 +46,6 @@ export function TopBar({ tools }) {
       {Toggle && view.value !== "dashboard" ? <Toggle /> : null}      {/* item 665: on the Dashboard the switch is the report bar's pill, never drawn twice */}
       {SearchButton ? <SearchButton /> : null}
       {AskButton ? <AskButton /> : null}
-      {HelpButton ? <HelpButton /> : null}
       {ProfileMenu ? <ProfileMenu /> : null}
       {fromFile.value ? <ClientMenu /> : null}      {/* issue 713: the reader's badge and menu, a published file only */}
     </header>
