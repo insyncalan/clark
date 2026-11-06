@@ -1,26 +1,32 @@
-"""#681: the top bar at 1400, 901, 900 and 800 px, light and dark: every tab label is whole on one line, nothing is clipped or
-overlapped, and the page does not scroll sideways. Chrome is required: these tests fail, never skip, without it.
+"""#681, row 757: the top bar at 1400, 901 and 900 px, light and dark, on the Dashboard, Use cases and Settings, in View and Edit, with a long
+project name: every tab label is whole on one line, the bar stays one 56 px row, the project name shortens first, then the tab row scrolls inside
+its own box with the open tab fully inside it, nothing is clipped or overlapped, and the page does not scroll sideways. Chrome is required: these
+tests fail, never skip, without it.
 
 Run: python3 dev/run_tests.py test_top_bar_tabs
 """
+import sqlite3
 import unittest
 
 from test_inline_67 import size
 from test_report_editor import Base
 from test_server import chrome
 
-WIDTHS = (1400, 901, 900, 800)
+WIDTHS = (1400, 901, 900)      # the owner's scope is 1400 and 900 px (901 is the neighbour that must not move)
 
-# For each tab: its box, the box of its text, and the line height. Then the bar's other items, and the page's sideways scroll.
+# Each tab's box and line count; the bar's top-level items (the tab row among them); the tab row's scroll; the project name's box; the page's sideways scroll.
 MEASURE = """(function(){
-  var bar = document.querySelector('header.top').getBoundingClientRect(), out = {tabs: [], items: [], bar: [bar.left, bar.right]};
+  var bar = document.querySelector('header.top').getBoundingClientRect(), out = {tabs: [], items: [], bar: [bar.left, bar.right, bar.top, bar.bottom]};
+  var row = document.querySelector('.top .tabs'), rb = row.getBoundingClientRect(), dd = document.querySelector('.top .dd:has(> .projbtn)');
+  out.row = [rb.left, rb.right, row.scrollWidth, row.clientWidth];
+  out.name = dd ? dd.getBoundingClientRect().width : 0;
   document.querySelectorAll('.top .tab').forEach(function(t){
     var r = t.getBoundingClientRect(), s = document.createRange(); s.selectNodeContents(t);
     var lines = new Set(Array.from(s.getClientRects()).filter(function(q){ return q.width > 0; }).map(function(q){ return Math.round(q.top); }));
-    out.tabs.push({name: t.textContent.trim(), left: r.left, right: r.right, lines: lines.size, over: t.scrollWidth > t.clientWidth + 1});
+    out.tabs.push({name: t.textContent.trim(), left: r.left, right: r.right, lines: lines.size, over: t.scrollWidth > t.clientWidth + 1, open: t.getAttribute('aria-selected') === 'true'});
   });
   Array.from(document.querySelector('header.top').children).forEach(function(c){
-    var r = c.getBoundingClientRect(); if (r.width > 0) out.items.push({cls: c.className, left: r.left, right: r.right});
+    var r = c.getBoundingClientRect(); if (r.width > 0) out.items.push({cls: c.className || 'item', left: r.left, right: r.right, top: r.top, bottom: r.bottom});
   });
   out.scroll = [document.documentElement.scrollWidth, document.documentElement.clientWidth];
   return out;
@@ -28,10 +34,13 @@ MEASURE = """(function(){
 
 
 class TopBarTabs(Base):
-    def measure(self, width, theme, long_name=False, edit=False):
+    def measure(self, width, theme, long_name=False, edit=False, active=None):
+        with sqlite3.connect(str(self.store.path)) as con:      # asking on: the ask clark button is in the bar, the widest case
+            con.execute("UPDATE app_settings SET ask_enabled = 1 WHERE id = 1")
         with chrome() as cdp:
             p = self.visit(cdp)
             size(cdp, p, width, 700)
+            p.until("!!document.querySelector('#ask-btn')", "the ask button shows")
             p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
             if edit:
                 p.js("document.querySelector('.top [data-mode=edit]').click()")
@@ -40,6 +49,10 @@ class TopBarTabs(Base):
                                      "if (!s) return false; s.textContent = 'Customer onboarding programme, phase two, northern region'; return true; })()"),
                                 f"at {width} px, {theme}: the long-name check found no project name in the top bar ('.top .projbtn > span' or '.top .proj'), "
                                 "so it did not test a long name at all; the bar's markup has changed")
+            if active:
+                p.js(f"[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === '{active}')[0].click()")
+                p.until(f"[...document.querySelectorAll('.top .tab')].some(t => t.textContent.trim() === '{active}' && t.getAttribute('aria-selected') === 'true')", f"{active} is the open tab")
+            p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
             return p.js(MEASURE)
 
     def box(self, p, selector):
@@ -65,19 +78,29 @@ class TopBarTabs(Base):
             size(cdp, p, width, 700)
             return p.js("(function(){ var s = getComputedStyle(document.querySelector('.top .tab')); return [s.paddingLeft, s.paddingRight, s.whiteSpace]; })()")
 
-    def check(self, width, theme, long_name=False, edit=False):
-        got = self.measure(width, theme, long_name, edit)
-        where = f"at {width} px, {theme}{', long name' if long_name else ''}{', Edit' if edit else ''}"
+    def check(self, width, theme, long_name=False, edit=False, active=None):
+        got = self.measure(width, theme, long_name, edit, active)
+        where = f"at {width} px, {theme}{', long name' if long_name else ''}{', Edit' if edit else ''}{', ' + active if active else ', Dashboard'}"
         self.assertGreaterEqual(len(got["tabs"]), 3, where)
+        scrolls = got["row"][2] > got["row"][3] + 1       # a sub-pixel overhang from the name's share of the shrink is not a scroll
         for t in got["tabs"]:
             self.assertEqual(t["lines"], 1, f"{where}: the {t['name']!r} tab is on {t['lines']} lines")
             self.assertFalse(t["over"], f"{where}: the {t['name']!r} tab is wider than its box")
-            self.assertGreaterEqual(t["left"], got["bar"][0], f"{where}: {t['name']!r} starts left of the bar")
-            self.assertLessEqual(t["right"], got["bar"][1] + 0.5, f"{where}: {t['name']!r} runs past the bar")
-        items = sorted(got["items"], key=lambda i: i["left"])
-        for a, b in zip(items, items[1:]):
-            self.assertLessEqual(a["right"], b["left"] + 0.5, f"{where}: {a['cls']!r} overlaps {b['cls']!r}")
-        self.assertLessEqual(items[-1]["right"], got["bar"][1] + 0.5, f"{where}: {items[-1]['cls']!r} is clipped by the window")
+            if t["open"] or not scrolls:       # the open tab is whole inside the tab row's box; with no scroll every tab is
+                self.assertGreaterEqual(t["left"], got["row"][0] - 0.5, f"{where}: {t['name']!r} starts left of the tab row")
+                self.assertLessEqual(t["right"], got["row"][1] + 1, f"{where}: {t['name']!r} is cut off by the tab row's right edge")
+        self.assertEqual(sum(1 for t in got["tabs"] if t["open"]), 1, where)
+        if scrolls and width > 800:       # 800 px and below stay as main has them (the name keeps its width, the row scrolls): row 757 is 900 px only
+            self.assertLessEqual(got["name"], 73, f"{where}: the tab row scrolls while the project name is still {got['name']} px wide")
+        self.assertAlmostEqual(got["bar"][3] - got["bar"][2], 56, delta=0.5, msg=f"{where}: the bar is not one 56 px row")
+        self.assertGreaterEqual(got["row"][0], got["bar"][0], f"{where}: the tab row starts left of the bar")
+        self.assertLessEqual(got["row"][1], got["bar"][1] + 0.5, f"{where}: the tab row runs past the bar")
+        items = got["items"]
+        for k, a in enumerate(items):
+            self.assertLessEqual(a["right"], got["bar"][1] + 0.5, f"{where}: {a['cls']!r} is clipped by the window")
+            for b in items[k + 1:]:
+                apart = a["right"] <= b["left"] + 0.5 or b["right"] <= a["left"] + 0.5 or a["bottom"] <= b["top"] + 0.5 or b["bottom"] <= a["top"] + 0.5
+                self.assertTrue(apart, f"{where}: {a['cls']!r} overlaps {b['cls']!r}")
         self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"{where}: the page scrolls sideways {got['scroll']}")
 
     # Under 1 px: the pressed segment is set in the medium weight, which makes its word about half a pixel wider; a real shift is far more.
@@ -127,12 +150,50 @@ class TopBarTabs(Base):
             p.until("location.hash.indexOf('#dashboard') === 0", f"{where}: a click on the logo does not go to the Dashboard")
 
 
+    def test_800_and_641_px_do_not_scroll_the_page_sideways_as_on_main(self):
+        # Row 757 is 900 px only: below 801 px the tab row keeps main's rule (it scrolls inside its own box), so the bar never grows wider than the window.
+        for width in (800, 700, 641):
+            for active, edit in ((None, False), ("Settings", False), ("Settings", True), (None, True)):
+                got = self.measure(width, "light", True, edit, active)
+                self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"at {width} px, {active}: the page scrolls sideways {got['scroll']}")
+                self.assertLessEqual(max(i["right"] for i in got["items"]), got["bar"][1] + 0.5, f"at {width} px, {active}: an item runs past the window")
+
+    def test_a_row_narrowed_after_the_scroll_shows_the_open_tab_again_at_900(self):
+        # The exact failing case: 900 px, the profile circle in the bar, Settings open; then the tab row narrows (as it does when the mode switch joins
+        # the bar on leaving the Dashboard) and the open tab, already scrolled to, must be brought into the row again.
+        with sqlite3.connect(str(self.store.path)) as con:
+            con.execute("UPDATE app_settings SET ask_enabled = 1 WHERE id = 1")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            size(cdp, p, 900, 700)
+            p.until("!!document.querySelector('#ask-btn') && !!document.querySelector('#profile-btn')", "the ask button and the profile circle show")
+            p.js("[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === 'Settings')[0].click()")
+            p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
+            p.js("(function(){ var s = document.createElement('span'); s.id = 'test-spacer'; s.style.cssText = 'flex:none;width:90px;height:1px'; "
+                 "document.querySelector('.top .tabs').after(s); })()")
+            # A bounded wait, not a fixed sleep: under load the observer's re-scroll can land after 300 ms. A real regression still fails at the end of it.
+            p.until("(function(){ var row = document.querySelector('.top .tabs').getBoundingClientRect(), "
+                    "t = document.querySelector('.top .tab[aria-selected=true]').getBoundingClientRect(); return t.right <= row.right + 0.5 && t.left >= row.left - 0.5; })()",
+                    "the open tab comes back into the tab row")
+            # it must still be whole after the layout and the fonts have settled
+            p.js("new Promise(r => setTimeout(r, 1500))")
+            got = p.js("(function(){ var row = document.querySelector('.top .tabs').getBoundingClientRect(), "
+                       "t = document.querySelector('.top .tab[aria-selected=true]').getBoundingClientRect(); return [t.left, t.right, row.left, row.right]; })()")
+            self.assertGreaterEqual(got[0], got[2] - 0.5, f"Settings starts left of the tab row {got}")
+            self.assertLessEqual(got[1], got[3] + 0.5, f"Settings is cut off by the tab row's right edge {got}")
+
+
 for _w in WIDTHS:
     for _t in ("light", "dark"):
         setattr(TopBarTabs, f"test_at_{_w}_{_t}", lambda self, w=_w, t=_t: self.check(w, t))
         for _e in (False, True) if _w in (1400, 900) else ():
             setattr(TopBarTabs, f"test_the_logo_goes_home_at_{_w}_{_t}_{'edit' if _e else 'view'}", lambda self, w=_w, t=_t, e=_e: self.home(w, t, e))
         setattr(TopBarTabs, f"test_at_{_w}_{_t}_long_name_in_edit", lambda self, w=_w, t=_t: self.check(w, t, True, True))
+        setattr(TopBarTabs, f"test_settings_at_{_w}_{_t}", lambda self, w=_w, t=_t: self.check(w, t, False, False, "Settings"))
+        setattr(TopBarTabs, f"test_settings_at_{_w}_{_t}_long_name_in_edit", lambda self, w=_w, t=_t: self.check(w, t, True, True, "Settings"))
+        setattr(TopBarTabs, f"test_settings_at_{_w}_{_t}_long_name_in_view", lambda self, w=_w, t=_t: self.check(w, t, True, False, "Settings"))
+        setattr(TopBarTabs, f"test_work_items_at_{_w}_{_t}_long_name_in_edit", lambda self, w=_w, t=_t: self.check(w, t, True, True, "Work items"))
+        setattr(TopBarTabs, f"test_use_cases_at_{_w}_{_t}_long_name_in_view", lambda self, w=_w, t=_t: self.check(w, t, True, False, "Use cases"))
 
 if __name__ == "__main__":
     unittest.main()

@@ -386,6 +386,23 @@ class Cards(Base):
                     self.assertEqual(r["dots"], r["cards"])
                     self.assertLess(r["h"], 130, "compact")
 
+    def test_row_775_columns_are_lifted_cards_and_the_full_screen_icon_are_arrows(self):
+        """Row 775: a column has a shadow and a rule under its heading, its count is a pill, the full screen icon is the arrows pair."""
+        js = ("(() => { const c = document.querySelector('.col'), h = c.querySelector('.col-h'), n = c.querySelector('.cn');"
+              " return {shadow: getComputedStyle(c).boxShadow, rule: getComputedStyle(h).borderBottomWidth, pill: getComputedStyle(n).backgroundColor,"
+              " icon: document.querySelector('#board-full .i').dataset.icn}; })()")
+        for theme in ("light", "dark"):
+            for width in (1400, 900):
+                with self.subTest(theme=theme, width=width), chrome() as cdp:
+                    sid = self.visit(cdp, width=width, height=700)
+                    cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
+                    self.board(cdp, sid, "status")
+                    r = cdp.js(js, sid)
+                    self.assertNotEqual(r["shadow"], "none", r)
+                    self.assertEqual(r["rule"], "1px", r)
+                    self.assertNotEqual(r["pill"], "rgba(0, 0, 0, 0)", r)
+                    self.assertEqual(r["icon"], "arrows-out", r)
+
     def test_one_level_of_swimlanes_by_workstream_or_type(self):
         with chrome() as cdp:
             sid = self.visit(cdp)

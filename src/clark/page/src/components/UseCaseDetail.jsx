@@ -22,6 +22,8 @@ import { milestoneRows } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
 import { CommitChip } from "./CommitChip.jsx";
 import { CommitMenu } from "../edit/CommitMenu.jsx";
+import { SneakPeek, SneakButton } from "../edit/SneakPeek.jsx";
+import { wordsOpen } from "../stores/wordsState.js";
 
 const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -140,9 +142,26 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
   const shown = !!(live || gone.row || (mine && snap.current));
   useEffect(() => { if (head.current) head.current.focus({ preventScroll: true }); }, [id, shown || gone.done]);
 
+  // Two slashes outside a field open the words box (Edit, a live use case only); Esc closes it before anything else.
+  const canWords = editing && !!live;
+  useEffect(() => {
+    if (!canWords) { wordsOpen.value = false; return undefined; }
+    let last = 0;
+    const onKey = (e) => {
+      if (e.defaultPrevented || e.isComposing) return;
+      if (e.key === "Escape") { if (wordsOpen.value) { e.preventDefault(); wordsOpen.value = false; } return; }
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !busy(e.target)) {
+        if (last && performance.now() - last < 1000) { e.preventDefault(); last = 0; wordsOpen.value = true; } else last = performance.now() || 1;
+      } else if (e.key !== "Shift") last = 0;
+    };
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("keydown", onKey); wordsOpen.value = false; };
+  }, [canWords, id]);
+
   // Esc leaves for the list, unless focus is in a field, the editor or a menu (they take Esc themselves).
   useEffect(() => {
     const onKey = (e) => {
+      if (wordsOpen.value) return;
       if (e.key !== "Escape" || e.defaultPrevented || e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
       if (busy(document.activeElement) || busy(e.target) || document.querySelector("dialog[open],[role=dialog],[role=alertdialog],[role=menu],[data-peek]")) return;   // an open peek takes the first Esc (row 859)
       if (back.current) back.current.click();
@@ -201,6 +220,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
         </div>
         {!ro ? (
           <div class="ucd-acts">
+            <SneakButton />
             <Menu label="Change status" ariaLabel="Change status" menuLabel="Status" id="ucd-status" btnCls="btn" left
               items={STATUSES.map(([name]) => ({ id: name, name, checked: u.status === name }))}
               onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
@@ -209,6 +229,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
           </div>
         ) : null}
       </div>
+      {canWords && wordsOpen.value ? <SneakPeek key={u.id} row={u} kind="use_case" /> : null}
       {archived ? (
         <div class="ucd-note" data-archived-note>
           <p>This use case is archived, so it is read-only. It is out of the lists, the counts and the dashboard. Nothing in it was deleted.</p>
