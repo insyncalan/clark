@@ -48,6 +48,7 @@ from openpyxl.cell.text import InlineFont
 from openpyxl.comments import Comment
 from openpyxl.formatting.rule import FormulaRule, Rule
 from openpyxl.packaging.custom import CustomPropertyList, StringProperty
+from openpyxl.worksheet.properties import PageSetupProperties
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Protection, Side
 from openpyxl.styles.differential import DifferentialStyle
 from openpyxl.utils import get_column_letter
@@ -213,6 +214,14 @@ def locked_fields(locked):
     """The fields of a data sheet that stay locked: its own locked set, what is worked out, the ID and the Project. Every
     other column is editable, including one added later."""
     return set(locked) | DERIVED | ALWAYS_LOCKED
+
+
+def print_setup(ws):
+    """Print setup (row 801): landscape, one page wide however many pages tall, so the Cover and the wide data sheets do not split across pages."""
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.paperSize = ws.PAPERSIZE_A4                       # A4, as the PDF export is
+    ws.page_setup.fitToWidth, ws.page_setup.fitToHeight = 1, 0
+    ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
 
 
 def protect_sheet(ws):
@@ -633,14 +642,18 @@ def protect_text_cell(cell):
 
 
 def to_cell(field, value):
-    """A stored value as it goes in a cell: dates as real dates, flags as Yes or No, text without the characters a workbook
-    can't hold (creaite excel_sync.to_cell). clark: no link fields, and the cell is made text by protect_text_cell
+    """A stored value as it goes in a cell: dates as real dates (before 1900 as dd-mm-yyyy text), flags as Yes or No,
+    text without the characters a workbook can't hold (creaite excel_sync.to_cell). clark: no link fields, and the
+    cell is made text by protect_text_cell
     (escape_text only handles text that starts with an apostrophe). Numbers and dates are never touched."""
     if value is None:
         return None
     if field in DATES:
         try:
-            return date.fromisoformat(value)
+            day = date.fromisoformat(value)
+            if day.year < 1900:       # Excel has no date before 1900 (shows ####): dd-mm-yyyy text
+                return "%02d-%02d-%04d" % (day.day, day.month, day.year)
+            return day
         except (TypeError, ValueError):
             return escape_text(cell_text(value))   # not a date: text as typed, which must not be a formula
     if field in YES_NO:
@@ -1063,7 +1076,7 @@ def write_cover(wb, cover, mark=False, pal=None, wave=False):
                         _put(pal, ws, rows[1], pill_end + 1, end, "", None, grey_fill)
                 else:
                     _put(pal, ws, rows[1], first, end, tile["value"], _cover_font(pal, bold=True, size=22, color=ink), grey_fill,
-                         Alignment(horizontal="left", vertical="center"), left=bar)
+                         Alignment(horizontal="left", vertical="center", indent=1), left=bar)
                 _put(pal, ws, rows[2], first, end, tile["detail"], _cover_font(pal, color=ink if health else grey_text), grey_fill, left=bar)
                 sub = max(sub, excel_cover.height(tile["detail"], _span_chars(first, end) - 1))
                 first = end + 1
@@ -1183,6 +1196,8 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
         write_lists(wb, lists, pal)
     if cover:
         write_cover(wb, cover, mark, pal, wave)
+    for ws in wb.worksheets:
+        print_setup(ws)
     return wb
 
 

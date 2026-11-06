@@ -102,7 +102,8 @@ def sheet_tables(published):
 def title_text(published):
     p = published["data"].get("project") or {}
     week = p.get("week_ending")
-    sub = f"Week ending {excel.to_cell('date', week):%d-%m-%Y}" if week else f"As at {published['as_at']}"
+    when = excel.to_cell("date", week) if week else None
+    sub = f"Week ending {when if isinstance(when, str) else format(when, '%d-%m-%Y')}" if week else f"As at {published['as_at']}"
     return (p.get("name") or p.get("code") or ""), sub
 
 

@@ -158,7 +158,7 @@ class Source(unittest.TestCase):
         peek = (ROOT / "src/clark/page/src/components/Peek.jsx").read_text(encoding="utf-8")
         self.assertIn("editing && forItem && tools.PeekWarn", peek)
         self.assertIn("editing && forItem && tools.PeekLatest", peek)
-        self.assertNotIn("edit/", peek.replace("tools.", ""), "Peek.jsx imports nothing from edit/")
+        self.assertNotIn("edit/", peek.replace("tools.", "").replace("../edit/editing.js", ""), "Peek.jsx imports nothing from edit/ but the one editing test (edit/editing.js)")
 
 
 class Browser(unittest.TestCase):
@@ -375,7 +375,7 @@ class Browser(unittest.TestCase):
                 self.assertIsNone(cdp.js(probe, sid), "an internal action's update is not published, so no label")
             with self.subTest(width=width, item="view"), chrome() as cdp:
                 sent, sid = self.load(cdp, width, shown, edit=False)
-                self.assertFalse(cdp.js("!!document.querySelector('[data-pk-latest-client]')", sid), "View has no label")
+                self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest-client]')", sid), "View has the label too (row 824)")
 
     def test_the_label_is_in_edit_only_and_never_in_a_published_file(self):
         built = (ROOT / "src/clark/page/page.html").read_text(encoding="utf-8")
@@ -474,11 +474,11 @@ class Browser(unittest.TestCase):
                 self.assertTrue(wait(lambda: len(sent) == 1), "it still works in dark: one request")
                 self.assertTrue(wait(lambda: cdp.js("(t => !!t && t.textContent.startsWith('Overdue since 22-10-2026.'))(document.querySelector('[data-pk-latest-text]'))", sid)))
 
-    def test_view_has_none_of_it(self):
+    def test_view_has_all_of_it_on_work_items(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, OVERDUE, edit=False)
-                self.assertFalse(cdp.js("!!document.querySelector('[data-pk-warn],[data-pk-draft],[data-pk-latest],[data-pk-last]')", sid))
+                self.assertTrue(cdp.js("!!document.querySelector('[data-pk-warn],[data-pk-draft],[data-pk-latest],[data-pk-last]')", sid), "Work items have no mode: View has the warning and Latest update too (row 824)")
 
 
 if __name__ == "__main__":
