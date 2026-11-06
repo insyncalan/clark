@@ -5,7 +5,7 @@ Run: python3 dev/run_tests.py test_v103
 
 Same shape as test_v102.
   COVERED       a merged row a person can see, already covered by a test elsewhere. test_every_covering_test_named_here_exists
-                fails if one goes missing. Rows 273, 802, 827, 872 and 874 have no visible change (NO_VISIBLE_CHANGE).
+                fails if one goes missing. Rows 273, 802, 827, 872, 874 and 889 have no visible change (NO_VISIBLE_CHANGE).
   WAITING       a row that is not on main yet but has a marker in the source that appears when it lands (item, check, pull request,
                 a file under the top folder, the text in it). Skipped, with the pull request. After the cut commit has set the
                 version and the marker is there, the row fails until it is moved to COVERED with its test. Empty today: the
@@ -15,7 +15,7 @@ Same shape as test_v102.
 The notes hold only merged, user-visible rows; no DRAFT line is allowed anywhere. The status table in the sheet lists every 1.0.3 row
 (refresh it with the regeneration helper as rows merge). The cut checks (version, files, layout) skip until the cut commit sets 1.0.3.
 
-The data layout does not change in 1.0.3 (layout 16 stays): the notes say so and the store must still say 16.
+The data layout moves from 16 to 17 in 1.0.3 (row 811): the notes carry the Read this first paragraph and the store must say 17.
 """
 import ast
 import re
@@ -25,7 +25,7 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "1.0.3"
-SCHEMA = 16              # 1.0.1 moved to layout 16; 1.0.3 does not change it
+SCHEMA = 17              # 1.0.1 moved to layout 16; 1.0.3 moves it to 17 (the Needed from the client flag, row 811)
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
@@ -141,10 +141,62 @@ COVERED = [
      "test_changes_hand_over::SingleEdit::test_history_shows_one_owner_line_for_an_edit_that_changes_the_link"),
     ("#894", "Two closes before the Back lands step back once.",
      "test_multi_select::Page::test_two_closes_before_the_back_lands_step_back_once"),
+    ("#862", 'The page has a Skip to content link as its first Tab stop.',
+     "test_top_bar_tabs::SkipLink::test_the_source_has_the_link_first_and_main_can_take_focus"),
+    ("#900", 'The command palette lists Pages, Actions, Projects, Commands in that order.',
+     "test_palette::Results::test_the_groups_come_in_the_order_pages_actions_projects_commands"),
+    ("#801", 'Every sheet of the Excel export is landscape, A4 and one page wide.',
+     "test_excel_cover::InTheWorkbook::test_every_sheet_prints_landscape_and_one_page_wide_and_tile_values_are_inset"),
+    ("#828", 'All five milestone peek fields are set in one step with one Undo.',
+     "test_changes_milestone_fields::Fields::test_all_five_are_set_in_one_step_and_one_undo_puts_them_all_back"),
+    ("#826", 'Import from Word is offered without Edit, and Settings has no View | Edit pill.',
+     "test_word_screens::Import::test_the_entry_and_the_box_are_there_without_edit_mode"),
+    ("#826", 'Settings has no View | Edit pill.',
+     "test_word_screens::Import::test_settings_has_the_import_and_no_view_edit_pill"),
+    ("#823", 'Add milestone works on the Milestones page without Edit.',
+     "test_milestones_inline::Inline::test_view_add_milestone_adds_one"),
+    ("#873", 'An imported owner survives a rename of the old person.',
+     "test_excel_import_ids::OwnerLink::test_an_imported_owner_edit_survives_a_rename_of_the_old_person"),
+    ("#910", 'The Not reviewed tile is gone from At a glance.',
+     "test_glance_not_reviewed::NotReviewed::test_there_is_no_not_reviewed_tile_in_view_or_edit_even_with_an_old_browser_flag"),
+    ("#667", 'With no stored style the Dashboard is one card.',
+     "test_section_card_look_page::DefaultOneCard::test_with_no_stored_choice_the_dashboard_is_flat_full_width_with_a_rule"),
+    ("#847", 'Below 1000 px the item and milestone peeks fill the window.',
+     "test_peek_narrow::NarrowBrowser::test_the_rule_is_in_the_stylesheet"),
+    ("#850", 'The Current state text shows in Edit.',
+     "test_item_rows::CurrentStateInEdit::test_the_text_is_drawn_in_view_and_in_edit_in_both_themes_at_both_widths"),
+    ("#851", 'Marked items with no client wording are listed under their own text.',
+     "test_item_rows::UnwordedRows::test_marked_items_with_no_wording_are_listed_in_view_and_edit_with_n_of_m"),
+    ("#773", 'The report bar hint is a chip and a hidden tile is dashed and untinted.',
+     "test_dashboard_edit_look::EditLook::test_the_note_is_a_chip_and_a_hidden_tile_is_dashed_and_untinted"),
+    ("#774", 'A hover tooltip hides when its menu opens and sits under menus.',
+     "test_menu_tooltip::MenuTooltip::test_the_tip_hides_when_the_menu_opens_on_leave_on_esc_and_on_blur_and_sits_under_menus"),
+    ("#784", 'The published Work items Item column is wide enough at 900 px.',
+     "test_published_item_column::PublishedItemColumn::test_the_item_column_is_wide_enough_and_the_table_fits"),
+    ("#869", 'A Settings switch message goes when the page leaves Settings.',
+     "test_single_keys::PageKeys::test_the_switch_says_its_state_in_a_toast_with_one_undo_and_keeps_the_focus"),
+    ("#811", "The peek of an action, a risk or an issue has a Needed from the client switch; a decision has none.",
+     "test_peek_client_action::Page::test_a_risk_has_it_and_a_decision_has_none"),
+    ("#811", "The data step to layout 17 keeps every row and starts the flag off.",
+     "test_store_client_action_migration::Migrating::test_old_data_opens_keeps_every_row_and_the_flag_is_off"),
+    ("#861", "A flagged, open, client-visible item is listed under Needs from you in the published report.",
+     "test_publish_client_action::Listed::test_a_flagged_open_visible_item_is_listed_with_the_four_fields"),
+    ("#861", "A closed or cancelled flagged item is not listed.",
+     "test_publish_client_action::Listed::test_a_closed_or_cancelled_item_is_not_listed"),
+    ("#673", "The Milestones Legend button has the information icon.",
+     "test_milestones_details::Details::test_the_toggle_is_a_real_button_above_the_list_and_starts_open"),
+    ("#815", "The brand check stops a hidden outside address in more cases.",
+     "test_publish_brand_cr_ff::Cases::test_an_open_string_ended_by_cr_ff_or_crlf_does_not_hide_a_later_address"),
+    ("#893", "Clearing a row's client wording is one step with one Undo.",
+     "test_changes_clear_wording::ClearWording::test_a_clear_is_one_step_one_undo_and_the_same_clear_twice_makes_no_step"),
+    ("#893", "A blank wording clears it, the row shows its title, and Undo puts the words back.",
+     "test_clear_wording_in_place::ClearWordingInPlace::test_a_blank_wording_clears_it_the_row_shows_its_title_and_undo_puts_the_words_back"),
+    ("#909", "Esc right after a second pick clears both while the peek is still closing.",
+     "test_multi_select::Page::test_esc_right_after_a_second_pick_clears_both_while_the_peek_is_still_closing"),
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
-NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874"}
+NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874", "889"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
 PARTLY_MERGED = {"767", "766", "775", "776"}
@@ -322,10 +374,14 @@ class Notes(unittest.TestCase):
             if line.startswith("#"):
                 self.assertNotIn("ask clark", line)
 
-    def test_the_notes_say_the_data_layout_is_unchanged_and_carry_no_layout_step(self):
-        self.assertIn("This version does not change how clark stores your data.", self.text)
-        self.assertNotIn("Read this first", self.text)
-        self.assertNotIn("Step 17", self.text)
+    def test_the_notes_carry_the_data_layout_paragraph_and_the_older_clark_sentence(self):
+        self.assertIn("This version includes a change to how clark stores your data. Read this first.", self.text)
+        self.assertIn("from layout 16 to 17", self.text)
+        self.assertIn("Step 17:", self.text)
+        self.assertIn("clark makes a safety copy of your data before it changes anything", self.text)
+        self.assertIn("An older clark (1.0.2) refuses the new data file", self.text)
+        self.assertIn("This data needs a newer clark. Nothing was changed. Install the latest clark, then try again.", self.text)
+        self.assertIn("First restore the safety copy", self.text)
 
     def test_the_known_limits_carry_the_by_hand_install_and_the_demo_limit(self):
         self.assertIn("## Known limits", self.text)
@@ -381,7 +437,7 @@ class Cut(unittest.TestCase):
 
     def test_the_data_layout_is_still_the_one_the_notes_say(self):
         self.cut_made()
-        self.assertEqual(schema_version(), SCHEMA, "the notes say the data layout is unchanged")
+        self.assertEqual(schema_version(), SCHEMA, "the notes name layout 17")
 
     def test_a_waiting_row_whose_pull_request_has_landed_has_been_moved_to_covered(self):
         self.cut_made()
