@@ -1109,6 +1109,11 @@
         "Plan summary",
         "Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.",
         "Full or half"
+       ],
+       [
+        "Gantt",
+        "The plan as bars on a timeline, from your Gantt lines. Only lines put on the dashboard show.",
+        "Full"
        ]
       ]
      ]

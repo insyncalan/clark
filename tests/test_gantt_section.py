@@ -104,7 +104,7 @@ class Section(unittest.TestCase):
 
     def test_the_lines_the_columns_and_the_height_are_read_from_the_report(self):
         d = report(gantt_default_rows=3)
-        self.assertEqual(self.val(f"K.section.linesOf({lit(d)}).length"), 7)
+        self.assertEqual(self.val(f"K.section.linesOf({lit(d)}).length"), len(LINES))
         self.assertEqual(self.val(f"K.section.hiddenOf({lit(d)})"), [], "the hidden columns that are not start, end or done do not touch the chart")
         d["project"]["gantt_hidden_columns"] = "start_date,percent_complete,notes"
         self.assertEqual(self.val(f"K.section.hiddenOf({lit(d)})"), ["start", "pct"], "a comma list and the store's column names are read too")
