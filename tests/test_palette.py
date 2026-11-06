@@ -411,6 +411,31 @@ class Looks(Base):
                     p.key("Escape", 0, "Escape", 27)
                     p.until("!document.querySelector('#palette')", "closed")
 
+    def test_the_active_row_has_a_clear_outline_and_the_kind_labels_are_capitals(self):
+        """Row 904: the row Enter will run has a 2 px solid outline in the focus token; the kind labels are uppercase; rows are 24 px or more."""
+        probe = ("(function(){var r=document.querySelector('#palette .pal-row.on'), c=getComputedStyle(r), k=getComputedStyle(r.querySelector('.pal-kind')),"
+                 "t=document.createElement('i'); t.style.color='var(--focus)'; document.body.appendChild(t); var f=getComputedStyle(t).color; t.remove();"
+                 "return [c.outlineWidth, c.outlineStyle, c.outlineColor === f, r.getBoundingClientRect().height, k.textTransform, r.querySelector('.pal-label').textContent]})()")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for w in (1400, 900):
+                for dark in (False, True):
+                    p.width(w)
+                    p.dark(dark)
+                    p.show()
+                    ow, style, brand, height, transform, first = p.js(probe)
+                    where = f"at {w} px dark={dark}"
+                    self.assertEqual((ow, style, brand), ("2px", "solid", True), "the active row is outlined " + where)
+                    self.assertGreaterEqual(height, 24, "the row is 24 px or taller " + where)
+                    self.assertEqual(transform, "uppercase", "the kind label is in capitals " + where)
+                    p.key("ArrowDown", 0, "ArrowDown", 40)
+                    p.until(f"document.querySelector('#palette .pal-row.on .pal-label').textContent !== {first!r}", "the active row moved")
+                    again = p.js(probe)
+                    self.assertEqual(again[:3], ["2px", "solid", True], "the outline follows the active row " + where)
+                    self.assertEqual(p.js("document.querySelectorAll('#palette .pal-row.on').length"), 1)
+                    p.key("Escape", 0, "Escape", 27)
+                    p.until("!document.querySelector('#palette')", "closed")
+
     def test_help_lists_the_key(self):
         with chrome() as cdp:
             p = self.visit(cdp)
