@@ -2140,7 +2140,7 @@
    ],
    [
     "[[Enter]]",
-    "On a row or a card: open it. On a table row in View, [[Right]] opens it and [[Left]] closes it again; [[Esc]] closes it and returns to the row. In Edit, [[Enter]] on a cell opens that cell’s picker, and [[Right]] and [[Left]] move across the cells of the row"
+    "On a row or a card: open it. On a table row, [[Right]] and [[Left]] move across the cells of the row, and [[Enter]] on a cell opens that cell’s picker; [[Esc]] closes the open item and returns to the row"
    ]
   ],
   "icons": [
@@ -2587,7 +2587,7 @@
    "job": "Save the project as an Excel workbook, know what is in it, and take changes back in.",
    "steps": [
     {
-     "d": "On **Work items**, in View, press the **Export to Excel** icon in the page header, beside the add button. The icon is not there in Edit, so use step 2 or 3 instead.",
+     "d": "On **Work items**, press the **Export to Excel** icon in the page header, beside the add button.",
      "pic": "excel-out-icon"
     },
     {
@@ -2663,7 +2663,7 @@
    "job": "Give several open work items to someone else in one step, with one Undo to take it back.",
    "steps": [
     {
-     "d": "Press **Edit** at the top of the page, then open **Work items**. Handing over is not offered in View."
+     "d": "Open **Work items**."
     },
     {
      "d": "Click the filter box, which says **Filter by keyword or by field**, and filter by owner: type owner: and pick the person from the suggestions. The hand-over button only appears while an owner filter is on, and not when the filter is “is not”."
