@@ -1593,6 +1593,8 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     .ad-prev > * { animation: m-in var(--dur-state) var(--ease-enter) 1; }
     /* publish: the tick appears once (the ring is main's, and turns only until the work ends) */
     .pub-tick { animation: m-tick var(--dur-state) var(--ease-out) 1; }
+    /* row 882: the toast and its Undo bar rise 8 px as they appear (the .toasts box holds the place, so nothing else moves) */
+    .toast { animation: m-up var(--dur-state) var(--ease-enter) 1; }
   }
   @media (hover: hover) and (pointer: fine) {
     :root:not([data-motion="reduce"]) .ad-tpl { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
@@ -1608,6 +1610,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
   @keyframes m-rise { from { opacity: 0; transform: translateY(4px); } }
   @keyframes m-pulse { 50% { transform: scale(1.35); background: var(--brand-blue-tint); } }
   @keyframes m-settle { from { opacity: .35; } }
+  @keyframes m-up { from { opacity: 0; transform: translateY(8px); } }
   @keyframes m-glow { from { background-color: color-mix(in srgb, var(--status-amber) 40%, var(--status-amber-tint)); } }
 }
 
