@@ -547,6 +547,31 @@ class SingleEdit(Base):
             st.rename_person(old, "Ada Renamed")
         self.assertEqual(self.who(self.actions[0]), "Someone Unlisted")
 
+    def test_the_edit_is_undone_and_the_undo_undone_with_text_and_link_together(self):
+        with self.s.step("dashboard", USER) as st:
+            old = st.add_person(name=OWNER, source="People list")
+            new = st.add_person(name=NEW, source="People list")
+            st.update("actions", self.actions[0], {"owner_id": old})
+        ref = self.actions[0]
+        got, edited = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": ref, "changes": {"owner": NEW}})
+        self.assertEqual((got, edited["undoable"]), (200, True), edited)
+        status, undone = self.undo({"project": "ABC", "apply_id": edited["apply_id"]})
+        self.assertEqual((status, undone["ok"]), (200, True), undone)
+        row = self.s.read("actions", ref=ref)
+        self.assertEqual((row["owner"], row["owner_id"]), (OWNER, old))
+        self.s.undo(undone["apply_id"], USER)                       # the route refuses an undo of an undo for every field; the store's own redo puts both back
+        row = self.s.read("actions", ref=ref)
+        self.assertEqual((row["owner"], row["owner_id"]), (NEW, new))
+
+    def test_history_shows_one_owner_line_for_an_edit_that_changes_the_link(self):
+        from clark import history
+        with self.s.step("dashboard", USER) as st:
+            st.add_person(name=NEW, source="People list")
+        self.edit(self.actions[0], NEW)
+        fields = [r["field"] for r in history.rows_for_project(self.s.con, "ABC", "all") if r["item_id"] == self.actions[0]]
+        self.assertIn("Owner", fields)
+        self.assertNotIn("Owner (linked person)", fields)
+
 
 if __name__ == "__main__":
     unittest.main()
