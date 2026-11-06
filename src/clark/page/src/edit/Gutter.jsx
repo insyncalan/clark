@@ -8,6 +8,7 @@ import { startDrag } from "./drag.js";
 import { askToAdd } from "./addSection.js";
 import { note } from "./notes.js";
 import { useMenuState } from "../components/Menu.jsx";
+import { useFadeRef } from "../logic/menuFade.js";
 import { handleHint, HINT_WORDS } from "../stores/motion.js";
 
 // An item that cannot apply stays in the menu, unavailable, with the reason on it.
@@ -18,6 +19,7 @@ const MOVED = 4;                               // px: more than this between pre
 export function Gutter({ section, count }) {
   const [open, setOpen] = useMenuState();
   const grip = useRef(null), menu = useRef(null), down = useRef(null);
+  const menuRef = useFadeRef(menu);                  // row 878: the options menu fades out as it closes
   const canDelete = DELETABLE.includes(section.type);
   const hinted = handleHint.value === section.id;
 
@@ -98,7 +100,7 @@ export function Gutter({ section, count }) {
       ) : null}
       {hinted ? <span class="sec-hint" role="status">{HINT_WORDS}</span> : null}
       {open ? (
-        <div class="menu" role="menu" ref={menu} data-edit-only aria-label={`Options for ${section.title}`} onKeyDown={onMenuKey}>
+        <div class="menu" role="menu" ref={menuRef} data-edit-only aria-label={`Options for ${section.title}`} onKeyDown={onMenuKey}>
           {items.map((it) => [
             <button type="button" role="menuitem" class="menu-item" key={it.act} data-act={it.act} aria-disabled={it.off ? "true" : undefined}
               aria-describedby={it.off ? `why-${section.id}-${it.act}` : undefined} onClick={() => pick(it)}>{it.text}</button>,

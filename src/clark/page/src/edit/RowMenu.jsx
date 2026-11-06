@@ -15,6 +15,7 @@ import { DraftEmail } from "../components/DraftEmail.jsx";
 import { todayIso } from "../workItems.js";
 import { format } from "../router.js";
 import { MenuPanel, menuMove, menuItemsIn } from "../components/Menu.jsx";
+import { useFadeOut } from "../logic/menuFade.js";
 import { Icon } from "../components/Icon.jsx";
 import { people, tableOf, canClearDue } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
@@ -117,6 +118,7 @@ function entries(row, level, edit, d, today) {
 // go back to the entry.
 function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, onClose }) {
   const box = useRef(null);
+  useFadeOut(box);                                 // row 878: it fades out as it closes
   useLayoutEffect(() => {
     const el = box.current, menu = wrap.current, at = menu && menu.querySelector(`[data-rm=${level}]`);
     if (!el || !at) return;

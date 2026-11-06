@@ -4,9 +4,11 @@
 // panels"; #91, #92). Esc closes it and leaves the value as it was, with focus back on the control; so does a click outside it.
 // Tab closes it too, and focus carries on from the control. The key never reaches anything behind it (the peek's own Esc).
 import { useLayoutEffect, useRef } from "preact/hooks";
+import { useFadeOut } from "../../logic/menuFade.js";
 
 export function Pop({ anchor, label, role = "dialog", cls = "", onClose, children }) {
   const box = useRef(null);
+  useFadeOut(box);                                        // row 878: it fades out as it closes
   const place = () => {
     const el = box.current, a = anchor && anchor.current;
     if (!el || !a) return;

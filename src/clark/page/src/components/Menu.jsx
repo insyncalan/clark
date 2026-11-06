@@ -5,6 +5,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Icon } from "./Icon.jsx";
 import { moves } from "../stores/report.js";
+import { useFadeOut } from "../logic/menuFade.js";
 
 // The items a key can move between: every item that is not disabled.
 export const menuItemsIn = (box) => (box ? [...box.querySelectorAll("[role^=menuitem]")].filter((b) => b.getAttribute("aria-disabled") !== "true" || b.hasAttribute("data-keep")) : []);      // data-keep: a disabled row that stays reachable by the keys so its reason is read out (the client menu)
@@ -27,6 +28,7 @@ export function menuMove(e, items) {
 export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focusChecked, children }) {
   const own = useRef(null), box = boxRef || own;
   const closeRef = useRef(onClose); closeRef.current = onClose;
+  useFadeOut(box);                               // row 878: it fades out as it closes (a copy; the menu itself is gone at once)
   // `fixed`: the button sits inside a scrolling box that would cut the menu off, so the menu is placed on the window under the button (above it when
   // there is no room below), its right edge on the button's. It is placed once, so any scroll (the row's own included) or a resize closes it.
   useLayoutEffect(() => {
