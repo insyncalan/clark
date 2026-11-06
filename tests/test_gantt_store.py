@@ -132,6 +132,8 @@ class TheRules(Base):
             ({"health": "Purple"}, W.GANTT_BAD_CHOICE), ({"priority": "Urgent"}, W.GANTT_BAD_CHOICE), ({"type": "epic"}, W.GANTT_BAD_TYPE),
             ({"effort": -1}, W.GANTT_BAD_NUMBER), ({"budget": "lots"}, W.GANTT_BAD_NUMBER), ({"effort": True}, W.GANTT_BAD_NUMBER),
             ({"effort": float("nan")}, W.GANTT_BAD_NUMBER),
+            ({"effort": 2_000_000}, W.GANTT_BAD_NUMBER), ({"effort": 1_000_000.5}, W.GANTT_BAD_NUMBER), ({"budget": 1e99}, W.GANTT_BAD_NUMBER),
+            ({"budget": 10**12 + 1}, W.GANTT_BAD_NUMBER), ({"budget": float("inf")}, W.GANTT_BAD_NUMBER),
             ({"baseline_start": "2026-12-01", "baseline_end": "2026-11-01"}, W.GANTT_BAD_BASELINE),
             ({"show": 2}, changes.FLAG_WORDS), ({"show": True}, changes.FLAG_WORDS), ({"show": "1"}, changes.FLAG_WORDS),
             ({"depends": "ABC-GNT-099"}, 'There is no line "ABC-GNT-099" to depend on.'),
@@ -147,6 +149,17 @@ class TheRules(Base):
         self.refused(W.GANTT_MILESTONE_ONE_DATE, op="update", id=MS, changes={"end": "2026-12-30"})
         self.refused(W.GANTT_PHASE_TOP, op="update", id=PH, changes={"parent": T1})
         self.refused(W.GANTT_PHASE_KEEPS, op="update", id=PH, changes={"type": "task"})
+
+    def test_effort_and_budget_at_their_limits_are_kept_and_above_them_are_refused_in_words(self):
+        self.plan()
+        self.ok(op="update", id=T1, changes={"effort": 1_000_000, "budget": 10**12})
+        row = self.line(T1)
+        self.assertEqual((row["effort"], row["budget"]), (1_000_000.0, 1e12))
+        before = self.counts()
+        for chg in ({"effort": 2_000_000}, {"budget": 1e99}, {"effort": 1_000_001, "budget": 1}):
+            self.refused(store_module.GANTT_BAD_NUMBER, op="update", id=T1, changes=chg)         # a sentence, never a raw database error
+        self.assertEqual(self.counts(), before)
+        self.assertEqual(self.line(T1)["effort"], 1_000_000.0)
 
     def test_a_milestone_has_one_date_start_moves_both(self):
         self.plan()
@@ -342,16 +355,23 @@ class ProjectColumns(Base):
                 "gantt_hidden_columns": "show,note,budget,effort,baseline_start,baseline_end", "gantt_default_rows": None}[key]
 
     def test_the_hidden_columns_are_a_checked_list_in_the_tables_order(self):
-        status, body = self.change_project(gantt_hidden_columns="note, owner,note,start")
+        status, body = self.change_project(gantt_hidden_columns="note, owner,note,health")
         self.assertEqual(status, 200)
-        self.assertEqual(self.proj()["gantt_hidden_columns"], "note,owner,start")
+        self.assertEqual(self.proj()["gantt_hidden_columns"], "note,owner,health")
         self.change_project(gantt_hidden_columns="")
         self.assertEqual(self.proj()["gantt_hidden_columns"], "")
-        for bad in ("id", "name", "nonsense", "owner,id", "Owner", None, 5, ["owner"], "pct;DROP"):
+        for bad in ("id", "name", "nonsense", "owner,id", "Owner", None, 5, ["owner"], "pct;DROP",
+                    "type", "start", "end", "pct", "owner,start", "end,note", "pct,type"):         # row 926 read: the chart needs these four, so they cannot be hidden
             status, body = self.change_project(gantt_hidden_columns=bad)
             self.assertEqual((status, body["message"]), (400, store_module.GANTT_BAD_COLUMNS), bad)
         self.assertEqual(set(store_module.GANTT_COLUMNS), {"type", "parent", "start", "end", "pct", "health", "depends", "owner", "workstream",
                                                            "priority", "baseline_start", "baseline_end", "effort", "budget", "deliverable", "show", "note"})
+
+    def test_the_four_columns_the_chart_needs_are_never_hideable(self):
+        self.assertEqual(set(store_module.GANTT_NEVER_HIDDEN), {"type", "start", "end", "pct"})
+        self.assertTrue(set(store_module.GANTT_NEVER_HIDDEN).isdisjoint(store_module.GANTT_HIDEABLE))
+        self.assertTrue(set(store_module.GANTT_NEVER_HIDDEN).isdisjoint(store_module.GANTT_DEFAULT_HIDDEN))
+        self.assertEqual(set(store_module.GANTT_HIDEABLE) | set(store_module.GANTT_NEVER_HIDDEN), set(store_module.GANTT_COLUMNS))
 
     def test_the_two_switches_the_tab_name_the_title_and_the_rows_refuse_what_is_not_theirs(self):
         for field, bad, words in (("show_gantt_editor", (2, True, "1", None, 1.0), changes.FLAG_WORDS),

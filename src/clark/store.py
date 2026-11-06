@@ -728,6 +728,9 @@ def _person_rules(con, table, row, changed):
 # name can never be hidden. These are the table's own column names, in the order the table lists them.
 GANTT_COLUMNS = ("type", "parent", "start", "end", "pct", "health", "depends", "owner", "workstream", "priority",
                  "baseline_start", "baseline_end", "effort", "budget", "deliverable", "show", "note")
+GANTT_NEVER_HIDDEN = ("type", "start", "end", "pct")      # the chart cannot be drawn without these (what kind of line, where it sits, how far along), so a client file always has them
+GANTT_HIDEABLE = tuple(c for c in GANTT_COLUMNS if c not in GANTT_NEVER_HIDDEN)
+GANTT_MAX_EFFORT, GANTT_MAX_BUDGET = 1_000_000, 1_000_000_000_000      # the table's own limits (schema.sql CHECKs): a number above them is refused in words, never left to the database
 GANTT_DEFAULT_HIDDEN = ("show", "note", "budget", "effort", "baseline_start", "baseline_end")     # the default of projects.gantt_hidden_columns
 GANTT_DEFAULT_TAB = "Gantt"
 MAX_GANTT_LINES = 500                    # a project's Gantt lines
@@ -802,7 +805,7 @@ def gantt_hidden_columns(value):
     if not isinstance(value, str):
         raise Invalid(GANTT_BAD_COLUMNS)
     names = gantt_list(value)
-    if any(n not in GANTT_COLUMNS for n in names):
+    if any(n not in GANTT_HIDEABLE for n in names):       # an unknown key, the id or name, and the columns the chart needs (GANTT_NEVER_HIDDEN)
         raise Invalid(GANTT_BAD_COLUMNS)
     return ",".join(names)
 
@@ -826,11 +829,15 @@ def _gantt_reaches(graph, start, goal):
     return False
 
 
+def gantt_number_limit(field):
+    return GANTT_MAX_EFFORT if field == "effort" else GANTT_MAX_BUDGET
+
+
 def _gantt_number(row, field):
     v = row.get(field)
     if v is None:
         return
-    if isinstance(v, bool) or not isinstance(v, (int, float)) or v != v or v in (float("inf"), float("-inf")) or v < 0:
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or v != v or v in (float("inf"), float("-inf")) or v < 0 or v > gantt_number_limit(field):
         raise Invalid(GANTT_BAD_NUMBER)
 
 

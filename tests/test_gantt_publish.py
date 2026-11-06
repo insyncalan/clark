@@ -92,6 +92,14 @@ class TheGate(unittest.TestCase):
             g = chosen(plant(gantt_hidden_columns=damaged))["data"]["gantt"]
             self.assertTrue(set(store_module.GANTT_DEFAULT_HIDDEN).isdisjoint(g["columns"]), damaged)
 
+    def test_a_stored_list_that_names_start_end_pct_or_type_still_leaves_them_in_the_copy(self):
+        g = chosen(plant(gantt_hidden_columns="type,start,end,pct,owner"))["data"]["gantt"]       # written before these four were un-hideable
+        self.assertTrue({"type", "start", "end", "pct"} <= set(g["columns"]))
+        self.assertNotIn("owner", g["columns"])
+        for line in g["lines"]:
+            self.assertIn("start", line)
+            self.assertIn("end", line)
+
     def test_a_dependency_on_a_dropped_line_is_dropped_and_the_rest_stay(self):
         lines = {l["id"]: l for l in chosen(plant())["data"]["gantt"]["lines"]}
         self.assertEqual(lines[A]["depends"], [])
