@@ -103,7 +103,7 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
             "projects": ("health", "health_reason", "week_ending", "review_after_days", "archived", "active"),       # #126: a project's own archive or restore step sets the flag and `active`
             "milestones": ("archived", "baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
                            "client_message", "movement", "internal_note",
-                           "name", "owner", "workstream", "percent_complete", "description"),     # row 828: the peek's fields; #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
+                           "name", "owner", "owner_id", "workstream", "percent_complete", "description"),     # row 828: the peek's fields (owner_id: the link that goes with an owner edit, never asked for); #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
             "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible", "commitment"), "documents": ("archived",) + DOC_FIELDS, "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
 CHANGE_KINDS["actions"][NEW] = ("description", "client_message", "client_visible", "owner", "priority", "due_date", "workstream", "milestone", "latest_update", "use_case")      # #485: a next step added from a use case's row names it; #67: a row added in the report: no id,
@@ -1149,7 +1149,8 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
     """#136: change fields of one milestone of THIS project, in one step (several fields, one Undo). Moving the agreed date is a
     rebaseline: who agreed it, the reason and the source are asked for (milestone_rows.rebaseline_request's own rules and words),
     and the date, the new decision and the note are one step. A Hold writes its dated line as the step's note and adds it to the internal note (#458). The internal note
-    (#458) may be set or cleared; the owner, the name, the workstream and the archive flag are not changeable here. A refusal
+    (#458) may be set or cleared; row 828: so may the name, owner, workstream, progress and description. An owner edit also sets
+    or clears the link to the person (owner_id), so a later rename or merge of a person leaves a typed owner alone. The archive flag is not changeable here. A refusal
     writes nothing."""
     ref = req.get("id")
     changes = _checked_milestone_changes(_fields(req.get("changes"), table, UPDATE, columns, "the changes"))
@@ -1188,6 +1189,9 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
             last = (row.get("internal_note") or "").strip().split("\n")[-1]
             if "internal_note" not in changes and last != note:     # #458: the Hold's dated line goes into the internal note too (the prototype's), in this same step and Undo; not twice when the last line is this same Hold today
                 changes["internal_note"] = _note_with_line(row.get("internal_note"), note)
+        if "owner" in changes:                                      # row 828: the link follows the owner text, as a hand over writes it: the one live person it names, else none
+            found = store.resolve_owner(changes["owner"] or "")
+            changes["owner_id"] = found["id"] if found["status"] == "one" else None
         try:
             st.update(table, ref, changes, rebaseline=rebase, note=note)
         except Invalid as e:                                        # a rule of the store, in fixed words: no field name, no value

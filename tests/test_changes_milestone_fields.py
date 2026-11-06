@@ -60,6 +60,47 @@ class Fields(unittest.TestCase):
                 self.assertEqual(status, 200, undone)
                 self.assertEqual(self.row()[field], kept)
 
+    def linked(self, name):
+        """A person on the people list, and the milestone linked to them (owner text and owner_id), as a rename or merge leaves it."""
+        with self.s.step("dashboard", USER) as st:
+            person = st.add_person(name=name, source="test")
+            st.update("milestones", self.m, {"owner": name, "owner_id": person})
+        return person
+
+    def test_an_owner_edit_cuts_the_link_so_a_rename_or_merge_cannot_put_the_old_name_back(self):
+        a = self.linked("Sam Reed")
+        self.ok({"owner": "Someone Else"})
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), ("Someone Else", None))
+        with self.s.step("dashboard", USER) as st:
+            st.rename_person(a, "Sam Reid")
+        self.assertEqual(self.row()["owner"], "Someone Else")
+        b = self.linked("Jo Park")
+        self.ok({"owner": "Someone Else"})
+        with self.s.step("dashboard", USER) as st:
+            st.merge_people(b, a)
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), ("Someone Else", None))
+
+    def test_clearing_the_owner_clears_the_link_and_a_rename_leaves_it_empty(self):
+        a = self.linked("Sam Reed")
+        self.ok({"owner": None})
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), (None, None))
+        with self.s.step("dashboard", USER) as st:
+            st.rename_person(a, "Sam Reid")
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), (None, None))
+
+    def test_an_owner_named_as_a_person_links_to_them_and_one_undo_puts_back_both(self):
+        a = self.linked("Sam Reed")
+        self.ok({"owner": "Someone Else"})
+        body = self.ok({"owner": "Sam Reed"})
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), ("Sam Reed", a))
+        undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
+        self.assertEqual(undone[0], 200, undone)
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), ("Someone Else", None))
+        self.ok({"owner": "Sam Reed"})
+        with self.s.step("dashboard", USER) as st:
+            st.rename_person(a, "Sam Reid")
+        self.assertEqual(self.row()["owner"], "Sam Reid")               # a linked owner follows the person
+
     def test_the_same_value_again_makes_no_step(self):
         self.ok({"owner": "Sam Example"})
         before = self.steps()
