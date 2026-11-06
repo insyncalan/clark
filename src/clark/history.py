@@ -306,8 +306,12 @@ COMMON = {
 FIELD_NAMES = {
     "projects": {"name": "Project name", "phase": "Phase", "sponsor": "Sponsor", "health": "Health", "health_reason": "Reason for the health",
                  "active": "Active", "client_name": "Client", "current_state": "Where things stand", "week_ending": "Week ending",
-                 "review_after_days": "Not reviewed after (days)", "layout": "Report layout", "publish_local": "Local publish folder", "publish_client": "Client publish folder"},
+                 "review_after_days": "Not reviewed after (days)", "show_gantt_editor": "Show the Gantt to the editor", "show_gantt_client": "Show the Gantt to the client",
+                 "gantt_tab_name": "Gantt tab name", "gantt_title": "Gantt title", "gantt_hidden_columns": "Gantt columns hidden from the client", "gantt_default_rows": "Gantt rows shown", "layout": "Report layout", "publish_local": "Local publish folder", "publish_client": "Client publish folder"},
     "milestones": {"name": "Name", "status": "Status"},
+    "gantt_lines": {"name": "Line", "type": "Type", "parent": "Parent", "start": "Start", "end": "End", "pct": "Done %",
+                    "health": "Health", "depends": "Depends on", "baseline_start": "Baseline start", "baseline_end": "Baseline end",
+                    "effort": "Effort (days)", "show": "On dashboard", "note": "Notes", "sort_order": "Place"},      # row 926
     "actions": {"description": "Action"},
     "raid": {"description": "Description", "type": "Type"},
     "decisions": {"status": "Status"},
@@ -321,7 +325,7 @@ CONTENT_FIELD, CONTENT_CHANGED = "Content", "Changed"    # a section's body (a n
 THING = {"links": "Link", "item_labels": "Label", "labels": "Label", "report_sections": "Section", "glance_tiles": "Tile",
          "report_hidden": "Hidden item", "saved_views": "Saved view", "documents": "Document", "source_folders": "Folder",
          "projects": "Project", "milestones": "Milestone", "workstreams": "Workstream", "actions": "Action", "raid": "RAID item",
-         "decisions": "Decision", "use_cases": "Use case", "updates": "Weekly update"}      # what a Created or Removed row is about
+         "decisions": "Decision", "use_cases": "Use case", "updates": "Weekly update", "gantt_lines": "Gantt line"}      # what a Created or Removed row is about
 
 
 def field_name(table, field):
@@ -333,13 +337,13 @@ def field_name(table, field):
 
 
 # Where an item's title lives, and the whole of each read (fixed text, no table name is ever put into SQL).
-TITLE_COLUMN = {"projects": "name", "milestones": "name", "workstreams": "name", "actions": "description", "raid": "description",
+TITLE_COLUMN = {"gantt_lines": "name", "projects": "name", "milestones": "name", "workstreams": "name", "actions": "description", "raid": "description",
                 "decisions": "decision", "use_cases": "title"}
 TITLE_SQL = {
     "projects": "SELECT name FROM projects WHERE code = ?", "milestones": "SELECT name FROM milestones WHERE id = ?",
     "workstreams": "SELECT name FROM workstreams WHERE id = ?", "actions": "SELECT description FROM actions WHERE id = ?",
     "raid": "SELECT description FROM raid WHERE id = ?", "decisions": "SELECT decision FROM decisions WHERE id = ?",
-    "use_cases": "SELECT title FROM use_cases WHERE id = ?"}
+    "use_cases": "SELECT title FROM use_cases WHERE id = ?", "gantt_lines": "SELECT name FROM gantt_lines WHERE id = ?"}
 TITLE_LIMIT = 120
 
 

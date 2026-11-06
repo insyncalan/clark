@@ -86,7 +86,7 @@ class Allowed(Api):
         """#45 (Full tier, approved) added glance_tiles and projects (test_changes_tiles holds their tests) and #67 the eye,
         report_hidden (test_changes_hidden). The records can be archived and restored (#126), and the work items also updated
         (#68), and so are a project's health, an existing use case's fields (#164) and the milestones (#136), never given other ops."""
-        self.assertEqual(set(changes.CHANGE_KINDS), {"report_sections", "glance_tiles", "report_hidden", *changes.ARCHIVABLE})
+        self.assertEqual(set(changes.CHANGE_KINDS), {"report_sections", "glance_tiles", "report_hidden", "gantt_lines", *changes.ARCHIVABLE})
         for kind in changes.ARCHIVABLE:
             ops = set(changes.CHANGE_KINDS[kind])
             want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases", "documents") else set())
