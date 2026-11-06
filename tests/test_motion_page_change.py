@@ -75,7 +75,7 @@ class MotionPageChange(unittest.TestCase):
         self.assertRegex(gate, r"main\.view-in \{ animation: m-view var\(--dur-view\) var\(--ease-enter\) 1; \}")
         body = re.search(r"@keyframes m-view \{(.*?)\}\s*\}", gate, re.S).group(1)
         self.assertNotRegex(body, r"height|margin|padding|top|left|width")
-        self.assertRegex(body, r"opacity: 0; transform: translateY\(8px\)")
+        self.assertRegex(body, r"opacity: 0; transform: translateY\(var\(--space-2\)\)")
         self.assertNotIn("view-in", CSS, "the shared stylesheet (the published page's) has no view-in")
         self.assertNotIn("m-view", CSS)
         view = ROOT / "src/clark/page/page-view.html"

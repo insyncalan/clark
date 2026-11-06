@@ -801,5 +801,5 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 /* row 876: the page fades in and rises 8 px on a tab change in Edit only (App.jsx puts .view-in on <main> then; a published file never does). Same gate as the Motion block in shell.css. */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) main.view-in { animation: m-view var(--dur-view) var(--ease-enter) 1; }
-  @keyframes m-view { from { opacity: 0; transform: translateY(8px); } }
+  @keyframes m-view { from { opacity: 0; transform: translateY(var(--space-2)); } }
 }
