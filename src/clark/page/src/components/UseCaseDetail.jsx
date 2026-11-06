@@ -9,6 +9,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, rows, fromFile, project, openWork, openPeek } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
+import { blink } from "../stores/motion.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
 import { readUseCaseHistory, readArchivedUseCase } from "../api.js";
 import { Menu } from "./Menu.jsx";
@@ -225,7 +226,7 @@ export function UseCaseDetail({ id }) {
               items={STATUSES.map(([name]) => ({ id: name, name, checked: u.status === name }))}
               onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
             <button type="button" class={`ucd-eye${on ? " on" : ""}`} data-eye title={on ? EYE.on : EYE.off} aria-label={on ? EYE.on : EYE.off}
-              onClick={() => send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard.")}><Icon name={on ? "eye" : "eyeoff"} /></button>
+              onClick={(e) => { blink(e); send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard."); }}><Icon name={on ? "eye" : "eyeoff"} /></button>
           </div>
         ) : null}
       </div>
