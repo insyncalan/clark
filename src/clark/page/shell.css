@@ -1580,12 +1580,18 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     #work-count, .wbar em.num { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
     /* the Add a section preview cross-fades as the selection moves; cards lift on hover on fine pointers */
     .ad-prev > * { animation: m-in var(--dur-state) var(--ease-enter) 1; }
+    /* row 881: one shared fade of the hover colours for each control class (the main buttons, the main button's own lift, and cards keep their rules) */
+    .btn:not(.primary), .seg button, .fbtn, .vtab, .bib, .tgrip, .teye, .toast-btn, .pkp-btn, .tb-act, .hp-top, .projbtn, .menu-item, .sec-add, .handle, .plus, .bc-move { transition: background-color var(--dur-instant) var(--ease-out), border-color var(--dur-instant) var(--ease-out), color var(--dur-instant) var(--ease-out), transform var(--dur-instant) var(--ease-out); }
+    .glance .fig.go, .hp-job { transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-state) var(--ease-out), transform var(--dur-instant) var(--ease-out); }
     /* publish: the tick appears once (the ring is main's, and turns only until the work ends) */
     .pub-tick { animation: m-tick var(--dur-state) var(--ease-out) 1; }
   }
   @media (hover: hover) and (pointer: fine) {
     :root:not([data-motion="reduce"]) .ad-tpl { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
     :root:not([data-motion="reduce"]) .ad-tpl:not(.off):hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+    /* row 881: a button or a card lifts 1 px on hover and settles on press (transform only, so nothing else moves) */
+    :root:not([data-motion="reduce"]) .btn:not(.primary):not(:disabled):hover, :root:not([data-motion="reduce"]) .glance .fig.go:hover, :root:not([data-motion="reduce"]) .hp-job:hover { transform: translateY(-1px); }
+    :root:not([data-motion="reduce"]) .btn:not(.primary):not(:disabled):active, :root:not([data-motion="reduce"]) .glance .fig.go:active, :root:not([data-motion="reduce"]) .hp-job:active { transform: none; }
   }
   @keyframes m-tick { from { opacity: 0; transform: scale(.4); } }
   @keyframes m-line-top { from { box-shadow: 0 -3px 0 transparent; } }
