@@ -169,11 +169,11 @@ export function installKeys() {
     if (e.key === "?") { e.preventDefault(); if (helpOpen.value) helpFocusSearch.value++; else if (!toggleContext()) openHelp(); }
     else if (e.key === "/" && helpOpen.value && singleKeys.value) { e.preventDefault(); e.stopImmediatePropagation(); helpFocusSearch.value++; }
   }, true);
-  // A click outside the peek closes it (the "?" button is outside, but its own click toggles, so it is let through).
+  // A click outside the peek closes it.
   document.addEventListener("mousedown", (e) => {
     if (!contextOpen.value) return;
     const t = e.target;
-    if (t && t.closest && (t.closest("#help-peek") || t.closest("#help-btn"))) return;
+    if (t && t.closest && (t.closest("#help-peek"))) return;
     closeContext();
   }, true);
   // Moving to another page or project closes Help, and the peek (it was written for the page it was opened on).
@@ -250,7 +250,7 @@ export function closeContext(o) {
   }, 0);
 }
 
-/** "?" and the top-bar button: open the peek, or close it when it is open. False when the screen has no text (the caller opens the full Help). */
+/** "?" key: open the peek, or close it when it is open. False when the screen has no text (the caller opens the full Help). */
 export function toggleContext() {
   if (contextOpen.value) { closeContext(); return true; }
   return openContext();

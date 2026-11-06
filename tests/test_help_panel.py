@@ -171,23 +171,22 @@ class Panel(Base):
             p.js("document.querySelector('#hpBack').click()")
             p.until("!document.querySelector('#help') && document.activeElement && document.activeElement.dataset.mode === 'view'", "Back put focus back on View")
 
-    def test_the_top_bar_has_a_help_button_and_help_has_a_back_button(self):
-        """C-H5 (prototype index.html #helpBtn): a "?" in the top bar opens Help on the tab used last; Help says Back, and Back puts the
-        person where they were, with focus on the button that opened Help. Both widths."""
+    def test_the_top_bar_has_no_help_button_and_help_has_a_back_button(self):
+        """Row 899: the top bar has no "?" button. Help is reached by the ? key, the palette and the profile menu; Help says Back, and Back
+        puts the person where they were. Both widths."""
         from test_server import chrome
         with chrome() as cdp:
             p = self.visit(cdp)
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                self.assertEqual(p.js("(function(){var b=document.querySelector('header.top #help-btn');return b&&[b.textContent,b.getAttribute('aria-label'),b.title,b.getBoundingClientRect().width>=24,b.getBoundingClientRect().height>=24,b.getBoundingClientRect().right<=innerWidth]})()"),
-                                 ["?", "Help", "Help (?)", True, True, True], f"{w}: the button is in the top bar, named Help, big enough, in view")
-                self.assertTrue(p.js("var a=document.querySelector('#help-btn').getBoundingClientRect(), b=document.querySelector('#profile-btn').getBoundingClientRect(); a.right <= b.left"), "beside the circle, before it")
-                # The button opens the context peek on a screen with text (the Dashboard has some); the profile menu's Help is the full Help.
-                p.js("document.querySelector('#help-btn').focus(); document.querySelector('#help-btn').click()")
-                p.until("!!document.querySelector('#help-peek')", f"{w}: the button opened the peek")
-                self.assertEqual(p.js("document.querySelector('#help')"), None, f"{w}: the button does not open the full Help here")
-                p.js("document.querySelector('#help-btn').click()")
-                p.until("!document.querySelector('#help-peek') && !document.querySelector('.peek.leaving')", f"{w}: the button closed the peek")
+                self.assertEqual(p.js("document.querySelector('#help-btn')"), None, f"{w}: no Help button in the top bar")
+                self.assertTrue(p.js("var b=document.querySelector('#profile-btn').getBoundingClientRect(); b.right<=innerWidth"), f"{w}: the profile circle is in view")
+                # The ? key opens the context peek on a screen with text (the Dashboard has some); the profile menu's Help is the full Help.
+                p.key("?", code="Slash", vk=191)
+                p.until("!!document.querySelector('#help-peek')", f"{w}: the ? key opened the peek")
+                self.assertEqual(p.js("document.querySelector('#help')"), None, f"{w}: the key does not open the full Help here")
+                p.key("?", code="Slash", vk=191)
+                p.until("!document.querySelector('#help-peek') && !document.querySelector('.peek.leaving')", f"{w}: the ? key closed the peek")
                 p.js("document.querySelector('#profile-btn').focus()")
                 full_help_from_menu(p, f"{w}: the profile menu's Help opened Help")
                 self.assertEqual(p.js("document.querySelector('#hpBack').textContent"), "Back")

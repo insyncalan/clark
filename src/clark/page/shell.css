@@ -1027,10 +1027,6 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 @media (max-width: 700px), (hover: none) { .hp-keyhint { display: none; } .hp-taphint { display: inline; } }
 @media (max-width: 860px) { .hp-actions { flex: 1 1 100%; } .hp-search { flex: 1 1 auto; } .hp-search input { width: 100%; } }
 
-/* the Help button in the top bar: the circle's neighbour, a "?" in the bar's own colours */
-.hp-top { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: 50%; color: var(--white); font-size: var(--size-body); font-weight: var(--weight-medium); cursor: pointer; }
-.hp-top:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
-.hp-top:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tb-act { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 32px; height: 32px; padding: 0 6px; border-radius: var(--radius-sm); color: var(--white); font-size: var(--size-body); cursor: pointer; white-space: nowrap; }   /* the top bar's search and ask buttons */
 .tb-act:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
 .tb-act:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }

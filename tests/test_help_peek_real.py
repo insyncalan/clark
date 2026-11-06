@@ -80,10 +80,7 @@ class Real(base.Base):
                 p.mouse("mousePressed", 300, 700)
                 p.mouse("mouseReleased", 300, 700)
                 p.until(GONE, f"{screen}: a click outside closed it")
-                p.js("document.querySelector('#help-btn').click()")
-                p.until("!!document.querySelector('#help-peek')", f"{screen}: the button opened it")
-                p.js("document.querySelector('#help-btn').click()")
-                p.until(GONE, f"{screen}: the button closed it")
+                self.assertEqual(p.js("document.querySelector('#help-btn')"), None, f"{screen}: no Help button in the top bar")
 
     def test_the_foot_link_opens_the_full_help_on_the_entry_named(self):
         with chrome() as cdp:
