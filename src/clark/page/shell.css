@@ -1557,8 +1557,8 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .sec-hint { position: absolute; left: 30px; top: 0; white-space: nowrap; pointer-events: none; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: var(--size-small); }
 
 /* Motion: motion that explains and never decorates. Every rule here is inside one block, so a motion is absent (not switched
-   off afterwards) when the computer asks for reduced motion or clark's own setting (<html data-motion="reduce">) is on. Nothing
-   loops here (the publish ring, above, turns only while it works), only the --dur and --ease tokens are used, and nothing waits for it: the elements
+   off afterwards) when the computer asks for reduced motion or clark's own setting (<html data-motion="reduce">) is on. Only
+   the placeholder shimmer loops here (as the publish ring, above, turns only while it works, it runs only while the placeholder shows and stops when the screen arrives); only the --dur and --ease tokens are used, and nothing waits for it: the elements
    stay live while it runs. The block uses native CSS nesting, so a browser without it (older than current Chrome or Edge) keeps the still forms only. */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) {

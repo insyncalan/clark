@@ -4,7 +4,7 @@ Run: python3 dev/run_tests.py test_motion
 Items (the issue's numbers): 1 Publish shows a ring then draws a tick, 2 the placeholder fades out as the screen arrives, 3 a changed row
 glows then settles to the still mark, 4 the peek, 5 the drop line and outline ease in while a section is dragged, 6 the health badge and reason
 settle when health changes, 7 the timeline and calendar swap, 8 the handle's first-time hint, 9 the count line and counts fade when a filter changes,
-10 the Add a section preview. Part 1 reads the CSS: one Motion block, tokens only, nothing loops, no motion outside it. Part 2 runs the real
+10 the Add a section preview. Part 1 reads the CSS: one Motion block, tokens only, nothing loops but the placeholder shimmer, no motion outside it. Part 2 runs the real
 page in headless Chrome three ways: motion allowed (the effect runs), the computer asking for reduced motion, and clark's own
 setting (<html data-motion="reduce">). In both reduced forms nothing animates and the still mark is all there is.
 """
