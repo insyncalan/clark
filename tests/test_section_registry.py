@@ -79,6 +79,18 @@ class PythonSide(unittest.TestCase):
         self.assertEqual(schema_types(), store_module.SECTION_TYPES)
         self.assertEqual(store_module.ALLOWED[("report_sections", "type")], store_module.SECTION_TYPES)
 
+    def test_the_page_names_the_same_built_in_sections_as_publish(self):
+        """Row 906: publishable.js BUILT_IN_SECTIONS and the built-ins templates.js ACCEPTS takes are publish.BUILT_IN_SECTIONS."""
+        logic = PAGE_SRC / "logic"
+        mirror = re.search(r"const BUILT_IN_SECTIONS = \[([^\]]*)\];", (logic / "publishable.js").read_text(encoding="utf-8"))
+        self.assertIsNotNone(mirror, "publishable.js keeps its BUILT_IN_SECTIONS list")
+        self.assertEqual(tuple(re.findall(r'"([a-z]+)"', mirror.group(1))), publish.BUILT_IN_SECTIONS, "the same types, in the same order")
+        accepts = re.search(r"export const ACCEPTS = \{ types: \[([^\]]*)\] \};", (logic / "templates.js").read_text(encoding="utf-8"))
+        self.assertIsNotNone(accepts, "templates.js keeps its ACCEPTS list")
+        head, _, built_ins = accepts.group(1).partition("...TEMPLATE_TYPES,")
+        self.assertEqual(re.findall(r'"([a-z]+)"', head), ["text", "needs"])
+        self.assertEqual(tuple(re.findall(r'"([a-z]+)"', built_ins)), publish.BUILT_IN_SECTIONS)
+
     def test_every_table_built_from_the_registry_covers_every_type(self):
         for t in section_kinds.TYPES:
             m = section_kinds.REGISTRY[t]
