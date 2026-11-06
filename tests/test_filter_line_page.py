@@ -7,6 +7,7 @@ events, at 1400 and 900 px, in light and in dark. The pure rules are in test_fil
 import copy
 import re
 import json
+import time
 import unittest
 import urllib.parse
 
@@ -25,6 +26,21 @@ THEMES = ("light", "dark")
 
 # row 789: the empty state names what was typed ("No open items match ..." or "No items match ..."); a line of only fields says it too
 EMPTY_SAYS = lambda text: bool(re.search(r"No (open )?items match", text))
+
+
+def click_tab(cdp, sid, selector):
+    """Click a view tab. At 900 px the tabs sit in a row that scrolls sideways, and the row slides to the tab just chosen, so a tab is
+    not where it was measured while that slide runs and the click lands beside it. Wait until the row has stopped (the same offset on
+    four reads 60 ms apart), bring the tab into view, then click."""
+    reads = []
+
+    def still():
+        reads.append(cdp.js("document.querySelector('.vtabs').scrollLeft", sid))
+        time.sleep(0.06)
+        return len(reads) >= 4 and len(set(reads[-4:])) == 1
+    assert wait(still), "the tab row is still sliding"
+    cdp.js("document.querySelector(%s).scrollIntoView({inline: 'center', block: 'nearest', behavior: 'instant'})" % json.dumps(selector), sid)
+    click(cdp, sid, selector)
 
 
 class Line(unittest.TestCase):
@@ -693,7 +709,7 @@ class Line(unittest.TestCase):
                     self.assertEqual(names, ["Open items", "Actions", "Risks and issues", "Decisions", "All work items", "Overdue", "My actions"], "the core five, then the starting views; one is hidden until the page can answer it")
                     self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), "Open items")
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-dot]').length", sid), 0)
-                    click(cdp, sid, ".vtab[data-view-id=overdue]")
+                    click_tab(cdp, sid, ".vtab[data-view-id=overdue]")
                     self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open", "due:overdue"]))
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-dot]').length", sid), 0)
                     self.put(cdp, sid, "is:open due:overdue priority:High")
@@ -708,9 +724,9 @@ class Line(unittest.TestCase):
                     click(cdp, sid, "#viewTabMenuList [data-kind=save]")
                     self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-dot]').length", sid) == 0), "saved: the dot goes")
                     # another tab, then back: the saved line is what comes back
-                    click(cdp, sid, ".vtab[data-view-id=core-open]")
+                    click_tab(cdp, sid, ".vtab[data-view-id=core-open]")
                     self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open"]))
-                    click(cdp, sid, ".vtab[data-view-id=overdue]")
+                    click_tab(cdp, sid, ".vtab[data-view-id=overdue]")
                     self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open", "due:overdue", "priority:High"]))
                     # Rename
                     click(cdp, sid, "#viewTabMenu")
@@ -765,7 +781,7 @@ class Line(unittest.TestCase):
                 self.assertEqual(cdp.js(tabs, sid), ["Open items", "Actions", "Risks and issues", "Decisions", "All work items", "Old view"], "the broken view is listed; the starting client view is still left out")
                 self.assertEqual(cdp.js("document.querySelector('[data-vbad]').textContent", sid), "", "nothing said until it is chosen")
                 before = self.shown(cdp, sid)
-                click(cdp, sid, ".vtab[data-view-id=old]")
+                click_tab(cdp, sid, ".vtab[data-view-id=old]")
                 self.assertTrue(wait(lambda: "cannot be used any more" in cdp.js("document.querySelector('[data-vbad]').textContent", sid)))
                 said = cdp.js("document.querySelector('[data-vbad]').textContent", sid)
                 self.assertIn("Unknown field 'colour'.", said, "it says why")
@@ -949,7 +965,7 @@ class Line(unittest.TestCase):
                     self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "the row fits the page")
                     self.assertTrue(cdp.js("!!document.querySelector('#viewNew')", sid))
                     for vid, want in lines.items():
-                        click(cdp, sid, f".vtab[data-view-id={vid}]")
+                        click_tab(cdp, sid, f".vtab[data-view-id={vid}]")
                         self.assertTrue(wait(lambda: sorted(self.chips(cdp, sid)) == sorted(want)), vid)
                         self.assertEqual(cdp.js(f"document.querySelector('.vtab[data-view-id={vid}]').getAttribute('aria-pressed')", sid), "true")
                         n = cdp.js(f"+document.querySelector('.vtab[data-view-id={vid}] em').textContent", sid)
@@ -978,7 +994,7 @@ class Line(unittest.TestCase):
                     self.assertEqual(cdp.js("document.querySelector('#viewTabMenu').getAttribute('aria-label')", sid), "Options for Open items")
                     self.assertGreaterEqual(cdp.js("document.querySelector('#viewTabMenu').getBoundingClientRect().height", sid), 24)
                     # Overdue is an ordinary view now: it has all the entries
-                    click(cdp, sid, ".vtab[data-view-id=overdue]")
+                    click_tab(cdp, sid, ".vtab[data-view-id=overdue]")
                     self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open", "due:overdue"]))
                     click(cdp, sid, "#viewTabMenu")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)))
@@ -996,7 +1012,7 @@ class Line(unittest.TestCase):
                     key(cdp, sid, "Enter")
                     self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-dot]').length", sid) == 0), "saved: the dot goes")
                     # + New view on a core tab: the line becomes a view after the core five, with its count, and is chosen
-                    click(cdp, sid, ".vtab[data-view-id=core-decisions]")
+                    click_tab(cdp, sid, ".vtab[data-view-id=core-decisions]")
                     self.assertTrue(wait(lambda: sorted(self.chips(cdp, sid)) == ["is:open", "type:decision"]))
                     self.put(cdp, sid, "is:open type:decision priority:High")
                     self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.vtab[data-view-id=core-decisions] [data-dot]').length", sid) == 1))
