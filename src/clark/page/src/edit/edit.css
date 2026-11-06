@@ -815,6 +815,8 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) :is(.ms-eye, .weye, .ucl-eye, .ucd-eye)[data-blink] svg { animation: m-blink var(--dur-state) var(--ease-toggle) 1; }
   @keyframes m-blink { 50% { transform: scaleY(.1); } }
+}
+
 /* Row 881 (motion): press feedback on buttons and cards. Here, not in shell.css, so the published page (no Edit part) carries none of it.
    Gated like the Motion block: absent under reduced motion (the computer's setting or <html data-motion="reduce">). Tokens only; colour and
    transform only, so nothing else moves. */
@@ -829,6 +831,8 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
     :root:not([data-motion="reduce"]) :is(.btn:not(.primary):not(:disabled), .glance .fig.go, .hp-job):hover { transform: translateY(-1px); }
     :root:not([data-motion="reduce"]) :is(.btn:not(.primary):not(:disabled), .glance .fig.go, .hp-job):active { transform: none; }
   }
+}
+
 /* row 880: opening a group, its column names and rows rise 4 px and fade in over --dur-layout (transform and opacity only: no height moves). Edit build only: the published file has no glide. */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
