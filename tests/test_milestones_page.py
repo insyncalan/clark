@@ -517,11 +517,35 @@ class RealBrowser(unittest.TestCase):
                     cdp.js("document.querySelector('[data-cal=\"1\"]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal-ms.ghost')", sid)))
                 got = cdp.js("""[...document.querySelectorAll('.cal-ms.ghost')].map(c => { const sp = c.querySelector('span'), r = c.getBoundingClientRect();
-                    return [sp.textContent, getComputedStyle(sp).display, sp.scrollWidth <= sp.clientWidth + 1, r.right <= document.documentElement.clientWidth]; })""", sid)
-                for text, display, fits, inside in got:
-                    self.assertTrue(text.startswith("Expected: ") and len(text) > len("Expected: "), "the whole chip: Expected: and the name")
-                    self.assertNotEqual(display, "none", "shown, not hidden by the width or the scale")
-                    self.assertTrue(fits and inside, "not cut off")
+                    return [sp.textContent, getComputedStyle(sp).display, sp.scrollWidth <= sp.clientWidth + 1, r.right <= document.documentElement.clientWidth,
+                            c.getAttribute('aria-label') || '', c.title || '', getComputedStyle(c).borderTopStyle]; })""", sid)
+                for text, display, fits, inside, label, title, border in got:
+                    self.assertTrue(text.startswith("Expected: ") and len(text) > len("Expected: "), "the chip still carries Expected: and the name")
+                    self.assertTrue(label.startswith("Expected: "), "the accessible name says it too")
+                    self.assertTrue(inside, "not past the page edge")
+                    if scale == "month":
+                        self.assertNotEqual(display, "none", "shown, not hidden by the scale")
+                        self.assertTrue(fits, "not cut off")
+                    else:                                  # row 821: Quarter draws the mark only, the words are the tooltip
+                        self.assertEqual(display, "none", "Quarter shows the mark only")
+                        self.assertEqual(border, "dashed", "a slipped milestone keeps its dashed outline")
+                        self.assertIn("expected", title.lower(), "the tooltip says it is expected")
+
+    def test_a_quarter_chip_is_a_button_with_no_text_and_opens_the_peek(self):
+        for width, theme in itertools.product((1400, 900), ("light", "dark")):
+            with self.subTest(width=width, theme=theme), chrome() as cdp:
+                sid = self.view(cdp, width, theme)
+                cdp.js("document.querySelector('[data-scale-b=quarter]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('.cal').dataset.scale", sid) == "quarter"))
+                got = cdp.js("""[...document.querySelectorAll('.cal-q .cal-ms')].map(c => [c.tagName, c.offsetHeight < 60,
+                    [...c.querySelectorAll('span')].every((s) => getComputedStyle(s).display === 'none'), !!c.title, !!c.getAttribute('aria-label')])""", sid)
+                self.assertTrue(got, "the quarter has milestones")
+                for tag, short, textless, title, label in got:
+                    self.assertEqual(tag, "BUTTON")
+                    self.assertTrue(short and textless, "a mark only, no label stretching the cell")
+                    self.assertTrue(title and label, "a tooltip and an accessible name")
+                cdp.js("document.querySelector('.cal-q button.cal-ms:not(.ghost)').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.getElementById('peek')", sid)), "a click opens the milestone's peek")
 
     def test_switching_scale_always_lands_on_the_current_period(self):
         for width in (1400, 900):

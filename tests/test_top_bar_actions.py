@@ -32,7 +32,7 @@ class TopBarActions(Base):
             got = p.js("(function(){var q=s=>document.querySelector(s), a=q('#pal-btn'), k=q('#ask-btn');"
                        "return [a.getAttribute('aria-label'), a.title, a.textContent.trim(), k.getAttribute('aria-label'), k.title, k.textContent.replace(/\\s+/g,' ').trim(),"
                        "getComputedStyle(q('#ask-btn kbd')).display !== 'none', [...document.querySelectorAll('header.top button')].map(b => b.id || b.className).slice(-4)];})()")
-            self.assertEqual(got[:7], ["Go to or do", "Go to or do (Ctrl or Cmd + K)", "", "ask clark", "ask clark (/)", "ask clark /", True])
+            self.assertEqual(got[:7], ["Go to or do", "Go to or do (Ctrl or Cmd + K)", "", "ask clark", "Open ask clark (/ or Ctrl or Cmd + J)", "ask clark /", True])
             self.assertEqual(got[7][:3], ["pal-btn", "ask-btn", "help-btn"])
 
     def test_search_opens_the_palette_and_ask_opens_the_ask_panel(self):
@@ -44,6 +44,30 @@ class TopBarActions(Base):
             p.until("!document.querySelector('#palette')", "the palette closed")
             p.js("document.querySelector('#ask-btn').click()")
             p.until("!!document.querySelector('#ask-panel')", "the ask panel opened")
+
+    def test_ctrl_or_cmd_j_opens_ask_from_anywhere_and_other_chords_do_not(self):
+        """Row 855: Ctrl or Cmd + J opens the ask panel (a field included); J alone, Shift or Alt with it, and an open menu do not."""
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            shut = lambda: (p.key("Escape", 0, "Escape", 27), p.until("!document.querySelector('#ask-panel')", "the ask panel closed"))
+            for mods, name in ((2, "Ctrl"), (4, "Cmd")):
+                p.key("j", mods, "KeyJ", 74)
+                p.until("!!document.querySelector('#ask-panel')", name + " + J opened the ask panel")
+                shut()
+            for mods, name in ((0, "J alone"), (2 | 8, "Ctrl + Shift + J"), (2 | 1, "Ctrl + Alt + J")):
+                p.key("j", mods, "KeyJ", 74)
+                p.js("new Promise(r => setTimeout(r, 300))")
+                self.assertFalse(p.js("!!document.querySelector('#ask-panel')"), name + " must not open it")
+            p.js("var t = document.createElement('textarea'); t.id = 'tt'; document.body.appendChild(t); t.focus()")
+            p.key("j", 2, "KeyJ", 74)
+            p.until("!!document.querySelector('#ask-panel')", "Ctrl + J opens it from inside a field")
+            self.assertEqual(p.js("document.getElementById('tt').value"), "", "and types nothing into the field")
+            shut()
+            p.js("document.getElementById('tt').remove(); document.querySelector('#project-name').click()")
+            p.until("!!document.querySelector('[role=menu]')", "a menu is open")
+            p.key("j", 2, "KeyJ", 74)
+            p.js("new Promise(r => setTimeout(r, 300))")
+            self.assertFalse(p.js("!!document.querySelector('#ask-panel')"), "not while a menu is open")
 
     def test_the_ask_button_is_not_there_while_asking_is_off(self):
         with chrome() as cdp:
