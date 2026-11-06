@@ -3,9 +3,9 @@
 // is asked when the panel opens, and until it answers (or when it cannot) the panel reads as off.
 import { signal, effect } from "@preact/signals";
 import { view, project, peek } from "../stores/report.js";
-import { token } from "../stores/report.js";
 import { helpOpen } from "../help/helpStore.js";
 import { askOn, askProvider } from "./askState.js";
+import { keptCheck, runCheck } from "./askCheck.js";
 import { QUIPS, DISCONNECTED_LINE } from "./askWords.js";
 
 const MIN = 320, DEFAULT = 420;
@@ -43,14 +43,15 @@ export const quipDelay = (rand = Math.random) => 5000 + Math.floor(rand() * 5001
 let opener = null;
 
 async function readStatus() {
+  const kept = keptCheck();
+  if (kept) { apply(kept); return; }            // row 858: asked a moment ago and it was ready: no second wait
   panelState.value = "checking";
-  let r = null;
-  try {
-    const x = await fetch("/api/ask/status", { headers: { "X-Clark-Token": token() }, cache: "no-store" });
-    r = { status: x.status, body: await x.json().catch(() => null) };
-  } catch (e) { r = null; }
-  const b = r && r.status === 200 ? r.body : null;
+  const b = await runCheck();
   if (!panelOpen.value) return;
+  apply(b);
+}
+
+function apply(b) {
   // Only a good answer that says "off" reads as off. A check that failed (the request threw, the status was not 200, the body was not a
   // good answer) says nothing about the switch, so the panel claims nothing and sends nothing.
   if (!b || b.ok !== true || typeof b.ask_enabled !== "boolean") { panelState.value = "unknown"; panelModel.value = ""; return; }
