@@ -79,6 +79,7 @@ class Panel(Base):
             p.js(before)
         p.key("/", code="Slash", vk=191)
         p.until("!!document.querySelector('#ask-panel')", "the panel opened on /")
+        p.until("document.querySelector('#ask-panel').getAnimations().length === 0", "the panel has finished rising (row 885): its grip is where it is measured")
         if ready:
             p.until("!document.querySelector('#ask-send').disabled", "the panel is ready to take a question")
         return p
