@@ -8,7 +8,7 @@
 //   above     the slot above the plan: a later step mounts the Dashboard's sections here (page scope on the sections table)
 //   below     the slot below the plan
 //   today     today as YYYY-MM-DD (default: the computer's)
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useState } from "preact/hooks";
 import { mode, fromFile } from "../../stores/report.js";
 import { Cover } from "../../components/Cover.jsx";
 import { Icon } from "../../components/Icon.jsx";
@@ -25,7 +25,7 @@ const busy = (el) => !!el && el.nodeType === 1 && (el.isContentEditable || /^(IN
 
 function useHost(host) {
   const [state, setState] = useState(() => host.read());
-  useEffect(() => { setState(host.read()); return host.subscribe(() => setState(host.read())); }, [host]);
+  useLayoutEffect(() => { setState(host.read()); return host.subscribe(() => setState(host.read())); }, [host]);
   return state;
 }
 
@@ -45,7 +45,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   // Leaving Edit leaves the "Ticked lines" filter, which View does not have.
   useEffect(() => { if (!editing && filter === "ticked") setFilter("all"); }, [editing]);
 
-  useEffect(() => {      // Cmd or Ctrl+Z, where the host does not leave it to the app's own key (a field, the editor or an open menu keeps its own undo)
+  useLayoutEffect(() => {      // Cmd or Ctrl+Z, where the host does not leave it to the app's own key (a field, the editor or an open menu keeps its own undo)
     if (!host.ownUndoKey) return undefined;
     const onKey = (e) => {
       if (!editing || !(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || (e.key !== "z" && e.key !== "Z") || busy(document.activeElement) || busy(e.target)) return;
@@ -138,7 +138,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
 
   return (
     <section class="frame report gp" id="gantt-page" data-mode={editing ? "edit" : "view"} data-layout={layout}>
-      {Toggle ? <div class="rbar" id="gantt-bar"><Toggle pill /><span class="rbar-state">{editing ? W.editNote : ""}</span></div> : null}
+      {Toggle ? <div class="rbar" id="gantt-bar"><Toggle pill />{editing ? <span class="rbar-state">{W.editNote}</span> : null}</div> : null}
       <Cover title={editing && Title ? <Title text={title} label={W.titleLabel} onSave={saveTitle} /> : title} lines={coverLine(project, fromFile.value ? "" : now)} />
       {above ? <div class="gp-slot gp-above" data-slot="above">{above}</div> : null}
       <div class="gp-plan" data-gp-plan>

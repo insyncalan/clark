@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -43,7 +44,8 @@ def page_html():
             done = bundle(DEMO, out)
             assert done.returncode == 0, done.stderr
             script = out.read_text(encoding="utf-8").replace("</script", "<\\/script")
-        css = (build_page.TOKENS.read_text(encoding="utf-8") + (build_page.PAGE / "shell.css").read_text(encoding="utf-8")).replace("</style", "<\\/style")
+        css = (build_page.TOKENS.read_text(encoding="utf-8") + (build_page.PAGE / "shell.css").read_text(encoding="utf-8")
+               + build_page.EDIT_CSS.read_text(encoding="utf-8")).replace("</style", "<\\/style")      # the served page's styles, Edit parts included
         _PAGE["html"] = ('<!doctype html>\n<html lang="en-GB" data-theme="auto"><head><meta charset="utf-8">'
                          '<meta name="viewport" content="width=device-width, initial-scale=1"><title>t</title>'
                          f'<style>\n{css}</style></head>\n<body><div id="root"></div>\n<script>{script}</script>\n</body></html>\n')
@@ -141,6 +143,9 @@ class Page(unittest.TestCase):
 
     def click(self, sel):
         self.js(f"document.querySelector({lit(sel)}).click()")
+
+    def settle(self):
+        time.sleep(0.3)
 
     def key(self, key, target="document", **kw):
         self.js(f"{target}.dispatchEvent(new KeyboardEvent('keydown', Object.assign({{key: {lit(key)}, bubbles: true, cancelable: true}}, {lit(kw)})))")
@@ -374,6 +379,7 @@ class Page(unittest.TestCase):
         self.mount()
         self.click("[data-g-bar='GNT-001']")
         self.until("document.querySelector('[data-g-bar].sel')", "selected")
+        self.settle()      # the page hooks its click-away listener a moment after it draws the selection
         self.js("document.querySelector('#cover').dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))")
         self.until("!document.querySelector('[data-g-bar].sel')", "let go")
 
