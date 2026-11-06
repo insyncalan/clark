@@ -260,6 +260,23 @@ class RealBrowser(unittest.TestCase):
                                                "(document.querySelector('.ucp-body').getBoundingClientRect())", sid))
                 self.assertEqual(cdp.js("window.violations", sid), [])
 
+    def test_two_slashes_open_no_words_box_in_a_published_file(self):
+        """Row 825: a published file is read-only; two slashes open no words box on its Use cases tab."""
+        plant, pub, text = made()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "r.html"
+            path.write_text(text, encoding="utf-8")
+            with chrome() as cdp:
+                sid = opened(cdp, path.as_uri())
+                self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"))
+                cdp.js("document.querySelector('[data-view=usecases]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1').textContent", sid) == "Use cases"))
+                for _ in range(2):
+                    common = {"key": "/", "code": "Slash", "windowsVirtualKeyCode": 191}
+                    cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", **common, "text": "/"}, sid)
+                    cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
+                self.assertFalse(wait(lambda: cdp.js("!!document.querySelector('[data-sneak],[data-sneak-open]')", sid), 1.4), "no words box in a published file")
+
 
 if __name__ == "__main__":
     unittest.main()
