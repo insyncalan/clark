@@ -904,6 +904,10 @@ def _do_item_change(store, by_user, req, project, table, columns, place):
             if found is None or found["project"] != project:
                 raise Refused(NO_USE_CASE)
         was_pending = table == "decisions" and row["status"] == "Pending"
+        who = HAND_OVER_FIELD.get(table)
+        if who in changes:                                          # row 866: the owner text and the person it links to change together, else a later rename or merge of the old person puts the old name back
+            found = store.resolve_owner(changes[who]) if changes[who] else {"status": "blank"}
+            changes["owner_id"] = found["id"] if found["status"] == "one" else None
         try:
             st.update(table, ref, changes)
         except Invalid as e:                                        # a rule of the store, in fixed words: no field name, no value

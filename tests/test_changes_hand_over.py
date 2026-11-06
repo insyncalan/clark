@@ -341,7 +341,7 @@ class PeopleList(Base):
         before = self.counts()
         status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
         self.assertEqual((status, undone["ok"], undone["message"]), (409, False, changes.HAND_OVER_CHANGED), undone)
-        self.assertEqual((self.who(ref), self.linked(ref)), ("Cara Free", bob), "the name stays, and no old link is put back beside it")
+        self.assertEqual((self.who(ref), self.linked(ref)), ("Cara Free", None), "the name stays, and no old link is put back beside it")
         self.assertEqual(self.counts(), before, "nothing was written")
 
     def test_a_hand_over_whose_only_item_was_edited_is_all_skipped_in_an_undo_of_several(self):
@@ -357,7 +357,7 @@ class PeopleList(Base):
         self.assertEqual(status, 200, undone)
         self.assertEqual([(x["ref"], x["why"]) for x in undone["skipped"]], [(ref, changes.CHANGED_SINCE)], undone)
         self.assertEqual(undone["undo"], [])
-        self.assertEqual((self.who(ref), self.linked(ref)), ("Cara Free", bob))
+        self.assertEqual((self.who(ref), self.linked(ref)), ("Cara Free", None))
         self.assertEqual(self.counts(), before, "a preview writes nothing")
 
     def three_handed(self):
@@ -383,7 +383,7 @@ class PeopleList(Base):
         self.assertEqual((status, undone["ok"]), (200, True), undone)
         for ref in others:
             self.assertEqual((self.who(ref), self.linked(ref)), (OWNER, ada), "owner and link are both back")
-        self.assertEqual((self.who(edited), self.linked(edited)), ("Cara Free", bob), "its text and its link are left as they are")
+        self.assertEqual((self.who(edited), self.linked(edited)), ("Cara Free", None), "its text and its link are left as they are")
         self.assertEqual(sorted(e["ref"] for e in undone["reversed"]), sorted(others), "one line for each item put back")
         self.assertEqual({e["field"] for e in undone["reversed"]}, {"owner"})
         self.assertEqual([(x["ref"], x["field"], x["why"]) for x in undone["skipped"]], [(edited, "owner", changes.CHANGED_LATER)],
@@ -403,7 +403,7 @@ class PeopleList(Base):
         self.assertEqual(len({x["by_step"] for x in done["skipped"]}), 1)
         self.assertIsNotNone(done["skipped"][0]["by_step"])
         self.assertNotIn(edited, {x["ref"] for x in done["reversed"]})
-        self.assertEqual(self.linked(edited), bob)
+        self.assertEqual(self.linked(edited), None)
 
     def test_an_undo_of_several_skips_the_edited_item_and_undoes_the_others(self):
         ada, bob, refs, edited, apply_id = self.three_handed()
@@ -412,11 +412,11 @@ class PeopleList(Base):
         self.assertEqual(status, 200, undone)
         self.assertEqual(sorted(x["ref"] for x in undone["undo"]), sorted(others), undone)
         self.assertEqual([(x["ref"], x["why"]) for x in undone["skipped"]], [(edited, changes.CHANGED_SINCE)], undone)
-        self.assertEqual((self.who(edited), self.linked(edited)), ("Cara Free", bob), "a preview changes nothing")
+        self.assertEqual((self.who(edited), self.linked(edited)), ("Cara Free", None), "a preview changes nothing")
         status, done = self.undo({"project": "ABC", "steps": [apply_id]})
         self.assertEqual(status, 200, done)
         self.assertEqual([(self.who(r), self.linked(r)) for r in others], [(OWNER, ada)] * 2)
-        self.assertEqual((self.who(edited), self.linked(edited)), ("Cara Free", bob))
+        self.assertEqual((self.who(edited), self.linked(edited)), ("Cara Free", None))
 
     def test_the_activity_tick_stays_for_a_hand_over_with_one_item_left_to_undo(self):
         ada, bob, refs, edited, apply_id = self.three_handed()
@@ -470,7 +470,7 @@ class PeopleList(Base):
         self.change({"project": "ABC", "kind": "actions", "op": "update", "id": ref, "changes": {"owner": "Cara Free"}})
         status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
         self.assertEqual((status, undone["message"]), (409, changes.HAND_OVER_CHANGED), undone)
-        self.assertEqual((self.who(ref), self.linked(ref)), ("Cara Free", bob))
+        self.assertEqual((self.who(ref), self.linked(ref)), ("Cara Free", None))
 
     def test_free_text_writes_no_id_and_clears_an_old_one(self):
         old = self.person(OWNER)
@@ -512,6 +512,40 @@ class PeopleList(Base):
         for words in (changes.HAND_OVER_UNKNOWN, changes.HAND_OVER_MANY, changes.HAND_OVER_ARCHIVED, changes.HAND_OVER_NOBODY, changes.BULK_CLOSED):
             self.assertTrue(words.endswith("."), words)
             self.assertNotRegex(words, r"[_{}<>]|\bid\b|owner_id|resolve", words)
+
+
+class SingleEdit(Base):
+    """Row 866: a single owner edit on a work item writes the person link beside the text, so a later rename keeps the edit."""
+
+    def edit(self, ref, who, field="owner"):
+        kind = clark_store.item_table(ref)
+        got, body = self.change({"project": "ABC", "kind": kind, "op": "update", "id": ref, "changes": {field: who}})
+        self.assertEqual(got, 200, body)
+
+    def test_an_edited_owner_survives_a_rename_of_the_old_person(self):
+        with self.s.step("dashboard", USER) as st:
+            old = st.add_person(name=OWNER, source="People list")
+            new = st.add_person(name=NEW, source="People list")
+            st.update("actions", self.actions[0], {"owner_id": old})
+            st.update("decisions", self.decisions[0], {"owner_id": old})
+        self.edit(self.actions[0], NEW)
+        self.edit(self.decisions[0], NEW, "made_by")
+        self.assertEqual(self.s.read("actions", ref=self.actions[0])["owner_id"], new)
+        self.assertEqual(self.s.read("decisions", ref=self.decisions[0])["owner_id"], new)
+        with self.s.step("dashboard", USER) as st:
+            st.rename_person(old, "Ada Renamed")
+        self.assertEqual(self.who(self.actions[0]), NEW)
+        self.assertEqual(self.who(self.decisions[0]), NEW)
+
+    def test_free_text_clears_the_link(self):
+        with self.s.step("dashboard", USER) as st:
+            old = st.add_person(name=OWNER, source="People list")
+            st.update("actions", self.actions[0], {"owner_id": old})
+        self.edit(self.actions[0], "Someone Unlisted")
+        self.assertIsNone(self.s.read("actions", ref=self.actions[0])["owner_id"])
+        with self.s.step("dashboard", USER) as st:
+            st.rename_person(old, "Ada Renamed")
+        self.assertEqual(self.who(self.actions[0]), "Someone Unlisted")
 
 
 if __name__ == "__main__":
