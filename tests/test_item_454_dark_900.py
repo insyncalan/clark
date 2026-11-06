@@ -64,6 +64,10 @@ def set_scheme(cdp, sid, scheme):
     """The page in the light or the dark theme: the emulated media feature, and data-theme on the root, as the existing dark checks do."""
     cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
     cdp.js(f"document.documentElement.setAttribute('data-theme', '{scheme}')", sid)
+    time.sleep(0.15)       # row 881: controls fade their colours over 120 ms: measure after the fades have finished, not mid-fade
+    deadline = time.time() + 5
+    while time.time() < deadline and cdp.js("document.getAnimations().length", sid):
+        time.sleep(0.05)
 
 
 class Look:

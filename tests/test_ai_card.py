@@ -331,7 +331,9 @@ class Card(unittest.TestCase):
         self.assertEqual(self.h.say(), WORKING)             # the words stay: the state is text, not motion
 
     def test_the_card_css_uses_tokens_and_no_raw_colour_or_fixed_pixels(self):
-        block = CSS[CSS.index("/* The AI suggestion card"):]
+        start = CSS.index("/* The AI suggestion card")
+        end = CSS.find("/* The first-run welcome", start)      # the AI card block ends where the next feature starts (later rows append their own rules after it)
+        block = CSS[start:] if end == -1 else CSS[start:end]
         self.assertNotRegex(block, r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsl")
         self.assertEqual(sorted(set(re.findall(r"\b\d+px", block))), ["1px", "2px"])      # borders and focus rings only
         self.assertNotRegex(block, r"var\(--status-")
