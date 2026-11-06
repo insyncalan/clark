@@ -138,7 +138,9 @@ export function Peek({ tools }) {
         const now = document.querySelector(sel);
         if (now) el = now;
       }
-      if (el && el.isConnected && el.focus) el.focus();
+      const now = document.activeElement;                                          // a click on another row (a Shift click that closes the peek) has put the focus there already: leave it
+      const elsewhere = now && now !== document.body && now.isConnected && !now.closest("#peek");
+      if (!elsewhere && el && el.isConnected && el.focus) el.focus();
     };
   }, [!!p]);                                              // eslint-disable-line react-hooks/exhaustive-deps
   // After a step the focus is never left on a button that has just turned off (Next at the last item) or on the page: it goes to Close.
