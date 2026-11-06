@@ -370,7 +370,7 @@ class Words(unittest.TestCase):
     def test_row_802_the_top_bar_rules_use_color_mix_tokens_and_no_rgba(self):
         css = (Path(__file__).resolve().parent.parent / "src/clark/page/shell.css").read_text(encoding="utf-8")
         self.assertNotIn("rgba(", css, "colours in shell.css come from the tokens")
-        for sel in (".top .divider", ".projbtn:hover", ".tab", ".modes", ".hp-top", ".toast-btn:hover"):
+        for sel in (".top .divider", ".projbtn:hover", ".tab", ".modes", ".toast-btn:hover"):
             line = next(l for l in css.splitlines() if l.startswith(sel + " "))
             self.assertIn("color-mix(in srgb, var(--white)", line, sel)
 

@@ -78,7 +78,7 @@ COVERED = [
     ("#696", "In Docker the start line says how to stop with docker compose down and mentions no window.",
      "test_platform_container::StartLine::test_the_container_line_gives_the_docker_stop_and_no_window"),
     ("#664", "The top bar has a search icon and an ask clark button, before Help and the avatar.",
-     "test_top_bar_actions::TopBarActions::test_the_two_buttons_have_their_words_and_sit_before_help_and_the_avatar"),
+     "test_top_bar_actions::TopBarActions::test_the_two_buttons_have_their_words_and_sit_before_the_avatar"),
     ("#664", "The ask clark button is not there while asking is off.",
      "test_top_bar_actions::TopBarActions::test_the_ask_button_is_not_there_while_asking_is_off"),
     ("#677", "Settings has a chip for each card that is shown.",
@@ -165,8 +165,8 @@ COVERED = [
      "test_package::MacZipTest::test_start_here_says_what_is_in_the_folder_and_how_to_swap_an_old_clark"),
     ("#721", "Help says ask clark changes work items and milestones, never use cases.",
      "test_help_ask_peek::HelpAskAndSneakPeek::test_ask_clark_changes_work_items_and_milestones_not_use_cases"),
-    ("#721", "Help says Sneak peek changes work items only, and the Start part has one top-bar button bullet.",
-     "test_help_ask_peek::HelpAskAndSneakPeek::test_sneak_peek_is_work_items_only"),
+    ("#721", "Help says Sneak peek changes a work item, a milestone or a use case in Edit only, and the Start part has one top-bar button bullet.",
+     "test_help_ask_peek::HelpAskAndSneakPeek::test_sneak_peek_says_what_it_can_change_and_that_it_is_edit_only"),
     ("#731", "The first start opens with made-up demo projects and a banner 'This is demo data.' with a Remove demo data button.",
      "test_demo_banner::DemoLine::test_the_banner_asks_first_and_then_the_page_lands_on_the_empty_screen_with_one_new_project_button"),
     ("#731", "The demo projects load on a fresh data folder and never come back once removed.",
@@ -293,6 +293,8 @@ class Notes(unittest.TestCase):
         """Gated so it is green before and after the #709 backend merges: while SCHEMA_VERSION is still 15 the step is not in
         main, so there is nothing to compare and the test skips; once it is not 15 it must be exactly the step the notes name."""
         found = schema_version()
+        if found > SCHEMA_AT_1_0_1:
+            self.skipTest("the layout has moved on past %d (now %d, a later release's step, row 811): these are 1.0.1's notes" % (SCHEMA_AT_1_0_1, found))
         if found == SCHEMA_AT_1_0_0:
             self.skipTest("SCHEMA_VERSION is still %d: the #709 layout step is not on main yet; the notes' words are asserted anyway" % found)
         self.assertEqual(found, SCHEMA_AT_1_0_1, "the notes name layout %d; store.py says %s" % (SCHEMA_AT_1_0_1, found))
@@ -327,6 +329,8 @@ class Cut(unittest.TestCase):
     def test_the_layout_step_is_in_at_the_cut(self):
         """The notes say a layout step is in, so at the cut SCHEMA_VERSION must be 16: this fails in a 1.0.1 copy while #709's backend is not merged."""
         self.cut_made()
+        if schema_version() > SCHEMA_AT_1_0_1:
+            self.skipTest("the layout has moved on past %d (a later release's step, row 811): these are 1.0.1's notes" % SCHEMA_AT_1_0_1)
         self.assertEqual(schema_version(), SCHEMA_AT_1_0_1, "the notes carry the layout paragraph: the #709 backend must be in main before the cut")
 
     def test_a_waiting_row_whose_pull_request_has_landed_has_been_moved_to_covered(self):

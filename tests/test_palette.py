@@ -161,8 +161,8 @@ class Results(Base):
             p = self.visit(cdp)
             p.show()
             kinds = [r[0] for r in p.rows()]
-            self.assertEqual(kinds[:6], ["Command"] * 6)
-            self.assertEqual(p.rows()[0][1], "Publish…")
+            self.assertEqual([k for i, k in enumerate(kinds) if i == 0 or k != kinds[i - 1]], ["Page", "Action", "Project", "Command"])     # row 900: one run of each, in this order
+            self.assertEqual(p.rows()[0][1], "Dashboard")
             self.assertEqual([r[1] for r in p.rows() if r[0] == "Page"], ["Dashboard", "Work items", "Milestones", "Use cases"])     # the Use cases page (#157) is a tab of the Edit page; the client report (#192) after it
             self.assertEqual([r[1] for r in p.rows() if r[0] == "Project"], ["Example Programme", "Second Programme"])
             p.find("a-001")
@@ -181,6 +181,23 @@ class Results(Base):
             self.assertEqual(p.rows(), [])
             self.assertIn("Nothing matches", p.js("document.querySelector('#palette .pal-none').innerText"))
 
+    def test_the_groups_come_in_the_order_pages_actions_projects_commands(self):
+        """Row 900: an empty query shows Pages, Actions (the create entries, in the Add buttons' own words), Projects, Commands, at both widths."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for w in (1400, 900):
+                p.width(w)
+                p.show()
+                rows = p.rows()
+                kinds = [r[0] for r in rows]
+                self.assertEqual([k for i, k in enumerate(kinds) if i == 0 or k != kinds[i - 1]], ["Page", "Action", "Project", "Command"], f"at {w} px")
+                self.assertEqual([r[1] for r in rows if r[0] == "Action"], ["Add action", "Add risk", "Add issue", "Add decision", "Add milestone"])
+                self.assertEqual(p.active(), "Dashboard", "the first result that can run is the first page")
+                p.find("risk")
+                self.assertEqual([r[:2] for r in p.rows() if r[0] == "Action" and r[1].startswith("Add ")], [["Action", "Add risk"]])      # a work item of kind action (row 901's data matches) also carries the kind word Action
+                p.key("Escape", 0, "Escape", 27)
+                p.until("!document.querySelector('#palette')", "closed")
+
     def test_an_id_match_comes_before_a_title_match(self):
         data = project("ABC", "Example Programme")
         data["actions"].insert(0, {"id": "ABC-A-009", "description": "Check ABC-R-002 with the supplier", "status": "Open", "owner": "Sam"})
@@ -192,11 +209,49 @@ class Results(Base):
             p.find("abc-r-002")
             self.assertEqual([r[1] for r in p.rows()], ["Supplier may slip", "Check ABC-R-002 with the supplier"])
 
+    def test_search_finds_the_data_by_words_id_and_person(self):
+        """Row 901: words in the text, the ID and the owner's name find work items and milestones, at both widths; nothing matching shows the plain empty line."""
+        data = project("ABC", "Example Programme")
+        data["actions"].append({"id": "ABC-A-010", "description": "Book user testing sessions", "status": "Open", "owner": "Priya Nair"})
+        data["milestones"].append({"id": "ABC-M-002", "name": "Handover", "owner": "Priya Nair"})
+        data["use_cases"] = [{"id": "uc1", "ref": "1.1", "title": "User testing programme", "headline": "Weekly sessions", "status": "On track"}]
+        DATA["ABC"] = data
+        self.addCleanup(DATA.update, {"ABC": project("ABC", "Example Programme")})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for w in (1400, 900):
+                p.width(w)
+                p.show()
+                p.find("user testing")
+                self.assertEqual([r[:2] for r in p.rows()], [["Action", "Book user testing sessions"], ["Use case", "User testing programme"]], f"words at {w} px")
+                p.find("weekly")
+                self.assertEqual([r[:2] for r in p.rows()], [["Use case", "User testing programme"]], f"use case headline at {w} px")
+                p.find("uc1")
+                self.assertEqual([r[:2] for r in p.rows()], [["Use case", "User testing programme"]], f"use case ID at {w} px")
+                p.find("milestone")          # data comes right after the pages, before the actions
+                kinds = [r[0] for r in p.rows()]
+                self.assertEqual(kinds, ["Page", "Milestone", "Milestone", "Action"], f"data before actions at {w} px")
+                p.find("abc-a-010")
+                self.assertEqual([r[:2] for r in p.rows()], [["Action", "Book user testing sessions"]], f"ID at {w} px")
+                p.find("priya")
+                self.assertEqual([r[:2] for r in p.rows()], [["Action", "Book user testing sessions"], ["Milestone", "Handover"]], f"person at {w} px")
+                p.find("nair user")
+                self.assertEqual([r[:2] for r in p.rows()], [["Action", "Book user testing sessions"]], f"person and words at {w} px")
+                p.find("zzzz")
+                self.assertEqual(p.rows(), [])
+                self.assertIn("Nothing matches", p.js("document.querySelector('#palette .pal-none').innerText"))
+                p.key("Escape", 0, "Escape", 27)
+                p.until("!document.querySelector('#palette')", "closed")
+            p.show()
+            p.find("uc1")
+            p.key("Enter", 0, "Enter", 13)
+            p.until("location.hash.indexOf('uc=1.1') > 0", "Enter on a use case opens its page")
+
     def test_up_and_down_wrap_and_skip_what_cannot_run(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.show()
-            self.assertEqual(p.active(), "Publish…")
+            self.assertEqual(p.active(), "Dashboard")
             names = [r[1] for r in p.rows() if not r[2]]
             p.key("ArrowUp", 0, "ArrowUp", 38)
             self.assertEqual(p.active(), names[-1], "Up from the first wraps to the last")
@@ -353,6 +408,31 @@ class Looks(Base):
                     colours = p.js("(function(){var d=getComputedStyle(document.querySelector('#palette')), r=getComputedStyle(document.querySelector('#palette .pal-label'));"
                                    "return [d.backgroundColor, r.color]})()")
                     self.assertNotEqual(colours[0], colours[1], "the text is not the colour of the box")
+                    p.key("Escape", 0, "Escape", 27)
+                    p.until("!document.querySelector('#palette')", "closed")
+
+    def test_the_active_row_has_a_clear_outline_and_the_kind_labels_are_capitals(self):
+        """Row 904: the row Enter will run has a 2 px solid outline in the focus token; the kind labels are uppercase; rows are 24 px or more."""
+        probe = ("(function(){var r=document.querySelector('#palette .pal-row.on'), c=getComputedStyle(r), k=getComputedStyle(r.querySelector('.pal-kind')),"
+                 "t=document.createElement('i'); t.style.color='var(--focus)'; document.body.appendChild(t); var f=getComputedStyle(t).color; t.remove();"
+                 "return [c.outlineWidth, c.outlineStyle, c.outlineColor === f, r.getBoundingClientRect().height, k.textTransform, r.querySelector('.pal-label').textContent]})()")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for w in (1400, 900):
+                for dark in (False, True):
+                    p.width(w)
+                    p.dark(dark)
+                    p.show()
+                    ow, style, brand, height, transform, first = p.js(probe)
+                    where = f"at {w} px dark={dark}"
+                    self.assertEqual((ow, style, brand), ("2px", "solid", True), "the active row is outlined " + where)
+                    self.assertGreaterEqual(height, 24, "the row is 24 px or taller " + where)
+                    self.assertEqual(transform, "uppercase", "the kind label is in capitals " + where)
+                    p.key("ArrowDown", 0, "ArrowDown", 40)
+                    p.until(f"document.querySelector('#palette .pal-row.on .pal-label').textContent !== {first!r}", "the active row moved")
+                    again = p.js(probe)
+                    self.assertEqual(again[:3], ["2px", "solid", True], "the outline follows the active row " + where)
+                    self.assertEqual(p.js("document.querySelectorAll('#palette .pal-row.on').length"), 1)
                     p.key("Escape", 0, "Escape", 27)
                     p.until("!document.querySelector('#palette')", "closed")
 

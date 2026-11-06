@@ -151,18 +151,19 @@ class Nav(Base):
                         set_theme(cdp, p, scheme)
                         p.js("window.scrollTo(0, 0)")
                         p.until("window.scrollY === 0", "at the top")
-                        p.js("window.scrollTo(0, document.documentElement.scrollHeight)")
-                        p.until("window.scrollY > 500", "scrolled down")
-                        p.until("(() => { const l = [...document.querySelectorAll('.hp-idx a')]; return l.length > 0 && l[l.length - 1].getAttribute('aria-current') === 'true'; })()",
-                                f"{tab} {scheme} {w}: the last contents entry is marked at the foot")
+                        # Row 889: each poll goes to the foot again (the page may still be growing after the resize or the tab change, and the page marks the
+                        # entry only on a scroll, after its own landing pause), then asks the marked state itself; a generous wait, no fixed sleep.
+                        p.until("(() => { window.scrollTo(0, document.documentElement.scrollHeight); const l = [...document.querySelectorAll('.hp-idx a')];"
+                                " return window.scrollY > 500 && l.length > 0 && l[l.length - 1].getAttribute('aria-current') === 'true'; })()",
+                                f"{tab} {scheme} {w}: the last contents entry is marked at the foot", 30)
 
     def test_start_here_has_its_contents_list_with_the_jobs(self):
         from test_server import chrome
         with chrome() as cdp:
             p = self.in_help(cdp)
             self.assertEqual(p.js("[...document.querySelectorAll('.hp-idx a')].map(a => a.textContent)"),
-                             ["Start here"] + [j[1] for j in shown_content()["start"]["jobs"]] + [x["t"] for x in shown_content()["howto"]["tasks"] if x["id"] not in [j[0] for j in shown_content()["start"]["jobs"] if len(j) < 5]] + [shown_content()["start"]["text"]["where_title"], shown_content()["start"]["text"]["rules_title"]])   # a job that opens a guide leaves its how-to entry in the list
-            self.assertEqual(p.js("document.querySelector('.hp-idx a[aria-current]').textContent"), "Start here")
+                             [shown_content()["start"]["hero"]["title"], shown_content()["start"]["text"]["loop_title"], "Start here"] + [j[1] for j in shown_content()["start"]["jobs"]] + [x["t"] for x in shown_content()["howto"]["tasks"] if x["id"] not in [j[0] for j in shown_content()["start"]["jobs"] if len(j) < 5]] + [shown_content()["start"]["text"]["where_title"], shown_content()["start"]["text"]["rules_title"]])   # a job that opens a guide leaves its how-to entry in the list
+            self.assertEqual(p.js("document.querySelector('.hp-idx a[aria-current]').textContent"), shown_content()["start"]["hero"]["title"])
             self.assertEqual(p.js("getComputedStyle(document.querySelector('.hp-idx')).position"), "sticky")
 
     # ---------- (4) the way back ----------
@@ -173,7 +174,7 @@ class Nav(Base):
             self.assertEqual(p.js("document.querySelector('#hpPrev')"), None, "nowhere to go back to yet")
             p.js("document.querySelector('.hp-job[data-hlink=guide-add-a-section-from-a-template]').click()")
             p.until("!!document.querySelector('#hp-guide-add-a-section-from-a-template.hp-found')", "the job opened")
-            self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to Start here")
+            self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to " + shown_content()["start"]["hero"]["title"])
             self.assertTrue(p.js("var a=document.querySelector('#hpBack').getBoundingClientRect(), b=document.querySelector('#hpPrev').getBoundingClientRect(); b.left >= a.right - 1 && Math.abs(a.top - b.top) < 8"), "beside Back, on its row")
             self.assertEqual(p.js("document.querySelector('#hpBack').textContent"), "Back", "Back still means Back")
             ids = p.js("[...document.querySelectorAll('.hp-idx a')].map(a => a.dataset.hlink)")
@@ -183,7 +184,7 @@ class Nav(Base):
             p.js("document.querySelector('#hpPrev').click()")
             p.until("!!document.querySelector('#hp-guide-add-a-section-from-a-template.hp-found')", "the way back opened the place before")
             self.assertEqual(p.js("document.querySelector('.hp-idx a[aria-current]').dataset.hlink"), "guide-add-a-section-from-a-template")
-            self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to Start here", "and the one before that is next")
+            self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to " + shown_content()["start"]["hero"]["title"], "and the one before that is next")
             p.js("document.querySelector('#hpPrev').click()")
             p.until("document.querySelector('#hpTab-start').getAttribute('aria-selected') === 'true' && !!document.querySelector('.hp-job')", "back on Start here")
             self.assertEqual(p.js("document.querySelector('#hpPrev')"), None, "the history is used up")
@@ -213,7 +214,7 @@ class Nav(Base):
             p = self.in_help(cdp)
             p.js("document.querySelector('#hpTab-reference').click()")
             p.until("document.querySelector('#hpTab-reference').getAttribute('aria-selected') === 'true'", "Reference")
-            self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to Start here")
+            self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to " + shown_content()["start"]["hero"]["title"])
             p.js("document.querySelector('#hpPrev').click()")
             p.until("document.querySelector('#hpTab-start').getAttribute('aria-selected') === 'true'", "back on Start here")
 

@@ -10,6 +10,14 @@ import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panel
 import * as W from "./askWords.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 
+// Row 890: the files an answer used, as the server sends them ({id, label}). A long file is cut into parts labelled "name (part N)":
+// the suffix is dropped and each file is listed once, in the order first seen.
+function sourceLabels(list) {
+  if (!Array.isArray(list)) return [];
+  const names = list.filter((s) => s && typeof s.label === "string" && s.label).map((s) => s.label.replace(/ \(part \d+\)$/, ""));
+  return names.filter((n, i) => names.indexOf(n) === i);
+}
+
 async function post(path, body) {
   try {
     const r = await fetch(path, { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
@@ -19,6 +27,8 @@ async function post(path, body) {
   }
 }
 
+const stillMotion = () => document.documentElement.dataset.motion === "reduce" || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
 export function AskPanel() {
   const open = panelOpen.value, state = panelState.value, model = panelModel.value, width = panelWidth.value;
   const list = turns.value, busy = pending.value;
@@ -27,8 +37,24 @@ export function AskPanel() {
   const [quip, setQuip] = useState("");
   const box = useRef(null), log = useRef(null);
   useGrow(box, open ? text : null);
+  // Row 885: closing sinks the panel first, and it stays drawn until the animation ends (a 400 ms timer guards it, so no dead overlay is left).
+  // Where motion is off it leaves at once, as before.
+  const phase = useRef(open ? "open" : "closed"), [, redraw] = useState(0);
+  if (open) phase.current = "open"; else if (phase.current === "open") phase.current = stillMotion() ? "closed" : "leaving";
+  const leaving = phase.current === "leaving";
+  const finish = () => { if (phase.current === "leaving") { phase.current = "closed"; redraw((n) => n + 1); } };
+  useEffect(() => { if (!leaving) return undefined; const t = setTimeout(finish, 400); return () => clearTimeout(t); }, [leaving]);
 
-  useEffect(() => { if (open && state === "ready" && box.current) box.current.focus(); else if (open) { const c = document.getElementById("ask-panel"); if (c) c.focus(); } }, [open, state, panelFocus.value]);
+  // Row 858: the box is usable while the check is out (what is typed stays, and so does focus); only Send waits for the answer.
+  // The answer arriving (a state change alone) moves focus only while it is still in the panel or nowhere: a person who has moved on keeps their place.
+  const seen = useRef({ open: false, bump: 0 });
+  useEffect(() => {
+    const fresh = seen.current.open !== open || seen.current.bump !== panelFocus.value;
+    seen.current = { open, bump: panelFocus.value };
+    const at = document.activeElement, c = document.getElementById("ask-panel");
+    if (!fresh && at && at !== document.body && !(c && c.contains(at))) return;
+    if (open && (state === "ready" || state === "checking") && box.current) box.current.focus(); else if (open && c) c.focus();
+  }, [open, state, panelFocus.value]);
   useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [list.length, busy]);
   useEffect(() => {
     if (!busy) { setQuip(""); return undefined; }
@@ -39,7 +65,7 @@ export function AskPanel() {
     return () => clearTimeout(t);
   }, [busy]);
 
-  if (!open) return null;
+  if (!open && !leaving) return null;
 
   // `preset` is a suggestion's words: it is asked as it stands and leaves what is typed in the box alone.
   async function send(e, preset) {
@@ -58,7 +84,7 @@ export function AskPanel() {
     const b = r.body;
     if (r.status === 200 && b && b.ok === true && typeof b.answer === "string") {
       const extra = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
-      turns.value = [...turns.value, { role: "assistant", text: b.answer }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
+      turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
       if (typeof b.reply === "string" && b.reply && Array.isArray(b.changes) && b.changes.length) await showChanges(b.reply);
     } else if (r.status === 409 && b && b.code === "asking_off") {
       panelState.value = "off";
@@ -115,7 +141,7 @@ export function AskPanel() {
   }
 
   return (
-    <aside id="ask-panel" class="ask-panel" role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}>
+    <aside id="ask-panel" class={leaving ? "ask-panel leaving" : "ask-panel"} onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "ask-down") finish(); }} role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}>
       <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
       <header class="ask-head">
         <h2>{W.PANEL_TITLE}</h2>
@@ -138,6 +164,12 @@ export function AskPanel() {
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>
             {t.kind === "changes" ? <ChangeCards turn={t} /> : <div class="ask-text">{t.text}</div>}
+            {t.sources && t.sources.length ? (
+              <details class="ask-sources">
+                <summary>{W.SOURCES}</summary>
+                <ul>{t.sources.map((n, k) => <li key={k}>{n}</li>)}</ul>
+              </details>
+            ) : null}
           </div>
         ))}
       </div>
@@ -154,7 +186,7 @@ export function AskPanel() {
       {state === "ready" || state === "signed-out" ? <p class="ask-sent" id="ask-sent">{W.named(W.SENT_LINE, askProvider.value)}</p> : null}
       <p class="ask-note" id="ask-note" role="status" aria-live="polite">{note}</p>
       <form class="ask-form" onSubmit={send}>
-        <textarea ref={box} id="ask-box" class="grow" rows="3" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready"}
+        <textarea ref={box} id="ask-box" class="grow" rows="3" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready" && state !== "checking"}
           onInput={(e) => setText(e.currentTarget.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e); }} />
         <div class="ask-actions">
