@@ -1,13 +1,13 @@
-// One use case on its own page (#157, Edit only: a published file never has this component). The crumb leads back to the list, the
+// One use case on its own page (#157; a published file never has this component). The crumb leads back to the list, the
 // title and status word come first, then two columns: where it stands, the linked work items and Archive on the left; the details,
-// the linked milestones and the history on the right. In Edit the title, headline and standing text are changed in place, the status
+// the linked milestones and the history on the right. Live, with no View|Edit switch (row 825): the title, headline and standing text are changed in place, the status
 // from a menu, the eye with a button; each is ONE change with one Undo (stores/changes.js, kind use_cases, op update), and Archive
-// and Restore are the existing archive ops. In View, and for an archived use case, nothing here changes anything. The history is
+// and Restore are the existing archive ops. For an archived use case nothing here changes anything but Restore. The history is
 // read from the use cases route (api.js); an archived use case is read with the archived rows (the page's usual read leaves them
 // out). A work item row and a linked milestone's name open their peek beside the page (row 859, row 860): the page stays, Esc closes the
 // peek and the focus goes back to the row or name. "Open all N in Work items" is the one way from here to the Work items page.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { data, rows, mode, fromFile, project, openWork, openPeek } from "../stores/report.js";
+import { data, rows, fromFile, project, openWork, openPeek } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
 import { readUseCaseHistory, readArchivedUseCase } from "../api.js";
@@ -110,7 +110,7 @@ const busy = (e) => !!e && e.nodeType === 1 && (e.isContentEditable || /^(INPUT|
 
 export function UseCaseDetail({ id }) {
   const d = data.value, code = project.value;
-  const editing = mode.value === "edit" && !fromFile.value;
+  const editing = !fromFile.value;                                         // row 825: no View|Edit switch here; only a published file is read-only
   const live = d && (d.use_cases || []).find((u) => u.id === id) || null;
   const [gone, setGone] = useState({ row: null, done: false });            // the archived row, once read
   const [hist, setHist] = useState({ state: "loading", lines: [] });
@@ -212,7 +212,7 @@ export function UseCaseDetail({ id }) {
       {archived ? (
         <div class="ucd-note" data-archived-note>
           <p>This use case is archived, so it is read-only. It is out of the lists, the counts and the dashboard. Nothing in it was deleted.</p>
-          {editing ? <button type="button" class="btn pri" data-restore onClick={() => archive("restore")}>Restore</button> : <span class="muted">Switch to Edit to restore it.</span>}
+          {editing ? <button type="button" class="btn pri" data-restore onClick={() => archive("restore")}>Restore</button> : null}
         </div>
       ) : null}
       <div class="ucd-grid">
