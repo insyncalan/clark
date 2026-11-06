@@ -39,7 +39,7 @@ export function Overall({ overall, size = "medium", words = null }) {
     <div class={`tr-overall tr-size-${size}`} data-tr-overall data-size={size}>
       <div class="tr-tile" data-tr-tile>
         <div class="tr-nums">
-          <div class="tr-fig"><span class="tr-k">{WORDS.actual}</span>{" "}<span class="tr-v num" data-tr-actual>{pct(actual)}</span></div>
+          <div class="tr-fig"><span class="tr-k">{WORDS.actual}</span>{" "}<span class="tr-v num" data-tr-actual>{pct(actual)}</span></div>{" "}
           <div class="tr-fig tr-fig-planned"><span class="tr-k">{WORDS.planned}</span>{" "}<span class="tr-v num" data-tr-planned>{pct(planned)}</span></div>
         </div>
         <div class="tr-side">
