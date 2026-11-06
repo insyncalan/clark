@@ -36,7 +36,7 @@ class TheFooter(unittest.TestCase):
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
         done = publish.publish(self.store, "PUB", folder.name, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
-        self.assertEqual(self.footer(done["path"]), f"Published 28-10-2026. Publication {done['number']} · 28-10-2026. View only.")
+        self.assertEqual(self.footer(done["path"]), f"Published 28-10-2026. Publication {done['number']}.")
 
     def test_a_file_with_no_date_reads_publication_n_alone(self):
         folder = tempfile.TemporaryDirectory()
@@ -44,7 +44,25 @@ class TheFooter(unittest.TestCase):
         done = publish.publish(self.store, "PUB", folder.name, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
         path = Path(done["path"])
         path.write_text(path.read_text(encoding="utf-8").replace('"as_at":"2026-10-28"', '"as_at":""'), encoding="utf-8")
-        self.assertEqual(self.footer(path), f"Publication {done['number']}. View only.")
+        self.assertEqual(self.footer(path), f"Publication {done['number']}.")
+
+    def test_row_785_the_client_sees_the_date_once_and_no_view_only_at_1400_and_900_light_and_dark(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        done = publish.publish(self.store, "PUB", folder.name, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
+        html = Path(done["path"]).read_text(encoding="utf-8")
+        self.assertNotIn("View only.", html)   # nowhere in the file a client opens
+        for width in (1400, 915):   # 915 is 900 px of page on this box (15 px scrollbar)
+            for scheme in ("light", "dark"):
+                with chrome() as cdp:
+                    sid = opened(cdp, Path(done["path"]).as_uri(), width)
+                    cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#publication-footer').length", sid) == 1))
+                    text = cdp.js("document.querySelector('#publication-footer').textContent", sid)
+                    self.assertEqual(" ".join(text.split()), f"Published 28-10-2026. Publication {done['number']}.", (width, scheme))
+                    self.assertEqual(text.count("28-10-2026"), 1)
+                    self.assertNotIn("View only", text)
+                    self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), (width, scheme))
 
     def test_a_preview_has_no_footer(self):
         folder = tempfile.TemporaryDirectory()

@@ -10,7 +10,7 @@ import unittest
 
 import test_peek as TP
 from test_server import chrome, wait
-from test_work_filters import dblclick
+from test_work_filters import click
 
 KEYS = {"ArrowUp": (38, ""), "ArrowDown": (40, ""), "ArrowLeft": (37, ""), "ArrowRight": (39, ""), "Escape": (27, "")}
 
@@ -36,7 +36,7 @@ class Arrows(unittest.TestCase):
         return cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)
 
     def open_by_double_click(self, cdp, sid, ids, at):
-        dblclick(cdp, sid, f"#work tbody tr[data-id='{ids[at]}'] .c-item")
+        click(cdp, sid, f"#work tbody tr[data-id='{ids[at]}'] .c-item")
         self.assertTrue(wait(lambda: self.shown(cdp, sid) == ids[at]))
         self.assertTrue(wait(lambda: self.on_close(cdp, sid)), "focus went into the peek, on Close")
 

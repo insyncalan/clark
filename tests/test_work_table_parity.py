@@ -63,16 +63,20 @@ class Source(unittest.TestCase):
         self.assertNotIn("client_visible:", eye, "the item's own flag is never written by the page directly")
 
 
-    def test_the_eye_is_a_button_in_edit_only_and_a_read_only_mark_with_words_in_view(self):
+    def test_the_eye_is_a_button_in_view_and_edit_with_words(self):
+        """Row 819: the Work items page is live, so the eye is a button in View as in Edit, and the board card uses the same one."""
         eye = (PAGE / "src" / "edit" / "cells" / "Eye.jsx").read_text(encoding="utf-8")
-        view = eye[eye.index('if (mode.value !== "edit")'):eye.index("  return (\n    <button")]
-        self.assertIn('role="img"', view)
+        self.assertNotIn('mode.value !== "edit"', eye, "no View branch")
+        self.assertNotIn('role="img"', eye)
         self.assertIn("Shown to the client", eye)
         self.assertIn("Hidden from the client", eye)
-        for word in ("<button", "onClick", "tabIndex", "aria-pressed", "go("):
-            self.assertNotIn(word, view, f"the View mark is not a control: {word!r}")
+        for word in ("<button", "onClick"):
+            self.assertIn(word, eye)
         jsx = (PAGE / "src" / "components" / "WorkItems.jsx").read_text(encoding="utf-8")
-        self.assertIn('"button.weye"', jsx, "the arrows reach the eye's button only (there is none in View)")
+        self.assertIn('"button.weye"', jsx, "the arrows reach the eye's button")
+        board = (PAGE / "src" / "edit" / "Board.jsx").read_text(encoding="utf-8")
+        self.assertRegex(board, r'from "\./cells/Eye\.jsx"')
+        self.assertNotIn("card.client ? <Eye", board, "the card's eye is a button for every card, not a mark for some")
 
     def test_the_group_heading_says_how_many_items_in_words(self):
         jsx = (PAGE / "src" / "components" / "WorkItems.jsx").read_text(encoding="utf-8")
@@ -91,7 +95,7 @@ class Source(unittest.TestCase):
             self.assertIn("waits for the owner", rows[k], f"{k} is not final yet and Help says so")
         table = next(b for b in sections["work-items"]["b"] if b[0] == "tbl" and b[1][0] == "Table column")
         eye = next(r for r in table[2] if r[0].startswith("Client-visible"))[1]
-        for phrase in ("In View it is a mark only", "in Edit", "client flag", "hidden list", "Sensitive"):
+        for phrase in ("Select it to turn the item on or off", "client flag", "hidden list", "Sensitive"):
             self.assertIn(phrase, eye)
         item = next(r for r in table[2] if r[0] == "Item")[1]
         self.assertNotIn("point at it", item, "a keyboard user cannot reach a tooltip; the key is in Help")
@@ -203,7 +207,7 @@ class Table(unittest.TestCase):
                             self.assertEqual((r["letter"], r["label"], r["title"]), (LETTERS[r["kind"]], WORDS[r["kind"]], WORDS[r["kind"]]), f"{where}: {r['id']}")
                             self.assertEqual((r["w"], r["h"]), (22, 22), f"{where}: {r['id']} badge is one 22 px square, never a broken word")
                             self.assertIn(r["eye"], ("true", "false"), f"{where}: {r['id']} has its eye")
-                            self.assertEqual(r["eyeTag"], "BUTTON" if mode == "edit" else "SPAN", f"{where}: a button in Edit, a read-only mark in View")
+                            self.assertEqual(r["eyeTag"], "BUTTON", f"{where}: a button in View as in Edit (row 819)")
                             self.assertFalse(r["tag"] or r["type"], f"{where}: {r['id']} has no 'Shown to client' tag and no Type cell")
                         self.assertIn("dependency", kinds, where + ": the longest old Type word is on the page")
                         self.assertEqual(got["wide"], [], where + ": a cell has text wider than its box")
@@ -215,24 +219,22 @@ class Table(unittest.TestCase):
         self.assertEqual((got["TUL-A-002"]["eye"], got["TUL-A-004"]["eye"]), ("true", "false"), "A-002 is shown to the client, A-004 is not")
         self.assertEqual(got["TUL-A-001"]["eye"], "false", "A-001 has the client flag on but carries the Sensitive label, so a publish leaves it out and the eye says so")
         self.assertTrue(got["TUL-A-002"]["eyeLabel"].startswith("Shown to the client: "))
-        self.assertTrue(got["TUL-A-004"]["eyeLabel"].startswith("Hidden from the client: "))
+        self.assertTrue(got["TUL-A-004"]["eyeLabel"].startswith("Not shown to the client: "))
 
     def test_the_eye_in_view_is_a_read_only_mark_and_a_click_changes_nothing(self):
-        eye = "tr[data-id='TUL-A-002'] .weye"
+        """Row 819 (name kept): the Work items page is live, so a click on the eye in View turns the item off, with a toast and Undo."""
+        ref, eye = "TUL-A-002", "tr[data-id='TUL-A-002'] .weye"
         with chrome() as cdp:
             sid = self.load(cdp, 1400)
-            got = json.loads(cdp.js(f"(() => {{ const e = document.querySelector({json.dumps(eye)}); return JSON.stringify({{ tag: e.tagName, role: e.getAttribute('role'), label: e.getAttribute('aria-label'), tab: e.tabIndex, pressed: e.hasAttribute('aria-pressed'), buttons: document.querySelectorAll('#work .c-eye button').length }}); }})()", sid))
-            self.assertEqual((got["tag"], got["role"], got["pressed"], got["buttons"]), ("SPAN", "img", False, 0), "no button, no pressed state")
-            self.assertLess(got["tab"], 0, "not a focus stop")
-            self.assertTrue(got["label"].startswith("Shown to the client: "), "the mark has its words")
-            hid = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('#work .weye')].filter(e => e.getAttribute('aria-label').startsWith('Hidden from the client')).length)", sid))
-            self.assertGreater(hid, 0, "a hidden item says Hidden from the client")
+            got = json.loads(cdp.js(f"(() => {{ const e = document.querySelector({json.dumps(eye)}); return JSON.stringify({{ tag: e.tagName, label: e.getAttribute('aria-label'), pressed: e.getAttribute('aria-pressed'), buttons: document.querySelectorAll('#work .c-eye button').length }}); }})()", sid))
+            self.assertEqual((got["tag"], got["pressed"]), ("BUTTON", "true"), "a button in View")
+            self.assertGreater(got["buttons"], 1)
+            self.assertTrue(got["label"].startswith("Shown to the client: "), "the control has its words")
             click(cdp, sid, eye)
-            cdp.js("new Promise((r) => setTimeout(r, 400))", sid)
-            self.assertEqual(self.hidden(), set(), "a click in View hides nothing")
-            self.assertEqual(self.sent, [], "a click in View sends no request")
-            self.assertEqual(cdp.js("document.querySelector('.toast-text') ? 1 : 0", sid), 0, "no toast")
-            self.assertTrue(cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-label').startsWith('Shown to the client')", sid), "the mark is unchanged")
+            self.assertTrue(wait(lambda: self.hidden() == {ref}), "a click in View hides the item")
+            self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), f"{ref} hidden from the client.")
+            click(cdp, sid, "[data-undo]")
+            self.assertTrue(wait(lambda: self.hidden() == set()), "Undo shows it again")
 
     def test_the_eye_in_edit_turns_an_item_off_and_on_with_a_toast_and_undo(self):
         ref, eye = "TUL-A-002", "tr[data-id='TUL-A-002'] .weye"
