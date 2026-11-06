@@ -303,13 +303,21 @@ class List(Setup):
                         self.assertGreaterEqual(r, 4.5, f"{sel} at {width}px {'dark' if dark else 'light'}")
 
     def test_view_shows_the_eye_alone_and_edit_makes_it_a_switch(self):
+        """Row 819: the list is live, so the eye is a button in View as in Edit, and one click in View is one change with a toast and Undo."""
         with chrome() as cdp:
             p = self.show(cdp)
-            self.assertEqual(p.js("document.querySelectorAll('#usecases [data-eye]').length"), 0)
-            self.assertEqual(p.js("[...document.querySelectorAll('#usecases [data-eye-words]')].map(e => e.title)"), [ON, ON, OFF, OFF])
+            self.assertEqual(p.js("document.querySelectorAll('#usecases [data-eye]').length"), 4, "a button in View")
+            self.assertEqual(p.js("[...document.querySelectorAll('#usecases [data-eye]')].map(e => e.title)"), [ON, ON, OFF, OFF])
+            sel = f"[data-uc=\"{self.uc3}\"] [data-eye]"
+            self.click(p, sel)
+            p.saved()
+            self.assertEqual(self.eye("1.10"), 1, "one click in View turned it on")
+            self.assertEqual(p.toast(), "UC 1.10 is on the dashboard.")
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until(f"document.querySelector('{sel}').title === '{OFF}'", "Undo put it back")
+            self.assertEqual(self.eye("1.10"), 0)
             p.js("document.querySelector('[data-mode=edit]').click()")
-            p.until("document.querySelectorAll('#usecases [data-eye]').length === 4", "Edit makes each eye a button")
-            self.assertEqual(p.js("document.querySelectorAll('#usecases [data-eye-words]').length"), 0)
+            p.until("document.querySelectorAll('#usecases [data-eye]').length === 4", "Edit keeps each eye a button")
 
     def test_the_eye_is_an_icon_alone_with_a_tooltip_and_never_meets_the_commitment_chip(self):
         """Issue 753: no heading and no words for 'show on report': the eye, a title on hover, the same words as the aria-label."""
@@ -354,10 +362,11 @@ class List(Setup):
             self.assertEqual(p.js("document.querySelectorAll('#usecases [data-eye]').length"), 4)
 
     def test_view_has_the_eye_as_an_icon_with_a_tooltip_and_no_words_and_no_control(self):
+        """Row 819 (name kept): in View the eye is an icon and a tooltip, no words beside it, and now a button."""
         with chrome() as cdp:
             p = self.show(cdp)
-            got = p.js("[...document.querySelectorAll('#usecases [data-eye-words]')].map(e => [e.textContent.trim(), e.title, e.tagName, e.querySelectorAll('svg').length])")
-            self.assertEqual(got, [["", ON, "SPAN", 1], ["", ON, "SPAN", 1], ["", OFF, "SPAN", 1], ["", OFF, "SPAN", 1]])
+            got = p.js("[...document.querySelectorAll('#usecases [data-eye]')].map(e => [e.textContent.trim(), e.title, e.tagName, e.querySelectorAll('svg').length])")
+            self.assertEqual(got, [["", ON, "BUTTON", 1], ["", ON, "BUTTON", 1], ["", OFF, "BUTTON", 1], ["", OFF, "BUTTON", 1]])
 
     def test_an_empty_project_says_so_in_plain_words(self):
         for table in ("actions",):
@@ -567,15 +576,12 @@ class Keys(Setup):
                 self.press(p, "ArrowUp")
                 self.assertEqual(self.focused(p), f"{ids[0]}:ucl-go", "Up on the first row stays")
                 self.press(p, "ArrowRight")
-                if edit:
-                    self.assertEqual(self.focused(p), f"{ids[0]}:ucl-eye", "Right goes to the eye")
-                    self.press(p, "ArrowDown")
-                    self.assertEqual(self.focused(p), f"{ids[1]}:ucl-eye", "Down from an eye goes to the next eye")
-                    self.press(p, "ArrowLeft")
-                    self.assertEqual(self.focused(p), f"{ids[1]}:ucl-go", "Left comes back to the name")
-                    self.assertEqual(self.stops(p), [f"{ids[1]}:ucl-go"])
-                else:
-                    self.assertEqual(self.focused(p), f"{ids[0]}:ucl-go", "no eye to go to in View")
+                self.assertEqual(self.focused(p), f"{ids[0]}:ucl-eye", "Right goes to the eye, in View as in Edit (row 819)")
+                self.press(p, "ArrowDown")
+                self.assertEqual(self.focused(p), f"{ids[1]}:ucl-eye", "Down from an eye goes to the next eye")
+                self.press(p, "ArrowLeft")
+                self.assertEqual(self.focused(p), f"{ids[1]}:ucl-go", "Left comes back to the name")
+                self.assertEqual(self.stops(p), [f"{ids[1]}:ucl-go"])
                 self.press(p, "Enter")
                 p.until("!!document.querySelector('[data-ucd]')", "Enter opens the use case")
 

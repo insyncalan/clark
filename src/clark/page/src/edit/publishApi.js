@@ -3,6 +3,7 @@
 // file: the client folder is the one saved in Settings, which the server reads itself.
 import { token, plain } from "../stores/report.js";
 import { style } from "../stores/style.js";
+import { forgetCheck } from "./askCheck.js";
 
 // {status, body}: never a throw, whatever the network or the server did. A status of 0 is "no answer".
 export async function call(method, path, body) {
@@ -77,9 +78,11 @@ export function saveBlob(blob, name) {
 // path}; "choose" opens the system's folder window on the server (no path from the page). The server checks a folder and saves it; a server without this route answers 404, which the page says in plain words.
 // Settings › AI (#54): whether Claude is connected and the model asking uses. Words and true or false only: clark holds no key or password.
 export const aiConnectRead = () => call("GET", "/api/providers");
-export const aiConnectSend = (provider) => call("POST", "/api/providers/connect", { provider });
-export const aiDisconnectSend = (provider) => call("POST", "/api/providers/disconnect", { provider });
-export const aiModelSend = (model, accept) => call("POST", "/api/providers/model", accept ? { model, accept: true } : { model });
+// Row 858: each of these changes what the ask panel's connection check would answer, so the kept answer is dropped (before and after).
+const changing = async (method, path, body) => { forgetCheck(); try { return await call(method, path, body); } finally { forgetCheck(); } };
+export const aiConnectSend = (provider) => changing("POST", "/api/providers/connect", { provider });
+export const aiDisconnectSend = (provider) => changing("POST", "/api/providers/disconnect", { provider });
+export const aiModelSend = (model, accept) => changing("POST", "/api/providers/model", accept ? { model, accept: true } : { model });
 export const askFoldersRead = (project) => call("GET", `/api/ask-folders?project=${encodeURIComponent(project)}`);
 export const askFoldersChoose = (project) => call("POST", "/api/ask-folders", { project, action: "choose" });
 export const askFoldersChange = (project, action, path) => call("POST", "/api/ask-folders", { project, action, path });
@@ -87,4 +90,4 @@ export const askFoldersChange = (project, action, path) => call("POST", "/api/as
 // Asking's on/off switch for this computer (#47), kept in the database. GET /api/ask-enabled answers {ok, ask_enabled, saved}; POST
 // takes {enabled: true | false}. The server checks the value and keeps it (with history and Undo); the page shows what it answered.
 export const askEnabledRead = () => call("GET", "/api/ask-enabled");
-export const askEnabledChange = (enabled) => call("POST", "/api/ask-enabled", { enabled });
+export const askEnabledChange = (enabled) => changing("POST", "/api/ask-enabled", { enabled });
