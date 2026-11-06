@@ -129,7 +129,7 @@ COVERED = [
 NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
-PARTLY_MERGED = {"767", "766"}
+PARTLY_MERGED = {"767", "766", "775", "776"}
 
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has
 # landed; marker None means there is no pull request to look for yet).
