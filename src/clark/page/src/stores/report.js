@@ -183,6 +183,9 @@ export function openPeek(id, kind) {
   go({ ...where(), item: milestone ? "" : id, ms: milestone ? id : "" }, { replace: !!peek.value });
 }
 
+/** True while a Back started by closePeek has not landed: the peek is as good as closed (row 891). */
+export const peekClosing = () => backing;
+
 /** Close the peek: Back if a click opened it (so no entry stays behind), else this entry is rewritten without it. A Back that
  *  goes nowhere (a restored tab whose stack is gone) falls back to the rewrite. */
 export function closePeek() {
