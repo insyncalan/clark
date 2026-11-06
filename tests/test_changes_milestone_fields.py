@@ -101,6 +101,17 @@ class Fields(unittest.TestCase):
             st.rename_person(a, "Sam Reid")
         self.assertEqual(self.row()["owner"], "Sam Reid")               # a linked owner follows the person
 
+    def test_an_owner_edit_is_one_history_line_and_the_link_column_is_never_listed(self):
+        a = self.linked("Sam Reed")
+        body = self.ok({"owner": "Someone Else"})
+        lines = [r for r in history.rows_for_item(self.s.con, self.m) if r["step"] == body["apply_id"]]
+        self.assertEqual([r["field"] for r in lines], ["Owner"], lines)
+        self.assertEqual((lines[0]["from"], lines[0]["to"]), ("Sam Reed", "Someone Else"))
+        self.assertEqual(self.undo({"project": "ABC", "apply_id": body["apply_id"]})[0], 200)       # still undone as one step, both columns
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), ("Sam Reed", a))
+        for r in history.rows_for_item(self.s.con, self.m):
+            self.assertNotEqual(r["field"], "Owner (linked person)", r)
+
     def test_the_same_value_again_makes_no_step(self):
         self.ok({"owner": "Sam Example"})
         before = self.steps()

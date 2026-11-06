@@ -496,6 +496,8 @@ def _display(con, rows, keep):
         ends = _ends(r["tbl"], r["item_id"])
         if r["via"] == SEED_VIA or not keep(r, ends):      # a new project's starting sections are not a person's change
             continue
+        if r["tbl"] == "milestones" and r["field"] == "owner_id":      # row 828: a milestone's person link moves with its owner text, which is the one line shown
+            continue
         undo = r["route"] == "undo" or r["undoes"] is not None
         again = undo and r["undoes"] in undos              # this Undo reverses an earlier Undo
         undo_kind = "Undo undone" if again else "Undone"
