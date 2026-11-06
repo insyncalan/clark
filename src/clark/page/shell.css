@@ -1210,7 +1210,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn.quiet { background: transparent; }
 .btn { min-height: 32px; }
 .btn:disabled { cursor: default; opacity: .6; }
-.setting { margin-top: var(--space-4); }
+.setting { margin-top: var(--space-3); }
 .set-head p { margin: 0; }
 /* The Settings links (item 440, S2; issue 697). Above 900 px they are a list down the left, the cards at the right; the list stays under the top bar
    as you scroll (and scrolls itself if the window is short). At 900 px and narrower it is the old bar of chips under the head, on the page's own
@@ -1235,7 +1235,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-chip[aria-current], .set-chip[aria-current]:hover { border-color: var(--brand-blue); background: var(--brand-blue); color: var(--text-on-brand); }      /* the same weight, so marking a chip never moves the row */
 .set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
-.setting h2 { margin: 0 0 6px; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
+/* The Settings cards (row 841): the prototype's card, compact: less padding, a smaller heading, a 14 px intro line and no shadow. Later than .frame and its 900 px rule, and more specific. */
+.set-cards .frame { padding: var(--space-4) var(--space-5); box-shadow: none; }
+.set-cards .frame > h2 + p { font-size: var(--size-small); }
+.setting h2 { margin: 0 0 6px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .setting .row { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
 .folder-now { overflow-wrap: anywhere; }
 /* item 647: the pasted folder path, under Choose folder; the box takes the row's room and the button stays beside it. */
@@ -1327,8 +1330,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
 
 /* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): One card is the default (row 667). */
-.personal { margin-top: var(--space-4); }
-.personal h2 { margin: 0 0 var(--space-1); font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
+.personal { margin-top: var(--space-3); }
+.personal h2 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .styles { border: 0; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: var(--space-2); }
 .styles legend { padding: 0; margin-bottom: 6px; font-size: var(--size-caption); color: var(--text-muted); }
 .stylepick { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
@@ -1364,6 +1367,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .fld input[aria-invalid="true"] { border-color: var(--status-red-text); }
 .fld small { color: var(--text-muted); font-size: var(--size-caption); }
 .fld.copy-fld { max-width: 640px; }
+/* Settings fields (row 840): a label column at the left and the control beside it, the way the prototype draws them; the hint, a refusal and any buttons stand in the control's column.
+   The control is not capped: it takes the rest of the card. The Welcome form keeps its own stacked layout (it is not inside the Settings cards). */
+.set-cards .fld, .set-cards .fld.copy-fld { grid-template-columns: 8rem minmax(0, 1fr); column-gap: var(--space-3); align-items: center; max-width: none; }
+.set-cards .fld > label { grid-column: 1; }
+.set-cards .fld > :not(label) { grid-column: 2; min-width: 0; }
 .fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-caption); }
 .fld-bad:empty { display: none; }
 /* Settings › People (item 454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
