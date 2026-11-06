@@ -53,7 +53,7 @@ function Row({ name, children, ref_, key_ }) {          // key_: which field thi
 }
 
 // ItemFields and Edge are also the archived peek's (ArchivedItems.jsx in the Edit part, item 450 row 39): the same rows, read only.
-export function ItemFields({ row, editing, Cell }) {
+export function ItemFields({ row, editing, Cell, Wording, Pick }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner);
   // #448: a closed risk or issue's pill reads Closed; it keeps its rating word beside it (the prototype's "Closed · Amber"), here and in a published file.
   const kept = (row.kind === "risk" || row.kind === "issue") && !isOpen(row) && row.priority ? colourOf(row.priority).word : "";
@@ -69,10 +69,11 @@ export function ItemFields({ row, editing, Cell }) {
         {Cell ? <Cell row={row} field="status" said={pill.text} place="peek"><span class={`pill ${pill.class}`}>{pill.text}</span></Cell> : <span class={`pill ${pill.class}`}>{pill.text}</span>}
         {kept ? <span class="pk-rating" data-pk-rating> · {kept}</span> : null}
       </Toned></Row>
-      <Row name="Workstream">{text(row.workstream)}</Row>
-      <Row name="Milestone">{text(row.milestone)}</Row>
-      <Row name="Use case">{text(row.uc)}</Row>
+      <Row name="Workstream">{Pick && row.kind !== "decision" ? <Pick row={row} field="workstream" /> : text(row.workstream)}</Row>
+      <Row name="Milestone">{Pick && row.kind !== "decision" ? <Pick row={row} field="milestone" /> : text(row.milestone)}</Row>
+      <Row name="Use case">{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
       {editing ? <Row name="Shown to client">{row.client ? "Yes" : "No"}</Row> : null}
+      {Wording ? <Row name="Client wording"><Wording row={row} /></Row> : null}
       {typeof row.not_reviewed === "boolean" ? <>
         <Row name="Raised">{showDate(row.raised)}</Row>
         <Row name="Last reviewed">{row.last_reviewed ? showDate(row.last_reviewed) : "Not yet"}</Row>
@@ -118,6 +119,7 @@ export function Peek({ tools }) {
   const forItem = !!p && p.kind !== "milestone";
   const Words = editing && !!p && tools.Words, WordsButton = editing && !!p && tools.WordsButton;
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
+  const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive;
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest, Needed = editing && forItem && tools.PeekNeeded;      // the warning bar and Latest update (peek, Edit only)
   const showActivity = !!(Tabs && Activity && peekTab.value === "activity");
   if (p) shown.current = p.id;                            // kept after the peek closes, for the focus it returns
@@ -236,18 +238,20 @@ export function Peek({ tools }) {
         <span class="pk-id num">{p.id}</span>
         <span class="pk-sp" />
         {WordsButton ? <WordsButton /> : null}
+        {DupBtn && row ? <DupBtn row={row} /> : null}
+        {ArchBtn && row ? <ArchBtn row={row} /> : null}
         <button type="button" class="pkp-btn" data-pk-wide aria-pressed={wide.value} title={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} aria-label={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} onClick={() => { wide.value = !wide.value; }}><Icon name="expand" /></button>
         <button type="button" class="pkp-btn" data-pk-close title="Close this panel" aria-label="Close this panel" onClick={closePeek}><Icon name="x" /></button>
       </div>
       {Warn && row ? <Warn key={`w-${row.id}`} row={row} /> : null}
       <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>
-      <h2 class="pk-title" tabIndex={-1}>{title}</h2>
+      <h2 class="pk-title" tabIndex={-1}>{TitleBox && row ? <TitleBox key={row.id} row={row} /> : title}</h2>
       {row && typeof row.not_reviewed === "boolean" && notReviewed(row, todayIso()) ? <p class="pk-stale"><span class="pk-chip" data-stale>{staleWords(row.review_days || undefined)}</span></p> : null}
       {Tabs ? <Tabs /> : null}
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
       {showActivity ? <Activity key={p.id} id={p.id} />
         : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
-          {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} />}
+          {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} />}
           {Needed && row && row.kind !== "decision" ? <Needed key={`n-${row.id}`} row={row} /> : null}
           {Latest && row ? <Latest key={row.id} row={row} /> : null}
         </div>}

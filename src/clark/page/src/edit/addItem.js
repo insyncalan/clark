@@ -64,7 +64,7 @@ function showRow(ref, today) {
 // The panel's title takes the keyboard and its words are selected, once the panel is drawn (the prototype does the same at 60 ms).
 function focusTitle() {
   setTimeout(() => {
-    const t = document.querySelector("#peek .pk-title");
+    const t = document.querySelector("#peek [data-pk-title-in]") || document.querySelector("#peek .pk-title");      // the title box in Edit, else the heading
     if (!t) return;
     t.focus();
     if (window.getSelection) window.getSelection().selectAllChildren(t);

@@ -61,6 +61,17 @@ DEFAULT_SECTIONS = tuple({"id": f"s-{t}", "type": t, "title": title, "body": "",
                                                          ("raid", "Risks and issues"), ("actions", "Actions"),
                                                          ("decisions", "Decisions")), 1))
 SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs") + section_bodies.BODY_TYPES
+BUILT_IN_SECTIONS = ("current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")      # row 906: the sections whose data lives elsewhere
+
+
+def hidden_types(sections, deleted=False):
+    """The built-in section types the published file carries nothing of (row 906). A section left out (hidden) is one; so is a
+    built-in with no section row, when the project HAS section rows or has had them all deleted (`deleted`). No rows and none ever
+    (a project made before #65): the default sections, none hidden, so the set is empty."""
+    if not sections and not deleted:
+        return set()
+    have = {s.get("type") for s in sections or ()}
+    return {s.get("type") for s in sections or () if s.get("hidden")} | {t for t in BUILT_IN_SECTIONS if t not in have}
 # "docs" (#74): only while it has a document to show (documents()); needs, tracker and the section templates (#96) carry content: a section of those types stays in only when its
 # body checks again and its published fields are not empty (_content; a template stub is never in the file)
 
@@ -365,8 +376,9 @@ def select(inputs):
     code = project.get("code")
     if not code:
         raise PublishError("There is no project to publish.")
-    sections = sorted(inputs.get("sections") or DEFAULT_SECTIONS, key=lambda s: (s.get("sort_order", 0), str(s.get("id"))))
-    hidden_types = {s.get("type") for s in sections if s.get("hidden")}
+    given, deleted = inputs.get("sections"), bool(inputs.get("sections_deleted"))      # row 906: every section deleted is not "no sections yet"
+    sections = sorted(given or ([] if deleted else DEFAULT_SECTIONS), key=lambda s: (s.get("sort_order", 0), str(s.get("id"))))
+    hidden_types = globals()["hidden_types"](given, deleted)
     hidden_ids = set(inputs.get("hidden") or ())
     blocked = _excluded_labels(inputs.get("label_rules"))
     item_labels = d.get("labels") or {}
@@ -1120,7 +1132,7 @@ def add_glance(published, inputs):
     Use cases section is hidden or no use case is kept. Returns `published`."""
     from clark import glance                  # glance imports this module, so it is imported here, not at the top
     as_at = inputs["as_at"]
-    kept = glance.kept_from(published, inputs.get("sections"))
+    kept = glance.kept_from(published, inputs.get("sections"), bool(inputs.get("sections_deleted")))
     settings = glance.tile_settings(inputs.get("glance_tiles"))
     project = published["data"]["project"]
     shown = glance.tiles({"project": project}, as_at, tile_order=settings["order"], hidden=settings["hidden"] - {"health"},
