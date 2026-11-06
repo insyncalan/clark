@@ -154,7 +154,7 @@ class Totals(unittest.TestCase):
         sent = lambda t: json.loads(self.val(f"(function(t){{ return t.bodyOf(t.withSize(t.trackerOf({{body: {lit(json.dumps({'v': 1, **TRACKER}))}}}, false), {lit(t)})); }})(K.tracker)"))
         self.assertEqual(sent("compact")["size"], "compact")
         self.assertNotIn("size", sent("medium"))               # Medium is left out, so an older build still reads the body
-        self.assertIsNone(self.k("withSize(trackerOf(null, false), 'huge')"))
+        self.assertIsNone(self.val("K.tracker.withSize(K.tracker.trackerOf(null, false), 'huge')"))
 
     def test_the_words_for_points_behind(self):
         self.assertEqual(self.k("behindWords(10)"), "1 point behind plan")
