@@ -87,7 +87,8 @@ CREATE TABLE IF NOT EXISTS actions (
   source       TEXT NOT NULL,
   archived     INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
   updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
-  owner_id TEXT REFERENCES people(id)   -- clark: the link to the people table (#115), beside the free-text owner
+  owner_id TEXT REFERENCES people(id),   -- clark: the link to the people table (#115), beside the free-text owner
+  client_action INTEGER NOT NULL DEFAULT 0 CHECK (client_action IN (0,1))   -- clark: row 811, needed from the client (step 17); the last column, as the step adds it
 );
 
 CREATE TABLE IF NOT EXISTS raid (
@@ -112,7 +113,8 @@ CREATE TABLE IF NOT EXISTS raid (
   source       TEXT NOT NULL,
   archived     INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
   updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
-  owner_id TEXT REFERENCES people(id)   -- clark: the link to the people table (#115), beside the free-text owner
+  owner_id TEXT REFERENCES people(id),   -- clark: the link to the people table (#115), beside the free-text owner
+  client_action INTEGER NOT NULL DEFAULT 0 CHECK (client_action IN (0,1))   -- clark: row 811, needed from the client (step 17); the last column, as the step adds it
 );
 
 CREATE TABLE IF NOT EXISTS decisions (

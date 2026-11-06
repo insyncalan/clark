@@ -71,7 +71,7 @@ class Base(unittest.TestCase):
         self.rig = Rig(self, saved=self.saved, page_html=testpage.html)
 
     def page(self, cdp, hash_="#dashboard&p=PUB"):
-        sid = navigate(cdp, self.rig.httpd.server_port, hash_)
+        sid = navigate(cdp, self.rig.httpd.server_port, hash_, section_style=None)      # the standard style is what these tests see (row 667)
         p = Pg(self, cdp, sid)
         p.until("!!document.querySelector('#profile-btn')", "the profile circle is in the top bar")
         return p
