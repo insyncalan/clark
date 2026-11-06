@@ -249,7 +249,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .type.k-risk { background: var(--status-amber-tint); color: var(--status-amber-text); }
 .type.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
 .type.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
-@media (max-width: 900px) { table.items .c-owner { width: 170px; } table.items .c-due { width: 131px; } table.items .c-prio { width: 93px; } table.items .c-status { width: 142px; } }      /* row 784: at 900 priority, due and status sit a little under main's widths (each is the narrowest that still holds its longest word) so the item text gains about 24 px over main */
+@media (max-width: 900px) { table.items .c-owner { width: 170px; } table.items .c-due { width: 131px; } table.items .c-prio { width: 93px; } }      /* row 784: at 900 priority and due sit a little under main's widths (each is the narrowest that still holds its longest word); the Status column keeps its row 834 width at every size so the item text gains about 24 px over main */
 /* Row 834: a row is the title (two lines at most), then ONE line for the id and links (prototype rows are 61-81 px).
    The title and the line give way with an ellipsis; an owner name may take two lines (test_edit_cells_layout pins that); the phone card below 641 px keeps its own wrapping. */
 @media (min-width: 641px) {

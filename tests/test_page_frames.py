@@ -10,14 +10,15 @@ from test_server import chrome
 from test_work_board_page import Base
 
 CASES = [(w, s, e) for w in (1400, 900) for s in ("light", "dark") for e in (False, True)]
+VIEW_CASES = [c for c in CASES if not c[2]]       # row 826: Settings has no View or Edit switch, so it is only ever seen in View
 FLAT = ("(sel) => { const e = document.querySelector(sel), c = getComputedStyle(e), r = e.getBoundingClientRect(), m = document.querySelector('main'), mc = getComputedStyle(m), mr = m.getBoundingClientRect();"
         " return {bg: c.backgroundColor, border: [c.borderTopWidth, c.borderRightWidth, c.borderBottomWidth, c.borderLeftWidth].join(' '), shadow: c.boxShadow, pad: [c.paddingTop, c.paddingRight, c.paddingLeft].join(' '),"
         " w: Math.round(r.width), inner: Math.round(mr.width - parseFloat(mc.paddingLeft) - parseFloat(mc.paddingRight)), top: Math.round(r.top)}; }")
 
 
 class Frames(Base):
-    def flat(self, hash_, sel, wait_for):
-        for width, scheme, edit in CASES:
+    def flat(self, hash_, sel, wait_for, cases=CASES):
+        for width, scheme, edit in cases:
             with self.subTest(width=width, scheme=scheme, edit=edit), chrome() as cdp:
                 sid = self.visit(cdp, width=width, edit=edit, hash_=hash_, wait_for=wait_for)
                 cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
@@ -45,8 +46,8 @@ class Frames(Base):
         self.flat("#usecases&p=ABC", "#usecases", "#usecases")
 
     def test_row_832_the_settings_head_has_no_card_but_the_cards_below_keep_theirs(self):
-        self.flat("#settings&p=ABC", ".set-head", ".set-head")
-        for width, scheme, edit in CASES:
+        self.flat("#settings&p=ABC", ".set-head", ".set-head", VIEW_CASES)
+        for width, scheme, edit in VIEW_CASES:
             with self.subTest(width=width, scheme=scheme, edit=edit), chrome() as cdp:
                 sid = self.visit(cdp, width=width, edit=edit, hash_="#settings&p=ABC", wait_for=".set-head")
                 cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
