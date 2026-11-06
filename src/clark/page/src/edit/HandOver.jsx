@@ -1,4 +1,4 @@
-// #199: Hand over. On Work items in Edit, with the Owner filter on, the Hand over button starts pick mode: a tick box on each open item
+// #199: Hand over. On Work items, with the Owner filter on, the Hand over button starts pick mode: a tick box on each open item
 // (a click on a row, or Space on it, ticks it; nothing else happens on a row), All, None, a count "N of M selected", a "Hand over to"
 // box, Hand over and Cancel. The box suggests the people list when it has anyone on it (clark then takes only a person on it), else
 // the names already on the project; a name that is none of those is pointed out under the box. Hand over sends one request to clark
@@ -9,7 +9,8 @@
 // are in ../logic/handOver.js.
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { effect } from "@preact/signals";
-import { data, rows as allRows, filterState, filterCtx, mode, fromFile, view, project } from "../stores/report.js";
+import { data, rows as allRows, filterState, filterCtx, fromFile, view, project } from "../stores/report.js";
+import { isEditing } from "../logic/editing.js";
 import { lineApi } from "../stores/lineSlot.js";
 import { changeBulk } from "../stores/changes.js";
 import { workSelection } from "../stores/selection.js";
@@ -21,7 +22,7 @@ import { ask } from "./Bulk.jsx";
 import * as H from "../logic/handOver.js";
 
 const OVERLAY = ".bask-back, .cpop, .ddmenu, .dpick, .fbox, [role='dialog']:not([data-peek]), [role='alertdialog'], dialog[open]";
-const editing = () => mode.value === "edit" && !fromFile.value;
+const editing = () => isEditing() && !fromFile.value;      // no mode on Work items (row 824)
 
 /** Turn pick mode on: nothing ticked, the usual selection cleared, the people list read again. */
 export function start() {
@@ -57,7 +58,7 @@ export function handOverNow() {
   return go(false);
 }
 
-/** The Hand over button, beside Add: in Edit, with the Owner filter on, while pick mode is off. The filter line (#153) drops an owner
+/** The Hand over button, beside Add: with the Owner filter on, while pick mode is off. The filter line (#153) drops an owner
  *  who has no items, so after a hand over of all of them the button is gone: the keyboard goes to the line's box instead. */
 export function HandOverButton() {
   const btn = useRef(null);
@@ -110,7 +111,7 @@ export function HandOverBar({ rows }) {
 }
 
 let installed = false;
-/** Once, from Work items: Esc cancels pick mode, and a change of tab or project, or leaving Edit, ends it. */
+/** Once, from Work items: Esc cancels pick mode, and a change of tab or project ends it. */
 export function installHandOver() {
   if (installed || typeof document === "undefined") return;
   installed = true;

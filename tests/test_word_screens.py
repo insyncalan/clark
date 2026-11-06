@@ -183,7 +183,7 @@ class Export(Screens):
             self.assertIn("Export to Word", view)
             self.assertEqual(view.index("Export to Word"), view.index("Export to Excel") + 1)
             self.assertNotIn("Import from Word", view, "View adds nothing, so it has no import")
-            self.assertEqual(p.js("document.querySelector('#profile-btn').title"), "Your menu: Publish, Preview, Export, Settings")
+            self.assertEqual(p.js("document.querySelector('#profile-btn').title"), "Your menu: Publish, Preview, Export")
 
     def test_an_export_saves_a_file_and_says_where(self):
         for w in WIDTHS:
@@ -500,7 +500,7 @@ class Import(Screens):
             self.menu(p)
             labels = self.labels(p)
             self.assertEqual(labels.index("Import from Word"), labels.index("Export to Word") + 1)
-            self.assertEqual(p.js("document.querySelector('#profile-btn').title"), "Your menu: Publish, Preview, Export, Settings")
+            self.assertEqual(p.js("document.querySelector('#profile-btn').title"), "Your menu: Publish, Preview, Export")
 
     def test_it_shows_what_it_read_before_anything_is_added_then_adds_only_what_is_chosen_with_one_undo(self):
         for w in WIDTHS:
