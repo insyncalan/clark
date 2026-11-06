@@ -1025,6 +1025,11 @@
         "Full or half"
        ],
        [
+        "Image gallery",
+        "Two to six pictures in a grid, each with a caption.",
+        "Full"
+       ],
+       [
         "Table",
         "Anything with rows: a budget line, a cut-over plan, a training schedule.",
         "Full"
@@ -1052,6 +1057,11 @@
        [
         "Callout",
         "One thing the reader must see.",
+        "Half or full"
+       ],
+       [
+        "Image with caption",
+        "One picture beside text.",
         "Half or full"
        ],
        [
