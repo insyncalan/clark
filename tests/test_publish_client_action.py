@@ -27,11 +27,11 @@ class Listed(unittest.TestCase):
         self.s = self.demo.store
 
     def action(self, text, **more):
-        return self.demo.action(description=text, client_action=1, **more)
+        return self.demo.action(**{"description": text, "client_message": text, "client_action": 1, **more})
 
     def risk(self, text, **more):
-        base = {"project": "ABC", "type": "Risk", "description": text, "raised": "2026-10-01", "impact": "High", "likelihood": "Low",
-                "source": "demo", "client_action": 1}
+        base = {"project": "ABC", "type": "Risk", "description": text, "client_message": text, "raised": "2026-10-01", "impact": "High",
+                "likelihood": "Low", "source": "demo", "client_action": 1}
         with self.s.step("dashboard", USER) as st:
             return st.create("raid", {**base, **more})
 
@@ -129,9 +129,33 @@ class Listed(unittest.TestCase):
         cap = publish.section_bodies.NEEDS_MAX_ROWS
         with self.s.step("dashboard", USER) as st:
             for n in range(cap + 3):
-                st.create("actions", {"project": "ABC", "description": "G%03d" % n, "raised": "2026-10-01", "source": "demo", "client_action": 1})
+                st.create("actions", {"project": "ABC", "description": "G%03d" % n, "client_message": "G%03d" % n, "raised": "2026-10-01", "source": "demo", "client_action": 1})
         got = self.whats()
         self.assertEqual(got, ["G%03d" % n for n in range(cap)])
+
+    def test_the_client_wording_wins_and_the_teams_description_is_never_in_the_section(self):
+        self.action("Client words here", description="ZQ-INTERNAL-PHRASE team only")
+        self.risk("Client risk words", description="ZQ-INTERNAL-RISK team only")
+        entry = [x for x in self.built()["published"]["sections"] if x["type"] == "needs"]
+        self.assertEqual([r["what"] for r in entry[0]["rows"]], ["Client words here", "Client risk words"])
+        self.assertNotIn("ZQ-INTERNAL", json.dumps(entry))
+
+    def test_with_no_client_wording_the_row_reads_the_id_and_the_description_does_not_reach_the_section(self):
+        a = self.action("", description="ZQ-INTERNAL-PHRASE team only")
+        r = self.risk("   ", description="ZQ-INTERNAL-RISK team only")
+        entry = [x for x in self.built()["published"]["sections"] if x["type"] == "needs"]
+        self.assertEqual([x["what"] for x in entry[0]["rows"]], [a, r])
+        self.assertNotIn("ZQ-INTERNAL", json.dumps(entry))
+        # the Work tab's own rows carry the description by the existing rules (title = description); only the needs section is asserted on
+        data = self.built()["published"]["data"]
+        self.assertIn("ZQ-INTERNAL-PHRASE team only", json.dumps(data["actions"]))
+
+    def test_long_wording_is_cut_at_300_and_hidden_characters_are_dropped_as_in_typed_rows(self):
+        self.action("A" * 400)
+        self.action("Zero\u200bwidth\u202esplit")
+        got = self.whats()
+        self.assertEqual(got[0], "A" * 300)
+        self.assertEqual(got[1], "Zerowidthsplit")
 
     def test_the_hand_typed_rows_stay_first_and_are_not_repeated_or_changed(self):
         ref = self.section([{"what": "Hand one"}, {"what": "Hand two", "hidden": 1}])

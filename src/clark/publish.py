@@ -341,12 +341,14 @@ def flagged_needs(rows):
     this adds no second rule of what a client may see. Only an action or a risk/issue that is flagged AND still open (OPEN_STEPS;
     a risk or issue is only Open) is listed; a decision never (it has no flag). Actions first, then risks and issues, each in the
     order select kept them (by id), so the order is the same every time. A row is {what, kind, from, by} as a hand-typed one is:
-    what is the item's description, kind 'information', from always blank (an owner here is one of our own people; a typed row's From is who at the client owes it, which is not known), by its due date written DD-MM-YYYY."""
+    what is the item's client wording (client_message, hidden characters out, cut at 300 as a typed row is), else its id (an action's or risk's title column IS the team's description, which is never copied here), kind 'information', from always blank (an owner here is one of our own people; a typed row's From is who at the client owes it, which is not known), by its due date written DD-MM-YYYY."""
     out = []
     for k in ("actions", "raid"):
         for r in rows[k]:
-            what = str(r.get("description") or "").strip()
-            if r.get("client_action") != 1 or r.get("status") not in OPEN_STEPS or not what:
+            if r.get("client_action") != 1 or r.get("status") not in OPEN_STEPS:
+                continue
+            what = (reason_text(str(r.get("client_message") or "")).strip())[:section_bodies.NEEDS_WHAT_MAX].strip() or str(r.get("id") or "")
+            if not what:
                 continue
             due = r.get("due_date")
             due = f"{due[8:10]}-{due[5:7]}-{due[:4]}" if isinstance(due, str) and re.fullmatch(r"\d{4}-\d\d-\d\d", due) else ""
