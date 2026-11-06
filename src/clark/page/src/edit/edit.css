@@ -774,3 +774,17 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .rt-host { min-height: 6rem; min-height: calc(3lh + 1rem); resize: vertical; overflow: auto; }
 .rt-host .ProseMirror { min-height: 3lh; padding-bottom: 1lh; }
 .de-preview { min-height: calc(3lh + 1.5rem); max-height: 60vh; resize: vertical; }
+/* row 830: the Use cases page head buttons, the archived box under the list, and the next step row on the detail */
+.ucl-acts { flex-wrap: wrap; justify-content: flex-end; }
+.ucl-acts .btn { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; color: var(--text); }
+.ucl-arch { margin-top: var(--space-4); }
+.ucl-arch .arch-l { margin: 0; padding: 0; list-style: none; }
+.ucl-arch .arch { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 0; border-top: 1px solid var(--grey-100); color: var(--text-muted); }
+.ucl-arch .arch:first-child { border-top: 0; }
+.ucl-arch .arch .btn { margin-left: auto; min-height: 32px; color: var(--text); }
+.ucl-arch .arch .link { min-height: 24px; }
+.ucx-foot { margin: 12px 0 0; font-size: var(--size-body); color: var(--text-muted); }
+.ucx-foot .link { min-height: 24px; }
+.ucx-addrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--grey-100); }
+.ucx-addrow .ucx-step { flex: 1 1 280px; min-width: 0; margin: 0; }
+.ucx-addrow .add-from { min-height: 24px; }
