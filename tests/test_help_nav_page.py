@@ -3,9 +3,9 @@
 Run: python3 dev/run_tests.py test_help_nav_page
 Headless Chrome through the shared harness, the real page with fictional demo data, at 1400 and 900 px, in the light and the dark theme.
 Covers (1) the jobs on Start here as large links, held ones never shown or linked, (2) the contents list that stays in view with the
-current entry marked, (3) "What next" links (on a page built with a fixture guide: none is shipped yet), (4) the way back to the previous
-place beside Back, (5) the keyboard: search, the contents list and the entry by Tab and the arrow keys.
-The pure parts (the held rule, the history, the next list) are in test_help_navigation.py.
+current entry marked, (3) "What next" links (on a page built with a fixture guide: none is shipped yet), (4) no Back button,
+(5) the keyboard: search, the contents list and the entry by Tab and the arrow keys.
+The pure parts (the held rule, the next list) are in test_help_navigation.py.
 """
 import copy
 import json
@@ -166,57 +166,26 @@ class Nav(Base):
             self.assertEqual(p.js("document.querySelector('.hp-idx a[aria-current]').textContent"), shown_content()["start"]["hero"]["title"])
             self.assertEqual(p.js("getComputedStyle(document.querySelector('.hp-idx')).position"), "sticky")
 
-    # ---------- (4) the way back ----------
-    def test_a_way_back_to_the_previous_place_sits_beside_back(self):
+    # ---------- (4) no Back button ----------
+    NO_BACK = "!document.querySelector('#hpBack') && !document.querySelector('#hpPrev')"
+
+    def test_help_has_no_back_button_after_following_links_and_esc_still_closes_help(self):
         from test_server import chrome
         with chrome() as cdp:
             p = self.in_help(cdp)
-            self.assertEqual(p.js("document.querySelector('#hpPrev')"), None, "nowhere to go back to yet")
+            self.assertTrue(p.js(self.NO_BACK), "no Back button on opening")
             p.js("document.querySelector('.hp-job[data-hlink=guide-add-a-section-from-a-template]').click()")
             p.until("!!document.querySelector('#hp-guide-add-a-section-from-a-template.hp-found')", "the job opened")
-            self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to " + shown_content()["start"]["hero"]["title"])
-            self.assertTrue(p.js("var a=document.querySelector('#hpBack').getBoundingClientRect(), b=document.querySelector('#hpPrev').getBoundingClientRect(); b.left >= a.right - 1 && Math.abs(a.top - b.top) < 8"), "beside Back, on its row")
-            self.assertEqual(p.js("document.querySelector('#hpBack').textContent"), "Back", "Back still means Back")
+            self.assertTrue(p.js(self.NO_BACK), "no Back button after a job link")
             ids = p.js("[...document.querySelectorAll('.hp-idx a')].map(a => a.dataset.hlink)")
             p.js(f"document.querySelector('.hp-idx a[data-hlink={ids[2]}]').click()")
             p.until(f"!!document.querySelector('#hp-{ids[2]}.hp-found')", "a second place")
-            self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to Add a section from a template")
-            p.js("document.querySelector('#hpPrev').click()")
-            p.until("!!document.querySelector('#hp-guide-add-a-section-from-a-template.hp-found')", "the way back opened the place before")
-            self.assertEqual(p.js("document.querySelector('.hp-idx a[aria-current]').dataset.hlink"), "guide-add-a-section-from-a-template")
-            self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to " + shown_content()["start"]["hero"]["title"], "and the one before that is next")
-            p.js("document.querySelector('#hpPrev').click()")
-            p.until("document.querySelector('#hpTab-start').getAttribute('aria-selected') === 'true' && !!document.querySelector('.hp-job')", "back on Start here")
-            self.assertEqual(p.js("document.querySelector('#hpPrev')"), None, "the history is used up")
-            self.assertEqual(p.js("!!document.querySelector('#help')"), True, "and Help is still open")
-
-    def test_the_way_back_has_room_at_900_and_in_both_themes_and_back_still_closes_help(self):
-        from test_server import chrome
-        with chrome() as cdp:
-            p = self.in_help(cdp)
-            p.js("document.querySelector('.hp-job[data-hlink=guide-add-a-section-from-a-template]').click()")
-            p.until("!!document.querySelector('#hpPrev')", "a way back")
-            for scheme in THEMES:
-                set_theme(cdp, p, scheme)
-                for w in SIZES:
-                    set_size(cdp, p, w)
-                    self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), f"{scheme} {w}: no sideways scroll")
-                    self.assertTrue(p.js("var b=document.querySelector('#hpPrev').getBoundingClientRect(); b.right <= innerWidth && b.left >= 0 && b.height >= 30"), f"{scheme} {w}: in view")
-            p.js("document.querySelector('#hpBack').click()")
-            p.until("!document.querySelector('#help') && !!document.querySelector('#report')", "Back closes Help, as before")
-            from test_help_panel import full_help_from_menu   # "?" opens the context peek now; the profile menu's Help is the full Help
-            full_help_from_menu(p, "reopened")
-            self.assertEqual(p.js("document.querySelector('#hpPrev')"), None, "a fresh visit starts a fresh history")
-
-    def test_a_tab_change_is_a_place_you_can_go_back_from(self):
-        from test_server import chrome
-        with chrome() as cdp:
-            p = self.in_help(cdp)
+            self.assertTrue(p.js(self.NO_BACK), "no Back button after a contents link")
             p.js("document.querySelector('#hpTab-reference').click()")
             p.until("document.querySelector('#hpTab-reference').getAttribute('aria-selected') === 'true'", "Reference")
-            self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to " + shown_content()["start"]["hero"]["title"])
-            p.js("document.querySelector('#hpPrev').click()")
-            p.until("document.querySelector('#hpTab-start').getAttribute('aria-selected') === 'true'", "back on Start here")
+            self.assertTrue(p.js(self.NO_BACK), "no Back button after a tab change")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#help') && !!document.querySelector('#report')", "Esc closes Help")
 
     # ---------- (5) the keyboard ----------
     def test_the_contents_list_works_with_the_arrow_keys_and_opens_an_entry(self):
@@ -344,16 +313,14 @@ class WhatNextPage(Base):
             self.assertEqual(p.js("!!document.querySelector('#hp-guide-fixture-guide ol li')"), True)
             self.assertIn("A numbat arrives.", p.js("document.querySelector('#hp-guide-fixture-guide .hp-note').textContent"))
 
-    def test_a_what_next_link_opens_its_place_and_the_way_back_returns(self):
+    def test_a_what_next_link_opens_its_place(self):
         from test_server import chrome
         with chrome() as cdp:
             p = self.open_at(cdp, "guide-fixture-guide")
             p.js("document.querySelector('#hp-guide-fixture-guide .hp-next a[data-hnext=ref-keys]').click()")
             p.until("!!document.querySelector('#hp-ref-keys.hp-found') && document.querySelector('#hpTab-reference').getAttribute('aria-selected') === 'true'", "the link opened the place under its tab")
             self.assertEqual(p.js("document.querySelector('.hp-idx a[aria-current]').dataset.hlink"), "ref-keys")
-            self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to Fixture guide")
-            p.js("document.querySelector('#hpPrev').click()")
-            p.until("!!document.querySelector('#hp-guide-fixture-guide.hp-found')", "back at the guide")
+            self.assertTrue(p.js(Nav.NO_BACK), "no Back button after a What next link")
 
     def test_an_entry_with_a_next_list_shows_it_and_one_without_shows_none(self):
         from test_server import chrome

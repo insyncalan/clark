@@ -24,9 +24,9 @@ export function UseCasesTab() {
             <div class="ucp-body">
               {u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : null}
               <h2>Next steps</h2>
-              {mine.length ? <ul class="plain">{mine.map((a) => <li key={a.id}>{a.client_message || a.description}</li>)}</ul> : <p class="muted">No next steps are shared for this use case.</p>}
+              {mine.length ? <ul class="plain">{mine.map((a) => <li key={a.id}>{a.client_message || a.description}</li>)}</ul> : <p class="muted ucp-none">No next steps are shared for this use case.</p>}
               <h2>Milestones</h2>
-              {ms.length ? <ul class="plain">{ms.map((m) => <li key={m.id}>{m.name} <span class="muted">{m.state_word}</span></li>)}</ul> : <p class="muted">No milestones are shared for this use case.</p>}
+              {ms.length ? <ul class="plain">{ms.map((m) => <li key={m.id}>{m.name} <span class="muted">{m.state_word}</span></li>)}</ul> : <p class="muted ucp-none">No milestones are shared for this use case.</p>}
             </div>
           </details>
         );

@@ -968,7 +968,6 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-next ul { margin: 0; padding-left: 20px; }
 .hp-next li { margin: 0 0 4px; }
 .hp-next a { color: var(--status-blue-text); }
-.hp-prev { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 34px; }
 .hp-col { min-width: 0; }
 .hp-col .hp-sh h2 { font-size: var(--size-h2); }
 .hp-grp { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); font-weight: 500; margin: 28px 0 10px; }
@@ -1016,17 +1015,14 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-head { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); align-items: flex-start; justify-content: space-between; }
 .hp-head h1 { margin: 0 0 var(--space-1); font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
 .hp-head p { margin: 0; }
-.hp-actions { display: flex; gap: 10px; align-items: center; }
+.hp-head > div:first-child { flex: 1 1 24rem; min-width: 0; }   /* the intro gives way, so the search sits at the top right beside it */
+.hp-actions { display: flex; gap: 10px; align-items: center; margin-left: auto; }
 .hp-search input { box-sizing: border-box; min-height: 36px; padding: 0 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; width: 300px; }
 .hp-search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .hp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .hp-search { position: relative; display: block; }
 .hp-search > .i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted); pointer-events: none; }
 .hp-search input { padding-left: 32px; padding-right: 34px; }
-.hp-back { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px 0 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
-.hp-back .i { width: 16px; height: 16px; }
-.hp-back:hover { border-color: var(--brand-blue); }
-.hp-back:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 /* the line under the title names the key on a keyboard and the button on a phone (a phone has no ? key) */
 .hp-taphint { display: none; }
 @media (max-width: 700px), (hover: none) { .hp-keyhint { display: none; } .hp-taphint { display: inline; } }
@@ -1036,7 +1032,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .tb-act:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
 .tb-act:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tb-ico { width: 20px; height: 20px; flex: none; }
-.tb-ask { padding: 0 10px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); }
+.tb-act:not(.tb-ask) { min-width: 38px; height: 28px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius); }   /* row 772: the search button is a bordered 38 by 28 box, as in the prototype */
+.tb-ask { height: 34px; padding: 0 10px; font-size: var(--size-small); border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); }   /* row 772: the ask clark text at 14 px in a 34 px button */
+.tb-ask .tb-ico { width: 16px; height: 16px; }
 .tb-key { font: inherit; font-size: var(--size-small); padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius-sm); }
 @media (max-width: 1100px) { .tb-ask { padding: 0 6px; border-color: transparent; } .tb-ask-w, .tb-key { display: none; } }   /* icon only below 1100 px, so nothing in the bar overlaps */
 /* the Help peek (item 645): the item peek's frame (.peek) below the top bar, so the "?" button stays in view; text only */
@@ -1467,9 +1465,9 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 
 /* The look: pill buttons, the header and the type, from the committed look (tokens only; made by the branding tool). */
 /* primary buttons and pills: the pale-to-bright aqua of the reference, dark text, a soft glow */
-.again, .btn.primary { border: 0; border-radius: var(--radius-pill); padding: 0 22px; min-height: 38px; font-weight: 800; letter-spacing: .04em;
+.again, .btn.primary, .btn.pri { border: 0; border-radius: var(--radius-pill); padding: 0 22px; min-height: 38px; font-weight: 800; letter-spacing: .04em;
   background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); box-shadow: var(--pill-glow); transition: transform var(--dur-state) var(--ease-out), box-shadow var(--dur-state) var(--ease-out); }
-.again:hover, .btn.primary:hover { transform: translateY(-1px); box-shadow: var(--pill-glow-hover); }
+.again:hover, .btn.primary:hover, .btn.pri:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--pill-glow-hover); }
 .btn, .seg { border-radius: var(--radius-pill); }
 .btn { padding-left: 18px; padding-right: 18px; }
 .seg button[aria-pressed="true"],
@@ -1480,7 +1478,13 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 .tab::after { background-color: var(--pill-color); background-image: var(--accent-line); }
 
 /* reduced motion: no transition and no lift on the main button */
-@media (prefers-reduced-motion: reduce) { .again, .btn.primary { transition: none; } .again:hover, .btn.primary:hover { transform: none; } }
+/* row 771: the dialog and form main button (.btn.pri) takes the same aqua pill; the finished state keeps its green, and the spinner and tick follow the dark text */
+.btn.pri.ok { background-color: var(--status-green-text); background-image: none; color: var(--text-on-brand); }
+.btn.pri .spin { border-color: color-mix(in srgb, var(--pill-fg) 30%, transparent); border-top-color: var(--pill-fg); }
+.btn.pri .pub-tick { background: var(--pill-fg); color: var(--pill-color); }
+.btn.pri.ok .pub-tick { background: var(--text-on-brand); color: var(--status-green-text); }
+.btn.pri:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .again, .btn.primary, .btn.pri { transition: none; } .again:hover, .btn.primary:hover, .btn.pri:hover { transform: none; } }
 
 /* type: Montserrat extra-bold for headings and figures, Inter for text, tracked capitals for the small line above a title */
 h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800; letter-spacing: -.01em; line-height: 1.15; }
@@ -1918,6 +1922,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .print-tab-title { margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-body); font-weight: 400; color: var(--text-muted); }
   html.print-all .sec, html.print-all article, html.print-all .tile, html.print-all .fig, html.print-all figure, html.print-all blockquote, html.print-all tr, html.print-all li, html.print-all h1, html.print-all h2, html.print-all h3, html.print-all details { break-inside: avoid; }
   html.print-all h1, html.print-all h2, html.print-all h3 { break-after: avoid; }
+  html.print-all .ucp-none, html.print-all .ucp-body h2:has(+ .ucp-none) { display: none; }   /* row 767: the print opens every use case, so an empty list's line and its heading are left off the paper (no new words) */
   html.print-all .mv-wrap { overflow: hidden; resize: none; min-height: 0; }   /* row 767: the printed timeline is drawn to the page width (MsTimeline.jsx), so it needs no sideways scroll; nothing is cut off */
   html.print-all thead { display: table-header-group; }
   html.print-all a { color: inherit; text-decoration: none; }
@@ -1957,6 +1962,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-title { overflow-wrap: anywhere; color: var(--text); }
 .wl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: var(--size-small); color: var(--text-muted); }
 .wl-meta .av { width: 22px; height: 22px; font-size: var(--size-small); }
+.cr-wl .wl-meta .av { width: auto; min-width: 22px; height: 22px; padding: 0 var(--space-1); box-sizing: border-box; border-radius: 11px; font-size: var(--size-caption); line-height: 1; }      /* row 799: the snapshot's work lists only; WM at the 13 px floor is 24.3 px wide and clips a 22 or 24 px circle, so two letters widen it to a 22 px-high pill (no 12 px token exists; test_font holds 13 px) */
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
