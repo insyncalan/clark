@@ -246,7 +246,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .type.k-risk { background: var(--status-amber-tint); color: var(--status-amber-text); }
 .type.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
 .type.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
-@media (max-width: 900px) { table.items .c-owner { width: 156px; } table.items .c-due { width: 114px; } table.items .c-prio { width: 92px; } table.items .c-status { width: 108px; } }      /* row 784: at 900 the four fixed columns gave the Item column a third of the table; they tighten so the item text has room */
+@media (max-width: 900px) { table.items .c-owner { width: 170px; } table.items .c-due { width: 131px; } table.items .c-prio { width: 93px; } table.items .c-status { width: 142px; } }      /* row 784: at 900 priority, due and status sit a little under main's widths (each is the narrowest that still holds its longest word) so the item text gains about 24 px over main */
 /* The letter badge before an item's title (prototype `.type` in a work item row): one letter, so no word can break in it ("Dependency" no
    longer sits in a column of its own). The words are its tooltip and its spoken name. Colours as the board card's word badge. */
 .kb { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: var(--size-caption); font-weight: var(--weight-regular); flex: none; background: var(--grey-100); color: var(--grey-700); }

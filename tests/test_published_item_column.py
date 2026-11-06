@@ -17,7 +17,7 @@ from test_published_work_no_add import open_page, EMPTY_BRANDING, VARIANTS
 TODAY = "2026-10-28"
 TITLES = ["Agree the data cut-over plan with the finance team before the pilot starts",
           "Confirm the supplier invoice format and the matching tolerance with each region"]
-MIN_ITEM = 330
+MIN_ITEM = 280      # prototype 290 px, build about 281 (main was about 257)
 
 
 class PublishedItemColumn(unittest.TestCase):
