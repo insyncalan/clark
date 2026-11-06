@@ -50,7 +50,7 @@ T.state = () => {
     act: act ? [+act.dataset.r, +act.dataset.c] : null,
     sel: document.querySelectorAll("td.gt-sel, td.gt-act").length,
     editing: !!document.querySelector("td.gt-ed"),
-    msg: (document.querySelector(".gt-msg") || {}).textContent || "",
+    msg: [...((document.querySelector(".gt-msg") || { childNodes: [] }).childNodes)].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(""),
     bad: (document.querySelector(".gt-msg") || {}).dataset ? document.querySelector(".gt-msg").dataset.gtMsg : "",
     rows: document.querySelectorAll("tbody tr").length,
     heads: [...document.querySelectorAll("thead th[data-k]")].map((h) => h.dataset.k),

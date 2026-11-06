@@ -209,7 +209,7 @@ class Grid(unittest.TestCase):
     # ── copy and paste ──
 
     def cols(self, *keys):
-        return self.val(f"K.COLUMNS.filter((c) => {lit(list(keys))}.includes(c.key))")
+        return self.val(f"{lit(list(keys))}.map((k) => K.COLUMNS.find((c) => c.key === k))")
 
     def test_copy_gives_tab_separated_text(self):
         cols = self.cols("n", "s", "pct")
@@ -235,9 +235,9 @@ class Grid(unittest.TestCase):
         return self.val(f"K.pasteCells({lit(lines)}, {lit(rows)}, {lit(self.cols(*keys))}, {sel}, {lit(matrix)})")
 
     def test_pasting_a_block_lands_where_the_selection_starts(self):
-        got = self.paste([["Alpha", "02-02-2027"], ["Beta", "03-02-2027"]], "K.makeSel(1, 0)", keys=("n", "s"))
+        got = self.paste([["Alpha", "02-10-2026"], ["Beta", "03-10-2026"]], "K.makeSel(1, 0)", keys=("n", "s"))
         self.assertEqual((got["ok"], got["bad"], got["added"]), (4, 0, []))
-        self.assertEqual([(x["n"], x["s"]) for x in got["lines"][1:3]], [("Alpha", "2027-02-02"), ("Beta", "2027-02-03")])
+        self.assertEqual([(x["n"], x["s"]) for x in got["lines"][1:3]], [("Alpha", "2026-10-02"), ("Beta", "2026-10-03")])
 
     def test_pasting_past_the_last_line_adds_lines(self):
         got = self.paste([["Alpha"], ["Beta"], ["Gamma"]], "K.makeSel(6, 0)", keys=("n",))
