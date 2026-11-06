@@ -49,7 +49,7 @@ class ProjectButtonFit(Base):
         self.assertTrue(got["trunc"], "the long name is not cut with an ellipsis; " + where)
         self.assertGreaterEqual(got["gap"], 8, "the project button touches the tab row; " + where)
         self.assertLessEqual(got["page"], 0, "the page scrolls sideways; " + where)
-        if active:
+        if active and active != "Settings":       # row 826: Settings has no View | Edit switch, so the bar has room and the button may be wider there
             self.assertLessEqual(got["btn"], 73, "the tab row scrolls while the button is wide; " + where)
 
 

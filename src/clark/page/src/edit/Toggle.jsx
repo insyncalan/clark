@@ -2,11 +2,11 @@
 // Only a page that clark serves has it: a published file has no Edit button. Switching changes
 // what is drawn and nothing else: no reload, no address change, no history entry, nothing saved. On the Dashboard the plain keys V
 // and E do the same (keys.js, listened for from boot, so the key works whichever bar draws the switch).
-import { mode, data, status, view } from "../stores/report.js";
+import { mode, data } from "../stores/report.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 
 export function Toggle({ pill }) {      // pill: the Dashboard's, drawn at the left of the report bar (#665); otherwise the top bar's
-  if (!data.value && !(status.value === "none" && view.value === "settings")) return null;       // #656: with no project Settings has its Edit, for Add project
+  if (!data.value) return null;       // row 826: Settings has no switch, with a project or without (Add project needs no mode)
   const editing = mode.value === "edit";
   return (
     <span class={pill ? "modes seg" : "modes"} role="group" aria-label="View or Edit">
