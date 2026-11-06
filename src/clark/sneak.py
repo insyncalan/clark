@@ -8,13 +8,18 @@ v2.6.9, with none of its code.
 Reads: a due date ("Friday", "tomorrow", "30-10-2026", "2026-10-30"), an owner ("owner Jo Ellis", "assign to Jo Ellis"), a priority
 ("high priority") and a status ("done", "cancel", "reopen", "delayed"), for an action, a risk, an issue or a decision. A date that
 is not a real day is refused in plain words and nothing is offered.
+
+Also reads a milestone (its forecast date, its achieved date and its status: Achieved or Planned) and a use case (its status, its
+headline and its commitment word), by the same rules: nothing is written here, a change that is final asks first, and the words a
+person reads that are new for these are all in WORDS.
 """
 import os
 import re
 import unicodedata
 from datetime import date, datetime, timedelta
 
-from clark.changes import NO_PROJECT
+from clark.changes import (ACHIEVED_DATE, ARCHIVED_MILESTONE, ARCHIVED_USE_CASE, NO_PROJECT, UC_COMMITMENTS, UC_COMMITMENT_WORDS,
+                           UC_HEADLINE_WORDS, Refused, _checked_use_case_changes)
 from clark.edit_ai import unseen
 
 TABLES = (("actions", "action"), ("raid", None), ("decisions", "decision"))
@@ -35,7 +40,21 @@ NO_DELETE = "Nothing is removed here. To take an item out of the lists, archive 
 BAD_NAME = "I can't use that as a person's name, so nothing was changed. Type a name, for example “owner Jo Ellis”."
 UNSURE_STATUS = "I can't tell which status you mean, so nothing was changed. Say one status, without “not”, for example “done” or “reopen”."
 NEEDS_DATE = "A decision that is made needs the day it was made. Add a date, for example “made on 30-10-2026”."
-MILESTONE = "This is a milestone. Here I can change work items only, not milestones."
+BAD_YEAR = "That year looks wrong, so nothing was changed. Type a year between 2000 and 2100."
+# Every sentence a person reads that is new for a milestone or a use case (the rest are the work items' own, or changes.py's).
+WORDS = {
+    "hidden": "That {what} is hidden from the client (its eye is off), so nothing was changed. Turn its eye on first.",
+    "nothing_milestone": "I couldn't find a change in that. Here I can change a milestone's forecast date, achieved date and status. "
+                         "Try, for example, “forecast Friday” or “achieved yesterday”.",
+    "nothing_use_case": "I couldn't find a change in that. Here I can change a use case's status, headline and commitment. "
+                        "Try, for example, “flag, committed” or “headline: Go-live is on plan”.",
+    "agreed_date": "Moving the agreed date needs who agreed it and why, so it can't be done here. Nothing was changed.",
+    "no_cancel": "A milestone can't be cancelled from here. Nothing was changed.",
+    "owner_left_out": "A milestone's owner can't be changed here, so it was left out.",
+    "labels": {"forecast_date": "Forecast", "actual_date": "Achieved date", "headline": "Headline", "commitment": "Commitment"},
+    "achieved": "Achieved",
+    "no_flag": "No flag",
+}
 NEGATION = re.compile(r"\b(not|never|no|nothing|neither|nor|without|unless|cannot|ain'?t|\w+n't|(?:don|doesn|didn|isn|wasn|aren|weren|won|can|couldn|shouldn|wouldn|mustn|hasn|haven|hadn)t)\b", re.I)
 NOT_NAMES = {"is", "to", "by", "tbc", "tba", "tbd", "none", "nobody", "unknown", "n/a", "na", "null", "nil"}
 ITEM_ID = re.compile(r"[A-Z][A-Z0-9]{0,6}-(?:[A-Z]-)?\d+", re.I)
@@ -141,9 +160,10 @@ def _owners(data):
     return names
 
 
-def read(data, item_id, words, now=None, known_owners=None):
+def read(data, item_id, words, now=None, known_owners=None, archived=None):
     """Read `words` about one item. Returns {"ok": True, "id", "changes": [{field, label, from, to, from_text, to_text, confirm,
-    new_name}], "confirm": bool, "note": text} or {"ok": False, "message": plain words}. Nothing is written."""
+    new_name}], "confirm": bool, "note": text} or {"ok": False, "message": plain words}. Nothing is written. `archived` is a function giving the
+    project's archived rows (the same shape as `data`), asked only when the item is not among the live ones."""
     now = now or today()
     if not isinstance(words, str) or not words.strip():
         return {"ok": False, "message": NOTHING}
@@ -152,8 +172,17 @@ def read(data, item_id, words, now=None, known_owners=None):
     data = data if isinstance(data, dict) else {}
     kind, row = find_item(data, item_id)
     if row is None:
-        if any(isinstance(m, dict) and m.get("id") == item_id for m in data.get("milestones") or []):
-            return {"ok": False, "message": MILESTONE}
+        for table, kind_, reader in (("milestones", "milestone", read_milestone), ("use_cases", "use case", read_use_case)):
+            mine = next((r for r in data.get(table) or [] if isinstance(r, dict) and r.get("id") == item_id), None)
+            if mine is not None:
+                if table == "milestones" and item_id in (data.get("report_hidden") or []) or table == "use_cases" and not mine.get("client_visible", 1):
+                    return {"ok": False, "message": WORDS["hidden"].format(what=kind_)}
+                return reader(data, mine, words, now)
+        gone = archived() if callable(archived) else None
+        if gone and any(isinstance(r, dict) and r.get("id") == item_id for r in gone.get("milestones") or []):
+            return {"ok": False, "message": ARCHIVED_MILESTONE}
+        if gone and any(isinstance(r, dict) and r.get("id") == item_id for r in gone.get("use_cases") or []):
+            return {"ok": False, "message": ARCHIVED_USE_CASE}
         return {"ok": False, "message": "That item isn't in this project any more. Reload the page."}
     changes, notes, same = [], [], []
 
@@ -172,7 +201,7 @@ def read(data, item_id, words, now=None, known_owners=None):
     if bad:
         return {"ok": False, "message": BAD_DATE}
     if any(not 2000 <= d.year <= 2100 for d in found):
-        return {"ok": False, "message": "That year looks wrong, so nothing was changed. Type a year between 2000 and 2100."}
+        return {"ok": False, "message": BAD_YEAR}
     statuses = _statuses_for(rest, kind)
     if len(statuses) > 1 or (statuses and NEGATION.search(rest.replace("’", "'"))):
         return {"ok": False, "message": UNSURE_STATUS}
@@ -236,6 +265,167 @@ def read(data, item_id, words, now=None, known_owners=None):
     return {"ok": True, "id": item_id, "changes": changes, "confirm": any(c["confirm"] for c in changes), "note": " ".join(notes)}
 
 
+def _line(row, field, new, text=None, confirm=False, from_text=None):
+    """One from → to line for a milestone or a use case, or None when the value is already that."""
+    old = row.get(field)
+    if new == old:
+        return None
+    label = WORDS["labels"].get(field) or LABELS.get(field) or field.capitalize()
+    dated = field in ("forecast_date", "actual_date")
+    return {"field": field, "label": label, "from": old, "to": new, "from_text": from_text if from_text is not None else (_dmy(old) if dated else (old or "—")),
+            "to_text": text or (_dmy(new) if dated else new), "confirm": confirm, "new_name": False}
+
+
+def _prepare(words, now):
+    """The checks both new readers start with: (message or None, the owner match, the words without the owner's name, the days found)."""
+    if not isinstance(words, str) or not words.strip():
+        return None, None, "", []
+    if len(words) > MAX_WORDS:
+        return TOO_LONG, None, "", []
+    m = OWNER.search(words)
+    rest = (words[:m.start()] + " " + words[m.end():]) if m else words
+    found, bad = dates_in(rest, now)
+    if bad:
+        return BAD_DATE, m, rest, []
+    if any(not 2000 <= d.year <= 2100 for d in found):
+        return BAD_YEAR, m, rest, []
+    if len(set(found)) > 1:
+        return TWO_DATES, m, rest, []
+    return None, m, rest, found
+
+
+def _done(out, notes, same, key):
+    if not out:
+        return {"ok": False, "message": " ".join(notes + same + ([] if notes or same else [WORDS[key]]))}
+    return {"ok": True, "changes": out, "confirm": any(c["confirm"] for c in out), "note": " ".join(notes)}
+
+
+def read_milestone(data, row, words, now):
+    """Words about one milestone: its forecast date, achieved date and status. The agreed date and the owner are not changed here."""
+    if not isinstance(words, str) or not words.strip():
+        return {"ok": False, "message": WORDS["nothing_milestone"]}
+    bad, owner, rest, found = _prepare(words, now)
+    if bad:
+        return {"ok": False, "message": bad}
+    low = rest.lower()
+    if re.search(r"\b(agreed|baseline|rebaseline)\b", low):
+        return {"ok": False, "message": WORDS["agreed_date"]}
+    if re.search(r"\b(cancel|cancelled|canceled)\b", low):
+        return {"ok": False, "message": WORDS["no_cancel"]}
+    got = set()
+    if re.search(r"\b(done|achieved|complete|completed|finished|reached)\b", low):
+        got.add("Done")
+    if re.search(r"\b(reopen|re-open|open again|planned)\b", low):
+        got.add("Planned")
+    if len(got) > 1 or (got and NEGATION.search(rest.replace("’", "'"))):
+        return {"ok": False, "message": UNSURE_STATUS}
+    status = next(iter(got), None)
+    current = row.get("status") or "Planned"
+    target = status or current
+    out, notes, same = [], [], []
+    target_is_forecast = bool(re.search(r"\bforecast\b", low))
+
+    def put(line, said):
+        if line is None:
+            same.append(said)
+        else:
+            out.append(line)
+    if found:
+        when, text = found[0], _dmy(found[0].isoformat())
+        if target == "Done" and not re.search(r"\bforecast\b", low):
+            if when > now:
+                return {"ok": False, "message": ACHIEVED_DATE}
+            put(_line(row, "actual_date", when.isoformat()), f"The achieved date is already {text}.")
+        else:
+            put(_line(row, "forecast_date", when.isoformat()), f"The forecast is already {text}.")
+            if when < now:
+                notes.append(f"{text} is in the past.")
+        if re.search(r"\b(today|yesterday|tomorrow|" + "|".join(DAYS) + r")\b", NUMERIC_DATE.sub(" ", low)):
+            notes.append(f"Read as {text}.")
+    if status and status != current:                    # the store fills or clears the achieved date with the status; it is said here so the lines show it
+        shown = {"Done": WORDS["achieved"], "Planned": "Planned"}
+        out.append(_line(row, "status", status, shown[status], confirm=status == "Done" or current == "Done", from_text=shown.get(current, current)))
+        if status == "Done" and not found and not row.get("actual_date"):
+            fc = row.get("forecast_date")
+            out.append(_line(row, "actual_date", fc if fc and fc <= now.isoformat() else now.isoformat()))
+        elif status == "Done" and found and target_is_forecast and not row.get("actual_date"):
+            out.append(_line(row, "actual_date", now.isoformat()))      # "done, forecast Friday": the store still sets the achieved date, so the lines show it
+        elif status == "Planned" and row.get("actual_date"):
+            out.append(_line(row, "actual_date", None, "—"))
+    elif status:
+        same.append(f"The status is already {WORDS['achieved'] if status == 'Done' else status}.")
+    if owner:
+        notes.append(WORDS["owner_left_out"])
+    r = _done([c for c in out if c], notes, same, "nothing_milestone")
+    if r["ok"]:
+        r["id"] = row.get("id")
+    return r
+
+
+COMMIT_WORDS = (("Planned 2027", re.compile(r"\bplanned\s+(?:for\s+)?2027\b", re.I)), ("Candidate", re.compile(r"\bcandidate\b", re.I)),
+                ("Committed", re.compile(r"\bcommitted\b", re.I)))
+NO_COMMIT = re.compile(r"\bno\s+(?:flag|commitment)\b|\b(?:clear|remove|drop|unset)\s+(?:the\s+)?(?:flag|commitment)\b", re.I)
+HEADLINE_QUOTED = re.compile(r"\bheadline\b\s*(?:\b(?:is|to|as)\b|[:=])?\s*(?:\"([^\"]*)\"|“([^”]*)”)", re.I)
+HEADLINE_PLAIN = re.compile(r"\bheadline\b\s*(?:\b(?:is|to|as)\b|[:=])\s*(.+)$", re.I | re.S)
+USE_CASE_STATUS = (("High risk", r"\bhigh[- ]risk\b|\bred\b"), ("On track", r"\bon[- ]track\b|\bgreen\b"),
+                   ("Flag", r"\b(?:flag|flagged|amber)\b"), ("Done", r"\b(?:done|complete|completed|finished)\b"))
+
+
+def read_use_case(data, row, words, now):
+    """Words about one use case: its status (On track, Flag, High risk, Done), its headline and its commitment word."""
+    if not isinstance(words, str) or not words.strip():
+        return {"ok": False, "message": WORDS["nothing_use_case"]}
+    if len(words) > MAX_WORDS:
+        return {"ok": False, "message": TOO_LONG}
+    rest, head = words, None
+    for rx in (HEADLINE_QUOTED, HEADLINE_PLAIN):
+        h = rx.search(rest)
+        if h:
+            head = next((g for g in h.groups() if g is not None), "").strip()
+            rest = rest[:h.start()] + " " + rest[h.end():]
+            break
+    marks = [word for word, rx in COMMIT_WORDS if rx.search(rest)]
+    clear = bool(NO_COMMIT.search(rest))
+    if len(marks) + clear > 1:
+        return {"ok": False, "message": UC_COMMITMENT_WORDS}
+    for _, rx in COMMIT_WORDS:
+        rest = rx.sub(" ", rest)
+    rest = NO_COMMIT.sub(" ", rest)
+    low = rest.lower()
+    got = {name for name, rx in USE_CASE_STATUS if re.search(rx, low)}
+    if got == {"Flag", "High risk"}:                    # "flag it as high risk": the risk is the status, the flag is the verb
+        got.discard("Flag")
+    if len(got) > 1 or (got and NEGATION.search(rest.replace("’", "'"))):
+        return {"ok": False, "message": UNSURE_STATUS}
+    values = {}
+    if head:
+        values["headline"] = head
+    if got:
+        values["status"] = next(iter(got))
+    if marks or clear:
+        values["commitment"] = marks[0] if marks else None
+    try:
+        values = _checked_use_case_changes(values)
+    except Refused as e:
+        return {"ok": False, "message": e.message}
+    out, same = [], []
+    for field in ("status", "headline", "commitment"):
+        if field not in values:
+            continue
+        new = values[field]
+        none = WORDS["no_flag"]
+        line = _line(row, field, new, new or none, confirm=field == "status" and new == "Done",
+                     from_text=(row.get(field) or (none if field == "commitment" else "—")))
+        if line is None:
+            same.append(f"The {WORDS['labels'].get(field, field).lower()} is already {new or none}.")
+        else:
+            out.append(line)
+    r = _done(out, [], same, "nothing_use_case")
+    if r["ok"]:
+        r["id"] = row.get("id")
+    return r
+
+
 def make_read(data_for):
     """The seam the server calls for POST /api/sneak/read: `read(req)` -> (status, body). `data_for(code)` is the store's read of
     one project (None when there is none). The server has checked the request's shape."""
@@ -243,5 +433,5 @@ def make_read(data_for):
         data = data_for(req["project"])
         if data is None:
             return 404, {"ok": False, "message": NO_PROJECT, "code": "project_not_found"}
-        return 200, read(data, req["id"], req["text"])
+        return 200, read(data, req["id"], req["text"], archived=lambda: data_for(req["project"], "only"))
     return seam
