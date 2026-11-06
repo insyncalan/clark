@@ -365,8 +365,8 @@
     "w": "Work items › View",
     "go": "work",
     "s": [
-     "The **View** menu beside the saved views holds the layout and the grouping. **Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
-     "**Layout** in the View menu switches between **Table** and **Board**. The board’s columns follow Group by (Status when it is Nothing).",
+     "The **View** menu beside the saved views holds the grouping. **Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
+     "The two icons beside the View menu, **Table** and **Board**, switch between the table and the board. The board’s columns follow Group by (Status when it is Nothing).",
      "On the board, **Swimlanes** in the View menu adds rows across it: No lanes, Workstream lanes or Type lanes.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
      "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes.",
@@ -1137,7 +1137,7 @@
        "**Raised**: when the item came in, from its first change in the history. Raised and Last reviewed are in the peek of an open action, risk, issue or decision.",
        "**Last reviewed**: the latest change you made by hand. A change made by clark or an Undo does not count.",
        "**Not reviewed in 14 days**: shown at the top of the peek on an open action, risk, issue or decision that has not been reviewed for that long.",
-       "In **Filter by**, **Freshness** offers **Not reviewed in 14 days** and **No owner or no date**. To get the same two lists, type **is:quiet** or **is:incomplete** in the filter line. Freshness is offered once some item has a date it can count from.",
+       "To get **Not reviewed in 14 days** or **No owner or no date**, type **is:quiet** or **is:incomplete** in the filter line, or save either as a view.",
        "14 days is the default. To change it for this project, open **Settings**, then **Freshness**, and type a whole number from 1 to 365 in **Not reviewed after (days)**. The note and the filter follow at once."
       ]
      ],
@@ -1251,7 +1251,7 @@
     "b": [
      [
       "p",
-      "From the top: the type switch; **Open**, **Closed** and **All** with counts; the saved views with **Freshness** and the **View** menu (Layout, Group by and Swimlanes); then the filter line."
+      "From the top: the type switch; **Open**, **Closed** and **All** with counts; the saved views with the **Table** and **Board** icons and the **View** menu (Group by and Swimlanes); then the filter line."
      ],
      [
       "tbl",
@@ -2392,7 +2392,7 @@
     "Work items lists the actions, risks, issues and decisions for the project in one place.",
     "Choose **Open**, **Closed** or **All** to say which items to list.",
     "Narrow the list by typing in the filter line, a word or a field such as status:Open. The **×** at its right empties it.",
-    "The **View** menu holds **Layout** and **Group by**, so you can switch between a table and a board."
+    "The **Table** and **Board** icons beside the **View** menu switch between a table and a board; the **View** menu holds **Group by**."
    ],
    "full": "ref-work-items"
   },
