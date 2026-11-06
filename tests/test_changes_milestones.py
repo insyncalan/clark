@@ -134,8 +134,7 @@ class TheFields(Base):
 
 class TheRefusals(Base):
     def test_fields_outside_the_list_are_refused_and_nothing_is_written(self):
-        for field in ("owner", "name", "workstream", "sort_order", "archived", "project", "id", "description",
-                      "percent_complete", "client_visible"):
+        for field in ("sort_order", "archived", "project", "id", "client_visible"):      # row 828: owner, name, workstream, description and percent_complete are the peek's now
             with self.subTest(field=field):
                 self.refused(self.req({field: "x"}))
 
@@ -370,12 +369,12 @@ class TheUndoBoundary(Base):
         self.assertEqual(self.row()["forecast_date"], "2030-03-20")
 
     def test_a_step_that_changed_a_field_outside_the_list_is_not_undone_here(self):
-        step = self.demo.update("milestones", self.m, {"owner": "Someone Else", "forecast_date": "2030-03-20"})
+        step = self.demo.update("milestones", self.m, {"sort_order": 9, "forecast_date": "2030-03-20"})
         status, body = self.undo({"project": "ABC", "apply_id": step})
         self.assertEqual((status, body["message"]), (400, changes.NO_UNDO))
 
-    def test_a_step_that_changed_the_internal_note_and_the_owner_is_still_not_undone_here(self):      # #458: the note is on the list, the owner is not
-        step = self.demo.update("milestones", self.m, {"internal_note": "PLANTED-NOTE", "owner": "Someone Else"})
+    def test_a_step_that_changed_the_internal_note_and_the_order_is_still_not_undone_here(self):      # #458: the note is on the list, the order is not
+        step = self.demo.update("milestones", self.m, {"internal_note": "PLANTED-NOTE", "sort_order": 9})
         status, body = self.undo({"project": "ABC", "apply_id": step})
         self.assertEqual((status, body["message"]), (400, changes.NO_UNDO))
         self.assertEqual(self.row()["internal_note"], "PLANTED-NOTE")
@@ -423,8 +422,9 @@ class TheLists(unittest.TestCase):
     def test_the_allow_lists_name_no_internal_field(self):
         fields = set(changes.CHANGE_KINDS["milestones"][changes.UPDATE])
         self.assertEqual(fields, {"baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
-                                  "client_message", "movement", "internal_note"})      # #458: + the internal note
-        self.assertFalse(fields & {"owner", "name", "workstream", "sort_order", "project", "id", "archived"})
+                                  "client_message", "movement", "internal_note",
+                                  "name", "owner", "workstream", "percent_complete", "description"})      # #458: + the internal note; row 828: + the peek's fields
+        self.assertFalse(fields & {"sort_order", "project", "id", "archived", "client_visible"})
         self.assertEqual(changes.KIND_OP_KEYS["milestones"][changes.UPDATE], ("id", "changes", "rebaseline"))
         self.assertTrue(fields <= set(changes.UNDOABLE["milestones"]))
         self.assertIn("archived", changes.UNDOABLE["milestones"])
