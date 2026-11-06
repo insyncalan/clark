@@ -16,6 +16,7 @@ from test_server import chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 CSS = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
+EDIT = (ROOT / "src/clark/page/src/edit/edit.css").read_text(encoding="utf-8")
 # The three elements, with the classes the page gives them.
 MAKE = """(() => { const d = document.createElement('div');
   d.innerHTML = '<div class="col"><div class="col-b"><span class="cn num settle">3</span></div></div><div class="toast"><button class="toast-btn" data-undo>Undo</button></div><button class="ib ms-eye" data-blink><svg class="i"></svg></button>';
@@ -68,10 +69,12 @@ class MotionMicroDelight(unittest.TestCase):
         block = block[:block.index("@media (hover: hover)")]
         self.assertRegex(block, r"\.col-b \.cn\.settle \{ animation: m-count var\(--dur-state\) var\(--ease-out\) 1; \}")
         self.assertRegex(block, r"\.toast-btn\[data-undo\] \{ animation: m-undo var\(--dur-enter\) var\(--ease-out\) 1; \}")
-        self.assertRegex(block, r"\[data-blink\] svg \{ animation: m-blink var\(--dur-state\) var\(--ease-toggle\) 1; \}")
-        self.assertNotRegex(CSS.replace(block, ""), r"animation:[^;]*m-(count|undo|blink)")
+        # the eye rule is Edit's: in edit.css under both guards, and nowhere in shell.css (which the published file carries)
+        self.assertRegex(EDIT, r"no-preference\) \{\s*:root:not\(\[data-motion=\"reduce\"\]\) :is\([^)]*\)\[data-blink\] svg \{ animation: m-blink var\(--dur-state\) var\(--ease-toggle\) 1; \}")
+        self.assertNotRegex(CSS, r"data-blink|m-blink|ms-eye|ucl-eye|ucd-eye")
+        self.assertNotRegex(CSS.replace(block, ""), r"animation:[^;]*m-(count|undo)")
         for name in ("m-count", "m-undo", "m-blink"):
-            body = re.search(r"@keyframes " + name + r" \{(.*?)\}\s*\}", CSS, re.S).group(1)
+            body = re.search(r"@keyframes " + name + r" \{(.*?)\}\s*\}", CSS + EDIT, re.S).group(1)
             self.assertRegex(body, r"transform")
             self.assertNotRegex(body, r"height|margin|padding|top|left|width|opacity")
 

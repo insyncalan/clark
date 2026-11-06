@@ -1564,10 +1564,9 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     /* the placeholder fades out as the screen arrives */
     .skel-leave { position: absolute; left: var(--space-5); right: var(--space-5); top: 28px; z-index: 1; pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
     /* row 888: three small delights. A column's count badge ticks when its number changes, the toast's Undo pulses once as it appears,
-       and an eye blinks once when it is pressed (the button gets data-blink for that run). Transform only */
+       and an eye blinks once when it is pressed (that rule is in edit.css, as the eyes are Edit's). Transform only */
     .col-b .cn.settle { animation: m-count var(--dur-state) var(--ease-out) 1; }
     .toast-btn[data-undo] { animation: m-undo var(--dur-enter) var(--ease-out) 1; }
-    :is(.ms-eye, .weye, .ucl-eye, .ucd-eye)[data-blink] svg { animation: m-blink var(--dur-state) var(--ease-toggle) 1; }
     /* a changed row glows, then settles to the still mark (tint, bar and the word stay) */
     .sec.is-changed, table.items tr.changed td, .msl-row.changed { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1; }
     /* the peek slides in on opening and its body fades in as Previous or Next steps on */
@@ -1596,7 +1595,6 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
   }
   @keyframes m-count { 40% { transform: scale(1.3); } }
   @keyframes m-undo { 40% { transform: scale(1.12); } }
-  @keyframes m-blink { 50% { transform: scaleY(.1); } }
   @keyframes m-tick { from { opacity: 0; transform: scale(.4); } }
   @keyframes m-line-top { from { box-shadow: 0 -3px 0 transparent; } }
   @keyframes m-line-end { from { box-shadow: 0 3px 0 transparent; } }
