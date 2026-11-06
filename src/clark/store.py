@@ -34,7 +34,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 16          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 17          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -410,7 +410,7 @@ def is_archived(con, code):
 # Every column the schema holds as a 0/1 flag (CHECK (x IN (0,1))). `archived` is validated like the rest (#126), but only
 # archive and restore (and the Undo of them) ever set it: refuse_archived_field turns it away from a new row and an update. tests/test_store_flags.py reads schema.sql and fails if a flag column is not named here,
 # so a new flag can't slip past the rule (#89).
-FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "needs_details"})
+FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "needs_details", "client_action"})
 FLAGS_ELSEWHERE = frozenset({"archived"})       # also named here: the flags test still reads it (#89)
 
 
@@ -2236,13 +2236,26 @@ def migrate_use_case_commitment(con):
         con.execute("ALTER TABLE use_cases ADD COLUMN commitment TEXT")
 
 
+def migrate_client_action(con):
+    """Schema version 16 to 17 (row 811): `actions.client_action` and `raid.client_action`, the 0/1 flag "needed from the client" the
+    peek's switch sets (a decision has no such flag). 0 on every row already there: nothing is guessed
+    and no row is changed. A column added at the end of each table with the CHECK of schema.sql, so no table is made again. Each is skipped
+    when it is already there (a new database, or a second run). Runs inside the caller's transaction and does not touch the version (the
+    runner does). It is step 17 in MIGRATIONS."""
+    if "client_action" not in columns(con, "actions"):
+        con.execute("ALTER TABLE actions ADD COLUMN client_action INTEGER NOT NULL DEFAULT 0 CHECK (client_action IN (0,1))")
+    if "client_action" not in columns(con, "raid"):
+        con.execute("ALTER TABLE raid ADD COLUMN client_action INTEGER NOT NULL DEFAULT 0 CHECK (client_action IN (0,1))")
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
               (7, migrate_email_sent), (8, migrate_section_templates), (9, migrate_people), (10, migrate_publication_numbers),
               (11, migrate_use_case_done), (12, migrate_publication_trigger_client_path),
               (13, migrate_publication_shared_number),
-              (REVIEW_DAYS_STEP, migrate_review_after_days), (15, migrate_publication_pdf_name), (16, migrate_use_case_commitment))
+              (REVIEW_DAYS_STEP, migrate_review_after_days), (15, migrate_publication_pdf_name), (16, migrate_use_case_commitment),
+              (17, migrate_client_action))
 
 
 def migration_plan(version, table=None):
