@@ -56,6 +56,13 @@ class Rows(unittest.TestCase):
         self.assertEqual(history.how_text("undo", None, "Undo several"), "Undo (Undo several)")
         self.assertEqual(history.how_text("undo", "cell", "something else"), "Undo")
 
+    def test_excel_import_is_named_once_for_what_the_import_stores(self):
+        """The import stores 'by Excel import (x.xlsx)'; the How text must not wrap it a second time."""
+        got = history.how_text("excel", "excel", "by Excel import (plan.xlsx)")
+        self.assertEqual(got, "By Excel import (plan.xlsx)")
+        self.assertEqual(got.lower().count("excel import"), 1)
+        self.assertEqual(history.how_text("excel", "excel", "by Excel import (C:\\x\\a  b.xlsx)"), "By Excel import (a b.xlsx)")
+
     def test_excel_file_name_is_cleaned_and_unknown_values_are_plain(self):
         self.assertEqual(history.how_text("excel", "excel", "Excel import: C:\\x\\a  b.xlsx"), "By Excel import (a b.xlsx)")
         self.assertEqual(len(history.how_text("excel", "excel", "Excel import: " + "z" * 300)), len("By Excel import ()") + 60)
