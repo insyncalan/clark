@@ -628,7 +628,7 @@ class OwnerLink(IdCase):
         row = self.s.read("actions", ref="ABC-A-003")
         self.assertEqual((row["owner"], row["owner_id"]), ("Someone Unlisted", None))
 
-    def test_a_blank_owner_cell_clears_nothing_and_the_row_is_reported(self):
+    def test_a_blank_owner_cell_is_refused_and_the_row_is_reported(self):
         """Pins today's behaviour: a blank owner cell over a named owner is a reported problem, never a change, so the text and the
         link stay (and the same row's other edit is not applied either). Clearing an owner by import is not possible."""
         old = self.person("Pat Oldname")
