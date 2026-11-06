@@ -2,6 +2,7 @@
 
 Run: python3 dev/run_tests.py test_excel_cover
 """
+import io
 import os
 import shutil
 import sqlite3
@@ -9,6 +10,7 @@ import tempfile
 import time
 import unittest
 import zipfile
+import xml.etree.ElementTree as ET
 from unittest import mock
 from pathlib import Path
 
@@ -311,6 +313,24 @@ class InTheWorkbook(unittest.TestCase):
         self.assertEqual(sorted(widths), list("ABCDEFGHIJKL"))
         self.assertEqual(len(set(widths.values())), 1, "twelve equal columns")
         self.assertEqual([c.column for c in ws[1]][-1], 12)
+
+    def test_every_sheet_prints_landscape_and_one_page_wide_and_tile_values_are_inset(self):
+        ns = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+        with zipfile.ZipFile(self.path) as z:
+            names = sorted(n for n in z.namelist() if n.startswith("xl/worksheets/sheet") and n.endswith(".xml"))
+            self.assertEqual(len(names), 8)
+            for n in names:
+                root = ET.fromstring(z.read(n))
+                setup = root.find("m:pageSetup", ns)
+                self.assertEqual((setup.get("orientation"), setup.get("fitToWidth"), setup.get("fitToHeight")), ("landscape", "1", "0"), n)
+                self.assertIn(root.find("m:sheetPr/m:pageSetUpPr", ns).get("fitToPage"), ("1", "true"), n)
+        self.assertEqual(self.find("Overdue actions").offset(row=1).alignment.indent, 1)
+
+    def test_the_import_template_prints_landscape_and_one_page_wide_too(self):
+        wb = load_workbook(io.BytesIO(excel.template_bytes()))
+        for ws in wb.worksheets:
+            self.assertEqual((ws.page_setup.orientation, ws.page_setup.fitToWidth, ws.page_setup.fitToHeight), ("landscape", 1, 0))
+            self.assertTrue(ws.sheet_properties.pageSetUpPr.fitToPage)
 
     def cover_sheet(self):
         return load_workbook(self.path)["Cover"]
