@@ -188,8 +188,8 @@ class Detail(unittest.TestCase):
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#dashboard&p=TUL"}, sid)
-        self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.sec').length > 0", sid)), "the page drew")
+        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#{'dashboard' if edit else 'usecases'}&p=TUL"}, sid)    # row 825: off the Dashboard the page is live and the change toast (with Undo) is drawn without Edit
+        self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.sec').length > 0" if edit else "!!document.querySelector('#usecases')", sid)), "the page drew")
         if edit:
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('#report').dataset.mode === 'edit'", sid)), "Edit")
