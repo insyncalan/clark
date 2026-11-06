@@ -5,7 +5,7 @@ Run: python3 dev/run_tests.py test_v103
 
 Same shape as test_v102.
   COVERED       a merged row a person can see, already covered by a test elsewhere. test_every_covering_test_named_here_exists
-                fails if one goes missing. Rows 273, 802, 827, 872, 874, 889, 895, 905 and 907 have no visible change (NO_VISIBLE_CHANGE).
+                fails if one goes missing. Rows 273, 802, 827, 872, 874, 889, 895, 905, 907, 917, 918 and 920 have no visible change (NO_VISIBLE_CHANGE).
   WAITING       a row that is not on main yet but has a marker in the source that appears when it lands (item, check, pull request,
                 a file under the top folder, the text in it). Skipped, with the pull request. After the cut commit has set the
                 version and the marker is there, the row fails until it is moved to COVERED with its test. Empty today: the
@@ -250,11 +250,17 @@ COVERED = [
     ("#906", "A built-in section can be deleted and Undo puts it back.",
      "test_changes_section_bodies::Deleting::test_the_built_in_sections_can_be_deleted_too_and_undo_puts_each_back"),
     ("#830", "The Use cases page has the archived list and the head buttons with no Edit.",
-     "test_use_cases_fields::UseCaseFields::test_page_has_the_pieces")
+     "test_use_cases_fields::UseCaseFields::test_page_has_the_pieces"),
+    ("#798", 'Published tabs share one eyebrow and Use cases rows show the headline.',
+     "test_published_tabs_eyebrow::PublishedTabs::test_one_eyebrow_style_and_the_headline_on_the_use_cases_tab"),
+    ("#840", 'Settings labels sit at the left of their controls.',
+     "test_settings_rows::Rows::test_C_row_840_the_label_is_at_the_left_and_the_control_is_beside_it_and_not_capped"),
+    ("#841", 'The Settings cards are compact.',
+     "test_settings_rows::Rows::test_C_row_841_the_cards_are_compact")
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
-NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874", "889", "895", "905", "907"}
+NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874", "889", "895", "905", "907", "917", "918", "920"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
 PARTLY_MERGED = {"767", "766"}
