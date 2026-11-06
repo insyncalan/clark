@@ -1136,15 +1136,21 @@ class _Rollback(Exception):
 
 def _write(st, store, c):
     """Write one staged change through the step."""
+    after = dict(c.after)
+    text = writer.OWNER_TEXT.get(c.table)
+    if text in after and c.kind != "removed":      # row 873: the owner text and the person it links to are written together, as an owner edit does, else a later rename or merge puts the old name back
+        found = store.resolve_owner(after[text]) if after[text] else {"status": "blank"}
+        if found["status"] == "one" or c.kind == "changed":
+            after["owner_id"] = found["id"] if found["status"] == "one" else None
     if c.kind == "new":
-        return st.create(c.table, dict(c.after))
+        return st.create(c.table, after)
     now = store.read(c.table, ref=c.id)
     if now is None:
         raise Invalid(f"{c.id} is no longer in clark; run the import again")
     if now["updated_at"] != c.seen_at:
         raise Invalid(f"{c.id} was changed in clark after this import was checked; run the import again")
     if c.kind == "changed":
-        return st.update(c.table, c.id, dict(c.after))
+        return st.update(c.table, c.id, after)
     return st.archive(c.table, c.id)
 
 
