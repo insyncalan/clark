@@ -1,6 +1,6 @@
 """Row 887 (motion): drag feedback on the Board. Run: python3 dev/run_tests.py test_motion_drag_feedback
 
-A card that is dragged lifts (a transform), the column it would land in eases its highlight in, and a column dragged by its heading lifts the
+A card that is dragged lifts (its ghost grows into place; the card has no transform), the column it would land in eases its highlight in, and a column dragged by its heading lifts the
 same way. Under reduced motion (the computer's setting or clark's own) the highlight and the dimming stay and nothing lifts or eases.
 Checked at 1400 and 900 px, light and dark. The classes are the Board's own (bcard drag, col over, col moving); no drag logic changes.
 """
@@ -18,9 +18,9 @@ from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 CSS = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
 # A card being dragged and two columns, with the classes Board.jsx gives them.
 MAKE = """(() => { const d = document.createElement('div');
-  d.innerHTML = '<article class="bcard drag"></article><section class="col over"></section><section class="col moving"></section><section class="col drop-before"></section>';
+  d.innerHTML = '<div class="bghost"></div><section class="col over"></section><section class="col moving"></section><section class="col drop-before"></section>';
   document.body.appendChild(d); const q = (x) => getComputedStyle(d.querySelector(x));
-  return JSON.stringify([q('.bcard').transform, q('.bcard').transitionProperty, q('.col.over').animationName, q('.col.moving').transform, q('.col.drop-before').animationName]); })()"""
+  return JSON.stringify([q('.bghost').animationName, q('.bghost').scale, q('.col.over').animationName, q('.col.moving').transform, q('.col.drop-before').animationName]); })()"""
 
 
 class MotionDragFeedback(unittest.TestCase):
@@ -58,23 +58,22 @@ class MotionDragFeedback(unittest.TestCase):
                         sid = self.load(cdp, width, scheme, motion)
                         card, prop, over, moving, line = json.loads(cdp.js(MAKE, sid))
                         if motion == "no-preference":
-                            self.assertNotEqual(card, "none")
-                            self.assertIn("transform", prop)
-                            self.assertEqual((over, line), ("m-over", "m-col-line"))
-                            self.assertNotEqual(moving, "none")
+                            self.assertEqual((card, over, line), ("m-lift", "m-over", "m-col-line"))
+                            self.assertEqual(prop, "1.05")
+                            self.assertEqual(moving, "1.01")
                         else:
-                            self.assertEqual((card, over, moving, line), ("none", "none", "none", "none"))
+                            self.assertEqual((card, over, line), ("none", "none", "none"))
+                            self.assertEqual((prop, moving), ("none", "none"))
 
     def test_row_887_is_inside_the_motion_block_uses_tokens_and_lifts_with_a_transform_only(self):
         block = CSS[CSS.index("Motion: motion that explains"):]
         block = block[:block.index("@media (hover: hover)")]
-        self.assertRegex(block, r"\.bcard\.drag \{ transform: translateY\(-2px\) scale\(")
+        self.assertRegex(block, r"\.bghost \{ scale: 1\.05; animation: m-lift var\(--dur-instant\) var\(--ease-out\) 1; \}")
         self.assertRegex(block, r"\.col\.over \{ animation: m-over var\(--dur-state\) var\(--ease-enter\) 1; \}")
-        self.assertRegex(block, r"\.bcard \{ transition: transform var\(--dur-instant\) var\(--ease-out\); \}")
+        self.assertNotRegex(CSS, r"\.bcard[^{]*\{[^}]*(transform|transition|scale)")      # the card holds its date picker: it gets no transform
         rest = CSS.replace(block, "")
-        self.assertNotRegex(rest, r"\.bcard\.drag \{[^}]*transform")
         self.assertNotRegex(rest, r"animation:[^;]*m-(over|col-line)")
-        for name in ("m-over", "m-col-line"):
+        for name in ("m-lift", "m-over", "m-col-line"):
             body = re.search(r"@keyframes " + name + r" \{(.*?)\}\s*\}", CSS, re.S).group(1)
             self.assertNotRegex(body, r"height|margin|padding|top|left|width")
         # the drag logic is not touched by this row: the Board only supplies the classes
