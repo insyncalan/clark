@@ -300,7 +300,7 @@ class Browser(unittest.TestCase):
                 s, sid = self.load_page(cdp, width)
                 ids = self.ids_on_page(cdp, sid)
                 self.assertTrue(len(ids) > 3)
-                dblclick(cdp, sid, f"#work tbody tr[data-id='{ids[1]}'] .c-item")
+                click(cdp, sid, f"#work tbody tr[data-id='{ids[1]}'] .c-item")
                 self.assertTrue(wait(lambda: cdp.js("clarkPage.peek() && clarkPage.peek().id", sid) == ids[1]))
                 self.assertEqual(cdp.js("document.querySelector('#peek').dataset.peek", sid), ids[1])
                 labels = cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid)
@@ -564,7 +564,7 @@ class Browser(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-sneak-open]')", sid)), "an item keeps the sparkle")
 
     def test_a_click_draws_the_peek_within_150_ms_measured_in_the_page(self):
-        """The 150 ms open time (#42), measured: from the double-click event to the peek in the DOM, by the page's own clock. The best of
+        """The 150 ms open time (#42), measured: from the click event to the peek in the DOM, by the page's own clock. The best of
         three opens is held to the bound, so one slow moment on a loaded machine does not fail it, but a delay or a fetch before the
         peek draws does."""
         with chrome() as cdp:
@@ -574,11 +574,11 @@ class Browser(unittest.TestCase):
             times = []
             for i in range(3):
                 cdp.js("""(() => { window.__pk = null; let t0 = 0;
-                  document.addEventListener('dblclick', () => { t0 = performance.now(); }, {capture: true, once: true});
+                  document.addEventListener('click', () => { t0 = performance.now(); }, {capture: true, once: true});
                   const o = new MutationObserver(() => {
                     if (t0 && document.querySelector('#peek')) { window.__pk = performance.now() - t0; o.disconnect(); } });
                   o.observe(document.body, {childList: true, subtree: true}); })()""", sid)
-                dblclick(cdp, sid, f"#work tbody tr[data-id='{ids[i]}'] .c-item")
+                click(cdp, sid, f"#work tbody tr[data-id='{ids[i]}'] .c-item")
                 self.assertTrue(wait(lambda: cdp.js("window.__pk", sid) is not None), "the peek opened")
                 times.append(cdp.js("window.__pk", sid))
                 cdp.js("clarkPage.closePeek()", sid)

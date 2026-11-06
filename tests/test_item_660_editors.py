@@ -75,7 +75,7 @@ class Ask(Panel):
                     p.js(f"document.documentElement.dataset.theme = '{theme}'")
                     p.key("/", code="Slash", vk=191)
                     p.until("!!document.querySelector('#ask-panel')", "opened")
-                    p.until("!document.querySelector('#ask-box').disabled", "ready")
+                    p.until("!document.querySelector('#ask-send').disabled", "ready")
                     sel = "document.querySelector('#ask-box')"
                     def put(text):
                         p.js(f"(e => {{ e.focus(); e.value = {json.dumps(text)}; e.dispatchEvent(new Event('input', {{bubbles: true}})); }})({sel})")

@@ -1,3 +1,3 @@
 """clark: a report editor for programme managers."""
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
