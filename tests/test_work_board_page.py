@@ -342,16 +342,33 @@ class Cards(Base):
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             a = self.id_of("Send the invitations")
-            card = cdp.js(f"(() => {{ const c = document.querySelector(\"article[data-id='{a}']\"); return {{type: c.querySelector('.type').getAttribute('aria-label'), letter: c.querySelector('.type').textContent, move: !!c.querySelector('.bc-move'), moveOpacity: getComputedStyle(c.querySelector('.bc-move')).opacity, id: c.querySelector('.bc-id').textContent, title: c.querySelector('.bc-title').textContent, initials: c.querySelector('.av').textContent, owner: c.querySelector('.av').title, due: c.querySelector('.due-l').textContent, pill: c.querySelector('.pill').textContent, eye: !!c.querySelector('.eye'), eyeWords: c.querySelector('.eye .sr').textContent, label: c.querySelector('.bc-main').getAttribute('aria-label'), role: c.querySelector('.bc-main').getAttribute('role')}}; }})()", sid)
+            card = cdp.js(f"(() => {{ const c = document.querySelector(\"article[data-id='{a}']\"); return {{type: c.querySelector('.type').getAttribute('aria-label'), letter: c.querySelector('.type').textContent, move: !!c.querySelector('.bc-move'), moveOpacity: getComputedStyle(c.querySelector('.bc-move')).opacity, id: c.querySelector('.bc-id').textContent, title: c.querySelector('.bc-title').textContent, initials: c.querySelector('.av').textContent, owner: c.querySelector('.av').title, due: c.querySelector('.due-l').textContent, pill: c.querySelector('.pill').textContent, eye: !!c.querySelector('button.weye'), eyeWords: c.querySelector('button.weye').getAttribute('aria-label'), label: c.querySelector('.bc-main').getAttribute('aria-label'), role: c.querySelector('.bc-main').getAttribute('role')}}; }})()", sid)
             self.assertEqual((card["type"], card["id"], card["title"], card["initials"], card["owner"], card["pill"]), ("Action", a, "Send the invitations", "PN", "Priya Nair", "Delayed"))
             self.assertEqual((card["letter"], card["move"], card["moveOpacity"]), ("A", True, "1"), "a letter badge named in full, and the ... always there in Edit")
             self.assertRegex(card["due"], r"^In \d+ days$|^\d+ days late$|Today|Tomorrow")
             self.assertTrue(card["eye"])
-            self.assertEqual(card["eyeWords"], "Shown to the client")
+            self.assertTrue(card["eyeWords"].startswith("Shown to the client"), card["eyeWords"])
             self.assertEqual(card["role"], "button")
             self.assertTrue(card["label"].startswith(f"{a} Send the invitations, Delayed"), card["label"])
-            self.assertEqual(cdp.js(f"!!document.querySelector(\"article[data-id='{self.id_of('Book the training room')}'] .eye\")", sid), False)
+            self.assertTrue(cdp.js(f"document.querySelector(\"article[data-id='{self.id_of('Book the training room')}'] button.weye\").getAttribute('aria-label')", sid).startswith("Not shown to the client"), "a hidden card has the crossed-out eye to turn it on")
             self.assertEqual(cdp.js(f"document.querySelector(\"article[data-id='{self.id_of('Book the training room')}'] .av\")", sid), None, "no initials for an item with no owner")
+
+    def test_the_card_eye_is_a_button_that_toggles_in_view_and_edit_with_one_undo(self):
+        """Row 819: one click on the card's eye is one change, the list eye's, with its toast and one Undo, in View as in Edit."""
+        a = self.id_of("Send the invitations")
+        for edit in (True, False):
+            with self.subTest(edit=edit), chrome() as cdp:
+                sid = self.visit(cdp, edit=edit)
+                self.board(cdp, sid, "status")
+                eye = f"article[data-id='{a}'] button.weye"
+                before = self.steps()
+                click(cdp, sid, eye)
+                self.until(cdp, sid, f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'false'", "the eye turned off")
+                self.assertEqual(self.steps(), before + 1, "one click is one step")
+                self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), f"{a} hidden from the client.")
+                self.assertEqual(cdp.js("document.querySelector('#peek') ? 1 : 0", sid), 0, "a click on the eye does not open the peek")
+                click(cdp, sid, "[data-undo]")
+                self.until(cdp, sid, f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'true'", "Undo turned it on again")
 
     def test_the_letter_badge_and_the_dots_read_clearly_in_light_and_dark_at_both_widths(self):
         """B-15: every badge's text is 4.5:1 on its own background, the ... is in every card in Edit, and a card is compact."""

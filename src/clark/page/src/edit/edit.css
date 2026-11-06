@@ -315,7 +315,6 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-eye .i, .ucl-eye svg { width: 16px; height: 16px; flex: none; }   /* issue 753: the eye alone, its words are the tooltip */
 .ucl-eye:hover { background: var(--grey-100); }
 .ucl-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.ucl-eye-ro, .ucl-eye-ro:hover { cursor: default; background: none; }
 .ucl-row.off .ucl-eye { color: var(--text-muted); font-weight: var(--weight-regular); }
 .ucl-none { margin: 20px 0 4px; }
 .ucl-none .btn { margin-top: 4px; }
