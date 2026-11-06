@@ -233,6 +233,12 @@ class Hostile(unittest.TestCase):
                      ("status", ["Done"]), ("status", None)):
             self.refused_and_unchanged("field %s=%r" % (f, v), lambda f=f, v=v: self.change({f: v}))
 
+    def test_the_peeks_fields_are_refused_outside_the_peek(self):
+        # row 828: the name, owner, workstream, progress and description are the peek's own: from Movement, from a menu or with no place, each is refused
+        for f, v in (("owner", "Mallory"), ("name", "Hijack"), ("workstream", "X"), ("percent_complete", 5), ("description", "x")):
+            for more in ({}, {"place": "menu"}, {"place": "cell"}, {"place": None}):
+                self.refused_and_unchanged("field %s=%r %r" % (f, v, more), lambda f=f, v=v, more=more: self.change({f: v}, **more))
+
     def test_many_fields_one_invalid_writes_nothing(self):
         for bad in ({"state": "Bogus"}, {"status": "Cancelled"}, {"movement": "escalate"}, {"forecast_date": "2026-02-30"}, {"internal_note": "x" * 2001},
                     {"client_message": "a" * 501}, {"state_reason": "a\x00b"}):
