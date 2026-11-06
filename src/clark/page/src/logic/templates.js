@@ -50,6 +50,10 @@ export const TEMPLATES = [
     description: "One thing the reader must see.", holds: ["Heading", "Callout · decision"] },
   { id: "quote", name: "Quote", kind: "text", fit: ["half", "full"], type: "quote", title: "Quote", body: "", ready: true,
     description: "A voice from the business.", holds: ["Heading", "Text (quote)", "Person"] },
+  { id: "contacts", name: "Contacts", kind: "dates", fit: ["half", "full"], type: "contacts", title: "Contacts", body: "", ready: true,
+    description: "Who to ask.", holds: ["Heading", "Person", "Person", "Person"] },
+  { id: "checklist", name: "Checklist", kind: "dates", fit: ["half", "full"], type: "checklist", title: "Checklist", body: "", ready: true,
+    description: "Next steps or readiness, ticked off.", holds: ["Heading", "Checklist · linked to work items"] },
   { id: "key-dates", name: "Key dates", kind: "dates", fit: ["half", "full"], type: "keydates", title: "Key dates", body: "", ready: true,
     description: "What’s coming, from the milestones.", holds: ["Heading", "Date (from milestones)"] },
   { id: "needs", name: NEEDS.title, kind: "dates", fit: ["full", "half"], type: "needs", title: NEEDS.title, body: "", ready: true,
@@ -68,8 +72,6 @@ export const LATER = [
   { id: "headline", type: "headline", ready: true },
   { id: "gallery", type: "gallery", ready: true },
   { id: "image-caption", type: "imagecap", ready: true },
-  { id: "contacts", type: "contacts", ready: true },
-  { id: "checklist", type: "checklist", ready: true },
 ];
 
 // Every template entry, in the box or not: one per template type, and Text and Needs from you (#121).

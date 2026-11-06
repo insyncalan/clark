@@ -1060,6 +1060,16 @@
         "Half or full"
        ],
        [
+        "Contacts",
+        "Who to ask.",
+        "Half or full"
+       ],
+       [
+        "Checklist",
+        "Next steps or readiness, ticked off.",
+        "Half or full"
+       ],
+       [
         "Key dates",
         "What’s coming, from the milestones.",
         "Half or full"
