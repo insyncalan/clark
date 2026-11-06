@@ -165,6 +165,14 @@ class Nav(Base):
             self.assertEqual(p.js("document.querySelector('.hp-idx a[aria-current]').textContent"), "Start here")
             self.assertEqual(p.js("getComputedStyle(document.querySelector('.hp-idx')).position"), "sticky")
 
+    def test_search_sits_top_right_on_the_title_row_and_back_rides_the_tab_row(self):
+        from test_server import chrome
+        with chrome() as cdp:
+            p = self.in_help(cdp)
+            self.assertTrue(p.js("var h=document.querySelector('.hp-head h1').getBoundingClientRect(), s=document.querySelector('.hp-search').getBoundingClientRect(); s.top < h.bottom && s.left > h.right && Math.abs(s.right - document.querySelector('.hp-head').getBoundingClientRect().right) < 2"), "search at the top right of the title row")
+            self.assertTrue(p.js("var t=document.querySelector('.hp-tabs').getBoundingClientRect(), b=document.querySelector('#hpBack').getBoundingClientRect(); b.left > t.right - 1 && Math.abs((b.top + b.bottom) / 2 - (t.top + t.bottom) / 2) < 20"), "Back on the tab row")
+            self.assertEqual(p.js("document.querySelector('#hpBack').textContent"), "Back")
+
     # ---------- (4) the way back ----------
     def test_a_way_back_to_the_previous_place_sits_beside_back(self):
         from test_server import chrome
@@ -262,10 +270,10 @@ class Nav(Base):
             # and a real Tab press moves along it
             p.js("document.querySelector('#hpQ').focus()")
             order = []
-            for _ in range(3):
+            for _ in range(5):
                 p.key("Tab", code="Tab", vk=9)
                 order.append(p.js("document.activeElement.closest('.hp-idx') ? 'rail' : (document.activeElement.dataset.k ? 'entry' : document.activeElement.id)"))
-            self.assertEqual(order, ["hpTab-howto", "rail", "entry"], "Tab from the search box: the tabs, the contents list, then the entry")
+            self.assertEqual(order, ["hpTab-howto", "hpBack", "hpPrev", "rail", "entry"], "Tab from the search box: the tabs, the Back buttons at the end of their row, the contents list, then the entry")
 
     def test_down_from_the_search_box_goes_to_the_contents_list(self):
         from test_server import chrome

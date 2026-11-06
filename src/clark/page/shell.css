@@ -998,7 +998,13 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-head { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); align-items: flex-start; justify-content: space-between; }
 .hp-head h1 { margin: 0 0 var(--space-1); font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
 .hp-head p { margin: 0; }
-.hp-actions { display: flex; gap: 10px; align-items: center; }
+.hp-actions { display: flex; gap: 10px; align-items: center; padding-bottom: var(--space-1); }
+/* issue 779: search at the top right of the title row; the Back buttons sit at the right end of the tab row */
+.hp-head { align-items: flex-start; flex-wrap: nowrap; }
+.hp-head > div { flex: 1 1 auto; min-width: 0; }
+.hp-head .hp-search { flex: 0 0 auto; }
+.hp-bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0 var(--space-5); border-bottom: 1px solid var(--grey-200); margin: 0 0 22px; }
+.hp-bar .hp-tabs { border-bottom: 0; margin: 0; }
 .hp-search input { box-sizing: border-box; min-height: 36px; padding: 0 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; width: 300px; }
 .hp-search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .hp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -1012,7 +1018,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 /* the line under the title names the key on a keyboard and the button on a phone (a phone has no ? key) */
 .hp-taphint { display: none; }
 @media (max-width: 700px), (hover: none) { .hp-keyhint { display: none; } .hp-taphint { display: inline; } }
-@media (max-width: 860px) { .hp-actions { flex: 1 1 100%; } .hp-search { flex: 1 1 auto; } .hp-search input { width: 100%; } }
+@media (max-width: 860px) { .hp-head { flex-wrap: wrap; } .hp-head .hp-search { flex: 1 1 100%; } .hp-search input { width: 100%; } .hp-actions { flex: 1 1 100%; padding: var(--space-2) 0; } }
 
 /* the Help button in the top bar: the circle's neighbour, a "?" in the bar's own colours */
 .hp-top { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: 50%; color: var(--white); font-size: var(--size-body); font-weight: var(--weight-medium); cursor: pointer; }
