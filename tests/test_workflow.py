@@ -144,7 +144,9 @@ class Workflow(unittest.TestCase):
         self.assertIn('python-version: "3.x"', tests)
         self.assertIn('python-version: "3.9"', py39)
         self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.x \u00b7 shard ${{ matrix.shard }}/${{ needs.plan.outputs.count }}", tests)
-        self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.9 \u00b7 shard 1/1", py39)
+        self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.9 \u00b7 shard ${{ matrix.shard }}/${{ needs.plan.outputs.count39 }}", py39)
+        self.assertIn("SHARDS39='[1,2,3]'; COUNT39=3", self.jobs["plan"])
+        self.assertIn("shard: ${{ fromJSON(needs.plan.outputs.shards39) }}", py39)
         # six shards on both paths (the cheap path can reach every file, and as one shard it hit the 30-minute cap): the plan decides, the job reads it
         self.assertIn("shard: ${{ fromJSON(needs.plan.outputs.shards) }}", tests)
         self.assertIn("SHARD: ${{ matrix.shard }}", tests)
@@ -152,7 +154,8 @@ class Workflow(unittest.TestCase):
         self.assertIn("SHARDS='[1,2,3,4,5,6]'; COUNT=6", self.jobs["plan"])
         self.assertNotIn("SHARDS='[1]'", self.jobs["plan"])
         self.assertIn("fail-fast: false", tests)
-        self.assertIn('--quick --shard "1/1" --max-fail 8 $FILES', py39)
+        self.assertIn('--quick --shard "$SHARD/$SHARDS" --max-fail 8 $FILES', py39)
+        self.assertIn("SHARDS: ${{ needs.plan.outputs.count39 }}", py39)
 
     def test_an_ordinary_pull_request_is_the_cheap_path_and_the_full_suite_runs_elsewhere(self):
         tests = self.jobs["tests"]
