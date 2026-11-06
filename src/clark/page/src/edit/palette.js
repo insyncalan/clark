@@ -1,6 +1,6 @@
-// The command palette's search and actions (#198), Edit parts only: a published file has no palette. Plain JS, no DOM: it takes
+// The command palette's search and actions (#198), Edit parts only: a published file has no palette. Plain JS that draws nothing and touches no DOM itself: it takes
 // what the page already holds (the open project's data, the project list, the tabs) and gives back the results in order:
-// pages, actions (the create entries), projects, commands, work items (an ID first, then words in the title) and milestones. Nothing here asks a server, and a
+// pages, actions (the create entries), projects, commands, work items (an ID match first: the ID equal to the query, then one that starts with it, then one that contains it; then words in the title; at most MOST_ITEMS in all) and milestones. Nothing here asks a server, and a
 // command that changes anything calls the very function the existing button or menu entry calls (profile menu, Publish).
 import { signal } from "@preact/signals";
 import { data, tabs, TITLES, project, projects, view, rows, show, setProject, openPeek, fromFile, status } from "../stores/report.js";
@@ -16,7 +16,7 @@ import { openPanel } from "./askPanelState.js";
 import { PANEL_TITLE } from "./askWords.js";
 
 export const paletteOpen = signal(false);
-export const MOST_ITEMS = 8;          // work items shown at most, so a short word does not fill the box
+export const MOST_ITEMS = 8;          // work items shown at most, all kinds together (cut after the ID ranking), so a short word does not fill the box
 const LOOK_WORDS = { light: "Light", dark: "Dark", system: "System" };       // the same words as Settings › Personal and the profile menu
 const NEED_PROJECT = "Open a project first.";
 
