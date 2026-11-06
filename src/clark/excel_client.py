@@ -147,6 +147,7 @@ def write_sheet(wb, published, table):
             if EDITOR_FIELD.get(field, field) not in editor_locked:       # the export's rule (item 727): only these stay editable
                 cell.protection = excel.UNLOCKED
     ws.freeze_panes = "A5"
+    excel.print_setup(ws)
     excel.protect_sheet(ws)           # as the export's sheets (item 727): no password, the same allowed actions
     return ws
 
@@ -164,6 +165,7 @@ def workbook_bytes(published):
             cell.value = excel.cell_text(text)
             cell.font = BODY
             excel.protect_text_cell(cell)
+        excel.print_setup(ws)
         excel.protect_sheet(ws)
     props = wb.properties
     props.creator = props.lastModifiedBy = excel.FIXED_NAME

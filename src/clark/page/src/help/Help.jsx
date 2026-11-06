@@ -323,7 +323,7 @@ export function Help() {
       <div class="head hp-head">
         <div>
           <h1>Help</h1>
-          <p class="muted">How clark works, step by step, and every screen and key. <span class="hp-keyhint">Press <kbd>?</kbd> on any page to open Help; Esc takes you where you were.</span><span class="hp-taphint">Tap <b>?</b> in the top bar on any page to open Help.</span></p>
+          <p class="muted">How clark works, step by step, and every screen and key. <span class="hp-keyhint">Press <kbd>?</kbd> on any page to open Help; Esc takes you where you were.</span><span class="hp-taphint">Choose <b>Help</b> in the profile circle’s menu on any page to open Help.</span></p>
         </div>
         <div class="hp-actions">
           {back ? <button type="button" class="hp-back hp-prev" id="hpPrev" onClick={goBackPlace}>Back to {back.title}</button> : null}

@@ -80,10 +80,7 @@ class Real(base.Base):
                 p.mouse("mousePressed", 300, 700)
                 p.mouse("mouseReleased", 300, 700)
                 p.until(GONE, f"{screen}: a click outside closed it")
-                p.js("document.querySelector('#help-btn').click()")
-                p.until("!!document.querySelector('#help-peek')", f"{screen}: the button opened it")
-                p.js("document.querySelector('#help-btn').click()")
-                p.until(GONE, f"{screen}: the button closed it")
+                self.assertEqual(p.js("document.querySelector('#help-btn')"), None, f"{screen}: no Help button in the top bar")
 
     def test_the_foot_link_opens_the_full_help_on_the_entry_named(self):
         with chrome() as cdp:
@@ -100,6 +97,50 @@ class Real(base.Base):
                 p.until("!!document.querySelector('[id$=\"%s\"]')" % full, f"{screen}: {full} is drawn (a shown entry, never a held one)")
                 p.key("Escape", code="Escape", vk=27)
                 p.until("!document.querySelector('#help') && !!document.querySelector('#main')", f"{screen}: Back")
+
+    def test_row_896_the_peek_lists_the_how_to_articles_of_the_open_page(self):
+        """Row 896: the profile menu's Help and the ? key open the same peek; under the how-to tab's own word it lists the how-to articles whose
+        go page is the open one, each opening its article; at 1400 and 900 px, light and dark."""
+        content = json.loads((SRC / "helpContent.json").read_text(encoding="utf-8"))
+        word = dict(content["tabs"])["howto"]
+        held = json.loads((SRC / "helpLater.json").read_text(encoding="utf-8")).get("howto", {})      # held articles are not shown
+        want = {s: [t["t"] for t in content["howto"]["tasks"] if t["id"] not in held and t.get("go") and t["go"].split("#")[0] == s] for s in LIVE_SCREENS}
+        self.assertTrue(want["work"] and want["dashboard+edit"], "the data has articles for Work items and the Edit dashboard")
+        arts = "[...document.querySelectorAll('#help-peek [data-hpk-art]')].map(e => e.textContent)"
+        with chrome() as cdp:
+            p = self.real(cdp)
+            for scheme in ("light", "dark"):
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, p.sid)
+                for w in (1400, 900):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    for screen in LIVE_SCREENS:
+                        goto(p, screen)
+                        if screen == "dashboard" and p.js("document.querySelector('#report').dataset.mode") == "edit":
+                            p.view()                                  # the Dashboard in View, not left in Edit by the last pass
+                        self.q(p)
+                        p.until("!!document.querySelector('#help-peek')", f"{scheme} {w} {screen}: opened on ?")
+                        by_key = p.js(arts)
+                        self.assertEqual(by_key, want[screen], f"{scheme} {w} {screen}: the open page's articles")
+                        if want[screen]:
+                            self.assertEqual(p.js("document.querySelector('#help-peek .hpk-sub').textContent"), word, f"{screen}: under the how-to tab's word")
+                        self.q(p)
+                        p.until(GONE, f"{screen}: closed")
+                        p.js("document.querySelector('#profile-btn').click()")
+                        p.until("!!document.querySelector('#profile-menu')", "menu")
+                        p.js("[...document.querySelectorAll('#profile-menu [role=menuitem]')].find(e => e.textContent === 'Help').click()")
+                        p.until("!!document.querySelector('#help-peek')", f"{scheme} {w} {screen}: the menu's Help opened the peek")
+                        self.assertEqual(p.js("document.querySelector('#help')"), None)
+                        self.assertEqual(p.js(arts), want[screen], f"{screen}: the same articles from the menu")
+                        p.key("Escape", code="Escape", vk=27)
+                        p.until(GONE, f"{screen}: Esc closed it")
+            goto(p, "work")
+            self.q(p)
+            p.until("!!document.querySelector('#help-peek [data-hpk-art]')", "an article link")
+            place = p.js("document.querySelector('#help-peek [data-hpk-art]').dataset.hpkArt")
+            p.js("document.querySelector('#help-peek [data-hpk-art]').click()")
+            p.until("!!document.querySelector('#help')", "the full Help")
+            p.until("!!document.querySelector('[id$=\"%s\"]')" % place, "the article is drawn")
+            self.assertEqual(p.js("document.querySelector('#help-peek')"), None)
 
     def test_leaving_the_page_closes_it_with_the_real_text(self):
         with chrome() as cdp:
