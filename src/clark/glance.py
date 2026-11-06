@@ -199,11 +199,11 @@ def kept_rows(rows_by_table, today, sections=None, label_rules=None):
     return kept_from(chosen, sections)
 
 
-def kept_from(chosen, sections=None):
+def kept_from(chosen, sections=None, deleted=False):
     """The same reduction as `kept_rows`, from what `publish.select` has already chosen (its output), so the publish path does
     not run select twice (#45). `sections` are the report's section rows (select's own default sections when none)."""
     # select keeps this set to itself; the same one line, with the same default sections. A test checks they agree.
-    hidden_types = {s.get("type") for s in (sections or publish.DEFAULT_SECTIONS) if s.get("hidden")}
+    hidden_types = publish.hidden_types(sections, deleted)      # row 906: a built-in with no section row is hidden too
     return {"data": chosen["data"], "rows": work_rows(chosen["data"]), "use_cases": chosen["data"]["use_cases"],
             "hidden_types": hidden_types}
 
