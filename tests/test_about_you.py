@@ -44,7 +44,7 @@ class AboutYou(Base):
 
     def open_settings(self, p):
         self.open_menu(p)
-        p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+        p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
         p.until("!!document.querySelector('#about-name')", "About you drew")
 
     def type_into(self, p, field, text, leave="enter"):
@@ -112,6 +112,7 @@ class AboutYou(Base):
             p = self.page(cdp)
             self.open_settings(p)
             self.type_into(p, "name", "Sam Lee")
+            self.handled(p, "Sam Lee")                     # row 773: the first save is taken before the second is sent, so two saves are never in flight at once (a slow runner answered them out of order)
             self.type_into(p, "email", "sam@example.test")
             p.until("document.querySelector('#about-name').value === 'Sam Lee'", "the box holds it")
             self.handled(p, "Sam Lee", "sam@example.test")
@@ -470,7 +471,7 @@ class AboutYou(Base):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p)
-            self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true", "the page is in View")
+            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "row 826: Settings has no View | Edit switch, so the page is in View")
             self.quick_toasts(p)
             self.type_into(p, "name", "Sam Lee")
             self.toast_is(p, "Name saved.")
@@ -663,6 +664,17 @@ class Source(unittest.TestCase):
         view = page.VIEW_PAGE.read_text(encoding="utf-8")
         for word in ("About you", "Your email", "/api/profile", "Add your name in Settings"):
             self.assertNotIn(word, view)
+
+
+class KeysGroupHasNoFrame(unittest.TestCase):
+    """Row 792: the Keys group on Settings, Personal takes the same frameless group look as Appearance (the .styles fieldset), not the browser's boxed fieldset."""
+
+    def test_the_keys_fieldset_uses_the_frameless_group_class(self):
+        import re
+        src = (PAGE_SRC / "edit" / "Personal.jsx").read_text(encoding="utf-8")
+        m = re.search(r'<fieldset\s+class="([^"]*)"[^>]*>\s*<legend>\s*Keys\s*</legend>', src)
+        self.assertIsNotNone(m, "the Keys fieldset was not found in Personal.jsx")
+        self.assertIn("styles", m.group(1).split(), "the Keys fieldset has no frameless .styles class, so it is drawn with the browser's 1 px box")
 
 
 if __name__ == "__main__":

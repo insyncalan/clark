@@ -2,21 +2,21 @@
 // decisions from GET /api/data, as tables in bordered group cards (#456): item (a letter badge for its kind, title, id), owner, due date in
 // words, priority, status, and in the page clark serves the Client-visible eye. The list rules are in
 // ../workItems.js, the filter rules in ../filters.js. A filter change redraws the list region and the switches' words only.
-// In View and in Edit (#80, #442: the owner's ruling on gap B-9), the Owner, Due, Priority and Status cells change in place
+// This page has no View | Edit mode (row 824), so the Owner, Due, Priority and Status cells change in place (#80, #442)
 // (tools.Cell, edit/cells/): each opens its own picker. A published file has no tools, so no pickers.
-// A click on the row anywhere else opens the item's peek, in View and in Edit.
-// The keyboard (#80): the table is one tab stop, the row last focused (the first until then). Up and Down move between rows (in
-// Edit, from a cell to the same cell of the next row), Home and End to the first and last row, Right and Left across the row's
+// A click on the row anywhere else opens the item's peek.
+// The keyboard (#80): the table is one tab stop, the row last focused (the first until then). Up and Down move between rows (from a
+// cell to the same cell of the next row), Home and End to the first and last row, Right and Left across the row's
 // cells and back to the row. Enter on a row opens its peek; on a cell, Enter, Space or Alt+Down opens its picker.
-// Selecting several (#195, on the page clark serves): a click selects the row, Cmd or Ctrl+click adds or removes it, Shift+click
-// selects a range in the order drawn, a double click opens the peek; Shift+Up and Shift+Down extend from the cursor row, Space
+// Selecting several (#195, on the page clark serves): a click selects the row and opens its peek, Cmd or Ctrl+click adds or removes it, Shift+click
+// selects a range in the order drawn; Shift+Up and Shift+Down extend from the cursor row, Space
 // adds or removes it, Cmd or Ctrl+A selects every row shown; each group heading has a tick box. The rules are in pick.js.
 // Hand over (#199, edit/HandOver.jsx): while pick mode is on the table is drawn with a tick box on each open item, a click or Space on a
 // row only ticks it, and none of the keys above, the cells' pickers or the peek is on. The ticks are stores/handover.js `ticks`.
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect } from "preact/hooks";
 import { cursor, stopOf as stopOfIds, moveTo } from "../listKeys.js";
-import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, closePeek, peek, mode, fromFile, filterCtx, query, setQuery, asAt } from "../stores/report.js";
+import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, fromFile, filterCtx, query, setQuery, asAt } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
 import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnOrder, installSelectionRules } from "./pick.js";
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
@@ -68,8 +68,7 @@ function keys(e, row) {
   } else {
     if (selecting() && pickKeys(e, row.id, (id) => focusRow(tr, id, cell), { space: !cell })) return;
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || (selecting() && e.shiftKey)) return;
-    if (!cell && (e.key === "Enter" || (e.key === "ArrowRight" && mode.value !== "edit"))) { e.preventDefault(); openPeek(row.id, "item"); return; }   // Right opens the peek in View; in Edit it walks the cells
-    if (!cell && e.key === "ArrowLeft" && mode.value !== "edit" && peek.value) { e.preventDefault(); closePeek(); return; }   // Left from a row closes an open peek; only a key on the row itself (never one inside the peek)
+    if (!cell && e.key === "Enter") { e.preventDefault(); openPeek(row.id, "item"); return; }   // Enter opens the peek; the arrows always walk the cells (this page has no mode)
   }
   const rows = Array.from(tr.closest("#work-list").querySelectorAll("tr[data-id]")), at = rows.indexOf(tr);   // across the groups (each its own card and table), never a group heading
   const cells = Array.from(tr.querySelectorAll(CELLS)), c = cells.indexOf(cell);
@@ -154,6 +153,7 @@ function Heads({ eye, hand }) {
 }
 function Cols({ eye, hand }) { return <colgroup>{(hand ? ["c-pick"] : []).concat(COLS, eye ? ["c-eye"] : []).map((c) => <col key={c} class={c} />)}</colgroup>; }
 
+let justOpened = "";                               // row 880: the group whose rows were just drawn by opening it (they glide in once)
 function Table({ rows, today, type, Cell, Eye }) {
   const hand = handing(), st = work.value, g = st.group, on = selecting(), grid = on ? { role: "grid", "aria-multiselectable": "true", "aria-label": hand ? "Work items to hand over" : "Work items" } : {};
   const n = COLS.length + (Eye ? 1 : 0) + (hand ? 1 : 0);
@@ -178,11 +178,11 @@ function Table({ rows, today, type, Cell, Eye }) {
           <div class="wgroup" key={c.key}>
             <table class="items grouped" {...grid}>
               <Cols eye={Eye} hand={hand} />
-              <tbody data-group={c.key}>
+              <tbody data-group={c.key} class={justOpened === c.key && !shut && !fromFile.value ? "opening" : undefined} onAnimationEnd={(e) => { if (justOpened === c.key) justOpened = ""; e.currentTarget.classList.remove("opening"); }}>
                 <tr class="grp"><th colspan={n} scope="colgroup">
                   {hand ? <GroupTick sel={ticks} ids={c.rows.filter((r) => isOpen(r)).map((r) => r.id)} label={c.label} shut={shut} />
                     : on ? <GroupTick ids={c.rows.map((r) => r.id)} label={c.label} shut={shut} /> : null}
-                  <button type="button" class="grp-b" aria-expanded={shut ? "false" : "true"} onClick={() => setWork(toggleCollapsed(work.value, g, c.key))}>
+                  <button type="button" class="grp-b" aria-expanded={shut ? "false" : "true"} onClick={() => { justOpened = shut && !fromFile.value ? c.key : ""; setWork(toggleCollapsed(work.value, g, c.key)); }}>
                     <Icon name="chevdown" cls={shut ? "turn" : ""} /><span class="gl">{c.label}</span><span class="gc num">{c.rows.length} {c.rows.length === 1 ? "item" : "items"}</span>
                   </button>
                 </th></tr>
@@ -293,8 +293,8 @@ export function WorkItems({ tools }) {
         {tools ? (
           <div class="hacts">
             {tools.ImportBtn && !fromFile.value ? <tools.ImportBtn /> : null}   {/* item 454: Import from Excel, the same box as Settings; never in a published file */}
-            {tools.ExportBtn && mode.value !== "edit" ? <tools.ExportBtn /> : null}   {/* the workbook download: View only (FR-70), and never in a published file */}
-            {tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: in Edit, with the Owner filter on */}
+            {tools.ExportBtn ? <tools.ExportBtn /> : null}   {/* the workbook download: always on this page (row 824), and never in a published file */}
+            {tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: with the Owner filter on */}
             <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={adder(tools)} />   {/* a published file is read only: no Add (#204) */}
           </div>
         ) : null}

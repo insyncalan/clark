@@ -1,11 +1,12 @@
 // The eye in the Work items table's Client-visible column (#456; prototype views.js `data-weye`): it shows whether the client sees
-// the item, and a click in Edit turns that on or off (View shows the mark only). It uses the routes the report's eye already has (changes.py report_hidden: `new`
+// the item, and a click turns that on or off, in View as in Edit (row 819: the Work items page is live). It uses the routes the report's eye already has (changes.py report_hidden: `new`
 // hides one item, `delete` shows it again, `pick` shows it and turns its client flag on, and refuses a Sensitive one in plain words),
 // so the table adds no new way to write and Undo is the one every step has. The state is the page's mirror of what a publish keeps
 // (logic/publishable.js): the flag, the hidden list and the labels that keep an item out.
 import { computed } from "@preact/signals";
-import { data, mode } from "../../stores/report.js";
+import { data } from "../../stores/report.js";
 import { change } from "../../stores/changes.js";
+import { blink } from "../../stores/motion.js";
 import { Icon } from "../../components/Icon.jsx";
 import { rulesFor, publishable } from "../../logic/publishable.js";
 import { tableOf } from "../itemEdit.js";
@@ -25,25 +26,18 @@ export function eyeOf(row) {
   return { on: publishable(raw, tableOf(row), st.rules), back: st.rules.hidden.has(row.id) && Number(raw.client_visible) === 1 };
 }
 
-export function Eye({ row }) {
+export function Eye({ row, card }) {   // `card`: the board's card, whose buttons never use the shared `ib` name (tests/test_ib_scope.py)
   const { on, back } = eyeOf(row);
   const go = (e) => {
     e.stopPropagation();
+    blink(e);
     if (on) change({ kind: "report_hidden", op: "new", id: row.id }, `${row.id} hidden from the client.`);
     else if (back) change({ kind: "report_hidden", op: "delete", id: row.id }, `${row.id} shown to the client.`);
     else change({ kind: "report_hidden", op: "pick", ids: [row.id] }, `${row.id} shown to the client.`);
   };
   const words = on ? "Shown to the client" : "Hidden from the client";
-  // In View the mark is read only, as every other cell of the table is: no button, no click, no focus stop, and its words in text.
-  if (mode.value !== "edit") {
-    return (
-      <span class={`weye ro${on ? " on" : ""}`} role="img" aria-label={`${words}: ${row.title}`} title={on ? "In client reports" : "Internal only"}>
-        <Icon name={on ? "eye" : "eyeoff"} />
-      </span>
-    );
-  }
   return (
-    <button type="button" class="ib weye" tabIndex={-1} aria-pressed={on ? "true" : "false"}
+    <button type="button" class={card ? "weye" : "ib weye"} tabIndex={-1} aria-pressed={on ? "true" : "false"}
       aria-label={`${on ? "Shown to the client" : "Not shown to the client"}: ${row.title}`}
       title={on ? "In client reports. Select to hide" : "Internal only. Select to show the client"} onClick={go}>
       <Icon name={on ? "eye" : "eyeoff"} />

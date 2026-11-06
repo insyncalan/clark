@@ -3,7 +3,7 @@
 // two or more are picked). The rules are in ../logic/selection.js and the state in ../stores/selection.js.
 // The table (WorkItems.jsx) and the board (edit/Board.jsx) both call these, so a row and a card behave the same.
 import { effect } from "@preact/signals";
-import { item, view, project, openPeek, closePeek, fromFile } from "../stores/report.js";
+import { item, view, project, openPeek, closePeek, peekClosing, fromFile } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
 
 const ITEMS = "#work-list tr[data-id], #work-list article.bcard[data-id]";
@@ -40,17 +40,18 @@ export function noTextRange(e) {
   if (row && row.focus) row.focus({ preventScroll: true });
 }
 
-/** A click on a row or card: plain selects only it; Cmd or Ctrl adds or removes it; Shift selects the range from the last one,
- *  in the drawn order; Cmd or Ctrl with Shift adds the range. With the peek open on one item, the peek follows. */
+/** A click on a row or card: plain selects only it and opens the peek on it; Cmd or Ctrl adds or removes it; Shift selects the range from
+ *  the last one, in the drawn order; Cmd or Ctrl with Shift adds the range. With the peek open on one item, the peek follows. */
 export function pickClick(e, id, opener = (x) => openPeek(x, "item")) {
   const add = e.metaKey || e.ctrlKey, range = e.shiftKey;
   if (!add && !range && String(window.getSelection ? window.getSelection() : "").length) return;    // the person is selecting text
   sel.click(id, { add, range }, drawnOrder());
-  if (item.value && sel.size.value === 1 && sel.has(id) && item.value !== id) opener(id);
+  // A plain click opens the peek on that item (as a click does on the Dashboard); with Cmd, Ctrl or Shift it only selects, and the peek follows only while one is already open on one item.
+  if (sel.size.value === 1 && sel.has(id) && item.value !== id && (item.value || (!add && !range))) opener(id);
 }
 
 /** A double click opens the peek on that item (and selects only it). */
-export function pickOpen(id, opener = (x) => openPeek(x, "item")) { sel.click(id, {}, drawnOrder()); opener(id); }
+export function pickOpen(id, opener = (x) => openPeek(x, "item")) { sel.click(id, {}, drawnOrder()); if (item.value !== id) opener(id); }      // the click before a double click has opened it already
 
 /** The selection keys on a row or a card (the element with the keyboard), before the arrow keys move the cursor.
  *  `focus(id)` puts the keyboard on that row or card. Returns true when the key was used. */
@@ -88,10 +89,15 @@ export function installSelectionRules() {
     if (e.key !== "Escape" || e.defaultPrevented || sel.size.value === 0 || view.value !== "work") return;
     const t = e.target;
     if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-    if (item.value || !document.querySelector("#work-list") || document.querySelector(OVERLAY)) return;
+    // With two or more picked, or while the peek's close is on its way, the peek element does not count as an open layer: it is
+    // still in the page until the Back lands, and it must not hold Esc back (row 909).
+    const peekGoes = sel.size.value >= 2 || peekClosing();
+    const layer = peekGoes ? [...document.querySelectorAll(OVERLAY)].some((n) => !n.hasAttribute("data-peek")) : !!document.querySelector(OVERLAY);
+    if ((item.value && !peekGoes) || !document.querySelector("#work-list") || layer) return;
     e.preventDefault();
     e.stopPropagation();
     sel.clear();
+    if (item.value) closePeek();                       // two or more picked never keep a peek: one that is still closing goes with the selection (row 891)
   }, true);
   // A click outside the Work items page (and outside anything open over it, and the toast) ends it.
   document.addEventListener("click", (e) => {
