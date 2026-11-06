@@ -246,7 +246,7 @@ class Folder(Download):
         for name in ("system", "data", "meet clark", "intake", "docker"):
             (self.top / name).mkdir(exist_ok=True)
             (self.top / name / "a.txt").write_text("mine", encoding="utf-8")
-        (self.top / "START-HERE.txt").write_text("x", encoding="utf-8")
+        (self.top / "START-HERE.md").write_text("x", encoding="utf-8")
         self.write_record()
         done = self.command("--check")
         self.assertNotIn(EXACT, done.stderr + done.stdout)

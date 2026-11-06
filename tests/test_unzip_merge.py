@@ -35,7 +35,7 @@ PY3 = shutil.which("python3")
 MAC = sys.platform == "darwin"
 OLDV = "0.8.1"
 TOP = release_files.TOP
-VISIBLE = ["README.md", "START-HERE.txt", "clark-release.json", "clark.command", "docker"]
+VISIBLE = ["README.md", "START-HERE.md", "clark-release.json", "clark.command", "docker"]
 # What only the older version has (a file the newer one dropped, and a whole folder), and one file both have, differently.
 OLD_ONLY = {".app/src/clark/old_report_helper.py": b"HELPER = 'only in the older version'\n",
             ".app/vendor/old_lib/__init__.py": b"OLD_LIB = 1\n",

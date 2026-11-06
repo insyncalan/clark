@@ -70,7 +70,7 @@ class MacZipTest(unittest.TestCase):
         expected = set()
         for item in package.listed("mac"):
             expected.update(tracked(item) if item.endswith("/") else [item])
-        expected = {p for p in expected if not package.LEFT_OUT.search(p)} | {"START-HERE.txt", package.MANIFEST} | set(package.GENERATED_PAGES)     # #495: built, not tracked
+        expected = {p for p in expected if not package.LEFT_OUT.search(p)} | {"START-HERE.md", package.MANIFEST} | set(package.GENERATED_PAGES)     # #495: built, not tracked
         expected = {release_files.place(p) for p in expected}       # issue 694: program files sit under .app/
         self.assertEqual(sorted(expected), self.inside())
         self.assertEqual(sorted(self.infos), list(self.infos), "entries are in sorted order")
@@ -89,7 +89,7 @@ class MacZipTest(unittest.TestCase):
         names = set(self.inside())
         for needed in ("clark.command", ".app/clark/__main__.py", ".app/src/clark/__main__.py", ".app/src/clark/page/page.html",
                        ".app/src/clark/schema.sql", ".app/vendor/openpyxl/__init__.py", ".app/vendor/et_xmlfile/__init__.py",
-                       ".app/vendor/manifest.json", "README.md", "START-HERE.txt"):
+                       ".app/vendor/manifest.json", "README.md", "START-HERE.md"):
             self.assertIn(needed, names)
 
     def test_the_zips_readme_is_the_zip_readme_and_not_the_repositorys(self):
@@ -201,7 +201,7 @@ class MacZipTest(unittest.TestCase):
 
     def test_start_here_in_plain_words(self):
         with zipfile.ZipFile(self.zip) as z:
-            text = z.read(f"{self.top}/START-HERE.txt").decode("utf-8")
+            text = z.read(f"{self.top}/START-HERE.md").decode("utf-8")
         self.assertEqual(package.start_here("mac"), text)
         self.assertIn("clark.command", text)
         self.assertIn("bash", text, "the fallback when the run bit is lost")
@@ -280,7 +280,7 @@ class MacZipTest(unittest.TestCase):
         """issue 694: the one-folder download is described, and an update by hand is told as six short numbered steps."""
         text = package.start_here("mac")
         flat = " ".join(text.split())
-        self.assertIn("What is in this folder: README.md says what clark is. START-HERE.txt is this page. Double-click clark.command to start clark. "
+        self.assertIn("What is in this folder: README.md says what clark is. START-HERE.md is this page. Double-click clark.command to start clark. "
                       "docker is for starting clark with Docker. system/branding holds your own logo and colours, if you add them. "
                       "The program files are in a hidden folder called .app: you do not need to open it.", flat)
         self.assertLess(flat.index("These steps are for a Mac."), flat.index("What is in this folder:"))
@@ -310,7 +310,7 @@ class MacZipTest(unittest.TestCase):
         """This checkout is what is published on the public repository (#463): it tracks no private-only path, so the zip
         is not 'for the team only'. DefaultAudienceTest pins both lines and the tree that holds a private path."""
         with zipfile.ZipFile(self.zip) as z:
-            text = z.read(f"{self.top}/START-HERE.txt").decode("utf-8")
+            text = z.read(f"{self.top}/START-HERE.md").decode("utf-8")
         self.assertEqual([], package.private_paths(package.ROOT), "no private-only path is tracked on main")
         self.assertEqual(package.PUBLIC_BUILD, text.splitlines()[0])
         self.assertNotIn("team only", text)
@@ -481,9 +481,9 @@ class ForClientTest(unittest.TestCase):
         target = self.build_small(root, out, banned=FICTIONAL)
         with zipfile.ZipFile(target) as z:
             names = sorted(z.namelist())
-            start = z.read("clark/START-HERE.txt").decode("utf-8")
+            start = z.read("clark/START-HERE.md").decode("utf-8")
         self.assertEqual(["clark/.app/src/clark/__init__.py", "clark/.app/src/clark/notes.py", "clark/.app/src/clark/store.py",
-                          "clark/README.md", "clark/START-HERE.txt", "clark/clark-release.json", "clark/clark.command"], names)
+                          "clark/README.md", "clark/START-HERE.md", "clark/clark-release.json", "clark/clark.command"], names)
         self.assertNotIn("team only", start)
         self.assertEqual(package.start_here("mac", for_client=True), start)
         self.assertIsNone(package.snapshot_problem(root))
@@ -578,7 +578,7 @@ class DefaultAudienceTest(unittest.TestCase):
                 mock.patch.object(package, "SYSTEMS", {"mac": ("clark.command",)}):
             target = package.build("mac", out / "o", root=root)
         with zipfile.ZipFile(target) as z:
-            return z.read("clark/START-HERE.txt").decode("utf-8")
+            return z.read("clark/START-HERE.md").decode("utf-8")
 
     def built_line(self, root):
         err, out = io.StringIO(), io.StringIO()

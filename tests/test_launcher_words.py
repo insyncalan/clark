@@ -76,7 +76,7 @@ class StartHere(unittest.TestCase):
         flat = " ".join(package.START_HERE_MAC.split())
         self.assertIn("If you can't close it, the message also gives a line to type in Terminal that starts clark on a different connection. "
                       "Type it as shown and press Return. If that does not work either, run the check described below: it says what to fix.", flat)
-        self.assertIn("   bash clark.command --check\n", package.START_HERE_MAC)
+        self.assertIn("    bash clark.command --check\n", package.START_HERE_MAC)
         self.assertNotIn("restart", flat.lower())
 
 

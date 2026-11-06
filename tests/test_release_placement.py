@@ -16,7 +16,7 @@ class Place(unittest.TestCase):
                 self.assertEqual(".app/" + rel, rf.place(rel))
 
     def test_the_visible_few_stay_at_the_top(self):
-        for rel in ("README.md", "START-HERE.txt", "clark.command", "clark-release.json", "docker/compose.yaml", "docker/"):
+        for rel in ("README.md", "START-HERE.md", "clark.command", "clark-release.json", "docker/compose.yaml", "docker/"):
             with self.subTest(rel=rel):
                 self.assertEqual(rel, rf.place(rel))
 

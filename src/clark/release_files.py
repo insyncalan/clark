@@ -34,8 +34,8 @@ SYSTEMS = {
 NOT_BUILT_YET = {"windows"}
 
 RUN_BIT = {"clark.command"}     # files that must stay runnable after unzipping
-START_HERE = "START-HERE.txt"   # written by package.py, not taken from the repo
-START_HERE_NAMES = ("START-HERE.txt", "START-HERE.md")   # a reader accepts either as the one start file at the top
+START_HERE = "START-HERE.md"   # written by package.py, not taken from the repo
+START_HERE_NAMES = ("START-HERE.md", "START-HERE.txt")   # a reader accepts either as the one start file at the top (1.0.2 and older zips carry the .txt)
 MANIFEST = "clark-release.json" # written by package.py from the files it zips; it does not list itself
 
 

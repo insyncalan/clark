@@ -34,7 +34,7 @@ def listed_files(version="0.3.1"):
     for item in release_files.listed(SYSTEM):
         files[item + "x.py" if item.endswith("/") else item] = f"# fictional {item}\n".encode()
     files["src/clark/__init__.py"] = f'__version__ = "{version}"\n'.encode()
-    files["START-HERE.txt"] = b"Getting started.\n"
+    files["START-HERE.md"] = b"Getting started.\n"
     return files
 
 
@@ -290,7 +290,7 @@ class MemberTest(Base):
         shutil.rmtree(self.tmp)
         os.mkdir(self.tmp)
         files = listed_files()
-        del files["START-HERE.txt"]
+        del files["START-HERE.md"]
         self.refuses(make_zip(self.tmp, files=files), "incomplete")
 
     def test_extra_file_outside_the_list_is_unsafe(self):
@@ -1391,7 +1391,7 @@ class StartFileNameTest(Base):
 
     def start_zip(self, start=None, extra=None):
         files = listed_files()
-        del files["START-HERE.txt"]
+        del files["START-HERE.md"]
         for name in (start or ()):
             files[name] = b"Getting started.\n"
         return make_zip(self.fresh(), files=files, extra=extra)
@@ -1405,13 +1405,13 @@ class StartFileNameTest(Base):
         self.assertNotIn(".app/START-HERE.md", r.files)
 
     def test_both_start_files_are_refused_as_outside_the_list(self):
-        self.refuses(self.start_zip(["START-HERE.txt", "START-HERE.md"]), "unsafe", detail="outside the app's own list: START-HERE.md")
+        self.refuses(self.start_zip(["START-HERE.txt", "START-HERE.md"]), "unsafe", detail="outside the app's own list: START-HERE.txt")
 
     def test_no_start_file_is_still_incomplete(self):
-        self.refuses(self.start_zip([]), "incomplete", detail="missing: START-HERE.txt")
+        self.refuses(self.start_zip([]), "incomplete", detail="missing: START-HERE.md")
 
     def test_another_name_is_not_a_start_file(self):
-        for name in ("START-HERE.rtf", "start-here.md", "Start-Here.txt", "x/START-HERE.md", ".app/START-HERE.md"):
+        for name in ("START-HERE.rtf", "start-here.md", "Start-Here.txt", "x/START-HERE.md", ".app/START-HERE.md", ".app/START-HERE.txt"):
             with self.subTest(name=name):
                 files = listed_files()
                 files[name] = b"x"
@@ -1421,7 +1421,7 @@ class StartFileNameTest(Base):
         for mode, key in ((0o120777, "unsafe"), (0o040755, "damaged")):
             with self.subTest(mode=oct(mode)):
                 files = listed_files()
-                del files["START-HERE.txt"]
+                del files["START-HERE.md"]
                 path = make_zip(self.fresh(), files=files, sign=False, extra={"clark/START-HERE.md": b"x"})
                 tmp = Path(str(path) + ".new")
                 with zipfile.ZipFile(path) as zin, zipfile.ZipFile(tmp, "w") as zout:
@@ -1435,7 +1435,10 @@ class StartFileNameTest(Base):
                 self.refuses(path, key)
 
     def test_an_update_to_a_md_start_file_removes_the_recorded_txt_one(self):
-        app = install_to(Path(self.tmp) / "app", "0.3.0")
+        old = listed_files("0.3.0")
+        del old["START-HERE.md"]
+        old["START-HERE.txt"] = b"Getting started.\n"
+        app = install_to(Path(self.tmp) / "app", "0.3.0", files=old)
         plan = updates.plan(self.read(self.start_zip(["START-HERE.md"])), app)
         self.assertIn("START-HERE.md", plan.added)
         self.assertIn("START-HERE.txt", plan.removed)
