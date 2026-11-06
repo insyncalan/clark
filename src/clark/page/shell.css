@@ -13,6 +13,9 @@ a { color: var(--status-blue-text); }
 .again:focus-visible { outline: 2px solid var(--brand-navy); outline-offset: 2px; }
 [hidden] { display: none !important; }
 
+.skip { position: absolute; left: 12px; top: 8px; z-index: 40; padding: 8px 14px; border-radius: 6px; background: var(--brand-navy); color: var(--white); font-size: var(--size-body); text-decoration: none; transform: translateY(-200%); }   /* row 862: out of sight until it has focus */
+.skip:focus, .skip:focus-visible { transform: none; outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+#main:focus { outline: none; }   /* row 862: <main> takes focus from the skip link; it is a landing place, not a control */
 .top { position: sticky; top: 0; z-index: 30; height: var(--topbar); background: var(--brand-navy); color: var(--white); display: flex; align-items: center; gap: 18px; padding: 0 20px; }
 .logo { all: unset; display: inline-flex; align-items: center; cursor: pointer; }   /* a button since row 854: it goes Home */
 .logo:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 4px; border-radius: 6px; }
@@ -246,7 +249,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .type.k-risk { background: var(--status-amber-tint); color: var(--status-amber-text); }
 .type.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
 .type.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
-@media (max-width: 900px) { table.items .c-due { width: 134px; } }
+@media (max-width: 900px) { table.items .c-owner { width: 170px; } table.items .c-due { width: 131px; } table.items .c-prio { width: 93px; } table.items .c-status { width: 142px; } }      /* row 784: at 900 priority, due and status sit a little under main's widths (each is the narrowest that still holds its longest word) so the item text gains about 24 px over main */
 /* The letter badge before an item's title (prototype `.type` in a work item row): one letter, so no word can break in it ("Dependency" no
    longer sits in a column of its own). The words are its tooltip and its spoken name. Colours as the board card's word badge. */
 .kb { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: var(--size-caption); font-weight: var(--weight-regular); flex: none; background: var(--grey-100); color: var(--grey-700); }
@@ -594,6 +597,8 @@ input.sec-title { width: 100%; }
 /* The peek (#42): a panel on the right edge; its width is dragged from the left edge and kept in this browser. */
 .peek { position: fixed; top: 0; right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: var(--space-3) var(--space-5) var(--space-5); }
 .peek.wide { width: 100%; }
+/* Below 1000 px the peek fills the window over the list (row 847): a side panel would leave the list a strip too narrow to read. Above it the dragged width stays. */
+@media (max-width: 999px) { .peek:not(.hpk) { width: 100% !important; } .peek:not(.hpk) .pk-edge { display: none; } }      /* row 847: the item and milestone peeks overlay the page below 1000 px; the Help peek keeps its own width (and the button in view) */
 /* The exit: a copy of the closed peek slides out to the right (prototype app.css:416-18); none under reduced motion. */
 .peek.leaving { pointer-events: none; animation: pk-out var(--dur-instant) var(--ease-exit) forwards; }
 @keyframes pk-out { to { transform: translateX(104%); } }
@@ -1319,7 +1324,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucstepl .av { width: 26px; height: 26px; font-size: var(--size-caption); }
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
 
-/* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): slim is the default. */
+/* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): One card is the default (row 667). */
 .personal { margin-top: var(--space-4); }
 .personal h2 { margin: 0 0 var(--space-1); font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
 .styles { border: 0; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: var(--space-2); }

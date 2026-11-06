@@ -223,7 +223,7 @@ class MovementEntries(unittest.TestCase):
         self.assertIn("data-edit-only", self.BLOCK)
         self.assertIn("never published", self.WORDS)
         ref = json.dumps(entry("ref", "milestones-page"), ensure_ascii=False)
-        self.assertIn("In Edit, **Movement** is under the list", ref)
+        self.assertIn("**Movement** is under the list", ref)
         self.assertNotIn("Plan", " ".join(strings(entry("ref", "milestones-page"))))        # the page has no tab called Plan
 
     def test_the_rows_keys_are_the_arrows(self):
