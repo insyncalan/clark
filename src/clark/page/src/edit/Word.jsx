@@ -3,7 +3,7 @@
 // open. The state and the rules are in wordState.js; the server's own plain words are shown as they are. What is busy says so in
 // words (and its buttons are off), never by colour alone.
 import { useEffect, useRef } from "preact/hooks";
-import { data, project, mode } from "../stores/report.js";
+import { data, project } from "../stores/report.js";
 import { showDate } from "../workItems.js";
 import { NO_FOLDER, folderName } from "./publishState.js";
 import { WordClash } from "./WordClash.jsx";
@@ -151,7 +151,7 @@ export function WordLayer() {
   return (
     <>
       {exportBox.value ? <Export /> : null}
-      {mode.value === "edit" && importBox.value ? <Import /> : null}
+      {importBox.value ? <Import /> : null}
     </>
   );
 }

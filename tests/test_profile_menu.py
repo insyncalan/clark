@@ -17,7 +17,7 @@ from clark import excel, server as sv
 # The tooltip is built from the entries that carry a short word, so it follows them; the test below pins the two together.
 TIP = "Your menu: Publish, Preview, Export, Settings"
 NAME = "Your menu"
-ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Published reports", "Settings", "Help"]       # the commands (#443: Published reports, after Export; Import from Word is Edit's: tests/test_word_screens.py)
+ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Published reports", "Settings", "Help"]       # the commands (#443: Published reports, after Export; Import from Word has no mode (row 826): tests/test_word_screens.py)
 LOOK = ["System", "Light", "Dark"]                                                                            # the Appearance group (#179), radio items between Export and Settings
 WHO = "Add your name in Settings"                                                                          # the top line while no name is typed (#180): a link
 ORDER = [WHO] + ITEMS[:5] + LOOK + ITEMS[5:]
