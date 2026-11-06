@@ -1041,7 +1041,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hpk-sub { margin: 0; font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--heading); }
 .hpk-arts { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
 .hpk-arts .hpk-link { font-size: var(--size-small); text-align: left; }
-.hpk-foot { margin-top: auto; padding: var(--space-3) 0; border-top: 1px solid var(--grey-200); position: sticky; bottom: calc(-1 * var(--space-5)); background: var(--surface); }   /* row 896: with the articles the panel can be taller than the window: the link to the full Help stays in view */
+.hpk-foot { margin-top: auto; padding: var(--space-3) 0; border-top: 1px solid var(--grey-200); position: sticky; bottom: calc(-1 * var(--space-4)); background: var(--surface); }   /* row 896: with the articles the panel can be taller than the window: the link to the full Help stays in view */
 .hpk-link { all: unset; box-sizing: border-box; cursor: pointer; font-size: var(--size-body); color: var(--status-blue-text); text-underline-offset: 2px; }
 .hpk-link:hover { text-decoration: underline; }
 .hpk-link:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }

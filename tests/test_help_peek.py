@@ -218,6 +218,16 @@ class Peek(Base):
             p.until("!!document.querySelector('#help-peek')", "the peek, as on ?")
             self.assertEqual(p.js("document.querySelector('#help')"), None, "not the full Help: that is the foot link")
 
+    def test_row_896_the_profile_menu_help_on_a_screen_with_no_peek_text_opens_the_full_help(self):
+        with chrome() as cdp:
+            p = self.page(cdp, text=False)
+            p.js("window.clarkPage.help.peek.useText(function () { return null; })")
+            p.js("document.querySelector('#profile-btn').click()")
+            p.until("!!document.querySelector('#profile-menu')", "menu")
+            p.js("[...document.querySelectorAll('#profile-menu [role=menuitem]')].find(e => e.textContent === 'Help').click()")
+            p.until("!!document.querySelector('#help')", "the full Help")
+            self.assertEqual(p.js("document.querySelector('#help-peek')"), None)
+
     def test_the_foot_link_opens_the_full_help_on_the_named_entry_and_closes_the_peek(self):
         with chrome() as cdp:
             p = self.page(cdp)
