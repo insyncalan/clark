@@ -101,7 +101,7 @@ export function Milestones({ tools }) {
   const Add = tools && !fromFile.value ? tools.MsAdd : null;      // the owner's Add milestone (row 458): always on this page (it has no mode), and never in a published file
   const plan = <><MsBlock place="page" tools={tools} />{Archived ? <Archived /> : null}</>;
   return (
-    <section class="frame milestones" id="milestones">
+    <section class={`frame milestones${fromFile.value ? " pub" : ""}`} id="milestones">
       <MsHead Add={Add} />
       {Wrap ? <Wrap plan={plan} /> : plan}
     </section>

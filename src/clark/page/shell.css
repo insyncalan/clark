@@ -1473,7 +1473,7 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800; letter-spacing: -.01em; line-height: 1.15; }
 .crumbs { font-family: var(--font-label); font-weight: var(--weight-semibold); font-size: var(--size-caption); text-transform: uppercase; letter-spacing: .1em; }
 /* Work items: the project name above the title is plain (not tracked capitals), and one intro line sits under the title */
-#work .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }
+#work .crumbs, #milestones.pub .crumbs, #usecases-file .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }   /* the published tabs share one plain line (the editor's Milestones keeps its own) */
 #work .head h1 { margin: 0; }
 #work .intro { margin: 4px 0 0; font-size: var(--size-small); }
 .fig .k, .tile .l { font-family: var(--font-label); font-weight: var(--weight-medium); }
@@ -1865,7 +1865,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ucp summary .cchip { align-self: center; }
 .ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
 .ucp-body h2 { margin: 14px 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
-.ucp-headline { margin: 0 0 8px; }
+.ucp-headline { margin: 0; flex-basis: 100%; color: var(--text-muted); overflow-wrap: anywhere; }
 /* Issue 713, a published file only: the reader's badge and menu at the top right of the bar, and the box "Your profile". Tokens only.
    The bar is dark in light and dark alike, so the badge uses the profile tokens. The bar's print rule hides all of it. */
 .cm-wrap { position: relative; display: inline-flex; flex: none; margin-left: auto; }
