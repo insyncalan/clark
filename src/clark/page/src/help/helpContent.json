@@ -17,7 +17,7 @@
   "hero": {
    "label": "First day with clark",
    "title": "Keep the record. Shape the report. Publish it.",
-   "lead": "In clark you keep one project record of work items, milestones and use cases, shape the weekly report from it, and publish the report as a web page (and a Word document if you like) for the client. Every change saves on its own, and every change can be undone."
+   "lead": "In clark you keep one project record of work items, milestones and use cases, shape the weekly report from it, and publish the report as a web page (and a Word document if you like) for the client. Every change to the record and the report saves on its own and can be undone; a publication keeps its number and its files."
   },
   "loop": [
    {
@@ -36,13 +36,13 @@
     "n": "Edit",
     "t": "Shape the report",
     "ic": "doc",
-    "d": "On the Dashboard, press **Edit**. Write the current state, set the health and choose what the client sees."
+    "d": "On the Dashboard, press **Edit**. Write the summary sections, set the health and choose what the client sees."
    },
    {
     "n": "Check",
     "t": "Check it",
     "ic": "chat",
-    "d": "Use ask clark to **Check this report**. It reads the project’s data and says what looks wrong."
+    "d": "Use ask clark to **Check this report**. It reads the project’s data and says what looks wrong. It needs Claude or ChatGPT connected in Settings; if the button is missing, asking is switched off in the **Asking** card there."
    },
    {
     "n": "You",
@@ -127,17 +127,17 @@
    ],
    [
     "ask clark",
-    "Answers questions about the project and checks the report. Press [[/]], or open the palette with [[Mod+K]] and choose ask clark.",
+    "Answers questions about the project and checks the report. Press [[/]] or [[Mod+J]], or open the palette with [[Mod+K]] and choose ask clark. It needs Claude or ChatGPT connected in Settings.",
     "ask"
    ],
    [
     "The profile circle",
-    "Publish, Preview, Export to Excel, Appearance (System, Light or Dark) and Settings. At the top right.",
+    "Your name, Publish, Preview, Export to Excel, Export to Word, Import from Word, Published reports, Appearance (System, Light or Dark), Settings and Help. At the top right.",
     ""
    ],
    [
     "Settings",
-    "Your profile and look, projects, source folders, publishing, data, version and updates, and diagnostics.",
+    "Publishing and published reports, your profile and look, freshness, projects, data, backups, version and updates, people, asking and AI, and logs and diagnostics.",
     "settings"
    ]
   ],
@@ -165,7 +165,7 @@
    "loop_return": "Next week starts the loop again from the same record. The history keeps every change, so nothing is lost between weeks.",
    "first_title": "Your first ten minutes",
    "where_title": "Where things are",
-   "keyline": "ask: the speech-bubble button in the top bar, or press [[/]] · [[/]] [[/]] Sneak peek, with a work item open in Edit · [[Esc]] close the top thing · [[Mod+Enter]] keep an edit · [[Alt+/]] AI on selected text · [[?]] Help",
+   "keyline": "ask: the speech-bubble button in the top bar, or press [[/]] or [[Mod+J]] · [[Mod+K]] command menu · [[/]] [[/]] Sneak peek, with an item open in the peek · [[Esc]] close the top thing · [[Mod+Enter]] keep an edit · [[?]] Help",
    "keyline_link": "All the keys",
    "rules_title": "Four rules",
    "foot": "Dates are shown DD-MM-YYYY.",
@@ -198,10 +198,10 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
-     "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, press [[Enter]] in the empty box to use the Friday shown, or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
-     "Click the text under **Current state** and write where the project stands. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back. Write the Summary, This week and Next week sections the same way.",
+     "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY; if no week is kept yet, the box shows the coming Friday, and [[Enter]] in it keeps that day; or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
+     "Click the text in the Summary, This week and Next week sections and write. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back. The **Current state** text at the top is shown here, but it cannot be typed over on the page.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
-     "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
+     "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the wording, the owner, the date) to change it there; the ID opens the whole item in the peek.",
      "Press **View** to read the report as the client will."
     ],
     "page": [
@@ -236,7 +236,7 @@
     "w": "[[/]] · [[Mod+K]] › ask clark",
     "go": "ask",
     "s": [
-     "Press [[/]] when you aren’t typing in a box and no peek, menu or box is open, or press [[Mod+K]] and choose **ask clark**. It opens down the right-hand side.",
+     "Press [[/]] when you aren’t typing in a box and no peek, menu or box is open, press [[Mod+J]] from anywhere, even in a box, or press [[Mod+K]] and choose **ask clark**. It opens down the right-hand side. It needs Claude or ChatGPT connected in Settings; if the button is missing, asking is switched off in the **Asking** card there.",
      "Press **Check this report**. It reads the project’s data and says what looks wrong.",
      "An answer may suggest a change to a work item or a milestone as a card that shows it now and as it would be. Nothing is saved until you press **Apply**; **Undo** takes it back. If the change came from one of your files, you tick a box first.",
      "Ask anything else in your own words, or press a suggestion: **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week** or **Which use cases need attention?**.",
@@ -255,11 +255,11 @@
     "w": "Profile circle › Publish…",
     "go": "publish",
     "s": [
-     "Press your profile circle at the top right and choose **Publish…**.",
+     "Press your profile circle at the top right and choose **Publish…**. A line under the title gives the week ending, the number this publication will take and when the last one went.",
      "**Local** is always ticked: the save window opens where you last saved for this project, and you choose the folder and the name. Tick **To client** to send it to the client folder set in Settings as well. With no folder set, the box is off and says so.",
      "Tick **Also a PDF** for the page as it prints: your browser’s print box opens, and you choose Save as PDF. Tick **Also a Word document** for a Word copy in the folder last used for this project. If a Word file with that name is already in the folder, you are asked whether to add a number or replace it. A copy already in the client folder is never replaced: the new one gets a number.",
-     "A line reminds you that the client will see the page, and only what is shown in View. If a work item shown to the client still has its placeholder title, the box warns you; it does not stop you, so rename the item or turn off its eye first.",
-     "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”; press it to close the box. If the name is already taken, a box asks what to do.",
+     "With **To client** ticked, a line reminds you that the client will see the page, and only what is shown in View. If a work item shown to the client still has its placeholder title, the box warns you; it does not stop you, so turn off its eye first if it should not go to the client.",
+     "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”; the box then closes by itself after a moment, or press the button to close it at once. If the name is already taken, a box asks what to do: **Add a number**, **Rename it** or, when it is offered, **Overwrite the existing file** (you tick a box to confirm).",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
     ],
     "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on). The line at the top of the Dashboard says when it was last published, and whether to the client or locally.",
@@ -279,7 +279,7 @@
      "Press your profile circle and choose **Export to Word**. The report is saved as a Word file in the folder last used for this project; if there is none yet, a window asks you to choose one. Tick **To client** to copy it to the client folder as well (you can tick it once a client folder is saved in Settings › Publishing).",
      "If a file with that name is already there, you are asked: **Add a number** (keeps the old file and saves the new one beside it), **Replace it** (it asks you to confirm) or **Cancel**. Nothing is saved until you choose.",
      "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it.",
-     "Choose **Import from Word** from the same menu, choose a .docx file of up to 25 MB and press **Read the file**. Work items under a heading called Actions, Risks, Issues or Decisions are listed. Tick the ones you want, or use **Tick all**, and press the Add button, which reads **Add** and the number you ticked, such as Add 3 items. Nothing is added until you press it. The new items are shown to the client until you hide them with the eye, and Undo takes them all back.",
+     "Choose **Import from Word** from the same menu, choose a .docx file of up to 25 MB and press **Read the file**. Work items under a heading such as Actions, Next steps, Risks, Issues or Decisions (in a list, or in a table) are listed. Tick the ones you want, or use **Tick all**, and press the Add button, which reads **Add** and the number you ticked, such as Add 3 items. Nothing is added until you press it. The new items are shown to the client until you hide them with the eye, and Undo takes them all back.",
      "If clark refuses a file it says why in plain words and names the file. Choose the same file again once you have fixed it: **Read the file** comes on again."
     ],
     "n": "The use case table in the Word report has a Commitment column.",
@@ -296,7 +296,8 @@
     "s": [
      "Press your profile circle and choose **Published reports**, or go to Settings and find the **Published reports** card for the open project.",
      "Each row has the publication's number, the date and time, where it went and who published it. The newest is first, and the card lists the latest ten.",
-     "Press **Open** to see the kept copy of the page in a new tab, as it was published. A row that says **Not kept** has no copy to open."
+     "Press **Open** to see the kept copy of the page in a new tab, as it was published. A row that says **Not kept** has no copy to open.",
+     "Press **Archive** on a row to take it out of the list. **Show archived** lists the archived ones again, each with **Restore**. Times are shown as UTC."
     ],
     "page": [
      "settings#pubs"
@@ -323,10 +324,10 @@
     "w": "Work items › the + at the top right",
     "go": "work",
     "s": [
-     "On **Work items**, press the **+** at the top right. Point at it and it shows what it adds, following the type switch: **Add action**, **Add decision**, **Add risk or issue** (a menu of Risk and Issue) and, on All, **Add item** (a menu of Action, Risk, Issue and Decision). You can do this in View as well as in Edit.",
-     "The new item is made at once and opens in the peek with its title selected: type over it. A message at the foot of the page says it was added, with **Undo**.",
+     "On **Work items**, press the **+** at the top right. Point at it and it shows what it adds, following the type switch: **Add action**, **Add decision**, **Add risk or issue** (a menu of **Add risk** and **Add issue**) and, on All, **Add item** (a menu of Action, Risk, Issue and Decision). You do not need to press **Edit** first.",
+     "The new item is made at once and opens in the peek, with a placeholder title such as New action. Adding clears any filter or search, so you can see the new row. A message at the foot of the page says it was added, with **Undo**.",
      "Its due date (a week from today; a decision’s needed-by date is today), and an action’s priority, are placeholders. Change them in the list or in the peek.",
-     "A new item is shown to the client to start with. While one still has its placeholder title, the Publish box warns you. Rename it, or turn off its eye, before you publish.",
+     "A new item is shown to the client to start with. While one still has its placeholder title, the Publish box warns you. Turn off its eye before you publish if it should not be shown.",
      "In Edit on the Dashboard, the last row of each list adds one too: type “Owner: what it is” (the owner, a colon, then what it is) and press [[Enter]]."
     ],
     "page": [
@@ -386,7 +387,6 @@
     "go": "work",
     "s": [
      "Click a row or a card, or press [[Enter]] on it. The item opens in the **peek** at the right, and the page stays where it was.",
-     "Click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "Under the title are **Status**, **Priority**, **Owner** and **Due**. Click one to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. The due date offers Today, Tomorrow, Friday, Next week and No date.",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
      "**Needed from the client**: switch it on in Edit and the item is listed under “Needs from you”.",
@@ -404,10 +404,10 @@
     "id": "change-an-item-in-words",
     "g": "Work items",
     "t": "Change an item with words (Sneak peek)",
-    "w": "A work item open in Edit › the sparkle, or [[/]] [[/]]",
+    "w": "A work item open in the peek › the sparkle, or [[/]] [[/]]",
     "go": "work",
     "s": [
-     "With a work item open in the peek in Edit, press [[/]] twice quickly (when you aren’t typing in a box), or press the sparkle at the top, “Change an item with words”.",
+     "With a work item open in the peek (on the Dashboard, only in Edit), press [[/]] twice quickly (when you aren’t typing in a box), or press the sparkle at the top, “Change an item with words”.",
      "Type the change, for example “move to Friday, owner Jo, high priority”.",
      "Under the box, a line for each field shows what it is now and what it will become.",
      "Press [[Enter]] to make every change shown, in one step ([[Shift+Enter]] makes them and keeps the box open). [[Esc]] closes the box. The fields that changed flash for a moment, and the message has **Undo**.",
@@ -462,7 +462,7 @@
     "s": [
      "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a move button and, under it, a **+**. They are faint until you point at the section or tab to them.",
      "Drag the move button to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
-     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and **Delete section**. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
+     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and **Delete section**, which has **Undo**. A built-in section taken out this way, such as Milestones, comes back from the **Add a section** box. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
      "To rearrange the page, pick up a section by its move button and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a narrow window a pair stacks.",
      "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "A section left out stays in Edit, greyed, and disappears in View and on the published page."
@@ -617,7 +617,7 @@
     "s": [
      "On **Milestones**, press **+** (**Add milestone**). A new one, called New milestone and agreed 30 days out, opens in the peek. There is no **+** in a published file.",
      "Click any milestone to open it: its mark or label on the timeline, its chip on the calendar, or its row in the details.",
-     "**State**: Forecast, On track, At risk, Slipped or Achieved. Overdue follows the dates and can’t be picked. The line under it says why the milestone has that state.",
+     "**State**: Forecast, On track, At risk, Slipped or Achieved. Overdue follows the dates and can’t be picked.",
      "**Dates**: the **Agreed** date is the baseline; change the **Forecast** date as things move. When they differ, **Rebaseline…** makes the forecast the new agreed date and keeps the original.",
      "**Progress** is set by hand with the slider or the number. Add a **Description**, the **Owner** and the **Workstream**.",
      "**Client view**: **Visible to client**, and the **Client wording** used on the page in place of the name.",
@@ -654,7 +654,7 @@
     "w": "Milestones › Movement",
     "go": "milestones",
     "s": [
-     "On **Milestones**, open **Movement**, the block under the list. It is for you and the team: it is never published.",
+     "On **Milestones**, press **Movement**, next to **Plan** at the top of the page. It is for you and the team: it is never published.",
      "The first line says how many open milestones are behind their agreed date. The line under it names the one furthest behind.",
      "Each open milestone has a row, the furthest behind first: its state, its agreed date, a small bar with a mark for the agreed date, one for the forecast and one for today, how far after the agreed date it is, and how often the agreed date has moved. Click a row, or move between rows with [[Up]] and [[Down]] and press [[Enter]], to choose it.",
      "Its card shows the original, agreed and forecast dates, its progress and its owner, then **What changed**: each change, with who made it and when.",
@@ -723,7 +723,7 @@
     "w": "Settings › Projects · the project switcher",
     "go": "settings",
     "s": [
-     "In **Settings › Projects**, press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
+     "In **Settings › Projects**, press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, starting with a letter, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
      "A new project opens on Work items, ready for an import.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Publishing** folders. The folders ask clark may read are in the **Asking** card, under **Folders asking may read**.",
@@ -788,7 +788,7 @@
     "w": "The message at the foot of the page · the peek’s history",
     "go": "dashboard",
     "s": [
-     "Every change shows a message at the foot of the page with **Undo**, for about 20 seconds. Press **Undo** and the change goes back.",
+     "Every change shows a message at the foot of the page with **Undo**, for about 20 seconds. Press **Undo** and the change goes back. On the Dashboard (in Edit), Work items and Milestones, [[Mod+Z]] outside a box does the same for the last change.",
      "A step of several changes goes back as one, such as **Add from your project record**.",
      "In Edit, the peek’s **Activity** tab shows each change to the item: who made it, how, what it was, what it became, and when.",
      "To take back several changes at once, tick them in the **Activity** tab (click, [[Mod]] and click, or [[Shift]] and click for a run), then press **Undo** with the number. It shows what will go back and what stays, and asks again above 25. **Clear** or [[Esc]] drops the choice.",
@@ -827,7 +827,7 @@
     "go": "",
     "s": [
      "The download unzips into one folder called clark, whatever its version. Only the zip file keeps the version in its name.",
-     "To start clark, double-click clark.command in that folder. Or open Terminal, type cd and a space, drag the clark folder into the Terminal window, press Return, then type `bash clark.command` and press Return.",
+     "To start clark, double-click clark.command in that folder. Or open Terminal, type cd and a space, drag the clark folder into the Terminal window, press Return, then type `bash clark.command` and press Return. It needs Python 3.9 or newer; if this Mac lacks it, the window says what to type.",
      "To check that this Mac is ready, type `bash clark.command --check` in the same place. It prints a line for each thing clark needs, says what to fix, and ends by saying everything is ready or how many things to fix. It changes nothing.",
      "To list the backups, close clark first, then type `bash clark.command restore`. With no name after restore it only lists them.",
      "To put one back, close clark first and add the backup’s name after restore, as the list shows it, for example `bash clark.command restore clark-20261028T143005Z-undo.db`."
@@ -895,7 +895,7 @@
     "b": [
      [
       "p",
-      "At the top right. Its menu has your name and email at the top, then:"
+      "At the top right. Its menu has your name and email at the top, then the entries below. Until you add your name, the top line reads Add your name in Settings, and the Settings entry is left out."
      ],
      [
       "ul",
@@ -903,9 +903,12 @@
        "**Publish…**: the Publish box, on the Dashboard.",
        "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
        "**Export to Excel**: the whole project as one workbook.",
+       "**Export to Word**: the report as a Word file, without publishing the page.",
+       "**Import from Word**: reads a Word file and lists the actions, risks, issues and decisions it found; nothing is added until you press the Add button.",
+       "**Published reports**: opens that card in Settings.",
        "**Appearance**: System, Light or Dark; the one in use has a tick.",
        "**Settings**.",
-       "**Help**: opens this Help."
+       "**Help**: opens Help for the page you are on, with a link to all of Help."
       ]
      ],
      [
@@ -956,6 +959,10 @@
       ],
       [
        [
+        "Current state",
+        "The headline text at the top."
+       ],
+       [
         "At a glance",
         "Project health with its reason, and the count tiles."
        ],
@@ -972,6 +979,14 @@
         "Text sections. This week and Next week sit side by side to start with; any section can sit beside another."
        ],
        [
+        "Risks and issues, Open actions, Decisions",
+        "The work items shown to the client, as lists."
+       ],
+       [
+        "Supporting documents",
+        "The files and links that go with the report."
+       ],
+       [
         "Needs from you",
         "Added from a template: what you need from the client, as rows you add yourself. Left out of the published page when no row is shown. See [Needs from you](#ref-needs-from-you)."
        ]
@@ -979,7 +994,7 @@
      ],
      [
       "p",
-      "Add more sections from the **+** under any section’s move button, or its menu’s **Add a template below…**. See [Section templates](#ref-section-templates). Rename any heading in Edit."
+      "Add more sections from the **+** under any section’s move button, or its menu’s **Add a template below…**. See [Section templates](#ref-section-templates). Rename any heading in Edit. A built-in section you took out comes back from the **Add a section** box."
      ]
     ]
    },
@@ -995,7 +1010,7 @@
      ],
      [
       "p",
-      "Each template works at the widths shown. A template with nothing in it yet is left out of what the client sees."
+      "Each template works at the widths shown. A template with nothing in it yet is left out of what the client sees. A built-in section you took out is listed in the box too, so you can add it back."
      ],
      [
       "tbl",
@@ -1136,7 +1151,7 @@
       [
        "**Raised**: when the item came in, from its first change in the history. Raised and Last reviewed are in the peek of an open action, risk, issue or decision.",
        "**Last reviewed**: the latest change you made by hand. A change made by clark or an Undo does not count.",
-       "**Not reviewed in 14 days**: shown at the top of the peek on an open action, risk, issue or decision that has not been reviewed for that long.",
+       "**Not reviewed in 14 days**: shown under the title in the peek on an open action, risk, issue or decision that has not been reviewed for that long.",
        "In **Filter by**, **Freshness** offers **Not reviewed in 14 days** and **No owner or no date**. To get the same two lists, type **is:quiet** or **is:incomplete** in the filter line. Freshness is offered once some item has a date it can count from.",
        "14 days is the default. To change it for this project, open **Settings**, then **Freshness**, and type a whole number from 1 to 365 in **Not reviewed after (days)**. The note and the filter follow at once."
       ]
@@ -1154,7 +1169,7 @@
     "b": [
      [
       "p",
-      "An archived milestone is kept, and can be put back."
+      "An archived milestone is kept, and can be put back. The page has no button that archives a milestone."
      ],
      [
       "ul",
@@ -1162,7 +1177,8 @@
        "An archived milestone leaves the Milestones list, the counts, the Dashboard and the published page.",
        "**Show archived** on Milestones, with the number of them in brackets, lists the archived ones in muted text, each marked **Archived**, with its agreed date and how many work items are still linked to it. A published file has no such list.",
        "An archived milestone is read-only. Its name opens it, with one **Restore** button. Restore works in View and in Edit, and is one step with **Undo**.",
-       "A work item keeps its link to an archived milestone."
+       "A work item keeps its link to an archived milestone.",
+       "A work item is archived from its row menu (right-click, or [[Shift+F10]]), a use case or a supporting document from its own **Archive** button, and a publication from the Published reports card. Each has a **Show archived** list with **Restore**."
       ]
      ]
     ]
@@ -1204,7 +1220,7 @@
      ],
      [
       "p",
-      "A count opens Work items filtered to it. In Edit: drag or [[Alt+Left]] / [[Alt+Right]] to reorder, the eye to hide, right-click for **Outline colour**: Automatic, Green, Amber, Red or No colour."
+      "A count opens Work items filtered to it. In Edit: drag or [[Alt+Left]] / [[Alt+Right]] to reorder, the eye to hide one of the three count tiles (Project health always shows), right-click for **Outline colour**: Automatic, Green, Amber, Red or No colour. Decisions needed starts hidden in a new project: show it with the eye in Edit."
      ]
     ]
    },
@@ -1334,7 +1350,7 @@
      [
       "p",
       "The filter line takes a plain word, which finds the items with it in the title or the ID, or field:value, such as status:Open or priority:High,Urgent. A comma means or, a space means and, a - in front means not, no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you. The count at the right reads, for example, 12 of 40, and **Clear filter** (the **×**) empties the line. A published file has a **Search work items** box and a **Filter by** row instead, where each filter can be **is any of** or **is not**, and **Clear all** removes the chips.",
-      "Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
+      "Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing (Nothing is for the table only). The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
      ]
     ]
    },
@@ -1349,7 +1365,7 @@
      ],
      [
       "p",
-      "**Movement** is under the list: the open milestones against their agreed and forecast dates, with how far after the agreed date each is, what changed and a choice to make. It is never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
+      "**Movement** is the second choice of the **Plan** and **Movement** switch at the top of the screen, and it takes the place of the timeline and the list. It shows the open milestones against their agreed and forecast dates, with how far after the agreed date each is, what changed and a choice to make. It is never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
      ]
     ]
    },
@@ -1374,7 +1390,7 @@
        "Type a question and press [[Enter]] to send ([[Shift+Enter]] for a new line). While it works, a short waiting line shows in place of the suggestions, and they come back with the answer.",
        "An answer is plain text. A suggested change comes as a card: nothing is saved until you press **Apply**, and **Undo** takes it back. A change that came from one of your files asks you to tick a box first.",
        "**New chat** starts again; **Close**, [[Esc]] or a click outside closes it.",
-       "Drag its left edge to make it wider."
+       "Drag its left edge to make it wider. While a question is being answered, **Stop** ends it."
       ]
      ],
      [
@@ -1383,7 +1399,7 @@
      ],
      [
       "p",
-      "The **ask clark** button shows only while asking is on. With asking off, [[/]] still opens the panel, except while Help is open, and the panel says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link."
+      "The **ask clark** button shows only while asking is on. [[Mod+J]] opens the panel from anywhere, even in a box. With asking off, [[/]] still opens the panel, except while Help is open, and the panel says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link."
      ]
     ]
    },
@@ -1504,7 +1520,7 @@
     "b": [
      [
       "p",
-      "Sneak peek changes a work item (an action, a risk, an issue or a decision), a milestone or a use case. It works in Edit only, with the item open in the peek, or on the use case’s own page."
+      "Sneak peek changes a work item (an action, a risk, an issue or a decision), a milestone or a use case. It works where the peek can be edited (on the Dashboard, in Edit), with the item open in the peek, or on the use case’s own page."
      ],
      [
       "tbl",
@@ -1545,7 +1561,7 @@
      ],
      [
       "p",
-      "It reads your words with plain rules on this computer: no model is used and nothing is sent. [[Enter]] makes the changes shown as one step, with **Undo**; [[Shift+Enter]] makes them and keeps the box open; [[Esc]] closes it."
+      "It reads your words with plain rules on this computer: no model is used and nothing is sent. [[Enter]] makes the changes shown as one step, with **Undo** (a change that needs your OK flashes the line until you press **Confirm and apply** or [[Mod+Enter]]); [[Shift+Enter]] makes them and keeps the box open; [[Esc]] closes it."
      ]
     ]
    },
@@ -1570,7 +1586,7 @@
      ],
      [
       "p",
-      "A state follows the dates: Achieved when the milestone is done; Overdue once the agreed date has passed; Slipped when the forecast is later than the agreed date; otherwise On track. Two states are set by you, not the dates: At risk, when the project team marks it, and Forecast, for a date not yet agreed."
+      "A state follows the dates: Achieved when the milestone is done; Overdue once the agreed date has passed; Slipped when the forecast is later than the agreed date; otherwise On track. You can set a state by hand: Forecast, On track, At risk, Slipped or Achieved. Press it again and the dates decide again. Overdue always comes from the dates."
      ],
      [
       "p",
@@ -1750,7 +1766,7 @@
      ],
      [
       "p",
-      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the card lists the latest ten."
+      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the card lists the latest ten. **Archive** takes a publication out of the list; **Show archived** lists the archived ones, each with **Restore**."
      ]
     ]
    },
@@ -1976,7 +1992,7 @@
        "Three tabs: **Start here**, **How do I…** and **Reference**. Help opens on the one you used last.",
        "The search box looks through all three as you type. Press [[Enter]] for the first result, [[Esc]] to clear it.",
        "A link with a › after it takes you to the screen it names.",
-       "[[?]] opens Help from any page. In Help, [[/]] goes to the search box, unless the letter keys are turned off in Settings › Personal › Keys."
+       "[[?]] opens Help for the page you are on, in a small panel with a link to all of Help. In Help, [[/]] goes to the search box, unless the letter keys are turned off in Settings › Personal › Keys."
       ]
      ]
     ]
@@ -2008,7 +2024,7 @@
   "keys": [
    [
     "[[?]]",
-    "Help, from any page (when you aren’t typing in a box)"
+    "Help for the page you are on, in a small panel with a link to all of Help (when you aren’t typing in a box). Press it again to close the panel. In Help it goes to the search box"
    ],
    [
     "[[/]]",
@@ -2016,7 +2032,7 @@
    ],
    [
     "[[/]] [[/]]",
-    "With an item open in the peek in Edit (or a use case page): press twice quickly for Sneak peek, to change it in words. A single [[/]] does nothing while a peek or a use case page is open in Edit"
+    "With an item open in the peek (on the Dashboard, in Edit) or on a use case page: press twice quickly for Sneak peek, to change it in words. A single [[/]] does nothing while a peek or a use case page is open in Edit"
    ],
    [
     "[[Esc]]",
@@ -2024,7 +2040,7 @@
    ],
    [
     "[[Enter]]",
-    "In a title, a heading or a cell: keep the change. On a row, a card, a tile or a milestone: open it. In Sneak peek: make the change (a change that closes an item or makes a decision asks you to confirm first)"
+    "In a title, a heading or a cell: keep the change. On a row, a card, a tile or a milestone: open it. In Sneak peek: make the change (a change that closes an item or makes a decision asks you to confirm first: press **Confirm and apply** or [[Mod+Enter]])"
    ],
    [
     "[[Shift+Enter]]",
@@ -2120,7 +2136,7 @@
    ],
    [
     "[[O]] [[S]] [[P]] [[T]] [[C]]",
-    "Work items in Edit, on a row, a card, the selection or the item you have open: change the owner (O), status (S), priority (P) or due date (T), or close it (C). Several selected change together, in one step with one Undo. Not while you are typing in a box"
+    "Work items in Edit, on a row, a card, the selection or the item you have open: change the owner (O), status (S), priority (P) or due date (T), or close it (C). Several selected change together, in one step with one Undo. Not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[Shift+F10]]",
@@ -2141,6 +2157,18 @@
    [
     "[[Enter]]",
     "On a row or a card: open it. On a table row, [[Right]] and [[Left]] move across the cells of the row, and [[Enter]] on a cell opens that cell’s picker; [[Esc]] closes the open item and returns to the row"
+   ],
+   [
+    "[[Mod+J]]",
+    "ask clark, from any page, even in a box (not while a menu or box is open)"
+   ],
+   [
+    "[[Up]] [[Down]]",
+    "On one of the peek’s buttons: step to the item before or after"
+   ],
+   [
+    "[[Left]] [[Right]] [[Home]]",
+    "On the peek’s left edge: widen it, narrow it, or back to the usual width"
    ]
   ],
   "icons": [
@@ -2640,7 +2668,7 @@
      "d": "With **To client** ticked, a line says the client will see the page, and the Word report if you ticked it, and only what is shown in View mode. A hidden section or a work item with its eye turned off is not included."
     },
     {
-     "d": "If a work item the client would see still has its placeholder title, such as New action, the box warns you with a count. It does not stop you. To fix it, press **Cancel**, rename the item or turn off its eye, and open **Publish…** again."
+     "d": "If a work item the client would see still has its placeholder title, such as New action, the box warns you with a count. It does not stop you. To fix it, press **Cancel**, turn off its eye if it should not go out, and open **Publish…** again."
     },
     {
      "d": "Press the button at the foot, which reads **Publish locally**, or **Publish and send to the client** when To client is ticked. A spinner shows while it works. If the file name is taken, the box asks what to do: **Add a number**, **Rename it** or, where it is allowed, **Overwrite the existing file**."
