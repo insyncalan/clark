@@ -117,6 +117,34 @@ class Appearance(Base):
                     p.cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "End", "code": "End", "windowsVirtualKeyCode": 35}, p.sid)
                     p.until("document.documentElement.dataset.theme === 'dark'", "End picks the last")
 
+    def key(self, p, name, code, mods=0):
+        for kind in ("keyDown", "keyUp"):
+            p.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": name, "code": name, "windowsVirtualKeyCode": code, "modifiers": mods}, p.sid)
+
+    def test_C_home_picks_the_first_choice_and_focus_follows_row_902(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').click()")
+            p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').focus()")
+            self.key(p, "Home", 36)
+            p.until("document.documentElement.dataset.theme === 'auto'", "Home picks System, the first")
+            self.assertEqual(self.in_settings(p), ["system"])
+            self.assertEqual(p.js("document.activeElement.dataset.themePick"), "system", "focus follows")
+
+    def test_C_a_key_with_a_modifier_held_does_not_change_the_choice_row_902(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=system]').focus()")
+            p.js("window.__swallowed = []; document.addEventListener('keydown', e => window.__swallowed.push(e.defaultPrevented), false)")
+            for mods in (1, 2, 4, 8):                      # alt, ctrl, meta, shift
+                self.key(p, "ArrowRight", 39, mods)
+                self.key(p, "End", 35, mods)
+            self.assertEqual(self.in_settings(p), ["system"], "the choice is unchanged")
+            self.assertEqual(p.js("document.documentElement.dataset.theme"), "auto")
+            self.assertEqual(p.js("window.__swallowed.some(Boolean)"), False, "no key was swallowed")
+
     def test_C_system_follows_the_computer_both_ways_with_no_reload_and_light_and_dark_do_not(self):
         with chrome() as cdp:
             p = self.page(cdp)

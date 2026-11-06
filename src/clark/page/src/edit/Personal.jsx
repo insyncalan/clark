@@ -139,6 +139,7 @@ function flipKeys() {
 // Row 902: the Appearance control is a radio group: one stop in the Tab order (the chosen one); the arrows move to the next or previous
 // choice and pick it, wrapping round; Home and End pick the first and last. Enter and Space pick the focused button as a click does.
 function pickByArrow(e) {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;     // browser shortcuts (Cmd+arrow and the like) are not ours
   const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
   if (!step && e.key !== "Home" && e.key !== "End") return;
   e.preventDefault();
