@@ -36,7 +36,8 @@ class Cases(unittest.TestCase):
             return
         if "/*" not in css:
             with tempfile.TemporaryDirectory() as tmp:
-                (Path(tmp) / "tokens.css").write_text(css, encoding="utf-8", newline="")
+                with open(Path(tmp) / "tokens.css", "w", encoding="utf-8", newline="") as fh:      # Python 3.9: Path.write_text has no newline argument before 3.10
+                    fh.write(css)
                 yield "tokens", page.page_html(tmp)
         html = page.PAGE.read_text(encoding="utf-8")
         yield "page", html.replace("</style>", css + "\n</style>", 1)
