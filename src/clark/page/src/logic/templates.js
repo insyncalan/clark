@@ -99,7 +99,33 @@ export const MESSAGES = {
 };
 
 const FIT_WORDS = { full: "Full width", half: "Half width" };
-export const fitWords = (t) => t.fit.map((f) => FIT_WORDS[f]).join(" or ");
+export const fitList = (t) => t.fit.map((f) => FIT_WORDS[f]);     // one chip each on the box's cards (#783)
+export const fitWords = (t) => fitList(t).join(" or ");
+
+// The small sketch on each card of the Add a section box and the larger one in its preview (#783): the prototype's (views.js `sk`),
+// [the grid's style, one style per part]. Shapes only, no words; tokens only, so dark mode follows.
+const IMG = "background:color-mix(in srgb, var(--brand-blue) 30%, var(--surface))";
+export const SKETCHES = {
+  "text": ["grid-template-rows:repeat(3,1fr)", ["", "width:80%", "width:60%"]],
+  "text-image": ["grid-template-columns:1.4fr 1fr", ["", IMG]],
+  "figures-4": ["grid-template-columns:repeat(4,1fr)", ["", "", "", ""]],
+  "figures-3": ["grid-template-columns:repeat(3,1fr)", ["", "", ""]],
+  "gallery": ["grid-template-columns:repeat(3,1fr)", [IMG, IMG, IMG]],
+  "table": ["grid-template-rows:repeat(4,1fr)", ["", "", "", ""]],
+  "raid-3": ["grid-template-columns:repeat(3,1fr)", ["border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", "border-top:3px solid var(--brand-blue)"]],
+  "raid-4": ["grid-template-columns:repeat(4,1fr)", ["border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", "border-top:3px solid var(--status-amber)", ""]],
+  "work-items": ["grid-template-rows:repeat(4,1fr)", ["width:90%", "width:75%", "width:85%", "width:70%"]],
+  "docs-links": ["grid-template-rows:repeat(3,1fr)", ["", "", ""]],
+  "callout": ["", ["background:var(--status-amber-tint);border-left:3px solid var(--status-amber)"]],
+  "image-caption": ["grid-template-rows:2fr 1fr", [IMG, "width:50%"]],
+  "quote": ["grid-template-rows:2fr 1fr", ["border-left:3px solid var(--brand-cyan)", "width:40%"]],
+  "contacts": ["grid-template-rows:repeat(3,1fr)", ["width:70%", "width:70%", "width:70%"]],
+  "checklist": ["grid-template-rows:repeat(3,1fr)", ["width:80%", "width:60%", "width:70%"]],
+  "key-dates": ["grid-template-rows:repeat(3,1fr)", ["width:90%", "width:90%", "width:90%"]],
+  "needs": ["grid-template-rows:repeat(3,1fr)", ["border-left:3px solid var(--status-amber)", "border-left:3px solid var(--status-amber);width:80%", "width:55%"]],
+  "link-preview": ["grid-template-columns:1fr 2fr", [IMG, ""]],
+  "one-doc": ["grid-template-rows:1fr 1fr", ["", "width:70%"]],
+};
 
 export const find = (id) => TEMPLATES.find((t) => t.id === id) || BUILT_INS.find((t) => t.id === id) || null;
 export const available = (t) => !!t && t.ready === true && ACCEPTS.types.includes(t.type);
