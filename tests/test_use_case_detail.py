@@ -12,6 +12,7 @@ import json
 import re
 import shutil
 import sys
+import time
 import tempfile
 import unittest
 from pathlib import Path
@@ -468,6 +469,64 @@ class Detail(unittest.TestCase):
             self.undo(cdp, sid)
             self.assertEqual(self.row()["status"], "Flag")
             self.until(cdp, sid, "document.querySelector('[data-ucd] [data-word]').textContent === 'Flag'", "Undo draws the old word")
+
+    def slash(self, cdp, sid):
+        common = {"key": "/", "code": "Slash", "windowsVirtualKeyCode": 191}
+        cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", **common, "text": "/"}, sid)
+        cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
+
+    def test_two_slashes_open_the_words_box_and_enter_is_one_change_with_one_undo(self):
+        """Sneak peek on a use case: status, commitment and headline in words; Done asks first; Esc closes the box; View has no box."""
+        with chrome() as cdp:
+            sid = self.open_detail(cdp)
+            before, was = self.steps(), self.row()
+            self.slash(cdp, sid)
+            self.assertFalse(cdp.js("!!document.querySelector('[data-sneak]')", sid), "one slash opens nothing")
+            self.slash(cdp, sid)
+            self.until(cdp, sid, "!!document.querySelector('.sn-in')", "the words box opened")
+
+            def type_words(text):
+                cdp.js(f"(() => {{ const i = document.querySelector('.sn-in'); i.value = {json.dumps(text)}; i.dispatchEvent(new Event('input', {{bubbles: true}})); }})()", sid)
+            type_words("done")
+            self.until(cdp, sid, "!!document.querySelector('[data-sneak-confirm]')", "Done asks first")
+            key(cdp, sid, "Enter")
+            self.assertEqual(self.row()["status"], was["status"], "Enter alone does not apply a Done")
+            type_words("high risk, candidate, headline: Vendor is late")
+            self.until(cdp, sid, "document.querySelectorAll('.sn-list li').length === 3", "three lines")
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]') && document.querySelector('[data-ucd] [data-word]').textContent === 'High risk'", "applied")
+            row = self.row()
+            self.assertEqual((row["status"], row["commitment"], row["headline"], self.steps()), ("High risk", "Candidate", "Vendor is late", before + 1))
+            self.assertFalse(cdp.js("!!document.querySelector('[data-sneak]')", sid), "Enter closes the box")
+            self.undo(cdp, sid)
+            row = self.row()
+            self.assertEqual((row["status"], row["commitment"], row["headline"]), (was["status"], was["commitment"], was["headline"]))
+            self.slash(cdp, sid)
+            self.slash(cdp, sid)
+            self.until(cdp, sid, "!!document.querySelector('.sn-in')", "the box opened again")
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('[data-sneak]')", "Esc closed the box")
+            self.assertTrue(cdp.js("!!document.querySelector('[data-ucd]')", sid), "and stayed on the use case")
+
+    def test_two_slashes_open_the_words_box_on_a_use_case_page_with_no_edit_mode(self):
+        """Row 825: a use case's own page has no View, so the words box opens from two slashes without Edit."""
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            self.slash(cdp, sid)
+            self.slash(cdp, sid)
+            self.until(cdp, sid, "!!document.querySelector('.sn-in')", "the words box opened with no Edit mode")
+
+    def test_two_slashes_open_no_words_box_on_an_archived_use_case(self):
+        """An archived use case is read-only: no words box, in either way of opening the page."""
+        with self.store.step("dashboard", USER) as st:
+            st.archive("use_cases", UC)
+        for edit in (True, False):
+            with self.subTest(edit=edit), chrome() as cdp:
+                sid = self.open_detail(cdp, edit=edit)
+                self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "the archived use case is drawn")
+                self.slash(cdp, sid)
+                self.slash(cdp, sid)
+                self.assertFalse(wait(lambda: cdp.js("!!document.querySelector('[data-sneak],[data-sneak-open]')", sid), 1.4), "no words box on an archived use case")
 
     def test_done_in_the_status_menu_saves_and_shows_its_word_in_grey(self):
         """#412: choosing Done in Edit saves it (one change, one Undo) and the page shows the word Done with the grey dot."""

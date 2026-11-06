@@ -621,6 +621,8 @@ input.sec-title { width: 100%; }
 .sn-head .i { width: 16px; height: 16px; }
 .sn-in { width: 100%; box-sizing: border-box; margin-top: var(--space-2); min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .sn-list { list-style: none; margin: 10px 0 0; padding: 0; }
+.sn-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding: var(--space-1) 0; }
+.sn-f { min-width: 70px; color: var(--text-muted); font-size: var(--size-caption); }
 .sn-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: var(--space-1) 0; border-top: 1px solid var(--grey-100); }
 .sn-list li:first-child { border-top: 0; }
 .sn-to { padding: 0 var(--space-2); border-radius: var(--radius-lg); background: var(--brand-blue-tint); color: var(--text); }
