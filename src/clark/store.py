@@ -2238,7 +2238,7 @@ def migrate_use_case_commitment(con):
 
 def migrate_client_action(con):
     """Schema version 16 to 17 (row 811): `actions.client_action` and `raid.client_action`, the 0/1 flag "needed from the client" the
-    peek's switch sets (a decision needs no flag: a pending one is listed by its status). 0 on every row already there: nothing is guessed
+    peek's switch sets (a decision has no such flag). 0 on every row already there: nothing is guessed
     and no row is changed. A column added at the end of each table with the CHECK of schema.sql, so no table is made again. Each is skipped
     when it is already there (a new database, or a second run). Runs inside the caller's transaction and does not touch the version (the
     runner does). It is step 17 in MIGRATIONS."""
