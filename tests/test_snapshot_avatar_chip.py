@@ -29,6 +29,18 @@ CHIPS = """(function () {
   }));
 })()"""
 
+# A work list's avatar (ItemRows.jsx draws <span class="wl-meta"><span class="av">) outside the snapshot, planted next to the real ones.
+PLANT = """(function () {
+  var h = document.createElement('div');
+  h.innerHTML = '<span class="wl-meta"><span class="av">AB</span></span>';
+  document.getElementById('main').appendChild(h);
+  var w = h.querySelector('.av').getBoundingClientRect().width;
+  h.remove();
+  return w;
+})()"""
+
+INSIDE = """JSON.stringify([].slice.call(document.querySelectorAll('.cr-wl .wl-meta .av')).map(function (a) { return a.getBoundingClientRect().width; }))"""
+
 
 class SnapshotAvatarChip(cr.Drawn):
     def serve_with(self, owners=True, percent=None):
@@ -83,6 +95,15 @@ class SnapshotAvatarChip(cr.Drawn):
                 self.assertAlmostEqual(c["w"], c["h"], delta=0.5, msg=where + ": it is still a circle")
         self.each_view(self.serve_with(), check)
         self.assertTrue({"PN", "WM", "MJ"} <= set(seen), seen)
+
+    def test_the_work_lists_keep_their_small_avatar(self):
+        """A read of PR 863 found: the bigger circle is the snapshot's only (.cr-wl); the work lists share the .wl-meta class and keep their usual circle (26 px; the snapshot gets 30)."""
+        def check(cdp, sid, where):
+            outside = cdp.js(PLANT, sid)
+            inside = json.loads(cdp.js(INSIDE, sid))
+            self.assertTrue(inside and all(abs(w - 30) < 0.5 for w in inside), where + ": the snapshot circle is 30 px, got %r" % inside)
+            self.assertLess(outside, 28, where + ": a work list circle is not enlarged, got %r" % outside)
+        self.each_view(self.serve_with(), check)
 
     def test_the_chip_is_hidden_when_achieved_is_empty_and_shown_when_it_has_a_figure(self):
         def empty(cdp, sid, where):
