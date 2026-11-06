@@ -9,7 +9,7 @@ import { ADD_MILESTONE, NEW_MILESTONE, TOAST_MILESTONE } from "./movementWords.j
 
 let busy = false;
 
-async function add() {
+export async function addMilestone() {
   if (busy) return;
   busy = true;
   try {
@@ -24,5 +24,5 @@ async function add() {
 }
 
 export function MsAdd() {
-  return <NewTile word={ADD_MILESTONE} kind="milestone" id="addMs" onAdd={add} />;
+  return <NewTile word={ADD_MILESTONE} kind="milestone" id="addMs" onAdd={addMilestone} />;
 }
