@@ -196,6 +196,11 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-turn.problem { padding-left: var(--space-3); border-left: 3px solid var(--status-amber); }
 .ask-who { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; color: inherit; }    /* "You" and "Answer" are for a reader that announces; the bubble and the reply place already say it (issue 794) */
 .ask-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* row 890: the Sources disclosure under an answer, closed by default; the same look as the other disclosures (.docs-left) */
+.ask-sources { margin-top: var(--space-2); }
+.ask-sources summary { cursor: pointer; color: var(--text-muted); font-size: var(--size-small); min-height: 24px; }
+.ask-sources summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.ask-sources ul { margin: 4px 0 0; padding-left: var(--space-4); font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
 @keyframes ask-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 /* the suggestions: ONE row, faded at the right edge, scrolling sideways; the working line has the same height and takes their place */
 .ask-pills, .ask-work { flex: none; box-sizing: border-box; min-height: 46px; padding: 6px 20px 10px; }
