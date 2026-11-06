@@ -1137,8 +1137,7 @@
        "**Last reviewed**: the latest change you made by hand. A change made by clark or an Undo does not count.",
        "**Not reviewed in 14 days**: shown at the top of the peek on an open action, risk, issue or decision that has not been reviewed for that long.",
        "In **Filter by**, **Freshness** offers **Not reviewed in 14 days** and **No owner or no date**. To get the same two lists, type **is:quiet** or **is:incomplete** in the filter line. Freshness is offered once some item has a date it can count from.",
-       "14 days is the default. To change it for this project, open **Settings**, then **Freshness**, and type a whole number from 1 to 365 in **Not reviewed after (days)**. The note, the filter and the tile follow at once.",
-       "The **Not reviewed** tile on the Dashboard counts the same items and opens them in Work items. It is off until you turn it on with its eye in Edit. It is never in the published report."
+       "14 days is the default. To change it for this project, open **Settings**, then **Freshness**, and type a whole number from 1 to 365 in **Not reviewed after (days)**. The note and the filter follow at once."
       ]
      ],
      [
