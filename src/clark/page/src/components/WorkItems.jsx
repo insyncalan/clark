@@ -8,8 +8,8 @@
 // The keyboard (#80): the table is one tab stop, the row last focused (the first until then). Up and Down move between rows (in
 // Edit, from a cell to the same cell of the next row), Home and End to the first and last row, Right and Left across the row's
 // cells and back to the row. Enter on a row opens its peek; on a cell, Enter, Space or Alt+Down opens its picker.
-// Selecting several (#195, on the page clark serves): a click selects the row, Cmd or Ctrl+click adds or removes it, Shift+click
-// selects a range in the order drawn, a double click opens the peek; Shift+Up and Shift+Down extend from the cursor row, Space
+// Selecting several (#195, on the page clark serves): a click selects the row and opens its peek, Cmd or Ctrl+click adds or removes it, Shift+click
+// selects a range in the order drawn; Shift+Up and Shift+Down extend from the cursor row, Space
 // adds or removes it, Cmd or Ctrl+A selects every row shown; each group heading has a tick box. The rules are in pick.js.
 // Hand over (#199, edit/HandOver.jsx): while pick mode is on the table is drawn with a tick box on each open item, a click or Space on a
 // row only ticks it, and none of the keys above, the cells' pickers or the peek is on. The ticks are stores/handover.js `ticks`.
@@ -268,7 +268,7 @@ function List({ Board, Cell, Eye, Bulk, HandOver, L }) {
         <span id="work-count" class="num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
       </div>
       {filtered.length === 0
-        ? <div class="empty"><p class="muted">{L.empty.none}</p>{can ? <button type="button" class="link" id="clearFilter" onClick={clear}>{L.empty.clear}</button> : null}</div>
+        ? <div class="empty"><p class="muted">{v.empty.none}</p>{can ? <button type="button" class="link" id="clearFilter" onClick={clear}>{v.empty.clear}</button> : null}{v.empty.hint ? <p class="muted" id="empty-hint">{v.empty.hint}</p> : null}</div>
         : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} />}
     </div>
   );

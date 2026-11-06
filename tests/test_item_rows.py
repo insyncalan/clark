@@ -88,7 +88,7 @@ class ItemRows(unittest.TestCase):
         self.assertNotIn(HIDDEN, js("document.body.innerText"), where)
         self.assertNotIn("ZQ-RESPONSE", js("document.body.innerText"), f"{where}: a risk's working note (response action) is never drawn")
         self.assertEqual(actions[0].split("|")[1], "Overdue", f"{where}: a late action reads Overdue (prototype core.js:202-212)")
-        self.assertIn(actions[1].split("|")[1], ("Due soon", "Open"), f"{where}: the other action reads Due soon or Open, by the date it is read on")
+        self.assertIn(actions[1].split("|")[1], ("Overdue", "Due soon", "Open"), f"{where}: the other action reads Overdue, Due soon or Open, by the date it is read on (its date is near the real today and passes)")
         self.assertEqual(decisions[0].split("|")[1], "Pending", f"{where}: a pending decision reads Pending")
 
     def test_the_served_page_draws_the_rows_in_view_and_in_edit_and_the_file_draws_them_alone(self):
