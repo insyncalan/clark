@@ -154,8 +154,8 @@ class SkipLink(Base):
             self.assertNotEqual(p.js("getComputedStyle(document.activeElement).color"), p.js("getComputedStyle(document.activeElement).backgroundColor"))
             p.key("Tab", 0, "Tab", 9)      # the order after it is the one it had: the logo, then the rest of the bar
             self.assertTrue(p.js("document.activeElement.classList.contains('logo')"), f"{where}: the second Tab stop is not the logo")
-            p.js("document.activeElement.blur()")
-            p.key("Tab", 0, "Tab", 9)
+            p.js("document.querySelector('a.skip').focus()")      # a blur keeps Tab's starting point at the logo, so put focus back on the link itself
+            self.assertTrue(p.js("document.activeElement.classList.contains('skip')"), f"{where}: the skip link would not take focus")
             for kind in ("keyDown", "keyUp"):
                 cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13,
                                                     **({"text": "\r"} if kind == "keyDown" else {})}, p.sid)
