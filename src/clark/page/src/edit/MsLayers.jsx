@@ -2,7 +2,8 @@
 // can be made inert): the project-record picker for milestones ("+ Add a milestone from your project record", edit/MsAddBack.jsx)
 // and an archived milestone's read-only peek (edit/ArchivedPeek.jsx). Edit only: a published file has neither.
 import { useEffect } from "preact/hooks";
-import { data, mode } from "../stores/report.js";
+import { data } from "../stores/report.js";
+import { isEditing } from "../logic/editing.js";
 import { Picker } from "../components/Picker.jsx";
 import { pickerFrom, offThePage } from "./MsAddBack.jsx";
 import { addMilestonesBack } from "./actions.js";
@@ -37,7 +38,7 @@ export function MsLayers() {
   const from = pickerFrom.value;
   return (
     <>
-      {from && mode.value === "edit" ? <PickerBox key="picker" from={from} /> : null}
+      {from && isEditing() ? <PickerBox key="picker" from={from} /> : null}
       <ArchivedPeek />
     </>
   );

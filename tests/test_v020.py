@@ -74,7 +74,7 @@ COVERED = [
      "test_work_filters::RealBrowser::test_the_add_button_grows_to_its_words_on_hover_and_on_keyboard_focus"),
     ("#64", "The Add button's word follows the type switch",
      "test_work_filters::RealBrowser::test_the_add_button_follows_the_type_in_the_line_and_offers_menus"),
-    ("#64", "The profile circle's menu opens Settings", "test_profile_menu::ProfileMenu::test_C_the_settings_entry_opens_settings"),
+    ("#64", "The profile circle's menu opens Settings", "test_profile_menu::ProfileMenu::test_C_the_settings_link_opens_settings"),
     ("#64", "Every colour the page uses has a dark value",
      "test_work_filters::RealBrowser::test_dark_tokens_are_there_and_differ_from_light_and_the_profile_tokens_are_neutral"),
     ("#64", "Button text is readable in dark mode", "test_dark_contrast::DarkBrandBlue::test_button_text_on_the_brand_colour_passes_aa"),

@@ -2,6 +2,7 @@
 // Expected and Today. Escape shuts the card and puts focus back on the Legend button; the card opens again on the next hover, or
 // the next focus after focus has left the Legend. A published file says the client's words (Expected later, Late, Forecast).
 import { useRef, useState } from "preact/hooks";
+import { Icon } from "./Icon.jsx";
 import { MsMark } from "./MsMark.jsx";
 import { legend } from "../logic/milestones.js";
 
@@ -24,7 +25,7 @@ export function MsLegend({ client, id }) {
   return (
     <div class={`mlg${shut ? " mlg-shut" : ""}`} onKeyDown={onKey} onMouseLeave={() => setShut(false)}
       onFocusOut={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setShut(false); }}>
-      <button ref={button} type="button" class="mlg-b" aria-describedby={`mlg-${id}`}>Legend</button>
+      <button ref={button} type="button" class="mlg-b" aria-describedby={`mlg-${id}`}><Icon name="info" />Legend</button>
       <div class="mlg-p" role="tooltip" id={`mlg-${id}`}>
         <ul>{items.slice(0, 6).map(row)}</ul>
         <ul class="mlg-sym">{items.slice(6).map(row)}</ul>
