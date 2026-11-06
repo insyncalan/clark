@@ -59,7 +59,7 @@ function dataResults(query, ws) {
   const out = [];
   if (ws.length && data.value) {
     const q = lower(query).trim();
-    const items = rows.value.filter((r) => hits(r.id + " " + r.title + " " + r.owner, ws));
+    const items = rows.value.filter((r) => hits(r.id + " " + (r.title || "") + " " + (r.owner || ""), ws));
     const byId = (r) => (lower(r.id) === q ? 0 : lower(r.id).startsWith(q) ? 1 : lower(r.id).includes(q) ? 2 : 3);
     items.sort((a, b) => byId(a) - byId(b));          // stable: an ID match first, the rest keep the page's order
     for (const r of items.slice(0, MOST_ITEMS)) {
