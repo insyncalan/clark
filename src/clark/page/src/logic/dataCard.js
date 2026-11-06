@@ -9,6 +9,8 @@ export const DATA = {
   title: "Data",
   export: "Export workbook",
   import: "Import workbook",
+  wordExport: "Export to Word…",         // row 831: the prototype's own words for its Data card (views.js, Settings)
+  wordImport: "Import from Word…",
   note: "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",
 };
 
