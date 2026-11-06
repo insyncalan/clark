@@ -440,7 +440,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
    between the cards. The side gap stays 24 px so a right-hand section's control (Edit) has room beside the left card. The Settings ›
    Personal style (html[data-secstyle], at the end of this file) changes the gaps (Roomy), puts the heading on a grey band (Grey
    headers) or takes the cards away for one card round every section (One card). Shared: the published page follows the same rules. */
-.secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3) var(--space-5); margin-top: 16px; }
+.secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3) var(--space-5); margin-top: 16px; overflow-anchor: none; }     /* row 756: the page holds the section being read itself (Dashboard.jsx) on a View/Edit switch; the browser's own anchoring moved it a second time */
 .sec { --sec-px: 20px; position: relative; min-width: 0; padding: 14px var(--sec-px) 10px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
 /* In these styles the sections are cards on the page, so the report's own frame steps back (its side room is kept for Edit's control). */
 html:not([data-secstyle="card"]) .frame.report { padding: var(--space-1) 28px 0; background: transparent; border: 0; box-shadow: none; }
