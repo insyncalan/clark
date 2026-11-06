@@ -67,7 +67,9 @@ class MotionPress(unittest.TestCase):
                                 self.assertEqual(set(dur.split(", ")), {"0s"}, k)
 
     def test_row_881_is_in_the_edit_stylesheet_only_gated_on_motion_and_uses_tokens(self):
-        edit = EDIT[EDIT.index("Row 881 (motion)"):]
+        start = EDIT.index("Row 881 (motion)")
+        end = EDIT.find("\n/* row ", start + 1)      # the next row's block (another row's rules may follow this one in edit.css)
+        edit = EDIT[start:] if end == -1 else EDIT[start:end]
         self.assertTrue(edit.index("@media (prefers-reduced-motion: no-preference)") < edit.index("transition:"), "gated on no-preference")
         self.assertEqual(edit.count(':root:not([data-motion="reduce"])'), 3)
         for r in re.findall(r"[^{}]*\{[^}]*transition:[^}]*\}", edit):
