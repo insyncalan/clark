@@ -72,7 +72,7 @@ class Card(Base):
     def open_settings(self, p):
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
-        p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+        p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
         p.until("!!document.querySelector('#data-card')", "the Data card drew")
 
     def choose(self, p, b64, through=True):
