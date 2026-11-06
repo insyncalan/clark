@@ -128,7 +128,7 @@ class Cards(Base):
                 settled(p, f"document.documentElement.dataset.secstyle === '{want}'", f"the page is {want}")
                 p.js("document.querySelector('#profile-btn').click()")
                 p.until("!!document.querySelector('#profile-menu')", "the menu opened")
-                p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+                p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")      # with no name or email typed the top line is the Settings link (row 787)
                 p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
                 self.assertEqual(self.chosen(p), [want], "the card marked is the one in force")
                 self.assertEqual(p.js("localStorage.getItem('clark.section-style')"), stored, "a stored choice is not changed by opening the page")
