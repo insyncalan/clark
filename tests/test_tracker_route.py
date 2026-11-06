@@ -21,8 +21,8 @@ LETTERS = ("a", '"', "\\", "é", "中", "\U00010400")      # plain, escaped twic
 class Running:
     """A server on a free port in a thread (the same Handler and routes as the real one), with the change seam it is given."""
 
-    def __init__(self, change, undo):
-        self.httpd = sv.LocalServer((sv.HOST, 0), data_for={}.get, page_html=None, projects=lambda archived=False: [], change=change, undo=undo)
+    def __init__(self, change, undo, section_body=None):
+        self.httpd = sv.LocalServer((sv.HOST, 0), data_for={}.get, page_html=None, projects=lambda archived=False: [], change=change, undo=undo, section_body=section_body)
         self.port = self.httpd.server_port
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
 
@@ -59,15 +59,15 @@ class Route(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
-        self.running = Running(change=changes.make_change(self.store.path, [], USER), undo=changes.make_undo(self.store.path, [], USER))
+        self.running = Running(change=changes.make_change(self.store.path, [], USER), section_body=changes.make_section_body(self.store.path, [], USER), undo=changes.make_undo(self.store.path, [], USER))
         self.addCleanup(self.running.close)
         status, _, data = self.running.api("POST", "/api/change", json.dumps(
             {"project": "ABC", "kind": KIND, "op": "new", "values": {"type": "tracker", "title": "Progress"}}).encode())
         self.assertEqual(status, 200, data)
         self.ref = json.loads(data)["ref"]
 
-    def post(self, body):
-        status, _, data = self.running.api("POST", "/api/change", body)
+    def post(self, body, route="/api/section-body"):      # #273: a section's content has its own route
+        status, _, data = self.running.api("POST", route, body)
         return status, json.loads(data)
 
     def stored(self):
@@ -83,7 +83,7 @@ class Route(unittest.TestCase):
             for ascii_only in (True, False):
                 with self.subTest(letter=letter, ascii_only=ascii_only):
                     body = request(self.ref, biggest(letter), ascii_only)
-                    self.assertLess(len(body), sv.CHANGE_BODY_LIMIT)                     # room to spare, so the checker is what answers
+                    self.assertLess(len(body), sv.SECTION_BODY_LIMIT)                     # room to spare, so the checker is what answers
                     status, got = self.post(body)
                     self.assertEqual((status, got["ok"]), (200, True), got)
                     self.assertEqual(self.stored(), check(biggest(letter)))
@@ -104,22 +104,23 @@ class Route(unittest.TestCase):
     def test_a_request_over_the_route_limit_still_gets_the_general_words_and_nothing_else_is_let_through_larger(self):
         for pad in (sv.CHANGE_BODY_LIMIT, sv.CHANGE_BODY_LIMIT + 1):
             raw = b'{"project":"ABC","kind":"report_sections","op":"update","id":"' + self.ref.encode() + b'","changes":{"title":"' + b"x" * pad + b'"}}'
-            status, got = self.post(raw)
+            status, got = self.post(raw, "/api/change")
             self.assertEqual((status, got["code"], got["message"]), (400, "too_large", sv.MESSAGES["change_too_large"]))
         self.assertEqual(self.stored(), "")
 
-    def test_a_17_kb_change_that_is_not_a_tracker_is_the_stores_to_refuse_not_a_larger_door_for_trackers(self):
+    def test_a_15_kb_change_that_is_not_a_tracker_is_the_stores_to_refuse_not_a_larger_door_for_trackers(self):
         before = self.store.read(KIND, ref=self.ref)
-        raw = json.dumps({"project": "ABC", "kind": KIND, "op": "update", "id": self.ref, "changes": {"title": "x" * 17 * 1024}}).encode()
-        status, got = self.post(raw)
+        raw = json.dumps({"project": "ABC", "kind": KIND, "op": "update", "id": self.ref, "changes": {"title": "x" * 15 * 1024}}).encode()
+        status, got = self.post(raw, "/api/change")
         self.assertEqual((status, got["ok"]), (400, False))
-        self.assertNotEqual(got.get("code"), "too_large")        # the route lets it in (the one limit is 132 KB for every change); the store says no
+        self.assertNotEqual(got.get("code"), "too_large")        # the route lets it in (15 KB is under /api/change's 16 KB); the store says no
         self.assertEqual(self.store.read(KIND, ref=self.ref), before)
 
     def test_the_route_limit_still_covers_the_widest_tracker_with_room_to_spare(self):
         widest = max(len(request(self.ref, biggest(letter), ascii_only)) for letter in LETTERS for ascii_only in (True, False))
-        self.assertGreater(sv.CHANGE_BODY_LIMIT, widest)
-        self.assertGreaterEqual(sv.CHANGE_BODY_LIMIT, widest + 4 * 1024)       # the envelope (project, place, ids) is far smaller than 4 KB
+        self.assertGreater(sv.SECTION_BODY_LIMIT, widest)
+        self.assertGreaterEqual(sv.SECTION_BODY_LIMIT, widest + 4 * 1024)       # the envelope (project, place, ids) is far smaller than 4 KB
+        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-body"], sv.SECTION_BODY_LIMIT)
         self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
         for route, limit in (("/api/undo", 8 * 1024), ("/api/sneak/read", 4 * 1024), ("/api/profile", 2 * 1024), ("/api/draft-email", 16 * 1024)):
             self.assertEqual(sv.ROUTE_BODY_LIMITS[route], limit, route)
@@ -135,7 +136,7 @@ class Route(unittest.TestCase):
 
     def test_a_body_of_exactly_the_route_limit_is_let_in_and_refused_for_another_reason(self):
         before = self.store.read(KIND, ref=self.ref)
-        status, got = self.post(self.padded(sv.CHANGE_BODY_LIMIT))
+        status, got = self.post(self.padded(sv.CHANGE_BODY_LIMIT), "/api/change")
         self.assertEqual((status, got["ok"]), (400, False))                 # the store refuses a title this long
         self.assertNotEqual(got.get("code"), "too_large")
         self.assertNotEqual(got["message"], sv.MESSAGES["change_too_large"])
@@ -143,17 +144,17 @@ class Route(unittest.TestCase):
 
     def test_a_body_of_one_byte_over_the_route_limit_gets_the_general_words(self):
         before = self.store.read(KIND, ref=self.ref)
-        status, got = self.post(self.padded(sv.CHANGE_BODY_LIMIT + 1))
+        status, got = self.post(self.padded(sv.CHANGE_BODY_LIMIT + 1), "/api/change")
         self.assertEqual((status, got["code"], got["message"]), (400, "too_large", sv.MESSAGES["change_too_large"]))
         self.assertEqual(self.store.read(KIND, ref=self.ref), before)
 
     def test_a_request_one_byte_over_the_limit_is_refused_from_its_length_before_any_of_the_body_is_read(self):
         """#356: the answer comes with no body sent at all; a route that read the body first would wait here until the timeout."""
         before = self.store.read(KIND, ref=self.ref)
-        for size in (sv.CHANGE_BODY_LIMIT + 1, sv.CHANGE_BODY_LIMIT * 2):
+        for size in (sv.SECTION_BODY_LIMIT + 1, sv.SECTION_BODY_LIMIT * 2):
             conn = http.client.HTTPConnection(sv.HOST, self.running.port, timeout=10)
             try:
-                conn.putrequest("POST", "/api/change", skip_host=True, skip_accept_encoding=True)
+                conn.putrequest("POST", "/api/section-body", skip_host=True, skip_accept_encoding=True)
                 for k, v in (("Host", f"127.0.0.1:{self.running.port}"), (sv.TOKEN_HEADER, sv.TOKEN), ("Content-Type", "application/json"),
                              ("Content-Length", str(size))):
                     conn.putheader(k, v)

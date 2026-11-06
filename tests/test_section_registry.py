@@ -105,12 +105,12 @@ class PythonSide(unittest.TestCase):
     def test_a_template_saved_through_the_change_route_fits_its_limit(self):
         """The route's body limit is above the largest content (with room for the request around it and its escaping)."""
         biggest = max(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_kinds.REGISTRY.values())   # a picture template's words; its pictures come by their own route
-        limit = sv.ROUTE_BODY_LIMITS["/api/change"]
+        limit = sv.ROUTE_BODY_LIMITS["/api/section-body"]
         self.assertGreaterEqual(limit, sv.ESCAPE_FACTOR * biggest + sv.REQUEST_ENVELOPE)       # needs and the tracker are larger still (#405)
         # worst case: a stored body of quotes and backslashes, escaped once in the stored text and again as a string in the request
         stored = '"\\' * (biggest // 2)
         self.assertEqual(len(stored), biggest)
-        head = json.dumps({"project": "ABC", "op": "edit", "changes": {"body": stored}, "pad": ""}).encode("ascii")
+        head = json.dumps({"project": "ABC", "kind": "report_sections", "op": "update", "changes": {"body": stored}, "pad": ""}).encode("ascii")
         self.assertGreater(len(head), 2 * biggest, "the worst case is about twice the content")
         pad = limit - len(head)
         self.assertGreaterEqual(pad, 0, "the worst case fits the limit")
@@ -123,21 +123,21 @@ class PythonSide(unittest.TestCase):
         self.addCleanup(running.close)
         fits = head.replace(b'"pad": ""', b'"pad": "' + b"x" * pad + b'"')
         self.assertEqual(len(fits), limit)
-        self.assertEqual(running.api("POST", "/api/change", fits)[0], 200)
+        self.assertEqual(running.api("POST", "/api/section-body", fits)[0], 200)
         self.assertEqual(calls[0]["changes"]["body"], stored)
-        self.assertEqual(running.api("POST", "/api/change", fits + b" ")[0], 400, "one past the limit is refused")
+        self.assertEqual(running.api("POST", "/api/section-body", fits + b" ")[0], 400, "one past the limit is refused")
 
     def test_the_change_route_limit_is_worked_out_from_the_largest_body_and_the_escape_factor(self):
         """#378, #405: the limit is the largest body any section type is checked to, times what escaping can make of it, plus the request around it; none of the three is a bare number in the sum."""
         from clark import section_bodies
         biggest = max(section_bodies.LIMITS[section_bodies.NEEDS], section_bodies.LIMITS[section_bodies.TRACKER], *(getattr(m, "TEXT_LIMIT", m.LIMIT) for m in section_bodies.TEMPLATES.values()))
         self.assertEqual(sv.SECTION_BODY_MAX, biggest, "the server's copy of the largest body follows the checker's limits")
-        self.assertEqual(sv.CHANGE_BODY_LIMIT, sv.ESCAPE_FACTOR * sv.SECTION_BODY_MAX + sv.REQUEST_ENVELOPE)
-        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/change"], sv.CHANGE_BODY_LIMIT)
-        self.assertGreaterEqual(sv.CHANGE_BODY_LIMIT, 2 * 64 * 1024 + 4 * 1024, "never smaller than before")
-        self.assertEqual(sv.change_body_limit(biggest), sv.CHANGE_BODY_LIMIT)
-        self.assertEqual(sv.change_body_limit(biggest + 1024), sv.CHANGE_BODY_LIMIT + sv.ESCAPE_FACTOR * 1024, "a larger body moves the limit")
-        self.assertEqual(sv.change_body_limit(biggest - 1024), sv.CHANGE_BODY_LIMIT - sv.ESCAPE_FACTOR * 1024, "and a smaller one")
+        self.assertEqual(sv.SECTION_BODY_LIMIT, sv.ESCAPE_FACTOR * sv.SECTION_BODY_MAX + sv.REQUEST_ENVELOPE)
+        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-body"], sv.SECTION_BODY_LIMIT)
+        self.assertGreaterEqual(sv.SECTION_BODY_LIMIT, 2 * 64 * 1024 + 4 * 1024, "never smaller than before")
+        self.assertEqual(sv.change_body_limit(biggest), sv.SECTION_BODY_LIMIT)
+        self.assertEqual(sv.change_body_limit(biggest + 1024), sv.SECTION_BODY_LIMIT + sv.ESCAPE_FACTOR * 1024, "a larger body moves the limit")
+        self.assertEqual(sv.change_body_limit(biggest - 1024), sv.SECTION_BODY_LIMIT - sv.ESCAPE_FACTOR * 1024, "and a smaller one")
 
     def test_the_largest_body_fully_escaped_and_the_request_around_it_fit_the_change_limit(self):
         from clark import section_bodies
@@ -148,7 +148,7 @@ class PythonSide(unittest.TestCase):
             envelope = len(body) - sv.ESCAPE_FACTOR * biggest
             self.assertGreater(envelope, 0, letter)
             self.assertLessEqual(envelope, sv.REQUEST_ENVELOPE, "the request around the body fits its allowance")
-            self.assertLessEqual(len(body), sv.CHANGE_BODY_LIMIT, letter)
+            self.assertLessEqual(len(body), sv.SECTION_BODY_LIMIT, letter)
 
     # #356 (a): the tracker's and the needs section's own maximums (section_bodies.LIMITS, 262,144 stored bytes each) are not the
     # route's: what keeps their widest body inside CHANGE_BODY_LIMIT is the checkers' structural caps (rows, lines, characters).
@@ -182,8 +182,8 @@ class PythonSide(unittest.TestCase):
         widest = max(r for _, r in got.values())
         self.assertLess(stored, section_bodies.LIMITS["tracker"], "the checker's caps keep the widest tracker under its stored-byte limit")
         self.assertEqual((stored, widest), (81100, 94934), "a tracker cap moved: work out the new widest request, then set these two numbers (measured on the merged tree; the figures come from the tracker line limit)")
-        self.assertLessEqual(widest, sv.CHANGE_BODY_LIMIT)
-        self.assertEqual(sv.CHANGE_BODY_LIMIT - widest, 433450, "the room left under the change limit (measured; it follows the same tracker line limit)")
+        self.assertLessEqual(widest, sv.SECTION_BODY_LIMIT)
+        self.assertEqual(sv.SECTION_BODY_LIMIT - widest, 433450, "the room left under the change limit (measured; it follows the same tracker line limit)")
 
     def test_the_widest_needs_body_with_nothing_but_plain_letters_fits_the_change_limit_to_the_byte(self):
         got = {letter: self.widest_request("needs", self.widest_needs(letter), False) for letter in ("a", "\u00e9", "\u4e2d")}
@@ -191,8 +191,8 @@ class PythonSide(unittest.TestCase):
                          "a needs cap moved: work out the new sizes, then set these")
         for letter, (stored, request) in got.items():
             self.assertLessEqual(stored, section_bodies.LIMITS["needs"], letter)
-            self.assertLessEqual(request, sv.CHANGE_BODY_LIMIT, letter)
-        self.assertEqual(sv.CHANGE_BODY_LIMIT - max(r for _, r in got.values()), 399560, "the room left under the change limit")
+            self.assertLessEqual(request, sv.SECTION_BODY_LIMIT, letter)
+        self.assertEqual(sv.SECTION_BODY_LIMIT - max(r for _, r in got.values()), 399560, "the room left under the change limit")
 
     def test_the_widest_quote_heavy_needs_body_fits_the_change_limit_by_these_bytes(self):
         """#356 (a), closed by #405: 100 rows of `what` and `from` at their longest, all quotes (or all backslashes), are 86,916
@@ -203,8 +203,8 @@ class PythonSide(unittest.TestCase):
             stored, request = self.widest_request("needs", self.widest_needs(letter), False)
             self.assertEqual((stored, request), (86916, 168824), letter)
             self.assertLess(stored, section_bodies.LIMITS["needs"], letter)
-            self.assertLessEqual(request, sv.CHANGE_BODY_LIMIT, letter)
-            self.assertEqual(sv.CHANGE_BODY_LIMIT - request, 359560, letter)
+            self.assertLessEqual(request, sv.SECTION_BODY_LIMIT, letter)
+            self.assertEqual(sv.SECTION_BODY_LIMIT - request, 359560, letter)
 
     def test_the_widest_needs_body_with_every_non_ascii_letter_written_as_an_escape_fits_the_change_limit(self):
         """The page sends plain UTF-8, but a client may write each non-ASCII letter as a \\u escape (seven bytes once the body is a string in the request): the
@@ -212,7 +212,7 @@ class PythonSide(unittest.TestCase):
         for letter in ("\u00e9", "\u4e2d"):
             stored, request = self.widest_request("needs", self.widest_needs(letter), True)
             self.assertLessEqual(stored, section_bodies.LIMITS["needs"], letter)
-            self.assertLessEqual(request, sv.CHANGE_BODY_LIMIT, letter)
+            self.assertLessEqual(request, sv.SECTION_BODY_LIMIT, letter)
 
     def test_a_stub_publishes_nothing_whatever_its_body_holds(self):
         ctx = base.Context({"actions": [{"id": "ABC-A-001", "description": "Fictional"}]}, "2030-01-15")

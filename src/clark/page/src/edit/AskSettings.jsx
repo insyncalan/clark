@@ -1,13 +1,16 @@
 // Settings: asking (#47). The on/off switch and the folders asking may read, for the open project. Edit parts only: a published
 // file has no Settings. The switch is askState.js, kept by the server for this computer; the folders are saved by the server too (the
 // page asks the server to open the folder window and shows what the server answers, in its words).
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { named } from "./askWords.js";
 import { AiSettings } from "./AiSettings.jsx";
+import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { askFoldersRead, askFoldersChange, askFoldersChoose, words } from "./publishApi.js";
 
+const ASK_ON_TOAST = "ask clark is on";
+const ASK_OFF_TOAST = "ask clark is off";
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
 
 export function AskSettings() {
@@ -19,15 +22,26 @@ export function AskSettings() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
 
-  useEffect(() => { loadAsk(true); }, []);      // asked again each time Settings opens, so the page never shows a stale choice
+  const switchRef = useRef(null);
+  const refocus = useRef(false);                     // row 849: the switch is disabled while the request runs, so focus is put back once it is not
+  useEffect(() => { loadAsk(true); return leaveSwitch; }, []);      // asked again each time Settings opens, so the page never shows a stale choice
+
+  useEffect(() => {
+    if (!busy && refocus.current) { refocus.current = false; if (switchRef.current) switchRef.current.focus(); }
+  }, [busy]);
 
   async function flip() {
+    const now = !on;
     setBusy(true);
     setMsg(null);
-    const r = await setAsk(!on);
+    refocus.current = true;
+    const r = await setAsk(now);
     setBusy(false);
     if (!r.ok) setMsg({ kind: "error", text: r.message });
-    else if (r.message) setMsg({ kind: "note", text: r.message });
+    else {
+      if (r.message) setMsg({ kind: "note", text: r.message });
+      announceSwitch(now ? ASK_ON_TOAST : ASK_OFF_TOAST, () => setAsk(!now), now ? ASK_OFF_TOAST : ASK_ON_TOAST);
+    }
   }
 
   useEffect(() => {
@@ -71,7 +85,7 @@ export function AskSettings() {
       <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? named("Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs.", askProvider.value) : ASK_OFF_LINE}</p>
       {status === "ready" && !saved ? <p class="muted" id="ask-unsaved">This computer's saved data can't keep this choice yet, so asking stays off. Restart clark to bring the saved data up to date.</p> : null}
       <div class="row">
-        <button type="button" class="btn" data-ask-switch aria-pressed={on ? "true" : "false"} disabled={busy || status !== "ready"} onClick={flip}>{on ? "Turn off asking" : "Turn on asking"}</button>
+        <button type="button" class="btn" ref={switchRef} data-ask-switch aria-pressed={on ? "true" : "false"} disabled={busy || status !== "ready"} onClick={flip}>{on ? "Turn off asking" : "Turn on asking"}</button>
       </div>
       <h3>Folders asking may read</h3>
       <p class="muted">{named("Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.", askProvider.value)}</p>

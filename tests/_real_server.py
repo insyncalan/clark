@@ -20,6 +20,7 @@ def real_handlers(path, data_for, who=USER, roots=None):
     return {"change": changes.make_change(path, roots, who),
             "undo": changes.make_undo(path, roots, who),
             "section_image": changes.make_section_image(path, roots, who),
+            "section_body": changes.make_section_body(path, roots, who),
             "sneak": sneak.make_read(data_for),
             "people": changes.make_people(path, roots, who),
             "people_undo": changes.make_people_undo(path, roots, who),
@@ -40,7 +41,9 @@ def real_server(path, data_for, who=USER, roots=None, seam=None, **kw):
     (page_html, projects, publisher, ...) and replaces a handler of the same name."""
     handlers = real_handlers(path, data_for, who, roots)
     if seam is not None:
-        handlers = {k: seam(v, k) if k in ("change", "undo") else v for k, v in handlers.items()}
+        handlers = {k: seam(v, "change" if k == "section_body" else k) if k in ("change", "undo", "section_body") else v for k, v in handlers.items()}
+    if "change" in kw and "section_body" not in kw:
+        kw["section_body"] = kw["change"]          # #273: a section's content goes to its own route; a test that stands in for the change handler stands in for it too
     handlers.update({k: kw.pop(k) for k in list(kw) if k in handlers})
     running = Running(data_for=data_for, **{k: handlers[k] for k in ("change", "undo")}, **kw)
     for name, handler in handlers.items():

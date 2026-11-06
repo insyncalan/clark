@@ -239,6 +239,36 @@ class Settings(unittest.TestCase):
                     self.assertEqual(js("document.querySelector('#ask-state').innerText"), ON, "the late change answer did not touch the page")
                     self.assertEqual(js("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed')"), "true")
 
+    def test_the_switch_says_its_state_in_a_toast_with_one_undo_and_keeps_the_focus(self):
+        """Row 849: each press says 'ask clark is off' / 'ask clark is on' with one Undo that puts it back, and the focus is on the switch
+        again once the request has answered (it is disabled while it runs). 1400 and 900, light and dark."""
+        text = "(document.querySelector('.toast .toast-text') || {}).textContent"
+        sw = "document.querySelector('[data-ask-switch]')"
+        with chrome() as cdp:
+            js = self.show_page(cdp)
+            ready = f"({sw} || {{disabled: true}}).disabled === false"
+            for scheme in ("light", "dark"):
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, self.sid)
+                for w in WIDTHS:
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                    where = f"{scheme} {w}"
+                    self.until(lambda: js(ready), True, f"{where}: the switch can be pressed")
+                    was = js(f"{sw}.getAttribute('aria-pressed')")
+                    word = "off" if was == "true" else "on"
+                    other = "on" if word == "off" else "off"
+                    js(f"{sw}.focus(); {sw}.click()")
+                    self.until(lambda: js(text), f"ask clark is {word}", f"{where}: the toast says {word}")
+                    self.until(lambda: js(f"document.activeElement === {sw}"), True, f"{where}: focus is back on the switch")
+                    self.assertEqual(js("document.querySelectorAll('.toast [data-undo]').length"), 1, f"{where}: one Undo")
+                    js("document.querySelector('.toast [data-undo]').click()")
+                    self.until(lambda: js(text), f"ask clark is {other}", f"{where}: Undo puts it back and says so")
+                    self.until(lambda: js(f"{sw}.getAttribute('aria-pressed')"), was, f"{where}: the switch is as it was")
+                    self.until(lambda: read(self.db)[0], was == "true", f"{where}: the database holds it")
+                    self.assertEqual(js("document.querySelectorAll('.toast [data-undo]').length"), 0, f"{where}: no Undo of an Undo")
+                    self.until(lambda: js(ready), True, f"{where}: ready again")
+            js("location.hash = '#dashboard&p=ABC'")
+            self.until(lambda: js("!document.querySelector('.toast')"), True, "leaving Settings takes the toast")
+
     def test_a_file_that_cannot_keep_the_switch_reads_as_off_and_turning_it_on_is_refused_in_plain_words(self):
         self.s.httpd.app_settings = service(make_db(self.folder(), ready=False, cleanup=self.addCleanup))      # a data file made before the settings step
         with chrome() as cdp:
@@ -251,6 +281,7 @@ class Settings(unittest.TestCase):
             self.assertIn("Nothing was changed.", text)
             self.assertFalse(text.lower().startswith("clark"), text)
             self.assertEqual(js("document.querySelector('#ask-state').innerText"), OFF)
+            self.assertEqual(js("document.querySelectorAll('.toast').length"), 0, "a refused change says why under the switch, with no toast and no Undo")
 
     def test_without_the_server_route_the_folders_part_says_so_in_plain_words(self):
         with chrome() as cdp:

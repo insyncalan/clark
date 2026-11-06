@@ -99,11 +99,11 @@ class Checker(unittest.TestCase):
 
     def test_the_limit_fits_the_change_route(self):
         from clark import server as sv
-        self.assertGreaterEqual(sv.ROUTE_BODY_LIMITS["/api/change"], checklist.LIMIT + 8 * 1024)
+        self.assertGreaterEqual(sv.ROUTE_BODY_LIMITS["/api/section-body"], checklist.LIMIT + 8 * 1024)
         worst = body(*[line("\U0001F600" * 200, 1) for _ in range(20)])
         self.assertLessEqual(len(self.check(worst)), checklist.LIMIT, "the largest valid content fits its limit")
         self.assertLess(len(json.dumps({"project": "ABC", "kind": "report_sections", "op": "update", "id": "ABC-S-001", "changes": {"body": worst}})),
-                        sv.ROUTE_BODY_LIMITS["/api/change"], "and its request fits the route")
+                        sv.ROUTE_BODY_LIMITS["/api/section-body"], "and its request fits the route")
 
     def test_published_keeps_typed_lines_and_only_the_work_items_the_file_kept(self):
         ctx = base.Context({"actions": [{"id": "ABC-A-001"}], "raid": [{"id": "ABC-004"}], "decisions": [{"id": "ABC-D-001"}], "milestones": [{"id": "ABC-M-001"}]}, "2030-01-15")

@@ -564,5 +564,60 @@ class Source(unittest.TestCase):
             self.assertNotRegex(text, SENSITIVE_WORDS)
 
 
+# Row 769: the Word copy's tables. The narrowest each column may be, in twentieths of a point, so that an ID, a date, a status
+# word or "Commitment" is never broken across two lines (nine-point text and 80-twip cell margins on each side).
+MIN_COL = {"ID": 1150, "Ref": 700, "Type": 1150, "Owner": 1100, "Priority": 900, "Due": 1050, "Status": 1050, "Agreed": 1050,
+           "Forecast": 1050, "State": 1050, "Slip": 900, "Commitment": 1300, "Impact / likelihood": 1000, "Made by": 1300,
+           "Date": 1700, "Work items": 1000}
+W_NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+
+
+class WordTableWidths(unittest.TestCase):
+    def setUp(self):
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(parts(docx_build.build(published()))["word/document.xml"])
+        q = "{%s}" % W_NS["w"]
+        self.tables = []
+        for t in root.iter(q + "tbl"):
+            grid = [int(g.get(q + "w")) for g in t.find("w:tblGrid", W_NS)]
+            rows = t.findall("w:tr", W_NS)
+            cells = [[int(c.find("w:tcPr/w:tcW", W_NS).get(q + "w")) for c in r.findall("w:tc", W_NS)] for r in rows]
+            head = ["".join(x.text or "" for x in c.iter(q + "t")) for c in rows[0].findall("w:tc", W_NS)]
+            self.tables.append({"grid": grid, "cells": cells, "head": head,
+                                "total": int(t.find("w:tblPr/w:tblW", W_NS).get(q + "w")),
+                                "repeat": rows[0].find("w:trPr/w:tblHeader", W_NS) is not None})
+
+    def data_tables(self):
+        return [t for t in self.tables if t["head"] and t["head"][0] in ("ID", "Ref")]
+
+    def test_every_table_fits_the_text_width_and_the_cells_follow_the_grid(self):
+        self.assertTrue(self.tables)
+        self.assertLessEqual(docx_build.TEXT_W, docx_build.PAGE_W - 2 * docx_build.MARGIN)
+        for t in self.tables:
+            self.assertEqual(sum(t["grid"]), docx_build.TEXT_W)
+            self.assertEqual(t["total"], docx_build.TEXT_W)
+            for row in t["cells"]:
+                self.assertEqual(row, t["grid"])
+
+    def test_the_data_tables_have_a_repeating_header_row_of_the_expected_columns(self):
+        self.assertEqual([t["head"][1] for t in self.data_tables()], ["Use case", "Milestone", "Type", "Action", "Decision"])
+        for t in self.data_tables():
+            self.assertTrue(t["repeat"])
+
+    def test_no_data_column_is_narrower_than_its_longest_word(self):
+        for t in self.data_tables():
+            for name, w in zip(t["head"], t["grid"]):
+                if name in MIN_COL:
+                    self.assertGreaterEqual(w, MIN_COL[name], f"{t['head'][1]} table, column {name}")
+
+    def test_open_actions_and_risks_columns_are_wide_enough_for_ids_dates_and_words(self):
+        for second, names, wide in (("Action", ["ID", "Owner", "Priority", "Due", "Status"], "Action"),
+                                    ("Type", ["ID", "Type", "Owner", "Priority", "Impact / likelihood", "Due", "Status"], "Item")):
+            (t,) = [x for x in self.tables if x["head"][:2] == ["ID", second]]
+            for name in names:
+                self.assertGreaterEqual(t["grid"][t["head"].index(name)], MIN_COL[name], f"{second} table, {name}")
+            self.assertGreaterEqual(t["grid"][t["head"].index(wide)], 1800)
+
+
 if __name__ == "__main__":
     unittest.main()

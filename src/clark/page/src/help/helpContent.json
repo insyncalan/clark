@@ -350,7 +350,7 @@
      "Click the filter line, which says **Filter by keyword or by field**, and type. A plain word finds the items with it in the title or the ID. A list of fields and values opens under the line: choose from it, or keep typing.",
      "To pick a field, type field:value, for example status:Open or priority:High,Urgent. The fields are type, status, owner, priority, due, workstream, usecase, milestone, client and is. A comma means or, a space between two parts means and, and a - in front means not, as in -status:Closed. no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you (set your name in Settings first).",
      "A word it cannot use gets a red wavy underline and is not applied. A message under the line says why, such as Unknown field 'x'. Did you mean Owner? or Add a value after 'x:'. If you ask for owner:@me before your name is set, it says Set your name in Settings to see your actions.",
-     "The count at the right reads, for example, 12 of 40. **Clear filter** (the **×**) empties the line. When nothing matches, the list says No work items match. and offers **Clear filter**.",
+     "The count at the right reads, for example, 12 of 40. **Clear filter** (the **×**) empties the line. When nothing matches the words you typed, the list says, for example, No open items match \"crane\". and offers **Clear search**.",
      "A published file has no filter line. It has a **Search work items** box, which finds words in the ID, the description, the owner, the latest update, the client wording and the use case, and a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone. Each opens a list with a count beside every value: tick the ones you want and choose **is any of** or **is not**. **Select all** and **Clear** are at the top. The filters that are on show as chips beside the count; **×** on a chip removes it, and **Clear all** removes the filters and the search but keeps the type and Open, Closed or All.",
      "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N work items” and the use case's reference), opens Work items already filtered to what it counts."
     ],
@@ -382,10 +382,10 @@
     "id": "change-an-item-in-the-peek",
     "g": "Work items",
     "t": "Change an item in the peek",
-    "w": "Any work item: a row, a card or its ID",
+    "w": "Any work item: a row or a card",
     "go": "work",
     "s": [
-     "Double-click a row or a card, press [[Enter]] on it, or click an ID. The item opens in the **peek** at the right, and the page stays where it was. A single click selects the row or card instead.",
+     "Click a row or a card, or press [[Enter]] on it. The item opens in the **peek** at the right, and the page stays where it was.",
      "Click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "Under the title are **Status**, **Priority**, **Owner** and **Due**. Click one to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. The due date offers Today, Tomorrow, Friday, Next week and No date.",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
@@ -1252,7 +1252,7 @@
        ],
        [
         "Client-visible (the eye)",
-        "Whether the client sees the item. Open eye: shown to the client. Crossed-out eye: internal only. It follows the item’s client flag, the hidden list and Sensitive labels together, so an item with a Sensitive label shows crossed out. In View it is a mark only; in Edit, select it to turn the item on or off, with **Undo**"
+        "Whether the client sees the item. Open eye: shown to the client. Crossed-out eye: internal only. It follows the item’s client flag, the hidden list and Sensitive labels together, so an item with a Sensitive label shows crossed out. Select it to turn the item on or off, with **Undo**"
        ]
       ]
      ],
@@ -1303,7 +1303,7 @@
      ],
      [
       "p",
-      "The filter line takes a plain word, which finds the items with it in the title or the ID, or field:value, such as status:Open or priority:High,Urgent. A comma means or, a space means and, a - in front means not, no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you. The count at the right reads, for example, 12 of 40, and **Clear filter** (the **×**) empties the line. When nothing matches, the list says No work items match. A published file has a **Search work items** box and a **Filter by** row instead, where each filter can be **is any of** or **is not**, and **Clear all** removes the chips.",
+      "The filter line takes a plain word, which finds the items with it in the title or the ID, or field:value, such as status:Open or priority:High,Urgent. A comma means or, a space means and, a - in front means not, no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you. The count at the right reads, for example, 12 of 40, and **Clear filter** (the **×**) empties the line. A published file has a **Search work items** box and a **Filter by** row instead, where each filter can be **is any of** or **is not**, and **Clear all** removes the chips.",
       "Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
      ]
     ]
@@ -1747,7 +1747,7 @@
     "b": [
      [
       "p",
-      "A bar of chips under the title takes you to a card: Publishing, Personal, Freshness, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn. The chip of the card you are reading is marked. Publishing and Freshness need an open project. Published reports also needs one and has a card but no chip."
+      "A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title): Publishing, Personal, Freshness, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn. The link of the card you are reading is marked. Publishing and Freshness need an open project. Published reports also needs one and has a card but no link."
      ],
      [
       "tbl",
@@ -1774,7 +1774,7 @@
        ],
        [
         "AI (under Asking)",
-        "A card of its own, drawn straight after the Asking card and without a chip. Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
+        "A card of its own, drawn straight after the Asking card and without a link. Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
        ],
        [
         "Publishing",
@@ -2046,7 +2046,7 @@
    ],
    [
     "Click",
-    "Work items: select one row or card. A double-click opens the item"
+    "Work items: open a row or card in the peek, and select only that one"
    ],
    [
     "[[Mod]]+click",
@@ -2375,7 +2375,7 @@
    "title": "Settings",
    "s": [
     "Settings holds what belongs to the whole project and to you, one card for each job.",
-    "The row of chips under the title takes you to a card.",
+    "The list at the left of the cards takes you to a card (a row of chips under the title in a narrow window).",
     "Below, one short line says what each card is for."
    ],
    "full": "howto-find-a-past-publication",

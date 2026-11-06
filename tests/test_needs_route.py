@@ -1,4 +1,4 @@
-"""'Needs from you' over the REAL change route with the REAL store (#405; src/clark/server.py CHANGE_BODY_LIMIT, guarded): the
+"""'Needs from you' over the REAL section-body route with the REAL store (#405; src/clark/server.py SECTION_BODY_LIMIT, guarded): the
 fullest list the checker accepts, in every kind of letter, is not stopped by the route's size limit, and what the checker refuses
 gets the checker's own words, not the route's general ones.
 
@@ -30,7 +30,7 @@ class Route(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
-        self.running = Running(change=changes.make_change(self.store.path, [], USER), undo=changes.make_undo(self.store.path, [], USER))
+        self.running = Running(change=changes.make_change(self.store.path, [], USER), section_body=changes.make_section_body(self.store.path, [], USER), undo=changes.make_undo(self.store.path, [], USER))
         self.addCleanup(self.running.close)
         status, _, data = self.running.api("POST", "/api/change", json.dumps(
             {"project": "ABC", "kind": KIND, "op": "new", "values": {"type": "needs", "title": "Needs from you"}}).encode())
@@ -38,7 +38,7 @@ class Route(unittest.TestCase):
         self.ref = json.loads(data)["ref"]
 
     def post(self, body):
-        status, _, data = self.running.api("POST", "/api/change", body)
+        status, _, data = self.running.api("POST", "/api/section-body", body)
         return status, json.loads(data)
 
     def stored(self):
@@ -49,7 +49,7 @@ class Route(unittest.TestCase):
             for ascii_only in (True, False):
                 with self.subTest(letter=repr(letter), ascii_only=ascii_only):
                     body = request(self.ref, rows(letter), ascii_only)
-                    self.assertLessEqual(len(body), sv.CHANGE_BODY_LIMIT)
+                    self.assertLessEqual(len(body), sv.SECTION_BODY_LIMIT)
                     status, got = self.post(body)
                     self.assertEqual((status, got["ok"]), (200, True), got)
                     self.assertEqual(self.stored(), check(rows(letter)))
@@ -63,7 +63,7 @@ class Route(unittest.TestCase):
 
     def test_the_widest_list_the_checker_takes_fits_the_limit_with_room_to_spare(self):
         widest = max(len(request(self.ref, rows(letter), ascii_only)) for letter in TAKEN for ascii_only in (True, False))
-        self.assertLessEqual(widest + sv.REQUEST_ENVELOPE, sv.CHANGE_BODY_LIMIT)
+        self.assertLessEqual(widest + sv.REQUEST_ENVELOPE, sv.SECTION_BODY_LIMIT)
         self.assertGreater(widest, OLD_LIMIT)
 
     def test_what_the_checker_refuses_gets_its_own_words_not_the_routes(self):
@@ -77,8 +77,8 @@ class Route(unittest.TestCase):
         self.assertEqual(self.store.read(KIND, ref=self.ref), before)
 
     def test_one_byte_over_the_route_limit_still_gets_the_general_words(self):
-        head = b'{"project":"ABC","kind":"report_sections","op":"update","id":"' + self.ref.encode() + b'","changes":{"title":"'
-        for size, over in ((sv.CHANGE_BODY_LIMIT, False), (sv.CHANGE_BODY_LIMIT + 1, True)):
+        head = b'{"project":"ABC","kind":"report_sections","op":"update","id":"' + self.ref.encode() + b'","changes":{"body":"'
+        for size, over in ((sv.SECTION_BODY_LIMIT, False), (sv.SECTION_BODY_LIMIT + 1, True)):
             raw = head + b"x" * (size - len(head) - 3) + b'"}}'
             self.assertEqual(len(raw), size)
             status, got = self.post(raw)

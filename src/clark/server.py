@@ -11,6 +11,7 @@ Routes:
 - GET  /api/movement     ?project=<CODE>: Milestones Movement (#136), owner only, never published: the view of the store's `milestone_moves` read (movement_read.py); without the seam, not found
 - GET  /api/activity     ?project=<CODE>&item=<ID>: one item's changes for the peek's Activity tab (#42), owner only, never published (activity_read.py); without the seam, not found
 - GET  /api/milestones   ?project=<CODE>: that project's milestones for the Calendar and its list (#146), read only: the `milestones` seam (milestone_feed.py); without the seam, not found
+- POST /api/section-body  a section's content (#273): a change of /api/change, report_sections update of `body` only, the logic is `section_body(req)`, from clark.changes (which refuses any other request); its own body limit
 - POST /api/change       one change to a project's report sections (#65); the logic is `change(req)`, from clark.changes
 - POST /api/undo         reverse one earlier step of the report's (#65); the logic is `undo(req)`
 - POST /api/section-image  one picture into a section template's slot, or out of it (#96 R1): one step, one Undo; the logic is
@@ -194,7 +195,8 @@ def change_body_limit(body_max=SECTION_BODY_MAX):
     return ESCAPE_FACTOR * body_max + REQUEST_ENVELOPE
 
 
-CHANGE_BODY_LIMIT = change_body_limit()   # #96, #378, #405: 516 KB today; moves with the three above, never with a bare number
+SECTION_BODY_LIMIT = change_body_limit()   # #96, #378, #405, #273: 516 KB today; /api/section-body, the one route that carries a section's content; moves with the three above, never with a bare number
+CHANGE_BODY_LIMIT = 16 * 1024          # #273: every other change (a section's content has its own route)
 # #454: the People card's paste, worked out the way the change limit is, never a bare number. This server imports nothing from clark, so the
 # four caps are copied here and tests/test_server.py keeps them equal to people.py (ROW_LIMIT, NAME_MAX, EMAIL_MAX, CELL_MAX). The bound is
 # the worst the page can send: every character of every cell a six-byte JSON escape (\u00XX, which JSON.stringify gives a control character;
@@ -207,7 +209,7 @@ JSON_ESCAPE_BYTES = 6                  # the most one character takes in a JSON 
 PEOPLE_ROW_ENVELOPE = 64               # a row's braces, four keys, quotes, colons and comma: 51 bytes compact, 59 when spaced
 PEOPLE_ROW_BYTES = (PEOPLE_NAME_MAX + PEOPLE_EMAIL_MAX + 2 * PEOPLE_CELL_MAX) * JSON_ESCAPE_BYTES + PEOPLE_ROW_ENVELOPE      # 574 * 6 + 64 = 3508
 PEOPLE_BODY_LIMIT = PEOPLE_ROW_MAX * PEOPLE_ROW_BYTES + REQUEST_ENVELOPE      # 500 * 3508 + 4096 = 1,758,096 bytes (1.68 MiB), under BODY_LIMIT; an add or an edit is a few hundred bytes
-ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096,
+ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096,
                      "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
                      "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
@@ -829,6 +831,13 @@ def change_route(handler, req):
     return seam_route(handler, handler.server.change, req)
 
 
+def section_body_route(handler, req):
+    """POST /api/section-body (#273): the change of /api/change for a section's content, and only that. The seam (`section_body`, from
+    clark.changes) refuses any other request and does the rest as `change` does, so every check, the step, the Undo and the history
+    are the same. Checked like change_route before this runs, with its own body limit."""
+    return seam_route(handler, handler.server.section_body, req)
+
+
 def undo_route(handler, req):
     """POST /api/undo (#65). Checked like change_route before this runs."""
     return seam_route(handler, handler.server.undo, req)
@@ -1202,7 +1211,7 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics"),
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route, "/api/demo": demo_route("status")}
-POST_ROUTES = {"/api/change": change_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
+POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
                 "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"), "/api/providers/connect": ai_connect_route("connect"),
@@ -1405,7 +1414,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(411, error_body("length_required"))
         except TooLarge:
             sent = error_body("too_large")
-            if self.path.split("?")[0] == "/api/change":
+            if self.path.split("?")[0] in ("/api/change", "/api/section-body"):
                 sent["message"] = MESSAGES["change_too_large"]      # a section's content is the one thing that grows: say what to do (the code stays too_large)
             return self.send(400, sent)
         except ValueError:
@@ -1427,13 +1436,14 @@ class LocalServer(ThreadingHTTPServer):
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-                 people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None, demo=None):
+                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None):
         if server_address[0] != HOST and not (container_mode() and server_address[0] == CONTAINER_BIND):
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
         self.projects = projects or (lambda: [])
         self.change, self.undo, self.sneak = change, undo, sneak
         self.section_image = section_image    # changes.make_section_image (#96 R1); None: that route answers 503 saving_off
+        self.section_body = section_body      # changes.make_section_body (#273); None: that route answers 503 saving_off
         self.word_import, self.word_export = word_import, word_export
         self.demo = demo                      # demo_seed.Demo (#731); None: no demo data on show
         self.excel_import, self.project_save = excel_import, project_save      # #444: the workbook import, a project's new and edit; None: those routes answer 503
@@ -1492,7 +1502,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-          people=None, people_undo=None, people_list=None, section_image=None, past=None, as_at=None, publication_mark=None, demo=None):
+          people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None):
     """Start the server on 127.0.0.1 (in the container, on its own addresses: see container_mode) and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     port = port_setting() if port is None else port
@@ -1501,7 +1511,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, ai=ai, ai_connect=ai_connect, updater=updater,
-                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo)
+                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)

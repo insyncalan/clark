@@ -100,7 +100,7 @@ class Checker(unittest.TestCase):
 
     def test_the_limit_fits_the_change_route(self):
         from clark import server as sv
-        self.assertGreaterEqual(sv.ROUTE_BODY_LIMITS["/api/change"], keydates.LIMIT + 8 * 1024)
+        self.assertGreaterEqual(sv.ROUTE_BODY_LIMITS["/api/section-body"], keydates.LIMIT + 8 * 1024)
         worst = body(*[typed("é" * 120) for _ in range(12)])
         self.assertLessEqual(len(self.check(worst)), keydates.LIMIT, "the largest valid content fits its limit")
 
