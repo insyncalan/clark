@@ -1,6 +1,6 @@
-// The peek (#42a): one work item's or milestone's fields beside the list. Read only in View and in a published file: fields and
+// The peek (#42a): one work item's or milestone's fields beside the list. Read only on a Dashboard in View and in a published file: fields and
 // nothing else (no history, no words box, no /api/ text). `tools.Words`, `tools.WordsButton`, `tools.PeekTabs` and
-// `tools.PeekActivity` (Details and Activity, #42) are the Edit part.
+// `tools.PeekActivity` (Details and Activity, #42) are the editing part (every page but a Dashboard in View).
 // The address holds which item is open (router.js, #63); Previous and Next replace that entry, Esc and Close go through
 // closePeek(). The width is dragged from the left edge (keys too), double-click resets it.
 // The arrow keys (#246, #289): Up and Down on one of its buttons step like Previous and Next, an arrow that moves the focus to
@@ -8,6 +8,7 @@
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { data, rows, peek, openPeek, closePeek, mode, fromFile, view } from "../stores/report.js";
+import { isEditing } from "../logic/editing.js";
 import { width, wide, setWidth, resetWidth, MIN, peekTab } from "../stores/peekState.js";
 import { staleWords, notReviewed } from "../filters.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso, isOpen, colourOf } from "../workItems.js";
@@ -111,7 +112,7 @@ export function Edge() {
 export function Peek({ tools }) {
   const p = peek.value;
   const box = useRef(null), back = useRef(null), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
-  const editing = !!tools && !fromFile.value && mode.value === "edit";
+  const editing = !!tools && !fromFile.value && isEditing();      // every page but a Dashboard in View (row 824)
   const msEditing = !!tools && !!tools.MilestoneEdit && !fromFile.value && (mode.value === "edit" || view.value === "milestones");     // row 828: the milestone's own fields are editable on the Milestones page with no View mode, and in Edit elsewhere
   // The words box changes a work item or a milestone; a use case has no peek (its own page, UseCaseDetail, has the box). The warning bar and Latest update are an item's only.
   const forItem = !!p && p.kind !== "milestone";
