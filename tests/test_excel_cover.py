@@ -323,13 +323,15 @@ class InTheWorkbook(unittest.TestCase):
                 root = ET.fromstring(z.read(n))
                 setup = root.find("m:pageSetup", ns)
                 self.assertEqual((setup.get("orientation"), setup.get("fitToWidth"), setup.get("fitToHeight")), ("landscape", "1", "0"), n)
+                self.assertEqual(setup.get("paperSize"), "9", n)             # A4, as the PDF export is
                 self.assertIn(root.find("m:sheetPr/m:pageSetUpPr", ns).get("fitToPage"), ("1", "true"), n)
-        self.assertEqual(self.find("Overdue actions").offset(row=1).alignment.indent, 1)
+        self.assertEqual(self.find("Overdue actions").offset(row=1).alignment.indent, 1)      # the cover tile values are indented one step
 
     def test_the_import_template_prints_landscape_and_one_page_wide_too(self):
         wb = load_workbook(io.BytesIO(excel.template_bytes()))
         for ws in wb.worksheets:
             self.assertEqual((ws.page_setup.orientation, ws.page_setup.fitToWidth, ws.page_setup.fitToHeight), ("landscape", 1, 0))
+            self.assertEqual(ws.page_setup.paperSize, 9)                       # A4
             self.assertTrue(ws.sheet_properties.pageSetUpPr.fitToPage)
 
     def cover_sheet(self):

@@ -219,6 +219,7 @@ def locked_fields(locked):
 def print_setup(ws):
     """Print setup (row 801): landscape, one page wide however many pages tall, so the Cover and the wide data sheets do not split across pages."""
     ws.page_setup.orientation = "landscape"
+    ws.page_setup.paperSize = ws.PAPERSIZE_A4                       # A4, as the PDF export is
     ws.page_setup.fitToWidth, ws.page_setup.fitToHeight = 1, 0
     ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
 
