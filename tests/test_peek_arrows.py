@@ -10,7 +10,7 @@ import unittest
 
 import test_peek as TP
 from test_server import chrome, wait
-from test_work_filters import dblclick
+from test_work_filters import click
 
 KEYS = {"ArrowUp": (38, ""), "ArrowDown": (40, ""), "ArrowLeft": (37, ""), "ArrowRight": (39, ""), "Escape": (27, "")}
 
@@ -36,7 +36,7 @@ class Arrows(unittest.TestCase):
         return cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)
 
     def open_by_double_click(self, cdp, sid, ids, at):
-        dblclick(cdp, sid, f"#work tbody tr[data-id='{ids[at]}'] .c-item")
+        click(cdp, sid, f"#work tbody tr[data-id='{ids[at]}'] .c-item")
         self.assertTrue(wait(lambda: self.shown(cdp, sid) == ids[at]))
         self.assertTrue(wait(lambda: self.on_close(cdp, sid)), "focus went into the peek, on Close")
 
@@ -171,6 +171,22 @@ class Arrows(unittest.TestCase):
                 cdp.js("new Promise(r => setTimeout(r, 100))", sid)
                 self.assertEqual(self.shown(cdp, sid), target, "Up and Down in the box do not step the item")
                 self.assertEqual(cdp.js("document.querySelector('.sn-in').value", sid), "abc")
+
+    def test_row_776_the_words_box_is_a_floating_card_in_light_and_dark(self):
+        """Row 776: the words box floats at the foot of the peek (sticky, a surface and a shadow), at 1400 and 900 px."""
+        for theme in ("light", "dark"):
+            for width in (1400, 900):
+                with self.subTest(theme=theme, width=width), chrome() as cdp:
+                    s, sid = self.load_page(cdp, width)
+                    cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
+                    self.edit_mode(cdp, sid)
+                    ids = self.ids_on_page(cdp, sid)
+                    self.open_by_double_click(cdp, sid, ids, 1)
+                    cdp.js("document.querySelector('[data-sneak-open]').click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.wordsbox')", sid)))
+                    r = cdp.js("(() => { const c = getComputedStyle(document.querySelector('.wordsbox')); return [c.position, c.boxShadow]; })()", sid)
+                    self.assertEqual(r[0], "sticky", r)
+                    self.assertNotEqual(r[1], "none", r)
 
     def test_a_menu_open_or_a_modifier_held_leaves_the_arrow_alone(self):
         with chrome() as cdp:

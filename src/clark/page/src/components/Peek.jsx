@@ -12,6 +12,7 @@ import { width, wide, setWidth, resetWidth, MIN, peekTab } from "../stores/peekS
 import { staleWords, notReviewed } from "../filters.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso, isOpen, colourOf } from "../workItems.js";
 import { slideOut } from "../peek/exit.js";
+import { closesPeek } from "../peek/outside.js";
 import { itemIds, milestoneIds, around, placeIn } from "../peek/list.js";
 import { Icon } from "./Icon.jsx";
 import { wordsOpen, flashed } from "../stores/wordsState.js";
@@ -137,7 +138,9 @@ export function Peek({ tools }) {
         const now = document.querySelector(sel);
         if (now) el = now;
       }
-      if (el && el.isConnected && el.focus) el.focus();
+      const now = document.activeElement;                                          // a click on another row (a Shift click that closes the peek) has put the focus there already: leave it
+      const elsewhere = now && now !== document.body && now.isConnected && !now.closest("#peek");
+      if (!elsewhere && el && el.isConnected && el.focus) el.focus();
     };
   }, [!!p]);                                              // eslint-disable-line react-hooks/exhaustive-deps
   // After a step the focus is never left on a button that has just turned off (Next at the last item) or on the page: it goes to Close.
@@ -203,7 +206,17 @@ export function Peek({ tools }) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [p && p.id, !!Words]);                               // eslint-disable-line react-hooks/exhaustive-deps
-  if (!p) slideOut(box.current);                          // closed: the panel slides out (a copy of it; the live one is gone)
+  // A click outside closes the peek (row 814): the press and the click must both be outside, so a drag that ends outside keeps it.
+  useEffect(() => {
+    if (!p) return undefined;
+    let down = false;
+    const press = (e) => { down = closesPeek(e.target); };
+    const click = (e) => { const was = down; down = false; if (was && closesPeek(e.target)) closePeek(); };
+    document.addEventListener("pointerdown", press, true);
+    document.addEventListener("click", click);
+    return () => { document.removeEventListener("pointerdown", press, true); document.removeEventListener("click", click); };
+  }, [!!p]);                                              // eslint-disable-line react-hooks/exhaustive-deps
+  if (!p) slideOut(box.current);                       // closed: the panel slides out (a copy of it; the live one is gone)
   if (!p || !data.value) return null;
   const milestone = p.kind === "milestone";
   const row = milestone ? null : rows.value.find((r) => r.id === p.id);

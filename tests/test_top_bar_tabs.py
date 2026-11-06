@@ -120,6 +120,35 @@ class TopBarTabs(Base):
                 self.assertEqual([left, right], [pad, pad], f"at {width} px the tab padding should be {pad}; got {left} and {right}")
                 self.assertEqual(wrap, "nowrap", f"at {width} px a tab label may wrap onto a second line (white-space is {wrap!r})")
 
+    # Row 854: the logo is a Home button. It is a real button, reached with Tab (first stop in the bar), draws a focus ring, is named by
+    # its existing words, and goes to the first tab (the Dashboard) of the same project, in View and in Edit.
+    def home(self, width, theme, edit):
+        with chrome() as cdp:
+            p = self.visit(cdp)       # ready() waits for the Dashboard's sections, so open there and go to Work items by its tab
+            size(cdp, p, width, 700)
+            p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
+            p.js("document.querySelector('.top .tab[data-view=work]').click()")
+            p.until("document.querySelector('.top .tab[aria-selected=true]').dataset.view === 'work'", "Work items did not open")
+            if edit:
+                p.js("document.querySelector('.top [data-mode=edit]').click()")
+            where = f"at {width} px, {theme}, {'Edit' if edit else 'View'}"
+            self.assertEqual(p.js("document.querySelector('.top .logo') && document.querySelector('.top .logo').tagName"), "BUTTON", f"{where}: the logo is not a button")
+            self.assertTrue(p.js("(document.querySelector('.top .logo').getAttribute('aria-label') || '').trim().length > 0"), f"{where}: the logo has no accessible name")
+            p.js("document.activeElement && document.activeElement.blur()")
+            p.key("Tab", 0, "Tab", 9)
+            self.assertTrue(p.js("document.activeElement.classList.contains('logo')"), f"{where}: Tab does not reach the logo first")
+            self.assertNotEqual(p.js("getComputedStyle(document.activeElement).outlineStyle"), "none", f"{where}: the focused logo has no focus ring")
+            self.assertGreater(p.js("parseFloat(getComputedStyle(document.activeElement).outlineWidth)"), 0, f"{where}: the focus ring has no width")
+            for kind in ("keyDown", "keyUp"):       # a real Enter, with its text as a keyboard sends it: a bare key event does not press a button
+                cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13,
+                                                    **({"text": "\r"} if kind == "keyDown" else {})}, p.sid)
+            p.until("location.hash.indexOf('#dashboard') === 0 && location.hash.indexOf('p=ABC') > 0", f"{where}: Enter on the logo does not go to the Dashboard of the same project")
+            self.assertEqual(p.js("document.querySelector('.top .tab[aria-selected=true]').dataset.view"), "dashboard", f"{where}: the first tab is not the pressed one")
+            p.js("document.querySelector('.top .tab[data-view=work]').click()")
+            p.until("document.querySelector('.top .tab[aria-selected=true]').dataset.view === 'work'", f"{where}: could not return to Work items")
+            p.js("document.querySelector('.top .logo').click()")
+            p.until("location.hash.indexOf('#dashboard') === 0", f"{where}: a click on the logo does not go to the Dashboard")
+
 
     def test_800_and_641_px_do_not_scroll_the_page_sideways_as_on_main(self):
         # Row 757 is 900 px only: below 801 px the tab row keeps main's rule (it scrolls inside its own box), so the bar never grows wider than the window.
@@ -157,6 +186,8 @@ class TopBarTabs(Base):
 for _w in WIDTHS:
     for _t in ("light", "dark"):
         setattr(TopBarTabs, f"test_at_{_w}_{_t}", lambda self, w=_w, t=_t: self.check(w, t))
+        for _e in (False, True) if _w in (1400, 900) else ():
+            setattr(TopBarTabs, f"test_the_logo_goes_home_at_{_w}_{_t}_{'edit' if _e else 'view'}", lambda self, w=_w, t=_t, e=_e: self.home(w, t, e))
         setattr(TopBarTabs, f"test_at_{_w}_{_t}_long_name_in_edit", lambda self, w=_w, t=_t: self.check(w, t, True, True))
         setattr(TopBarTabs, f"test_settings_at_{_w}_{_t}", lambda self, w=_w, t=_t: self.check(w, t, False, False, "Settings"))
         setattr(TopBarTabs, f"test_settings_at_{_w}_{_t}_long_name_in_edit", lambda self, w=_w, t=_t: self.check(w, t, True, True, "Settings"))

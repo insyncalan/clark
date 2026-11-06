@@ -80,7 +80,7 @@ class Panel(Base):
         p.key("/", code="Slash", vk=191)
         p.until("!!document.querySelector('#ask-panel')", "the panel opened on /")
         if ready:
-            p.until("!document.querySelector('#ask-box').disabled", "the panel is ready to take a question")
+            p.until("!document.querySelector('#ask-send').disabled", "the panel is ready to take a question")
         return p
 
     def ask(self, p, text):
@@ -179,6 +179,14 @@ class Panel(Base):
             self.assertEqual(sent[0], {"project": "ABC", "question": "When is go-live?", "earlier": []})
             self.assertEqual(sent[1]["earlier"], [{"role": "user", "text": "When is go-live?"}, {"role": "assistant", "text": "The pilot goes live in March."}])
 
+    def test_the_who_labels_are_for_a_reader_only_and_take_no_room(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "When is go-live?")
+            p.until("document.querySelectorAll('.ask-turn').length === 2", "the question and the answer")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ask-who')].map(e => e.textContent)"), ["You", "Answer"], "a reader still hears who spoke")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ask-who')].map(e => e.getBoundingClientRect().height <= 1)"), [True, True], "nothing is drawn above the bubble or the reply")
+
     def test_new_chat_drops_the_earlier_turns_so_a_refused_chat_can_start_again(self):
         with chrome() as cdp:
             p = self.opened(cdp)
@@ -241,7 +249,8 @@ class Panel(Base):
             self.stub.enabled = True
             p.key("/", code="Slash", vk=191)
             p.until("!!document.querySelector('#ask-panel')", "reopened")
-            p.until("!document.querySelector('#ask-box').disabled", "ready again")
+            # row 872: the box is usable while the check is out (row 858), so "ready" is Send, not the box
+            p.until("!document.querySelector('#ask-send').disabled", "ready again")
             self.assertEqual(p.js("document.querySelector('#ask-off')"), None)
             self.assertEqual(p.js("document.querySelectorAll('#ask-pills button').length"), 6)
             self.assertTrue(p.js("[...document.querySelectorAll('#ask-pills button')].every(b => !b.disabled && !b.hasAttribute('aria-disabled'))"))
@@ -255,10 +264,57 @@ class Panel(Base):
             p = self.opened(cdp, ready=False)
             self.assertTrue(p.js("document.querySelector('#ask-off') === null && document.querySelector('#ask-signed-out') === null"), "no off or signed-out line while the answer is awaited")
             self.assertNotIn("Asking is off", p.js("document.querySelector('#ask-panel').innerText"))
-            self.assertTrue(p.js("document.querySelector('#ask-box').disabled"))
+            self.assertTrue(p.js("document.querySelector('#ask-send').disabled"), "Send waits for the answer (row 858: the box does not)")
             self.stub.status_hold.set()
-            p.until("!document.querySelector('#ask-box').disabled", "ready once the server said so")
+            p.until("!document.querySelector('#ask-send').disabled", "ready once the server said so")
             self.assertTrue(p.js("document.querySelector('#ask-off') === null"))
+
+    def test_row_858_the_box_keeps_its_words_and_the_panel_is_usable_while_it_checks(self):
+        """Row 858: the first open's check can take ~15 s. The box takes words and focus at once, they survive the answer, and the
+        panel says only the existing checking line meanwhile."""
+        self.stub.status_hold.clear()
+        with chrome() as cdp:
+            p = self.opened(cdp, ready=False)
+            t0 = time.time()
+            p.until("document.activeElement && document.activeElement.id === 'ask-box'", "the box has focus while the check is out")
+            self.assertFalse(p.js("document.querySelector('#ask-box').disabled"), "the box is usable at once")
+            p.type("when is go-live")
+            self.assertLess(time.time() - t0, 1.0, "the panel was usable within a second")
+            self.assertEqual(p.js("document.querySelector('#ask-box').value"), "when is go-live")
+            self.assertIn("Checking whether you can ask", p.js("document.querySelector('#ask-status').textContent"))
+            self.assertTrue(p.js("document.querySelector('#ask-send').disabled"), "nothing is sent until the check answers")
+            p.key("Enter", code="Enter", vk=13)
+            self.assertEqual(self.stub.count("ask"), 0)
+            self.stub.status_hold.set()
+            p.until("!document.querySelector('#ask-send').disabled", "ready")
+            self.assertEqual(p.js("document.querySelector('#ask-box').value"), "when is go-live", "the words survived the check")
+            self.assertEqual(p.js("document.activeElement.id"), "ask-box", "and so did focus")
+
+    def test_row_858_the_check_runs_once_for_two_opens_and_again_after_settings_changes_it(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.assertEqual(self.stub.count("status"), 1)
+            p.key("Escape", code="Escape", vk=27)
+            p.until("document.querySelector('#ask-panel') === null", "closed")
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel') && !document.querySelector('#ask-send').disabled", "reopened, ready at once")
+            self.assertEqual(self.stub.count("status"), 1, "the second open did not ask again")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("document.querySelector('#ask-panel') === null", "closed")
+            start = p.js("location.hash")
+            p.js("location.hash = '#settings&p=ABC'")
+            # row 872: the switch can read ready from the earlier read before Settings asks again; the folders answer comes after that ask has started
+            p.until("!!document.querySelector('[data-ask-switch]') && !document.querySelector('[data-ask-switch]').disabled && !!document.querySelector('#ask-folders, #ask-folders-none, #ask-folders-note')", "Settings has the asking switch")
+            p.js("document.querySelector('[data-ask-switch]').click()")          # a change in Settings: the kept check is dropped
+            p.until("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed') === 'false'", "turned off")
+            p.js("document.querySelector('[data-ask-switch]').click()")
+            p.until("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed') === 'true'", "turned on")
+            p.js(f"location.hash = {json.dumps(start)}")
+            p.until("!document.querySelector('[data-ask-switch]')", "left Settings")
+            p.js("document.activeElement.blur()")
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel') && !document.querySelector('#ask-send').disabled", "opened again after the change")
+            self.assertEqual(self.stub.count("status"), 2, "asked afresh after Settings changed it")
 
     def test_a_slow_server_shows_no_off_line_until_it_answers_that_asking_is_off(self):
         self.stub.enabled = False
@@ -316,7 +372,7 @@ class Panel(Base):
                     p.key("/", code="Slash", vk=191)
                     p.until("!!document.querySelector('#ask-panel')", "reopened")
                     if label == "ready":
-                        p.until("!document.querySelector('#ask-box').disabled", "ready")
+                        p.until("!document.querySelector('#ask-send').disabled", "ready")
                         self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Ask about this project.")
                         self.ask(p, "Hello")
                         p.until("document.querySelector('#ask-panel').innerText.indexOf('The pilot goes live in March.') >= 0", "the answer")
@@ -424,7 +480,7 @@ class Panel(Base):
                     p.js(f"document.documentElement.dataset.theme = '{theme}'")
                     p.key("/", code="Slash", vk=191)
                     p.until("!!document.querySelector('#ask-panel')", f"opened at {width} {theme}")
-                    p.until("!document.querySelector('#ask-box').disabled", "ready")
+                    p.until("!document.querySelector('#ask-send').disabled", "ready")
                     r = p.js("(function(){var r=document.querySelector('#ask-panel').getBoundingClientRect();return {l:r.left,r:r.right,t:r.top,b:r.bottom,w:r.width}})()")
                     edge = p.js("document.documentElement.clientWidth")      # the window less a classic scroll bar (Linux shows one; a Mac hides it)
                     self.assertLessEqual(width - edge, 20)
