@@ -532,14 +532,14 @@ _PROPERTY = re.compile(r"\s*([\w-]+)\s*:")
 # The pieces of _CSS_PIECE, except that a run of words and punctuation with no string or bracket in it is one piece, not one per
 # word (a function name before its ( is still its own piece). The walk below reads only brackets, strings, { } ; and the end of a
 # piece, so it costs a step per bracket or string, not per word: an embedded font is a handful of steps, not thousands.
-_PICTURE_PIECE = re.compile(r"""\"(?:[^"\n]*)"?|'(?:[^'\n]*)'?|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|(?:[\w-]+(?![\w-])(?!\s*\()|[^"'()\w-])+|[\w-]+""")
+_PICTURE_PIECE = re.compile(r"""(?s:\"[^"\\\n\r\f]*(?:\\.[^"\\\n\r\f]*)*"?|'[^'\\\n\r\f]*(?:\\.[^'\\\n\r\f]*)*'?)|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|(?:[\w-]+(?![\w-])(?!\s*\()|(?s:\\.|\\)|[^"'()\w\\-])+|[\w-]+""")
 
 
-def _escape_places(css, plain):
+def _escape_places(css, plain, gap=" "):
     """Where, in plain (= css_plain(css)), each escape of the style as typed put its character: two sorted lists, the starts and
     the ends. One pass. None if the places cannot be told (an escape built a comment: plain is then shorter than the decoded
     text). Used to ask whether a piece of the read text is spelled out as typed, with no escape in it."""
-    typed = _without_comments(css.replace("\x00", "\ufffd"))
+    typed = _without_comments(css.replace("\x00", "\ufffd"), gap)
     starts, ends, shift = [], [], 0
     for m in _CSS_ESCAPE.finditer(typed):
         put = len(_css_escape(m))
@@ -575,13 +575,22 @@ def _circle_picture(plain, decl, start, blocks, mime, spelled_out):
 
 
 def _picture_as_data(css, work=None):
+    """True if _picture_as_data_read finds one, read with a comment as a break between tokens and with a comment cut out (so the
+    two sides join): a comment is read both ways, as css_findings reads it."""
+    if "/*" not in css:
+        return _picture_as_data_read(css, work, " ")
+    work = work or Work()
+    return _picture_as_data_read(css, work, " ") or _picture_as_data_read(css, work, "")
+
+
+def _picture_as_data_read(css, work, gap):
     """True if style text has a data: URL that is not a font, the logo rule or one of the look's named pictures. Read as a browser
     reads it (css_plain), with the same pieces css_findings reads: url( and the string arguments of image functions. A running
     note of the block it is in (@font-face, a top-level rule) and of where its declaration began says which is spared."""
     if "\\" not in css and "data:" not in css.lower():
         return False                                    # no escape and no data: in it: nothing to find
     work = work or Work()
-    plain = css_plain(css)
+    plain = css_plain(css, gap)
     escaped = "\\" in css                              # an escape could make the text read differently from a browser: ask of each spared piece
     stack, blocks, images, argument_start, decl = [], [], 0, False, 0
 
@@ -593,7 +602,7 @@ def _picture_as_data(css, work=None):
         if not escaped:
             return True
         if not places:
-            places.append(_escape_places(css, plain))
+            places.append(_escape_places(css, plain, gap))
         if places[0] is None or "\\" in plain[begin:end]:
             return False
         starts, ends = places[0]
@@ -892,28 +901,34 @@ ADDRESS_FOUND = "a stylesheet address that isn't embedded data"
 
 
 _CSS_ESCAPE = re.compile(r"\\(?:([0-9A-Fa-f]{1,6})(?:\r\n|[ \t\n\r\f])?|(\r\n|[\n\r\f])|(.))", re.S)
-_CSS_PIECE = re.compile(r"""\"(?:[^"\n]*)"?|'(?:[^'\n]*)'?|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|[\w-]+|[^"'()\w-]+""")
+_CSS_PIECE = re.compile(r"""(?s:\"[^"\\\n\r\f]*(?:\\.[^"\\\n\r\f]*)*"?|'[^'\\\n\r\f]*(?:\\.[^'\\\n\r\f]*)*'?)|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|[\w-]+|(?:(?s:\\.|\\)|[^"'()\w\\-])+""")
 _IMAGE_FUNCTION = re.compile(r"(?:-[a-z]+-)?(?:image-set|src|image|cross-fade)$", re.I)
 _URL_OPEN = re.compile(r"url\(", re.I)
+
+
+_NOT_DECODED = frozenset("\"'\\\n\r\f")      # an escape for one of these stays as typed: it is a character of a name or a string, never a quote, a backslash or a line end
 
 
 def _css_escape(m):
     if m.group(1):
         n = int(m.group(1), 16)
-        return chr(n) if 0 < n <= 0x10FFFF and not 0xD800 <= n <= 0xDFFF else "\ufffd"
-    return "" if m.group(2) else m.group(3)
+        c = chr(n) if 0 < n <= 0x10FFFF and not 0xD800 <= n <= 0xDFFF else "\ufffd"
+        return m.group(0) if c in _NOT_DECODED else c
+    if m.group(2):
+        return "\\\n"                 # a backslash and a line end stays one (as LF): in a string it joins the lines, outside one it is a break between tokens
+    return m.group(0) if m.group(3) in _NOT_DECODED else m.group(3)
 
 
 _COMMENT_STOP = re.compile(r"/\*|[\"'\\(]")
-_DQ_STRING = re.compile(r'"(?:[^"\\\n]|\\\r\n|\\.)*"?', re.S)
-_SQ_STRING = re.compile(r"'(?:[^'\\\n]|\\\r\n|\\.)*'?", re.S)
+_DQ_STRING = re.compile(r'"(?:[^"\\\n\r\f]|\\\r\n|\\.)*"?', re.S)
+_SQ_STRING = re.compile(r"'(?:[^'\\\n\r\f]|\\\r\n|\\.)*'?", re.S)
 _UNQUOTED_URL = re.compile(r"[\t\n\f\r ]*(?![\"'\t\n\f\r ])(?:[^)\\]|\\.)*\)?", re.S)
 _QUOTE_NEXT = re.compile(r"[\t\n\f\r ]*[\"']")
 _URL_NAME_ENDS = frozenset("lLcC \t\n\r\f")      # the last character of url( as written plainly (l) or as an escape (\6c, \6C, with or without a space)
 _IDENT_AT_END = re.compile(r"(?:[\w-]|[^\x00-\x7f]|\\(?:[0-9A-Fa-f]{1,6}[ \t\n\r\f]?|.))+\Z", re.S)
 
 
-def _without_comments(css):
+def _without_comments(css, gap=" "):
     """`css` with each /* ... */ cut out, as a browser's reader finds comments: not inside a string (a "/*" in a string is no
     comment, so it cannot swallow a real address up to a later */), not after a backslash (\\/* is no comment), and not inside an
     unquoted url( (url(a/*) is a whole address, so a real address after it is still read). A comment with no end is cut at its
@@ -928,6 +943,8 @@ def _without_comments(css):
         tail = (tail + css[pos:m.start()])[-64:]
         c = m.group(0)
         if c == "/*":
+            out.append(gap)                 # gap " ": a comment ends the token before it (red/**/image-set( is red, then image-set( ), as in a browser
+            tail = (tail + gap)[-64:]         # gap "": the comment is cut out and the two sides join (the stricter old reading, u/**/rl( is url( ); both are scanned
             j = css.find("*/", m.end())
             pos = m.end() if j < 0 else j + 2
             continue
@@ -946,12 +963,12 @@ def _without_comments(css):
         pos = m.start() + len(piece)
 
 
-def css_plain(css):
+def css_plain(css, gap=" "):
     """Style text as a browser's reader sees it: each null byte read as U+FFFD (not dropped), no comments, each \\75 or \\u escape
     turned into the character it stands for (so \\75rl( and u/**/rl( are url( and \\69mport is import). One forward pass at each step.
     Comments are cut before the escapes are turned into characters, never after: an escape cannot make a comment (\\2f* is no
     comment), so it cannot hide what follows it either."""
-    return _CSS_ESCAPE.sub(_css_escape, _without_comments(css.replace("\x00", "\ufffd")))
+    return _CSS_ESCAPE.sub(_css_escape, _without_comments(css.replace("\x00", "\ufffd"), gap))
 
 
 _DATA_START = re.compile(r"[\"' ]*data:", re.I)
@@ -986,8 +1003,9 @@ def css_findings(css, work=None):
     if "(" not in css and "@" not in css and "\\" not in css:
         return found             # no bracket, @ or escape: no url(, no @import (u/**/rl( keeps its bracket, \40 import its backslash)
     # a browser reads a null byte as U+FFFD; the guard also reads the text with it dropped (the stricter reading kept from before)
-    plains = [css_plain(css)] + ([css_plain(css.replace("\x00", ""))] if "\x00" in css else [])
-    for text in [_without_comments(css)] + plains:      # the text as typed, less its comments: a url( in a comment reaches nothing
+    gaps = (" ", "") if "/*" in css else (" ",)
+    plains = [css_plain(css, g) for g in gaps] + ([css_plain(css.replace("\x00", ""), g) for g in gaps] if "\x00" in css else [])
+    for text in [_without_comments(css, g) for g in gaps] + plains:      # the text as typed, less its comments: a url( in a comment reaches nothing
         if re.search(r"@\s*import", text, re.I):
             found.add(IMPORT_FOUND)
         if _url_outside(text, work):
