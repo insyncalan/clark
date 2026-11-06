@@ -1905,3 +1905,9 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .item-rows-edit .note { color: var(--text-muted); }
 .item-rows-edit .add-from { display: inline-block; margin-top: 6px; }
 .item-rows-edit .picker { margin-top: 10px; }
+/* The project menu. Each project is its name on one line and its count of open items on its own line under it (the name is cut with an ellipsis); only this menu, the other menus keep their look. */
+.ddmenu[aria-label="Projects"] { width: max-content; max-width: min(360px, calc(100vw - var(--space-5))); }
+.ddmenu[aria-label="Projects"] [role="menuitemradio"] { display: flex; align-items: baseline; }
+.ddmenu[aria-label="Projects"] [role="menuitemradio"] > span:not(.ck) { display: block; flex: 1; min-width: 0; }
+.ddmenu[aria-label="Projects"] [role="menuitemradio"] b, .ddmenu[aria-label="Projects"] [role="menuitemradio"] small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ddmenu[aria-label="Projects"] [role="menuitemradio"] small { color: var(--text-muted); }
