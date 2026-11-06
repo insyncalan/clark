@@ -754,6 +754,17 @@ class Collapse(Base):
                 self.assertEqual((count, shown), (cards, cards), col)
                 self.assertEqual(empty, cards == 0, col)
 
+    def test_row_775_a_workstream_with_no_items_still_has_its_column_and_says_nothing_here(self):
+        """Row 775 (checked on the 1.0.3 build): an active workstream nobody has put an item in is still a column on Group by Workstream,
+        with a count of 0 and its 'Nothing here' line; the board leaves out only a workstream that is not active."""
+        with self.store.step("dashboard", USER) as st:
+            st.create("workstreams", {"project": "ABC", "name": "Empty stream", "source": "demo"})
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            self.board(cdp, sid, "workstream")
+            col = cdp.js("(() => { const c = document.querySelector(\"section.col[data-col='Empty stream']\"); return c ? [+c.dataset.count, c.querySelectorAll('.bcard').length, (c.querySelector('.none') || {}).textContent || ''] : null; })()", sid)
+            self.assertEqual(col, [0, 0, "Nothing here"], "the empty workstream has its column")
+
 
 class Peek(Base):
     def test_a_click_opens_the_peek_hook_and_a_click_on_another_card_moves_it_without_a_new_entry(self):
