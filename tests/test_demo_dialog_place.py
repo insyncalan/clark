@@ -39,20 +39,25 @@ class DemoDialogPlace(unittest.TestCase):
                     self.assertGreaterEqual(box[2], 0)
                     self.assertLessEqual(box[3], w)
 
+    def focused(self, cdp, sid, want, what=""):
+        """Wait (10 s at most) for the focus to be on `want`: the dialog moves it after it is drawn, and a key lands a moment later under load."""
+        ok = wait(lambda: cdp.js("document.activeElement && document.activeElement.id", sid) == want, 10)
+        self.assertTrue(ok, f"{what or 'focus'}: wanted {want}, it is on {cdp.js('document.activeElement && document.activeElement.id', sid)}")
+
     def test_focus_goes_in_esc_closes_only_the_dialog_tab_stays_inside_and_focus_returns_to_the_button(self):
         with chrome() as cdp:
             sid = navigate(cdp, self.s.port, "#dashboard")
             self.show(cdp, sid)
             box = cdp.js("(() => { const d = document.querySelector('#demo-confirm'); return [d.getAttribute('role'), d.getAttribute('aria-modal'), document.getElementById(d.getAttribute('aria-labelledby')).innerText]; })()", sid)
             self.assertEqual(box, ["dialog", "true", "Remove demo data?"])
-            self.assertEqual(cdp.js("document.activeElement.id", sid), "demo-cancel")
+            self.focused(cdp, sid, "demo-cancel")
             self.assertTrue(cdp.js("document.querySelector('#main').hasAttribute('inert') && document.querySelector('.top').hasAttribute('inert')", sid), "the page behind is inert")
             key(cdp, sid, "Tab")
-            self.assertEqual(cdp.js("document.activeElement.id", sid), "demo-go")
+            self.focused(cdp, sid, "demo-go")
             key(cdp, sid, "Tab")
-            self.assertEqual(cdp.js("document.activeElement.id", sid), "demo-cancel", "Tab wraps inside")
+            self.focused(cdp, sid, "demo-cancel", "Tab wraps inside")
             key(cdp, sid, "Tab", shift=True)
-            self.assertEqual(cdp.js("document.activeElement.id", sid), "demo-go", "Shift+Tab wraps inside")
+            self.focused(cdp, sid, "demo-go", "Shift+Tab wraps inside")
             hash_ = cdp.js("location.hash", sid)
             key(cdp, sid, "Escape")
             self.assertTrue(wait(lambda: cdp.js("!document.querySelector('#demo-confirm')", sid), 10), "Esc closed the dialog")

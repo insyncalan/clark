@@ -6,6 +6,7 @@
 import { computed } from "@preact/signals";
 import { data } from "../../stores/report.js";
 import { change } from "../../stores/changes.js";
+import { blink } from "../../stores/motion.js";
 import { Icon } from "../../components/Icon.jsx";
 import { rulesFor, publishable } from "../../logic/publishable.js";
 import { tableOf } from "../itemEdit.js";
@@ -29,6 +30,7 @@ export function Eye({ row, card }) {   // `card`: the board's card, whose button
   const { on, back } = eyeOf(row);
   const go = (e) => {
     e.stopPropagation();
+    blink(e);
     if (on) change({ kind: "report_hidden", op: "new", id: row.id }, `${row.id} hidden from the client.`);
     else if (back) change({ kind: "report_hidden", op: "delete", id: row.id }, `${row.id} shown to the client.`);
     else change({ kind: "report_hidden", op: "pick", ids: [row.id] }, `${row.id} shown to the client.`);

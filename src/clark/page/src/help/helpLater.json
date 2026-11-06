@@ -1,8 +1,6 @@
 {
  "about": "Help entries held back until the part of clark they describe is on the page. The source (helpContent.json) stays whole. Each id here is hidden from all three tabs, the search, the contents lists and Open-at-a-place. To release an entry when its item has merged: remove its line here, then run tests/test_help_shown.py: it checks every bold name, key and screen of what is shown against the page's own source, and names anything the page still lacks.",
  "start": {
-  "top": "Publish",
-  "loop": "the peek, Import, ask clark and Publish",
   "first": "Import and the profile circle",
   "foot": "the how-to entries"
  },

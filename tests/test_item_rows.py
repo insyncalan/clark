@@ -22,7 +22,7 @@ from test_server import Running, chrome, wait  # noqa: E402
 
 AS_AT = "2026-10-28"
 HIDDEN = "Internal-only wording ZQ-HIDDEN"
-NO_WORDING = "Team-only description ZQ-NOWORDING"      # shown to the client, but with no client wording: it is left out
+NO_WORDING = "Team-only description ZQ-NOWORDING"      # shown to the client, but with no client wording: it is listed under its own title (row 851)
 RESPONSE = "Team-only response ZQ-RESPONSE"            # a risk's working note (response_action): never in a report
 
 
@@ -30,12 +30,6 @@ def fill(store):
     with store.step("dashboard", USER) as st:
         st.create("actions", {"project": "ABC", "description": "Agree the cut-over plan", "owner": "Sara Khan", "due_date": "2026-10-20",
                               "raised": "2026-10-01", "client_message": "Cut-over plan to be agreed", "source": "demo"})
-        st.create("actions", {"project": "ABC", "description": NO_WORDING, "owner": "Omar Reid", "due_date": "2026-11-07",
-                              "raised": "2026-10-01", "source": "demo"})
-        st.create("raid", {"project": "ABC", "type": "Risk", "description": NO_WORDING + " risk", "owner": "Mia Hale",
-                           "due_date": "2026-11-04", "impact": "High", "likelihood": "High", "raised": "2026-10-01", "source": "demo"})
-        st.create("decisions", {"project": "ABC", "decision": NO_WORDING + " decision", "made_by": "Steering group",
-                                "needed_by": "2026-11-04", "status": "Pending", "source": "demo"})
         st.create("actions", {"project": "ABC", "description": "Book the training room", "owner": "Omar Reid", "due_date": "2026-11-05",
                               "raised": "2026-10-01", "client_message": "Training room booked for November", "source": "demo"})
         st.create("actions", {"project": "ABC", "description": HIDDEN, "owner": "Omar Reid", "due_date": "2026-11-06",
@@ -50,6 +44,17 @@ def fill(store):
                            "client_message": "Some test data is missing", "source": "demo"})
         st.create("decisions", {"project": "ABC", "decision": "Choose the hosting region", "made_by": "Steering group",
                                 "needed_by": "2026-11-03", "status": "Pending", "client_message": "Hosting region to be chosen", "source": "demo"})
+
+
+def fill_unworded(store):
+    """Items marked for the client (the default) that carry no client wording of their own."""
+    with store.step("dashboard", USER) as st:
+        st.create("actions", {"project": "ABC", "description": NO_WORDING, "owner": "Omar Reid", "due_date": "2026-11-07",
+                              "raised": "2026-10-01", "source": "demo"})
+        st.create("raid", {"project": "ABC", "type": "Risk", "description": NO_WORDING + " risk", "owner": "Mia Hale",
+                           "due_date": "2026-11-04", "impact": "High", "likelihood": "High", "raised": "2026-10-01", "source": "demo"})
+        st.create("decisions", {"project": "ABC", "decision": NO_WORDING + " decision", "made_by": "Steering group",
+                                "needed_by": "2026-11-04", "status": "Pending", "source": "demo"})
 
 
 ROWS = ("[...document.querySelectorAll('[data-type=%s] .wl-row')].map(r => r.dataset.id + '|' + r.querySelector('.pill').textContent"
@@ -82,7 +87,6 @@ class ItemRows(unittest.TestCase):
         self.assertIn("Hosting region to be chosen", decisions[0], where)
         self.assertNotIn(HIDDEN, js("document.body.innerText"), where)
         self.assertNotIn("ZQ-RESPONSE", js("document.body.innerText"), f"{where}: a risk's working note (response action) is never drawn")
-        self.assertNotIn("ZQ-NOWORDING", js("document.body.innerText"), f"{where}: an item with no client wording is not in the rows")
         self.assertEqual(actions[0].split("|")[1], "Overdue", f"{where}: a late action reads Overdue (prototype core.js:202-212)")
         self.assertIn(actions[1].split("|")[1], ("Overdue", "Due soon", "Open"), f"{where}: the other action reads Overdue, Due soon or Open, by the date it is read on (its date is near the real today and passes)")
         self.assertEqual(decisions[0].split("|")[1], "Pending", f"{where}: a pending decision reads Pending")
@@ -171,6 +175,92 @@ class ItemRows(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelectorAll('[data-nothing]').length", sid), 0)
 
 
+DASH = "[data-type=%s]"
+
+
+class UnwordedRows(unittest.TestCase):
+    """Row 851: the sections list the items marked for the client (the eye is the control), with the item's own title when it has no
+    client wording, and 'Showing N of M' counts every open item of the kind."""
+
+    def setUp(self):
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.store = self.demo.store
+        fill_unworded(self.store)
+        with self.store.step("dashboard", USER) as st:
+            st.create("actions", {"project": "ABC", "description": HIDDEN, "owner": "Omar Reid", "due_date": "2026-11-06",
+                                  "raised": "2026-10-01", "client_visible": 0, "source": "demo"})
+
+    def measure(self, p, where):
+        for kind, mark in (("actions", NO_WORDING), ("raid", NO_WORDING + " risk"), ("decisions", NO_WORDING + " decision")):
+            self.assertEqual(p.js("[...document.querySelectorAll(%r)].map(r => r.querySelector('.wl-title').textContent.trim().replace(/^(Risk|Issue) /, ''))" % (DASH % kind + " .wl-row")),
+                             [mark], f"{where}: {kind} lists the marked item under its own title")
+        self.assertNotIn("Internal-only", p.js("document.querySelector('#report').innerText"), f"{where}: an item not marked for the client is not listed")
+
+    def test_marked_items_with_no_wording_are_listed_in_view_and_edit_with_n_of_m(self):
+        s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
+        self.addCleanup(s.close)
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, s.port)
+            p.ready()
+            for theme in ("light", "dark"):
+                p.js("document.documentElement.setAttribute('data-theme', %r)" % theme)
+                for w in (1400, 900):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    self.measure(p, f"View {theme} {w}")
+            p.edit()
+            for theme in ("light", "dark"):
+                p.js("document.documentElement.setAttribute('data-theme', %r)" % theme)
+                for w in (1400, 900):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    self.measure(p, f"Edit {theme} {w}")
+                    self.assertTrue(p.js("document.querySelector('[data-item-rows=raid] [data-showing]').textContent").startswith("Showing 1 of 1."))
+                    self.assertTrue(p.js("document.querySelector('[data-item-rows=decisions] [data-showing]').textContent").startswith("Showing 1 of 1."))
+                    self.assertTrue(p.js("document.querySelector('[data-item-rows=actions] [data-showing]').textContent").startswith("Showing 1 of 2."),
+                                    "the action not marked for the client counts in M")
+                    self.assertEqual(p.js("document.querySelector('[data-addfrom=actions]').textContent"), "+ Add from your project record (1)",
+                                     "and is offered by the add control")
+                    self.assertFalse(p.js("!!document.querySelector('[data-addfrom=raid]')"))
+
+    def test_the_published_file_lists_the_marked_items_too(self):
+        folder = tempfile.mkdtemp(prefix="clark-pub-")
+        self.addCleanup(shutil.rmtree, folder, True)
+        done = publish.publish(self.store, "ABC", folder, by_user=USER, now=AS_AT, branding=EMPTY_BRANDING)
+        with chrome() as cdp:
+            tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+            sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+            cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.wl-row').length > 0", sid)), "the file drew its rows")
+            self.assertEqual(cdp.js("document.querySelectorAll('.wl-row').length", sid), 3)
+            self.assertNotIn("Internal-only", cdp.js("document.body.innerText", sid))
+
+
+class CurrentStateInEdit(unittest.TestCase):
+    """Row 850: the Current state text stays on the page in Edit (it was replaced by a quiet line there)."""
+
+    def test_the_text_is_drawn_in_view_and_in_edit_in_both_themes_at_both_widths(self):
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        demo.update("projects", "ABC", {"current_state": "<p>Scanning is <strong>two thirds</strong> done ZQ-NOW</p>"})
+        s = Running(data_for=demo.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
+        self.addCleanup(s.close)
+        body = "(document.querySelector('[data-type=current] .sec-body') || {}).textContent || ''"
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, s.port)
+            p.ready()
+            for mode in ("view", "edit"):
+                if mode == "edit":
+                    p.edit()
+                for theme in ("light", "dark"):
+                    p.js("document.documentElement.setAttribute('data-theme', %r)" % theme)
+                    for w in (1400, 900):
+                        cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                        where = f"{mode} {theme} {w}"
+                        self.assertIn("two thirds", p.js(body), f"{where}: the Current state text is drawn")
+                        self.assertNotIn("Not shown on this page yet", p.js("document.querySelector('[data-type=current]').textContent"), where)
+                        self.assertGreater(p.js("document.querySelector('[data-type=current] .sec-body').getBoundingClientRect().height"), 10, where)
+
+
 def edit_server(test, store):
     """The page clark serves over a real store, with the real change and undo routes."""
     s = Running(data_for=store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING),
@@ -239,9 +329,8 @@ class EditRows(unittest.TestCase):
             self.assertEqual(mine["description"], "Supplier may deliver late", "the team's own text is untouched")
             # the store has it before the page has read it again: wait for the row to draw what clark saved
             p.until(f"document.querySelector({row!r} + ' [data-f=title]').textContent === 'Supplier delivery may slip by a week'", "the row draws the saved wording")
-            self.type_into(p, row + " [data-f=title]", "", ending="Enter")
-            self.assertIn("can't be blank", p.toast())
-            p.until(f"document.querySelector({row!r} + ' [data-f=title]').textContent === 'Supplier delivery may slip by a week'", "a blank wording puts the saved words back")
+            self.type_into(p, row + " [data-f=title]", "", ending="Enter")                  # a blank wording clears it (row 893; test_clear_wording_in_place)
+            p.until(f"document.querySelector({row!r} + ' [data-f=title]').textContent === 'Supplier may deliver late'", "a cleared wording falls back to the item's title")
             # the owner, through its own picker
             p.js(f"document.querySelector({act!r} + ' [data-cell$=\":owner\"]').click()")
             p.until("!!document.querySelector('.menu, .cp, [role=dialog]')", "the owner picker opened")
@@ -253,12 +342,12 @@ class EditRows(unittest.TestCase):
             self.assertEqual(p.js("document.querySelector('[data-add-line=actions]').placeholder"), "+ Add an action: type \u201cOwner: what it is\u201d, then Enter")
             self.assertEqual(p.js("document.querySelector('[data-add-line=raid]').placeholder"), "+ Add a risk: type \u201cOwner: what it is\u201d, then Enter")
             before = p.js("document.querySelector('[data-item-rows=actions] [data-showing]').textContent")
-            self.assertTrue(before.startswith("Showing 2 of 2."), before)
+            self.assertTrue(before.startswith("Showing 2 of 3."), before)   # the third is the one not marked for the client
             self.type_into(p, "[data-add-line=actions]", "Mia Hale: Send the plan")
             row = self.stored("actions", "description", "Send the plan")
             self.assertEqual((row["owner"], row["client_message"], row["client_visible"]), ("Mia Hale", "Send the plan", 1))
             p.until("document.querySelectorAll('[data-item-rows=actions] .wl-row').length === 3", "the new row is drawn")
-            self.assertTrue(p.js("document.querySelector('[data-item-rows=actions] [data-showing]').textContent").startswith("Showing 3 of 3."))
+            self.assertTrue(p.js("document.querySelector('[data-item-rows=actions] [data-showing]').textContent").startswith("Showing 3 of 4."))
             self.assertEqual(p.js("document.querySelector('[data-add-line=actions]').value"), "", "the line is empty again")
             self.type_into(p, "[data-add-line=raid]", "Omar Reid: Licence may lapse")
             risk = self.stored("raid", "description", "Licence may lapse")
