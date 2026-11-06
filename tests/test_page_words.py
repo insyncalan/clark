@@ -200,7 +200,7 @@ class Words(unittest.TestCase):
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
                                   "Freshness",          # #160: the project's "Not reviewed after (days)"
-                                  "When an open item counts as not reviewed in this project. It sets the peek's note, the Freshness filter and the Not reviewed tile.",
+                                  "When an open item counts as not reviewed in this project. It sets the peek's note and the Freshness filter.",
                                   "Not reviewed after (days)", "A whole number from 1 to 365. The default is 14. Not in the published report.",
                                   "Logs and diagnostics",      # #110
                                   "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
