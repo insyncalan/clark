@@ -1924,17 +1924,17 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .item-rows-edit .add-from { display: inline-block; margin-top: 6px; }
 .item-rows-edit .picker { margin-top: 10px; }
 
-/* Row 832: Work items sits straight on the tinted page, not inside a white bordered card. With no border or padding the last child margin ran out of the section, so the board pin stopped 16 px short of the top bar; flow-root keeps that margin inside. */
-.frame.work { background: transparent; border: 0; box-shadow: none; padding: 0; display: flow-root; }
+/* Row 832: Work items in the editor sits straight on the tinted page, not inside a white bordered card. With no border or padding the last child margin ran out of the section, so the board pin stopped 16 px short of the top bar; flow-root keeps that margin inside. */
+.frame.work:not(.pub) { background: transparent; border: 0; box-shadow: none; padding: 0; display: flow-root; }
 
 /* Row 832: Milestones sits on the tinted page; the viewer and timeline keep their card. */
-.frame.milestones { background: transparent; border: 0; box-shadow: none; padding: 0; }
-.frame.milestones .msv { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: var(--space-5) 28px; }
-.frame.milestones .msv-sw { top: var(--space-5); right: 28px; }
-@media (max-width: 900px) { .frame.milestones .msv { padding: 18px var(--space-4); } .frame.milestones .msv-sw { top: 18px; right: var(--space-4); } }
+.frame.milestones:not(.pub) { background: transparent; border: 0; box-shadow: none; padding: 0; }
+.frame.milestones:not(.pub) .msv { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: var(--space-5) 28px; }
+.frame.milestones:not(.pub) .msv-sw { top: var(--space-5); right: 28px; }
+@media (max-width: 900px) { .frame.milestones:not(.pub) .msv { padding: 18px var(--space-4); } .frame.milestones:not(.pub) .msv-sw { top: 18px; right: var(--space-4); } }
 
-/* Row 832: Use cases sits on the tinted page, not inside a white bordered card. */
-.frame.ucl, .frame.ucpage { background: transparent; border: 0; box-shadow: none; padding: 0; }
+/* Row 832: Use cases sits on the tinted page, not inside a white bordered card (the editor page only: the published Use cases tab keeps its card, as the prototype's published page has it). */
+.frame.ucl { background: transparent; border: 0; box-shadow: none; padding: 0; }
 
 /* Row 832: the Settings head (title, help line, links) sits on the tinted page; the cards below keep theirs. */
 .frame.set-head { background: transparent; border: 0; box-shadow: none; padding: 0; }
