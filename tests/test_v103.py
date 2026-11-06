@@ -185,6 +185,14 @@ COVERED = [
      "test_publish_client_action::Listed::test_a_closed_or_cancelled_item_is_not_listed"),
     ("#673", "The Milestones Legend button has the information icon.",
      "test_milestones_details::Details::test_the_toggle_is_a_real_button_above_the_list_and_starts_open"),
+    ("#815", "The brand check stops a hidden outside address in more cases.",
+     "test_publish_brand_cr_ff::Cases::test_an_open_string_ended_by_cr_ff_or_crlf_does_not_hide_a_later_address"),
+    ("#893", "Clearing a row's client wording is one step with one Undo.",
+     "test_changes_clear_wording::ClearWording::test_a_clear_is_one_step_one_undo_and_the_same_clear_twice_makes_no_step"),
+    ("#893", "A blank wording clears it, the row shows its title, and Undo puts the words back.",
+     "test_clear_wording_in_place::ClearWordingInPlace::test_a_blank_wording_clears_it_the_row_shows_its_title_and_undo_puts_the_words_back"),
+    ("#909", "Esc right after a second pick clears both while the peek is still closing.",
+     "test_multi_select::Page::test_esc_right_after_a_second_pick_clears_both_while_the_peek_is_still_closing"),
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
