@@ -379,7 +379,7 @@ export function Board({ rows, today, type }) {
       <div class="lanebar" role="group" aria-label="Board view">
         <button type="button" class="bib fs" id="board-full" ref={fsBtn} aria-pressed={isFull ? "true" : "false"} aria-label={isFull ? "Leave full screen" : "View full screen"}
           data-tip={isFull ? "Leave full screen (Esc)" : "View full screen"} onClick={toggleFull}>
-          <Icon name={isFull ? "shrink" : "expand"} />
+          <Icon name={isFull ? "arrows-in" : "arrows-out"} />
         </button>
       </div>
       <div class="boardbox" role="region" aria-label="Work items board" ref={box}>

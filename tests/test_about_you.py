@@ -44,7 +44,7 @@ class AboutYou(Base):
 
     def open_settings(self, p):
         self.open_menu(p)
-        p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+        p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
         p.until("!!document.querySelector('#about-name')", "About you drew")
 
     def type_into(self, p, field, text, leave="enter"):

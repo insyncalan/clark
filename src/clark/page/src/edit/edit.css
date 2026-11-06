@@ -349,6 +349,11 @@ table.items td.c-pick { vertical-align: middle; }
   .top .tab { flex: none; white-space: nowrap; }
   .top .proj, .top .projbtn { min-width: 0; flex: 0 1 auto; max-width: 160px; }
 }
+@media (min-width: 801px) and (max-width: 1000px) {      /* row 757: from 801 px to 1000 px (the 900 px layout runs in a 915 px window too) the project name gives way first (it is the item that shrinks, 1000 times as hard as the tab row, which must keep a shrink factor of 1 or more or flexbox would absorb only a fraction of the overflow, down to a floor of 72 px); only then does the tab row scroll inside its own box, the open tab kept in view by the top bar; 800 px and below stay as above */
+  .top .dd:has(> .projbtn) { flex-shrink: 1000; min-width: calc(var(--space-7) + var(--space-5)); }
+  .top .tabs { flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .top .tabs::-webkit-scrollbar { display: none; }
+}
 
 /* Use cases page: detail */
 /* One use case on its own page (Edit only): the crumb, the title, two columns at 1400 px and one at 900 px; tokens only, 13 px text at least, 24 px targets, no sideways scroll. */

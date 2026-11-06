@@ -5,7 +5,7 @@ Run: python3 dev/run_tests.py test_v103
 
 Same shape as test_v102.
   COVERED       a merged row a person can see, already covered by a test elsewhere. test_every_covering_test_named_here_exists
-                fails if one goes missing. Rows 273, 802 and 827 have no visible change (NO_VISIBLE_CHANGE).
+                fails if one goes missing. Rows 273, 802, 827, 872 and 874 have no visible change (NO_VISIBLE_CHANGE).
   WAITING       a row that is not on main yet but has a marker in the source that appears when it lands (item, check, pull request,
                 a file under the top folder, the text in it). Skipped, with the pull request. After the cut commit has set the
                 version and the marker is there, the row fails until it is moved to COVERED with its test. Empty today: the
@@ -93,13 +93,43 @@ COVERED = [
      "test_docx_build::WordOpenItemsOnly::test_open_ones_are_still_listed"),
     ("#767", "The printed Milestones timeline is drawn to the page width and does not scroll.",
      "test_pdf_print::Source::test_the_printed_timeline_is_drawn_to_the_page_and_does_not_scroll"),
+    ("#785", "The published footer gives the date once and no View only.",
+     "test_publication_footer::TheFooter::test_row_785_the_client_sees_the_date_once_and_no_view_only_at_1400_and_900_light_and_dark"),
+    ("#765", "Each project form label is left of its field on one row.",
+     "test_project_form_look::Look::test_each_label_is_left_of_its_field_on_one_row_in_two_columns"),
+    ("#765", "Every project form field has a visible border.",
+     "test_project_form_look::Look::test_every_field_has_a_visible_one_pixel_border_in_light_and_dark"),
+    ("#863", "In the project menu the open-items count sits under the name.",
+     "test_project_menu_layout::ProjectMenuLayout::test_C_the_count_sits_under_the_name_in_both_themes_and_modes_at_both_widths"),
+    ("#766", "The peek's Status, Priority, Owner and Due are four cells.",
+     "test_peek_card::CardRule::test_the_card_rules_are_in_the_stylesheet_in_tokens_only"),
+    ("#814", "A click outside the peek and Esc close it; clicks that belong to it do not.",
+     "test_peek_outside::OutsideBrowser::test_esc_and_a_click_outside_close_it_and_clicks_that_belong_to_it_do_not"),
+    ("#728", "Sneak peek changes a milestone's dates and status in words, and Achieved asks first.",
+     "test_sneak_milestone_usecase::Milestone::test_achieved_asks_first_and_fills_the_date_the_way_the_store_does"),
+    ("#728", "Sneak peek changes a use case's status, headline and commitment in words.",
+     "test_sneak_milestone_usecase::UseCase::test_status_headline_and_commitment"),
+    ("#797", "Add a section offers the six new templates, described in the same words in the picker and in Help.",
+     "test_templates::Logic::test_the_box_and_help_describe_every_template_in_the_same_words"),
+    ("#825", "The use case page needs no Edit mode: every control is there.",
+     "test_use_case_detail::Detail::test_every_control_is_there_with_no_edit_mode_at_1400_and_900_px_light_and_dark_row_825"),
+    ("#825", "Each use case page control saves as one change with one Undo, with no Edit mode.",
+     "test_use_case_detail::Detail::test_each_control_saves_as_one_change_with_one_undo_with_no_edit_mode_row_825"),
+    ("#757", "The open tab stays in view in the top bar at 900 px.",
+     "test_top_bar_tabs::TopBarTabs::test_a_row_narrowed_after_the_scroll_shows_the_open_tab_again_at_900"),
+    ("#764", "The top bar's tab row is not cut off at 900 px.",
+     "test_top_bar_tabs::TopBarTabs::test_the_tabs_tighten_their_padding_at_1000_px_and_below_and_never_wrap"),
+    ("#775", "The Work items board columns are lifted cards and the full-screen icon is arrows.",
+     "test_work_board_page::Cards::test_row_775_columns_are_lifted_cards_and_the_full_screen_icon_are_arrows"),
+    ("#776", "The Sneak peek words box is a floating card.",
+     "test_peek_arrows::Arrows::test_row_776_the_words_box_is_a_floating_card_in_light_and_dark"),
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
-NO_VISIBLE_CHANGE = {"273", "802", "827"}
+NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
-PARTLY_MERGED = {"767"}
+PARTLY_MERGED = {"767", "766", "775", "776"}
 
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has
 # landed; marker None means there is no pull request to look for yet).
