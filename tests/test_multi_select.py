@@ -9,6 +9,7 @@ memory only: these tests also check that nothing is sent to the server and nothi
 """
 import json
 import sys
+import time
 import unittest
 
 from _paths import SRC
@@ -34,6 +35,14 @@ def press(cdp, sid, name, mods=0):
     typed = {"text": text} if text and not mods & (CTRL | META) else {}
     cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", **common, **typed}, sid)
     cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
+
+
+def settle(cdp, sid):
+    """A plain click opens the peek and the table narrows beside it: wait for both, so the next click is aimed at where the rows are."""
+    deadline = time.time() + 10
+    while time.time() < deadline and not cdp.js("!!document.querySelector('#peek')", sid):
+        time.sleep(0.05)
+    time.sleep(0.4)
 
 
 def tap(cdp, sid, selector, mods=0, count=1):
@@ -206,19 +215,22 @@ class Page(Base):
                 self.assertNotEqual(rows, sorted(rows), "the test needs a drawn order that is not the order of the ids")
                 tap(cdp, sid, self.rsel(rows[1]))
                 self.assertEqual(self.picked(cdp, sid), [rows[1]], "a click selects only that row")
-                self.assertNotIn("item=", cdp.js("location.hash", sid), "a single click does not open the peek")
+                settle(cdp, sid)
+                self.assertIn(f"item={rows[1]}", cdp.js("location.hash", sid), "a single click opens the peek")
                 tap(cdp, sid, self.rsel(rows[3]), MOD)
                 tap(cdp, sid, self.rsel(rows[5]), MOD)
                 self.assertEqual(self.picked(cdp, sid), [rows[1], rows[3], rows[5]], "Cmd or Ctrl adds one each")
                 tap(cdp, sid, self.rsel(rows[3]), MOD)
                 self.assertEqual(self.picked(cdp, sid), [rows[1], rows[5]], "a second Cmd click takes it out")
                 tap(cdp, sid, self.rsel(rows[2]))
+                settle(cdp, sid)
                 tap(cdp, sid, self.rsel(rows[6]), SHIFT)
                 self.assertEqual(self.picked(cdp, sid), rows[2:7], "Shift selects the range as drawn")
                 self.assertEqual(cdp.js("String(getSelection())", sid), "", "a Shift click selects no text")
                 tap(cdp, sid, self.rsel(rows[0]), MOD | SHIFT)
                 self.assertEqual(sorted(self.picked(cdp, sid)), sorted(rows[0:7]), "Ctrl with Shift adds the range 0 to 2 to the range 2 to 6")
                 tap(cdp, sid, self.rsel(rows[4]))
+                settle(cdp, sid)
                 self.assertEqual(self.picked(cdp, sid), [rows[4]], "a plain click starts again")
                 self.assertEqual(self.sent, [], "selecting sends nothing")
 
@@ -457,6 +469,7 @@ class Page(Base):
             sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
             tap(cdp, sid, self.rsel(rows[0]))
+            settle(cdp, sid)
             tap(cdp, sid, self.rsel(rows[2]), MOD)
             press(cdp, sid, "ArrowDown", SHIFT)
             self.assertEqual(sorted(self.picked(cdp, sid)), sorted([rows[0], rows[2], rows[3]]), "the range is added to a and c")
@@ -468,6 +481,7 @@ class Page(Base):
             sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
             tap(cdp, sid, self.rsel(rows[1]))
+            settle(cdp, sid)
             tap(cdp, sid, self.rsel(rows[3]), SHIFT)
             self.assertEqual(cdp.js("document.activeElement.dataset.id", sid), rows[3], "the keyboard is on the clicked row")
             press(cdp, sid, "ArrowDown", SHIFT)
@@ -479,6 +493,7 @@ class Page(Base):
             sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
             tap(cdp, sid, self.rsel(rows[1]))
+            settle(cdp, sid)
             tap(cdp, sid, self.rsel(rows[4]), SHIFT)
             self.assertEqual(self.picked(cdp, sid), rows[1:5])
             press(cdp, sid, "ArrowUp", SHIFT)
@@ -595,7 +610,8 @@ class OnTheBoard(Base):
                 cards = cdp.js(self.CARDS, sid)
                 tap(cdp, sid, self.card(cards[0]))
                 self.assertEqual(cdp.js("clarkPage.selected()", sid), [cards[0]])
-                self.assertNotIn("item=", cdp.js("location.hash", sid), "a click selects; it does not open")
+                settle(cdp, sid)
+                self.assertIn(f"item={cards[0]}", cdp.js("location.hash", sid), "a click selects it and opens the peek")
                 tap(cdp, sid, self.card(cards[3]), SHIFT)
                 self.assertEqual(cdp.js("clarkPage.selected()", sid), cards[0:4], "a range in reading order")
                 tap(cdp, sid, self.card(cards[1]), MOD)
@@ -606,8 +622,9 @@ class OnTheBoard(Base):
                 self.assertEqual(cdp.js("document.querySelector('#sel-count').textContent", sid), "3 selected")
                 tap(cdp, sid, self.card(cards[2]))                  # one plain click first: it narrows the selection to this card, and the page settles before the double click is aimed
                 self.until(cdp, sid, f"clarkPage.selected().length === 1", "a plain click selects only this card")
+                self.until(cdp, sid, f"location.hash.includes('item={cards[2]}')", "the click opened the peek")
                 tap(cdp, sid, self.card(cards[2]), count=2)
-                self.until(cdp, sid, f"location.hash.includes('item={cards[2]}')", "a double click opens the peek")
+                self.until(cdp, sid, f"location.hash.includes('item={cards[2]}')", "and a double click keeps it open")
                 self.assertEqual(self.sent, [], "no card moved")
 
     def test_card_keys_and_column_ticks(self):
