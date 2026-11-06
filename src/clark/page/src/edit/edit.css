@@ -112,6 +112,7 @@
 .rowmenu .rm-go { flex: none; width: 14px; height: 14px; color: var(--text-muted); }
 .rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
 .rowmenu .ddmenu { max-height: calc(100vh - 2 * var(--space-2)); overflow-y: auto; }
+.rowmenu .rm-fly { position: fixed; min-width: 160px; }              /* the list beside its entry (row 848): on the window, so the menu itself never changes */
 
 /* Changing several work items at once (#196): the bar's buttons wrap at 900 px, the "N items" menu, and the question. Tokens only. */
 .selbar { flex-wrap: wrap; row-gap: 6px; }
@@ -180,9 +181,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-log { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 22px 20px var(--space-3); }
 .ask-turn { position: relative; max-width: 100%; font-size: var(--size-body); animation: ask-in 320ms var(--ease-enter); }
 .ask-turn.user { align-self: flex-end; max-width: 84%; padding: 10px 14px; border-radius: 16px 16px var(--radius-sm) 16px; background: var(--brand-blue); color: var(--text-on-brand); }
-.ask-turn.user .ask-who { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; color: inherit; }    /* "You" is for a reader that announces; the bubble says it already */
 .ask-turn.problem { padding-left: var(--space-3); border-left: 3px solid var(--status-amber); }
-.ask-who { margin-bottom: 2px; font-size: var(--size-caption); color: var(--text-muted); }
+.ask-who { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; color: inherit; }    /* "You" and "Answer" are for a reader that announces; the bubble and the reply place already say it (issue 794) */
 .ask-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 @keyframes ask-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 /* the suggestions: ONE row, faded at the right edge, scrolling sideways; the working line has the same height and takes their place */
@@ -191,6 +191,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-pills::-webkit-scrollbar { display: none; }
 .ask-pills button { flex: none; min-height: 28px; padding: 3px var(--space-3); white-space: nowrap; font: inherit; font-size: var(--size-caption); line-height: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--ask-edge); border-radius: var(--radius-pill); cursor: pointer; transition: background-color var(--dur-instant) var(--ease-out), border-color var(--dur-instant) var(--ease-out); }
 .ask-pills button:hover { background: var(--brand-blue-tint); border-color: var(--brand-blue); }
+.ask-pills button:disabled { color: var(--text-muted); background: var(--surface); border-color: var(--ask-edge); cursor: default; opacity: .7; }
 .ask-pills button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .ask-work { display: flex; align-items: center; gap: 10px; margin: 0; font-size: var(--size-caption); font-style: italic; color: var(--text-muted); animation: ask-in 220ms var(--ease-enter); }
 .ask-quip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -314,7 +315,6 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-eye .i, .ucl-eye svg { width: 16px; height: 16px; flex: none; }   /* issue 753: the eye alone, its words are the tooltip */
 .ucl-eye:hover { background: var(--grey-100); }
 .ucl-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.ucl-eye-ro, .ucl-eye-ro:hover { cursor: default; background: none; }
 .ucl-row.off .ucl-eye { color: var(--text-muted); font-weight: var(--weight-regular); }
 .ucl-none { margin: 20px 0 4px; }
 .ucl-none .btn { margin-top: 4px; }
@@ -368,7 +368,9 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-arch { font-size: var(--size-caption); }
 .ucd-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .ucd-acts .btn, .ucd-note .btn { min-height: 32px; font-size: var(--size-body); color: var(--text); }
-.ucd-eye { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; }   /* issue 753: the eye alone, a button */
+.ucd-acts .btn { display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; height: 32px; padding-top: 0; padding-bottom: 0; }   /* row 791: a space between Change status and its chevron */
+.ucd-acts .btn .nch { width: 14px; height: 14px; flex: none; }
+.ucd-eye { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; }   /* row 791: as tall as its neighbours; issue 753: the eye alone, a button */
 .ucd-eye:hover { background: var(--grey-100); }
 .ucd-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ucd-eye.on { color: var(--status-blue-text); }
@@ -402,6 +404,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-kv dd { margin: 0; overflow-wrap: anywhere; }
 .ucd-ms, .ucd-hist { margin: 0; padding: 0; }
 .ucd-ms li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 6px 0; }
+.ucd-ms .ucd-msname { font-size: var(--size-body); text-align: left; overflow-wrap: anywhere; }
+.ucd-msx { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; }
 .ucd-hist li { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; }
 .ucd-hw { overflow-wrap: anywhere; }
 .ucd-hm { font-size: var(--size-caption); color: var(--text-muted); }
@@ -755,7 +759,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .aic-link { all: unset; box-sizing: border-box; min-height: 2rem; display: inline-flex; align-items: center; padding: 0 .375rem; color: var(--link); text-decoration: underline; cursor: pointer; font-size: var(--size-body); }
 
 
-/* The first-run welcome (issue 174). A card at the bottom right, over the page but never blocking it (the toasts are at the bottom left). */
+/* The first-run welcome (issue 174). A card at the bottom right, over the page but never blocking it (the toasts are at the bottom centre). */
 .welcome { position: fixed; right: var(--space-4); bottom: var(--space-4); z-index: 39; width: min(24rem, calc(100vw - var(--space-6))); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 .welcome h2 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .welcome p { margin: 0 0 var(--space-3); font-size: var(--size-body); }

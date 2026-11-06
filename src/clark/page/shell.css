@@ -14,13 +14,14 @@ a { color: var(--status-blue-text); }
 [hidden] { display: none !important; }
 
 .top { position: sticky; top: 0; z-index: 30; height: var(--topbar); background: var(--brand-navy); color: var(--white); display: flex; align-items: center; gap: 18px; padding: 0 20px; }
-.logo { display: inline-flex; align-items: center; }
+.logo { all: unset; display: inline-flex; align-items: center; cursor: pointer; }   /* a button since row 854: it goes Home */
+.logo:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 4px; border-radius: 6px; }
 .logo-icon { display: var(--logo-icon); width: 28px; height: 28px; margin-right: var(--space-2); background: center / contain no-repeat; }   /* the image is added by dev/tools/build_page.py */
 .logo .wm { font-weight: var(--weight-medium); font-size: var(--size-h2); letter-spacing: .02em; }   /* 24 px, as the owner ruled for the PR 240 sizes */
-.top .divider { width: 1px; height: 26px; background: rgba(255,255,255,.2); }
-.proj { font-size: var(--size-small); color: rgba(255,255,255,.85); }
-.projbtn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: var(--space-1) var(--space-2); border-radius: var(--radius); cursor: pointer; font-size: var(--size-small); color: rgba(255,255,255,.85); }
-.projbtn:hover { background: rgba(255,255,255,.14); }
+.top .divider { width: 1px; height: 26px; background: color-mix(in srgb, var(--white) 20%, transparent); }
+.proj { font-size: var(--size-small); color: color-mix(in srgb, var(--white) 85%, transparent); }
+.projbtn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: var(--space-1) var(--space-2); border-radius: var(--radius); cursor: pointer; font-size: var(--size-small); color: color-mix(in srgb, var(--white) 85%, transparent); }
+.projbtn:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
 .projbtn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .projbtn .nch { width: 14px; height: 14px; }
 .top .projbtn { display: inline-flex; justify-content: space-between; width: 220px; max-width: 100%; min-width: 0; border: 1px solid var(--grey-500); }   /* a bordered box with the chevron at its right edge; it narrows (the name's ellipsis) rather than run the bar past 900 px */
@@ -32,8 +33,8 @@ a { color: var(--status-blue-text); }
 .projbtn > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabs { display: flex; height: 100%; }
 .pubfoot { max-width: 1200px; margin: 24px auto 16px; padding: 0 16px; font-size: var(--size-small); color: var(--text-muted); }   /* item 120 */
-.asat { margin-left: auto; font-size: var(--size-caption); color: rgba(255,255,255,.75); }
-.tab { all: unset; position: relative; display: flex; align-items: center; padding: 0 14px; font-size: var(--size-small); color: rgba(255,255,255,.75); cursor: pointer; transition: color var(--dur-instant) var(--ease-out); }
+.asat { margin-left: auto; font-size: var(--size-caption); color: color-mix(in srgb, var(--white) 75%, transparent); }
+.tab { all: unset; position: relative; display: flex; align-items: center; padding: 0 14px; font-size: var(--size-small); color: color-mix(in srgb, var(--white) 75%, transparent); cursor: pointer; transition: color var(--dur-instant) var(--ease-out); }
 .tab:hover { color: var(--white); }
 .tab:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: -8px; border-radius: 6px; }
 .tab[aria-selected="true"] { color: var(--white); font-weight: var(--weight-regular); }
@@ -147,7 +148,7 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .toc-top:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 /* At 900 px and narrower the rail gives way to an "On this page" button at the bottom right of the window, which opens the same list
    above it (the narrow contents button). The button is the rail's own button, so the keys and the focus rules are the same. Drawn on both pages (the
-   editor and a published file). It sits clear of the toasts (bottom left); the page keeps 72 px free under its last line (main, above). */
+   editor and a published file). It sits clear of the toasts (bottom centre); the page keeps 72 px free under its last line (main, above). */
 .toc-ico, .toc-lbl { display: none; }
 @media (max-width: 900px) {
   .toc { right: var(--space-4); bottom: var(--space-4); top: auto; transform: none; }
@@ -544,8 +545,8 @@ table.tracker tr.tr-none td { text-align: left; }
 @media (max-width: 900px) { .secs { grid-template-columns: minmax(0, 1fr); } .slot-left, .slot-right { grid-column: 1; } }
 
 /* Edit only: the View/Edit switch, the section control (grip, + and menu), the editable title, Add and the toast. 24 px targets at least. */
-.modes { margin-left: auto; display: inline-flex; border: 1px solid rgba(255,255,255,.35); border-radius: var(--radius); overflow: hidden; }
-.mode { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-width: 56px; min-height: 28px; padding: 0 14px; font-size: var(--size-small); color: rgba(255,255,255,.85); cursor: pointer; }
+.modes { margin-left: auto; display: inline-flex; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius); overflow: hidden; }
+.mode { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-width: 56px; min-height: 28px; padding: 0 14px; font-size: var(--size-small); color: color-mix(in srgb, var(--white) 85%, transparent); cursor: pointer; }
 .mode:hover { color: var(--white); }
 .mode[aria-pressed="true"] { background: var(--white); color: var(--brand-navy); }
 .mode:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: -3px; }
@@ -581,12 +582,12 @@ input.sec-title { width: 100%; }
 .menu-why { padding: 0 var(--space-3) 6px; font-size: var(--size-caption); color: var(--text-muted); }
 .sec-add { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 28px; margin: var(--space-1) 0 6px; border: 1px dashed var(--grey-300); border-radius: var(--radius-sm); font-size: var(--size-caption); color: var(--text-muted); cursor: pointer; }
 .sec-add:hover { border-color: var(--grey-500); color: var(--text); }
-.toasts { position: fixed; left: 16px; bottom: 16px; z-index: 40; max-width: min(640px, calc(100vw - 32px)); }
-.toast { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-3); padding: 10px 14px; border-radius: var(--radius); border-left: 4px solid var(--brand-cyan); background: var(--brand-navy); color: var(--white); box-shadow: var(--shadow); font-size: var(--size-body); }
-.toast.problem { border-left-color: var(--status-red); }
-.toast-text { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.toasts { position: fixed; left: 0; right: 0; bottom: 16px; z-index: 40; width: fit-content; max-width: min(640px, calc(100vw - 32px)); margin-inline: auto; }   /* a pill centred at the foot (row 781) */
+.toast { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-4); border-radius: var(--radius-pill); border: 1px solid transparent; background: var(--brand-navy); color: var(--white); box-shadow: var(--shadow); font-size: var(--size-body); }
+.toast.problem { border-color: var(--status-red); }
+.toast-text { flex: 1 1 auto; text-align: center; min-width: 0; overflow-wrap: anywhere; }
 .toast-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 28px; padding: 0 var(--space-2); border-radius: var(--radius-sm); font-size: var(--size-caption); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; color: var(--white); }
-.toast-btn:hover { background: rgba(255,255,255,.14); }
+.toast-btn:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
 .toast-btn:focus-visible { outline-color: var(--brand-cyan); }
 @media (max-width: 900px) { .modes { margin-left: auto; } .menu { min-width: 220px; } }
 
@@ -721,8 +722,6 @@ table.items tbody tr.grp, table.items tbody tr.colh { cursor: default; }
 table.items td.c-eye, table.items th.c-eye { padding-left: 0; padding-right: var(--space-2); text-align: center; vertical-align: middle; }
 table.items .weye { width: 28px; height: 28px; }
 table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--status-blue-text); }
-table.items .weye.ro { display: inline-grid; place-items: center; color: var(--grey-500); cursor: default; }
-table.items .weye.ro .i { width: 16px; height: 16px; }
 .grp-b { all: unset; box-sizing: border-box; min-height: 24px; display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; font-weight: var(--weight-medium); }
 .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .grp-b .i { width: 14px; height: 14px; transition: transform var(--dur-instant) var(--ease-out); }
@@ -793,6 +792,11 @@ table.items tr[data-id]:focus-visible { outline: 2px solid var(--brand-blue); ou
 .type.tl { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0; font-size: var(--size-small); font-weight: 600; line-height: 1; }
 .eye { display: inline-flex; color: var(--status-blue-text); }
 .eye .i { width: 16px; height: 16px; }
+.bc-top .weye { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius); color: var(--grey-500); cursor: pointer; }      /* row 819: the card's eye is a button, the list eye's own, without the shared `ib` name */
+.bc-top .weye:hover { color: var(--text); background: var(--grey-100); }
+.bc-top .weye:focus-visible { outline: 2px solid var(--brand-blue); }
+.bc-top .weye[aria-pressed="true"] { color: var(--status-blue-text); }
+.bc-top .weye .i { width: 16px; height: 16px; }
 .bc-title { margin: var(--space-1) 0 6px; font-size: var(--size-small); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .bc-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-2); }
 .bc-foot .due-l { display: inline; }
@@ -1011,8 +1015,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 @media (max-width: 860px) { .hp-actions { flex: 1 1 100%; } .hp-search { flex: 1 1 auto; } .hp-search input { width: 100%; } }
 
 /* the Help button in the top bar: the circle's neighbour, a "?" in the bar's own colours */
-.hp-top { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; color: var(--white); font-size: var(--size-body); font-weight: var(--weight-medium); cursor: pointer; }
-.hp-top:hover { background: rgba(255,255,255,.14); }
+.hp-top { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: 50%; color: var(--white); font-size: var(--size-body); font-weight: var(--weight-medium); cursor: pointer; }
+.hp-top:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
 .hp-top:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tb-act { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 32px; height: 32px; padding: 0 6px; border-radius: var(--radius-sm); color: var(--white); font-size: var(--size-body); cursor: pointer; white-space: nowrap; }   /* the top bar's search and ask buttons */
 .tb-act:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
@@ -1099,12 +1103,13 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .cal-ms span { flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; }   /* the full name, wrapped, nothing is cut (the prototype, app.css:668) */ .cal-ms .ms-i { width: 14px; height: 14px; flex: none; margin-top: 1px; }
 .cal-ms:hover { background: var(--brand-blue-tint); } .cal-ms:focus-visible { outline: 2px solid var(--brand-blue); }
 .cal-ms.ghost { background: transparent; border: 1px dashed var(--status-red); color: var(--status-red-text); }
-.cal-sc { margin-left: auto; display: inline-flex; gap: 2px; } .cal-sc button { font-size: var(--size-caption); padding: var(--space-1) var(--space-3); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); cursor: pointer; }
-.cal-sc button[aria-current="true"] { background: var(--brand-blue-tint); border-color: var(--brand-blue); color: var(--heading); }
+.cal-sc { margin-left: auto; }   /* row 790: one capsule (the .seg look), the active scale filled like the other capsules */
+.cal-sc button { font-size: var(--size-caption); padding: 0 var(--space-3); min-height: 36px; display: inline-flex; align-items: center; }
+.cal-sc button[aria-current="true"] { background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); font-weight: var(--weight-semibold); }
 .cal-wk .cal-d { min-height: 180px; }
 .cal-q { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .cal-qm { all: unset; display: inline-block; font-weight: var(--weight-medium); color: var(--heading); margin: 0 0 var(--space-2); cursor: pointer; border-radius: var(--radius-sm); padding: 0 var(--space-1); } .cal-qm:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; } .cal-qm:hover { color: var(--status-blue-text); text-decoration: underline; }
-.cal-q .cal-d { min-height: 44px; padding: 2px; } .cal-q .cal-ms:not(.ghost) span { display: none; }   /* a dashed "Expected: name" chip is kept whole, here too */
+.cal-q .cal-d { min-height: 44px; padding: 2px; } .cal-q .cal-ms span { display: none; } .cal-q .cal-ms { justify-content: center; }   /* Quarter: every milestone is its mark only, a slipped one keeps its dashed outline; the name, date and state are its tooltip and its accessible name (row 821) */
 .cal:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 4px; }
 .cal-d[data-d]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }   /* a day is a tab stop, as in the prototype (issue 481) */
 .cal-far { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin: 0 0 var(--space-3); color: var(--status-amber-text); }
@@ -1129,6 +1134,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mlg-ghost { width: 12px; height: 12px; border: 2px dashed var(--status-red); border-radius: 50%; } .mlg-today { width: 2px; height: 16px; background: var(--heading); }
 
 .mv-bar .btn, .cal-bar .btn { padding: var(--space-1) 10px; font-size: var(--size-caption); }
+.cal-bar .btn { min-height: 36px; }   /* row 790: Today as tall as the scale capsule */
 
 /* Item 130, point 9: a text-style button is at least 24 px tall and wide (the project list's names), with the same look: the text stays put. */
 .link { display: inline-flex; align-items: center; box-sizing: border-box; min-height: 24px; min-width: 24px; }
@@ -1144,7 +1150,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .me .i { width: 18px; height: 18px; }
 .top .dd { position: relative; display: inline-flex; }
 .dlg { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
-.dlg::backdrop { background: rgba(0,0,0,.4); }
+.dlg::backdrop { background: color-mix(in srgb, var(--black) 40%, transparent); }
 .dlg-form { padding: 20px var(--space-5); }
 .dlg h2 { margin: 0 0 var(--space-1); font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
 .dlg-sub { margin: 0 0 var(--space-3); font-size: var(--size-caption); overflow-wrap: anywhere; }
@@ -1185,7 +1191,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn.pri:disabled { opacity: .55; cursor: default; }
 .btn.pri[data-go] { display: inline-flex; align-items: center; gap: 8px; }
 .btn.pri[aria-busy="true"]:disabled { opacity: 1; }
-.btn.pri .spin { border-color: rgba(255,255,255,.4); border-top-color: var(--text-on-brand); }
+.btn.pri .spin { border-color: color-mix(in srgb, var(--white) 40%, transparent); border-top-color: var(--text-on-brand); }
 .btn.pri.ok { background: var(--status-green-text); border-color: var(--status-green-text); }
 .btn.pri .pub-tick { background: var(--text-on-brand); color: var(--status-green-text); }
 .btn.quiet { background: transparent; }
@@ -1815,6 +1821,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ddmenu a.cm-link { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
 .ddmenu a.cm-link:hover, .ddmenu a.cm-link:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .ddmenu .cm-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.ddmenu.cm-menu[data-pointer] .cm-row:focus-visible:not(:hover) { outline: none; background: none; color: var(--text); }   /* row 800: opened by the mouse, no ring on the first row */
 .cm-group { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 2px; }
 .cm-note { margin: 0; padding: 4px 14px 6px; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }
 .cm-scrim { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: color-mix(in srgb, var(--black) 45%, transparent); }
