@@ -1566,6 +1566,12 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     /* the peek slides in on opening and its body fades in as Previous or Next steps on */
     .peek:not(.leaving) { animation: m-slide var(--dur-state) var(--ease-enter) 1; }
     .pk-body { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
+    /* row 884: the Dashboard pill's thumb slides to the other button (transform only; the buttons keep their places), and the Edit-only chrome fades in as Edit opens */
+    .modes.seg.glide { position: relative; }
+    .modes.seg.glide::before { content: ""; position: absolute; left: 0; top: 3px; bottom: 3px; width: var(--vw, 0); border-radius: var(--radius-pill); background-color: var(--pill-color); background-image: var(--pill-bg); transform: translateX(var(--tx, 0)) scaleX(var(--sx, 1)); transform-origin: left center; transition: transform var(--dur-state) var(--ease-toggle); pointer-events: none; }
+    .modes.seg.glide .mode { position: relative; transition: color var(--dur-state) var(--ease-toggle); }
+    .rbar .modes.seg.glide .mode[aria-pressed="true"] { background-color: transparent; background-image: none; }
+    .sec-ctl, .rbar-hint { animation: m-in var(--dur-state) var(--ease-enter) 1; }
     /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
     .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
     .secs.drop-end { animation: m-line-end var(--dur-state) var(--ease-enter) 1; }

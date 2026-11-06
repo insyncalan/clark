@@ -4,12 +4,21 @@
 // and E do the same (keys.js, listened for from boot, so the key works whichever bar draws the switch).
 import { mode, data, status, view } from "../stores/report.js";
 import { singleKeys } from "../stores/keyPrefs.js";
+import { useLayoutEffect, useRef } from "preact/hooks";
 
 export function Toggle({ pill }) {      // pill: the Dashboard's, drawn at the left of the report bar (#665); otherwise the top bar's
+  const box = useRef(null);
+  useLayoutEffect(() => {       // row 884: where the pill's thumb sits (the pressed button, measured from the View button), so the stylesheet can slide it
+    const el = box.current, v = el && el.querySelector('[data-mode="view"]'), on = el && el.querySelector('[aria-pressed="true"]');
+    if (!pill || !v || !on || !v.offsetWidth) return;
+    el.style.setProperty("--vw", v.offsetWidth + "px");
+    el.style.setProperty("--tx", (on.offsetLeft - v.offsetLeft) + "px");
+    el.style.setProperty("--sx", String(on.offsetWidth / v.offsetWidth));
+  });
   if (!data.value && !(status.value === "none" && view.value === "settings")) return null;       // #656: with no project Settings has its Edit, for Add project
   const editing = mode.value === "edit";
   return (
-    <span class={pill ? "modes seg" : "modes"} role="group" aria-label="View or Edit">
+    <span class={pill ? "modes seg glide" : "modes"} ref={box} role="group" aria-label="View or Edit">
       <button type="button" class="mode" data-mode="view" title={singleKeys.value ? "View (V)" : "View"} aria-keyshortcuts={singleKeys.value ? "V" : undefined} aria-pressed={editing ? "false" : "true"} onClick={() => { mode.value = "view"; }}>View</button>
       <button type="button" class="mode" data-mode="edit" title={singleKeys.value ? "Edit (E)" : "Edit"} aria-keyshortcuts={singleKeys.value ? "E" : undefined} aria-pressed={editing ? "true" : "false"} onClick={() => { mode.value = "edit"; }}>{pill ? <svg class="tb-ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M13.5 3.5l3 3L7 16H4v-3z" /></svg> : null}Edit</button>
     </span>

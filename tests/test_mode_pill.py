@@ -59,7 +59,7 @@ class ModePill(Base):
                 p.js(f"document.documentElement.dataset.theme = '{theme}'")
                 got = p.js(f"(function(){{var b={GROUP}.querySelector('[aria-pressed=\"true\"]'), s=getComputedStyle(b), r=document.querySelector('#report-state');"
                            "var root=getComputedStyle(document.documentElement);"
-                           "return [s.backgroundImage.indexOf('linear-gradient') === 0, s.color === (function(){var e=document.createElement('i'); e.style.color=root.getPropertyValue('--pill-fg'); document.body.appendChild(e); var c=getComputedStyle(e).color; e.remove(); return c;})(), "
+                           "return [(s.backgroundImage.indexOf('linear-gradient') === 0 || getComputedStyle(" + GROUP + ", '::before').backgroundImage.indexOf('linear-gradient') === 0), s.color === (function(){var e=document.createElement('i'); e.style.color=root.getPropertyValue('--pill-fg'); document.body.appendChild(e); var c=getComputedStyle(e).color; e.remove(); return c;})(), "
                            f"getComputedStyle(r).fontSize, !!{GROUP}.querySelector('[data-mode=\"edit\"] svg[aria-hidden=\"true\"]'), !{GROUP}.querySelector('[data-mode=\"view\"] svg'), "
                            "getComputedStyle(document.querySelector('#week-ending')).borderRadius !== '4px'];})()")
                 self.assertEqual(got, [True, True, "13px", True, True, True])
