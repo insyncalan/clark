@@ -293,7 +293,7 @@ class Detail(unittest.TestCase):
                     sid = self.open_detail(cdp, width=width, scheme=scheme, edit=False)
                     self.assertNotEqual(cdp.js("document.querySelector('#report').dataset.mode", sid), "edit", "the page is not in Edit")
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea').length", sid), 2, "name and headline are boxes")
-                    for sel in ("#ucd-status", "[data-eye]", "[data-archive]", "[data-ucd] [data-rich]", "[data-ucd] [data-uc-commit] button"):
+                    for sel in ("#ucd-status", "[data-ucd] [data-eye]", "[data-ucd] [data-archive]", "[data-ucd] [data-rich]", "[data-ucd] [data-uc-commit] button"):
                         self.assertEqual(cdp.js(f"document.querySelectorAll({json.dumps(sel)}).length", sid), 1, sel)
 
     def test_each_control_saves_as_one_change_with_one_undo_with_no_edit_mode_row_825(self):
@@ -315,8 +315,8 @@ class Detail(unittest.TestCase):
             self.assertEqual((self.row()["status"], self.steps()), ("High risk", before + 1))
             self.undo(cdp, sid)
             before = self.steps()
-            click(cdp, sid, "[data-eye]")
-            self.until(cdp, sid, "document.querySelector('[data-eye]').title === 'Not on the dashboard'", "the eye switched")
+            click(cdp, sid, "[data-ucd] [data-eye]")
+            self.until(cdp, sid, "document.querySelector('[data-ucd] [data-eye]').title === 'Not on the dashboard'", "the eye switched")
             self.assertEqual((self.row()["client_visible"], self.steps()), (0, before + 1))
             self.undo(cdp, sid)
             before = self.steps()
@@ -328,12 +328,12 @@ class Detail(unittest.TestCase):
             self.undo(cdp, sid)
             self.assertEqual(self.row()["commitment"], was["commitment"])
             before = self.steps()
-            click(cdp, sid, "[data-archive]")
+            click(cdp, sid, "[data-ucd] [data-archive]")
             self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "Restore is offered with no Edit mode")
             self.assertEqual((self.row()["archived"], self.steps()), (1, before + 1))
             self.assertNotIn("Switch to Edit", cdp.js("document.querySelector('[data-archived-note]').textContent", sid))
             click(cdp, sid, "[data-restore]")
-            self.until(cdp, sid, "!!document.querySelector('[data-archive]')", "Restore worked with no Edit mode")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-archive]')", "Restore worked with no Edit mode")
             self.assertEqual(self.row()["archived"], 0)
 
     def test_the_standing_text_saves_with_no_edit_mode_row_825(self):
