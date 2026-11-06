@@ -14,6 +14,7 @@ import _testpage as testpage
 from _real_server import real_server
 from test_server import chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
+import test_milestones_eye as tme  # noqa: E402
 
 CSS = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
 EDIT = (ROOT / "src/clark/page/src/edit/edit.css").read_text(encoding="utf-8")
@@ -87,6 +88,69 @@ class MotionMicroDelight(unittest.TestCase):
         self.assertRegex(motion, r"export function blink\(e\)[\s\S]*?reduced\(\)[\s\S]*?animationend")
         for f in ("edit/MsEye.jsx", "edit/UseCasesPage.jsx", "components/UseCaseDetail.jsx", "edit/cells/Eye.jsx"):
             self.assertRegex((src / f).read_text(encoding="utf-8"), r"blink\(e\)", f)
+
+
+# ---- row 888: the blink runs only when the press changed something, on the real page over the real change route ----
+WATCH_BLINK = """(() => { window.__blinks = 0; new MutationObserver((ms) => { for (const m of ms) if (m.target.hasAttribute('data-blink')) window.__blinks++; })
+  .observe(document.body, {attributes: true, attributeFilter: ['data-blink'], subtree: true}); })()"""
+
+
+class EyeBlinksOnlyOnChange(unittest.TestCase):
+    """The milestone eye (Edit), with its page and store from test_milestones_eye: the other three eyes share the one `blink` helper."""
+
+    setUp = tme.Editor.setUp
+    visit = tme.Editor.visit
+    js = tme.Editor.js
+    until = tme.Editor.until
+    eye = tme.Editor.eye
+    press = tme.Editor.press
+    store_hide = tme.Editor.store_hide
+
+    def open_watched(self, cdp, motion="no-preference"):
+        sid = self.visit(cdp, "#milestones&p=ABC")           # the Milestones page keeps the row when it is left out, so the eye is still there to blink
+        cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": motion}]}, sid)
+        self.js(WATCH_BLINK)
+
+    LEFT = "document.querySelector(%s).classList.contains('is-left')" % json.dumps(tme.Editor.eye(None, "ABC-M-001", "page"))
+
+    def test_a_press_that_changes_it_blinks_the_eye_once(self):
+        with chrome() as cdp:
+            self.open_watched(cdp)
+            self.press("ABC-M-001", "page")
+            self.until("window.__blinks >= 1", "the eye blinked")
+            self.until(self.LEFT, "and the milestone was left out")
+            self.assertEqual(self.js("window.__blinks"), 1)
+
+    def test_a_refused_change_does_not_blink_the_eye(self):
+        with chrome() as cdp:
+            self.open_watched(cdp)
+            self.store_hide("ABC-M-002")                       # hidden behind the page's back: the press is refused
+            self.press("ABC-M-002", "page")
+            self.until("!!document.querySelector('.toast.problem, .toast.note')", "the refusal was said")
+            self.assertEqual(self.js("window.__blinks"), 0)
+
+    def test_a_second_press_that_is_ignored_does_not_blink_again(self):
+        with chrome() as cdp:
+            self.open_watched(cdp)
+            self.js(f"(() => {{ const b = document.querySelector({json.dumps(self.eye('ABC-M-001', 'page'))}); b.click(); b.click(); }})()")
+            self.until(self.LEFT, "left out")
+            self.until("window.__blinks >= 1", "the one change blinked")
+            self.assertEqual(self.js("window.__blinks"), 1)
+
+    def test_nothing_blinks_under_reduced_motion_even_when_it_changed(self):
+        with chrome() as cdp:
+            self.open_watched(cdp, "reduce")
+            self.press("ABC-M-001", "page")
+            self.until(self.LEFT, "left out")
+            self.assertEqual(self.js("window.__blinks"), 0)
+
+    def test_the_four_eyes_hand_the_blink_to_the_change_not_to_the_press(self):
+        src = ROOT / "src/clark/page/src"
+        for f in ("edit/MsEye.jsx", "edit/UseCasesPage.jsx", "components/UseCaseDetail.jsx", "edit/cells/Eye.jsx"):
+            text = (src / f).read_text(encoding="utf-8")
+            self.assertRegex(text, r"\.then\((blink\(e\)|blinks)\)", f)
+            self.assertNotRegex(text, r"\{ blink\(e\); ", f)
+        self.assertRegex((src / "stores/motion.js").read_text(encoding="utf-8"), r"return \(result\) => \{\s*if \(!result \|\|")
 
 
 if __name__ == "__main__":

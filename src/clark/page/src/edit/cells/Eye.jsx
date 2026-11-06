@@ -30,10 +30,10 @@ export function Eye({ row, card }) {   // `card`: the board's card, whose button
   const { on, back } = eyeOf(row);
   const go = (e) => {
     e.stopPropagation();
-    blink(e);
-    if (on) change({ kind: "report_hidden", op: "new", id: row.id }, `${row.id} hidden from the client.`);
-    else if (back) change({ kind: "report_hidden", op: "delete", id: row.id }, `${row.id} shown to the client.`);
-    else change({ kind: "report_hidden", op: "pick", ids: [row.id] }, `${row.id} shown to the client.`);
+    const blinks = blink(e);                                // it blinks when the change has come back done, not when it was refused
+    if (on) change({ kind: "report_hidden", op: "new", id: row.id }, `${row.id} hidden from the client.`).then(blinks);
+    else if (back) change({ kind: "report_hidden", op: "delete", id: row.id }, `${row.id} shown to the client.`).then(blinks);
+    else change({ kind: "report_hidden", op: "pick", ids: [row.id] }, `${row.id} shown to the client.`).then(blinks);
   };
   const words = on ? "Shown to the client" : "Hidden from the client";
   return (

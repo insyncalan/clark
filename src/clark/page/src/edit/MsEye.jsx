@@ -19,7 +19,7 @@ export function MsEye({ id, name, left, internal }) {
   const verb = left ? "Include in the published page" : "Leave out of the published page";
   return (
     <button type="button" class={`ib ms-eye${left ? " is-left" : ""}`} data-ms-eye={id} data-edit-only aria-label={`${verb}: ${name}`}
-      title={verb} onClick={(e) => { blink(e); setMsHidden(id, !left, name); }}>
+      title={verb} onClick={(e) => { setMsHidden(id, !left, name).then(blink(e)); }}>
       <Icon name={left ? "eyeoff" : "eye"} />
     </button>
   );

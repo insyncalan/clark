@@ -12,13 +12,20 @@ export function reduced() {
   return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** Row 888: the eye blinks once when it is pressed. Gives the button `data-blink` for one run of its animation (shell.css, Motion), then
- *  takes it away again. Nothing happens when the page may not move. */
+/** Row 888: the eye blinks once when a press has changed something. Call it in the press handler, with the event, and hand what it returns to the
+ *  change's `.then`: `change(...).then(blink(e))`. When the change comes back done (a reply), the button gets `data-blink` for one run of its animation
+ *  (shell.css, Motion), then loses it again; a change that was refused, or a press that did nothing (null), does not blink. The reply is passed on.
+ *  Nothing happens when the page may not move. */
 export function blink(e) {
   const el = e.currentTarget;
-  if (!el || reduced()) return;
-  el.dataset.blink = "";
-  el.addEventListener("animationend", () => { delete el.dataset.blink; }, { once: true });
+  return (result) => {
+    if (!result || !el || !el.isConnected || reduced()) return result;
+    delete el.dataset.blink;
+    void el.offsetWidth;                                    // a second change while the first blink runs starts it again
+    el.dataset.blink = "";
+    el.addEventListener("animationend", () => { delete el.dataset.blink; }, { once: true });
+    return result;
+  };
 }
 
 /** The screen whose loading placeholder was drawn, kept until it has faded out (Views.jsx Leaving); null otherwise. */

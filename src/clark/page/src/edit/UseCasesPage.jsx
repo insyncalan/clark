@@ -38,13 +38,15 @@ function set(patch) {
 function setEye(r, rowsShown) {
   const on = !r.on, at = rowsShown.findIndex((x) => x.id === r.id), next = (rowsShown[at + 1] || rowsShown[at - 1] || {}).id;
   const name = r.ref || "Use case";
-  change({ kind: "use_cases", op: "update", id: r.id, changes: { client_visible: on ? 1 : 0 } },
-    `${name} is ${on ? "on the dashboard" : "no longer on the dashboard"}.`).then(() => setTimeout(() => {
+  const done = change({ kind: "use_cases", op: "update", id: r.id, changes: { client_visible: on ? 1 : 0 } },
+    `${name} is ${on ? "on the dashboard" : "no longer on the dashboard"}.`);
+  done.then(() => setTimeout(() => {
     // the row stays (or leaves the list, when the switch is narrowed to the other kind): the focus stays with it or goes to its neighbour
     const q = (id, sel) => document.querySelector(`#usecases [data-uc="${CSS.escape(id)}"] ${sel}`);
     const el = q(r.id, ".ucl-eye") || (next && (q(next, ".ucl-eye") || q(next, ".ucl-go")));
     if (el) el.focus({ preventScroll: true });
   }, 60));
+  return done;
 }
 
 function Row({ r, stop, shown }) {
@@ -65,7 +67,7 @@ function Row({ r, stop, shown }) {
       <span class="ucl-wi num">{r.total ? <><b>{r.total}</b> linked<small>{r.open} open</small></> : "None linked"}</span>
       <span class="ucl-ms">{ms || <span class="muted">None</span>}</span>
       <button type="button" class="ucl-eye" tabIndex={-1} data-eye title={eyeWords} aria-label={`${r.ref || "Use case"} ${r.name}: ${eyeWords}. ${r.on ? "Take it off the dashboard" : "Put it on the dashboard"}`}
-        onFocus={() => { current.value = r.id; }} onClick={(e) => { blink(e); setEye(r, shown); }}><Icon name={r.on ? "eye" : "eyeoff"} /></button>
+        onFocus={() => { current.value = r.id; }} onClick={(e) => { setEye(r, shown).then(blink(e)); }}><Icon name={r.on ? "eye" : "eyeoff"} /></button>
     </li>
   );
 }

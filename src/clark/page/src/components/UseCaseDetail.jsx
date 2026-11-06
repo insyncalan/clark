@@ -226,7 +226,7 @@ export function UseCaseDetail({ id }) {
               items={STATUSES.map(([name]) => ({ id: name, name, checked: u.status === name }))}
               onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
             <button type="button" class={`ucd-eye${on ? " on" : ""}`} data-eye title={on ? EYE.on : EYE.off} aria-label={on ? EYE.on : EYE.off}
-              onClick={(e) => { blink(e); send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard."); }}><Icon name={on ? "eye" : "eyeoff"} /></button>
+              onClick={(e) => { send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard.").then(blink(e)); }}><Icon name={on ? "eye" : "eyeoff"} /></button>
           </div>
         ) : null}
       </div>
