@@ -1031,8 +1031,8 @@ class ByUser(Api):
                          "Someone Else")
 
 
-ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible"},
-               "raid": {"status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_message", "client_visible"},
+ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible", "client_action"},   # row 811: + needed from the client
+               "raid": {"status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_message", "client_visible", "client_action"},
                "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision", "client_message", "client_visible"}}      # #67: + the title; #97: + the eye; the report rows: + the client wording
 
 
@@ -1265,8 +1265,7 @@ class Items(Api):
                 self.assertNotIn("client_message", body["item"], "the wording is never said back in a reply, as a title is not")
                 row = self.s.read(kind, ref=ref)
                 self.assertEqual((row["client_message"], row[title]), ("What the client reads", before[title]), "the team's own text is untouched")
-                self.no(self.item(kind, ref, client_message=""), changes.ITEM_VALUE_WORDS)
-                self.no(self.item(kind, ref, client_message=None), changes.ITEM_VALUE_WORDS)     # a null is refused in the same plain words, not a 500
+                self.no(self.item(kind, ref, client_message=["x"]), changes.ITEM_VALUE_WORDS)     # a non-text value is refused in plain words, not a 500
                 self.assertEqual(self.s.read(kind, ref=ref)["client_message"], "What the client reads", "nothing saved")
                 self.no(self.item(kind, ref, client_message="x" * 201), changes.ITEM_VALUE_WORDS)
                 self.no(self.item(kind, ref, client_message="two\nlines"), changes.ITEM_TEXT_WORDS)

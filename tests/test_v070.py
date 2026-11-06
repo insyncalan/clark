@@ -66,7 +66,7 @@ COVERED = [
     ("#407", "New chat drops the earlier turns so a stopped chat can start again",
      "test_ask_panel::Panel::test_new_chat_drops_the_earlier_turns_so_a_refused_chat_can_start_again"),
     ("#459", "The top bar has a Help button and Help has a Back button",
-     "test_help_panel::Panel::test_the_top_bar_has_a_help_button_and_help_has_a_back_button"),
+     "test_help_panel::Panel::test_the_top_bar_has_no_help_button_and_help_has_a_back_button"),
     ("#459", "Help is a page of cards with a search icon and a key chip",
      "test_help_panel::Panel::test_help_is_a_page_of_cards_with_a_search_icon_and_a_key_chip"),
     ("#459", "A search result marks the word that matched", "test_help_panel::Panel::test_a_result_marks_the_matched_word"),

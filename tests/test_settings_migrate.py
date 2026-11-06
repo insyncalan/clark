@@ -112,8 +112,8 @@ class InTheOrderedTable(Base):
         con.close()
 
     def rows_without_links(self):
-        """The rows of milestones and actions as dicts, leaving out the owner_id link a later step (#115) adds."""
-        return {t: [{k: r[k] for k in r.keys() if k != "owner_id"} for r in self.con.execute(f"SELECT * FROM {t} ORDER BY 1")]
+        """The rows of milestones and actions as dicts, leaving out the owner_id link a later step (#115) adds and the client_action flag step 17 adds (row 811)."""
+        return {t: [{k: r[k] for k in r.keys() if k not in ("owner_id", "client_action")} for r in self.con.execute(f"SELECT * FROM {t} ORDER BY 1")]
                 for t in ("milestones", "actions")}
 
     def test_an_old_version_5_file_migrates_and_keeps_its_data_and_its_settings(self):
