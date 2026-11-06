@@ -194,7 +194,7 @@ class Results(Base):
                 self.assertEqual([r[1] for r in rows if r[0] == "Action"], ["Add action", "Add risk", "Add issue", "Add decision", "Add milestone"])
                 self.assertEqual(p.active(), "Dashboard", "the first result that can run is the first page")
                 p.find("risk")
-                self.assertEqual([r[:2] for r in p.rows() if r[0] == "Action"], [["Action", "Add risk"]])
+                self.assertEqual([r[:2] for r in p.rows() if r[0] == "Action" and r[1].startswith("Add ")], [["Action", "Add risk"]])      # a work item of kind action (row 901's data matches) also carries the kind word Action
                 p.key("Escape", 0, "Escape", 27)
                 p.until("!document.querySelector('#palette')", "closed")
 
