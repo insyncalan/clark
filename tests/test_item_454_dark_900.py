@@ -15,6 +15,7 @@ Chrome is required: these tests fail, never skip, without it.
 import base64
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
