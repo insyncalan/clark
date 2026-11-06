@@ -1,7 +1,7 @@
 // Settings › Freshness (item 160): "Not reviewed after (days)", the project's own number (projects.review_after_days, item 171). Saved when
 // the box is left or on Enter, as one change with Undo and a line in the history. A value that is not a whole number from 1 to 365
 // is refused here in plain words, the box goes back to the number in use and nothing is sent. After a save the page reads the
-// project again, so the peek's chip, the Freshness filter's words and the Not reviewed tile all follow at once. Edit parts only.
+// project again, so the peek's chip, the Freshness filter's words follow at once. Edit parts only.
 import { useRef, useState } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
@@ -42,7 +42,7 @@ export function ReviewDays() {
   return (
     <section class="frame setting" id="freshness" aria-labelledby="review-days-h">
       <h2 id="review-days-h" tabIndex={-1}>Freshness</h2>
-      <p class="muted">When an open item counts as not reviewed in this project. It sets the peek's note, the Freshness filter and the Not reviewed tile.</p>
+      <p class="muted">When an open item counts as not reviewed in this project. It sets the peek's note and the Freshness filter.</p>
       <div class="fld" data-review-days>
         <label for="review-days">Not reviewed after (days)</label>
         <input id="review-days" type="text" inputMode="numeric" value={shown} aria-describedby="review-days-line" aria-invalid={said ? "true" : undefined}

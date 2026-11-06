@@ -13,6 +13,9 @@ a { color: var(--status-blue-text); }
 .again:focus-visible { outline: 2px solid var(--brand-navy); outline-offset: 2px; }
 [hidden] { display: none !important; }
 
+.skip { position: absolute; left: 12px; top: 8px; z-index: 40; padding: 8px 14px; border-radius: 6px; background: var(--brand-navy); color: var(--white); font-size: var(--size-body); text-decoration: none; transform: translateY(-200%); }   /* row 862: out of sight until it has focus */
+.skip:focus, .skip:focus-visible { transform: none; outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+#main:focus { outline: none; }   /* row 862: <main> takes focus from the skip link; it is a landing place, not a control */
 .top { position: sticky; top: 0; z-index: 30; height: var(--topbar); background: var(--brand-navy); color: var(--white); display: flex; align-items: center; gap: 18px; padding: 0 20px; }
 .logo { all: unset; display: inline-flex; align-items: center; cursor: pointer; }   /* a button since row 854: it goes Home */
 .logo:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 4px; border-radius: 6px; }
@@ -103,14 +106,14 @@ button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; fo
 .teye .i { width: 16px; height: 16px; }
 .tgrip:hover, .teye:hover { background: var(--grey-100); color: var(--text); }
 .tgrip:focus-visible, .teye:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.tcell.is-hidden .fig { border-style: dashed; border-color: var(--grey-300); background: var(--grey-100); padding-bottom: 54px; }   /* room under the figures for the tag at the bottom (two lines at 190 px), so it never sits over the chip or the detail */   /* not opacity: that dims the text below 4.5:1 */
+.tcell.is-hidden .fig { border-style: dashed; border-color: var(--grey-300); background: transparent; padding-bottom: 54px; }   /* room under the figures for the tag at the bottom (two lines at 190 px), so it never sits over the chip or the detail */   /* not opacity: that dims the text below 4.5:1 */
 .thid { position: absolute; left: 12px; bottom: 6px; z-index: 2; }
 /* In Edit the grip and the eye sit in a tile's top right corner (4 + 24 + 2 + 24 = 54 px from its edge). The label line keeps clear of them:
    the 54 px less the tile's border and padding (17 px) and a 4 px gap is 41 px, so a long label wraps rather than runs under a control.
    A hidden tile has its tag (up to two lines, 41 px, 6 px off the bottom) at the bottom, so it keeps 54 px under its last line. Both are Edit only; View and the published page do not change. */
 #report[data-mode="edit"] .glance { --tile-ctl: 41px; --tile-tag: 54px; }
 #report[data-mode="edit"] .glance .fig .k { padding-right: var(--tile-ctl); }
-#report[data-mode="edit"] .glance .tcell.is-hidden .fig, #report[data-mode="edit"] .glance .tcell[data-tile="stale"] .fig { padding-bottom: var(--tile-tag); }   /* item 160: the Not reviewed tile carries its tag on or off */
+#report[data-mode="edit"] .glance .tcell.is-hidden .fig { padding-bottom: var(--tile-tag); }
 .tcell.drop-left::before, .tcell.drop-right::before { content: ""; position: absolute; top: 0; bottom: 0; width: 3px; background: var(--brand-cyan); z-index: 3; }
 .tcell.drop-left::before { left: -8px; } .tcell.drop-right::before { right: -8px; }
 .tilemenu { top: 30px; right: auto; left: 0; }
@@ -246,7 +249,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .type.k-risk { background: var(--status-amber-tint); color: var(--status-amber-text); }
 .type.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
 .type.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
-@media (max-width: 900px) { table.items .c-due { width: 134px; } }
+@media (max-width: 900px) { table.items .c-owner { width: 170px; } table.items .c-due { width: 131px; } table.items .c-prio { width: 93px; } table.items .c-status { width: 142px; } }      /* row 784: at 900 priority, due and status sit a little under main's widths (each is the narrowest that still holds its longest word) so the item text gains about 24 px over main */
 /* The letter badge before an item's title (prototype `.type` in a work item row): one letter, so no word can break in it ("Dependency" no
    longer sits in a column of its own). The words are its tooltip and its spoken name. Colours as the board card's word badge. */
 .kb { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: var(--size-caption); font-weight: var(--weight-regular); flex: none; background: var(--grey-100); color: var(--grey-700); }
@@ -437,7 +440,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
    between the cards. The side gap stays 24 px so a right-hand section's control (Edit) has room beside the left card. The Settings ›
    Personal style (html[data-secstyle], at the end of this file) changes the gaps (Roomy), puts the heading on a grey band (Grey
    headers) or takes the cards away for one card round every section (One card). Shared: the published page follows the same rules. */
-.secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3) var(--space-5); margin-top: 16px; }
+.secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3) var(--space-5); margin-top: 16px; overflow-anchor: none; }     /* row 756: the page holds the section being read itself (Dashboard.jsx) on a View/Edit switch; the browser's own anchoring moved it a second time */
 .sec { --sec-px: 20px; position: relative; min-width: 0; padding: 14px var(--sec-px) 10px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
 /* In these styles the sections are cards on the page, so the report's own frame steps back (its side room is kept for Edit's control). */
 html:not([data-secstyle="card"]) .frame.report { padding: var(--space-1) 28px 0; background: transparent; border: 0; box-shadow: none; }
@@ -594,6 +597,8 @@ input.sec-title { width: 100%; }
 /* The peek (#42): a panel on the right edge; its width is dragged from the left edge and kept in this browser. */
 .peek { position: fixed; top: 0; right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: var(--space-3) var(--space-5) var(--space-5); }
 .peek.wide { width: 100%; }
+/* Below 1000 px the peek fills the window over the list (row 847): a side panel would leave the list a strip too narrow to read. Above it the dragged width stays. */
+@media (max-width: 999px) { .peek:not(.hpk) { width: 100% !important; } .peek:not(.hpk) .pk-edge { display: none; } }      /* row 847: the item and milestone peeks overlay the page below 1000 px; the Help peek keeps its own width (and the button in view) */
 /* The exit: a copy of the closed peek slides out to the right (prototype app.css:416-18); none under reduced motion. */
 .peek.leaving { pointer-events: none; animation: pk-out var(--dur-instant) var(--ease-exit) forwards; }
 @keyframes pk-out { to { transform: translateX(104%); } }
@@ -716,7 +721,8 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 .bib[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); border-color: var(--brand-blue); }
 .seg.icons button:focus-visible, .bib:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .bib .i, .seg.icons .i { width: 18px; height: 18px; }
-[data-tip]:hover::after, [data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--brand-navy); color: var(--white); font-size: var(--size-small); line-height: 1.4; white-space: nowrap; pointer-events: none; }
+[data-tip]:hover::after, [data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; z-index: 19;      /* row 774: under every menu and panel (lowest is .menu, 20), so a tip never covers one */ top: calc(100% + 6px); right: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--brand-navy); color: var(--white); font-size: var(--size-small); line-height: 1.4; white-space: nowrap; pointer-events: none; }
+[data-tip][aria-expanded="true"]::after, html[data-tip-off] [data-tip]::after { content: none; display: none; }      /* row 774: no tip on a button whose menu is open, nor after Esc until the pointer or a key moves on */
 /* Each group is its own bordered card (prototype `.group`): a grey heading bar, then the column names and the rows. */
 .wgroup { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); margin-bottom: var(--space-3); overflow: hidden; }
 .wgroup table.items { margin-top: 0; }
@@ -1314,7 +1320,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucstepl .av { width: 26px; height: 26px; font-size: var(--size-caption); }
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
 
-/* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): slim is the default. */
+/* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): One card is the default (row 667). */
 .personal { margin-top: var(--space-4); }
 .personal h2 { margin: 0 0 var(--space-1); font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
 .styles { border: 0; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: var(--space-2); }
