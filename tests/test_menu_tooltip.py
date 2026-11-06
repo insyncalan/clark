@@ -24,6 +24,17 @@ class MenuTooltip(Base):
     def shown(self, p):
         return p.js(AFTER + ".content") not in ("none", "normal")
 
+    def stays_absent(self, p, what):
+        """The tip is absent now AND for the next three frames (sampled in the page on each frame): a tip that flickers back is caught."""
+        seen = p.js("new Promise(r => { var n = 0, any = false; (function f() { any = any || " + AFTER + ".content !== 'none'; "
+                    "if (++n < 4) requestAnimationFrame(f); else r(any); })(); })")
+        self.assertFalse(seen, what)
+
+    def point(self, p, x, y, hover, what):
+        """Move the pointer and wait until the button's :hover state is what the move should make it (it follows the move by a frame)."""
+        p.mouse("mouseMoved", x, y)
+        p.until("document.querySelector('#profile-btn').matches(':hover') === " + ("true" if hover else "false"), what)
+
     def test_the_tip_hides_when_the_menu_opens_on_leave_on_esc_and_on_blur_and_sits_under_menus(self):
         for width in (1400, 900):
             for dark in (False, True):
@@ -33,21 +44,26 @@ class MenuTooltip(Base):
                         if edit:
                             p.edit()
                         x, y, _ = p.box("#profile-btn")
-                        p.mouse("mouseMoved", x, y)
+                        self.point(p, x, y, True, "the pointer is on the button")
                         p.until(AFTER + ".content !== 'none'", "the tip shows on hover")
                         self.assertLess(int(p.js(AFTER + ".zIndex")), 20, "under every menu")
                         p.mouse("mousePressed", x, y, buttons=1)
                         p.mouse("mouseReleased", x, y)
-                        p.until("!!document.querySelector('#profile-menu')", "the menu opened")
-                        self.assertFalse(self.shown(p), "no tip over the open menu while the pointer is still on the button")
+                        p.until("!!document.querySelector('#profile-menu') && document.querySelector('#profile-btn').getAttribute('aria-expanded') === 'true'", "the menu opened")
+                        p.until(AFTER + ".content === 'none'", "the tip hid when the menu opened")
+                        self.stays_absent(p, "no tip over the open menu while the pointer is still on the button")
                         p.key("Escape", code="Escape", vk=27)
-                        p.until("!document.querySelector('#profile-menu')", "Esc closed the menu")
-                        self.assertFalse(self.shown(p), "no tip after Esc, though focus came back to the button")
-                        p.mouse("mouseMoved", 5, int(p.js("window.innerHeight")) - 5)           # inside the window, away from the button (a point below a short window never leaves it)
-                        p.until("!document.querySelector('#profile-btn').matches(':hover')", "the pointer has left the button")      # the hover state follows the move by a frame: wait for it, not a fixed delay
+                        p.until("!document.querySelector('#profile-menu') && document.querySelector('#profile-btn').getAttribute('aria-expanded') !== 'true'", "Esc closed the menu")
+                        p.until("document.documentElement.hasAttribute('data-tip-off')", "Esc switched the tip off")
+                        p.until(AFTER + ".content === 'none'", "the tip is off after Esc")
+                        self.stays_absent(p, "no tip after Esc, though focus came back to the button")
+                        # inside the window, away from the button (a point below a short window never leaves it)
+                        self.point(p, 5, int(p.js("window.innerHeight")) - 5, False, "the pointer has left the button")
                         p.js("document.querySelector('#profile-btn').blur()")
+                        p.until("document.activeElement !== document.querySelector('#profile-btn')", "focus left the button")
                         p.until(AFTER + ".content === 'none'", "no tip after the pointer leaves and focus goes")
-                        p.mouse("mouseMoved", x, y)
+                        self.stays_absent(p, "no tip stays away after the pointer left and focus went")
+                        self.point(p, x, y, True, "the pointer is back on the button")
                         p.until(AFTER + ".content !== 'none'", "the tip is back on hover")
 
 
