@@ -40,6 +40,11 @@ class ArchivedPeek(Base):
         click(cdp, sid, f"#archived-list tr[data-arch-id='{ref}']")
         self.until(cdp, sid, f"document.querySelector('#peek-archived')?.dataset.peekArchived === '{ref}'", "the archived peek")
         self.until(cdp, sid, "document.activeElement && document.activeElement.matches('#peek-archived [data-pk-close]')", "the focus in the peek")
+        self.settled(cdp, sid)
+
+    def settled(self, cdp, sid):
+        """A click on Close aims at where the button is now: wait for the slide in to end first (row 827)."""
+        self.until(cdp, sid, "!document.querySelector('#peek-archived').getAnimations({subtree: true}).some(a => a.playState === 'running')", "the slide in to end")
 
     def test_a_row_opens_the_peek_read_only_with_one_restore(self):
         from test_server import chrome
@@ -84,6 +89,7 @@ class ArchivedPeek(Base):
                 self.until(cdp, sid, f"document.activeElement && document.activeElement.dataset.archId === '{self.gone[1]}'", "the focus on the row")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, f"document.querySelector('#peek-archived')?.dataset.peekArchived === '{self.gone[1]}'", "Enter opens it again")
+                self.settled(cdp, sid)
                 click(cdp, sid, "#peek-archived [data-pk-close]")
                 self.until(cdp, sid, "!document.querySelector('#peek-archived')", "the peek shut by Close")
                 self.until(cdp, sid, f"document.activeElement && document.activeElement.dataset.archId === '{self.gone[1]}'", "the focus on the row after Close")
