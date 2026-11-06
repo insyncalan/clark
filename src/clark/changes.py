@@ -62,8 +62,8 @@ CHANGE_KINDS = {
     # (an item is closed or cancelled by its status, and archived only by archiving). priority is not in raid's list because the
     # store works it out from impact and likelihood (D-12: the status picker's Rating sets those two); `archived` is in no list.
     # #67: a work item's title is the column the page shows as its title: an action's and a RAID item's `description`, a decision's `decision`.
-    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible")},   # the peek's Latest update (an action's only)
-    "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_message", "client_visible")},
+    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible", "client_action")},   # the peek's Latest update (an action's only)
+    "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_message", "client_visible", "client_action")},   # row 811: needed from the client (an action or a risk or issue; a decision has no such flag)
     "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision", "client_message", "client_visible")},   # #45: use_case links an existing use case of this project, or clears the link
     # #45: the At a glance tiles and the project's health. A tile is hidden, given an outline colour or moved (its place is worked
     # out here, never sent); the project's change takes no `id` (it is the request's project) and only its health and the reason.
@@ -403,8 +403,8 @@ def _checked_item_changes(fields):
         if isinstance(latest, str) and not _plain_text(latest.replace("\n", "")):
             raise Refused(LATEST_HIDDEN_WORDS)
         latest = unicodedata.normalize("NFC", latest).strip() or None if isinstance(latest, str) else None
-    flag = {k: _flag(v) for k, v in fields.items() if k == "client_visible"}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
-    fields = {k: v for k, v in fields.items() if k != "client_visible"}
+    flag = {k: _flag(v) for k, v in fields.items() if k in ("client_visible", "client_action")}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
+    fields = {k: v for k, v in fields.items() if k not in flag}
     for k, v in fields.items():
         if v is None and k in ITEM_NOT_NULL or v is not None and (not isinstance(v, str) or not v.strip() or len(v) > 200):
             raise Refused(ITEM_VALUE_WORDS)
@@ -2014,6 +2014,8 @@ def _field_words(entry, name):
         return f"the {DOC_FIELD_NAMES[f]} of {name}"                # #74: never the old text or link itself
     if f in ("description", "decision") and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the title of {name} is back as it was"          # #67: never the old text itself
+    if f == "client_action" and ITEM_REF.fullmatch(str(entry.get("ref"))):
+        return f"the Needed from the client of {name} is back as it was"     # row 811: the switch's own label; no value said
     if f == "client_message" and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the client wording of {name} is back as it was"      # the report rows edit it in place; never the old text itself
     if f in ITEM_FIELD_NAMES and ITEM_REF.fullmatch(str(entry.get("ref"))):
