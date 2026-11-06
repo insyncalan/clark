@@ -129,6 +129,18 @@ COVERED = [
      "test_excel_pre1900::ClientWorkbook::test_client_sheet_has_text_for_an_old_due_date"),
     ("#787", "The profile menu lists Settings once: the link or the entry.",
      "test_profile_menu::ProfileMenu::test_C_settings_is_listed_once_the_link_or_the_entry"),
+    ("#824", "Work items edit in View at both widths, light and dark.",
+     "test_work_no_mode::WorkNoMode::test_work_items_edit_in_view_at_both_widths_in_light_and_dark"),
+    ("#824", "On a row Enter opens the peek and the arrows walk the cells.",
+     "test_list_keys::Keys::test_enter_opens_the_peek_and_the_arrows_never_open_or_close_it_while_the_peek_keeps_its_arrows"),
+    ("#866", "An edited owner survives a rename of the old person.",
+     "test_changes_hand_over::SingleEdit::test_an_edited_owner_survives_a_rename_of_the_old_person"),
+    ("#866", "The owner edit is undone with its text and link together.",
+     "test_changes_hand_over::SingleEdit::test_the_edit_is_undone_and_the_undo_undone_with_text_and_link_together"),
+    ("#866", "History shows one Owner line for an edit that changes the link.",
+     "test_changes_hand_over::SingleEdit::test_history_shows_one_owner_line_for_an_edit_that_changes_the_link"),
+    ("#894", "Two closes before the Back lands step back once.",
+     "test_multi_select::Page::test_two_closes_before_the_back_lands_step_back_once"),
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
