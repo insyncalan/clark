@@ -70,7 +70,7 @@ export function GanttChart({
 
   // On a narrow page the left columns give up some width so the chart keeps room for its month labels (a person's own widths still win when smaller).
   const narrow = width < 1000;
-  const cwN = narrow ? { name: Math.min(cw0.name, 120), start: Math.min(cw0.start, 88), end: Math.min(cw0.end, 88), pct: Math.min(cw0.pct, 44) } : cw0;
+  const cwN = narrow ? { name: Math.min(cw0.name, 120), start: Math.min(cw0.start, 94), end: Math.min(cw0.end, 94), pct: Math.min(cw0.pct, 44) } : cw0;
   const cw = edit ? { ...cwN, pct: Math.max(cwN.pct, 64) } : cwN;      // in Edit the Done heading carries an eye, which needs the room
   const filter = onFilter ? filterProp : ownFilter;
   const setFilter = (f) => { setShowOpen(false); if (onFilter) onFilter(f); else setOwnFilter(f); };
@@ -83,6 +83,7 @@ export function GanttChart({
   const rows = useMemo(() => visibleRows(live, { edit, filter }), [live, edit, filter]);
   const range = useMemo(() => chartRange(all, now), [all, now]);
 
+  const drawn = !!range && rows.length > 0;      // a plan that starts empty has no chart element yet: it is measured when the first line makes one
   useLayoutEffect(() => {
     const el = gx.current;
     if (!el) return undefined;
@@ -92,7 +93,7 @@ export function GanttChart({
     const ro = new ResizeObserver(read);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [drawn]);
 
   useEffect(() => {
     const onKey = (e) => {

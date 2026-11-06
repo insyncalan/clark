@@ -7,6 +7,7 @@
 //   onChange(lines, change)   the whole new list after any step; change is { type, ids } (type: edit, paste, fill, clear, add, delete, undo, redo)
 //   onAdd({ id, afterId, type })   a line was added        onDelete(ids)   lines were deleted
 //   onHiddenChange(keys)      a column's eye was pressed (Edit only)
+//   onUndo()                  when given, Cmd or Ctrl+Z and the Undo button are this (the page's own history), not a list kept here
 // Row numbers are the lines' own places in the plan, so they stay the same when the filter hides lines. Every value is a text node.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { Icon } from "../../components/Icon.jsx";
@@ -19,7 +20,7 @@ import {
 const ROW_HEAD = 44;
 const PAGE_ROWS = 10;
 
-export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filter = "all", today = "", onChange, onAdd, onDelete, onHiddenChange }) {
+export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filter = "all", today = "", onChange, onAdd, onDelete, onHiddenChange, onUndo }) {
   const cols = visibleColumns(hidden, edit);
   const rows = visibleRows(lines, { edit, filter });
   const clash = clashes(lines);
@@ -48,7 +49,7 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
   const tableWidth = left0 + cols.reduce((a, c) => a + width(c), 0);
   const lineAt = (r) => lines[rows[r]];
 
-  const say = (text, { bad = false, undo: u = false } = {}) => { count.current += 1; setMsg({ text, bad, undo: u, n: count.current }); };
+  const say = (text, { bad = false, undo: u = false } = {}) => { if (onUndo && !bad) return; count.current += 1; setMsg({ text, bad, undo: u, n: count.current }); };      // with the page's own history, its toast says what was done (and may say it was refused)
   useEffect(() => {
     if (!msg) return undefined;
     const t = setTimeout(() => setMsg((m) => (m && m.n === msg.n ? null : m)), 9000);
@@ -72,12 +73,14 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
     if (text) say(text, { bad, undo: true });
   };
   const goUndo = () => {
+    if (onUndo) { onUndo(); return; }      // the page keeps the history (the server's): Cmd+Z in the table is the app's Undo
     const got = undo(hist.current, lines);
     if (got.lines === null) return;
     hist.current = got.history;
     if (onChange) onChange(got.lines, { type: "undo", ids: [] });
   };
   const goRedo = () => {
+    if (onUndo) return;
     const got = redo(hist.current, lines);
     if (got.lines === null) return;
     hist.current = got.history;
@@ -358,7 +361,7 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
         <button type="button" data-gt-zoom-in aria-label="Zoom in" title="Zoom in" onClick={() => setZoom(clampZoom(zoom * 1.2))}>+</button>
         <span role="status" aria-live="polite" data-gt-msg={msg && msg.bad ? "bad" : msg ? "ok" : ""} class={`gt-msg${msg && msg.bad ? " gt-bad" : ""}`}>
           {msg ? msg.text : ""}
-          {msg && msg.undo && edit ? <button type="button" data-gt-undo onClick={goUndo}>Undo</button> : null}
+          {msg && msg.undo && edit && !onUndo ? <button type="button" data-gt-undo onClick={goUndo}>Undo</button> : null}
         </span>
         <span class="gt-pos" data-gt-where>{where}</span>
       </div>

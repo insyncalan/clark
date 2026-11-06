@@ -5,7 +5,7 @@ import { render } from "preact";
 import { data, status, view, mode, project, tabs, SERVED_TABS } from "@src/stores/report.js";
 import { TopBar } from "@src/components/TopBar.jsx";
 import { Settings } from "@src/components/Views.jsx";
-import { GanttPage } from "@src/gantt/components/GanttPage.jsx";
+import { GanttView } from "@src/gantt/components/GanttView.jsx";
 import { GanttSetting } from "@src/edit/GanttSetting.jsx";
 import { GanttTabName } from "@src/edit/GanttTabName.jsx";
 import { Toast } from "@src/edit/Toast.jsx";
@@ -29,7 +29,7 @@ window.fetch = async (url, init) => {
 };
 
 function Shell() {
-  const Page = view.value === "gantt" ? GanttPage : view.value === "settings" ? Settings : () => <section class="frame"><h1>Dashboard</h1></section>;
+  const Page = view.value === "gantt" ? GanttView : view.value === "settings" ? Settings : () => <section class="frame"><h1>Dashboard</h1></section>;
   const tools = mode.value === "edit" ? { GanttTabName, GanttSetting } : {};
   return <><TopBar tools={tools} /><main id="main"><Page tools={tools} /></main><Toast /></>;
 }

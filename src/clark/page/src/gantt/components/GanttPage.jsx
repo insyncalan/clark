@@ -9,14 +9,14 @@
 //   below     the slot below the plan
 //   today     today as YYYY-MM-DD (default: the computer's)
 import { useEffect, useLayoutEffect, useState } from "preact/hooks";
-import { mode, fromFile } from "../../stores/report.js";
+import { mode, fromFile, asAt } from "../../stores/report.js";
 import { Cover } from "../../components/Cover.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import { coverLine } from "../../logic/cover.js";
 import { todayIso } from "../../workItems.js";
 import { GanttChart } from "./GanttChart.jsx";
 import { GanttTable } from "./GanttTable.jsx";
-import { addBelow, filtersFor, filterWord, visibleRows, tidyAll } from "../logic/gantt.js";
+import { WORDS as GW, addBelow, filtersFor, filterWord, visibleRows, tidyAll } from "../logic/gantt.js";
 import {
   PAGE_WORDS as W, CHART_COLUMNS, toChart, toTable, fromTable, fromChartLine, applyChart, diff, without, renumber, sortLines, hiddenForTable, hiddenFromTable,
 } from "../logic/ganttPage.js";
@@ -31,8 +31,8 @@ function useHost(host) {
 
 export function GanttPage({ host, tools, above = null, below = null, today }) {
   const { project, settings, lines, toast } = useHost(host);
-  const now = today || host.today || todayIso();
-  const [layout, setLayout] = useState("chart");              // "chart" | "table": the mode (View or Edit) is kept when this changes
+  const now = today || host.today || (fromFile.value && asAt.value) || todayIso();      // a published file is as at the day it was published
+  const [chosen, setLayout] = useState("chart");              // "chart" | "table": the mode (View or Edit) is kept when this changes
   const [filter, setFilter] = useState("all");                // the chart's names: all | phases | milestones | ticked
   const [showOpen, setShowOpen] = useState(false);
   const editing = !!(tools && tools.Toggle) && mode.value === "edit" && !fromFile.value;
@@ -41,6 +41,8 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   const title = settings.gantt_title || project.name || "";
   const hidden = settings.gantt_hidden_columns || [];
   const stored = sortLines(lines);
+  const dated = !stored.length || stored.some((l) => l.start);                // a published file that carries no dates cannot draw bars: it shows what it has as a table
+  const layout = dated ? chosen : "table";
 
   // Leaving Edit leaves the "Ticked lines" filter, which View does not have.
   useEffect(() => { if (!editing && filter === "ticked") setFilter("all"); }, [editing]);
@@ -98,7 +100,9 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
 
   const saveTitle = (text) => host.saveSettings({ gantt_title: text }, W.titleChanged);
   const tableFilter = filter === "milestones" ? "phasesMilestones" : filter;
-  const tableHidden = hiddenForTable(hidden);
+  // What the client sees: Days is worked out from Start and End, and Status from Start, End and Done, so with one of those left out they are not drawn either.
+  const dropsDays = hidden.includes("start") || hidden.includes("end"), dropsStatus = dropsDays || hidden.includes("pct");
+  const tableHidden = [...hiddenForTable(hidden), ...(!editing && dropsDays ? ["dur"] : []), ...(!editing && dropsStatus ? ["st"] : [])];
   const filters = filtersFor(editing);
 
   const bar = (
@@ -110,10 +114,10 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
             <Icon name={editing ? "eye" : "pencil"} /> {editing ? W.view : W.edit}
           </button>
         ) : null}
-        <button type="button" class="gt-wd" data-gp-layout={layout === "chart" ? "table" : "chart"} aria-label={layout === "chart" ? W.table : W.chart}
+        {dated ? <button type="button" class="gt-wd" data-gp-layout={layout === "chart" ? "table" : "chart"} aria-label={layout === "chart" ? W.table : W.chart}
           title={layout === "chart" ? W.tableTip : W.chartTip} onClick={() => setLayout(layout === "chart" ? "table" : "chart")}>
           <Icon name={layout === "chart" ? "table" : "bars"} /> {layout === "chart" ? W.table : W.chart}
-        </button>
+        </button> : null}
         <span class="gt-sp" />
         {layout === "table" ? (
           <span class="gt-showwrap" data-gp-showwrap>
@@ -137,16 +141,18 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   );
 
   return (
+    <>
+    {Toggle ? <div class="rbar" id="gantt-bar"><Toggle pill />{editing ? <span class="rbar-state">{W.editNote}</span> : null}</div> : null}      {/* above the banner, as the Dashboard's bar is */}
     <section class="frame report gp" id="gantt-page" data-mode={editing ? "edit" : "view"} data-layout={layout}>
-      {Toggle ? <div class="rbar" id="gantt-bar"><Toggle pill />{editing ? <span class="rbar-state">{W.editNote}</span> : null}</div> : null}
       <Cover title={editing && Title ? <Title text={title} label={W.titleLabel} onSave={saveTitle} /> : title} lines={coverLine(project, fromFile.value ? "" : now)} />
       {above ? <div class="gp-slot gp-above" data-slot="above">{above}</div> : null}
       <div class="gp-plan" data-gp-plan>
         {bar}
+        {editing && !stored.length ? <button type="button" class="gt-ib gp-first" data-gp-first aria-label={GW.addBelow} title={GW.addBelow} onClick={() => onAdd("", "phase")}><Icon name="plus" /></button> : null}      {/* a plan with no line has no row to add below: this starts it (a phase) */}
         {layout === "chart"
           ? <GanttChart lines={toChart(stored)} edit={editing} today={now} filter={filter} onFilter={setFilter} defaultRows={settings.gantt_plan_rows ?? null}
               onDefaultRows={onDefaultRows} hiddenCols={hidden} onToggleColumn={onToggleColumn} onChange={onChange} onToggleEye={onToggleEye} onAdd={onAdd} onDelete={onDelete} />
-          : <GanttTable lines={toTable(stored)} edit={editing} today={now} filter={tableFilter} hidden={tableHidden} onChange={onTable} onHiddenChange={onTableHidden} />}
+          : <GanttTable lines={toTable(stored)} edit={editing} today={now} filter={tableFilter} hidden={tableHidden} onChange={onTable} onHiddenChange={onTableHidden} onUndo={host.serverUndo ? () => host.undoLast() : undefined} />}
       </div>
       {below ? <div class="gp-slot gp-below" data-slot="below">{below}</div> : null}
       {toast && toast.text ? (
@@ -156,5 +162,6 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
         </div>
       ) : null}
     </section>
+    </>
   );
 }

@@ -2065,6 +2065,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gp .cover h1 .gp-title:hover { outline: 1px dashed var(--white); outline-offset: 2px; }
 .gp .cover h1 .gp-title:focus { outline: 2px solid var(--white); outline-offset: 2px; }
 .gp-tools { margin-bottom: var(--space-2); }
+.gp-first { margin: 0 0 var(--space-2); border-color: var(--border); }      /* the first line of an empty plan */
 .gp-slot { margin: var(--space-4) 0; }
 .gp-plan { margin: var(--space-4) 0; }
 .gp-toast { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--size-small); }
@@ -2105,10 +2106,10 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt .gt-cr { position: absolute; right: -3px; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 9; }
 .gt .gt-cr:hover, .gt .gt-cr.gt-on { background: var(--brand-blue); opacity: .45; }
 .gt thead th .gt-hl { pointer-events: none; }
-.gt-eye, .gt-rb { border: 0; background: transparent; color: var(--text-muted); padding: 0; border-radius: var(--radius-sm); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
-.gt-eye { position: absolute; right: 6px; top: 4px; width: 18px; height: 18px; }
-.gt-eye:hover, .gt-rb:hover { color: var(--brand-blue); background: var(--surface); }
-.gt-eye .i, .gt-rb .i { width: 14px; height: 14px; }
+.gt th .gt-eye, .gt-rb { border: 0; background: transparent; color: var(--text-muted); padding: 0; border-radius: var(--radius-sm); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.gt th .gt-eye { position: absolute; right: 6px; top: 4px; width: 18px; height: 18px; }      /* the table's column eye only: the chart's own eyes (.gt-eye above) are not placed by this */
+.gt th .gt-eye:hover, .gt-rb:hover { color: var(--brand-blue); background: var(--surface); }
+.gt th .gt-eye .i, .gt-rb .i { width: 14px; height: 14px; }
 .gt-rb { display: none; width: 16px; height: 16px; }
 .gt .gt-rh:hover .gt-rn, .gt .gt-rh:focus-within .gt-rn { display: none; }
 .gt .gt-rh:hover .gt-rb, .gt .gt-rh:focus-within .gt-rb { display: inline-flex; }

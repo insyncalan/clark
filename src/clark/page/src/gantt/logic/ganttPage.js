@@ -5,10 +5,12 @@
 //   workstream, priority, baseline_start, baseline_end, effort, budget, deliverable, show 0|1, note, sort_order }.
 // (The agreed contract lists no `name`; the line's name is its "Line" column, so it is carried here as `name`. Change it in one place: NAME.)
 
+import { FIELDS, DEFAULT_NAME } from "../ganttTab.js";
+
 export const NAME = "name";
 
 export const DEFAULT_SETTINGS = {
-  show_gantt_editor: 0, show_gantt_client: 0, gantt_tab_name: "Gantt", gantt_title: "",
+  [FIELDS.editor]: 0, [FIELDS.client]: 0, [FIELDS.name]: DEFAULT_NAME, gantt_title: "",      // the three tab fields are named in ganttTab.js only
   gantt_hidden_columns: ["show", "note", "budget", "effort", "baseline_start", "baseline_end"],
   gantt_plan_rows: null,                      // the saved plan height in rows (null = every row); not in the first contract, added by the page
 };

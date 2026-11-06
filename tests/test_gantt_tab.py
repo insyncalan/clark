@@ -54,8 +54,8 @@ class Source(unittest.TestCase):
     def test_the_view_is_routed_like_the_others(self):
         self.assertIn('"usecases", "gantt", "clientreport", "settings"]', read("router.js"))
         self.assertIn("get gantt()", read("stores", "report.js"))
-        self.assertIn("gantt: GanttPage", read("components", "App.jsx"))
-        self.assertIn('from "../gantt/components/GanttPage.jsx"', read("components", "App.jsx"))
+        self.assertIn("gantt: GanttView", read("components", "App.jsx"))       # the page joined to its data (GanttView mounts GanttPage with a host)
+        self.assertIn('from "../gantt/components/GanttView.jsx"', read("components", "App.jsx"))
 
     def test_the_setting_is_saved_like_the_freshness_days(self):
         change = read("gantt", "ganttTab.js")

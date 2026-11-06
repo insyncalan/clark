@@ -11,9 +11,9 @@ import { Peek } from "./Peek.jsx";
 import { UseCasesTab } from "./UseCasesTab.jsx";
 import { WorkItems } from "./WorkItems.jsx";
 import { ClientReport } from "./ClientReport.jsx";
-import { GanttPage } from "../gantt/components/GanttPage.jsx";
+import { GanttView } from "../gantt/components/GanttView.jsx";
 
-const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, clientreport: ClientReport, gantt: GanttPage, settings: Settings };
+const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, clientreport: ClientReport, gantt: GanttView, settings: Settings };
 
 // The printed page (item 438): every tab the file has, one after another, each under its own name, with the day it was published at the head.
 // Only a published file draws it, and only while the browser is printing (stores/print.js).
