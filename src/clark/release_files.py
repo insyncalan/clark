@@ -35,6 +35,7 @@ NOT_BUILT_YET = {"windows"}
 
 RUN_BIT = {"clark.command"}     # files that must stay runnable after unzipping
 START_HERE = "START-HERE.txt"   # written by package.py, not taken from the repo
+START_HERE_NAMES = ("START-HERE.txt", "START-HERE.md")   # a reader accepts either as the one start file at the top
 MANIFEST = "clark-release.json" # written by package.py from the files it zips; it does not list itself
 
 
@@ -45,7 +46,7 @@ TOP = "clark"                   # the one folder the zip unzips to, whatever the
 HIDDEN = ".app"                 # the one hidden folder that holds every program file
 CODE_ROOT_MARK = HIDDEN + "/"
 # What stays visible at the top of the clark folder. A name ending in "/" is a folder.
-AT_TOP = ("README.md", "START-HERE.txt", "clark.command", "clark.cmd", MANIFEST, "docker/")
+AT_TOP = ("README.md", "START-HERE.txt", "START-HERE.md", "clark.command", "clark.cmd", MANIFEST, "docker/")
 # The README the zip carries is not the repository's README.md (that one is written for people reading the repository): its
 # words live in docs/zip/README.md and the zip puts them at the top under the name README.md. Only the zip does this.
 ZIP_README = "docs/zip/README.md"
@@ -104,7 +105,7 @@ def covers(system, rel):
     Anything protected is refused first, whatever the list says."""
     if protected(rel):
         return False
-    if rel in (START_HERE, MANIFEST):
+    if rel in START_HERE_NAMES + (MANIFEST,):
         return True
     if extra(rel):                      # a declared extra folder (issue 716); optional, so check_coverage never asks for it
         return True
