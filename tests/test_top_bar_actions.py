@@ -83,7 +83,7 @@ class TopBarActions(Base):
                     p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
                     got = p.js(f"(function(){{var r=[...{ITEMS}].map(e => [e.className || e.id, e.getBoundingClientRect()]), bad=[];"
                                "for (var i=0;i<r.length;i++){ if (r[i][1].right > document.documentElement.clientWidth + 0.5) bad.push('past ' + r[i][0]);"
-                               "for (var j=i+1;j<r.length;j++) if (r[i][1].left < r[j][1].right - 0.5 && r[j][1].left < r[i][1].right - 0.5 && r[i][1].width && r[j][1].width) bad.push(r[i][0] + ' over ' + r[j][0]);}"
+                               "for (var j=i+1;j<r.length;j++) if (r[i][1].left < r[j][1].right - 0.5 && r[j][1].left < r[i][1].right - 0.5 && r[i][1].top < r[j][1].bottom - 0.5 && r[j][1].top < r[i][1].bottom - 0.5 && r[i][1].width && r[j][1].width) bad.push(r[i][0] + ' over ' + r[j][0]);}"
                                "return bad;})()")
                     self.assertEqual(got, [], f"at {width} px, {theme}")
 
@@ -106,7 +106,7 @@ class TopBarActions(Base):
                          "s.textContent = 'Customer onboarding programme, phase two, northern region'; })()")
                     got = p.js(f"(function(){{var r=[...{ITEMS}].map(e => [e.className || e.id, e.getBoundingClientRect()]), bad=[];"
                                "for (var i=0;i<r.length;i++){ if (r[i][1].right > document.documentElement.clientWidth + 0.5) bad.push('past ' + r[i][0]);"
-                               "for (var j=i+1;j<r.length;j++) if (r[i][1].left < r[j][1].right - 0.5 && r[j][1].left < r[i][1].right - 0.5 && r[i][1].width && r[j][1].width) bad.push(r[i][0] + ' over ' + r[j][0]); }"
+                               "for (var j=i+1;j<r.length;j++) if (r[i][1].left < r[j][1].right - 0.5 && r[j][1].left < r[i][1].right - 0.5 && r[i][1].top < r[j][1].bottom - 0.5 && r[j][1].top < r[i][1].bottom - 0.5 && r[i][1].width && r[j][1].width) bad.push(r[i][0] + ' over ' + r[j][0]); }"
                                "return bad.concat(document.documentElement.scrollWidth > document.documentElement.clientWidth ? ['sideways scroll'] : []);})()")
                     self.assertEqual(got, [], f"at {width} px, {theme}, long name")
                     clipped = p.js("(function(){ var s = document.querySelector('.top .projbtn > span'); return s ? [s.textContent.length > 40, s.scrollWidth > s.clientWidth] : null; })()")

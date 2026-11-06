@@ -1,13 +1,13 @@
-// One use case on its own page (#157, Edit only: a published file never has this component). The crumb leads back to the list, the
+// One use case on its own page (#157; a published file never has this component). The crumb leads back to the list, the
 // title and status word come first, then two columns: where it stands, the linked work items and Archive on the left; the details,
-// the linked milestones and the history on the right. In Edit the title, headline and standing text are changed in place, the status
+// the linked milestones and the history on the right. Live, with no View|Edit switch (row 825): the title, headline and standing text are changed in place, the status
 // from a menu, the eye with a button; each is ONE change with one Undo (stores/changes.js, kind use_cases, op update), and Archive
-// and Restore are the existing archive ops. In View, and for an archived use case, nothing here changes anything. The history is
+// and Restore are the existing archive ops. For an archived use case nothing here changes anything but Restore. The history is
 // read from the use cases route (api.js); an archived use case is read with the archived rows (the page's usual read leaves them
 // out). A work item row and a linked milestone's name open their peek beside the page (row 859, row 860): the page stays, Esc closes the
 // peek and the focus goes back to the row or name. "Open all N in Work items" is the one way from here to the Work items page.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { data, rows, mode, fromFile, project, openWork, openPeek } from "../stores/report.js";
+import { data, rows, fromFile, project, openWork, openPeek } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
 import { readUseCaseHistory, readArchivedUseCase } from "../api.js";
@@ -22,6 +22,8 @@ import { milestoneRows } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
 import { CommitChip } from "./CommitChip.jsx";
 import { CommitMenu } from "../edit/CommitMenu.jsx";
+import { SneakPeek, SneakButton } from "../edit/SneakPeek.jsx";
+import { wordsOpen } from "../stores/wordsState.js";
 
 const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -110,7 +112,7 @@ const busy = (e) => !!e && e.nodeType === 1 && (e.isContentEditable || /^(INPUT|
 
 export function UseCaseDetail({ id }) {
   const d = data.value, code = project.value;
-  const editing = mode.value === "edit" && !fromFile.value;
+  const editing = !fromFile.value;                                         // row 825: no View|Edit switch here; only a published file is read-only
   const live = d && (d.use_cases || []).find((u) => u.id === id) || null;
   const [gone, setGone] = useState({ row: null, done: false });            // the archived row, once read
   const [hist, setHist] = useState({ state: "loading", lines: [] });
@@ -140,9 +142,26 @@ export function UseCaseDetail({ id }) {
   const shown = !!(live || gone.row || (mine && snap.current));
   useEffect(() => { if (head.current) head.current.focus({ preventScroll: true }); }, [id, shown || gone.done]);
 
+  // Two slashes outside a field open the words box (Edit, a live use case only); Esc closes it before anything else.
+  const canWords = editing && !!live;
+  useEffect(() => {
+    if (!canWords) { wordsOpen.value = false; return undefined; }
+    let last = 0;
+    const onKey = (e) => {
+      if (e.defaultPrevented || e.isComposing) return;
+      if (e.key === "Escape") { if (wordsOpen.value) { e.preventDefault(); wordsOpen.value = false; } return; }
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !busy(e.target)) {
+        if (last && performance.now() - last < 1000) { e.preventDefault(); last = 0; wordsOpen.value = true; } else last = performance.now() || 1;
+      } else if (e.key !== "Shift") last = 0;
+    };
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("keydown", onKey); wordsOpen.value = false; };
+  }, [canWords, id]);
+
   // Esc leaves for the list, unless focus is in a field, the editor or a menu (they take Esc themselves).
   useEffect(() => {
     const onKey = (e) => {
+      if (wordsOpen.value) return;
       if (e.key !== "Escape" || e.defaultPrevented || e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
       if (busy(document.activeElement) || busy(e.target) || document.querySelector("dialog[open],[role=dialog],[role=alertdialog],[role=menu],[data-peek]")) return;   // an open peek takes the first Esc (row 859)
       if (back.current) back.current.click();
@@ -201,6 +220,7 @@ export function UseCaseDetail({ id }) {
         </div>
         {!ro ? (
           <div class="ucd-acts">
+            <SneakButton />
             <Menu label="Change status" ariaLabel="Change status" menuLabel="Status" id="ucd-status" btnCls="btn" left
               items={STATUSES.map(([name]) => ({ id: name, name, checked: u.status === name }))}
               onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
@@ -209,10 +229,11 @@ export function UseCaseDetail({ id }) {
           </div>
         ) : null}
       </div>
+      {canWords && wordsOpen.value ? <SneakPeek key={u.id} row={u} kind="use_case" /> : null}
       {archived ? (
         <div class="ucd-note" data-archived-note>
           <p>This use case is archived, so it is read-only. It is out of the lists, the counts and the dashboard. Nothing in it was deleted.</p>
-          {editing ? <button type="button" class="btn pri" data-restore onClick={() => archive("restore")}>Restore</button> : <span class="muted">Switch to Edit to restore it.</span>}
+          {editing ? <button type="button" class="btn pri" data-restore onClick={() => archive("restore")}>Restore</button> : null}
         </div>
       ) : null}
       <div class="ucd-grid">
