@@ -5,7 +5,8 @@ import { signal } from "@preact/signals";
 
 export const IDS = ["slim", "roomy", "grey", "card"];
 const KEY = "clark.section-style";
-export const DEFAULT_STYLE = "slim";
+export const DEFAULT_STYLE = "card";                  // for a person who has chosen nothing (row 667); a stored choice always wins
+const FILE_DEFAULT = "slim";                          // a published file with no valid style word (publish.py DEFAULT_STYLE)
 export const valid = (v) => IDS.includes(v);
 
 function remembered() {
@@ -29,7 +30,7 @@ export function setStyle(v) {
 
 /** A published file's own style (set once, never remembered). */
 export function useFileStyle(v) {
-  const s = valid(v) ? v : DEFAULT_STYLE;
+  const s = valid(v) ? v : FILE_DEFAULT;
   style.value = s;
   paint(s);
 }

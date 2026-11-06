@@ -1,6 +1,6 @@
 """Build the Word report (.docx) from a report's published rows (#48; BRD FR-72; design-48-word.md sections 1 to 3).
 
-A pure function: `build(published)` takes what `publish.select()` returns ({"data", "sections", "tabs", "as_at"}) and gives the
+A pure function: `build(published)` takes what `publish.select()` returns ({"data", "sections", "tabs", "as_at"}; publish.build() takes a fifth key, "needs_dropped", out before any caller sees the rows) and gives the
 file's bytes. It touches no database, file, clock or network. The Word file carries what the HTML file carries and never more:
 the build reads only named fields of the published rows, so a key `select()` did not keep is never written, and a hidden section
 is not in `sections` to begin with. There is one report (FR-82), so there is no separate team file.
@@ -296,6 +296,11 @@ def _rows(published, key):
     return list(published["data"].get(key) or [])
 
 
+def _open(rows):
+    """Only the open items (the app's own rule, glance.is_open: not Closed, Cancelled, Made or Withdrawn)."""
+    return [r for r in rows if glance.is_open(r)]
+
+
 def _words(row, field, own):
     """The client's wording when the row has some, else the row's own text (data-model.md: client_message is optional)."""
     return (row.get("client_message") or "").strip() or row.get(own) or ""
@@ -403,7 +408,7 @@ def _due(table_name, field, row, ctx, extra=()):
 
 def section_actions(published, ctx, title, sec):
     rows = []
-    for a in _rows(published, "actions"):
+    for a in _open(_rows(published, "actions")):
         update = f"Latest update: {a['latest_update']}" if a.get("latest_update") else ""
         body = text_paras(_words(a, "client_message", "description"), ctx)
         if update:
@@ -418,7 +423,7 @@ def section_actions(published, ctx, title, sec):
 
 def section_raid(published, ctx, title, sec):
     rows = []
-    for r in _rows(published, "raid"):
+    for r in _open(_rows(published, "raid")):
         both = " / ".join(x for x in (r.get("impact"), r.get("likelihood")) if x)
         rows.append([word_cell(r.get("id"), ctx), word_cell(r.get("type"), ctx),
                      (text_paras(_words(r, "client_message", "description"), ctx), None),
