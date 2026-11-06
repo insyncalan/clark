@@ -381,7 +381,12 @@ class Page(Base):
         with chrome() as cdp:
             sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
-            pick2 = lambda: (tap(cdp, sid, self.rsel(rows[0])), tap(cdp, sid, self.rsel(rows[2]), MOD))
+            def pick2():
+                """Two picks, then wait (10 s at most) until the plain click's peek has finished closing, so no step starts with its Back in flight."""
+                tap(cdp, sid, self.rsel(rows[0]))
+                settle(cdp, sid)
+                tap(cdp, sid, self.rsel(rows[2]), MOD)
+                self.until(cdp, sid, "clarkPage.selected().length === 2 && clarkPage.peek() === null && !location.hash.includes('item=')", "two picked and the peek closed", secs=10)
             pick2()
             tap(cdp, sid, "#sel-clear")
             self.assertEqual(self.picked(cdp, sid), [], "the X on the bar")
