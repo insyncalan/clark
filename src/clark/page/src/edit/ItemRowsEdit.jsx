@@ -58,7 +58,6 @@ function Words({ row, text }) {
     if (cancelled.current) { cancelled.current = false; return; }
     const t = read(el).replace(/\s+/g, " ").trim();
     if (t === now.current) { show(el, now.current); return; }
-    if (!t) { show(el, now.current); say("problem", "The wording can't be blank. Type what the client should read."); return; }
     if (Array.from(t).length > WORDS_MAX) { show(el, now.current); say("problem", `The wording can be ${WORDS_MAX} characters at most. Shorten it and try again.`); return; }
     changeCell(tableOf(row), row.id, { client_message: t }, { text: `Wording of ${row.id} changed.`, back: `Wording of ${row.id} is back as it was.` })
       .then((reply) => (reply ? refresh() : show(el, now.current)));       // the reply never carries the words (as a title is not said back): read them again
