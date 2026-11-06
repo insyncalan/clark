@@ -15,7 +15,20 @@ from _paths import ROOT, SRC  # noqa: F401
 from _new_page import reload_to_new_page_cdp
 import _testpage as testpage
 
-from test_server import Running, chrome, wait  # noqa: E402
+from test_server import Running, chrome  # noqa: E402
+
+
+def wait(check, seconds=15):
+    """test_server.wait, polled every 50 ms instead of 200 ms: this file waits hundreds of times for a page that is a few frames away, and
+    each wait that is not true yet at once cost at least 200 ms. Same limit, same meaning: true as soon as `check()` is, False at the limit."""
+    t0 = time.time()
+    while time.time() - t0 < seconds:
+        if check():
+            return True
+        time.sleep(0.05)
+    return False
+
+
 from test_work_filters import click, expect, key, need_chrome, page_rows, pause, set_line  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
@@ -44,6 +57,8 @@ def click_tab(cdp, sid, selector):
 
 
 class Line(unittest.TestCase):
+    steps = None         # history.length right after the page drew: the address must not add to it
+
     @classmethod
     def setUpClass(cls):
         need_chrome()
@@ -74,6 +89,7 @@ class Line(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length > 0 || !!document.querySelector('#work-list .empty')", sid)), f"{hash_} drew its list")
         if theme == "dark":
             cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
+        self.steps = cdp.js("history.length", sid)
         return sid
 
     # ---- small helpers ----
@@ -124,7 +140,7 @@ class Line(unittest.TestCase):
                     n = len(expect(self.rows(cdp, sid)))
                     self.assertEqual(cdp.js("document.querySelector('#work-count').textContent", sid), f"{n} open items")
                     self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True)
-                    self.assertEqual(cdp.js("history.length", sid), 2)
+                    self.assertEqual(cdp.js("history.length", sid), self.steps)
 
     def switch(self, cdp, sid):
         return cdp.js("Object.fromEntries([...document.querySelectorAll('[data-show]')].map(b => [b.dataset.show, +b.querySelector('em').textContent]))", sid)
@@ -277,7 +293,7 @@ class Line(unittest.TestCase):
                     self.assertTrue(wait(lambda: self.listed(cdp, sid)[:2] == ["is:", "type:"]), "and the list of fields opens again")
                     pause(cdp, sid)
                     self.assertTrue(wait(lambda: self.shown(cdp, sid) == expect(rows, "all", filters={"status": ["Closed"]})), "status:Closed alone (the box held the whole line)")
-                    self.assertEqual(cdp.js("history.length", sid), 2, "a filter rewrites the address, it adds no step")
+                    self.assertEqual(cdp.js("history.length", sid), self.steps, "a filter rewrites the address, it adds no step")
                     self.assertEqual(cdp.js("window.__push", sid), 0)
                     self.assertRegex(cdp.js("location.hash", sid), r"^#work&p=TUL&f=.*status:Closed")
 
@@ -627,12 +643,18 @@ class Line(unittest.TestCase):
         with chrome() as cdp:
             sid = self.load(cdp, s.port)
             before = self.shown(cdp, sid)
-            self.put(cdp, sid, "is:open owner:" + ",".join(json.dumps(o) for o in owners))
+            # a refused line is never kept, so the pause of set_line (waiting for the kept line to equal the box) would run to its limit:
+            # wait for the box to hold the line and for the page's plain refusal instead
+            line = "is:open owner:" + ",".join(json.dumps(o) for o in owners)
+            click(cdp, sid, "#fline-input")
+            cdp.js("document.querySelector('#fline-input').select()", sid)
+            cdp.call("Input.insertText", {"text": line}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == line), "the box holds the line")
             self.assertTrue(wait(lambda: "not fit" in cdp.js("document.querySelector('#work-note').textContent", sid)))
             self.assertEqual(cdp.js("document.querySelector('#work-note').getAttribute('role')", sid), "status")
             self.assertFalse(cdp.js("clarkPage.filters()", sid), "nothing changed")
             self.assertEqual(self.shown(cdp, sid), before)
-            self.assertEqual(cdp.js("history.length", sid), 2)
+            self.assertEqual(cdp.js("history.length", sid), self.steps)
 
     def test_clear_filter_in_the_empty_state_clears_the_whole_line(self):
         s = self.serve()
@@ -1175,16 +1197,31 @@ class Line(unittest.TestCase):
         s = self.serve()
         with chrome() as cdp:
             sid = self.load(cdp, s.port, 900)
+            menu = "!!document.querySelector('#viewTabMenuList')"
             for how in ("row", "window"):
                 with self.subTest(how=how):
-                    click(cdp, sid, "#viewTabMenu")
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)))
+                    # open it, clicking again (never within a second of the last click, and only while it is not open) if the first click was lost
+                    # to a page that has not taken its handlers yet; the wait ends the moment the menu is there
+                    tried = [0.0]
+
+                    def opened():
+                        if cdp.js(menu, sid):
+                            return True
+                        if time.time() - tried[0] > 1:
+                            tried[0] = time.time()
+                            click(cdp, sid, "#viewTabMenu")
+                        return bool(cdp.js(menu, sid))
+                    self.assertTrue(wait(opened, 20), "the tabs menu opened")
                     if how == "row":
-                        cdp.js("document.querySelector('.vtabs').scrollLeft = 5", sid)
+                        # the row can scroll only once it is laid out wider than its box; scroll events come a frame after the position changes
+                        self.assertTrue(wait(lambda: cdp.js("(() => { const r = document.querySelector('.vtabs'); return r.scrollWidth > r.clientWidth; })()", sid)), "the row can scroll")
+                        start = cdp.js("document.querySelector('.vtabs').scrollLeft", sid)
+                        cdp.js(f"document.querySelector('.vtabs').scrollLeft = {start + 5}", sid)
+                        self.assertTrue(wait(lambda: cdp.js("document.querySelector('.vtabs').scrollLeft", sid) > start), "the row scrolled")
                     else:
                         cdp.call("Emulation.setDeviceMetricsOverride", {"width": 880, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-                    self.assertTrue(wait(lambda: cdp.js("!document.querySelector('#viewTabMenuList')", sid)), "the menu does not stay behind its arrow")
-
+                        self.assertTrue(wait(lambda: cdp.js("window.innerWidth", sid) == 880), "the window is narrower")
+                    self.assertTrue(wait(lambda: not cdp.js(menu, sid)), "the menu does not stay behind its arrow")
 
     def test_the_tab_row_stays_on_one_line_and_scrolls_inside_its_own_box(self):
         # At 900 px the tabs (the five core views, any saved views and + New view) never wrap onto a second line and never push the page

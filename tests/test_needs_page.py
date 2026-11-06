@@ -604,7 +604,7 @@ class Page(Base):
             p.edit()
             p.js("document.querySelector('[data-id=ABC-S-004] [data-options]').click()")
             p.until("!!document.querySelector('[data-id=ABC-S-004] .menu')", "menu")
-            self.assertNotIn("delete", p.js("[...document.querySelectorAll('[data-id=ABC-S-004] .menu-item')].map(b => b.dataset.act)"), "a milestones section still cannot be deleted")
+            self.assertIn("delete", p.js("[...document.querySelectorAll('[data-id=ABC-S-004] .menu-item')].map(b => b.dataset.act)"), "a milestones section can be deleted too (row 906)")
             p.js("document.querySelector('[data-id=ABC-S-004] [data-options]').click()")
             p.until("!document.querySelector('.menu')", "the menu closed")
             p.js("document.querySelector('[data-id=" + ref + "] [data-options]').click()")
