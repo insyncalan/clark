@@ -84,6 +84,12 @@ export function ProfileMenu() {
   if (open && tabs.value.includes("settings")) items.push({ id: "published", name: "Published reports" });
   if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings", tip: "Settings" });      // #443: Published reports opens Settings at its card, so it comes with Settings; after Export, as in the prototype; no short word, so the tooltip is as it was
   items.push({ id: "help", name: "Help" });
+  // Who you are (#180), the top line: the name in bold with the email under it, or only the name; with neither, a link that opens
+  // Settings › Personal and puts the cursor in the name box. Only what was typed in Settings: clark never makes up an email.
+  const me = profile.value;
+  const named = !!(me.name || me.email);
+  // Issue 787: while the top line is the link to Settings, the Settings entry at the foot is left out (one way in to Settings, not two).
+  if (!named) { const at = items.findIndex((i) => i.id === "settings"); if (at >= 0) items.splice(at, 1); }
   const tip = menuTip(items);
   const last = lastLine(latest.value);
   // The last-published note is hidden from the bar in a narrow window, so the menu says it too; a separator sets the settings apart.
@@ -91,10 +97,7 @@ export function ProfileMenu() {
   // (Publish, Preview, Export) from the settings entries; the one in use is marked. One signal feeds both places.
   const look = [{ id: "look-lab", lab: "Appearance" }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], checked: appearance.value === m }))];
   const actions = items.filter((i) => ["publish", "preview", "export", "word-export", "word-import", "published"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
-  // Who you are (#180), the top line: the name in bold with the email under it, or only the name; with neither, a link that opens
-  // Settings › Personal and puts the cursor in the name box. Only what was typed in Settings: clark never makes up an email.
-  const me = profile.value;
-  const who = me.name || me.email ? { id: "who", head: { name: me.name || me.email, line: me.name ? me.email : "", title: [me.name, me.email].filter(Boolean).join("\n") } }
+  const who = named ? { id: "who", head: { name: me.name || me.email, line: me.name ? me.email : "", title: [me.name, me.email].filter(Boolean).join("\n") } }
     : { id: "who", name: "Add your name in Settings", link: true };
   const shown = [who, ...(last ? [{ id: "note", lab: last }] : []), ...actions, { id: "sep", sep: true }, ...look, ...(rest.length ? [{ id: "sep", sep: true }] : []), ...rest];   // a separator sets the settings entries apart from the look group
   const pick = (id) => {

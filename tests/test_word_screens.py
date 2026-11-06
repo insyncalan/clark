@@ -184,7 +184,7 @@ class Export(Screens):
             self.assertEqual(view.index("Export to Word"), view.index("Export to Excel") + 1)
             self.assertIn("Import from Word", view, "row 826: the import needs no Edit mode")
             self.assertEqual(view.index("Import from Word"), view.index("Export to Word") + 1)
-            self.assertEqual(p.js("document.querySelector('#profile-btn').title"), "Your menu: Publish, Preview, Export, Settings")
+            self.assertEqual(p.js("document.querySelector('#profile-btn').title"), "Your menu: Publish, Preview, Export")
 
     def test_an_export_saves_a_file_and_says_where(self):
         for w in WIDTHS:
@@ -499,7 +499,7 @@ class Import(Screens):
                     self.menu(p)
                     labels = self.labels(p)
                     self.assertEqual(labels.index("Import from Word"), labels.index("Export to Word") + 1)
-                    self.assertEqual(p.js("document.querySelector('#profile-btn').title"), "Your menu: Publish, Preview, Export, Settings")
+                    self.assertEqual(p.js("document.querySelector('#profile-btn').title"), "Your menu: Publish, Preview, Export")
                     p.key("Escape", code="Escape", vk=27)
                     self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true")
                     self.open_import(p)

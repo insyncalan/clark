@@ -15,9 +15,9 @@ from test_server import chrome
 from clark import excel, server as sv
 
 # The tooltip is built from the entries that carry a short word, so it follows them; the test below pins the two together.
-TIP = "Your menu: Publish, Preview, Export, Settings"
+TIP = "Your menu: Publish, Preview, Export"                                                                 # no name typed: the top line is the link to Settings, so there is no Settings entry (issue 787)
 NAME = "Your menu"
-ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Import from Word", "Published reports", "Settings", "Help"]       # the commands (#443: Published reports, after Export; row 826: Import from Word, after Export to Word, in View too)
+ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Import from Word", "Published reports", "Help"]       # the commands (#443: Published reports, after Export; row 826: Import from Word, after Export to Word, in View too)
 LOOK = ["System", "Light", "Dark"]                                                                            # the Appearance group (#179), radio items between Export and Settings
 WHO = "Add your name in Settings"                                                                          # the top line while no name is typed (#180): a link
 ORDER = [WHO] + ITEMS[:6] + LOOK + ITEMS[6:]
@@ -55,7 +55,7 @@ class ProfileMenu(Base):
             p = self.page(cdp)
             self.open_menu(p)
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).join()"),
-                             "menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem,menuitem")
+                             "menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem")
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
                              "presentation,menuitemradio,menuitemradio,menuitemradio", "the group holds its label and the three radios")
             self.assertEqual(p.js("(function(){var g=document.querySelector('#profile-menu [role=group]');return document.getElementById(g.getAttribute('aria-labelledby')).textContent})()"),
@@ -90,6 +90,7 @@ class ProfileMenu(Base):
 
     def test_C_the_tooltip_is_pinned_to_the_entries(self):
         words = re.findall(r'tip: "([A-Za-z]+)"', (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8"))
+        words = [w for w in words if w != "Settings"]       # issue 787: with no name typed the top line is the link to Settings, so the Settings entry (and its word) is left out
         self.assertEqual("Your menu: " + ", ".join(words), TIP, "the words in the source")
         with chrome() as cdp:
             p = self.page(cdp)
@@ -181,11 +182,20 @@ class ProfileMenu(Base):
             self.pick(p, "help")
             p.until("!!document.querySelector('.hp-tabs')", "Help opened")
 
-    def test_C_the_settings_entry_opens_settings(self):
+    def test_C_settings_is_listed_once_the_link_or_the_entry(self):
+        """Issue 787: with no name typed the top line is the link to Settings and there is no second Settings entry at the foot; with a name, the entry is there."""
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_menu(p)
-            p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+            self.assertEqual(self.labels(p).count("Settings"), 0)
+            self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=settings]').length"), 0)
+            self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=who]').length"), 1)
+
+    def test_C_the_settings_link_opens_settings(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_menu(p)
+            p.js("document.querySelector('#profile-menu [data-kind=who]').click()")
             p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
 
     def test_C_the_published_reports_entry_opens_settings_at_its_card(self):

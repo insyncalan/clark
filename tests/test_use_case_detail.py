@@ -1,4 +1,4 @@
-"""#157: one use case on its own page (src/clark/page/src/components/UseCaseDetail.jsx), Edit only.
+"""#157: one use case on its own page (src/clark/page/src/components/UseCaseDetail.jsx); live, with no Edit mode (row 825).
 
 Run: python3 dev/run_tests.py test_use_case_detail
 Part 1 is the read behind the history (clark/use_cases_read.py): the lines a use case's history gives the page. Part 2 builds the
@@ -12,6 +12,7 @@ import json
 import re
 import shutil
 import sys
+import time
 import tempfile
 import unittest
 from pathlib import Path
@@ -188,8 +189,8 @@ class Detail(unittest.TestCase):
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#dashboard&p=TUL"}, sid)
-        self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.sec').length > 0", sid)), "the page drew")
+        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#{'dashboard' if edit else 'usecases'}&p=TUL"}, sid)    # row 825: off the Dashboard the page is live and the change toast (with Undo) is drawn without Edit
+        self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.sec').length > 0" if edit else "!!document.querySelector('#usecases')", sid)), "the page drew")
         if edit:
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('#report').dataset.mode === 'edit'", sid)), "Edit")
@@ -285,12 +286,68 @@ class Detail(unittest.TestCase):
                         png = cdp.call("Page.captureScreenshot", {"format": "png"}, sid)["data"]
                         Path(shots, f"659-{width}-{scheme}.png").write_bytes(base64.b64decode(png))
 
-    def test_in_view_nothing_changes_and_the_text_is_plain(self):
+    def test_every_control_is_there_with_no_edit_mode_at_1400_and_900_px_light_and_dark_row_825(self):
+        """Row 825: the use case page has no View|Edit switch; the name, headline, status, eye, commitment, Where it stands and Archive are live."""
+        for width in (1400, 915):          # 915 px of window is 900 px of page on this box (15 px scrollbar)
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width=width, scheme=scheme, edit=False)
+                    self.assertNotEqual(cdp.js("document.querySelector('#report').dataset.mode", sid), "edit", "the page is not in Edit")
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea').length", sid), 2, "name and headline are boxes")
+                    for sel in ("#ucd-status", "[data-ucd] [data-eye]", "[data-ucd] [data-archive]", "[data-ucd] [data-rich]", "[data-ucd] [data-uc-commit] button"):
+                        self.assertEqual(cdp.js(f"document.querySelectorAll({json.dumps(sel)}).length", sid), 1, sel)
+
+    def test_each_control_saves_as_one_change_with_one_undo_with_no_edit_mode_row_825(self):
         with chrome() as cdp:
             sid = self.open_detail(cdp, edit=False)
-            self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea, [data-ucd] [data-rich], [data-archive], #ucd-status').length", sid), 0)
-            self.assertIn("Flag", cdp.js("document.querySelector('[data-ucd] [data-word]').textContent", sid))
-            self.assertTrue(cdp.js("document.querySelector('[data-ucd] [data-ucd-field=title]').textContent.length > 0", sid))
+            was = self.row()
+            before = self.steps()
+            cdp.js("(() => { const t = document.querySelector('[data-ucd] [data-ucd-field=title]'); t.focus(); t.select(); })()", sid)
+            cdp.call("Input.insertText", {"text": "Named in View"}, sid)
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "the toast offers Undo")
+            self.assertEqual((self.row()["title"], self.steps(), self.toast(cdp, sid)), ("Named in View", before + 1, "Name changed."))
+            self.undo(cdp, sid)
+            before = self.steps()
+            click(cdp, sid, "#ucd-status")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "the menu opened")
+            click(cdp, sid, "[role=menu] [data-kind='High risk']")
+            self.until(cdp, sid, "document.querySelector('[data-ucd] [data-word]').textContent === 'High risk'", "the status changed")
+            self.assertEqual((self.row()["status"], self.steps()), ("High risk", before + 1))
+            self.undo(cdp, sid)
+            before = self.steps()
+            click(cdp, sid, "[data-ucd] [data-eye]")
+            self.until(cdp, sid, "document.querySelector('[data-ucd] [data-eye]').title === 'Not on the dashboard'", "the eye switched")
+            self.assertEqual((self.row()["client_visible"], self.steps()), (0, before + 1))
+            self.undo(cdp, sid)
+            before = self.steps()
+            cdp.js("document.querySelector('.ucd-sub [data-uc-commit] button').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('[role=menu][aria-label=Commitment]')", "the commitment menu opened")
+            cdp.js("[...document.querySelectorAll('[role=menu][aria-label=Commitment] [role^=menuitem]')].find(e => e.textContent.includes('Planned 2027')).click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "the commitment saved")
+            self.assertEqual((self.row()["commitment"], self.steps()), ("Planned 2027", before + 1))
+            self.undo(cdp, sid)
+            self.assertEqual(self.row()["commitment"], was["commitment"])
+            before = self.steps()
+            click(cdp, sid, "[data-ucd] [data-archive]")
+            self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "Restore is offered with no Edit mode")
+            self.assertEqual((self.row()["archived"], self.steps()), (1, before + 1))
+            self.assertNotIn("Switch to Edit", cdp.js("document.querySelector('[data-archived-note]').textContent", sid))
+            click(cdp, sid, "[data-restore]")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-archive]')", "Restore worked with no Edit mode")
+            self.assertEqual(self.row()["archived"], 0)
+
+    def test_the_standing_text_saves_with_no_edit_mode_row_825(self):
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            before = self.steps()
+            cdp.js("document.querySelector('[data-rich=standing]').click()", sid)
+            self.until(cdp, sid, "document.activeElement && document.activeElement.classList.contains('ProseMirror')", "the editor has focus")
+            cdp.js("document.querySelector('.ProseMirror').cxed.editor.commands.insertContent('Written in View. '); true", sid)
+            cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, "modifiers": 4 if cdp.js("/Mac/.test(navigator.platform)", sid) else 2}, sid)
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "the toast offers Undo")
+            self.assertIn("Written in View.", self.row()["standing"])
+            self.assertEqual(self.steps(), before + 1)
 
     # ---- saving ----
     def test_the_standing_text_is_one_change_with_one_undo(self):
@@ -412,6 +469,64 @@ class Detail(unittest.TestCase):
             self.undo(cdp, sid)
             self.assertEqual(self.row()["status"], "Flag")
             self.until(cdp, sid, "document.querySelector('[data-ucd] [data-word]').textContent === 'Flag'", "Undo draws the old word")
+
+    def slash(self, cdp, sid):
+        common = {"key": "/", "code": "Slash", "windowsVirtualKeyCode": 191}
+        cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", **common, "text": "/"}, sid)
+        cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
+
+    def test_two_slashes_open_the_words_box_and_enter_is_one_change_with_one_undo(self):
+        """Sneak peek on a use case: status, commitment and headline in words; Done asks first; Esc closes the box; View has no box."""
+        with chrome() as cdp:
+            sid = self.open_detail(cdp)
+            before, was = self.steps(), self.row()
+            self.slash(cdp, sid)
+            self.assertFalse(cdp.js("!!document.querySelector('[data-sneak]')", sid), "one slash opens nothing")
+            self.slash(cdp, sid)
+            self.until(cdp, sid, "!!document.querySelector('.sn-in')", "the words box opened")
+
+            def type_words(text):
+                cdp.js(f"(() => {{ const i = document.querySelector('.sn-in'); i.value = {json.dumps(text)}; i.dispatchEvent(new Event('input', {{bubbles: true}})); }})()", sid)
+            type_words("done")
+            self.until(cdp, sid, "!!document.querySelector('[data-sneak-confirm]')", "Done asks first")
+            key(cdp, sid, "Enter")
+            self.assertEqual(self.row()["status"], was["status"], "Enter alone does not apply a Done")
+            type_words("high risk, candidate, headline: Vendor is late")
+            self.until(cdp, sid, "document.querySelectorAll('.sn-list li').length === 3", "three lines")
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]') && document.querySelector('[data-ucd] [data-word]').textContent === 'High risk'", "applied")
+            row = self.row()
+            self.assertEqual((row["status"], row["commitment"], row["headline"], self.steps()), ("High risk", "Candidate", "Vendor is late", before + 1))
+            self.assertFalse(cdp.js("!!document.querySelector('[data-sneak]')", sid), "Enter closes the box")
+            self.undo(cdp, sid)
+            row = self.row()
+            self.assertEqual((row["status"], row["commitment"], row["headline"]), (was["status"], was["commitment"], was["headline"]))
+            self.slash(cdp, sid)
+            self.slash(cdp, sid)
+            self.until(cdp, sid, "!!document.querySelector('.sn-in')", "the box opened again")
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('[data-sneak]')", "Esc closed the box")
+            self.assertTrue(cdp.js("!!document.querySelector('[data-ucd]')", sid), "and stayed on the use case")
+
+    def test_two_slashes_open_the_words_box_on_a_use_case_page_with_no_edit_mode(self):
+        """Row 825: a use case's own page has no View, so the words box opens from two slashes without Edit."""
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            self.slash(cdp, sid)
+            self.slash(cdp, sid)
+            self.until(cdp, sid, "!!document.querySelector('.sn-in')", "the words box opened with no Edit mode")
+
+    def test_two_slashes_open_no_words_box_on_an_archived_use_case(self):
+        """An archived use case is read-only: no words box, in either way of opening the page."""
+        with self.store.step("dashboard", USER) as st:
+            st.archive("use_cases", UC)
+        for edit in (True, False):
+            with self.subTest(edit=edit), chrome() as cdp:
+                sid = self.open_detail(cdp, edit=edit)
+                self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "the archived use case is drawn")
+                self.slash(cdp, sid)
+                self.slash(cdp, sid)
+                self.assertFalse(wait(lambda: cdp.js("!!document.querySelector('[data-sneak],[data-sneak-open]')", sid), 1.4), "no words box on an archived use case")
 
     def test_done_in_the_status_menu_saves_and_shows_its_word_in_grey(self):
         """#412: choosing Done in Edit saves it (one change, one Undo) and the page shows the word Done with the grey dot."""
