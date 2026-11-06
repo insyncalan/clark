@@ -5,7 +5,7 @@ Run: python3 dev/run_tests.py test_v103
 
 Same shape as test_v102.
   COVERED       a merged row a person can see, already covered by a test elsewhere. test_every_covering_test_named_here_exists
-                fails if one goes missing. Rows 273, 802 and 827 have no visible change (NO_VISIBLE_CHANGE).
+                fails if one goes missing. Rows 273, 802, 827, 872 and 874 have no visible change (NO_VISIBLE_CHANGE).
   WAITING       a row that is not on main yet but has a marker in the source that appears when it lands (item, check, pull request,
                 a file under the top folder, the text in it). Skipped, with the pull request. After the cut commit has set the
                 version and the marker is there, the row fails until it is moved to COVERED with its test. Empty today: the
@@ -105,10 +105,28 @@ COVERED = [
      "test_peek_card::CardRule::test_the_card_rules_are_in_the_stylesheet_in_tokens_only"),
     ("#814", "A click outside the peek and Esc close it; clicks that belong to it do not.",
      "test_peek_outside::OutsideBrowser::test_esc_and_a_click_outside_close_it_and_clicks_that_belong_to_it_do_not"),
+    ("#728", "Sneak peek changes a milestone's dates and status in words, and Achieved asks first.",
+     "test_sneak_milestone_usecase::Milestone::test_achieved_asks_first_and_fills_the_date_the_way_the_store_does"),
+    ("#728", "Sneak peek changes a use case's status, headline and commitment in words.",
+     "test_sneak_milestone_usecase::UseCase::test_status_headline_and_commitment"),
+    ("#797", "Add a section offers the six new templates, described in the same words in the picker and in Help.",
+     "test_templates::Logic::test_the_box_and_help_describe_every_template_in_the_same_words"),
+    ("#825", "The use case page needs no Edit mode: every control is there.",
+     "test_use_case_detail::Detail::test_every_control_is_there_with_no_edit_mode_at_1400_and_900_px_light_and_dark_row_825"),
+    ("#825", "Each use case page control saves as one change with one Undo, with no Edit mode.",
+     "test_use_case_detail::Detail::test_each_control_saves_as_one_change_with_one_undo_with_no_edit_mode_row_825"),
+    ("#757", "The open tab stays in view in the top bar at 900 px.",
+     "test_top_bar_tabs::TopBarTabs::test_a_row_narrowed_after_the_scroll_shows_the_open_tab_again_at_900"),
+    ("#764", "The top bar's tab row is not cut off at 900 px.",
+     "test_top_bar_tabs::TopBarTabs::test_the_tabs_tighten_their_padding_at_1000_px_and_below_and_never_wrap"),
+    ("#775", "The Work items board columns are lifted cards and the full-screen icon is arrows.",
+     "test_work_board_page::Cards::test_row_775_columns_are_lifted_cards_and_the_full_screen_icon_are_arrows"),
+    ("#776", "The Sneak peek words box is a floating card.",
+     "test_peek_arrows::Arrows::test_row_776_the_words_box_is_a_floating_card_in_light_and_dark"),
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
-NO_VISIBLE_CHANGE = {"273", "802", "827"}
+NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
 PARTLY_MERGED = {"767", "766"}
