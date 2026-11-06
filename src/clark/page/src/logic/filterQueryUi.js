@@ -124,6 +124,14 @@ function groups(line, rows, ctx, extra) {
   const p = parseFor(line, rows, ctx, extra);
   return { mode: p.tokens.filter(isModeTok).map((t) => t.raw), type: p.tokens.filter(isTypeTok).map((t) => t.raw), rest: p.tokens.filter((t) => !isModeTok(t) && !isTypeTok(t)).map((t) => t.raw) };
 }
+/** The empty state's words for a line (row 789): what was typed beyond the Open / Closed / All and type switches, said back with the view; the
+ *  hint says what a plain word does. With nothing typed (an empty project view) the older words stand. */
+export function emptyWords(line, rows, ctx, extra) {
+  const g = groups(line, rows, ctx, extra), typed = g.rest.join(" ").trim();
+  if (!typed) return { none: EMPTY.none, clear: EMPTY.clear, hint: "" };
+  const open = g.mode.length === 1 && /^is:open$/i.test(g.mode[0]);
+  return { none: `No ${open ? "open items" : "items"} match "${typed}".`, clear: "Clear search", hint: "Plain words search titles. Press / to come back here." };
+}
 const join = (g) => [...g.mode, ...g.type, ...g.rest].join(" ");
 /** The line with the Open / Closed / All switch changed ("all": no `is:open` or `is:closed`); everything else in the line stays as typed. */
 export function withMode(line, mode, rows, ctx, extra) {
