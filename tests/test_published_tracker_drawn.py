@@ -28,6 +28,14 @@ class Drawn(Published):
                 for word in ("Progress", "Build", "Roll-out", "Set up the environment", "Matching rules", "Training", "A week behind plan."):
                     self.assertIn(word, text, f"{word} is in the published tracker")
                 self.assertLessEqual(cdp.js("document.documentElement.scrollWidth", sid), width, "the page does not scroll sideways")
+                overlap = cdp.js("""(() => { const bad = []; for (const t of document.querySelectorAll('table.tracker')) { const heads = [...t.querySelectorAll('thead th')].map(h => h.textContent.trim().toLowerCase()); const pi = heads.indexOf('planned'), ai = heads.indexOf('achieved'); if (pi < 0 || ai < 0) continue;
+                  for (const tr of t.querySelectorAll('tbody tr')) { const cells = tr.cells; if (cells.length <= Math.max(pi, ai)) continue; const pc = cells[pi], ac = cells[ai]; const pr = pc.getBoundingClientRect(), ar = ac.getBoundingClientRect();
+                    const parts = [...ac.querySelectorAll('.tr-pbar, b, .tr-behind')].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0);
+                    if (!parts.length) continue;
+                    const content = { left: Math.min(...parts.map((r) => r.left)), right: Math.max(...parts.map((r) => r.right)), top: Math.min(...parts.map((r) => r.top)), bottom: Math.max(...parts.map((r) => r.bottom)) }, planned = { width: 1 };
+                    if (content.left < ar.left - 1 || content.right > ar.right + 1 || content.left < pr.right - 1 && planned.width > 0 && content.top < pr.bottom && content.bottom > pr.top) bad.push([tr.textContent.slice(0, 30), Math.round(content.left), Math.round(content.right), Math.round(ar.left), Math.round(ar.right), Math.round(pr.right), innerWidth, document.documentElement.dataset.theme || '']); } }
+                  return bad; })()""", sid)
+                self.assertEqual(overlap, [], "the Achieved cell's bar and chip stay inside the Achieved cell and clear of the Planned figure")
                 self.assertEqual(cdp.js("[...document.querySelectorAll('table.tracker thead th')].filter(h => h.scrollWidth > h.clientWidth + 1).length", sid), 0, "no table heading is cut or run into the next")
                 self.assertEqual(cdp.js("[...document.querySelectorAll('table.tracker tbody td.t-date')].filter(c => c.getClientRects()[0] && Math.round(c.getBoundingClientRect().height) > 60).length", sid), 0, "a date stays on one line")
 
