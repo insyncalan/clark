@@ -253,6 +253,10 @@ COVERED = [
      "test_palette::Results::test_search_finds_the_data_by_words_id_and_person"),
     ("#915", 'History names an Excel import once.',
      "test_history_rows::Rows::test_excel_import_is_named_once_for_what_the_import_stores"),
+    ("#783", "Add a section shows the templates as a grid of cards with a picture and width labels, and an X closes it.",
+     "test_templates::Box::test_the_templates_are_a_grid_of_cards_with_a_sketch_and_width_chips_and_an_x_closes_it"),
+    ("#783", "The chosen template's card shows the focus ring in light and dark.",
+     "test_templates::Box::test_the_focus_ring_is_the_brand_blue_in_light_and_dark_and_the_scrim_is_a_token"),
     ("#902", 'The Appearance choice is a radio group with arrow keys.',
      "test_appearance::Appearance::test_C_appearance_arrow_keys_move_and_pick_row_902"),
     ("#903", 'Help Start here has a hero card and The loop above the jobs.',
@@ -288,7 +292,7 @@ COVERED = [
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
-NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874", "889", "895", "905", "907", "914", "917", "918", "920"}
+NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874", "889", "895", "905", "907", "914", "917", "918", "920", "932"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
 PARTLY_MERGED = {"767", "766", "775", "776"}
