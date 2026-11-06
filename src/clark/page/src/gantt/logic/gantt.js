@@ -1,4 +1,4 @@
-// The project Gantt chart's rules (#926): pure functions and words, no DOM, no store, no clock (the caller passes today). Nothing is sent
+// The project Gantt chart's rules (row 926): pure functions and words, no DOM, no store, no clock (the caller passes today). Nothing is sent
 // or saved here. A line is
 //   { id, name, type: "phase" | "task" | "milestone", parent, start, end, pct, depends: [id], show }
 // with dates stored YYYY-MM-DD and shown DD-MM-YYYY. The `id` is the stored, steady id (GNT-001); the outline number (phases 1, 2, 3, tasks
