@@ -1939,10 +1939,13 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt .i { width: 16px; height: 16px; flex: none; }
 .gt button { font: inherit; color: inherit; cursor: pointer; }
 .gt-none { margin: 0; padding: var(--space-4); color: var(--text-muted); font-size: var(--size-small); }
+.gt { --gt-task: color-mix(in srgb, var(--brand-blue-strong) 60%, var(--text)); }   /* row 926: darker than the brand blue so white text keeps 4.5:1 on the lighter done part (30% white) */
 .gt-bar { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-2); }
 .gt-sp { flex: 1; }
 .gt-sep { width: 1px; height: 20px; background: var(--border); }
-.gt-grp { display: inline-flex; gap: 2px; }
+.gt-grp { display: inline-flex; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.gt-grp .gt-ib { border-radius: 0; border: 0; border-right: 1px solid var(--border); width: 36px; }
+.gt-grp .gt-ib:last-child { border-right: 0; }
 .gt-ib { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; border: 1px solid transparent; }
 .gt-ib:hover:not(:disabled) { background: var(--grey-100); color: var(--text); }
 .gt-ib[aria-pressed="true"] { background: var(--pill-bg); color: var(--pill-fg); }
@@ -1971,13 +1974,13 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-eye:hover { background: var(--grey-100); }
 .gt-rhead { position: sticky; top: 0; z-index: 4; height: var(--gt-hh); background: var(--surface); border-bottom: 1px solid var(--border); }
 .gt-hc { position: absolute; padding: 0 6px; border-left: 1px solid var(--border); color: var(--text-muted); white-space: nowrap; overflow: hidden; }
-.gt-hc.gt-u { top: 28px; height: 18px; line-height: 18px; font-weight: var(--weight-medium); color: var(--text); }
-.gt-hc.gt-l { top: 48px; height: 18px; line-height: 18px; }
+.gt-hc.gt-u { top: 32px; height: 18px; line-height: 18px; font-weight: var(--weight-medium); color: var(--text); }
+.gt-hc.gt-l { top: 50px; height: 18px; line-height: 18px; }
 .gt-hc.gt-l:not(.gt-edge) { border-left-color: transparent; }
-.gt-tflag { all: unset; box-sizing: border-box; position: absolute; top: 2px; transform: translateX(-50%); z-index: 3; padding: 2px 10px; border-radius: var(--radius-sm); background: var(--status-red-tint); color: var(--status-red-text); border: 1px solid var(--status-red); font-weight: var(--weight-medium); line-height: 18px; cursor: pointer; white-space: nowrap; }
+.gt-tflag { all: unset; box-sizing: border-box; position: absolute; top: 2px; transform: translateX(-50%); z-index: 3; padding: 2px 10px; border-radius: var(--radius-sm); background: var(--status-red-tint); color: var(--status-red-text); border: 1px solid var(--status-red); font-weight: var(--weight-medium); line-height: 14px; cursor: pointer; white-space: nowrap; }
 .gt-tflag::after { content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -6px; border: 6px solid transparent; border-top-color: var(--status-red); border-bottom: 0; }
 .gt-tstem { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--status-red); opacity: .6; z-index: 2; pointer-events: none; }
-.gt-tstem-h { top: 24px; }
+.gt-tstem-h { top: 24px; bottom: auto; height: 8px; }   /* only joins the flag to the date rows: it never runs through a month label */
 .gt-left { position: sticky; left: 0; z-index: 5; background: var(--surface); border-right: 1px solid var(--border); }
 .gt-ln { position: relative; height: var(--gt-rh); display: flex; align-items: center; gap: 4px; padding: 0 6px; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: clip; }
 .gt-ln.gt-phase { font-weight: var(--weight-semibold); background: var(--grey-50); }
@@ -1998,12 +2001,13 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-dep { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
 .gt-dep path { fill: none; stroke: var(--text-muted); stroke-width: 1.4; }
 .gt-dep polygon { fill: var(--text-muted); }
-.gt-dep .gt-bad path { stroke: var(--status-amber-text); stroke-width: 1.8; stroke-dasharray: 4 3; }
+.gt-dep .gt-bad path { stroke: var(--status-amber-text); stroke-width: 1.4; stroke-dasharray: 4 3; }
 .gt-dep .gt-bad polygon { fill: var(--status-amber-text); }
-.gt-b { all: unset; box-sizing: border-box; position: absolute; height: 20px; line-height: 20px; border-radius: var(--radius-sm); background: var(--brand-blue); color: var(--text-on-brand); padding: 0 8px; white-space: nowrap; overflow: hidden; cursor: pointer; user-select: none; touch-action: none; z-index: 1; }
-.gt-b > i { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--white) 15%, transparent); pointer-events: none; }
+.gt-b { all: unset; box-sizing: border-box; position: absolute; height: 20px; line-height: 20px; border-radius: var(--radius-sm); background: var(--gt-task); color: var(--text-on-brand); padding: 0 8px; white-space: nowrap; overflow: hidden; cursor: pointer; user-select: none; touch-action: none; z-index: 1; }
+.gt-b > i { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--white) 30%, transparent); pointer-events: none; }
 .gt-bt { position: relative; }
-.gt-b-phase { background: var(--grey-700); border-radius: 2px; }
+.gt-b-phase { height: 12px; background: var(--brand-navy); border: 1px solid var(--grey-500); border-radius: 2px; }
+.gt-phlab { font-weight: var(--weight-semibold); }
 .gt-b.edit { cursor: grab; }
 .gt-b.drag { cursor: grabbing; box-shadow: var(--shadow); z-index: 5; }
 .gt-rzb { position: absolute; right: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; background: color-mix(in srgb, var(--white) 35%, transparent); }
@@ -2011,6 +2015,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-ms { all: unset; box-sizing: border-box; position: absolute; z-index: 1; width: 14px; height: 14px; margin-left: -7px; transform: rotate(45deg); background: var(--status-amber); border: 2px solid var(--status-amber-text); cursor: pointer; }
 .gt-ms.done { background: var(--status-green); border-color: var(--status-green-text); }
 .gt-mslab { position: absolute; line-height: 20px; white-space: nowrap; color: var(--text); }
+.gt-flip { padding: 0 3px; margin-right: -3px; background: var(--surface); }
+.gt-phlab.gt-flip { background: var(--grey-50); }
 .gt-clash { position: absolute; line-height: 20px; color: var(--status-amber-text); font-weight: var(--weight-semibold); }
 .gt-grip { height: 14px; margin-top: -1px; display: flex; align-items: center; justify-content: center; cursor: ns-resize; touch-action: none; position: relative; user-select: none; }
 .gt-grip > i { width: 46px; height: 4px; border-radius: 2px; background: var(--grey-300); }
@@ -2019,8 +2025,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-gl2 { position: absolute; right: 8px; top: -2px; padding: 1px 8px; border-radius: var(--radius-pill); background: var(--brand-navy); color: var(--white); }
 .gt-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 6px; color: var(--text-muted); }
 .gt-sw { display: inline-block; width: 14px; height: 10px; margin-right: 5px; border-radius: 2px; vertical-align: middle; }
-.gt-sw-p { background: var(--grey-700); }
-.gt-sw-t { background: var(--brand-blue); }
+.gt-sw-p { background: var(--brand-navy); border: 1px solid var(--grey-500); box-sizing: border-box; }
+.gt-sw-t { background: var(--gt-task); }
 .gt-sw-m, .gt-sw-d { width: 10px; transform: rotate(45deg); }
 .gt-sw-m { background: var(--status-amber); border: 1px solid var(--status-amber-text); }
 .gt-sw-d { background: var(--status-green); border: 1px solid var(--status-green-text); }

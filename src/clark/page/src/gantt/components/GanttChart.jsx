@@ -63,11 +63,15 @@ export function GanttChart({
   const [showOpen, setShowOpen] = useState(false);
   const [msg, setMsg] = useState("");
   const [width, setWidth] = useState(900);
-  const [cw, setCw] = useState({ name: 150, start: 92, end: 92, pct: 52 });
+  const [cw0, setCw] = useState({ name: 150, start: 92, end: 92, pct: 52 });
   const gx = useRef(null);
   const dragged = useRef(false);
   const dragNow = useRef(null);
 
+  // On a narrow page the left columns give up some width so the chart keeps room for its month labels (a person's own widths still win when smaller).
+  const narrow = width < 1000;
+  const cwN = narrow ? { name: Math.min(cw0.name, 120), start: Math.min(cw0.start, 88), end: Math.min(cw0.end, 88), pct: Math.min(cw0.pct, 44) } : cw0;
+  const cw = edit ? { ...cwN, pct: Math.max(cwN.pct, 64) } : cwN;      // in Edit the Done heading carries an eye, which needs the room
   const filter = onFilter ? filterProp : ownFilter;
   const setFilter = (f) => { setShowOpen(false); if (onFilter) onFilter(f); else setOwnFilter(f); };
   const cols = ["start", "end", "pct"].filter((k) => edit || !hiddenCols.includes(k));
@@ -232,12 +236,30 @@ export function GanttChart({
 
   // ── the header ──
   const head = headerCells(scale, range, ppd);
-  const upperW = (c) => X(c.to) - X(c.iso);
+  // A label is shown only where it fits: one that would run into the next is left out, so no month is ever clipped.
+  const thin = (cells, wide) => {
+    let edge = -1;
+    return cells.map((c) => {
+      const x = X(c.iso), show = x >= edge;
+      if (show) edge = x + c.label.length * 7 + 16;
+      return { c, show, wide };
+    });
+  };
+  const upperShown = thin(head.upper, true);
+  const lowerShown = thin(head.lower, false);
 
   const picked = sel && rows.some((l) => l.id === sel) ? live.find((l) => l.id === sel) : null;
   const detail = picked ? detailOf(picked, live, now) : null;
 
-  const labelOut = (l, w) => (l.name.length * 7.6 + 18 > w);
+  const labelOut = (l, w) => l.type === "phase" || (l.name.length * 7.6 + 18 > w);
+  // A name beside a bar or a milestone goes on the right; where it would run off the right edge of the chart it goes on the left instead.
+  const textW = (t) => Math.ceil(t.length * 8 + 6);
+  const beside = (x1, x2, text, top, cls, gap) => (x2 + 6 + textW(text) > W
+    ? <span class={`${cls} gt-flip`} style={{ right: `${W - x1 + gap}px`, top: `${top}px`, textAlign: "right" }}>{text}</span>
+    : <span class={cls} style={{ left: `${x2 + 6}px`, top: `${top}px` }}>{text}</span>);
+  const ms2 = (x1, text, top) => (x1 + 22 + textW(text) > W
+    ? <span class="gt-mslab gt-flip" style={{ right: `${W - x1 + 6}px`, top: `${top}px`, textAlign: "right" }}>{text}</span>
+    : <span class="gt-mslab" style={{ left: `${x1 + 22}px`, top: `${top}px` }}>{text}</span>);
   const filters = filtersFor(edit);
   const height = cut ? HH + nShown * RH + 2 : undefined;
 
@@ -288,8 +310,14 @@ export function GanttChart({
           </div>
 
           <div class="gt-rhead" style={{ width: `${W}px` }} data-g-rhead>
-            {head.upper.map((c) => <div class="gt-hc gt-u" key={`u${c.iso}`} style={{ left: `${X(c.iso)}px`, width: `${upperW(c)}px` }}>{c.label}</div>)}
-            {head.lower.map((c) => <div class={`gt-hc gt-l${c.edge ? " gt-edge" : ""}`} key={`l${c.iso}`} style={{ left: `${X(c.iso)}px` }}>{c.label}</div>)}
+            {upperShown.map(({ c, show }, i) => {
+              let j = i + 1;
+              while (j < upperShown.length && !upperShown[j].show) j += 1;
+              const to = j < upperShown.length ? X(upperShown[j].c.iso) : X(c.to);
+              const room = j < upperShown.length ? to - X(c.iso) : Math.max(to - X(c.iso), c.label.length * 7 + 16);   // the last label may run on past the end of the plan
+              return <div class="gt-hc gt-u" key={`u${c.iso}`} style={{ left: `${X(c.iso)}px`, width: `${room}px` }}>{show ? c.label : ""}</div>;
+            })}
+            {lowerShown.map(({ c, show }) => <div class={`gt-hc gt-l${c.edge ? " gt-edge" : ""}`} key={`l${c.iso}`} style={{ left: `${X(c.iso)}px` }}>{show ? c.label : ""}</div>)}
             <button type="button" class="gt-tflag" style={{ left: `${X(now)}px` }} onClick={goToday} title={WORDS.scrollToday} data-g-today>{WORDS.today}</button>
             <div class="gt-tstem gt-tstem-h" style={{ left: `${X(now)}px` }} />
           </div>
@@ -343,7 +371,7 @@ export function GanttChart({
                     <button type="button" class={`gt-ms${l.pct >= 100 ? " done" : ""}${sel === l.id ? " sel" : ""}${edit ? " edit" : ""}`} style={{ left: `${q.x1 + 8}px`, top: `${top + 9}px` }}
                       aria-label={label} data-g-bar={l.id} data-g-type="milestone" onPointerDown={barDown(l)} onClick={() => { if (!dragged.current) setSel(l.id); }}
                       onDblClick={(e) => { if (edit) openBox(l.id, e.currentTarget); }} />
-                    <span class="gt-mslab" style={{ left: `${q.x1 + 22}px`, top: `${top + 6}px` }}>{l.name} · {formatDate(l.start)}</span>
+                    {ms2(q.x1, `${l.name} · ${formatDate(l.start)}`, top + 6)}
                     {flag}
                   </div>
                 );
@@ -353,7 +381,7 @@ export function GanttChart({
               return (
                 <div key={l.id}>
                   <div role="button" tabindex="0" class={`gt-b gt-b-${l.type}${edit ? " edit" : ""}${sel === l.id ? " sel" : ""}${drag && drag.id === l.id ? " drag" : ""}`}
-                    style={{ left: `${q.x1}px`, width: `${w}px`, top: `${top + 6}px` }} aria-label={label} data-g-bar={l.id} data-g-type={l.type}
+                    style={{ left: `${q.x1}px`, width: `${w}px`, top: `${l.type === "phase" ? top + 10 : top + 6}px` }} aria-label={label} data-g-bar={l.id} data-g-type={l.type}
                     onPointerDown={barDown(l)} onClick={() => { if (!dragged.current) setSel(l.id); }}
                     onDblClick={(e) => { if (edit) openBox(l.id, e.currentTarget); }}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (edit && sel === l.id) openBox(l.id, e.currentTarget); else setSel(l.id); } }}>
@@ -361,7 +389,7 @@ export function GanttChart({
                     {out ? null : <span class="gt-bt">{l.name}</span>}
                     {edit && l.type === "task" ? <b class="gt-rzb" data-rz="1" /> : null}
                   </div>
-                  {out ? <span class="gt-mslab" style={{ left: `${q.x2 + 6}px`, top: `${top + 6}px` }}>{l.name}</span> : null}
+                  {out ? beside(q.x1, q.x2, l.name, top + 6, l.type === "phase" ? "gt-mslab gt-phlab" : "gt-mslab", bad[l.id] ? 24 : 6) : null}
                   {flag}
                 </div>
               );

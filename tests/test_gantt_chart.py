@@ -29,6 +29,8 @@ def lit(x):
 
 def rgb(text):
     nums = [float(n) for n in re.findall(r"[\d.]+", text)[:3]]
+    if text.startswith("color(srgb"):      # a mixed colour comes back as fractions of 1 (color-mix)
+        nums = [n * 255 for n in nums]
     return nums
 
 
@@ -147,13 +149,14 @@ class Chart(unittest.TestCase):
         self.assertEqual(self.val("getComputedStyle(document.querySelector('.gt-gx')).scrollbarWidth"), "none", "no scrollbars")
         # text on a task bar, on its lighter done part, on a phase bar, and on the Today flag
         c = self.val("(function(){ var s = function(sel, p){ return getComputedStyle(document.querySelector(sel))[p]; };"
-                     "return {tb: s('.gt-b-task', 'backgroundColor'), tf: s('.gt-b-task', 'color'), pb: s('.gt-b-phase', 'backgroundColor'), pf: s('.gt-b-phase', 'color'),"
+                     "return {tb: s('.gt-b-task', 'backgroundColor'), tf: s('.gt-b-task', 'color'), pb: s('.gt-b-phase', 'backgroundColor'), pe: s('.gt-b-phase', 'borderTopColor'), pf: s('.gt-phlab', 'color'), pr: s('.gt-rw.gt-phase', 'backgroundColor'),"
                      "fb: s('.gt-tflag', 'backgroundColor'), ff: s('.gt-tflag', 'color'), white: s('.gt-b-task', 'color')}; })()") if self.count(".gt-b-task") else None
         if c:
             white = [255, 255, 255]
             self.assertGreaterEqual(contrast(rgb(c["tf"]), rgb(c["tb"])), 4.5, "task bar text")
-            self.assertGreaterEqual(contrast(rgb(c["tf"]), over(white, rgb(c["tb"]), 0.15)), 4.5, "task bar text on the lighter done part")
-            self.assertGreaterEqual(contrast(rgb(c["pf"]), rgb(c["pb"])), 4.5, "phase bar text")
+            self.assertGreaterEqual(contrast(rgb(c["tf"]), over(white, rgb(c["tb"]), 0.3)), 4.5, "task bar text on the lighter done part")
+            self.assertGreaterEqual(contrast(rgb(c["pf"]), rgb(c["pr"])), 4.5, "phase name beside its bar, on the phase row")   # the name sits beside a thin bar since the polish
+            self.assertGreaterEqual(max(contrast(rgb(c["pe"]), rgb(c["pr"])), contrast(rgb(c["pb"]), rgb(c["pr"]))), 3, "the phase bar (its fill or its edge) against its row")
             self.assertGreaterEqual(contrast(rgb(c["ff"]), rgb(c["fb"])), 4.5, "Today flag text")
         flag, upper = self.val("[document.querySelector('.gt-tflag').getBoundingClientRect().bottom, document.querySelector('.gt-hc.gt-u').getBoundingClientRect().top]")
         self.assertLessEqual(flag, upper + 1, "the Today flag sits above the dates")
