@@ -1855,7 +1855,7 @@ def _checked_gantt(given, columns):
         elif k in ("effort", "budget"):
             if v is None or (isinstance(v, str) and not v.strip()):
                 out[k] = None
-            elif isinstance(v, bool) or not isinstance(v, (int, float)):
+            elif isinstance(v, bool) or not isinstance(v, (int, float)) or v != v or not 0 <= v <= clark_store.gantt_number_limit(k):
                 raise Refused(clark_store.GANTT_BAD_NUMBER)
             else:
                 out[k] = v

@@ -44,7 +44,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from clark import doclinks, milestones, page, platform, section_bodies
-from clark.store import (COMMITMENTS, GANTT_COLUMNS, GANTT_DEFAULT_HIDDEN, GANTT_DEFAULT_TAB, GANTT_ID, GANTT_TAB_LIMIT, GANTT_TEXT_LIMITS, Invalid as StoreInvalid,
+from clark.store import (COMMITMENTS, GANTT_COLUMNS, GANTT_HIDEABLE, GANTT_DEFAULT_HIDDEN, GANTT_DEFAULT_TAB, GANTT_ID, GANTT_TAB_LIMIT, GANTT_TEXT_LIMITS, Invalid as StoreInvalid,
                          NumberTaken, check_section_body, excluded_label_names, gantt_list, open_store)
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
 
@@ -384,7 +384,7 @@ def _gantt_hidden(project):
     raw = project.get("gantt_hidden_columns")
     if not isinstance(raw, str):
         return set(GANTT_DEFAULT_HIDDEN)
-    return {n for n in gantt_list(raw) if n in GANTT_COLUMNS}
+    return {n for n in gantt_list(raw) if n in GANTT_HIDEABLE}      # a stored list that names start, end, pct or type (written before they were un-hideable) hides nothing of them
 
 
 def _gantt_line(row, code):
