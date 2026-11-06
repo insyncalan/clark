@@ -3,7 +3,7 @@
 // two or more are picked). The rules are in ../logic/selection.js and the state in ../stores/selection.js.
 // The table (WorkItems.jsx) and the board (edit/Board.jsx) both call these, so a row and a card behave the same.
 import { effect } from "@preact/signals";
-import { item, view, project, openPeek, closePeek, fromFile } from "../stores/report.js";
+import { item, view, project, openPeek, closePeek, peekClosing, fromFile } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
 
 const ITEMS = "#work-list tr[data-id], #work-list article.bcard[data-id]";
@@ -89,10 +89,15 @@ export function installSelectionRules() {
     if (e.key !== "Escape" || e.defaultPrevented || sel.size.value === 0 || view.value !== "work") return;
     const t = e.target;
     if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-    if (item.value || !document.querySelector("#work-list") || document.querySelector(OVERLAY)) return;
+    // With two or more picked, or while the peek's close is on its way, the peek element does not count as an open layer: it is
+    // still in the page until the Back lands, and it must not hold Esc back (row 909).
+    const peekGoes = sel.size.value >= 2 || peekClosing();
+    const layer = peekGoes ? [...document.querySelectorAll(OVERLAY)].some((n) => !n.hasAttribute("data-peek")) : !!document.querySelector(OVERLAY);
+    if ((item.value && !peekGoes) || !document.querySelector("#work-list") || layer) return;
     e.preventDefault();
     e.stopPropagation();
     sel.clear();
+    if (item.value) closePeek();                       // two or more picked never keep a peek: one that is still closing goes with the selection (row 891)
   }, true);
   // A click outside the Work items page (and outside anything open over it, and the toast) ends it.
   document.addEventListener("click", (e) => {

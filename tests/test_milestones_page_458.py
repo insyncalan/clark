@@ -279,9 +279,7 @@ class Page(Base):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     p = self.visit(cdp, width, theme)
                     p.until("!!document.querySelector('#ms-summary')", "the head drew")
-                    self.assertEqual(p.js("!!document.querySelector('#addMs')"), False, "View has no Add milestone")
-                    p.js("document.querySelector('[data-mode=edit]').click()")
-                    p.until("!!document.querySelector('#addMs')", "Edit draws the button")
+                    p.until("!!document.querySelector('#addMs')", "View draws the button (row 823: no mode on this page)")
                     seen = p.js(SEE)
                     self.assertEqual(seen["crumbs"], "Example Programme")
                     self.assertEqual(seen["title"], "Milestones")
@@ -296,17 +294,17 @@ class Page(Base):
                     self.assertGreaterEqual(min(seen["add"]["w"], seen["add"]["h"]), 24)
                     self.assertTrue(seen["noScroll"], "no page-wide scroll")
 
-    def test_view_has_no_add_milestone_and_sends_no_request_and_going_back_to_view_takes_it_away(self):
+    def test_view_has_add_milestone_and_sends_no_request_until_it_is_used(self):
         before = {r["id"] for r in self.store.read("milestones")}
         with chrome() as cdp:
             p = self.visit(cdp)
             p.until("!!document.querySelector('#ms-summary')", "the head drew")
-            self.assertEqual(p.js("!!document.querySelector('#addMs')"), False, "View has no Add milestone")
-            self.assertEqual(self.sent, [], "View sends no request")
+            p.until("!!document.querySelector('#addMs')", "View has Add milestone")
+            self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true", "this is View")
+            self.assertEqual(self.sent, [], "nothing is sent until it is used")
             p.js("document.querySelector('[data-mode=edit]').click()")
-            p.until("!!document.querySelector('#addMs')", "Edit draws the button")
             p.js("document.querySelector('[data-mode=view]').click()")
-            p.until("!document.querySelector('#addMs')", "View takes it away again")
+            p.until("!!document.querySelector('#addMs')", "and still there after Edit and back")
             self.assertEqual(self.sent, [], "still no request")
         self.assertEqual({r["id"] for r in self.store.read("milestones")}, before)
 

@@ -1,13 +1,13 @@
 // The profile circle and its menu (#77, #147), Edit parts only: what the page can do. Publish opens the dialog (#43). Preview opens
 // the page as it would be published in a new tab, and Export downloads the project's workbook; both ask the server (publishApi.js)
-// and neither publishes or saves a file. Export to Word and Import from Word (#48) open their own boxes (Word.jsx); Import is in Edit only. Settings is a tab, Help is the Help page. The tooltip lists the entries that carry a short
+// and neither publishes or saves a file. Export to Word and Import from Word (#48) open their own boxes (Word.jsx); Import has no mode (row 826). Settings is a tab, Help is the Help page. The tooltip lists the entries that carry a short
 // word (`tip`), so it follows the entries; Help has none, as its "?" key is its own way in. The accessible name is just "Your menu".
 // Appearance (Light, Dark, System) is in the menu (#179); the top line is the name and email from Settings › Personal (#180).
 import { useEffect } from "preact/hooks";
 import { Menu } from "../components/Menu.jsx";
 import { data, tabs, show, project, mode, view, status } from "../stores/report.js";
 import { openInNewTab } from "../router.js";
-import { openHelp } from "../help/helpStore.js";
+import { openHelp, openContext } from "../help/helpStore.js";
 import { openPublish, lastLine } from "./Publish.jsx";
 import { BarToast } from "./BarToast.jsx";
 import { latest } from "./publishState.js";
@@ -80,7 +80,7 @@ export function ProfileMenu() {
   if (!open && status.value !== "none") return null;      // while the report loads (or failed) there is still no circle, as before
   const items = open ? [{ id: "publish", name: "Publish…", tip: "Publish" }, { id: "preview", name: "Preview the page in a new tab", tip: "Preview" },
     { id: "export", name: "Export to Excel", tip: "Export" }, { id: "word-export", name: "Export to Word" }] : [];
-  if (open && mode.value === "edit") items.push({ id: "word-import", name: "Import from Word" });       // Edit only: it adds items
+  if (open) items.push({ id: "word-import", name: "Import from Word" });       // row 826: in View too, no Edit mode needed (the box shows what it read before it adds anything)
   if (open && tabs.value.includes("settings")) items.push({ id: "published", name: "Published reports" });
   if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings", tip: "Settings" });      // #443: Published reports opens Settings at its card, so it comes with Settings; after Export, as in the prototype; no short word, so the tooltip is as it was
   items.push({ id: "help", name: "Help" });
@@ -110,7 +110,7 @@ export function ProfileMenu() {
     else if (id === "who") { wantName.value = true; show("settings"); }
     else if (id.startsWith("look-")) setAppearance(id.slice(5));
     else if (id === "settings") show("settings");
-    else if (id === "help") openHelp();
+    else if (id === "help") { const b = document.getElementById("profile-btn"); if (b) b.focus(); if (!openContext()) openHelp(); }       // row 896: the same peek as the ? key, with the open page's articles; the full Help is its foot link
   };
   return (
     <>

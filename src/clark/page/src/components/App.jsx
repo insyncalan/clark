@@ -29,6 +29,12 @@ function PrintStack({ tools }) {
   );
 }
 
+function skipToMain(e) {
+  e.preventDefault();
+  const m = document.getElementById("main");
+  if (m) m.focus();
+}
+
 export function App({ tools: given }) {
   // item 349: the Dashboard as at a day is read only: the page draws it as a published file is drawn, with no Edit part at all (no
   // Edit, Publish, menu, peek tools, Help, palette or ask panel), behind its banner; Back to now gives them back.
@@ -53,9 +59,10 @@ export function App({ tools: given }) {
   const MsLayers = tools && tools.MsLayers;              // the milestone picker and an archived milestone's peek (Edit only)
   return (
     <>
+      <a class="skip" href="#main" onClick={skipToMain}>Skip to content</a>      {/* row 862: the first Tab stop; Enter puts focus in <main> and leaves the address (the router's hash) alone */}
       <TopBar tools={tools} />
       {DemoBanner ? <DemoBanner /> : null}
-      <main id="main" aria-busy={status.value === "loading" && !isFile() ? "true" : undefined}>{stacked ? <PrintStack tools={tools} /> : Layer ? <Layer>{body}</Layer> : body}</main>
+      <main id="main" tabIndex={-1} aria-busy={status.value === "loading" && !isFile() ? "true" : undefined}>{stacked ? <PrintStack tools={tools} /> : Layer ? <Layer>{body}</Layer> : body}</main>
       {publication.value ? <footer class="pubfoot num" id="publication-footer">{asAt.value ? `Published ${plainDate(asAt.value)}. ` : ""}Publication {publication.value}.</footer> : null}
       {Ask ? <Ask /> : null}
       {HPeek && status.value === "ready" ? <HPeek /> : null}
