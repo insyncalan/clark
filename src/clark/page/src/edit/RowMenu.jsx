@@ -20,7 +20,7 @@ import { people, tableOf, canClearDue } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
 import { draftEntry, eyeChange, draftRequest, draftState, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
 import { openCard } from "./Board.jsx";
-import { isEditing } from "./editing.js";
+import { isEditing } from "../logic/editing.js";
 import { workSelection } from "../stores/selection.js";
 
 const ROW = "tr[data-id], article.bcard";
