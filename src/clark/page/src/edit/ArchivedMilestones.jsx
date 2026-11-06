@@ -6,9 +6,10 @@
 // The rows are read from GET /api/data?archived=only, into this block's own state and never into the page's data, so an archived
 // row cannot reach the Plan, the published file, the export or Ask. They are read again whenever the project's data is read again
 // (after a restore or an undo). If a read fails, the rows last read for this project stay; with none yet, the button is left out
-// rather than say 0. A project change clears the rows.
+// rather than say 0. With 0 archived milestones the button and the box are both left out (row 822); the first archived milestone
+// brings them back. A project change clears the rows.
 import { signal } from "@preact/signals";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { project, data, peek, closePeek } from "../stores/report.js";
 import { getArchivedMilestones } from "../api.js";
 import { plural, showDate } from "../logic/milestones.js";
@@ -31,8 +32,18 @@ export function ArchivedMilestones() {
   }, [code, d]);
   useEffect(() => () => { archivedOpen.value = null; }, []);       // leaving the page shuts the peek of an archived milestone
   const rows = got && got.code === code ? got.list : null;
+  const had = useRef(0);                                          // the count last drawn: the last one restored takes the button away (row 822)
+  useEffect(() => {
+    const n0 = rows ? rows.length : 0;
+    if (had.current > 0 && n0 === 0) {                            // focus would fall to the page body: put it on the page's heading
+      const h = document.querySelector("#milestones h1");
+      if (h) { h.setAttribute("tabindex", "-1"); h.focus(); }
+    }
+    had.current = n0;
+  });
   if (rows === null) return null;
   const n = rows.length, on = shown.value;
+  if (n === 0) return null;                                       // nothing archived: no button, no empty box (row 822)
   const look = (r, e) => {
     if (peek.value) closePeek();                                  // the page's own peek and this one never stand together
     archivedOpen.value = { code, row: r, opener: e.currentTarget };

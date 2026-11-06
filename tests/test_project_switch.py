@@ -29,7 +29,7 @@ class ProjectSwitch(Base):
             self.assertEqual(p.js("document.querySelector('#project-name').getAttribute('aria-haspopup')"), "menu")
             self.open_menu(p)
             self.assertEqual(len(p.js(ITEMS)), 1, "the one project")
-            self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return e.textContent})"), ["Project settings"])
+            self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return e.textContent})"), ["New project...", "Project settings"])
 
     def test_C_the_switcher_is_a_bordered_box_with_the_chevron_at_the_right(self):
         with chrome() as cdp:
@@ -59,12 +59,25 @@ class ProjectSwitch(Base):
                 self.assertEqual(p.js(ITEMS), ["Harbour Bridge Programme3 open items", "Second Programme1 open item"])
                 self.assertEqual(p.js("document.querySelector('#project-menu [aria-checked=true] b').textContent"), "Harbour Bridge Programme")
                 self.assertEqual(p.js("document.querySelector('#project-menu [aria-checked=true] small').textContent"), "3 open items")
-                self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return e.textContent})"), ["Project settings"])
+                self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return e.textContent})"), ["New project...", "Project settings"])
                 self.assertEqual(p.js("document.querySelectorAll('#project-menu [role=separator]').length"), 1)
-                self.assertNotIn("New project", p.js("document.querySelector('#project-menu').textContent"), "no item that leads nowhere")
+                self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return e.textContent})")[0], "New project...")
                 p.key("Escape", code="Escape", vk=27)
                 p.until("!document.querySelector('#project-menu')", "Esc closed it")
                 p.until("document.activeElement.id === 'project-name'", "focus is back on the name")
+
+    def test_C_the_menu_starts_on_the_open_project_and_has_New_project_that_opens_the_form(self):
+        """Row 856: focus is on the open project (Enter at once keeps it), and New project... opens the project form."""
+        self.rig.httpd.projects = lambda archived=False: [TWO[1], TWO[0]]
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_menu(p)
+            p.until("document.activeElement && document.activeElement.getAttribute('aria-checked') === 'true'", "focus is on the open project")
+            self.assertEqual(p.js("document.activeElement.querySelector('b').textContent"), "Harbour Bridge Programme")
+            self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role^=menuitem]'), function(e){return e.textContent.replace('✓','')}).slice(-2)"),
+                             ["New project...", "Project settings"])
+            p.js("document.querySelector('#project-menu [role=menuitem]').click()")          # New project... is the first plain item
+            p.until("!!document.querySelector('#project-form')", "the project form opened")
 
     def test_C_the_counts_are_read_again_each_time_the_menu_opens(self):
         """Work done since the page drew (an item closed or added) shows in the menu's counts without a reload."""
@@ -98,7 +111,7 @@ class ProjectSwitch(Base):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_menu(p)
-            p.js("document.querySelector('#project-menu [role=menuitem]').click()")
+            p.js("[].filter.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return /settings/i.test(e.textContent)})[0].click()")
             p.until("/^#settings/.test(location.hash)", "the address is Settings")
             self.assertIn("p=PUB", p.js("location.hash"), "still the same project")
 
