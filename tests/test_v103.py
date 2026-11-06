@@ -437,6 +437,8 @@ class Cut(unittest.TestCase):
 
     def test_the_data_layout_is_still_the_one_the_notes_say(self):
         self.cut_made()
+        if schema_version() > SCHEMA:
+            self.skipTest("the layout has moved on past %d (now %d, a later release's step, row 926): these are 1.0.3's notes" % (SCHEMA, schema_version()))
         self.assertEqual(schema_version(), SCHEMA, "the notes name layout 17")
 
     def test_a_waiting_row_whose_pull_request_has_landed_has_been_moved_to_covered(self):
