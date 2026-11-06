@@ -264,9 +264,8 @@ function List({ Board, Cell, Eye, Bulk, HandOver, L }) {
       {hand ? <HandOver.Bar rows={filtered} /> : null}
       {selecting() && !hand ? <SelectBar sel={sel} matching={matching} actions={Bulk ? <Bulk.Actions /> : null} /> : null}
       {Bulk ? <Bulk.Layer /> : null}
-      <div class="factive">
-        <span id="work-count" class="num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
-      </div>
+      {/* Row 805: the count is not drawn as a line; it stays for a screen reader and for the tests that read it. */}
+      <span id="work-count" class="sr num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
       {filtered.length === 0
         ? <div class="empty"><p class="muted">{v.empty.none}</p>{can ? <button type="button" class="link" id="clearFilter" onClick={clear}>{v.empty.clear}</button> : null}{v.empty.hint ? <p class="muted" id="empty-hint">{v.empty.hint}</p> : null}</div>
         : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} />}
@@ -290,7 +289,6 @@ export function WorkItems({ tools }) {
       <div class="head">
         <div>
           <h1>Work items</h1>
-          <p class="intro muted" id="work-intro">{tools ? "Select an item to open it beside the list. Items marked Shown to client appear on the published page." : "Select an item to open it beside the list."}</p>
         </div>
         {tools ? (
           <div class="hacts">
