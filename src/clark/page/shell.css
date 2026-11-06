@@ -1566,6 +1566,8 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     /* the peek slides in on opening and its body fades in as Previous or Next steps on */
     .peek:not(.leaving) { animation: m-slide var(--dur-state) var(--ease-enter) 1; }
     .pk-body { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
+    /* row 876: the page fades in and rises 8 px on a tab change only (App.jsx puts .view-in on <main> then) */
+    main.view-in { animation: m-view var(--dur-view) var(--ease-enter) 1; }
     /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
     .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
     .secs.drop-end { animation: m-line-end var(--dur-state) var(--ease-enter) 1; }
@@ -1597,6 +1599,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
   @keyframes m-rise { from { opacity: 0; transform: translateY(4px); } }
   @keyframes m-pulse { 50% { transform: scale(1.35); background: var(--brand-blue-tint); } }
   @keyframes m-settle { from { opacity: .35; } }
+  @keyframes m-view { from { opacity: 0; transform: translateY(8px); } }
   @keyframes m-glow { from { background-color: color-mix(in srgb, var(--status-amber) 40%, var(--status-amber-tint)); } }
 }
 
