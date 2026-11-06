@@ -139,7 +139,7 @@ class LaunchEndToEnd(unittest.TestCase):
         self.assertEqual(said[0], "Starting clark...")
         self.assertEqual(said[-1], "Opened clark in its own window.")
         self.assertEqual(len(self.processes), 1)
-        self.assertEqual(self.windows(), [f"--app=http://127.0.0.1:{self.port}/"])
+        self.assertEqual(self.windows(), [f"http://127.0.0.1:{self.port}/"])
 
     def test_second_run_on_the_same_data_folder_opens_one_more_window_and_starts_nothing(self):
         data = self.folder("data")

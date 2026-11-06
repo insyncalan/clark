@@ -782,28 +782,58 @@ class PlatformCalls(unittest.TestCase):
             with self.assertRaisesRegex(pl.PlatformError, r"^Nothing was started, because this Mac would not run clark\. Close this window and try again\. If it keeps happening, send the file .*server\.log to the clark team\.$"):
                 pl.start_detached(["a"], {}, Path(tmp) / "server.log", popen=popen, on=pl.MAC)
 
-    def test_the_app_window_is_chrome_with_app_equals_the_address(self):
+    def test_a_running_chrome_is_handed_the_address_as_a_tab_with_open_a(self):
         calls = []
-        pl.open_app_window("http://127.0.0.1:8766/", "/stub/browser", popen=lambda a, **kw: calls.append((a, kw)), on=pl.MAC)
+        done = type("Done", (), {"returncode": 0})()
+        chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        pl.open_chrome_tab("http://127.0.0.1:8766/", chrome, running=True, run=lambda a, **kw: calls.append(a) or done,
+                           popen=lambda *a, **k: self.fail("a running Chrome is not started again"), on=pl.MAC)
+        self.assertEqual(calls, [["open", "-a", "/Applications/Google Chrome.app", "http://127.0.0.1:8766/"]])
+
+    def test_a_chrome_that_is_not_running_is_started_with_the_address_and_no_app_flag(self):
+        calls = []
+        pl.open_chrome_tab("http://127.0.0.1:8766/", "/stub/browser", running=False, popen=lambda a, **kw: calls.append((a, kw)), on=pl.MAC)
         (argv, kw), = calls
-        self.assertEqual(argv, ["/stub/browser", "--app=http://127.0.0.1:8766/"])
+        self.assertEqual(argv, ["/stub/browser", "http://127.0.0.1:8766/"])
         self.assertTrue(kw["start_new_session"])
         self.assertIsNot(kw.get("shell"), True)
+
+    def test_a_stub_outside_an_app_folder_is_started_even_when_chrome_is_running(self):
+        calls = []
+        pl.open_chrome_tab("http://127.0.0.1:8766/", "/stub/browser", running=True, popen=lambda a, **kw: calls.append(a), on=pl.MAC)
+        self.assertEqual(calls, [["/stub/browser", "http://127.0.0.1:8766/"]])
+
+    def test_the_running_check_asks_for_the_exact_process_name(self):
+        seen = []
+        for code, want in ((0, True), (1, False)):
+            done = type("Done", (), {"returncode": code})()
+            self.assertIs(pl.chrome_running(run=lambda a, **kw: seen.append(a) or done, on=pl.MAC), want)
+        self.assertEqual(seen[0], ["pgrep", "-x", "Google Chrome"])
+
+        def missing(a, **kw):
+            raise FileNotFoundError(2, "no pgrep")
+        self.assertFalse(pl.chrome_running(run=missing, on=pl.MAC))
+
+    def test_open_a_that_fails_is_the_plain_chrome_line(self):
+        done = type("Done", (), {"returncode": 1})()
+        with self.assertRaisesRegex(pl.PlatformError, r"^Chrome could not be started, so clark's window did not open\.$"):
+            pl.open_chrome_tab("http://127.0.0.1:1/", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", running=True,
+                               run=lambda a, **kw: done, on=pl.MAC)
 
     def test_only_a_web_address_is_opened_and_a_failure_is_plain(self):
         for bad in ("file:///etc/passwd", "--user-data-dir=/x", "javascript:1", "http://a b"):
             with self.assertRaisesRegex(pl.PlatformError, "Only web addresses"):
-                pl.open_app_window(bad, "/stub", popen=lambda *a, **k: None, on=pl.MAC)
+                pl.open_chrome_tab(bad, "/stub", running=False, popen=lambda *a, **k: None, on=pl.MAC)
 
         def popen(argv, **kw):
             raise PermissionError(13, "Permission denied")
         with self.assertRaisesRegex(pl.PlatformError, r"^Chrome could not be started, so clark's window did not open\.$"):
-            pl.open_app_window("http://127.0.0.1:1/", "/stub", popen=popen, on=pl.MAC)
+            pl.open_chrome_tab("http://127.0.0.1:1/", "/stub", running=False, popen=popen, on=pl.MAC)
 
     def test_every_windows_branch_is_not_built_yet(self):
-        calls = (lambda: pl.launcher_name(on=pl.WINDOWS), lambda: pl.find_chrome({}, on=pl.WINDOWS),
+        calls = (lambda: pl.launcher_name(on=pl.WINDOWS), lambda: pl.find_chrome({}, on=pl.WINDOWS), lambda: pl.chrome_running(on=pl.WINDOWS),
                  lambda: pl.start_detached(["a"], {}, "x.log", popen=lambda *a, **k: None, on=pl.WINDOWS),
-                 lambda: pl.open_app_window("http://127.0.0.1:1/", "c", popen=lambda *a, **k: None, on=pl.WINDOWS))
+                 lambda: pl.open_chrome_tab("http://127.0.0.1:1/", "c", popen=lambda *a, **k: None, on=pl.WINDOWS))
         for call in calls:
             with self.assertRaisesRegex(pl.NotBuiltYet, "on Windows is not built yet"):
                 call()

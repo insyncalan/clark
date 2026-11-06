@@ -1,4 +1,4 @@
-"""python3 -m clark.launch: start clark if it isn't running, then open it in a Chrome app window (#71).
+"""python3 -m clark.launch: start clark if it isn't running, then open it in Chrome (#71, #836).
 
     python3 -m clark.launch [--data FOLDER] [--port N]      (clark.command in clark's folder runs this)
 
@@ -9,7 +9,7 @@ It asks what is on the port first, and never takes over what isn't its own:
 - clark with another data folder, or any other program (creaite also answers /health, without the mark): said in plain words,
   nothing started, nothing opened
 
-The window is Chrome's app window (--app=<address>); if Chrome isn't found, the default browser, and it says so. The logic is
+The page opens as a tab in the active Chrome window when Chrome is running, else Chrome is started with it; if Chrome isn't found, the default browser, and it says so. The logic is
 here and every system call is in platform.py, so a test runs it with fakes and a fake server. Copied from creaite v2.6.9
 system/scripts/launch.py (BL-86, BL-212), cut down: no make-launcher, login agent, restart or starting-file. Standard library
 only, Python 3.9.
@@ -156,7 +156,7 @@ def lock_refusal(folder):
 
 
 def launch(port, folder, say=print, environ=None, start=platform.start_detached, find_chrome=platform.find_chrome,
-           open_window=platform.open_app_window, open_browser=platform.open_url, health=ask_health, wait=wait_for_clark,
+           open_window=platform.open_chrome_tab, open_browser=platform.open_url, health=ask_health, wait=wait_for_clark,
            free=port_free, finish=finish_update):
     """Start clark if nothing answers on `port`, then open its window. An update that stopped part way is finished first
     (always back to the version that was there). The exit code: 0 opened, 1 not (the reason is said)."""
@@ -199,7 +199,7 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
 
 
 def open_clark(url, say, environ, find_chrome, open_window, open_browser):
-    """Open `url` in a Chrome app window; the default browser, with a line saying so, if Chrome isn't found."""
+    """Open `url` as a tab in Chrome (the active window if it is running, a new window if not); the default browser, with a line saying so, if Chrome isn't found."""
     chrome = find_chrome(environ)
     try:
         if chrome:

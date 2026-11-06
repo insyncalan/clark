@@ -662,14 +662,39 @@ def run_python_check(python, code, args=(), timeout=120, run=None):
     return done.returncode, (done.stderr or b"").decode("utf-8", "replace")
 
 
-def open_app_window(url, chrome, popen=None, on=None):
-    """Open `url` in a Chrome app window (no address bar or tabs). It is left running."""
-    _only_mac("Opening an app window", on)
+def chrome_running(run=None, on=None):
+    """True when Google Chrome is running now (its process is named exactly "Google Chrome")."""
+    _only_mac("Looking for a running Chrome", on)
+    try:
+        return _run(["pgrep", "-x", "Google Chrome"], run).returncode == 0
+    except OSError:
+        return False
+
+
+def _app_bundle(chrome):
+    """The .app folder a Chrome program is in (open -a takes it), or None when the program is not inside one (a stub)."""
+    parts = Path(str(chrome)).parts
+    for i, part in enumerate(parts):
+        if part.endswith(".app"):
+            return str(Path(*parts[:i + 1]))
+    return None
+
+
+def open_chrome_tab(url, chrome, running=None, popen=None, run=None, on=None):
+    """Open `url` in Chrome in a normal window. When Chrome is already running it opens as a new tab in its active window
+    (open -a hands the address to the running Chrome); when it is not, Chrome is started with the address. `running` is
+    chrome_running()'s answer, looked up when not given. A program that is not inside an .app (a stub) is started with the address."""
+    _only_mac("Opening a Chrome tab", on)
     url = str(url)
     if not re.match(r"https?://[^\s]+\Z", url):
         raise PlatformError(f"Only web addresses starting http:// or https:// can be opened. You gave {url}.")
+    bundle = _app_bundle(chrome)
+    if (chrome_running(run, on) if running is None else running) and bundle:
+        if _run(["open", "-a", bundle, url], run).returncode != 0:
+            raise PlatformError("Chrome could not be started, so clark's window did not open.")
+        return
     try:
-        (popen or subprocess.Popen)([str(chrome), "--app=" + url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        (popen or subprocess.Popen)([str(chrome), url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL, start_new_session=True)
     except OSError as e:
         raise PlatformError("Chrome could not be started, so clark's window did not open.") from e
