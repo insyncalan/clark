@@ -291,7 +291,7 @@ COVERED = [
 NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874", "889", "895", "905", "907", "914", "917", "918", "920"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
-PARTLY_MERGED = {"767", "766"}
+PARTLY_MERGED = {"767", "766", "775", "776"}
 
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has
 # landed; marker None means there is no pull request to look for yet).
@@ -468,9 +468,9 @@ class Notes(unittest.TestCase):
 
     def test_the_notes_carry_the_data_layout_paragraph_and_the_older_clark_sentence(self):
         self.assertIn("This version includes a change to how clark stores your data. Read this first.", self.text)
-        self.assertIn("from layout 16 to 17", self.text)
-        self.assertIn("Step 17:", self.text)
-        self.assertIn("clark makes a safety copy of your data before it changes anything", self.text)
+        self.assertIn("One change to how your data file is stored.", self.text)
+        self.assertIn("Each action, risk and issue can now carry a Needed from the client flag.", self.text)
+        self.assertIn("A safety copy of your data is made before anything changes.", self.text)
         self.assertIn("An older clark (1.0.2) will not open the new data file", self.text)
         self.assertIn("This data needs a newer clark. Nothing was changed. Install the latest clark, then try again.", self.text)
         self.assertIn("First restore the safety copy", self.text)
