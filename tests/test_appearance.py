@@ -42,7 +42,7 @@ class Appearance(Base):
                 "return !!document.querySelector('#profile-menu'); })()", "the menu opened")
 
     def in_settings(self, p):
-        return p.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].filter(i => i.getAttribute('aria-pressed') === 'true').map(i => i.dataset.themePick)")
+        return p.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].filter(i => i.getAttribute('aria-checked') === 'true').map(i => i.dataset.themePick)")
 
     def in_menu(self, p):
         return p.js("[...document.querySelectorAll('#profile-menu [role=menuitemradio]')].filter(i => i.getAttribute('aria-checked') === 'true').map(i => i.textContent.replace('✓', ''))")
@@ -77,10 +77,26 @@ class Appearance(Base):
                 self.open_settings(p)
                 self.assertEqual(p.js("document.querySelectorAll('#personal [data-appearance] input').length"), 0, "no radio buttons")
                 self.assertEqual(p.js("getComputedStyle(document.querySelector('#personal [data-appearance] .seg')).borderRadius"), "999px", "the page's .seg pill")
-                self.assertEqual(p.js("document.querySelector('#personal [data-appearance] .seg').getAttribute('role')"), "group")
+                self.assertEqual(p.js("document.querySelector('#personal [data-appearance] .seg').getAttribute('role')"), "radiogroup")
+                self.assertEqual(p.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].map(b => b.getAttribute('role')).join()"), "radio,radio,radio")
+                self.assertEqual(p.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].map(b => b.tabIndex).join()"), "0,-1,-1", "one tab stop: the chosen")
                 p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').click()")
                 self.assertEqual(self.in_settings(p), ["dark"], "one is pressed")
                 self.assertEqual(p.js("document.querySelector('#personal [data-appearance-line]').textContent"), "Always dark.", "the line follows the choice")
+
+    def test_C_appearance_arrow_keys_move_and_pick_row_902(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=system]').focus()")
+            for key, want in (("ArrowRight", "light"), ("ArrowRight", "dark"), ("ArrowRight", "system"), ("ArrowLeft", "dark")):
+                p.cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": key, "code": key, "windowsVirtualKeyCode": {"ArrowRight": 39, "ArrowLeft": 37}[key]}, p.sid)
+                p.cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": key, "code": key, "windowsVirtualKeyCode": {"ArrowRight": 39, "ArrowLeft": 37}[key]}, p.sid)
+                p.until(f"document.documentElement.dataset.theme === '{ {'light': '', 'dark': 'dark', 'system': 'auto'}[want] }' || ('{want}' === 'light' && !document.documentElement.dataset.theme)", f"{key} picked {want}")
+                self.assertEqual(self.in_settings(p), [want])
+                self.assertEqual(p.js("document.activeElement.dataset.themePick"), want, "focus follows")
+            self.open_menu(p)
+            self.assertEqual(self.in_menu(p), ["Dark"], "the menu agrees")
 
     def test_C_system_follows_the_computer_both_ways_with_no_reload_and_light_and_dark_do_not(self):
         with chrome() as cdp:
