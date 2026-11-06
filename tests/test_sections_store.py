@@ -386,18 +386,18 @@ class Move(Base):
 
 
 class Delete(Base):
-    def test_only_text_sections_are_deleted(self):
+    def test_every_type_of_section_is_deleted_and_the_records_it_showed_stay(self):      # row 906
+        tables = ("milestones", "actions", "raid", "decisions", "use_cases", "documents", "glance_tiles", "projects")
+        count = lambda: {t: self.s.con.execute(f"SELECT count(*) FROM {t}").fetchone()[0] for t in tables}
+        current = lambda: self.s.con.execute("SELECT current_state FROM projects WHERE code = 'ABC'").fetchone()[0]
+        before, state = count(), current()
         for row in self.sections():
             with self.subTest(section=row["title"]):
-                if row["type"] == "text":
-                    continue
-                with self.assertRaisesRegex(Invalid, "Only a text, needs or tracker section can be deleted; hide the others"):
-                    with self.s.step("dashboard", USER) as st:
-                        st.cancel("report_sections", row["id"])
-        self.assertEqual(len(self.sections()), 11)
-        with self.s.step("dashboard", USER) as st:
-            st.cancel("report_sections", "ABC-S-005")                    # Summary is text
-        self.assertEqual(len(self.sections()), 10)
+                with self.s.step("dashboard", USER) as st:
+                    st.cancel("report_sections", row["id"])
+        self.assertEqual(self.sections(), [])
+        self.assertEqual((count(), current()), (before, state), "no record, tile or current state went with a section")
+        self.assertEqual(len(self.sections()), 0)
 
     def test_a_work_item_is_still_never_deleted(self):
         a = self.demo.action()

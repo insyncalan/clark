@@ -382,6 +382,51 @@ class Browser(unittest.TestCase):
                 cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)))
 
+    def test_the_printed_stack_is_light_whatever_the_page_theme_and_the_computer_prefer(self):
+        # row 767: the PDF is light only. Every colour that is drawn in the stack is the same in the print of a dark computer as in a light one
+        # (the published file carries no data-theme, and the print block sets color-scheme: light), whole stack, not just the body.
+        probe = """(() => { const out = []; for (const el of document.querySelectorAll('#main, #main *')) { const cs = getComputedStyle(el);
+          if (!el.getBoundingClientRect().width) continue; out.push([el.tagName + '.' + el.className, cs.backgroundColor, cs.color, cs.borderTopColor].join('|')); }
+          return JSON.stringify(out); })()"""
+        for width in (1400, 900):
+            seen = {}
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = open_page(cdp, self.path.as_uri(), width, scheme)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
+                    cdp.call("Emulation.setEmulatedMedia", {"media": "print", "features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
+                    cdp.js("document.documentElement.dataset.theme = 'dark'" if scheme == "dark" else "0", sid)      # even a page that was given the dark theme prints light
+                    cdp.js("window.dispatchEvent(new Event('beforeprint'))", sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.print-tab')", sid)))
+                    time.sleep(0.6)
+                    self.assertEqual(cdp.js("getComputedStyle(document.body).backgroundColor", sid), "rgb(255, 255, 255)")
+                    seen[scheme] = json.loads(cdp.js(probe, sid))
+            self.assertTrue(seen["light"], "something was drawn")
+            self.assertEqual(seen["dark"], seen["light"], f"the dark print has the colours of the light print at {width}")
+
+    def test_the_print_leaves_off_the_empty_use_case_lines_and_their_headings(self):
+        # row 767: the print opens every use case, so the screen's closed cards showed 'No next steps are shared...' blocks on paper. The
+        # lines (and the heading above each) are left off the paper; no word is added or changed.
+        for width, scheme in VARIANTS:
+            with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                sid = open_page(cdp, self.path.as_uri(), width, scheme)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
+                self.printed(cdp, sid)
+                time.sleep(0.4)
+                got = json.loads(cdp.js("""JSON.stringify({ none: document.querySelectorAll('.print-tab .ucp-none').length,
+                  shown: [...document.querySelectorAll('.print-tab .ucp-none')].filter(e => e.getBoundingClientRect().height > 0).length,
+                  heads: [...document.querySelectorAll('.print-tab .ucp-body h2')].filter(h => h.nextElementSibling && h.nextElementSibling.matches('.ucp-none') && h.getBoundingClientRect().height > 0).length,
+                  kept: (() => { const b = document.querySelector('.print-tab .ucp-body'); if (!b) return -1; const h = document.createElement('h2'); h.textContent = 'Probe heading';
+                    const u = document.createElement('ul'); u.innerHTML = '<li>Probe step</li>'; b.append(h, u); return h.getBoundingClientRect().height > 0 ? 1 : 0; })(),
+                  text: document.getElementById('main').innerText })""", sid))
+                self.assertGreater(got["none"], 0, "the demo use case has no steps and no milestones")
+                self.assertEqual(got["shown"], 0, "no empty-list line on the paper")
+                self.assertEqual(got["heads"], 0, "no heading left with nothing under it")
+                self.assertNotIn("No next steps are shared", got["text"])
+                self.assertEqual(got["kept"], 1, "a heading with a list under it is still printed (the rule hides only the empty lines)")
+                cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
+                self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)))
+
     def test_the_snapshot_tab_prints_before_use_cases_when_the_file_has_it(self):
         text = self.path.read_text(encoding="utf-8")
         tabs = re.search(r'"tabs":\[[^\]]*\]', text)
