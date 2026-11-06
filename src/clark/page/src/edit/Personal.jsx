@@ -6,6 +6,7 @@ import { appearance, setAppearance } from "../stores/appearance.js";
 import { profile, profileRead, loadProfile, setProfile, wantName } from "../stores/profile.js";
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
 import { announce, leave, noteTyped } from "./aboutYouToast.js";
+import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { aliasOffer } from "../logic/alias.js";
 
 export const STYLES = [
@@ -125,7 +126,18 @@ function AboutYou() {
   );
 }
 
+const KEYS_ON = "Single-key shortcuts are on";
+const KEYS_OFF = "Single-key shortcuts are off";
+
+// The switch changes at once; the toast says the new state and its Undo sets it back (row 849). The button is never disabled, so focus stays on it.
+function flipKeys() {
+  const now = !singleKeys.value;
+  setSingleKeys(now);
+  announceSwitch(now ? KEYS_ON : KEYS_OFF, () => { setSingleKeys(!now); return { ok: true }; }, now ? KEYS_OFF : KEYS_ON);
+}
+
 export function Personal() {
+  useEffect(() => leaveSwitch, []);
   return (
     <section class="frame personal" id="personal" aria-labelledby="personal-h">
       <h2 id="personal-h" tabIndex={-1}>Personal</h2>
@@ -154,10 +166,10 @@ export function Personal() {
         <p class="muted appearance-line" data-appearance-line aria-live="polite">{(APPEARANCES.find(([id]) => id === appearance.value) || APPEARANCES[0])[2]}</p>
       </fieldset>
       <AboutYou />
-      <fieldset class="keys">
+      <fieldset class="styles keys">
         <legend>Keys</legend>
         <label class="sw key-sw"><button type="button" class="switch" role="switch" aria-label="Single-key shortcuts" aria-checked={singleKeys.value ? "true" : "false"} aria-describedby="keys-line"
-          onClick={() => setSingleKeys(!singleKeys.value)}></button>
+          onClick={flipKeys}></button>
           <span><b>Single-key shortcuts</b><small id="keys-line">Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.</small></span></label>
       </fieldset>
     </section>

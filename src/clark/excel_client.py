@@ -63,6 +63,8 @@ COLUMNS = {
 COMMITMENT = ("Commitment", "commitment", 14)      # a use case's flag: a column only while the file carries it (publish.PUBLISH_FIELDS)
 OWN_TEXT = {"actions": "description", "raid": "description", "decisions": "decision", "milestones": "description"}
 RICH = {"standing"}                      # HTML the editor wrote: shown as its text
+EDITOR_LOCKED = {table: locked for _, table, _, locked in excel.SHEETS}     # each sheet's own locked set in the editor export
+EDITOR_FIELD = {"state_word": "shown_state"}      # the client column that is the export's worked-out Shown state
 DATE_FIELDS = excel.DATES | {"revisit"}
 BLOCKS = re.compile(r"</(?:p|div|li|h[1-6]|blockquote|pre|tr)>|<br\s*/?>|<hr\s*/?>", re.I)
 TAGS = re.compile(r"<[^>]*>")
@@ -117,6 +119,7 @@ def columns(table):
 def write_sheet(wb, published, table):
     ws = wb.create_sheet(excel.SHEET_OF[table])
     cols = columns(table)
+    editor_locked = excel.locked_fields(EDITOR_LOCKED[table])
     name, sub = title_text(published)
     for r, (text, font) in enumerate(((name, TITLE), (sub, SUB)), start=1):
         for c in range(1, len(cols) + 1):
@@ -138,8 +141,12 @@ def write_sheet(wb, published, table):
             cell.alignment = Alignment(wrap_text=True, vertical="top")
             if field in DATE_FIELDS:
                 cell.number_format = excel.DATE_FORMAT
+                cell.alignment = Alignment(horizontal="left", wrap_text=True, vertical="top")      # a date is not flush to the next column's text
             excel.protect_text_cell(cell)
+            if EDITOR_FIELD.get(field, field) not in editor_locked:       # the export's rule (item 727): only these stay editable
+                cell.protection = excel.UNLOCKED
     ws.freeze_panes = "A5"
+    excel.protect_sheet(ws)           # as the export's sheets (item 727): no password, the same allowed actions
     return ws
 
 
@@ -156,6 +163,7 @@ def workbook_bytes(published):
             cell.value = excel.cell_text(text)
             cell.font = BODY
             excel.protect_text_cell(cell)
+        excel.protect_sheet(ws)
     props = wb.properties
     props.creator = props.lastModifiedBy = excel.FIXED_NAME
     stamp = datetime.fromisoformat(published["as_at"] + "T00:00:00")
