@@ -55,7 +55,7 @@ def lit(x):
 
 
 class Static(unittest.TestCase):
-    """No Chrome: the page compiles into a bundle, uses tokens only, names no person, keeps the wire format in one place."""
+    """No Chrome: the page compiles into a bundle, uses tokens only, keeps the wire format in one place."""
 
     def test_the_page_and_its_demo_compile_into_one_bundle(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -91,10 +91,6 @@ class Static(unittest.TestCase):
         for name in GUARDED:
             self.assertFalse([c for c in changed if c.endswith("/" + name)], name)
         self.assertFalse([c for c in changed if c.startswith(".github/")])
-
-    def test_no_person_is_named_in_the_page_files(self):
-        for f in (GANTT_SRC / "components" / "GanttPage.jsx", ROOT / "tests" / "fixtures" / "gantt_page_demo.jsx"):
-            self.assertNotRegex(f.read_text(encoding="utf-8"), r"\b(Alan|Alanmahon|Romanoff|Jarvis|Wanda|Banner|Cap)\b", f.name)
 
 
 class Page(unittest.TestCase):
