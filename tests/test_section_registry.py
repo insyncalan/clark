@@ -330,7 +330,7 @@ class PageSide(unittest.TestCase):
         """Replaces the first slice's 'the store refuses every type but text': the store now takes every template type, and only
         the catalogue's ready flag (switched on by the lead once a template is built) makes one placeable."""
         accepts = self.val("T.templates.ACCEPTS.types")
-        self.assertEqual(accepts, ["text", "needs"] + list(section_kinds.TYPES))      # needs: the section that carries content (#121)
+        self.assertEqual(accepts, ["text", "needs"] + list(section_kinds.TYPES) + list(changes.BUILT_IN_TYPES))      # needs: the section that carries content (#121)
         self.assertLessEqual(set(accepts), set(changes.NEW_SECTION_TYPES), "the page's ACCEPTS is all taken by the change route")
         self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title"), "new still takes a type and a title only")
         for x in self.val("T.templates.CATALOGUE"):
