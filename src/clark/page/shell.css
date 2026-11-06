@@ -1566,6 +1566,8 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     /* the peek slides in on opening and its body fades in as Previous or Next steps on */
     .peek:not(.leaving) { animation: m-slide var(--dur-state) var(--ease-enter) 1; }
     .pk-body { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
+    /* row 880: opening a group, its column names and rows rise 4 px and fade in over --dur-layout (transform and opacity only: no height moves) */
+    tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
     /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
     .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
     .secs.drop-end { animation: m-line-end var(--dur-state) var(--ease-enter) 1; }

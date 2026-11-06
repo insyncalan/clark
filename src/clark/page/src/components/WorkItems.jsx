@@ -154,6 +154,7 @@ function Heads({ eye, hand }) {
 }
 function Cols({ eye, hand }) { return <colgroup>{(hand ? ["c-pick"] : []).concat(COLS, eye ? ["c-eye"] : []).map((c) => <col key={c} class={c} />)}</colgroup>; }
 
+let justOpened = "";                               // row 880: the group whose rows were just drawn by opening it (they glide in once)
 function Table({ rows, today, type, Cell, Eye }) {
   const hand = handing(), st = work.value, g = st.group, on = selecting(), grid = on ? { role: "grid", "aria-multiselectable": "true", "aria-label": hand ? "Work items to hand over" : "Work items" } : {};
   const n = COLS.length + (Eye ? 1 : 0) + (hand ? 1 : 0);
@@ -178,11 +179,11 @@ function Table({ rows, today, type, Cell, Eye }) {
           <div class="wgroup" key={c.key}>
             <table class="items grouped" {...grid}>
               <Cols eye={Eye} hand={hand} />
-              <tbody data-group={c.key}>
+              <tbody data-group={c.key} class={justOpened === c.key && !shut ? "opening" : undefined} onAnimationEnd={(e) => { if (justOpened === c.key) justOpened = ""; e.currentTarget.classList.remove("opening"); }}>
                 <tr class="grp"><th colspan={n} scope="colgroup">
                   {hand ? <GroupTick sel={ticks} ids={c.rows.filter((r) => isOpen(r)).map((r) => r.id)} label={c.label} shut={shut} />
                     : on ? <GroupTick ids={c.rows.map((r) => r.id)} label={c.label} shut={shut} /> : null}
-                  <button type="button" class="grp-b" aria-expanded={shut ? "false" : "true"} onClick={() => setWork(toggleCollapsed(work.value, g, c.key))}>
+                  <button type="button" class="grp-b" aria-expanded={shut ? "false" : "true"} onClick={() => { justOpened = shut ? c.key : ""; setWork(toggleCollapsed(work.value, g, c.key)); }}>
                     <Icon name="chevdown" cls={shut ? "turn" : ""} /><span class="gl">{c.label}</span><span class="gc num">{c.rows.length} {c.rows.length === 1 ? "item" : "items"}</span>
                   </button>
                 </th></tr>
