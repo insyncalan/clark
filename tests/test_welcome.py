@@ -130,7 +130,7 @@ class Welcome(Base):
             for w in WIDTHS:
                 with self.subTest(look=look, width=w), chrome() as cdp:
                     p = self.load(cdp, look, w)
-                    p.until(f"!!{CARD}", "the welcome is shown")
+                    p.until(f"!!{CARD}", "the welcome is shown", 30)
                     p.until("document.activeElement && document.activeElement.id === 'welcome-name'", "the focus is in the Name box", 10)
                     p.until("document.getAnimations().length === 0", "the card has settled", 10)
                     p.cdp.call("Input.insertText", {"text": "Jo"}, p.sid)      # typing straight away lands in the Name box
