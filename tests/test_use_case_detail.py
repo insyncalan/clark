@@ -508,13 +508,25 @@ class Detail(unittest.TestCase):
             self.until(cdp, sid, "!document.querySelector('[data-sneak]')", "Esc closed the box")
             self.assertTrue(cdp.js("!!document.querySelector('[data-ucd]')", sid), "and stayed on the use case")
 
-    def test_in_view_two_slashes_open_no_words_box(self):
+    def test_two_slashes_open_the_words_box_on_a_use_case_page_with_no_edit_mode(self):
+        """Row 825: a use case's own page has no View, so the words box opens from two slashes without Edit."""
         with chrome() as cdp:
             sid = self.open_detail(cdp, edit=False)
             self.slash(cdp, sid)
             self.slash(cdp, sid)
-            time.sleep(0.3)
-            self.assertFalse(cdp.js("!!document.querySelector('[data-sneak],[data-sneak-open]')", sid))
+            self.until(cdp, sid, "!!document.querySelector('.sn-in')", "the words box opened with no Edit mode")
+
+    def test_two_slashes_open_no_words_box_on_an_archived_use_case(self):
+        """An archived use case is read-only: no words box, in either way of opening the page."""
+        with self.store.step("dashboard", USER) as st:
+            st.archive("use_cases", UC)
+        for edit in (True, False):
+            with self.subTest(edit=edit), chrome() as cdp:
+                sid = self.open_detail(cdp, edit=edit)
+                self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "the archived use case is drawn")
+                self.slash(cdp, sid)
+                self.slash(cdp, sid)
+                self.assertFalse(wait(lambda: cdp.js("!!document.querySelector('[data-sneak],[data-sneak-open]')", sid), 1.4), "no words box on an archived use case")
 
     def test_done_in_the_status_menu_saves_and_shows_its_word_in_grey(self):
         """#412: choosing Done in Edit saves it (one change, one Undo) and the page shows the word Done with the grey dot."""
