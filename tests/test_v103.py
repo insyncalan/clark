@@ -123,6 +123,12 @@ COVERED = [
      "test_work_board_page::Cards::test_row_775_columns_are_lifted_cards_and_the_full_screen_icon_are_arrows"),
     ("#776", "The Sneak peek words box is a floating card.",
      "test_peek_arrows::Arrows::test_row_776_the_words_box_is_a_floating_card_in_light_and_dark"),
+    ("#839", "A date before 1900 in the Excel export is dd-mm-yyyy text, not ####.",
+     "test_excel_pre1900::ToCell::test_cell_types_in_the_saved_file"),
+    ("#839", "The same date in the client workbook is text, and the Week ending line reads in the same form.",
+     "test_excel_pre1900::ClientWorkbook::test_client_sheet_has_text_for_an_old_due_date"),
+    ("#787", "The profile menu lists Settings once: the link or the entry.",
+     "test_profile_menu::ProfileMenu::test_C_settings_is_listed_once_the_link_or_the_entry"),
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
