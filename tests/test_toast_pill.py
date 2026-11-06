@@ -9,7 +9,7 @@ import re
 import unittest
 
 from _paths import SRC
-from test_server import chrome
+from test_server import chrome, wait
 from test_work_board_page import Base
 
 CSS = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
@@ -40,6 +40,7 @@ class ToastPill(Base):
                             sid = self.visit(cdp, width=width, edit=edit)
                             cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
                             cdp.js(MARKUP.replace("KIND", kind), sid)
+                            self.assertTrue(wait(lambda: bool(cdp.js("document.getAnimations().length === 0", sid))), f"{where}: the toast has finished rising (row 882: it starts 8 px lower)")
                             m = cdp.js(MEASURE, sid)
                             self.assertLess(abs(m["mid"] - m["win"] / 2), 2, f"{where}: centred {m}")
                             self.assertEqual(round(m["gap"]), 16, f"{where}: 16 px from the foot {m}")
