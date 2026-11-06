@@ -1805,6 +1805,9 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ucp summary { cursor: pointer; padding: 10px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
 .ucp-title { font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
 .ucp summary .cchip { align-self: center; }
+/* issue 798: the published rows read as the Dashboard's: reference box, title, headline, status word */
+.ucp summary .uchead { flex: 1 1 16em; min-width: 0; }
+.ucp summary .ucref { align-self: center; }
 .ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
 .ucp-body h2 { margin: 14px 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .ucp-headline { margin: 0 0 8px; }

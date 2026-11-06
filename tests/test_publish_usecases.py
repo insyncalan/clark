@@ -245,6 +245,9 @@ class RealBrowser(unittest.TestCase):
                                  "Dashboard,Work items,Milestones,Use cases,Weekly snapshotSnapshot")   # the last tab holds its wide and its narrow name
                 cdp.js("document.querySelector('[data-view=usecases]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1').textContent", sid) == "Use cases"))
+                self.assertEqual(cdp.js("document.querySelector('#usecases-file .crumbs').textContent", sid), pub["data"]["project"]["name"], "the small line above the title, as on the other tabs")
+                self.assertEqual(cdp.js("document.querySelector('.ucp summary .uchead').textContent", sid), pub["data"]["use_cases"][0]["headline"], "the headline shows on the row, closed")
+                self.assertEqual(cdp.js("!!document.querySelector('.ucp summary .ucref') && !!document.querySelector('.ucp summary .ucword .ragdot')", sid), True, "the Dashboard row's reference box and status word")
                 cdp.js("document.querySelector('.ucp summary').click()", sid)
                 body = cdp.js("document.querySelector('.ucp-body').innerText", sid)
                 for word in ("ZQ-KEEP-STANDING", "Next steps", "ZQ-KEEP-MESSAGE-1", "Milestones", "ZQ-KEEP-MILESTONE-1"):
