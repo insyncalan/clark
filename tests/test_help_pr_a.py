@@ -50,8 +50,8 @@ class TopBar(unittest.TestCase):
         pal = code("edit", "palette.js")
         for label in ("Publish…", "Preview the page in a new tab", "Export to Excel", '"Settings"', "PANEL_TITLE", '"Help"', '"Appearance: "'):
             self.assertIn(label, pal)
-        self.assertIn('PANEL_TITLE = "Ask about this project"', code("edit", "askWords.js"))
-        for word in ("Publish", "Preview the page in a new tab", "Export to Excel", "Settings", "Ask about this project", "Help", "Appearance", "a page, a project, a work item or a milestone", "then press [[Enter]]"):
+        self.assertIn('PANEL_TITLE = "ask clark"', code("edit", "askWords.js"))
+        for word in ("Publish", "Preview the page in a new tab", "Export to Excel", "Settings", "ask clark", "Help", "Appearance", "a page, a project, a work item or a milestone", "then press [[Enter]]"):
             self.assertIn(word, text)
         self.assertIn("kind: \"Page\"", pal)
         self.assertIn("kind: \"Project\"", pal)

@@ -8,6 +8,11 @@ import { Toast } from "./Toast.jsx";
 import { SneakPeek as Words, SneakButton as WordsButton } from "./SneakPeek.jsx";
 import { PeekTabs, PeekActivity } from "./PeekActivity.jsx";
 import { PeekLatest, PeekWarn, PeekNeeded } from "./PeekLatest.jsx";
+import { PeekTitle } from "./PeekTitle.jsx";
+import { PeekWording } from "./PeekWording.jsx";
+import { PeekPick } from "./PeekPick.jsx";
+import { PeekDuplicate } from "./PeekDuplicate.jsx";
+import { PeekArchive } from "./PeekArchive.jsx";
 import { Cell } from "./cells/Cell.jsx";
 import { Eye } from "./cells/Eye.jsx";
 import { Board } from "./Board.jsx";
@@ -59,7 +64,6 @@ import { GanttTitle } from "./GanttTitle.jsx";
 import { createStoreHost } from "../gantt/logic/ganttStoreHost.js";
 import { installAskKeys, openPanel, closePanel, panelOpen } from "./askPanelState.js";
 import { HelpLayer } from "../help/Help.jsx";
-import { HelpButton } from "../help/HelpButton.jsx";
 import { SearchButton } from "./SearchButton.jsx";
 import { AskButton } from "./AskButton.jsx";
 import { AddDialog } from "./AddDialog.jsx";
@@ -84,4 +88,4 @@ import { HAND_OVER } from "./HandOver.jsx";
 // Help (#82) is among them: a published file has no Help panel and no "?" key.
 // `clean` is the page's own cleaner for a saved body that View draws as text (Section.jsx); a body it refuses draws as nothing.
 const clean = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
-export const EDIT = { clean, DemoBanner, NewProjectButton, glance: GLANCE, Personal, Data, Boxes, ReviewDays, GanttSetting, GanttTabName, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, ItemRowsEdit, richOn, Gutter, ExportBtn, ImportBtn, ArchivedItems, ArchivedPill, ProjectSwitch, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, PeekLatest, PeekWarn, PeekNeeded, Cell, Eye, Publish, ReportBar, ProfileMenu, PublishedReports, exportExcel, ClientFolder, Safety, Update, Projects, Diagnostics, pageErrors: installPageErrors, AskSettings, People, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MilestoneEdit, MsEye, MsAddBack, MsLayers, ArchivedMilestones, UseCasesPage, ucEdit: UCEDIT, Board, RowMenu, HelpLayer, HelpButton, SearchButton, AskButton, HelpPeek, AddDialog, addItem, Palette, templateEdit, AskPanel, modeKeys: { install: installModeKeys }, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys, pictureUrl }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk }, HandOver: HAND_OVER, GanttTitle, ganttHost: createStoreHost };
+export const EDIT = { clean, DemoBanner, NewProjectButton, glance: GLANCE, Personal, Data, Boxes, ReviewDays, GanttSetting, GanttTabName, GanttTitle, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, ItemRowsEdit, richOn, Gutter, ExportBtn, ImportBtn, ArchivedItems, ArchivedPill, ProjectSwitch, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, PeekLatest, PeekWarn, PeekNeeded, PeekTitle, PeekWording, PeekPick, PeekDuplicate, PeekArchive, Cell, Eye, Publish, ReportBar, ProfileMenu, PublishedReports, exportExcel, ClientFolder, Safety, Update, Projects, Diagnostics, pageErrors: installPageErrors, AskSettings, People, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MilestoneEdit, MsEye, MsAddBack, MsLayers, ArchivedMilestones, UseCasesPage, ucEdit: UCEDIT, Board, RowMenu, HelpLayer, SearchButton, AskButton, HelpPeek, AddDialog, addItem, Palette, templateEdit, AskPanel, modeKeys: { install: installModeKeys }, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys, pictureUrl }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk }, HandOver: HAND_OVER, ganttHost: createStoreHost };

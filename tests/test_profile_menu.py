@@ -176,10 +176,13 @@ class ProfileMenu(Base):
             self.assertEqual(p.js("window.__dl.length"), 0)
 
     def test_C_the_help_entry_opens_help(self):
+        """Row 896: the entry opens the Help peek (as the ? key does); the full Help is the peek's foot link."""
         with chrome() as cdp:
             p = self.page(cdp)
             self.assertFalse(p.js("!!document.querySelector('.hp-tabs')"))
             self.pick(p, "help")
+            p.until("!!document.querySelector('#help-peek')", "the Help peek opened")
+            p.js("document.querySelector('#help-peek [data-hpk-full]').click()")
             p.until("!!document.querySelector('.hp-tabs')", "Help opened")
 
     def test_C_settings_is_listed_once_the_link_or_the_entry(self):

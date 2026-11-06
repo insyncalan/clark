@@ -288,10 +288,12 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .seg button { all: unset; box-sizing: border-box; padding: 6px var(--space-3); min-height: 32px; font-size: var(--size-small); cursor: pointer; color: var(--text); }
 .seg button + button { border-left: 1px solid var(--border); }
 .seg button:hover { background: var(--grey-50); }
-.seg button[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: 500; }
+.seg button[aria-pressed="true"],
+.seg button[aria-checked="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: 500; }
 .seg button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .seg em { font-style: normal; color: var(--text-muted); margin-left: var(--space-1); }
-.seg button[aria-pressed="true"] em { color: inherit; }
+.seg button[aria-pressed="true"] em,
+.seg button[aria-checked="true"] em { color: inherit; }
 .fbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-2); margin-top: 10px; }
 .fl { font-size: var(--size-small); color: var(--text-muted); margin-right: 2px; }
 .fwrap { position: relative; display: inline-block; }
@@ -635,9 +637,9 @@ input.sec-title { width: 100%; }
 .sn-from { color: var(--text-muted); text-decoration: line-through; }
 .sn-msg { margin: 10px 0 0; color: var(--status-red-text); }
 .sn-confirm { margin: var(--space-2) 0 0; font-size: var(--size-small); }
-.sn-confirm.flash { animation: sn-flash .9s; }
-.pk-row.flash { animation: sn-flash 1.4s; }
-@media (prefers-reduced-motion: reduce) { .pk-row.flash, .sn-confirm.flash { animation: none; background: var(--status-amber-tint); } }
+/* row 879: the flash itself is in the Motion block; the still form (the tint) is kept when motion is off */
+@media (prefers-reduced-motion: reduce) { .pk-row.flash, .sn-confirm.flash { background: var(--status-amber-tint); } }
+:root[data-motion="reduce"] :is(.pk-row.flash, .sn-confirm.flash) { background: var(--status-amber-tint); }
 @keyframes sn-flash { 0%, 60% { background: var(--status-amber-tint); } 100% { background: transparent; } }
 .sn-foot { margin: 10px 0 0; font-size: var(--size-caption); }
 /* Work items cells that change in place (#80, Edit only): the cell's content is a button, and its picker opens in one panel under
@@ -665,6 +667,7 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 .gtick:disabled { cursor: not-allowed; opacity: .45; }
 .gtick:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .selbar { display: flex; align-items: center; gap: var(--space-3); margin: 10px 0 2px; padding: 6px 6px 6px 14px; border: 1px solid var(--brand-blue); border-radius: var(--radius); background: color-mix(in srgb, var(--brand-blue-tint) 60%, var(--surface)); font-size: var(--size-small); }
+body:not(.board-view) #sel-bar { position: sticky; top: calc(var(--topbar) + var(--space-2)); z-index: 20; }   /* row 864: the bar stays under the top bar while a lower row is ticked; the board is its own scroller, so there it stays in the flow */
 .selbar .sb-n { font-weight: var(--weight-medium); color: var(--heading); }
 .selbar .sb-x { margin-left: auto; width: 30px; height: 30px; }
 .selbar .sb-x[data-tip]:hover::after, .selbar .sb-x[data-tip]:focus-visible::after { right: 0; }
@@ -963,7 +966,6 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-next ul { margin: 0; padding-left: 20px; }
 .hp-next li { margin: 0 0 4px; }
 .hp-next a { color: var(--status-blue-text); }
-.hp-prev { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 34px; }
 .hp-col { min-width: 0; }
 .hp-col .hp-sh h2 { font-size: var(--size-h2); }
 .hp-grp { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); font-weight: 500; margin: 28px 0 10px; }
@@ -1011,31 +1013,26 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-head { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); align-items: flex-start; justify-content: space-between; }
 .hp-head h1 { margin: 0 0 var(--space-1); font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
 .hp-head p { margin: 0; }
-.hp-actions { display: flex; gap: 10px; align-items: center; }
+.hp-head > div:first-child { flex: 1 1 24rem; min-width: 0; }   /* the intro gives way, so the search sits at the top right beside it */
+.hp-actions { display: flex; gap: 10px; align-items: center; margin-left: auto; }
 .hp-search input { box-sizing: border-box; min-height: 36px; padding: 0 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; width: 300px; }
 .hp-search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .hp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .hp-search { position: relative; display: block; }
 .hp-search > .i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted); pointer-events: none; }
 .hp-search input { padding-left: 32px; padding-right: 34px; }
-.hp-back { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px 0 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
-.hp-back .i { width: 16px; height: 16px; }
-.hp-back:hover { border-color: var(--brand-blue); }
-.hp-back:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 /* the line under the title names the key on a keyboard and the button on a phone (a phone has no ? key) */
 .hp-taphint { display: none; }
 @media (max-width: 700px), (hover: none) { .hp-keyhint { display: none; } .hp-taphint { display: inline; } }
 @media (max-width: 860px) { .hp-actions { flex: 1 1 100%; } .hp-search { flex: 1 1 auto; } .hp-search input { width: 100%; } }
 
-/* the Help button in the top bar: the circle's neighbour, a "?" in the bar's own colours */
-.hp-top { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: 50%; color: var(--white); font-size: var(--size-body); font-weight: var(--weight-medium); cursor: pointer; }
-.hp-top:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
-.hp-top:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tb-act { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 32px; height: 32px; padding: 0 6px; border-radius: var(--radius-sm); color: var(--white); font-size: var(--size-body); cursor: pointer; white-space: nowrap; }   /* the top bar's search and ask buttons */
 .tb-act:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
 .tb-act:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tb-ico { width: 20px; height: 20px; flex: none; }
-.tb-ask { padding: 0 10px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); }
+.tb-act:not(.tb-ask) { min-width: 38px; height: 28px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius); }   /* row 772: the search button is a bordered 38 by 28 box, as in the prototype */
+.tb-ask { height: 34px; padding: 0 10px; font-size: var(--size-small); border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); }   /* row 772: the ask clark text at 14 px in a 34 px button */
+.tb-ask .tb-ico { width: 16px; height: 16px; }
 .tb-key { font: inherit; font-size: var(--size-small); padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius-sm); }
 @media (max-width: 1100px) { .tb-ask { padding: 0 6px; border-color: transparent; } .tb-ask-w, .tb-key { display: none; } }   /* icon only below 1100 px, so nothing in the bar overlaps */
 /* the Help peek (item 645): the item peek's frame (.peek) below the top bar, so the "?" button stays in view; text only */
@@ -1045,7 +1042,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hpk-line { margin: 0; font-size: var(--size-small); }
 .hpk-cards { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-3); font-size: var(--size-small); }
 .hpk-cards b { font-weight: var(--weight-medium); color: var(--heading); }
-.hpk-foot { margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--grey-200); }
+.hpk-sub { margin: 0; font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--heading); }
+.hpk-arts { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
+.hpk-arts .hpk-link { font-size: var(--size-small); text-align: left; }
+.hpk-foot { margin-top: auto; padding: var(--space-3) 0; border-top: 1px solid var(--grey-200); position: sticky; bottom: calc(-1 * var(--space-4)); background: var(--surface); }   /* row 896: with the articles the panel can be taller than the window: the link to the full Help stays in view */
 .hpk-link { all: unset; box-sizing: border-box; cursor: pointer; font-size: var(--size-body); color: var(--status-blue-text); text-underline-offset: 2px; }
 .hpk-link:hover { text-decoration: underline; }
 .hpk-link:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
@@ -1210,7 +1210,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn.quiet { background: transparent; }
 .btn { min-height: 32px; }
 .btn:disabled { cursor: default; opacity: .6; }
-.setting { margin-top: var(--space-4); }
+.setting { margin-top: var(--space-3); }
 .set-head p { margin: 0; }
 /* The Settings links (item 440, S2; issue 697). Above 900 px they are a list down the left, the cards at the right; the list stays under the top bar
    as you scroll (and scrolls itself if the window is short). At 900 px and narrower it is the old bar of chips under the head, on the page's own
@@ -1235,7 +1235,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-chip[aria-current], .set-chip[aria-current]:hover { border-color: var(--brand-blue); background: var(--brand-blue); color: var(--text-on-brand); }      /* the same weight, so marking a chip never moves the row */
 .set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
-.setting h2 { margin: 0 0 6px; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
+/* The Settings cards (row 841): the prototype's card, compact: less padding, a smaller heading, a 14 px intro line and no shadow. Later than .frame and its 900 px rule, and more specific. */
+.set-cards .frame { padding: var(--space-4) var(--space-5); box-shadow: none; }
+.set-cards .frame > h2 + p { font-size: var(--size-small); }
+.setting h2 { margin: 0 0 6px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .setting .row { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
 .folder-now { overflow-wrap: anywhere; }
 /* item 647: the pasted folder path, under Choose folder; the box takes the row's room and the button stays beside it. */
@@ -1327,8 +1330,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
 
 /* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): One card is the default (row 667). */
-.personal { margin-top: var(--space-4); }
-.personal h2 { margin: 0 0 var(--space-1); font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
+.personal { margin-top: var(--space-3); }
+.personal h2 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .styles { border: 0; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: var(--space-2); }
 .styles legend { padding: 0; margin-bottom: 6px; font-size: var(--size-caption); color: var(--text-muted); }
 .stylepick { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
@@ -1364,6 +1367,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .fld input[aria-invalid="true"] { border-color: var(--status-red-text); }
 .fld small { color: var(--text-muted); font-size: var(--size-caption); }
 .fld.copy-fld { max-width: 640px; }
+/* Settings fields (row 840): a label column at the left and the control beside it, the way the prototype draws them; the hint, a refusal and any buttons stand in the control's column.
+   The control is not capped: it takes the rest of the card. The Welcome form keeps its own stacked layout (it is not inside the Settings cards). */
+.set-cards .fld, .set-cards .fld.copy-fld { grid-template-columns: 8rem minmax(0, 1fr); column-gap: var(--space-3); align-items: center; max-width: none; }
+.set-cards .fld > label { grid-column: 1; }
+.set-cards .fld > :not(label) { grid-column: 2; min-width: 0; }
 .fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-caption); }
 .fld-bad:empty { display: none; }
 .fld-tick { display: grid; gap: var(--space-1); margin: 0 0 var(--space-3); max-width: 420px; }
@@ -1460,24 +1468,32 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 
 /* The look: pill buttons, the header and the type, from the committed look (tokens only; made by the branding tool). */
 /* primary buttons and pills: the pale-to-bright aqua of the reference, dark text, a soft glow */
-.again, .btn.primary { border: 0; border-radius: var(--radius-pill); padding: 0 22px; min-height: 38px; font-weight: 800; letter-spacing: .04em;
+.again, .btn.primary, .btn.pri { border: 0; border-radius: var(--radius-pill); padding: 0 22px; min-height: 38px; font-weight: 800; letter-spacing: .04em;
   background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); box-shadow: var(--pill-glow); transition: transform var(--dur-state) var(--ease-out), box-shadow var(--dur-state) var(--ease-out); }
-.again:hover, .btn.primary:hover { transform: translateY(-1px); box-shadow: var(--pill-glow-hover); }
+.again:hover, .btn.primary:hover, .btn.pri:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--pill-glow-hover); }
 .btn, .seg { border-radius: var(--radius-pill); }
 .btn { padding-left: 18px; padding-right: 18px; }
-.seg button[aria-pressed="true"] { background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); font-weight: var(--weight-semibold); }
-.seg button[aria-pressed="true"] em { color: var(--pill-fg); }
+.seg button[aria-pressed="true"],
+.seg button[aria-checked="true"] { background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); font-weight: var(--weight-semibold); }
+.seg button[aria-pressed="true"] em,
+.seg button[aria-checked="true"] em { color: var(--pill-fg); }
 .top { background-color: var(--brand-navy); background-image: linear-gradient(90deg, var(--brand-navy), var(--bar-end)); }   /* the bar still takes --brand-navy, with a soft lift to the right */
 .tab::after { background-color: var(--pill-color); background-image: var(--accent-line); }
 
 /* reduced motion: no transition and no lift on the main button */
-@media (prefers-reduced-motion: reduce) { .again, .btn.primary { transition: none; } .again:hover, .btn.primary:hover { transform: none; } }
+/* row 771: the dialog and form main button (.btn.pri) takes the same aqua pill; the finished state keeps its green, and the spinner and tick follow the dark text */
+.btn.pri.ok { background-color: var(--status-green-text); background-image: none; color: var(--text-on-brand); }
+.btn.pri .spin { border-color: color-mix(in srgb, var(--pill-fg) 30%, transparent); border-top-color: var(--pill-fg); }
+.btn.pri .pub-tick { background: var(--pill-fg); color: var(--pill-color); }
+.btn.pri.ok .pub-tick { background: var(--text-on-brand); color: var(--status-green-text); }
+.btn.pri:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .again, .btn.primary, .btn.pri { transition: none; } .again:hover, .btn.primary:hover, .btn.pri:hover { transform: none; } }
 
 /* type: Montserrat extra-bold for headings and figures, Inter for text, tracked capitals for the small line above a title */
 h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800; letter-spacing: -.01em; line-height: 1.15; }
 .crumbs { font-family: var(--font-label); font-weight: var(--weight-semibold); font-size: var(--size-caption); text-transform: uppercase; letter-spacing: .1em; }
 /* Work items: the project name above the title is plain (not tracked capitals), and one intro line sits under the title */
-#work .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }
+#work .crumbs, #milestones.pub .crumbs, #usecases-file .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }   /* the published tabs share one plain line (the editor's Milestones keeps its own) */
 #work .head h1 { margin: 0; }
 #work .intro { margin: 4px 0 0; font-size: var(--size-small); }
 .fig .k, .tile .l { font-family: var(--font-label); font-weight: var(--weight-medium); }
@@ -1541,7 +1557,7 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .pk-stale { margin: 0 0 var(--space-2); }
 .pk-chip { display: inline-block; padding: 2px var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--grey-200); color: var(--text-muted); font-size: var(--size-caption); }
 
-/* Loading placeholder: still grey blocks in the shape of the screen, with no shimmer. Shown only after a short wait (Views.jsx). */
+/* Loading placeholder: still grey blocks in the shape of the screen (the shimmer is in the Motion block and only when motion is allowed). Shown only after a short wait (Views.jsx). */
 .skel { display: block; background: var(--grey-100); border-radius: var(--radius-sm); }
 .skel-title { width: min(280px, 60%); height: 28px; margin-bottom: var(--space-4); }
 .skel-line { height: 14px; width: 100%; }
@@ -1569,18 +1585,48 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .sec-hint { position: absolute; left: 30px; top: 0; white-space: nowrap; pointer-events: none; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: var(--size-small); }
 
 /* Motion: motion that explains and never decorates. Every rule here is inside one block, so a motion is absent (not switched
-   off afterwards) when the computer asks for reduced motion or clark's own setting (<html data-motion="reduce">) is on. Nothing
-   loops here (the publish ring, above, turns only while it works), only the --dur and --ease tokens are used, and nothing waits for it: the elements
+   off afterwards) when the computer asks for reduced motion or clark's own setting (<html data-motion="reduce">) is on. Only
+   the placeholder shimmer loops here (as the publish ring, above, turns only while it works, it runs only while the placeholder shows and stops when the screen arrives); only the --dur and --ease tokens are used, and nothing waits for it: the elements
    stay live while it runs. The block uses native CSS nesting, so a browser without it (older than current Chrome or Edge) keeps the still forms only. */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) {
     /* the placeholder fades out as the screen arrives */
     .skel-leave { position: absolute; left: var(--space-5); right: var(--space-5); top: 28px; z-index: 1; pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+    /* row 887: the dragged card lifts (its ghost, which follows the pointer, grows into place with the scale property; the card itself
+       gets no transform, as its date picker and menu are drawn inside it), the column it would land in eases its highlight in, and a
+       column dragged by its heading lifts the same way. Still: the highlight and the dimming only */
+    .bghost { scale: 1.05; animation: m-lift var(--dur-instant) var(--ease-out) 1; }
+    .col.moving { scale: 1.01; animation: m-lift var(--dur-instant) var(--ease-out) 1; }
+    .col.over { animation: m-over var(--dur-state) var(--ease-enter) 1; }
+    .col.drop-before { animation: m-col-line var(--dur-state) var(--ease-enter) 1; }
+    /* row 888: three small delights. A column's count badge ticks when its number changes, the toast's Undo pulses once as it appears,
+       and an eye blinks once when it is pressed (that rule is in edit.css, as the eyes are Edit's). Transform only */
+    .col-b .cn.settle { animation: m-count var(--dur-state) var(--ease-out) 1; }
+    .toast-btn[data-undo] { animation: m-undo var(--dur-enter) var(--ease-out) 1; }
+    /* row 886: a light band sweeps across each grey block (transform only, clipped to the block) for as long as the placeholder shows; it is
+       bounded by the wait, as the publish ring is, and the still grey block is all there is under reduced motion */
+    .skel { position: relative; overflow: hidden; }
+    .skel::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface) 70%, transparent), transparent); animation: m-shimmer var(--dur-enter) var(--ease-toggle) infinite; }
     /* a changed row glows, then settles to the still mark (tint, bar and the word stay) */
     .sec.is-changed, table.items tr.changed td, .msl-row.changed { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1; }
+    /* row 879: a changed field in the peek flashes its tint for about 1.6 s, the "please look here" line for about 1 s, then both settle */
+    .pk-row.flash { animation: sn-flash calc(var(--dur-enter) * 2 + var(--dur-state)) var(--ease-out) 1; }
+    .sn-confirm.flash { animation: sn-flash calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1; }
     /* the peek slides in on opening and its body fades in as Previous or Next steps on */
     .peek:not(.leaving) { animation: m-slide var(--dur-state) var(--ease-enter) 1; }
     .pk-body { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
+    /* row 884: the Dashboard pill's thumb slides to the other button (transform only; the buttons keep their places), and the Edit-only chrome fades in as Edit opens */
+    .modes.seg.glide { position: relative; }
+    .modes.seg.glide { --vw: 0px; --tx: 0px; --sx: 1; }      /* row 884: the thumb before the script has measured it (Toggle.jsx sets all three on the pill itself) */
+    .modes.seg.glide::before { content: ""; position: absolute; left: 0; top: 3px; bottom: 3px; width: var(--vw, 0); border-radius: var(--radius-pill); background-color: var(--pill-color); background-image: var(--pill-bg); transform: translateX(var(--tx, 0)) scaleX(var(--sx, 1)); transform-origin: left center; transition: transform var(--dur-state) var(--ease-toggle); pointer-events: none; }
+    .modes.seg.glide .mode { position: relative; transition: color var(--dur-state) var(--ease-toggle); }
+    .rbar .modes.seg.glide .mode[aria-pressed="true"] { background-color: transparent; background-image: none; }
+    .sec-ctl, .rbar-hint { animation: m-in var(--dur-state) var(--ease-enter) 1; }
+    /* row 877: a dialog rises 12 px and scales in as it opens, and its dim background fades in (opacity and transform only, so nothing is pushed) */
+    .dlg[open], .ad { animation: m-dlg var(--dur-state) var(--ease-enter) 1; }
+    .dlg[open]::backdrop, .ad-scrim { animation: m-in var(--dur-state) var(--ease-enter) 1; }
+    /* row 878: a menu or picker drops 4 px as it opens */
+    .menu, .ddmenu, .cpop { animation: m-drop var(--dur-instant) var(--ease-enter) 1; }
     /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
     .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
     .secs.drop-end { animation: m-line-end var(--dur-state) var(--ease-enter) 1; }
@@ -1597,11 +1643,22 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     .ad-prev > * { animation: m-in var(--dur-state) var(--ease-enter) 1; }
     /* publish: the tick appears once (the ring is main's, and turns only until the work ends) */
     .pub-tick { animation: m-tick var(--dur-state) var(--ease-out) 1; }
+    /* row 882: the toast and its Undo bar rise 8 px as they appear (the .toasts box holds the place, so nothing else moves) */
+    .toast { animation: m-up var(--dur-state) var(--ease-enter) 1; }
+    /* row 883: the check mark draws itself (the path is 22.6 long, 24 covers it; the still tick has no dash at all) */
+    .pub-tick .i path { stroke-dasharray: 24; animation: m-draw var(--dur-layout) var(--ease-out) 1; }
   }
   @media (hover: hover) and (pointer: fine) {
     :root:not([data-motion="reduce"]) .ad-tpl { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
     :root:not([data-motion="reduce"]) .ad-tpl:not(.off):hover { transform: translateY(-1px); box-shadow: var(--shadow); }
   }
+  @keyframes m-draw { from { stroke-dashoffset: 24; } }
+  @keyframes m-lift { from { scale: .9; } }
+  @keyframes m-over { from { background-color: var(--surface); outline-color: transparent; } }
+  @keyframes m-col-line { from { box-shadow: -6px 0 0 -3px transparent; } }
+  @keyframes m-count { 40% { transform: scale(1.3); } }
+  @keyframes m-undo { 40% { transform: scale(1.12); } }
+  @keyframes m-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
   @keyframes m-tick { from { opacity: 0; transform: scale(.4); } }
   @keyframes m-line-top { from { box-shadow: 0 -3px 0 transparent; } }
   @keyframes m-line-end { from { box-shadow: 0 3px 0 transparent; } }
@@ -1612,6 +1669,9 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
   @keyframes m-rise { from { opacity: 0; transform: translateY(4px); } }
   @keyframes m-pulse { 50% { transform: scale(1.35); background: var(--brand-blue-tint); } }
   @keyframes m-settle { from { opacity: .35; } }
+  @keyframes m-up { from { opacity: 0; transform: translateY(8px); } }
+  @keyframes m-dlg { from { opacity: 0; transform: translateY(12px) scale(.98); } }
+  @keyframes m-drop { from { opacity: 0; transform: translateY(-4px); } }
   @keyframes m-glow { from { background-color: color-mix(in srgb, var(--status-amber) 40%, var(--status-amber-tint)); } }
 }
 
@@ -1825,7 +1885,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ucp summary .cchip { align-self: center; }
 .ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
 .ucp-body h2 { margin: 14px 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
-.ucp-headline { margin: 0 0 8px; }
+.ucp-headline { margin: 0; flex-basis: 100%; color: var(--text-muted); overflow-wrap: anywhere; }
 /* Issue 713, a published file only: the reader's badge and menu at the top right of the bar, and the box "Your profile". Tokens only.
    The bar is dark in light and dark alike, so the badge uses the profile tokens. The bar's print rule hides all of it. */
 .cm-wrap { position: relative; display: inline-flex; flex: none; margin-left: auto; }
@@ -1866,6 +1926,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .print-tab-title { margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-body); font-weight: 400; color: var(--text-muted); }
   html.print-all .sec, html.print-all article, html.print-all .tile, html.print-all .fig, html.print-all figure, html.print-all blockquote, html.print-all tr, html.print-all li, html.print-all h1, html.print-all h2, html.print-all h3, html.print-all details { break-inside: avoid; }
   html.print-all h1, html.print-all h2, html.print-all h3 { break-after: avoid; }
+  html.print-all .ucp-none, html.print-all .ucp-body h2:has(+ .ucp-none) { display: none; }   /* row 767: the print opens every use case, so an empty list's line and its heading are left off the paper (no new words) */
   html.print-all .mv-wrap { overflow: hidden; resize: none; min-height: 0; }   /* row 767: the printed timeline is drawn to the page width (MsTimeline.jsx), so it needs no sideways scroll; nothing is cut off */
   html.print-all thead { display: table-header-group; }
   html.print-all a { color: inherit; text-decoration: none; }
@@ -1905,6 +1966,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-title { overflow-wrap: anywhere; color: var(--text); }
 .wl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: var(--size-small); color: var(--text-muted); }
 .wl-meta .av { width: 22px; height: 22px; font-size: var(--size-small); }
+.cr-wl .wl-meta .av { width: auto; min-width: 22px; height: 22px; padding: 0 var(--space-1); box-sizing: border-box; border-radius: 11px; font-size: var(--size-caption); line-height: 1; }      /* row 799: the snapshot's work lists only; WM at the 13 px floor is 24.3 px wide and clips a 22 or 24 px circle, so two letters widen it to a 22 px-high pill (no 12 px token exists; test_font holds 13 px) */
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }

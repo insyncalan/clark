@@ -1,6 +1,6 @@
-// What the ask panel says (#47a). Every sentence is here, so one test can read them all. None starts with the product's name; each
+// What the ask panel says (#47a). Every sentence is here, so one test can read them all. Apart from the title, none starts with the product's name; each
 // says what happened and what to do next.
-export const PANEL_TITLE = "Ask about this project";
+export const PANEL_TITLE = "ask clark";
 export const OFF_LINE = "Asking is off. Turn it on in Settings.";                     // shown only when the server has answered that the switch is off
 export const OFF_LINK = "Open Settings";
 export const SIGNED_OUT_LINE = "Claude is not signed in on this computer, so there is nothing to ask yet. Sign in to Claude on this computer, then open this panel again.";
@@ -24,6 +24,7 @@ export const NOT_REACHED_LINE = "The question did not reach clark. Check that it
 export const EMPTY_LINE = "Type a question first, then press Ask.";
 export const YOU = "You";
 export const REPLY = "Answer";
+export const SOURCES = "Sources";
 export const GRIP = "Drag to change the width of this panel";
 // The suggestions above the box: one row that scrolls sideways (#214).
 export const PILLS_LABEL = "Questions you can ask";

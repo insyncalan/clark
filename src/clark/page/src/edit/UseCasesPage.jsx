@@ -10,10 +10,14 @@ import { signal, computed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data, rows as allRows, project, uc, openUseCase, leaveUseCase } from "../stores/report.js";
 import { change } from "../stores/changes.js";
-import { readArchivedUseCase } from "../api.js";
+import { blink } from "../stores/motion.js";
+import { readArchivedUseCase, getArchived } from "../api.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
 import { listOf, ucFor, tidy, recalled, keep, shownOf, onCounts, narrowed, countWords, rowSay, STATUS_WORDS, ON_WORDS, OFF_WORDS, SORTS } from "../logic/useCasesList.js";
 import { UseCaseDetail } from "../components/UseCaseDetail.jsx";
+import { UCEDIT, openAdd } from "./UseCasesEdit.jsx";
+import { exportExcel } from "./ProfileMenu.jsx";
+import { plural } from "../workItems.js";
 import { Menu } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { CommitChip } from "../components/CommitChip.jsx";
@@ -25,6 +29,7 @@ const state = computed(() => { void tick.value; const code = project.value; retu
 const all = computed(() => (data.value ? listOf(data.value, allRows.value) : []));
 const current = signal("");                                   // the id of the row that is the list's one tab stop
 const statusOpen = signal(false);
+const archShown = signal(false);                            // row 830: Show archived is on (kept for the visit)
 let returning = "";                                           // the use case just left by Back: its row takes the focus when the list comes back
 
 function set(patch) {
@@ -64,7 +69,7 @@ function Row({ r, stop, shown }) {
       <span class="ucl-wi num">{r.total ? <><b>{r.total}</b> linked<small>{r.open} open</small></> : "None linked"}</span>
       <span class="ucl-ms">{ms || <span class="muted">None</span>}</span>
       <button type="button" class="ucl-eye" tabIndex={-1} data-eye title={eyeWords} aria-label={`${r.ref || "Use case"} ${r.name}: ${eyeWords}. ${r.on ? "Take it off the dashboard" : "Put it on the dashboard"}`}
-        onFocus={() => { current.value = r.id; }} onClick={() => setEye(r, shown)}><Icon name={r.on ? "eye" : "eyeoff"} /></button>
+        onFocus={() => { current.value = r.id; }} onClick={(e) => { blink(e); setEye(r, shown); }}><Icon name={r.on ? "eye" : "eyeoff"} /></button>
     </li>
   );
 }
@@ -115,6 +120,41 @@ function StatusFilter({ f }) {
   );
 }
 
+// Row 830: the archived use cases, read with the archived rows (the page's own data leaves them out), under the list: a footer with
+// Show archived, and when on a box with each one's name (it opens read-only), a tag, its linked work items and Restore.
+function ArchivedUseCases() {
+  const code = project.value, d = data.value;
+  const [got, setGot] = useState(null);
+  useEffect(() => {
+    let live = true;
+    getArchived(code).then((r) => { if (live && r.ok) setGot({ code, list: (r.data.use_cases || []).filter((u) => u.archived) }); });
+    return () => { live = false; };
+  }, [code, d]);
+  const list = got && got.code === code ? got.list : [];
+  if (!list.length) return null;
+  const on = archShown.value, n = list.length;
+  const linked = (u) => ((d.actions || []).concat(d.raid || [], d.decisions || [])).filter((r) => r.use_case === u.id).length;
+  return (
+    <div data-archived-uc>
+      {on ? (
+        <div class="card arch-box ucl-arch">
+          <h2 class="arch-h">Archived <span>{plural(n, "use case")}</span></h2>
+          <ul class="arch-l plain">
+            {list.map((u) => (
+              <li class="arch" key={u.id} data-arch-uc={u.id}>
+                <button type="button" class="link" onClick={() => openUseCase(u.id)}>{u.ref || "Use case"} · {u.title}</button>
+                <span class="tag arch">Archived</span>
+                <button type="button" class="btn sm" data-restore onClick={() => change({ kind: "use_cases", op: "restore", id: u.id, place: "cell" }, "Use case restored.")}>Restore</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      <p class="ucx-foot">{on ? `Showing ${plural(n, "archived use case")}.` : `${plural(n, "archived use case")} ${n === 1 ? "is" : "are"} hidden.`} <button type="button" class="link" data-arch-toggle onClick={() => { archShown.value = !on; }}>{on ? "Hide archived" : "Show archived"}</button></p>
+    </div>
+  );
+}
+
 function UseCasesList() {
   const f = state.value, rows = all.value, shown = shownOf(rows, f), n = onCounts(rows, f);
   const stop = shown.some((r) => r.id === current.value) ? current.value : shown.length ? shown[0].id : "";
@@ -135,6 +175,10 @@ function UseCasesList() {
         <div>
           <h1>Use cases</h1>
           <p class="muted ucl-sub">Every use case of this project. The home dashboard shows the ones marked {ON_WORDS}.</p>
+        </div>
+        <div class="hacts ucl-acts">
+          <button type="button" class="btn" id="ucExp" onClick={() => exportExcel()}><Icon name="dl" /> Export to Excel</button>
+          <button type="button" class="btn" id="ucAddPage" onClick={openAdd}>Add a use case</button>
         </div>
       </div>
       {rows.length ? (
@@ -162,6 +206,7 @@ function UseCasesList() {
             </ul>
           </div>
         )}
+      <ArchivedUseCases />
     </section>
   );
 }
@@ -180,7 +225,7 @@ function ArchivedAddress({ keyOf }) {
     return () => { stale = true; };
   }, [code, keyOf]);
   if (read.key !== keyOf) return <div class="ucd" data-ucd><p class="muted">Loading the use case.</p></div>;
-  return <UseCaseDetail id={read.id} />;
+  return <UseCaseDetail id={read.id} ed={UCEDIT} />;
 }
 
 export function UseCasesPage() {
@@ -188,7 +233,7 @@ export function UseCasesPage() {
   const last = useRef("");                                  // the use case on show: Archive takes it out of the live rows, but its page stays
   if (!key) last.current = "";
   else if (found) last.current = found.id;
-  if (found) return <UseCaseDetail id={found.id} />;
+  if (found) return <UseCaseDetail id={found.id} ed={UCEDIT} />;
   if (key && data.value) return last.current ? <UseCaseDetail id={last.current} /> : <ArchivedAddress keyOf={key} />;
   return <UseCasesList />;
 }

@@ -271,7 +271,7 @@ class ShippedGuides(unittest.TestCase):
 
     def test_search_finds_each_guide_and_its_steps(self):
         probes = {"add-a-section-from-a-template": [("place you choose", 0), ("search templates", 3), ("where it goes", 5), ("cancel", 6), ("empty section", 7)],
-                  "arrange-the-report": [("drag its move button", 2), ("full width", 5), ("eye mark", 6), ("needs from you", 7), ("gone from view", 8)]}
+                  "arrange-the-report": [("drag its move button", 2), ("full width", 5), ("eye mark", 6), ("removes the section", 7), ("gone from view", 8)]}
         for gid, rows in probes.items():
             for word, line in rows:
                 r = run_node(RAW, "(() => HL.search(HL.buildIndex(), %s).filter((x) => x.id === 'guide-%s').map((x) => x.line))()" % (json.dumps(word), gid))

@@ -381,6 +381,35 @@ class Box(Base):
             self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-options]')"), 5))
             self.assertEqual(self.sent, [])
 
+    def test_the_templates_are_a_grid_of_cards_with_a_sketch_and_width_chips_and_an_x_closes_it(self):
+        """#783: the box looks like the prototype's (system/prototype views.js addDialog): the templates are cards in a grid, each a
+        sketch, its name and its widths as chips; the preview has the larger sketch and what it holds as chips; an X closes the box
+        and gives focus back. Each card is still a radio, so the keys and the reading stay the list's."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+            self.open_box(p, "ABC-S-003", focus='[data-id="ABC-S-003"] [data-drag]')
+            p.until("document.getAnimations().length === 0", "the box has finished opening")
+            got = p.js("""(function(){var cs=[...document.querySelectorAll('.ad-tpl')], top=cs[0].getBoundingClientRect().top;
+                return {cards: cs.length, sketched: cs.filter(c => { var k = c.querySelector('.ad-sk'); return k && k.getAttribute('aria-hidden') === 'true' && k.children.length > 0; }).length,
+                  radios: cs.filter(c => !!c.querySelector('input[type=radio][name=template]')).length,
+                  firstRow: cs.filter(c => Math.abs(c.getBoundingClientRect().top - top) < 1).length,
+                  text: [...document.querySelectorAll('[data-template=text] .ad-fit em')].map(e => e.textContent),
+                  gallery: [...document.querySelectorAll('[data-template=gallery] .ad-fit em')].map(e => e.textContent),
+                  chipsHidden: document.querySelector('[data-template=text] .ad-fit').getAttribute('aria-hidden'),
+                  heard: document.querySelector('[data-template=text]').textContent.includes('Full width or Half width'),
+                  big: !!document.querySelector('.ad-prev .ad-sk.big'),
+                  holds: [...document.querySelectorAll('.ad-prev .ad-els li')].map(l => l.textContent)};})()""")
+            self.assertEqual(got, {"cards": 19, "sketched": 19, "radios": 19, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
+                                   "chipsHidden": "true", "heard": True, "big": True, "holds": ["Heading", "Text"]})
+            x = "document.querySelector('.ad-head [data-close]')"
+            self.assertEqual(p.js(f"{x}.getAttribute('aria-label')"), "Close")
+            p.js(f"{x}.click()")
+            p.until("!document.querySelector('[role=dialog]')", "the X closed it")
+            self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-drag]') && document.activeElement.closest('.sec').dataset.id === 'ABC-S-003'"), 5), "focus is back on the opener")
+            self.assertEqual(self.sent, [])
+
     def test_after_a_click_inside_or_outside_the_box_escape_and_tab_still_work(self):
         """A click on text that cannot take focus must not drop focus to the page: Esc still closes and Tab stays inside.
         A click on the backdrop closes the box and gives focus back to what opened it."""
@@ -759,7 +788,7 @@ class Box(Base):
                       announced: [...document.querySelectorAll('.ad-prev [aria-live]')].map(e => e.tagName),
                       say: (q('[data-ad-say]') || {}).textContent, sayLive: q('[data-ad-say]') && q('[data-ad-say]').getAttribute('aria-live'),
                       sayOutside: !!q('[data-ad-say]') && !q('[data-ad-say]').closest('.ad-prev'),
-                      name: q('.ad-prev h3').textContent, desc: q('.ad-prev h3 + p').textContent};})()""")
+                      name: q('.ad-prev h3').textContent, desc: q('.ad-prev h3 ~ p').textContent};})()""")
                 say = order.pop("say"); name = order.pop("name"); desc = order.pop("desc")
                 self.assertEqual(order, {"ok": True, "prevDisplay": "block", "prevBox": True, "label": "About this template", "live": None, "announced": [],
                                          "sayLive": "polite", "sayOutside": True},
@@ -823,6 +852,9 @@ class Box(Base):
                         p.key("Tab", 8, code="Tab", vk=9)
                         got = p.js("getComputedStyle(document.activeElement).outlineColor")
                         self.assertEqual(got, want, f"{theme}: {sel} ring is the brand blue")
+                    if sel == "input[name=template]":   # #783: the radio is hidden in its card, and the card draws the ring
+                        card = p.js("(function(){var a=document.activeElement, c=a.closest('.ad-tpl');return c && a.matches(':focus-visible') ? getComputedStyle(c).outlineColor : 'not visible';})()")
+                        self.assertIn(card, (want, "not visible"), f"{theme}: the chosen card's ring")
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('[role=dialog]')", "closed")
 

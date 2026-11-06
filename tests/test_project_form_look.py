@@ -71,6 +71,7 @@ class Look(unittest.TestCase):
         self.assertTrue(wait(lambda: bool(cdp.js("!!document.querySelector('#projects-table tbody tr')", sid)), 30), "the projects table")
         cdp.js("document.querySelector('%s').click()" % opener, sid)
         self.assertTrue(wait(lambda: bool(cdp.js("!!document.querySelector('#project-form')", sid)), 30), "the project form")
+        self.assertTrue(wait(lambda: bool(cdp.js("document.getAnimations().length === 0", sid)), 30), "the box has finished easing in (row 877: it starts 12 px lower and a little smaller)")
         return sid
 
     def cases(self):
