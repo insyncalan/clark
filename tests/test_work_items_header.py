@@ -185,6 +185,8 @@ class Header(Base):
             self.assertIn(", selected", got["label"], "a screen reader still hears it")
             self.assertNotEqual(got["border"], got["other"], "the border shows the selection")
             self.assertNotEqual(got["shadow"], "none")
+            key(cdp, sid, "Escape")             # a click opens the peek (row 806), which covers the layout switch
+            self.until(cdp, sid, "!document.querySelector('#peek')", "the peek is closed")
             # the list row keeps its tick
             self.view_pick(cdp, sid, "layout:table")
             self.until(cdp, sid, "document.querySelector('table.items')", "the table")
