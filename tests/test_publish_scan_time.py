@@ -12,9 +12,10 @@ import unittest
 from _paths import ROOT, SRC  # noqa: F401
 
 # BOUND is a loose hang guard, not a speed test: CPU seconds for one function on 5 MB. Shapes measured on a busy arm64 box took up
-# to about 8 s while linear, and a quadratic scan takes minutes, so 15 s separates them. Linearity itself is checked by the
+# to about 8 s while linear (the escapes shape: 12.9 s on this branch and 11.6 s on main on a Linux box, 22.9 s on a busy Mac, row 815), and
+# a quadratic scan takes minutes, so 30 s separates them. Linearity itself is checked by the
 # size-growth test below (a ratio measured in the same run), so a slow machine does not fail the absolute check.
-BOUND = 15.0
+BOUND = 30.0
 HARD = 90            # seconds for the whole child (three functions, each up to BOUND): past this it is killed and the case fails
 LIMIT = 5 * 1024 * 1024
 
