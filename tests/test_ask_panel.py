@@ -79,6 +79,7 @@ class Panel(Base):
             p.js(before)
         p.key("/", code="Slash", vk=191)
         p.until("!!document.querySelector('#ask-panel')", "the panel opened on /")
+        p.until("document.querySelector('#ask-panel').getAnimations().length === 0", "the panel has finished rising (row 885): its grip is where it is measured")
         if ready:
             p.until("!document.querySelector('#ask-send').disabled", "the panel is ready to take a question")
         return p
@@ -481,6 +482,7 @@ class Panel(Base):
                     p.key("/", code="Slash", vk=191)
                     p.until("!!document.querySelector('#ask-panel')", f"opened at {width} {theme}")
                     p.until("!document.querySelector('#ask-send').disabled", "ready")
+                    p.until("document.querySelector('#ask-panel').getAnimations().length === 0", "the panel has finished rising (row 885)")
                     r = p.js("(function(){var r=document.querySelector('#ask-panel').getBoundingClientRect();return {l:r.left,r:r.right,t:r.top,b:r.bottom,w:r.width}})()")
                     edge = p.js("document.documentElement.clientWidth")      # the window less a classic scroll bar (Linux shows one; a Mac hides it)
                     self.assertLessEqual(width - edge, 20)

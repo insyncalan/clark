@@ -19,6 +19,8 @@ async function post(path, body) {
   }
 }
 
+const stillMotion = () => document.documentElement.dataset.motion === "reduce" || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
 export function AskPanel() {
   const open = panelOpen.value, state = panelState.value, model = panelModel.value, width = panelWidth.value;
   const list = turns.value, busy = pending.value;
@@ -27,6 +29,13 @@ export function AskPanel() {
   const [quip, setQuip] = useState("");
   const box = useRef(null), log = useRef(null);
   useGrow(box, open ? text : null);
+  // Row 885: closing sinks the panel first, and it stays drawn until the animation ends (a 400 ms timer guards it, so no dead overlay is left).
+  // Where motion is off it leaves at once, as before.
+  const phase = useRef(open ? "open" : "closed"), [, redraw] = useState(0);
+  if (open) phase.current = "open"; else if (phase.current === "open") phase.current = stillMotion() ? "closed" : "leaving";
+  const leaving = phase.current === "leaving";
+  const finish = () => { if (phase.current === "leaving") { phase.current = "closed"; redraw((n) => n + 1); } };
+  useEffect(() => { if (!leaving) return undefined; const t = setTimeout(finish, 400); return () => clearTimeout(t); }, [leaving]);
 
   // Row 858: the box is usable while the check is out (what is typed stays, and so does focus); only Send waits for the answer.
   // The answer arriving (a state change alone) moves focus only while it is still in the panel or nowhere: a person who has moved on keeps their place.
@@ -48,7 +57,7 @@ export function AskPanel() {
     return () => clearTimeout(t);
   }, [busy]);
 
-  if (!open) return null;
+  if (!open && !leaving) return null;
 
   // `preset` is a suggestion's words: it is asked as it stands and leaves what is typed in the box alone.
   async function send(e, preset) {
@@ -124,7 +133,7 @@ export function AskPanel() {
   }
 
   return (
-    <aside id="ask-panel" class="ask-panel" role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}>
+    <aside id="ask-panel" class={leaving ? "ask-panel leaving" : "ask-panel"} onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "ask-down") finish(); }} role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}>
       <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
       <header class="ask-head">
         <h2>{W.PANEL_TITLE}</h2>
