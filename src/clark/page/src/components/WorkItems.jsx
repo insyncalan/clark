@@ -2,11 +2,11 @@
 // decisions from GET /api/data, as tables in bordered group cards (#456): item (a letter badge for its kind, title, id), owner, due date in
 // words, priority, status, and in the page clark serves the Client-visible eye. The list rules are in
 // ../workItems.js, the filter rules in ../filters.js. A filter change redraws the list region and the switches' words only.
-// In View and in Edit (#80, #442: the owner's ruling on gap B-9), the Owner, Due, Priority and Status cells change in place
+// This page has no View | Edit mode (row 824), so the Owner, Due, Priority and Status cells change in place (#80, #442)
 // (tools.Cell, edit/cells/): each opens its own picker. A published file has no tools, so no pickers.
-// A click on the row anywhere else opens the item's peek, in View and in Edit.
-// The keyboard (#80): the table is one tab stop, the row last focused (the first until then). Up and Down move between rows (in
-// Edit, from a cell to the same cell of the next row), Home and End to the first and last row, Right and Left across the row's
+// A click on the row anywhere else opens the item's peek.
+// The keyboard (#80): the table is one tab stop, the row last focused (the first until then). Up and Down move between rows (from a
+// cell to the same cell of the next row), Home and End to the first and last row, Right and Left across the row's
 // cells and back to the row. Enter on a row opens its peek; on a cell, Enter, Space or Alt+Down opens its picker.
 // Selecting several (#195, on the page clark serves): a click selects the row and opens its peek, Cmd or Ctrl+click adds or removes it, Shift+click
 // selects a range in the order drawn; Shift+Up and Shift+Down extend from the cursor row, Space
@@ -295,7 +295,7 @@ export function WorkItems({ tools }) {
           <div class="hacts">
             {tools.ImportBtn && !fromFile.value ? <tools.ImportBtn /> : null}   {/* item 454: Import from Excel, the same box as Settings; never in a published file */}
             {tools.ExportBtn ? <tools.ExportBtn /> : null}   {/* the workbook download: always on this page (row 824), and never in a published file */}
-            {tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: in Edit, with the Owner filter on */}
+            {tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: with the Owner filter on */}
             <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={adder(tools)} />   {/* a published file is read only: no Add (#204) */}
           </div>
         ) : null}

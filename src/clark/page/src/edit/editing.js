@@ -1,5 +1,5 @@
-// Whether the page being drawn lets the person change things now. The Dashboard keeps the View | Edit switch; every other page is live
-// and has no switch (rulings 02-11-2026 and row 824), so there it is always true.
+// One test for "may this page be edited now?" (row 804): the View | Edit switch exists only on the Dashboard, so there the mode
+// decides; on every other page the editing is live and there is no mode to ask.
 import { mode, view } from "../stores/report.js";
 
 export function isEditing() {

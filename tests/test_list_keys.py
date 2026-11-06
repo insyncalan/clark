@@ -37,7 +37,7 @@ class Source(unittest.TestCase):
         self.assertIn(".bc-main:focus-visible { outline: 2px solid", CSS)
 
     def test_help_lists_every_key(self):
-        for words in ("Work items table: move the cursor", "Work items board: move from card to card", "In Edit, [[Enter]] on a cell opens that cell", "[[Right]] opens it and [[Left]] closes it again", "[[Esc]] closes it and returns to the row"):   # #381: the peek keys are in Help too
+        for words in ("Work items table: move the cursor", "Work items board: move from card to card", "[[Enter]] on a cell opens that cell", "[[Right]] and [[Left]] move across the cells of the row", "[[Esc]] closes the open item and returns to the row"):   # #381: the peek keys are in Help too
             self.assertIn(words, HELP)
 
 

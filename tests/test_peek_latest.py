@@ -158,7 +158,7 @@ class Source(unittest.TestCase):
         peek = (ROOT / "src/clark/page/src/components/Peek.jsx").read_text(encoding="utf-8")
         self.assertIn("editing && forItem && tools.PeekWarn", peek)
         self.assertIn("editing && forItem && tools.PeekLatest", peek)
-        self.assertNotIn("edit/", peek.replace("tools.", ""), "Peek.jsx imports nothing from edit/")
+        self.assertNotIn("edit/", peek.replace("tools.", "").replace("../edit/editing.js", ""), "Peek.jsx imports nothing from edit/ but the one editing test (edit/editing.js)")
 
 
 class Browser(unittest.TestCase):
