@@ -132,6 +132,9 @@ export const SKETCHES = {
   "key-dates": ["grid-template-rows:repeat(3,1fr)", ["width:90%", "width:90%", "width:90%"]],
   "needs": ["grid-template-rows:repeat(3,1fr)", ["border-left:3px solid var(--status-amber)", "border-left:3px solid var(--status-amber);width:80%", "width:55%"]],
   "link-preview": ["grid-template-columns:1fr 2fr", [IMG, ""]],
+  "current-state": ["grid-template-rows:repeat(3,1fr)", ["width:70%", "width:85%", "width:55%"]],
+  "plan-summary": ["grid-template-rows:repeat(4,1fr)", ["width:50%", "width:85%", "width:50%", "width:70%"]],
+  "gantt": ["grid-template-rows:repeat(3,1fr)", ["width:60%", "width:50%;margin-left:25%", "width:40%;margin-left:55%"]],
   "one-doc": ["grid-template-rows:1fr 1fr", ["", "width:70%"]],
 };
 
