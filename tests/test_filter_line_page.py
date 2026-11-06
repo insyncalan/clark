@@ -1258,6 +1258,7 @@ class Line(unittest.TestCase):
                         self.assertLessEqual(cdp.js(probe, sid)["page"], 0)
                         click(cdp, sid, "#viewTabMenu")
                         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)))
+                        self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "the menu has finished dropping in (row 878: it starts 4 px higher)")      # measure where it settles, not mid-animation
                         self.assertEqual(cdp.js("(() => { const r = document.querySelector('.vtabs'); return r.scrollHeight <= r.clientHeight; })()", sid), True, "the open tab's menu is not cut off by the row")
                         self.assertGreater(cdp.js("document.querySelector('#viewTabMenuList').getBoundingClientRect().height", sid), 20)
                         self.assertGreaterEqual(cdp.js("document.querySelector('#viewTabMenuList').getBoundingClientRect().top - document.querySelector('.vtabs').getBoundingClientRect().bottom", sid), 0, "it opens below the row")

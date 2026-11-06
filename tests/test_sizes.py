@@ -114,7 +114,9 @@ class Sizes(unittest.TestCase):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": w < 600}, sid)
                 self.audit(cdp, sid, f"{w}px", prefix, VIEWS, found)
                 if edit:        # Edit shows the section handles and the add and options controls
-                    cdp.js("location.hash = '#dashboard%s'; document.querySelector('[data-mode=edit]').click()" % prefix, sid)
+                    cdp.js("location.hash = '#dashboard%s'" % prefix, sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report') && !!document.querySelector('[data-mode=edit]')", sid)), "the Dashboard and its switch drew (Settings has none)")
+                    cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.handle')", sid)), "Edit shows the section handles")
                     self.audit(cdp, sid, f"{w}px edit", prefix, VIEWS[:1], found)
                     cdp.js("document.querySelector('[data-mode=view]').click()", sid)

@@ -264,6 +264,12 @@ export function contextFor(page) {
   ];
 }
 
+/** The how-to articles whose "go" page is `page` (a screen, or a Settings card: its screen), as [{ title, place }] in the source's order (row 896). Held articles are not in CONTENT. */
+export function articlesFor(page) {
+  const screen = String(page == null ? "" : page).split("#")[0];
+  return tasks().filter((x) => x.go && String(x.go).split("#")[0] === screen).map((x) => ({ title: x.t, place: PREFIX.howto + x.id }));
+}
+
 /**
  * The context text of a screen (#645 step 2), for the peek: { page, title, s (the sentences, with their markup), lines (the same,
  * plain), full (the place to open in the full Help, or null when that place is not shown: a held place is never a target), fullTitle,

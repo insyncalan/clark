@@ -64,7 +64,7 @@ class TheFourGuides(unittest.TestCase):
     def test_the_controls_the_steps_name_are_the_ones_the_page_has(self):
         """The control names, exactly as the page shows them (HandOver.jsx, Bulk.jsx, FilterLine.jsx, WeekPicker.jsx, weekPicker.js, asAt.js, Safety.jsx, safety.js)."""
         text = {i: " ".join(s["d"] for s in g["steps"]) for i, g in GUIDES.items()}
-        for name in ("**Edit**", "**Work items**", "**Hand over**", "**All**", "**None**", "**Hand over to**", "**Cancel**", "**Change**", "**Undo**"):
+        for name in ("**Work items**", "**Hand over**", "**All**", "**None**", "**Hand over to**", "**Cancel**", "**Change**", "**Undo**"):
             self.assertIn(name, text["hand-an-item-over"], name)
         for name in ("**Work items**", "**+ New view**", "**Name for the new view**", "**Save**", "**Save changes**", "**Save as a new view…**",
                      "**Rename…**", "**New name for this view**", "**Delete**"):
@@ -92,7 +92,8 @@ class TheFourGuides(unittest.TestCase):
         self.assertIn("kept in your browser", text["save-a-view"])
         self.assertNotIn("undo this restore", text["back-up-and-restore-your-data"])
         self.assertNotIn("handing over is offered in view", text["hand-an-item-over"])
-        self.assertIn("not offered in view", text["hand-an-item-over"])
+        self.assertNotIn("in edit", text["hand-an-item-over"])      # row 824: handing over has no Edit gate, so no step sends you to Edit
+        self.assertNotIn("not offered in view", text["hand-an-item-over"])
 
 
 class SearchFindsThem(unittest.TestCase):

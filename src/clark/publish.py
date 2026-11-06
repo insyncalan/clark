@@ -83,7 +83,7 @@ PUBLISH_FIELDS = {
 RICH = {"projects": ("current_state",), "use_cases": ("standing",)}     # HTML the editor wrote: through clean_html
 # Read from the database as well, only to decide (never copied): the gates, and what a milestone's state is worked out from.
 GATES = {"milestones": ("client_visible", "archived", "state", "state_set"), "workstreams": ("archived",),
-         "actions": ("client_visible", "archived"), "raid": ("client_visible", "archived"),
+         "actions": ("client_visible", "archived", "client_action"), "raid": ("client_visible", "archived", "client_action"),   # row 811: client_action only decides, it is never copied
          "decisions": ("client_visible", "archived"), "use_cases": ("client_visible", "archived")}
 ORDER = {"milestones": "sort_order, id", "workstreams": "id", "actions": "id", "raid": "id", "decisions": "id",
          "use_cases": "sort_order, id"}
@@ -335,9 +335,30 @@ def client_use_cases(data, code, hidden_ids=(), label_rules=(), hidden_types=())
     return pages
 
 
+def flagged_needs(rows):
+    """Row 811b: the rows the 'Needs from you' list gains from work items flagged client_action. `rows` is select's own kept rows
+    (the gates already met: client_visible, not archived, not report-hidden, no Sensitive or exclude label, section not hidden), so
+    this adds no second rule of what a client may see. Only an action or a risk/issue that is flagged AND still open (OPEN_STEPS;
+    a risk or issue is only Open) is listed; a decision never (it has no flag). Actions first, then risks and issues, each in the
+    order select kept them (by id), so the order is the same every time. A row is {what, kind, from, by} as a hand-typed one is:
+    what is the item's client wording (client_message) when set, else its description, which is the item's title and is published as its name in the Work rows already (hidden characters out, cut at 300), kind 'information', from always blank (an owner here is one of our own people; a typed row's From is who at the client owes it, which is not known), by its due date written DD-MM-YYYY."""
+    out = []
+    for k in ("actions", "raid"):
+        for r in rows[k]:
+            if r.get("client_action") != 1 or r.get("status") not in OPEN_STEPS:
+                continue
+            what = next((t for t in (reason_text(" ".join(str(r.get(f) or "").split())).strip() for f in ("client_message", "description")) if t), "")[:section_bodies.NEEDS_WHAT_MAX].strip()
+            if not what:
+                continue
+            due = r.get("due_date")
+            due = f"{due[8:10]}-{due[5:7]}-{due[:4]}" if isinstance(due, str) and re.fullmatch(r"\d{4}-\d\d-\d\d", due) else ""
+            out.append({"what": what, "kind": "information", "from": "", "by": due})
+    return out
+
+
 def select(inputs):
     """What goes in the file, from `inputs` (read_inputs' shape: data as Store.data_for gives it, and hidden, sections,
-    label_rules, changes, undone, as_at). Returns {"data", "sections", "tabs", "as_at"}. Everything not allowed is absent,
+    label_rules, changes, undone, as_at). Returns {"data", "sections", "tabs", "as_at", "needs_dropped"} (the count of flagged items the 100-row cap left out; build() takes it out and logs it). Everything not allowed is absent,
     not hidden: dropped rows, fields outside PUBLISH_FIELDS, and what only they reach (links, labels, workstreams)."""
     d, as_at = inputs["data"], inputs["as_at"]
     project = d.get("project") or {}
@@ -401,6 +422,21 @@ def select(inputs):
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
     ctx = section_bodies.Context({k: out[k] for k in KINDS}, as_at)          # #96: only what is already kept, as the file carries it
     extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
+    dropped = 0
+    listed = flagged_needs(rows)         # row 811b: the flagged open items, as rows of the 'Needs from you' list
+    if listed:
+        needs_sections = [x for x in sections if x.get("type") == section_bodies.NEEDS]
+        if not needs_sections:           # no such section at all: one is made for the file (an owner who has hidden theirs is respected: it is not made again)
+            sections = sections + [{"id": "s-needs-flagged", "type": section_bodies.NEEDS, "title": "Needs from you", "body": "",
+                                    "beside": 0, "hidden": 0, "sort_order": 1 << 30}]
+            extra["s-needs-flagged"] = {}
+            needs_sections = sections[-1:]
+        mine = next((x for x in needs_sections if not x.get("hidden")), None)
+        if mine is not None:
+            typed = list((extra.get(mine["id"]) or {}).get("rows") or [])
+            room = max(0, section_bodies.NEEDS_MAX_ROWS - len(typed))
+            dropped = max(0, len(listed) - room)           # said by build() only, as a count (see the end of select)
+            extra[mine["id"]] = {**(extra.get(mine["id"]) or {}), "rows": typed + listed[:room]}   # typed rows win: the section never holds more than a typed list may
     out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
                              or (x.get("type") == "docs" and not out["documents"]))       # #74: no document to show, no section
     i = 0
@@ -429,7 +465,7 @@ def select(inputs):
         tabs.append("usecases")
     if "milestones" not in hidden_types:      # the Client Requested Report View (#192) reads only what the file already holds; its figures are the milestones
         tabs.append("clientreport")
-    return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at}
+    return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at, "needs_dropped": dropped}     # row 811b: build() takes needs_dropped out and logs it; no other caller does
 
 
 # ===== The file (pure) =====
@@ -496,14 +532,14 @@ _PROPERTY = re.compile(r"\s*([\w-]+)\s*:")
 # The pieces of _CSS_PIECE, except that a run of words and punctuation with no string or bracket in it is one piece, not one per
 # word (a function name before its ( is still its own piece). The walk below reads only brackets, strings, { } ; and the end of a
 # piece, so it costs a step per bracket or string, not per word: an embedded font is a handful of steps, not thousands.
-_PICTURE_PIECE = re.compile(r"""\"(?:[^"\n]*)"?|'(?:[^'\n]*)'?|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|(?:[\w-]+(?![\w-])(?!\s*\()|[^"'()\w-])+|[\w-]+""")
+_PICTURE_PIECE = re.compile(r"""(?s:\"[^"\\\n\r\f]*(?:\\.[^"\\\n\r\f]*)*"?|'[^'\\\n\r\f]*(?:\\.[^'\\\n\r\f]*)*'?)|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|(?:[\w-]+(?![\w-])(?!\s*\()|(?s:\\.|\\)|[^"'()\w\\-])+|[\w-]+""")
 
 
-def _escape_places(css, plain):
+def _escape_places(css, plain, gap=" "):
     """Where, in plain (= css_plain(css)), each escape of the style as typed put its character: two sorted lists, the starts and
     the ends. One pass. None if the places cannot be told (an escape built a comment: plain is then shorter than the decoded
     text). Used to ask whether a piece of the read text is spelled out as typed, with no escape in it."""
-    typed = _without_comments(css.replace("\x00", "\ufffd"))
+    typed = _without_comments(css.replace("\x00", "\ufffd"), gap)
     starts, ends, shift = [], [], 0
     for m in _CSS_ESCAPE.finditer(typed):
         put = len(_css_escape(m))
@@ -539,13 +575,22 @@ def _circle_picture(plain, decl, start, blocks, mime, spelled_out):
 
 
 def _picture_as_data(css, work=None):
+    """True if _picture_as_data_read finds one, read with a comment as a break between tokens and with a comment cut out (so the
+    two sides join): a comment is read both ways, as css_findings reads it."""
+    if "/*" not in css:
+        return _picture_as_data_read(css, work, " ")
+    work = work or Work()
+    return _picture_as_data_read(css, work, " ") or _picture_as_data_read(css, work, "")
+
+
+def _picture_as_data_read(css, work, gap):
     """True if style text has a data: URL that is not a font, the logo rule or one of the look's named pictures. Read as a browser
     reads it (css_plain), with the same pieces css_findings reads: url( and the string arguments of image functions. A running
     note of the block it is in (@font-face, a top-level rule) and of where its declaration began says which is spared."""
     if "\\" not in css and "data:" not in css.lower():
         return False                                    # no escape and no data: in it: nothing to find
     work = work or Work()
-    plain = css_plain(css)
+    plain = css_plain(css, gap)
     escaped = "\\" in css                              # an escape could make the text read differently from a browser: ask of each spared piece
     stack, blocks, images, argument_start, decl = [], [], 0, False, 0
 
@@ -557,7 +602,7 @@ def _picture_as_data(css, work=None):
         if not escaped:
             return True
         if not places:
-            places.append(_escape_places(css, plain))
+            places.append(_escape_places(css, plain, gap))
         if places[0] is None or "\\" in plain[begin:end]:
             return False
         starts, ends = places[0]
@@ -856,28 +901,34 @@ ADDRESS_FOUND = "a stylesheet address that isn't embedded data"
 
 
 _CSS_ESCAPE = re.compile(r"\\(?:([0-9A-Fa-f]{1,6})(?:\r\n|[ \t\n\r\f])?|(\r\n|[\n\r\f])|(.))", re.S)
-_CSS_PIECE = re.compile(r"""\"(?:[^"\n]*)"?|'(?:[^'\n]*)'?|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|[\w-]+|[^"'()\w-]+""")
+_CSS_PIECE = re.compile(r"""(?s:\"[^"\\\n\r\f]*(?:\\.[^"\\\n\r\f]*)*"?|'[^'\\\n\r\f]*(?:\\.[^'\\\n\r\f]*)*'?)|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|[\w-]+|(?:(?s:\\.|\\)|[^"'()\w\\-])+""")
 _IMAGE_FUNCTION = re.compile(r"(?:-[a-z]+-)?(?:image-set|src|image|cross-fade)$", re.I)
 _URL_OPEN = re.compile(r"url\(", re.I)
+
+
+_NOT_DECODED = frozenset("\"'\\\n\r\f")      # an escape for one of these stays as typed: it is a character of a name or a string, never a quote, a backslash or a line end
 
 
 def _css_escape(m):
     if m.group(1):
         n = int(m.group(1), 16)
-        return chr(n) if 0 < n <= 0x10FFFF and not 0xD800 <= n <= 0xDFFF else "\ufffd"
-    return "" if m.group(2) else m.group(3)
+        c = chr(n) if 0 < n <= 0x10FFFF and not 0xD800 <= n <= 0xDFFF else "\ufffd"
+        return m.group(0) if c in _NOT_DECODED else c
+    if m.group(2):
+        return "\\\n"                 # a backslash and a line end stays one (as LF): in a string it joins the lines, outside one it is a break between tokens
+    return m.group(0) if m.group(3) in _NOT_DECODED else m.group(3)
 
 
 _COMMENT_STOP = re.compile(r"/\*|[\"'\\(]")
-_DQ_STRING = re.compile(r'"(?:[^"\\\n]|\\\r\n|\\.)*"?', re.S)
-_SQ_STRING = re.compile(r"'(?:[^'\\\n]|\\\r\n|\\.)*'?", re.S)
+_DQ_STRING = re.compile(r'"(?:[^"\\\n\r\f]|\\\r\n|\\.)*"?', re.S)
+_SQ_STRING = re.compile(r"'(?:[^'\\\n\r\f]|\\\r\n|\\.)*'?", re.S)
 _UNQUOTED_URL = re.compile(r"[\t\n\f\r ]*(?![\"'\t\n\f\r ])(?:[^)\\]|\\.)*\)?", re.S)
 _QUOTE_NEXT = re.compile(r"[\t\n\f\r ]*[\"']")
 _URL_NAME_ENDS = frozenset("lLcC \t\n\r\f")      # the last character of url( as written plainly (l) or as an escape (\6c, \6C, with or without a space)
 _IDENT_AT_END = re.compile(r"(?:[\w-]|[^\x00-\x7f]|\\(?:[0-9A-Fa-f]{1,6}[ \t\n\r\f]?|.))+\Z", re.S)
 
 
-def _without_comments(css):
+def _without_comments(css, gap=" "):
     """`css` with each /* ... */ cut out, as a browser's reader finds comments: not inside a string (a "/*" in a string is no
     comment, so it cannot swallow a real address up to a later */), not after a backslash (\\/* is no comment), and not inside an
     unquoted url( (url(a/*) is a whole address, so a real address after it is still read). A comment with no end is cut at its
@@ -892,6 +943,8 @@ def _without_comments(css):
         tail = (tail + css[pos:m.start()])[-64:]
         c = m.group(0)
         if c == "/*":
+            out.append(gap)                 # gap " ": a comment ends the token before it (red/**/image-set( is red, then image-set( ), as in a browser
+            tail = (tail + gap)[-64:]         # gap "": the comment is cut out and the two sides join (the stricter old reading, u/**/rl( is url( ); both are scanned
             j = css.find("*/", m.end())
             pos = m.end() if j < 0 else j + 2
             continue
@@ -910,12 +963,12 @@ def _without_comments(css):
         pos = m.start() + len(piece)
 
 
-def css_plain(css):
+def css_plain(css, gap=" "):
     """Style text as a browser's reader sees it: each null byte read as U+FFFD (not dropped), no comments, each \\75 or \\u escape
     turned into the character it stands for (so \\75rl( and u/**/rl( are url( and \\69mport is import). One forward pass at each step.
     Comments are cut before the escapes are turned into characters, never after: an escape cannot make a comment (\\2f* is no
     comment), so it cannot hide what follows it either."""
-    return _CSS_ESCAPE.sub(_css_escape, _without_comments(css.replace("\x00", "\ufffd")))
+    return _CSS_ESCAPE.sub(_css_escape, _without_comments(css.replace("\x00", "\ufffd"), gap))
 
 
 _DATA_START = re.compile(r"[\"' ]*data:", re.I)
@@ -950,8 +1003,9 @@ def css_findings(css, work=None):
     if "(" not in css and "@" not in css and "\\" not in css:
         return found             # no bracket, @ or escape: no url(, no @import (u/**/rl( keeps its bracket, \40 import its backslash)
     # a browser reads a null byte as U+FFFD; the guard also reads the text with it dropped (the stricter reading kept from before)
-    plains = [css_plain(css)] + ([css_plain(css.replace("\x00", ""))] if "\x00" in css else [])
-    for text in [_without_comments(css)] + plains:      # the text as typed, less its comments: a url( in a comment reaches nothing
+    gaps = (" ", "") if "/*" in css else (" ",)
+    plains = [css_plain(css, g) for g in gaps] + ([css_plain(css.replace("\x00", ""), g) for g in gaps] if "\x00" in css else [])
+    for text in [_without_comments(css, g) for g in gaps] + plains:      # the text as typed, less its comments: a url( in a comment reaches nothing
         if re.search(r"@\s*import", text, re.I):
             found.add(IMPORT_FOUND)
         if _url_outside(text, work):
@@ -1179,7 +1233,11 @@ def build(store, code, now=None, branding=None, section_style=None, number=None,
         inputs["section_style"] = section_style
     if inputs["data"]["project"].get("archived"):           # #126: checked here, not in select (glance.kept_rows calls select and must still work)
         raise PublishError("An archived project can't be published. Restore it first.")
-    published = add_glance(select(inputs), inputs)
+    published = select(inputs)
+    dropped = published.pop("needs_dropped", 0)         # row 811b: only a publish or preview build says so, as a count and nothing else
+    if dropped:
+        LOG.warning("The Needs from you list is full: %d flagged item(s) are left out of the published file.", dropped)
+    published = add_glance(published, inputs)
     if workbook:
         from clark import excel_client           # not at the top: openpyxl is loaded only when a workbook is made
         try:

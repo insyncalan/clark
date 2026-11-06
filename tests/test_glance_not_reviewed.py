@@ -1,4 +1,4 @@
-"""#160: "Not reviewed after (days)" in Settings and the optional Not reviewed tile, in a real browser.
+"""#160: "Not reviewed after (days)" in Settings, in a real browser; row 910: the Not reviewed tile is gone.
 
 Run: python3 dev/run_tests.py test_glance_not_reviewed
 The page is the committed one, served by a real server whose change route is the real clark.changes over a real store in a temporary
@@ -54,95 +54,28 @@ class NotReviewed(Setup):
             p.key("Backspace", code="Backspace", vk=8)
         p.key("Enter", code="Enter", vk=13)
 
-    def test_off_by_default_turned_on_by_the_eye_and_remembered(self):
+    def test_there_is_no_not_reviewed_tile_in_view_or_edit_even_with_an_old_browser_flag(self):
+        """Row 910: the tile is gone. A flag an older page left in this browser is ignored; the four stored tiles are all there is."""
         for width, dark in SIZES:
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 p = self.show(cdp, width, dark)
-                self.assertEqual(self.stale(p), 0, "View has no Not reviewed tile until it is turned on")
-                p.edit()
-                p.until("!!document.querySelector('[data-tile=stale]')", "Edit draws the tile, dimmed")
-                self.assertEqual(self.tiles(p), ["health", "overdue", "risks", "decisions", "stale"], "it comes last")
-                self.assertTrue(p.js("document.querySelector('[data-tile=stale]').classList.contains('is-hidden')"))
-                eye = "document.querySelector('[data-tile=stale] [data-tile-eye]')"
-                self.assertEqual(p.js(f"{eye}.getAttribute('aria-pressed')"), "true")
-                self.assertEqual(p.js(f"{eye}.getAttribute('aria-label')"), "Show Not reviewed on the Dashboard")
-                self.assertEqual(p.js("document.querySelector('[data-tile=stale] .thid').textContent"), "Off. Never in the published report.")
-                self.assertEqual(p.js("document.querySelectorAll('[data-tile=stale] [data-tile-grip]').length"), 0, "it is not moved")
-                p.js(f"{eye}.click()")
-                p.until("!document.querySelector('[data-tile=stale]').classList.contains('is-hidden')", "the eye turned it on")
-                self.assertEqual(p.js(f"{eye}.getAttribute('aria-label')"), "Hide Not reviewed from the Dashboard")
-                self.assertEqual(self.sent, [], "the eye asks the server for nothing")
-                p.view()
-                self.assertEqual(self.tiles(p), ["health", "overdue", "risks", "stale"])
-                self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
+                p.js("localStorage.setItem('clark.glance.notReviewed.ABC', 'true')")
                 p.reload()
-                p.until("!!document.querySelector('[data-tile=stale]')", "still on after a reload")
+                p.until("document.querySelectorAll('.glance > .tcell').length > 0", "the tiles drew")
+                self.assertEqual(self.stale(p), 0, "View has no Not reviewed tile")
+                self.assertEqual(p.js("document.querySelectorAll('[data-fig=stale]').length"), 0)
+                self.assertEqual(self.tiles(p), ["health", "overdue", "risks"], "View: the shown stored tiles only")
                 p.edit()
-                p.js(f"{eye}.click()")
-                p.until("document.querySelector('[data-tile=stale]').classList.contains('is-hidden')", "the eye turned it off")
-                p.view()
+                self.assertEqual(self.tiles(p), ["health", "overdue", "risks", "decisions"], "Edit: the four stored tiles, no Not reviewed tile")
                 self.assertEqual(self.stale(p), 0)
 
-    def test_the_count_and_its_text_are_readable_in_light_and_dark(self):
-        script = """(() => {
-          const rgb = (c) => c.match(/[\\d.]+/g).slice(0, 3).map(Number);
-          const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
-          const ratio = (a, b) => { const x = lum(rgb(a)), y = lum(rgb(b)); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
-          const out = [];
-          for (const sel of ['.k', '.v', '.dd', '.thid']) {
-            const el = document.querySelector('[data-tile=stale] ' + sel); if (!el) { out.push([sel, 0]); continue; }
-            let bg = el, back = 'rgba(0, 0, 0, 0)';
-            while (bg && /rgba\\(.*, 0\\)|transparent/.test(back)) { back = getComputedStyle(bg).backgroundColor; bg = bg.parentElement; }
-            out.push([sel, ratio(getComputedStyle(el).color, back)]);
-          }
-          return out;
-        })()"""
-        for width, dark in SIZES:
-            with self.subTest(width=width, dark=dark), chrome() as cdp:
-                p = self.show(cdp, width, dark)
-                p.edit()
-                p.until("!!document.querySelector('[data-tile=stale]')", "the tile drew")
-                for sel, r in p.js(script):
-                    self.assertGreaterEqual(r, 4.5, f"{sel} (0 means missing)")
-                tag, fig = p.js("(() => { const t = document.querySelector('[data-tile=stale] .thid').getBoundingClientRect(), d = document.querySelector('[data-tile=stale] .dd').getBoundingClientRect(); return [t.top, d.bottom]; })()")
-                self.assertGreaterEqual(tag, fig, "the tag sits under the detail, never over it")
-
-    def test_the_count_is_the_list_it_opens_with_the_freshness_filter_on(self):
-        with chrome() as cdp:
-            p = self.show(cdp)
-            p.js("localStorage.setItem('clark.glance.notReviewed.ABC', 'true')")
-            p.reload()
-            p.until("!!document.querySelector('[data-fig=stale]')", "the tile is on")
-            self.assertEqual(self.expected(), 0, "ten days since review is not more than 14")
-            self.assertEqual(p.js("document.querySelector('[data-fig=stale] .v').textContent"), "0")
-            self.assertEqual(p.js("document.querySelector('[data-fig=stale] .dd').textContent"), f"Not reviewed for more than 14 days, of {self.open_items()} open items")
-            self.assertEqual(p.js("document.querySelector('[data-fig=stale] .k').textContent"), "Not reviewed")
-            self.assertTrue(p.js("document.querySelector('[data-fig=stale]').getAttribute('aria-label').endsWith('Opens Work items showing these')"))
-            with self.store.step("dashboard", USER) as st:
-                st.update("projects", "ABC", {"review_after_days": 7})
-            p.reload()
-            p.until("!!document.querySelector('[data-fig=stale]')", "the tile is on")
-            want = self.expected()
-            self.assertGreater(want, 0, "with 7 days every open item is not reviewed")
-            self.assertEqual(want, self.open_items())
-            self.assertEqual(p.js("document.querySelector('[data-fig=stale] .v').textContent"), str(want))
-            self.assertEqual(p.js("document.querySelector('[data-fig=stale] .tw').textContent"), "To review")
-            p.js("document.querySelector('[data-fig=stale]').click()")
-            p.until("location.hash.startsWith('#work&p=ABC&f=')", "Work items opened")
-            p.until(f"document.querySelectorAll('#work tbody tr[data-id]').length === {want}", f"the list holds the {want} it counted")
-            chips = p.js("document.querySelector('[data-fline]').dataset.line.split(/\\s+/).filter(Boolean)")
-            self.assertEqual(chips, ["is:open", "is:quiet"], "the line shows the Freshness filter")
-
-    def test_the_setting_changes_the_tile_and_the_filter_at_once_and_a_bad_value_keeps_the_old_one(self):
+    def test_a_bad_value_keeps_the_old_one_and_a_good_one_is_saved(self):
         for width, dark in SIZES:
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 with self.store.step("dashboard", USER) as st:
                     st.update("projects", "ABC", {"review_after_days": 14})
                 del self.sent[:]
                 p = self.show(cdp, width, dark)
-                p.js("localStorage.setItem('clark.glance.notReviewed.ABC', 'true')")
-                p.reload()
-                p.until("document.querySelector('[data-fig=stale] .v') && document.querySelector('[data-fig=stale] .v').textContent === '0'", "0 at 14 days")
                 for bad in ("0", "abc", "14.5", ""):
                     self.set_days(p, bad)
                     p.until(f"(document.querySelector('[data-review-days-bad]') || {{}}).textContent === {json.dumps(REFUSED)}", f"{bad!r} is refused in plain words")
@@ -156,27 +89,6 @@ class NotReviewed(Setup):
                 self.assertEqual(self.project()["review_after_days"], 7)
                 self.assertEqual(p.js("document.querySelector('[data-review-days-bad]').textContent"), "", "the refusal went once a good number was saved")
                 self.assertEqual(p.js("document.querySelector('#review-days').value"), "7")
-                p.js("location.hash = '#dashboard&p=ABC'")
-                want = self.expected()
-                p.until(f"document.querySelector('[data-fig=stale] .v') && document.querySelector('[data-fig=stale] .v').textContent === '{want}'", "the tile follows the number")
-                self.assertEqual(p.js("document.querySelector('[data-fig=stale] .dd').textContent"), f"Not reviewed for more than 7 days, of {self.open_items()} open items")
-                self.set_days(p, "1")
-                p.saved()
-                p.js("location.hash = '#dashboard&p=ABC'")
-                p.until(f"document.querySelector('[data-fig=stale] .dd') && document.querySelector('[data-fig=stale] .dd').textContent === 'Not reviewed for more than 1 day, of {self.open_items()} open items'", "one day is singular")
-                self.set_days(p, "7")
-                p.saved()                     # the Undo toast of the save to 1 may still be up, so this alone does not mean 7 has landed:
-                p.js("location.hash = '#dashboard&p=ABC'")
-                p.until(f"document.querySelector('[data-fig=stale] .dd') && document.querySelector('[data-fig=stale] .dd').textContent === 'Not reviewed for more than 7 days, of {self.open_items()} open items'", "the page has the new number before the tile is clicked")
-                self.assertEqual(self.project()["review_after_days"], 7)
-                p.js("document.querySelector('[data-fig=stale]').click()")
-                p.until("!!document.querySelector('#fline-input')", "Work items with the Freshness filter")
-                self.assertFalse(p.js("!!document.querySelector('#freshMenu')"), "row 813: no Freshness pill; the filter is the typed word")
-                p.until("document.querySelector('[data-fline]').dataset.line.includes('is:quiet')", "the tile opened the typed word")
-                p.js("document.querySelector('#fline-input').focus(); document.querySelector('#fline-input').select()")
-                p.type("is:")
-                p.until("!!document.querySelector('#fline-list [data-ins=\"is:quiet\"] .fl2')", "the suggestion for the word")
-                self.assertEqual(p.js("document.querySelector('#fline-list [data-ins=\"is:quiet\"] .fl2').textContent"), "Not reviewed in 7 days", "the filter's value says the new number")
 
     def test_the_history_says_who_how_and_when_the_number_changed(self):
         with chrome() as cdp:
