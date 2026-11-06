@@ -5,15 +5,14 @@ import { signal, effect } from "@preact/signals";
 import { view, project, show, mode, peek, closePeek } from "../stores/report.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 import { screenOf, shapeContext } from "./peekLogic.js";
-import { contextText, articlesFor, placeOf, TABS, firstPlace, placeTitle, trailVisit, trailBack } from "./helpLogic.js";
+import { contextText, articlesFor, placeOf, TABS, firstPlace } from "./helpLogic.js";
 
 export const helpOpen = signal(false);
 export const helpTab = signal(lastTab());
 export const helpTarget = signal(null);          // the place to scroll to and flash, once it is drawn
 export const helpQuery = signal("");
 export const helpFocusSearch = signal(0);        // bumped to ask the panel to focus the search box
-export const helpHere = signal(null);            // the place the reader is at: marked in the contents list, and the one the way back leaves
-export const helpTrail = signal([]);             // the places left behind, the latest last (a small history, helpLogic.js trailVisit)
+export const helpHere = signal(null);            // the place the reader is at: marked in the contents list
 export const landing = { at: 0 };               // when a link last took the reader somewhere (set at once, before the page draws): a scroll that follows is not the reader reading on
 export const helpLand = signal(0);               // bumped when a link took the reader to a place, so the panel puts focus on that entry
 
@@ -39,7 +38,6 @@ export function openHelp(where) {
   rememberTab(p.tab);
   helpTarget.value = p.target;
   helpQuery.value = "";
-  helpTrail.value = [];
   helpHere.value = p.target || firstPlace(p.tab);
   helpOpen.value = true;
   return p.known;
@@ -85,15 +83,9 @@ export function closeHelp() {
   if (was) giveFocusBack(back);
 }
 
-/** Note that the reader moved on from the place they were at to `to` (the history for the way back). */
-function visit(to) {
-  helpTrail.value = trailVisit(helpTrail.value, helpHere.value, to);
-  helpHere.value = to;
-}
-
 export function setTab(t) {
   if (!TABS.some((x) => x.key === t)) return;
-  if (t !== helpTab.value) visit(firstPlace(t));
+  if (t !== helpTab.value) helpHere.value = firstPlace(t);
   helpTab.value = t;
   rememberTab(t);
   helpTarget.value = null;
@@ -104,7 +96,7 @@ export function setTab(t) {
 export function follow(place) {
   const p = placeOf(place, helpTab.value);
   if (!p.known) return;
-  visit(p.target);
+  helpHere.value = p.target;
   arrive(p);
 }
 
@@ -115,24 +107,6 @@ function arrive(p) {
   helpQuery.value = "";
   helpTarget.value = null;
   setTimeout(() => { helpTarget.value = p.target; helpLand.value++; }, 0);     // set again so a second click on the same link flashes again
-}
-
-/** The place the way back leads to (its title), or null when there is nowhere to go back to. */
-export function backPlace() {
-  const t = helpTrail.value;
-  const p = t.length ? t[t.length - 1] : null;
-  return p && placeTitle(p) ? { place: p, title: placeTitle(p) } : null;
-}
-
-/** One place back: the place before this one, with no new entry in the history. */
-export function goBackPlace() {
-  const b = trailBack(helpTrail.value);
-  if (!b.place) return;
-  const p = placeOf(b.place, helpTab.value);
-  helpTrail.value = b.trail;
-  if (!p.known) return;
-  helpHere.value = p.target;
-  arrive(p);
 }
 
 /** A link to a screen: Help closes, the screen opens. A settings anchor opens Settings. */
