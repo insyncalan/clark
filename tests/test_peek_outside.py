@@ -25,7 +25,7 @@ PROBE = """(() => {
   document.querySelectorAll('[data-outside-probe]').forEach((e) => e.removeAttribute('data-outside-probe'));
   const peek = document.querySelector('#peek'), left = peek ? peek.getBoundingClientRect().left : innerWidth;
   const pick = [...document.querySelectorAll('body *')].find((e) => {
-    if (e.closest('#peek, [role=menu], dialog, button, a, tr, article, .wl-row, input, select, textarea, label, [tabindex], [role=button], [role=tab], svg, nav') || e.childElementCount || !e.textContent.trim() || getComputedStyle(e).visibility !== 'visible') return false;
+    if (e.closest('#peek, [role=menu], dialog, button, a, tr, article, .wl-row, input, select, textarea, label, [tabindex]:not([tabindex="-1"]), [role=button], [role=tab], svg, nav') || e.childElementCount || !e.textContent.trim() || getComputedStyle(e).visibility !== 'visible') return false;
     const r = e.getBoundingClientRect(); return r.width > 10 && r.height > 5 && r.top >= 0 && r.bottom < innerHeight && r.left + r.width / 2 < left - 8 && r.left >= 0 && r.right < left - 8;
   });
   if (!pick) return false; pick.setAttribute('data-outside-probe', '1'); return true;
