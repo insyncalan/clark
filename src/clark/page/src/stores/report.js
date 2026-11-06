@@ -137,7 +137,7 @@ function leave() {
   moves.value++;
 }
 
-let backing = false;                                     // a Back from closePeek is on its way: a second close before it lands must not step Back again (row 891)
+let backing = false;                                     // a Back from closePeek is on its way: a second close before it lands must not step Back again; a timer clears it if the pop never comes (row 894)
 route.onPop((s) => { backing = false; leave(); apply(s); });
 
 /** Go to a page: one new entry; an open peek closes, and so do the filters (they belong to one page). */
@@ -192,7 +192,7 @@ export function closePeek() {
   if (!peek.value || backing) return;
   const rewrite = () => { backing = false; go({ ...where(), item: "", ms: "" }, { replace: true }); };
   // Back would also take away a filter changed while the peek was open (that change rewrote this entry), so then the entry is rewritten.
-  if (route.peekWasPushed() && openedF === filterText.value && route.back(rewrite)) { backing = true; return; }       // onPop redraws
+  if (route.peekWasPushed() && openedF === filterText.value && route.back(rewrite)) { backing = true; setTimeout(() => { backing = false; }, 1500); return; }       // onPop redraws
   rewrite();
 }
 
