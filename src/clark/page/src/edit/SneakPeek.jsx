@@ -1,4 +1,4 @@
-// Sneak peek (#42b): change one item in words. Type, read the from → to lines, press Enter (or Shift+Enter) to apply them as one
+// Sneak peek (#42b): change one item, milestone or use case in words. Type, read the from → to lines, press Enter (or Shift+Enter) to apply them as one
 // step; the toast offers Undo. The reading is plain code on the server (POST /api/sneak/read): no model, and it writes nothing.
 // A reading that needs a confirm is never applied by Enter alone. Applying goes through the work-item change route (#68).
 import { useState, useEffect, useRef } from "preact/hooks";
@@ -7,12 +7,13 @@ import { wordsOpen } from "../stores/wordsState.js";
 import { sneakRead } from "../api.js";
 import { Icon } from "../components/Icon.jsx";
 import { applyReading } from "./sneakApply.js";
+import { PLACEHOLDER } from "./sneakWords.js";
 
 export function SneakButton() {
   return <button type="button" class="pkp-btn" data-sneak-open title="Change an item with words" aria-label="Change an item with words" aria-pressed={wordsOpen.value} onClick={() => { wordsOpen.value = !wordsOpen.value; }}><Icon name="sparkle" /></button>;
 }
 
-export function SneakPeek({ row }) {
+export function SneakPeek({ row, kind = "item" }) {
   const [words, setWords] = useState("");
   const [reading, setReading] = useState(null);       // null: nothing typed; {ok, reading | message}
   const [flash, setFlash] = useState(false);
@@ -38,7 +39,7 @@ export function SneakPeek({ row }) {
     if (!found || busy) return;
     if (found.confirm && !confirmed) { setFlash(true); setTimeout(() => setFlash(false), 900); return; }     // the line flashes; nothing is applied
     setBusy(true);
-    const done = await applyReading(row.id, found);
+    const done = await applyReading(row.id, found, kind);
     setBusy(false);
     if (done) { setWords(""); setReading(null); if (!keep) wordsOpen.value = false; }     // Enter closes the box; Shift+Enter keeps it for the next words
   };
@@ -51,7 +52,7 @@ export function SneakPeek({ row }) {
   return (
     <section class="wordsbox" data-sneak aria-label="Change an item with words">
       <div class="sn-head"><Icon name="sparkle" /><span>Change an item with words</span></div>
-      <input ref={box} class="sn-in" type="text" value={words} maxLength={400} aria-label="What should change" placeholder="move to Friday, owner Jo Ellis, high priority"
+      <input ref={box} class="sn-in" type="text" value={words} maxLength={400} aria-label="What should change" placeholder={PLACEHOLDER[kind] || PLACEHOLDER.item}
         onInput={(e) => { setReading(null); setWords(e.currentTarget.value); }} onKeyDown={key} />
       <div class="sn-out" role="status" aria-live="polite">
         {reading && !reading.ok ? <p class="sn-msg" data-sneak-message>{reading.message}</p> : null}

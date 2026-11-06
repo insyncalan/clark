@@ -44,7 +44,7 @@ class Commitment(unittest.TestCase):
     def test_find_a_use_case_sentences_are_shown(self):
         t = flat(TASKS["find-a-use-case"])
         self.assertIn("A use case with a commitment shows it as a small chip beside the status.", t)
-        self.assertIn("In Edit, the small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History.", t)
+        self.assertIn("The small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History.", t)
         self.assertNotIn("find-a-use-case", LATER["howto"])
 
     def test_words_and_places_in_the_code(self):

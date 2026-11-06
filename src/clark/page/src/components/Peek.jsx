@@ -114,9 +114,9 @@ export function Peek({ tools }) {
   const p = peek.value;
   const box = useRef(null), back = useRef(null), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
   const editing = !!tools && !fromFile.value && isEditing();      // every page but a Dashboard in View (row 824)
-  // The words box changes work items only (sneak.py refuses a milestone), so a milestone peek has no sparkle and no `//`.
+  // The words box changes a work item or a milestone; a use case has no peek (its own page, UseCaseDetail, has the box). The warning bar and Latest update are an item's only.
   const forItem = !!p && p.kind !== "milestone";
-  const Words = editing && forItem && tools.Words, WordsBtn = editing && forItem && tools.WordsButton;
+  const Words = editing && !!p && tools.Words, WordsButton = editing && !!p && tools.WordsButton;
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
   const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive;
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest;      // the warning bar and Latest update (peek, Edit only)
@@ -236,7 +236,7 @@ export function Peek({ tools }) {
         <button type="button" class="pkp-btn" data-pk-next title="Next item" aria-label="Next item" disabled={!near.next} onClick={() => go(near.next)}><Icon name="chevright" /></button>
         <span class="pk-id num">{p.id}</span>
         <span class="pk-sp" />
-        {WordsBtn ? <WordsBtn /> : null}
+        {WordsButton ? <WordsButton /> : null}
         {DupBtn && row ? <DupBtn row={row} /> : null}
         {ArchBtn && row ? <ArchBtn row={row} /> : null}
         <button type="button" class="pkp-btn" data-pk-wide aria-pressed={wide.value} title={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} aria-label={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} onClick={() => { wide.value = !wide.value; }}><Icon name="expand" /></button>
@@ -253,7 +253,7 @@ export function Peek({ tools }) {
           {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : <MilestoneFields m={m} />}
           {Latest && row ? <Latest key={row.id} row={row} /> : null}
         </div>}
-      {Words && wordsOpen.value && row ? <Words key={row.id} row={row} /> : null}
+      {Words && wordsOpen.value && (row || m) ? <Words key={p.id} row={row || m} kind={milestone ? "milestone" : "item"} /> : null}
       </div>
     </aside>
   );
