@@ -48,8 +48,11 @@ class Rules(unittest.TestCase):
 
     def test_only_tokens_set_a_time_or_an_easing_and_nothing_loops(self):
         # Everything in the Motion block runs once.
-        self.assertEqual([x.strip() for x in re.findall(r"([^{}\s][^{}]*)\{[^}]*infinite", re.sub(r"/\*.*?\*/", "", MOTION, flags=re.S))], [])
+        # Except the placeholder shimmer (row 886), which sweeps for as long as the placeholder shows.
+        self.assertEqual([x.strip() for x in re.findall(r"([^{}\s][^{}]*)\{[^}]*infinite", re.sub(r"/\*.*?\*/", "", MOTION, flags=re.S))], [".skel::after"])
         for decl in re.findall(r"animation:([^;]+);", MOTION):
+            if "m-shimmer" in decl:
+                continue
             self.assertRegex(decl, r"var\(--dur-[a-z]+\)", decl)
             self.assertRegex(decl, r"var\(--ease-[a-z]+\)", decl)
             self.assertNotRegex(decl, r"(?<![-\w(])\d+(\.\d+)?m?s\b", "a literal time: " + decl)
@@ -60,7 +63,7 @@ class Rules(unittest.TestCase):
         only if its selector is in APPROVED_LOOPS, which holds a name only once the owner has approved that loop in writing.
         Item 614 approved one: the Publish ring (.spin) turns for as long as "Publishing…" shows. It is bounded by the work, not by a
         count: Publish.jsx draws it only under `working`, so it is gone (and still) the moment the publish ends."""
-        APPROVED_LOOPS = (".spin",)
+        APPROVED_LOOPS = (".spin", ".skel::after")     # row 886: the shimmer, bounded by the wait as the ring is bounded by the work
         bare = re.sub(r"/\*.*?\*/", "", CSS, flags=re.S)
         loops = [sel.strip() for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", bare) if re.search(r"animation[^;]*\binfinite\b", body)]
         self.assertEqual([x for x in loops if x not in APPROVED_LOOPS], [], "an animation loops with no approval")

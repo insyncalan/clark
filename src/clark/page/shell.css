@@ -1528,7 +1528,7 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .pk-stale { margin: 0 0 var(--space-2); }
 .pk-chip { display: inline-block; padding: 2px var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--grey-200); color: var(--text-muted); font-size: var(--size-caption); }
 
-/* Loading placeholder: still grey blocks in the shape of the screen, with no shimmer. Shown only after a short wait (Views.jsx). */
+/* Loading placeholder: still grey blocks in the shape of the screen (the shimmer is in the Motion block and only when motion is allowed). Shown only after a short wait (Views.jsx). */
 .skel { display: block; background: var(--grey-100); border-radius: var(--radius-sm); }
 .skel-title { width: min(280px, 60%); height: 28px; margin-bottom: var(--space-4); }
 .skel-line { height: 14px; width: 100%; }
@@ -1563,6 +1563,10 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
   :root:not([data-motion="reduce"]) {
     /* the placeholder fades out as the screen arrives */
     .skel-leave { position: absolute; left: var(--space-5); right: var(--space-5); top: 28px; z-index: 1; pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+    /* row 886: a light band sweeps across each grey block (transform only, clipped to the block) for as long as the placeholder shows; it is
+       bounded by the wait, as the publish ring is, and the still grey block is all there is under reduced motion */
+    .skel { position: relative; overflow: hidden; }
+    .skel::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface) 70%, transparent), transparent); animation: m-shimmer var(--dur-enter) var(--ease-toggle) infinite; }
     /* a changed row glows, then settles to the still mark (tint, bar and the word stay) */
     .sec.is-changed, table.items tr.changed td, .msl-row.changed { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1; }
     /* the peek slides in on opening and its body fades in as Previous or Next steps on */
@@ -1589,6 +1593,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     :root:not([data-motion="reduce"]) .ad-tpl { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
     :root:not([data-motion="reduce"]) .ad-tpl:not(.off):hover { transform: translateY(-1px); box-shadow: var(--shadow); }
   }
+  @keyframes m-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
   @keyframes m-tick { from { opacity: 0; transform: scale(.4); } }
   @keyframes m-line-top { from { box-shadow: 0 -3px 0 transparent; } }
   @keyframes m-line-end { from { box-shadow: 0 3px 0 transparent; } }
