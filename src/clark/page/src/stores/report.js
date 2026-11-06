@@ -137,7 +137,9 @@ function leave() {
   moves.value++;
 }
 
-route.onPop((s) => { leave(); apply(s); });
+let backingAt = -Infinity;                               // when a Back from closePeek was started: a second close before it lands must not step Back again; after 1.5 s it counts as lost (row 894; no timer on the open path, see test_peek OpenTime)
+const backing = () => performance.now() - backingAt < 1500;
+route.onPop((s) => { backingAt = -Infinity; leave(); apply(s); });
 
 /** Go to a page: one new entry; an open peek closes, and so do the filters (they belong to one page). */
 export function show(next) {
@@ -182,13 +184,16 @@ export function openPeek(id, kind) {
   go({ ...where(), item: milestone ? "" : id, ms: milestone ? id : "" }, { replace: !!peek.value });
 }
 
+/** True while a Back started by closePeek has not landed: the peek is as good as closed (row 891). */
+export const peekClosing = () => backing();
+
 /** Close the peek: Back if a click opened it (so no entry stays behind), else this entry is rewritten without it. A Back that
  *  goes nowhere (a restored tab whose stack is gone) falls back to the rewrite. */
 export function closePeek() {
-  if (!peek.value) return;
-  const rewrite = () => go({ ...where(), item: "", ms: "" }, { replace: true });
+  if (!peek.value || backing()) return;
+  const rewrite = () => { backingAt = -Infinity; go({ ...where(), item: "", ms: "" }, { replace: true }); };
   // Back would also take away a filter changed while the peek was open (that change rewrote this entry), so then the entry is rewritten.
-  if (route.peekWasPushed() && openedF === filterText.value && route.back(rewrite)) return;       // onPop redraws
+  if (route.peekWasPushed() && openedF === filterText.value && route.back(rewrite)) { backingAt = performance.now(); return; }       // onPop redraws
   rewrite();
 }
 

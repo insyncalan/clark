@@ -30,7 +30,7 @@ class Appearance(Base):
     def open_settings(self, p):
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
-        p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+        p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
         p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
 
     def open_menu(self, p):
