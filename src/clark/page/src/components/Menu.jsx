@@ -23,8 +23,8 @@ export function menuMove(e, items) {
   return true;
 }
 
-// The role="menu" box: focus to its first item when it opens, the keys, and a click away.
-export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, children }) {
+// The role="menu" box: focus to its first item (or, with `focusChecked`, the marked one) when it opens, the keys, and a click away.
+export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focusChecked, children }) {
   const own = useRef(null), box = boxRef || own;
   const closeRef = useRef(onClose); closeRef.current = onClose;
   // `fixed`: the button sits inside a scrolling box that would cut the menu off, so the menu is placed on the window under the button (above it when
@@ -41,13 +41,19 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, chil
     window.addEventListener("resize", shut);
     return () => { window.removeEventListener("scroll", shut, true); window.removeEventListener("resize", shut); };
   }, []);
-  useLayoutEffect(() => { (menuItemsIn(box.current)[0] || box.current).focus({ preventScroll: true }); }, []);
+  // Row 800: opened with the mouse (the button does not show a focus ring), the first item takes the focus without a ring until a key is used.
+  useLayoutEffect(() => {
+    if (anchor && !anchor.matches(":focus-visible")) box.current.dataset.pointer = "1";
+    const its = menuItemsIn(box.current);
+    ((focusChecked && its.find((b) => b.getAttribute("aria-checked") === "true")) || its[0] || box.current).focus({ preventScroll: true });
+  }, []);
   useLayoutEffect(() => {                        // not after the next frame: a click away that quick still closes it
     const away = (e) => { if (!box.current.contains(e.target) && !(anchor && anchor.contains(e.target))) closeRef.current("away"); };
     document.addEventListener("pointerdown", away, true);
     return () => document.removeEventListener("pointerdown", away, true);
   }, [anchor]);
   const keys = (e) => {
+    delete box.current.dataset.pointer;
     if (menuMove(e, menuItemsIn(box.current))) return;
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose("esc"); }
     else if (e.key === "Tab") onClose("tab");
@@ -101,7 +107,7 @@ function entry(it, close, onPick) {
 
 // items: [{id, name, line?, checked?, pill?}] (`checked` true or false makes it a radio item, marked when it is the one in use; `word` "g", "a" or "r" draws the name as a status word with its coloured dot (the use case rows' own look), `pill` "g", "a" or "r" draws the name as a filled status pill, with a check mark shape after it when in use), or {id, sep: true} for a separator, or {id, lab} for a line of words that is not a command, or {id, head: {name, line, title}} for the top line (a name and, under it, a quiet line), or a command with `link` true, drawn as a link. `onPick(id)` runs after the menu has closed. With no items the button is a plain button and a click
 // is `onClick()` (so a button that sometimes has a menu keeps the same element when it has none).
-export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, id, btnCls, labelCls, menuId, menuLabel, left, fixed, chevron = true, onOpen }) {
+export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, id, btnCls, labelCls, menuId, menuLabel, left, fixed, chevron = true, onOpen, focusChecked }) {
   const [open, setOpen] = useMenuState();
   const btn = useRef(null);
   const back = useRef(false);
@@ -118,7 +124,7 @@ export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, id, 
         {icon ? <Icon name={icon} /> : null}<span class={labelCls}>{label}</span>{chevron ? <Icon name="chevdown" cls="nch" /> : null}
       </button>
       {open && menu ? (
-        <MenuPanel label={menuLabel || ariaLabel || label} id={menuId} cls={left ? "left" : ""} fixed={fixed} anchor={btn.current} onClose={close}>
+        <MenuPanel label={menuLabel || ariaLabel || label} id={menuId} cls={left ? "left" : ""} fixed={fixed} focusChecked={focusChecked} anchor={btn.current} onClose={close}>
           {groupedItems(items, menuId).map((n) => n.group
             ? <div key={n.id} role="group" aria-labelledby={n.labelId}>
                 <div class="lab" role="presentation" id={n.labelId}>{n.lab}</div>

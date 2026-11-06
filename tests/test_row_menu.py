@@ -195,6 +195,10 @@ class Menu(board.Base):
     def entries(self, cdp, sid):
         return cdp.js("[...document.querySelectorAll('.rowmenu [role=menuitem]')].map(b => [b.dataset.rm, b.querySelector('b').textContent, b.getAttribute('aria-disabled') === 'true', (b.querySelector('small') || {}).textContent || ''])", sid)
 
+    def fly(self, cdp, sid):
+        """The short list open beside its entry (row 848): [id, name, small line] of each of its entries."""
+        return cdp.js("[...document.querySelectorAll('.rowmenu .rm-fly [role=menuitem]')].map(b => [b.dataset.rm, b.querySelector('b').textContent, (b.querySelector('small') || {}).textContent || ''])", sid)
+
     def shut(self, cdp, sid):
         self.until(cdp, sid, "!document.querySelector('.rowmenu')", "the menu to close")
 
@@ -321,8 +325,8 @@ class Menu(board.Base):
             before = self.steps()
             self.open_menu(cdp, sid, self.TABLE % a)
             click(cdp, sid, "[data-rm=status]")
-            self.until(cdp, sid, "document.querySelector('.rowmenu [role=menu]').getAttribute('aria-label').startsWith('Change status')", "the list")
-            self.assertEqual([e[1] for e in self.entries(cdp, sid)], ["Delayed", "Closed", "Cancelled", "‹ Back"])
+            self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly')", "the list")
+            self.assertEqual([e[1] for e in self.fly(cdp, sid)], ["Delayed", "Closed", "Cancelled"])
             click(cdp, sid, "[data-rm='s:Closed']")
             t = self.wait_toast(cdp, sid, "done")
             self.assertEqual((t["text"], t["undo"]), (f"Status of {a} changed to Closed.", True), "the cell's own words")
@@ -354,13 +358,19 @@ class Menu(board.Base):
             key(cdp, sid, "ArrowDown")                                  # Open the peek
             key(cdp, sid, "ArrowDown")                                  # Change status
             key(cdp, sid, "ArrowRight")                                 # opens its list
-            self.until(cdp, sid, "document.querySelector('.rowmenu [role=menu]').getAttribute('aria-label').startsWith('Change status')")
+            self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly')")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "s:Delayed")
-            key(cdp, sid, "ArrowLeft")                                  # back to the menu
-            self.until(cdp, sid, "document.querySelector('.rowmenu [role=menu]').getAttribute('aria-label').startsWith('Actions')")
-            key(cdp, sid, "ArrowRight")                                 # (focus starts on the first entry again)
+            self.assertTrue(cdp.js("!!document.querySelector('.rowmenu [data-rm=draft]')", sid), "the menu stays whole beside the list")
+            key(cdp, sid, "ArrowLeft")                                  # back to the entry, the list shut
+            self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')")
+            self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "status")
+            key(cdp, sid, "ArrowRight")
+            self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly')")
             key(cdp, sid, "End")
-            self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "archive")
+            self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "s:Cancelled")
+            key(cdp, sid, "Escape")                                     # Esc leaves the list first, the menu stays
+            self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')")
+            self.assertTrue(cdp.js("!!document.querySelector('.rowmenu [role=menu]')", sid))
             key(cdp, sid, "Home")
             key(cdp, sid, "ArrowDown")
             key(cdp, sid, "Enter")                                      # Open the peek
@@ -373,8 +383,8 @@ class Menu(board.Base):
             a = self.id_of("Order the laptops")
             self.open_menu(cdp, sid, self.TABLE % a)
             click(cdp, sid, "[data-rm=due]")
-            self.until(cdp, sid, "!!document.querySelector('[data-rm=pick]')", "the list")
-            self.assertEqual([e[1:2] + e[3:] for e in self.entries(cdp, sid)], [["Friday", "30-10-2026"], ["A week on", "05-11-2026"], ["Pick a date", ""], ["No date", ""], ["‹ Back", ""]])
+            self.until(cdp, sid, "!!document.querySelector('.rm-fly [data-rm=pick]')", "the list")
+            self.assertEqual([e[1:] for e in self.fly(cdp, sid)], [["Friday", "30-10-2026"], ["A week on", "05-11-2026"], ["Pick a date", ""], ["No date", ""]])
             click(cdp, sid, "[data-rm='d:2026-10-30']")
             self.wait_toast(cdp, sid, "done")
             self.assertEqual(self.row(a)["due_date"], "2026-10-30")
@@ -394,8 +404,8 @@ class Menu(board.Base):
             a = self.id_of("Order the laptops")
             self.open_menu(cdp, sid, self.TABLE % a)
             click(cdp, sid, "[data-rm=owner]")
-            self.until(cdp, sid, "!!document.querySelector('[data-rm=back]')", "the list")
-            names = [e[1] for e in self.entries(cdp, sid)]
+            self.until(cdp, sid, "!!document.querySelector('.rm-fly')", "the list")
+            names = [e[1] for e in self.fly(cdp, sid)]
             self.assertNotIn("Sara Khan", names, "not the current owner")
             self.assertIn("Priya Nair", names)
             click(cdp, sid, "[data-rm='o:Priya Nair']")
@@ -556,8 +566,10 @@ class Menu(board.Base):
                 self.open_menu(cdp, sid, self.TABLE % a)
                 cdp.js(f"document.querySelector('.rowmenu [data-rm={rm}]').focus()", sid)
                 key(cdp, sid, "ArrowRight")
-                self.until(cdp, sid, "!document.querySelector('.rowmenu [data-rm=draft]')", "the list for " + rm)
-                self.assertTrue(cdp.js("!!document.querySelector('.rowmenu [data-rm=back]')", sid), rm)
+                self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly')", "the list for " + rm)
+                self.assertTrue(cdp.js("!!document.querySelector('.rowmenu [data-rm=draft]')", sid), rm)
+                key(cdp, sid, "Escape")                                 # the list first
+                self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')")
                 key(cdp, sid, "Escape")
                 self.until(cdp, sid, "!document.querySelector('.rowmenu')", "the menu to close")
             self.assertEqual(self.steps(), before)
@@ -860,6 +872,80 @@ class Menu(board.Base):
             key(cdp, sid, "Escape")
             self.shut(cdp, sid)
             self.assertTrue(cdp.js("document.body.classList.contains('board-full')", sid), "Esc closed the menu only, not full screen")
+
+    # ---- row 848: where it opens, hover, no jump, Duplicate of a Sensitive item ----
+    def box(self, cdp, sid):
+        return cdp.js("(() => { const b = document.querySelector('.rowmenu > [role=menu]').getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; })()", sid)
+
+    def hover(self, cdp, sid, selector):
+        x, y = cdp.js(f"(() => {{ const b = document.querySelector({json.dumps(selector)}).getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; }})()", sid)
+        cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
+
+    def test_the_menu_opens_at_the_pointer(self):
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                a = self.id_of("Order the laptops")
+                cdp.js(f"document.querySelector(\"{self.TABLE % a}\").scrollIntoView({{block: 'start'}})", sid)
+                px, py = 200, cdp.js(f"Math.round(document.querySelector(\"{self.TABLE % a}\").getBoundingClientRect().top + 10)", sid)
+                for t, b, bs in (("mouseMoved", "none", 0), ("mousePressed", "right", 2), ("mouseReleased", "right", 0)):
+                    cdp.call("Input.dispatchMouseEvent", {"type": t, "x": px, "y": py, "button": b, "buttons": bs, "clickCount": 1}, sid)
+                self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the menu")
+                left, top = self.box(cdp, sid)[:2]
+                self.assertLessEqual(abs(left - px), 2, (width, left, px))
+                self.assertLessEqual(abs(top - py), 2, (width, top, py))
+
+    def test_a_list_opens_on_hover_stays_while_the_pointer_travels_and_the_menu_does_not_move(self):
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                a, before = self.id_of("Order the laptops"), self.steps()
+                self.open_menu(cdp, sid, self.TABLE % a)
+                still = self.box(cdp, sid)
+                for rm, first in (("status", "s:Delayed"), ("due", "d:2026-10-30"), ("owner", None)):
+                    self.hover(cdp, sid, f".rowmenu > [role=menu] [data-rm={rm}]")
+                    self.until(cdp, sid, f"!!document.querySelector('.rowmenu .rm-fly [role=menuitem]')", f"the {rm} list on hover")
+                    if first:
+                        self.assertEqual(self.fly(cdp, sid)[0][0], first)
+                    self.assertEqual(self.box(cdp, sid), still, f"{rm}: the menu did not move or resize")
+                    self.hover(cdp, sid, ".rowmenu .rm-fly [role=menuitem]")         # on to the list: it stays open
+                    time.sleep(0.5)
+                    self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly')", sid), f"{rm}: the list stays while the pointer is on it")
+                    fl = cdp.js("(() => { const f = document.querySelector('.rm-fly').getBoundingClientRect(), m = document.querySelector('.rowmenu > [role=menu]').getBoundingClientRect(); return [f.left >= m.right - 4 || f.right <= m.left + 4, f.left >= 0, f.right <= window.innerWidth]; })()", sid)
+                    self.assertEqual(fl, [True, True, True], (width, rm, "beside the menu, inside the window"))
+                    self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=link]")      # to a plain entry: it shuts
+                    self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')", f"the {rm} list to shut")
+                self.assertEqual(self.steps(), before, "hovering writes nothing")
+
+    def test_a_click_acts_once_and_the_menu_does_not_jump_or_resize_on_the_way(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a, before = self.id_of("Order the laptops"), self.steps()
+            self.open_menu(cdp, sid, self.TABLE % a)
+            still = self.box(cdp, sid)
+            click(cdp, sid, ".rowmenu > [role=menu] [data-rm=status]")                 # a click on the entry the hover opened
+            self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly')", "the list")
+            self.assertEqual(self.box(cdp, sid), still, "the click did not move or resize the menu")
+            self.assertEqual(self.steps(), before, "the click on the entry changes nothing")
+            click(cdp, sid, "[data-rm='s:Delayed']")
+            self.wait_toast(cdp, sid, "done")
+            self.assertEqual((self.row(a)["status"], self.steps()), ("Delayed", before + 1), "one step")
+            self.shut(cdp, sid)
+            self.until(cdp, sid, f"document.activeElement.dataset.id === {json.dumps(a)}", "focus back on the row")
+
+    def test_duplicate_of_a_sensitive_item_stays_hidden_from_the_report(self):
+        with chrome() as cdp:
+            a = self.id_of("Order the laptops")
+            with self.store.step("dashboard", USER) as st:
+                st.create("item_labels", {"item_id": a, "label": "Sensitive"})
+                st.create("report_hidden", {"project": "ABC", "item_id": a})
+            sid = self.visit(cdp)
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=dup]")
+            ref = self.wait_toast(cdp, sid, "done")["text"].split(" ")[0]
+            self.assertNotEqual(ref, a)
+            self.assertEqual([r[0] for r in self.query("SELECT label FROM item_labels WHERE item_id = ?", ref)], ["Sensitive"], "the copy carries the label")
+            self.assertEqual(len(self.query("SELECT item_id FROM report_hidden WHERE item_id = ?", ref)), 1, "and stays hidden from the report")
 
     def test_at_900_px_the_menu_stays_inside_the_window(self):
         with chrome() as cdp:

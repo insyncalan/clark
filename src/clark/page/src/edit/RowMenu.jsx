@@ -14,7 +14,7 @@ import { readDraftEmail, sendEmailSent } from "../api.js";
 import { DraftEmail } from "../components/DraftEmail.jsx";
 import { todayIso } from "../workItems.js";
 import { format } from "../router.js";
-import { MenuPanel } from "../components/Menu.jsx";
+import { MenuPanel, menuMove, menuItemsIn } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { people, tableOf, canClearDue } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
@@ -25,22 +25,24 @@ import { workSelection } from "../stores/selection.js";
 
 const ROW = "tr[data-id], article.bcard";
 const draftOpen = signal(null);                // null, or { id, items, state, draft, today, from }: the Draft email dialog over the page
-const state = signal(null);                    // null, or { id, x, y, level: "" | "status" | "due" | "owner", pick: bool, from: the element to give focus back to }
+const state = signal(null);                    // null, or { id, x, y, fly: "" | "status" | "due" | "owner" (the short list open beside its entry), focusFly: bool, pick: bool, from: the element to give focus back to }
 
 // The element a menu belongs to, and where focus goes back to: a table row, or a card's own button.
 const homeOf = (el) => (el.matches("article.bcard") ? el.querySelector(".bc-main") || el : el);
 function refocus(id) {
-  setTimeout(() => {
+  const back = () => {
     const now = document.activeElement;
     if (now && now !== document.body && now.isConnected) return;
     const el = document.querySelector(`tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"]`);
     if (el) homeOf(el).focus({ preventScroll: true });
-  }, 0);
+  };
+  setTimeout(back, 0);
+  setTimeout(back, 150);                        // row 848: the change redraws the row after the first look, and the redrawn row had lost the focus; if nothing holds it by then, the row does
 }
 
 function openFor(el, x, y) {
   if (!el.dataset.id) return;
-  state.value = { id: el.dataset.id, x, y, level: "", pick: false, from: homeOf(el) };
+  state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: homeOf(el) };
 }
 
 // A right click, or the menu key or Shift+F10 on the focused row or card (the key opens beside the row, not at the pointer).
@@ -83,18 +85,17 @@ const copied = (text, said) => {
 
 function entries(row, level, edit, d, today) {
   const dr = draftEntry(row, d), why = edit ? "" : VIEW_ONLY;
-  const back = { id: "back", name: "Back" };
   if (level === "status") {
     const l = statusList(row);
-    return [...l.map((s) => ({ id: "s:" + s, name: s })), ...(l.length ? [] : [{ id: "none", lab: "There is no other status to give this item." }]), { id: "sep", sep: true }, back];
+    return [...l.map((s) => ({ id: "s:" + s, name: s })), ...(l.length ? [] : [{ id: "none", lab: "There is no other status to give this item." }])];
   }
   if (level === "owner") {
     const l = ownerList(people(d), row);
-    return [...l.map((n) => ({ id: "o:" + n, name: n })), ...(l.length ? [] : [{ id: "none", lab: "No one else is named in this project yet." }]), { id: "sep", sep: true }, back];
+    return [...l.map((n) => ({ id: "o:" + n, name: n })), ...(l.length ? [] : [{ id: "none", lab: "No one else is named in this project yet." }])];
   }
   if (level === "due") {
     return [...dueList(today).map((x) => ({ id: "d:" + x.day, name: x.name, line: x.line })), { id: "pick", name: "Pick a date" },
-      ...(canClearDue(row) ? [{ id: "d:", name: "No date" }] : []), { id: "sep", sep: true }, back];
+      ...(canClearDue(row) ? [{ id: "d:", name: "No date" }] : [])];
   }
   const edits = (id, name) => ({ id, name, sub: edit && id !== "eye", disabled: !edit, why: edit ? "" : "rm-why-view" });
   return [
@@ -109,6 +110,37 @@ function entries(row, level, edit, d, today) {
     { id: "sep3", sep: true },
     { id: "dup", name: "Duplicate", disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", disabled: !edit, why: edit ? "" : "rm-why-view" },
   ];
+}
+
+// A short list (status, due date, owner) open beside its entry: its own box on the window, placed once beside the entry (on the left
+// when the right has no room), so the menu itself never moves or changes size (row 848). Up and Down move in it, Left or Esc
+// go back to the entry.
+function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, onClose }) {
+  const box = useRef(null);
+  useLayoutEffect(() => {
+    const el = box.current, menu = wrap.current, at = menu && menu.querySelector(`[data-rm=${level}]`);
+    if (!el || !at) return;
+    const a = at.getBoundingClientRect(), m = menu.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+    const right = m.right + w + 8 <= window.innerWidth;
+    el.style.left = `${Math.round(right ? m.right - 2 : Math.max(8, m.left - w + 2))}px`;
+    el.style.top = `${Math.round(Math.max(8, Math.min(a.top - 4, window.innerHeight - h - 8)))}px`;
+    if (focus) (menuItemsIn(el)[0] || el).focus({ preventScroll: true });
+  }, []);
+  const keys = (e) => {
+    if (menuMove(e, menuItemsIn(box.current))) return;
+    if (e.key === "ArrowLeft" || e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onLeave(); }
+    else if (e.key === "Tab") onClose("tab");
+  };
+  return (
+    <div class="ddmenu on rm-fly" role="menu" ref={box} tabIndex={-1} style="left:-10000px;top:0" aria-label={{ status: "Change status", due: "Move due date", owner: "Change owner" }[level]}
+      onKeyDown={keys} onPointerEnter={keep} onPointerLeave={() => hover("")}>
+      {list.map((it) => it.lab ? <div key={it.id} class="lab" role="presentation">{it.lab}</div> : (
+        <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} onClick={() => onPick(it.id)}>
+          <span class="rm-t"><b>{it.name}</b>{it.line ? <small>{it.line}</small> : null}</span>
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function Panel({ s }) {
@@ -126,7 +158,14 @@ function Panel({ s }) {
     const w = el.offsetWidth, h = el.offsetHeight;
     el.style.left = `${Math.round(Math.max(8, Math.min(s.x, window.innerWidth - w - 8)))}px`;
     el.style.top = `${Math.round(Math.max(8, Math.min(s.y, window.innerHeight - h - 8)))}px`;
-  }, [s.level]);
+  }, []);                                         // placed once: a list opening beside an entry never moves or resizes the menu (row 848)
+  const timer = useRef(0);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const hover = (id) => {                         // a pointer on an entry that opens a list opens it; on another entry it closes after a short grace (the list is on the way)
+    clearTimeout(timer.current);
+    if (id) { if (state.value && state.value.fly !== id) set({ fly: id, focusFly: false }); return; }
+    timer.current = setTimeout(() => { if (state.value && !state.value.focusFly) set({ fly: "" }); }, 250);
+  };
   useEffect(() => { if (!row) state.value = null; }, [row]);          // the item went (archived, or another project): nothing to act on
   if (!row) return null;
 
@@ -138,8 +177,7 @@ function Panel({ s }) {
   };
   const record = (req, done) => { close("pick"); return changeRecord(req, done).then((r) => { refocus(row.id); return r; }); };
   const run = (id) => {
-    if (id === "back") return set({ level: "" });
-    if (id === "status" || id === "due" || id === "owner") return set({ level: id });
+    if (id === "status" || id === "due" || id === "owner") return set({ fly: id, focusFly: true });
     if (id === "pick") return set({ pick: true });
     if (id.startsWith("s:")) return change("status", id.slice(2));
     if (id.startsWith("o:")) return change("owner", id.slice(2));
@@ -176,22 +214,23 @@ function Panel({ s }) {
   const keys = (e) => {                            // Right opens a list, Left goes back; Up, Down, Esc and the rest are MenuPanel's
     const at = document.activeElement;
     if (e.key === "ArrowRight" && at && at.dataset.sub) { e.preventDefault(); e.stopPropagation(); run(at.dataset.rm); }
-    else if (e.key === "ArrowLeft" && s.level) { e.preventDefault(); e.stopPropagation(); set({ level: "" }); }
   };
-  const list = entries(row, s.level, edit, d, today);
-  const label = s.level ? `${{ status: "Change status", due: "Move due date", owner: "Change owner" }[s.level]} of ${row.id}` : `Actions for ${row.id}`;
+  const list = entries(row, "", edit, d, today);
   return (
     <div class="rowmenu" ref={wrap} data-rowmenu={row.id} style="left:-10000px;top:0" onKeyDown={keys}>
-      {s.pick ? null : <MenuPanel key={s.level} label={label} cls="rm" onClose={close}>
+      {s.pick ? null : <MenuPanel label={`Actions for ${row.id}`} cls="rm" anchor={wrap.current} onClose={close}>
         {list.map((it) => it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.lab ? <div key={it.id} id={it.dom} class="lab" role="presentation">{it.lab}</div> : (
           <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} data-sub={it.sub ? "1" : undefined}
-            aria-haspopup={it.sub ? "menu" : undefined} aria-disabled={it.disabled ? "true" : undefined}
+            aria-haspopup={it.sub ? "menu" : undefined} aria-expanded={it.sub ? (s.fly === it.id ? "true" : "false") : undefined}
+            onPointerEnter={(e) => { if (e.pointerType !== "touch") hover(it.sub ? it.id : ""); }} aria-disabled={it.disabled ? "true" : undefined}
             aria-describedby={(it.disabled || it.id === "draft") && (it.line || it.why) ? (it.why || "rm-why-" + it.id) : undefined} onClick={() => { if (!it.disabled) run(it.id); }}>
             <span class="rm-t"><b>{it.id === "back" ? "‹ Back" : it.name}</b>{it.line ? <small id={"rm-why-" + it.id}>{it.line}</small> : null}</span>
             {it.sub ? <Icon name="right" cls="rm-go" /> : null}
           </button>
         ))}
       </MenuPanel>}
+      {s.fly && !s.pick ? <Fly key={s.fly} level={s.fly} entries={entries(row, s.fly, edit, d, today)} focus={s.focusFly} wrap={wrap} hover={hover} keep={() => clearTimeout(timer.current)}
+        onPick={run} onLeave={() => { set({ fly: "", focusFly: false }); const b = wrap.current && wrap.current.querySelector(`[data-rm=${s.fly}]`); if (b) b.focus({ preventScroll: true }); }} onClose={close} /> : null}
       {s.pick ? (
         <DuePick row={row} anchor={{ current: s.from }} today={today}
           onPick={(v) => { const c = pickChange(row, "due", v, today); if (c && c.error) return c.error; change("due", v); return ""; }}
