@@ -103,7 +103,7 @@ class Live(unittest.TestCase):
     def until(self, cdp, sid, expr, what, seconds=20):
         self.assertTrue(wait(lambda: cdp.js(expr, sid), seconds), what)
 
-    def open(self, cdp, window, scheme, hash_):
+    def visit(self, cdp, window, scheme, hash_):
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
@@ -124,7 +124,7 @@ class Live(unittest.TestCase):
 
     def test_head_buttons_and_the_add_box_with_no_edit_mode(self):
         for n, (cdp, window, scheme) in enumerate(self.each()):
-            sid = self.open(cdp, window, scheme, LIST)
+            sid = self.visit(cdp, window, scheme, LIST)
             self.until(cdp, sid, "document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "the list drew")
             self.assertFalse(cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid), "not in Edit")
             add = cdp.js("(document.querySelector('#usecases .head #ucAddPage') || {}).textContent || ''", sid)
@@ -150,7 +150,7 @@ class Live(unittest.TestCase):
         for cdp, window, scheme in self.each():
             if not self.archived():
                 self.archive()
-            sid = self.open(cdp, window, scheme, LIST)
+            sid = self.visit(cdp, window, scheme, LIST)
             self.until(cdp, sid, "!!document.querySelector('#usecases [data-archived-uc] [data-arch-toggle]')", "the Show archived footer drew")
             self.assertRegex(cdp.js("document.querySelector('[data-archived-uc] .ucx-foot').textContent", sid), r"Show archived")
             self.assertFalse(cdp.js(f"!!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", sid), "not in the live list")
@@ -168,7 +168,7 @@ class Live(unittest.TestCase):
 
     def test_detail_offers_next_step_and_link_with_no_edit_mode(self):
         for cdp, window, scheme in self.each():
-            sid = self.open(cdp, window, scheme, f"{LIST}&uc=1.1")
+            sid = self.visit(cdp, window, scheme, f"{LIST}&uc=1.1")
             self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-uc-step]') && !!document.querySelector('[data-ucd] [data-uc-link]')", "next step and link are on the detail")
             self.assertFalse(cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid), "not in Edit")
             self.assertRegex(cdp.js("document.querySelector('[data-ucd] [data-uc-step]').placeholder", sid), r"Add a next step")
