@@ -98,6 +98,25 @@ class Appearance(Base):
             self.open_menu(p)
             self.assertEqual(self.in_menu(p), ["Dark"], "the menu agrees")
 
+    def test_C_chosen_appearance_segment_keeps_the_pill_look_row_902(self):
+        for scheme_name in ("light", "dark"):
+            for w in WIDTHS:
+                with self.subTest(scheme=scheme_name, width=w), chrome() as cdp:
+                    p = self.page(cdp)
+                    p.width(w)
+                    scheme(p, scheme_name)
+                    self.open_settings(p)
+                    p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=light]').click()")
+                    got = p.js("(() => { const on = document.querySelector('#personal [data-appearance] button[aria-checked=true]'), off = document.querySelector('#personal [data-appearance] button[aria-checked=false]');"
+                               " return [getComputedStyle(on).backgroundImage, getComputedStyle(on).color, getComputedStyle(off).backgroundImage, getComputedStyle(on).fontWeight]; })()")
+                    self.assertIn("gradient", got[0], "the chosen segment has the pill gradient")
+                    self.assertNotEqual(got[1], p.js("getComputedStyle(document.querySelector('#personal [data-appearance] button[aria-checked=false]')).color"), "the chosen text colour differs")
+                    self.assertNotIn("gradient", got[2], "the others have none")
+                    p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=system]').focus()")
+                    p.cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "End", "code": "End", "windowsVirtualKeyCode": 35}, p.sid)
+                    p.cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "End", "code": "End", "windowsVirtualKeyCode": 35}, p.sid)
+                    p.until("document.documentElement.dataset.theme === 'dark'", "End picks the last")
+
     def test_C_system_follows_the_computer_both_ways_with_no_reload_and_light_and_dark_do_not(self):
         with chrome() as cdp:
             p = self.page(cdp)

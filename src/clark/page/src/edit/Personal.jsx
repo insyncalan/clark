@@ -137,13 +137,13 @@ function flipKeys() {
 }
 
 // Row 902: the Appearance control is a radio group: one stop in the Tab order (the chosen one); the arrows move to the next or previous
-// choice and pick it, wrapping round. Enter and Space pick the focused button as a click does.
+// choice and pick it, wrapping round; Home and End pick the first and last. Enter and Space pick the focused button as a click does.
 function pickByArrow(e) {
   const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
-  if (!step) return;
+  if (!step && e.key !== "Home" && e.key !== "End") return;
   e.preventDefault();
-  const at = APPEARANCES.findIndex(([id]) => id === appearance.value);
-  const next = APPEARANCES[(Math.max(at, 0) + step + APPEARANCES.length) % APPEARANCES.length][0];
+  const at = APPEARANCES.findIndex(([id]) => id === appearance.value), last = APPEARANCES.length - 1;
+  const next = APPEARANCES[e.key === "Home" ? 0 : e.key === "End" ? last : (Math.max(at, 0) + step + APPEARANCES.length) % APPEARANCES.length][0];
   setAppearance(next);
   const btn = e.currentTarget.querySelector(`[data-theme-pick="${next}"]`);
   if (btn) btn.focus();

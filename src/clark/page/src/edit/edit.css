@@ -683,8 +683,6 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .ucx-step .field { box-sizing: border-box; width: 100%; max-width: 560px; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .ucx-step .field:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ucdetail .add-from { display: inline-flex; align-items: center; min-height: 24px; margin: 4px 0 0; }
-.seg button[aria-checked="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: 500; }   /* row 902: the radio form of the pressed look */
-.seg button[role="radio"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .uclink .pk-search .seg { flex: 0 1 auto; }
 .uclink .pick li .type { margin-right: 4px; }
 .uclink .pick li .pill { margin-left: 4px; }
