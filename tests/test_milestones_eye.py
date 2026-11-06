@@ -98,6 +98,7 @@ class Editor(unittest.TestCase):
             self.until("document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'true'", "Edit is on")
         if theme:
             self.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}")
+        self.until("document.getAnimations().length === 0", "the animations to end before anything is measured")
         return self.sid
 
     def js(self, expr):
@@ -114,6 +115,7 @@ class Editor(unittest.TestCase):
             self.cdp.call("Input.dispatchKeyEvent", args, self.sid)
 
     def seen(self, root):
+        self.until("document.getAnimations().length === 0", "the animations to end before the rows are measured")
         return {r["id"]: r for r in self.js(SEE % root)["rows"]}
 
     def query_id(self, name):
@@ -296,9 +298,11 @@ class Editor(unittest.TestCase):
                     self.press("ABC-M-002")
                     self.until("!document.querySelector(\".secs .msl-row[data-ms='ABC-M-002']\")", "the row left the Dashboard")
                     self.until("document.querySelector('.toast .toast-text').textContent === 'Training done taken off the page.'", "the toast")
+                    self.until("document.getAnimations().length === 0", "the toast finished arriving")
                     self.js("document.activeElement && document.activeElement.blur()")
                     self.key("z", "KeyZ", 90, modifiers=2)
                     self.until("document.querySelector('.toast .toast-text').textContent === 'Undone: Training done taken off the page.'", "Undo names the change")
+                    self.until("document.getAnimations().length === 0", "the animations ended before focus is read")
                     self.until("document.activeElement && document.activeElement.dataset.msEye === 'ABC-M-002'", "focus is on the milestone's eye")
                     self.assertEqual(self.left_out(), [])
 
@@ -403,6 +407,7 @@ class Editor(unittest.TestCase):
             self.until("!!document.querySelector('.tab')", "the file's tabs")
             self.js("[...document.querySelectorAll('.tab')].find(t => /Milestones/.test(t.textContent)).click()")
             self.until("!!document.querySelector('.msv .msl-row')", "the file's Milestones page drew its rows")
+            self.until("document.getAnimations().length === 0", "the animations to end")
             got = self.js(SEE % "body")
             self.assertEqual(sorted(r["id"] for r in got["rows"]), ["ABC-M-001", "ABC-M-003"])
             self.assertTrue(all(not r["hasEye"] and r["tag"] is None for r in got["rows"]))
