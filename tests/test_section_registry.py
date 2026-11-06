@@ -312,7 +312,7 @@ class PageSide(unittest.TestCase):
         cat = self.val("T.templates.CATALOGUE")
         cat_types = [x["type"] for x in cat if x["type"] not in ("text", "needs")]
         self.assertEqual(sorted(cat_types), sorted(types), "one catalogue entry per template type")
-        self.assertEqual([x["type"] for x in cat if x["type"] in ("text", "needs")], ["text", "needs"], "and Text and Needs from you (#121), once each")
+        self.assertEqual([x["type"] for x in cat if x["type"] in ("text", "needs")], ["text", "needs", "text", "text"], "and Text, Current state and Plan summary (all the type text) and Needs from you (#121), in the catalogue's order")
         self.assertEqual(len({x["id"] for x in cat}), len(cat))
         self.assertEqual(self.val("T.templates.TEMPLATES.length + T.templates.LATER.length"), len(cat))
         self.assertTrue(set(store_module.SECTION_TYPES) >= set(x["type"] for x in cat))
