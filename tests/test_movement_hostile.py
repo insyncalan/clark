@@ -12,6 +12,7 @@ import sqlite3
 import threading
 import unittest
 
+import _paths  # noqa: F401  (src/ on the path, so the test runs alone)
 import _publish_fixture as fx
 from clark import movement_read
 from clark import server as sv

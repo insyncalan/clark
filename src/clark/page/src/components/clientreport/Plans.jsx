@@ -1,6 +1,6 @@
 // Client Requested Report View (#192): Progress by plan. The plan lines are the project's milestones, in groups by workstream. Each
 // group has a table (number, description, end date, status word with its mark, planned, achieved with a small bar) and its total.
-// A line behind plan shows "▼n" and says "n points behind plan" to a screen reader; colour is never the only signal.
+// A line behind plan with an Achieved figure shows "▼n" and says "n points behind plan" to a screen reader; colour is never the only signal.
 // This file and Overall.jsx are the boundary the Progress tracker (#189) can replace: they draw only what progress() returns.
 import { data, fromFile, mode } from "../../stores/report.js";
 import { showDate } from "../../workItems.js";
@@ -10,8 +10,8 @@ import { MsMark } from "../MsMark.jsx";
 const pct = (n) => (n === null || n === undefined ? "–" : `${n}%`);
 
 function Achieved({ l }) {
-  const behind = l.behind ? <span class="cr-behind" title={behindWords(l.behind)}><span aria-hidden="true">▼{l.behind}</span><span class="sr">{behindWords(l.behind)}</span></span> : null;
-  if (l.achieved === null) return <span class="msl-prog"><span class="muted">{mode.value === "edit" && !fromFile.value ? "Not set" : "–"}</span>{behind}</span>;      // Edit keeps the prompt; the client reads a dash
+  const behind = l.behind && l.achieved !== null ? <span class="cr-behind" title={behindWords(l.behind)}><span aria-hidden="true">▼{l.behind}</span><span class="sr">{behindWords(l.behind)}</span></span> : null;
+  if (l.achieved === null) return <span class="msl-prog"><span class="muted">{mode.value === "edit" && !fromFile.value ? "Not set" : "–"}</span></span>;      // Edit keeps the prompt; the client reads a dash
   return (
     <span class="msl-prog" title={`${l.achieved}% achieved`}>
       <span class="pbar"><i style={{ width: `${l.achieved}%` }}></i></span><b class="num">{l.achieved}%</b>{behind}

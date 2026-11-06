@@ -10,8 +10,8 @@ import re
 import unittest
 from pathlib import Path
 
+from _paths import SRC  # first: it puts src/ on the path, so the test runs alone
 import _publish_fixture as fx
-from _paths import SRC
 from clark import changes, movement_view, publish
 from clark import store as clark_store
 from test_publish_route import DAY, USER, WANTED, Rig

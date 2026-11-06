@@ -122,4 +122,5 @@ export function rowsOf(data) {
 // The count line's parts: "1 work item, 1 open." / "2 work items, 1 open." (one is singular, nought and the rest are plural).
 export function countOf(total, open) { return { total, open, noun: total === 1 ? "work item" : "work items" }; }
 
-export function metaOf(row) { return [row.id, row.uc, row.milestone, row.workstream].filter(Boolean).join(" · "); }
+// Grouped by workstream, the group's heading already says it, so the line leaves it out (#947).
+export function metaOf(row, group) { return [row.id, row.uc, row.milestone, group === "workstream" ? "" : row.workstream].filter(Boolean).join(" · "); }

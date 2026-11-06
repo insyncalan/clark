@@ -8,7 +8,15 @@ import { openHelp } from "../help/helpStore.js";
 import { ADD_SECTION_EVENT } from "./addDialog.js";
 import { inertBehind } from "./modalLayers.js";
 import { addFromTemplate } from "./actions.js";
-import { KINDS, RECENT, MESSAGES, list, counts, find, available, besideState, remember, fitWords, noMatch } from "../logic/templates.js";
+import { Icon } from "../components/Icon.jsx";
+import { KINDS, RECENT, MESSAGES, SKETCHES, list, counts, find, available, besideState, remember, fitWords, fitList, noMatch } from "../logic/templates.js";
+
+// The template's sketch (#783, the prototype's thumbnail): shapes only, hidden from a screen reader, which hears the name and words.
+function Sketch({ id, big }) {
+  const s = SKETCHES[id];
+  if (!s) return null;
+  return <div class={`ad-sk${big ? " big" : ""}`} style={s[0]} aria-hidden="true">{s[1].map((st, i) => <i key={i} style={st} />)}</div>;
+}
 
 const STORE_KEY = "clark.recentTemplates";
 const readRecent = () => { try { const v = JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); return Array.isArray(v) ? remember(v.filter((x) => typeof x === "string"), "") : []; } catch (e) { return []; } };
@@ -40,8 +48,8 @@ function Box({ after, opener, onClose }) {
   const [beside, setBeside] = useState(false);
   const root = useRef(null), search = useRef(null);
 
-  const shown = list({ query, kind, recent });
-  const n = counts({ query, recent });
+  const shown = list({ query, kind, recent, sections });
+  const n = counts({ query, recent, sections });
   const current = find(chosen) && shown.some((t) => t.id === chosen) ? find(chosen) : (shown.find(available) || shown[0] || null);
   const okBeside = besideState(sections, after, current);
   const sideOn = beside && okBeside.ok;
@@ -116,13 +124,14 @@ function Box({ after, opener, onClose }) {
 
   return (
     <div class="ad-scrim" data-edit-only onKeyDown={onKeyDown} onPointerDown={onScrimDown}>
-      <form class="ad" role="dialog" aria-modal="true" aria-labelledby="ad-title" tabindex="-1" ref={root} onSubmit={submit} onFocusOut={onFocusOut}>
+      <form class="ad ad-add" role="dialog" aria-modal="true" aria-labelledby="ad-title" tabindex="-1" ref={root} onSubmit={submit} onFocusOut={onFocusOut}>
         <div class="ad-head">
           <h2 id="ad-title">Add a section</h2>
           <label class="ad-q"><span class="sr">Search templates</span>
             <input ref={search} type="search" placeholder="Search templates" autocomplete="off" value={query}
               onInput={(e) => setQuery(e.currentTarget.value)} />
           </label>
+          <button type="button" class="pkp-btn ad-x" data-close aria-label="Close" title="Close" onClick={close}><Icon name="x" /></button>
         </div>
         <div class="ad-main">
           <nav class="ad-kinds" aria-label="Kinds of template">
@@ -148,9 +157,12 @@ function Box({ after, opener, onClose }) {
                 <label class={`ad-tpl${ok ? "" : " off"}`} key={t.id} data-template={t.id}>
                   <input type="radio" name="template" value={t.id} checked={!!current && current.id === t.id}
                     aria-disabled={ok ? undefined : "true"} aria-describedby={ok ? `ad-d-${t.id}` : `ad-d-${t.id} ad-l-${t.id}`} onChange={() => setChosen(t.id)} />
+                  <Sketch id={t.id} />
                   <span class="ad-tn">{t.name}</span>
-                  <span class="ad-fit">{fitWords(t)}</span>
-                  <span class="ad-td" id={`ad-d-${t.id}`}>{t.description}</span>
+                  {/* the widths as chips (#783); a screen reader hears them once, as one phrase */}
+                  <span class="ad-fit" aria-hidden="true">{fitList(t).map((f) => <em key={f}>{f}</em>)}</span>
+                  <span class="sr">{fitWords(t)}</span>
+                  <span class="ad-td sr" id={`ad-d-${t.id}`}>{t.description}</span>
                   {ok ? null : <span class="ad-td ad-later" id={`ad-l-${t.id}`}>{MESSAGES.later}</span>}
                 </label>
               );
@@ -164,9 +176,10 @@ function Box({ after, opener, onClose }) {
             {current ? (
               <>
                 <h3>{current.name}</h3>
+                <Sketch id={current.id} big />
                 <p>{current.description}</p>
                 <p class="ad-lbl">Holds</p>
-                <ul>{current.holds.map((h) => <li key={h}>{h}</li>)}</ul>
+                <ul class="ad-els">{current.holds.map((h, i) => <li key={i}>{h}</li>)}</ul>
                 <p class="muted">{fitWords(current)}</p>
                 <button type="button" class="ad-help" data-help="ref-section-templates" onClick={() => help("ref-section-templates")}>See every template explained in Help</button>
                 {canPlace ? null : <p class="muted ad-later-prev" id="ad-later-prev">{MESSAGES.later}</p>}

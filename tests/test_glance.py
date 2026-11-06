@@ -399,8 +399,9 @@ class ClientVersion(unittest.TestCase):
 
 
 def sections(*hide):
-    """The default report sections, with the named types hidden."""
-    return [{**sec, "hidden": 1 if sec["type"] in hide else 0} for sec in publish.DEFAULT_SECTIONS]
+    """The default report sections, with the named types hidden. Row 906: a built-in with no row counts as hidden, so every one has a row."""
+    every = list(publish.DEFAULT_SECTIONS) + [{"id": "s-docs", "type": "docs", "title": "Supporting documents", "body": "", "beside": 0, "hidden": 0, "sort_order": 8}]
+    return [{**sec, "hidden": 1 if sec["type"] in hide else 0} for sec in every]
 
 
 RULES = [{"name": "Sensitive", "behaviour": "exclude", "default_choice": "exclude"},

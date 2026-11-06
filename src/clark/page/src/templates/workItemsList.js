@@ -112,7 +112,7 @@ export function matching(filter, rows, today) {
 // The rules for what the page clark serves may show: the publishable() mirror of publish.select, from what the data carries.
 export function servedRules(data) {
   return rulesFor({ code: data && data.project && data.project.code, hidden: ((data && data.report_hidden) || []).map((h) => (h && h.item_id) || h),
-    labelRules: (data && data.label_rules) || [], labels: (data && data.labels) || {}, sections: (data && data.report_sections) || [] });
+    labelRules: (data && data.label_rules) || [], labels: (data && data.labels) || {}, sections: (data && data.report_sections) || [], deleted: !!(data && data.sections_deleted) });
 }
 
 // Only the rows that would be published, of the three work kinds, in a data shape ruleRows reads.

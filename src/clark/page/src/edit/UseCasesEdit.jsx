@@ -40,8 +40,10 @@ const name = (u) => u.ref || u.id;                            // "Use case 1.1" 
 /** Which box is open: null, or { kind: "add" | "pick" | "link", opener, uc } (opener is the element that had focus, so Esc gives it back;
  * uc is the use case the link box is for). */
 const box = signal(null);
-const openBox = (kind, uc = "") => { box.value = { kind, uc, opener: document.activeElement && document.activeElement !== document.body ? document.activeElement : null }; };
+const openBox = (kind, uc = "", live = false) => { box.value = { kind, uc, live, opener: document.activeElement && document.activeElement !== document.body ? document.activeElement : null }; };
 const closeBox = () => { box.value = null; };
+/** Row 830: the Add box from the Use cases page, which has no View|Edit switch (the Dashboard's button only draws it in Edit). */
+export const openAdd = () => openBox("add", "", true);
 
 /** The id of the use case just added: the summary opens its row (UseCases.jsx reads it once and clears it). */
 export const added = signal("");
@@ -104,7 +106,7 @@ function AddBox({ onClose, opener }) {
         <div class="ucm-form">
           <label for="ucI">ID</label><input class="field" id="ucI" name="ucI" ref={first} required maxLength={REF_MAX} placeholder="For example: 3.1" autocomplete="off" />
           <label for="ucT">Use case</label><input class="field" id="ucT" name="ucT" required maxLength={NAME_MAX} placeholder="What it does" autocomplete="off" />
-          <label for="ucS">Status</label><select class="field" id="ucS" name="ucS">{STATUSES.map(([s]) => <option key={s}>{s}</option>)}</select>
+          <label for="ucS">Status</label><select class="field" id="ucS" name="ucS">{[...STATUSES, ["Done"]].map(([s]) => <option key={s}>{s}</option>)}</select>
           <label for="ucH">Headline</label><input class="field" id="ucH" name="ucH" maxLength={HEAD_MAX} placeholder={HEADLINE_PROMPT} autocomplete="off" />
         </div>
         <div class="ad-foot">
@@ -189,7 +191,7 @@ export function Eye({ u }) {
   const take = async (e) => {
     e.stopPropagation();
     const btn = e.currentTarget, eyes = Array.from(document.querySelectorAll(".uc .ucrow [data-uc-eye]")), at = eyes.indexOf(btn);
-    const reply = await change({ kind: "use_cases", op: "update", id: u.id, changes: { client_visible: 0 }, place: "eye" }, `Use case ${name(u)} taken off the page.`);
+    const reply = await change({ kind: "use_cases", op: "update", id: u.id, changes: { client_visible: 0 }, place: "eye" }, `Use case ${name(u)} taken off the page.`, { focus: `[data-uc-eye="${u.id}"]` });
     if (!reply) return;
     setTimeout(() => {          // the row has left: the focus goes to the next row's eye, else the one before, else the way back to the record
       const now = Array.from(document.querySelectorAll(".uc .ucrow [data-uc-eye]"));
@@ -229,7 +231,7 @@ export function NextStep({ u }) {
 
 /** "+ Link an existing work item": opens the box of the open work items that are not yet linked to this use case. */
 export function LinkButton({ u }) {
-  return <button type="button" class="link add-from" data-uc-link={u.id} data-edit-only onClick={() => openBox("link", u.id)}>+ Link an existing work item</button>;
+  return <button type="button" class="link add-from" data-uc-link={u.id} data-edit-only onClick={() => openBox("link", u.id, true)}>+ Link an existing work item</button>;
 }
 
 // The box that links work items to a use case, in the prototype's words: the open ones not yet linked, searched by name, ID, owner or use
@@ -294,7 +296,7 @@ function LinkBox({ uc, onClose, opener }) {
 /** The open box, drawn beside <main> (App.jsx), so the page it makes inert does not hold it. */
 export function Boxes() {
   const b = box.value;
-  if (!b || mode.value !== "edit") return null;
+  if (!b || (mode.value !== "edit" && !b.live)) return null;       // row 830: a box opened from the Use cases page needs no Edit mode
   if (b.kind === "link") return <LinkBox key={`link-${b.uc}`} uc={b.uc} opener={b.opener} onClose={closeBox} />;
   return b.kind === "add" ? <AddBox key="add" opener={b.opener} onClose={closeBox} /> : <Pick key="pick" opener={b.opener} onClose={closeBox} />;
 }

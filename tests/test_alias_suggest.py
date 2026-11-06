@@ -125,6 +125,20 @@ class OnThePage(Base):
     def alias(self, p):
         return p.js("document.querySelector('#about-alias').value")
 
+    def settle(self, p, frames=3):
+        """Let the page draw `frames` frames (an input event is taken in a frame), waiting on a counter the page itself counts."""
+        p.js(f"window.__fr = 0; (function tick() {{ window.__fr++; if (window.__fr < {frames}) requestAnimationFrame(tick); }})()")
+        p.until(f"window.__fr >= {frames}", "the page drew the frames")
+
+    def alias_is(self, p, want, why):
+        """The box holds `want` once the page has taken what was typed (a bounded wait, then the assertion that can fail)."""
+        p.until(f"document.querySelector('#about-alias').value === {json.dumps(want)}", why)
+        self.assertEqual(self.alias(p), want, why)
+
+    def calm(self, p):
+        """Wait until the page's menu and toast motion has finished (a slow computer, or Python 3.12's timing, is otherwise too quick for it)."""
+        p.until("document.getAnimations().length === 0", "the page's animations have finished")
+
     def fits(self, p):
         return p.js("(() => { const f = document.querySelector('#about-alias').closest('.fld'), a = document.querySelector('[data-about-you]'); "
                     "const r = f.getBoundingClientRect(), b = a.getBoundingClientRect(); "
@@ -164,6 +178,7 @@ class OnThePage(Base):
                         self.type_into(p, "name", "", leave="none")
                         p.until("document.querySelector('#about-alias').value === ''", "an empty name leaves the Alias empty")
                         self.type_into(p, "name", "   ", leave="none")
+                        self.settle(p)
                         self.assertEqual(self.alias(p), "", "spaces alone leave it empty")
                 self.assertEqual(self.saved(), {}, "nothing was saved while nothing was left")
 
@@ -176,11 +191,13 @@ class OnThePage(Base):
             self.toast_is(p, "Name saved.")
             self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Jane, JD"), "the filled-in Alias is kept, as shown")
             self.assertEqual(self.saved().get("profile_name"), "Jane Doe")
+            self.handled(p, "Jane Doe")
             # once saved, the Alias is frozen: a later name change in the same session leaves it as it is, in the box and in clark
             self.type_into(p, "name", "Jane Roe")
             self.toast_is(p, "Name saved.")
-            self.assertTrue(wait(lambda: self.saved().get("profile_name") == "Jane Roe"))
+            self.assertTrue(wait(lambda: self.saved().get("profile_name") == "Jane Roe"), "the new name is saved")
             self.handled(p, "Jane Roe")             # the page has taken that save, so the next toast speaks only of the Alias
+            self.settle(p)
             self.assertEqual(self.alias(p), "Jane, JD", "a saved Alias does not follow the name")
             self.assertEqual(self.saved().get("profile_alias"), "Jane, JD", "a saved Alias is not rewritten")
             # typed in, the Alias is the person's
@@ -191,13 +208,17 @@ class OnThePage(Base):
                 self.type_into(p, "name", name)
                 self.assertTrue(wait(lambda: self.saved().get("profile_name") == name))
                 self.handled(p, name)
+                self.settle(p)
                 self.assertEqual(self.alias(p), "JJ", "a typed Alias is kept when the name changes")
                 self.assertEqual(self.saved().get("profile_alias"), "JJ")
             # emptied by the person, it stays empty
+            self.calm(p)
             self.type_into(p, "alias", "")
             self.toast_is(p, "Alias cleared.")
             self.type_into(p, "name", "Dana Moss")
             self.assertTrue(wait(lambda: self.saved().get("profile_name") == "Dana Moss"))
+            self.handled(p, "Dana Moss")
+            self.settle(p)
             self.assertEqual(self.alias(p), "", "an Alias the person emptied is not filled in again")
 
     def test_C_a_saved_alias_is_never_replaced_after_a_reload(self):
@@ -205,6 +226,8 @@ class OnThePage(Base):
             p = self.page(cdp)
             self.open_settings(p)
             self.type_into(p, "name", "Jane Doe")
+            self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Jane, JD"))
+            self.handled(p, "Jane Doe")             # the page has taken the name's save before the Alias is typed over the filled-in one
             self.type_into(p, "alias", "Janey")
             self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Janey"))
             reload_to_new_page(p.js, "!!document.querySelector('#profile-btn')", "the page again (not the one being left)")
@@ -212,6 +235,8 @@ class OnThePage(Base):
             p.until("document.querySelector('#about-alias').value === 'Janey'", "the Alias is read from clark")
             self.type_into(p, "name", "Sam Lee")
             self.assertTrue(wait(lambda: self.saved().get("profile_name") == "Sam Lee"))
+            self.handled(p, "Sam Lee")
+            self.settle(p)
             self.assertEqual(self.alias(p), "Janey", "a saved Alias is never replaced by a suggestion")
             self.assertEqual(self.saved().get("profile_alias"), "Janey")
 
@@ -223,10 +248,11 @@ class OnThePage(Base):
             self.toast_is(p, "Name saved.")
             self.handled(p, "Jane Doe")
             self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Jane, JD"))
+            p.until("!!document.querySelector('.toast [data-undo]')", "Undo is still offered")
             p.js("document.querySelector('.toast [data-undo]').click()")
             self.handled(p, "", "")
             self.assertTrue(wait(lambda: self.saved().get("profile_alias", "") == ""), "Undo takes the first Alias back with the name")
-            self.assertEqual(self.alias(p), "")
+            self.alias_is(p, "", "Undo empties the Alias box")
             self.type_into(p, "name", "Sam Lee", leave="none")
             p.until("document.querySelector('#about-alias').value === 'Sam, SL'", "with nothing saved, the Alias follows the name again")
 
@@ -237,12 +263,16 @@ class OnThePage(Base):
             p = self.page(cdp)
             self.open_settings(p)
             self.type_into(p, "name", "Jane Doe")
-            self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Jane, JD"))
+            self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Jane, JD"), "the filled-in Alias is kept")
+            self.handled(p, "Jane Doe")             # the page has taken that save (and its toast has come and gone) before the Alias is emptied
+            self.calm(p)
             self.type_into(p, "alias", "")
             self.toast_is(p, "Alias cleared.")
-            self.assertTrue(wait(lambda: self.saved().get("profile_alias", "") == ""))
+            self.assertTrue(wait(lambda: self.saved().get("profile_alias", "") == ""), "the emptied Alias is saved empty")
             self.type_into(p, "name", "Jane Roe")
-            self.assertTrue(wait(lambda: self.saved().get("profile_name") == "Jane Roe"))
+            self.assertTrue(wait(lambda: self.saved().get("profile_name") == "Jane Roe"), "the new name is saved")
+            self.handled(p, "Jane Roe")
+            self.settle(p)
             self.assertEqual(self.alias(p), "", "an Alias the person emptied is not filled in again in that session")
             self.assertEqual(self.saved().get("profile_alias", ""), "")
             reload_to_new_page(p.js, "!!document.querySelector('#profile-btn')", "the page again (not the one being left)")
