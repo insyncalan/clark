@@ -51,7 +51,9 @@ class Listed(unittest.TestCase):
 
     def test_a_flagged_open_visible_item_is_listed_with_the_four_fields(self):
         self.action("Send the access list", owner="Pat Quinn", due_date="2030-02-03")
-        self.assertEqual(self.rows(), [{"what": "Send the access list", "kind": "information", "from": "Pat Quinn", "by": "03-02-2030"}])
+        self.assertEqual(self.rows(), [{"what": "Send the access list", "kind": "information", "from": "", "by": "03-02-2030"}])
+        entry = [x for x in self.built()["published"]["sections"] if x["type"] == "needs"]
+        self.assertNotIn("Pat Quinn", json.dumps(entry), "an owner is one of our own people: no owner text in the Needs from you section")
 
     def test_no_owner_and_no_date_read_as_blank_never_the_placeholder(self):
         self.action("Send the access list")
@@ -105,6 +107,31 @@ class Listed(unittest.TestCase):
         first = self.whats()
         self.assertEqual(first, ["A one", "A two", "R one", "R two"])
         self.assertEqual(self.whats(), first)
+
+    def test_the_section_never_holds_more_than_a_typed_list_may_typed_rows_win_and_the_order_holds(self):
+        cap = publish.section_bodies.NEEDS_MAX_ROWS
+        self.section([{"what": "Typed %d" % n} for n in range(cap - 2)])
+        for n in range(5):
+            self.action("Gen %d" % n)
+        got = self.whats()
+        self.assertEqual(len(got), cap)
+        self.assertEqual(got[:cap - 2], ["Typed %d" % n for n in range(cap - 2)])
+        self.assertEqual(got[cap - 2:], ["Gen 0", "Gen 1"], "the first in order are kept")
+
+    def test_a_full_typed_list_leaves_no_room_and_a_cap_over_generated_alone_holds(self):
+        cap = publish.section_bodies.NEEDS_MAX_ROWS
+        self.section([{"what": "Typed %d" % n} for n in range(cap)])
+        self.action("Gen")
+        self.assertEqual(len(self.rows()), cap)
+        self.assertNotIn("Gen", self.whats())
+
+    def test_generated_rows_alone_are_capped_too(self):
+        cap = publish.section_bodies.NEEDS_MAX_ROWS
+        with self.s.step("dashboard", USER) as st:
+            for n in range(cap + 3):
+                st.create("actions", {"project": "ABC", "description": "G%03d" % n, "raised": "2026-10-01", "source": "demo", "client_action": 1})
+        got = self.whats()
+        self.assertEqual(got, ["G%03d" % n for n in range(cap)])
 
     def test_the_hand_typed_rows_stay_first_and_are_not_repeated_or_changed(self):
         ref = self.section([{"what": "Hand one"}, {"what": "Hand two", "hidden": 1}])

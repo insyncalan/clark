@@ -341,17 +341,16 @@ def flagged_needs(rows):
     this adds no second rule of what a client may see. Only an action or a risk/issue that is flagged AND still open (OPEN_STEPS;
     a risk or issue is only Open) is listed; a decision never (it has no flag). Actions first, then risks and issues, each in the
     order select kept them (by id), so the order is the same every time. A row is {what, kind, from, by} as a hand-typed one is:
-    what is the item's description, kind 'information', from its owner (not the placeholder TBC), by its due date written DD-MM-YYYY."""
+    what is the item's description, kind 'information', from always blank (an owner here is one of our own people; a typed row's From is who at the client owes it, which is not known), by its due date written DD-MM-YYYY."""
     out = []
     for k in ("actions", "raid"):
         for r in rows[k]:
             what = str(r.get("description") or "").strip()
             if r.get("client_action") != 1 or r.get("status") not in OPEN_STEPS or not what:
                 continue
-            owner = str(r.get("owner") or "").strip()
             due = r.get("due_date")
             due = f"{due[8:10]}-{due[5:7]}-{due[:4]}" if isinstance(due, str) and re.fullmatch(r"\d{4}-\d\d-\d\d", due) else ""
-            out.append({"what": what, "kind": "information", "from": "" if owner.casefold() == "tbc" else owner, "by": due})
+            out.append({"what": what, "kind": "information", "from": "", "by": due})
     return out
 
 
@@ -431,7 +430,8 @@ def select(inputs):
             needs_sections = sections[-1:]
         mine = next((x for x in needs_sections if not x.get("hidden")), None)
         if mine is not None:
-            extra[mine["id"]] = {**(extra.get(mine["id"]) or {}), "rows": list((extra.get(mine["id"]) or {}).get("rows") or []) + listed}
+            typed = list((extra.get(mine["id"]) or {}).get("rows") or [])
+            extra[mine["id"]] = {**(extra.get(mine["id"]) or {}), "rows": typed + listed[:max(0, section_bodies.NEEDS_MAX_ROWS - len(typed))]}   # typed rows win: the section never holds more than a typed list may
     out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
                              or (x.get("type") == "docs" and not out["documents"]))       # #74: no document to show, no section
     i = 0
