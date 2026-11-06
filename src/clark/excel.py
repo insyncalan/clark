@@ -633,15 +633,16 @@ def protect_text_cell(cell):
 
 
 def to_cell(field, value):
-    """A stored value as it goes in a cell: dates as real dates (a date before 1900 as dd-mm-yyyy text), flags as Yes or No, text without the characters a workbook
-    can't hold (creaite excel_sync.to_cell). clark: no link fields, and the cell is made text by protect_text_cell
+    """A stored value as it goes in a cell: dates as real dates (before 1900 as dd-mm-yyyy text), flags as Yes or No,
+    text without the characters a workbook can't hold (creaite excel_sync.to_cell). clark: no link fields, and the
+    cell is made text by protect_text_cell
     (escape_text only handles text that starts with an apostrophe). Numbers and dates are never touched."""
     if value is None:
         return None
     if field in DATES:
         try:
             day = date.fromisoformat(value)
-            if day.year < 1900:       # Excel has no date before 1900-01-01 (it would show ####): the day as dd-mm-yyyy text
+            if day.year < 1900:       # Excel has no date before 1900 (shows ####): dd-mm-yyyy text
                 return "%02d-%02d-%04d" % (day.day, day.month, day.year)
             return day
         except (TypeError, ValueError):

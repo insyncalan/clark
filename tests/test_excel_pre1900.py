@@ -1,4 +1,5 @@
-"""Row 839: a date before 1900-01-01 is dd-mm-yyyy text in the Excel files, never a negative date serial (which Excel shows as ####).
+"""Row 839: a date before 1900-01-01 is dd-mm-yyyy text in the Excel files,
+never a negative date serial (which Excel shows as ####).
 
 Run: python3 dev/run_tests.py test_excel_pre1900
 Reads the saved .xlsx (zip and XML) of both the editor export and the client workbook.
@@ -74,6 +75,11 @@ class ClientWorkbook(unittest.TestCase):
         row = pub["data"]["actions"].index(first) + 5
         self.assertEqual(ws.cell(row, col).value, "01-01-1850")
         self.assertEqual(ws.cell(row, col).data_type, "s")
+
+    def test_week_ending_subtitle_for_old_and_normal_dates(self):
+        for iso, shown in (("1850-01-01", "01-01-1850"), ("2026-11-05", "05-11-2026")):
+            pub = {"data": {"project": {"name": "P", "week_ending": iso}}, "as_at": "x"}
+            self.assertEqual(excel_client.title_text(pub), ("P", "Week ending " + shown))
 
     def test_two_exports_are_byte_identical(self):
         plant = fx.load()
