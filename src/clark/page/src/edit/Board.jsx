@@ -55,7 +55,7 @@ function Card({ card, editing, selected, picked, dragging, ask, menu, stop, pos,
           cardKeys(e);
         }}>
         <div class="bc-top"><span class={`type tl ${card.typeClass}`} role="img" aria-label={card.type} title={card.type}>{TYPE_LETTER[card.typeClass.slice(2)] || card.type.charAt(0)}</span><span class="bc-id num">{card.id}</span><CardEye card={card} /></div>
-        <div class="bc-title">{picked ? <span class="tick" aria-hidden="true"><Icon name="check" /></span> : null}{card.title}</div>
+        <div class="bc-title">{card.title}</div>
         <div class="bc-foot">
           {card.initials ? <span class="av" title={card.owner} aria-hidden="true">{card.initials}</span> : null}
           {card.due.words ? <span class={`due-l${card.due.tone ? " " + card.due.tone : ""}`}>{card.due.words}</span> : null}
