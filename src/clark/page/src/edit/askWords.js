@@ -24,6 +24,7 @@ export const NOT_REACHED_LINE = "The question did not reach clark. Check that it
 export const EMPTY_LINE = "Type a question first, then press Ask.";
 export const YOU = "You";
 export const REPLY = "Answer";
+export const SOURCES = "Sources";
 export const GRIP = "Drag to change the width of this panel";
 // The suggestions above the box: one row that scrolls sideways (#214).
 export const PILLS_LABEL = "Questions you can ask";
