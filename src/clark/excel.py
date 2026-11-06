@@ -869,6 +869,100 @@ def history_cell(value):
     return text if len(text) <= HISTORY_CELL_LIMIT else text[:HISTORY_CELL_LIMIT - 1] + "\u2026"
 
 
+# ── The Gantt sheet (row 926) ────────────────────────────────────────────────
+
+# (column label, line field), the page's own labels and order (gantt/logic/grid.js). "_days" and "_status" are worked out, never stored.
+GANTT_SHEET_COLUMNS = (
+    ("ID", "id"), ("Line", "name"), ("Type", "type"), ("Parent", "parent"), ("Start", "start"), ("End", "end"), ("Days", "_days"),
+    ("Done %", "pct"), ("Status", "_status"), ("Health", "health"), ("Depends on", "depends"), ("Owner", "owner"),
+    ("Workstream", "workstream"), ("Priority", "priority"), ("Baseline start", "baseline_start"), ("Baseline end", "baseline_end"),
+    ("Effort (days)", "effort"), ("Budget", "budget"), ("Deliverable", "deliverable"), ("On dashboard", "show"), ("Notes", "note"))
+GANTT_DATES = {"start", "end", "baseline_start", "baseline_end"}
+GANTT_WIDTHS = {"id": 18, "name": 32, "type": 12, "parent": 18, "_days": 8, "pct": 10, "_status": 14, "depends": 30, "owner": 18, "workstream": 18,
+                "deliverable": 30, "show": 14, "note": 40}
+GANTT_DEFAULT_NAME = "Gantt"
+GANTT_BAD_SHEET_CHARS = re.compile(r"[\\/*?:\[\]]")
+
+
+def gantt_days(line):
+    """Days a line spans, both ends counted; blank for a milestone or a line without both dates (the page's Days column, grid.js)."""
+    try:
+        if line.get("type") == "milestone":
+            return None
+        return (date.fromisoformat(line["end"]) - date.fromisoformat(line["start"])).days + 1
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def gantt_status(line, today):
+    """Done, Late, In progress or Not started, from the dates and Done % as of `today` (YYYY-MM-DD); the page's rule (grid.js statusOf)."""
+    pct = line.get("pct") or 0
+    if pct >= 100:
+        return "Done"
+    if today and (line.get("end") or "") < today:
+        return "Late"
+    if (today and (line.get("start") or "") <= today) or pct > 0:
+        return "In progress"
+    return "Not started"
+
+
+def gantt_sheet_name(name, taken=()):
+    """The tab's name as a sheet name: no character a sheet name cannot hold, at most 31 characters, not one already used; else 'Gantt'."""
+    clean = " ".join(GANTT_BAD_SHEET_CHARS.sub(" ", name).split())[:31] if isinstance(name, str) else ""
+    if not clean or clean.lower() in {t.lower() for t in taken}:
+        clean = GANTT_DEFAULT_NAME
+    return clean
+
+
+def gantt_cell(line, field, today):
+    """One cell of the Gantt sheet from a line (the editor's stored line or the client's gated copy)."""
+    if field == "_days":
+        return gantt_days(line)
+    if field == "_status":
+        return gantt_status(line, today)
+    v = line.get(field)
+    if field == "show":
+        return "Yes" if v else "No"
+    if field == "type":
+        return cell_text(str(v).capitalize()) if v else None
+    if field == "depends":
+        v = ", ".join(v) if isinstance(v, (list, tuple)) else ", ".join(n.strip() for n in str(v or "").split(",") if n.strip())
+        return escape_text(cell_text(v)) if v else None
+    if v is None or v == "":
+        return None
+    if field in GANTT_DATES:
+        return to_cell("due_date", v)           # a real date in dd-mm-yyyy, as every other sheet's dates
+    return to_cell(field, v)
+
+
+def write_gantt(wb, lines, fields, name, today, pal=None):
+    """The Gantt sheet: `fields` are the GANTT_SHEET_COLUMNS fields to write, `lines` in the order to write them. Read-only (locked), a
+    header row, frozen after the Line column."""
+    st = Styles(_pal(pal))
+    ws = wb.create_sheet(gantt_sheet_name(name, wb.sheetnames))
+    cols = [(label, f) for label, f in GANTT_SHEET_COLUMNS if f in fields]
+    ws.append([label for label, _ in cols])
+    for line in lines:
+        ws.append([gantt_cell(line, f, today) for _, f in cols])
+        for c in ws[ws.max_row]:
+            c.font = st.body_font
+            protect_text_cell(c)
+    for i, (_, f) in enumerate(cols, start=1):
+        head = ws.cell(row=1, column=i)
+        head.font, head.fill = st.header_font, st.header
+        head.alignment = Alignment(wrap_text=True, vertical="center")
+        ws.column_dimensions[get_column_letter(i)].width = GANTT_WIDTHS.get(f, 12)
+        for (c,) in ws[f"{get_column_letter(i)}2:{get_column_letter(i)}{len(lines) + 1}"]:
+            c.alignment = Alignment(wrap_text=f in ("name", "note", "deliverable", "depends"), vertical="top")
+            if f in GANTT_DATES:
+                c.number_format = DATE_FORMAT
+    ws.freeze_panes = "C2"
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(lines) + 1}"
+    protect_sheet(ws)
+    return ws
+
+
+
 def write_history(wb, view, pal=None):
     """The History sheet (#123), after the data sheets: `view` is exactly what history.view_for_project returns, so the sheet and
     the Activity tab show the same rows. Row 1 is the internal note and the footnote, row 2 the header (frozen with it), then the
@@ -1100,7 +1194,7 @@ def write_cover(wb, cover, mark=False, pal=None, wave=False):
     return ws
 
 
-def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=None, pal=None, wave=False):
+def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=None, pal=None, wave=False, gantt_tab=None):
     """The workbook for one project, from {table: [row, ...]} (creaite excel_sync.cmd_export, the sheet part). Rows are dicts
     with the table's columns; labelled rows may carry `labels` (comma-separated) and milestones `original_date`. A missing
     table is an empty sheet. `on` is the day Shown state is worked out for (today by default). `cover` (excel_cover.lines) adds
@@ -1190,6 +1284,10 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
         ws.freeze_panes = freeze_cell(table, cols)
         ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(rows) + 1}"
         protect_sheet(ws)
+    gantt = rows_by_table.get("gantt_lines") or []
+    if gantt:           # row 926: every line the author has, eye-off included (this is the editor's own copy); no lines, no sheet
+        write_gantt(wb, sorted(gantt, key=lambda r: (r.get("sort_order") or 0, r["id"])), {f for _, f in GANTT_SHEET_COLUMNS},
+                    gantt_tab, day(on).isoformat(), pal)
     if history is not None:
         write_history(wb, history, pal)
     if lists:
@@ -1231,7 +1329,7 @@ def latest_export(state_path, project):
     return (token, r.get("hash")) if EXPORT_ID_OK.fullmatch(token) and r.get("hash") else None
 
 
-def export(path, project, rows_by_table, state_path, on=None, cover=None, branding=None, warnings=None, history=None, reuse=None):
+def export(path, project, rows_by_table, state_path, on=None, cover=None, branding=None, warnings=None, history=None, reuse=None, gantt_tab=None):
     """Write the workbook at `path` for `project` from {table: [row, ...]} and record what was written in `state_path`
     (creaite excel_sync.cmd_export). Returns {table: rows written}.
 
@@ -1257,7 +1355,7 @@ def export(path, project, rows_by_table, state_path, on=None, cover=None, brandi
     for note in pal.warnings:           # the palette's notes are for the log only: no one is shown them
         logging.getLogger("clark.excel").warning("%s", note)
     wave = excel_picture.load_wave(branding, warnings) if cover else None     # the brand's cover picture: only from the branding folder
-    wb = workbook(project, rows_by_table, on, cover, mark=bool(logo), history=history, pal=pal, wave=bool(wave))
+    wb = workbook(project, rows_by_table, on, cover, mark=bool(logo), history=history, pal=pal, wave=bool(wave), gantt_tab=gantt_tab)
     if reuse is None:                      # the same unchanged workbook exported again to its own path keeps its id
         try:
             mine = _books(state_path).get(_key(path)) or {}
@@ -1355,7 +1453,9 @@ def export_project(store, project, path=None, state_path=None, on=None, exported
     cover = excel_cover.from_store(store, project, exported_text(on), exported_by, owner, owner_email, INTERNAL_NOTE,
                                    day(on).isoformat())
     view = history.view_for_project(store.con, project, "all", history.ROW_LIMIT)       # the one source the Activity tab shares
-    export(path, project, rows, state_path, on, cover, branding, warnings, history=view, reuse=reuse)
+    rows["gantt_lines"] = [r for r in store.read("gantt_lines", project)]      # row 926: only the sheet reads these; the import does not (TABLES)
+    tab = (store.read("projects", ref=project) or {}).get("gantt_tab_name")
+    export(path, project, rows, state_path, on, cover, branding, warnings, history=view, reuse=reuse, gantt_tab=tab)
     return path
 
 
