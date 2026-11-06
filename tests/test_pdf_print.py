@@ -416,11 +416,14 @@ class Browser(unittest.TestCase):
                 got = json.loads(cdp.js("""JSON.stringify({ none: document.querySelectorAll('.print-tab .ucp-none').length,
                   shown: [...document.querySelectorAll('.print-tab .ucp-none')].filter(e => e.getBoundingClientRect().height > 0).length,
                   heads: [...document.querySelectorAll('.print-tab .ucp-body h2')].filter(h => h.nextElementSibling && h.nextElementSibling.matches('.ucp-none') && h.getBoundingClientRect().height > 0).length,
+                  kept: (() => { const b = document.querySelector('.print-tab .ucp-body'); if (!b) return -1; const h = document.createElement('h2'); h.textContent = 'Probe heading';
+                    const u = document.createElement('ul'); u.innerHTML = '<li>Probe step</li>'; b.append(h, u); return h.getBoundingClientRect().height > 0 ? 1 : 0; })(),
                   text: document.getElementById('main').innerText })""", sid))
                 self.assertGreater(got["none"], 0, "the demo use case has no steps and no milestones")
                 self.assertEqual(got["shown"], 0, "no empty-list line on the paper")
                 self.assertEqual(got["heads"], 0, "no heading left with nothing under it")
                 self.assertNotIn("No next steps are shared", got["text"])
+                self.assertEqual(got["kept"], 1, "a heading with a list under it is still printed (the rule hides only the empty lines)")
                 cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)))
 
