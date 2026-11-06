@@ -215,6 +215,7 @@ function distance(a, b) {
   return m[a.length][b.length];
 }
 function nearest(name) {
+  if (String(name).length > 40) return null;      // no field name is near a word this long (and a very long one is not measured)
   const n = low(name);
   const best = [...names(), ...Object.keys(ALIAS).filter((a) => live(ALIAS[a]))].map((k) => [k, distance(n, k)]).sort((a, b) => a[1] - b[1])[0];
   return best && best[1] <= 2 ? fieldOf(best[0]) : (n.length >= 2 && names().find((k) => k.startsWith(n))) || null;
