@@ -11,6 +11,7 @@ from _paths import ROOT
 from test_ask_panel import Panel
 
 CSS = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
+EDIT = (ROOT / "src/clark/page/src/edit/edit.css").read_text(encoding="utf-8")
 JSX = (ROOT / "src/clark/page/src/edit/AskPanel.jsx").read_text(encoding="utf-8")
 NAME = "getComputedStyle(document.querySelector('#ask-panel')).animationName"
 
@@ -37,15 +38,15 @@ class MotionAsk(Panel):
                                 self.assertTrue(p.js("document.querySelector('#ask-panel').classList.contains('leaving')"))
                             p.until("document.querySelector('#ask-panel') === null", "gone", seconds=0.5 if down else 10)
 
-    def test_row_885_is_inside_the_motion_block_uses_tokens_and_moves_only_transform(self):
-        block = CSS[CSS.index("Motion: motion that explains"):]
-        block = block[:block.index("@media (hover: hover)")]
-        self.assertRegex(block, r"\.ask-panel \{ animation: ask-up var\(--dur-layout\) var\(--ease-enter\) 1; \}")
+    def test_row_885_is_edit_only_gated_uses_tokens_and_moves_only_transform(self):
+        i = EDIT.index("row 885:")
+        block = EDIT[i:EDIT.index("\n}\n", i)]
+        self.assertIn("prefers-reduced-motion: no-preference", block)
+        self.assertRegex(block, r'\[data-motion="reduce"\]\) \.ask-panel \{ animation: ask-up var\(--dur-layout\) var\(--ease-enter\) 1; \}')
         self.assertRegex(block, r"\.ask-panel\.leaving \{[^}]*animation: ask-down var\(--dur-state\) var\(--ease-exit\) forwards;")
-        rest = CSS.replace(block, "")
-        self.assertNotRegex(rest, r"animation:\s*ask-(up|down)")
+        self.assertNotRegex(CSS, r"ask-panel|ask-up|ask-down", "the published page's stylesheet has none of it")
         for name in ("ask-up", "ask-down"):
-            body = re.search(r"@keyframes " + name + r" \{(.*)\}\s*\n", CSS).group(1)
+            body = re.search(r"@keyframes " + name + r" \{(.*)\}\s*\n", EDIT[i:]).group(1)
             self.assertRegex(body, r"translateY\(100%\)")
             self.assertNotRegex(body, r"height|margin|padding|top|left|width|bottom")
         self.assertRegex(JSX, r"setTimeout\(finish, 400\)")
