@@ -137,7 +137,8 @@ function leave() {
   moves.value++;
 }
 
-route.onPop((s) => { leave(); apply(s); });
+let backing = false;                                     // a Back from closePeek is on its way: a second close before it lands must not step Back again (row 891)
+route.onPop((s) => { backing = false; leave(); apply(s); });
 
 /** Go to a page: one new entry; an open peek closes, and so do the filters (they belong to one page). */
 export function show(next) {
@@ -185,10 +186,10 @@ export function openPeek(id, kind) {
 /** Close the peek: Back if a click opened it (so no entry stays behind), else this entry is rewritten without it. A Back that
  *  goes nowhere (a restored tab whose stack is gone) falls back to the rewrite. */
 export function closePeek() {
-  if (!peek.value) return;
-  const rewrite = () => go({ ...where(), item: "", ms: "" }, { replace: true });
+  if (!peek.value || backing) return;
+  const rewrite = () => { backing = false; go({ ...where(), item: "", ms: "" }, { replace: true }); };
   // Back would also take away a filter changed while the peek was open (that change rewrote this entry), so then the entry is rewritten.
-  if (route.peekWasPushed() && openedF === filterText.value && route.back(rewrite)) return;       // onPop redraws
+  if (route.peekWasPushed() && openedF === filterText.value && route.back(rewrite)) { backing = true; return; }       // onPop redraws
   rewrite();
 }
 
