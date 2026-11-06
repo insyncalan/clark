@@ -1,4 +1,4 @@
-"""Row 774: a tooltip never stays over an open menu (the profile menu), at 1400 and 900 px, light and dark, View and Edit.
+"""Row 774: a tooltip never stays over the open PROFILE menu (the other menus are a follow-up row), at 1400 and 900 px, light and dark, View and Edit.
 
 Run: python3 dev/run_tests.py test_menu_tooltip
 The tip is the CSS one drawn from data-tip (shell.css). It must hide when its menu opens, on pointer leave, on Esc and on blur, and
@@ -21,14 +21,14 @@ class MenuTooltip(Base):
             p.js("document.documentElement.dataset.theme = 'dark'")
         return p
 
-    def shown(self, p):
-        return p.js(AFTER + ".content") not in ("none", "normal")
-
-    def stays_absent(self, p, what):
-        """The tip is absent now AND for the next three frames (sampled in the page on each frame): a tip that flickers back is caught."""
-        seen = p.js("new Promise(r => { var n = 0, any = false; (function f() { any = any || " + AFTER + ".content !== 'none'; "
-                    "if (++n < 4) requestAnimationFrame(f); else r(any); })(); })")
-        self.assertFalse(seen, what)
+    def stays_absent(self, p, what, sample=None):
+        """The tip is absent now AND for the next three frames: sampled in the page on each frame into window.__tipSeen (null while it runs),
+        then read back with ordinary reads (a Promise handed to p.js is NOT awaited and would come back as {}). Fails unless the value IS False."""
+        p.js("window.__tipSeen = null; (function () { var n = 0, any = false; (function f() { any = any || " + (sample or AFTER + ".content !== 'none'") + "; "
+             "if (++n < 4) requestAnimationFrame(f); else window.__tipSeen = any; })(); })()")
+        p.until("window.__tipSeen !== null", "the four frames were sampled")
+        seen = p.js("window.__tipSeen")
+        self.assertIs(seen, False, what)
 
     def point(self, p, x, y, hover, what):
         """Move the pointer and wait until the button's :hover state is what the move should make it (it follows the move by a frame)."""
