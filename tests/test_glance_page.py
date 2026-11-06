@@ -233,7 +233,7 @@ class EditTiles(Setup):
         with chrome() as cdp:
             p = self.show(cdp)
             p.edit()
-            self.assertEqual(self.tiles(p), ["health", "overdue", "risks", "decisions", "stale"], "Edit draws the hidden Decisions tile too (and the Not reviewed tile, off, last)")
+            self.assertEqual(self.tiles(p), ["health", "overdue", "risks", "decisions"], "Edit draws the hidden Decisions tile too")
             self.assertEqual(p.js("document.querySelector('[data-tile=decisions]').classList.contains('is-hidden')"), True)
             p.js("document.querySelector('[data-tile=risks] [data-tile-eye]').click()")
             p.saved()
@@ -297,11 +297,11 @@ class EditTiles(Setup):
             p.js("document.querySelector('[data-tile=overdue] [data-tile-grip]').focus()")
             p.key("ArrowRight", ALT, code="ArrowRight", vk=39)
             p.saved()
-            p.until("JSON.stringify([...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)) === JSON.stringify(['health','risks','overdue','decisions','stale'])", "moved")
+            p.until("JSON.stringify([...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)) === JSON.stringify(['health','risks','overdue','decisions'])", "moved")
             order = sorted(self.rows().values(), key=lambda r: r["sort_order"])
             self.assertEqual([r["tile"] for r in order], ["health", "risks", "overdue", "decisions"])
             self.undo(p)
-            self.assertEqual(self.tiles(p), ["health", "overdue", "risks", "decisions", "stale"])
+            self.assertEqual(self.tiles(p), ["health", "overdue", "risks", "decisions"])
 
     def test_dragging_a_tile_moves_it(self):
         with chrome() as cdp:
