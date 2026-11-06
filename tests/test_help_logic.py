@@ -268,9 +268,9 @@ class Logic(unittest.TestCase):
 
     def test_keys_list(self):
         keys, mac = self.r["keys"], self.r["keysMac"]
-        self.assertEqual(len(keys), 34)      # #721: the Mod+J and Up rows are gone (the page has neither key)
-        self.assertEqual(len(mac), 34)
-        self.assertEqual([k for k in keys if k["keys"] in ("Ctrl+J", "Up") and ("ask clark" in k["does"] or "Sneak" in k["does"])], [])
+        self.assertEqual(len(keys), 37)      # #721 took the Mod+J and Up rows out; row 838 puts them back, for the page has both keys now (askPanelState.js, Peek.jsx)
+        self.assertEqual(len(mac), 37)
+        self.assertEqual([k for k in keys if k["keys"] in ("Up",) and ("ask clark" in k["does"] or "Sneak" in k["does"])], [])
         self.assertTrue(all("[[" not in k["keys"] + k["does"] and "**" not in k["does"] for k in keys))
         self.assertTrue(any(k["keys"] == "?" for k in keys))
 

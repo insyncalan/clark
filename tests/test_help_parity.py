@@ -175,9 +175,9 @@ class ReportSectionsHasNeedsFromYou(unittest.TestCase):
         self.assertNotRegex(row, r"(?i)pending decision|Needed from the client|straight after|Word file")     # what the page does not do (yet)
 
     def test_the_table_has_no_row_for_a_section_the_page_does_not_draw(self):
-        """Risks and issues, Open actions and Decisions show 'Not shown on this page yet.' (Section.jsx), as does Current state in Edit."""
+        """Row 838: every row is a section the page draws; Current state is drawn too (read only in Edit), and Risks and issues, Open actions and Decisions have their rows (KINDS in Section.jsx)."""
         names = [r[0] for r in self.TABLE[2]]
-        self.assertEqual(names, ["At a glance", "Use case summary", "Milestones", "Summary, This week, Next week", "Needs from you"])
+        self.assertEqual(names, ["Current state", "At a glance", "Use case summary", "Milestones", "Summary, This week, Next week", "Risks and issues, Open actions, Decisions", "Supporting documents", "Needs from you"])
         section = read("page", "src", "components", "Section.jsx")
         self.assertIn("Not shown on this page yet.", section)
         for t in ("raid", "actions", "decisions"):
@@ -215,7 +215,7 @@ class MovementEntries(unittest.TestCase):
         for name in re.findall(r"\*\*(.+?)\*\*", text):
             base = re.sub(r"\s*\(.*?\)\s*$", "", name)
             if base not in ("Milestones", "Undo"):
-                self.assertIn(base, self.WORDS + self.BLOCK, name)
+                self.assertIn(base, self.WORDS + self.BLOCK + read("page", "src", "edit", "MilestonesPage.jsx"), name)
         for gone in ("Rebaseline", "Add a recovery action", "Escalate to steering", "Internal note", "diamond", "red line"):
             self.assertNotIn(gone, text, f"the page has no {gone}")
 
@@ -223,8 +223,8 @@ class MovementEntries(unittest.TestCase):
         self.assertIn("data-edit-only", self.BLOCK)
         self.assertIn("never published", self.WORDS)
         ref = json.dumps(entry("ref", "milestones-page"), ensure_ascii=False)
-        self.assertIn("**Movement** is under the list", ref)
-        self.assertNotIn("Plan", " ".join(strings(entry("ref", "milestones-page"))))        # the page has no tab called Plan
+        self.assertIn("**Movement** is the second choice of the **Plan** and **Movement** switch", ref)      # row 838: the switch is at the top (MilestonesPage.jsx), Movement takes the place of the list
+        self.assertIn("Plan", read("page", "src", "edit", "MilestonesPage.jsx"))
 
     def test_the_rows_keys_are_the_arrows(self):
         self.assertIn("ArrowDown", self.BLOCK)
