@@ -112,6 +112,13 @@ class Fields(unittest.TestCase):
         for r in history.rows_for_item(self.s.con, self.m):
             self.assertNotEqual(r["field"], "Owner (linked person)", r)
 
+    def test_a_step_that_moves_only_the_person_link_still_lists_it(self):
+        self.linked("Sam Reed")
+        with self.s.step("dashboard", USER) as st:
+            st.update("milestones", self.m, {"owner_id": None})         # no owner text in this step: nothing else says what moved
+        fields = [r["field"] for r in history.rows_for_item(self.s.con, self.m)]
+        self.assertIn("Owner (linked person)", fields, fields)
+
     def test_the_same_value_again_makes_no_step(self):
         self.ok({"owner": "Sam Example"})
         before = self.steps()

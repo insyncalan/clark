@@ -492,12 +492,14 @@ def _display(con, rows, keep):
     titles = _Titles(con)
     undos = _undo_events(con)
     out, folded = [], {}
+    rows = list(rows)
+    owner_text = {(r["apply_id"], r["item_id"]) for r in rows if r["tbl"] == "milestones" and r["field"] == "owner"}
     for r in rows:
         ends = _ends(r["tbl"], r["item_id"])
         if r["via"] == SEED_VIA or not keep(r, ends):      # a new project's starting sections are not a person's change
             continue
-        if r["tbl"] == "milestones" and r["field"] == "owner_id":      # row 828: a milestone's person link moves with its owner text, which is the one line shown
-            continue
+        if r["tbl"] == "milestones" and r["field"] == "owner_id" and (r["apply_id"], r["item_id"]) in owner_text:
+            continue                                       # row 828: an owner edit moves the person link with the owner text; the one line shown is Owner
         undo = r["route"] == "undo" or r["undoes"] is not None
         again = undo and r["undoes"] in undos              # this Undo reverses an earlier Undo
         undo_kind = "Undo undone" if again else "Undone"
