@@ -909,6 +909,10 @@ def _do_item_change(store, by_user, req, project, table, columns, place):
             if found is None or found["project"] != project:
                 raise Refused(NO_USE_CASE)
         was_pending = table == "decisions" and row["status"] == "Pending"
+        who = HAND_OVER_FIELD.get(table)
+        if who in changes:                                          # row 866: the owner text and the person it links to change together, else a later rename or merge of the old person puts the old name back
+            found = store.resolve_owner(changes[who]) if changes[who] else {"status": "blank"}
+            changes["owner_id"] = found["id"] if found["status"] == "one" else None
         try:
             st.update(table, ref, changes)
         except Invalid as e:                                        # a rule of the store, in fixed words: no field name, no value
@@ -1875,7 +1879,8 @@ def _eligible(rows, project, hand_over=False):
             return False
         fields = tuple(CHANGE_KINDS[r["table"]].get(UPDATE, ())) + tuple(CHANGE_KINDS[r["table"]].get(BULK, ())) + ("closed", "priority")   # #196: + a bulk change's
         if r.get("field") == "owner_id":                            # #199: a hand over's link to the person, in a hand over's step only (_is_hand_over), with or without the owner text beside it
-            return hand_over and r["table"] in HAND_OVER_FIELD
+            return r["table"] in HAND_OVER_FIELD and (hand_over or any(      # row 866: or the link a single owner edit (or an ask clark change) writes beside the owner text of the same item in the same step
+                o["table"] == r["table"] and str(o["key"]) == str(r["key"]) and o.get("field") == HAND_OVER_FIELD[r["table"]] for o in rows))
         return (r.get("op") == MADE_OP and r["table"] != "use_cases") or r.get("field") in fields
 
     def item_stamp_row(r):
