@@ -5,7 +5,7 @@ Run: python3 dev/run_tests.py test_v103
 
 Same shape as test_v102.
   COVERED       a merged row a person can see, already covered by a test elsewhere. test_every_covering_test_named_here_exists
-                fails if one goes missing. Rows 273, 802, 827, 872 and 874 have no visible change (NO_VISIBLE_CHANGE).
+                fails if one goes missing. Rows 273, 802, 827, 872, 874 and 889 have no visible change (NO_VISIBLE_CHANGE).
   WAITING       a row that is not on main yet but has a marker in the source that appears when it lands (item, check, pull request,
                 a file under the top folder, the text in it). Skipped, with the pull request. After the cut commit has set the
                 version and the marker is there, the row fails until it is moved to COVERED with its test. Empty today: the
@@ -15,7 +15,7 @@ Same shape as test_v102.
 The notes hold only merged, user-visible rows; no DRAFT line is allowed anywhere. The status table in the sheet lists every 1.0.3 row
 (refresh it with the regeneration helper as rows merge). The cut checks (version, files, layout) skip until the cut commit sets 1.0.3.
 
-The data layout does not change in 1.0.3 (layout 16 stays): the notes say so and the store must still say 16.
+The data layout moves from 16 to 17 in 1.0.3 (row 811): the notes carry the Read this first paragraph and the store must say 17.
 """
 import ast
 import re
@@ -25,7 +25,7 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "1.0.3"
-SCHEMA = 16              # 1.0.1 moved to layout 16; 1.0.3 does not change it
+SCHEMA = 17              # 1.0.1 moved to layout 16; 1.0.3 moves it to 17 (the Needed from the client flag, row 811)
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
@@ -174,11 +174,21 @@ COVERED = [
     ("#784", 'The published Work items Item column is wide enough at 900 px.',
      "test_published_item_column::PublishedItemColumn::test_the_item_column_is_wide_enough_and_the_table_fits"),
     ("#869", 'A Settings switch message goes when the page leaves Settings.',
-     "test_single_keys::PageKeys::test_the_switch_says_its_state_in_a_toast_with_one_undo_and_keeps_the_focus")
+     "test_single_keys::PageKeys::test_the_switch_says_its_state_in_a_toast_with_one_undo_and_keeps_the_focus"),
+    ("#811", "The peek of an action, a risk or an issue has a Needed from the client switch; a decision has none.",
+     "test_peek_client_action::Page::test_a_risk_has_it_and_a_decision_has_none"),
+    ("#811", "The data step to layout 17 keeps every row and starts the flag off.",
+     "test_store_client_action_migration::Migrating::test_old_data_opens_keeps_every_row_and_the_flag_is_off"),
+    ("#861", "A flagged, open, client-visible item is listed under Needs from you in the published report.",
+     "test_publish_client_action::Listed::test_a_flagged_open_visible_item_is_listed_with_the_four_fields"),
+    ("#861", "A closed or cancelled flagged item is not listed.",
+     "test_publish_client_action::Listed::test_a_closed_or_cancelled_item_is_not_listed"),
+    ("#673", "The Milestones Legend button has the information icon.",
+     "test_milestones_details::Details::test_the_toggle_is_a_real_button_above_the_list_and_starts_open"),
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
-NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874"}
+NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874", "889"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
 PARTLY_MERGED = {"767", "766", "775", "776"}
@@ -356,10 +366,14 @@ class Notes(unittest.TestCase):
             if line.startswith("#"):
                 self.assertNotIn("ask clark", line)
 
-    def test_the_notes_say_the_data_layout_is_unchanged_and_carry_no_layout_step(self):
-        self.assertIn("This version does not change how clark stores your data.", self.text)
-        self.assertNotIn("Read this first", self.text)
-        self.assertNotIn("Step 17", self.text)
+    def test_the_notes_carry_the_data_layout_paragraph_and_the_older_clark_sentence(self):
+        self.assertIn("This version includes a change to how clark stores your data. Read this first.", self.text)
+        self.assertIn("from layout 16 to 17", self.text)
+        self.assertIn("Step 17:", self.text)
+        self.assertIn("clark makes a safety copy of your data before it changes anything", self.text)
+        self.assertIn("An older clark (1.0.2) refuses the new data file", self.text)
+        self.assertIn("This data needs a newer clark. Nothing was changed. Install the latest clark, then try again.", self.text)
+        self.assertIn("First restore the safety copy", self.text)
 
     def test_the_known_limits_carry_the_by_hand_install_and_the_demo_limit(self):
         self.assertIn("## Known limits", self.text)
@@ -415,7 +429,7 @@ class Cut(unittest.TestCase):
 
     def test_the_data_layout_is_still_the_one_the_notes_say(self):
         self.cut_made()
-        self.assertEqual(schema_version(), SCHEMA, "the notes say the data layout is unchanged")
+        self.assertEqual(schema_version(), SCHEMA, "the notes name layout 17")
 
     def test_a_waiting_row_whose_pull_request_has_landed_has_been_moved_to_covered(self):
         self.cut_made()
