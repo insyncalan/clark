@@ -8,7 +8,7 @@ import sqlite3
 import unittest
 
 from _demo import USER
-from clark import changes, glance, publish, store as store_module
+from clark import changes, client_filters, excel_cover, glance, publish, store as store_module
 from test_changes import Api, KIND
 
 DATA_TABLES = ("milestones", "actions", "raid", "decisions", "use_cases", "documents", "glance_tiles", "report_hidden", "people", "projects")
@@ -111,6 +111,55 @@ class Publish(Base):
         self.assertEqual(publish.hidden_types(rows), set(publish.BUILT_IN_SECTIONS))
         rows[1]["hidden"] = 0
         self.assertEqual(publish.hidden_types(rows), set(publish.BUILT_IN_SECTIONS) - {"raid"})
+
+
+class ClientPaths(Base):
+    """Row 906: every path that decides what a client sees reads a built-in with no section row as hidden, the delete-all case too."""
+    def setUp(self):
+        super().setUp()
+        with self.s.step("dashboard", USER) as st:
+            st.create("raid", {"project": "ABC", "type": "Risk", "description": "Supplier slips", "impact": "High", "likelihood": "High",
+                               "raised": "2026-10-01", "source": "demo"})
+        self.demo.action(due_date="2030-02-01")
+
+    def delete(self, *kinds):
+        for r in self.rows():
+            if not kinds or r["type"] in kinds:
+                self.ok("delete", id=r["id"])
+
+    def test_the_editors_data_says_when_every_section_was_deleted(self):
+        self.assertFalse(self.s.data_for("ABC")["sections_deleted"])
+        self.delete()
+        got = self.s.data_for("ABC")
+        self.assertEqual((got["report_sections"], got["sections_deleted"]), ([], True))
+
+    def test_glance_kept_rows_hides_a_deleted_section_and_the_delete_all_case(self):
+        self.delete("raid")
+        kept = glance.kept_rows(self.s.data_for("ABC"), "2030-01-15")
+        self.assertIn("raid", kept["hidden_types"])
+        self.assertEqual(kept["data"]["raid"], [])
+        self.assertTrue(kept["data"]["actions"])
+        self.delete()
+        kept = glance.kept_rows(self.s.data_for("ABC"), "2030-01-15")
+        self.assertEqual(kept["hidden_types"], set(publish.BUILT_IN_SECTIONS))
+        self.assertEqual([kept["data"][k] for k in ("milestones", "actions", "raid", "decisions", "use_cases")], [[]] * 5)
+
+    def test_the_client_rows_carry_nothing_of_a_deleted_section(self):
+        self.assertTrue(client_filters.client_rows(self.s.data_for("ABC"), "2030-01-15"))
+        self.delete("actions", "raid")
+        self.assertEqual(client_filters.client_rows(self.s.data_for("ABC"), "2030-01-15"), [])
+
+    def test_the_client_tiles_leave_out_a_deleted_sections_tile(self):
+        self.delete("raid")
+        tiles = [t["tile"] for t in glance.tiles(self.s.data_for("ABC"), "2030-01-15", for_client=True)]
+        self.assertNotIn("risks", tiles)
+
+    def test_the_excel_cover_for_the_client_carries_nothing_after_delete_all(self):
+        self.delete()
+        text = repr(excel_cover.from_store(self.s, "ABC", "2030-01-15 04:00"))
+        self.assertNotIn("Phase two", text)
+        self.assertNotIn("Supplier slips", text)
+        self.assertNotIn("Current state", text)
 
 
 class ReAdd(Base):

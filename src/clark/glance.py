@@ -185,7 +185,7 @@ def _left_off(rows_by_table):
     return {(h.get("item_id") if isinstance(h, dict) else h) for h in rows_by_table.get("report_hidden") or []}
 
 
-def kept_rows(rows_by_table, today, sections=None, label_rules=None):
+def kept_rows(rows_by_table, today, sections=None, label_rules=None, deleted=None):
     """What a client may see, worked out by `publish.select`, the one function that decides what is published, and nothing
     else. `rows_by_table` is `data_for`'s output plus, when the page has them, `report_hidden`, `report_sections` and
     `label_rules` rows (`sections` and `label_rules` given here win). Returns
@@ -194,9 +194,10 @@ def kept_rows(rows_by_table, today, sections=None, label_rules=None):
     _need_today(today)
     sections = rows_by_table.get("report_sections") if sections is None else sections
     rules = rows_by_table.get("label_rules") if label_rules is None else label_rules
+    deleted = bool(rows_by_table.get("sections_deleted")) if deleted is None else bool(deleted)      # row 906: every section deleted is not "no sections yet"
     chosen = publish.select({"data": rows_by_table, "hidden": sorted(_left_off(rows_by_table), key=str), "sections": sections,
-                             "label_rules": rules, "as_at": today})
-    return kept_from(chosen, sections)
+                             "sections_deleted": deleted, "label_rules": rules, "as_at": today})
+    return kept_from(chosen, sections, deleted)
 
 
 def kept_from(chosen, sections=None, deleted=False):

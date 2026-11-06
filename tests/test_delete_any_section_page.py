@@ -24,9 +24,10 @@ class DeleteAnySection(Base):
     def acts(self, p, ref):
         p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()")
         p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .menu')", "the menu opened")
+        p.until("!!document.activeElement && !!document.activeElement.closest('.menu')", "focus moved into the menu (the key goes to it)")
         got = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .menu-item')].map(b => b.dataset.act)")
         p.key("Escape", code="Escape", vk=27)
-        p.until("!document.querySelector('.menu')", "the menu closed")
+        p.until(f"!document.querySelector('[data-id=\"{ref}\"] .menu')", "the menu closed")
         return got
 
     def test_every_section_type_offers_delete_section_at_1400_and_900(self):
@@ -36,8 +37,8 @@ class DeleteAnySection(Base):
             for w in WIDTHS:
                 self.at(cdp, p, w)
                 for ref in IDS:
-                    self.assertIn("delete", self.acts(p, ref), f"{ref} at {w}")
-                    self.assertEqual(self.acts(p, ref)[-1], "delete", f"{ref} at {w}: it stays the last item")
+                    got = self.acts(p, ref)
+                    self.assertEqual(got[-1:], ["delete"], f"{ref} at {w}: Delete section is the last item")
 
     def test_delete_each_built_in_undo_cmd_z_reload_and_add_it_again(self):
         with chrome() as cdp:

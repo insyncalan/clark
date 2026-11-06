@@ -2708,6 +2708,7 @@ class Store:
             out["report_sections"] = [dict(r) for r in con.execute(           # #65: its own query; no archived column
                 "SELECT id, type, title, body, beside, hidden, sort_order FROM report_sections WHERE project = ? "
                 "ORDER BY sort_order, id", (code,))]
+            out["sections_deleted"] = self._had_sections(con, code)           # row 906: no section rows because all were deleted (the client paths must not fall back to the defaults)
             out["glance_tiles"] = [dict(r) for r in con.execute(              # #45: the tiles' place, hidden flag and outline; no archived column
                 "SELECT project, tile, hidden, outline, sort_order FROM glance_tiles WHERE project = ? "
                 "ORDER BY sort_order, tile", (code,))]
