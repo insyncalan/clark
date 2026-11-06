@@ -79,7 +79,7 @@ class Page(unittest.TestCase):
                 self.assertTrue(wait(lambda: self.state(cdp, sid) == "false"), "and it switches off")
                 self.assertEqual(sent[-1]["changes"], {"client_action": 0})
 
-    def test_a_risk_has_it_a_decision_and_view_have_none(self):
+    def test_a_risk_has_it_and_a_decision_has_none(self):
         risk, decision = self.data["raid"][0]["id"], self.data["decisions"][0]["id"]
         probe = "!!document.querySelector('#peek [data-pk-needed]')"
         for width in (1400, 900):
@@ -92,9 +92,9 @@ class Page(unittest.TestCase):
             with self.subTest(width=width, item="decision"), chrome() as cdp:
                 sent, sid = self.load(cdp, width, decision)
                 self.assertFalse(cdp.js(probe, sid))
-            with self.subTest(width=width, item="view"), chrome() as cdp:
+            with self.subTest(width=width, item="work items in view"), chrome() as cdp:
                 sent, sid = self.load(cdp, width, OVERDUE, edit=False)
-                self.assertFalse(cdp.js(probe, sid))
+                self.assertTrue(cdp.js(probe, sid), "row 824: Work items is editable in View, so its peek has the switch (a published file has none: the source test above)")
 
 
 if __name__ == "__main__":
