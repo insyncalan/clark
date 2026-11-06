@@ -50,7 +50,7 @@ def over(top, back, alpha):
 class Static(unittest.TestCase):
     def test_the_chart_uses_tokens_only_and_no_person_is_named(self):
         css = (build_page.PAGE / "shell.css").read_text(encoding="utf-8")
-        block = css[css.index("The project Gantt chart (#926)"):]
+        block = css[css.index("The project Gantt chart (row 926)"):]
         self.assertNotRegex(block, r"#[0-9a-fA-F]{3,8}\b", "a colour in the chart's rules is a token, never a hex")
         self.assertNotRegex(block, r"\brgba?\(", "a colour in the chart's rules is a token")
         widths = set(re.findall(r"@media \(max-width: (\d+)px\)", block))
@@ -259,8 +259,9 @@ class Chart(unittest.TestCase):
         self.until("document.querySelector('[data-gantt]').dataset.full === '1'", "full screen")
         self.assertEqual(self.val("getComputedStyle(document.querySelector('[data-gantt]')).position"), "fixed")
         self.assertEqual(self.val("document.querySelector('[data-g-expand]').getAttribute('aria-label')"), "Back to page width")
-        self.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
-        self.until("document.querySelector('[data-gantt]').dataset.full === '0'", "Escape goes back")
+        # the page listens for Escape once its effect has run (a moment after the screen changes), so a key sent that first instant may find no listener: send it until it is heard
+        esc = "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})), document.querySelector('[data-gantt]').dataset.full === '0'"
+        self.assertTrue(wait(lambda: self.js(f"!!({esc})"), 8), "Escape goes back")
 
     def test_the_show_menu_has_no_ticked_lines_in_view(self):
         self.look(1400, "light")
@@ -331,10 +332,8 @@ class Chart(unittest.TestCase):
         for field, text, words in (("start", "next week", "Use DD-MM-YYYY, for example 06-11-2026."), ("end", "01-01-2026", "The end cannot be before the start."),
                                    ("pct", "101", "Done % is a number from 0 to 100."), ("name", " ", "A line needs a name.")):
             self.set_input(f'[data-g-edit="GNT-005:{field}"]', text)
-            self.until("document.querySelector('[data-g-msg]')", f"{field}: the refusal is shown")
-            self.assertEqual(self.text("[data-g-msg]"), words)
+            self.until(f"document.querySelector('[data-g-msg]') && document.querySelector('[data-g-msg]').textContent === {lit(words)}", f"{field}: the refusal is shown in words")
             self.assertEqual(len(self.calls()), 3, f"{field}: nothing was sent")
-            self.js("document.querySelector('[data-g-msg]').remove()")
         self.assertEqual(self.count('[data-g-edit="GNT-003:end"]'), 0, "a milestone has one date: it has no End cell")
 
     def test_add_a_line_below_asks_what_kind(self):
@@ -360,7 +359,7 @@ class Chart(unittest.TestCase):
         self.assertEqual(self.val("document.querySelector('[data-g-bs]').value"), "22-10-2026")
         self.assertEqual(self.val("document.querySelector('[data-g-be]').value"), "04-12-2026")
         self.assertEqual(self.val("document.querySelector('[data-g-bp]').value"), "60")
-        self.assertEqual(self.val("document.activeElement === document.querySelector('[data-g-bn]')"), True, "the name is ready to type over")
+        self.until("document.activeElement === document.querySelector('[data-g-bn]')", "the name is ready to type over (focus is set in an effect, just after the box appears)")
         # a bad end keeps the box open and says why
         self.set_input("[data-g-be]", "01-10-2026")
         self.js("(function(){ var e = document.querySelector('[data-g-be]'); e.value = '01-10-2026'; e.dispatchEvent(new Event('input', {bubbles: true})); })()")

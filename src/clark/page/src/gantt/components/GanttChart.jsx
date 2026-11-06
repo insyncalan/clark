@@ -1,4 +1,4 @@
-// The project Gantt chart (#926), the chart half only: props in, callbacks out. It fetches nothing and saves nothing; the page that holds it
+// The project Gantt chart (row 926), the chart half only: props in, callbacks out. It fetches nothing and saves nothing; the page that holds it
 // owns the lines and answers each callback (and shows the Undo that goes with a change). The rules are in ../logic/gantt.js.
 //
 //   lines          the plan, as logic/gantt.js describes a line (id, name, type, parent, start, end, pct, depends, show)
@@ -420,7 +420,7 @@ function EditBox({ line, no, at, onClose, onSave, onDelete }) {
   const [err, setErr] = useState(null);
   const first = useRef(null);
   useEffect(() => { if (first.current) { first.current.focus(); first.current.select(); } }, []);
-  const set = (k) => (e) => setF({ ...f, [k]: e.currentTarget.value });
+  const set = (k) => (e) => { const v = e.currentTarget.value; setF((old) => ({ ...old, [k]: v })); };   // from the latest values, so two edits before a redraw both stay
   const save = () => {
     const res = checkBox(line, f);
     if (!res.ok) { setErr(res); return; }

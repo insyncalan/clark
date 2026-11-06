@@ -34,7 +34,8 @@ def page_html():
                                cwd=tmp, capture_output=True, text=True)
             assert done.returncode == 0, done.stderr
             script = out.read_text(encoding="utf-8").replace("</script", "<\\/script")
-        _PAGE["html"] = ('<!doctype html>\n<html lang="en-GB"><head><meta charset="utf-8"><title>t</title></head>'
+        css = build_page.page_css().replace("</style", "<\\/style")   # the chart's looks live in the shell's CSS, so the bare page carries it too
+        _PAGE["html"] = (f'<!doctype html>\n<html lang="en-GB"><head><meta charset="utf-8"><title>t</title><style>{css}</style></head>'
                          f'<body><div id="root"></div>\n<script>{script}</script>\n</body></html>\n')
     return _PAGE["html"]
 

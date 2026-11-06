@@ -1934,7 +1934,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ddmenu[aria-label="Projects"] [role="menuitemradio"] > span:not(.ck) { display: block; flex: 1; min-width: 0; }
 .ddmenu[aria-label="Projects"] [role="menuitemradio"] b, .ddmenu[aria-label="Projects"] [role="menuitemradio"] small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ddmenu[aria-label="Projects"] [role="menuitemradio"] small { color: var(--text-muted); }
-/* The project Gantt chart (#926): src/clark/page/src/gantt/. Tokens only; the bars are the data colours' neighbours (brand blue for a task, grey for a phase, amber and green for milestones), Today is the red status tint. */
+/* The project Gantt chart (row 926): src/clark/page/src/gantt/. Tokens only; the bars are the data colours' neighbours (brand blue for a task, grey for a phase, amber and green for milestones), Today is the red status tint. */
 .gt { position: relative; color: var(--text); font-size: var(--size-caption); }
 .gt .i { width: 16px; height: 16px; flex: none; }
 .gt button { font: inherit; color: inherit; cursor: pointer; }
