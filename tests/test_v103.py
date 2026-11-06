@@ -193,6 +193,46 @@ COVERED = [
      "test_clear_wording_in_place::ClearWordingInPlace::test_a_blank_wording_clears_it_the_row_shows_its_title_and_undo_puts_the_words_back"),
     ("#909", "Esc right after a second pick clears both while the peek is still closing.",
      "test_multi_select::Page::test_esc_right_after_a_second_pick_clears_both_while_the_peek_is_still_closing"),
+    ("#877", 'Dialogs and their dim background ease in, and are still when reduced.',
+     "test_motion_dialogs_menus::MotionDialogsMenus::test_row_877_dialogs_and_their_dim_background_ease_in_and_are_still_when_reduced"),
+    ("#878", 'Menus drop in, and are still when reduced.',
+     "test_motion_dialogs_menus::MotionDialogsMenus::test_row_878_menus_drop_in_and_are_still_when_reduced"),
+    ("#879", 'The changed peek row flashes and is a still tint when reduced.',
+     "test_motion_flash::MotionFlash::test_row_879_the_peek_flashes_and_is_a_still_tint_when_reduced"),
+    ("#880", 'Opened group rows glide in, and are still when reduced.',
+     "test_motion_group::MotionGroup::test_row_880_opened_rows_glide_in_and_are_still_when_reduced"),
+    ("#881", 'Controls fade and cards lift, and snap when reduced.',
+     "test_motion_press::MotionPress::test_row_881_controls_fade_and_cards_can_lift_and_snap_when_reduced"),
+    ("#882", 'The toast rises in, and is still when reduced.',
+     "test_motion_toast::MotionToast::test_row_882_the_toast_rises_in_and_is_still_when_reduced"),
+    ("#883", 'The check mark draws, and is whole when reduced.',
+     "test_motion_tick::MotionTick::test_row_883_the_check_mark_draws_and_is_whole_when_reduced"),
+    ("#884", 'The View | Edit thumb slides and the Edit chrome fades; both are still when reduced.',
+     "test_motion_modes::MotionModes::test_row_884_the_thumb_slides_and_the_edit_chrome_fades_and_both_are_still_when_reduced"),
+    ("#885", 'The ask clark panel rises and sinks, and is still when reduced.',
+     "test_motion_ask::MotionAsk::test_row_885_the_panel_rises_and_sinks_and_is_still_when_reduced"),
+    ("#886", 'Placeholder blocks shimmer, and are still when reduced.',
+     "test_motion_shimmer::MotionShimmer::test_row_886_the_blocks_shimmer_and_are_still_when_reduced"),
+    ("#887", 'Board drag feedback lifts and highlights, and is still when reduced.',
+     "test_motion_drag_feedback::MotionDragFeedback::test_row_887_cards_lift_and_columns_highlight_and_all_is_still_when_reduced"),
+    ("#888", 'The badge ticks, Undo pulses and the eye blinks, and none runs when reduced.',
+     "test_motion_micro_delight::MotionMicroDelight::test_row_888_the_badge_ticks_undo_pulses_and_the_eye_blinks_and_none_runs_when_reduced"),
+    ("#890", 'Sources are closed by default and list the files the answer used.',
+     "test_ask_panel::Panel::test_sources_are_closed_by_default_and_list_the_files_the_answer_used"),
+    ("#896", "The Help peek lists the open page's how-to articles.",
+     "test_help_peek_real::Real::test_row_896_the_peek_lists_the_how_to_articles_of_the_open_page"),
+    ("#899", 'The top bar has no Help button and the ? key toggles Help.',
+     "test_help_peek::Peek::test_the_top_bar_has_no_help_button_and_the_key_toggles"),
+    ("#901", 'The palette finds the data by words, ID and person.',
+     "test_palette::Results::test_search_finds_the_data_by_words_id_and_person"),
+    ("#902", 'The Appearance choice is a radio group with arrow keys.',
+     "test_appearance::Appearance::test_C_appearance_arrow_keys_move_and_pick_row_902"),
+    ("#903", 'Help Start here has a hero card and The loop above the jobs.',
+     "test_help_panel::Panel::test_three_tabs_and_what_each_shows_today"),
+    ("#904", "The palette's active row is outlined and kinds are capitals.",
+     "test_palette::Looks::test_the_active_row_has_a_clear_outline_and_the_kind_labels_are_capitals"),
+    ("#911", 'Every client workbook sheet prints landscape and one page wide.',
+     "test_excel_client_layout::PrintSetup::test_every_sheet_of_the_client_workbook")
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
@@ -379,7 +419,7 @@ class Notes(unittest.TestCase):
         self.assertIn("from layout 16 to 17", self.text)
         self.assertIn("Step 17:", self.text)
         self.assertIn("clark makes a safety copy of your data before it changes anything", self.text)
-        self.assertIn("An older clark (1.0.2) refuses the new data file", self.text)
+        self.assertIn("An older clark (1.0.2) will not open the new data file", self.text)
         self.assertIn("This data needs a newer clark. Nothing was changed. Install the latest clark, then try again.", self.text)
         self.assertIn("First restore the safety copy", self.text)
 
