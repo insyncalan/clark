@@ -410,7 +410,7 @@
      "Type the change, for example “move to Friday, owner Jo, high priority”.",
      "Under the box, a line for each field shows what it is now and what it will become.",
      "Press [[Enter]] to make every change shown, in one step ([[Shift+Enter]] makes them and keeps the box open). [[Esc]] closes the box. The fields that changed flash for a moment, and the message has **Undo**.",
-     "Closing an item, or making or withdrawing a decision, asks first: press **Confirm and apply** or [[Mod+Enter]]. A decision that is made cannot be undone from here."
+     "Closing an item, making or withdrawing a decision, marking a milestone Achieved or a use case Done asks first: press **Confirm and apply** or [[Mod+Enter]]. A decision that is made cannot be undone from here."
     ],
     "n": "If the owner is not already named in the project, the line is marked “new name”. See [Sneak peek](#ref-sneak-peek) for what it understands.",
     "page": [
@@ -1504,7 +1504,7 @@
     "b": [
      [
       "p",
-      "Sneak peek changes work items only: an action, a risk, an issue or a decision. It works in Edit only, in the peek."
+      "Sneak peek changes a work item (an action, a risk, an issue or a decision), a milestone or a use case. It works in Edit only, with the item open in the peek, or on the use case’s own page."
      ],
      [
       "tbl",
@@ -1528,6 +1528,14 @@
        [
         "made · decided · withdrawn · pending",
         "A decision’s status"
+       ],
+       [
+        "forecast Friday · achieved yesterday · done · reopen",
+        "A milestone’s forecast date, achieved date and status (Achieved asks first). Not its owner or its agreed date"
+       ],
+       [
+        "flag · high risk · on track · done · committed · candidate · planned 2027 · no flag · headline: …",
+        "A use case’s status (Done asks first), commitment and headline"
        ],
        [
         "urgent priority · high priority · medium priority · low priority",
@@ -2008,7 +2016,7 @@
    ],
    [
     "[[/]] [[/]]",
-    "With a work item open in the peek in Edit: press twice quickly for Sneak peek, to change it in words. A single [[/]] does nothing while a peek is open"
+    "With an item open in the peek in Edit (or a use case page): press twice quickly for Sneak peek, to change it in words. A single [[/]] does nothing while a peek or a use case page is open in Edit"
    ],
    [
     "[[Esc]]",
