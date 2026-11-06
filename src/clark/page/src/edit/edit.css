@@ -701,9 +701,14 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .ad.dlg .dlg-b p { margin: 0 0 var(--space-2); }
 .ad.dlg .dlg-note { font-size: var(--size-small); }
 .ad.dlg .dlg-small { font-size: var(--size-small); margin: 0; }
-.ad.dlg .dlg-form { display: grid; gap: 6px; }
+.ad.dlg .dlg-form { display: grid; gap: 6px; padding: 0; }   /* row 765: the box body already has the side padding; shell.css gives the bare form its own */
 .ad.dlg .dlg-form label { font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); margin-top: var(--space-2); }
-.ad.dlg .dlg-field { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--control-border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+/* row 765: the project form is the prototype's: label in a left column, field to its right (the column is as wide as the longest label), the box centred in the space below the top bar */
+#project-form.ad.dlg { margin: auto; }
+#project-form .dlg-form { grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-3) var(--space-3); align-items: center; }
+#project-form .dlg-form label { margin-top: 0; }
+#project-form .dlg-form .dlg-small { grid-column: 2; }
+.ad.dlg .dlg-field { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-500); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .ad.dlg .dlg-field:disabled { background: var(--grey-50); color: var(--text-muted); }
 .ad.dlg .dlg-field:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ad.dlg .dlg-code { text-transform: uppercase; }
