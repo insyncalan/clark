@@ -45,6 +45,16 @@ def settle(cdp, sid):
     time.sleep(0.4)
 
 
+def peek_away(cdp, sid, width):
+    """Below 1000 px the peek is full width over the list (row 847): a click that opened it hides the rows the test aims at next, so close it first, as a person would. The selection stays."""
+    if width < 1000:
+        cdp.js("clarkPage.closePeek()", sid)
+        deadline = time.time() + 10
+        while time.time() < deadline and cdp.js("!!document.querySelector('#peek')", sid):
+            time.sleep(0.05)
+        time.sleep(0.2)
+
+
 def tap(cdp, sid, selector, mods=0, count=1):
     """A real mouse click (with Shift, Ctrl or Cmd held when `mods` says so); `count` 2 is a double click."""
     x, y = where(cdp, sid, selector)
@@ -215,6 +225,7 @@ class Page(Base):
                 self.assertEqual(self.picked(cdp, sid), [rows[1]], "a click selects only that row")
                 settle(cdp, sid)
                 self.assertIn(f"item={rows[1]}", cdp.js("location.hash", sid), "a single click opens the peek")
+                peek_away(cdp, sid, width)
                 tap(cdp, sid, self.rsel(rows[3]), MOD)
                 tap(cdp, sid, self.rsel(rows[5]), MOD)
                 self.assertEqual(self.picked(cdp, sid), [rows[1], rows[3], rows[5]], "Cmd or Ctrl adds one each")
@@ -222,6 +233,7 @@ class Page(Base):
                 self.assertEqual(self.picked(cdp, sid), [rows[1], rows[5]], "a second Cmd click takes it out")
                 tap(cdp, sid, self.rsel(rows[2]))
                 settle(cdp, sid)
+                peek_away(cdp, sid, width)
                 tap(cdp, sid, self.rsel(rows[6]), SHIFT)
                 self.assertEqual(self.picked(cdp, sid), rows[2:7], "Shift selects the range as drawn")
                 self.assertEqual(cdp.js("String(getSelection())", sid), "", "a Shift click selects no text")
@@ -622,6 +634,7 @@ class OnTheBoard(Base):
                 self.assertEqual(cdp.js("clarkPage.selected()", sid), [cards[0]])
                 settle(cdp, sid)
                 self.assertIn(f"item={cards[0]}", cdp.js("location.hash", sid), "a click selects it and opens the peek")
+                peek_away(cdp, sid, width)
                 tap(cdp, sid, self.card(cards[3]), SHIFT)
                 self.assertEqual(cdp.js("clarkPage.selected()", sid), cards[0:4], "a range in reading order")
                 tap(cdp, sid, self.card(cards[1]), MOD)
@@ -633,8 +646,9 @@ class OnTheBoard(Base):
                 tap(cdp, sid, self.card(cards[2]))                  # one plain click first: it narrows the selection to this card, and the page settles before the double click is aimed
                 self.until(cdp, sid, f"clarkPage.selected().length === 1", "a plain click selects only this card")
                 self.until(cdp, sid, f"location.hash.includes('item={cards[2]}')", "the click opened the peek")
-                tap(cdp, sid, self.card(cards[2]), count=2)
-                self.until(cdp, sid, f"location.hash.includes('item={cards[2]}')", "and a double click keeps it open")
+                if width >= 1000:       # below 1000 px the open peek covers the card, so there is nothing to double click
+                    tap(cdp, sid, self.card(cards[2]), count=2)
+                    self.until(cdp, sid, f"location.hash.includes('item={cards[2]}')", "and a double click keeps it open")
                 self.assertEqual(self.sent, [], "no card moved")
 
     def test_card_keys_and_column_ticks(self):
