@@ -595,7 +595,7 @@ input.sec-title { width: 100%; }
 .peek { position: fixed; top: 0; right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: var(--space-3) var(--space-5) var(--space-5); }
 .peek.wide { width: 100%; }
 /* Below 1000 px the peek fills the window over the list (row 847): a side panel would leave the list a strip too narrow to read. Above it the dragged width stays. */
-@media (max-width: 999px) { .peek { width: 100% !important; } }
+@media (max-width: 999px) { .peek:not(.hpk) { width: 100% !important; } }      /* row 847: the item and milestone peeks overlay the page below 1000 px; the Help peek keeps its own width (and the button in view) */
 /* The exit: a copy of the closed peek slides out to the right (prototype app.css:416-18); none under reduced motion. */
 .peek.leaving { pointer-events: none; animation: pk-out var(--dur-instant) var(--ease-exit) forwards; }
 @keyframes pk-out { to { transform: translateX(104%); } }
