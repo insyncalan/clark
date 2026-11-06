@@ -43,6 +43,12 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "link-preview", "description": "A web page shown as a card you write: a dashboard, a news item, a recording."},
     {"id": "one-doc", "description": "A single file to read."},
     {"id": "text", "description": "Words under a heading, written in clark’s one editor."},
+    {"id": "table", "description": "Anything with rows: a budget line, a cut-over plan, a training schedule."},
+    {"id": "gallery", "description": "Pictures in a grid, each with a caption."},
+    {"id": "image-caption", "description": "One picture with its caption."},
+    {"id": "quote", "description": "A voice from the business."},
+    {"id": "contacts", "description": "Who to ask."},
+    {"id": "checklist", "description": "Next steps or readiness, ticked off."},
 ]
 FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "gallery", "table", "raid-3", "raid-4", "work-items", "docs-links", "callout", "image-caption", "quote", "contacts", "checklist", "key-dates", "needs", "link-preview", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
 
@@ -134,8 +140,8 @@ class Logic(unittest.TestCase):
             "table": ("Anything with rows: a budget line, a cut-over plan, a training schedule.", ["Heading", "Table"], ["full"]),
             "contacts": ("Who to ask.", ["Heading", "Person", "Person", "Person"], ["half", "full"]),
             "checklist": ("Next steps or readiness, ticked off.", ["Heading", "Checklist · linked to work items"], ["half", "full"]),
-            "image-caption": ("One picture beside text.", ["Heading", "Image", "Caption"], ["half", "full"]),
-            "gallery": ("Two to six pictures in a grid, each with a caption.", ["Heading", "Image", "Caption", "Image", "Caption", "Image"], ["full"]),
+            "image-caption": ("One picture with its caption.", ["Heading", "Image", "Caption"], ["half", "full"]),
+            "gallery": ("Pictures in a grid, each with a caption.", ["Heading", "Image", "Caption", "Image", "Caption", "Image"], ["full"]),
             "one-doc": ("A single file to read.", ["Heading", "File", "Text"], ["half", "full"]),
         })
 
