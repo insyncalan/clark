@@ -232,7 +232,25 @@ COVERED = [
     ("#904", "The palette's active row is outlined and kinds are capitals.",
      "test_palette::Looks::test_the_active_row_has_a_clear_outline_and_the_kind_labels_are_capitals"),
     ("#911", 'Every client workbook sheet prints landscape and one page wide.',
-     "test_excel_client_layout::PrintSetup::test_every_sheet_of_the_client_workbook")
+     "test_excel_client_layout::PrintSetup::test_every_sheet_of_the_client_workbook"),
+    ("#876", 'A tab change fades and rises in; a redraw or the first draw does not.',
+     "test_motion_page_change::MotionPageChange::test_row_876_a_tab_change_fades_and_rises_in_and_a_redraw_or_first_draw_does_not"),
+    ("#830", 'The Use cases archived list restores a use case with Undo.',
+     "test_use_cases_fields::Live::test_archived_list_restore_and_undo"),
+    ("#857", 'The first-run name prompt takes the keyboard.',
+     "test_welcome::Welcome::test_C_row_857_the_keyboard_works_at_once_tab_stays_inside_and_esc_closes"),
+    ("#820", 'The ask panel title reads ask clark.',
+     "test_ask_panel::Panel::test_the_panel_title_reads_ask_clark_and_the_ready_line_is_unchanged"),
+    ("#865", 'Undo names a section move and the focus returns to its handle.',
+     "test_report_editor::Sections::test_row_865_undo_after_a_move_names_the_move_and_focus_returns_to_the_handle"),
+    ("#864", 'The bulk bar stays under the top bar while the list scrolls.',
+     "test_bulk_bar::Page::test_the_bar_stays_under_the_top_bar_while_the_list_scrolls"),
+    ("#906", 'Every section type deletes and Undo restores it.',
+     "test_delete_any_section::RoundTrip::test_every_type_deletes_and_undo_restores_the_row_and_no_data_table_changes"),
+    ("#906", "A built-in section can be deleted and Undo puts it back.",
+     "test_changes_section_bodies::Deleting::test_the_built_in_sections_can_be_deleted_too_and_undo_puts_each_back"),
+    ("#830", "The Use cases page has the archived list and the head buttons with no Edit.",
+     "test_use_cases_fields::UseCaseFields::test_page_has_the_pieces")
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
