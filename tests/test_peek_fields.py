@@ -144,7 +144,6 @@ class Picks(Fields):
         other_uc = next(u for u in self.data["use_cases"] if u["id"] != a["use_case"] and not u.get("archived"))
         cases = [("workstream", other_ws, other_ws, "Workstream"), ("milestone", other_ms["id"], other_ms["name"], "Milestone"),
                  ("use_case", other_uc["id"], f"Use case {other_uc['ref']}", "Use case")]
-        said = {"use_case": other_uc["title"]}
         for width, dark in self.widths():
             for field, value, words, name in cases:
                 with self.subTest(width=width, dark=dark, field=field), chrome() as cdp:
@@ -158,9 +157,9 @@ class Picks(Fields):
                     self.assertTrue(wait(lambda: len(sent) == 1))
                     self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("actions", ACTION, {field: value}))
                     self.assertTrue(wait(lambda: self.shown(cdp, sid, field) == words))
-                    self.assertTrue(wait(lambda: f"{name} of {ACTION} changed to {said.get(field, words)}." in self.toast(cdp, sid)))
+                    self.assertTrue(wait(lambda: (f"{ACTION}: use case changed to {other_uc['ref']}." if field == "use_case" else f"{name} of {ACTION} changed to {words}.") in self.toast(cdp, sid)))
                     if field == "use_case":
-                        self.assertNotIn(f"changed to Use case {other_uc['ref']}", self.toast(cdp, sid))
+                        self.assertNotIn("Use case of", self.toast(cdp, sid))
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
                     cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                     self.assertTrue(wait(lambda: self.shown(cdp, sid, field) == was), "one Undo puts it back")
