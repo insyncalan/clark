@@ -74,7 +74,7 @@ class Search(unittest.TestCase):
 
     def test_work_items_stop_at_eight_and_the_cut_comes_after_the_ranking(self):
         got = self.items(MANY, "plan")
-        self.assertEqual(len(got), 8, "seventeen items match and 8 (MOST_ITEMS) are shown")
+        self.assertEqual(len(got), 8, "18 items match and 8 (MOST_ITEMS) are shown")
         self.assertEqual(got[0][0], "item-PLAN", "the exact ID, last in the page's order, is ranked before the cut and so shown first")
         self.assertEqual([i for i, _ in got[1:3]], ["item-P-A-01", "item-P-A-02"], "the rest keep the page's order")
 

@@ -74,7 +74,7 @@ COVERED = [
     ("#647", "A pasted link can't be used and nothing is saved.",
      "test_client_folder_paste::ALink::test_a_link_is_refused_by_its_form_and_nothing_is_saved"),
     ("#611", "A blank client message is turned away in plain words, not a server error.",
-     "test_changes_null_message::NullMessage::test_a_null_client_message_is_refused_and_nothing_is_saved"),
+     "test_changes_null_message::NullMessage::test_a_client_message_that_is_not_text_is_refused_and_nothing_is_saved"),
     ("#613", "Settings, About you: typing Jane Doe fills the Alias box with Jane, JD; it is saved beside the name, and a saved or typed Alias is kept when the name changes.",
      "test_alias_suggest::OnThePage::test_C_jane_doe_is_saved_with_jane_jd_and_a_typed_alias_is_kept_when_the_name_changes"),
     ("#343", "A past publication opens read only: a banner with its number and day and Back to now, a tinted frame, nothing to change.",

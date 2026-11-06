@@ -392,6 +392,26 @@ class Page(Base):
             time.sleep(0.5)
             self.assertEqual(cdp.js("window.__same", sid), 1, "still on the same page: Back was stepped once")
 
+    def test_esc_right_after_a_second_pick_clears_both_while_the_peek_is_still_closing(self):
+        """Esc over two or more picks clears them even when the close of the clicked-open peek has not landed. The second pick and the Esc
+        run in ONE page task, so the popstate of the close cannot have arrived: no timing, no load involved."""
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = cdp.js(self.ROWS, sid)
+            tap(cdp, sid, self.rsel(rows[0]))
+            settle(cdp, sid)
+            self.assertTrue(cdp.js("clarkPage.peek() !== null", sid), "the plain click opened the peek")
+            cdp.js(f"""window.__same = 1;
+                const t = document.querySelector({json.dumps(self.rsel(rows[2]))});
+                t.dispatchEvent(new MouseEvent('click', {{bubbles: true, cancelable: true, ctrlKey: true, metaKey: true}}));
+                if (clarkPage.selected().length !== 2 || clarkPage.peek() === null) throw new Error('the second pick should leave two picked and the close still on its way');
+                document.body.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Escape', code: 'Escape', bubbles: true, cancelable: true}}));""", sid)
+            self.assertEqual(self.picked(cdp, sid), [], "Esc cleared both picks")
+            self.until(cdp, sid, "clarkPage.peek() === null", "the peek ended closed")
+            time.sleep(0.5)
+            self.assertEqual(cdp.js("window.__same", sid), 1, "and the page is still the same page")
+            self.assertEqual(self.picked(cdp, sid), [])
+
     def test_the_ways_a_selection_ends(self):
         with chrome() as cdp:
             sid = self.load(cdp)
