@@ -10,8 +10,9 @@ import { sectionRows, listed, dateWord, clientPill, keptIds } from "../logic/sec
 
 export const NOTHING = "Nothing to show.";
 
-// The words a row is drawn with, by ID: the client's own wording, or, when an item shown to the client has none, the item's own title
-// (row 851: the eye is the control, so a marked item is listed; a missing wording never takes it off the list).
+// The words a row is drawn with, by ID: the client's own wording, or, when an item shown to the client has none, the item's title: its
+// description (the decision text for a decision), which is its visible name in the published lists. Internal fields (the latest update,
+// notes) are never used. Row 851: the eye is the control, so a marked item is listed; a missing wording never takes it off the list.
 export function wordings(d) {
   const out = {};
   for (const [k, own] of [["actions", "description"], ["raid", "description"], ["decisions", "decision"]]) {
