@@ -1,12 +1,12 @@
-// The 'Progress tracker' section as a reader sees it (#189): an overall bar (Actual against Planned, a health pill and a line of the
-// owner's words), then each group of plan lines with its own total. Full draws a table (number, description, dates, status, weight,
+// The 'Progress tracker' section as a reader sees it (#189): an overall tile (Achieved against Planned in a bar, a status chip and a line of the
+// words), then each group of plan lines with its own total. Full draws a table (number, description, dates, status, weight,
 // planned, achieved, and the optional counts); Half draws the bar and a short list (description, status, planned, achieved, no dates).
 // It draws in View and in a published file, view only (no input, no button); Edit draws edit/TrackerEdit.jsx in its place, with the
 // same pieces below. A line behind plan carries "▼ n" and, for a screen reader, the words, so colour is never the only signal.
 // Every value is a text node: nothing the section holds is read as markup. The sums come from logic/tracker.js and are never stored.
 import { useEffect, useState } from "preact/hooks";
-import { data, fromFile, asAt } from "../stores/report.js";
-import { showDate, todayIso } from "../workItems.js";
+import { data, fromFile } from "../stores/report.js";
+import { showDate } from "../workItems.js";
 import { trackerOf, totals, fill, fmt, lineFill, markEdge, statusWord, healthWord, behindWords, COLUMNS, WORDS } from "../logic/tracker.js";
 
 const DASH = "—";
@@ -23,59 +23,44 @@ export const Behind = ({ behind }) => (behind > 0
   ? <span class="tr-behind" title={behindWords(behind)}><span aria-hidden="true">▼ {fmt(behind)}</span>{" "}<span class="sr">{behindWords(behind)}</span></span>
   : null);
 
-// The Overall part, as the approved weekly-snapshot design draws it (#451): three tiles (Project health, Actual "of the whole project",
-// Planned "by <date>"), then the bar with a "Planned n%" label over the mark and a 0% to 100% scale under it. The date is the day the file
-// was published (or today, in the app), the same day every other section reads as "now". The reading is for the picture: the bar says it
-// in words to a screen reader, and the label and scale are drawn for the eye only.
-export function Overall({ overall }) {
-  const { actual, planned, health, note, behind, behindWords: said } = overall;
+// The Overall part, as the approved tile (#930): one tinted tile with the two figures (Achieved and Planned), the bar with a "Planned n%"
+// label over the mark and a 0% to 100% scale under it, then the status chip and the words. The chip is the author's pick when there is
+// one, else what the rule gives from the gap (logic/tracker.js healthRule); the words are the owner's own (the overall's note) when
+// there are any, else the automatic words. `size` is the tracker's template setting (Large, Medium, Small, Compact). In Edit, `words`
+// replaces the words with the field that edits them in place (edit/TrackerWords.jsx); View and a published file draw them as text.
+// The bar says it in words to a screen reader; the label and the scale are drawn for the eye only.
+export function Overall({ overall, size = "medium", words = null }) {
+  const { actual, planned, shownHealth, note, auto } = overall;
   const pct = (t) => (t === null ? DASH : `${fmt(t)}%`);
-  const by = fromFile.value && asAt.value ? asAt.value : todayIso();
   const label = actual === null ? WORDS.none : `${WORDS.actual} ${pct(actual)}${planned === null ? "" : `, ${WORDS.planned.toLowerCase()} ${pct(planned)}`}`;
   const edge = planned === null ? "" : markEdge(planned);
+  const said = note || auto;
   return (
-    <div class="tr-overall" data-tr-overall>
-      <div class="tr-tiles">
-        <div class="tr-tile tr-tile-health" data-tr-tile>
-          <span class="tr-k">{WORDS.healthTile}</span>
-          {" "}
-          <span class="tr-hrow">
-            {health ? <span class={`pill ${HEALTH_PILL[health]} tr-pill`} data-tr-health>{healthWord(health)}</span> : <span class="tr-v num">{DASH}</span>}
-            {" "}
-            {said || note ? (
-              <span class="tr-reason">
-                {said ? <span class="tr-behindline" data-tr-behind>{said}</span> : null}
-                {said && note ? " " : null}
-                {note ? <span class="tr-note">{note}</span> : null}
-              </span>
-            ) : null}
-          </span>
+    <div class={`tr-overall tr-size-${size}`} data-tr-overall data-size={size}>
+      <div class="tr-tile" data-tr-tile>
+        <div class="tr-nums">
+          <div class="tr-fig"><span class="tr-k">{WORDS.actual}</span>{" "}<span class="tr-v num" data-tr-actual>{pct(actual)}</span></div>
+          <div class="tr-fig tr-fig-planned"><span class="tr-k">{WORDS.planned}</span>{" "}<span class="tr-v num" data-tr-planned>{pct(planned)}</span></div>
         </div>
-        <div class="tr-tile" data-tr-tile>
-          <span class="tr-k">{WORDS.actual}</span>
-          {" "}
-          <span class="tr-v num" data-tr-actual>{pct(actual)}</span>
-          {" "}
-          <span class="tr-d">{WORDS.actualOf}</span>
-        </div>
-        <div class="tr-tile" data-tr-tile>
-          <span class="tr-k">{WORDS.planned}</span>
-          {" "}
-          <span class="tr-v num" data-tr-planned>{pct(planned)}</span>
-          {" "}
-          {planned !== null ? <span class="tr-d num">{WORDS.plannedBy} {showDate(by)}</span> : null}
-        </div>
-      </div>
-      <div class="tr-barw">
-        <div class="tr-bar" role="img" aria-label={label} data-tr-bar>
-          <span class="tr-fill" style={{ width: `${fill(actual) / 10}%` }} />
-          {planned !== null ? (
-            <span class="tr-mark" style={{ left: `${fill(planned) / 10}%` }}>
-              <span class={`tr-mark-label${edge ? ` tr-edge-${edge}` : ""}`} data-tr-mark-label aria-hidden="true">{WORDS.planned} {pct(planned)}</span>
-            </span>
+        <div class="tr-side">
+          <div class="tr-barw">
+            <div class="tr-bar" role="img" aria-label={label} data-tr-bar>
+              <span class="tr-fill" style={{ width: `${fill(actual) / 10}%` }} />
+              {planned !== null ? (
+                <span class="tr-mark" style={{ left: `${fill(planned) / 10}%` }}>
+                  <span class={`tr-mark-label${edge ? ` tr-edge-${edge}` : ""}`} data-tr-mark-label aria-hidden="true">{WORDS.planned} {pct(planned)}</span>
+                </span>
+              ) : null}
+            </div>
+            <div class="tr-scale num" data-tr-scale aria-hidden="true"><span>{WORDS.scaleStart}</span><span>{WORDS.scaleEnd}</span></div>
+          </div>
+          {shownHealth || said || words ? (
+            <div class="tr-stat">
+              {shownHealth ? <span class={`pill ${HEALTH_PILL[shownHealth]} tr-pill tr-chip`} data-tr-health>{healthWord(shownHealth)}</span> : null}
+              {words || (said ? <span class="tr-words" data-tr-words title={said}>{said}</span> : null)}
+            </div>
           ) : null}
         </div>
-        <div class="tr-scale num" data-tr-scale aria-hidden="true"><span>{WORDS.scaleStart}</span><span>{WORDS.scaleEnd}</span></div>
       </div>
     </div>
   );
@@ -178,7 +163,7 @@ export function Tracker({ section, slot }) {
   const fit = fitOf(slot);
   return (
     <div class={`sec-tracker tr-${fit}`} data-tracker data-fit={fit}>
-      <Overall overall={t.overall} />
+      <Overall overall={t.overall} size={tracker.size} />
       {t.groups.map((g, i) => (fit === "full" ? <GroupFull key={i} group={g} columns={columnsOf(tracker)} /> : <GroupHalf key={i} group={g} />))}
     </div>
   );

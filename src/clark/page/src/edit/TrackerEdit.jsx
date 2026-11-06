@@ -9,10 +9,12 @@ import { change } from "../stores/changes.js";
 import { weightsNote } from "../logic/trackerNote.js";
 import { Overall, GroupFull, GroupHalf, columnsOf, fitOf, useNarrow, colCount } from "../components/Tracker.jsx";
 import {
-  trackerOf, totals, pct, draftOf, blankLine, bodyOf, STATUSES, HEALTH, COLUMNS, NAME_MAX, TEXT_MAX, NO_MAX, NOTE_MAX,
+  trackerOf, totals, pct, draftOf, blankLine, bodyOf, STATUSES, HEALTH, COLUMNS, NAME_MAX, TEXT_MAX, NO_MAX,
   withLineAdded, withLineReplaced, withoutLine, withLineMoved, withGroupAdded, withGroupRenamed, withoutGroup, withGroupMoved, withOverall, withColumn, MAX_GROUPS, MAX_LINES,
 } from "../logic/tracker.js";
 import { WORDS, problem, totalProblem, made, nameProblem, noteProblem } from "../logic/trackerEdit.js";
+import { TrackerWords } from "./TrackerWords.jsx";
+import { SettingsCog } from "./TemplateSettings.jsx";
 
 const NEW = -1;                                           // the line being added, not yet in the list
 
@@ -111,8 +113,7 @@ export function TrackerEdit({ section, slot }) {
     if (naming === NEW) run(withGroupAdded(tracker, name.trim()), WORDS.groupAdded, "[data-add-group]", true);
     else run(withGroupRenamed(tracker, naming, name.trim()), WORDS.saved, `[data-group="${naming}"] [data-rename]`, true);
   };
-  const onNote = (e) => {
-    const note = e.currentTarget.value.trim();
+  const onWords = (note) => {
     const said = noteProblem(note);
     setNoteError(said);
     if (!said && note !== tracker.overall.note) run(withOverall(tracker, { note }), WORDS.saved);
@@ -148,17 +149,14 @@ export function TrackerEdit({ section, slot }) {
   const lineCount = t.lines;
   return (
     <div class={`sec-tracker tracker-edit tr-${fit}`} data-tracker data-edit-only data-fit={fit}>
-      <Overall overall={t.overall} />
+      <div class="t-settings-row"><SettingsCog section={section} /></div>
+      <Overall overall={t.overall} size={tracker.size} words={<TrackerWords note={tracker.overall.note} auto={t.overall.auto} fit={fit} busy={busy} onSave={onWords} />} />
       <div class="t-overall-edit" data-overall-edit>
         <label class="t-f"><span class="t-fl">{WORDS.health}</span>
           <select data-f="health" disabled={busy} value={tracker.overall.health} onChange={(e) => run(withOverall(tracker, { health: e.currentTarget.value }), WORDS.saved)}>
             <option value="">{WORDS.noHealth}</option>
             {HEALTH.map(([k, w]) => <option key={k} value={k}>{w}</option>)}
           </select>
-        </label>
-        <label class="t-f t-f-note"><span class="t-fl">{WORDS.note}</span>
-          <input data-f="note" type="text" autocomplete="off" maxLength={NOTE_MAX * 2} disabled={busy} defaultValue={tracker.overall.note} key={tracker.overall.note} onBlur={onNote}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); e.currentTarget.blur(); } }} />
         </label>
         {!lineCount ? ["actual", "planned"].map((k) => (
           <label key={k} class="t-f"><span class="t-fl">{k === "actual" ? WORDS.actual : WORDS.planned}</span>

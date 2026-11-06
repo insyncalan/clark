@@ -9,6 +9,7 @@ import { askToAdd } from "./addSection.js";
 import { note } from "./notes.js";
 import { useMenuState } from "../components/Menu.jsx";
 import { handleHint, HINT_WORDS } from "../stores/motion.js";
+import { hasSettings, openSettings, SettingsPopover, MENU_WORD } from "./TemplateSettings.jsx";
 
 // An item that cannot apply stays in the menu, unavailable, with the reason on it.
 const why = (r) => (r.ok || r.quiet ? {} : { off: true, reason: r.message });
@@ -33,6 +34,7 @@ export function Gutter({ section, count }) {
         ? { act: "show", text: "Include in the published page", run: () => setHidden(section.id, false, "menu", "options") }
         : { act: "hide", text: "Leave out of the published page", run: () => setHidden(section.id, true, "menu", "options") },
     ];
+    if (hasSettings(section)) out.splice(1, 0, { act: "settings", text: MENU_WORD, run: () => openSettings(section, grip.current) });      // a template with settings of its own (#930)
     if (canDelete) out.push({ act: "delete", text: "Delete section", run: () => remove(section.id, "menu") });
     return out;
   })();
@@ -73,7 +75,7 @@ export function Gutter({ section, count }) {
 
   const pick = (item) => {
     if (item.off) { note(item.reason); return; }      // an unavailable item says why, on screen and to a screen reader
-    close(item.act !== "delete" && item.act !== "add");      // a deleted section's focus goes to a neighbour; the dialog takes its own
+    close(item.act !== "delete" && item.act !== "add" && item.act !== "settings");      // a deleted section's focus goes to a neighbour; the dialog takes its own
     item.run();
   };
 
@@ -97,6 +99,7 @@ export function Gutter({ section, count }) {
         </span>
       ) : null}
       {hinted ? <span class="sec-hint" role="status">{HINT_WORDS}</span> : null}
+      <SettingsPopover section={section} />
       {open ? (
         <div class="menu" role="menu" ref={menu} data-edit-only aria-label={`Options for ${section.title}`} onKeyDown={onMenuKey}>
           {items.map((it) => [

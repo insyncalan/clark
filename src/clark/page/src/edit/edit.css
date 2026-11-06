@@ -653,7 +653,19 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .tracker-edit .t-f input:focus-visible, .tracker-edit .t-f select:focus-visible, .tracker-edit .t-check input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .tracker-edit .t-overall-edit { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin: 0 0 14px; }
 .tracker-edit .t-overall-edit .t-f { width: 140px; }
-.tracker-edit .t-overall-edit .t-f-note { width: 280px; max-width: 100%; }
+.tracker-edit .t-settings-row { display: flex; justify-content: flex-end; margin: 0 0 4px; }
+.t-cog { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 30px; height: 30px; border: 1px solid transparent; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; }
+.t-cog:hover, .t-cog:focus-visible { background: var(--brand-blue-tint); color: var(--text); border-color: var(--border); }
+.t-cog:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* A section template's settings popover (#930), placed on the window under what opened it. */
+.tset { position: fixed; z-index: 60; width: 320px; max-width: calc(100vw - 16px); box-sizing: border-box; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow); text-align: left; }
+.tset-h { margin: 0 0 2px; font-family: var(--font-head); font-size: var(--size-body); color: var(--heading); }
+.tset-line { margin: 0 0 8px; font-size: var(--size-small); }
+.tset-opts { display: grid; gap: 8px; }
+.tset-opt { display: flex; gap: 10px; align-items: flex-start; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; }
+.tset-opt.on { border: 2px solid var(--focus); padding: 7px 11px; }
+.tset-opt input { margin-top: 3px; }
+.tset-opt small { display: block; font-size: var(--size-caption); color: var(--text-muted); }
 .tracker-edit .t-cols { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
 .tracker-edit .t-check { display: inline-flex; align-items: center; gap: 4px; font-size: var(--size-small); }
 .tracker-edit .t-err { margin: 4px 0; font-size: var(--size-small); color: var(--status-red-text); }
