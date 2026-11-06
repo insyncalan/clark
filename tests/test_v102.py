@@ -211,13 +211,13 @@ class Notes(unittest.TestCase):
 
 
 class Cut(unittest.TestCase):
-    """Release-cut checks that can be read from the tree. They skip until the cut commit has set the version."""
+    """Release-cut checks that could be read from the tree. They are RETIRED: 1.0.2 is published (tag v1.0.2), and main moves on to
+    1.0.3 (a new data layout may land on main before the 1.0.3 cut commit sets its version), so a check of the live tree against
+    1.0.2 would fail for a reason that is not a 1.0.2 fault. The published 1.0.2 files are fixed by the tag; the notes' own rules
+    (class Notes) and the COVERED rows (class Tables) still run."""
 
     def cut_made(self):
-        found = version()
-        if found != VERSION:            # 1.0.1 and earlier have their own test_vNNN; later ones skip this file
-            self.skipTest(f"the cut commit is not made yet (version is {found}); it sets {VERSION} in src/clark/__init__.py")
-        return found
+        self.skipTest("1.0.2 is published (tag v1.0.2): the cut checks are retired; the tag holds the 1.0.2 tree")
 
     def test_the_version_is_the_release(self):
         self.assertEqual(self.cut_made(), VERSION)
