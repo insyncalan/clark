@@ -1,10 +1,10 @@
 // Milestones Movement (#136; BRD FR-50 to FR-53), the owner's block under the Milestones list. It is one of the `tools` (edit/index.js),
 // so the published page, which is given none, has none of it. It reads GET /api/movement (the server's cut-down view, movement_view.py:
 // no internal note), draws the sentence, one row per open milestone (worst first), the chosen milestone's card with What changed, and
-// in Edit the four choices: Hold, Move the agreed date (who agreed it, the reason and the source are asked for, and the confirm says
+// the four choices: Hold, Move the agreed date (who agreed it, the reason and the source are asked for, and the confirm says
 // what will happen), Add a recovery action and Escalate to steering (#458: a linked action, a steering decision; each opens in the
 // peek). Below them is the owner's Internal note (#458), saved when the box is left. Each choice is one change with one Undo
-// (stores/changes.js). In View (#436 row 18) it is read-only: the rows and the card, no choices and no note. Words: edit/movementWords.js.
+// (stores/changes.js). The Milestones page has no mode (row 823), so the choices are always there; the read-only branch below (no choices, no note) stays only as a guard for a place that would draw it where isEditing() is false. Words: edit/movementWords.js.
 import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { useGrow } from "./useGrow.js";
