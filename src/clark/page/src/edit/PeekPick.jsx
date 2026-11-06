@@ -34,7 +34,7 @@ export function PeekPick({ row, field }) {
   const now = rec[field] || "";                                        // the stored value: a name, or an id
   const list = choicesOf(field, now);
   const text = (v) => (list.find((c) => c.value === v) || { text: "" }).text;
-  const said = (v) => (field === "use_case" ? (((data.value && data.value.use_cases) || []).find((u) => u.id === v) || {}).title : "") || text(v);     // the toast names a use case by its title, not by its ref (the list already says "Use case 3.1")
+  const said = (v) => text(v);
   const shown = row[field === "use_case" ? "uc" : field] || NONE[field];
   const close = (back) => { setOpen(false); if (back && button.current) button.current.focus(); };
   const pick = (value) => {
@@ -42,7 +42,7 @@ export function PeekPick({ row, field }) {
     if (value === now) return;
     const was = said(now), to = said(value);
     changeCell(tableOf(row), row.id, { [field]: value || null },
-      { text: value ? `${name} of ${row.id} changed to ${to}.` : `${name} of ${row.id} cleared.`,
+      { text: value ? (field === "use_case" ? `${row.id}: use case changed to ${text(value).replace(/^Use case /, "")}.` : `${name} of ${row.id} changed to ${to}.`) : `${name} of ${row.id} cleared.`,
         back: was ? `${name} of ${row.id} is back to ${was}.` : `${name} of ${row.id} is blank again.`, place: "peek" }).then((reply) => (reply ? refresh() : null));
   };
   return (
