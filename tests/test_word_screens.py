@@ -1,5 +1,5 @@
 """#48: the Word screens on the page, in a real browser against the real Word and publish routes: Export to Word (profile menu),
-Also a Word document (Publish box), Import from Word (profile menu, Edit only). Fictional data only.
+Also a Word document (Publish box), Import from Word (profile menu, no mode: row 826). Fictional data only.
 
 Run: python3 dev/run_tests.py -j 1 test_word_screens
 Each browser test starts headless Chrome through the harness (tests/test_server.py chrome()) and the real server of
@@ -182,7 +182,8 @@ class Export(Screens):
             view = self.labels(p)
             self.assertIn("Export to Word", view)
             self.assertEqual(view.index("Export to Word"), view.index("Export to Excel") + 1)
-            self.assertNotIn("Import from Word", view, "View adds nothing, so it has no import")
+            self.assertIn("Import from Word", view, "row 826: the import needs no Edit mode")
+            self.assertEqual(view.index("Import from Word"), view.index("Export to Word") + 1)
             self.assertEqual(p.js("document.querySelector('#profile-btn').title"), "Your menu: Publish, Preview, Export")
 
     def test_an_export_saves_a_file_and_says_where(self):
@@ -489,18 +490,32 @@ class WordToo(Screens):
 # ── Import from Word ─────────────────────────────────────────────────────────────
 
 class Import(Screens):
-    def test_the_entry_is_in_edit_only(self):
-        with chrome() as cdp:
-            p = self.page(cdp)
-            self.menu(p)
-            self.assertNotIn("Import from Word", self.labels(p))
-            p.key("Escape", code="Escape", vk=27)
-            p.js("document.querySelector('[data-mode=edit]').click()")
-            p.until("document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'true'", "Edit")
-            self.menu(p)
-            labels = self.labels(p)
-            self.assertEqual(labels.index("Import from Word"), labels.index("Export to Word") + 1)
-            self.assertEqual(p.js("document.querySelector('#profile-btn').title"), "Your menu: Publish, Preview, Export")
+    def test_the_entry_and_the_box_are_there_without_edit_mode(self):
+        # row 826: View has the entry and opens the box; Edit is the same; the tooltip is unchanged
+        for w in WIDTHS:
+            for scheme in SCHEMES:
+                with self.subTest(width=w, scheme=scheme), chrome() as cdp:
+                    p = self.page(cdp, w, scheme)
+                    self.menu(p)
+                    labels = self.labels(p)
+                    self.assertEqual(labels.index("Import from Word"), labels.index("Export to Word") + 1)
+                    self.assertEqual(p.js("document.querySelector('#profile-btn').title"), "Your menu: Publish, Preview, Export")
+                    p.key("Escape", code="Escape", vk=27)
+                    self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true")
+                    self.open_import(p)
+                    self.inside(p, "word-import-dialog")
+                    self.assertTrue(p.js("!!document.querySelector('#word-file')"))
+
+    def test_settings_has_the_import_and_no_view_edit_pill(self):
+        for w in WIDTHS:
+            for scheme in SCHEMES:
+                with self.subTest(width=w, scheme=scheme), chrome() as cdp:
+                    p = self.page(cdp, w, scheme)
+                    p.js("document.querySelector('.tab[data-view=settings]').click()")
+                    p.until("document.querySelector('.tab[data-view=settings]').getAttribute('aria-selected') === 'true'", "Settings")
+                    self.assertEqual(p.js("document.querySelectorAll('.top [data-mode]').length"), 0, "no View | Edit on Settings")
+                    self.open_import(p)
+                    self.inside(p, "word-import-dialog")
 
     def test_it_shows_what_it_read_before_anything_is_added_then_adds_only_what_is_chosen_with_one_undo(self):
         for w in WIDTHS:

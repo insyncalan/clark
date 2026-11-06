@@ -273,13 +273,13 @@
     "id": "word-in-and-out",
     "g": "Every week",
     "t": "Export to Word, or bring items in from a Word file",
-    "w": "Profile circle › Export to Word · Import from Word (in Edit)",
+    "w": "Profile circle › Export to Word · Import from Word",
     "go": "dashboard+edit",
     "s": [
      "Press your profile circle and choose **Export to Word**. The report is saved as a Word file in the folder last used for this project; if there is none yet, a window asks you to choose one. Tick **To client** to copy it to the client folder as well (you can tick it once a client folder is saved in Settings › Publishing).",
      "If a file with that name is already there, you are asked: **Add a number** (keeps the old file and saves the new one beside it), **Replace it** (it asks you to confirm) or **Cancel**. Nothing is saved until you choose.",
      "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it.",
-     "In **Edit**, choose **Import from Word** from the same menu, choose a .docx file of up to 25 MB and press **Read the file**. Work items under a heading called Actions, Risks, Issues or Decisions are listed. Tick the ones you want, or use **Tick all**, and press the Add button, which reads **Add** and the number you ticked, such as Add 3 items. Nothing is added until you press it. The new items are shown to the client until you hide them with the eye, and Undo takes them all back.",
+     "Choose **Import from Word** from the same menu, choose a .docx file of up to 25 MB and press **Read the file**. Work items under a heading called Actions, Risks, Issues or Decisions are listed. Tick the ones you want, or use **Tick all**, and press the Add button, which reads **Add** and the number you ticked, such as Add 3 items. Nothing is added until you press it. The new items are shown to the client until you hide them with the eye, and Undo takes them all back.",
      "If clark refuses a file it says why in plain words and names the file. Choose the same file again once you have fixed it: **Read the file** comes on again."
     ],
     "n": "The use case table in the Word report has a Commitment column.",
@@ -1709,7 +1709,7 @@
      ],
      [
       "p",
-      "In your profile menu, Export to Word saves the Word file on its own, without publishing the web page. Import from Word (in Edit) reads a Word file and lists the new actions, risks, issues and decisions it found. Nothing is added until you press the Add button (it reads Add and the number of items you ticked, such as Add 3 items); the items are shown to the client until you hide them with the eye, and one Undo takes them all back."
+      "In your profile menu, Export to Word saves the Word file on its own, without publishing the web page. Import from Word reads a Word file and lists the new actions, risks, issues and decisions it found. Nothing is added until you press the Add button (it reads Add and the number of items you ticked, such as Add 3 items); the items are shown to the client until you hide them with the eye, and one Undo takes them all back."
      ]
     ]
    },
