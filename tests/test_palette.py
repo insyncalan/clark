@@ -161,8 +161,8 @@ class Results(Base):
             p = self.visit(cdp)
             p.show()
             kinds = [r[0] for r in p.rows()]
-            self.assertEqual(kinds[:6], ["Command"] * 6)
-            self.assertEqual(p.rows()[0][1], "Publish…")
+            self.assertEqual([k for i, k in enumerate(kinds) if i == 0 or k != kinds[i - 1]], ["Page", "Action", "Project", "Command"])     # row 900: one run of each, in this order
+            self.assertEqual(p.rows()[0][1], "Dashboard")
             self.assertEqual([r[1] for r in p.rows() if r[0] == "Page"], ["Dashboard", "Work items", "Milestones", "Use cases"])     # the Use cases page (#157) is a tab of the Edit page; the client report (#192) after it
             self.assertEqual([r[1] for r in p.rows() if r[0] == "Project"], ["Example Programme", "Second Programme"])
             p.find("a-001")
@@ -181,6 +181,23 @@ class Results(Base):
             self.assertEqual(p.rows(), [])
             self.assertIn("Nothing matches", p.js("document.querySelector('#palette .pal-none').innerText"))
 
+    def test_the_groups_come_in_the_order_pages_actions_projects_commands(self):
+        """Row 900: an empty query shows Pages, Actions (the create entries, in the Add buttons' own words), Projects, Commands, at both widths."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for w in (1400, 900):
+                p.width(w)
+                p.show()
+                rows = p.rows()
+                kinds = [r[0] for r in rows]
+                self.assertEqual([k for i, k in enumerate(kinds) if i == 0 or k != kinds[i - 1]], ["Page", "Action", "Project", "Command"], f"at {w} px")
+                self.assertEqual([r[1] for r in rows if r[0] == "Action"], ["Add action", "Add risk", "Add issue", "Add decision", "Add milestone"])
+                self.assertEqual(p.active(), "Dashboard", "the first result that can run is the first page")
+                p.find("risk")
+                self.assertEqual([r[:2] for r in p.rows() if r[0] == "Action"], [["Action", "Add risk"]])
+                p.key("Escape", 0, "Escape", 27)
+                p.until("!document.querySelector('#palette')", "closed")
+
     def test_an_id_match_comes_before_a_title_match(self):
         data = project("ABC", "Example Programme")
         data["actions"].insert(0, {"id": "ABC-A-009", "description": "Check ABC-R-002 with the supplier", "status": "Open", "owner": "Sam"})
@@ -196,7 +213,7 @@ class Results(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.show()
-            self.assertEqual(p.active(), "Publish…")
+            self.assertEqual(p.active(), "Dashboard")
             names = [r[1] for r in p.rows() if not r[2]]
             p.key("ArrowUp", 0, "ArrowUp", 38)
             self.assertEqual(p.active(), names[-1], "Up from the first wraps to the last")

@@ -125,8 +125,6 @@ COVERED = [
      "test_alias_suggest::OnThePage::test_C_the_box_is_filled_from_the_name_at_both_widths_light_and_dark"),
     ("#613", "Jane Doe is saved with Jane, JD, and a typed Alias is kept when the name changes.",
      "test_alias_suggest::OnThePage::test_C_jane_doe_is_saved_with_jane_jd_and_a_typed_alias_is_kept_when_the_name_changes"),
-    ("#160", "The Not reviewed tile's line says its days and its open items.",
-     "test_glance_not_reviewed::NotReviewed::test_the_count_is_the_list_it_opens_with_the_freshness_filter_on"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;
