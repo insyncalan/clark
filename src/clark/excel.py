@@ -53,6 +53,7 @@ from openpyxl.styles.differential import DifferentialStyle
 from openpyxl.utils import get_column_letter
 from openpyxl.xml.functions import fromstring, tostring
 from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.worksheet.properties import PageSetupProperties
 from openpyxl.worksheet.protection import SheetProtection
 
 from clark import excel_colours as colours
@@ -1063,7 +1064,7 @@ def write_cover(wb, cover, mark=False, pal=None, wave=False):
                         _put(pal, ws, rows[1], pill_end + 1, end, "", None, grey_fill)
                 else:
                     _put(pal, ws, rows[1], first, end, tile["value"], _cover_font(pal, bold=True, size=22, color=ink), grey_fill,
-                         Alignment(horizontal="left", vertical="center"), left=bar)
+                         Alignment(horizontal="left", vertical="center", indent=1), left=bar)
                 _put(pal, ws, rows[2], first, end, tile["detail"], _cover_font(pal, color=ink if health else grey_text), grey_fill, left=bar)
                 sub = max(sub, excel_cover.height(tile["detail"], _span_chars(first, end) - 1))
                 first = end + 1
@@ -1085,6 +1086,18 @@ def write_cover(wb, cover, mark=False, pal=None, wave=False):
     wb.active = 0
     protect_sheet(ws)
     return ws
+
+
+def print_setup(ws, repeat_header=True):
+    """Print setup for a sheet: A4 landscape, one page wide however many tall; the header row repeats on every printed page
+    of a data sheet."""
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.paperSize = ws.PAPERSIZE_A4
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
+    if repeat_header:
+        ws.print_title_rows = "1:1"
 
 
 def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=None, pal=None, wave=False):
@@ -1183,6 +1196,8 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
         write_lists(wb, lists, pal)
     if cover:
         write_cover(wb, cover, mark, pal, wave)
+    for ws in wb.worksheets:
+        print_setup(ws, repeat_header=ws.title != COVER_NAME)
     return wb
 
 

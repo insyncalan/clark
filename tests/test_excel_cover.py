@@ -492,6 +492,30 @@ class InTheWorkbook(unittest.TestCase):
         self.assertEqual((plan.changes, plan.problems), ([], []), "a Cover with every cell edited changes nothing")
         self.assertEqual([n for n in plan.notes if "ignored" in n], [])
 
+    def test_every_sheet_prints_on_one_landscape_page_width(self):
+        wb = load_workbook(self.path)
+        for ws in wb.worksheets:
+            with self.subTest(sheet=ws.title):
+                self.assertEqual(ws.page_setup.orientation, "landscape")
+                self.assertEqual(ws.page_setup.paperSize, 9)
+                self.assertEqual(ws.page_setup.fitToWidth, 1)
+                self.assertEqual(ws.page_setup.fitToHeight, 0)
+                self.assertTrue(ws.sheet_properties.pageSetUpPr.fitToPage)
+                self.assertEqual(ws.print_title_rows, None if ws.title == "Cover" else "$1:$1")
+        with zipfile.ZipFile(self.path) as z:
+            for name in z.namelist():
+                if name.startswith("xl/worksheets/sheet") and name.endswith(".xml"):
+                    xml = z.read(name).decode("utf-8")
+                    self.assertIn('orientation="landscape"', xml)
+                    self.assertIn('fitToPage="1"', xml)
+
+    def test_the_tile_values_are_inset_from_the_coloured_edge(self):
+        ws = load_workbook(self.path)["Cover"]
+        big = [c for row in ws.iter_rows() for c in row if c.value is not None and c.font.sz == 22 and c.alignment.horizontal == "left"]
+        self.assertTrue(big)
+        for c in big:
+            self.assertEqual(c.alignment.indent, 1)
+
     def test_the_same_data_and_clock_give_the_same_bytes(self):
         with mock.patch.object(excel, "new_export_id", lambda: FIXED_ID):       # the id is random: held still, as the clock is
             self.state.unlink()
