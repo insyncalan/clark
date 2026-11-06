@@ -16,6 +16,7 @@ from test_server import chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 CSS = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
+EDIT = (ROOT / "src/clark/page/src/edit/edit.css").read_text(encoding="utf-8")
 MAKE = """(() => { const o = {}; for (const [k, tag, cls] of [['btn', 'button', 'btn'], ['seg', 'button', ''], ['card', 'div', 'fig go']]) {
   const h = document.createElement('div'); if (k === 'seg') h.className = 'seg'; if (k === 'card') h.className = 'glance'; const e = document.createElement(tag); e.className = cls; e.textContent = 'x';
   h.appendChild(e); document.body.appendChild(h); const s = getComputedStyle(e); o[k] = [s.transitionProperty, s.transitionDuration]; } return JSON.stringify(o); })()"""
@@ -65,18 +66,21 @@ class MotionPress(unittest.TestCase):
                             else:
                                 self.assertEqual(set(dur.split(", ")), {"0s"}, k)
 
-    def test_row_881_is_inside_the_motion_block_uses_tokens_and_moves_only_transform_and_colour(self):
-        block = CSS[CSS.index("Motion: motion that explains"):]
-        block = block[:block.index("@keyframes m-tick")]
-        rules = [r for r in re.findall(r"[^{}]+\{[^}]*\}", block) if "transition" in r and "background-color" in r]
-        self.assertTrue(rules, "the shared control rule is in the block")
-        for r in re.findall(r"[^{}]*\{[^}]*transition:[^}]*\}", block):
-            self.assertNotRegex(r.split("{", 1)[1], r"\b(height|width|margin|padding|top|left|max-height|max-width)\b")
-            self.assertNotRegex(r.split("{", 1)[1], r"(?<![-\w(])\d+(\.\d+)?m?s\b")
-        self.assertRegex(block, r"\.btn:not\(\.primary\):not\(:disabled\):hover[^{]*\{ transform: translateY\(-1px\); \}")
-        self.assertRegex(block, r"\.btn:not\(\.primary\):not\(:disabled\):active[^{]*\{ transform: none; \}")
-        lift = block[block.index("@media (hover: hover) and (pointer: fine)"):]
-        self.assertIn(".btn:not(.primary):not(:disabled):hover", lift, "the lift is for fine pointers only")
+    def test_row_881_is_in_the_edit_stylesheet_only_gated_on_motion_and_uses_tokens(self):
+        edit = EDIT[EDIT.index("Row 881 (motion)"):]
+        self.assertTrue(edit.index("@media (prefers-reduced-motion: no-preference)") < edit.index("transition:"), "gated on no-preference")
+        self.assertEqual(edit.count(':root:not([data-motion="reduce"])'), 3)
+        for r in re.findall(r"[^{}]*\{[^}]*transition:[^}]*\}", edit):
+            body = r[r.index("transition:"):]
+            self.assertNotRegex(body, r"\b(height|width|margin|padding|top|left|max-height|max-width)\b")
+            self.assertNotRegex(body, r"(?<![-\w(])\d+(\.\d+)?m?s\b")
+            self.assertRegex(body, r"var\(--dur-[a-z]+\) var\(--ease-out\)")
+        self.assertRegex(edit, r"\.btn:not\(\.primary\):not\(:disabled\)[^{]*\):hover \{ transform: translateY\(-1px\); \}")
+        self.assertRegex(edit, r"\):active \{ transform: none; \}")
+        lift = edit[edit.index("@media (hover: hover) and (pointer: fine)"):]
+        self.assertIn(":hover { transform: translateY(-1px)", lift, "the lift is for fine pointers only")
+        self.assertNotIn("row 881", CSS, "the shared stylesheet (the published page) holds none of it")
+        self.assertNotRegex(CSS, r"\.hp-job:(hover|active) \{ transform")
 
 
 if __name__ == "__main__":

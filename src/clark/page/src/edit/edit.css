@@ -796,3 +796,19 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .rt-host { min-height: 6rem; min-height: calc(3lh + 1rem); resize: vertical; overflow: auto; }
 .rt-host .ProseMirror { min-height: 3lh; padding-bottom: 1lh; }
 .de-preview { min-height: calc(3lh + 1.5rem); max-height: 60vh; resize: vertical; }
+
+/* Row 881 (motion): press feedback on buttons and cards. Here, not in shell.css, so the published page (no Edit part) carries none of it.
+   Gated like the Motion block: absent under reduced motion (the computer's setting or <html data-motion="reduce">). Tokens only; colour and
+   transform only, so nothing else moves. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) {
+    /* one shared fade of the hover colours for each control class (the main button keeps its own lift) */
+    .btn:not(.primary), .seg button, .fbtn, .vtab, .bib, .tgrip, .teye, .toast-btn, .pkp-btn, .tb-act, .hp-top, .projbtn, .menu-item, .sec-add, .handle, .plus, .bc-move { transition: background-color var(--dur-instant) var(--ease-out), border-color var(--dur-instant) var(--ease-out), color var(--dur-instant) var(--ease-out), transform var(--dur-instant) var(--ease-out); }
+    .glance .fig.go, .hp-job { transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-state) var(--ease-out), transform var(--dur-instant) var(--ease-out); }
+  }
+  /* a button or a card lifts 1 px on hover (fine pointers only) and settles on press */
+  @media (hover: hover) and (pointer: fine) {
+    :root:not([data-motion="reduce"]) :is(.btn:not(.primary):not(:disabled), .glance .fig.go, .hp-job):hover { transform: translateY(-1px); }
+    :root:not([data-motion="reduce"]) :is(.btn:not(.primary):not(:disabled), .glance .fig.go, .hp-job):active { transform: none; }
+  }
+}
