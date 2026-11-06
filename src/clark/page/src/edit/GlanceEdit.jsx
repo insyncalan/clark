@@ -5,7 +5,7 @@ import { useRef, useState } from "preact/hooks";
 import { useGrow } from "./useGrow.js";
 import { Menu, MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
-import { OUTLINE_CHOICES, TILE_TITLES, STALE, STALE_TITLE, STALE_TAG_OFF, STALE_TAG_ON } from "../glanceTiles.js";
+import { OUTLINE_CHOICES, TILE_TITLES } from "../glanceTiles.js";
 import { data } from "../stores/report.js";
 import { note } from "./notes.js";
 import { hideTile, outlineTile, moveTile, stepOne, dropTile, pendingHealth, pickHealth, sendHealth, sendReason } from "./glanceActions.js";
@@ -15,7 +15,7 @@ const THRESHOLD = 4;
 // The tile `key` dragged to (x, y): { before: key | null, mark: { key, side } } from where the pointer is among the tiles.
 function target(order, key, x, y) {
   let best = null;
-  for (const el of document.querySelectorAll(`.glance > .tcell:not([data-tile="${STALE}"])`)) {
+  for (const el of document.querySelectorAll(`.glance > .tcell`)) {
     const r = el.getBoundingClientRect(), cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2, dist = Math.hypot(x - cx, (y - cy) * 2);
     if (!best || dist < best.dist) best = { dist, key: el.dataset.tile, left: x < cx };
   }
@@ -94,23 +94,6 @@ function Cell({ tile, order, children }) {
   );
 }
 
-// Not reviewed (item 160): the same eye, but it turns the tile on or off on the Dashboard, for this project in this browser. It has no grip
-// and no colour menu (it is always last and keeps its own colour), and it is never in the published report, so its tag says so.
-function StaleCell({ tile, onEye, children }) {
-  return (
-    <div class={`tcell${tile.hidden ? " is-hidden" : ""}`} data-tile={STALE}>
-      <button type="button" class="teye" data-edit-only data-tile-eye aria-pressed={tile.hidden ? "true" : "false"}
-        aria-label={tile.hidden ? `Show ${STALE_TITLE} on the Dashboard` : `Hide ${STALE_TITLE} from the Dashboard`}
-        title={tile.hidden ? "Off. Show it on the Dashboard." : "Hide from the Dashboard"}
-        onClick={() => { onEye(tile.hidden); note(tile.hidden ? `${STALE_TITLE} shown on the Dashboard.` : `${STALE_TITLE} hidden from the Dashboard.`); }}>
-        <Icon name={tile.hidden ? "eyeoff" : "eye"} />
-      </button>
-      {children}
-      <span class="tag hid thid">{tile.hidden ? STALE_TAG_OFF : STALE_TAG_ON}</span>
-    </div>
-  );
-}
-
 const ITEMS = [["On track", "g"], ["At risk", "a"], ["Off track", "r"]];
 
 function HealthPill({ health, reason }) {
@@ -151,4 +134,4 @@ function Hint() {
   return <p class="glance-hint" data-glance-hint>Drag a tile to move it, or hold Alt and press an arrow key. Use the eye to hide or show a tile. Right-click a tile to change its colour. Hidden tiles are left out of the published page.</p>;
 }
 
-export const GLANCE = { Cell, StaleCell, HealthPill, Reason, Hint };
+export const GLANCE = { Cell, HealthPill, Reason, Hint };

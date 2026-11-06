@@ -2,11 +2,10 @@
 // the outline and the hidden flags that glance_tiles holds. View leaves a hidden tile out; Edit draws it dimmed with its controls
 // (`tools.glance`, edit/GlanceEdit.jsx). A published file draws the figures the file carries (data.glance, worked out at publish
 // time from the rows the file keeps) and nothing else: no button, no control.
-import { data, rows, openWork, fromFile, project } from "../stores/report.js";
+import { data, rows, openWork, fromFile } from "../stores/report.js";
 import { todayIso } from "../workItems.js";
-import { hasReviewDates } from "../filters.js";
-import { allTiles, fileTiles, staleTile, staleShown, setStaleShown, STALE } from "../glanceTiles.js";
-import { useRef, useState } from "preact/hooks";
+import { allTiles, fileTiles } from "../glanceTiles.js";
+import { useRef } from "preact/hooks";
 import { useSettle } from "../stores/motion.js";
 
 function Cell({ tile, children }) {
@@ -44,23 +43,11 @@ function Health({ t, tools, editing }) {
   );
 }
 
-// Not reviewed (item 160): the optional tile after the stored ones. Off by default; the eye in Edit turns it on for this project, in this
-// browser. It is offered only where the Freshness filter is (some row carries a date to count from), and never in a published file.
-function staleFor(editing, code, shown) {
-  if (fromFile.value || !hasReviewDates(rows.value)) return null;
-  if (!editing && !shown) return null;
-  return { ...staleTile(rows.value, todayIso()), hidden: !shown };
-}
-
 export function Glance({ tools }) {
   const d = data.value, editing = !!(tools && tools.glance) && !fromFile.value;
-  const code = project.value, [, redraw] = useState(0), shown = staleShown(code);
   const list = fromFile.value ? fileTiles(d.glance, d.project) : allTiles(rows.value, todayIso(), d.project, d.glance_tiles).filter((t) => editing || !t.hidden);
   const Wrap = editing ? tools.glance.Cell : Cell;
-  const order = list.map((t) => t.key);       // the stored tiles only: the Not reviewed tile is always last and is not moved
-  const stale = staleFor(editing, code, shown);
-  const StaleWrap = editing ? tools.glance.StaleCell : Cell;
-  const eye = (on) => { setStaleShown(code, on); redraw((n) => n + 1); };
+  const order = list.map((t) => t.key);
   return (
     <>
     <div class="glance" data-glance>
@@ -69,7 +56,6 @@ export function Glance({ tools }) {
           {t.key === "health" ? <Health t={{ ...t, pill: d.project.health ? ({ "On track": "g", "At risk": "a", "Off track": "r" })[d.project.health] : "n" }} tools={tools} editing={editing} /> : <Figure t={t} file={fromFile.value} />}
         </Wrap>
       ))}
-      {stale ? <StaleWrap key={STALE} tile={stale} onEye={eye}><Figure t={stale} file={false} /></StaleWrap> : null}
     </div>
     {editing ? <tools.glance.Hint /> : null}
     </>

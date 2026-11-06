@@ -3,8 +3,7 @@
 Run: python3 dev/run_tests.py test_glance_fill
 The first class reads the source and needs no browser: the layout rules sit in shell.css (shared by the editor and the published
 page, so both built pages carry them) and four tiles at the least width fit one line in the room the page leaves at 900 px. The
-second class opens the real page at 1400 and 900 px, light and dark, in View (three tiles) and Edit (the four stored tiles and the optional Not reviewed tile, drawn dimmed
-when some row carries a date, as the fixture's do).
+second class opens the real page at 1400 and 900 px, light and dark, in View (three tiles) and Edit (the four stored tiles).
 """
 import re
 import unittest
@@ -48,8 +47,8 @@ class Source(unittest.TestCase):
         css = (PAGE / "shell.css").read_text(encoding="utf-8")
         self.assertIn("--tile-ctl: 41px", css, "54 px of controls, less the tile's 17 px border and padding, and a 4 px gap")
         self.assertRegex(css, r'#report\[data-mode="edit"\] \.glance \.fig \.k \{ padding-right: var\(--tile-ctl\); \}')
-        self.assertRegex(css, r'#report\[data-mode="edit"\] \.glance \.tcell\.is-hidden \.fig, #report\[data-mode="edit"\] \.glance \.tcell\[data-tile="stale"\] \.fig \{ padding-bottom: var\(--tile-tag\); \}',
-                         "a hidden tile, and the Not reviewed tile (which carries its tag on or off), keep room for the tag")
+        self.assertRegex(css, r'#report\[data-mode="edit"\] \.glance \.tcell\.is-hidden \.fig \{ padding-bottom: var\(--tile-tag\); \}',
+                         "a hidden tile keeps room for the tag")
         self.assertNotRegex(rule(css, ".fig .k"), "padding-right", "View keeps its label line as it was")
 
     def test_health_has_its_own_row_at_1180_and_below(self):
@@ -101,13 +100,13 @@ class Fill(Setup):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     self.check(self.show(cdp, width, dark), width, 3)
 
-    def test_edit_shows_five_tiles_on_one_line_at_1400_and_health_on_its_own_row_at_900(self):
+    def test_edit_shows_four_tiles_on_one_line_at_1400_and_health_on_its_own_row_at_900(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.edit()
-                p.until("document.querySelectorAll('.glance > .tcell').length === 5", "the four stored tiles and Not reviewed in Edit")
-                self.check(p, width, 5)      # the fixture's rows carry dates, so Edit also draws the optional Not reviewed tile, dimmed
+                p.until("document.querySelectorAll('.glance > .tcell').length === 4", "the four stored tiles in Edit")
+                self.check(p, width, 4)
 
     def test_edit_controls_and_the_hidden_tag_never_cover_the_text_at_900_and_1400_in_light_and_dark(self):
         for width in (1400, 900):
@@ -115,7 +114,7 @@ class Fill(Setup):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     p = self.show(cdp, width, dark)
                     p.edit()
-                    p.until("document.querySelectorAll('.glance > .tcell').length === 5", "the four stored tiles and Not reviewed in Edit")
+                    p.until("document.querySelectorAll('.glance > .tcell').length === 4", "the four stored tiles in Edit")
                     found = p.js("""(() => {
                       const box = (r) => ({l: r.left, r: r.right, t: r.top, b: r.bottom});
                       const hit = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;

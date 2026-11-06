@@ -62,8 +62,8 @@ CHANGE_KINDS = {
     # (an item is closed or cancelled by its status, and archived only by archiving). priority is not in raid's list because the
     # store works it out from impact and likelihood (D-12: the status picker's Rating sets those two); `archived` is in no list.
     # #67: a work item's title is the column the page shows as its title: an action's and a RAID item's `description`, a decision's `decision`.
-    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible")},   # the peek's Latest update (an action's only)
-    "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_message", "client_visible")},
+    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible", "client_action")},   # the peek's Latest update (an action's only)
+    "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_message", "client_visible", "client_action")},   # row 811: needed from the client (an action or a risk or issue; a decision has no such flag)
     "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision", "client_message", "client_visible")},   # #45: use_case links an existing use case of this project, or clears the link
     # #45: the At a glance tiles and the project's health. A tile is hidden, given an outline colour or moved (its place is worked
     # out here, never sent); the project's change takes no `id` (it is the request's project) and only its health and the reason.
@@ -73,7 +73,8 @@ CHANGE_KINDS = {
     # owner, the name, the workstream, the place or the archive flag (archive stays its own op). #458: + the internal note, the one
     # box Movement keeps for the owner (owner only: never in a reply, a Movement entry or a published file).
     "milestones": {UPDATE: ("baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
-                            "client_message", "movement", "internal_note")},
+                            "client_message", "movement", "internal_note",
+                            "name", "owner", "workstream", "percent_complete", "description")},     # row 828: + the peek's own fields (the name, owner, workstream, progress and description)
     # #164: an EXISTING use case's name, headline, status, standing text and eye (client_visible). Only `update` here: the
     # archive and restore ops below are #126's, and there is no new, move or delete for use cases.
     "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible", "commitment"), NEW: ("ref", "title", "status", "headline", "commitment"), LINK: ()},   # #455: and a NEW one (below); #485: link work items to it (no fields: the items' own use_case is set)
@@ -101,7 +102,8 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
             "glance_tiles": ("hidden", "outline", "sort_order"),
             "projects": ("health", "health_reason", "week_ending", "review_after_days", "archived", "active"),       # #126: a project's own archive or restore step sets the flag and `active`
             "milestones": ("archived", "baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
-                           "client_message", "movement", "internal_note"),     # #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
+                           "client_message", "movement", "internal_note",
+                           "name", "owner", "owner_id", "workstream", "percent_complete", "description"),     # row 828: the peek's fields (owner_id: the link that goes with an owner edit, never asked for); #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
             "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible", "commitment"), "documents": ("archived",) + DOC_FIELDS, "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
 CHANGE_KINDS["actions"][NEW] = ("description", "client_message", "client_visible", "owner", "priority", "due_date", "workstream", "milestone", "latest_update", "use_case")      # #485: a next step added from a use case's row names it; #67: a row added in the report: no id,
@@ -405,8 +407,8 @@ def _checked_item_changes(fields, blank_clears=()):
         if isinstance(latest, str) and not _plain_text(latest.replace("\n", "")):
             raise Refused(LATEST_HIDDEN_WORDS)
         latest = unicodedata.normalize("NFC", latest).strip() or None if isinstance(latest, str) else None
-    flag = {k: _flag(v) for k, v in fields.items() if k == "client_visible"}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
-    fields = {k: v for k, v in fields.items() if k != "client_visible"}
+    flag = {k: _flag(v) for k, v in fields.items() if k in ("client_visible", "client_action")}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
+    fields = {k: v for k, v in fields.items() if k not in flag}
     for k, v in fields.items():
         if v is None and k in ITEM_NOT_NULL or v is not None and (not isinstance(v, str) or not v.strip() or len(v) > 200):
             raise Refused(ITEM_VALUE_WORDS)
@@ -1035,10 +1037,13 @@ def _where(place):
     return {"place": place}
 
 
+PEEK_PLACE = "peek"
+MILESTONE_PEEK_FIELDS = ("name", "owner", "workstream", "percent_complete", "description")   # row 828: only the peek sets these
 MILESTONE_DATES = ("baseline_date", "forecast_date", "actual_date")
 MILESTONE_STATUSES = ("Planned", "Done")                 # Cancelled is its own matter, never set from a request
 MILESTONE_MOVEMENTS = ("hold", "rebaseline")             # recover and escalate come with their own item
-MILESTONE_TEXT = {"state_reason": 300, "client_message": 500}
+MILESTONE_TEXT = {"state_reason": 300, "client_message": 500, "owner": 200, "workstream": 200}
+MILESTONE_DESCRIPTION_MAX = 2000                         # row 828: the description, in characters; it may run over several lines
 INTERNAL_NOTE_MAX = 2000                                 # #458: the internal note, in characters; it may run over several lines
 MILESTONE_SHOWN = ("id", "status", "baseline_date", "forecast_date", "actual_date", "state", "state_set", "state_reason",
                    "client_message", "movement")          # what a reply says of a milestone: never its internal note
@@ -1080,7 +1085,24 @@ def _checked_milestone_changes(fields):
                 if not _plain_text(v.replace("\n", " ")):
                     raise Refused(NOTE_TEXT_WORDS)
             out[k] = unicodedata.normalize("NFC", v).strip() or None if isinstance(v, str) else None
-        else:                                                       # state_reason, client_message
+        elif k == "name":                                           # row 828: a milestone is never nameless; the same limit as a work item's title
+            text = unicodedata.normalize("NFC", v).strip() if isinstance(v, str) else ""
+            if not text or len(text) > ITEM_TITLE_MAX or not _plain_text(text):
+                raise Refused(NEW_NEEDS["milestones"])
+            out[k] = text
+        elif k == "percent_complete":                               # row 828: a whole number from 0 to 100, or none
+            if v is not None and (type(v) is not int or not 0 <= v <= 100):
+                raise Refused(ITEM_VALUE_WORDS)
+            out[k] = v
+        elif k == "description":                                    # row 828: plain text over several lines, as the internal note
+            if v is not None and (not isinstance(v, str) or len(v) > MILESTONE_DESCRIPTION_MAX):
+                raise Refused(ITEM_VALUE_WORDS)
+            if isinstance(v, str):
+                v = v.replace("\r\n", "\n").replace("\r", "\n")
+                if not _plain_text(v.replace("\n", " ")):
+                    raise Refused(NOTE_TEXT_WORDS)
+            out[k] = unicodedata.normalize("NFC", v).strip() or None if isinstance(v, str) else None
+        else:                                                       # state_reason, client_message, owner, workstream
             if v is not None and (not isinstance(v, str) or len(v) > MILESTONE_TEXT[k]):
                 raise Refused(ITEM_VALUE_WORDS)
             if isinstance(v, str) and not _plain_text(v):
@@ -1115,7 +1137,7 @@ def _milestone_words(e):
     for part, words in (("is archived. Restore it first", ARCHIVED_MILESTONE), ("can't be cleared once agreed", AGREED_STAYS),
                         ("better than the dates suggest", STATE_NEEDS_REASON), ("state_set is 1 exactly", STATE_TOGETHER),
                         ("a Done milestone is Achieved", DONE_STATE), ("an Achieved milestone is Done", ACHIEVED_IS_DONE),
-                        ("achieved date", ACHIEVED_DATE), ("must be a date stored as", NOT_A_DATE), ("is not a real date", NOT_A_DATE)):
+                        ("achieved date", ACHIEVED_DATE), ("isn't an active workstream", NO_WORKSTREAM), ("must be a date stored as", NOT_A_DATE), ("is not a real date", NOT_A_DATE)):
         if part in text:
             return words
     return ITEM_VALUE_WORDS
@@ -1138,10 +1160,16 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
     """#136: change fields of one milestone of THIS project, in one step (several fields, one Undo). Moving the agreed date is a
     rebaseline: who agreed it, the reason and the source are asked for (milestone_rows.rebaseline_request's own rules and words),
     and the date, the new decision and the note are one step. A Hold writes its dated line as the step's note and adds it to the internal note (#458). The internal note
-    (#458) may be set or cleared; the owner, the name, the workstream and the archive flag are not changeable here. A refusal
+    (#458) may be set or cleared; row 828: so may the name, owner, workstream, progress and description. An owner edit also sets
+    or clears the link to the person (owner_id), so a later rename or merge of a person leaves a typed owner alone. The archive flag is not changeable here. A refusal
     writes nothing."""
     ref = req.get("id")
-    changes = _checked_milestone_changes(_fields(req.get("changes"), table, UPDATE, columns, "the changes"))
+    sent = _fields(req.get("changes"), table, UPDATE, columns, "the changes")
+    if place != PEEK_PLACE:                                         # row 828: the peek's own fields come from the peek only; Movement (and any other place) keeps its narrow list
+        for k in sent:
+            if k in MILESTONE_PEEK_FIELDS:
+                raise Refused(f"The field '{_shown(k)}' can't be set here.")
+    changes = _checked_milestone_changes(sent)
     given = _checked_rebaseline(req.get("rebaseline"))
     if not changes:
         raise Refused("Say what to change.")
@@ -1177,6 +1205,9 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
             last = (row.get("internal_note") or "").strip().split("\n")[-1]
             if "internal_note" not in changes and last != note:     # #458: the Hold's dated line goes into the internal note too (the prototype's), in this same step and Undo; not twice when the last line is this same Hold today
                 changes["internal_note"] = _note_with_line(row.get("internal_note"), note)
+        if "owner" in changes:                                      # row 828: the link follows the owner text, as a hand over writes it: the one live person it names, else none
+            found = store.resolve_owner(changes["owner"] or "")
+            changes["owner_id"] = found["id"] if found["status"] == "one" else None
         try:
             st.update(table, ref, changes, rebaseline=rebase, note=note)
         except Invalid as e:                                        # a rule of the store, in fixed words: no field name, no value
@@ -1988,6 +2019,8 @@ def _field_words(entry, name):
         return f"the {DOC_FIELD_NAMES[f]} of {name}"                # #74: never the old text or link itself
     if f in ("description", "decision") and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the title of {name} is back as it was"          # #67: never the old text itself
+    if f == "client_action" and ITEM_REF.fullmatch(str(entry.get("ref"))):
+        return f"the Needed from the client of {name} is back as it was"     # row 811: the switch's own label; no value said
     if f == "client_message" and ITEM_REF.fullmatch(str(entry.get("ref"))):
         return f"the client wording of {name} is back as it was"      # the report rows edit it in place; never the old text itself
     if f in ITEM_FIELD_NAMES and ITEM_REF.fullmatch(str(entry.get("ref"))):

@@ -120,7 +120,7 @@ class TopBarTabs(Base):
                 self.assertEqual([left, right], [pad, pad], f"at {width} px the tab padding should be {pad}; got {left} and {right}")
                 self.assertEqual(wrap, "nowrap", f"at {width} px a tab label may wrap onto a second line (white-space is {wrap!r})")
 
-    # Row 854: the logo is a Home button. It is a real button, reached with Tab (first stop in the bar), draws a focus ring, is named by
+    # Row 854: the logo is a Home button. It is a real button, reached with Tab (first stop in the bar, after the skip link of row 862), draws a focus ring, is named by
     # its existing words, and goes to the first tab (the Dashboard) of the same project, in View and in Edit.
     def home(self, width, theme, edit):
         with chrome() as cdp:
@@ -136,7 +136,9 @@ class TopBarTabs(Base):
             self.assertTrue(p.js("(document.querySelector('.top .logo').getAttribute('aria-label') || '').trim().length > 0"), f"{where}: the logo has no accessible name")
             p.js("document.activeElement && document.activeElement.blur()")
             p.key("Tab", 0, "Tab", 9)
-            self.assertTrue(p.js("document.activeElement.classList.contains('logo')"), f"{where}: Tab does not reach the logo first")
+            self.assertTrue(p.js("document.activeElement.classList.contains('skip')"), f"{where}: the first Tab stop is not the skip link (row 862)")
+            p.key("Tab", 0, "Tab", 9)
+            self.assertTrue(p.js("document.activeElement.classList.contains('logo')"), f"{where}: Tab does not reach the logo after the skip link")
             self.assertNotEqual(p.js("getComputedStyle(document.activeElement).outlineStyle"), "none", f"{where}: the focused logo has no focus ring")
             self.assertGreater(p.js("parseFloat(getComputedStyle(document.activeElement).outlineWidth)"), 0, f"{where}: the focus ring has no width")
             for kind in ("keyDown", "keyUp"):       # a real Enter, with its text as a keyboard sends it: a bare key event does not press a button
@@ -181,6 +183,56 @@ class TopBarTabs(Base):
                        "t = document.querySelector('.top .tab[aria-selected=true]').getBoundingClientRect(); return [t.left, t.right, row.left, row.right]; })()")
             self.assertGreaterEqual(got[0], got[2] - 0.5, f"Settings starts left of the tab row {got}")
             self.assertLessEqual(got[1], got[3] + 0.5, f"Settings is cut off by the tab row's right edge {got}")
+
+
+class SkipLink(Base):
+    """Row 862: 'Skip to content' is the first Tab stop, hidden until focused; Enter moves focus into <main>; the rest of the order is unchanged."""
+    def skip(self, width, theme, edit):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            size(cdp, p, width, 700)
+            p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
+            if edit:
+                p.js("document.querySelector('.top [data-mode=edit]').click()")
+            where = f"at {width} px, {theme}, {'Edit' if edit else 'View'}"
+            first = "(function(){ var e = document.querySelector('a.skip'); if (!e) return null; var r = e.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; })()"
+            hidden = p.js(first)
+            self.assertIsNotNone(hidden, f"{where}: no skip link")
+            self.assertLessEqual(hidden[3], 0, f"{where}: the skip link is on screen before it has focus")
+            p.js("document.activeElement && document.activeElement.blur()")
+            p.key("Tab", 0, "Tab", 9)
+            self.assertTrue(p.js("document.activeElement.classList.contains('skip')"), f"{where}: the first Tab stop is not the skip link")
+            self.assertEqual(p.js("document.activeElement.textContent.trim()"), "Skip to content")
+            shown = p.js(first)
+            self.assertGreaterEqual(shown[1], 0, f"{where}: the focused skip link is above the window")
+            self.assertGreater(shown[2], shown[0], f"{where}: the focused skip link has no width")
+            self.assertNotEqual(p.js("getComputedStyle(document.activeElement).outlineStyle"), "none", f"{where}: no focus ring")
+            self.assertNotEqual(p.js("getComputedStyle(document.activeElement).color"), p.js("getComputedStyle(document.activeElement).backgroundColor"))
+            p.key("Tab", 0, "Tab", 9)      # the order after it is the one it had: the logo, then the rest of the bar
+            self.assertTrue(p.js("document.activeElement.classList.contains('logo')"), f"{where}: the second Tab stop is not the logo")
+            p.js("document.querySelector('a.skip').focus()")      # a blur keeps Tab's starting point at the logo, so put focus back on the link itself
+            self.assertTrue(p.js("document.activeElement.classList.contains('skip')"), f"{where}: the skip link would not take focus")
+            for kind in ("keyDown", "keyUp"):
+                cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13,
+                                                    **({"text": "\r"} if kind == "keyDown" else {})}, p.sid)
+            p.until("document.activeElement && document.activeElement.id === 'main'", f"{where}: Enter on the skip link does not put focus on the main area")
+            self.assertEqual(p.js("document.querySelector('.top .tab[aria-selected=true]').dataset.view"), "dashboard", f"{where}: the skip link changed the page")
+            self.assertEqual(p.js("document.querySelectorAll('button.skip, .skip[role=button]').length"), 0)
+
+    def test_the_source_has_the_link_first_and_main_can_take_focus(self):
+        from pathlib import Path
+        src = Path(__file__).resolve().parent.parent / "src" / "clark" / "page"
+        app = (src / "src" / "components" / "App.jsx").read_text(encoding="utf-8")
+        self.assertRegex(app, r'<a\s+class="skip"\s+href="#main"[^>]*>\s*Skip to content\s*</a>')
+        self.assertLess(app.index('class="skip"'), app.index("<TopBar"), "the skip link must come before the top bar")
+        self.assertRegex(app, r'<main\s+id="main"\s+tabIndex=\{-1\}')
+        self.assertRegex((src / "shell.css").read_text(encoding="utf-8"), r"\.skip\s*\{")
+
+
+for _w in (1400, 900):
+    for _t in ("light", "dark"):
+        for _e in (False, True):
+            setattr(SkipLink, f"test_skip_link_at_{_w}_{_t}_{'edit' if _e else 'view'}", lambda self, w=_w, t=_t, e=_e: self.skip(w, t, e))
 
 
 for _w in WIDTHS:

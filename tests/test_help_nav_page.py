@@ -151,10 +151,11 @@ class Nav(Base):
                         set_theme(cdp, p, scheme)
                         p.js("window.scrollTo(0, 0)")
                         p.until("window.scrollY === 0", "at the top")
-                        p.js("window.scrollTo(0, document.documentElement.scrollHeight)")
-                        p.until("window.scrollY > 500", "scrolled down")
-                        p.until("(() => { const l = [...document.querySelectorAll('.hp-idx a')]; return l.length > 0 && l[l.length - 1].getAttribute('aria-current') === 'true'; })()",
-                                f"{tab} {scheme} {w}: the last contents entry is marked at the foot")
+                        # Row 889: each poll goes to the foot again (the page may still be growing after the resize or the tab change, and the page marks the
+                        # entry only on a scroll, after its own landing pause), then asks the marked state itself; a generous wait, no fixed sleep.
+                        p.until("(() => { window.scrollTo(0, document.documentElement.scrollHeight); const l = [...document.querySelectorAll('.hp-idx a')];"
+                                " return window.scrollY > 500 && l.length > 0 && l[l.length - 1].getAttribute('aria-current') === 'true'; })()",
+                                f"{tab} {scheme} {w}: the last contents entry is marked at the foot", 30)
 
     def test_start_here_has_its_contents_list_with_the_jobs(self):
         from test_server import chrome
