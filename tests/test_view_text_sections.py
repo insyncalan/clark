@@ -94,12 +94,13 @@ class TheBrowser(unittest.TestCase):
                     self.assertGreaterEqual(cdp.js(LUMA % "[data-id=ABC-S-006] .quiet", sid), 4.5, "quiet line contrast " + where)
                     self.assertGreaterEqual(float(cdp.js("parseFloat(getComputedStyle(document.querySelector('[data-id=ABC-S-005] .prose p')).fontSize)", sid)), 13, where)
                     self.assertLessEqual(cdp.js("document.documentElement.scrollWidth - window.innerWidth", sid), 0, "no sideways scroll " + where)
-            # Edit: Current state keeps the old line; the three text sections show their text in the editor's field
+            # Edit: Current state draws its text as View does (row 850); the three text sections show their text in the editor's field
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.until(cdp, sid, "document.querySelector('#report').dataset.mode === 'edit'", "Edit mode")
             for k, name in SECTIONS.items():
                 if name == "current":
-                    self.assertIn(OLD, self.text_of(cdp, sid, k), f"Edit keeps the old line for {k}")
+                    self.assertNotIn(OLD, self.text_of(cdp, sid, k), f"Edit draws the Current state text as View does (row 850) for {k}")
+                    self.assertIn("The pilot is on track and the data is clean.", self.text_of(cdp, sid, k), f"Edit draws the Current state text for {k}")
                 else:
                     self.assertNotIn(OLD, self.text_of(cdp, sid, k), f"Edit opens the editor for {k}")
                     self.assertTrue(cdp.js(f"!!document.querySelector('[data-id=\"{k}\"] [data-rich=body]')", sid), f"{k} has its rich field")
@@ -113,8 +114,8 @@ class TheSource(unittest.TestCase):
 
     def test_section_draws_the_text_through_the_cleaner_in_view_only(self):
         src = (PAGE_SRC / "components" / "Section.jsx").read_text(encoding="utf-8")
-        self.assertIn('section.type === "text" || section.type === "current"', src)
-        self.assertIn("!editing && clean", src)                       # View only: Edit keeps its line, a published page has no cleaner
+        self.assertIn('clean && (section.type === "current" || (!editing && section.type === "text"))', src)
+        self.assertIn("!editing && section.type", src)                # the text sections: View only (Edit opens the editor); Current state: View and Edit (row 850); a published page has no cleaner
         self.assertIn(EMPTY, src)
         self.assertIn('<p class="quiet">Not shown on this page yet.</p>', src)     # every other type, and Edit, keep the old line
         self.assertEqual(src.count("dangerouslySetInnerHTML"), 2)      # the file's already-cleaned body, and View's cleaned text
