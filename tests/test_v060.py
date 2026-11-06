@@ -404,7 +404,7 @@ class Numbers120(unittest.TestCase):
         schema = read(SRC / "clark" / "schema.sql")
         for name in ("publications_no_delete", "publications_number_fixed", "publications_never_replaced"):
             self.assertRegex(schema, rf"CREATE TRIGGER IF NOT EXISTS {name}\b", name)
-        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = 16\b")      # 16 since step 16 (issue 709, use_cases.commitment); 15 was step 15 (#269, publications.pdf_name); 14 was #171 (review_after_days); 13 was #368 (a web page and its Word copy share a number); 12 was #325 (the trigger guards client_path); step 10 is this item\'s
+        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = 17\b")      # 17 since step 17 (row 811, client_action); 16 was step 16 (issue 709, use_cases.commitment); 15 was step 15 (#269, publications.pdf_name); 14 was #171 (review_after_days); 13 was #368 (a web page and its Word copy share a number); 12 was #325 (the trigger guards client_path); step 10 is this item\'s
 
     def test_120_2_a_number_is_fixed_and_never_reused(self):
         schema = read(SRC / "clark" / "schema.sql")
@@ -429,7 +429,7 @@ class Numbers120(unittest.TestCase):
         app = read(PAGE / "src" / "components" / "App.jsx")
         self.assertIn('id="publication-footer"', app)
         self.assertIn("Publication {publication.value}", app)
-        self.assertIn("View only.", app)
+        self.assertNotIn("View only.", app)   # row 785
         self.assertIn("Published ${plainDate(asAt.value)}. ", app)
         self.assertIn('block["publication"] = {"n": number}', read(SRC / "clark" / "publish.py"))
         self.assertIn(".pubfoot", read(SHELL))
@@ -564,7 +564,7 @@ EXTRA_WALK_THROUGH = [
     ("559.3", "judgement", "only a person can judge the published Weekly snapshot reads as a report for a client",
      "Publish a demo project, open the file and press the Weekly snapshot tab: a band with the project's name, then Progress, Plans, Highlights, Next week (and Risks and issues if flagged), nothing editable; then open the running page and see it has no such tab."),
     ("120.4", "live only", "the footer must be seen in a real file opened from disk",
-     "Publish twice, open each file from its folder and read the foot: Publication 1 and Publication 2, each with its date, and View only."),
+     "Publish twice, open each file from its folder and read the foot: Publication 1 and Publication 2, each with its date once."),
     ("495.4", "live only", "a fresh checkout and a downloaded zip are the only places the build can truly be proved",
      "Clone fresh into an empty folder and run python3 -m clark --demo --open: the first start builds the pages. Unzip a release into another empty folder and run the same: no bundler runs."),
     ("570.5", "judgement", "whether a Saturday or Sunday 'This week' running to the coming Friday is what a person expects (an open question)",

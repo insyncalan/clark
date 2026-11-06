@@ -78,6 +78,7 @@
 .pk-fix button { min-height: 28px; padding: 3px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--surface); color: var(--status-amber-text); font: inherit; font-size: var(--size-small); font-weight: var(--weight-medium); cursor: pointer; }
 .pk-fix button:hover { background: var(--status-amber-tint); }
 .pk-fix button:focus-visible, .pk-draft:focus-visible, .pk-latest-text:focus-visible, .pk-latest-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-act { margin: 12px 0 0; }
 .pk-latest { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--grey-100); }
 .pk-lab { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; color: var(--text); font-size: var(--size-small); }
 .pk-latest-client { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--text-muted); font-size: var(--size-small); }
@@ -87,6 +88,18 @@
 .pk-latest-text { cursor: text; }
 .pk-latest-text:hover { border-color: var(--grey-200); }
 .pk-latest-in { resize: vertical; border-color: var(--brand-blue); background: var(--surface); }
+/* Row 828: the milestone peek's own fields (MilestonePeek.jsx). Tokens only; the text fields borrow the Latest update look. */
+.pk-ms-text, .pk-ms-in { min-height: 28px; padding: 3px 8px; }
+.pk-ms-states { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.pk-ms-state, .pk-ms-eye { min-height: 28px; padding: 2px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); cursor: pointer; }
+.pk-ms-state:hover:not(:disabled), .pk-ms-eye:hover:not(:disabled) { background: var(--brand-blue-tint); }
+.pk-ms-state[aria-pressed="true"], .pk-ms-eye[aria-pressed="true"] { border-color: var(--brand-blue); background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.pk-ms-state:disabled, .pk-ms-eye:disabled { cursor: default; color: var(--text-muted); }
+.pk-ms-state:focus-visible, .pk-ms-eye:focus-visible, .pk-ms-select:focus-visible, .pk-ms-num:focus-visible, .pk-ms-progress input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-ms-progress { display: flex; align-items: center; gap: var(--space-2); }
+.pk-ms-progress input[type="range"] { flex: 1; min-width: 0; }
+.pk-ms-num { width: 4em; min-height: 28px; box-sizing: border-box; padding: 2px 6px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.pk-ms-select { max-width: 100%; min-height: 28px; padding: 2px 6px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .pk-latest-hint, .pk-latest-err { margin: 4px 0 0; font-size: var(--size-small); }
 .pk-latest-hint { color: var(--text-muted); }
 .pk-latest-err { color: var(--status-red-text); }
@@ -112,6 +125,7 @@
 .rowmenu .rm-go { flex: none; width: 14px; height: 14px; color: var(--text-muted); }
 .rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
 .rowmenu .ddmenu { max-height: calc(100vh - 2 * var(--space-2)); overflow-y: auto; }
+.rowmenu .rm-fly { position: fixed; min-width: 160px; }              /* the list beside its entry (row 848): on the window, so the menu itself never changes */
 
 /* Changing several work items at once (#196): the bar's buttons wrap at 900 px, the "N items" menu, and the question. Tokens only. */
 .selbar { flex-wrap: wrap; row-gap: 6px; }
@@ -180,9 +194,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-log { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 22px 20px var(--space-3); }
 .ask-turn { position: relative; max-width: 100%; font-size: var(--size-body); animation: ask-in 320ms var(--ease-enter); }
 .ask-turn.user { align-self: flex-end; max-width: 84%; padding: 10px 14px; border-radius: 16px 16px var(--radius-sm) 16px; background: var(--brand-blue); color: var(--text-on-brand); }
-.ask-turn.user .ask-who { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; color: inherit; }    /* "You" is for a reader that announces; the bubble says it already */
 .ask-turn.problem { padding-left: var(--space-3); border-left: 3px solid var(--status-amber); }
-.ask-who { margin-bottom: 2px; font-size: var(--size-caption); color: var(--text-muted); }
+.ask-who { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; color: inherit; }    /* "You" and "Answer" are for a reader that announces; the bubble and the reply place already say it (issue 794) */
 .ask-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 @keyframes ask-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 /* the suggestions: ONE row, faded at the right edge, scrolling sideways; the working line has the same height and takes their place */
@@ -191,6 +204,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-pills::-webkit-scrollbar { display: none; }
 .ask-pills button { flex: none; min-height: 28px; padding: 3px var(--space-3); white-space: nowrap; font: inherit; font-size: var(--size-caption); line-height: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--ask-edge); border-radius: var(--radius-pill); cursor: pointer; transition: background-color var(--dur-instant) var(--ease-out), border-color var(--dur-instant) var(--ease-out); }
 .ask-pills button:hover { background: var(--brand-blue-tint); border-color: var(--brand-blue); }
+.ask-pills button:disabled { color: var(--text-muted); background: var(--surface); border-color: var(--ask-edge); cursor: default; opacity: .7; }
 .ask-pills button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .ask-work { display: flex; align-items: center; gap: 10px; margin: 0; font-size: var(--size-caption); font-style: italic; color: var(--text-muted); animation: ask-in 220ms var(--ease-enter); }
 .ask-quip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -314,7 +328,6 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-eye .i, .ucl-eye svg { width: 16px; height: 16px; flex: none; }   /* issue 753: the eye alone, its words are the tooltip */
 .ucl-eye:hover { background: var(--grey-100); }
 .ucl-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.ucl-eye-ro, .ucl-eye-ro:hover { cursor: default; background: none; }
 .ucl-row.off .ucl-eye { color: var(--text-muted); font-weight: var(--weight-regular); }
 .ucl-none { margin: 20px 0 4px; }
 .ucl-none .btn { margin-top: 4px; }
@@ -336,6 +349,11 @@ table.items td.c-pick { vertical-align: middle; }
   .top .tabs::-webkit-scrollbar { display: none; }
   .top .tab { flex: none; white-space: nowrap; }
   .top .proj, .top .projbtn { min-width: 0; flex: 0 1 auto; max-width: 160px; }
+}
+@media (min-width: 801px) and (max-width: 1000px) {      /* row 757: from 801 px to 1000 px (the 900 px layout runs in a 915 px window too) the project name gives way first (it is the item that shrinks, 1000 times as hard as the tab row, which must keep a shrink factor of 1 or more or flexbox would absorb only a fraction of the overflow, down to a floor of 72 px); only then does the tab row scroll inside its own box, the open tab kept in view by the top bar; 800 px and below stay as above */
+  .top .dd:has(> .projbtn) { flex-shrink: 1000; min-width: calc(var(--space-7) + var(--space-5)); }
+  .top .tabs { flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .top .tabs::-webkit-scrollbar { display: none; }
 }
 
 /* Use cases page: detail */
@@ -368,7 +386,9 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-arch { font-size: var(--size-caption); }
 .ucd-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .ucd-acts .btn, .ucd-note .btn { min-height: 32px; font-size: var(--size-body); color: var(--text); }
-.ucd-eye { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; }   /* issue 753: the eye alone, a button */
+.ucd-acts .btn { display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; height: 32px; padding-top: 0; padding-bottom: 0; }   /* row 791: a space between Change status and its chevron */
+.ucd-acts .btn .nch { width: 14px; height: 14px; flex: none; }
+.ucd-eye { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; }   /* row 791: as tall as its neighbours; issue 753: the eye alone, a button */
 .ucd-eye:hover { background: var(--grey-100); }
 .ucd-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ucd-eye.on { color: var(--status-blue-text); }
@@ -402,6 +422,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-kv dd { margin: 0; overflow-wrap: anywhere; }
 .ucd-ms, .ucd-hist { margin: 0; padding: 0; }
 .ucd-ms li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 6px 0; }
+.ucd-ms .ucd-msname { font-size: var(--size-body); text-align: left; overflow-wrap: anywhere; }
+.ucd-msx { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; }
 .ucd-hist li { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; }
 .ucd-hw { overflow-wrap: anywhere; }
 .ucd-hm { font-size: var(--size-caption); color: var(--text-muted); }
@@ -593,7 +615,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .rbar-past { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); padding: 3px 8px; min-height: 28px; width: auto; max-width: min(260px, 100%); box-sizing: border-box; }
 .rbar-past:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .rbar-state { font-size: var(--size-caption); padding: 2px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); }
-.rbar-hint { color: var(--text-muted); }
+.rbar-hint { color: var(--status-blue-text); background: var(--brand-blue-tint); border-radius: var(--radius-sm); padding: 4px 9px; }   /* row 773: the prototype chip */
 
 /* The eye on a milestone row (edit/MsEye.jsx): the row's cells and the eye sit side by side; the eye is a real button, 28 px square. */
 .msl-row.has-eye { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 4px; padding-right: 6px; }
@@ -696,9 +718,14 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .ad.dlg .dlg-b p { margin: 0 0 var(--space-2); }
 .ad.dlg .dlg-note { font-size: var(--size-small); }
 .ad.dlg .dlg-small { font-size: var(--size-small); margin: 0; }
-.ad.dlg .dlg-form { display: grid; gap: 6px; }
+.ad.dlg .dlg-form { display: grid; gap: 6px; padding: 0; }   /* row 765: the box body already has the side padding; shell.css gives the bare form its own */
 .ad.dlg .dlg-form label { font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); margin-top: var(--space-2); }
-.ad.dlg .dlg-field { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--control-border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+/* row 765: the project form is the prototype's: label in a left column, field to its right (the column is as wide as the longest label), the box centred in the space below the top bar */
+#project-form.ad.dlg { margin: auto; }
+#project-form .dlg-form { grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-3) var(--space-3); align-items: center; }
+#project-form .dlg-form label { margin-top: 0; }
+#project-form .dlg-form .dlg-small { grid-column: 2; }
+.ad.dlg .dlg-field { box-sizing: border-box; width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-500); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .ad.dlg .dlg-field:disabled { background: var(--grey-50); color: var(--text-muted); }
 .ad.dlg .dlg-field:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ad.dlg .dlg-code { text-transform: uppercase; }
@@ -755,7 +782,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .aic-link { all: unset; box-sizing: border-box; min-height: 2rem; display: inline-flex; align-items: center; padding: 0 .375rem; color: var(--link); text-decoration: underline; cursor: pointer; font-size: var(--size-body); }
 
 
-/* The first-run welcome (issue 174). A card at the bottom right, over the page but never blocking it (the toasts are at the bottom left). */
+/* The first-run welcome (issue 174). A card at the bottom right, over the page but never blocking it (the toasts are at the bottom centre). */
 .welcome { position: fixed; right: var(--space-4); bottom: var(--space-4); z-index: 39; width: min(24rem, calc(100vw - var(--space-6))); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 .welcome h2 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .welcome p { margin: 0 0 var(--space-3); font-size: var(--size-body); }

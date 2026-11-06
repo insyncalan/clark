@@ -137,6 +137,26 @@ class Nav(Base):
             p.js("window.scrollTo(0, document.documentElement.scrollHeight)")
             p.until(f"document.querySelector('.hp-idx a[aria-current]').dataset.hlink !== {json.dumps(ids[0])}", "scrolling down moves the mark")
 
+    def test_the_last_entry_is_marked_at_the_foot_of_each_tab(self):
+        """Issue 793: at the foot of the page the last contents entry is the marked one, as the entry on screen."""
+        from test_server import chrome
+        with chrome() as cdp:
+            p = self.in_help(cdp)
+            for tab in ("start", "howto", "reference"):
+                p.js(f"document.querySelector('#hpTab-{tab}').click()")
+                p.until(f"document.querySelector('#hpTab-{tab}').getAttribute('aria-selected') === 'true' && !!document.querySelector('.hp-idx a')", f"the {tab} tab")
+                for w in SIZES:
+                    for scheme in THEMES:
+                        set_size(cdp, p, w)
+                        set_theme(cdp, p, scheme)
+                        p.js("window.scrollTo(0, 0)")
+                        p.until("window.scrollY === 0", "at the top")
+                        # Row 889: each poll goes to the foot again (the page may still be growing after the resize or the tab change, and the page marks the
+                        # entry only on a scroll, after its own landing pause), then asks the marked state itself; a generous wait, no fixed sleep.
+                        p.until("(() => { window.scrollTo(0, document.documentElement.scrollHeight); const l = [...document.querySelectorAll('.hp-idx a')];"
+                                " return window.scrollY > 500 && l.length > 0 && l[l.length - 1].getAttribute('aria-current') === 'true'; })()",
+                                f"{tab} {scheme} {w}: the last contents entry is marked at the foot", 30)
+
     def test_start_here_has_its_contents_list_with_the_jobs(self):
         from test_server import chrome
         with chrome() as cdp:

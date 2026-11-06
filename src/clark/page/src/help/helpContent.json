@@ -273,13 +273,13 @@
     "id": "word-in-and-out",
     "g": "Every week",
     "t": "Export to Word, or bring items in from a Word file",
-    "w": "Profile circle › Export to Word · Import from Word (in Edit)",
+    "w": "Profile circle › Export to Word · Import from Word",
     "go": "dashboard+edit",
     "s": [
      "Press your profile circle and choose **Export to Word**. The report is saved as a Word file in the folder last used for this project; if there is none yet, a window asks you to choose one. Tick **To client** to copy it to the client folder as well (you can tick it once a client folder is saved in Settings › Publishing).",
      "If a file with that name is already there, you are asked: **Add a number** (keeps the old file and saves the new one beside it), **Replace it** (it asks you to confirm) or **Cancel**. Nothing is saved until you choose.",
      "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it.",
-     "In **Edit**, choose **Import from Word** from the same menu, choose a .docx file of up to 25 MB and press **Read the file**. Work items under a heading called Actions, Risks, Issues or Decisions are listed. Tick the ones you want, or use **Tick all**, and press the Add button, which reads **Add** and the number you ticked, such as Add 3 items. Nothing is added until you press it. The new items are shown to the client until you hide them with the eye, and Undo takes them all back.",
+     "Choose **Import from Word** from the same menu, choose a .docx file of up to 25 MB and press **Read the file**. Work items under a heading called Actions, Risks, Issues or Decisions are listed. Tick the ones you want, or use **Tick all**, and press the Add button, which reads **Add** and the number you ticked, such as Add 3 items. Nothing is added until you press it. The new items are shown to the client until you hide them with the eye, and Undo takes them all back.",
      "If clark refuses a file it says why in plain words and names the file. Choose the same file again once you have fixed it: **Read the file** comes on again."
     ],
     "n": "The use case table in the Word report has a Commitment column.",
@@ -350,7 +350,7 @@
      "Click the filter line, which says **Filter by keyword or by field**, and type. A plain word finds the items with it in the title or the ID. A list of fields and values opens under the line: choose from it, or keep typing.",
      "To pick a field, type field:value, for example status:Open or priority:High,Urgent. The fields are type, status, owner, priority, due, workstream, usecase, milestone, client and is. A comma means or, a space between two parts means and, and a - in front means not, as in -status:Closed. no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you (set your name in Settings first).",
      "A word it cannot use gets a red wavy underline and is not applied. A message under the line says why, such as Unknown field 'x'. Did you mean Owner? or Add a value after 'x:'. If you ask for owner:@me before your name is set, it says Set your name in Settings to see your actions.",
-     "The count at the right reads, for example, 12 of 40. **Clear filter** (the **×**) empties the line. When nothing matches, the list says No work items match. and offers **Clear filter**.",
+     "The count at the right reads, for example, 12 of 40. **Clear filter** (the **×**) empties the line. When nothing matches the words you typed, the list says, for example, No open items match \"crane\". and offers **Clear search**.",
      "A published file has no filter line. It has a **Search work items** box, which finds words in the ID, the description, the owner, the latest update, the client wording and the use case, and a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone. Each opens a list with a count beside every value: tick the ones you want and choose **is any of** or **is not**. **Select all** and **Clear** are at the top. The filters that are on show as chips beside the count; **×** on a chip removes it, and **Clear all** removes the filters and the search but keeps the type and Open, Closed or All.",
      "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N work items” and the use case's reference), opens Work items already filtered to what it counts."
     ],
@@ -382,13 +382,14 @@
     "id": "change-an-item-in-the-peek",
     "g": "Work items",
     "t": "Change an item in the peek",
-    "w": "Any work item: a row, a card or its ID",
+    "w": "Any work item: a row or a card",
     "go": "work",
     "s": [
-     "Double-click a row or a card, press [[Enter]] on it, or click an ID. The item opens in the **peek** at the right, and the page stays where it was. A single click selects the row or card instead.",
+     "Click a row or a card, or press [[Enter]] on it. The item opens in the **peek** at the right, and the page stays where it was.",
      "Click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "Under the title are **Status**, **Priority**, **Owner** and **Due**. Click one to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. The due date offers Today, Tomorrow, Friday, Next week and No date.",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
+     "**Needed from the client**: switch it on in Edit and the item is listed under “Needs from you”.",
      "**Latest update**: click to write it. **Draft** writes one from the item’s own facts. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
      "**Details** holds the description, type, workstream, milestone, use case and client wording. It stays open or closed as you last left it.",
      "In Edit, the **Activity** tab under the title shows the item’s history: who changed what, how and when, newest first. **Details** goes back to the fields.",
@@ -410,7 +411,7 @@
      "Type the change, for example “move to Friday, owner Jo, high priority”.",
      "Under the box, a line for each field shows what it is now and what it will become.",
      "Press [[Enter]] to make every change shown, in one step ([[Shift+Enter]] makes them and keeps the box open). [[Esc]] closes the box. The fields that changed flash for a moment, and the message has **Undo**.",
-     "Closing an item, or making or withdrawing a decision, asks first: press **Confirm and apply** or [[Mod+Enter]]. A decision that is made cannot be undone from here."
+     "Closing an item, making or withdrawing a decision, marking a milestone Achieved or a use case Done asks first: press **Confirm and apply** or [[Mod+Enter]]. A decision that is made cannot be undone from here."
     ],
     "n": "If the owner is not already named in the project, the line is marked “new name”. See [Sneak peek](#ref-sneak-peek) for what it understands.",
     "page": [
@@ -567,10 +568,10 @@
     "w": "Edit › Use cases",
     "go": "dashboard+edit",
     "s": [
-     "In Edit, open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard. A use case with a commitment shows it as a small chip beside the status.",
+     "Open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard. A use case with a commitment shows it as a small chip beside the status.",
      "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
      "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
-     "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. In Edit, the small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History."
+     "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. The small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History."
     ],
     "page": [
      "dashboard+edit"
@@ -599,7 +600,7 @@
     "w": "Settings › Personal",
     "go": "settings",
     "s": [
-     "**Personal › Dashboard sections** is yours alone: **Slim gaps** (the standard), **Roomy gaps**, **Grey headers** or **One card**.",
+     "**Personal › Dashboard sections** is yours alone: **Slim gaps**, **Roomy gaps**, **Grey headers** or **One card** (the standard).",
      "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
      "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
@@ -614,7 +615,7 @@
     "w": "Milestones · Dashboard › Milestones",
     "go": "milestones",
     "s": [
-     "In **Edit**, on **Milestones**, press **+** (**Add milestone**). A new one, called New milestone and agreed 30 days out, opens in the peek. There is no **+** in **View** or in a published file.",
+     "On **Milestones**, press **+** (**Add milestone**). A new one, called New milestone and agreed 30 days out, opens in the peek. There is no **+** in a published file.",
      "Click any milestone to open it: its mark or label on the timeline, its chip on the calendar, or its row in the details.",
      "**State**: Forecast, On track, At risk, Slipped or Achieved. Overdue follows the dates and can’t be picked. The line under it says why the milestone has that state.",
      "**Dates**: the **Agreed** date is the baseline; change the **Forecast** date as things move. When they differ, **Rebaseline…** makes the forecast the new agreed date and keeps the original.",
@@ -650,10 +651,10 @@
     "id": "handle-a-slipped-milestone",
     "g": "Milestones",
     "t": "Deal with a slipped milestone",
-    "w": "Milestones › Movement, in Edit",
+    "w": "Milestones › Movement",
     "go": "milestones",
     "s": [
-     "On **Milestones**, switch to Edit. **Movement** is the block under the list. It is for you and the team: it is never published.",
+     "On **Milestones**, open **Movement**, the block under the list. It is for you and the team: it is never published.",
      "The first line says how many open milestones are behind their agreed date. The line under it names the one furthest behind.",
      "Each open milestone has a row, the furthest behind first: its state, its agreed date, a small bar with a mark for the agreed date, one for the forecast and one for today, how far after the agreed date it is, and how often the agreed date has moved. Click a row, or move between rows with [[Up]] and [[Down]] and press [[Enter]], to choose it.",
      "Its card shows the original, agreed and forecast dates, its progress and its owner, then **What changed**: each change, with who made it and when.",
@@ -1025,6 +1026,16 @@
         "Full or half"
        ],
        [
+        "Image gallery",
+        "Pictures in a grid, each with a caption.",
+        "Full"
+       ],
+       [
+        "Table",
+        "Anything with rows: a budget line, a cut-over plan, a training schedule.",
+        "Full"
+       ],
+       [
         "RAID cards, three",
         "The risks, actions, issues or decisions you want the reader to see, as cards.",
         "Full"
@@ -1047,6 +1058,26 @@
        [
         "Callout",
         "One thing the reader must see.",
+        "Half or full"
+       ],
+       [
+        "Image with caption",
+        "One picture with its caption.",
+        "Half or full"
+       ],
+       [
+        "Quote",
+        "A voice from the business.",
+        "Half or full"
+       ],
+       [
+        "Contacts",
+        "Who to ask.",
+        "Half or full"
+       ],
+       [
+        "Checklist",
+        "Next steps or readiness, ticked off.",
         "Half or full"
        ],
        [
@@ -1107,8 +1138,7 @@
        "**Last reviewed**: the latest change you made by hand. A change made by clark or an Undo does not count.",
        "**Not reviewed in 14 days**: shown at the top of the peek on an open action, risk, issue or decision that has not been reviewed for that long.",
        "In **Filter by**, **Freshness** offers **Not reviewed in 14 days** and **No owner or no date**. To get the same two lists, type **is:quiet** or **is:incomplete** in the filter line. Freshness is offered once some item has a date it can count from.",
-       "14 days is the default. To change it for this project, open **Settings**, then **Freshness**, and type a whole number from 1 to 365 in **Not reviewed after (days)**. The note, the filter and the tile follow at once.",
-       "The **Not reviewed** tile on the Dashboard counts the same items and opens them in Work items. It is off until you turn it on with its eye in Edit. It is never in the published report."
+       "14 days is the default. To change it for this project, open **Settings**, then **Freshness**, and type a whole number from 1 to 365 in **Not reviewed after (days)**. The note and the filter follow at once."
       ]
      ],
      [
@@ -1185,7 +1215,7 @@
     "b": [
      [
       "p",
-      "The report is the cover, then the sections, with the contents at the right edge. Choose the style in Settings › Personal; slim gaps are the standard. It is used on the published report too."
+      "The report is the cover, then the sections, with the contents at the right edge. Choose the style in Settings › Personal; one card is the standard. It is used on the published report too."
      ],
      [
       "tbl",
@@ -1252,7 +1282,7 @@
        ],
        [
         "Client-visible (the eye)",
-        "Whether the client sees the item. Open eye: shown to the client. Crossed-out eye: internal only. It follows the item’s client flag, the hidden list and Sensitive labels together, so an item with a Sensitive label shows crossed out. In View it is a mark only; in Edit, select it to turn the item on or off, with **Undo**"
+        "Whether the client sees the item. Open eye: shown to the client. Crossed-out eye: internal only. It follows the item’s client flag, the hidden list and Sensitive labels together, so an item with a Sensitive label shows crossed out. Select it to turn the item on or off, with **Undo**"
        ]
       ]
      ],
@@ -1303,7 +1333,7 @@
      ],
      [
       "p",
-      "The filter line takes a plain word, which finds the items with it in the title or the ID, or field:value, such as status:Open or priority:High,Urgent. A comma means or, a space means and, a - in front means not, no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you. The count at the right reads, for example, 12 of 40, and **Clear filter** (the **×**) empties the line. When nothing matches, the list says No work items match. A published file has a **Search work items** box and a **Filter by** row instead, where each filter can be **is any of** or **is not**, and **Clear all** removes the chips.",
+      "The filter line takes a plain word, which finds the items with it in the title or the ID, or field:value, such as status:Open or priority:High,Urgent. A comma means or, a space means and, a - in front means not, no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you. The count at the right reads, for example, 12 of 40, and **Clear filter** (the **×**) empties the line. A published file has a **Search work items** box and a **Filter by** row instead, where each filter can be **is any of** or **is not**, and **Clear all** removes the chips.",
       "Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
      ]
     ]
@@ -1319,7 +1349,7 @@
      ],
      [
       "p",
-      "In Edit, **Movement** is under the list: the open milestones against their agreed and forecast dates, with how far after the agreed date each is, what changed and a choice to make. It is never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
+      "**Movement** is under the list: the open milestones against their agreed and forecast dates, with how far after the agreed date each is, what changed and a choice to make. It is never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
      ]
     ]
    },
@@ -1474,7 +1504,7 @@
     "b": [
      [
       "p",
-      "Sneak peek changes work items only: an action, a risk, an issue or a decision. It works in Edit only, in the peek."
+      "Sneak peek changes a work item (an action, a risk, an issue or a decision), a milestone or a use case. It works in Edit only, with the item open in the peek, or on the use case’s own page."
      ],
      [
       "tbl",
@@ -1498,6 +1528,14 @@
        [
         "made · decided · withdrawn · pending",
         "A decision’s status"
+       ],
+       [
+        "forecast Friday · achieved yesterday · done · reopen",
+        "A milestone’s forecast date, achieved date and status (Achieved asks first). Not its owner or its agreed date"
+       ],
+       [
+        "flag · high risk · on track · done · committed · candidate · planned 2027 · no flag · headline: …",
+        "A use case’s status (Done asks first), commitment and headline"
        ],
        [
         "urgent priority · high priority · medium priority · low priority",
@@ -1671,7 +1709,7 @@
      ],
      [
       "p",
-      "In your profile menu, Export to Word saves the Word file on its own, without publishing the web page. Import from Word (in Edit) reads a Word file and lists the new actions, risks, issues and decisions it found. Nothing is added until you press the Add button (it reads Add and the number of items you ticked, such as Add 3 items); the items are shown to the client until you hide them with the eye, and one Undo takes them all back."
+      "In your profile menu, Export to Word saves the Word file on its own, without publishing the web page. Import from Word reads a Word file and lists the new actions, risks, issues and decisions it found. Nothing is added until you press the Add button (it reads Add and the number of items you ticked, such as Add 3 items); the items are shown to the client until you hide them with the eye, and one Undo takes them all back."
      ]
     ]
    },
@@ -1978,7 +2016,7 @@
    ],
    [
     "[[/]] [[/]]",
-    "With a work item open in the peek in Edit: press twice quickly for Sneak peek, to change it in words. A single [[/]] does nothing while a peek is open"
+    "With an item open in the peek in Edit (or a use case page): press twice quickly for Sneak peek, to change it in words. A single [[/]] does nothing while a peek or a use case page is open in Edit"
    ],
    [
     "[[Esc]]",
@@ -2046,7 +2084,7 @@
    ],
    [
     "Click",
-    "Work items: select one row or card. A double-click opens the item"
+    "Work items: open a row or card in the peek, and select only that one"
    ],
    [
     "[[Mod]]+click",
@@ -2102,7 +2140,7 @@
    ],
    [
     "[[Enter]]",
-    "On a row or a card: open it. On a table row in View, [[Right]] opens it and [[Left]] closes it again; [[Esc]] closes it and returns to the row. In Edit, [[Enter]] on a cell opens that cell’s picker, and [[Right]] and [[Left]] move across the cells of the row"
+    "On a row or a card: open it. On a table row, [[Right]] and [[Left]] move across the cells of the row, and [[Enter]] on a cell opens that cell’s picker; [[Esc]] closes the open item and returns to the row"
    ]
   ],
   "icons": [
@@ -2365,7 +2403,7 @@
     "Milestones shows every milestone for the project, including internal ones.",
     "Switch between **Timeline** and **Calendar** at the top right.",
     "The **Legend** explains the marks, and a milestone that is not shown to the client has the tag **Internal only**.",
-    "In Edit, use **Add milestone** to add one.",
+    "Use **Add milestone** to add one.",
     "Use the **Movement** switch next to **Plan** to see which are behind their agreed date."
    ],
    "full": "ref-milestones-page"
@@ -2549,7 +2587,7 @@
    "job": "Save the project as an Excel workbook, know what is in it, and take changes back in.",
    "steps": [
     {
-     "d": "On **Work items**, in View, press the **Export to Excel** icon in the page header, beside the add button. The icon is not there in Edit, so use step 2 or 3 instead.",
+     "d": "On **Work items**, press the **Export to Excel** icon in the page header, beside the add button.",
      "pic": "excel-out-icon"
     },
     {
@@ -2625,7 +2663,7 @@
    "job": "Give several open work items to someone else in one step, with one Undo to take it back.",
    "steps": [
     {
-     "d": "Press **Edit** at the top of the page, then open **Work items**. Handing over is not offered in View."
+     "d": "Open **Work items**."
     },
     {
      "d": "Click the filter box, which says **Filter by keyword or by field**, and filter by owner: type owner: and pick the person from the suggestions. The hand-over button only appears while an owner filter is on, and not when the filter is “is not”."

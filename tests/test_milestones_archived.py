@@ -8,6 +8,7 @@ Headless Chrome (required: fails, never skips, without it). Desktop (1400) and 9
 """
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -55,6 +56,11 @@ class Archived(Base):
     def open_peek(self, cdp, sid, ref):
         click(cdp, sid, f"{ROWS}[data-id='{ref}'] .ma-name")
         self.until(cdp, sid, f"!!document.querySelector('#archived-peek[data-archived-peek=\"{ref}\"]')", "the archived peek")
+        self.settled(cdp, sid)
+
+    def settled(self, cdp, sid):
+        """A click on Close aims at where the button is now: wait for the slide in to end first (rows 827 and 874)."""
+        self.until(cdp, sid, "!document.querySelector('#archived-peek').getAnimations({subtree: true}).some(a => a.playState === 'running')", "the slide in to end")
 
     def restore_in_peek(self, cdp, sid, ref):
         self.open_peek(cdp, sid, ref)
@@ -171,8 +177,13 @@ class Archived(Base):
             self.assertFalse(cdp.js("document.querySelector('.msv').textContent.includes('Go live')", sid), "gone from the Plan again")
             for ref in self.gone:
                 self.restore_in_peek(cdp, sid, ref)
-                self.until(cdp, sid, f"document.querySelector('{PILL}').textContent === 'Show archived ({1 if ref == self.gone[0] else 0})'", "the count")
-            self.until(cdp, sid, "document.querySelector('#ms-archived-list').textContent.includes('No archived milestones.')", "the empty words")
+                if ref == self.gone[0]:
+                    self.until(cdp, sid, f"document.querySelector('{PILL}').textContent === 'Show archived (1)'", "the count")
+                else:
+                    self.until(cdp, sid, f"!document.querySelector('{PILL}')", "the button goes with the last one")
+            self.until(cdp, sid, "!document.querySelector('#ms-archived, #ms-archived-pill, #ms-archived-list')", "with none left the button and the box go (row 822)")
+            self.assertNotIn("No archived milestones", cdp.js("document.querySelector('#milestones').textContent", sid))
+            self.until(cdp, sid, "document.activeElement && document.activeElement.closest('#milestones h1') !== null", "focus goes to the page heading, not the body")
 
     def test_a_failed_read_never_says_zero_and_keeps_the_last_good_rows(self):
         from test_server import chrome
@@ -278,6 +289,48 @@ class Archived(Base):
         self.assertNotIn("dangerouslySetInnerHTML", peek, "every word from a milestone is a text node")
         self.assertIn("restoreMilestone", peek, "Restore is in the peek")
         self.assertNotIn("restoreMilestone", block, "and no longer on the row")
+
+
+class ArchivedNone(Base):
+    """Row 822: with 0 archived milestones the Show archived button and the empty Archived box are not on the Milestones page; with 1 they are,
+    and the button still opens the box. Desktop (1400) and 900 px, light and dark (View and Edit)."""
+
+    def go(self, cdp, width, edit):
+        return Archived.go(self, cdp, width=width, edit=edit)
+
+    scheme = Archived.scheme
+    pill = Archived.pill
+
+    def test_no_button_and_no_empty_box_with_none_archived(self):
+        from test_server import chrome
+        for width, scheme in VARIANTS:
+            for edit in (True, False):
+                with self.subTest(width=width, scheme=scheme, edit=edit), chrome() as cdp:
+                    sid = self.go(cdp, width, edit)
+                    self.scheme(cdp, sid, scheme)
+                    self.until(cdp, sid, "!!document.querySelector('.msv')", "the Plan")
+                    self.until(cdp, sid, "performance.getEntriesByType('resource').some((e) => e.name.includes('archived=only'))", "the archived read")
+                    time.sleep(0.4)
+                    self.assertEqual(cdp.js("document.querySelectorAll('#ms-archived, #ms-archived-pill, #ms-archived-list').length", sid), 0)
+                    text = cdp.js("document.querySelector('#milestones').textContent", sid)
+                    self.assertNotIn("Show archived", text)
+                    self.assertNotIn("No archived milestones", text)
+
+    def test_the_button_is_there_and_usable_with_one_archived(self):
+        from test_server import chrome
+        ref = Archived.id_of_ms(self, "Go live")
+        with self.store.step("dashboard", USER) as st:
+            st.archive("milestones", ref)
+        for width, scheme in VARIANTS:
+            for edit in (True, False):
+                with self.subTest(width=width, scheme=scheme, edit=edit), chrome() as cdp:
+                    sid = self.go(cdp, width, edit)
+                    self.scheme(cdp, sid, scheme)
+                    self.until(cdp, sid, f"!!document.querySelector('{PILL}')", "the Show archived button")
+                    self.assertEqual(self.pill(cdp, sid), "Show archived (1)")
+                    click(cdp, sid, PILL)
+                    self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 1", "the one row")
+                    self.assertFalse(cdp.js("document.documentElement.scrollWidth > window.innerWidth", sid), "no sideways scroll")
 
 
 if __name__ == "__main__":
