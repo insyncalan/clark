@@ -818,6 +818,9 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .ask-form textarea.grow.grow { max-height: 40vh; flex: none; }
 .rt-host { min-height: 6rem; min-height: calc(3lh + 1rem); resize: vertical; overflow: auto; }
 .rt-host .ProseMirror { min-height: 3lh; padding-bottom: 1lh; }
+/* row 936: a quote in the field is a quiet panel, no side stripe (the prototype's .prose blockquote). Edit's alone, appended after shell.css;
+   the published .sec-body blockquote (shell.css) is Banner's and unchanged. */
+.rt-host .ProseMirror blockquote { padding: var(--space-1) var(--space-3); border-left: 0; border-radius: var(--radius); background: var(--grey-50); font-style: italic; }
 .de-preview { min-height: calc(3lh + 1.5rem); max-height: 60vh; resize: vertical; }
 
 /* row 888: an eye blinks once when it is pressed (the button holds data-blink for that run; transform only); still under reduced motion.
