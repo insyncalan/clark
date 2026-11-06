@@ -35,7 +35,7 @@ function PrintStack({ tools }) {
 function useViewEnter() {
   const was = useRef(view.value);
   useLayoutEffect(() => {
-    if (was.current === view.value) return;
+    if (fromFile.value || was.current === view.value) return;      // a published file does not fade on a tab change
     was.current = view.value;
     const el = document.getElementById("main");
     if (!el) return;

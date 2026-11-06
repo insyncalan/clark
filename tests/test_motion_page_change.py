@@ -66,17 +66,27 @@ class MotionPageChange(unittest.TestCase):
                         time.sleep(0.5)
                         self.assertEqual(cdp.js("window.__names", sid), [], "a redraw in place does not start it")
 
-    def test_row_876_is_inside_the_motion_block_uses_tokens_and_moves_only_opacity_and_transform(self):
+    def test_row_876_is_in_edit_css_only_inside_the_gate_uses_tokens_and_moves_only_opacity_and_transform(self):
         self.assertRegex(TOKENS, r"--dur-view:\s*180ms")
-        block = CSS[CSS.index("Motion: motion that explains"):]
-        block = block[:block.index("@media (hover: hover)")]
-        self.assertRegex(block, r"main\.view-in \{ animation: m-view var\(--dur-view\) var\(--ease-enter\) 1; \}")
-        self.assertNotRegex(CSS.replace(block, ""), r"animation:\s*m-view")
-        body = re.search(r"@keyframes m-view \{(.*?)\}\s*\}", CSS, re.S).group(1)
+        edit = (ROOT / "src/clark/page/src/edit/edit.css").read_text(encoding="utf-8")
+        gate = edit[edit.index("row 876"):]
+        self.assertIn("@media (prefers-reduced-motion: no-preference)", gate)
+        self.assertIn(':root:not([data-motion="reduce"])', gate)
+        self.assertRegex(gate, r"main\.view-in \{ animation: m-view var\(--dur-view\) var\(--ease-enter\) 1; \}")
+        body = re.search(r"@keyframes m-view \{(.*?)\}\s*\}", gate, re.S).group(1)
         self.assertNotRegex(body, r"height|margin|padding|top|left|width")
         self.assertRegex(body, r"opacity: 0; transform: translateY\(8px\)")
+        self.assertNotIn("view-in", CSS, "the shared stylesheet (the published page's) has no view-in")
+        self.assertNotIn("m-view", CSS)
+        view = ROOT / "src/clark/page/page-view.html"
+        if view.exists():
+            html = view.read_text(encoding="utf-8")
+            self.assertNotIn("m-view", html)
+            self.assertNotIn(".view-in", html)
+
+    def test_row_876_only_a_change_of_view_in_the_editor_starts_it(self):
         app = (ROOT / "src/clark/page/src/components/App.jsx").read_text(encoding="utf-8")
-        self.assertRegex(app, r"was\.current === view\.value\) return", "only a change of view starts it")
+        self.assertRegex(app, r"fromFile\.value \|\| was\.current === view\.value\) return", "a published file and a redraw in place do nothing")
 
 
 if __name__ == "__main__":

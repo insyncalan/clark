@@ -796,3 +796,9 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .rt-host { min-height: 6rem; min-height: calc(3lh + 1rem); resize: vertical; overflow: auto; }
 .rt-host .ProseMirror { min-height: 3lh; padding-bottom: 1lh; }
 .de-preview { min-height: calc(3lh + 1.5rem); max-height: 60vh; resize: vertical; }
+
+/* row 876: the page fades in and rises 8 px on a tab change in Edit only (App.jsx puts .view-in on <main> then; a published file never does). Same gate as the Motion block in shell.css. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) main.view-in { animation: m-view var(--dur-view) var(--ease-enter) 1; }
+  @keyframes m-view { from { opacity: 0; transform: translateY(8px); } }
+}
