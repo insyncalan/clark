@@ -14,7 +14,7 @@ let gen = 0;             // bumped by forgetCheck(): an answer to an older check
 export function forgetCheck() { kept = null; gen++; }
 
 /** The good "ready" body kept from an earlier open, or null. */
-export function keptCheck(now = Date.now()) { return kept && now - kept.at < CHECK_KEEP_MS ? kept.body : null; }
+export function keptCheck(now = performance.now()) { return kept && now - kept.at < CHECK_KEEP_MS ? kept.body : null; }
 
 /** Ask the status route (once at a time) and resolve to its body, or null when the check failed. */
 export function runCheck() {
@@ -27,7 +27,7 @@ export function runCheck() {
       const body = await x.json().catch(() => null);
       b = x.status === 200 ? body : null;
     } catch (e) { b = null; }
-    if (b && b.ok === true && b.ask_enabled === true && b.connected === true && mine === gen) kept = { body: b, at: Date.now() };
+    if (b && b.ok === true && b.ask_enabled === true && b.connected === true && mine === gen) kept = { body: b, at: performance.now() };
     return b;
   })().finally(() => { out = null; });
   return out;
