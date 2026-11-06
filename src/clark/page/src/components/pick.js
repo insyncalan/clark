@@ -89,10 +89,11 @@ export function installSelectionRules() {
     if (e.key !== "Escape" || e.defaultPrevented || sel.size.value === 0 || view.value !== "work") return;
     const t = e.target;
     if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-    if ((item.value && !peekClosing()) || !document.querySelector("#work-list") || document.querySelector(OVERLAY)) return;
+    if ((item.value && sel.size.value < 2 && !peekClosing()) || !document.querySelector("#work-list") || document.querySelector(OVERLAY)) return;
     e.preventDefault();
     e.stopPropagation();
     sel.clear();
+    if (item.value) closePeek();                       // two or more picked never keep a peek: one that is still closing goes with the selection (row 891)
   }, true);
   // A click outside the Work items page (and outside anything open over it, and the toast) ends it.
   document.addEventListener("click", (e) => {
