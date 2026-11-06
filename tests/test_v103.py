@@ -5,7 +5,7 @@ Run: python3 dev/run_tests.py test_v103
 
 Same shape as test_v102.
   COVERED       a merged row a person can see, already covered by a test elsewhere. test_every_covering_test_named_here_exists
-                fails if one goes missing. Empty today: the only merged row (273) has no visible change (NO_VISIBLE_CHANGE).
+                fails if one goes missing. Rows 273 and 802 have no visible change (NO_VISIBLE_CHANGE).
   WAITING       a row that is not on main yet but has a marker in the source that appears when it lands (item, check, pull request,
                 a file under the top folder, the text in it). Skipped, with the pull request. After the cut commit has set the
                 version and the marker is there, the row fails until it is moved to COVERED with its test. Empty today: the
@@ -28,10 +28,69 @@ VERSION = "1.0.3"
 SCHEMA = 16              # 1.0.1 moved to layout 16; 1.0.3 does not change it
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
-COVERED = []
+COVERED = [
+    ("#856", 'The project menu ends with New project... and starts on the open project.',
+     "test_project_switch::ProjectSwitch::test_C_the_menu_starts_on_the_open_project_and_has_New_project_that_opens_the_form"),
+    ("#855", "In Edit, Ctrl or Cmd + J opens ask clark from anywhere and the button's tooltip names it.",
+     "test_help_pr_a::TopBar::test_ctrl_or_cmd_j_is_handled_and_the_ask_tooltip_names_it"),
+    ("#849", 'The Settings switches say their new state in a message with one Undo.',
+     "test_ask_settings::Settings::test_the_switch_says_its_state_in_a_toast_with_one_undo_and_keeps_the_focus"),
+    ("#819", "The eye toggles in View and Edit on the lists and the card's eye is a button.",
+     "test_work_table_parity::Source::test_the_eye_is_a_button_in_view_and_edit_with_words"),
+    ("#789", 'The empty search says the typed words, offers Clear search and a hint.',
+     "test_filter_line_page::Line::test_the_empty_state_says_items_not_open_items_on_closed_and_all"),
+    ("#859", "A use case's work item row opens its peek beside the page.",
+     "test_use_case_detail::Detail::test_a_work_item_row_opens_its_peek_beside_the_page_row_859"),
+    ("#860", 'A linked milestone opens its peek and shows its state.',
+     "test_use_case_detail::Detail::test_a_linked_milestone_opens_its_peek_and_shows_its_state_row_860"),
+    ("#768", "The client workbook's sheets are protected with no password and the export's actions.",
+     "test_excel_client_protect::Protect::test_every_sheet_is_protected_with_no_password_and_the_export_actions"),
+    ("#768", "The client workbook's dates are left-aligned.",
+     "test_excel_client_layout::Layout::test_dates_are_left_aligned_and_a_date_format"),
+    ("#806", 'A click on a Work items row or card opens its peek.',
+     "test_inline_67::RowClick::test_a_click_on_a_row_opens_its_peek_and_one_in_a_field_or_button_does_not"),
+    ("#816", 'Help describes the Settings links as a list at the left.',
+     "test_help_pr_a::SettingsChips::test_the_chip_names_and_order_are_the_pages"),
+    ("#781", 'Messages are a centred pill at the foot.',
+     "test_toast_pill::ToastPill::test_source_has_no_left_edge_and_a_pill_radius"),
+    ("#792", 'The Keys group is drawn without a box.',
+     "test_about_you::KeysGroupHasNoFrame::test_the_keys_fieldset_uses_the_frameless_group_class"),
+    ("#777", 'The use case crumb is in tracked capitals, its link underlined on hover.',
+     "test_use_case_detail::Detail::test_the_crumb_is_tracked_capitals_and_its_link_is_not_underlined"),
+    ("#780", 'The change card has a quiet look and a small flat Apply.',
+     "test_ask_change_page::TheCard::test_the_card_has_a_quiet_look_and_a_small_flat_apply"),
+    ("#790", 'The calendar scales are one capsule.',
+     "test_milestones_parity::Switcher::test_the_calendar_scales_are_one_capsule_with_the_active_one_filled_and_today_as_tall"),
+    ("#791", 'Change status has room before its arrow.',
+     "test_use_case_detail::Detail::test_change_status_has_room_between_its_words_and_chevron_and_the_controls_are_as_tall"),
+    ("#791", 'The Commitment menu is headed Commitment.',
+     "test_use_case_detail::Detail::test_the_commitment_menu_is_headed_commitment"),
+    ("#821", 'Quarter view markers have no text and open the peek.',
+     "test_milestones_page::RealBrowser::test_a_quarter_chip_is_a_button_with_no_text_and_opens_the_peek"),
+    ("#795", 'With asking off the panel keeps its greeting, buttons and box.',
+     "test_ask_look::Look::test_off_and_not_set_up_at_both_widths_light_and_dark"),
+    ("#794", 'The Answer and You labels are for readers only.',
+     "test_ask_panel::Panel::test_the_who_labels_are_for_a_reader_only_and_take_no_room"),
+    ("#854", 'The clark logo goes Home (the test checks the Help side; the click is by eye).',
+     "test_help_pr_a::TopBar::test_the_help_has_no_logo_bullet_the_logo_has_no_help_line_of_its_own"),
+    ("#769", 'The Word tables are wide enough for IDs, dates and words.',
+     "test_docx_build::WordTableWidths::test_open_actions_and_risks_columns_are_wide_enough_for_ids_dates_and_words"),
+    ("#848", 'The row menu keeps its place.',
+     "test_row_menu::Menu::test_a_list_opens_on_hover_stays_while_the_pointer_travels_and_the_menu_does_not_move"),
+    ("#822", 'No Show archived while nothing is archived.',
+     "test_milestones_archived::ArchivedNone::test_no_button_and_no_empty_box_with_none_archived"),
+    ("#786", 'The profile circle shows with no project open.',
+     "test_demo_banner::DemoLine::test_the_profile_circle_is_on_the_empty_screen_with_only_the_entries_that_need_no_project"),
+    ("#793", 'The last Help contents entry lights at the foot.',
+     "test_help_nav_page::Nav::test_the_last_entry_is_marked_at_the_foot_of_each_tab"),
+    ("#858", 'The first open of ask clark keeps typed words.',
+     "test_ask_panel::Panel::test_row_858_the_box_keeps_its_words_and_the_panel_is_usable_while_it_checks"),
+    ("#800", 'No heavy ring on a mouse open.',
+     "test_client_menu::Words::test_row_800_the_menu_source_marks_a_mouse_open_and_the_css_drops_the_ring_for_it"),
+]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
-NO_VISIBLE_CHANGE = {"273"}
+NO_VISIBLE_CHANGE = {"273", "802"}
 
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has
 # landed; marker None means there is no pull request to look for yet).
