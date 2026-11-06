@@ -209,6 +209,44 @@ class Results(Base):
             p.find("abc-r-002")
             self.assertEqual([r[1] for r in p.rows()], ["Supplier may slip", "Check ABC-R-002 with the supplier"])
 
+    def test_search_finds_the_data_by_words_id_and_person(self):
+        """Row 901: words in the text, the ID and the owner's name find work items and milestones, at both widths; nothing matching shows the plain empty line."""
+        data = project("ABC", "Example Programme")
+        data["actions"].append({"id": "ABC-A-010", "description": "Book user testing sessions", "status": "Open", "owner": "Priya Nair"})
+        data["milestones"].append({"id": "ABC-M-002", "name": "Handover", "owner": "Priya Nair"})
+        data["use_cases"] = [{"id": "uc1", "ref": "1.1", "title": "User testing programme", "headline": "Weekly sessions", "status": "On track"}]
+        DATA["ABC"] = data
+        self.addCleanup(DATA.update, {"ABC": project("ABC", "Example Programme")})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for w in (1400, 900):
+                p.width(w)
+                p.show()
+                p.find("user testing")
+                self.assertEqual([r[:2] for r in p.rows()], [["Action", "Book user testing sessions"], ["Use case", "User testing programme"]], f"words at {w} px")
+                p.find("weekly")
+                self.assertEqual([r[:2] for r in p.rows()], [["Use case", "User testing programme"]], f"use case headline at {w} px")
+                p.find("uc1")
+                self.assertEqual([r[:2] for r in p.rows()], [["Use case", "User testing programme"]], f"use case ID at {w} px")
+                p.find("milestone")          # data comes right after the pages, before the actions
+                kinds = [r[0] for r in p.rows()]
+                self.assertEqual(kinds, ["Page", "Milestone", "Milestone", "Action"], f"data before actions at {w} px")
+                p.find("abc-a-010")
+                self.assertEqual([r[:2] for r in p.rows()], [["Action", "Book user testing sessions"]], f"ID at {w} px")
+                p.find("priya")
+                self.assertEqual([r[:2] for r in p.rows()], [["Action", "Book user testing sessions"], ["Milestone", "Handover"]], f"person at {w} px")
+                p.find("nair user")
+                self.assertEqual([r[:2] for r in p.rows()], [["Action", "Book user testing sessions"]], f"person and words at {w} px")
+                p.find("zzzz")
+                self.assertEqual(p.rows(), [])
+                self.assertIn("Nothing matches", p.js("document.querySelector('#palette .pal-none').innerText"))
+                p.key("Escape", 0, "Escape", 27)
+                p.until("!document.querySelector('#palette')", "closed")
+            p.show()
+            p.find("uc1")
+            p.key("Enter", 0, "Enter", 13)
+            p.until("location.hash.indexOf('uc=1.1') > 0", "Enter on a use case opens its page")
+
     def test_up_and_down_wrap_and_skip_what_cannot_run(self):
         with chrome() as cdp:
             p = self.visit(cdp)
