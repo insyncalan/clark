@@ -10,7 +10,7 @@
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { effect } from "@preact/signals";
 import { data, rows as allRows, filterState, filterCtx, fromFile, view, project } from "../stores/report.js";
-import { isEditing } from "./editing.js";
+import { isEditing } from "../logic/editing.js";
 import { lineApi } from "../stores/lineSlot.js";
 import { changeBulk } from "../stores/changes.js";
 import { workSelection } from "../stores/selection.js";
