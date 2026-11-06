@@ -192,6 +192,38 @@ class PageKeys(Base):
             p.key(" ", code="Space", vk=32)
             p.until(EDIT, "Space presses a focused button when off")
 
+    def test_the_switch_says_its_state_in_a_toast_with_one_undo_and_keeps_the_focus(self):
+        """Row 849: Settings › Personal › Keys. Each press says 'Single-key shortcuts are off' / 'are on' with one Undo that puts it back, and
+        the focus stays on the switch so Space or Enter turns it back too. Light and dark, 1400 and 900, View and Edit."""
+        sw = "document.querySelector('fieldset.keys [role=switch]')"
+        text = "(document.querySelector('.toast .toast-text') || {}).textContent"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for scheme in ("light", "dark"):
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, p.sid)
+                for w in (1400, 900):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    p.until(f"window.innerWidth === {w}", "resized")
+                    for mode in ("view", "edit"):
+                        where = f"{scheme} {w} {mode}"
+                        p.view() if mode == "view" else p.edit()
+                        self.settings_box(p)
+                        p.js(f"{sw}.focus(); {sw}.click()")
+                        p.until(f"{text} === 'Single-key shortcuts are off'", f"{where}: the toast says off")
+                        self.assertEqual(p.js("document.querySelectorAll('.toast [data-undo]').length"), 1, f"{where}: one Undo")
+                        self.assertTrue(p.js(f"document.activeElement === {sw}"), f"{where}: focus stays on the switch")
+                        p.key(" ", code="Space", vk=32)                                    # the keyboard turns it back on
+                        p.until(f"{text} === 'Single-key shortcuts are on'", f"{where}: the toast says on")
+                        self.assertTrue(p.js(f"document.activeElement === {sw}"), f"{where}: focus still on the switch")
+                        p.js(f"{sw}.click()")
+                        p.until(f"{text} === 'Single-key shortcuts are off'", f"{where}: off again")
+                        p.js("document.querySelector('.toast [data-undo]').click()")       # Undo puts it back and says so, with no second Undo
+                        p.until(f"{text} === 'Single-key shortcuts are on'", f"{where}: Undo says on")
+                        self.assertEqual(p.js(f"{sw}.getAttribute('aria-checked')"), "true", f"{where}: Undo turned it back on")
+                        self.assertEqual(p.js("document.querySelectorAll('.toast [data-undo]').length"), 0, f"{where}: no Undo of an Undo")
+                        p.js("clarkPage.show('dashboard')")
+                        p.until("!document.querySelector('.toast')", f"{where}: leaving Settings takes the toast")
+
     def test_help_says_which_keys_the_switch_covers(self):
         with chrome() as cdp:
             p = self.visit(cdp)

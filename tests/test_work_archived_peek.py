@@ -113,7 +113,7 @@ class ArchivedPeek(Base):
             self.open_list(cdp, sid)
             self.open_peek(cdp, sid, self.gone[0])
             live = cdp.js("document.querySelector('#work-list tr[data-id]').dataset.id", sid)
-            dblclick(cdp, sid, f"#work-list tr[data-id='{live}'] .t")   # in Edit a click picks; a double click opens
+            click(cdp, sid, f"#work-list tr[data-id='{live}'] .t")   # in Edit a click picks the row and opens its peek (row 806)
             self.until(cdp, sid, f"document.querySelector('#peek')?.dataset.peek === '{live}'", "the live peek")
             self.until(cdp, sid, "!document.querySelector('#peek-archived')", "the archived peek gone")
             self.open_peek(cdp, sid, self.gone[1])

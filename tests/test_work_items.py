@@ -196,8 +196,8 @@ class RealBrowser(unittest.TestCase):
                                          "nothing inside the list scrolls sideways (the row of saved-view tabs scrolls inside its own box at 900 px, by design: #653)")
                         text = cdp.js("document.querySelector('#work').innerText", sid)
                         self.assertNotRegex(text, r"\d{4}-\d{2}-\d{2}", "dates read DD-MM-YYYY")
-                        # #442: in View exactly the four picker cells (owner, due, priority, status) edit, as buttons carrying data-cell; nothing else does
-                        self.assertEqual(cdp.js("document.querySelectorAll('#work table input:not(.gtick), #work table button:not(.grp-b):not([data-cell]), #work table select,"
+                        # #442: in View exactly the four picker cells (owner, due, priority, status) edit, and the eye (row 819), as buttons carrying data-cell; nothing else does
+                        self.assertEqual(cdp.js("document.querySelectorAll('#work table input:not(.gtick), #work table button:not(.grp-b):not([data-cell]):not(.weye), #work table select,"
                                                 " #work table textarea, #work table [contenteditable]').length", sid), 0, "nothing else in the list edits data (a group heading only opens and shuts its rows; its tick box only selects them)")
                         self.assertEqual(cdp.js("[...new Set([...document.querySelectorAll('#work table [data-cell]')].map(c => c.dataset.cell.split(':')[1]))].sort()", sid),
                                          ["due", "owner", "priority", "status"], "the four picker cells show in View (the eye, Duplicate and Archive are not in the rows: they stay in Edit)")
