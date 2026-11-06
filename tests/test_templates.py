@@ -158,7 +158,7 @@ class Logic(unittest.TestCase):
         (#121) and every template type."""
         from clark import changes, store
         self.assertEqual(self.t("ACCEPTS")["types"][:2], ["text", "needs"])
-        self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title"), "new still takes a type and a title only")
+        self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title", "body"), "new takes a type, a title and (text only) a starting body")
         for x in self.t("TEMPLATES"):
             if x["id"] == "gantt":      # #926 part 3: the page side is built; the store does not take the type until the guarded step lands
                 self.assertIs(x["ready"], False)

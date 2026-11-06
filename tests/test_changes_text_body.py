@@ -49,6 +49,69 @@ class TextBody(Api):
         return got["message"]
 
 
+class NewWithBody(TextBody):
+    """#929: a new text section may carry its starting body in the one `new` request (one step, one Undo)."""
+    STARTER = "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>"
+
+    def new(self, **values):
+        return self.change(self.req("new", values={"type": "text", "title": "Plan summary", **values}, after=SUMMARY))
+
+    def test_a_new_text_section_stores_its_body_cleaned(self):
+        status, got = self.new(body=DIRTY)
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        stored = self.stored(got["ref"])
+        self.assertEqual(stored, sanitise.clean_html(DIRTY), "the server's own cleaner decides")
+        for never in ("<script", "ZQ_RAN", "onerror", "javascript:", "<style"):
+            self.assertNotIn(never, stored, never)
+        self.assertNotIn("ZQ-SAFE-LINK", json.dumps({k: v for k, v in got.items() if k != "ref"}), "a reply never carries the body")
+
+    def test_the_plan_summary_starter_is_stored_as_sent(self):
+        status, got = self.new(body=self.STARTER)
+        self.assertEqual(status, 200, got)
+        self.assertEqual(self.stored(got["ref"]), self.STARTER, "the empty paragraph and the empty list item survive the cleaner")
+
+    def test_a_body_on_another_type_is_refused(self):
+        for kind in ("needs", "tracker", "table"):
+            with self.subTest(kind=kind):
+                before = self.state()
+                status, got = self.change(self.req("new", values={"type": kind, "title": "x", "body": "<p>x</p>"}, after=SUMMARY))
+                self.assertEqual((status, got["message"]), (400, changes.NO_BODY_HERE))
+                self.assertEqual(self.state(), before, "nothing was written")
+
+    def test_a_body_that_is_not_text_is_refused(self):
+        before = self.state()
+        status, got = self.new(body=["<p>x</p>"])
+        self.assertEqual((status, got["message"]), (400, changes.BODY_NOT_TEXT))
+        self.assertEqual(self.state(), before, "nothing was written")
+
+    def test_a_body_that_is_too_long_is_refused_with_the_same_words(self):
+        for body in ("<p>" + "a" * changes.TEXT_BODY_MAX + "</p>", "a" * (sanitise.MAX_CHARS + 1)):
+            before = self.state()
+            status, got = self.new(body=body)
+            self.assertEqual((status, got["message"]), (400, changes.WORDS_TOO_LONG))
+            self.assertEqual(self.state(), before, "no section was made")
+
+    def test_a_script_in_the_body_is_never_stored(self):
+        status, got = self.new(body="<p>Hi</p><script>window.ZQ_RAN=1</script>")
+        self.assertEqual(status, 200, got)
+        self.assertEqual(self.stored(got["ref"]), "<p>Hi</p>")
+
+    def test_one_undo_takes_the_whole_section_away(self):
+        steps = self.snapshot()[0]
+        status, got = self.new(body=self.STARTER)
+        self.assertEqual(self.snapshot()[0], steps + 1, "one request, one step")
+        ids = [r["id"] for r in self.rows()]
+        self.assertIn(got["ref"], ids)
+        self.assertEqual(self.undone(got["apply_id"])[0], 200)
+        self.assertNotIn(got["ref"], [r["id"] for r in self.rows()], "the section and its body are gone in one Undo")
+
+    def test_the_page_sends_the_starter_in_the_one_new_request(self):
+        actions = (SRC / "clark" / "page" / "src" / "edit" / "actions.js").read_text(encoding="utf-8")
+        self.assertIn("values: { ...req.values, ...start }", actions)
+        self.assertNotIn('op: "update", id: first.ref', actions, "no second request after the new one")
+        self.assertNotIn("Starting headings added", actions)
+
+
 class Writing(TextBody):
     def test_the_three_sections_take_a_body_and_store_it_cleaned(self):
         for ref in (SUMMARY, THIS_WEEK, NEXT_WEEK):

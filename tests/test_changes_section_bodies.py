@@ -92,8 +92,8 @@ class Adding(Content):
         self.assertEqual(self.s.read(KIND, ref=ref)["type"], "text")
 
     def test_a_new_section_takes_no_body_from_the_request(self):
-        for kind in TYPES + ("text",):
-            self.refused(self.req("new", values={"type": kind, "title": "x", "body": text(BODY)}), "The field 'body' can't be set here.")
+        for kind in TYPES:        # #929: only a text section may start with words (test_changes_text_body)
+            self.refused(self.req("new", values={"type": kind, "title": "x", "body": text(BODY)}), changes.NO_BODY_HERE)
         self.refused(self.req("new", values={"type": "needs"}, body=text(BODY)), "clark doesn't know 'body' in that request.")
 
     def test_the_starting_body_comes_from_the_registry_not_the_request(self):
@@ -348,7 +348,7 @@ class Deleting(Content):
 class NothingElseOpens(unittest.TestCase):
     def test_only_the_section_update_may_carry_a_body(self):
         carrying = [(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields]
-        self.assertEqual(carrying, [(KIND, "update")])
+        self.assertEqual(carrying, [(KIND, "new"), (KIND, "update")])      # #929: new takes a body for a text section only (the others are refused)
 
     def test_only_a_text_body_has_a_markup_path_and_it_is_the_cleaner(self):
         src = (store_module.Path(changes.__file__)).read_text(encoding="utf-8")

@@ -89,13 +89,11 @@ export function remove(id, place) {
 export async function addFromTemplate(id, after, beside) {
   const p = planTemplate(list(), id, after, beside);
   if (!p.ok) { note(p.message); return null; }
-  const first = await change(p.requests[0], p.words);
-  if (first) {
-    // A template with a starter body (Plan summary) writes it with a second request, because `new` takes only a type and a title.
-    // That makes TWO Undo steps (the first Undo removes the body, the second removes the section). The owner has not ruled on this yet.
-    if (p.template && p.template.body && first.ref) await change({ op: "update", id: first.ref, changes: { body: p.template.body }, place: "report" }, "Starting headings added.");
-    keep(Promise.resolve(first), "new", "title");
-  }
+  // A template with a starter body (Plan summary) sends it in the one `new` request, so one Undo takes the whole section away.
+  const start = p.template && p.template.body && p.template.type === "text" ? { body: p.template.body } : {};
+  const req = p.requests[0];
+  const first = await change({ ...req, values: { ...req.values, ...start } }, p.words);
+  if (first) keep(Promise.resolve(first), "new", "title");
   else await reread(project.value);       // clark said no: the page may be out of date (the section above gone, or paired since), so it shows what clark holds
   return first;
 }
