@@ -64,6 +64,8 @@ def sug(text, caret=None, extra=None):
     return run_node(f"Q.suggestions({lit(text)}, {caret}, {lit(ROWS)}, {lit(CTX)}, {lit(extra or [])})")
 
 
+FIELDS = "You can filter by type:, status:, owner:, priority:, due:, workstream:, usecase:, milestone:, client: and is:, or type plain words to search titles."
+
 class Pieces(unittest.TestCase):
     def pieces(self, line, caret=None):
         c = "undefined" if caret is None else str(caret)
@@ -89,7 +91,7 @@ class Pieces(unittest.TestCase):
 
     def test_an_unusable_token_is_an_error_piece_with_its_words(self):
         p = [x for x in self.pieces("stat:x opn") if x["cls"] == "err"]
-        self.assertEqual([(x["text"], x["message"]) for x in p], [("stat:x", "Unknown field 'stat'. Did you mean Status?")])
+        self.assertEqual([(x["text"], x["message"]) for x in p], [("stat:x", "There is no \u201cstat\u201d filter. Did you mean status? "+FIELDS)])
 
     def test_a_token_still_being_typed_is_not_marked_while_the_caret_is_in_it(self):
         self.assertEqual([x["cls"] for x in self.pieces("status:", 7)], ["txt"])
@@ -142,8 +144,8 @@ class Words(unittest.TestCase):
         return run_node(f"Q.parseFor({lit(line)}, {lit(ROWS)}, {lit(CTX)}).errors.map(Q.messageOf)")
 
     def test_each_approved_sentence(self):
-        self.assertEqual(self.say("stat:x"), ["Unknown field 'stat'. Did you mean Status?"])
-        self.assertEqual(self.say("zzzzzz:x"), ["Unknown field 'zzzzzz'."])
+        self.assertEqual(self.say("stat:x"), ["There is no \u201cstat\u201d filter. Did you mean status? "+FIELDS])
+        self.assertEqual(self.say("zzzzzz:x"), ["There is no \u201czzzzzz\u201d filter. "+FIELDS])
         self.assertEqual(self.say("is:opn"), ["Unknown state 'opn'. Did you mean open?"])
         self.assertEqual(self.say("status:"), ["Add a value after 'status:'."])
         self.assertEqual(self.say("has:zzzzzz"), ["Unknown field 'zzzzzz'."])

@@ -220,6 +220,12 @@ function nearest(name) {
   return best && best[1] <= 2 ? fieldOf(best[0]) : (n.length >= 2 && names().find((k) => k.startsWith(n))) || null;
 }
 
+/** The sentence for a word before a colon that is not a filter: what the line can filter by, and the nearest field when there is one. */
+export function unknownFilter(name) {
+  const n = nearest(name);
+  return `There is no “${name}” filter.${n ? ` Did you mean ${n}?` : ""} You can filter by ${list(names().map((x) => `${x}:`))}, or type plain words to search titles.`;
+}
+
 /** The sentence for a value that is not one of the choices. */
 export function badValue(field, bad, rows, ctx, memo) {
   const offer = (memo ? memo.offers(field) : offers(field, rows, ctx)).filter((o) => o[0] !== NONE).map((o) => word(field, o[0]));
@@ -253,8 +259,7 @@ function readWord(w, rows, ctx, memo) {
   }
   const k = fieldOf(name);
   if (!k) {
-    const n = nearest(name);
-    return { err: `There is no “${name}” filter.${n ? ` Did you mean ${n}?` : ""} You can filter by ${list(names().map((x) => `${x}:`))}, or type plain words to search titles.`, near: n };
+    return { err: unknownFilter(name), near: nearest(name) };
   }
   const typed = splitValues(rest);
   if (!typed.length) {

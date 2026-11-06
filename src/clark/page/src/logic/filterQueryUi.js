@@ -2,7 +2,7 @@
 // for a token that cannot be used, the rows a line shows, and the list of suggestions with how a chosen one changes the text. No DOM,
 // no store, no clock: the component (components/FilterLine.jsx) draws these and owns the timing. It reads the parser and the evaluation of
 // issue 662 (filterQueryParse.js, filterQueryEval.js), so a field added to the schema, or passed in as `extra`, is understood here too.
-import { LINE_FIELDS, FIELD_NOTES, NO_ME, offers, isOn, word as typedWord, isStartingView } from "./filterLine.js";
+import { LINE_FIELDS, FIELD_NOTES, NO_ME, unknownFilter, offers, isOn, word as typedWord, isStartingView } from "./filterLine.js";
 import { NONE } from "../filters.js";
 import { parseQuery, schemaOf, resolveField, squash, colonAt } from "./filterQueryParse.js";
 import { evaluateQuery } from "./filterQueryEval.js";
@@ -35,7 +35,8 @@ export function messageOf(e) {
   if (!e) return "";
   const first = e.suggestions && e.suggestions[0];
   switch (e.code) {
-    case "unknown-field": return first ? `Unknown field '${e.name}'. Did you mean ${first.name}?` : `Unknown field '${e.name}'.`;
+    case "unknown-field": if (!e.qualifier) return unknownFilter(e.name);      // a word before a colon: the line's own sentence; has: and no: keep theirs
+      return first ? `Unknown field '${e.name}'. Did you mean ${first.name}?` : `Unknown field '${e.name}'.`;
     case "ambiguous-field": return `'${e.name}' could mean more than one field. Use the full name.`;
     case "unknown-state": return first ? `Unknown state '${e.name}'. Did you mean ${first.name}?` : `Unknown state '${e.name}'.`;
     case "missing-value": return `Add a value after '${e.name}:'.`;
