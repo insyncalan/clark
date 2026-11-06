@@ -93,13 +93,25 @@ COVERED = [
      "test_docx_build::WordOpenItemsOnly::test_open_ones_are_still_listed"),
     ("#767", "The printed Milestones timeline is drawn to the page width and does not scroll.",
      "test_pdf_print::Source::test_the_printed_timeline_is_drawn_to_the_page_and_does_not_scroll"),
+    ("#785", "The published footer gives the date once and no View only.",
+     "test_publication_footer::TheFooter::test_row_785_the_client_sees_the_date_once_and_no_view_only_at_1400_and_900_light_and_dark"),
+    ("#765", "Each project form label is left of its field on one row.",
+     "test_project_form_look::Look::test_each_label_is_left_of_its_field_on_one_row_in_two_columns"),
+    ("#765", "Every project form field has a visible border.",
+     "test_project_form_look::Look::test_every_field_has_a_visible_one_pixel_border_in_light_and_dark"),
+    ("#863", "In the project menu the open-items count sits under the name.",
+     "test_project_menu_layout::ProjectMenuLayout::test_C_the_count_sits_under_the_name_in_both_themes_and_modes_at_both_widths"),
+    ("#766", "The peek's Status, Priority, Owner and Due are four cells.",
+     "test_peek_card::CardRule::test_the_card_rules_are_in_the_stylesheet_in_tokens_only"),
+    ("#814", "A click outside the peek and Esc close it; clicks that belong to it do not.",
+     "test_peek_outside::OutsideBrowser::test_esc_and_a_click_outside_close_it_and_clicks_that_belong_to_it_do_not"),
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
 NO_VISIBLE_CHANGE = {"273", "802", "827"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
-PARTLY_MERGED = {"767"}
+PARTLY_MERGED = {"767", "766"}
 
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has
 # landed; marker None means there is no pull request to look for yet).
