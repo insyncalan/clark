@@ -365,11 +365,28 @@ class Page(Base):
             self.until(cdp, sid, "clarkPage.peek() === null", "selecting a second closes the peek")
             self.assertEqual(self.picked(cdp, sid), rows[:2])
 
+    def test_two_closes_before_the_back_lands_step_back_once(self):
+        """Row 891: a key or a pick while the first close of a clicked-open peek is still on its way used to step Back a second time, out of the page."""
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            rows = cdp.js(self.ROWS, sid)
+            tap(cdp, sid, self.rsel(rows[0]))
+            settle(cdp, sid)
+            cdp.js("window.__same = 1; clarkPage.closePeek(); clarkPage.closePeek(); clarkPage.closePeek()", sid)
+            self.until(cdp, sid, "clarkPage.peek() === null", "the peek closed")
+            time.sleep(0.5)
+            self.assertEqual(cdp.js("window.__same", sid), 1, "still on the same page: Back was stepped once")
+
     def test_the_ways_a_selection_ends(self):
         with chrome() as cdp:
             sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
-            pick2 = lambda: (tap(cdp, sid, self.rsel(rows[0])), tap(cdp, sid, self.rsel(rows[2]), MOD))
+            def pick2():
+                """Two picks, then wait (10 s at most) until the plain click's peek has finished closing, so no step starts with its Back in flight."""
+                tap(cdp, sid, self.rsel(rows[0]))
+                settle(cdp, sid)
+                tap(cdp, sid, self.rsel(rows[2]), MOD)
+                self.until(cdp, sid, "clarkPage.selected().length === 2 && clarkPage.peek() === null && !location.hash.includes('item=')", "two picked and the peek closed", secs=10)
             pick2()
             tap(cdp, sid, "#sel-clear")
             self.assertEqual(self.picked(cdp, sid), [], "the X on the bar")
