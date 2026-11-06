@@ -1,4 +1,5 @@
 // The page: the top bar and the open view. `tools` is what Edit adds (edit/index.js); the published page passes none.
+import { useLayoutEffect, useRef } from "preact/hooks";
 import { view, status, tabs, fromFile, isFile, publication, asAt, rebuilt, data, TITLES } from "../stores/report.js";
 import { AsAtBanner } from "./AsAtBanner.jsx";
 import { printing } from "../stores/print.js";
@@ -29,6 +30,23 @@ function PrintStack({ tools }) {
   );
 }
 
+// Row 876: on a tab change only (the view name changes, never a redraw in place) <main> gets .view-in, which shell.css animates under
+// no-preference only; the class comes off when it ends, so the next change starts it again.
+function useViewEnter() {
+  const was = useRef(view.value);
+  useLayoutEffect(() => {
+    if (fromFile.value || was.current === view.value) return;      // a published file does not fade on a tab change
+    was.current = view.value;
+    const el = document.getElementById("main");
+    if (!el) return;
+    el.classList.remove("view-in");
+    void el.offsetWidth;
+    el.classList.add("view-in");
+    const done = (e) => { if (e.target !== el) return; el.classList.remove("view-in"); el.removeEventListener("animationend", done); };   // not a child's own animation ending
+    el.addEventListener("animationend", done);
+  }, [view.value]);
+}
+
 function skipToMain(e) {
   e.preventDefault();
   const m = document.getElementById("main");
@@ -36,6 +54,7 @@ function skipToMain(e) {
 }
 
 export function App({ tools: given }) {
+  useViewEnter();
   // item 349: the Dashboard as at a day is read only: the page draws it as a published file is drawn, with no Edit part at all (no
   // Edit, Publish, menu, peek tools, Help, palette or ask panel), behind its banner; Back to now gives them back.
   const past = !!rebuilt.value && !fromFile.value;
