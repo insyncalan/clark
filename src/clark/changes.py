@@ -1028,6 +1028,8 @@ def _where(place):
     return {"place": place}
 
 
+PEEK_PLACE = "peek"
+MILESTONE_PEEK_FIELDS = ("name", "owner", "workstream", "percent_complete", "description")   # row 828: only the peek sets these
 MILESTONE_DATES = ("baseline_date", "forecast_date", "actual_date")
 MILESTONE_STATUSES = ("Planned", "Done")                 # Cancelled is its own matter, never set from a request
 MILESTONE_MOVEMENTS = ("hold", "rebaseline")             # recover and escalate come with their own item
@@ -1153,7 +1155,12 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
     or clears the link to the person (owner_id), so a later rename or merge of a person leaves a typed owner alone. The archive flag is not changeable here. A refusal
     writes nothing."""
     ref = req.get("id")
-    changes = _checked_milestone_changes(_fields(req.get("changes"), table, UPDATE, columns, "the changes"))
+    sent = _fields(req.get("changes"), table, UPDATE, columns, "the changes")
+    if place != PEEK_PLACE:                                         # row 828: the peek's own fields come from the peek only; Movement (and any other place) keeps its narrow list
+        for k in sent:
+            if k in MILESTONE_PEEK_FIELDS:
+                raise Refused(f"The field '{_shown(k)}' can't be set here.")
+    changes = _checked_milestone_changes(sent)
     given = _checked_rebaseline(req.get("rebaseline"))
     if not changes:
         raise Refused("Say what to change.")
