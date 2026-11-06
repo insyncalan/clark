@@ -32,7 +32,7 @@ export function PeekWarn({ row }) {
   );
 }
 
-// Row 811: the switch that lists an action, risk or issue under "Needs from you" (a decision is listed by its pending status, so it has none).
+// Row 811: the switch that lists an action, risk or issue under "Needs from you" (a decision has no such flag).
 // One change with one Undo; the switch shows what clark stored, so a refusal leaves it as it was.
 export function PeekNeeded({ row }) {
   const rec = raw(row), on = !!(rec && rec.client_action);
