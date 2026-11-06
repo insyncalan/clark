@@ -837,3 +837,37 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
 }
+
+/* The Add a section box as the prototype draws it (#783, system/prototype app.css .atd-*): the templates are a grid of cards, each a
+   small sketch, its name and its widths as chips; the preview has the larger sketch and what it holds as chips; an X closes it.
+   Each card is still a label round a radio (the radio is hidden, its card shows the focus), so the keys and the reading are the list's.
+   Edit only: shell.css keeps the box's frame, these rules come after it. Tokens only, so dark mode follows. */
+.ad.ad-add { width: min(1080px, 100%); }
+.ad-add .ad-head h2 { flex: 0 1 auto; }
+.ad-add .ad-q { margin-left: auto; }
+.ad-add .ad-x { flex: none; color: var(--text-muted); }
+.ad-add .ad-x:hover { color: var(--text); }
+.ad-add .ad-x:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ad-add .ad-main { grid-template-columns: 170px minmax(0, 1fr) minmax(0, 300px); }
+.ad-add .ad-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-content: start; }
+.ad-add .ad-list > .ad-none { grid-column: 1 / -1; }
+.ad-add .ad-tpl { position: relative; display: flex; flex-direction: column; gap: 4px; align-items: stretch; padding: var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); font-size: var(--size-caption); }
+.ad-add .ad-tpl:hover:not(.off) { border-color: var(--grey-500); }
+.ad-add .ad-tpl:has(input:checked) { border-color: var(--brand-blue); background: var(--surface); box-shadow: 0 0 0 2px var(--brand-blue-tint); }
+.ad-add .ad-tpl:has(input:focus-visible) { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ad-add .ad-tpl input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.ad-add .ad-tn { display: block; overflow-wrap: anywhere; }
+.ad-add .ad-fit { display: flex; flex-wrap: wrap; gap: 4px; }
+.ad-add .ad-fit em, .ad-add .ad-els li { font-style: normal; font-size: var(--size-caption); line-height: 18px; padding: 0 7px; color: var(--status-blue-text); background: var(--brand-blue-tint); border: 1px solid color-mix(in srgb, var(--brand-blue) 30%, transparent); border-radius: 999px; }
+.ad-add .ad-fit em { color: var(--text-muted); background: var(--grey-50); border-color: var(--grey-200); }
+.ad-add .ad-later { font-size: var(--size-caption); color: var(--text-muted); }
+.ad-sk { display: grid; gap: 4px; height: 56px; padding: 6px; box-sizing: border-box; border-radius: var(--radius-sm); background: var(--grey-50); }
+.ad-sk i { display: block; min-height: 0; border-radius: 2px; background: var(--grey-300); }
+.ad-sk.big { height: 84px; margin: 0 0 var(--space-2); }
+.ad-add .ad-els { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; padding: 0; }
+@media (max-width: 900px) {
+  .ad-add .ad-main { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .ad-add .ad-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
