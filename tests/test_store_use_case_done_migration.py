@@ -100,7 +100,7 @@ def every_row(path):
     try:
         names = [r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
                                            "AND name != 'meta' ORDER BY name")]
-        later = {"review_after_days", "commitment"}   # columns a later step adds (#171, step 14; #709, step 16): what these older steps keep is every other one
+        later = {"review_after_days", "commitment", "client_action"}   # columns a later step adds (#171, step 14; #709, step 16; row 811, step 17): what these older steps keep is every other one
         out = {}
         for n in names:
             kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if c[1] not in later)
