@@ -109,6 +109,14 @@ class Base(unittest.TestCase):
 
     def view_pick(self, cdp, sid, kind, mouse=True):
         """Choose `kind` ("layout:board", "group:status", "lane:type", ...) from the one View menu (#287), as a person would."""
+        if kind.startswith("layout:"):          # row 812: Table and Board are the two-icon switch, not menu entries
+            sw = f"#work [data-lay={json.dumps(kind[7:])}]"
+            if mouse:
+                click(cdp, sid, sw)
+            else:
+                cdp.js(f"document.querySelector({json.dumps(sw)}).click()", sid)
+            self.until(cdp, sid, f"document.querySelector({json.dumps(sw)}).getAttribute('aria-pressed') === 'true'", f"{kind} pressed")
+            return
         item = f"#viewMenuList [data-kind={json.dumps(kind)}]"
         if mouse:
             click(cdp, sid, "#viewMenu")
@@ -130,6 +138,8 @@ class Base(unittest.TestCase):
         return got
 
     def checked(self, cdp, sid, prefix):
+        if prefix == "layout:":
+            return cdp.js("[...document.querySelectorAll('#work [data-lay][aria-pressed=true]')].map(b => 'layout:' + b.dataset.lay)", sid)
         return [k for k, _, c in self.view_items(cdp, sid) if k.startswith(prefix) and c == "true"]
 
     def until(self, cdp, sid, expr, what="", secs=30):
@@ -149,6 +159,9 @@ class Base(unittest.TestCase):
             key(cdp, sid, "Backspace")
             self.until(cdp, sid, "!/open/.test(document.querySelector('#work-count').textContent)", "the count follows All")
         self.until(cdp, sid, "!!document.querySelector('#work-board .bcard')", "the board")
+        # row 808: the box's list now floats over the cards, so a person who is done with the box has left it before touching a card
+        cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
+        self.until(cdp, sid, "!document.querySelector('#fline-list')", "the list of fields closed")
 
     def drag(self, cdp, sid, card, cell, steps=8):
         """Pick a card up with the mouse and drop it in a column cell, like a person: the board scrolls itself when the pointer
@@ -197,10 +210,12 @@ class Base(unittest.TestCase):
 
 
 class Switch(Base):
-    def test_layout_is_in_the_view_menu_and_is_remembered(self):
+    def test_layout_is_the_two_icon_switch_and_is_remembered(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
-            self.assertEqual([x for x in self.view_items(cdp, sid) if x[0].startswith("layout:")], [["layout:table", "\u2713Table", "true"], ["layout:board", "Board", "false"]])
+            self.assertEqual([x for x in self.view_items(cdp, sid) if x[0].startswith("layout:")], [], "row 812: the View menu no longer holds the layout")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('#work [data-lay]')].map(b => [b.dataset.lay, b.getAttribute('aria-label'), b.title, b.getAttribute('aria-pressed'), b.textContent])", sid),
+                             [["table", "Table", "Table", "true", ""], ["board", "Board", "Board", "false", ""]], "two icons, no words, named for a screen reader")
             self.assertTrue(cdp.js("!!document.querySelector('table.items') && !document.querySelector('#work-board')", sid), "a table to start")
             self.view_pick(cdp, sid, "layout:board")
             self.until(cdp, sid, "!!document.querySelector('#work-board')", "the board")
@@ -870,7 +885,7 @@ class FullScreen(Base):
                     self.assertLessEqual(abs(got["h"] - got["bar"]), 2, f"the column headings sit at the top bar's foot: {got}")
                     cdp.js(f"{scroller}.scrollTop = 0", sid)
                     self.until(cdp, sid, f"{scroller}.scrollTop === 0", "back at the top")
-                    self.assertTrue(cdp.js("['.wbar', '.fline-wrap', '.factive', '.lanebar'].every(s => document.querySelector(s).getBoundingClientRect().top >= (document.querySelector('.top') && getComputedStyle(document.querySelector('.top')).display !== 'none' ? document.querySelector('.top').getBoundingClientRect().bottom - 1 : -1))", sid), "back at the top the toolbar shows again")
+                    self.assertTrue(cdp.js("['.wbar', '.fline-wrap', '.lanebar'].every(s => document.querySelector(s).getBoundingClientRect().top >= (document.querySelector('.top') && getComputedStyle(document.querySelector('.top')).display !== 'none' ? document.querySelector('.top').getBoundingClientRect().bottom - 1 : -1))", sid), "back at the top the toolbar shows again")
 
     def test_pinned_headings_dark_wheel_no_overlap_and_focus(self):
         """#134 (more): in light and dark, at 1400 and 900 px, the toolbar's top moves away with the page, the headings pin at the top

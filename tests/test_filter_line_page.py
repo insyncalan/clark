@@ -41,6 +41,21 @@ THEMES = ("light", "dark")
 EMPTY_SAYS = lambda text: bool(re.search(r"No (open )?items match", text))
 
 
+def click_tab(cdp, sid, selector):
+    """Click a view tab. At 900 px the tabs sit in a row that scrolls sideways, and the row slides to the tab just chosen, so a tab is
+    not where it was measured while that slide runs and the click lands beside it. Wait until the row has stopped (the same offset on
+    four reads 60 ms apart), bring the tab into view, then click."""
+    reads = []
+
+    def still():
+        reads.append(cdp.js("document.querySelector('.vtabs').scrollLeft", sid))
+        time.sleep(0.06)
+        return len(reads) >= 4 and len(set(reads[-4:])) == 1
+    assert wait(still), "the tab row is still sliding"
+    cdp.js("document.querySelector(%s).scrollIntoView({inline: 'center', block: 'nearest', behavior: 'instant'})" % json.dumps(selector), sid)
+    click(cdp, sid, selector)
+
+
 class Line(unittest.TestCase):
     steps = None         # history.length right after the page drew: the address must not add to it
 
@@ -478,7 +493,7 @@ class Line(unittest.TestCase):
             self.assertEqual(self.shown(cdp, sid), sorted(r["id"] for r in self.rows(cdp, sid)))
 
     def test_the_freshness_words_follow_the_projects_own_number_of_days(self):
-        """#171: the project's review_after_days (in its row of the data) is what the menu says, in the singular for one day."""
+        """#171 and row 813: the project's review_after_days (in its row of the data) is what the suggestion for the typed word says, in the singular for one day."""
         for days, words in ((3, "Not reviewed in 3 days"), (1, "Not reviewed in 1 day"), (365, "Not reviewed in 365 days")):
             self.data["TUL"]["project"]["review_after_days"] = days
             self.addCleanup(self.data["TUL"]["project"].__setitem__, "review_after_days", 14)
@@ -486,23 +501,23 @@ class Line(unittest.TestCase):
             with self.subTest(days=days), chrome() as cdp:
                 sid = self.load(cdp, s.port)
                 self.watch(cdp, sid)
-                click(cdp, sid, "#freshMenu")
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#freshMenu[aria-expanded=true]')", sid)), "the freshness menu is open")
-                names = cdp.js("[...document.querySelectorAll('[role=menu] [role^=menuitem]')].map(e => e.textContent.trim())", sid)
-                self.assertEqual(names, [words, "No owner or no date"])
+                self.assertFalse(cdp.js("!!document.querySelector('#freshMenu')", sid), "row 813: no Freshness pill")
+                self.focus(cdp, sid)
+                cdp.js("document.querySelector('#fline-input').select()", sid)
+                self.type(cdp, sid, "is:")
+                self.assertTrue(wait(lambda: "is:quiet" in self.listed(cdp, sid)))
+                glosses = cdp.js("Object.fromEntries([...document.querySelectorAll('#fline-list [role=option]')].map(o => [o.dataset.ins, (o.querySelector('.fl2') || {}).textContent]))", sid)
+                self.assertEqual((glosses["is:quiet"], glosses["is:incomplete"]), (words, "No owner or no date"))
 
-    def test_the_freshness_menu_gives_the_two_plain_values_and_the_chips_say_them_in_plain_words(self):
+    def test_the_freshness_pill_is_gone_and_the_typed_words_still_filter_and_say_themselves_in_plain_words(self):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     self.watch(cdp, sid)
-                    click(cdp, sid, "#freshMenu")
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#freshMenu[aria-expanded=true]')", sid)), "the freshness menu is open")
-                    names = cdp.js("[...document.querySelectorAll('[role=menu] [role^=menuitem]')].map(e => e.textContent.trim())", sid)
-                    self.assertEqual(names, ["Not reviewed in 14 days", "No owner or no date"], "the demo carries review facts, so both values are offered")
-                    click(cdp, sid, "[role=menu] [role^=menuitem]:nth-child(2)")
+                    self.assertFalse(cdp.js("!!document.querySelector('#freshMenu, [aria-label=Freshness]')", sid), "row 813: no Freshness pill in the row")
+                    self.put(cdp, sid, "is:open is:incomplete")
                     self.assertTrue(wait(lambda: "is:incomplete" in self.chips(cdp, sid)), self.chips(cdp, sid))
                     self.assertEqual(self.tokens(cdp, sid, "val"), ["open", "incomplete"], "the line's own words")
                     rows = self.rows(cdp, sid)
@@ -512,10 +527,8 @@ class Line(unittest.TestCase):
                                   and True)
                     self.assertEqual(self.shown(cdp, sid), want)
                     self.assertIn("reviewed", cdp.js("location.hash", sid), "the address keeps the older Freshness filter")
-                    click(cdp, sid, "#freshMenu")
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu] [role^=menuitem]')", sid)), "the menu has items")
-                    click(cdp, sid, "[role=menu] [role^=menuitem]:nth-child(2)")
-                    self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open"]), "picking it again takes it off")
+                    self.put(cdp, sid, "is:open")
+                    self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open"]), "taking the word off")
                     self.assertEqual(cdp.js("window.__errs", sid), [])
 
     def test_an_address_with_a_freshness_filter_opens_work_items_with_no_error(self):
@@ -718,7 +731,7 @@ class Line(unittest.TestCase):
                     self.assertEqual(names, ["Open items", "Actions", "Risks and issues", "Decisions", "All work items", "Overdue", "My actions"], "the core five, then the starting views; one is hidden until the page can answer it")
                     self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), "Open items")
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-dot]').length", sid), 0)
-                    click(cdp, sid, ".vtab[data-view-id=overdue]")
+                    click_tab(cdp, sid, ".vtab[data-view-id=overdue]")
                     self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open", "due:overdue"]), "the chips are is:open and due:overdue")
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-dot]').length", sid), 0)
                     self.put(cdp, sid, "is:open due:overdue priority:High")
@@ -733,9 +746,9 @@ class Line(unittest.TestCase):
                     click(cdp, sid, "#viewTabMenuList [data-kind=save]")
                     self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-dot]').length", sid) == 0), "saved: the dot goes")
                     # another tab, then back: the saved line is what comes back
-                    click(cdp, sid, ".vtab[data-view-id=core-open]")
+                    click_tab(cdp, sid, ".vtab[data-view-id=core-open]")
                     self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open"]), "the chips are is:open")
-                    click(cdp, sid, ".vtab[data-view-id=overdue]")
+                    click_tab(cdp, sid, ".vtab[data-view-id=overdue]")
                     self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open", "due:overdue", "priority:High"]), "the chips are is:open, due:overdue and priority:High")
                     # Rename
                     click(cdp, sid, "#viewTabMenu")
@@ -790,7 +803,7 @@ class Line(unittest.TestCase):
                 self.assertEqual(cdp.js(tabs, sid), ["Open items", "Actions", "Risks and issues", "Decisions", "All work items", "Old view"], "the broken view is listed; the starting client view is still left out")
                 self.assertEqual(cdp.js("document.querySelector('[data-vbad]').textContent", sid), "", "nothing said until it is chosen")
                 before = self.shown(cdp, sid)
-                click(cdp, sid, ".vtab[data-view-id=old]")
+                click_tab(cdp, sid, ".vtab[data-view-id=old]")
                 self.assertTrue(wait(lambda: "cannot be used any more" in cdp.js("document.querySelector('[data-vbad]').textContent", sid)), "the form says the view cannot be used any more")
                 said = cdp.js("document.querySelector('[data-vbad]').textContent", sid)
                 self.assertIn("Unknown field 'colour'.", said, "it says why")
@@ -940,27 +953,26 @@ class Line(unittest.TestCase):
             self.assertEqual(opts[:4], ["no:owner", "has:owner", "-owner:", "owner:@me"])
             self.assertFalse([o for o in opts if o.lower().endswith(":none")])
 
-    def test_the_open_list_sits_above_the_rows_never_over_them_and_the_first_row_is_still_clickable(self):
-        """The list of fields is in the page flow under the box: it covers no row, and a click on the first row while it is open still reaches the row."""
+    def test_the_open_list_floats_over_the_page_and_pushes_nothing_down(self):
+        """Row 808: the list of fields floats over the rows just under the box; opening it moves no row; a row below it is still reached."""
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
+                    top = "document.querySelector('#work-list').getBoundingClientRect().top"
+                    before = cdp.js(top, sid)
                     self.put(cdp, sid, "")
                     self.assertTrue(wait(lambda: self.listed(cdp, sid) == self.FIELDS_ALL), "the list of fields is open")
-                    geo = cdp.js("(() => { const l = document.querySelector('#fline-list').getBoundingClientRect(), r = document.querySelector('#work tbody tr[data-id]').getBoundingClientRect(); return {lb: l.bottom, rt: r.top}; })()", sid)
-                    self.assertLessEqual(geo["lb"], geo["rt"], "the open list ends above the first row")
-                    # the point at the middle of the first row's text is the row's own, not the list's
-                    hit = cdp.js("(() => { const t = document.querySelector('#work tbody tr[data-id] td'); const r = t.getBoundingClientRect(); window.scrollTo(0, window.scrollY + r.top - 200); const q = t.getBoundingClientRect(); const e = document.elementFromPoint(q.left + 4, q.top + q.height / 2); return !!e && !e.closest('#fline-list') && !!e.closest('tr[data-id]'); })()", sid)
-                    self.assertTrue(hit, "a point on the first row reaches the row")
-                    # a real click on the row while the list is open: the click lands on the row (it is not moved away by the list closing)
-                    cdp.js("window.__hit = null; document.addEventListener('click', e => { const r = e.target.closest('tr[data-id]'); window.__hit = r ? r.dataset.id : ''; }, true)", sid)
-                    first = cdp.js("document.querySelector('#work tbody tr[data-id]').dataset.id", sid)
-                    cdp.js("window.scrollTo(0, 0)", sid)
-                    click(cdp, sid, "#work tbody tr[data-id] td")
-                    self.assertTrue(wait(lambda: cdp.js("window.__hit", sid) == first), "the click reached the first row")
-                    self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#fline-list')", sid)), "and the list closes")
+                    self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#fline-list')).position", sid), "absolute")
+                    self.assertGreater(int(cdp.js("getComputedStyle(document.querySelector('#fline-list')).zIndex", sid)), 25, "above the menus")
+                    geo = cdp.js("(() => { const l = document.querySelector('#fline-list').getBoundingClientRect(), b = document.querySelector('[data-fline]').getBoundingClientRect(); return {lt: l.top, lb: l.bottom, bb: b.bottom, ll: l.left, bl: b.left}; })()", sid)
+                    self.assertLess(abs(geo["lt"] - geo["bb"]), 8, "the list is just under the box")
+                    self.assertLess(abs(geo["ll"] - geo["bl"]), 2, "at the box's left")
+                    self.assertEqual(cdp.js(top, sid), before, "the list below the box did not move")
+                    self.assertGreater(geo["lb"], before, "the list lies over the first rows")
+                    own = cdp.js("(() => { const l = document.querySelector('#fline-list').getBoundingClientRect(); const e = document.elementFromPoint(l.left + 40, l.top + 20); return !!e && !!e.closest('#fline-list'); })()", sid)
+                    self.assertTrue(own, "the list is the top layer where it lies")
 
     def test_the_five_core_tabs_come_first_with_counts_that_match_the_rows_and_have_no_rename_or_archive(self):
         s = self.serve()
@@ -975,7 +987,7 @@ class Line(unittest.TestCase):
                     self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "the row fits the page")
                     self.assertTrue(cdp.js("!!document.querySelector('#viewNew')", sid))
                     for vid, want in lines.items():
-                        click(cdp, sid, f".vtab[data-view-id={vid}]")
+                        click_tab(cdp, sid, f".vtab[data-view-id={vid}]")
                         self.assertTrue(wait(lambda: sorted(self.chips(cdp, sid)) == sorted(want)), vid)
                         self.assertEqual(cdp.js(f"document.querySelector('.vtab[data-view-id={vid}]').getAttribute('aria-pressed')", sid), "true")
                         n = cdp.js(f"+document.querySelector('.vtab[data-view-id={vid}] em').textContent", sid)
@@ -1004,7 +1016,7 @@ class Line(unittest.TestCase):
                     self.assertEqual(cdp.js("document.querySelector('#viewTabMenu').getAttribute('aria-label')", sid), "Options for Open items")
                     self.assertGreaterEqual(cdp.js("document.querySelector('#viewTabMenu').getBoundingClientRect().height", sid), 24)
                     # Overdue is an ordinary view now: it has all the entries
-                    click(cdp, sid, ".vtab[data-view-id=overdue]")
+                    click_tab(cdp, sid, ".vtab[data-view-id=overdue]")
                     self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["is:open", "due:overdue"]), "the chips are is:open and due:overdue")
                     click(cdp, sid, "#viewTabMenu")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)), "the tabs menu opened")
@@ -1022,7 +1034,7 @@ class Line(unittest.TestCase):
                     key(cdp, sid, "Enter")
                     self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-dot]').length", sid) == 0), "saved: the dot goes")
                     # + New view on a core tab: the line becomes a view after the core five, with its count, and is chosen
-                    click(cdp, sid, ".vtab[data-view-id=core-decisions]")
+                    click_tab(cdp, sid, ".vtab[data-view-id=core-decisions]")
                     self.assertTrue(wait(lambda: sorted(self.chips(cdp, sid)) == ["is:open", "type:decision"]), "the chips are is:open and type:decision")
                     self.put(cdp, sid, "is:open type:decision priority:High")
                     self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.vtab[data-view-id=core-decisions] [data-dot]').length", sid) == 1), "one tab shows the unsaved dot")

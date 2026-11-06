@@ -206,6 +206,8 @@ class Page(Base):
             cdp.js("document.querySelector('#fline-input').select()", sid)
             press(cdp, sid, "Backspace")
             self.until(cdp, sid, "!/open/.test(document.querySelector('#work-count').textContent)", "every item shown")
+            cdp.js("document.activeElement.blur()", sid)          # row 808: the box's list floats over the rows, so the person has left the box before clicking a row
+            self.until(cdp, sid, "!document.querySelector('#fline-list')", "the list of fields closed")
         self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length > 5", "the rows")
         return sid
 
@@ -668,7 +670,7 @@ class OnTheBoard(Base):
                 tap(cdp, sid, self.card(cards[1]), MOD)
                 self.assertEqual(cdp.js("clarkPage.selected()", sid), [cards[0], cards[2], cards[3]])
                 self.assertTrue(cdp.js(f"document.querySelector(\"article[data-id='{cards[0]}']\").classList.contains('picked')", sid))
-                self.assertTrue(cdp.js(f"!!document.querySelector(\"article[data-id='{cards[0]}'] .bc-title .tick\")", sid), "a tick before the title")
+                self.assertFalse(cdp.js(f"!!document.querySelector(\"article[data-id='{cards[0]}'] .tick\")", sid), "row 807: no check mark on a selected card; the border and tint show it")
                 self.assertIn(", selected", cdp.js(f"document.querySelector(\"article[data-id='{cards[0]}'] .bc-main\").getAttribute('aria-label')", sid))
                 self.assertEqual(cdp.js("document.querySelector('#sel-count').textContent", sid), "3 selected")
                 tap(cdp, sid, self.card(cards[2]))                  # one plain click first: it narrows the selection to this card, and the page settles before the double click is aimed

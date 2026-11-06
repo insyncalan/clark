@@ -912,3 +912,6 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   :root:not([data-motion="reduce"]) main.view-in { animation: m-view var(--dur-view) var(--ease-enter) 1; }
   @keyframes m-view { from { opacity: 0; transform: translateY(var(--space-2)); } }
 }
+
+/* row 940 (macOS gate, test_edit_cells_layout): in Edit at 900 px and below the Due, priority and status columns are 8 px wider than the bare minimum, so a font a little wider than Linux's (macOS draws these three 2 to 3 px wider) stays inside its box. EDIT ONLY: shell.css is also the published page's, whose Item column must stay at least 280 px (test_published_item_column), so the widths are not set there. Same specificity as shell.css's 900 px rule and later in the page, so these win without !important. */
+@media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 101px; } table.items .c-status { width: 150px; } }
