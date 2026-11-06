@@ -77,7 +77,7 @@ class CardBrowser(unittest.TestCase):
             self.assertEqual(round(order[0]["w"]), round(order[1]["w"]), f"{where}: equal cells")
         self.assertIsNotNone(got["type"], where)
         self.assertGreaterEqual(got["type"]["t"], max(c["b"] for c in order) - 1, f"{where}: Type and the rest sit below the card")
-        known = {"Type", "Owner", "Decision by", "Due", "Needed by", "Date", "Priority", "Status", "Workstream", "Milestone", "Use case", "Shown to client", "Raised", "Last reviewed"}
+        known = {"Type", "Owner", "Decision by", "Due", "Needed by", "Date", "Priority", "Status", "Workstream", "Milestone", "Use case", "Shown to client", "Client wording", "Raised", "Last reviewed"}
         self.assertLessEqual(set(got["labels"]), known, f"{where}: the same labels as before (no new words)")
 
     def test_the_card_in_view_and_edit_light_and_dark_at_both_widths(self):
