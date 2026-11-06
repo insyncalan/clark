@@ -159,9 +159,9 @@ class Dialog(Base):
             p.key(" ", code="Space", vk=32)
             p.until("document.querySelector('#pub-client').checked", "Space ticks it")
             p.key("Tab", code="Tab", vk=9)
-            self.assertEqual(p.js("document.activeElement.id"), "pub-pdf", "Tab goes to the PDF tick, then the Word tick")
+            self.assertEqual(p.js("document.activeElement.id"), "pub-word", "Tab goes to the Word tick, then the PDF tick (#796)")
             p.key("Tab", code="Tab", vk=9)
-            self.assertEqual(p.js("document.activeElement.id"), "pub-word", "Tab goes to the Word tick, then Cancel")
+            self.assertEqual(p.js("document.activeElement.id"), "pub-pdf", "Tab goes to the PDF tick, then Cancel")
             p.key("Tab", code="Tab", vk=9)
             self.assertEqual(p.js("document.activeElement.hasAttribute('data-cancel')"), True, "then to the button")
             p.key("Tab", code="Tab", vk=9)
@@ -175,6 +175,24 @@ class Dialog(Base):
             p.key("Enter", code="Enter", vk=13)         # Enter on the tick submits: Local only
             p.until("document.querySelector('[data-go]').classList.contains('ok')", "Enter published")
             self.assertEqual(len(self.rig.rows()), 1)
+
+    def test_C_the_box_is_drawn_as_the_prototype_draws_it(self):
+        # #796: Word before PDF (system/prototype/io.js), option titles not bold, the box 560 px wide and its heading on the h3 size
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.width(1400)
+            p.open_publish()
+            p.until("document.getAnimations().length === 0", "the box has finished opening")
+            self.assertEqual(p.js("Array.from(document.querySelectorAll('#publish-dialog .pubopts > label input')).map(function(i){return i.id})"),
+                             ["pub-local", "pub-client", "pub-word", "pub-pdf"], "Local, To client, Word, PDF")
+            self.assertEqual(p.js("Array.from(document.querySelectorAll('#publish-dialog .pubopt b')).map(function(b){return getComputedStyle(b).fontWeight})"),
+                             ["400"] * 4, "the option titles are not bold")
+            self.assertEqual(p.js("Math.round(document.querySelector('#publish-dialog').getBoundingClientRect().width)"), 560)
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('#pub-title')).fontSize"), "20px")
+            p.width(500)
+            p.until("document.getAnimations().length === 0", "settled at 500")
+            self.assertTrue(p.js("(function(){var r=document.querySelector('#publish-dialog').getBoundingClientRect();return r.left >= 0 && r.right <= document.documentElement.clientWidth && r.width < 560})()"),
+                            "it never runs off a narrow window")
 
     def test_C_reopen_is_unticked_after_a_client_publish(self):
         with chrome() as cdp:

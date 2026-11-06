@@ -797,3 +797,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .rt-host { min-height: 6rem; min-height: calc(3lh + 1rem); resize: vertical; overflow: auto; }
 .rt-host .ProseMirror { min-height: 3lh; padding-bottom: 1lh; }
 .de-preview { min-height: calc(3lh + 1.5rem); max-height: 60vh; resize: vertical; }
+/* #796: the Publish box as the prototype draws it (system/prototype/app.css: dialog 560 px, .pubopt b not bold); the heading one step down the scale */
+#publish-dialog { width: min(560px, calc(100vw - 32px)); }
+#publish-dialog h2 { font-size: var(--size-h3); }
+.pubopt b { font-weight: var(--weight-regular); }
