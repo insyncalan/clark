@@ -1009,7 +1009,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-head { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); align-items: flex-start; justify-content: space-between; }
 .hp-head h1 { margin: 0 0 var(--space-1); font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
 .hp-head p { margin: 0; }
-.hp-actions { display: flex; gap: 10px; align-items: center; }
+.hp-head > div:first-child { flex: 1 1 24rem; min-width: 0; }   /* the intro gives way, so the search sits at the top right beside it */
+.hp-actions { display: flex; gap: 10px; align-items: center; margin-left: auto; }
 .hp-search input { box-sizing: border-box; min-height: 36px; padding: 0 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; width: 300px; }
 .hp-search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .hp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

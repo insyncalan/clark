@@ -167,7 +167,7 @@ class Nav(Base):
             self.assertEqual(p.js("getComputedStyle(document.querySelector('.hp-idx')).position"), "sticky")
 
     # ---------- (4) the way back ----------
-    def test_a_way_back_to_the_previous_place_sits_beside_back(self):
+    def test_a_way_back_to_the_previous_place_sits_beside_the_search(self):
         from test_server import chrome
         with chrome() as cdp:
             p = self.in_help(cdp)
@@ -175,8 +175,9 @@ class Nav(Base):
             p.js("document.querySelector('.hp-job[data-hlink=guide-add-a-section-from-a-template]').click()")
             p.until("!!document.querySelector('#hp-guide-add-a-section-from-a-template.hp-found')", "the job opened")
             self.assertEqual(p.js("document.querySelector('#hpPrev').textContent"), "Back to Start here")
-            self.assertTrue(p.js("var a=document.querySelector('#hpBack').getBoundingClientRect(), b=document.querySelector('#hpPrev').getBoundingClientRect(); b.left >= a.right - 1 && Math.abs(a.top - b.top) < 8"), "beside Back, on its row")
-            self.assertEqual(p.js("document.querySelector('#hpBack').textContent"), "Back", "Back still means Back")
+            p.until("document.getAnimations().length === 0", "settled before measuring")
+            self.assertTrue(p.js("var a=document.querySelector('#hpPrev').getBoundingClientRect(), b=document.querySelector('.hp-search').getBoundingClientRect(); b.left >= a.right - 1 && Math.abs(a.top - b.top) < 8"), "beside the search, on its row")
+            self.assertEqual(p.js("document.querySelector('#hpBack')"), None, "no Back button; Esc leaves Help")
             ids = p.js("[...document.querySelectorAll('.hp-idx a')].map(a => a.dataset.hlink)")
             p.js(f"document.querySelector('.hp-idx a[data-hlink={ids[2]}]').click()")
             p.until(f"!!document.querySelector('#hp-{ids[2]}.hp-found')", "a second place")
@@ -190,7 +191,7 @@ class Nav(Base):
             self.assertEqual(p.js("document.querySelector('#hpPrev')"), None, "the history is used up")
             self.assertEqual(p.js("!!document.querySelector('#help')"), True, "and Help is still open")
 
-    def test_the_way_back_has_room_at_900_and_in_both_themes_and_back_still_closes_help(self):
+    def test_the_way_back_has_room_at_900_and_in_both_themes_and_esc_still_closes_help(self):
         from test_server import chrome
         with chrome() as cdp:
             p = self.in_help(cdp)
@@ -202,8 +203,8 @@ class Nav(Base):
                     set_size(cdp, p, w)
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), f"{scheme} {w}: no sideways scroll")
                     self.assertTrue(p.js("var b=document.querySelector('#hpPrev').getBoundingClientRect(); b.right <= innerWidth && b.left >= 0 && b.height >= 30"), f"{scheme} {w}: in view")
-            p.js("document.querySelector('#hpBack').click()")
-            p.until("!document.querySelector('#help') && !!document.querySelector('#report')", "Back closes Help, as before")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#help') && !!document.querySelector('#report')", "Esc closes Help")
             from test_help_panel import full_help_from_menu   # "?" opens the context peek now; the profile menu's Help is the full Help
             full_help_from_menu(p, "reopened")
             self.assertEqual(p.js("document.querySelector('#hpPrev')"), None, "a fresh visit starts a fresh history")

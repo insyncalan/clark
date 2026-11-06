@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import { content, TABS, tabList, tasks, sections, guides, jobs, undoLink, nextOf, firstTen, loopSteps, iconLegend, milestoneMarks, buildIndex, resultsView, whereLabels, goLabel, markParts, stepPicture } from "./helpLogic.js";
 import { pictureUrl } from "./helpPictures.js";
-import { helpOpen, helpTab, helpTarget, helpQuery, helpFocusSearch, helpHere, helpLand, landing, setTab, follow, goTo, canGo, closeHelp, backPlace, goBackPlace } from "./helpStore.js";
+import { helpOpen, helpTab, helpTarget, helpQuery, helpFocusSearch, helpHere, helpLand, landing, setTab, follow, goTo, canGo, backPlace, goBackPlace } from "./helpStore.js";
 import { Md } from "./helpText.jsx";
 import { Icon } from "../components/Icon.jsx";
 
@@ -323,10 +323,9 @@ export function Help() {
       <div class="head hp-head">
         <div>
           <h1>Help</h1>
-          <p class="muted">How clark works, step by step, and every screen and key. <span class="hp-keyhint">Press <kbd>?</kbd> on any page to open Help; Esc or Back takes you where you were.</span><span class="hp-taphint">Tap <b>?</b> in the top bar on any page to open Help; Back takes you where you were.</span></p>
+          <p class="muted">How clark works, step by step, and every screen and key. <span class="hp-keyhint">Press <kbd>?</kbd> on any page to open Help; Esc takes you where you were.</span><span class="hp-taphint">Tap <b>?</b> in the top bar on any page to open Help.</span></p>
         </div>
         <div class="hp-actions">
-          <button type="button" class="hp-back" id="hpBack" onClick={closeHelp}><Icon name="left" />Back</button>
           {back ? <button type="button" class="hp-back hp-prev" id="hpPrev" onClick={goBackPlace}>Back to {back.title}</button> : null}
           <label class="search hp-search"><span class="hp-sr">Search Help</span><Icon name="search" />
             <input id="hpQ" ref={search} type="search" placeholder="Search Help" autocomplete="off" aria-describedby="hpQk" value={q} onInput={(e) => { helpQuery.value = e.currentTarget.value; helpTarget.value = null; }}

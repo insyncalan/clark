@@ -228,7 +228,7 @@ class Peek(Base):
             self.assertEqual(p.js("document.querySelector('#help-peek')"), None, "the peek closed")
             self.assertEqual(p.js("document.querySelector('#hpTab-reference').getAttribute('aria-selected')"), "true", "on the tab of the entry named (ref-keys)")
             p.until("!!document.querySelector('#hp-ref-keys')", "its section is drawn")
-            p.js("document.querySelector('#hpBack').click()")
+            p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('#help') && !!document.querySelector('#report')", "Back to the page")
             self.assertEqual(p.js("document.querySelector('#help-peek')"), None, "with the peek closed")
             self.assertEqual(p.js("location.hash"), "#dashboard&p=ABC")
