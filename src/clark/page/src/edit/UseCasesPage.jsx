@@ -2,7 +2,7 @@
 // dashboard or not, and one use case's own page when the address names one (#usecases&p=CODE&uc=1.2, drawn by UseCaseDetail).
 // A row: its reference, its name (the button that opens it), where it stands, the status in words with a dot, the linked work items
 // and how many are open, the linked milestones, and the eye (an icon alone; its words are the tooltip). The eye is the dashboard's own switch (use_cases.client_visible),
-// changed through the one change path with its Undo toast, in Edit; in View the same words are shown and nothing changes.
+// changed through the one change path with its Undo toast, in View as in Edit (row 819).
 // The list is ONE tab stop (the current row's name): Up and Down move between rows, Home and End to the first and last, Right to the
 // row's eye and Left back to its name. The search, the Status choice, the On the dashboard switch and the sort are remembered for each
 // project in this browser (logic/useCasesList.js), never in the address, so they add no Back entry.
