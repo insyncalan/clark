@@ -13,7 +13,7 @@ import { WORDS as NEEDS } from "./needs.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text, needs since the section that carries content (#121),
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
-export const ACCEPTS = { types: ["text", "needs", ...TEMPLATE_TYPES] };
+export const ACCEPTS = { types: ["text", "needs", ...TEMPLATE_TYPES, "current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs"] };
 
 export const KINDS = [
   { id: "text", name: "Text and pictures" },
@@ -76,6 +76,16 @@ export const LATER = [
   { id: "headline", type: "headline", ready: true },
 ];
 
+// The built-in sections (row 906): a deleted one is added again from the box, one of each, with the title and settings it starts
+// with (changes.py BUILT_IN_TYPES). Listed only while the report has no section of that type (`list` and `counts` take `sections`).
+const builtIn = (type, title, kind) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true });
+export const BUILT_INS = [
+  builtIn("current", "Current state", "text"), builtIn("glance", "At a glance", "figures"), builtIn("usecases", "Use case summary", "work"),
+  builtIn("milestones", "Milestones", "dates"), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
+  builtIn("decisions", "Decisions", "work"), builtIn("docs", "Supporting documents", "files"),
+];
+const missing = (sections) => (sections ? BUILT_INS.filter((b) => !sections.some((s) => s.type === b.type)) : []);
+
 // Every template entry, in the box or not: one per template type, and Text and Needs from you (#121).
 export const CATALOGUE = [...TEMPLATES, ...LATER];
 
@@ -117,7 +127,7 @@ export const SKETCHES = {
   "one-doc": ["grid-template-rows:1fr 1fr", ["", "width:70%"]],
 };
 
-export const find = (id) => TEMPLATES.find((t) => t.id === id) || null;
+export const find = (id) => TEMPLATES.find((t) => t.id === id) || BUILT_INS.find((t) => t.id === id) || null;
 export const available = (t) => !!t && t.ready === true && ACCEPTS.types.includes(t.type);
 export const kindName = (id) => (KINDS.find((k) => k.id === id) || { name: "" }).name;
 
@@ -128,8 +138,8 @@ const matches = (t, q) => {
 };
 
 // The templates for a search and a choice of kind ("" or "all": every kind; RECENT: the recently used ones, newest first).
-export function list({ query = "", kind = "", recent = [] } = {}) {
-  const found = TEMPLATES.filter((t) => matches(t, query));
+export function list({ query = "", kind = "", recent = [], sections = null } = {}) {
+  const found = [...TEMPLATES, ...missing(sections)].filter((t) => matches(t, query));
   if (kind === RECENT) return recent.map((id) => found.find((t) => t.id === id)).filter(Boolean);
   return kind && kind !== "all" ? found.filter((t) => t.kind === kind) : found;
 }
@@ -143,9 +153,9 @@ export function noMatch({ query = "", kind = "" } = {}) {
 }
 
 // How many each choice would show for the search: { all, recent, <kind id>: n ... }.
-export function counts({ query = "", recent = [] } = {}) {
-  const out = { all: list({ query }).length, [RECENT]: list({ query, kind: RECENT, recent }).length };
-  for (const k of KINDS) out[k.id] = list({ query, kind: k.id }).length;
+export function counts({ query = "", recent = [], sections = null } = {}) {
+  const out = { all: list({ query, sections }).length, [RECENT]: list({ query, kind: RECENT, recent, sections }).length };
+  for (const k of KINDS) out[k.id] = list({ query, kind: k.id, sections }).length;
   return out;
 }
 
@@ -182,6 +192,7 @@ export function besideState(sections, after, template) {
 export function plan(sections, id, after, beside = false) {
   const t = find(id);
   if (!t) return { ok: false, message: MESSAGES.unknown };
+  if (t.builtIn && !missing(sections).includes(t)) return { ok: false, message: MESSAGES.unknown };      // already in the report: not offered twice
   if (!available(t)) return { ok: false, message: MESSAGES.later };
   const a = anchor(sections, after);
   if (!a.ok) return a;

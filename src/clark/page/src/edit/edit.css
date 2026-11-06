@@ -871,3 +871,22 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 @media (max-width: 600px) {
   .ad-add .ad-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+/* row 830: the Use cases page head buttons, the archived box under the list, and the next step row on the detail. Spacing is on the --space tokens; no exact token for 6px (gap, padding: --space-2), 10px (--space-3) or 280px (4 x --space-8 = 256px) */
+.ucl-acts { flex-wrap: wrap; justify-content: flex-end; }
+.ucl-acts .btn { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--space-6); color: var(--text); }
+.ucl-arch { margin-top: var(--space-4); }
+.ucl-arch .arch-l { margin: 0; padding: 0; list-style: none; }
+.ucl-arch .arch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); color: var(--text-muted); }
+.ucl-arch .arch:first-child { border-top: 0; }
+.ucl-arch .arch .btn { margin-left: auto; min-height: var(--space-6); color: var(--text); }
+.ucl-arch .arch .link { min-height: var(--space-5); }
+.ucx-foot { margin: var(--space-3) 0 0; font-size: var(--size-body); color: var(--text-muted); }
+.ucx-foot .link { min-height: var(--space-5); }
+.ucx-addrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--grey-100); }
+.ucx-addrow .ucx-step { flex: 1 1 calc(var(--space-8) * 4); min-width: 0; margin: 0; }
+.ucx-addrow .add-from { min-height: var(--space-5); }
+/* row 876: the page fades in and rises 8 px on a tab change in Edit only (App.jsx puts .view-in on <main> then; a published file never does). Same gate as the Motion block in shell.css. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) main.view-in { animation: m-view var(--dur-view) var(--ease-enter) 1; }
+  @keyframes m-view { from { opacity: 0; transform: translateY(var(--space-2)); } }
+}

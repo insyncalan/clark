@@ -665,6 +665,7 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 .gtick:disabled { cursor: not-allowed; opacity: .45; }
 .gtick:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .selbar { display: flex; align-items: center; gap: var(--space-3); margin: 10px 0 2px; padding: 6px 6px 6px 14px; border: 1px solid var(--brand-blue); border-radius: var(--radius); background: color-mix(in srgb, var(--brand-blue-tint) 60%, var(--surface)); font-size: var(--size-small); }
+body:not(.board-view) #sel-bar { position: sticky; top: calc(var(--topbar) + var(--space-2)); z-index: 20; }   /* row 864: the bar stays under the top bar while a lower row is ticked; the board is its own scroller, so there it stays in the flow */
 .selbar .sb-n { font-weight: var(--weight-medium); color: var(--heading); }
 .selbar .sb-x { margin-left: auto; width: 30px; height: 30px; }
 .selbar .sb-x[data-tip]:hover::after, .selbar .sb-x[data-tip]:focus-visible::after { right: 0; }

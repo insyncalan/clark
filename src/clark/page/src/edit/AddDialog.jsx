@@ -48,8 +48,8 @@ function Box({ after, opener, onClose }) {
   const [beside, setBeside] = useState(false);
   const root = useRef(null), search = useRef(null);
 
-  const shown = list({ query, kind, recent });
-  const n = counts({ query, recent });
+  const shown = list({ query, kind, recent, sections });
+  const n = counts({ query, recent, sections });
   const current = find(chosen) && shown.some((t) => t.id === chosen) ? find(chosen) : (shown.find(available) || shown[0] || null);
   const okBeside = besideState(sections, after, current);
   const sideOn = beside && okBeside.ok;
