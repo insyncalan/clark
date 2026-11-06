@@ -1566,6 +1566,9 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     /* the peek slides in on opening and its body fades in as Previous or Next steps on */
     .peek:not(.leaving) { animation: m-slide var(--dur-state) var(--ease-enter) 1; }
     .pk-body { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
+    /* row 885: the ask panel rises from the bottom of the window as it opens and sinks back as it closes (transform only; its place is unchanged) */
+    .ask-panel { animation: ask-up var(--dur-layout) var(--ease-enter) 1; }
+    .ask-panel.leaving { pointer-events: none; animation: ask-down var(--dur-state) var(--ease-exit) forwards; }
     /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
     .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
     .secs.drop-end { animation: m-line-end var(--dur-state) var(--ease-enter) 1; }
@@ -1587,6 +1590,8 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     :root:not([data-motion="reduce"]) .ad-tpl { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
     :root:not([data-motion="reduce"]) .ad-tpl:not(.off):hover { transform: translateY(-1px); box-shadow: var(--shadow); }
   }
+  @keyframes ask-up { from { transform: translateY(100%); } to { transform: none; } }
+  @keyframes ask-down { from { transform: none; } to { transform: translateY(100%); } }
   @keyframes m-tick { from { opacity: 0; transform: scale(.4); } }
   @keyframes m-line-top { from { box-shadow: 0 -3px 0 transparent; } }
   @keyframes m-line-end { from { box-shadow: 0 3px 0 transparent; } }
