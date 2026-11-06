@@ -1,4 +1,4 @@
-"""Row 900: the project menu in the top bar. Each project is its name on one line and "N open items" on its own line under it (the name
+"""The project menu in the top bar. Each project is its name on one line and "N open items" on its own line under it (the name
 is cut with an ellipsis when too long), never run together on one line; the menu is no wider than the room, with no sideways scroll.
 Measured at 1400 and 900, light and dark, View and Edit. Invented names.
 
