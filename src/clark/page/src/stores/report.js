@@ -10,9 +10,10 @@ import { searchIndex } from "../clientView.js";
 import { lineApi } from "./lineSlot.js";
 import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
+import { editorOn, tabName } from "../gantt/ganttTab.js";
 
 export const VIEWS = route.VIEWS;
-export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", get clientreport() { return fromFile.value ? "Weekly snapshot" : "Client Requested Report View"; }, settings: "Settings" };   // "Use cases" in the editor and in a published file alike (#383); the published client report tab is "Weekly snapshot" (a client has not asked for anything by that name)
+export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", get gantt() { return tabName(data.value && data.value.project); }, get clientreport() { return fromFile.value ? "Weekly snapshot" : "Client Requested Report View"; }, settings: "Settings" };   // "Use cases" in the editor and in a published file alike (#383); the published client report tab is "Weekly snapshot" (a client has not asked for anything by that name)
 export const SHORT_TITLES = { get clientreport() { return fromFile.value ? "Snapshot" : "Client report"; } };   // the tab button on a narrow window; the page keeps its full name (#192)
 
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
@@ -45,6 +46,11 @@ export const asAt = signal("");              // view mode: the publish date, YYY
 export const rebuilt = signal("");           // item 349: the day the Dashboard is shown as at, rebuilt from the change history (YYYY-MM-DD), else "": memory only, never in the address; while set the page is read only
 export const SERVED_TABS = VIEWS.filter((v) => v !== "clientreport");   // the served page never offers the client report (#559); only a published file lists it, from its own p.tabs
 export const tabs = signal(SERVED_TABS);           // the views the tab bar offers; a published file has no Settings, and only the Use Cases it was given
+// The tabs the bar offers right now. A published file lists its own (the server decides, #926); the served page adds the Gantt tab only
+// when the open project's setting says so, and until a project is read it does not (a reload on #gantt opens it once the setting is known).
+export const shownTabs = computed(() => (fromFile.value ? tabs.value : tabs.value.filter((v) => v !== "gantt" || editorOn(data.value && data.value.project))));
+// The served page with the setting off (or turned off after) has no Gantt page: the address opens the first tab, as a reload of it does.
+effect(() => { if (view.value === "gantt" && !fromFile.value && status.value === "ready" && !shownTabs.value.includes("gantt")) { view.value = SERVED_TABS[0]; route.navigate({ view: SERVED_TABS[0], project: project.value, item: "", ms: "", f: "" }, { replace: true }); } });
 export const moves = signal(0);              // counts Back and Forward (and a typed address): a menu that is open closes on each
 export const projects = signal([]);                 // [{code, name}] from GET /api/projects
 export const projectsState = signal("loading");     // loading | ready | failed

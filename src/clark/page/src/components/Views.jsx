@@ -112,7 +112,7 @@ export function Milestones({ tools }) {
 // focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
 // The links (item 440, S2; issue 697) are a list down the left of the cards above 900 px and the old row of chips under the head at 900 px and
 // narrower. Either way it stays under the top bar as you scroll, and the link of the card you are reading is marked (aria-current).
-const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
+const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["GanttSetting", "Gantt", "gantt-setting-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
   ["Projects", "Projects", "projects-h"], ["Data", "Data", "data-card-h"], ["Safety", "Backups", "safety-h"], ["Update", "", "update-h"],
   ["People", "People", "people-h"], ["AskSettings", "Asking", "ask-settings-h"]];       // in the order the cards are drawn; a card that is not on the page has no chip
 
@@ -179,12 +179,13 @@ export function Settings({ tools }) {
   const PublishedReports = open && tools && tools.PublishedReports;      // the list of publications, with Open (#443); Edit's page only
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
   const ReviewDays = open && tools && tools.ReviewDays;          // Freshness (item 160): the project's "Not reviewed after (days)"
+  const GanttSetting = open && tools && tools.GanttSetting;      // Gantt (#926): the two ticks and the tab name, per project
   const Diagnostics = tools && tools.Diagnostics;        // logs and diagnostics (#110)
   const Data = tools && tools.Data;                    // the Data card (A-S11): Export to Excel; Edit only
   const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
   const Update = tools && tools.Update;                  // Version and updates; a published file has none
   // a card's chip says its heading; an Edit-only card with no name here brings its own (`chip`), so a published file never holds it
-  const NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays"];
+  const NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays", "GanttSetting"];
   const cards = CARDS.filter(([tool]) => tools && tools[tool] && (open || !NEEDS_PROJECT.includes(tool))).map(([tool, name, headId]) => [tool, name || tools[tool].chip || "", headId]);
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
   const People = tools && tools.People;                  // the People card (item 454): email, organisation, role, Paste from Excel; Edit's page only
@@ -197,6 +198,7 @@ export function Settings({ tools }) {
       {PublishedReports ? <PublishedReports /> : null}
       {Personal ? <Personal /> : null}
       {ReviewDays ? <ReviewDays /> : null}
+      {GanttSetting ? <GanttSetting /> : null}
       {Diagnostics ? <Diagnostics /> : null}
       {Projects ? <Projects /> : null}
       {Data ? <Data /> : null}

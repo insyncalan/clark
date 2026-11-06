@@ -1,5 +1,5 @@
 // The page: the top bar and the open view. `tools` is what Edit adds (edit/index.js); the published page passes none.
-import { view, status, tabs, fromFile, isFile, publication, asAt, rebuilt, data, TITLES } from "../stores/report.js";
+import { view, status, tabs, shownTabs, fromFile, isFile, publication, asAt, rebuilt, data, TITLES } from "../stores/report.js";
 import { AsAtBanner } from "./AsAtBanner.jsx";
 import { printing } from "../stores/print.js";
 import { printTabs, publishedLine } from "../logic/printView.js";
@@ -11,8 +11,9 @@ import { Peek } from "./Peek.jsx";
 import { UseCasesTab } from "./UseCasesTab.jsx";
 import { WorkItems } from "./WorkItems.jsx";
 import { ClientReport } from "./ClientReport.jsx";
+import { GanttPage } from "../gantt/components/GanttPage.jsx";
 
-const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, clientreport: ClientReport, settings: Settings };
+const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, clientreport: ClientReport, gantt: GanttPage, settings: Settings };
 
 // The printed page (item 438): every tab the file has, one after another, each under its own name, with the day it was published at the head.
 // Only a published file draws it, and only while the browser is printing (stores/print.js).
@@ -40,7 +41,7 @@ export function App({ tools: given }) {
   // Edit, Publish, menu, peek tools, Help, palette or ask panel), behind its banner; Back to now gives them back.
   const past = !!rebuilt.value && !fromFile.value;
   const tools = past ? null : given;
-  const own = (tabs.value.includes(view.value) && PAGES[view.value]) || Dashboard;   // a view the file or editor does not offer falls back to the dashboard
+  const own = (shownTabs.value.includes(view.value) && PAGES[view.value]) || Dashboard;   // a view the file or editor does not offer falls back to the dashboard
   const Page = view.value !== "usecases" ? own : fromFile.value ? UseCasesTab : (tools && tools.UseCasesPage) || Dashboard;   // the Use cases page is the editor's; a published file has its own view-only tab
   const DemoBanner = !fromFile.value && tools && tools.DemoBanner;         // #731: the demo data line (Edit only); a published file has none, nor has any page drawn from one
   const Toast = tools && tools.Toast;
