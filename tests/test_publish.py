@@ -1142,6 +1142,8 @@ class RealBrowser(unittest.TestCase):
                            "buttons: [...document.querySelectorAll('button')].filter(b => !b.classList.contains('tab') && !b.closest('.msv') && !b.closest('.toc') && !b.closest('.cm-wrap')).length, "
                            f"unlisted: [...document.querySelectorAll('.msv button')].filter(b => !b.matches({json.dumps(allow)})).map(b => b.className + ' ' + b.textContent).length, "
                            "settings: !!document.querySelector('[data-view=settings]'), mode: document.documentElement.dataset.mode})", sid)
+            logo = cdp.js("(function(){ var l = document.querySelector('.top .logo'); return l ? l.tagName : null; })()", sid)
+        self.assertEqual(logo, "SPAN", "row 854: the published file's logo is plain, not a Home button")
         self.assertEqual(found, {"fields": 0, "design": "off", "editable": False, "buttons": 0, "unlisted": 0, "settings": False, "mode": "view"})
 
     def test_C_boxed_width_1232_at_1400_and_no_sideways_scroll_at_900(self):

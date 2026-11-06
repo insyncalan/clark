@@ -31,10 +31,7 @@ def flat(o):
 
 
 class TopBar(unittest.TestCase):
-    def test_the_logo_bullet_is_gone_because_the_logo_goes_nowhere(self):
-        top = code("components", "TopBar.jsx")
-        logo = re.search(r'<span class="logo"[^>]*>', top).group(0)
-        self.assertNotIn("onClick", logo)
+    def test_the_help_has_no_logo_bullet_the_logo_has_no_help_line_of_its_own(self):      # row 854: the logo is now a Home button; Help gained no new sentence
         self.assertNotIn("back to the Dashboard", flat(SECS["top-bar"]))
         self.assertNotIn("The logo", flat(SECS["top-bar"]))
 

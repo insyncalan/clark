@@ -14,7 +14,8 @@ a { color: var(--status-blue-text); }
 [hidden] { display: none !important; }
 
 .top { position: sticky; top: 0; z-index: 30; height: var(--topbar); background: var(--brand-navy); color: var(--white); display: flex; align-items: center; gap: 18px; padding: 0 20px; }
-.logo { display: inline-flex; align-items: center; }
+.logo { all: unset; display: inline-flex; align-items: center; cursor: pointer; }   /* a button since row 854: it goes Home */
+.logo:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 4px; border-radius: 6px; }
 .logo-icon { display: var(--logo-icon); width: 28px; height: 28px; margin-right: var(--space-2); background: center / contain no-repeat; }   /* the image is added by dev/tools/build_page.py */
 .logo .wm { font-weight: var(--weight-medium); font-size: var(--size-h2); letter-spacing: .02em; }   /* 24 px, as the owner ruled for the PR 240 sizes */
 .top .divider { width: 1px; height: 26px; background: color-mix(in srgb, var(--white) 20%, transparent); }
