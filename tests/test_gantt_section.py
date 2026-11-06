@@ -113,6 +113,13 @@ class Section(unittest.TestCase):
         self.assertEqual(self.val("K.section.linesOf({})"), [])
         self.assertEqual(self.val(f"K.section.linesOf({{gantt_lines: [null, 4, {{id: 'GNT-9', name: 'A', type: 'task', start: '2026-11-02', end: '2026-11-03', depends: 'GNT-1, GNT-2', show: 1}}]}})[0].depends"), ["GNT-1", "GNT-2"])
 
+    def test_a_published_file_has_only_data_gantt_and_the_section_reads_its_lines(self):
+        file_data = {"gantt": {"columns": ["id", "name", "type", "start", "end", "pct"], "lines": [
+            {"id": "GNT-1", "name": "Plan", "type": "phase", "start": "2026-11-02", "end": "2026-11-20", "pct": 10},
+            {"id": "GNT-2", "name": "Build", "type": "task", "parent": "GNT-1", "start": "2026-11-02", "end": "2026-11-10", "pct": 50}]}}
+        self.assertEqual(self.val(f"K.section.linesOf({lit(file_data)}).map((l) => l.id)"), ["GNT-1", "GNT-2"])
+        self.assertEqual(self.val(f"K.section.linesOf({lit({**file_data, 'gantt_lines': []})}).length"), 0, "the editor's own list wins when it is there")
+
     def test_nothing_on_the_dashboard_means_an_empty_section(self):
         none = [{**l, "show": False} for l in LINES]
         self.assertTrue(self.val(f"K.templateEmpty({{type: 'gantt'}}, {lit(report(none))})"))

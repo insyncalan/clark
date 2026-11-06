@@ -11,7 +11,8 @@ const list = (v) => (Array.isArray(v) ? v : typeof v === "string" ? v.split(",")
 
 // The plan lines in the order the author saved them, in the shape the chart draws (logic/gantt.js tidy). Anything that is not a line is skipped.
 export function linesOf(data) {
-  const raw = data && Array.isArray(data.gantt_lines) ? data.gantt_lines : [];
+  // The editor's report carries data.gantt_lines; a published file carries only data.gantt.lines (the lines the client may see, already in order).
+  const raw = data && Array.isArray(data.gantt_lines) ? data.gantt_lines : data && data.gantt && Array.isArray(data.gantt.lines) ? data.gantt.lines : [];
   const lines = raw.filter((l) => l && typeof l === "object" && l.id != null)
     .map((l, i) => ({ l, i, order: Number.isFinite(+l.sort_order) ? +l.sort_order : i }))
     .sort((a, b) => a.order - b.order || a.i - b.i)

@@ -2158,18 +2158,18 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 
 /* The Gantt table (row 926). Lives here, not in the component: the page only runs inline style elements it has a hash for, so a style
    element drawn by the component at run time would never apply. Brand tokens only, so light and dark both follow the page. */
-.gt { --gz: 1; display: block; color: var(--text); font-size: var(--size-small, 13px); }
-.gt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--text-muted); font-size: var(--size-caption); min-height: 28px; }
-.gt-bar button { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius); height: 26px; min-width: 28px; padding: 0 8px; font: inherit; cursor: pointer; }
-.gt-bar button:hover { border-color: var(--brand-blue); }
-.gt-bar button:focus-visible, .gt-menu button:focus-visible, .gt-eye:focus-visible, .gt-rb:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.gt-msg { flex: 1 1 240px; min-width: 0; }
-.gt-msg.gt-bad { color: var(--status-red-text); font-weight: 600; }
-.gt-msg button { margin-left: 8px; }
+[data-gt].gt { --gz: 1; display: block; color: var(--text); font-size: var(--size-small, 13px); }
+[data-gt] .gt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--text-muted); font-size: var(--size-caption); min-height: 28px; }
+[data-gt] .gt-bar button { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius); height: 26px; min-width: 28px; padding: 0 8px; font: inherit; cursor: pointer; }
+[data-gt] .gt-bar button:hover { border-color: var(--brand-blue); }
+[data-gt] .gt-bar button:focus-visible, [data-gt] .gt-menu button:focus-visible, [data-gt] .gt-eye:focus-visible, [data-gt] .gt-rb:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+[data-gt] .gt-msg { flex: 1 1 240px; min-width: 0; }
+[data-gt] .gt-msg.gt-bad { color: var(--status-red-text); font-weight: 600; }
+[data-gt] .gt-msg button { margin-left: 8px; }
 .gt-pos { margin-left: auto; }
 .gt-scroll { position: relative; overflow: auto; max-height: var(--gt-max, 60vh); border: 1px solid var(--border); border-radius: var(--radius); outline: 0; background: var(--surface); user-select: none; }
 .gt-scroll:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.gt table { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: calc(12.5px * var(--gz)); }
+.gt table { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: calc(var(--size-caption) * var(--gz)); }
 .gt th, .gt td { height: calc(26px * var(--gz)); padding: 0 calc(7px * var(--gz)); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); background: var(--surface); text-align: left; white-space: nowrap; overflow: clip; text-overflow: ellipsis; box-sizing: border-box; }
 .gt thead th { position: sticky; top: 0; z-index: 5; background: var(--grey-100); color: var(--text-muted); font-weight: 600; cursor: pointer; padding-right: calc(24px * var(--gz)); }
 .gt thead th.hs, .gt .gt-rh.hs { background: color-mix(in srgb, var(--brand-blue) 22%, var(--grey-100)); color: var(--text); }
@@ -2198,8 +2198,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt .gt-rh:hover .gt-rn, .gt .gt-rh:focus-within .gt-rn { display: none; }
 .gt .gt-rh:hover .gt-rb, .gt .gt-rh:focus-within .gt-rb { display: inline-flex; }
 .gt-rb.gt-del:hover { color: var(--status-red-text); }
-.gt-menu { position: fixed; z-index: 70; min-width: 200px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px; }
-.gt-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: var(--text); padding: 6px 10px; border-radius: var(--radius-sm); font: inherit; cursor: pointer; }
-.gt-menu button:hover, .gt-menu button:focus-visible { background: var(--grey-100); outline: 0; }
-.gt-menu button.gt-danger { color: var(--status-red-text); }
-.gt-menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
+[data-gt] .gt-menu { position: fixed; z-index: 70; min-width: 200px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px; }
+[data-gt] .gt-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: var(--text); padding: 6px 10px; border-radius: var(--radius-sm); font: inherit; cursor: pointer; }
+[data-gt] .gt-menu button:hover, [data-gt] .gt-menu button:focus-visible { background: var(--grey-100); outline: 0; }
+[data-gt] .gt-menu button.gt-danger { color: var(--status-red-text); }
+[data-gt] .gt-menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
