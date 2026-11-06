@@ -56,7 +56,7 @@ export function metaOf(row, kind) {
 export function rulesOf(data) {
   return rulesFor({
     code: data && data.project && data.project.code, hidden: ((data && data.report_hidden) || []).map((h) => (h && h.item_id) || h), labelRules: (data && data.label_rules) || [],
-    labels: (data && data.labels) || {}, sections: (data && data.report_sections) || [],
+    labels: (data && data.labels) || {}, sections: (data && data.report_sections) || [], deleted: !!(data && data.sections_deleted),
   });
 }
 

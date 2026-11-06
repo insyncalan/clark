@@ -451,11 +451,15 @@ class HelpMatchesThePage(unittest.TestCase):
         self.assertNotIn("**Tile colour**", self.ALL)
         self.assertGreaterEqual(self.ALL.count("right-click for **Outline colour**") + self.ALL.count("Right-click a tile in Edit for **Outline colour**"), 2)
 
-    def test_delete_section_is_said_for_both_kinds_that_have_it(self):
+    def test_delete_section_is_said_for_both_kinds_that_have_it(self):      # the name is kept (test_v070 lists it); row 906: now every kind
+        """Row 906: the menu offers Delete section for every section type (no type list gates it), and Help says so."""
         gutter = (self.SRC / "edit" / "Gutter.jsx").read_text(encoding="utf-8")
-        self.assertIn('DELETABLE = ["text", "needs"]', gutter)
-        arrange = next(t for t in STEPS if t["id"] == "arrange-the-report")
-        self.assertIn("for a text section or the Needs from you section, **Delete section**", " ".join(arrange["s"]))
+        self.assertNotIn("DELETABLE", gutter)
+        self.assertNotIn("canDelete", gutter)
+        self.assertIn('text: "Delete section"', gutter)
+        arrange = " ".join(next(t for t in STEPS if t["id"] == "arrange-the-report")["s"])
+        self.assertRegex(arrange, r"and\s+\*\*Delete section\*\*")
+        self.assertNotIn("for a text section or the Needs from you section", arrange)
 
 
 class CalendarKeysHelp(unittest.TestCase):
