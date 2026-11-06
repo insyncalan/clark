@@ -120,18 +120,44 @@ class Listed(unittest.TestCase):
         self.assertEqual(got[:cap - 2], ["Typed %d" % n for n in range(cap - 2)])
         self.assertEqual(got[cap - 2:], ["Gen 0", "Gen 1"], "the first in order are kept")
 
-    def test_the_cap_logs_one_warning_with_the_count_and_no_item_text(self):
+    def full_list(self):
         cap = publish.section_bodies.NEEDS_MAX_ROWS
         self.section([{"what": "Typed %d" % n} for n in range(cap - 2)])
         for n in range(5):
             self.action("ZQ-LOGGED-%d" % n)
+
+    def lines(self, got):
+        return [l for l in got.output if "Needs from you" in l]
+
+    def test_a_build_logs_one_warning_with_the_count_and_no_item_text(self):
+        self.full_list()
         with self.assertLogs("clark.publish", level="WARNING") as got:
             self.built()
-        lines = [l for l in got.output if "Needs from you" in l]
-        self.assertEqual(len(lines), 1)
-        self.assertIn("3 flagged item(s)", lines[0])
+        self.assertEqual(len(self.lines(got)), 1)
+        self.assertIn("3 flagged item(s)", self.lines(got)[0])
         self.assertNotIn("ZQ-LOGGED", "".join(got.output))
         self.assertNotIn("Typed", "".join(got.output))
+
+    def test_the_publish_and_preview_builds_each_log_once(self):
+        # publish_flow's publish (line 234) and preview (line 550) both make the file with publish.build, called as they call it
+        from clark import publish_flow
+        self.full_list()
+        for name in ("publish", "preview"):
+            with self.subTest(name), self.assertLogs("clark.publish", level="WARNING") as got:
+                publish.build(self.s, "ABC", NOW, None, None, workbook=publish_flow.CLIENT_WORKBOOK)
+            self.assertEqual(len(self.lines(got)), 1)
+
+    def test_the_ask_excel_cover_glance_and_word_paths_are_silent(self):
+        from clark import ask_data, excel_cover, glance
+        self.full_list()
+        inputs = publish.read_inputs(self.s, "ABC", NOW)
+        with self.assertLogs("clark.publish", level="WARNING") as got:
+            LOGGER.warning("probe")
+            publish.select(inputs)                                                    # a bare call, as the Word route makes before docx_build
+            ask_data.project_data(self.s, "ABC")                                      # Ask
+            excel_cover.from_store(self.s, "ABC", "2030-01-15", as_at=NOW)            # the Excel cover
+            glance.kept_rows(inputs["data"], NOW, sections=inputs.get("sections"), label_rules=inputs.get("label_rules"))   # glance
+        self.assertEqual(got.output, ["WARNING:clark.publish:probe"])
 
     def test_no_warning_when_everything_fits(self):
         self.action("Fits")
@@ -207,11 +233,20 @@ class Listed(unittest.TestCase):
         self.assertEqual([s["id"] for s in got], [ref])
         self.assertEqual([r["what"] for r in got[0]["rows"]], ["Generated one"])
 
-    def test_without_a_needs_section_one_is_made_for_the_file_with_the_curly_quoted_title_words(self):
+    def test_without_any_needs_section_one_is_made_for_the_file_and_comes_last(self):
         self.action("Generated one")
-        got = [s for s in self.built()["published"]["sections"] if s["type"] == "needs"]
+        shown = self.built()["published"]["sections"]
+        got = [s for s in shown if s["type"] == "needs"]
         self.assertEqual(len(got), 1)
         self.assertEqual(got[0]["title"], "Needs from you")
+        self.assertGreater(len(shown), 1, "the default sections are there too")
+        self.assertIs(shown[-1], got[0], "the made section is the last one")
+        self.assertEqual(self.s.con.execute("SELECT count(*) FROM report_sections WHERE type = 'needs'").fetchone()[0], 0, "nothing is stored")
+
+    def test_newlines_tabs_and_runs_of_spaces_in_the_text_become_single_spaces(self):
+        self.action("Send  the\naccess\t\tlist\r\n  today ", description="x")
+        self.action("", description="Plain\n\n  description\there")
+        self.assertEqual(self.whats(), ["Send the access list today", "Plain description here"])
 
     def test_a_needs_section_the_owner_has_hidden_stays_hidden(self):
         self.section([{"what": "Hand one"}], hidden=1)

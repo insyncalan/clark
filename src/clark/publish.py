@@ -347,7 +347,7 @@ def flagged_needs(rows):
         for r in rows[k]:
             if r.get("client_action") != 1 or r.get("status") not in OPEN_STEPS:
                 continue
-            what = next((t for t in (reason_text(str(r.get(f) or "")).strip() for f in ("client_message", "description")) if t), "")[:section_bodies.NEEDS_WHAT_MAX].strip()
+            what = next((t for t in (reason_text(" ".join(str(r.get(f) or "").split())).strip() for f in ("client_message", "description")) if t), "")[:section_bodies.NEEDS_WHAT_MAX].strip()
             if not what:
                 continue
             due = r.get("due_date")
@@ -422,6 +422,7 @@ def select(inputs):
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
     ctx = section_bodies.Context({k: out[k] for k in KINDS}, as_at)          # #96: only what is already kept, as the file carries it
     extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
+    dropped = 0
     listed = flagged_needs(rows)         # row 811b: the flagged open items, as rows of the 'Needs from you' list
     if listed:
         needs_sections = [x for x in sections if x.get("type") == section_bodies.NEEDS]
@@ -434,8 +435,7 @@ def select(inputs):
         if mine is not None:
             typed = list((extra.get(mine["id"]) or {}).get("rows") or [])
             room = max(0, section_bodies.NEEDS_MAX_ROWS - len(typed))
-            if len(listed) > room:           # the daily log gets the count only: no title, no text
-                LOG.warning("The Needs from you list is full: %d flagged item(s) are left out of the published file.", len(listed) - room)
+            dropped = max(0, len(listed) - room)           # said by build() only, as a count (see the end of select)
             extra[mine["id"]] = {**(extra.get(mine["id"]) or {}), "rows": typed + listed[:room]}   # typed rows win: the section never holds more than a typed list may
     out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
                              or (x.get("type") == "docs" and not out["documents"]))       # #74: no document to show, no section
@@ -465,7 +465,7 @@ def select(inputs):
         tabs.append("usecases")
     if "milestones" not in hidden_types:      # the Client Requested Report View (#192) reads only what the file already holds; its figures are the milestones
         tabs.append("clientreport")
-    return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at}
+    return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at, "needs_dropped": dropped}     # row 811b: build() takes needs_dropped out and logs it; no other caller does
 
 
 # ===== The file (pure) =====
@@ -1215,7 +1215,11 @@ def build(store, code, now=None, branding=None, section_style=None, number=None,
         inputs["section_style"] = section_style
     if inputs["data"]["project"].get("archived"):           # #126: checked here, not in select (glance.kept_rows calls select and must still work)
         raise PublishError("An archived project can't be published. Restore it first.")
-    published = add_glance(select(inputs), inputs)
+    published = select(inputs)
+    dropped = published.pop("needs_dropped", 0)         # row 811b: only a publish or preview build says so, as a count and nothing else
+    if dropped:
+        LOG.warning("The Needs from you list is full: %d flagged item(s) are left out of the published file.", dropped)
+    published = add_glance(published, inputs)
     if workbook:
         from clark import excel_client           # not at the top: openpyxl is loaded only when a workbook is made
         try:
