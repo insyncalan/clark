@@ -665,5 +665,16 @@ class Source(unittest.TestCase):
             self.assertNotIn(word, view)
 
 
+class KeysGroupHasNoFrame(unittest.TestCase):
+    """Row 792: the Keys group on Settings, Personal takes the same frameless group look as Appearance (the .styles fieldset), not the browser's boxed fieldset."""
+
+    def test_the_keys_fieldset_uses_the_frameless_group_class(self):
+        import re
+        src = (PAGE_SRC / "edit" / "Personal.jsx").read_text(encoding="utf-8")
+        m = re.search(r'<fieldset\s+class="([^"]*)"[^>]*>\s*<legend>\s*Keys\s*</legend>', src)
+        self.assertIsNotNone(m, "the Keys fieldset was not found in Personal.jsx")
+        self.assertIn("styles", m.group(1).split(), "the Keys fieldset has no frameless .styles class, so it is drawn with the browser's 1 px box")
+
+
 if __name__ == "__main__":
     unittest.main()

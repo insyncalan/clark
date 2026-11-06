@@ -14,7 +14,8 @@ a { color: var(--status-blue-text); }
 [hidden] { display: none !important; }
 
 .top { position: sticky; top: 0; z-index: 30; height: var(--topbar); background: var(--brand-navy); color: var(--white); display: flex; align-items: center; gap: 18px; padding: 0 20px; }
-.logo { display: inline-flex; align-items: center; }
+.logo { all: unset; display: inline-flex; align-items: center; cursor: pointer; }   /* a button since row 854: it goes Home */
+.logo:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 4px; border-radius: 6px; }
 .logo-icon { display: var(--logo-icon); width: 28px; height: 28px; margin-right: var(--space-2); background: center / contain no-repeat; }   /* the image is added by dev/tools/build_page.py */
 .logo .wm { font-weight: var(--weight-medium); font-size: var(--size-h2); letter-spacing: .02em; }   /* 24 px, as the owner ruled for the PR 240 sizes */
 .top .divider { width: 1px; height: 26px; background: color-mix(in srgb, var(--white) 20%, transparent); }
@@ -725,8 +726,6 @@ table.items tbody tr.grp, table.items tbody tr.colh { cursor: default; }
 table.items td.c-eye, table.items th.c-eye { padding-left: 0; padding-right: var(--space-2); text-align: center; vertical-align: middle; }
 table.items .weye { width: 28px; height: 28px; }
 table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--status-blue-text); }
-table.items .weye.ro { display: inline-grid; place-items: center; color: var(--grey-500); cursor: default; }
-table.items .weye.ro .i { width: 16px; height: 16px; }
 .grp-b { all: unset; box-sizing: border-box; min-height: 24px; display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; font-weight: var(--weight-medium); }
 .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .grp-b .i { width: 14px; height: 14px; transition: transform var(--dur-instant) var(--ease-out); }
@@ -797,6 +796,11 @@ table.items tr[data-id]:focus-visible { outline: 2px solid var(--brand-blue); ou
 .type.tl { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0; font-size: var(--size-small); font-weight: 600; line-height: 1; }
 .eye { display: inline-flex; color: var(--status-blue-text); }
 .eye .i { width: 16px; height: 16px; }
+.bc-top .weye { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius); color: var(--grey-500); cursor: pointer; }      /* row 819: the card's eye is a button, the list eye's own, without the shared `ib` name */
+.bc-top .weye:hover { color: var(--text); background: var(--grey-100); }
+.bc-top .weye:focus-visible { outline: 2px solid var(--brand-blue); }
+.bc-top .weye[aria-pressed="true"] { color: var(--status-blue-text); }
+.bc-top .weye .i { width: 16px; height: 16px; }
 .bc-title { margin: var(--space-1) 0 6px; font-size: var(--size-small); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .bc-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-2); }
 .bc-foot .due-l { display: inline; }

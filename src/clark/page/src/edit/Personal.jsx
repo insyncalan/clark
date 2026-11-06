@@ -166,7 +166,7 @@ export function Personal() {
         <p class="muted appearance-line" data-appearance-line aria-live="polite">{(APPEARANCES.find(([id]) => id === appearance.value) || APPEARANCES[0])[2]}</p>
       </fieldset>
       <AboutYou />
-      <fieldset class="keys">
+      <fieldset class="styles keys">
         <legend>Keys</legend>
         <label class="sw key-sw"><button type="button" class="switch" role="switch" aria-label="Single-key shortcuts" aria-checked={singleKeys.value ? "true" : "false"} aria-describedby="keys-line"
           onClick={flipKeys}></button>

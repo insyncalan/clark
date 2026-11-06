@@ -40,17 +40,18 @@ export function noTextRange(e) {
   if (row && row.focus) row.focus({ preventScroll: true });
 }
 
-/** A click on a row or card: plain selects only it; Cmd or Ctrl adds or removes it; Shift selects the range from the last one,
- *  in the drawn order; Cmd or Ctrl with Shift adds the range. With the peek open on one item, the peek follows. */
+/** A click on a row or card: plain selects only it and opens the peek on it; Cmd or Ctrl adds or removes it; Shift selects the range from
+ *  the last one, in the drawn order; Cmd or Ctrl with Shift adds the range. With the peek open on one item, the peek follows. */
 export function pickClick(e, id, opener = (x) => openPeek(x, "item")) {
   const add = e.metaKey || e.ctrlKey, range = e.shiftKey;
   if (!add && !range && String(window.getSelection ? window.getSelection() : "").length) return;    // the person is selecting text
   sel.click(id, { add, range }, drawnOrder());
-  if (item.value && sel.size.value === 1 && sel.has(id) && item.value !== id) opener(id);
+  // A plain click opens the peek on that item (as a click does on the Dashboard); with Cmd, Ctrl or Shift it only selects, and the peek follows only while one is already open on one item.
+  if (sel.size.value === 1 && sel.has(id) && item.value !== id && (item.value || (!add && !range))) opener(id);
 }
 
 /** A double click opens the peek on that item (and selects only it). */
-export function pickOpen(id, opener = (x) => openPeek(x, "item")) { sel.click(id, {}, drawnOrder()); opener(id); }
+export function pickOpen(id, opener = (x) => openPeek(x, "item")) { sel.click(id, {}, drawnOrder()); if (item.value !== id) opener(id); }      // the click before a double click has opened it already
 
 /** The selection keys on a row or a card (the element with the keyboard), before the arrow keys move the cursor.
  *  `focus(id)` puts the keyboard on that row or card. Returns true when the key was used. */

@@ -112,6 +112,7 @@
 .rowmenu .rm-go { flex: none; width: 14px; height: 14px; color: var(--text-muted); }
 .rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
 .rowmenu .ddmenu { max-height: calc(100vh - 2 * var(--space-2)); overflow-y: auto; }
+.rowmenu .rm-fly { position: fixed; min-width: 160px; }              /* the list beside its entry (row 848): on the window, so the menu itself never changes */
 
 /* Changing several work items at once (#196): the bar's buttons wrap at 900 px, the "N items" menu, and the question. Tokens only. */
 .selbar { flex-wrap: wrap; row-gap: 6px; }
@@ -180,9 +181,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-log { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 22px 20px var(--space-3); }
 .ask-turn { position: relative; max-width: 100%; font-size: var(--size-body); animation: ask-in 320ms var(--ease-enter); }
 .ask-turn.user { align-self: flex-end; max-width: 84%; padding: 10px 14px; border-radius: 16px 16px var(--radius-sm) 16px; background: var(--brand-blue); color: var(--text-on-brand); }
-.ask-turn.user .ask-who { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; color: inherit; }    /* "You" is for a reader that announces; the bubble says it already */
 .ask-turn.problem { padding-left: var(--space-3); border-left: 3px solid var(--status-amber); }
-.ask-who { margin-bottom: 2px; font-size: var(--size-caption); color: var(--text-muted); }
+.ask-who { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; color: inherit; }    /* "You" and "Answer" are for a reader that announces; the bubble and the reply place already say it (issue 794) */
 .ask-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 @keyframes ask-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 /* the suggestions: ONE row, faded at the right edge, scrolling sideways; the working line has the same height and takes their place */
@@ -315,7 +315,6 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-eye .i, .ucl-eye svg { width: 16px; height: 16px; flex: none; }   /* issue 753: the eye alone, its words are the tooltip */
 .ucl-eye:hover { background: var(--grey-100); }
 .ucl-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.ucl-eye-ro, .ucl-eye-ro:hover { cursor: default; background: none; }
 .ucl-row.off .ucl-eye { color: var(--text-muted); font-weight: var(--weight-regular); }
 .ucl-none { margin: 20px 0 4px; }
 .ucl-none .btn { margin-top: 4px; }
