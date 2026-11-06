@@ -70,6 +70,8 @@ export const TEMPLATES = [
     body: "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>",
     description: "Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.",
     holds: ["Heading", "Rich text: headings, lists, quote, links", "AI menu"] },
+  { id: "gantt", name: "Gantt", kind: "dates", fit: ["full"], type: "gantt", title: "Gantt", body: "", ready: false,
+    description: "The plan as bars on a timeline, from your Gantt lines. Only lines put on the dashboard show.", holds: ["Heading", "The Gantt chart"] },
   { id: "one-doc", name: "One document", kind: "files", fit: ["half", "full"], type: "onedoc", title: "Document", body: "", ready: true,
     description: "A single file to read.", holds: ["Heading", "File", "Text"] },
 ];
