@@ -13,6 +13,9 @@ a { color: var(--status-blue-text); }
 .again:focus-visible { outline: 2px solid var(--brand-navy); outline-offset: 2px; }
 [hidden] { display: none !important; }
 
+.skip { position: absolute; left: 12px; top: 8px; z-index: 40; padding: 8px 14px; border-radius: 6px; background: var(--brand-navy); color: var(--white); font-size: var(--size-body); text-decoration: none; transform: translateY(-200%); }   /* row 862: out of sight until it has focus */
+.skip:focus, .skip:focus-visible { transform: none; outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+#main:focus { outline: none; }   /* row 862: <main> takes focus from the skip link; it is a landing place, not a control */
 .top { position: sticky; top: 0; z-index: 30; height: var(--topbar); background: var(--brand-navy); color: var(--white); display: flex; align-items: center; gap: 18px; padding: 0 20px; }
 .logo { all: unset; display: inline-flex; align-items: center; cursor: pointer; }   /* a button since row 854: it goes Home */
 .logo:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 4px; border-radius: 6px; }
