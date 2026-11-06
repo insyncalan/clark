@@ -75,7 +75,7 @@ class Cards(Base):
     def open_settings(self, p, look="light"):
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
-        p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+        p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
         p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
         p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={look}]').click()")
         p.until("document.documentElement.dataset.theme === 'dark'" if look == "dark" else "!document.documentElement.dataset.theme", f"{look} is on")
@@ -158,8 +158,8 @@ class Cards(Base):
             settled(p, "window.__before === undefined && !!document.querySelector('#profile-btn')", "reloaded")
             self.assertEqual(p.js("document.documentElement.dataset.secstyle"), "card", "kept for the page")
             p.js("document.querySelector('#profile-btn').click()")
-            p.until("!!document.querySelector('#profile-menu [data-kind=settings]')", "menu")
-            p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+            p.until("!!document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]')", "menu")
+            p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
             p.until("!!document.querySelector('#personal [data-secstyles]')", "Personal again")
             self.assertEqual(self.chosen(p), ["card"], "and kept for the Settings card")
 
@@ -177,8 +177,8 @@ class Cards(Base):
                 p.until("!!document.querySelector('.secs')", "dashboard")
                 gap.append(p.js("parseFloat(getComputedStyle(document.querySelector('.secs')).rowGap)"))
                 p.js("document.querySelector('#profile-btn').click()")
-                p.until("!!document.querySelector('#profile-menu [data-kind=settings]')", "menu")
-                p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+                p.until("!!document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]')", "menu")
+                p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
                 p.until("!!document.querySelector('#personal [data-secstyles]')", "Personal")
             self.assertGreater(gap[1], gap[0], "Roomy gaps are roomier than Slim gaps")
 
