@@ -14,6 +14,8 @@ from _real_server import real_server
 from test_server import chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
+EDIT = (ROOT / "src/clark/page/src/edit/edit.css").read_text(encoding="utf-8")
+PUBLISHED = (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8") if (ROOT / "src/clark/page/page-view.html").exists() else ""
 CSS = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
 # A group just opened (the tbody the table draws with the class) holding its column names and one row, and a group heading beside it.
 MAKE = """(() => { const t = document.createElement('table'); t.innerHTML = '<tbody class="opening"><tr class="grp"><th>g</th></tr><tr class="colh"><th>c</th></tr><tr class="r"><td>x</td></tr></tbody>'; document.body.appendChild(t);
@@ -58,16 +60,18 @@ class MotionGroup(unittest.TestCase):
                         self.assertEqual(got["row"], want)
                         self.assertEqual(got["head"], "none", "the heading stays still")
 
-    def test_row_880_is_inside_the_motion_block_uses_tokens_and_the_page_marks_only_an_opened_group(self):
-        block = CSS[CSS.index("Motion: motion that explains"):]
-        block = block[:block.index("@media (hover: hover)")]
-        self.assertRegex(block, r"tbody\.opening > tr:not\(\.grp\) \{ animation: m-rise var\(--dur-layout\) var\(--ease-enter\) 1; \}")
-        self.assertNotRegex(CSS.replace(block, ""), r"tbody\.opening")
+    def test_row_880_is_edit_only_uses_tokens_and_the_page_marks_only_an_opened_group_in_the_edit_build(self):
+        i = EDIT.index("row 880:")
+        block = EDIT[i:]
+        self.assertIn("prefers-reduced-motion: no-preference", block)
+        self.assertRegex(block, r'\[data-motion="reduce"\]\) tbody\.opening > tr:not\(\.grp\) \{ animation: m-rise var\(--dur-layout\) var\(--ease-enter\) 1; \}')
+        self.assertNotIn("tbody.opening", CSS, "the published file's stylesheet has no glide")
+        self.assertNotIn("tbody.opening", PUBLISHED, "nor does the published page")
         body = re.search(r"@keyframes m-rise \{(.*?)\}\s*\}", CSS, re.S).group(1)
         self.assertNotRegex(body, r"height|margin|padding|top|left|width")
         jsx = (ROOT / "src/clark/page/src/components/WorkItems.jsx").read_text(encoding="utf-8")
-        self.assertRegex(jsx, r"justOpened\s*=\s*shut\s*\?\s*c\.key")
-        self.assertRegex(jsx, r'class=\{justOpened === c\.key && !shut \? "opening"')
+        self.assertRegex(jsx, r"justOpened\s*=\s*shut\s*&&\s*!fromFile\.value\s*\?\s*c\.key")
+        self.assertRegex(jsx, r'class=\{justOpened === c\.key && !shut && !fromFile\.value \? "opening"')
 
 
 if __name__ == "__main__":

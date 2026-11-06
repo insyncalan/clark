@@ -178,11 +178,11 @@ function Table({ rows, today, type, Cell, Eye }) {
           <div class="wgroup" key={c.key}>
             <table class="items grouped" {...grid}>
               <Cols eye={Eye} hand={hand} />
-              <tbody data-group={c.key} class={justOpened === c.key && !shut ? "opening" : undefined} onAnimationEnd={(e) => { if (justOpened === c.key) justOpened = ""; e.currentTarget.classList.remove("opening"); }}>
+              <tbody data-group={c.key} class={justOpened === c.key && !shut && !fromFile.value ? "opening" : undefined} onAnimationEnd={(e) => { if (justOpened === c.key) justOpened = ""; e.currentTarget.classList.remove("opening"); }}>
                 <tr class="grp"><th colspan={n} scope="colgroup">
                   {hand ? <GroupTick sel={ticks} ids={c.rows.filter((r) => isOpen(r)).map((r) => r.id)} label={c.label} shut={shut} />
                     : on ? <GroupTick ids={c.rows.map((r) => r.id)} label={c.label} shut={shut} /> : null}
-                  <button type="button" class="grp-b" aria-expanded={shut ? "false" : "true"} onClick={() => { justOpened = shut ? c.key : ""; setWork(toggleCollapsed(work.value, g, c.key)); }}>
+                  <button type="button" class="grp-b" aria-expanded={shut ? "false" : "true"} onClick={() => { justOpened = shut && !fromFile.value ? c.key : ""; setWork(toggleCollapsed(work.value, g, c.key)); }}>
                     <Icon name="chevdown" cls={shut ? "turn" : ""} /><span class="gl">{c.label}</span><span class="gc num">{c.rows.length} {c.rows.length === 1 ? "item" : "items"}</span>
                   </button>
                 </th></tr>
