@@ -96,7 +96,7 @@ class Card(Base):
                 self.open_settings(p)
                 self.settle(p, "!!document.querySelector('#import-workbook')", "the Import workbook button")
                 self.assertEqual(p.js("[...document.querySelectorAll('#data-card .row button')].map(b => b.textContent)"),
-                                 ["Export workbook", "Import workbook"])
+                                 ["Export workbook", "Import workbook", "Export to Word…", "Import from Word…"])
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
 
     def test_import_checks_then_imports_in_one_step_and_undo_puts_it_back(self):
