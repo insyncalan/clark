@@ -1934,3 +1934,116 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ddmenu[aria-label="Projects"] [role="menuitemradio"] > span:not(.ck) { display: block; flex: 1; min-width: 0; }
 .ddmenu[aria-label="Projects"] [role="menuitemradio"] b, .ddmenu[aria-label="Projects"] [role="menuitemradio"] small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ddmenu[aria-label="Projects"] [role="menuitemradio"] small { color: var(--text-muted); }
+/* The project Gantt chart (#926): src/clark/page/src/gantt/. Tokens only; the bars are the data colours' neighbours (brand blue for a task, grey for a phase, amber and green for milestones), Today is the red status tint. */
+.gt { position: relative; color: var(--text); font-size: var(--size-caption); }
+.gt .i { width: 16px; height: 16px; flex: none; }
+.gt button { font: inherit; color: inherit; cursor: pointer; }
+.gt-none { margin: 0; padding: var(--space-4); color: var(--text-muted); font-size: var(--size-small); }
+.gt-bar { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-2); }
+.gt-sp { flex: 1; }
+.gt-sep { width: 1px; height: 20px; background: var(--border); }
+.gt-grp { display: inline-flex; gap: 2px; }
+.gt-ib { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; border: 1px solid transparent; }
+.gt-ib:hover:not(:disabled) { background: var(--grey-100); color: var(--text); }
+.gt-ib[aria-pressed="true"] { background: var(--pill-bg); color: var(--pill-fg); }
+.gt-ib:disabled { opacity: .45; cursor: default; }
+.gt-ib:focus-visible, .gt-wd:focus-visible, .gt-zf:focus-visible, .gt-eye:focus-visible, .gt-addb:focus-visible, .gt-btn:focus-visible, .gt-tflag:focus-visible, .gt-b:focus-visible, .gt-ms:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.gt-zf { all: unset; box-sizing: border-box; min-width: 48px; height: 32px; display: inline-grid; place-items: center; color: var(--text-muted); font-size: var(--size-caption); cursor: pointer; border-radius: var(--radius); }
+.gt-zf:hover { background: var(--grey-100); color: var(--text); }
+.gt-wd { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-size: var(--size-caption); cursor: pointer; }
+.gt-wd:hover { border-color: var(--brand-blue); }
+.gt-showwrap { position: relative; display: inline-flex; }
+.gt-pop { position: absolute; top: 36px; right: 0; z-index: 70; min-width: 220px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.gt-pop button, .gt-menu button { all: unset; box-sizing: border-box; display: flex; width: 100%; gap: 8px; padding: 6px 10px; border-radius: var(--radius-sm); font-size: var(--size-caption); cursor: pointer; color: var(--text); }
+.gt-pop button:hover, .gt-pop button:focus-visible, .gt-menu button:hover, .gt-menu button:focus-visible { background: var(--grey-100); }
+.gt-ck { width: 14px; color: var(--brand-blue); font-weight: var(--weight-semibold); }
+/* the chart box: it scrolls inside itself with no scrollbar showing */
+.gt-gx { position: relative; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); scrollbar-width: none; -ms-overflow-style: none; }
+.gt-gx::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.gt-in { position: relative; display: grid; width: max-content; min-width: 100%; }
+.gt-lhead { position: sticky; left: 0; top: 0; z-index: 6; height: var(--gt-hh); display: flex; align-items: flex-end; gap: 4px; padding: 0 6px 6px; background: var(--surface); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); color: var(--text-muted); overflow: clip; }
+.gt-h { position: relative; flex: none; box-sizing: border-box; display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; line-height: 24px; }
+.gt-rz { position: absolute; right: -4px; top: -6px; bottom: -6px; width: 8px; cursor: col-resize; z-index: 9; }
+.gt-rz:hover { background: var(--brand-blue); opacity: .45; }
+.gt-eyeh { width: 24px; flex: none; display: inline-grid; place-items: center; margin-right: 4px; }
+.gt-eye { all: unset; box-sizing: border-box; flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
+.gt-eye.on { color: var(--brand-blue-strong); }
+.gt-eye:hover { background: var(--grey-100); }
+.gt-rhead { position: sticky; top: 0; z-index: 4; height: var(--gt-hh); background: var(--surface); border-bottom: 1px solid var(--border); }
+.gt-hc { position: absolute; padding: 0 6px; border-left: 1px solid var(--border); color: var(--text-muted); white-space: nowrap; overflow: hidden; }
+.gt-hc.gt-u { top: 28px; height: 18px; line-height: 18px; font-weight: var(--weight-medium); color: var(--text); }
+.gt-hc.gt-l { top: 48px; height: 18px; line-height: 18px; }
+.gt-hc.gt-l:not(.gt-edge) { border-left-color: transparent; }
+.gt-tflag { all: unset; box-sizing: border-box; position: absolute; top: 2px; transform: translateX(-50%); z-index: 3; padding: 2px 10px; border-radius: var(--radius-sm); background: var(--status-red-tint); color: var(--status-red-text); border: 1px solid var(--status-red); font-weight: var(--weight-medium); line-height: 18px; cursor: pointer; white-space: nowrap; }
+.gt-tflag::after { content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -6px; border: 6px solid transparent; border-top-color: var(--status-red); border-bottom: 0; }
+.gt-tstem { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--status-red); opacity: .6; z-index: 2; pointer-events: none; }
+.gt-tstem-h { top: 24px; }
+.gt-left { position: sticky; left: 0; z-index: 5; background: var(--surface); border-right: 1px solid var(--border); }
+.gt-ln { position: relative; height: var(--gt-rh); display: flex; align-items: center; gap: 4px; padding: 0 6px; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: clip; }
+.gt-ln.gt-phase { font-weight: var(--weight-semibold); background: var(--grey-50); }
+.gt-ln.gt-task .gt-id, .gt-ln.gt-milestone .gt-id { padding-left: 0; }
+.gt-id { flex: none; width: 36px; color: var(--text-muted); font-weight: var(--weight-light); font-variant-numeric: tabular-nums; }
+.gt-nm { flex: none; overflow: hidden; text-overflow: ellipsis; }
+.gt-c { flex: none; overflow: hidden; color: var(--text-muted); font-weight: var(--weight-light); font-variant-numeric: tabular-nums; }
+.gt-li { box-sizing: border-box; height: 26px; margin: 0; padding: 1px 4px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; font-weight: inherit; min-width: 0; }
+.gt-li:hover { border-color: var(--border); }
+.gt-li:focus { border-color: var(--brand-blue); background: var(--surface); color: var(--text); outline: 0; }
+.gt-addb { all: unset; box-sizing: border-box; position: absolute; right: 3px; top: 4px; width: 24px; height: 24px; display: inline-grid; place-items: center; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-muted); opacity: 0; cursor: pointer; }
+.gt-ln:hover .gt-addb, .gt-addb:focus-visible { opacity: 1; }
+.gt-addb:hover { color: var(--brand-blue-strong); border-color: var(--brand-blue); }
+.gt-canvas { position: relative; }
+.gt-rw { position: absolute; left: 0; right: 0; border-bottom: 1px solid var(--border); }
+.gt-rw.gt-phase { background: var(--grey-50); }
+.gt-gl { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--grey-100); }
+.gt-dep { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.gt-dep path { fill: none; stroke: var(--text-muted); stroke-width: 1.4; }
+.gt-dep polygon { fill: var(--text-muted); }
+.gt-dep .gt-bad path { stroke: var(--status-amber-text); stroke-width: 1.8; stroke-dasharray: 4 3; }
+.gt-dep .gt-bad polygon { fill: var(--status-amber-text); }
+.gt-b { all: unset; box-sizing: border-box; position: absolute; height: 20px; line-height: 20px; border-radius: var(--radius-sm); background: var(--brand-blue); color: var(--text-on-brand); padding: 0 8px; white-space: nowrap; overflow: hidden; cursor: pointer; user-select: none; touch-action: none; z-index: 1; }
+.gt-b > i { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--white) 15%, transparent); pointer-events: none; }
+.gt-bt { position: relative; }
+.gt-b-phase { background: var(--grey-700); border-radius: 2px; }
+.gt-b.edit { cursor: grab; }
+.gt-b.drag { cursor: grabbing; box-shadow: var(--shadow); z-index: 5; }
+.gt-rzb { position: absolute; right: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; background: color-mix(in srgb, var(--white) 35%, transparent); }
+.gt-b.sel, .gt-ms.sel { outline: 2px solid var(--text); outline-offset: 2px; }
+.gt-ms { all: unset; box-sizing: border-box; position: absolute; z-index: 1; width: 14px; height: 14px; margin-left: -7px; transform: rotate(45deg); background: var(--status-amber); border: 2px solid var(--status-amber-text); cursor: pointer; }
+.gt-ms.done { background: var(--status-green); border-color: var(--status-green-text); }
+.gt-mslab { position: absolute; line-height: 20px; white-space: nowrap; color: var(--text); }
+.gt-clash { position: absolute; line-height: 20px; color: var(--status-amber-text); font-weight: var(--weight-semibold); }
+.gt-grip { height: 14px; margin-top: -1px; display: flex; align-items: center; justify-content: center; cursor: ns-resize; touch-action: none; position: relative; user-select: none; }
+.gt-grip > i { width: 46px; height: 4px; border-radius: 2px; background: var(--grey-300); }
+.gt-grip:hover > i, .gt-grip:focus-visible > i { background: var(--brand-blue); }
+.gt-grip:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: var(--radius-sm); }
+.gt-gl2 { position: absolute; right: 8px; top: -2px; padding: 1px 8px; border-radius: var(--radius-pill); background: var(--brand-navy); color: var(--white); }
+.gt-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 6px; color: var(--text-muted); }
+.gt-sw { display: inline-block; width: 14px; height: 10px; margin-right: 5px; border-radius: 2px; vertical-align: middle; }
+.gt-sw-p { background: var(--grey-700); }
+.gt-sw-t { background: var(--brand-blue); }
+.gt-sw-m, .gt-sw-d { width: 10px; transform: rotate(45deg); }
+.gt-sw-m { background: var(--status-amber); border: 1px solid var(--status-amber-text); }
+.gt-sw-d { background: var(--status-green); border: 1px solid var(--status-green-text); }
+.gt-sw-n { width: 3px; background: var(--status-red); }
+.gt-sw-a { width: 18px; height: 0; border-top: 2px solid var(--text-muted); border-radius: 0; }
+.gt-sw-c { width: 18px; height: 0; border-top: 2px dashed var(--status-amber-text); border-radius: 0; }
+.gt-pill { border: 1px solid var(--status-amber-text); color: var(--status-amber-text); border-radius: var(--radius-sm); padding: 0 6px; }
+.gt-msg { color: var(--status-red-text); }
+.gt-detail { margin-top: 8px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--grey-50); font-size: var(--size-caption); }
+.gt-menu { position: fixed; z-index: 90; width: 210px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.gt-box { position: fixed; z-index: 95; width: 310px; padding: 10px 12px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); font-size: var(--size-caption); }
+.gt-box label { display: block; margin: 6px 0 2px; color: var(--text-muted); }
+.gt-box input { box-sizing: border-box; width: 100%; padding: 4px 7px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+.gt-box input.bad { border-color: var(--status-red); }
+.gt-box input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.gt-r { display: flex; gap: 8px; }
+.gt-r > div { flex: 1; min-width: 0; }
+.gt-emsg { min-height: 20px; margin-top: 4px; color: var(--status-red-text); }
+.gt-bt2 { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.gt-btn { all: unset; box-sizing: border-box; min-height: 28px; padding: 3px 12px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); cursor: pointer; }
+.gt-btn:hover { border-color: var(--brand-blue); }
+.gt-primary { background: var(--pill-bg); color: var(--pill-fg); border-color: transparent; font-weight: var(--weight-semibold); }
+.gt-danger { color: var(--status-red-text); }
+.gt-full { position: fixed; inset: 0; z-index: 60; overflow: auto; padding: var(--space-3) var(--space-5); background: var(--bg); }
+.gt-full .gt-gx { max-height: calc(100vh - 170px); }
+@media (max-width: 900px) { .gt-full { padding: var(--space-2) var(--space-3); } }
