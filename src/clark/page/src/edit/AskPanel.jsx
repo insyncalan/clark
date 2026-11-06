@@ -10,6 +10,14 @@ import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panel
 import * as W from "./askWords.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 
+// Row 890: the files an answer used, as the server sends them ({id, label}). A long file is cut into parts labelled "name (part N)":
+// the suffix is dropped and each file is listed once, in the order first seen.
+function sourceLabels(list) {
+  if (!Array.isArray(list)) return [];
+  const names = list.filter((s) => s && typeof s.label === "string" && s.label).map((s) => s.label.replace(/ \(part \d+\)$/, ""));
+  return names.filter((n, i) => names.indexOf(n) === i);
+}
+
 async function post(path, body) {
   try {
     const r = await fetch(path, { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
@@ -76,7 +84,7 @@ export function AskPanel() {
     const b = r.body;
     if (r.status === 200 && b && b.ok === true && typeof b.answer === "string") {
       const extra = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
-      turns.value = [...turns.value, { role: "assistant", text: b.answer }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
+      turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
       if (typeof b.reply === "string" && b.reply && Array.isArray(b.changes) && b.changes.length) await showChanges(b.reply);
     } else if (r.status === 409 && b && b.code === "asking_off") {
       panelState.value = "off";
@@ -156,6 +164,12 @@ export function AskPanel() {
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>
             {t.kind === "changes" ? <ChangeCards turn={t} /> : <div class="ask-text">{t.text}</div>}
+            {t.sources && t.sources.length ? (
+              <details class="ask-sources">
+                <summary>{W.SOURCES}</summary>
+                <ul>{t.sources.map((n, k) => <li key={k}>{n}</li>)}</ul>
+              </details>
+            ) : null}
           </div>
         ))}
       </div>
