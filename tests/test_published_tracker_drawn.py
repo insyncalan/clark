@@ -28,6 +28,8 @@ class Drawn(Published):
                 for word in ("Progress", "Build", "Roll-out", "Set up the environment", "Matching rules", "Training", "A week behind plan."):
                     self.assertIn(word, text, f"{word} is in the published tracker")
                 self.assertLessEqual(cdp.js("document.documentElement.scrollWidth", sid), width, "the page does not scroll sideways")
+                self.assertEqual(cdp.js("[...document.querySelectorAll('table.tracker thead th')].filter(h => h.scrollWidth > h.clientWidth + 1).length", sid), 0, "no table heading is cut or run into the next")
+                self.assertEqual(cdp.js("[...document.querySelectorAll('table.tracker tbody td.t-date')].filter(c => c.getClientRects()[0] && Math.round(c.getBoundingClientRect().height) > 60).length", sid), 0, "a date stays on one line")
 
 
 if __name__ == "__main__":
