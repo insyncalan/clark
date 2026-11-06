@@ -12,11 +12,13 @@ import unittest
 from _paths import ROOT, SRC  # noqa: F401
 
 # BOUND is a loose hang guard, not a speed test: CPU seconds for one function on 5 MB. Shapes measured on a busy arm64 box took up
-# to about 8 s while linear (the escapes shape: 12.9 s on this branch and 11.6 s on main on a Linux box, 22.9 s on a busy Mac, row 815), and
-# a quadratic scan takes minutes, so 30 s separates them. Linearity itself is checked by the
-# size-growth test below (a ratio measured in the same run), so a slow machine does not fail the absolute check.
+# to about 8 s while linear; the escapes shape is the slowest (12.4 s on a quiet Python 3.9 Linux box on main, 14.4 s with the brand-scan
+# change of row 815, 3.6 s and 3.9 s on a Mac; 20.7 s for check_brand alone on a busy CI runner), and a quadratic scan takes minutes, so
+# 30 s separates them. Linearity itself is checked by the size-growth test below (a ratio measured in the same run), so a slow machine
+# does not fail the absolute check.
 BOUND = 30.0
-HARD = 90            # seconds for the whole child (three functions, each up to BOUND): past this it is killed and the case fails
+HARD = 180           # seconds for the whole child (three functions, each up to BOUND): past this it is killed and the case fails (it was 90 s: a slow
+                     # shared runner killed the escapes shape at 90 s with check_brand at 20.7 s and the third function still running)
 LIMIT = 5 * 1024 * 1024
 
 # name -> a python expression for the hostile text, `n` being how many characters it should be

@@ -410,7 +410,7 @@
      "Type the change, for example “move to Friday, owner Jo, high priority”.",
      "Under the box, a line for each field shows what it is now and what it will become.",
      "Press [[Enter]] to make every change shown, in one step ([[Shift+Enter]] makes them and keeps the box open). [[Esc]] closes the box. The fields that changed flash for a moment, and the message has **Undo**.",
-     "Closing an item, or making or withdrawing a decision, asks first: press **Confirm and apply** or [[Mod+Enter]]. A decision that is made cannot be undone from here."
+     "Closing an item, making or withdrawing a decision, marking a milestone Achieved or a use case Done asks first: press **Confirm and apply** or [[Mod+Enter]]. A decision that is made cannot be undone from here."
     ],
     "n": "If the owner is not already named in the project, the line is marked “new name”. See [Sneak peek](#ref-sneak-peek) for what it understands.",
     "page": [
@@ -567,10 +567,10 @@
     "w": "Edit › Use cases",
     "go": "dashboard+edit",
     "s": [
-     "In Edit, open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard. A use case with a commitment shows it as a small chip beside the status.",
+     "Open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard. A use case with a commitment shows it as a small chip beside the status.",
      "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
      "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
-     "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. In Edit, the small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History."
+     "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. The small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History."
     ],
     "page": [
      "dashboard+edit"
@@ -1025,6 +1025,16 @@
         "Full or half"
        ],
        [
+        "Image gallery",
+        "Pictures in a grid, each with a caption.",
+        "Full"
+       ],
+       [
+        "Table",
+        "Anything with rows: a budget line, a cut-over plan, a training schedule.",
+        "Full"
+       ],
+       [
         "RAID cards, three",
         "The risks, actions, issues or decisions you want the reader to see, as cards.",
         "Full"
@@ -1047,6 +1057,26 @@
        [
         "Callout",
         "One thing the reader must see.",
+        "Half or full"
+       ],
+       [
+        "Image with caption",
+        "One picture with its caption.",
+        "Half or full"
+       ],
+       [
+        "Quote",
+        "A voice from the business.",
+        "Half or full"
+       ],
+       [
+        "Contacts",
+        "Who to ask.",
+        "Half or full"
+       ],
+       [
+        "Checklist",
+        "Next steps or readiness, ticked off.",
         "Half or full"
        ],
        [
@@ -1474,7 +1504,7 @@
     "b": [
      [
       "p",
-      "Sneak peek changes work items only: an action, a risk, an issue or a decision. It works in Edit only, in the peek."
+      "Sneak peek changes a work item (an action, a risk, an issue or a decision), a milestone or a use case. It works in Edit only, with the item open in the peek, or on the use case’s own page."
      ],
      [
       "tbl",
@@ -1498,6 +1528,14 @@
        [
         "made · decided · withdrawn · pending",
         "A decision’s status"
+       ],
+       [
+        "forecast Friday · achieved yesterday · done · reopen",
+        "A milestone’s forecast date, achieved date and status (Achieved asks first). Not its owner or its agreed date"
+       ],
+       [
+        "flag · high risk · on track · done · committed · candidate · planned 2027 · no flag · headline: …",
+        "A use case’s status (Done asks first), commitment and headline"
        ],
        [
         "urgent priority · high priority · medium priority · low priority",
@@ -1978,7 +2016,7 @@
    ],
    [
     "[[/]] [[/]]",
-    "With a work item open in the peek in Edit: press twice quickly for Sneak peek, to change it in words. A single [[/]] does nothing while a peek is open"
+    "With an item open in the peek in Edit (or a use case page): press twice quickly for Sneak peek, to change it in words. A single [[/]] does nothing while a peek or a use case page is open in Edit"
    ],
    [
     "[[Esc]]",
