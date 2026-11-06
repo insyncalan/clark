@@ -227,7 +227,8 @@ class Tab(unittest.TestCase):
                 self.go("document.getElementById('gantt-client').click()")
                 self.assertEqual(json.loads(self.js("JSON.stringify(G.sent[1].changes)")), {"show_gantt_client": 1})
                 self.assertIn("Gantt", self.labels(), "the editor tab follows the tick")
-                self.go("var b = document.getElementById('gantt-name'); b.value = 'Delivery plan'; b.dispatchEvent(new Event('input', {bubbles: true})); b.blur()")
+                self.go("var b = document.getElementById('gantt-name'); b.focus(); b.value = 'Delivery plan'; b.dispatchEvent(new Event('input', {bubbles: true}))")
+                self.go("document.getElementById('gantt-name').blur()")      # a separate step, as a person does it: the typed text is drawn before the box is left
                 self.assertEqual(json.loads(self.js("JSON.stringify(G.sent[2].changes)")), {"gantt_tab_name": "Delivery plan"})
                 self.assertIn("Delivery plan", self.labels())
 
