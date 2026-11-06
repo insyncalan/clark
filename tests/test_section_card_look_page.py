@@ -121,7 +121,7 @@ class DefaultOneCard(g.Setup):
         for width in (1400, 900):
             for dark in (False, True):
                 with chrome() as cdp:
-                    p = self.show(cdp, width=width, dark=dark)
+                    p = self.show(cdp, width=width, dark=dark, standard=True)      # no stored choice: the page a person sees who chose nothing (row 667)
                     for mode in ("view", "edit"):
                         if mode == "edit":
                             p.edit()

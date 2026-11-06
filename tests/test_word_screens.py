@@ -80,8 +80,8 @@ class Screens(unittest.TestCase):
         return self.pick
 
     # ---- the browser ----
-    def page(self, cdp, width=1400, scheme="light", edit=False):
-        sid = navigate(cdp, self.rig.httpd.server_port, "#dashboard&p=PUB")
+    def page(self, cdp, width=1400, scheme="light", edit=False, standard=False):
+        sid = navigate(cdp, self.rig.httpd.server_port, "#dashboard&p=PUB", section_style=None if standard else "slim")      # standard=True: nothing is remembered, as for a person who chose nothing (row 667)
         p = Pg(self, cdp, sid)
         p.until("!!document.querySelector('#profile-btn')", "the profile circle is in the top bar")
         p.width(width)
@@ -382,7 +382,7 @@ class WordToo(Screens):
         for w, scheme in ((1400, "light"), (900, "dark")):
             with self.subTest(width=w, scheme=scheme), chrome() as cdp:
                 self.start()
-                p = self.page(cdp, w, scheme)
+                p = self.page(cdp, w, scheme, standard=True)
                 p.open_publish()
                 text = p.dialog_text()
                 self.assertIn("Also a Word document", text)

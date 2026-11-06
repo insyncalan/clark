@@ -470,7 +470,7 @@ class AboutYou(Base):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p)
-            self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true", "the page is in View")
+            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "row 826: Settings has no View | Edit switch, so the page is in View")
             self.quick_toasts(p)
             self.type_into(p, "name", "Sam Lee")
             self.toast_is(p, "Name saved.")
