@@ -112,6 +112,7 @@ class AboutYou(Base):
             p = self.page(cdp)
             self.open_settings(p)
             self.type_into(p, "name", "Sam Lee")
+            self.handled(p, "Sam Lee")                     # row 773: the first save is taken before the second is sent, so two saves are never in flight at once (a slow runner answered them out of order)
             self.type_into(p, "email", "sam@example.test")
             p.until("document.querySelector('#about-name').value === 'Sam Lee'", "the box holds it")
             self.handled(p, "Sam Lee", "sam@example.test")

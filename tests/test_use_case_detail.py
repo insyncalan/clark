@@ -228,8 +228,8 @@ class Detail(unittest.TestCase):
                     self.assertEqual(js("document.querySelector('[data-ucd] [data-ucd-field=headline]').value"), u["headline"])
                     self.assertEqual(js("document.querySelector('[data-ucd] [data-word]').textContent"), "Flag", "the status is a word, not only a colour")
                     self.assertRegex(js("document.querySelector('.ucd-sub').textContent"), r"^FlagCommitted2 of 2 work items open · 1 milestone$")
-                    self.assertEqual(js("document.querySelector('[data-eye]').title"), "On the dashboard")
-                    self.assertEqual(js("document.querySelector('[data-eye]').textContent.trim()"), "", "the eye has no words")
+                    self.assertEqual(js("document.querySelector('.ucd-eye[data-eye]').title"), "On the dashboard")
+                    self.assertEqual(js("document.querySelector('.ucd-eye[data-eye]').textContent.trim()"), "", "the eye has no words")
                     self.assertEqual(js("[...document.querySelectorAll('#ucd-status')].length"), 1)
                     self.assertEqual(js("document.querySelector('[data-rich=standing]').textContent"), re.sub(r"<[^>]+>", "", u["standing"]))
                     self.assertEqual(sorted(js("[...document.querySelectorAll('[data-item]')].map(b => b.dataset.item)")), linked)
@@ -549,16 +549,16 @@ class Detail(unittest.TestCase):
         with chrome() as cdp:
             sid = self.open_detail(cdp)
             before = self.steps()
-            click(cdp, sid, "[data-eye]")
-            self.until(cdp, sid, "document.querySelector('[data-eye]').title === 'Not on the dashboard'", "the tooltip changed")
+            click(cdp, sid, ".ucd-eye[data-eye]")
+            self.until(cdp, sid, "document.querySelector('.ucd-eye[data-eye]').title === 'Not on the dashboard'", "the tooltip changed")
             self.assertEqual((self.row()["client_visible"], self.steps()), (0, before + 1))
-            self.assertEqual(cdp.js("document.querySelector('[data-eye]').getAttribute('aria-label')", sid), "Not on the dashboard")
-            self.assertEqual(cdp.js("document.querySelector('[data-eye]').textContent.trim()", sid), "")
+            self.assertEqual(cdp.js("document.querySelector('.ucd-eye[data-eye]').getAttribute('aria-label')", sid), "Not on the dashboard")
+            self.assertEqual(cdp.js("document.querySelector('.ucd-eye[data-eye]').textContent.trim()", sid), "")
             self.assertEqual(cdp.js("document.querySelector('[data-dash]').textContent", sid), "Not on the dashboard")
             self.assertEqual(self.sent[-1][1]["changes"], {"client_visible": 0})
             self.undo(cdp, sid)
             self.assertEqual(self.row()["client_visible"], 1)
-            self.until(cdp, sid, "document.querySelector('[data-eye]').title === 'On the dashboard'", "Undo put it back")
+            self.until(cdp, sid, "document.querySelector('.ucd-eye[data-eye]').title === 'On the dashboard'", "Undo put it back")
 
     def test_change_status_has_room_between_its_words_and_chevron_and_the_controls_are_as_tall(self):
         """Row 791."""
@@ -567,7 +567,7 @@ class Detail(unittest.TestCase):
                 with self.subTest(width=width, scheme=scheme), chrome() as cdp:
                     sid = self.open_detail(cdp, width=width, scheme=scheme)
                     got = cdp.js("""(() => { const b = document.querySelector('#ucd-status'), t = b.querySelector('span').getBoundingClientRect(), c = b.querySelector('svg').getBoundingClientRect();
-                        const e = document.querySelector('[data-eye]').getBoundingClientRect(), r = b.getBoundingClientRect();
+                        const e = document.querySelector('.ucd-eye[data-eye]').getBoundingClientRect(), r = b.getBoundingClientRect();
                         return { gap: c.left - t.right, eye: e.height, btn: r.height }; })()""", sid)
                     self.assertGreaterEqual(got["gap"], 4, got)
                     self.assertGreaterEqual(got["eye"], got["btn"] - 1, got)
@@ -578,7 +578,7 @@ class Detail(unittest.TestCase):
             for scheme in ("light", "dark"):
                 with self.subTest(width=width, scheme=scheme), chrome() as cdp:
                     sid = self.open_detail(cdp, width=width, scheme=scheme)
-                    got = cdp.js("""(() => { const e = document.querySelector('[data-eye]'), b = e.getBoundingClientRect();
+                    got = cdp.js("""(() => { const e = document.querySelector('.ucd-eye[data-eye]'), b = e.getBoundingClientRect();
                         const others = [...document.querySelectorAll('.ucd-sub [data-uc-commit], .ucd-sub .cchip, #ucd-status, .ucd-acts .btn')];
                         return { tag: e.tagName, words: e.innerText.trim(), svg: e.querySelectorAll('svg').length, title: e.title, label: e.getAttribute('aria-label'),
                           head: document.querySelector('[data-ucd]').innerText.toLowerCase().includes('home dashboard'), n: others.length,
@@ -591,15 +591,15 @@ class Detail(unittest.TestCase):
         with chrome() as cdp:
             sid = self.open_detail(cdp)
             for key, code, vk in (("Enter", "Enter", 13), (" ", "Space", 32)):
-                cdp.js("document.querySelector('[data-eye]').focus()", sid)
+                cdp.js("document.querySelector('.ucd-eye[data-eye]').focus()", sid)
                 was = self.row()["client_visible"]
                 for kind in ("keyDown", "keyUp"):
                     cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk,
                                                          **({"text": "\r" if key == "Enter" else " "} if kind == "keyDown" else {})}, sid)
-                self.until(cdp, sid, f"document.querySelector('[data-eye]').title === '{'Not on the dashboard' if was else 'On the dashboard'}'", f"{code} toggled it")
+                self.until(cdp, sid, f"document.querySelector('.ucd-eye[data-eye]').title === '{'Not on the dashboard' if was else 'On the dashboard'}'", f"{code} toggled it")
                 self.assertEqual(self.row()["client_visible"], 0 if was else 1)
-            cdp.js("document.querySelector('[data-eye]').focus()", sid)
-            self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('[data-eye]')).outlineStyle", sid), "none")
+            cdp.js("document.querySelector('.ucd-eye[data-eye]').focus()", sid)
+            self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('.ucd-eye[data-eye]')).outlineStyle", sid), "none")
 
     # ---- archive ----
     def test_archive_makes_it_read_only_with_restore_and_one_undo_and_nothing_is_deleted(self):
