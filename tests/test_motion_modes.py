@@ -59,6 +59,21 @@ class MotionModes(unittest.TestCase):
                         self.assertEqual((got["prop"], got["dur"]), (prop, dur))
                         self.assertEqual((got["ctl"], got["hint"]), (name, name))
 
+    def test_row_884_the_thumb_is_measured_again_when_the_window_width_changes(self):
+        from test_server import chrome
+        want = """(() => { const g = document.querySelector('.rbar .modes.glide'), v = g.querySelector('[data-mode=view]'), on = g.querySelector('[aria-pressed=true]');
+          return g.style.getPropertyValue('--vw') === v.offsetWidth + 'px' && g.style.getPropertyValue('--tx') === (on.offsetLeft - v.offsetLeft) + 'px'
+            && Math.abs(parseFloat(g.style.getPropertyValue('--sx')) - on.offsetWidth / v.offsetWidth) < 0.001; })()"""
+        for scheme in ("light", "dark"):
+            with self.subTest(scheme=scheme), chrome() as cdp:
+                sid = self.load(cdp, 1400, scheme, "no-preference")
+                self.assertTrue(wait(lambda: cdp.js(want, sid)), "measured at 1400")
+                for width in (900, 1400):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                    self.assertTrue(wait(lambda: cdp.js(want, sid)), f"measured again at {width}")
+                cdp.js("document.querySelector('.rbar .modes.glide [data-mode=edit]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js(want, sid)), "and after a switch")
+
     def test_row_884_is_inside_the_motion_block_uses_tokens_and_the_still_pill_is_untouched(self):
         block = CSS[CSS.index("Motion: motion that explains"):]
         block = block[:block.index("@media (hover: hover)")]
@@ -69,6 +84,9 @@ class MotionModes(unittest.TestCase):
         tg = (ROOT / "src/clark/page/src/edit/Toggle.jsx").read_text(encoding="utf-8")
         self.assertRegex(tg, r'class=\{pill \? "modes seg glide"')
         self.assertRegex(tg, r'setProperty\("--tx"')
+        self.assertRegex(tg, r"new ResizeObserver\(")
+        self.assertRegex(tg, r"disconnect\(\)")
+        self.assertNotRegex(tg, r"setTimeout|Date\.now")
 
 
 if __name__ == "__main__":

@@ -4,17 +4,36 @@
 // and E do the same (keys.js, listened for from boot, so the key works whichever bar draws the switch).
 import { mode, data, status, view } from "../stores/report.js";
 import { singleKeys } from "../stores/keyPrefs.js";
-import { useLayoutEffect, useRef } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
+
+// row 884: where the pill's thumb sits (the pressed button, measured from the View button), so the stylesheet can slide it.
+function measure(el) {
+  const v = el && el.querySelector('[data-mode="view"]'), on = el && el.querySelector('[aria-pressed="true"]');
+  if (!v || !on || !v.offsetWidth) return;
+  el.style.setProperty("--vw", v.offsetWidth + "px");
+  el.style.setProperty("--tx", (on.offsetLeft - v.offsetLeft) + "px");
+  el.style.setProperty("--sx", String(on.offsetWidth / v.offsetWidth));
+}
 
 export function Toggle({ pill }) {      // pill: the Dashboard's, drawn at the left of the report bar (#665); otherwise the top bar's
-  const box = useRef(null);
-  useLayoutEffect(() => {       // row 884: where the pill's thumb sits (the pressed button, measured from the View button), so the stylesheet can slide it
-    const el = box.current, v = el && el.querySelector('[data-mode="view"]'), on = el && el.querySelector('[aria-pressed="true"]');
-    if (!pill || !v || !on || !v.offsetWidth) return;
-    el.style.setProperty("--vw", v.offsetWidth + "px");
-    el.style.setProperty("--tx", (on.offsetLeft - v.offsetLeft) + "px");
-    el.style.setProperty("--sx", String(on.offsetWidth / v.offsetWidth));
+  const box = useRef(null), watch = useRef({ el: null, ro: null });
+  useLayoutEffect(() => {       // on each render, and again when the pill or its buttons change size (a resize, a late font) or the fonts load
+    if (!pill) return;
+    const el = box.current;
+    measure(el);
+    if (el === watch.current.el) return;
+    if (watch.current.ro) watch.current.ro.disconnect();
+    watch.current = { el, ro: null };
+    if (!el) return;
+    if (typeof ResizeObserver === "function") {
+      const ro = new ResizeObserver(() => measure(box.current));
+      ro.observe(el);
+      el.querySelectorAll(".mode").forEach((b) => ro.observe(b));
+      watch.current.ro = ro;
+    }
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => measure(box.current));
   });
+  useEffect(() => () => { if (watch.current.ro) watch.current.ro.disconnect(); }, []);
   if (!data.value && !(status.value === "none" && view.value === "settings")) return null;       // #656: with no project Settings has its Edit, for Add project
   const editing = mode.value === "edit";
   return (
