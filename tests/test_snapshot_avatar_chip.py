@@ -32,12 +32,14 @@ CHIPS = """(function () {
 # A work list's avatar (ItemRows.jsx draws <span class="wl-meta"><span class="av">) outside the snapshot, planted next to the real ones.
 PLANT = """(function () {
   var h = document.createElement('div');
-  h.innerHTML = '<span class="wl-meta"><span class="av">AB</span></span>';
+  h.innerHTML = '<span class="wl-meta"><span class="av">WM</span></span>';
   document.getElementById('main').appendChild(h);
-  var a = h.querySelector('.av'), r = a.getBoundingClientRect();
-  var spill = a.scrollWidth > a.clientWidth;
+  var a = h.querySelector('.av'), r0 = document.createRange(); r0.selectNodeContents(a);
+  var t = r0.getBoundingClientRect(), b = a.getBoundingClientRect(), fs = parseFloat(getComputedStyle(a).fontSize);
+  var rad = b.width / 2, half = fs / 2;
+  var out = {w: b.width, h: b.height, textW: t.width, fs: fs, chord: 2 * Math.sqrt(Math.max(0, rad * rad - half * half)), spill: a.scrollWidth > a.clientWidth};
   h.remove();
-  return JSON.stringify({h: r.height, spill: spill});
+  return JSON.stringify(out);
 })()"""
 
 INSIDE = """JSON.stringify([].slice.call(document.querySelectorAll('.cr-wl .wl-meta .av')).map(function (a) { return a.getBoundingClientRect().width; }))"""
@@ -98,13 +100,14 @@ class SnapshotAvatarChip(cr.Drawn):
         self.assertTrue({"PN", "WM", "MJ"} <= set(seen), seen)
 
     def test_the_work_lists_keep_their_small_avatar(self):
-        """A read of PR 863 found: the bigger circle is the snapshot's only (.cr-wl); the work lists share the .wl-meta class and keep their usual circle (20 px high, as in the prototype; the snapshot gets 30)."""
+        """A read of PR 863 found: the bigger circle is the snapshot's only (.cr-wl); the work lists share the .wl-meta class and keep their usual circle (22 px high, as in the prototype; the snapshot gets 30)."""
         def check(cdp, sid, where):
             outside = json.loads(cdp.js(PLANT, sid))
             inside = json.loads(cdp.js(INSIDE, sid))
             self.assertTrue(inside and all(abs(w - 30) < 0.5 for w in inside), where + ": the snapshot circle is 30 px, got %r" % inside)
-            self.assertAlmostEqual(outside["h"], 20, delta=0.5, msg=where + ": a work list avatar is the small 20 px one, got %r" % outside)
-            self.assertFalse(outside["spill"], where + ": and two letters do not spill out of it")
+            self.assertAlmostEqual(outside["h"], 22, delta=0.5, msg=where + ": a work list avatar is the small 22 px one, got %r" % outside)
+            self.assertGreaterEqual(outside["w"], outside["textW"], where + ": the widest initials (WM) fit inside it, got %r" % outside)
+            self.assertFalse(outside["spill"], where + ": and do not spill out of it, got %r" % outside)
         self.each_view(self.serve_with(), check)
 
     def test_the_chip_is_hidden_when_achieved_is_empty_and_shown_when_it_has_a_figure(self):
