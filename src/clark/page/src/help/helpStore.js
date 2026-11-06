@@ -5,7 +5,7 @@ import { signal, effect } from "@preact/signals";
 import { view, project, show, mode, peek, closePeek } from "../stores/report.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 import { screenOf, shapeContext } from "./peekLogic.js";
-import { contextText, placeOf, TABS, firstPlace, placeTitle, trailVisit, trailBack } from "./helpLogic.js";
+import { contextText, articlesFor, placeOf, TABS, firstPlace, placeTitle, trailVisit, trailBack } from "./helpLogic.js";
 
 export const helpOpen = signal(false);
 export const helpTab = signal(lastTab());
@@ -211,7 +211,10 @@ export function screenNow() { return screenOf(view.value, mode.value); }
 /** The peek's content for a screen, in one shape (peekLogic.js), or null when there is none. */
 export function contextOf(screen) {
   const f = source || contextText;
-  try { return shapeContext(f(screen)); } catch (e) { return null; }
+  try {
+    const c = shapeContext(f(screen));
+    return c ? { ...c, articles: articlesFor(screen), articlesTitle: (TABS.find((t) => t.key === "howto") || {}).name || "" } : null;   // row 896: the how-to articles for this page, under the how-to tab's own word
+  } catch (e) { return null; }
 }
 
 let peekBack = null;                                // what had focus when the peek opened
@@ -254,10 +257,10 @@ export function toggleContext() {
 }
 
 /** The peek's foot link: close the peek and open the full Help on the entry the text names. Back from Help returns to where the peek was opened. */
-export function openFull() {
+export function openFull(place) {
   const c = contextOf(contextScreen.value), back = peekBack;
   peekBack = null;
   contextOpen.value = false;
   if (back && back.isConnected && typeof back.focus === "function") back.focus();   // so Help's Back returns there, not to the link that has just gone
-  openHelp(c ? c.full || undefined : undefined);
+  openHelp(typeof place === "string" ? place : c ? c.full || undefined : undefined);   // an article of the peek (row 896) opens on itself
 }

@@ -31,11 +31,17 @@ def keys_in_help(p):
 
 
 def full_help_from_menu(p, what="Help opened from the profile menu"):
-    """The profile menu's Help entry opens the FULL Help (on the tab used last); "?" and the top-bar button open the context peek where a screen has text."""
+    """The profile menu's Help entry opens the context peek like "?" (row 896); this goes one click further, to the FULL Help (on the tab used last)."""
     p.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)   # a click with no key press before it leaves the page unfocused
     p.js("document.querySelector('#profile-btn').click()")
     p.until("!!document.querySelector('#profile-menu')", "profile menu")
     p.js("[...document.querySelectorAll('#profile-menu [role=menuitem]')].find(e => e.textContent === 'Help').click()")
+    p.until("!!document.querySelector('#help') || !!document.querySelector('#help-peek')", what)
+    if p.js("!!document.querySelector('#help-peek')"):          # row 896: the entry opens the peek; the full Help is its foot link, which opens on the entry the text names
+        last = p.js("localStorage.getItem('clark.helpTab') || 'start'")
+        p.js("document.querySelector('#help-peek [data-hpk-full]').click()")
+        p.until("!!document.querySelector('#hpTab-%s')" % last, what)
+        p.js("window.clarkPage.help.open(%r)" % last)      # the tab used last, which these tests are about (open() starts a fresh history)
     p.until("!!document.querySelector('#help') && !document.querySelector('#profile-menu')", what)
 
 

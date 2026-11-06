@@ -6,7 +6,7 @@ the work (contextText in helpLogic.js), so these tests give the page a made-up t
 (window.clarkPage.help.peek.useText): it exists only in the test build, never in the served page or a published file.
 The owner's rules, each tested: the peek opens only where there is text; "?" and the top-bar button do the same; a second "?", Esc, a click
 outside and leaving the page close it; "?" replaces the item peek and the ask panel (one at a time); the profile menu's Help is the
-full Help; the foot link opens the full Help on the entry the text names; focus goes in and comes back; 1400 and 900 px, light and dark.
+same peek (row 896); the foot link opens the full Help on the entry the text names; focus goes in and comes back; 1400 and 900 px, light and dark.
 """
 import os
 import shutil
@@ -209,14 +209,14 @@ class Peek(Base):
             p.until("document.activeElement.hasAttribute('data-hpk-close')", "focus stays in the Help peek")
 
     # ---- the full Help ----
-    def test_the_profile_menu_help_opens_the_full_help_not_the_peek(self):
+    def test_the_profile_menu_help_opens_the_peek_like_the_question_mark_row_896(self):
         with chrome() as cdp:
             p = self.page(cdp)
             p.js("document.querySelector('#profile-btn').click()")
             p.until("!!document.querySelector('#profile-menu')", "menu")
             p.js("[...document.querySelectorAll('#profile-menu [role=menuitem]')].find(e => e.textContent === 'Help').click()")
-            p.until("!!document.querySelector('#help')", "the full Help")
-            self.assertEqual(p.js("document.querySelector('#help-peek')"), None)
+            p.until("!!document.querySelector('#help-peek')", "the peek, as on ?")
+            self.assertEqual(p.js("document.querySelector('#help')"), None, "not the full Help: that is the foot link")
 
     def test_the_foot_link_opens_the_full_help_on_the_named_entry_and_closes_the_peek(self):
         with chrome() as cdp:
