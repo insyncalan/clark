@@ -103,7 +103,7 @@ button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; fo
 .teye .i { width: 16px; height: 16px; }
 .tgrip:hover, .teye:hover { background: var(--grey-100); color: var(--text); }
 .tgrip:focus-visible, .teye:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.tcell.is-hidden .fig { border-style: dashed; border-color: var(--grey-300); background: var(--grey-100); padding-bottom: 54px; }   /* room under the figures for the tag at the bottom (two lines at 190 px), so it never sits over the chip or the detail */   /* not opacity: that dims the text below 4.5:1 */
+.tcell.is-hidden .fig { border-style: dashed; border-color: var(--grey-300); background: transparent; padding-bottom: 54px; }   /* room under the figures for the tag at the bottom (two lines at 190 px), so it never sits over the chip or the detail */   /* not opacity: that dims the text below 4.5:1 */
 .thid { position: absolute; left: 12px; bottom: 6px; z-index: 2; }
 /* In Edit the grip and the eye sit in a tile's top right corner (4 + 24 + 2 + 24 = 54 px from its edge). The label line keeps clear of them:
    the 54 px less the tile's border and padding (17 px) and a 4 px gap is 41 px, so a long label wraps rather than runs under a control.
@@ -437,7 +437,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
    between the cards. The side gap stays 24 px so a right-hand section's control (Edit) has room beside the left card. The Settings ›
    Personal style (html[data-secstyle], at the end of this file) changes the gaps (Roomy), puts the heading on a grey band (Grey
    headers) or takes the cards away for one card round every section (One card). Shared: the published page follows the same rules. */
-.secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3) var(--space-5); margin-top: 16px; }
+.secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3) var(--space-5); margin-top: 16px; overflow-anchor: none; }     /* row 756: the page holds the section being read itself (Dashboard.jsx) on a View/Edit switch; the browser's own anchoring moved it a second time */
 .sec { --sec-px: 20px; position: relative; min-width: 0; padding: 14px var(--sec-px) 10px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
 /* In these styles the sections are cards on the page, so the report's own frame steps back (its side room is kept for Edit's control). */
 html:not([data-secstyle="card"]) .frame.report { padding: var(--space-1) 28px 0; background: transparent; border: 0; box-shadow: none; }
@@ -619,6 +619,8 @@ input.sec-title { width: 100%; }
 .sn-head .i { width: 16px; height: 16px; }
 .sn-in { width: 100%; box-sizing: border-box; margin-top: var(--space-2); min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .sn-list { list-style: none; margin: 10px 0 0; padding: 0; }
+.sn-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding: var(--space-1) 0; }
+.sn-f { min-width: 70px; color: var(--text-muted); font-size: var(--size-caption); }
 .sn-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: var(--space-1) 0; border-top: 1px solid var(--grey-100); }
 .sn-list li:first-child { border-top: 0; }
 .sn-to { padding: 0 var(--space-2); border-radius: var(--radius-lg); background: var(--brand-blue-tint); color: var(--text); }
@@ -714,7 +716,8 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 .bib[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); border-color: var(--brand-blue); }
 .seg.icons button:focus-visible, .bib:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .bib .i, .seg.icons .i { width: 18px; height: 18px; }
-[data-tip]:hover::after, [data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--brand-navy); color: var(--white); font-size: var(--size-small); line-height: 1.4; white-space: nowrap; pointer-events: none; }
+[data-tip]:hover::after, [data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; z-index: 19;      /* row 774: under every menu and panel (lowest is .menu, 20), so a tip never covers one */ top: calc(100% + 6px); right: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--brand-navy); color: var(--white); font-size: var(--size-small); line-height: 1.4; white-space: nowrap; pointer-events: none; }
+[data-tip][aria-expanded="true"]::after, html[data-tip-off] [data-tip]::after { content: none; display: none; }      /* row 774: no tip on a button whose menu is open, nor after Esc until the pointer or a key moves on */
 /* Each group is its own bordered card (prototype `.group`): a grey heading bar, then the column names and the rows. */
 .wgroup { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); margin-bottom: var(--space-3); overflow: hidden; }
 .wgroup table.items { margin-top: 0; }
