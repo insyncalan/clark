@@ -243,6 +243,15 @@ class Panel(Base):
                                                             **({"text": text} if kind == "keyDown" else {})}, p.sid)
                     p.until("document.querySelector('.ask-sources').open === %s" % ("true" if want else "false"), f"{code} {'opened' if want else 'closed'} it")
 
+    def test_sources_drop_the_part_suffix_and_list_each_file_once(self):
+        labels = ["x/a.md", "x/a.md (part 2)", "x/b.md (part 3)", "notes.xlsx", "the part two plan.md"]
+        self.stub.sources = [{"id": "P%d" % i, "label": t} for i, t in enumerate(labels)]
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.answered(p)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ask-sources li')].map((l) => l.textContent)"),
+                             ["x/a.md", "x/b.md", "notes.xlsx", "the part two plan.md"])
+
     def test_no_sources_control_when_the_answer_has_no_sources(self):
         with chrome() as cdp:
             p = self.opened(cdp)

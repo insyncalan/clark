@@ -10,9 +10,12 @@ import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panel
 import * as W from "./askWords.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 
-// Row 890: the files an answer used, as the server sends them ({id, label}); anything else is left out.
+// Row 890: the files an answer used, as the server sends them ({id, label}). A long file is cut into parts labelled "name (part N)":
+// the suffix is dropped and each file is listed once, in the order first seen.
 function sourceLabels(list) {
-  return Array.isArray(list) ? list.filter((s) => s && typeof s.label === "string" && s.label).map((s) => s.label) : [];
+  if (!Array.isArray(list)) return [];
+  const names = list.filter((s) => s && typeof s.label === "string" && s.label).map((s) => s.label.replace(/ \(part \d+\)$/, ""));
+  return names.filter((n, i) => names.indexOf(n) === i);
 }
 
 async function post(path, body) {
