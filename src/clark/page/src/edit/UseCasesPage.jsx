@@ -2,14 +2,15 @@
 // dashboard or not, and one use case's own page when the address names one (#usecases&p=CODE&uc=1.2, drawn by UseCaseDetail).
 // A row: its reference, its name (the button that opens it), where it stands, the status in words with a dot, the linked work items
 // and how many are open, the linked milestones, and the eye (an icon alone; its words are the tooltip). The eye is the dashboard's own switch (use_cases.client_visible),
-// changed through the one change path with its Undo toast, in Edit; in View the same words are shown and nothing changes.
+// changed through the one change path with its Undo toast, in View as in Edit (row 819).
 // The list is ONE tab stop (the current row's name): Up and Down move between rows, Home and End to the first and last, Right to the
 // row's eye and Left back to its name. The search, the Status choice, the On the dashboard switch and the sort are remembered for each
 // project in this browser (logic/useCasesList.js), never in the address, so they add no Back entry.
 import { signal, computed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { data, rows as allRows, project, uc, mode, openUseCase, leaveUseCase } from "../stores/report.js";
+import { data, rows as allRows, project, uc, openUseCase, leaveUseCase } from "../stores/report.js";
 import { change } from "../stores/changes.js";
+import { blink } from "../stores/motion.js";
 import { readArchivedUseCase } from "../api.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
 import { listOf, ucFor, tidy, recalled, keep, shownOf, onCounts, narrowed, countWords, rowSay, STATUS_WORDS, ON_WORDS, OFF_WORDS, SORTS } from "../logic/useCasesList.js";
@@ -46,7 +47,7 @@ function setEye(r, rowsShown) {
   }, 60));
 }
 
-function Row({ r, edit, stop, shown }) {
+function Row({ r, stop, shown }) {
   const open = () => { returning = r.id; openUseCase(r.id); };
   const ms = r.ms.length ? r.ms.map((m) => m.name).join("; ") : "";
   const eyeWords = r.on ? ON_WORDS : OFF_WORDS;
@@ -63,10 +64,8 @@ function Row({ r, edit, stop, shown }) {
       <span class="ucl-st"><span class={`pill ${RAG[r.status] || "n"}`} data-status>{r.status}</span><CommitChip u={r} /></span>
       <span class="ucl-wi num">{r.total ? <><b>{r.total}</b> linked<small>{r.open} open</small></> : "None linked"}</span>
       <span class="ucl-ms">{ms || <span class="muted">None</span>}</span>
-      {edit
-        ? <button type="button" class="ucl-eye" tabIndex={-1} data-eye title={eyeWords} aria-label={`${r.ref || "Use case"} ${r.name}: ${eyeWords}. ${r.on ? "Take it off the dashboard" : "Put it on the dashboard"}`}
-            onFocus={() => { current.value = r.id; }} onClick={() => setEye(r, shown)}><Icon name={r.on ? "eye" : "eyeoff"} /></button>
-        : <span class="ucl-eye ucl-eye-ro" data-eye-words role="img" title={eyeWords} aria-label={eyeWords}><Icon name={r.on ? "eye" : "eyeoff"} /></span>}
+      <button type="button" class="ucl-eye" tabIndex={-1} data-eye title={eyeWords} aria-label={`${r.ref || "Use case"} ${r.name}: ${eyeWords}. ${r.on ? "Take it off the dashboard" : "Put it on the dashboard"}`}
+        onFocus={() => { current.value = r.id; }} onClick={(e) => { blink(e); setEye(r, shown); }}><Icon name={r.on ? "eye" : "eyeoff"} /></button>
     </li>
   );
 }
@@ -118,7 +117,7 @@ function StatusFilter({ f }) {
 }
 
 function UseCasesList() {
-  const edit = mode.value === "edit", f = state.value, rows = all.value, shown = shownOf(rows, f), n = onCounts(rows, f);
+  const f = state.value, rows = all.value, shown = shownOf(rows, f), n = onCounts(rows, f);
   const stop = shown.some((r) => r.id === current.value) ? current.value : shown.length ? shown[0].id : "";
   const list = useRef(null);
   useEffect(() => {      // coming back from a use case: its row takes the focus
@@ -160,7 +159,7 @@ function UseCasesList() {
           <div class="ucl-box" ref={list} onKeyDown={keys}>
             <div class="ucl-row ucl-hd" aria-hidden="true"><span>Ref</span><span>Use case</span><span class="ucl-head">Where it stands</span><span>Status</span><span>Work items</span><span class="ucl-ms">Milestones</span><span></span></div>
             <ul class="ucl-list" aria-label="Use cases">
-              {shown.map((r) => <Row key={r.id} r={r} edit={edit} stop={r.id === stop} shown={shown} />)}
+              {shown.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} />)}
             </ul>
           </div>
         )}

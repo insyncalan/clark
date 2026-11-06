@@ -162,7 +162,6 @@ class Browser(unittest.TestCase):
         s = self.serve()
         with chrome() as cdp:
             sid = self.visit(cdp, s.port, 1400)
-            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             cdp.js("document.querySelector('tr[data-project=MOSS] [data-archive]').click()", sid)
             self.until(cdp, sid, "!document.querySelector('tr[data-project=MOSS]')", "the project to leave the list")
             self.assertEqual(self.sent, [{"project": "MOSS", "kind": "projects", "op": "archive", "id": "MOSS"}])
@@ -187,7 +186,6 @@ class Browser(unittest.TestCase):
         s = self.serve()
         with chrome() as cdp:
             sid = self.visit(cdp, s.port, 1400)
-            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             cdp.js("document.querySelector('tr[data-project=TUL] [data-archive]').click()", sid)
             self.until(cdp, sid, "location.hash.includes('p=MOSS')", "the page to open the other live project")
             self.assertEqual(self.sent, [{"project": "TUL", "kind": "projects", "op": "archive", "id": "TUL"}])
@@ -203,7 +201,6 @@ class Browser(unittest.TestCase):
         self.gone.add("MOSS")
         with chrome() as cdp:
             sid = self.visit(cdp, s.port, 1400)
-            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             cdp.js("document.querySelector('tr[data-project=TUL] [data-archive]').click()", sid)
             self.until(cdp, sid, "document.querySelector('.toast.problem')", "the refusal")
             self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid),
@@ -215,7 +212,6 @@ class Browser(unittest.TestCase):
         cdp.js("(() => { const f = document.querySelector('%s'); f.value = %s; f.dispatchEvent(new Event('input', {bubbles: true})); })()" % (field, json.dumps(value)), sid)
 
     def open_form(self, cdp, sid, opener):
-        cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
         cdp.js("document.querySelector('%s').click()" % opener, sid)
         self.until(cdp, sid, "document.querySelector('#project-form')", "the project form")
 

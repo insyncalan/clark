@@ -2,13 +2,13 @@
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
-import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, mode } from "../stores/report.js";
+import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt } from "../stores/report.js";
 import { milestoneRows, headLine, showDate, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
 
-// The placeholder shown while a project's data is on its way: grey blocks in the shape of the screen, drawn still (no
-// shimmer), and only if the wait is longer than SKELETON_AFTER_MS, so data that arrives at once never flashes one. A published
+// The placeholder shown while a project's data is on its way: grey blocks in the shape of the screen, still under reduced
+// motion and shimmering otherwise (shell.css, Motion), and only if the wait is longer than SKELETON_AFTER_MS, so data that arrives at once never flashes one. A published
 // file has its data inside it and no wait, so it never draws one. The words are for a screen reader; the blocks are hidden from it.
 export const SKELETON_AFTER_MS = 150;
 
@@ -96,9 +96,9 @@ function MsHead({ Add }) {
 }
 
 export function Milestones({ tools }) {
-  const Wrap = tools && tools.MilestonesPage;     // the owner's Plan / Movement switch and Movement view (#136, C-M2): Edit only, so a published page has none
+  const Wrap = tools && tools.MilestonesPage;     // the owner's Plan / Movement switch and Movement view (#136, C-M2): the served page only, so a published page has none
   const Archived = tools && tools.ArchivedMilestones;   // Show archived (C-M4): the served page only; a published file holds no archived row
-  const Add = tools && !fromFile.value && mode.value === "edit" ? tools.MsAdd : null;      // the owner's Add milestone (#458): Edit only (a write), and never in a published file
+  const Add = tools && !fromFile.value ? tools.MsAdd : null;      // the owner's Add milestone (row 458): always on this page (it has no mode), and never in a published file
   const plan = <><MsBlock place="page" tools={tools} />{Archived ? <Archived /> : null}</>;
   return (
     <section class="frame milestones" id="milestones">

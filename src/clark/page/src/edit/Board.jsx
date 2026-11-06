@@ -11,8 +11,10 @@ import { changeItem, say, toast } from "../stores/changes.js";
 import { build, moveFor, dateMove, movedWords, boardGroup, isCollapsed, toggleCollapsed, groupLabel,
   orderedColumns, moveColumn, stepColumn, widthOf, setColumnWidth, clampWidth, COL_MIN, COL_MAX, COL_DEFAULT, COL_STEP } from "../logic/board.js";
 import { createDrag } from "../logic/dragCore.js";
+import { useSettle } from "../stores/motion.js";
 import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { Eye as WorkEye } from "./cells/Eye.jsx";
 import { cursor, stopOf, cardKeys } from "../listKeys.js";
 import { GroupTick } from "../components/SelectBar.jsx";
 import { workSelection as pickSel } from "../stores/selection.js";
@@ -30,13 +32,21 @@ export function openCard(id) {
 
 const cellKey = (lane, col) => `${lane == null ? "" : lane}\u0001${col}`;
 
-function Eye() {
-  return <span class="eye" title="Shown to the client"><Icon name="eye" /><span class="sr">Shown to the client</span></span>;
+// The card's eye (row 819): the list's own eye, a button in View and Edit, one change with the list's toast and Undo.
+function CardEye({ card }) {
+  return <WorkEye card row={{ id: card.id, title: card.title, kind: card.typeClass.slice(2), client: card.client }} />;
 }
 
-// A card is picked like a table row (#195): a click selects it, Cmd or Ctrl+click adds or removes it, Shift+click a range in the
-// order drawn, a double click (or Enter) opens the peek; Space adds or removes it, Shift+Up and Shift+Down extend, Cmd or Ctrl+A
+// A card is picked like a table row (#195): a click selects it and opens its peek, Cmd or Ctrl+click adds or removes it, Shift+click a range in the
+// order drawn, Enter opens the peek; Space adds or removes it, Shift+Up and Shift+Down extend, Cmd or Ctrl+A
 // selects every card shown.
+// The count badge on a column heading: it ticks once when the number changes (row 888), never on the first draw.
+function ColCount({ n }) {
+  const ref = useRef(null);
+  useSettle(ref, n);
+  return <span class="cn num" ref={ref}>{n}</span>;
+}
+
 function Card({ card, editing, selected, picked, dragging, ask, menu, stop, pos, size, onOpen, onPick, onMenu, children }) {
   const label = `${card.id} ${card.title}, ${card.state.text}${card.due.words ? ", " + card.due.words.toLowerCase() : ""}${picked ? ", selected" : ""}`;
   const focusCard = (id) => { const el = document.querySelector(`article[data-id="${CSS.escape(id)}"] .bc-main`); if (el) el.focus(); };
@@ -52,7 +62,7 @@ function Card({ card, editing, selected, picked, dragging, ask, menu, stop, pos,
           pickKeys(e, card.id, focusCard);
           cardKeys(e);
         }}>
-        <div class="bc-top"><span class={`type tl ${card.typeClass}`} role="img" aria-label={card.type} title={card.type}>{TYPE_LETTER[card.typeClass.slice(2)] || card.type.charAt(0)}</span><span class="bc-id num">{card.id}</span>{card.client ? <Eye /> : null}</div>
+        <div class="bc-top"><span class={`type tl ${card.typeClass}`} role="img" aria-label={card.type} title={card.type}>{TYPE_LETTER[card.typeClass.slice(2)] || card.type.charAt(0)}</span><span class="bc-id num">{card.id}</span><CardEye card={card} /></div>
         <div class="bc-title">{picked ? <span class="tick" aria-hidden="true"><Icon name="check" /></span> : null}{card.title}</div>
         <div class="bc-foot">
           {card.initials ? <span class="av" title={card.owner} aria-hidden="true">{card.initials}</span> : null}
@@ -377,7 +387,7 @@ export function Board({ rows, today, type }) {
       <div class="lanebar" role="group" aria-label="Board view">
         <button type="button" class="bib fs" id="board-full" ref={fsBtn} aria-pressed={isFull ? "true" : "false"} aria-label={isFull ? "Leave full screen" : "View full screen"}
           data-tip={isFull ? "Leave full screen (Esc)" : "View full screen"} onClick={toggleFull}>
-          <Icon name={isFull ? "shrink" : "expand"} />
+          <Icon name={isFull ? "arrows-in" : "arrows-out"} />
         </button>
       </div>
       <div class="boardbox" role="region" aria-label="Work items board" ref={box}>
@@ -398,7 +408,7 @@ export function Board({ rows, today, type }) {
                       <button type="button" class="col-b" aria-expanded={shut ? "false" : "true"} aria-label={`${c.label}, ${c.count}${shut ? ", collapsed" : ""}`} data-toggle={c.key}
                         aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight" title="Drag to move the column, or hold Alt and press the left or right arrow."
                         onPointerDown={(e) => headDown(e, c, ln)} onKeyDown={(e) => headKey(e, c, ln)} onClick={() => headClick(c)}>
-                        <span class="dot" aria-hidden="true"></span><span class="cl">{c.label}</span><span class="cn num">{c.count}</span>
+                        <span class="dot" aria-hidden="true"></span><span class="cl">{c.label}</span><ColCount n={c.count} />
                       </button>
                       {shut ? null : <span class="col-rz" role="separator" tabIndex={0} aria-orientation="vertical" data-resize={c.key}
                         aria-label={`Resize the ${c.label} column`} aria-valuemin={COL_MIN} aria-valuemax={COL_MAX} aria-valuenow={wd || COL_DEFAULT}

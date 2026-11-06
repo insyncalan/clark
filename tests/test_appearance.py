@@ -30,7 +30,7 @@ class Appearance(Base):
     def open_settings(self, p):
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
-        p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+        p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
         p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
 
     def open_menu(self, p):
@@ -42,7 +42,7 @@ class Appearance(Base):
                 "return !!document.querySelector('#profile-menu'); })()", "the menu opened")
 
     def in_settings(self, p):
-        return p.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].filter(i => i.getAttribute('aria-pressed') === 'true').map(i => i.dataset.themePick)")
+        return p.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].filter(i => i.getAttribute('aria-checked') === 'true').map(i => i.dataset.themePick)")
 
     def in_menu(self, p):
         return p.js("[...document.querySelectorAll('#profile-menu [role=menuitemradio]')].filter(i => i.getAttribute('aria-checked') === 'true').map(i => i.textContent.replace('✓', ''))")
@@ -77,10 +77,73 @@ class Appearance(Base):
                 self.open_settings(p)
                 self.assertEqual(p.js("document.querySelectorAll('#personal [data-appearance] input').length"), 0, "no radio buttons")
                 self.assertEqual(p.js("getComputedStyle(document.querySelector('#personal [data-appearance] .seg')).borderRadius"), "999px", "the page's .seg pill")
-                self.assertEqual(p.js("document.querySelector('#personal [data-appearance] .seg').getAttribute('role')"), "group")
+                self.assertEqual(p.js("document.querySelector('#personal [data-appearance] .seg').getAttribute('role')"), "radiogroup")
+                self.assertEqual(p.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].map(b => b.getAttribute('role')).join()"), "radio,radio,radio")
+                self.assertEqual(p.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].map(b => b.tabIndex).join()"), "0,-1,-1", "one tab stop: the chosen")
                 p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').click()")
                 self.assertEqual(self.in_settings(p), ["dark"], "one is pressed")
                 self.assertEqual(p.js("document.querySelector('#personal [data-appearance-line]').textContent"), "Always dark.", "the line follows the choice")
+
+    def test_C_appearance_arrow_keys_move_and_pick_row_902(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=system]').focus()")
+            for key, want in (("ArrowRight", "light"), ("ArrowRight", "dark"), ("ArrowRight", "system"), ("ArrowLeft", "dark")):
+                p.cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": key, "code": key, "windowsVirtualKeyCode": {"ArrowRight": 39, "ArrowLeft": 37}[key]}, p.sid)
+                p.cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": key, "code": key, "windowsVirtualKeyCode": {"ArrowRight": 39, "ArrowLeft": 37}[key]}, p.sid)
+                p.until(f"document.documentElement.dataset.theme === '{ {'light': '', 'dark': 'dark', 'system': 'auto'}[want] }' || ('{want}' === 'light' && !document.documentElement.dataset.theme)", f"{key} picked {want}")
+                self.assertEqual(self.in_settings(p), [want])
+                self.assertEqual(p.js("document.activeElement.dataset.themePick"), want, "focus follows")
+            self.open_menu(p)
+            self.assertEqual(self.in_menu(p), ["Dark"], "the menu agrees")
+
+    def test_C_chosen_appearance_segment_keeps_the_pill_look_row_902(self):
+        for scheme_name in ("light", "dark"):
+            for w in WIDTHS:
+                with self.subTest(scheme=scheme_name, width=w), chrome() as cdp:
+                    p = self.page(cdp)
+                    p.width(w)
+                    scheme(p, scheme_name)
+                    self.open_settings(p)
+                    p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=light]').click()")
+                    got = p.js("(() => { const on = document.querySelector('#personal [data-appearance] button[aria-checked=true]'), off = document.querySelector('#personal [data-appearance] button[aria-checked=false]');"
+                               " return [getComputedStyle(on).backgroundImage, getComputedStyle(on).color, getComputedStyle(off).backgroundImage, getComputedStyle(on).fontWeight]; })()")
+                    self.assertIn("gradient", got[0], "the chosen segment has the pill gradient")
+                    self.assertNotEqual(got[1], p.js("getComputedStyle(document.querySelector('#personal [data-appearance] button[aria-checked=false]')).color"), "the chosen text colour differs")
+                    self.assertNotIn("gradient", got[2], "the others have none")
+                    p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=system]').focus()")
+                    p.cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "End", "code": "End", "windowsVirtualKeyCode": 35}, p.sid)
+                    p.cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "End", "code": "End", "windowsVirtualKeyCode": 35}, p.sid)
+                    p.until("document.documentElement.dataset.theme === 'dark'", "End picks the last")
+
+    def key(self, p, name, code, mods=0):
+        for kind in ("keyDown", "keyUp"):
+            p.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": name, "code": name, "windowsVirtualKeyCode": code, "modifiers": mods}, p.sid)
+
+    def test_C_home_picks_the_first_choice_and_focus_follows_row_902(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').click()")
+            p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').focus()")
+            self.key(p, "Home", 36)
+            p.until("document.documentElement.dataset.theme === 'auto'", "Home picks System, the first")
+            self.assertEqual(self.in_settings(p), ["system"])
+            self.assertEqual(p.js("document.activeElement.dataset.themePick"), "system", "focus follows")
+
+    def test_C_a_key_with_a_modifier_held_does_not_change_the_choice_row_902(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=system]').focus()")
+            p.js("window.__swallowed = []; document.addEventListener('keydown', e => window.__swallowed.push(e.defaultPrevented), false)")
+            for mods in (1, 2, 4, 8):                      # alt, ctrl, meta, shift
+                self.key(p, "ArrowRight", 39, mods)
+                self.key(p, "End", 35, mods)
+            self.assertEqual(self.in_settings(p), ["system"], "the choice is unchanged")
+            self.assertEqual(p.js("document.documentElement.dataset.theme"), "auto")
+            self.assertEqual(p.js("window.__swallowed.some(Boolean)"), False, "no key was swallowed")
 
     def test_C_system_follows_the_computer_both_ways_with_no_reload_and_light_and_dark_do_not(self):
         with chrome() as cdp:
@@ -108,7 +171,7 @@ class Appearance(Base):
                 p.width(w)
                 self.open_menu(p)
                 roles = p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')})")
-                self.assertEqual(roles[:8], ["menuitem", "menuitem", "menuitem", "menuitem", "menuitem", "menuitem", "separator", "group"])     # the name line, Publish, Preview, Export to Excel, Export to Word (#48), Published reports (#443); Settings and Help follow the group
+                self.assertEqual(roles[:9], ["menuitem", "menuitem", "menuitem", "menuitem", "menuitem", "menuitem", "menuitem", "separator", "group"])     # the name line, Publish, Preview, Export to Excel, Export to Word (#48), Import from Word (row 826), Published reports (#443); Settings and Help follow the group
                 self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
                                  "presentation,menuitemradio,menuitemradio,menuitemradio", "the label and the three radios are one group")
                 self.assertEqual(p.js("document.querySelectorAll('#profile-menu .lab')[0].textContent"), "Appearance", "the group has the same name in the menu as in Settings")

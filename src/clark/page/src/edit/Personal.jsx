@@ -6,6 +6,7 @@ import { appearance, setAppearance } from "../stores/appearance.js";
 import { profile, profileRead, loadProfile, setProfile, wantName } from "../stores/profile.js";
 import { singleKeys, setSingleKeys } from "../stores/keyPrefs.js";
 import { announce, leave, noteTyped } from "./aboutYouToast.js";
+import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { aliasOffer } from "../logic/alias.js";
 
 export const STYLES = [
@@ -125,7 +126,32 @@ function AboutYou() {
   );
 }
 
+const KEYS_ON = "Single-key shortcuts are on";
+const KEYS_OFF = "Single-key shortcuts are off";
+
+// The switch changes at once; the toast says the new state and its Undo sets it back (row 849). The button is never disabled, so focus stays on it.
+function flipKeys() {
+  const now = !singleKeys.value;
+  setSingleKeys(now);
+  announceSwitch(now ? KEYS_ON : KEYS_OFF, () => { setSingleKeys(!now); return { ok: true }; }, now ? KEYS_OFF : KEYS_ON);
+}
+
+// Row 902: the Appearance control is a radio group: one stop in the Tab order (the chosen one); the arrows move to the next or previous
+// choice and pick it, wrapping round; Home and End pick the first and last. Enter and Space pick the focused button as a click does.
+function pickByArrow(e) {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;     // browser shortcuts (Cmd+arrow and the like) are not ours
+  const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+  if (!step && e.key !== "Home" && e.key !== "End") return;
+  e.preventDefault();
+  const at = APPEARANCES.findIndex(([id]) => id === appearance.value), last = APPEARANCES.length - 1;
+  const next = APPEARANCES[e.key === "Home" ? 0 : e.key === "End" ? last : (Math.max(at, 0) + step + APPEARANCES.length) % APPEARANCES.length][0];
+  setAppearance(next);
+  const btn = e.currentTarget.querySelector(`[data-theme-pick="${next}"]`);
+  if (btn) btn.focus();
+}
+
 export function Personal() {
+  useEffect(() => leaveSwitch, []);
   return (
     <section class="frame personal" id="personal" aria-labelledby="personal-h">
       <h2 id="personal-h" tabIndex={-1}>Personal</h2>
@@ -146,18 +172,18 @@ export function Personal() {
       </fieldset>
       <fieldset class="styles" data-appearance>
         <legend>Appearance</legend>
-        <div class="seg" role="group" aria-label="Appearance">
+        <div class="seg" role="radiogroup" aria-label="Appearance" onKeyDown={pickByArrow}>
           {APPEARANCES.map(([id, name]) => (
-            <button key={id} type="button" data-theme-pick={id} aria-pressed={appearance.value === id ? "true" : "false"} onClick={() => setAppearance(id)}>{name}</button>
+            <button key={id} type="button" role="radio" data-theme-pick={id} aria-checked={appearance.value === id ? "true" : "false"} tabIndex={appearance.value === id ? 0 : -1} onClick={() => setAppearance(id)}>{name}</button>
           ))}
         </div>
         <p class="muted appearance-line" data-appearance-line aria-live="polite">{(APPEARANCES.find(([id]) => id === appearance.value) || APPEARANCES[0])[2]}</p>
       </fieldset>
       <AboutYou />
-      <fieldset class="keys">
+      <fieldset class="styles keys">
         <legend>Keys</legend>
         <label class="sw key-sw"><button type="button" class="switch" role="switch" aria-label="Single-key shortcuts" aria-checked={singleKeys.value ? "true" : "false"} aria-describedby="keys-line"
-          onClick={() => setSingleKeys(!singleKeys.value)}></button>
+          onClick={flipKeys}></button>
           <span><b>Single-key shortcuts</b><small id="keys-line">Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.</small></span></label>
       </fieldset>
     </section>

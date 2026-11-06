@@ -293,6 +293,35 @@ class Menu(unittest.TestCase):
             self.assertTrue(wait(lambda: js("document.activeElement.id") == "client-menu-btn"), "focus is back on the badge")
             self.assertEqual(js(f"{BADGE}.getAttribute('aria-expanded')"), "false")
 
+    def click_badge(self, cdp, js):
+        """A real mouse click on the badge (a scripted click() is not a pointer press, so it cannot show the pointer case)."""
+        r = js(f"(function(){{var b={BADGE}.getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2];}})()")
+        common = {"x": r[0], "y": r[1], "button": "left"}
+        cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": r[0], "y": r[1]}, self.sid)
+        cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "buttons": 1, "clickCount": 1, **common}, self.sid)
+        cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "buttons": 0, "clickCount": 1, **common}, self.sid)
+
+    def test_row_800_opened_by_the_mouse_the_first_row_has_no_ring_and_by_the_keys_it_has_one(self):
+        ring = "(function(){var e=document.activeElement, s=getComputedStyle(e); return [e.dataset.row, s.outlineStyle, parseFloat(s.outlineWidth)];})()"
+        with chrome() as cdp:
+            for width in (1400, 900):
+                for theme in ("light", "dark"):
+                    js = self.show(cdp, width=width)
+                    if theme == "dark":
+                        js("document.documentElement.dataset.theme = 'dark'")
+                    self.click_badge(cdp, js)
+                    self.assertTrue(wait(lambda: js(f"!!{MENU}")), "the mouse opened it")
+                    got = js(ring)
+                    self.assertEqual(got[0], "profile", "the first row still has the focus")
+                    self.assertTrue(got[1] == "none" or got[2] == 0, f"no ring after a mouse open at {width} px, {theme}: {got}")
+                    self.key(cdp, "Escape", 27)
+                    self.assertTrue(wait(lambda: not js(f"!!{MENU}")))
+                    js(f"{BADGE}.focus()")
+                    self.key(cdp, "ArrowDown", 40)
+                    self.assertTrue(wait(lambda: js(f"!!{MENU}")), "Down opens it")
+                    got = js(ring)
+                    self.assertEqual(got[1:], ["solid", 2], f"the ring shows after a keyboard open at {width} px, {theme}")
+
     # --- the bar ----------------------------------------------------------------------------------------------------------
 
     def test_no_overlap_and_no_sideways_scroll_at_these_widths_light_and_dark(self):
@@ -337,6 +366,20 @@ class Words(unittest.TestCase):
         self.assertNotIn("rgba(", mine)
         self.assertNotRegex(mine, r"font-size:\s*\d")
         self.assertNotRegex(mine, r"#[0-9a-fA-F]{3,}")
+
+    def test_row_802_the_top_bar_rules_use_color_mix_tokens_and_no_rgba(self):
+        css = (Path(__file__).resolve().parent.parent / "src/clark/page/shell.css").read_text(encoding="utf-8")
+        self.assertNotIn("rgba(", css, "colours in shell.css come from the tokens")
+        for sel in (".top .divider", ".projbtn:hover", ".tab", ".modes", ".toast-btn:hover"):
+            line = next(l for l in css.splitlines() if l.startswith(sel + " "))
+            self.assertIn("color-mix(in srgb, var(--white)", line, sel)
+
+    def test_row_800_the_menu_source_marks_a_mouse_open_and_the_css_drops_the_ring_for_it(self):
+        root = Path(__file__).resolve().parent.parent / "src/clark/page"
+        js = (root / "src/components/Menu.jsx").read_text(encoding="utf-8")
+        css = (root / "shell.css").read_text(encoding="utf-8")
+        self.assertRegex(js, r":focus-visible[\s\S]{0,80}dataset\.pointer")
+        self.assertRegex(css, r"\[data-pointer\][^{]*\.cm-row:focus-visible[^{]*\{[^}]*outline:\s*none")
 
 
 if __name__ == "__main__":

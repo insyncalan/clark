@@ -5,6 +5,7 @@ Starts the real server over the demo store at CLARK_NOW=2026-10-28 and drives th
 events, at 1400 and 900 px, in light and in dark. The pure rules are in test_filter_line. Required: fails, never skips, without Chrome.
 """
 import copy
+import re
 import json
 import unittest
 import urllib.parse
@@ -20,6 +21,10 @@ from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 INPUT = "#fline-input"
 SIZES = (1400, 900)
 THEMES = ("light", "dark")
+
+
+# row 789: the empty state names what was typed ("No open items match ..." or "No items match ..."); a line of only fields says it too
+EMPTY_SAYS = lambda text: bool(re.search(r"No (open )?items match", text))
 
 
 class Line(unittest.TestCase):
@@ -305,10 +310,10 @@ class Line(unittest.TestCase):
                 self.assertTrue(wait(lambda: self.say(cdp, sid) == "Unknown state 'opn'. Did you mean open?"))
                 self.put(cdp, sid, "is:open owner:me")
                 self.assertTrue(wait(lambda: "Set your name in Settings to see your actions." in self.say(cdp, sid)))
-                self.assertTrue(wait(lambda: "No work items match." in cdp.js("document.querySelector('#work-list').innerText", sid)))
+                self.assertTrue(wait(lambda: EMPTY_SAYS(cdp.js("document.querySelector('#work-list').innerText", sid))))
                 self.put(cdp, sid, "is:open status:Nope")                            # an unknown value of a known field matches nothing: no error, the empty state
                 self.assertEqual(self.say(cdp, sid), "")
-                self.assertTrue(wait(lambda: "No work items match." in cdp.js("document.querySelector('#work-list').innerText", sid)))
+                self.assertTrue(wait(lambda: EMPTY_SAYS(cdp.js("document.querySelector('#work-list').innerText", sid))))
 
     def test_the_text_is_highlighted_field_names_plain_and_values_as_coloured_chips(self):
         s = self.serve()
@@ -416,16 +421,26 @@ class Line(unittest.TestCase):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     rows = self.rows(cdp, sid)
-                    self.put(cdp, sid, "zzzqqq")
-                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#work-list .empty p').textContent", sid) == "No work items match."))
+                    self.put(cdp, sid, "is:open zzzqqq")
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#work-list .empty p').textContent", sid) == 'No open items match "zzzqqq".'))   # row 789
                     self.assertEqual(self.shown(cdp, sid), [])
                     self.assertEqual(cdp.js("document.querySelector('#fline-count').textContent", sid), f"0 of {len(rows)}")
-                    self.assertEqual(cdp.js("document.querySelector('#clearFilter').textContent", sid), "Clear filter")
+                    self.assertEqual(cdp.js("document.querySelector('#clearFilter').textContent", sid), "Clear search")
+                    self.assertEqual(cdp.js("(document.querySelector('#empty-hint') || {}).textContent", sid), "Plain words search titles. Press / to come back here.")
                     self.assertEqual(cdp.js("document.querySelectorAll('#work-list .empty [class*=err]').length", sid), 0, "it is not an error")
                     click(cdp, sid, "#clearFilter")
                     self.assertTrue(wait(lambda: self.shown(cdp, sid) == sorted(r["id"] for r in rows)))
                     self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == ""))
                     self.assertFalse(cdp.js("!!document.querySelector('#clearFilter')", sid))
+
+    def test_the_empty_state_says_items_not_open_items_on_closed_and_all(self):
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.load(cdp, s.port)
+            self.put(cdp, sid, "is:closed zzzqqq")
+            self.assertTrue(wait(lambda: cdp.js("(document.querySelector('#work-list .empty p') || {}).textContent", sid) == 'No items match "zzzqqq".'))
+            self.put(cdp, sid, "zzzqqq")
+            self.assertTrue(wait(lambda: cdp.js("(document.querySelector('#work-list .empty p') || {}).textContent", sid) == 'No items match "zzzqqq".'))
 
     def test_words_the_page_cannot_answer_yet_are_not_offered_and_are_refused(self):
         s = self.serve()
@@ -516,7 +531,7 @@ class Line(unittest.TestCase):
             for m in dated:
                 self.assertIn(m["name"], got.replace("\u00a0", " "))
             self.put(cdp, sid, "is:open due:nonsense")                                # an unknown value matches nothing: the empty state, no error
-            self.assertTrue(wait(lambda: "No work items match." in cdp.js("document.querySelector('#work-list').innerText", sid)))
+            self.assertTrue(wait(lambda: EMPTY_SAYS(cdp.js("document.querySelector('#work-list').innerText", sid))))
             self.assertEqual(self.say(cdp, sid), "")
             self.assertEqual(self.chips(cdp, sid), ["is:open", "due:nonsense"])
 
@@ -611,7 +626,7 @@ class Line(unittest.TestCase):
             sid = self.load(cdp, s.port)
             self.assertEqual(cdp.js("!!document.querySelector('#clearAll, #clearAll2, #clearFilter')", sid), False)
             self.put(cdp, sid, "is:closed type:decision client:internal priority:Urgent")
-            self.assertTrue(wait(lambda: "No work items match." in cdp.js("document.querySelector('#work-list').innerText", sid)))
+            self.assertTrue(wait(lambda: EMPTY_SAYS(cdp.js("document.querySelector('#work-list').innerText", sid))))
             click(cdp, sid, "#clearFilter")
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == ""))
             self.assertEqual(cdp.js("!!document.querySelector('#clearAll, #clearAll2, #clearFilter')", sid), False)
@@ -629,7 +644,7 @@ class Line(unittest.TestCase):
             self.assertEqual(self.chips(cdp, sid), ["is:open", f'-owner:"{owner}"'])
             # a name no item has any more is not applied, and the line says so in plain words
             sid = self.load(cdp, s.port, hash_="#work&p=TUL&f=owner:Nobody%20Here")
-            self.assertTrue(wait(lambda: "No work items match." in cdp.js("document.querySelector('#work-list').innerText", sid)), "a name no item has matches nothing")
+            self.assertTrue(wait(lambda: EMPTY_SAYS(cdp.js("document.querySelector('#work-list').innerText", sid))), "a name no item has matches nothing")
             hostile = '<img src=x onerror="window.__pwn=1">'
             sid = self.load(cdp, s.port, hash_="#work&p=TUL&f=owner:" + urllib.parse.quote(hostile, safe="") + ";not:owner")
             self.assertEqual(cdp.js("document.querySelectorAll('#work img').length + typeof window.__pwn", sid), "0undefined")
@@ -1037,7 +1052,7 @@ class Line(unittest.TestCase):
 
     def drawn(self, cdp, sid):
         """The list has rows, or says in plain words that nothing matches: never blank."""
-        return bool(self.shown(cdp, sid)) or "No work items match." in cdp.js("document.querySelector('#work-list').innerText", sid)
+        return bool(self.shown(cdp, sid)) or EMPTY_SAYS(cdp.js("document.querySelector('#work-list').innerText", sid))
 
     def errors(self, cdp, sid):
         return cdp.js("window.__errs", sid)
@@ -1066,7 +1081,7 @@ class Line(unittest.TestCase):
                             self.assertTrue(wait(lambda: len(self.tokens(cdp, sid, "err")) == 1))
                             self.assertEqual(self.shown(cdp, sid), before)
                         else:
-                            self.assertTrue(wait(lambda: not self.shown(cdp, sid) and "No work items match." in cdp.js("document.querySelector('#work-list').innerText", sid)),
+                            self.assertTrue(wait(lambda: not self.shown(cdp, sid) and EMPTY_SAYS(cdp.js("document.querySelector('#work-list').innerText", sid))),
                                             "an unknown value matches nothing and says so")
                         cdp.js("sessionStorage.clear()", sid)
 
@@ -1184,6 +1199,7 @@ class Line(unittest.TestCase):
                         self.assertLessEqual(cdp.js(probe, sid)["page"], 0)
                         click(cdp, sid, "#viewTabMenu")
                         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)))
+                        self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "the menu has finished dropping in (row 878: it starts 4 px higher)")      # measure where it settles, not mid-animation
                         self.assertEqual(cdp.js("(() => { const r = document.querySelector('.vtabs'); return r.scrollHeight <= r.clientHeight; })()", sid), True, "the open tab's menu is not cut off by the row")
                         self.assertGreater(cdp.js("document.querySelector('#viewTabMenuList').getBoundingClientRect().height", sid), 20)
                         self.assertGreaterEqual(cdp.js("document.querySelector('#viewTabMenuList').getBoundingClientRect().top - document.querySelector('.vtabs').getBoundingClientRect().bottom", sid), 0, "it opens below the row")

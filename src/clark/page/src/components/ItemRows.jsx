@@ -1,8 +1,8 @@
 // The rows under Risks and issues, Open actions and Decisions (prototype parity A-D5): a status pill, the item, a quiet line of who
 // and when (and the priority on a risk or issue), the ID on the right. The same rows in View, in Edit (edit/ItemRowsEdit.jsx draws
 // them with every part editable) and in a published file; they are drawn from the rows the page already holds, so a published file
-// needs nothing else. What a client reads is the client's own wording; an item without any is left out, never shown with the
-// team's own text. An empty section keeps its heading and says so in a line in View (prototype views.js: "Nothing to show."); a
+// needs nothing else. What a client reads is the client's own wording, or the item's own title when it has none; the rows
+// listed are the ones marked for the client (the eye). An empty section keeps its heading and says so in a line in View (prototype views.js: "Nothing to show."); a
 // published file leaves an empty section out, heading and all (Dashboard.jsx fileDraws), so a client never reads that line.
 import { data, rows as allRows, fromFile, asAt, openPeek } from "../stores/report.js";
 import { dueCell, ownerOf, showDate, todayIso, dueField } from "../workItems.js";
@@ -10,16 +10,20 @@ import { sectionRows, listed, dateWord, clientPill, keptIds } from "../logic/sec
 
 export const NOTHING = "Nothing to show.";
 
-// The client's own wording for an item, by ID (the page's rows hold the item's text only).
+// The words a row is drawn with, by ID: the client's own wording, or, when an item shown to the client has none, the item's title: its
+// description (the decision text for a decision), which is its visible name in the published lists. Internal fields (the latest update,
+// notes) are never used. Row 851: the eye is the control, so a marked item is listed; a missing wording never takes it off the list.
 export function wordings(d) {
   const out = {};
-  for (const k of ["actions", "raid", "decisions"]) for (const r of d[k] || []) if (r.client_message) out[r.id] = r.client_message;
+  for (const [k, own] of [["actions", "description"], ["raid", "description"], ["decisions", "decision"]]) {
+    for (const r of d[k] || []) { const t = String(r.client_message || "").trim() || String(r[own] || "").trim(); if (t) out[r.id] = t; }
+  }
   return out;
 }
 
 export const todayOf = () => (fromFile.value && asAt.value ? asAt.value : todayIso());
 
-// Every row the section could list that has client wording, taken off the page or not (Edit counts them: "Showing N of M").
+// Every row the section could list, marked for the client or not, taken off the page or not (Edit counts them: "Showing N of M").
 export function candidates(type) {
   if (!data.value) return [];
   const words = wordings(data.value), today = todayOf();

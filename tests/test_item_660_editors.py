@@ -75,7 +75,7 @@ class Ask(Panel):
                     p.js(f"document.documentElement.dataset.theme = '{theme}'")
                     p.key("/", code="Slash", vk=191)
                     p.until("!!document.querySelector('#ask-panel')", "opened")
-                    p.until("!document.querySelector('#ask-box').disabled", "ready")
+                    p.until("!document.querySelector('#ask-send').disabled", "ready")
                     sel = "document.querySelector('#ask-box')"
                     def put(text):
                         p.js(f"(e => {{ e.focus(); e.value = {json.dumps(text)}; e.dispatchEvent(new Event('input', {{bubbles: true}})); }})({sel})")
@@ -83,6 +83,7 @@ class Ask(Panel):
                     Rules.check(self, lambda: p.js(SIZE % sel), put, lambda: put(""),
                                 lambda: p.js(f"(e => {{ e.style.height = (e.offsetHeight + 20) + 'px'; e.dispatchEvent(new Event('pointerup')); }})({sel})"),
                                 width, f"ask {width} {theme}")
+                    p.until("document.querySelector('#ask-panel').getAnimations().length === 0", "the panel has finished rising (row 885)")
                     panel = p.js("(r => ({b: r.bottom, h: innerHeight}))(document.querySelector('#ask-panel').getBoundingClientRect())")
                     self.assertLessEqual(panel["b"], panel["h"] + 1, "the panel stays inside the window")
                     p.key("Escape", code="Escape", vk=27)

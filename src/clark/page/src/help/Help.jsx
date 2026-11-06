@@ -286,7 +286,13 @@ export function Help() {
       const line = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--topbar")) || 56) + 40;
       let cur = els[0];
       for (const e of els) { if (e.getBoundingClientRect().top <= line) cur = e; else break; }
-      if (cur.dataset.k !== helpHere.peek()) helpHere.value = cur.dataset.k;
+      const de = document.documentElement;
+      let k = cur.dataset.k;
+      if (de.scrollTop + de.clientHeight >= de.scrollHeight - 1) {      // at the foot of the page the last entry of the contents is the one on screen
+        const last = [...document.querySelectorAll(".hp-idx a[data-hlink]")].pop();
+        if (last) k = last.dataset.hlink;
+      }
+      if (k !== helpHere.peek()) helpHere.value = k;
     };
     function on() { if (!raf) raf = requestAnimationFrame(pick); }
     window.addEventListener("scroll", on, { passive: true });
@@ -317,7 +323,7 @@ export function Help() {
       <div class="head hp-head">
         <div>
           <h1>Help</h1>
-          <p class="muted">How clark works, step by step, and every screen and key. <span class="hp-keyhint">Press <kbd>?</kbd> on any page to open Help; Esc or Back takes you where you were.</span><span class="hp-taphint">Tap <b>?</b> in the top bar on any page to open Help; Back takes you where you were.</span></p>
+          <p class="muted">How clark works, step by step, and every screen and key. <span class="hp-keyhint">Press <kbd>?</kbd> on any page to open Help; Esc or Back takes you where you were.</span><span class="hp-taphint">Choose <b>Help</b> in the profile circle’s menu on any page to open Help; Back takes you where you were.</span></p>
         </div>
         <div class="hp-actions">
           <button type="button" class="hp-back" id="hpBack" onClick={closeHelp}><Icon name="left" />Back</button>

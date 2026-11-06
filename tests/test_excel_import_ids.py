@@ -551,3 +551,45 @@ class PlainWords(IdCase):
         res = self.apply()
         self.assertTrue(res.applied)
         self.assertIn("ABC-A-003, ABC-A-004", res.message)
+
+
+class OwnerLink(IdCase):
+    """Row 873: an imported owner is linked to the one live person it names, so a later rename or merge keeps it."""
+    def person(self, name):
+        with self.s.step("dashboard", USER) as st:
+            return st.add_person(name=name, source="People list")
+
+    def rename(self, pid, name):
+        with self.s.step("dashboard", USER) as st:
+            st.rename_person(pid, name)
+
+    def test_an_imported_owner_edit_survives_a_rename_of_the_old_person(self):
+        old = self.person("Pat Oldname")
+        new = self.person("Sam Example")
+        self.demo.update("actions", self.a1, {"owner": "Pat Oldname", "owner_id": old})
+        self.path = wbk.make_workbook(self.s, self.tmp / "two.xlsx")
+        wbk.edit(self.path, "Actions", self.a1, owner="Sam Example")
+        self.assertTrue(self.apply().applied)
+        row = self.s.read("actions", ref=self.a1)
+        self.assertEqual((row["owner"], row["owner_id"]), ("Sam Example", new))
+        self.rename(old, "Pat Renamed")
+        self.assertEqual(self.s.read("actions", ref=self.a1)["owner"], "Sam Example")
+
+    def test_a_new_imported_row_is_linked_and_keeps_its_owner_after_a_rename(self):
+        pid = self.person("Sam Example")
+        wbk.add_row(self.path, "Actions", description="Order the laptops", owner="Sam Example")
+        self.assertTrue(self.apply().applied)
+        row = self.s.read("actions", ref="ABC-A-003")
+        self.assertEqual(row["owner_id"], pid)
+        self.rename(pid, "Sam Renamed")
+        self.assertEqual(self.s.read("actions", ref="ABC-A-003")["owner"], "Sam Renamed")
+
+    def test_an_unlisted_owner_clears_the_link(self):
+        old = self.person("Pat Oldname")
+        self.demo.update("actions", self.a1, {"owner": "Pat Oldname", "owner_id": old})
+        self.path = wbk.make_workbook(self.s, self.tmp / "two.xlsx")
+        wbk.edit(self.path, "Actions", self.a1, owner="Someone Unlisted")
+        self.assertTrue(self.apply().applied)
+        self.rename(old, "Pat Renamed")
+        row = self.s.read("actions", ref=self.a1)
+        self.assertEqual((row["owner"], row["owner_id"]), ("Someone Unlisted", None))
