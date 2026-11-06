@@ -25,7 +25,7 @@ PROBE = """(() => {
   document.querySelectorAll('[data-outside-probe]').forEach((e) => e.removeAttribute('data-outside-probe'));
   const peek = document.querySelector('#peek'), left = peek ? peek.getBoundingClientRect().left : innerWidth;
   const pick = [...document.querySelectorAll('body *')].find((e) => {
-    if (e.closest('#peek, [role=menu], dialog, button, a, tr, article, .wl-row, input, select, textarea, label, [tabindex], [role=button], [role=tab], svg, nav') || e.childElementCount || !e.textContent.trim() || getComputedStyle(e).visibility !== 'visible') return false;
+    if (e.closest('#peek, [role=menu], dialog, button, a, tr, article, .wl-row, input, select, textarea, label, [tabindex]:not([tabindex="-1"]), [role=button], [role=tab], svg, nav') || e.childElementCount || !e.textContent.trim() || getComputedStyle(e).visibility !== 'visible') return false;
     const r = e.getBoundingClientRect(); return r.width > 10 && r.height > 5 && r.top >= 0 && r.bottom < innerHeight && r.left + r.width / 2 < left - 8 && r.left >= 0 && r.right < left - 8;
   });
   if (!pick) return false; pick.setAttribute('data-outside-probe', '1'); return true;
@@ -88,6 +88,10 @@ class OutsideBrowser(unittest.TestCase):
                                 self.assertTrue(self.is_open(cdp, sid), f"{where}: a click inside a menu keeps it")
                                 cdp.js("document.getElementById('probe-menu').remove()", sid)
                                 # a press inside that ends outside (selecting text) keeps it
+                                # below 1000 px the peek fills the window (row 847): there is no page outside it to click, so Esc and Close are the way out
+                                if width < 1000:
+                                    self.assertEqual(round(cdp.js("document.querySelector('#peek').getBoundingClientRect().left", sid)), 0, where)
+                                    continue
                                 cdp.js("document.querySelector('#peek .pk-title').dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))", sid)
                                 self.assertTrue(cdp.js(PROBE, sid), f"{where}: a blank place outside the peek to click")
                                 cdp.js("document.querySelector('[data-outside-probe]').click()", sid)

@@ -12,6 +12,15 @@ export function reduced() {
   return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+/** Row 888: the eye blinks once when it is pressed. Gives the button `data-blink` for one run of its animation (shell.css, Motion), then
+ *  takes it away again. Nothing happens when the page may not move. */
+export function blink(e) {
+  const el = e.currentTarget;
+  if (!el || reduced()) return;
+  el.dataset.blink = "";
+  el.addEventListener("animationend", () => { delete el.dataset.blink; }, { once: true });
+}
+
 /** The screen whose loading placeholder was drawn, kept until it has faded out (Views.jsx Leaving); null otherwise. */
 export const skeleton = signal(null);
 

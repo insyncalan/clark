@@ -87,7 +87,7 @@ class Shipped(unittest.TestCase):
     def test_the_stand_in_is_never_in_the_shipped_source(self):
         store = (HELP / "helpStore.js").read_text(encoding="utf-8")
         self.assertIn("a test-only override of contextText", store)
-        self.assertIn("contextText, placeOf", store, "the peek reads the real contextText from helpLogic.js")
+        self.assertIn("contextText, articlesFor, placeOf", store, "the peek reads the real contextText from helpLogic.js")
         self.assertNotIn("lookup(", store)
         self.assertNotIn("useContextText", (SRC / "clark" / "page" / "src" / "edit" / "index.js").read_text(encoding="utf-8"))
         for f in HELP.glob("*.js*"):
