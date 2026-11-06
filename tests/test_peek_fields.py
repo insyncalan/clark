@@ -226,6 +226,30 @@ class Duplicate(Fields):
         self.assertNotIn("data-pk-dup", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
 
 
+class Archive(Fields):
+    def row(self, ref):
+        return next(a for a in self.store.read("actions", self.code) if a["id"] == ref)
+
+    def test_archive_in_the_peek_hides_the_item_closes_the_peek_and_one_undo_brings_it_back(self):
+        for width, dark in self.widths():
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                sent, sid = self.load(cdp, width, ACTION, dark=dark)
+                self.assertTrue(self.inside(cdp, sid, "[data-pk-archive]"), "the button fits the peek")
+                click(cdp, sid, "#peek [data-pk-archive]")
+                self.assertTrue(wait(lambda: len(sent) == 1))
+                self.assertEqual((sent[0]["kind"], sent[0]["op"], sent[0]["id"]), ("actions", "archive", ACTION))
+                self.assertTrue(wait(lambda: f"{ACTION} archived. It is out of the lists and the published page." in self.toast(cdp, sid)))
+                self.assertEqual(self.row(ACTION)["archived"], 1)
+                self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)), "the peek closes with the item")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
+                cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
+                self.assertTrue(wait(lambda: self.row(ACTION)["archived"] == 0), "one Undo brings it back")
+
+    def test_the_button_is_edit_only(self):
+        self.assertIn("editing && forItem && tools.PeekArchive", (SRC / "components/Peek.jsx").read_text(encoding="utf-8"))
+        self.assertNotIn("data-pk-archive", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
+
+
 BOX_PK = "#peek [data-ce]"
 
 
