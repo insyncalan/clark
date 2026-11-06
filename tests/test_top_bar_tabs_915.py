@@ -49,6 +49,7 @@ class ProjectButtonFit(Base):
         self.assertTrue(got["trunc"], "the long name is not cut with an ellipsis; " + where)
         self.assertGreaterEqual(got["gap"], 8, "the project button touches the tab row; " + where)
         self.assertLessEqual(got["page"], 0, "the page scrolls sideways; " + where)
+        self.assertFalse(got["rowScrolls"], "the tab row scrolls sideways; " + where)
         # row 804: no tab has a View | Edit switch in the top bar (it is the Dashboard report bar's pill), so the bar has room and the button may be wider on every tab
 
 
