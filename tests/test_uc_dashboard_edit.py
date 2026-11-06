@@ -254,6 +254,19 @@ class Edit(Setup):
             self.assertEqual(self.row(self.uc2)["client_visible"], 1)
             p.until("document.querySelectorAll('.ucrow').length === 2", "Undo brought the row back")
 
+    def test_row_865_undo_of_the_eye_names_the_use_case_and_focus_returns_to_its_eye_at_both_widths_in_both_themes(self):
+        for width in (1400, 900):
+            for dark in (False, True):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    p = self.edit(cdp, width, dark)
+                    p.js("document.querySelector('[data-uc-eye=\"%s\"]').click()" % self.uc2)
+                    p.until("document.querySelectorAll('.ucrow').length === 1", "the row left the dashboard")
+                    p.js("document.activeElement && document.activeElement.blur()")
+                    p.until("(document.querySelector('.toast-text') || {}).textContent === 'Use case 1.2 taken off the page.'", "the toast")
+                    p.js("document.querySelector('[data-undo]').click()")
+                    p.until("(document.querySelector('.toast-text') || {}).textContent === 'Undone: Use case 1.2 taken off the page.'", "Undo names the use case")
+                    p.until("document.activeElement && document.activeElement.dataset.ucEye === %s" % json.dumps(self.uc2), "focus is on the use case's eye")
+
     def test_where_it_stands_is_changed_in_place_in_one_step_with_one_undo(self):
         with chrome() as cdp:
             p = self.edit(cdp)

@@ -189,7 +189,7 @@ export function Eye({ u }) {
   const take = async (e) => {
     e.stopPropagation();
     const btn = e.currentTarget, eyes = Array.from(document.querySelectorAll(".uc .ucrow [data-uc-eye]")), at = eyes.indexOf(btn);
-    const reply = await change({ kind: "use_cases", op: "update", id: u.id, changes: { client_visible: 0 }, place: "eye" }, `Use case ${name(u)} taken off the page.`);
+    const reply = await change({ kind: "use_cases", op: "update", id: u.id, changes: { client_visible: 0 }, place: "eye" }, `Use case ${name(u)} taken off the page.`, { focus: `[data-uc-eye="${u.id}"]` });
     if (!reply) return;
     setTimeout(() => {          // the row has left: the focus goes to the next row's eye, else the one before, else the way back to the record
       const now = Array.from(document.querySelectorAll(".uc .ucrow [data-uc-eye]"));
