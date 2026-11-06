@@ -26,7 +26,7 @@ const run = (result, id, where, part) => {
     if (!result.quiet) note(result.message);
     return Promise.resolve(null);
   }
-  const done = change({ ...result.payload, place: where }, result.words);
+  const done = change({ ...result.payload, place: where }, result.words, { focus: `.secs > .sec[data-id="${id}"] [data-drag]` });
   return part ? keep(done, id, part) : done;
 };
 
@@ -49,7 +49,7 @@ export function setMsHidden(id, hide, name) {
   eyeBusy.add(id);
   const what = name ? String(name) : "Milestone";
   const words = hide ? `${what} taken off the page.` : `${what} added back to the page.`;
-  return change({ kind: "report_hidden", op: hide ? "new" : "delete", id, place: "report" }, words).finally(() => eyeBusy.delete(id));
+  return change({ kind: "report_hidden", op: hide ? "new" : "delete", id, place: "report" }, words, { focus: `[data-ms-eye="${id}"]` }).finally(() => eyeBusy.delete(id));
 }
 
 // "+ Add a milestone from your project record": the picker's Add (the page's one `pick` change): every chosen milestone is taken off

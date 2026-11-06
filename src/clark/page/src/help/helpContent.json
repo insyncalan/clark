@@ -127,7 +127,7 @@
    ],
    [
     "ask clark",
-    "Answers questions about the project and checks the report. Press [[/]], or open the palette with [[Mod+K]] and choose Ask about this project.",
+    "Answers questions about the project and checks the report. Press [[/]], or open the palette with [[Mod+K]] and choose ask clark.",
     "ask"
    ],
    [
@@ -233,10 +233,10 @@
     "id": "check-the-report",
     "g": "Every week",
     "t": "Check the report with ask clark",
-    "w": "[[/]] · [[Mod+K]] › Ask about this project",
+    "w": "[[/]] · [[Mod+K]] › ask clark",
     "go": "ask",
     "s": [
-     "Press [[/]] when you aren’t typing in a box and no peek, menu or box is open, or press [[Mod+K]] and choose **Ask about this project**. It opens down the right-hand side.",
+     "Press [[/]] when you aren’t typing in a box and no peek, menu or box is open, or press [[Mod+K]] and choose **ask clark**. It opens down the right-hand side.",
      "Press **Check this report**. It reads the project’s data and says what looks wrong.",
      "An answer may suggest a change to a work item or a milestone as a card that shows it now and as it would be. Nothing is saved until you press **Apply**; **Undo** takes it back. If the change came from one of your files, you tick a box first.",
      "Ask anything else in your own words, or press a suggestion: **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week** or **Which use cases need attention?**.",
@@ -884,7 +884,7 @@
      ],
      [
       "p",
-      "The magnifying glass opens **Go to or do**, the same box as [[Mod+K]]. Type to find a command (Publish, Preview the page in a new tab, Export to Excel, Settings, Ask about this project, Help or Appearance), a page, a project, a work item or a milestone, then press [[Enter]]. A published file has no such button."
+      "The magnifying glass opens **Go to or do**, the same box as [[Mod+K]]. Type to find a command (Publish, Preview the page in a new tab, Export to Excel, Settings, ask clark, Help or Appearance), a page, a project, a work item or a milestone, then press [[Enter]]. A published file has no such button."
      ]
     ]
    },
@@ -1357,7 +1357,7 @@
     "id": "ask-clark",
     "g": "Screens",
     "t": "ask clark",
-    "w": "[[/]] · [[Mod+K]] › Ask about this project",
+    "w": "[[/]] · [[Mod+K]] › ask clark",
     "b": [
      [
       "p",
@@ -2128,7 +2128,7 @@
    ],
    [
     "[[Mod+K]]",
-    "The palette, from any page, even in a box: type to find a command, page, project, work item or milestone. [[Up]] and [[Down]] move, [[Enter]] runs it, [[Esc]] closes it and puts you back. It also opens ask clark: choose Ask about this project"
+    "The palette, from any page, even in a box: type to find a command, page, project, work item or milestone. [[Up]] and [[Down]] move, [[Enter]] runs it, [[Esc]] closes it and puts you back. It also opens ask clark: choose ask clark"
    ],
    [
     "[[Up]] [[Down]] [[Home]] [[End]]",
