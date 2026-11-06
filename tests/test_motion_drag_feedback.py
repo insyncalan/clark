@@ -20,7 +20,10 @@ CSS = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
 MAKE = """(() => { const d = document.createElement('div');
   d.innerHTML = '<div class="bghost"></div><section class="col over"></section><section class="col moving"></section><section class="col drop-before"></section>';
   document.body.appendChild(d); const q = (x) => getComputedStyle(d.querySelector(x));
-  return JSON.stringify([q('.bghost').animationName, q('.bghost').scale, q('.col.over').animationName, q('.col.moving').transform, q('.col.drop-before').animationName]); })()"""
+  window.__d = d; return JSON.stringify([q('.bghost').animationName, q('.col.moving').animationName, q('.col.over').animationName, q('.col.drop-before').animationName]); })()"""
+# Read after the lift has finished: a computed scale mid-animation is still the start of the run.
+SETTLED = "window.__d.getAnimations({subtree: true}).length === 0"
+FINAL = """(() => { const q = (x) => getComputedStyle(window.__d.querySelector(x)); return JSON.stringify([q('.bghost').scale, q('.col.moving').scale]); })()"""
 
 
 class MotionDragFeedback(unittest.TestCase):
@@ -56,14 +59,14 @@ class MotionDragFeedback(unittest.TestCase):
                 for motion in ("no-preference", "reduce"):
                     with self.subTest(width=width, scheme=scheme, motion=motion), chrome() as cdp:
                         sid = self.load(cdp, width, scheme, motion)
-                        card, prop, over, moving, line = json.loads(cdp.js(MAKE, sid))
+                        ghost, moving, over, line = json.loads(cdp.js(MAKE, sid))
                         if motion == "no-preference":
-                            self.assertEqual((card, over, line), ("m-lift", "m-over", "m-col-line"))
-                            self.assertEqual(prop, "1.05")
-                            self.assertEqual(moving, "1.01")
+                            self.assertEqual((ghost, moving, over, line), ("m-lift", "m-lift", "m-over", "m-col-line"))
+                            self.assertTrue(wait(lambda: cdp.js(SETTLED, sid)), "the animations end")
+                            self.assertEqual(json.loads(cdp.js(FINAL, sid)), ["1.05", "1.01"])
                         else:
-                            self.assertEqual((card, over, line), ("none", "none", "none"))
-                            self.assertEqual((prop, moving), ("none", "none"))
+                            self.assertEqual((ghost, moving, over, line), ("none", "none", "none", "none"))
+                            self.assertEqual(json.loads(cdp.js(FINAL, sid)), ["none", "none"])
 
     def test_row_887_is_inside_the_motion_block_uses_tokens_and_lifts_with_a_transform_only(self):
         block = CSS[CSS.index("Motion: motion that explains"):]
