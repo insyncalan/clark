@@ -8,6 +8,7 @@ temporary folders. Nothing is sent anywhere. Chrome is required: these tests fai
 The non-browser checks (the published page names no publish route and holds no dialog) need no browser.
 """
 import re
+import time
 import unittest
 from pathlib import Path
 
@@ -35,6 +36,21 @@ class Pg:
 
     def until(self, expr, what, seconds=15):
         self.t.assertTrue(wait(lambda: self.js(expr), seconds), what)
+
+    def settled(self, what="the page settled", seconds=15):
+        """Wait until nothing is moving: no running animation (document.getAnimations()) and window.scrollY the same on two reads 100 ms
+        apart. A smooth scroll into view is not in getAnimations(), and macOS runs it longer than Linux, so a click or a measurement taken
+        while it was still moving was the macOS gate's red."""
+        seen = []
+
+        def still():
+            n, a = self.js("[document.getAnimations().length, window.scrollY]")
+            time.sleep(0.1)
+            b = self.js("window.scrollY")
+            seen[:] = [n, a, b]
+            return n == 0 and a == b
+        self.t.assertTrue(wait(still, seconds), "%s: %s still moving after %d s (animations, scrollY then and 100 ms later: %s)" % (
+            what, "an animation or the scroll was", seconds, seen))
 
     def key(self, key, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
