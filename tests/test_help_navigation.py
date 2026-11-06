@@ -205,30 +205,9 @@ class WhatNext(unittest.TestCase):
 
 
 class History(unittest.TestCase):
-    """The small history of places (helpLogic.js trailVisit, trailBack, firstPlace) behind the way back beside Back."""
+    """The place a tab opens at (helpLogic.js firstPlace)."""
     def run_trail(self, probe):
         return run_node(RAW, probe)
-
-    def test_a_visit_adds_the_place_left_and_never_the_same_twice_in_a_row(self):
-        r = self.run_trail("(() => { let t = []; t = HL.trailVisit(t, 'a', 'b'); t = HL.trailVisit(t, 'b', 'c'); const x = t.slice(); t = HL.trailVisit(t, 'c', 'c');"
-                           " t = HL.trailVisit(t, 'b', 'd'); return { x, t }; })()")
-        self.assertEqual(r["x"], ["a", "b"])
-        self.assertEqual(r["t"], ["a", "b"], "moving to the place you are at changes nothing, and b is already the latest")
-
-    def test_back_gives_the_latest_place_and_a_shorter_history(self):
-        r = self.run_trail("(() => { const t = ['a', 'b', 'c']; const one = HL.trailBack(t); const two = HL.trailBack(one.trail); return { t, one, two, none: HL.trailBack([]), bad: HL.trailBack(null) }; })()")
-        self.assertEqual(r["t"], ["a", "b", "c"], "the history given is not changed")
-        self.assertEqual(r["one"], {"place": "c", "trail": ["a", "b"]})
-        self.assertEqual(r["two"], {"place": "b", "trail": ["a"]})
-        self.assertEqual(r["none"], {"place": None, "trail": []})
-        self.assertEqual(r["bad"], {"place": None, "trail": []})
-
-    def test_nothing_is_added_from_nowhere_and_the_history_is_capped(self):
-        r = self.run_trail("(() => { let t = []; t = HL.trailVisit(t, null, 'a'); t = HL.trailVisit(t, '', 'a'); const empty = t.slice();"
-                           " for (let i = 0; i < 50; i++) t = HL.trailVisit(t, 'p' + i, 'p' + (i + 1)); return { empty, n: t.length, cap: HL.TRAIL_MAX, last: t[t.length - 1], first: t[0] }; })()")
-        self.assertEqual(r["empty"], [])
-        # 20: the cap is a choice (a reader keeps a handful of places in mind), not a measurement
-        self.assertEqual((r["cap"], r["n"], r["last"], r["first"]), (20, 20, "p49", "p30"))
 
     def test_a_tab_opens_at_its_first_entry(self):
         r = self.run_trail("({ start: HL.firstPlace('start'), howto: HL.firstPlace('howto'), reference: HL.firstPlace('reference'), none: HL.firstPlace('nothing') })")
