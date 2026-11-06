@@ -304,24 +304,28 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .factive.pub .fchip { padding: 2px 4px 2px 10px; }
 .factive.pub .fchip button { width: 22px; height: 22px; }
 /* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
-.fline-wrap { margin-top: 12px; }
+:root { --layer-list: 26; }   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
+.fline-wrap { position: relative; margin-top: 12px; }
 .fviews { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
-.vtabs { display: flex; flex-wrap: nowrap; gap: 4px 6px; min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none; padding: 3px; margin: -3px; }   /* room for the focus outline, which the scrolling box would cut */
+.fvrow { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--space-2); flex: 1 1 100%; min-width: 0; border-bottom: 1px solid var(--grey-200); }   /* row 809: the views are text tabs on a thin rule; the row of tabs scrolls inside its own box and the menus keep their place at the right */
+.fvrow > .dd { flex: none; margin-bottom: var(--space-1); }
+.fvrow > .vtabs + * { margin-left: auto; }
+.vtabs { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: 2px; min-width: 0; flex: 0 1 auto; max-width: 100%; overflow-x: auto; scrollbar-width: none; padding: 3px; margin: -3px; }   /* room for the focus outline, which the scrolling box would cut */
 .vtabs::-webkit-scrollbar { display: none; }
 .vtabs > * { flex: none; }
-.vtab { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; min-height: calc(var(--space-6) - var(--space-1)); border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); cursor: pointer; font-size: var(--size-small); color: var(--text); }
-.vtab:hover { background: var(--grey-50); }
-.vtab[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); border-color: var(--brand-blue); font-weight: var(--weight-medium); }
-.vtab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.vtab em { font-style: normal; color: var(--text-muted); }
-.vtab[aria-pressed="true"] em { color: inherit; }
+.vtab { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; min-height: calc(var(--space-6) + var(--space-1)); margin-bottom: -1px; border-bottom: 2px solid transparent; cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.vtab:hover { color: var(--text); }
+.vtab[aria-pressed="true"] { color: var(--heading); font-weight: var(--weight-medium); border-bottom-color: var(--brand-blue); }
+.vtab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: var(--radius-sm); }
+.vtab em { font-style: normal; font-weight: var(--weight-regular); font-size: var(--size-caption); min-width: 20px; padding: 1px 6px; border-radius: var(--radius-pill); background: var(--grey-100); color: var(--text); text-align: center; }
+.vtab[aria-pressed="true"] em { color: var(--text); }
 .fdot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand-blue); flex: none; }
 .vform { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; flex: 1 1 100%; font-size: var(--size-small); }
 .vform input { box-sizing: border-box; min-height: calc(var(--space-6) - var(--space-1)); padding: 2px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: var(--size-small); }
 .vform input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .vmsg { color: var(--status-red-text); }
 .vmsg:empty { display: none; }
-.vtab[data-broken="true"] { border-style: dashed; }
+.vtab[data-broken="true"] { border-bottom-style: dashed; border-bottom-color: var(--border); }
 .vbad { flex: 1 1 100%; margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
 .vbad:empty { display: none; }
 .fline { position: relative; display: flex; flex-wrap: nowrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
@@ -344,7 +348,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fchip button { all: unset; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
 .fchip button:hover { background: var(--grey-200); }
 .fchip button:focus-visible { outline: 2px solid var(--brand-blue); }
-.flist { margin: 4px 0 0; padding: 6px 0; list-style: none; width: min(420px, 100%); max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
+.flist { position: absolute; z-index: var(--layer-list); left: 0; margin: 4px 0 0; padding: 6px 0; list-style: none; width: min(420px, 100%); max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
 .fopt { display: flex; align-items: baseline; gap: 10px; padding: 4px 12px; min-height: calc(var(--space-6) - var(--space-1)); box-sizing: border-box; cursor: pointer; color: var(--text); }
 .fopt:hover, .fopt[aria-selected="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .fopt .fl1 { font-weight: var(--weight-medium); }
@@ -1485,10 +1489,9 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 /* type: Montserrat extra-bold for headings and figures, Inter for text, tracked capitals for the small line above a title */
 h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800; letter-spacing: -.01em; line-height: 1.15; }
 .crumbs { font-family: var(--font-label); font-weight: var(--weight-semibold); font-size: var(--size-caption); text-transform: uppercase; letter-spacing: .1em; }
-/* Work items: the project name above the title is plain (not tracked capitals), and one intro line sits under the title */
+/* Work items: the project name above the title is plain (not tracked capitals); row 805 took the intro line away */
 #work .crumbs, #milestones.pub .crumbs, #usecases-file .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }   /* the published tabs share one plain line (the editor's Milestones keeps its own) */
 #work .head h1 { margin: 0; }
-#work .intro { margin: 4px 0 0; font-size: var(--size-small); }
 .fig .k, .tile .l { font-family: var(--font-label); font-weight: var(--weight-medium); }
 .tab, .proj { font-family: var(--font-label); font-weight: 500; }
 
@@ -1963,14 +1966,17 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
-.vt { display: inline-flex; align-items: center; gap: 2px; }
-.vtabmenu { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; color: var(--text-muted); }
+.vt { display: inline-flex; align-items: flex-end; gap: 2px; }
+.vtabmenu { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; align-self: center; cursor: pointer; color: var(--text-muted); }
 .vtabmenu:hover { background: var(--grey-100); color: var(--text); }
 .vtabmenu:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .vtabmenu .nch { width: 14px; height: 14px; }
-.vnew { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; padding: 3px 10px; border-radius: var(--radius-pill); cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
-.vnew:hover { background: var(--grey-100); color: var(--text); }
-.vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.vnew { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: calc(var(--space-6) + var(--space-1)); padding: 6px 10px; margin-bottom: -1px; border-bottom: 2px solid transparent; cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.vnew:hover { color: var(--text); }
+.vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: var(--radius-sm); }
+.lsw { flex: none; margin-bottom: var(--space-1); }   /* row 812: the Table and Board two-icon switch, a .seg of two icon buttons */
+.lsw button { display: inline-grid; place-items: center; min-width: 40px; padding: var(--space-1) var(--space-3); }
+.lsw .i { width: 18px; height: 18px; }
 .fx { all: unset; box-sizing: border-box; flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: var(--size-body); line-height: 1; }
 .fx:hover { background: var(--grey-100); color: var(--text); }
 .fx:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
@@ -1990,6 +1996,22 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .item-rows-edit .note { color: var(--text-muted); }
 .item-rows-edit .add-from { display: inline-block; margin-top: 6px; }
 .item-rows-edit .picker { margin-top: 10px; }
+
+/* Row 832: Work items in the editor sits straight on the tinted page, not inside a white bordered card. With no border or padding the last child margin ran out of the section, so the board pin stopped 16 px short of the top bar; flow-root keeps that margin inside. */
+.frame.work:not(.pub) { background: transparent; border: 0; box-shadow: none; padding: 0; display: flow-root; }
+
+/* Row 832: Milestones sits on the tinted page; the viewer and timeline keep their card. */
+.frame.milestones:not(.pub) { background: transparent; border: 0; box-shadow: none; padding: 0; }
+.frame.milestones:not(.pub) .msv { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: var(--space-5) 28px; }
+.frame.milestones:not(.pub) .msv-sw { top: var(--space-5); right: 28px; }
+@media (max-width: 900px) { .frame.milestones:not(.pub) .msv { padding: 18px var(--space-4); } .frame.milestones:not(.pub) .msv-sw { top: 18px; right: var(--space-4); } }
+
+/* Row 832: Use cases sits on the tinted page, not inside a white bordered card (the editor page only: the published Use cases tab keeps its card, as the prototype's published page has it). */
+.frame.ucl { background: transparent; border: 0; box-shadow: none; padding: 0; }
+
+/* Row 832: the Settings head (title, help line, links) sits on the tinted page; the cards below keep theirs. */
+.frame.set-head { background: transparent; border: 0; box-shadow: none; padding: 0; }
+
 /* The project menu. Each project is its name on one line and its count of open items on its own line under it (the name is cut with an ellipsis); only this menu, the other menus keep their look. */
 .ddmenu[aria-label="Projects"] { width: max-content; max-width: min(360px, calc(100vw - var(--space-5))); }
 .ddmenu[aria-label="Projects"] [role="menuitemradio"] { display: flex; align-items: baseline; }

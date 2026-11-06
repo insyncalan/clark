@@ -382,7 +382,16 @@ AUDIT = """(function () {
   }
   var row = root.querySelector('.mvm-row'), rc = getComputedStyle(row);
   function lum(c) { var m = c.match(/\\d+(\\.\\d+)?/g).map(Number).slice(0, 3).map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]; }
-  var a = lum(rc.color), b = lum(getComputedStyle(root.closest('.frame')).backgroundColor), hi = Math.max(a, b), lo = Math.min(a, b);
+  // The colour really behind the row text: the row's own background, else the first painted ancestor, each translucent layer
+  // composited over the ones behind it, white at the bottom (row 832: the Milestones frame is transparent on the tinted page).
+  function behind(el) {
+    var layers = [];
+    for (; el; el = el.parentElement) { var m = getComputedStyle(el).backgroundColor.match(/[\d.]+/g).map(Number); var al = m.length > 3 ? m[3] : 1; if (al > 0) { layers.push([m[0], m[1], m[2], al]); if (al === 1) break; } }
+    var c = [255, 255, 255];
+    for (var k = layers.length - 1; k >= 0; k--) { var l = layers[k]; c = [0, 1, 2].map(function (i) { return l[i] * l[3] + c[i] * (1 - l[3]); }); }
+    return 'rgb(' + c.join(',') + ')';
+  }
+  var a = lum(rc.color), b = lum(behind(row)), hi = Math.max(a, b), lo = Math.min(a, b);
   if ((hi + 0.05) / (lo + 0.05) < 4.5) out.push('row text contrast ' + ((hi + 0.05) / (lo + 0.05)).toFixed(2));
   return JSON.stringify(out);
 })()"""
