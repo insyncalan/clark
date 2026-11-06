@@ -153,7 +153,7 @@ class Tab(unittest.TestCase):
         s = self.state()
         self.assertEqual((s["view"], s["hash"]), ("gantt", "#gantt&p=DEMO"))
         self.assertEqual(self.js("document.querySelector('.top .tab[aria-selected=true]').dataset.view"), "gantt")
-        self.assertEqual(self.js("document.querySelector('#gantt h1').textContent"), "Gantt")
+        self.assertTrue(self.js("!!document.querySelector('#gantt-page')"), "the Gantt page itself is open (the joined page, no longer a one-word stand-in)")
 
     def test_back_and_forward_step_through_the_gantt_page(self):
         self.load({"show_gantt_editor": 1})

@@ -79,7 +79,7 @@ export function lineRequests(code, stored, ops) {
 export function settingsRequest(changes) {
   const out = {};
   for (const [k, v] of Object.entries(changes)) {
-    if (k === "gantt_plan_rows") out[ROWS_FIELD] = v === null || v === undefined ? null : Math.round(Number(v));
+    if (k === "gantt_default_rows") out[ROWS_FIELD] = v === null || v === undefined ? null : Math.round(Number(v));
     else if (k === "gantt_hidden_columns") out[k] = list(v).join(",");
     else out[k] = v;
   }

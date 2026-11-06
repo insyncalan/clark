@@ -40,6 +40,9 @@ export const COLUMNS = [
 ];
 
 // Hidden from the client view until the author says otherwise (the eye on the column header).
+// Type, Start, End and Done % are always in a client file (the chart cannot be drawn without them), so they have no eye and are never saved as hidden.
+export const MAX_EFFORT = 1000000, MAX_BUDGET = 10 ** 12;      // the same limits as the data layer (store.py GANTT_MAX_EFFORT, GANTT_MAX_BUDGET)
+export const NEVER_HIDDEN = ["t", "s", "e", "pct"];
 export const DEFAULT_HIDDEN = ["show", "note", "cost", "eff", "bs", "be"];
 
 export const WORDS = {
@@ -53,6 +56,7 @@ export const WORDS = {
   oneDate: "A milestone has one date: change Start.",
   workedOut: (label) => `${label} is worked out; it cannot be typed over.`,
   number: (label) => `${label} is a number.`,
+  bigNumber: "Effort and budget are numbers, zero or more.",      // the server's own sentence, for a number it would refuse (above the limits below)
   choose: (label, options) => `${label}: choose ${options.filter(Boolean).join(", ")}.`,
   viewOnly: "Switch to Edit to change the plan.",
   needValue: "Those cells need a value.",
@@ -130,7 +134,7 @@ export function clashes(lines) {
 // View shows no hidden column (it is not drawn at all); Edit shows all, with the hidden ones marked. ID and Line are never hidden.
 export function visibleColumns(hidden, edit) {
   const gone = new Set(hidden || []);
-  return COLUMNS.filter((c) => edit || c.locked || !gone.has(c.key));
+  return COLUMNS.filter((c) => edit || c.locked || NEVER_HIDDEN.includes(c.key) || !gone.has(c.key));
 }
 
 export const FILTERS = { all: "All lines", phases: "Phases only", phasesMilestones: "Phases and milestones", ticked: "Ticked lines" };
@@ -205,7 +209,7 @@ export function setField(lines, index, key, text) {
   if (key === "eff" || key === "cost") {
     if (!v) return done({ ...line, [key]: "" });
     const n = Number(v.replace(/,/g, ""));
-    return Number.isNaN(n) || n < 0 ? refuse(WORDS.number(col.label)) : done({ ...line, [key]: n });
+    return !Number.isFinite(n) || n < 0 || n > (key === "eff" ? MAX_EFFORT : MAX_BUDGET) ? refuse(WORDS.bigNumber) : done({ ...line, [key]: n });
   }
   return done({ ...line, [key]: v });
 }

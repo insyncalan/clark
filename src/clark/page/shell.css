@@ -2122,7 +2122,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-full { position: fixed; inset: 0; z-index: 60; overflow: auto; padding: var(--space-3) var(--space-5); background: var(--bg); }
 .gt-full .gt-gx { max-height: calc(100vh - 170px); }
 @media (max-width: 900px) { .gt-full { padding: var(--space-2) var(--space-3); } }
-/* The Gantt page (#926, #928): the title in the banner (Edit), the two section slots, the page's toolbar row and its Undo toast. Tokens only. */
+/* The Gantt page (rows 926 and 928): the title in the banner (Edit), the two section slots, the page's toolbar row and its Undo toast. Tokens only. */
 .gp .cover h1 .gp-title { display: inline-block; min-width: 4ch; max-width: 100%; border-radius: var(--radius); cursor: text; }
 .gp .cover h1 .gp-title:hover { outline: 1px dashed var(--white); outline-offset: 2px; }
 .gp .cover h1 .gp-title:focus { outline: 2px solid var(--white); outline-offset: 2px; }
@@ -2137,7 +2137,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 /* The Gantt table (row 926). Lives here, not in the component: the page only runs inline style elements it has a hash for, so a style
    element drawn by the component at run time would never apply. Brand tokens only, so light and dark both follow the page. */
 .gt { --gz: 1; display: block; color: var(--text); font-size: var(--size-small, 13px); }
-.gt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--text-muted); font-size: 12px; min-height: 28px; }
+.gt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--text-muted); font-size: var(--size-caption); min-height: 28px; }
 .gt-bar button { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius); height: 26px; min-width: 28px; padding: 0 8px; font: inherit; cursor: pointer; }
 .gt-bar button:hover { border-color: var(--brand-blue); }
 .gt-bar button:focus-visible, .gt-menu button:focus-visible, .gt-eye:focus-visible, .gt-rb:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

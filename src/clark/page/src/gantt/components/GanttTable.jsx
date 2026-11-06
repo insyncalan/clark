@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { Icon } from "../../components/Icon.jsx";
 import {
-  COLUMNS, DEFAULT_HIDDEN, WORDS, addLine, cellCount, clampSel, clampZoom, clashes, clearCells, deleteLines, emptyHistory, endSel, enterNext, fillDown,
+  COLUMNS, DEFAULT_HIDDEN, NEVER_HIDDEN, WORDS, addLine, cellCount, clampSel, clampZoom, clashes, clearCells, deleteLines, emptyHistory, endSel, enterNext, fillDown,
   fillRight, fillTo, fitWidth, getValue, homeSel, inRange, makeSel, moveSel, parseTSV, pasteCells, rangeOf, record, redo, selectAll, selectColumn, selectRow,
   setField, tabNext, toTSV, undo, visibleColumns, visibleRows,
 } from "../logic/grid.js";
@@ -374,10 +374,10 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
             <tr role="row">
               {edit ? <th class="gt-rh0" data-all="1" title="Select all" aria-label="Select all" /> : null}
               {cols.map((col, c) => (
-                <th key={col.key} role="columnheader" data-col={c} data-k={col.key} class={`${c >= range.c0 && c <= range.c1 ? "hs" : ""}${hidden.includes(col.key) ? " gt-hid" : ""}${c < 2 ? " gt-fz" : ""}`}
+                <th key={col.key} role="columnheader" data-col={c} data-k={col.key} class={`${c >= range.c0 && c <= range.c1 ? "hs" : ""}${hidden.includes(col.key) && !NEVER_HIDDEN.includes(col.key) ? " gt-hid" : ""}${c < 2 ? " gt-fz" : ""}`}
                   style={c < 2 ? { left: `${lefts[c]}px` } : undefined}>
                   <span class="gt-hl">{col.label}</span>
-                  {edit && !col.locked ? (
+                  {edit && !col.locked && !NEVER_HIDDEN.includes(col.key) ? (
                     <button type="button" class="gt-eye" data-hc={col.key} aria-pressed={hidden.includes(col.key) ? "true" : "false"} title={eyeWords(col)}
                       aria-label={`${eyeWords(col)}: ${col.label}`} onClick={(e) => { e.stopPropagation(); toggleHidden(col); }}>
                       <Icon name={hidden.includes(col.key) ? "eyeoff" : "eye"} />

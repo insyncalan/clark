@@ -18,7 +18,7 @@ import { GanttChart } from "./GanttChart.jsx";
 import { GanttTable } from "./GanttTable.jsx";
 import { WORDS as GW, addBelow, filtersFor, filterWord, visibleRows, tidyAll } from "../logic/gantt.js";
 import {
-  PAGE_WORDS as W, CHART_COLUMNS, toChart, toTable, fromTable, fromChartLine, applyChart, diff, without, renumber, sortLines, hiddenForTable, hiddenFromTable,
+  PAGE_WORDS as W, toChart, toTable, fromTable, fromChartLine, applyChart, diff, without, renumber, sortLines, hiddenForTable, hiddenFromTable, onlyHideable,
 } from "../logic/ganttPage.js";
 
 const busy = (el) => !!el && el.nodeType === 1 && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || !!el.closest("[role=textbox],[role=dialog],[role=menu]"));
@@ -39,7 +39,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   const Toggle = tools && tools.Toggle && !fromFile.value ? tools.Toggle : null;
   const Title = tools && tools.GanttTitle ? tools.GanttTitle : null;
   const title = settings.gantt_title || project.name || "";
-  const hidden = settings.gantt_hidden_columns || [];
+  const hidden = onlyHideable(settings.gantt_hidden_columns);
   const stored = sortLines(lines);
   const dated = !stored.length || stored.some((l) => l.start);                // a published file that carries no dates cannot draw bars: it shows what it has as a table
   const layout = dated ? chosen : "table";
@@ -81,13 +81,9 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
     send(renumber(got.lines.map((c) => byId.get(c.id) || fromChartLine(c))), W.added);
   };
   const onDelete = (id) => send(without(stored, [id]), W.deleted(id));
-  const onToggleColumn = (key) => {
-    const was = hidden.includes(key);
-    host.saveSettings({ gantt_hidden_columns: was ? hidden.filter((k) => k !== key) : [...hidden, key] }, was ? W.colOn(CHART_COLUMNS[key] || key) : W.colOff(CHART_COLUMNS[key] || key));
-  };
   const onDefaultRows = (n) => {
     const total = visibleRows(tidyAll(toChart(stored)), { edit: true, filter }).length;
-    host.saveSettings({ gantt_plan_rows: n }, n === null || n >= total ? W.rowsAll : W.rows(n, total));
+    host.saveSettings({ gantt_default_rows: n }, n === null || n >= total ? W.rowsAll : W.rows(n, total));
   };
 
   // ── the table's callbacks: it hands back the whole new list ──
@@ -100,9 +96,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
 
   const saveTitle = (text) => host.saveSettings({ gantt_title: text }, W.titleChanged);
   const tableFilter = filter === "milestones" ? "phasesMilestones" : filter;
-  // What the client sees: Days is worked out from Start and End, and Status from Start, End and Done, so with one of those left out they are not drawn either.
-  const dropsDays = hidden.includes("start") || hidden.includes("end"), dropsStatus = dropsDays || hidden.includes("pct");
-  const tableHidden = [...hiddenForTable(hidden), ...(!editing && dropsDays ? ["dur"] : []), ...(!editing && dropsStatus ? ["st"] : [])];
+  const tableHidden = hiddenForTable(hidden);      // Start, End and Done are never hidden, so Days and Status (worked out from them) are always drawn
   const filters = filtersFor(editing);
 
   const bar = (
@@ -150,8 +144,8 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
         {bar}
         {editing && !stored.length ? <button type="button" class="gt-ib gp-first" data-gp-first aria-label={GW.addBelow} title={GW.addBelow} onClick={() => onAdd("", "phase")}><Icon name="plus" /></button> : null}      {/* a plan with no line has no row to add below: this starts it (a phase) */}
         {layout === "chart"
-          ? <GanttChart lines={toChart(stored)} edit={editing} today={now} filter={filter} onFilter={setFilter} defaultRows={settings.gantt_plan_rows ?? null}
-              onDefaultRows={onDefaultRows} hiddenCols={hidden} onToggleColumn={onToggleColumn} onChange={onChange} onToggleEye={onToggleEye} onAdd={onAdd} onDelete={onDelete} />
+          ? <GanttChart lines={toChart(stored)} edit={editing} today={now} filter={filter} onFilter={setFilter} defaultRows={settings.gantt_default_rows ?? null}
+              onDefaultRows={onDefaultRows} onChange={onChange} onToggleEye={onToggleEye} onAdd={onAdd} onDelete={onDelete} />
           : <GanttTable lines={toTable(stored)} edit={editing} today={now} filter={tableFilter} hidden={tableHidden} onChange={onTable} onHiddenChange={onTableHidden} onUndo={host.serverUndo ? () => host.undoLast() : undefined} />}
       </div>
       {below ? <div class="gp-slot gp-below" data-slot="below">{below}</div> : null}

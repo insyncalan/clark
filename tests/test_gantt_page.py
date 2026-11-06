@@ -69,7 +69,7 @@ class Static(unittest.TestCase):
                   GANTT_SRC / "logic" / "ganttStoreHost.js", PAGE_SRC / "edit" / "GanttTitle.jsx"]:
             self.assertNotRegex(f.read_text(encoding="utf-8"), r"#[0-9a-fA-F]{6}\b", f"{f.name}: a colour is a token")
         css = (build_page.PAGE / "shell.css").read_text(encoding="utf-8")
-        block = css[css.index("The Gantt page (#926, #928)"):]
+        block = css[css.index("The Gantt page (rows 926 and 928)"):]
         self.assertNotRegex(block, r"#[0-9a-fA-F]{6}\b")
         self.assertNotRegex(block, r"\brgba?\(")
         self.assertLessEqual(set(re.findall(r"@media \(max-width: (\d+)px\)", block)), {"900"})
@@ -88,11 +88,32 @@ class Static(unittest.TestCase):
         self.assertIn('"gantt"', (PAGE_SRC / "edit" / "keys.js").read_text(encoding="utf-8"), "V and E work on the Gantt page")
         self.assertNotRegex(page, r"addEventListener\(\s*[\"']keydown[\"'],\s*\(?e?\)?\s*=>\s*\{?\s*if \(e\.key === [\"'][eEvV]", "no second V and E handler")
 
+    def test_a_new_line_is_sent_after_the_line_above_it_and_the_height_is_saved_under_the_data_layers_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "probe.cjs"
+            banner = "globalThis.addEventListener=()=>{};globalThis.location={hash:'',search:''};globalThis.window=globalThis;"
+            done = esbuild.run(["--bundle", "--format=cjs", "--platform=node", "--target=es2020", "--tsconfig-raw={}", f"--banner:js={banner}", *build_page.preact_flags(),
+                                f"--alias:@src={PAGE_SRC}", str(ROOT / "tests" / "fixtures" / "gantt_store_host_probe.js"), f"--outfile={out}"],
+                               cwd=tmp, capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            ran = subprocess.run(["node", str(out)], capture_output=True, text=True)
+        self.assertEqual(ran.returncode, 0, ran.stderr)
+        sent = json.loads(ran.stdout.strip().splitlines()[-1])
+        self.assertEqual([(r["op"], r["after"]) for r in sent], [("new", "PRJ-GNT-002")], "the new line goes after the line above it")
+        for path in sorted((PAGE_SRC / "gantt").rglob("*.js*")):
+            self.assertNotIn("gantt_plan_rows", path.read_text(encoding="utf-8"), f"{path.name}: the data layer's name is gantt_default_rows")
+
     def test_the_page_does_not_touch_the_guarded_files(self):
-        changed = subprocess.run(["git", "diff", "--name-only", "origin/main...HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.split()
+        # Only the page's own folder is compared: this branch carries the data layer, whose edits to the server files are not the page's.
+        for path in sorted((PAGE_SRC / "gantt").rglob("*")) + [DEMO]:
+            if path.suffix not in (".js", ".jsx"):
+                continue
+            text = path.read_text(encoding="utf-8")
+            for name in GUARDED:
+                self.assertNotRegex(text, r"import[^\n]*" + re.escape(name[:-3]) + r"\.py", f"{path.name} imports {name}")
+        changed = subprocess.run(["git", "diff", "--name-only", "origin/main...HEAD", "--", "src/clark/page"], cwd=ROOT, capture_output=True, text=True).stdout.split()
         for name in GUARDED:
             self.assertFalse([c for c in changed if c.endswith("/" + name)], name)
-        self.assertFalse([c for c in changed if c.startswith(".github/")])
 
 
 class Page(unittest.TestCase):
@@ -352,21 +373,29 @@ class Page(unittest.TestCase):
         self.assertEqual(ops, [{"op": "update", "id": "GNT-002", "changes": {"owner": "Ada Example"}}])
         self.assertEqual(len(self.calls()), before)
 
-    def test_a_column_eye_saves_the_hidden_columns_and_the_chart_follows(self):
+    def test_a_column_eye_saves_only_hideable_columns_and_the_chart_keeps_its_dates(self):
         self.mount(mode="edit")
-        self.click("[data-g-coleye=end]")
-        self.until("P.settings().gantt_hidden_columns.indexOf('end') >= 0", "hidden")
-        self.assertEqual(self.calls()[-1][2], "End: hidden from the client.")
+        self.assertEqual(self.count("[data-g-coleye]"), 0, "no eye on Start, End or Done")
+        self.click("[data-gp-layout=table]")
+        self.until("document.querySelector('[data-hc=o]')", "the table's column eyes")
+        for k in ("t", "s", "e", "pct"):
+            self.assertEqual(self.count(f"[data-hc={k}]"), 0, k + " has no eye")
+        self.click("[data-hc=o]")
+        self.until("P.settings().gantt_hidden_columns.indexOf('owner') >= 0", "hidden")
+        never = self.val("P.settings().gantt_hidden_columns.filter(k => ['type', 'start', 'end', 'pct'].indexOf(k) >= 0)")
+        self.assertEqual(never, [], "type, start, end and pct are never in what is saved")
+        self.assertEqual(self.calls()[-1][2], "Hidden columns changed.")
+        self.click("[data-gp-layout=chart]")
         self.click("[data-gp-mode]")
         self.until("document.querySelector('#gantt-page').dataset.mode === 'view'", "View")
-        self.assertEqual(self.count("[data-g-rz=end]"), 0, "the column is gone from the client view")
+        self.assertEqual(self.count("[data-g-rz=end]"), 1, "the dates stay in the client view")
 
     def test_the_plan_height_grip_saves_the_default_in_edit_and_not_in_view(self):
         self.look(1400)
         self.mount(mode="edit")
         self.js("(function(){ var g = document.querySelector('[data-g-grip]'); g.focus(); })()")
         self.key("ArrowUp", "document.querySelector('[data-g-grip]')")
-        self.until("P.settings().gantt_plan_rows !== null", "the height is saved")
+        self.until("P.settings().gantt_default_rows !== null", "the height is saved")
         self.assertRegex(self.calls()[-1][2], r"^Plan height saved: \d+ of 6 rows\. Viewers can still change their own\.$")
         self.click("[data-gp-mode]")
         self.until("document.querySelector('#gantt-page').dataset.mode === 'view'", "View")

@@ -4,7 +4,7 @@
 //   host.read()                  -> { project: { name, client_name, week_ending }, settings: {...DEFAULT_SETTINGS}, lines: [stored lines], toast: null | { text, undo } }
 //   host.subscribe(fn)           -> a function that stops listening; fn runs after every change
 //   host.applyLines(ops, words)  -> Promise; ops are logic/ganttPage.js diff(): { op: 'new' | 'update' | 'delete', id, values | changes }
-//   host.saveSettings(changes, words) -> Promise; changes are project fields (gantt_title, gantt_hidden_columns, gantt_plan_rows ...)
+//   host.saveSettings(changes, words) -> Promise; changes are project fields (gantt_title, gantt_hidden_columns, gantt_default_rows ...)
 //   host.undoLast()              -> Promise; puts back the last change
 //   host.ownUndoKey              -> true when the page must listen for Cmd or Ctrl+Z itself (the store host leaves it to the app's own key)
 // `words` is what the toast says. A host with a toast of its own shows it through read().toast; the store host uses the app's toast.

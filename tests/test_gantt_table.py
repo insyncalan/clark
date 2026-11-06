@@ -296,6 +296,23 @@ class Table(unittest.TestCase):
         self.assertEqual(self.state()["msg"], "Status is worked out; it cannot be typed over.")
         self.assertFalse(self.state()["editing"])
 
+    def test_effort_and_budget_past_the_data_layers_limits_are_refused_in_its_words(self):
+        self.load()
+        said = "Effort and budget are numbers, zero or more."
+        for c, text in ((16, "1000001"), (17, "1000000000001"), (17, "1e999"), (16, "-1")):
+            self.click(0, c)
+            self.press("F2")
+            self.type_in(text)
+            self.press("Enter")
+            self.assertEqual(self.state()["msg"], said, text)
+        self.assertEqual(self.val("T.calls.length"), 0, "nothing was sent")
+        for c, text in ((16, "1000000"), (17, "1000000000000")):
+            self.click(0, c)
+            self.press("F2")
+            self.type_in(text)
+            self.press("Enter")
+        self.assertEqual(self.val("[T.lines[0].eff, T.lines[0].cost]"), [1000000, 10 ** 12], "the limits themselves are allowed")
+
     # ── View against Edit ──
 
     def test_view_is_read_only_with_no_row_numbers_and_no_hidden_columns(self):
@@ -334,13 +351,23 @@ class Table(unittest.TestCase):
         self.assertTrue(self.val("document.querySelector('th[data-k=note]').classList.contains('gt-hid')"))
         self.assertFalse(self.val("document.querySelector('th[data-k=s]').classList.contains('gt-hid')"))
         self.assertFalse(self.val("!!document.querySelector('th[data-k=id] .gt-eye, th[data-k=n] .gt-eye')"), "ID and Line are always shown")
-        self.go("document.querySelector('[data-hc=s]').click()")
+        self.go("document.querySelector('[data-hc=o]').click()")
         self.assertEqual(self.val("T.calls.slice(-1)[0][0]"), "hidden")
-        self.assertIn("s", self.val("T.calls.slice(-1)[0][1]"))
-        self.assertTrue(self.val("document.querySelector('th[data-k=s]').classList.contains('gt-hid')"))
-        self.assertEqual(self.state()["msg"], "Start: hidden from the client.")
+        self.assertIn("o", self.val("T.calls.slice(-1)[0][1]"))
+        self.assertTrue(self.val("document.querySelector('th[data-k=o]').classList.contains('gt-hid')"))
+        self.assertEqual(self.state()["msg"], "Owner: hidden from the client.")
         self.go("T.setProps({edit: false})")
-        self.assertNotIn("s", self.state()["heads"], "View does not draw it")
+        self.assertNotIn("o", self.state()["heads"], "View does not draw it")
+
+    def test_type_start_end_and_done_have_no_eye_and_are_always_drawn(self):
+        self.load()
+        for k in ("t", "s", "e", "pct"):
+            self.assertFalse(self.val(f"!!document.querySelector('[data-hc={k}]')"), k + " has no eye (the data layer never hides it)")
+        self.go("T.setProps({edit: false, hidden: ['t', 's', 'e', 'pct', 'o']})")
+        heads = self.state()["heads"]
+        for k in ("t", "s", "e", "pct"):
+            self.assertIn(k, heads)
+        self.assertNotIn("o", heads)
 
     # ── menu, width, zoom ──
 

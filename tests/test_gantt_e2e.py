@@ -431,23 +431,23 @@ class E2E(unittest.TestCase):
         br.open("file://" + str(third) + "#dashboard")
         br.until("document.querySelector('.tab')", "the third file")
         self.assertNotIn("Plan", self.tabs(br), "no line with its eye on, no tab")
-        # one line back on, and the dates hidden from the client: the file draws what it has (the lines as a table), never "No lines to show."
+        # one line back on, and every column the client may be denied hidden: the file still draws the chart with its dates (Type, Start, End and Done are
+        # never hidden, and the data layer refuses them), never "No lines to show."
         self.send(kind="gantt_lines", op="update", id="PUB-GNT-001", changes={"show": 1})
-        self.send(kind="projects", op="update", changes={"gantt_hidden_columns": "start,end,pct,show,note,budget,effort,baseline_start,baseline_end"})
+        status, body = self.rig.call("POST", "/api/change", {"project": CODE, "kind": "projects", "op": "update", "changes": {"gantt_hidden_columns": "start,end,pct"}})
+        self.assertEqual(status, 400, "the data layer refuses the dates as hidden columns")
+        self.send(kind="projects", op="update", changes={"gantt_hidden_columns": "show,note,budget,effort,baseline_start,baseline_end,owner"})
         br.open(self.base + f"#dashboard&p={CODE}")
         fourth = self.publish(br)
         br.open("file://" + str(fourth) + "#gantt")
         br.until("document.querySelector('#gantt-page')", "the fourth file's Gantt page")
         self.assertIn("Plan", self.tabs(br))
         self.assertEqual(br.js("document.querySelectorAll('[data-g-none]').length"), 0, "a file with lines never says there are none")
-        self.assertEqual(br.js("document.querySelector('#gantt-page').dataset.layout"), "table", "no dates, so no bars: the table")
-        self.assertEqual(br.js("document.querySelectorAll('.gt-scroll td[data-c=\"1\"]').length"), 1)
-        self.assertEqual(br.text(".gt-scroll td[data-c='1']"), "Discovery")
-        head = br.js("[].map.call(document.querySelectorAll('.gt-scroll thead th'), function(h){return h.innerText.trim()}).join('|')")
-        self.assertNotIn("Start", head)
-        self.assertNotIn("Days", head, "Days is worked out from the dates, so it goes with them")
-        self.assertNotIn("Status", head, "and so does Status")
-        br.snap("published-no-dates")
+        self.assertEqual(br.js("document.querySelector('#gantt-page').dataset.layout"), "chart", "the dates are always in the file, so the bars are drawn")
+        head = br.js("[].map.call(document.querySelectorAll('.gt-lhead .gt-h'), function(h){return h.innerText.trim()}).join('|')")
+        self.assertIn("Start", head)
+        self.assertIn("Done", head)
+        br.snap("published-hidden-columns")
 
 
 if __name__ == "__main__":

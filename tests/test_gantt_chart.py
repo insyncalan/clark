@@ -187,19 +187,12 @@ class Chart(unittest.TestCase):
         names = self.val("(function(){ var out = []; hostLines().forEach(function(l){ var q = document.querySelector('.gt-canvas'); if (q.textContent.indexOf(l.name) < 0) out.push(l.name); }); return out; })()")
         self.assertEqual(names, [], "a bar's name is in the page as text, inside the bar or beside it")
 
-    def test_view_hides_the_columns_hidden_from_the_client_and_edit_shows_them_with_an_eye(self):
+    def test_start_end_and_done_are_always_drawn_and_have_no_eye(self):
         self.look(1400, "light")
-        self.mount(edit=False, hiddenCols=["start", "pct"])
-        self.assertEqual(self.val("[...document.querySelectorAll('.gt-lhead .gt-h')].map(e => e.textContent.trim())"), ["Phase / task", "End"])
-        self.assertEqual(self.count("[data-g-cell=start], [data-g-cell=pct]"), 0)
-        self.mount(edit=True, hiddenCols=["start", "pct"])
-        self.assertEqual(self.val("[...document.querySelectorAll('.gt-lhead .gt-h')].map(e => e.textContent.trim())"), ["Phase / task", "Start", "End", "Done"])
-        self.assertEqual(self.val("document.querySelector('[data-g-coleye=start]').getAttribute('aria-label')"), "Hidden from the client view")
-        self.assertEqual(self.val("document.querySelector('[data-g-coleye=end]').getAttribute('aria-label')"), "Shown in the client view")
-        self.js("document.querySelector('[data-g-coleye=start]').click()")
-        self.until("window.calls.length", "the click was passed on")
-        self.assertEqual(self.calls(), [["column", "start"]])
-        self.until("document.querySelector('[data-g-coleye=start]').getAttribute('aria-label') === 'Shown in the client view'", "the eye flipped")
+        for edit in (False, True):
+            self.mount(edit=edit)
+            self.assertEqual(self.val("[...document.querySelectorAll('.gt-lhead .gt-h')].map(e => e.textContent.trim())"), ["Phase / task", "Start", "End", "Done"])
+            self.assertEqual(self.count("[data-g-coleye]"), 0, "the data layer never hides these, so the chart offers no eye on them")
 
     def test_selecting_a_bar_says_its_details_in_words(self):
         self.look(1400, "light")

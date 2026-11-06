@@ -5,9 +5,9 @@
 //   edit           false = View (what the client sees: eye-on lines only, read only), true = Edit (every line, and the interactions below)
 //   today          today as YYYY-MM-DD (the page's own clock; the default is the computer's)
 //   filter         "all" | "phases" | "milestones" | "ticked" (Edit only); with onFilter(f) the page owns it, without, the chart does
+//   hiddenCols     "start" | "end" | "pct" left out of the View (an older file; the page passes none). There is no eye on them: the data layer never hides them
 //   defaultRows    the saved plan height in rows (null = every row). In Edit the grip changes it and calls onDefaultRows(n or null);
 //                  a viewer's own height is the chart's and is never sent anywhere
-//   hiddenCols     which of "start" | "end" | "pct" are hidden from the client view: gone in View, shown with an eye in Edit (onToggleColumn(key))
 //   onChange(id, field, value)   field "name" | "pct" (a number) | "dates" ({ start, end }: the cells, the edit box, a bar moved or stretched)
 //   onToggleEye(id)              the line's eye: put it on, or take it off, the client view
 //   onAdd(afterId, type)         "Add a task / phase / milestone below"
@@ -45,7 +45,7 @@ const Glyph = ({ name }) => (
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
 export function GanttChart({
-  lines, edit = false, today, filter: filterProp, onFilter, defaultRows = null, onDefaultRows, hiddenCols = [], onToggleColumn,
+  lines, edit = false, today, filter: filterProp, onFilter, defaultRows = null, onDefaultRows, hiddenCols = [],
   onChange, onToggleEye, onAdd, onDelete,
 }) {
   const now = today || todayIso();
@@ -71,10 +71,10 @@ export function GanttChart({
   // On a narrow page the left columns give up some width so the chart keeps room for its month labels (a person's own widths still win when smaller).
   const narrow = width < 1000;
   const cwN = narrow ? { name: Math.min(cw0.name, 120), start: Math.min(cw0.start, 94), end: Math.min(cw0.end, 94), pct: Math.min(cw0.pct, 44) } : cw0;
-  const cw = edit ? { ...cwN, pct: Math.max(cwN.pct, 64) } : cwN;      // in Edit the Done heading carries an eye, which needs the room
+  const cw = cwN;
   const filter = onFilter ? filterProp : ownFilter;
   const setFilter = (f) => { setShowOpen(false); if (onFilter) onFilter(f); else setOwnFilter(f); };
-  const cols = ["start", "end", "pct"].filter((k) => edit || !hiddenCols.includes(k));
+  const cols = ["start", "end", "pct"].filter((k) => edit || !hiddenCols.includes(k));      // no eye on these in Edit (the data layer refuses them as hidden); an older file may still leave one out
 
   // The lines with a bar being dragged drawn where it is now, so the clash marks and the arrows follow the pointer.
   const live = useMemo(() => (drag ? all.map((l) => (l.id === drag.id ? { ...l, start: drag.start, end: drag.end } : l)) : all), [all, drag]);
@@ -305,7 +305,6 @@ export function GanttChart({
             {cols.map((k) => (
               <span class={`gt-h gt-h-${k}`} style={{ width: `${cw[k]}px` }} key={k}>
                 {WORDS[k]}
-                {edit ? eyeBtn(!hiddenCols.includes(k), hiddenCols.includes(k) ? WORDS.colOff : WORDS.colOn, () => onToggleColumn && onToggleColumn(k), { "data-g-coleye": k }) : null}
                 <i class="gt-rz" data-g-rz={k} onPointerDown={startResize(k)} />
               </span>
             ))}

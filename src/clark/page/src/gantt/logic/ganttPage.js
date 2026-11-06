@@ -5,14 +5,14 @@
 //   workstream, priority, baseline_start, baseline_end, effort, budget, deliverable, show 0|1, note, sort_order }.
 // (The agreed contract lists no `name`; the line's name is its "Line" column, so it is carried here as `name`. Change it in one place: NAME.)
 
-import { FIELDS, DEFAULT_NAME } from "../ganttTab.js";
+import { FIELDS as TAB_FIELDS, DEFAULT_NAME } from "../ganttTab.js";
 
 export const NAME = "name";
 
 export const DEFAULT_SETTINGS = {
-  [FIELDS.editor]: 0, [FIELDS.client]: 0, [FIELDS.name]: DEFAULT_NAME, gantt_title: "",      // the three tab fields are named in ganttTab.js only
+  [TAB_FIELDS.editor]: 0, [TAB_FIELDS.client]: 0, [TAB_FIELDS.name]: DEFAULT_NAME, gantt_title: "",      // the three tab fields are named in ganttTab.js only
   gantt_hidden_columns: ["show", "note", "budget", "effort", "baseline_start", "baseline_end"],
-  gantt_plan_rows: null,                      // the saved plan height in rows (null = every row); not in the first contract, added by the page
+  gantt_default_rows: null,                      // the saved plan height in rows (null = every row); not in the first contract, added by the page
 };
 
 // The page's words. Every one is in the spec's word list (#926 section 4) unless it says "added".
@@ -45,7 +45,9 @@ const TABLE_KEY = {
 };
 const STORED_KEY = Object.fromEntries(Object.entries(TABLE_KEY).map(([k, v]) => [v, k]));
 export const hiddenForTable = (keys) => (keys || []).map((k) => TABLE_KEY[k]).filter(Boolean);
-export const hiddenFromTable = (keys) => (keys || []).map((k) => STORED_KEY[k]).filter(Boolean);
+export const HIDEABLE = ["parent", "health", "depends", "owner", "workstream", "priority", "baseline_start", "baseline_end", "effort", "budget", "deliverable", "show", "note"];      // the data layer's GANTT_HIDEABLE: type, start, end and pct are never hidden
+export const onlyHideable = (keys) => (keys || []).filter((k) => HIDEABLE.includes(k));
+export const hiddenFromTable = (keys) => onlyHideable((keys || []).map((k) => STORED_KEY[k]).filter(Boolean));
 export const CHART_COLUMNS = { start: "Start", end: "End", pct: "Done" };
 
 const TYPE_SHORT = { phase: "p", task: "t", milestone: "m" };

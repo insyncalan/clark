@@ -4,7 +4,7 @@
 import { data, fromFile } from "../../stores/report.js";
 import { DEFAULT_SETTINGS, sortLines } from "./ganttPage.js";
 
-export const ROWS_FIELD = "gantt_default_rows";          // the server's name for the page's gantt_plan_rows
+export const ROWS_FIELD = "gantt_default_rows";          // the one name for the saved plan height, in the page and the data layer alike
 
 export const list = (v) => (Array.isArray(v) ? v : typeof v === "string" ? v.split(",") : []).map((s) => String(s).trim()).filter(Boolean);
 export const strip = (code, id) => (typeof id === "string" && id.startsWith(`${code}-`) ? id.slice(code.length + 1) : id);
@@ -25,7 +25,7 @@ export function readStore(d) {
   const code = p.code || "";
   const settings = { ...DEFAULT_SETTINGS };
   for (const k of Object.keys(DEFAULT_SETTINGS)) if (p[k] !== undefined && p[k] !== null) settings[k] = p[k];
-  if (p[ROWS_FIELD] !== undefined) settings.gantt_plan_rows = p[ROWS_FIELD];
+  if (p[ROWS_FIELD] !== undefined) settings.gantt_default_rows = p[ROWS_FIELD];
   settings.gantt_hidden_columns = list(settings.gantt_hidden_columns);
   return { project: p, settings, lines: sortLines((d.gantt_lines || []).map((l) => pageLine(code, l))), toast: null };
 }
@@ -38,7 +38,7 @@ export function readFile(d) {
   const g = d.gantt || {};
   const code = p.code || "";
   const columns = Array.isArray(g.columns) ? g.columns : [];
-  const settings = { ...DEFAULT_SETTINGS, gantt_title: typeof g.title === "string" ? g.title : "", gantt_plan_rows: Number.isInteger(g.default_rows) ? g.default_rows : null,
+  const settings = { ...DEFAULT_SETTINGS, gantt_title: typeof g.title === "string" ? g.title : "", gantt_default_rows: Number.isInteger(g.default_rows) ? g.default_rows : null,
     gantt_hidden_columns: FILE_COLUMNS.filter((c) => !columns.includes(c)) };
   const lines = (Array.isArray(g.lines) ? g.lines : []).map((l, i) => ({ ...pageLine(code, l), show: 1, sort_order: i + 1 }));
   return { project: p, settings, lines, toast: null };
