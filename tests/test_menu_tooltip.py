@@ -43,7 +43,8 @@ class MenuTooltip(Base):
                         p.key("Escape", code="Escape", vk=27)
                         p.until("!document.querySelector('#profile-menu')", "Esc closed the menu")
                         self.assertFalse(self.shown(p), "no tip after Esc, though focus came back to the button")
-                        p.mouse("mouseMoved", 5, 600)
+                        p.mouse("mouseMoved", 5, int(p.js("window.innerHeight")) - 5)           # inside the window, away from the button (a point below a short window never leaves it)
+                        p.until("!document.querySelector('#profile-btn').matches(':hover')", "the pointer has left the button")      # the hover state follows the move by a frame: wait for it, not a fixed delay
                         p.js("document.querySelector('#profile-btn').blur()")
                         p.until(AFTER + ".content === 'none'", "no tip after the pointer leaves and focus goes")
                         p.mouse("mouseMoved", x, y)
