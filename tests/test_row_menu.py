@@ -188,9 +188,14 @@ class Menu(board.Base):
             return real_sent(req)
         self.s.httpd.draft_email_sent = sent_seam
 
+    def settled(self, cdp, sid):
+        """Row 878: a menu drops in over --dur-instant; its place is measured and clicked only once that has finished."""
+        self.until(cdp, sid, "document.querySelector('.rowmenu') && document.querySelector('.rowmenu').getAnimations({subtree: true}).length === 0", "the menu has settled")
+
     def open_menu(self, cdp, sid, selector):
         right_click(cdp, sid, selector)
         self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the menu")
+        self.settled(cdp, sid)
 
     def entries(self, cdp, sid):
         return cdp.js("[...document.querySelectorAll('.rowmenu [role=menuitem]')].map(b => [b.dataset.rm, b.querySelector('b').textContent, b.getAttribute('aria-disabled') === 'true', (b.querySelector('small') || {}).textContent || ''])", sid)
@@ -875,6 +880,7 @@ class Menu(board.Base):
 
     # ---- row 848: where it opens, hover, no jump, Duplicate of a Sensitive item ----
     def box(self, cdp, sid):
+        self.settled(cdp, sid)
         return cdp.js("(() => { const b = document.querySelector('.rowmenu > [role=menu]').getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; })()", sid)
 
     def hover(self, cdp, sid, selector):

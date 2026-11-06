@@ -86,7 +86,8 @@ class TheFiveJobs(unittest.TestCase):
 
     def test_the_contents_list_of_start_here_has_the_three_groups(self):
         r = run_node(RAW, "HL.tabList('start').map((g) => [g.group, g.entries.map((e) => e.place)])")
-        self.assertEqual(r[0], ["Start here", ["start-jobs"]])
+        self.assertEqual(r[:3], [["Start here", ["start-top"]], ["Start here", ["start-loop"]], ["Start here", ["start-jobs"]]], "the hero card and the loop come first (row 903)")
+        r = r[2:]
         self.assertEqual(r[1], ["The five jobs", [JOB_PLACES[i] for i in JOBS]])
         self.assertEqual(r[2][0], "Also under How do I...")
         # the two jobs that open a guide leave their how-to entries here, so those stay reachable
@@ -177,7 +178,7 @@ class WhatNext(unittest.TestCase):
     def test_a_held_place_is_never_a_what_next_link(self):
         held = ["howto-" + i for i in LATER["howto"]] + ["ref-" + i for i in LATER["reference"]]
         self.assertTrue(held)
-        r = run_node(RAW, "HL.nextOf(%s)" % json.dumps(held + ["start-top"]))
+        r = run_node(RAW, "HL.nextOf(%s)" % json.dumps(held + ["start-first"]))
         self.assertEqual(r, [])
 
     def test_no_next_list_gives_nothing(self):
@@ -231,7 +232,7 @@ class History(unittest.TestCase):
 
     def test_a_tab_opens_at_its_first_entry(self):
         r = self.run_trail("({ start: HL.firstPlace('start'), howto: HL.firstPlace('howto'), reference: HL.firstPlace('reference'), none: HL.firstPlace('nothing') })")
-        self.assertEqual(r["start"], "start-jobs")
+        self.assertEqual(r["start"], "start-top")
         self.assertEqual(r["howto"], "howto-" + shown_content()["howto"]["tasks"][0]["id"])
         self.assertEqual(r["reference"], "ref-" + shown_content()["reference"]["sections"][0]["id"])
         self.assertIsNone(r["none"])

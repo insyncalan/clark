@@ -161,7 +161,7 @@
   ],
   "text": {
    "loop_title": "The loop",
-   "loop_intro": "Every week follows the same five steps. Only the last one sends anything anywhere, and only when you say so.",
+   "loop_intro": "Every week follows the same five steps.",
    "loop_return": "Next week starts the loop again from the same record. The history keeps every change, so nothing is lost between weeks.",
    "first_title": "Your first ten minutes",
    "where_title": "Where things are",
