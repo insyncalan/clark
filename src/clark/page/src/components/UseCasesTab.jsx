@@ -11,6 +11,7 @@ export function UseCasesTab() {
   const cases = by(d.use_cases), steps = by(d.actions), marks = by(d.milestones);
   return (
     <section class="frame ucpage" id="usecases-file">
+      <p class="crumbs">{d.project.name}</p>
       <h1>Use cases</h1>
       {pages.length ? pages.map((p) => {
         const u = cases[p.id];
@@ -19,9 +20,8 @@ export function UseCasesTab() {
         const ms = p.milestones.map((id) => marks[id]).filter(Boolean);
         return (
           <details class="ucp" key={u.id} open={printing.value}>
-            <summary><span class="num">{u.ref}</span> <span class="ucp-title">{u.title}</span> <span class="muted">{u.status}</span><CommitChip u={u} /></summary>
+            <summary><span class="num">{u.ref}</span> <span class="ucp-title">{u.title}</span> <span class="muted">{u.status}</span><CommitChip u={u} />{u.headline ? <span class="ucp-headline">{u.headline}</span> : null}</summary>
             <div class="ucp-body">
-              {u.headline ? <p class="ucp-headline">{u.headline}</p> : null}
               {u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : null}
               <h2>Next steps</h2>
               {mine.length ? <ul class="plain">{mine.map((a) => <li key={a.id}>{a.client_message || a.description}</li>)}</ul> : <p class="muted">No next steps are shared for this use case.</p>}
