@@ -7,7 +7,7 @@ import { milestoneRows, todayIso } from "../logic/milestones.js";
 import { leftOutIds } from "../logic/picker.js";
 import { recall, remember } from "../logic/remember.js";
 import { Icon } from "./Icon.jsx";
-import { isEditing } from "../edit/editing.js";
+import { isEditing } from "../logic/editing.js";
 import { MsTimeline } from "./MsTimeline.jsx";
 import { MsCalendar } from "./MsCalendar.jsx";
 import { MsList } from "./MsList.jsx";

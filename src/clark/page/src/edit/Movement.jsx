@@ -8,7 +8,7 @@
 import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { useGrow } from "./useGrow.js";
-import { isEditing } from "./editing.js";
+import { isEditing } from "../logic/editing.js";
 import { project, fromFile, data, reread, openPeek } from "../stores/report.js";
 import { changeMilestone, say, undone } from "../stores/changes.js";
 import { dayNumber, showDate, todayIso } from "../workItems.js";
