@@ -1851,6 +1851,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .print-tab-title { margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-body); font-weight: 400; color: var(--text-muted); }
   html.print-all .sec, html.print-all article, html.print-all .tile, html.print-all .fig, html.print-all figure, html.print-all blockquote, html.print-all tr, html.print-all li, html.print-all h1, html.print-all h2, html.print-all h3, html.print-all details { break-inside: avoid; }
   html.print-all h1, html.print-all h2, html.print-all h3 { break-after: avoid; }
+  html.print-all .mv-wrap { overflow: hidden; resize: none; min-height: 0; }   /* row 767: the printed timeline is drawn to the page width (MsTimeline.jsx), so it needs no sideways scroll; nothing is cut off */
   html.print-all thead { display: table-header-group; }
   html.print-all a { color: inherit; text-decoration: none; }
 }
@@ -1861,6 +1862,18 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .pk-val .i { width: 16px; height: 16px; }
 .ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
 .ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
+/* The peek's card (row 766): Status, Priority, Owner and Due are four cells above the other fields, as the prototype's property row.
+   Two by two in the usual width, four across once the panel body is wide enough. The rows and words are the same ones; only the look changes. */
+.peek .pk-body { container-type: inline-size; }
+.pk-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-2); }
+.pk-fields > .pk-row { grid-column: 1 / -1; order: 5; }
+.pk-fields > .pk-row[data-row] { grid-column: auto; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); align-content: start; padding: var(--space-3); margin-bottom: var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }
+.pk-fields > .pk-row[data-row=status] { order: 1; }
+.pk-fields > .pk-row[data-row=priority] { order: 2; }
+.pk-fields > .pk-row[data-row=owner] { order: 3; }
+.pk-fields > .pk-row[data-row=due] { order: 4; }
+.pk-fields > .pk-row[data-row] dd { min-width: 0; }
+@container (min-width: 560px) { .pk-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* Publish progress: main draws the ring (.spin, a still ring with one strong quarter) and the green tick; clark's own setting
    (<html data-motion="reduce">) also stops the ring, which the media query alone would not. */
@@ -1925,3 +1938,10 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 
 /* Row 832: the Settings head (title, help line, links) sits on the tinted page; the cards below keep theirs. */
 .frame.set-head { background: transparent; border: 0; box-shadow: none; padding: 0; }
+
+/* The project menu. Each project is its name on one line and its count of open items on its own line under it (the name is cut with an ellipsis); only this menu, the other menus keep their look. */
+.ddmenu[aria-label="Projects"] { width: max-content; max-width: min(360px, calc(100vw - var(--space-5))); }
+.ddmenu[aria-label="Projects"] [role="menuitemradio"] { display: flex; align-items: baseline; }
+.ddmenu[aria-label="Projects"] [role="menuitemradio"] > span:not(.ck) { display: block; flex: 1; min-width: 0; }
+.ddmenu[aria-label="Projects"] [role="menuitemradio"] b, .ddmenu[aria-label="Projects"] [role="menuitemradio"] small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ddmenu[aria-label="Projects"] [role="menuitemradio"] small { color: var(--text-muted); }
