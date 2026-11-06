@@ -211,7 +211,7 @@ table.items tr.done .t { color: var(--text-muted); }
 .due-l { display: block; font-size: var(--size-small); color: var(--text-muted); }
 .due-l.late { color: var(--status-red-text); }
 .who { display: inline-flex; align-items: flex-start; gap: var(--space-2); }
-.av { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--brand-navy); color: var(--white); font-size: var(--size-caption); flex: none; }
+.av { display: inline-grid; place-items: center; box-sizing: border-box; min-width: 26px; height: 26px; padding: 0 5px; line-height: 1; white-space: nowrap; border-radius: 999px; background: var(--brand-navy); color: var(--white); font-size: var(--size-caption); flex: none; }
 .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: var(--radius-pill); font-size: var(--size-small); white-space: nowrap; }
 .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .pill.g { background: var(--status-green-tint); color: var(--status-green-text); }
@@ -677,7 +677,7 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 .cp-names { list-style: none; margin: 6px 0 0; padding: 0; }
 .cp-name { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 32px; padding: 3px 6px; border-radius: var(--radius-sm); cursor: pointer; }
 .cp-name:hover, .cp-name:focus-visible { background: var(--brand-blue-tint); }
-.cp-name .av { width: 24px; height: 24px; font-size: var(--size-caption); }
+.cp-name .av { min-width: 24px; height: 24px; font-size: var(--size-caption); }
 .cp-name[aria-pressed="true"]::after { content: "✓"; margin-left: auto; color: var(--status-blue-text); }
 .cp-hint { margin: 6px 2px 2px; font-size: var(--size-caption); color: var(--text-muted); }
 .cp-problem { margin: 6px 2px 0; font-size: var(--size-caption); color: var(--status-red-text); }
@@ -1304,7 +1304,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucdetail p { margin: 0 0 6px; }
 .ucdetail ul.plain li { border-top: 0; padding: 2px 0; }
 .ucdetail ul.ucstepl li { display: flex; align-items: center; gap: 8px; }
-.ucstepl .av { width: 26px; height: 26px; font-size: var(--size-caption); }
+.ucstepl .av { min-width: 26px; height: 26px; font-size: var(--size-caption); }
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
 
 /* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): slim is the default. */
@@ -1866,7 +1866,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .wl-title { overflow-wrap: anywhere; color: var(--text); }
 .wl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: var(--size-small); color: var(--text-muted); }
-.wl-meta .av { width: 22px; height: 22px; font-size: var(--size-small); }
+.wl-meta .av { min-width: 22px; height: 22px; padding: 0 4px; font-size: var(--size-caption); }
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
