@@ -1582,11 +1582,14 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     .ad-prev > * { animation: m-in var(--dur-state) var(--ease-enter) 1; }
     /* publish: the tick appears once (the ring is main's, and turns only until the work ends) */
     .pub-tick { animation: m-tick var(--dur-state) var(--ease-out) 1; }
+    /* row 883: the check mark draws itself (the path is 22.6 long, 24 covers it; the still tick has no dash at all) */
+    .pub-tick .i path { stroke-dasharray: 24; animation: m-draw var(--dur-layout) var(--ease-out) 1; }
   }
   @media (hover: hover) and (pointer: fine) {
     :root:not([data-motion="reduce"]) .ad-tpl { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
     :root:not([data-motion="reduce"]) .ad-tpl:not(.off):hover { transform: translateY(-1px); box-shadow: var(--shadow); }
   }
+  @keyframes m-draw { from { stroke-dashoffset: 24; } }
   @keyframes m-tick { from { opacity: 0; transform: scale(.4); } }
   @keyframes m-line-top { from { box-shadow: 0 -3px 0 transparent; } }
   @keyframes m-line-end { from { box-shadow: 0 3px 0 transparent; } }
