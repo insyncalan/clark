@@ -8,7 +8,7 @@
 # plus the quick tier). No Python 3.9 and no macOS. The full suite is only for the release gate.
 # FULL MATRIX (the `plan` job decides, from the event, the branch and the labels): Ubuntu 3.x with EVERY file and Ubuntu 3.9 on
 # the quick tier (`--quick`) on a push to main, on a release branch, on a pull request that changes a guarded file, on the
-# label `full-ci`, and by hand. macOS (the newest Python, every file, TWO shards) runs at the RELEASE GATE and on a few other
+# label `full-ci`, and by hand. macOS (the newest Python, every file, THREE shards) runs at the RELEASE GATE and on a few other
 # events, NOT on a push to main (fewer macOS runs: every merge to main used to start four macOS jobs) and not on
 # every push of a guarded pull request: on a release branch (release-X.Y.Z, and the Head's v*-release* line, read from the pull
 # request's head branch), on a pull request that changes Mac-specific code (platform.py, updates.py, the launcher and the package
@@ -17,7 +17,7 @@
 # full Ubuntu matrix and no macOS until it is on a release branch. macOS is REQUIRED whenever it runs: clark is Mac first. A macOS
 # runner that fails to start is re-run once before anyone calls it a failure.
 #
-# macOS shards: one job with a matrix of two, so `needs.macos.result` is ONE value for the whole matrix (success only if both
+# macOS shards: one job with a matrix of three, so `needs.macos.result` is ONE value for the whole matrix (success only if all
 # shards pass; skipped when the job's `if` is false). Each runs two test files at a time (JOBS 2): three Chrome tests at once on the
 # 3-vCPU, 7 GB runner starved each other, which made the flake. The gate reads that result, so it never depends on a shard's name.
 #
@@ -32,8 +32,8 @@
 # test reads the reuse record. Skipping the run for a document would let a real name merge unchecked. The suite
 # takes seconds, so nothing is saved by skipping it.
 #
-# Shards (`--shard I/N`, balanced by the real per-file times in dev/tools/shard_times.txt): Ubuntu 3.x has three on both paths,
-# macOS two, Python 3.9 one; add shards when the slowest job passes 10 minutes. Every test file is in exactly one shard (tests/test_run_tests.py proves it).
+# Shards (`--shard I/N`, balanced by the real per-file times in dev/tools/shard_times.txt): Ubuntu 3.x has six on both paths (three took 20 minutes; six keep the slowest near ten),
+# macOS three (two took 56 minutes, three about 38), Python 3.9 one; add shards when the slowest job passes 10 minutes. Every test file is in exactly one shard (tests/test_run_tests.py proves it).
 # `--max-fail 8` stops a shard that has plainly gone wrong after 8 failed files.
 on:
   workflow_dispatch:
@@ -122,11 +122,11 @@ jobs:
               FULL=1; MACOS=1
             fi
           fi
-          # The Ubuntu 3.x job runs every file on the full path: three shards, so each stays well under its 30-minute cap
+          # The Ubuntu 3.x job runs every file on the full path: six shards, so each stays near ten minutes and well under its 30-minute cap
           # (one shard hit the cap on PR 440, twice). The cheap path (--push) is sharded the same way: a change to shell.css or another
           # shared file reaches every test file, and as one shard that hit the cap too (PRs 445 and 447). A pull request that reaches few
-          # files leaves two shards nearly empty: they finish in the time it takes to set up, and the minutes are free.
-          SHARDS='[1,2,3]'; COUNT=3
+          # files leaves most shards nearly empty: they finish in the time it takes to set up, and the minutes are free.
+          SHARDS='[1,2,3,4,5,6]'; COUNT=6
           echo "full=$FULL" >> "$GITHUB_OUTPUT"
           echo "macos=$MACOS" >> "$GITHUB_OUTPUT"
           echo "shards=$SHARDS" >> "$GITHUB_OUTPUT"
@@ -225,7 +225,7 @@ jobs:
         run: python3 dev/run_tests.py -j "$JOBS" --quick --shard "1/1" --max-fail 8 $FILES
 
   macos:
-    # macOS (the newest Python, every file, two shards) when the plan says so: a release branch, a pull request
+    # macOS (the newest Python, every file, three shards) when the plan says so: a release branch, a pull request
     # that changes Mac-specific code, the full-ci label, or a hand-started run with macos=true (gh workflow run Tests --ref <branch> -f macos=true). Required when it runs.
     if: ${{ needs.plan.outputs.macos == '1' }}
     name: macos-latest · Python 3.x · shard ${{ matrix.shard }}/${{ matrix.shards }}      # skipped: shown unresolved; the gate reads needs.macos.result, never this name
@@ -236,8 +236,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {shard: 1, shards: 2}
-          - {shard: 2, shards: 2}
+          - {shard: 1, shards: 3}
+          - {shard: 2, shards: 3}
+          - {shard: 3, shards: 3}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
