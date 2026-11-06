@@ -78,7 +78,7 @@ COVERED = [
     ("#696", "In Docker the start line says how to stop with docker compose down and mentions no window.",
      "test_platform_container::StartLine::test_the_container_line_gives_the_docker_stop_and_no_window"),
     ("#664", "The top bar has a search icon and an ask clark button, before Help and the avatar.",
-     "test_top_bar_actions::TopBarActions::test_the_two_buttons_have_their_words_and_sit_before_help_and_the_avatar"),
+     "test_top_bar_actions::TopBarActions::test_the_two_buttons_have_their_words_and_sit_before_the_avatar"),
     ("#664", "The ask clark button is not there while asking is off.",
      "test_top_bar_actions::TopBarActions::test_the_ask_button_is_not_there_while_asking_is_off"),
     ("#677", "Settings has a chip for each card that is shown.",

@@ -25,14 +25,22 @@ export function excludedLabels(rules) {
 }
 
 // The rules for one project, made once: { code, hidden (Set of ids), blocked (Set of folded label names), labels (id -> names),
-// hiddenTypes (Set of the hidden sections' types) }.
-export function rulesFor({ code, hidden = [], labelRules = [], labels = {}, sections = [] } = {}) {
+// hiddenTypes (Set of the hidden sections' types, and, as publish.hidden_types, the built-ins with no section row once the project
+// has rows or has had them all deleted) }.
+const BUILT_IN_SECTIONS = ["current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs"];      // publish.BUILT_IN_SECTIONS
+export function rulesFor({ code, hidden = [], labelRules = [], labels = {}, sections = [], deleted = false } = {}) {
+  const rows = (sections || []).filter((s) => s);
+  const left = new Set(rows.filter((s) => isOne(s.hidden)).map((s) => s.type));
+  if (rows.length || deleted) {
+    const have = new Set(rows.map((s) => s.type));
+    for (const t of BUILT_IN_SECTIONS) if (!have.has(t)) left.add(t);
+  }
   return {
     code,
     hidden: new Set(hidden || []),
     blocked: excludedLabels(labelRules),
     labels: labels || {},
-    hiddenTypes: new Set((sections || []).filter((s) => s && isOne(s.hidden)).map((s) => s.type)),
+    hiddenTypes: left,
   };
 }
 

@@ -127,7 +127,7 @@ UC_FIELDS = CHANGE_KINDS["use_cases"][UPDATE]        # #164: what a request may 
 UC_REF_LIMIT = 20                                    # #455: a new use case's reference as the project writes it ("3.1"), in characters
 UC_NAME_LIMIT = 120                                  # a use case's name, in characters
 UC_HEADLINE_LIMIT = 300                              # its one-line headline
-ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision", "impact", "likelihood", "client_message")   # D-12: a rating is never cleared, as a new row
+ITEM_NOT_NULL = ("status", "owner", "priority", "description", "decision", "impact", "likelihood")   # D-12: a rating is never cleared, as a new row (row 893: the client wording may be cleared, so it is not here)
 CLEARED_BY_NEW = ("owner", "priority", "status", "description", "decision", "type", "name", "impact", "likelihood", "client_visible")   # sent as null on a new row: refused      # a work item field that has to have a value (the others may be cleared)
 EXPLAIN_FIELDS = ("latest_update", "reasoning")      # #458: the one explanation line a new action or decision may start with (Movement's buttons); never said back, never in ask clark's before and after
 TITLE_FIELDS = ("description", "decision", "client_message")           # #67: a work item's title, and the client wording the report rows edit in place; never said back in a reply (the page keeps what it sent); a new milestone's name is held to the same
@@ -269,7 +269,8 @@ UC_STANDING_WORDS = "That text can't be saved. It may be too long, or not text."
 UC_REF_WORDS = f"A use case needs an ID of 1 to {UC_REF_LIMIT} characters, with no line breaks or hidden characters."
 UC_REF_USED = "That ID is already used by another use case of this project."
 UC_NOT_MINE = NOT_MINE_RECORD                          # another project's use case and a missing one: the same words
-NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES         # what a new section may be: an allow-list, never the request's own spelling
+BUILT_IN_TYPES = tuple(s["type"] for s in clark_store.DEFAULT_SECTIONS if s["type"] != "text")   # row 906: re-added from Add a section, one of each
+NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES + BUILT_IN_TYPES         # what a new section may be: an allow-list, never the request's own spelling
 NEW_TYPE_WORDS = "That kind of section can't be added."
 NO_BODY_HERE = "That kind of section can't take content this way."
 BODY_NOT_TEXT = "A section's content must be sent as text."
@@ -388,11 +389,15 @@ def _plain_text(v):
     return not any(unicodedata.category(c) in ITEM_BAD_KINDS for c in v)
 
 
-def _checked_item_changes(fields):
+def _checked_item_changes(fields, blank_clears=()):
     """A work item's fields with their values checked: plain text or None (None only where the field may be cleared), and
     short. The store checks the rest (the words a status may take, a real date, an active workstream, this project's
-    milestone); its refusals are put into plain words in _do_item_change."""
+    milestone); its refusals are put into plain words in _do_item_change. `blank_clears` names the text fields an edit may clear by
+    sending null or a blank string (row 893: the client wording, so the title is read again). The work item tables keep "no wording"
+    as an empty string (the column is NOT NULL DEFAULT ''), so a clear is written as "", the state a new row starts in; a new row refuses a blank one."""
     fields = {k: (None if k == "use_case" and v == "" else v) for k, v in fields.items()}    # an empty use case clears the link
+    cleared = {k: "" for k, v in fields.items() if k in blank_clears and (v is None or isinstance(v, str) and not v.strip())}
+    fields = {k: v for k, v in fields.items() if k not in cleared}
     sent_latest = "latest_update" in fields                        # a JSON false is a value to refuse, not a field left out
     latest = fields.pop("latest_update", None)                     # the peek's Latest update: plain text, line breaks allowed, up to 1000 characters, blank clears it
     if sent_latest:
@@ -411,6 +416,7 @@ def _checked_item_changes(fields):
         if isinstance(v, str) and not _plain_text(v):
             raise Refused(ITEM_TEXT_WORDS)
     out = {k: (unicodedata.normalize("NFC", v).strip() if isinstance(v, str) else v) for k, v in fields.items()}
+    out.update(cleared)
     if sent_latest:
         out["latest_update"] = latest
     return {**out, **flag}
@@ -732,6 +738,8 @@ def _do_change(store, by_user, req):
         if new_type is None:
             raise Refused(NEW_TYPE_WORDS)
         title = clark_store.section_title(values["title"]) if "title" in values else DEFAULT_TITLE
+        if new_type in BUILT_IN_TYPES:                              # row 906: a built-in comes back with its own title and settings
+            title = next(s["title"] for s in clark_store.DEFAULT_SECTIONS if s["type"] == new_type)
         after = _id_or_none(req.get("after"), STALE)
         beside = _flag(req["beside"]) if "beside" in req else 0
         if beside and after is None:
@@ -747,11 +755,13 @@ def _do_change(store, by_user, req):
         flags = _move_flags(req.get("flags"), CHANGE_KINDS[kind][op], columns)
     with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: what is read next is what is changed
         rows = _sections(store, project)
-        if not rows:                                                # a project made before #65: the defaults first, in this step
+        if not rows and not store.had_sections(project):            # a project made before #65: the defaults first, in this step (not one whose sections were all deleted, row 906)
             st.seed_sections(project)
             rows = _sections(store, project)
         ids = [r["id"] for r in rows]
         if op == NEW:
+            if new_type in BUILT_IN_TYPES and any(r["type"] == new_type for r in rows):
+                raise Refused(NEW_TYPE_WORDS)                       # row 906: one of each built-in; said as the allow-list says it
             if beside:
                 _mine(after, ids, STALE)
                 if not _on_its_own(rows, after):
@@ -888,7 +898,7 @@ def _do_item_change(store, by_user, req, project, table, columns, place):
     (CHANGE_KINDS has no other op for these kinds). The store applies its own rules (closing, a Made decision's date, an
     active workstream, this project's milestone); a rule it refuses comes back in its words and nothing is written."""
     ref = req.get("id")
-    changes = _checked_item_changes(_fields(req.get("changes"), table, UPDATE, columns, "the changes"))
+    changes = _checked_item_changes(_fields(req.get("changes"), table, UPDATE, columns, "the changes"), blank_clears=("client_message",))
     if not changes:
         raise Refused("Say what to change.")
     with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: what is read next is what is changed

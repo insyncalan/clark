@@ -207,6 +207,53 @@ class Logic(unittest.TestCase):
             self.assertNotIn(bad, body)
 
 
+TEXT_ROW = {"id": "ABC-S-001", "type": "text", "title": "Notes", "body": "", "beside": 0, "hidden": 0, "sort_order": 1}
+OPEN_ACTION = {"id": "ABC-A-001", "project": "ABC", "archived": 0, "client_visible": 1, "status": "Open", "due_date": "2030-01-01",
+               "description": "Fictional"}
+
+
+class DeletedBuiltIns(unittest.TestCase):
+    """Row 906: on the live page a built-in section with no row is left out as publish.hidden_types leaves it out, once the
+    project has other section rows or has had them all deleted; a project with no rows yet and none deleted keeps the defaults."""
+
+    CASES = (("other rows", [TEXT_ROW], False, False), ("all deleted", [], True, False), ("no rows yet", [], False, True))
+
+    @classmethod
+    def setUpClass(cls):
+        tpl = SRCDIR / "templates"
+        cls.script = ";".join((bundled(MODULE, "CR"), bundled(tpl / "figures.js", "FG"), bundled(tpl / "workItemsList.js", "WL")))
+
+    def run_js(self, expr):
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            cdp.call("Page.navigate", {"url": "about:blank"}, sid)
+            return json.loads(cdp.js(self.script + ";JSON.stringify(" + expr + ")", sid))
+
+    def test_the_risks_part_follows_publish(self):
+        for name, sections, deleted, want in self.CASES:
+            with self.subTest(name):
+                self.assertEqual("raid" not in publish.hidden_types(sections, deleted), want, "publish agrees")
+                self.assertEqual(self.run_js(f"CR.raidShown({json.dumps(sections)}, false, {json.dumps(deleted)})"), want)
+                d = {"project": {"code": "ABC"}, "report_sections": sections, "sections_deleted": 1 if deleted else 0, "milestones": []}
+                self.assertEqual("raid" in self.run_js(f"CR.sectionsShown({json.dumps(d)}, false, false, {json.dumps(ON)})"), want,
+                                 "sectionsShown passes the data's sections_deleted")
+        hidden = [dict(TEXT_ROW, id="ABC-S-002", type="raid", hidden=1)]
+        self.assertFalse(self.run_js(f"CR.raidShown({json.dumps(hidden)}, false, false)"), "a hidden Risks section is left out")
+        self.assertTrue(self.run_js(f"CR.raidShown({json.dumps([dict(hidden[0], hidden=0)])}, false, true)"), "a shown Risks section is drawn")
+        self.assertEqual(self.run_js("[CR.raidShown([], true, true), CR.raidShown([], true, false)]"), [False, False],
+                         "a file with no Risks section has it hidden, whatever the flag")
+
+    def test_the_live_figures_and_the_work_items_list_follow_publish(self):
+        for name, sections, deleted, want in self.CASES:
+            with self.subTest(name):
+                self.assertEqual("actions" not in publish.hidden_types(sections, deleted), want, "publish agrees")
+                d = {"project": {"code": "ABC"}, "report_sections": sections, "sections_deleted": 1 if deleted else 0, "actions": [OPEN_ACTION],
+                     "raid": [], "decisions": [], "report_hidden": [], "labels": {}, "label_rules": []}
+                self.assertEqual("overdue" in self.run_js(f"FG.liveFigures({json.dumps(d)}, '2030-01-15')"), want, "Key figures")
+                self.assertEqual(self.run_js(f"WL.publishedOnly({json.dumps(d)}).actions.map(r => r.id)"), ["ABC-A-001"] if want else [],
+                                 "the work items list")
+
+
 # Runs in the page. One line per offender: text under 13 px, or text under 4.5:1 against what is behind it.
 AUDIT = """(function () {
   function lum(c) { var a = c.map(function (v) { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * a[0] + .7152 * a[1] + .0722 * a[2]; }

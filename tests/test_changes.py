@@ -502,8 +502,8 @@ class Steps(Api):
                 st.create(KIND, {"project": "ABC", "type": "text", "title": f"S{n}", "sort_order": 100000 + n})
         self.refused(self.req("new"), "A report can have at most 100 sections.")
 
-    def test_delete_only_a_text_section(self):
-        self.refused(self.req("delete", id="ABC-S-001"), "Only a text, needs or tracker section can be deleted; hide the others.")
+    def test_delete_any_section(self):      # row 906
+        self.assertEqual(self.ok("delete", id="ABC-S-001")["ref"], "ABC-S-001")
         self.assertEqual(self.ok("delete", id="ABC-S-005")["ref"], "ABC-S-005")
         self.assertNotIn("Summary", self.titles())
 
@@ -572,13 +572,14 @@ class Steps(Api):
         self.assertEqual(changes._stray_flags([row("a", 1), row("b", 0), row("c", 1)]), ["c"])
         self.assertEqual(changes._stray_flags([row("a", 0), row("b", 0)]), [])
 
-    def test_a_delete_the_store_refuses_leaves_every_flag_as_it_was(self):
-        self.ok("update", id="ABC-S-001", changes={"beside": 1})           # S-002 is the second half of S-001; it is not a text section
-        before, snap = self.beside_now(), self.snapshot()
+    def test_deleting_the_partner_clears_the_flag_in_the_same_step_and_one_undo_restores_both(self):      # row 906: S-002 is a built-in
+        self.ok("update", id="ABC-S-001", changes={"beside": 1})
+        before = self.beside_now()
         self.assertEqual(before["ABC-S-001"], 1)
-        self.refused(self.req("delete", id="ABC-S-002"), "Only a text, needs or tracker section can be deleted; hide the others.")
-        self.assertEqual(self.beside_now(), before, "the partner's flag was written inside the step, so the refusal rolled it back")
-        self.assertEqual(self.snapshot(), snap, "no step, no change_log row")
+        gone = self.ok("delete", id="ABC-S-002")
+        self.assertEqual(self.beside_now()["ABC-S-001"], 0)
+        self.assertEqual(self.undone(gone["apply_id"])[0], 200)
+        self.assertEqual(self.beside_now(), before)
 
     def test_guard_deleting_a_lone_section_changes_nothing_else(self):
         a = self.ok("new", values={"title": "Alone"})["ref"]
@@ -1265,8 +1266,7 @@ class Items(Api):
                 self.assertNotIn("client_message", body["item"], "the wording is never said back in a reply, as a title is not")
                 row = self.s.read(kind, ref=ref)
                 self.assertEqual((row["client_message"], row[title]), ("What the client reads", before[title]), "the team's own text is untouched")
-                self.no(self.item(kind, ref, client_message=""), changes.ITEM_VALUE_WORDS)
-                self.no(self.item(kind, ref, client_message=None), changes.ITEM_VALUE_WORDS)     # a null is refused in the same plain words, not a 500
+                self.no(self.item(kind, ref, client_message=["x"]), changes.ITEM_VALUE_WORDS)     # a non-text value is refused in plain words, not a 500
                 self.assertEqual(self.s.read(kind, ref=ref)["client_message"], "What the client reads", "nothing saved")
                 self.no(self.item(kind, ref, client_message="x" * 201), changes.ITEM_VALUE_WORDS)
                 self.no(self.item(kind, ref, client_message="two\nlines"), changes.ITEM_TEXT_WORDS)

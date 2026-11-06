@@ -188,9 +188,14 @@ class Menu(board.Base):
             return real_sent(req)
         self.s.httpd.draft_email_sent = sent_seam
 
+    def settled(self, cdp, sid):
+        """Row 878: a menu drops in over --dur-instant; its place is measured and clicked only once that has finished."""
+        self.until(cdp, sid, "document.querySelector('.rowmenu') && document.querySelector('.rowmenu').getAnimations({subtree: true}).length === 0", "the menu has settled")
+
     def open_menu(self, cdp, sid, selector):
         right_click(cdp, sid, selector)
         self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the menu")
+        self.settled(cdp, sid)
 
     def entries(self, cdp, sid):
         return cdp.js("[...document.querySelectorAll('.rowmenu [role=menuitem]')].map(b => [b.dataset.rm, b.querySelector('b').textContent, b.getAttribute('aria-disabled') === 'true', (b.querySelector('small') || {}).textContent || ''])", sid)
@@ -430,6 +435,20 @@ class Menu(board.Base):
             self.until(cdp, sid, f"!!document.querySelector(\"{self.TABLE % a}\")", "the row to come back")
             self.assertEqual(self.row(a)["archived"], 0)
             self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), f"{a} is back.")
+
+    def test_row_865_archive_keeps_focus_on_a_row_and_undo_returns_it_to_the_archived_row(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Order the laptops")
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=archive]")
+            self.wait_toast(cdp, sid, "done")
+            self.until(cdp, sid, f"!document.querySelector(\"{self.TABLE % a}\")", "the row to leave the list")
+            self.until(cdp, sid, "!!document.activeElement && !!document.activeElement.closest('tr[data-id]')", "focus went to a neighbouring row, not the page")
+            cdp.js("document.activeElement.blur()", sid)
+            click(cdp, sid, "[data-undo]")
+            self.until(cdp, sid, f"!!document.querySelector(\"{self.TABLE % a}\")", "the row to come back")
+            self.until(cdp, sid, f"document.activeElement && document.activeElement.closest('tr[data-id]') && document.activeElement.closest('tr[data-id]').dataset.id === {json.dumps(a)}", "focus is on the archived row again")
 
     def test_duplicate_adds_a_copy_in_one_step_opens_it_and_undo_says_so(self):
         """#442: the copy is the item again (status, latest update, use case and the rest), titled " (copy)"; its peek opens; the
@@ -875,6 +894,7 @@ class Menu(board.Base):
 
     # ---- row 848: where it opens, hover, no jump, Duplicate of a Sensitive item ----
     def box(self, cdp, sid):
+        self.settled(cdp, sid)
         return cdp.js("(() => { const b = document.querySelector('.rowmenu > [role=menu]').getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; })()", sid)
 
     def hover(self, cdp, sid, selector):
