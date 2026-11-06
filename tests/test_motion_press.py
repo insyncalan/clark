@@ -59,6 +59,9 @@ class MotionPress(unittest.TestCase):
                             if motion == "no-preference":
                                 self.assertIn("transform", prop, k)
                                 self.assertEqual(set(dur.split(", ")), {"0.12s"} if k != "card" else {"0.12s", "0.22s"}, k)
+                            elif k == "card":
+                                # the card's own border and shadow fade is main's and stays; the new lift (transform) is absent
+                                self.assertNotIn("transform", prop, k)
                             else:
                                 self.assertEqual(set(dur.split(", ")), {"0s"}, k)
 
