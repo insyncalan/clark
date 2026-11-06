@@ -39,6 +39,10 @@ class UseCaseFields(unittest.TestCase):
             self.assertIn(want, page)
         self.assertIn('op: "restore"', page)
         self.assertIn("exportExcel", page)
+        self.assertIn('plural(n, "archived use case")} ${n === 1 ? "is" : "are"} hidden.', page)     # plural() gives "1 archived use case" / "2 archived use cases"
+        self.assertIn('Showing ${plural(n, "archived use case")}.', page)
+        helper = text(SRCS / "workItems.js")
+        self.assertIn('n === 1 ? one : (many || one + "s")', helper)
 
     def test_detail_offers_next_step_and_link_without_edit_mode(self):
         detail = text(SRCS / "components" / "UseCaseDetail.jsx")
@@ -152,11 +156,11 @@ class Live(unittest.TestCase):
                 self.archive()
             sid = self.visit(cdp, window, scheme, LIST)
             self.until(cdp, sid, "!!document.querySelector('#usecases [data-archived-uc] [data-arch-toggle]')", "the Show archived footer drew")
-            self.assertRegex(cdp.js("document.querySelector('[data-archived-uc] .ucx-foot').textContent", sid), r"Show archived")
+            self.assertEqual(re.sub(r"\s+", " ", cdp.js("document.querySelector('[data-archived-uc] .ucx-foot').textContent", sid)).strip(), "1 archived use case is hidden. Show archived")
             self.assertFalse(cdp.js(f"!!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", sid), "not in the live list")
             click(cdp, sid, "[data-arch-toggle]")
             self.until(cdp, sid, f"!!document.querySelector('.ucl-arch [data-arch-uc={json.dumps(UC)}] [data-restore]')", "the archived list with Restore")
-            self.assertRegex(cdp.js("document.querySelector('[data-arch-toggle]').textContent", sid), r"Hide archived")
+            self.assertEqual(re.sub(r"\s+", " ", cdp.js("document.querySelector('[data-archived-uc] .ucx-foot').textContent", sid)).strip(), "Showing 1 archived use case. Hide archived")
             self.no_sideways(cdp, sid)
             before = self.steps()
             click(cdp, sid, ".ucl-arch [data-restore]")
