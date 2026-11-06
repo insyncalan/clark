@@ -739,14 +739,14 @@ class Collapse(Base):
 
 
 class Peek(Base):
-    def test_a_double_click_opens_the_peek_hook_and_a_click_on_another_card_moves_it_without_a_new_entry(self):
+    def test_a_click_opens_the_peek_hook_and_a_click_on_another_card_moves_it_without_a_new_entry(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             cdp.js("window.__peeks = []; window.addEventListener('clark:open-peek', (e) => window.__peeks.push(e.detail.id))", sid)
             a, b = self.id_of("Order the laptops"), self.id_of("Send the invitations")
             n = cdp.js("history.length", sid)
-            dblclick(cdp, sid, f"article[data-id='{a}'] .bc-main")      # #195: one click selects the card, a double click opens it
+            click(cdp, sid, f"article[data-id='{a}'] .bc-main")      # row 806: one click selects the card and opens its peek
             self.until(cdp, sid, f"location.hash.includes('item={a}')", "the address")
             self.assertEqual(cdp.js("window.__peeks", sid), [a])
             self.until(cdp, sid, f"document.querySelector(\"article[data-id='{a}']\").classList.contains('sel')", "the selected look")

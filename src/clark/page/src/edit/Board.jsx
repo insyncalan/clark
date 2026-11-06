@@ -36,8 +36,8 @@ function CardEye({ card }) {
   return <WorkEye card row={{ id: card.id, title: card.title, kind: card.typeClass.slice(2), client: card.client }} />;
 }
 
-// A card is picked like a table row (#195): a click selects it, Cmd or Ctrl+click adds or removes it, Shift+click a range in the
-// order drawn, a double click (or Enter) opens the peek; Space adds or removes it, Shift+Up and Shift+Down extend, Cmd or Ctrl+A
+// A card is picked like a table row (#195): a click selects it and opens its peek, Cmd or Ctrl+click adds or removes it, Shift+click a range in the
+// order drawn, Enter opens the peek; Space adds or removes it, Shift+Up and Shift+Down extend, Cmd or Ctrl+A
 // selects every card shown.
 function Card({ card, editing, selected, picked, dragging, ask, menu, stop, pos, size, onOpen, onPick, onMenu, children }) {
   const label = `${card.id} ${card.title}, ${card.state.text}${card.due.words ? ", " + card.due.words.toLowerCase() : ""}${picked ? ", selected" : ""}`;
