@@ -131,6 +131,8 @@ export const SKETCHES = {
   "needs": ["grid-template-rows:repeat(3,1fr)", ["border-left:3px solid var(--status-amber)", "border-left:3px solid var(--status-amber);width:80%", "width:55%"]],
   "link-preview": ["grid-template-columns:1fr 2fr", [IMG, ""]],
   "one-doc": ["grid-template-rows:1fr 1fr", ["", "width:70%"]],
+  "current-state": ["grid-template-rows:repeat(3,1fr)", ["width:85%", "width:70%", "width:50%"]],
+  "plan-summary": ["grid-template-rows:repeat(4,1fr)", ["width:40%", "width:80%", "width:40%", "width:70%"]],
 };
 
 export const find = (id) => TEMPLATES.find((t) => t.id === id) || BUILT_INS.find((t) => t.id === id) || null;
