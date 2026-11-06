@@ -237,6 +237,22 @@ COVERED = [
      "test_help_peek::Peek::test_the_top_bar_has_no_help_button_and_the_key_toggles"),
     ("#901", 'The palette finds the data by words, ID and person.',
      "test_palette::Results::test_search_finds_the_data_by_words_id_and_person"),
+    ("#779", 'Help has its search at the top right and no Back button; Esc closes it.',
+     "test_help_panel::Panel::test_the_top_bar_has_no_help_button_and_help_has_no_back_button"),
+    ("#829", "A work item's title is changed in place in the peek with one Undo.",
+     "test_peek_fields::Title::test_the_title_is_changed_in_place_with_enter_and_undone_in_one_step"),
+    ("#829", "The client wording is changed in place in the peek with one Undo.",
+     "test_peek_fields::Wording::test_the_client_wording_is_changed_in_place_and_undone_in_one_step"),
+    ("#829", 'Workstream, Milestone and Use case are chosen in the peek, each with one Undo.',
+     "test_peek_fields::Picks::test_workstream_milestone_and_use_case_are_chosen_in_the_peek_each_with_one_undo"),
+    ("#829", 'Duplicate in the peek adds a copy, opens it, and one Undo takes it back.',
+     "test_peek_fields::Duplicate::test_duplicate_in_the_peek_adds_a_copy_opens_it_and_one_undo_takes_it_back"),
+    ("#892", 'Archive in the peek hides the item, closes the peek, and one Undo brings it back.',
+     "test_peek_fields::Archive::test_archive_in_the_peek_hides_the_item_closes_the_peek_and_one_undo_brings_it_back"),
+    ("#901", 'An item with no owner is not found by the word null or undefined.',
+     "test_palette::Results::test_search_finds_the_data_by_words_id_and_person"),
+    ("#915", 'History names an Excel import once.',
+     "test_history_rows::Rows::test_excel_import_is_named_once_for_what_the_import_stores"),
     ("#902", 'The Appearance choice is a radio group with arrow keys.',
      "test_appearance::Appearance::test_C_appearance_arrow_keys_move_and_pick_row_902"),
     ("#903", 'Help Start here has a hero card and The loop above the jobs.',
@@ -272,7 +288,7 @@ COVERED = [
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
-NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874", "889", "895", "905", "907", "917", "918", "920"}
+NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874", "889", "895", "905", "907", "914", "917", "918", "920"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
 PARTLY_MERGED = {"767", "766"}
