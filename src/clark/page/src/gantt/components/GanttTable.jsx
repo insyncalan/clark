@@ -15,7 +15,6 @@ import {
   fillRight, fillTo, fitWidth, getValue, homeSel, inRange, makeSel, moveSel, parseTSV, pasteCells, rangeOf, record, redo, selectAll, selectColumn, selectRow,
   setField, tabNext, toTSV, undo, visibleColumns, visibleRows,
 } from "../logic/grid.js";
-import { TABLE_CSS } from "./ganttTableCss.js";
 
 const ROW_HEAD = 44;
 const PAGE_ROWS = 10;
@@ -353,7 +352,6 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
 
   return (
     <div class="gt" data-gt data-mode={edit ? "edit" : "view"} style={{ "--gz": zoom }}>
-      <style>{TABLE_CSS}</style>
       <div class="gt-bar">
         <button type="button" data-gt-zoom-out aria-label="Zoom out" title="Zoom out" onClick={() => setZoom(clampZoom(zoom / 1.2))}>−</button>
         <button type="button" data-gt-zoom-fit aria-label="Back to fit" title="Back to fit" onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</button>
