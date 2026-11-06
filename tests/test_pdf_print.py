@@ -125,6 +125,13 @@ class Logic(unittest.TestCase):
 class Source(unittest.TestCase):
     css = page.strip_css_comments((SRC / "shell.css").read_text(encoding="utf-8"))
 
+    def test_the_printed_timeline_is_drawn_to_the_page_and_does_not_scroll(self):
+        block = css_block(self.css, "@media print", "html.print-all, html.print-all body")
+        self.assertRegex(block, r"html\.print-all \.mv-wrap \{[^}]*overflow: hidden[^}]*resize: none", "row 767: no sideways scroll or drag handle on paper")
+        jsx = (PAGE_SRC / "components" / "MsTimeline.jsx").read_text(encoding="utf-8")
+        self.assertIn("printing.value", jsx, "the timeline knows the page is printing")
+        self.assertIn("PRINT_W / Math.max(1, dayNumber(end) - dayNumber(start))", jsx, "the whole span is fitted to the printed width")
+
     def test_the_print_rules_are_in_the_pages_own_style_and_name_no_address(self):
         block = css_block(self.css, "@media print", "html.print-all, html.print-all body")
         for need in ("print-all", ".top", ".toc", ".peek", ".fbar", ".wbar", "print-color-adjust", ".print-tab", "break-inside", "break-before"):
@@ -341,6 +348,39 @@ class Browser(unittest.TestCase):
                 printed = cdp.js("document.getElementById('main').innerText", sid)
                 self.assertNotIn(USER, printed, "the name of the person who published")
                 self.assertNotIn("Ask clark", printed)
+
+    def test_the_printed_milestones_timeline_shows_its_marks_and_labels(self):
+        # row 767: the line scrolls inside its box on screen, opened at today; on paper nothing can scroll, so a milestone far from today
+        # left the printed box empty (only the Legend was left). Printed, the line is drawn to the page and every mark is inside the box.
+        probe = """(() => {
+          const out = {};
+          for (const wrap of document.querySelectorAll('.print-tab .mv-wrap')) {
+            const w = wrap.getBoundingClientRect();
+            const inside = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.left >= w.left - 1 && r.right <= w.right + 1; };
+            const marks = [...wrap.querySelectorAll('.mv-mk')], labs = [...wrap.querySelectorAll('.mv-lab')];
+            out[wrap.closest('.print-tab').querySelector('.print-tab-title').textContent] = { marks: marks.length, labs: labs.length,
+              marksIn: marks.filter(inside).length, labsIn: labs.filter(inside).length, strip: wrap.querySelector('.mv-strip').getBoundingClientRect().width, box: w.width };
+          }
+          return JSON.stringify(out);
+        })()"""
+        for width, scheme in VARIANTS:
+            with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                sid = open_page(cdp, self.path.as_uri(), width, scheme)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
+                self.printed(cdp, sid)
+                time.sleep(0.6)      # the labels are measured once they have drawn
+                for page_width in (width, 703):      # the window, and the printed A4 page's own width
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": page_width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                    time.sleep(0.4)
+                    got = json.loads(cdp.js(probe, sid))
+                    self.assertIn("Milestones", got)
+                    for name, g in got.items():
+                        self.assertGreater(g["marks"], 0, f"{name} draws a mark")
+                        self.assertEqual(g["marksIn"], g["marks"], f"{name}: every mark is inside the printed box at {page_width}: {g}")
+                        self.assertEqual(g["labsIn"], g["labs"], f"{name}: every label is inside the printed box at {page_width}: {g}")
+                        self.assertLessEqual(g["strip"], g["box"] + 1, f"{name}: the line is no wider than its box (nothing to scroll)")
+                cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
+                self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)))
 
     def test_the_snapshot_tab_prints_before_use_cases_when_the_file_has_it(self):
         text = self.path.read_text(encoding="utf-8")

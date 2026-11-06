@@ -249,7 +249,8 @@ class Panel(Base):
             self.stub.enabled = True
             p.key("/", code="Slash", vk=191)
             p.until("!!document.querySelector('#ask-panel')", "reopened")
-            p.until("!document.querySelector('#ask-box').disabled", "ready again")
+            # row 872: the box is usable while the check is out (row 858), so "ready" is Send, not the box
+            p.until("!document.querySelector('#ask-send').disabled", "ready again")
             self.assertEqual(p.js("document.querySelector('#ask-off')"), None)
             self.assertEqual(p.js("document.querySelectorAll('#ask-pills button').length"), 6)
             self.assertTrue(p.js("[...document.querySelectorAll('#ask-pills button')].every(b => !b.disabled && !b.hasAttribute('aria-disabled'))"))
@@ -302,7 +303,8 @@ class Panel(Base):
             p.until("document.querySelector('#ask-panel') === null", "closed")
             start = p.js("location.hash")
             p.js("location.hash = '#settings&p=ABC'")
-            p.until("!!document.querySelector('[data-ask-switch]') && !document.querySelector('[data-ask-switch]').disabled", "Settings has the asking switch")
+            # row 872: the switch can read ready from the earlier read before Settings asks again; the folders answer comes after that ask has started
+            p.until("!!document.querySelector('[data-ask-switch]') && !document.querySelector('[data-ask-switch]').disabled && !!document.querySelector('#ask-folders, #ask-folders-none, #ask-folders-note')", "Settings has the asking switch")
             p.js("document.querySelector('[data-ask-switch]').click()")          # a change in Settings: the kept check is dropped
             p.until("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed') === 'false'", "turned off")
             p.js("document.querySelector('[data-ask-switch]').click()")
