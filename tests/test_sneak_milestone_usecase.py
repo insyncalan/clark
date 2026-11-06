@@ -63,7 +63,9 @@ class Milestone(unittest.TestCase):
     def test_reopening_clears_the_achieved_date(self):
         r = read("M-2", "reopen")
         self.assertEqual(lines(r), {"status": ("Achieved", "Planned"), "actual_date": ("01-10-2026", "—")})
-        self.assertFalse(r["confirm"])
+        self.assertTrue(r["confirm"])               # leaving Achieved needs the same OK as reaching it
+        self.assertTrue(read("M-2", "planned")["confirm"])
+        self.assertFalse(read("M-1", "planned, forecast 30-11-2026")["confirm"])   # already Planned: no status change
         self.assertIsNone(next(c for c in r["changes"] if c["field"] == "actual_date")["to"])
 
     def test_a_date_on_a_done_milestone_is_its_achieved_date_unless_it_says_forecast(self):
@@ -149,7 +151,12 @@ class Forms(unittest.TestCase):
     def test_a_done_milestone_can_be_reopened_with_a_new_forecast(self):
         r = read("M-2", "reopen, forecast 2026-12-01")
         self.assertEqual({c["field"] for c in r["changes"]}, {"forecast_date", "status", "actual_date"})
-        self.assertFalse(r["confirm"])
+        self.assertTrue(r["confirm"])
+
+    def test_done_with_a_forecast_also_shows_the_achieved_date(self):
+        r = read("M-1", "done, forecast Friday")
+        self.assertEqual(lines(r), {"forecast_date": ("10-11-2026", "30-10-2026"), "status": ("Planned", "Achieved"), "actual_date": ("—", "28-10-2026")})
+        self.assertTrue(r["confirm"])
 
     def test_a_status_in_each_form(self):
         for words, status in (("high risk", "High risk"), ("flag it", "Flag"), ("flagged", "Flag"), ("completed", "Done"), ("flag it as high risk", "High risk")):

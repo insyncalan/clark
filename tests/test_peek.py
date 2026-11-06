@@ -588,6 +588,24 @@ class Browser(unittest.TestCase):
             cdp.js("document.querySelector('[data-sneak-confirm-btn]').click()", sid)
             self.assertTrue(wait(lambda: self.store.read("milestones", ref=ms)["status"] != "Planned"))
 
+    def test_reopening_an_achieved_milestone_asks_first_like_marking_it_achieved(self):
+        """Moving an Achieved milestone back to Planned needs the same confirm: Enter alone changes nothing, Confirm and apply does."""
+        ms = next(m["id"] for m in self.data["milestones"] if m["status"] == "Done" and m["id"] not in self.data.get("report_hidden", []))
+        with chrome() as cdp:
+            s, sid = self.load_page(cdp, 1400)
+            self.edit_mode(cdp, sid)
+            cdp.js(f"clarkPage.openPeek({json.dumps(ms)}, 'milestone')", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-sneak-open]')", sid)))
+            cdp.js("document.querySelector('#peek [data-sneak-open]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak] .sn-in')", sid)))
+            cdp.js("(() => { const i = document.querySelector('.sn-in'); i.value = 'planned'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak-confirm]')", sid)), "leaving Achieved asks first")
+            key(cdp, sid, "Enter")
+            time.sleep(0.5)
+            self.assertEqual(self.store.read("milestones", ref=ms)["status"], "Done", "Enter alone changes nothing")
+            cdp.js("document.querySelector('[data-sneak-confirm-btn]').click()", sid)
+            self.assertTrue(wait(lambda: self.store.read("milestones", ref=ms)["status"] == "Planned"))
+
     def test_a_click_draws_the_peek_within_150_ms_measured_in_the_page(self):
         """The 150 ms open time (#42), measured: from the click event to the peek in the DOM, by the page's own clock. The best of
         three opens is held to the bound, so one slow moment on a loaded machine does not fail it, but a delay or a fetch before the

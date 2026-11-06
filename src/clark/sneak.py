@@ -323,6 +323,7 @@ def read_milestone(data, row, words, now):
     current = row.get("status") or "Planned"
     target = status or current
     out, notes, same = [], [], []
+    target_is_forecast = bool(re.search(r"\bforecast\b", low))
 
     def put(line, said):
         if line is None:
@@ -343,10 +344,12 @@ def read_milestone(data, row, words, now):
             notes.append(f"Read as {text}.")
     if status and status != current:                    # the store fills or clears the achieved date with the status; it is said here so the lines show it
         shown = {"Done": WORDS["achieved"], "Planned": "Planned"}
-        out.append(_line(row, "status", status, shown[status], confirm=status == "Done", from_text=shown.get(current, current)))
+        out.append(_line(row, "status", status, shown[status], confirm=status == "Done" or current == "Done", from_text=shown.get(current, current)))
         if status == "Done" and not found and not row.get("actual_date"):
             fc = row.get("forecast_date")
             out.append(_line(row, "actual_date", fc if fc and fc <= now.isoformat() else now.isoformat()))
+        elif status == "Done" and found and target_is_forecast and not row.get("actual_date"):
+            out.append(_line(row, "actual_date", now.isoformat()))      # "done, forecast Friday": the store still sets the achieved date, so the lines show it
         elif status == "Planned" and row.get("actual_date"):
             out.append(_line(row, "actual_date", None, "—"))
     elif status:
