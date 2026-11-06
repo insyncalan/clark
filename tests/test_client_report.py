@@ -323,7 +323,8 @@ class Drawn(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('[data-bar] .mk').style.left", sid), "33%")
             self.assertEqual(cdp.js("[...document.querySelectorAll('[data-group]')].map(g => g.dataset.group)", sid), ["Scanning", "Training", "Indexing"])
             self.assertEqual(cdp.js("document.querySelectorAll('[data-line]').length", sid), 6)
-            self.assertIn("100 points behind plan", cdp.js("document.querySelector('[data-line] .cr-behind').textContent", sid))
+            # row 799: a line with no Achieved figure (a dash) shows no red chip beside it; the chip is test_snapshot_avatar_chip's
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-line] .cr-behind').length", sid), 0, "the demo's lines behind plan have no Achieved figure")
             self.assertEqual(cdp.js("document.querySelectorAll('#clientreport input, #clientreport textarea, #clientreport select, #clientreport [contenteditable]').length", sid), 0)
             self.assertNotRegex(cdp.js("document.querySelector('#clientreport').innerText", sid), r"\d{4}-\d{2}-\d{2}", "dates are DD-MM-YYYY")
 
