@@ -4,7 +4,7 @@
 // folder is saved. Nothing is written until the person has chosen: an export asks before it replaces anything, and an import shows
 // what it read and adds only the items that are ticked, when Add is pressed.
 import { signal } from "@preact/signals";
-import { project, mode } from "../stores/report.js";
+import { project } from "../stores/report.js";
 import { changeWord } from "../stores/changes.js";
 import { exportWord, checkRequest, applyRequest, readFile, words, tooBig, isWordName, notWord, WORD_FILE_MB } from "./wordApi.js";
 import { savedFolder } from "./publishState.js";
@@ -56,7 +56,7 @@ const freshImport = () => ({ phase: "choose", file: null, plan: null, ticks: [],
 const setImport = (patch) => { if (importBox.value) importBox.value = { ...importBox.value, ...patch }; };
 
 export function openImport() {
-  if (mode.value === "edit") importBox.value = freshImport();      // View never imports: nothing is added from there
+  importBox.value = freshImport();      // row 826: the same in View and Edit
 }
 export function closeImport() {
   const el = document.getElementById("word-import-dialog");

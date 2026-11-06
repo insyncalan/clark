@@ -53,8 +53,8 @@ class Pg:
         self.t, self.cdp, self.sid = test, cdp, sid
 
     @classmethod
-    def at(cls, test, cdp, port, hash_="#dashboard&p=ABC"):
-        return cls(test, cdp, navigate(cdp, port, hash_))
+    def at(cls, test, cdp, port, hash_="#dashboard&p=ABC", section_style="slim"):
+        return cls(test, cdp, navigate(cdp, port, hash_, section_style=section_style))
 
     def js(self, expr):
         return self.cdp.js(expr, self.sid)
@@ -263,7 +263,7 @@ class Modes(Base):
             sec_other = sec + ".filter(s => !['raid', 'actions', 'decisions'].includes(s.dataset.type))"
             self.assertEqual(p.js(sec_other + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"), [w for w in want if w.split(':')[0] not in ('raid', 'actions', 'decisions')], "Edit: the same line")
             self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [True] * 3, "Edit: the three row sections say Showing N of M instead (A-D5)")
-            self.assertEqual(p.js(texts), [QUIET] + ["Click to write."] * 3, "Edit: Current state keeps the old line; the three text sections open the editor in place (#220)")
+            self.assertEqual(p.js(texts), ["Nothing recorded."] + ["Click to write."] * 3, "Edit: Current state draws its text as View does (row 850); the three text sections open the editor in place (#220)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")

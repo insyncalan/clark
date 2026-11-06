@@ -2,12 +2,12 @@
 // Draft email to the owner (opens the Draft email dialog over a draft clark builds for this one item, POST /api/draft-email: nothing is sent, and the To line is left empty until the People list, #115), the peek, Change status, Move due date and Change owner (each a short list), Show to or Hide from the client, Copy link, Copy ID,
 // Duplicate and Archive. Each entry does what its button elsewhere does: a change is one step with Undo in the toast (the cells'
 // own words and requests, itemEdit.js), Archive is clark's archive step (never a delete, FR-43c). What each entry offers is in
-// ../logic/rowMenu.js. An entry that can't be used is listed with its reason under it. In View the changes are listed but greyed.
+// ../logic/rowMenu.js. An entry that can't be used is listed with its reason under it. On a Dashboard in View the changes are listed but greyed.
 // The keys are the menus': Up, Down, Home and End move, Enter or Space runs, Right opens a list, Left or Back returns, Esc closes
 // with focus back on the row. One item at a time: the table has no ticked rows yet, so there is nothing to act on together.
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { data, project, mode, view, openPeek, item as peeked, closePeek } from "../stores/report.js";
+import { data, project, view, openPeek, item as peeked, closePeek } from "../stores/report.js";
 import { itemRows, announce } from "../stores/work.js";
 import { changeCell, changeRecord, say } from "../stores/changes.js";
 import { readDraftEmail, sendEmailSent } from "../api.js";
@@ -20,6 +20,7 @@ import { people, tableOf, canClearDue } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
 import { draftEntry, eyeChange, draftRequest, draftState, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
 import { openCard } from "./Board.jsx";
+import { isEditing } from "../logic/editing.js";
 import { workSelection } from "../stores/selection.js";
 
 const ROW = "tr[data-id], article.bcard";
@@ -264,7 +265,7 @@ function holdBehind(scrim) {
 // each change in the dialog (the kind, the ticks, the options) asks for a new one, and the last answer wins. It sends and saves nothing.
 function DraftHost({ d }) {
   const root = useRef(null), asked = useRef(0);
-  const edit = mode.value === "edit";                 // View writes nothing (FR-11): no onSent, and "I sent it" is greyed
+  const edit = isEditing();                          // a Dashboard in View writes nothing (FR-11): no onSent, and "I sent it" is greyed; Work items have no mode (row 824)
   const close = () => {
     const from = d.from, id = d.id;
     draftOpen.value = null;

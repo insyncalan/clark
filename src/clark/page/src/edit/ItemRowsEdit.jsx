@@ -58,7 +58,6 @@ function Words({ row, text }) {
     if (cancelled.current) { cancelled.current = false; return; }
     const t = read(el).replace(/\s+/g, " ").trim();
     if (t === now.current) { show(el, now.current); return; }
-    if (!t) { show(el, now.current); say("problem", "The wording can't be blank. Type what the client should read."); return; }
     if (Array.from(t).length > WORDS_MAX) { show(el, now.current); say("problem", `The wording can be ${WORDS_MAX} characters at most. Shorten it and try again.`); return; }
     changeCell(tableOf(row), row.id, { client_message: t }, { text: `Wording of ${row.id} changed.`, back: `Wording of ${row.id} is back as it was.` })
       .then((reply) => (reply ? refresh() : show(el, now.current)));       // the reply never carries the words (as a title is not said back): read them again
@@ -129,7 +128,7 @@ export function ItemRowsEdit({ type }) {
   const hidden = hiddenIds(d), shownIds = new Set(shown.map((r) => r.id));
   const left = all.filter((r) => !shownIds.has(r.id) && canPick.has(r.id));                  // the rows a person can put back
   const text = type === "decisions" ? "decision" : "description";                            // the picker reads the client's wording, never the team's own text
-  const here = { [type]: (d[type] || []).filter((r) => left.some((x) => x.id === r.id)).map((r) => ({ ...r, [text]: r.client_message })) };   // and offers this section's kind only
+  const here = { [type]: (d[type] || []).filter((r) => left.some((x) => x.id === r.id)).map((r) => ({ ...r, [text]: words[r.id] })) };   // and offers this section's kind only
   const n = idsOf(pickable(here, hidden, "", [])).length;
   const add = (ids) => change({ kind: "report_hidden", op: "pick", ids, place: "report" }, ids.length === 1 ? `${ids[0]} is on the page.` : `${ids.length} items are on the page.`).then((r) => { if (r) setPick(false); });
   return (

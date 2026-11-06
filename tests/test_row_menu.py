@@ -751,7 +751,8 @@ class Menu(board.Base):
             click(cdp, sid, "[data-rm=draft]")
             self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email, which changes nothing")
 
-    def test_in_view_i_sent_it_is_greyed_with_the_house_line_and_records_nothing(self):
+    def test_in_view_on_work_items_i_sent_it_works_and_records_the_ids(self):
+        # Row 824: Work items have no mode, so "I sent it" is live in View as in Edit (a Dashboard in View still writes nothing).
         with chrome() as cdp:
             sid = self.visit(cdp, edit=False)
             a = self.id_of("Order the laptops")
@@ -759,13 +760,11 @@ class Menu(board.Base):
             click(cdp, sid, "[data-rm=draft]")
             self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
             find = "[...document.querySelectorAll('.de .pk-btn')].find(b => /sent/.test(b.textContent))"
-            self.assertTrue(cdp.js(find + ".disabled", sid), "I sent it is greyed in View")
-            self.assertIn("Switch to Edit to change this.", cdp.js("document.querySelector('.de').textContent", sid))
-            self.assertFalse(cdp.js("[...document.querySelectorAll('.de .pk-btn')].find(b => /Copy as text/.test(b.textContent)).disabled", sid), "copy stays")
+            self.assertFalse(cdp.js(find + ".disabled", sid), "I sent it is live in View on Work items")
+            self.assertNotIn("Switch to Edit to change this.", cdp.js("document.querySelector('.de').textContent", sid))
             cdp.js(find + ".click()", sid)
-            time.sleep(0.8)
-            self.assertEqual(self.sent_calls, [], "no POST /api/draft-email/sent")
-            self.assertEqual(self.store.email_sent_for("ABC"), [], "no email_sent record")
+            self.until(cdp, sid, "/sent/i.test(document.querySelector('.de-note').textContent)", "the note")
+            self.assertEqual([r["ids"] for r in self.store.email_sent_for("ABC")], [[a]])
 
     def test_after_i_sent_it_focus_stays_in_the_dialog_and_escape_closes_it_and_returns_to_the_row(self):
         with chrome() as cdp:
