@@ -838,7 +838,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
 }
 
-/* The Add a section box as the prototype draws it (#783, system/prototype app.css .atd-*): the templates are a grid of cards, each a
+/* The Add a section box as the prototype draws it (row 783, system/prototype app.css .atd-*): the templates are a grid of cards, each a
    small sketch, its name and its widths as chips; the preview has the larger sketch and what it holds as chips; an X closes it.
    Each card is still a label round a radio (the radio is hidden, its card shows the focus), so the keys and the reading are the list's.
    Edit only: shell.css keeps the box's frame, these rules come after it. Tokens only, so dark mode follows. */
