@@ -11,6 +11,7 @@ import { changeItem, say, toast } from "../stores/changes.js";
 import { build, moveFor, dateMove, movedWords, boardGroup, isCollapsed, toggleCollapsed, groupLabel,
   orderedColumns, moveColumn, stepColumn, widthOf, setColumnWidth, clampWidth, COL_MIN, COL_MAX, COL_DEFAULT, COL_STEP } from "../logic/board.js";
 import { createDrag } from "../logic/dragCore.js";
+import { useSettle } from "../stores/motion.js";
 import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { Eye as WorkEye } from "./cells/Eye.jsx";
@@ -39,6 +40,13 @@ function CardEye({ card }) {
 // A card is picked like a table row (#195): a click selects it and opens its peek, Cmd or Ctrl+click adds or removes it, Shift+click a range in the
 // order drawn, Enter opens the peek; Space adds or removes it, Shift+Up and Shift+Down extend, Cmd or Ctrl+A
 // selects every card shown.
+// The count badge on a column heading: it ticks once when the number changes (row 888), never on the first draw.
+function ColCount({ n }) {
+  const ref = useRef(null);
+  useSettle(ref, n);
+  return <span class="cn num" ref={ref}>{n}</span>;
+}
+
 function Card({ card, editing, selected, picked, dragging, ask, menu, stop, pos, size, onOpen, onPick, onMenu, children }) {
   const label = `${card.id} ${card.title}, ${card.state.text}${card.due.words ? ", " + card.due.words.toLowerCase() : ""}${picked ? ", selected" : ""}`;
   const focusCard = (id) => { const el = document.querySelector(`article[data-id="${CSS.escape(id)}"] .bc-main`); if (el) el.focus(); };
@@ -400,7 +408,7 @@ export function Board({ rows, today, type }) {
                       <button type="button" class="col-b" aria-expanded={shut ? "false" : "true"} aria-label={`${c.label}, ${c.count}${shut ? ", collapsed" : ""}`} data-toggle={c.key}
                         aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight" title="Drag to move the column, or hold Alt and press the left or right arrow."
                         onPointerDown={(e) => headDown(e, c, ln)} onKeyDown={(e) => headKey(e, c, ln)} onClick={() => headClick(c)}>
-                        <span class="dot" aria-hidden="true"></span><span class="cl">{c.label}</span><span class="cn num">{c.count}</span>
+                        <span class="dot" aria-hidden="true"></span><span class="cl">{c.label}</span><ColCount n={c.count} />
                       </button>
                       {shut ? null : <span class="col-rz" role="separator" tabIndex={0} aria-orientation="vertical" data-resize={c.key}
                         aria-label={`Resize the ${c.label} column`} aria-valuemin={COL_MIN} aria-valuemax={COL_MAX} aria-valuenow={wd || COL_DEFAULT}

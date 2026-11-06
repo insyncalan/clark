@@ -1,8 +1,8 @@
-"""The top bar's profile circle and Help circle (issue 732), in a real browser against the real page. Chrome is required: these tests fail,
+"""The top bar's profile circle (issue 732), in a real browser against the real page. Chrome is required: these tests fail,
 never skip, without it.
 
 Run: python3 dev/run_tests.py test_top_bar_avatar
-The profile circle is filled aqua with a navy mark (the prototype's), in light and in dark; the "?" stays a circle; the bar's items do not
+The profile circle is filled aqua with a navy mark (the prototype's), in light and in dark; the top bar has no "?" Help button (row 899); the bar's items do not
 overlap or run past the window at 1400, 901, 900 and 800 px with the bigger circle.
 """
 import unittest
@@ -38,11 +38,11 @@ class Avatar(Base):
                 a, b = sorted((lum(got[0]), lum(got[2])), reverse=True)
                 self.assertGreaterEqual((a + 0.05) / (b + 0.05), 4.5, "navy on aqua reads clearly")
 
-    def test_the_help_button_is_still_a_circle(self):
+    def test_there_is_no_help_circle_beside_the_profile_circle(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             size(cdp, p, 1400, 700)
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('#help-btn')).borderRadius"), "50%")
+            self.assertEqual(p.js("document.querySelector('#help-btn')"), None)
 
     def test_the_bar_has_no_overlap_and_nothing_past_the_window_with_the_bigger_circle(self):
         for width in (1400, 901, 900, 800):

@@ -167,6 +167,13 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-panel { --ask-edge: color-mix(in srgb, var(--grey-700) 85%, var(--surface)); position: fixed; top: 0; right: 0; bottom: 0; z-index: 45; display: flex; flex-direction: column; max-width: 90%; isolation: isolate; color: var(--text); border-left: 1px solid var(--grey-200); box-shadow: -12px 0 40px color-mix(in srgb, var(--brand-navy) 16%, transparent);
   background: radial-gradient(95% 48% at 100% 100%, color-mix(in srgb, var(--brand-blue) 24%, transparent), transparent 72%), radial-gradient(75% 40% at 0% 96%, color-mix(in srgb, var(--brand-blue) 12%, transparent), transparent 72%), var(--surface); }
 .ask-panel:focus { outline: none; }
+/* row 885: the panel rises from the bottom of the window as it opens and sinks back as it closes (transform only; its place is unchanged); still under reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) .ask-panel { animation: ask-up var(--dur-layout) var(--ease-enter) 1; }
+  :root:not([data-motion="reduce"]) .ask-panel.leaving { pointer-events: none; animation: ask-down var(--dur-state) var(--ease-exit) forwards; }
+  @keyframes ask-up { from { transform: translateY(100%); } to { transform: none; } }
+  @keyframes ask-down { from { transform: none; } to { transform: translateY(100%); } }
+}
 /* the grip: 24 px to take hold of, a thin line to see (a short handle at rest, a full line on hover or focus) */
 .ask-grip { position: absolute; left: -12px; top: 0; bottom: 0; width: 24px; z-index: 2; cursor: col-resize; touch-action: none; }
 .ask-grip::before { content: ""; position: absolute; left: 10px; top: 50%; width: 4px; height: 40px; margin-top: -20px; border-radius: 2px; background: var(--grey-700); transition: background-color var(--dur-instant) var(--ease-out); }
@@ -197,6 +204,11 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-turn.problem { padding-left: var(--space-3); border-left: 3px solid var(--status-amber); }
 .ask-who { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; color: inherit; }    /* "You" and "Answer" are for a reader that announces; the bubble and the reply place already say it (issue 794) */
 .ask-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* row 890: the Sources disclosure under an answer, closed by default; the same look as the other disclosures (.docs-left) */
+.ask-sources { margin-top: var(--space-2); }
+.ask-sources summary { cursor: pointer; color: var(--text-muted); font-size: var(--size-small); min-height: 24px; }
+.ask-sources summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.ask-sources ul { margin: 4px 0 0; padding-left: var(--space-4); font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
 @keyframes ask-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 /* the suggestions: ONE row, faded at the right edge, scrolling sideways; the working line has the same height and takes their place */
 .ask-pills, .ask-work { flex: none; box-sizing: border-box; min-height: 46px; padding: 6px 20px 10px; }
@@ -264,13 +276,13 @@ table.items td.c-pick { vertical-align: middle; }
 .pal-q input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .pal-list { list-style: none; margin: 0; padding: 6px; overflow: auto; }
 .pal-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-1) 10px; min-height: 32px; padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer; }
-.pal-row.on { background: var(--grey-100); outline: 1px solid var(--grey-300); }
+.pal-row.on { background: var(--grey-100); outline: 2px solid var(--focus); outline-offset: -2px; }   /* the row Enter will run; 2px is the page's one focus-ring width (no width token exists) */
 .pal-row.off { cursor: default; }
 .pal-row.off .pal-label, .pal-row.off .pal-kind { color: var(--text-muted); }
-.pal-kind { flex: none; min-width: 78px; font-size: var(--size-caption); color: var(--text-muted); }
+.pal-kind { flex: none; min-width: 96px; font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
 .pal-label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .pal-more, .pal-why { font-size: var(--size-caption); }
-.pal-why { flex-basis: 100%; padding-left: 88px; }
+.pal-why { flex-basis: 100%; padding-left: 106px; }
 .pal-none { margin: 0; padding: 14px var(--space-4); }
 .pa-undo { margin: 0 0 var(--space-2); }
 .pa-undo .selbar { margin: var(--space-1) 0; flex-wrap: wrap; }
@@ -801,3 +813,32 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 #publish-dialog { width: min(560px, calc(100vw - 32px)); }
 #publish-dialog h2 { font-size: var(--size-h3); }
 .pubopt b { font-weight: var(--weight-regular); }
+
+
+/* row 888: an eye blinks once when it is pressed (the button holds data-blink for that run; transform only); still under reduced motion.
+   Edit's alone, so the published file carries none of it. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) :is(.ms-eye, .weye, .ucl-eye, .ucd-eye)[data-blink] svg { animation: m-blink var(--dur-state) var(--ease-toggle) 1; }
+  @keyframes m-blink { 50% { transform: scaleY(.1); } }
+}
+
+/* Row 881 (motion): press feedback on buttons and cards. Here, not in shell.css, so the published page (no Edit part) carries none of it.
+   Gated like the Motion block: absent under reduced motion (the computer's setting or <html data-motion="reduce">). Tokens only; colour and
+   transform only, so nothing else moves. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) {
+    /* one shared fade of the hover colours for each control class (the main button keeps its own lift) */
+    .btn:not(.primary), .seg button, .fbtn, .vtab, .bib, .tgrip, .teye, .toast-btn, .pkp-btn, .tb-act, .hp-top, .projbtn, .menu-item, .sec-add, .handle, .plus, .bc-move { transition: background-color var(--dur-instant) var(--ease-out), border-color var(--dur-instant) var(--ease-out), color var(--dur-instant) var(--ease-out), transform var(--dur-instant) var(--ease-out); }
+    .glance .fig.go, .hp-job { transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-state) var(--ease-out), transform var(--dur-instant) var(--ease-out); }
+  }
+  /* a button or a card lifts 1 px on hover (fine pointers only) and settles on press */
+  @media (hover: hover) and (pointer: fine) {
+    :root:not([data-motion="reduce"]) :is(.btn:not(.primary):not(:disabled), .glance .fig.go, .hp-job):hover { transform: translateY(-1px); }
+    :root:not([data-motion="reduce"]) :is(.btn:not(.primary):not(:disabled), .glance .fig.go, .hp-job):active { transform: none; }
+  }
+}
+
+/* row 880: opening a group, its column names and rows rise 4 px and fade in over --dur-layout (transform and opacity only: no height moves). Edit build only: the published file has no glide. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
+}
