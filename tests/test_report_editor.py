@@ -769,7 +769,7 @@ class Sections(Base):
             for ref in ("ABC-S-001", "ABC-S-002", "ABC-S-004", "ABC-S-008"):
                 p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()")
                 p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .menu')", "menu")
-                self.assertIsNone(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-act=delete]')"), f"{ref} is not a text section")
+                self.assertIsNotNone(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-act=delete]')"), f"{ref} offers Delete section too (row 906)")
                 p.key("Escape", code="Escape", vk=27)
             p.menu("ABC-S-005", "delete")
             p.order_is([i for i in IDS if i != "ABC-S-005"], "deleted")
@@ -1142,8 +1142,8 @@ class Gutter(Base):
             self.assertEqual(p.js("[...document.querySelectorAll('.menu-item')].map(e => e.dataset.act)"),
                              ["add", "up", "down", "beside", "hide", "delete"])
             p.key("Escape", code="Escape", vk=27)
-            self.open_menu(p, "ABC-S-002")           # not a text section: no Delete
-            self.assertEqual(p.js(self.MENU_TEXTS % "ABC-S-002")[-1], "Leave out of the published page")
+            self.open_menu(p, "ABC-S-002")           # not a text section: Delete section too (row 906)
+            self.assertEqual(p.js(self.MENU_TEXTS % "ABC-S-002")[-1], "Delete section")
             p.key("Escape", code="Escape", vk=27)
             p.menu("ABC-S-002", "hide")
             p.saved()
