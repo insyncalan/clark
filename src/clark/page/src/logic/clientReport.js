@@ -23,7 +23,7 @@ export function clientRules(data, isFile) {
   if (isFile) return null;      // a published file holds only the rows that passed the gate, and carries none of the fields it reads: no rules, nothing left out twice
   const d = data || {};
   return rulesFor({ code: d.project && d.project.code, hidden: (d.report_hidden || []).map((h) => (h && h.item_id) || h),
-    labelRules: d.label_rules, labels: d.labels, sections: d.report_sections });
+    labelRules: d.label_rules, labels: d.labels, sections: d.report_sections, deleted: !!d.sections_deleted });
 }
 
 export const OTHER = "Other milestones";
