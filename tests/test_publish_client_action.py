@@ -5,6 +5,7 @@ the report; a decision never; the order is stable; a hand-typed list is kept as 
 Run: python3 dev/run_tests.py test_publish_client_action
 """
 import json
+import logging
 import re
 import unittest
 
@@ -13,6 +14,7 @@ from _demo import USER, DemoStore
 from clark import publish
 
 NOW = "2030-01-15"
+LOGGER = logging.getLogger("clark.publish")
 
 
 def hand(*rows):
@@ -118,6 +120,26 @@ class Listed(unittest.TestCase):
         self.assertEqual(got[:cap - 2], ["Typed %d" % n for n in range(cap - 2)])
         self.assertEqual(got[cap - 2:], ["Gen 0", "Gen 1"], "the first in order are kept")
 
+    def test_the_cap_logs_one_warning_with_the_count_and_no_item_text(self):
+        cap = publish.section_bodies.NEEDS_MAX_ROWS
+        self.section([{"what": "Typed %d" % n} for n in range(cap - 2)])
+        for n in range(5):
+            self.action("ZQ-LOGGED-%d" % n)
+        with self.assertLogs("clark.publish", level="WARNING") as got:
+            self.built()
+        lines = [l for l in got.output if "Needs from you" in l]
+        self.assertEqual(len(lines), 1)
+        self.assertIn("3 flagged item(s)", lines[0])
+        self.assertNotIn("ZQ-LOGGED", "".join(got.output))
+        self.assertNotIn("Typed", "".join(got.output))
+
+    def test_no_warning_when_everything_fits(self):
+        self.action("Fits")
+        with self.assertLogs("clark.publish", level="WARNING") as got:
+            LOGGER.warning("probe")
+            self.built()
+        self.assertEqual(got.output, ["WARNING:clark.publish:probe"])
+
     def test_a_full_typed_list_leaves_no_room_and_a_cap_over_generated_alone_holds(self):
         cap = publish.section_bodies.NEEDS_MAX_ROWS
         self.section([{"what": "Typed %d" % n} for n in range(cap)])
@@ -133,22 +155,32 @@ class Listed(unittest.TestCase):
         got = self.whats()
         self.assertEqual(got, ["G%03d" % n for n in range(cap)])
 
-    def test_the_client_wording_wins_and_the_teams_description_is_never_in_the_section(self):
-        self.action("Client words here", description="ZQ-INTERNAL-PHRASE team only")
-        self.risk("Client risk words", description="ZQ-INTERNAL-RISK team only")
-        entry = [x for x in self.built()["published"]["sections"] if x["type"] == "needs"]
-        self.assertEqual([r["what"] for r in entry[0]["rows"]], ["Client words here", "Client risk words"])
-        self.assertNotIn("ZQ-INTERNAL", json.dumps(entry))
+    def needs_text(self):
+        return json.dumps([x for x in self.built()["published"]["sections"] if x["type"] == "needs"])
 
-    def test_with_no_client_wording_the_row_reads_the_id_and_the_description_does_not_reach_the_section(self):
-        a = self.action("", description="ZQ-INTERNAL-PHRASE team only")
-        r = self.risk("   ", description="ZQ-INTERNAL-RISK team only")
-        entry = [x for x in self.built()["published"]["sections"] if x["type"] == "needs"]
-        self.assertEqual([x["what"] for x in entry[0]["rows"]], [a, r])
-        self.assertNotIn("ZQ-INTERNAL", json.dumps(entry))
-        # the Work tab's own rows carry the description by the existing rules (title = description); only the needs section is asserted on
-        data = self.built()["published"]["data"]
-        self.assertIn("ZQ-INTERNAL-PHRASE team only", json.dumps(data["actions"]))
+    def test_the_client_wording_wins_over_the_description(self):
+        self.action("Client words here", description="ZQ-DESC-ONLY team words")
+        self.risk("Client risk words", description="ZQ-DESC-RISK team words")
+        self.assertEqual(self.whats(), ["Client words here", "Client risk words"])
+        self.assertNotIn("ZQ-DESC", self.needs_text())
+
+    def test_with_no_client_wording_the_row_reads_the_description_the_work_rows_show_as_the_title(self):
+        self.action("", description="Title of the action")
+        self.risk("   ", description="Title of the risk")
+        self.assertEqual(self.whats(), ["Title of the action", "Title of the risk"])
+        data = json.dumps(self.built()["published"]["data"])
+        self.assertIn("Title of the action", data)
+
+    def test_the_internal_fields_never_reach_the_needs_section__and_a_column_never_published_is_not_in_the_file(self):
+        self.action("Client words", owner="ZQ-OWNER-NAME", latest_update="ZQ-UPDATE-TEXT", source="ZQ-NOTE-TEXT")
+        self.risk("Client risk", owner="ZQ-OWNER-RISK", source="ZQ-NOTE-RISK")
+        needs = self.needs_text()
+        for word in ("ZQ-OWNER", "ZQ-UPDATE", "ZQ-NOTE"):
+            self.assertNotIn(word, needs)
+        # the Work rows publish an item's owner and latest update by the existing rules (PUBLISH_FIELDS), so only the needs section is asserted on for
+        # those two; actions and risks have no notes column; source (never published) stands in for one and is asserted on the whole text
+        whole = self.built()["body"].decode("utf-8")
+        self.assertNotIn("ZQ-NOTE", whole)
 
     def test_long_wording_is_cut_at_300_and_hidden_characters_are_dropped_as_in_typed_rows(self):
         self.action("A" * 400)

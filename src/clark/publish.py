@@ -341,13 +341,13 @@ def flagged_needs(rows):
     this adds no second rule of what a client may see. Only an action or a risk/issue that is flagged AND still open (OPEN_STEPS;
     a risk or issue is only Open) is listed; a decision never (it has no flag). Actions first, then risks and issues, each in the
     order select kept them (by id), so the order is the same every time. A row is {what, kind, from, by} as a hand-typed one is:
-    what is the item's client wording (client_message, hidden characters out, cut at 300 as a typed row is), else its id (an action's or risk's title column IS the team's description, which is never copied here), kind 'information', from always blank (an owner here is one of our own people; a typed row's From is who at the client owes it, which is not known), by its due date written DD-MM-YYYY."""
+    what is the item's client wording (client_message) when set, else its description, which is the item's title and is published as its name in the Work rows already (hidden characters out, cut at 300), kind 'information', from always blank (an owner here is one of our own people; a typed row's From is who at the client owes it, which is not known), by its due date written DD-MM-YYYY."""
     out = []
     for k in ("actions", "raid"):
         for r in rows[k]:
             if r.get("client_action") != 1 or r.get("status") not in OPEN_STEPS:
                 continue
-            what = (reason_text(str(r.get("client_message") or "")).strip())[:section_bodies.NEEDS_WHAT_MAX].strip() or str(r.get("id") or "")
+            what = next((t for t in (reason_text(str(r.get(f) or "")).strip() for f in ("client_message", "description")) if t), "")[:section_bodies.NEEDS_WHAT_MAX].strip()
             if not what:
                 continue
             due = r.get("due_date")
@@ -433,7 +433,10 @@ def select(inputs):
         mine = next((x for x in needs_sections if not x.get("hidden")), None)
         if mine is not None:
             typed = list((extra.get(mine["id"]) or {}).get("rows") or [])
-            extra[mine["id"]] = {**(extra.get(mine["id"]) or {}), "rows": typed + listed[:max(0, section_bodies.NEEDS_MAX_ROWS - len(typed))]}   # typed rows win: the section never holds more than a typed list may
+            room = max(0, section_bodies.NEEDS_MAX_ROWS - len(typed))
+            if len(listed) > room:           # the daily log gets the count only: no title, no text
+                LOG.warning("The Needs from you list is full: %d flagged item(s) are left out of the published file.", len(listed) - room)
+            extra[mine["id"]] = {**(extra.get(mine["id"]) or {}), "rows": typed + listed[:room]}   # typed rows win: the section never holds more than a typed list may
     out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
                              or (x.get("type") == "docs" and not out["documents"]))       # #74: no document to show, no section
     i = 0
