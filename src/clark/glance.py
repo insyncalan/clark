@@ -185,7 +185,7 @@ def _left_off(rows_by_table):
     return {(h.get("item_id") if isinstance(h, dict) else h) for h in rows_by_table.get("report_hidden") or []}
 
 
-def kept_rows(rows_by_table, today, sections=None, label_rules=None):
+def kept_rows(rows_by_table, today, sections=None, label_rules=None, deleted=None):
     """What a client may see, worked out by `publish.select`, the one function that decides what is published, and nothing
     else. `rows_by_table` is `data_for`'s output plus, when the page has them, `report_hidden`, `report_sections` and
     `label_rules` rows (`sections` and `label_rules` given here win). Returns
@@ -194,16 +194,17 @@ def kept_rows(rows_by_table, today, sections=None, label_rules=None):
     _need_today(today)
     sections = rows_by_table.get("report_sections") if sections is None else sections
     rules = rows_by_table.get("label_rules") if label_rules is None else label_rules
+    deleted = bool(rows_by_table.get("sections_deleted")) if deleted is None else bool(deleted)      # row 906: every section deleted is not "no sections yet"
     chosen = publish.select({"data": rows_by_table, "hidden": sorted(_left_off(rows_by_table), key=str), "sections": sections,
-                             "label_rules": rules, "as_at": today})
-    return kept_from(chosen, sections)
+                             "sections_deleted": deleted, "label_rules": rules, "as_at": today})
+    return kept_from(chosen, sections, deleted)
 
 
-def kept_from(chosen, sections=None):
+def kept_from(chosen, sections=None, deleted=False):
     """The same reduction as `kept_rows`, from what `publish.select` has already chosen (its output), so the publish path does
     not run select twice (#45). `sections` are the report's section rows (select's own default sections when none)."""
     # select keeps this set to itself; the same one line, with the same default sections. A test checks they agree.
-    hidden_types = {s.get("type") for s in (sections or publish.DEFAULT_SECTIONS) if s.get("hidden")}
+    hidden_types = publish.hidden_types(sections, deleted)      # row 906: a built-in with no section row is hidden too
     return {"data": chosen["data"], "rows": work_rows(chosen["data"]), "use_cases": chosen["data"]["use_cases"],
             "hidden_types": hidden_types}
 

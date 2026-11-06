@@ -26,14 +26,15 @@ class TopBarActions(Base):
             p.until("!!document.querySelector('#ask-btn')", "the ask button shows while asking is on")
         return p
 
-    def test_the_two_buttons_have_their_words_and_sit_before_help_and_the_avatar(self):
+    def test_the_two_buttons_have_their_words_and_sit_before_the_avatar(self):
         with chrome() as cdp:
             p = self.at(cdp, 1400)
             got = p.js("(function(){var q=s=>document.querySelector(s), a=q('#pal-btn'), k=q('#ask-btn');"
                        "return [a.getAttribute('aria-label'), a.title, a.textContent.trim(), k.getAttribute('aria-label'), k.title, k.textContent.replace(/\\s+/g,' ').trim(),"
                        "getComputedStyle(q('#ask-btn kbd')).display !== 'none', [...document.querySelectorAll('header.top button')].map(b => b.id || b.className).slice(-4)];})()")
             self.assertEqual(got[:7], ["Go to or do", "Go to or do (Ctrl or Cmd + K)", "", "ask clark", "Open ask clark (/ or Ctrl or Cmd + J)", "ask clark /", True])
-            self.assertEqual(got[7][:3], ["pal-btn", "ask-btn", "help-btn"])
+            self.assertEqual(got[7][1:], ["pal-btn", "ask-btn", "profile-btn"])
+            self.assertNotIn("help-btn", got[7], "no Help button in the top bar")
 
     def test_search_opens_the_palette_and_ask_opens_the_ask_panel(self):
         with chrome() as cdp:

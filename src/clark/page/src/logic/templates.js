@@ -13,7 +13,7 @@ import { WORDS as NEEDS } from "./needs.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text, needs since the section that carries content (#121),
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
-export const ACCEPTS = { types: ["text", "needs", ...TEMPLATE_TYPES] };
+export const ACCEPTS = { types: ["text", "needs", ...TEMPLATE_TYPES, "current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs"] };
 
 export const KINDS = [
   { id: "text", name: "Text and pictures" },
@@ -82,6 +82,16 @@ export const LATER = [
   { id: "headline", type: "headline", ready: true },
 ];
 
+// The built-in sections (row 906): a deleted one is added again from the box, one of each, with the title and settings it starts
+// with (changes.py BUILT_IN_TYPES). Listed only while the report has no section of that type (`list` and `counts` take `sections`).
+const builtIn = (type, title, kind) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true });
+export const BUILT_INS = [
+  builtIn("current", "Current state", "text"), builtIn("glance", "At a glance", "figures"), builtIn("usecases", "Use case summary", "work"),
+  builtIn("milestones", "Milestones", "dates"), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
+  builtIn("decisions", "Decisions", "work"), builtIn("docs", "Supporting documents", "files"),
+];
+const missing = (sections) => (sections ? BUILT_INS.filter((b) => !sections.some((s) => s.type === b.type)) : []);
+
 // Every template entry, in the box or not: one per template type, and Text and Needs from you (#121).
 export const CATALOGUE = [...TEMPLATES, ...LATER];
 
@@ -95,9 +105,35 @@ export const MESSAGES = {
 };
 
 const FIT_WORDS = { full: "Full width", half: "Half width" };
-export const fitWords = (t) => t.fit.map((f) => FIT_WORDS[f]).join(" or ");
+export const fitList = (t) => t.fit.map((f) => FIT_WORDS[f]);     // one chip each on the box's cards (#783)
+export const fitWords = (t) => fitList(t).join(" or ");
 
-export const find = (id) => TEMPLATES.find((t) => t.id === id) || null;
+// The small sketch on each card of the Add a section box and the larger one in its preview (#783): the prototype's (views.js `sk`),
+// [the grid's style, one style per part]. Shapes only, no words; tokens only, so dark mode follows.
+const IMG = "background:color-mix(in srgb, var(--brand-blue) 30%, var(--surface))";
+export const SKETCHES = {
+  "text": ["grid-template-rows:repeat(3,1fr)", ["", "width:80%", "width:60%"]],
+  "text-image": ["grid-template-columns:1.4fr 1fr", ["", IMG]],
+  "figures-4": ["grid-template-columns:repeat(4,1fr)", ["", "", "", ""]],
+  "figures-3": ["grid-template-columns:repeat(3,1fr)", ["", "", ""]],
+  "gallery": ["grid-template-columns:repeat(3,1fr)", [IMG, IMG, IMG]],
+  "table": ["grid-template-rows:repeat(4,1fr)", ["", "", "", ""]],
+  "raid-3": ["grid-template-columns:repeat(3,1fr)", ["border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", "border-top:3px solid var(--brand-blue)"]],
+  "raid-4": ["grid-template-columns:repeat(4,1fr)", ["border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", "border-top:3px solid var(--status-amber)", ""]],
+  "work-items": ["grid-template-rows:repeat(4,1fr)", ["width:90%", "width:75%", "width:85%", "width:70%"]],
+  "docs-links": ["grid-template-rows:repeat(3,1fr)", ["", "", ""]],
+  "callout": ["", ["background:var(--status-amber-tint);border-left:3px solid var(--status-amber)"]],
+  "image-caption": ["grid-template-rows:2fr 1fr", [IMG, "width:50%"]],
+  "quote": ["grid-template-rows:2fr 1fr", ["border-left:3px solid var(--brand-cyan)", "width:40%"]],
+  "contacts": ["grid-template-rows:repeat(3,1fr)", ["width:70%", "width:70%", "width:70%"]],
+  "checklist": ["grid-template-rows:repeat(3,1fr)", ["width:80%", "width:60%", "width:70%"]],
+  "key-dates": ["grid-template-rows:repeat(3,1fr)", ["width:90%", "width:90%", "width:90%"]],
+  "needs": ["grid-template-rows:repeat(3,1fr)", ["border-left:3px solid var(--status-amber)", "border-left:3px solid var(--status-amber);width:80%", "width:55%"]],
+  "link-preview": ["grid-template-columns:1fr 2fr", [IMG, ""]],
+  "one-doc": ["grid-template-rows:1fr 1fr", ["", "width:70%"]],
+};
+
+export const find = (id) => TEMPLATES.find((t) => t.id === id) || BUILT_INS.find((t) => t.id === id) || null;
 export const available = (t) => !!t && t.ready === true && ACCEPTS.types.includes(t.type);
 export const kindName = (id) => (KINDS.find((k) => k.id === id) || { name: "" }).name;
 
@@ -108,8 +144,8 @@ const matches = (t, q) => {
 };
 
 // The templates for a search and a choice of kind ("" or "all": every kind; RECENT: the recently used ones, newest first).
-export function list({ query = "", kind = "", recent = [] } = {}) {
-  const found = TEMPLATES.filter((t) => matches(t, query));
+export function list({ query = "", kind = "", recent = [], sections = null } = {}) {
+  const found = [...TEMPLATES, ...missing(sections)].filter((t) => matches(t, query));
   if (kind === RECENT) return recent.map((id) => found.find((t) => t.id === id)).filter(Boolean);
   return kind && kind !== "all" ? found.filter((t) => t.kind === kind) : found;
 }
@@ -123,9 +159,9 @@ export function noMatch({ query = "", kind = "" } = {}) {
 }
 
 // How many each choice would show for the search: { all, recent, <kind id>: n ... }.
-export function counts({ query = "", recent = [] } = {}) {
-  const out = { all: list({ query }).length, [RECENT]: list({ query, kind: RECENT, recent }).length };
-  for (const k of KINDS) out[k.id] = list({ query, kind: k.id }).length;
+export function counts({ query = "", recent = [], sections = null } = {}) {
+  const out = { all: list({ query, sections }).length, [RECENT]: list({ query, kind: RECENT, recent, sections }).length };
+  for (const k of KINDS) out[k.id] = list({ query, kind: k.id, sections }).length;
   return out;
 }
 
@@ -162,6 +198,7 @@ export function besideState(sections, after, template) {
 export function plan(sections, id, after, beside = false) {
   const t = find(id);
   if (!t) return { ok: false, message: MESSAGES.unknown };
+  if (t.builtIn && !missing(sections).includes(t)) return { ok: false, message: MESSAGES.unknown };      // already in the report: not offered twice
   if (!available(t)) return { ok: false, message: MESSAGES.later };
   const a = anchor(sections, after);
   if (!a.ok) return a;

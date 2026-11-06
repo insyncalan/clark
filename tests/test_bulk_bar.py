@@ -632,5 +632,23 @@ class Page(Base):
                     self.until(cdp, sid, "!document.querySelector('.bmenu')", "closed")
 
 
+    def test_the_bar_stays_under_the_top_bar_while_the_list_scrolls(self):
+        """Row 864: sticky, no ancestor between the bar and the page clips it, and its top stays at the top bar's foot after a scroll."""
+        for width in (1400, 900):
+            for dark in (False, True):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    sid = self.load(cdp, width=width, kind="risk")
+                    cdp.js(f"document.documentElement.dataset.theme = '{'dark' if dark else 'light'}'", sid)
+                    self.pick(cdp, sid, cdp.js(self.ROWS, sid)[:2])
+                    self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#sel-bar')).position", sid), "sticky")
+                    self.assertEqual(cdp.js("(() => { const bad = []; for (let e = document.querySelector('#sel-bar').parentElement; e && e !== document.documentElement; e = e.parentElement)"
+                                            " { const s = getComputedStyle(e); if (s.overflowX !== 'visible' || s.overflowY !== 'visible') bad.push(e.tagName + '.' + e.className); } return bad; })()", sid),
+                                     [], "nothing between the bar and the page clips it")
+                    cdp.js("(() => { const m = document.createElement('div'); m.style.height = '3000px'; document.querySelector('main').appendChild(m); window.scrollTo(0, 800); })()", sid)
+                    self.until(cdp, sid, "window.scrollY > 100", "the page scrolled")
+                    gap = cdp.js("document.querySelector('#sel-bar').getBoundingClientRect().top - document.querySelector('.top').getBoundingClientRect().bottom", sid)
+                    self.assertTrue(0 <= gap <= 16, f"the bar sits under the top bar, gap {gap}")
+
+
 if __name__ == "__main__":
     unittest.main()

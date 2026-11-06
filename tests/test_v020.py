@@ -334,6 +334,7 @@ class DarkMode(Browser):
                     self.assertFalse(light["sideways"], "no sideways scroll in light mode")
                     cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
                     self.assertTrue(wait(lambda: (cdp.js(LIGHT_PATCHES, sid)["ground"] or 1) < 0.1), "the page's ground turns dark")
+                    self.assertTrue(wait(lambda: bool(cdp.js("document.getAnimations().length === 0", sid))), "the colour fades have finished (row 881: controls fade their colours)")
                     dark = cdp.js(LIGHT_PATCHES, sid)
                     self.assertEqual(dark["patches"], [], "no light patch is left in dark mode")
                     self.assertGreater(dark["heading"], 0.4, "the heading is light on the dark page")

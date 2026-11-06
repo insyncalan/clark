@@ -32,7 +32,8 @@ export function HelpPeek() {
       </div>
       {c.lines.map((l, i) => <p class="hpk-line" key={i}>{l}</p>)}
       {c.cards.length ? <ul class="hpk-cards">{c.cards.map((k, i) => <li key={i}>{k.name ? <b>{k.name}</b> : null}{k.name && k.line ? " " : ""}{k.line}</li>)}</ul> : null}
-      <div class="hpk-foot"><button type="button" class="hpk-link" data-hpk-full onClick={openFull}>Open full Help</button></div>
+      {c.articles.length ? <><h3 class="hpk-sub">{c.articlesTitle}</h3><ul class="hpk-arts">{c.articles.map((a) => <li key={a.place}><button type="button" class="hpk-link" data-hpk-art={a.place} onClick={() => openFull(a.place)}>{a.title}</button></li>)}</ul></> : null}
+      <div class="hpk-foot"><button type="button" class="hpk-link" data-hpk-full onClick={() => openFull()}>Open full Help</button></div>
     </aside>
   );
 }

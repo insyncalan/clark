@@ -7,7 +7,7 @@ import { useEffect } from "preact/hooks";
 import { Menu } from "../components/Menu.jsx";
 import { data, tabs, show, project, mode, view, status } from "../stores/report.js";
 import { openInNewTab } from "../router.js";
-import { openHelp } from "../help/helpStore.js";
+import { openHelp, openContext } from "../help/helpStore.js";
 import { openPublish, lastLine } from "./Publish.jsx";
 import { BarToast } from "./BarToast.jsx";
 import { latest } from "./publishState.js";
@@ -110,7 +110,7 @@ export function ProfileMenu() {
     else if (id === "who") { wantName.value = true; show("settings"); }
     else if (id.startsWith("look-")) setAppearance(id.slice(5));
     else if (id === "settings") show("settings");
-    else if (id === "help") openHelp();
+    else if (id === "help") { const b = document.getElementById("profile-btn"); if (b) b.focus(); if (!openContext()) openHelp(); }       // row 896: the same peek as the ? key, with the open page's articles; the full Help is its foot link
   };
   return (
     <>

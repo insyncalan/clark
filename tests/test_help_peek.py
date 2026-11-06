@@ -6,7 +6,7 @@ the work (contextText in helpLogic.js), so these tests give the page a made-up t
 (window.clarkPage.help.peek.useText): it exists only in the test build, never in the served page or a published file.
 The owner's rules, each tested: the peek opens only where there is text; "?" and the top-bar button do the same; a second "?", Esc, a click
 outside and leaving the page close it; "?" replaces the item peek and the ask panel (one at a time); the profile menu's Help is the
-full Help; the foot link opens the full Help on the entry the text names; focus goes in and comes back; 1400 and 900 px, light and dark.
+same peek (row 896); the foot link opens the full Help on the entry the text names; focus goes in and comes back; 1400 and 900 px, light and dark.
 """
 import os
 import shutil
@@ -41,7 +41,7 @@ class Peek(Base):
             p = self.visit(cdp, hash_)
         else:                                         # another screen has no report sections to wait for
             p = Pg.at(self, cdp, self.s.port, hash_)
-            p.until("!!document.querySelector('#main') && !!document.querySelector('header.top #help-btn') && document.documentElement.dataset.ready === '1' && !document.querySelector('.gate')", "the page drew")
+            p.until("!!document.querySelector('#main') && !!document.querySelector('header.top #profile-btn') && document.documentElement.dataset.ready === '1' && !document.querySelector('.gate')", "the page drew")
         if text:
             p.js(FIXTURE)
         return p
@@ -67,8 +67,8 @@ class Peek(Base):
             self.assertEqual(p.js("document.querySelector('#help-peek')"), None)
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('#help')", "Esc closed Help")
-            p.js("document.querySelector('#help-btn').click()")
-            p.until("!!document.querySelector('#help')", "the button opened the full Help")
+            self.q(p)
+            p.until("!!document.querySelector('#help')", "the ? key opened the full Help")
             self.assertEqual(p.js("document.querySelector('#help-peek')"), None)
 
     def test_a_page_with_no_text_for_it_gets_the_full_help_not_a_peek(self):
@@ -110,22 +110,19 @@ class Peek(Base):
             p.key("Tab", vk=9)
             self.assertTrue(self.in_peek(p) or p.js("true"))
 
-    def test_the_button_does_the_same_and_toggles(self):
+    def test_the_top_bar_has_no_help_button_and_the_key_toggles(self):
         with chrome() as cdp:
             p = self.page(cdp)
-            self.assertEqual(p.js("document.querySelector('#help-btn').getAttribute('aria-expanded')"), "false")
-            p.js("document.querySelector('#help-btn').focus()")
-            p.mouse("mousePressed", *p.box("#help-btn")[:2])
-            p.mouse("mouseReleased", *p.box("#help-btn")[:2])
-            p.until("!!document.querySelector('#help-peek')", "the button opened the peek")
-            self.assertEqual(p.js("document.querySelector('#help-peek h2').textContent"), "Zebra dashboard", "the same peek as the key")
-            self.assertEqual(p.js("document.querySelector('#help-btn').getAttribute('aria-expanded')"), "true")
+            self.assertEqual(p.js("document.querySelector('#help-btn')"), None, "no Help button anywhere on the page")
+            self.assertEqual(p.js("document.querySelector('header.top #help-btn')"), None, "none in the top bar")
+            p.js("document.querySelector('[data-mode=edit]').focus()")
+            self.open_on_key(p)
+            self.assertEqual(p.js("document.querySelector('#help-peek h2').textContent"), "Zebra dashboard", "the ? key opens the peek")
             self.assertEqual(p.js("document.querySelector('#help')"), None)
-            p.mouse("mousePressed", *p.box("#help-btn")[:2])
-            p.mouse("mouseReleased", *p.box("#help-btn")[:2])
-            p.until(GONE, "the button again closed it (not closed and opened again)")
-            self.assertEqual(p.js("document.querySelector('#help-btn').getAttribute('aria-expanded')"), "false")
-            p.until("document.activeElement.id === 'help-btn'", "focus is on the button")
+            self.q(p)
+            p.until(GONE, "the ? key again closed it (not closed and opened again)")
+            p.until("!document.querySelector('#help-peek')", "and it stays closed")
+            p.until("document.activeElement && document.activeElement.dataset.mode === 'edit'", "without a button to return to, focus goes back to what had it when the peek opened")
 
     def test_in_a_field_a_dialog_or_a_menu_the_question_mark_is_a_character(self):
         with chrome() as cdp:
@@ -209,9 +206,19 @@ class Peek(Base):
             p.until("document.activeElement.hasAttribute('data-hpk-close')", "focus stays in the Help peek")
 
     # ---- the full Help ----
-    def test_the_profile_menu_help_opens_the_full_help_not_the_peek(self):
+    def test_the_profile_menu_help_opens_the_peek_like_the_question_mark_row_896(self):
         with chrome() as cdp:
             p = self.page(cdp)
+            p.js("document.querySelector('#profile-btn').click()")
+            p.until("!!document.querySelector('#profile-menu')", "menu")
+            p.js("[...document.querySelectorAll('#profile-menu [role=menuitem]')].find(e => e.textContent === 'Help').click()")
+            p.until("!!document.querySelector('#help-peek')", "the peek, as on ?")
+            self.assertEqual(p.js("document.querySelector('#help')"), None, "not the full Help: that is the foot link")
+
+    def test_row_896_the_profile_menu_help_on_a_screen_with_no_peek_text_opens_the_full_help(self):
+        with chrome() as cdp:
+            p = self.page(cdp, text=False)
+            p.js("window.clarkPage.help.peek.useText(function () { return null; })")
             p.js("document.querySelector('#profile-btn').click()")
             p.until("!!document.querySelector('#profile-menu')", "menu")
             p.js("[...document.querySelectorAll('#profile-menu [role=menuitem]')].find(e => e.textContent === 'Help').click()")
@@ -228,7 +235,7 @@ class Peek(Base):
             self.assertEqual(p.js("document.querySelector('#help-peek')"), None, "the peek closed")
             self.assertEqual(p.js("document.querySelector('#hpTab-reference').getAttribute('aria-selected')"), "true", "on the tab of the entry named (ref-keys)")
             p.until("!!document.querySelector('#hp-ref-keys')", "its section is drawn")
-            p.js("document.querySelector('#hpBack').click()")
+            p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('#help') && !!document.querySelector('#report')", "Back to the page")
             self.assertEqual(p.js("document.querySelector('#help-peek')"), None, "with the peek closed")
             self.assertEqual(p.js("location.hash"), "#dashboard&p=ABC")
@@ -266,12 +273,12 @@ class Peek(Base):
                     p.until("document.querySelector('#help-peek').getAnimations({subtree: true}).length === 0 && document.querySelector('#help-peek').getBoundingClientRect().right === document.documentElement.clientWidth", f"{w} {scheme}: the slide in has ended")
                     r = p.js("""(function () {
                       var e = document.querySelector('#help-peek'), b = e.getBoundingClientRect(), t = document.querySelector('header.top').getBoundingClientRect();
-                      var btn = document.querySelector('#help-btn').getBoundingClientRect(), hit = document.elementFromPoint(btn.left + btn.width / 2, btn.top + btn.height / 2);
+                      var btn = document.querySelector('#profile-btn').getBoundingClientRect(), hit = document.elementFromPoint(btn.left + btn.width / 2, btn.top + btn.height / 2);
                       var probe = document.createElement('i'); probe.style.background = 'var(--surface)'; document.body.appendChild(probe);
                       var surface = getComputedStyle(probe).backgroundColor; probe.remove();
                       var small = [].filter.call(e.querySelectorAll('*'), function (n) { return n.childNodes.length && [].some.call(n.childNodes, function (c) { return c.nodeType === 3 && c.textContent.trim(); }) && parseFloat(getComputedStyle(n).fontSize) < 13; }).length;
                       return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, w: b.width, bar: t.bottom, vw: document.documentElement.clientWidth, vh: innerHeight, scroll: document.documentElement.scrollWidth,
-                               hitBtn: hit && hit.closest('#help-btn') ? 1 : 0, bg: getComputedStyle(e).backgroundColor, surface: surface, small: small,
+                               hitBtn: hit && hit.closest('#profile-btn') ? 1 : 0, bg: getComputedStyle(e).backgroundColor, surface: surface, small: small,
                                cards: e.querySelectorAll('.hpk-cards li').length, foot: e.querySelector('[data-hpk-full]').getBoundingClientRect().bottom };
                     })()""")
                     self.assertEqual(r["right"], r["vw"], where)
@@ -279,7 +286,7 @@ class Peek(Base):
                     self.assertEqual(r["bottom"], r["vh"], where)
                     self.assertLessEqual(r["w"], 0.92 * r["vw"] + 1, where)
                     self.assertLessEqual(r["scroll"], r["vw"], f"{where}: no sideways scroll")
-                    self.assertEqual(r["hitBtn"], 1, f"{where}: the ? button is not covered")
+                    self.assertEqual(r["hitBtn"], 1, f"{where}: the profile circle is not covered")
                     self.assertEqual(r["bg"], r["surface"], f"{where}: the surface token")
                     self.assertEqual(r["small"], 0, f"{where}: no text under 13 px")
                     self.assertEqual(r["cards"], 3, f"{where}: a line per card")
@@ -362,12 +369,6 @@ class Items(unittest.TestCase):
             self.item_peek(p)
             p.until(GONE, "the Help peek is gone")
 
-    def test_the_button_replaces_the_item_peek_too(self):
-        with chrome() as cdp:
-            p = self.work(cdp)
-            self.item_peek(p)
-            p.js("document.querySelector('#help-btn').click()")
-            p.until("!document.querySelector('#peek') && !!document.querySelector('#help-peek')", "the button replaced the item peek")
 
 
 class Published(unittest.TestCase):

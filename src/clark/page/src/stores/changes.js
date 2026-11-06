@@ -15,6 +15,7 @@ export const undone = signal(0);
 
 let counter = 0, tail = Promise.resolve(), timer = 0;
 const wordSteps = new Set();             // the steps a Word import made (#48): their Undo goes by the Word route, which undoes only those
+const focusSteps = new Map();            // row 865: step -> a selector; after its Undo the focus goes there if the page dropped it
 const itemSteps = new Map();             // the steps that changed a work item (#80 cells, #68 board moves), to what their Undo says ("" for "Undone."): their undo reply has no items, so the data is read again
 
 // #197: the steps the toast offered Undo for, newest last, so Cmd or Ctrl+Z (undoKey.js) undoes the last one even after the toast
@@ -92,13 +93,15 @@ export function enqueue(task) {
 
 // Make one change. Resolves to the reply, or to null when it failed (and the toast says why). `done` is what the toast says
 // when it worked; with a step to undo it carries Undo. A change that altered nothing (no step) says nothing.
-export function change(req, done) {
+// `named` (row 865): { focus: a selector } makes the Undo say "Undone: <the toast's words>" and puts focus back on that control.
+export function change(req, done, named = null) {
   const code = project.value;
   return enqueue(async () => {
     const r = await sendChange(code, req);
     if (!r.ok) { say("problem", r.message); return null; }
     redraw(code, r.reply);
     if (!(await readAgain(code, "The change was saved"))) return r.reply;
+    if (r.reply.apply_id && named) { itemSteps.set(r.reply.apply_id, `Undone: ${done}`); if (named.focus) focusSteps.set(r.reply.apply_id, named.focus); }
     if (r.reply.apply_id) say("done", done, r.reply.apply_id, code);
     return r.reply;
   });
@@ -131,6 +134,7 @@ export function changeRecord(req, done) {
     await reread(code);
     const w = typeof done === "function" ? done(r.reply) : done;     // #442: words that need the reply (a copy's new id)
     itemSteps.set(r.reply.apply_id, w.back || "");
+    if (w.focus) focusSteps.set(r.reply.apply_id, w.focus);
     say("done", w.text, r.reply.apply_id, code);
     return r.reply;
   });
@@ -182,6 +186,8 @@ export function undo(applyId, code = project.value) {
     undone.value++;
     const back = word ? (typeof r.reply.message === "string" && r.reply.message) || "Undone." : itemSteps.get(applyId);
     itemSteps.delete(applyId);
+    const focus = focusSteps.get(applyId);
+    focusSteps.delete(applyId);
     wordSteps.delete(applyId);
     // Read again after every undo: an item's cell, or a section's body, comes back from the database. Not read again because the
     // person has opened another project meanwhile: nothing is wrong, so nothing is said about it.
@@ -189,6 +195,10 @@ export function undo(applyId, code = project.value) {
     if (Array.isArray(r.reply.reversed)) flash(r.reply.reversed.map((e) => ({ ref: e.ref, field: e.field })));   // the peek (#42) flashes what went back
     const skipped = Array.isArray(r.reply.skipped) && r.reply.skipped.length > 0;
     say("done", skipped && typeof r.reply.words === "string" && r.reply.words ? r.reply.words : back || "Undone.", null, code);
+    if (focus) setTimeout(() => {         // row 865: where the person was, unless they have already moved on
+      const now = document.activeElement, el = document.querySelector(focus);
+      if (el && (!now || now === document.body || !now.isConnected)) el.focus({ preventScroll: true });
+    }, 60);
     return r.reply;
   });
 }

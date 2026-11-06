@@ -338,11 +338,13 @@ class Deleting(Content):
         self.assertNotIn(ref, self.ids_now())
         self.assertEqual(self.undone(deleted["apply_id"])[0], 200)
 
-    def test_the_built_in_sections_still_can_not_be_deleted(self):
-        for row in self.rows():
-            if row["type"] in ("text",) + TYPES:
-                continue
-            self.refused(self.req("delete", id=row["id"]), "Only a text, needs or tracker section can be deleted; hide the others.")
+    def test_the_built_in_sections_can_be_deleted_too_and_undo_puts_each_back(self):      # row 906
+        for row in [r for r in self.rows() if r["type"] not in ("text",) + TYPES]:
+            before = [dict(r) for r in self.rows()]
+            gone = self.ok("delete", id=row["id"])
+            self.assertNotIn(row["id"], self.ids_now())
+            self.assertEqual(self.undone(gone["apply_id"])[0], 200)
+            self.assertEqual([dict(r) for r in self.rows()], before, row["type"])
 
 
 class NothingElseOpens(unittest.TestCase):

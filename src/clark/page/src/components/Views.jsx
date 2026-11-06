@@ -7,8 +7,8 @@ import { milestoneRows, headLine, showDate, todayIso } from "../logic/milestones
 
 import { MsBlock } from "./MsBlock.jsx";
 
-// The placeholder shown while a project's data is on its way: grey blocks in the shape of the screen, drawn still (no
-// shimmer), and only if the wait is longer than SKELETON_AFTER_MS, so data that arrives at once never flashes one. A published
+// The placeholder shown while a project's data is on its way: grey blocks in the shape of the screen, still under reduced
+// motion and shimmering otherwise (shell.css, Motion), and only if the wait is longer than SKELETON_AFTER_MS, so data that arrives at once never flashes one. A published
 // file has its data inside it and no wait, so it never draws one. The words are for a screen reader; the blocks are hidden from it.
 export const SKELETON_AFTER_MS = 150;
 
@@ -101,7 +101,7 @@ export function Milestones({ tools }) {
   const Add = tools && !fromFile.value ? tools.MsAdd : null;      // the owner's Add milestone (row 458): always on this page (it has no mode), and never in a published file
   const plan = <><MsBlock place="page" tools={tools} />{Archived ? <Archived /> : null}</>;
   return (
-    <section class="frame milestones" id="milestones">
+    <section class={`frame milestones${fromFile.value ? " pub" : ""}`} id="milestones">
       <MsHead Add={Add} />
       {Wrap ? <Wrap plan={plan} /> : plan}
     </section>

@@ -49,7 +49,7 @@ function canShow(type, d, items) {
 }
 
 // A row's client wording, edited in place as plain text: saved when the field is left or on Enter, Esc puts the old words back.
-function Words({ row, text }) {
+export function Words({ row, text, cls = "cell-ce" }) {
   const ref = useRef(null), now = useRef(text), cancelled = useRef(false);
   now.current = text;
   useLayoutEffect(() => { const el = ref.current; if (el && read(el) !== text && document.activeElement !== el) show(el, text); }, [text]);       // what clark saved, drawn unless it is being typed in
@@ -67,7 +67,7 @@ function Words({ row, text }) {
     if (e.key === "Enter") { e.preventDefault(); ref.current.blur(); }
     else if (e.key === "Escape") { e.preventDefault(); cancelled.current = true; show(ref.current, now.current); ref.current.blur(); }
   };
-  return plainBox({ ref, class: "cell-ce", "data-edit-only": "", "data-ce": row.id, "data-f": "title", "aria-label": `Wording of ${row.id}`, onBlur: commit, onKeyDown, spellcheck: true });
+  return plainBox({ ref, class: cls, "data-edit-only": "", "data-ce": row.id, "data-f": "title", "aria-label": `Wording of ${row.id}`, onBlur: commit, onKeyDown, spellcheck: true });
 }
 
 function EditRow({ row, today, words }) {
