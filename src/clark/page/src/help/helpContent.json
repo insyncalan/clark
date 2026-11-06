@@ -1025,6 +1025,16 @@
         "Full or half"
        ],
        [
+        "Image gallery",
+        "Pictures in a grid, each with a caption.",
+        "Full"
+       ],
+       [
+        "Table",
+        "Anything with rows: a budget line, a cut-over plan, a training schedule.",
+        "Full"
+       ],
+       [
         "RAID cards, three",
         "The risks, actions, issues or decisions you want the reader to see, as cards.",
         "Full"
@@ -1047,6 +1057,26 @@
        [
         "Callout",
         "One thing the reader must see.",
+        "Half or full"
+       ],
+       [
+        "Image with caption",
+        "One picture with its caption.",
+        "Half or full"
+       ],
+       [
+        "Quote",
+        "A voice from the business.",
+        "Half or full"
+       ],
+       [
+        "Contacts",
+        "Who to ask.",
+        "Half or full"
+       ],
+       [
+        "Checklist",
+        "Next steps or readiness, ticked off.",
         "Half or full"
        ],
        [
