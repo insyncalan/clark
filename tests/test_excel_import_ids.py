@@ -593,3 +593,51 @@ class OwnerLink(IdCase):
         self.rename(old, "Pat Renamed")
         row = self.s.read("actions", ref=self.a1)
         self.assertEqual((row["owner"], row["owner_id"]), ("Someone Unlisted", None))
+
+    def test_two_live_people_with_the_name_write_the_text_and_pick_neither(self):
+        a = self.person("Sam Example")
+        b = self.person("Sam Example")
+        self.assertNotEqual(a, b)
+        self.demo.update("actions", self.a1, {"owner": "Pat Oldname", "owner_id": a})
+        self.path = wbk.make_workbook(self.s, self.tmp / "two.xlsx")
+        wbk.edit(self.path, "Actions", self.a1, owner="Sam Example")
+        wbk.add_row(self.path, "Actions", description="Order the laptops", owner="Sam Example")
+        self.assertTrue(self.apply().applied)
+        changed = self.s.read("actions", ref=self.a1)
+        self.assertEqual((changed["owner"], changed["owner_id"]), ("Sam Example", None))
+        new = self.s.read("actions", ref="ABC-A-003")
+        self.assertEqual((new["owner"], new["owner_id"]), ("Sam Example", None))
+
+    def test_undo_puts_back_the_owner_text_and_the_link_together(self):
+        old = self.person("Pat Oldname")
+        self.person("Sam Example")
+        self.demo.update("actions", self.a1, {"owner": "Pat Oldname", "owner_id": old})
+        self.path = wbk.make_workbook(self.s, self.tmp / "two.xlsx")
+        wbk.edit(self.path, "Actions", self.a1, owner="Sam Example")
+        res = self.apply()
+        self.assertTrue(res.applied)
+        self.assertNotEqual(self.s.read("actions", ref=self.a1)["owner_id"], old)
+        self.s.undo(res.step_id, USER)
+        row = self.s.read("actions", ref=self.a1)
+        self.assertEqual((row["owner"], row["owner_id"]), ("Pat Oldname", old))
+
+    def test_a_new_imported_row_whose_owner_matches_no_one_has_text_and_no_link(self):
+        self.person("Sam Example")
+        wbk.add_row(self.path, "Actions", description="Order the laptops", owner="Someone Unlisted")
+        self.assertTrue(self.apply().applied)
+        row = self.s.read("actions", ref="ABC-A-003")
+        self.assertEqual((row["owner"], row["owner_id"]), ("Someone Unlisted", None))
+
+    def test_a_blank_owner_cell_clears_nothing_and_the_row_is_reported(self):
+        """Pins today's behaviour: a blank owner cell over a named owner is a reported problem, never a change, so the text and the
+        link stay (and the same row's other edit is not applied either). Clearing an owner by import is not possible."""
+        old = self.person("Pat Oldname")
+        self.demo.update("actions", self.a1, {"owner": "Pat Oldname", "owner_id": old})
+        self.path = wbk.make_workbook(self.s, self.tmp / "two.xlsx")
+        wbk.edit(self.path, "Actions", self.a1, owner=None, description="Draft the cut-over plan, again")
+        p = self.plan()
+        self.assertEqual(p.changes, [])
+        self.assertTrue(p.problems)
+        self.assertFalse(self.apply(p).applied)
+        row = self.s.read("actions", ref=self.a1)
+        self.assertEqual((row["description"], row["owner"], row["owner_id"]), ("Draft the cut-over plan", "Pat Oldname", old))
