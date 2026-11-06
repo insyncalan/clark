@@ -250,7 +250,8 @@ class Edit(Setup):
             self.assertEqual(self.steps(), before + 1, "one step")
             p.until("document.querySelectorAll('.ucrow').length === 1", "the row left the dashboard")
             self.assertEqual(p.js("document.querySelector('[data-uc-back]').textContent"), "+ Add a use case from your project record (3)")
-            self.undone(p)
+            p.js("document.querySelector('[data-undo]').click()")      # row 865: Undo names the change
+            p.until("((document.querySelector('.toast-text') || {}).textContent || '').startsWith('Undone')", "undone")
             self.assertEqual(self.row(self.uc2)["client_visible"], 1)
             p.until("document.querySelectorAll('.ucrow').length === 2", "Undo brought the row back")
 
