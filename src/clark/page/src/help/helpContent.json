@@ -614,7 +614,7 @@
     "w": "Milestones · Dashboard › Milestones",
     "go": "milestones",
     "s": [
-     "In **Edit**, on **Milestones**, press **+** (**Add milestone**). A new one, called New milestone and agreed 30 days out, opens in the peek. There is no **+** in **View** or in a published file.",
+     "On **Milestones**, press **+** (**Add milestone**). A new one, called New milestone and agreed 30 days out, opens in the peek. There is no **+** in a published file.",
      "Click any milestone to open it: its mark or label on the timeline, its chip on the calendar, or its row in the details.",
      "**State**: Forecast, On track, At risk, Slipped or Achieved. Overdue follows the dates and can’t be picked. The line under it says why the milestone has that state.",
      "**Dates**: the **Agreed** date is the baseline; change the **Forecast** date as things move. When they differ, **Rebaseline…** makes the forecast the new agreed date and keeps the original.",
@@ -650,10 +650,10 @@
     "id": "handle-a-slipped-milestone",
     "g": "Milestones",
     "t": "Deal with a slipped milestone",
-    "w": "Milestones › Movement, in Edit",
+    "w": "Milestones › Movement",
     "go": "milestones",
     "s": [
-     "On **Milestones**, switch to Edit. **Movement** is the block under the list. It is for you and the team: it is never published.",
+     "On **Milestones**, open **Movement**, the block under the list. It is for you and the team: it is never published.",
      "The first line says how many open milestones are behind their agreed date. The line under it names the one furthest behind.",
      "Each open milestone has a row, the furthest behind first: its state, its agreed date, a small bar with a mark for the agreed date, one for the forecast and one for today, how far after the agreed date it is, and how often the agreed date has moved. Click a row, or move between rows with [[Up]] and [[Down]] and press [[Enter]], to choose it.",
      "Its card shows the original, agreed and forecast dates, its progress and its owner, then **What changed**: each change, with who made it and when.",
@@ -1349,7 +1349,7 @@
      ],
      [
       "p",
-      "In Edit, **Movement** is under the list: the open milestones against their agreed and forecast dates, with how far after the agreed date each is, what changed and a choice to make. It is never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
+      "**Movement** is under the list: the open milestones against their agreed and forecast dates, with how far after the agreed date each is, what changed and a choice to make. It is never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
      ]
     ]
    },
@@ -2403,7 +2403,7 @@
     "Milestones shows every milestone for the project, including internal ones.",
     "Switch between **Timeline** and **Calendar** at the top right.",
     "The **Legend** explains the marks, and a milestone that is not shown to the client has the tag **Internal only**.",
-    "In Edit, use **Add milestone** to add one.",
+    "Use **Add milestone** to add one.",
     "Use the **Movement** switch next to **Plan** to see which are behind their agreed date."
    ],
    "full": "ref-milestones-page"
