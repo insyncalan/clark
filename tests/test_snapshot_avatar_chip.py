@@ -1,4 +1,4 @@
-"""Row 799, the Weekly snapshot (the published file's client report): the owner's initials stay inside the small circle in
+"""Row 799, the Weekly snapshot (the published file's client report): the owner initials stay inside their pill in
 'Risks, delays and items to watch', and the red 'behind plan' chip is drawn only beside a figure (an empty Achieved, a dash, has none).
 
 Run: python3 dev/run_tests.py test_snapshot_avatar_chip
@@ -85,29 +85,31 @@ class SnapshotAvatarChip(cr.Drawn):
                     self.assertTrue(wait(lambda: cdp.js("document.getAnimations().filter(a => a.effect.getComputedTiming().iterations !== Infinity).length === 0", sid)), "settled")
                     check(cdp, sid, "%dpx %s" % (width, theme))
 
-    def test_the_initials_fit_inside_their_circle(self):
+    def test_the_initials_fit_inside_their_pill(self):
+        """Row 799: the snapshot's initials are a 22 px high pill (auto width, at least 22 px) at the 13 px floor; two wide letters (WM, 24.3 px)
+        widen it instead of spilling. The old 30 px circle was the defect."""
         seen = []
 
         def check(cdp, sid, where):
-            circles = json.loads(cdp.js(MEASURE, sid))
-            self.assertGreaterEqual(len(circles), 3, where + ": the three owners are drawn")
-            for c in circles:
+            pills = json.loads(cdp.js(MEASURE, sid))
+            self.assertGreaterEqual(len(pills), 3, where + ": the three owners are drawn")
+            for c in pills:
                 seen.append(c["text"])
-                self.assertLessEqual(c["textW"], c["chord"], "%s: %s fits the circle (letters %.1f px, room %.1f px)" % (where, c["text"], c["textW"], c["chord"]))
+                self.assertAlmostEqual(c["h"], 22, delta=0.5, msg="%s: %s is 22 px high, got %r" % (where, c["text"], c))
+                self.assertGreaterEqual(c["w"], 22 - 0.5, "%s: %s is at least 22 px wide, got %r" % (where, c["text"], c))
+                self.assertLessEqual(c["textW"], c["w"], "%s: %s letters (%.1f px) fit the pill (%.1f px)" % (where, c["text"], c["textW"], c["w"]))
                 self.assertEqual(c["scroll"], c["client"], where + ": " + c["text"] + " does not spill")
-                self.assertAlmostEqual(c["w"], c["h"], delta=0.5, msg=where + ": it is still a circle")
         self.each_view(self.serve_with(), check)
         self.assertTrue({"PN", "WM", "MJ"} <= set(seen), seen)
 
     def test_the_work_lists_keep_their_small_avatar(self):
-        """A read of PR 863 found: the bigger circle is the snapshot's only (.cr-wl); the work lists share the .wl-meta class and keep their usual circle (22 px high, as in the prototype; the snapshot gets 30)."""
+        """The pill is the snapshot's only (.cr-wl .wl-meta .av); a work list outside it keeps the shared .wl-meta .av rule, 22 x 22 px."""
         def check(cdp, sid, where):
             outside = json.loads(cdp.js(PLANT, sid))
             inside = json.loads(cdp.js(INSIDE, sid))
-            self.assertTrue(inside and all(abs(w - 30) < 0.5 for w in inside), where + ": the snapshot circle is 30 px, got %r" % inside)
-            self.assertAlmostEqual(outside["h"], 22, delta=0.5, msg=where + ": a work list avatar is the small 22 px one, got %r" % outside)
-            self.assertGreaterEqual(outside["w"], outside["textW"], where + ": the widest initials (WM) fit inside it, got %r" % outside)
-            self.assertFalse(outside["spill"], where + ": and do not spill out of it, got %r" % outside)
+            self.assertTrue(inside and all(w >= 22 - 0.5 for w in inside), where + ": the snapshot pill is at least 22 px wide, got %r" % inside)
+            self.assertAlmostEqual(outside["w"], 22, delta=0.5, msg=where + ": a work list avatar is the shared 22 px one, got %r" % outside)
+            self.assertAlmostEqual(outside["h"], 22, delta=0.5, msg=where + ": a work list avatar is the shared 22 px one, got %r" % outside)
         self.each_view(self.serve_with(), check)
 
     def test_the_chip_is_hidden_when_achieved_is_empty_and_shown_when_it_has_a_figure(self):
