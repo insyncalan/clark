@@ -1,9 +1,9 @@
 // The Help panel (#82; BRD 5.13): Start here, How do I… and Reference, all drawn from help/helpContent.json, with one search across
-// the three tabs. A layer in place of the open page; Esc or the Back button returns to it. Edit-served pages only (edit/index.js).
+// the three tabs. A layer in place of the open page; Esc returns to it. Edit-served pages only (edit/index.js).
 import { useEffect, useRef } from "preact/hooks";
 import { content, TABS, tabList, tasks, sections, guides, jobs, undoLink, nextOf, firstTen, loopSteps, iconLegend, milestoneMarks, buildIndex, resultsView, whereLabels, goLabel, markParts, stepPicture } from "./helpLogic.js";
 import { pictureUrl } from "./helpPictures.js";
-import { helpOpen, helpTab, helpTarget, helpQuery, helpFocusSearch, helpHere, helpLand, landing, setTab, follow, goTo, canGo, backPlace, goBackPlace } from "./helpStore.js";
+import { helpOpen, helpTab, helpTarget, helpQuery, helpFocusSearch, helpHere, helpLand, landing, setTab, follow, goTo, canGo } from "./helpStore.js";
 import { Md } from "./helpText.jsx";
 import { Icon } from "../components/Icon.jsx";
 
@@ -260,7 +260,7 @@ let landedAt = 0;      // when a link last took the reader to a place: the scrol
 export function Help() {
   const tab = helpTab.value, q = helpQuery.value, asked = !!q.trim();
   const box = useRef(null), search = useRef(null);
-  const Pane = PANES[tab], back = backPlace();
+  const Pane = PANES[tab];
   // Scroll to the place asked for and flash it.
   useEffect(() => {
     const t = helpTarget.value;
@@ -326,7 +326,6 @@ export function Help() {
           <p class="muted">How clark works, step by step, and every screen and key. <span class="hp-keyhint">Press <kbd>?</kbd> on any page to open Help; Esc takes you where you were.</span><span class="hp-taphint">Choose <b>Help</b> in the profile circle’s menu on any page to open Help.</span></p>
         </div>
         <div class="hp-actions">
-          {back ? <button type="button" class="hp-back hp-prev" id="hpPrev" onClick={goBackPlace}>Back to {back.title}</button> : null}
           <label class="search hp-search"><span class="hp-sr">Search Help</span><Icon name="search" />
             <input id="hpQ" ref={search} type="search" placeholder="Search Help" autocomplete="off" aria-describedby="hpQk" value={q} onInput={(e) => { helpQuery.value = e.currentTarget.value; helpTarget.value = null; }}
               onKeyDown={(e) => {
