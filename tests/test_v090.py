@@ -29,10 +29,10 @@ SCHEMA_AT_0_8_0 = 15     # 0.8.0 reads layout 15; a layout step after it makes t
 COVERED = [
     ("#152", "The Settings Update clark card: Undo update puts the data back as it was and says changes after the update are lost.",
      "test_update_migration::Migrated::test_undo_puts_the_data_back_as_it_was_and_says_changes_after_the_update_are_lost"),
-    ("#280", "An update file with no signature or a wrong one is refused and nothing is kept.",
+    ("#280", "Once a release key is set, an update file with no signature or a wrong one is refused and nothing is kept.",
      "test_updater::ReviewTest::test_an_unsigned_or_wrongly_signed_update_is_refused_with_nothing_kept"),
-    ("#280", "Updates stay off while the release key is the placeholder.",
-     "test_updater::ReviewTest::test_updates_stay_off_while_the_release_key_is_the_placeholder"),
+    ("#280", "While the release key is the placeholder an update file with no signature is reviewed like any other (the other checks still apply).",
+     "test_updater::ReviewTest::test_an_unsigned_update_is_reviewed_while_the_release_key_is_the_placeholder"),
     ("#427", "A copy of the source in a container stops at once with one plain sentence about the missing built page.",
      "test_main::InProcess::test_in_a_container_with_no_built_page_it_stops_at_once_in_one_plain_sentence"),
     ("#427", "A container accepts only loopback and the gateway as local peers; the compose file publishes only on 127.0.0.1.",

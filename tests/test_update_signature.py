@@ -1,7 +1,7 @@
 """The signature on an update: Ed25519 over the download's own bytes, checked before anything inside it is looked at.
 
 Covers the verify-only library (RFC 8032 test vectors, strictness, tampering), the order of the checks in read_release, the
-placeholder key (updates stay off), checking and installing from the same bytes, the version rule for a signed older file,
+placeholder key (no signature asked for while it is the placeholder), checking and installing from the same bytes, the version rule for a signed older file,
 and the offline signing tool. Reads and writes only temporary folders; no network.
 Run: python3 dev/run_tests.py test_update_signature
 """
@@ -200,14 +200,15 @@ class SignatureCheckTest(SignedBase):
         os.symlink(other, sig)
         self.refuses(path, "badsig")
 
-    def test_the_placeholder_key_refuses_everything_unless_a_key_is_passed(self):
-        path = make_zip(self.tmp)
+    def test_check_signature_alone_still_refuses_the_placeholder_with_nokey(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", updates.PLACEHOLDER_KEY).start()
         self.addCleanup(mock.patch.stopall)
         self.assertEqual(32, len(updates.PLACEHOLDER_KEY))
-        self.refuses(path, "nokey", detail="RELEASE_PUBLIC_KEY is still the placeholder")
-        self.assertEqual("0.3.1", updates.read_release(path, "mac", "0.3.0", 2, public_key=sg.TEST_PUBLIC).version)
-        self.refuses(make_zip(self.fresh(), sign=False), "nokey")                   # unsigned too: off is off
+        with self.assertRaises(UpdateError) as said:
+            updates.check_signature(b"x", None)
+        self.assertEqual(("nokey", "RELEASE_PUBLIC_KEY is still the placeholder"), (said.exception.key, said.exception.detail))
+        self.assertFalse(updates.signature_required())
+        self.assertTrue(updates.signature_required(sg.TEST_PUBLIC))
 
     def test_the_shipped_key_is_still_the_placeholder_until_the_release_key_exists(self):
         source = (SRC / "clark" / "updates.py").read_text(encoding="utf-8")
@@ -328,6 +329,71 @@ class OneSetOfBytesTest(SignedBase):
         self.assertEqual("unsigned", said.exception.key)
 
 
+class PlaceholderKeyTest(Base):
+    """While the release key is still the placeholder an update is not asked for a signature (the zips are
+    trusted); every other check stays. With a real key (patched in, or passed) the signature is enforced exactly as before."""
+
+    def setUp(self):
+        super().setUp()
+        patcher = mock.patch.object(updates, "RELEASE_PUBLIC_KEY", updates.PLACEHOLDER_KEY)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_an_unsigned_file_is_accepted_with_the_placeholder_key(self):
+        path = make_zip(self.tmp, sign=False)
+        self.assertFalse(Path(str(path) + ".sig").exists())
+        self.assertEqual("0.3.1", self.read(path).version)
+
+    def test_an_unsigned_file_installs_through_take_in_with_the_placeholder_key(self):
+        kept, digest = ui.take_in(make_zip(self.tmp, sign=False), self.fresh(), "mac")
+        self.assertFalse(Path(str(kept) + ".sig").exists())
+        release = ui.read_taken(kept, digest, "mac", "0.3.0", 2)
+        self.assertEqual(("0.3.1", digest), (release.version, release.zip_sha256))
+
+    def test_a_junk_or_wrong_signature_file_is_ignored_with_the_placeholder_key(self):
+        path = make_zip(self.tmp, sign=False)
+        sig = Path(str(path) + ".sig")
+        for junk in (b"", b"junk", bytes(64), sg.signature_for(path.read_bytes(), sg.OTHER_SEED), b"x" * 200):
+            sig.write_bytes(junk)
+            self.assertEqual("0.3.1", self.read(path).version)
+        kept, digest = ui.take_in(path, self.fresh(), "mac")
+        self.assertEqual("0.3.1", ui.read_taken(kept, digest, "mac", "0.3.0", 2).version)
+
+    def test_every_other_check_still_refuses_with_the_placeholder_key(self):
+        def flip(files):
+            files["README.md"] = b"changed after the hash was taken\n"
+        self.refuses(make_zip(self.fresh(), sign=False, manifest=lambda d: d.update(product="other")), "name")
+        self.refuses(make_zip(self.fresh(), sign=False, tweak=flip), "damaged")
+        self.refuses(make_zip(self.fresh(), sign=False, system="windows"), "system")
+        self.refuses(make_zip(self.fresh(), sign=False, name="clark-0.3.1-mac.zip", system="linux"), "system")
+        self.refuses(make_zip(self.fresh(), sign=False, version="0.2.0"), "older")
+        self.refuses(make_zip(self.fresh(), sign=False, rows=lambda r: r.pop(".app/src/clark/x.py")), "incomplete")
+        junk = Path(self.fresh()) / "clark-0.3.1-mac.zip"
+        junk.write_bytes(b"not a zip at all")
+        self.refuses(junk, "damaged")
+
+    def test_a_real_key_passed_in_still_refuses_unsigned_and_wrongly_signed(self):
+        path = make_zip(self.tmp, sign=False)
+        self.refuses(path, "unsigned", public_key=sg.TEST_PUBLIC)
+        Path(str(path) + ".sig").write_bytes(sg.signature_for(path.read_bytes(), sg.OTHER_SEED))
+        self.refuses(path, "badsig", public_key=sg.TEST_PUBLIC)
+        Path(str(path) + ".sig").write_bytes(sg.signature_for(path.read_bytes()))
+        self.assertEqual("0.3.1", self.read(path, public_key=sg.TEST_PUBLIC).version)
+
+    def test_a_real_release_key_in_force_refuses_unsigned_and_wrongly_signed(self):
+        mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
+        path = make_zip(self.tmp, sign=False)
+        self.refuses(path, "unsigned")
+        Path(str(path) + ".sig").write_bytes(sg.signature_for(path.read_bytes(), sg.OTHER_SEED))
+        self.refuses(path, "badsig")
+        self.assertTrue(updates.signature_required())
+
+    def test_the_shipped_release_key_is_the_placeholder_in_the_source(self):
+        source = (SRC / "clark" / "updates.py").read_text(encoding="utf-8")
+        self.assertIn("RELEASE_PUBLIC_KEY = PLACEHOLDER_KEY\n", source)
+        self.assertEqual("5245504c4143452d574954482d5448452d52454c454153452d4b455921212121", updates.PLACEHOLDER_KEY.hex())
+
+
 class ShippedKeyTest(unittest.TestCase):
     # AFTER `sign_release.py keygen` (the owner, offline): set this to hashlib.sha256(<the key>).hexdigest(), the digest published
     # in that release's notes. Until then it is None, and the test below accepts only the exact placeholder. #473 LOW 5.
@@ -341,7 +407,7 @@ class ShippedKeyTest(unittest.TestCase):
         self.assertEqual(32, len(key))
         if self.PINNED_KEY_SHA256 is None:
             # no real key is pinned yet: the shipped key must be the placeholder, byte for byte, so any change to the constant
-            # (another key, a test key, a stray edit) fails here; and the check must refuse everything ('nokey')
+            # (another key, a test key, a stray edit) fails here; check_signature on its own still says 'nokey' for it
             self.assertEqual(self.PLACEHOLDER_HEX, key.hex(), "RELEASE_PUBLIC_KEY changed: pin its sha256 in PINNED_KEY_SHA256")
             self.assertEqual(self.PLACEHOLDER_HEX, updates.PLACEHOLDER_KEY.hex())
             with self.assertRaises(UpdateError) as said:
