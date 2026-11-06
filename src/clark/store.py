@@ -1235,14 +1235,23 @@ def set_labels(con, item_id, want, reason, suggested, step):
     return bool(set(h.lower() for h in have) ^ lower)
 
 
+def sections_were_made(con, code):
+    """Row 906: whether the project's section rows were once made (the seed, a new one), whatever was deleted since. A plain function:
+    as_at.py calls Store.data_for on a bare object, so data_for may not call a method of self."""
+    return con.execute("SELECT 1 FROM change_log WHERE tbl = 'report_sections' AND item_id LIKE ? LIMIT 1", (code + "-%",)).fetchone() is not None
+
+
+def all_sections_deleted(con, code):
+    """Row 906: the project has no section rows now but had some (read from change_log, not from a column)."""
+    return not con.execute("SELECT 1 FROM report_sections WHERE project = ? LIMIT 1", (code,)).fetchone() and sections_were_made(con, code)
+
+
 def delete_row(con, table, key, current, step):
     """Remove a links, item_labels, labels (or, #65, report_sections, glance_tiles, report_hidden) row. The row is kept in
     change_log (field REMOVED) so undo can put it back."""
     if table not in DELETED_ON_CANCEL:
         raise Invalid(f"{table} rows are never deleted; close or cancel them instead")
     current = dict(current)
-    if table == "report_sections" and current["type"] not in DELETABLE_TYPES:     # row 906: every type of the CHECK; the row goes (kept in change_log, put back by Undo), the records a built-in shows never do
-        raise Invalid("That kind of section can't be deleted.")
     if table == "labels":
         if current["builtin"]:
             raise Invalid(f"{current['name']} is a built-in label and can't be deleted")
@@ -2708,7 +2717,7 @@ class Store:
             out["report_sections"] = [dict(r) for r in con.execute(           # #65: its own query; no archived column
                 "SELECT id, type, title, body, beside, hidden, sort_order FROM report_sections WHERE project = ? "
                 "ORDER BY sort_order, id", (code,))]
-            out["sections_deleted"] = self._had_sections(con, code)           # row 906: no section rows because all were deleted (the client paths must not fall back to the defaults)
+            out["sections_deleted"] = all_sections_deleted(con, code)           # row 906: no section rows because all were deleted (the client paths must not fall back to the defaults)
             out["glance_tiles"] = [dict(r) for r in con.execute(              # #45: the tiles' place, hidden flag and outline; no archived column
                 "SELECT project, tile, hidden, outline, sort_order FROM glance_tiles WHERE project = ? "
                 "ORDER BY sort_order, tile", (code,))]
@@ -2730,16 +2739,9 @@ class Store:
         finally:
             con.close()
 
-    @staticmethod
-    def _had_sections(con, code):
-        """Row 906: whether the project has no section rows but once had some (all deleted): the defaults must not come back."""
-        if con.execute("SELECT 1 FROM report_sections WHERE project = ? LIMIT 1", (code,)).fetchone():
-            return False
-        return con.execute("SELECT 1 FROM change_log WHERE tbl = 'report_sections' AND item_id LIKE ? LIMIT 1", (code + "-%",)).fetchone() is not None
-
     def had_sections(self, code):
         """Row 906: true when the project's section rows were once made (the seed, a new one) whatever has been deleted since."""
-        return self.con.execute("SELECT 1 FROM change_log WHERE tbl = 'report_sections' AND item_id LIKE ? LIMIT 1", (code + "-%",)).fetchone() is not None
+        return sections_were_made(self.con, code)
 
     def publish_inputs(self, code, fields):
         """What clark.publish needs to make a report for project `code`: one project's rows with only the columns in `fields`
@@ -2790,7 +2792,7 @@ class Store:
                     "sections": [dict(r) for r in con.execute(
                         "SELECT id, type, title, body, beside, hidden, sort_order FROM report_sections WHERE project = ? "
                         "ORDER BY sort_order, id", (code,))],
-                    "sections_deleted": self._had_sections(con, code),
+                    "sections_deleted": all_sections_deleted(con, code),
                     "glance_tiles": [dict(r) for r in con.execute(           # #45: the same query as data_for's, in this transaction
                         "SELECT project, tile, hidden, outline, sort_order FROM glance_tiles WHERE project = ? "
                         "ORDER BY sort_order, tile", (code,))],

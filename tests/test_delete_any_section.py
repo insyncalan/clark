@@ -8,7 +8,7 @@ import sqlite3
 import unittest
 
 from _demo import USER
-from clark import changes, client_filters, excel_cover, glance, publish, store as store_module
+from clark import as_at, changes, client_filters, excel_cover, glance, publish, store as store_module
 from test_changes import Api, KIND
 
 DATA_TABLES = ("milestones", "actions", "raid", "decisions", "use_cases", "documents", "glance_tiles", "report_hidden", "people", "projects")
@@ -132,6 +132,15 @@ class ClientPaths(Base):
         self.delete()
         got = self.s.data_for("ABC")
         self.assertEqual((got["report_sections"], got["sections_deleted"]), ([], True))
+
+    def test_the_as_at_read_works_after_every_section_was_deleted(self):
+        """as_at.py calls Store.data_for on a bare object: it must not need a method of the store (it once failed with a 500)."""
+        self.delete()
+        live = self.s.data_for("ABC")
+        got = as_at.rebuild(self.path, "ABC", "2099-01-01")
+        self.assertEqual((got["report_sections"], got["sections_deleted"]), ([], True))
+        self.assertEqual(got["sections_deleted"], live["sections_deleted"])
+        self.assertEqual(len(got["milestones"]), len(live["milestones"]), "the records are as the live read has them")
 
     def test_glance_kept_rows_hides_a_deleted_section_and_the_delete_all_case(self):
         self.delete("raid")
