@@ -599,7 +599,7 @@
     "w": "Settings › Personal",
     "go": "settings",
     "s": [
-     "**Personal › Dashboard sections** is yours alone: **Slim gaps** (the standard), **Roomy gaps**, **Grey headers** or **One card**.",
+     "**Personal › Dashboard sections** is yours alone: **Slim gaps**, **Roomy gaps**, **Grey headers** or **One card** (the standard).",
      "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
      "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
@@ -1215,7 +1215,7 @@
     "b": [
      [
       "p",
-      "The report is the cover, then the sections, with the contents at the right edge. Choose the style in Settings › Personal; slim gaps are the standard. It is used on the published report too."
+      "The report is the cover, then the sections, with the contents at the right edge. Choose the style in Settings › Personal; one card is the standard. It is used on the published report too."
      ],
      [
       "tbl",

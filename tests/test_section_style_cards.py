@@ -111,9 +111,27 @@ class Cards(Base):
                              [3, 3, 3, 3], "each drawing shows three parts")
             self.assertEqual(p.js("document.querySelectorAll('#personal img, #personal [src], #personal [style*=url]').length"), 0, "no picture files")
             self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('input').getBoundingClientRect().height >= 24)"), [True] * 4, "targets are at least 24 px")
-            self.assertEqual(self.chosen(p), ["slim"], "Slim gaps is the default")
+            self.assertEqual(self.chosen(p), ["card"], "One card is the default for a person who has chosen nothing")
+            self.assertEqual(p.js("document.documentElement.dataset.secstyle"), "card")
+            self.assertEqual(p.js("localStorage.getItem('clark.section-style')"), None, "the default is not written down as a choice")
 
         self.each_look(check)
+
+    def test_C_a_stored_choice_is_kept_and_only_a_missing_one_gets_one_card(self):
+        # row 667: no stored choice -> One card; a stored choice stays; a stored word the page does not know is as no choice
+        for stored, want in (("slim", "slim"), ("card", "card"), ("roomy", "roomy"), ("grey", "grey"), ("wide", "card"), (None, "card")):
+            with self.subTest(stored=stored), chrome() as cdp:
+                p = self.page(cdp)
+                p.js("localStorage.removeItem('clark.section-style')" if stored is None else f"localStorage.setItem('clark.section-style', '{stored}')")
+                p.js("window.__before = 1; location.reload()")
+                settled(p, "window.__before === undefined && !!document.querySelector('#profile-btn')", "reloaded")
+                settled(p, f"document.documentElement.dataset.secstyle === '{want}'", f"the page is {want}")
+                p.js("document.querySelector('#profile-btn').click()")
+                p.until("!!document.querySelector('#profile-menu')", "the menu opened")
+                p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+                p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
+                self.assertEqual(self.chosen(p), [want], "the card marked is the one in force")
+                self.assertEqual(p.js("localStorage.getItem('clark.section-style')"), stored, "a stored choice is not changed by opening the page")
 
     def test_C_the_drawings_differ_and_can_be_seen(self):
         def check(p, w, look):
@@ -145,6 +163,8 @@ class Cards(Base):
 
     def test_C_arrows_move_the_choice_it_applies_at_once_and_survives_a_reload(self):
         def check(p, w, look):
+            p.js("document.querySelector('input[name=secstyle][value=slim]').closest('label').click()")       # the default is One card (row 667): start the walk from Slim gaps
+            p.until("document.documentElement.dataset.secstyle === 'slim'", 'slim chosen')
             p.js("document.querySelector('input[name=secstyle]:checked').focus()")
             for key, want in (("ArrowRight", "roomy"), ("ArrowRight", "grey"), ("ArrowRight", "card"), ("ArrowLeft", "grey")):
                 p.key(key, code=key, vk=39 if key == "ArrowRight" else 37)
@@ -209,6 +229,8 @@ class Cards(Base):
 
     def test_C_hover_changes_the_edge_and_focus_has_a_two_pixel_blue_ring(self):
         def check(p, w, look):
+            p.js("document.querySelector('input[name=secstyle][value=slim]').closest('label').click()")       # the default is One card (row 667): start the walk from Slim gaps
+            p.until("document.documentElement.dataset.secstyle === 'slim'", 'slim chosen')
             p.js("document.querySelector('input[name=secstyle]:checked').focus()")
             p.key("ArrowRight", code="ArrowRight", vk=39)           # a key makes the focus show as a keyboard one
             p.until("document.documentElement.dataset.secstyle === 'roomy'", "moved")

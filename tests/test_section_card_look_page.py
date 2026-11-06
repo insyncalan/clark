@@ -115,6 +115,33 @@ class OneCard(g.Setup):
             self.assertAlmostEqual(got["left"]["rect"]["l"], got["right"]["rect"]["l"], delta=0.5, msg="one column: both stacked sections start at the same edge")
 
 
+class DefaultOneCard(g.Setup):
+    """Row 667: a person with no stored choice sees One card: flat, full width, a thin rule between sections."""
+    def test_with_no_stored_choice_the_dashboard_is_flat_full_width_with_a_rule(self):
+        for width in (1400, 900):
+            for dark in (False, True):
+                with chrome() as cdp:
+                    p = self.show(cdp, width=width, dark=dark)
+                    for mode in ("view", "edit"):
+                        if mode == "edit":
+                            p.edit()
+                        where = f"{width} {'dark' if dark else 'light'} {mode}"
+                        self.assertEqual(p.js("document.documentElement.dataset.secstyle"), "card", where)
+                        got = p.js("(() => { const secs = document.querySelector('#report .secs'), q = [...secs.querySelectorAll(':scope > .sec')], c = (e) => getComputedStyle(e);"
+                                   " const sr = secs.getBoundingClientRect(); const full = q.filter(e => !e.classList.contains('slot-left') && !e.classList.contains('slot-right'));"
+                                   " return {n: q.length, bg: q.map(e => c(e).backgroundColor), radius: q.map(e => c(e).borderTopLeftRadius), shadow: q.map(e => c(e).boxShadow),"
+                                   " side: q.map(e => c(e).borderLeftWidth + c(e).borderRightWidth), rule: q.slice(1).map(e => c(e).borderTopWidth),"
+                                   " fullW: full.map(e => Math.round(e.getBoundingClientRect().width) - Math.round(sr.width))}; })()")
+                        self.assertGreater(got["n"], 2, where)
+                        self.assertEqual(set(got["bg"]), {"rgba(0, 0, 0, 0)"}, f"{where}: flat")
+                        self.assertEqual(set(got["radius"]), {"0px"}, where)
+                        self.assertEqual(set(got["shadow"]), {"none"}, where)
+                        self.assertEqual(set(got["side"]), {"0px0px"}, f"{where}: no box sides")
+                        self.assertIn("1px", got["rule"], f"{where}: a thin rule between sections")
+                        self.assertTrue(got["fullW"] and all(abs(d) <= 1 for d in got["fullW"]), f"{where}: full width {got['fullW']}")
+                        self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True, where)
+
+
 class PublishedCards(g.Setup):
     publish = g.Published.publish          # the finished file, written the way test_glance_page writes it
     draw = g.Published.draw

@@ -45,8 +45,8 @@ class Setup(Base):
         super().setUp()
         plant(self)
 
-    def show(self, cdp, width=1400, dark=False, hash_="#dashboard&p=ABC", settings=False):
-        p = Pg.at(self, cdp, self.s.port, hash_)
+    def show(self, cdp, width=1400, dark=False, hash_="#dashboard&p=ABC", settings=False, standard=False):
+        p = Pg.at(self, cdp, self.s.port, hash_, section_style=None if standard else "slim")      # standard=True: the style a person who chose nothing sees (row 667)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)      # a headless page is otherwise not focused, so blur() fires nothing
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         if dark:
@@ -445,10 +445,10 @@ class UseCases(Setup):
 class Styles(Setup):
     def test_each_section_style_applies_at_once_and_is_remembered(self):
         with chrome() as cdp:
-            p = self.show(cdp, hash_="#settings&p=ABC", settings=True)
+            p = self.show(cdp, hash_="#settings&p=ABC", settings=True, standard=True)
             p.until("!!document.querySelector('#personal')", "Personal")
             self.assertEqual(p.js("[...document.querySelectorAll('input[name=secstyle]')].map(i => i.value)"), ["slim", "roomy", "grey", "card"])
-            self.assertEqual(p.js("document.querySelector('input[name=secstyle]:checked').value"), "slim", "Slim gaps is the default")
+            self.assertEqual(p.js("document.querySelector('input[name=secstyle]:checked').value"), "card", "One card is the default")
             for value in ("roomy", "grey", "card", "slim"):
                 p.js(f"document.querySelector('input[name=secstyle][value={value}]').click()")
                 p.until(f"document.documentElement.dataset.secstyle === '{value}'", f"{value} applied")
