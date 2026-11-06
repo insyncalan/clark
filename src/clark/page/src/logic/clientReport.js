@@ -23,7 +23,7 @@ export function clientRules(data, isFile) {
   if (isFile) return null;      // a published file holds only the rows that passed the gate, and carries none of the fields it reads: no rules, nothing left out twice
   const d = data || {};
   return rulesFor({ code: d.project && d.project.code, hidden: (d.report_hidden || []).map((h) => (h && h.item_id) || h),
-    labelRules: d.label_rules, labels: d.labels, sections: d.report_sections });
+    labelRules: d.label_rules, labels: d.labels, sections: d.report_sections, deleted: !!d.sections_deleted });
 }
 
 export const OTHER = "Other milestones";
@@ -92,11 +92,13 @@ export const NEXT = /next week/i;
 export const hasText = (html) => typeof html === "string" && html.replace(/<[^>]*>|&nbsp;|&#160;/g, "").trim() !== "";
 
 /** Is the Risks, delays and items to watch section one the client may read? In a published file the sections are the ones the
- *  owner left showing, so a file with no Risks and issues section has it hidden. On the live page a Risks section the owner hid is
- *  one with `hidden` set. Then the whole part is left out: it must never say there are no risks when it simply is not shown. */
-export function raidShown(sections, isFile) {
-  const raid = (sections || []).filter((s) => s && s.type === "raid");
-  return isFile ? raid.length > 0 : !raid.some((s) => s.hidden === 1 || s.hidden === true);
+ *  owner left showing, so a file with no Risks and issues section has it hidden. On the live page it is left out as publish leaves
+ *  it out (rulesFor's hiddenTypes, publish.hidden_types): a Risks section the owner hid, or none at all once the project has section
+ *  rows or has had them all deleted (`deleted`, the data's sections_deleted). Then the whole part is left out: it must never say
+ *  there are no risks when it simply is not shown. */
+export function raidShown(sections, isFile, deleted) {
+  if (isFile) return (sections || []).some((s) => s && s.type === "raid");
+  return !rulesFor({ sections, deleted: !!deleted }).hiddenTypes.has("raid");
 }
 
 /** The ids of the report's sections a reader sees, in order, and the half-width pair as full width when only one half is drawn.
@@ -111,7 +113,7 @@ export function sectionsShown(d, isFile, editing, on) {
     plans: editing || groups.length > 0,
     highlights: words(HIGHLIGHTS),
     nextweek: words(NEXT),
-    raid: raidShown(d.report_sections, isFile),
+    raid: raidShown(d.report_sections, isFile, !!d.sections_deleted),
   };
   return ["progress", "plans", "highlights", "nextweek", "raid"].filter((id) => has[id]);
 }

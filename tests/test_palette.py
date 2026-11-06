@@ -355,7 +355,7 @@ class Enter(Base):
     def test_the_ask_command_opens_the_ask_panel(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            self.run_first(p, "ask about")
+            self.run_first(p, "ask clark")
             p.until("!!document.querySelector('#ask-panel')", "the ask panel opened (the one the slash key opens)")
             self.assertFalse(p.js("!!document.querySelector('#palette[open]')"), "the palette closed first")
 

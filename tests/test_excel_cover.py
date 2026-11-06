@@ -282,7 +282,10 @@ class InTheWorkbook(unittest.TestCase):
         con.execute("INSERT INTO report_sections (project, id, type, title, body, beside, hidden, sort_order) VALUES "
                     "('ABC','a','current','Current state','',0,0,1), ('ABC','b','glance','At a glance','',0,0,2), "
                     "('ABC','c','text','Summary','<p>On course.</p>',0,0,3), "
-                    "('ABC','d','text','Secret plans','<p>CANARY-HIDDEN-SECTION</p>',0,1,4)")
+                    "('ABC','d','text','Secret plans','<p>CANARY-HIDDEN-SECTION</p>',0,1,4), "
+                    "('ABC','m','milestones','Milestones','',0,0,20), ('ABC','n','raid','Risks','',0,0,21), "      # row 906: a built-in with no row is left out, so the ones the counts need have one
+                    "('ABC','o','actions','Actions','',0,0,22), ('ABC','p','decisions','Decisions','',0,0,23), "
+                    "('ABC','q','usecases','Use cases','',0,0,24), ('ABC','r','docs','Documents','',0,0,25)")
         con.commit()
         con.close()
         self.make()

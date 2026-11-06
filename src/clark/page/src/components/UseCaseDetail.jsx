@@ -111,7 +111,7 @@ export function Line({ value, label, cls, field, max, empty, ro, onSave, problem
 const OWN = '[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],dialog';
 const busy = (e) => !!e && e.nodeType === 1 && (e.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName) || !!e.closest(OWN));
 
-export function UseCaseDetail({ id }) {
+export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and link parts (edit/UseCasesEdit.jsx), given by the page; a published file has none
   const d = data.value, code = project.value;
   const editing = !fromFile.value;                                         // row 825: no View|Edit switch here; only a published file is read-only
   const live = d && (d.use_cases || []).find((u) => u.id === id) || null;
@@ -265,6 +265,7 @@ export function UseCaseDetail({ id }) {
                 })}
               </ul>
             ) : <p class="muted" data-no-work>No work items are linked to this use case yet.</p>}
+            {!ro && ed ? <div class="ucx-addrow" data-addrow><ed.NextStep u={u} /><ed.LinkButton u={u} /></div> : null}
           </section>
           {!ro ? (
             <p class="ucd-foot"><button type="button" class="link" data-archive onClick={() => archive("archive")}>Archive this use case (it can be restored; nothing is deleted)</button></p>
