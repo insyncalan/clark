@@ -1,9 +1,8 @@
 // The At a glance tiles on the Dashboard (#79; rules as in glance.py, the reference, and the prototype's glanceData): plain
 // functions with no DOM and no clock (today is passed in). Each tile counts with the SAME filter state it opens Work items with
 // (filters.js applyFilters), so the number on a tile is always the number of rows in the list it opens.
-import { applyFilters, initial, setType, setFilter, currentReviewDays } from "./filters.js";
+import { applyFilters, initial, setType, setFilter } from "./filters.js";
 import { isOpen, dueField, showDate, dayNumber, plural } from "./workItems.js";
-import { recall, remember } from "./logic/remember.js";
 
 const state = (type, field, values) => setFilter(setType(initial(), type), field, values, false);
 
@@ -89,33 +88,6 @@ export function stepTile(order, key, dir) {
   const i = order.indexOf(key), j = i + dir;
   if (i < 0 || j < 0 || j >= order.length) return null;
   return { before: dir < 0 ? order[j] : order[j + 1] || null };
-}
-
-// ── Not reviewed (item 160): an optional tile, off until the eye turns it on ─────────────────────────────────────────────────
-// It counts the open items the Freshness filter calls "Not reviewed in N days" (filters.js notReviewed, N being the project's own
-// review_after_days), with that same filter state, so the number is the list it opens. It is the editor's alone: the published file
-// carries no freshness (no Freshness filter, no is:quiet), so the tile is never in it. Whether it shows is remembered per project in
-// this browser (remember.js), because glance_tiles holds only the four stored tiles.
-export const STALE = "stale";
-export const STALE_TITLE = "Not reviewed";
-export const STALE_FILTER = setFilter(initial(), "reviewed", ["stale"], false);
-export const STALE_TAG_OFF = "Off. Never in the published report.";
-export const STALE_TAG_ON = "Never in the published report.";
-/** The tile's detail line: "Not reviewed for more than 14 days, of 8 open items" (the Freshness days setting, then the count of open items). */
-export const staleDetail = (days, open) => `Not reviewed for more than ${plural(days, "day")}, of ${plural(open, "open item")}`;
-export const STALE_WORD = "To review";       // its own status word when some are not reviewed (the prototype's table, TILE_WORDS_OF, stays as it is)
-const staleKey = (code) => `glance.notReviewed.${code}`;
-
-/** True when the Not reviewed tile is turned on for project `code` in this browser (off by default). */
-export const staleShown = (code) => !!code && recall(staleKey(code), false) === true;
-export const setStaleShown = (code, on) => { if (code) remember(staleKey(code), !!on); };
-
-/** The Not reviewed tile: {key, label, value, detail, rag, filter, word}. */
-export function staleTile(rows, today) {
-  const value = applyFilters(rows, STALE_FILTER, today).length, open = rows.filter((r) => isOpen(r)).length;
-  const rag = value ? "a" : "g";
-  return { key: STALE, label: STALE_TITLE, value, detail: staleDetail(currentReviewDays(), open),
-    rag, auto: rag, outline: "", filter: STALE_FILTER, word: value ? STALE_WORD : tileWord(STALE, rag) };
 }
 
 /** The file's own figures (data.glance.tiles, publish.add_glance) as tiles to draw: colour G A R N or "" is its letter lower-cased. */

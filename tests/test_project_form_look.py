@@ -69,7 +69,6 @@ class Look(unittest.TestCase):
         cdp.call("Page.navigate", {"url": "about:blank"}, sid)
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/#settings&p=TUL"}, sid)
         self.assertTrue(wait(lambda: bool(cdp.js("!!document.querySelector('#projects-table tbody tr')", sid)), 30), "the projects table")
-        cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
         cdp.js("document.querySelector('%s').click()" % opener, sid)
         self.assertTrue(wait(lambda: bool(cdp.js("!!document.querySelector('#project-form')", sid)), 30), "the project form")
         return sid

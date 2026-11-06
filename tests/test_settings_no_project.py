@@ -63,12 +63,11 @@ class Browser(unittest.TestCase):
             for scheme in ("light", "dark"):
                 with self.subTest(width=width, scheme=scheme), chrome() as cdp:
                     sid = self.visit(cdp, s.port, width, scheme, "#settings")
-                    self.until(cdp, sid, "document.querySelector('[data-mode=edit]')", "the Edit switch")
-                    cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
                     self.until(cdp, sid, "document.querySelector('#npBtn') && document.querySelector('#import-workbook')", "the Projects and Data cards")
                     self.assertEqual(cdp.js("document.querySelector('#npBtn').getAttribute('aria-label')", sid), "Add project")
                     self.assertEqual(cdp.js("document.querySelector('#import-workbook').textContent.trim()", sid), "Import workbook")
                     self.assertEqual(cdp.js("document.querySelector('h1').textContent", sid), "Settings")
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "row 826: no View | Edit on Settings")
                     self.assertNotIn("No project open", cdp.js("document.querySelector('main').innerText", sid))
                     self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways page scroll")
                     cdp.js("document.querySelector('[data-view=work]').click()", sid)
@@ -81,8 +80,6 @@ class Browser(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.visit(cdp, s.port, width, "light", "#settings")
-                self.until(cdp, sid, "document.querySelector('[data-mode=edit]')", "the Edit switch")
-                cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
                 self.until(cdp, sid, "document.querySelector('#npBtn') && document.querySelector('#import-workbook')", "the cards")
                 for gone in ("client-folder-h", "review-days-h"):
                     self.assertFalse(cdp.js(f"!!document.getElementById('{gone}')", sid), gone)
@@ -127,8 +124,6 @@ class Browser(unittest.TestCase):
             for scheme in ("light", "dark"):
                 with self.subTest(width=width, scheme=scheme), chrome() as cdp:
                     sid = self.visit(cdp, s.port, width, scheme, "#settings")
-                    self.until(cdp, sid, "document.querySelector('[data-mode=edit]')", "the Edit switch")
-                    cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
                     self.until(cdp, sid, "document.querySelector('#npBtn') && document.querySelector('#import-workbook') && document.querySelector('#import-why')", "the cards")
                     heads = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('main h2, main h3')].map(h => h.textContent.trim()))", sid))
                     for card, head in self.WORKING.items():
@@ -163,8 +158,6 @@ class Browser(unittest.TestCase):
         s = self.serve()
         with chrome() as cdp:
             sid = self.visit(cdp, s.port, 1400, "light", "#settings")
-            self.until(cdp, sid, "document.querySelector('[data-mode=edit]')", "the Edit switch")
-            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.until(cdp, sid, "document.querySelector('#npBtn')", "Add project")
             cdp.js("document.querySelector('#npBtn').click()", sid)
             self.until(cdp, sid, "document.querySelector('#project-form')", "the project form")
