@@ -88,13 +88,22 @@ class Appearance(Base):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p)
-            p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=system]').focus()")
+            # A hosted runner can draw late and does not always give the page the keyboard: ask for the page to be focused, and before every key
+            # wait until the radio the key starts from really holds focus (put it back there if a late redraw took it), so the key goes to the group.
+            p.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)
+            p.cdp.call("Page.bringToFront", {}, p.sid)
+            at = "system"
             for key, want in (("ArrowRight", "light"), ("ArrowRight", "dark"), ("ArrowRight", "system"), ("ArrowLeft", "dark")):
+                p.until(f"(() => {{ const b = document.querySelector('#personal [data-appearance] button[data-theme-pick={at}]'); if (!b) return false;"
+                        f" if (document.activeElement !== b) b.focus(); return document.activeElement === b; }})()", f"before {key}: focus is on the {at} radio")
                 p.cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": key, "code": key, "windowsVirtualKeyCode": {"ArrowRight": 39, "ArrowLeft": 37}[key]}, p.sid)
                 p.cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": key, "code": key, "windowsVirtualKeyCode": {"ArrowRight": 39, "ArrowLeft": 37}[key]}, p.sid)
+                p.until(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={want}]').getAttribute('aria-checked') === 'true'", f"{key} picked {want} (the radio is checked)")
                 p.until(f"document.documentElement.dataset.theme === '{ {'light': '', 'dark': 'dark', 'system': 'auto'}[want] }' || ('{want}' === 'light' && !document.documentElement.dataset.theme)", f"{key} picked {want}")
                 self.assertEqual(self.in_settings(p), [want])
+                p.until(f"document.activeElement && document.activeElement.dataset.themePick === '{want}'", f"{key}: focus follows to the {want} radio")
                 self.assertEqual(p.js("document.activeElement.dataset.themePick"), want, "focus follows")
+                at = want
             self.open_menu(p)
             self.assertEqual(self.in_menu(p), ["Dark"], "the menu agrees")
 
