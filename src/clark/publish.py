@@ -358,7 +358,7 @@ def flagged_needs(rows):
 
 def select(inputs):
     """What goes in the file, from `inputs` (read_inputs' shape: data as Store.data_for gives it, and hidden, sections,
-    label_rules, changes, undone, as_at). Returns {"data", "sections", "tabs", "as_at"}. Everything not allowed is absent,
+    label_rules, changes, undone, as_at). Returns {"data", "sections", "tabs", "as_at", "needs_dropped"} (the count of flagged items the 100-row cap left out; build() takes it out and logs it). Everything not allowed is absent,
     not hidden: dropped rows, fields outside PUBLISH_FIELDS, and what only they reach (links, labels, workstreams)."""
     d, as_at = inputs["data"], inputs["as_at"]
     project = d.get("project") or {}
