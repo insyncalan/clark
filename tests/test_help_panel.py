@@ -165,15 +165,15 @@ class Panel(Base):
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('#help') && document.activeElement && document.activeElement.hasAttribute('data-drag')", "Esc put focus back on the handle")
             self.assertEqual(p.js("document.activeElement.closest('.sec').dataset.id"), p.js("window.__id"))
-            # the Back button does the same, and a part of the top bar is the same element still
+            # Esc does the same from a part of the top bar, which is a part of the top bar is the same element still
             p.js("document.querySelector('.mode[data-mode=view]').focus()")
             full_help_from_key(p, "Help opened from the View button")
-            p.js("document.querySelector('#hpBack').click()")
-            p.until("!document.querySelector('#help') && document.activeElement && document.activeElement.dataset.mode === 'view'", "Back put focus back on View")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#help') && document.activeElement && document.activeElement.dataset.mode === 'view'", "Esc put focus back on View")
 
-    def test_the_top_bar_has_no_help_button_and_help_has_a_back_button(self):
-        """Row 899: the top bar has no "?" button. Help is reached by the ? key, the palette and the profile menu; Help says Back, and Back
-        puts the person where they were. Both widths."""
+    def test_the_top_bar_has_no_help_button_and_help_has_no_back_button(self):
+        """Row 899: the top bar has no "?" button. Help is reached by the ? key, the palette and the profile menu; Help has no Back button
+        (row 779): Esc puts the person where they were. Both widths."""
         from test_server import chrome
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -189,12 +189,15 @@ class Panel(Base):
                 p.until("!document.querySelector('#help-peek') && !document.querySelector('.peek.leaving')", f"{w}: the ? key closed the peek")
                 p.js("document.querySelector('#profile-btn').focus()")
                 full_help_from_menu(p, f"{w}: the profile menu's Help opened Help")
-                self.assertEqual(p.js("document.querySelector('#hpBack').textContent"), "Back")
+                self.assertEqual(p.js("document.querySelector('#hpBack')"), None, "no Back button: Esc leaves Help (prototype help.js:725)")
                 self.assertEqual(p.js("document.querySelector('#hpClose')"), None, "no Close Help button any more")
-                self.assertIn("Esc or Back takes you where you were", p.js("document.querySelector('.hp-head p').textContent"))
+                self.assertIn("Esc takes you where you were", p.js("document.querySelector('.hp-head p').textContent"))
+                self.assertNotIn("Back", p.js("document.querySelector('.hp-head p').textContent"), "the line names no Back that is not there")
+                p.until("document.getAnimations().length === 0", f"{w}: settled before measuring")
+                self.assertTrue(p.js("var s=document.querySelector('.hp-search').getBoundingClientRect(), h=document.querySelector('.hp-head h1').getBoundingClientRect(); s.left > h.right && s.top < h.bottom + 40 && s.right <= innerWidth"), f"{w}: search at the top right, level with the title")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), f"{w}: no sideways scroll")
-                p.js("document.querySelector('#hpBack').click()")
-                p.until("!document.querySelector('#help') && !!document.querySelector('#report') && document.activeElement.id === 'profile-btn'", f"{w}: Back returned to the page and the profile button that opened Help")
+                p.key("Escape", code="Escape", vk=27)
+                p.until("!document.querySelector('#help') && !!document.querySelector('#report') && document.activeElement.id === 'profile-btn'", f"{w}: Esc returned to the page and the profile button that opened Help")
 
     def test_help_is_a_page_of_cards_with_a_search_icon_and_a_key_chip(self):
         """C-H6 and C-H7: no outer frame; the search box has its icon and a "/" chip that goes while the box is used; the Reference

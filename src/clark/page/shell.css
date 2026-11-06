@@ -964,7 +964,6 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-next ul { margin: 0; padding-left: 20px; }
 .hp-next li { margin: 0 0 4px; }
 .hp-next a { color: var(--status-blue-text); }
-.hp-prev { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 34px; }
 .hp-col { min-width: 0; }
 .hp-col .hp-sh h2 { font-size: var(--size-h2); }
 .hp-grp { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); font-weight: 500; margin: 28px 0 10px; }
@@ -1012,17 +1011,14 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-head { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); align-items: flex-start; justify-content: space-between; }
 .hp-head h1 { margin: 0 0 var(--space-1); font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
 .hp-head p { margin: 0; }
-.hp-actions { display: flex; gap: 10px; align-items: center; }
+.hp-head > div:first-child { flex: 1 1 24rem; min-width: 0; }   /* the intro gives way, so the search sits at the top right beside it */
+.hp-actions { display: flex; gap: 10px; align-items: center; margin-left: auto; }
 .hp-search input { box-sizing: border-box; min-height: 36px; padding: 0 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; width: 300px; }
 .hp-search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .hp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .hp-search { position: relative; display: block; }
 .hp-search > .i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted); pointer-events: none; }
 .hp-search input { padding-left: 32px; padding-right: 34px; }
-.hp-back { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px 0 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
-.hp-back .i { width: 16px; height: 16px; }
-.hp-back:hover { border-color: var(--brand-blue); }
-.hp-back:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 /* the line under the title names the key on a keyboard and the button on a phone (a phone has no ? key) */
 .hp-taphint { display: none; }
 @media (max-width: 700px), (hover: none) { .hp-keyhint { display: none; } .hp-taphint { display: inline; } }

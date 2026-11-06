@@ -231,6 +231,7 @@ class Menu(board.Base):
             self.assertEqual(why, "The To line is left empty: there is no People list to take the address from yet.")
             # The menu items have a real focus ring: 2 px, a colour, not none.
             key(cdp, sid, "ArrowDown")                       # a key moved focus, so :focus-visible applies
+            self.until(cdp, sid, "document.getAnimations().length === 0", "the focus ring to finish")
             ring = cdp.js("(() => { const c = getComputedStyle(document.activeElement); return [c.outlineStyle, c.outlineWidth, c.outlineColor]; })()", sid)
             self.assertEqual(ring[:2], ["solid", "2px"], ring)
             self.assertNotEqual(ring[2], "rgba(0, 0, 0, 0)")
@@ -443,6 +444,7 @@ class Menu(board.Base):
             self.open_menu(cdp, sid, self.TABLE % a)
             click(cdp, sid, "[data-rm=archive]")
             self.wait_toast(cdp, sid, "done")
+            self.until(cdp, sid, "document.getAnimations().length === 0", "the toast to finish arriving")
             self.until(cdp, sid, f"!document.querySelector(\"{self.TABLE % a}\")", "the row to leave the list")
             self.until(cdp, sid, "!!document.activeElement && !!document.activeElement.closest('tr[data-id]')", "focus went to a neighbouring row, not the page")
             cdp.js("document.activeElement.blur()", sid)
@@ -505,6 +507,7 @@ class Menu(board.Base):
 
     def readable(self, cdp, sid, selector, where):
         """Each element's words against the first solid background behind it, at least 4.5:1."""
+        self.until(cdp, sid, "document.getAnimations().length === 0", f"{where}: the animations to end before the colours are read")
         got = cdp.js("[...document.querySelectorAll(" + json.dumps(selector) + ")].filter(e => e.offsetWidth > 1).map(e => {"
                      " let b = e, bg = 'rgba(0, 0, 0, 0)';"
                      " while (b && /rgba\\(.*, 0\\)$|transparent/.test(bg = getComputedStyle(b).backgroundColor)) b = b.parentElement;"
@@ -532,6 +535,7 @@ class Menu(board.Base):
                 copy = now[0]["id"]
                 self.assertEqual((t["text"], t["undo"]), (f"{copy} added, a copy of {a}.", True), where)
                 self.readable(cdp, sid, ".toast .toast-text, .toast [data-undo]", where + " toast")
+                self.until(cdp, sid, "document.getAnimations().length === 0", f"{where}: the toast to finish arriving")
                 box = cdp.js("(() => { const b = document.querySelector('.toast').getBoundingClientRect(), u = document.querySelector('.toast [data-undo]').getBoundingClientRect();"
                              " return [b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight, u.width > 0 && u.right <= b.right]; })()", sid)
                 self.assertEqual(box, [True, True], f"{where}: the toast and its Undo are whole in the window")
@@ -931,6 +935,7 @@ class Menu(board.Base):
                     self.hover(cdp, sid, ".rowmenu .rm-fly [role=menuitem]")         # on to the list: it stays open
                     time.sleep(0.5)
                     self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly')", sid), f"{rm}: the list stays while the pointer is on it")
+                    self.until(cdp, sid, "document.getAnimations().length === 0", f"{rm}: the list to finish opening")
                     fl = cdp.js("(() => { const f = document.querySelector('.rm-fly').getBoundingClientRect(), m = document.querySelector('.rowmenu > [role=menu]').getBoundingClientRect(); return [f.left >= m.right - 4 || f.right <= m.left + 4, f.left >= 0, f.right <= window.innerWidth]; })()", sid)
                     self.assertEqual(fl, [True, True, True], (width, rm, "beside the menu, inside the window"))
                     self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=link]")      # to a plain entry: it shuts
