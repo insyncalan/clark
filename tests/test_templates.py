@@ -44,8 +44,7 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "one-doc", "description": "A single file to read."},
     {"id": "text", "description": "Words under a heading, written in clark’s one editor."},
 ]
-FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "raid-3", "raid-4", "work-items", "docs-links", "callout", "key-dates", "needs",
-               "link-preview", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
+FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "table", "raid-3", "raid-4", "work-items", "docs-links", "callout", "quote", "key-dates", "needs", "link-preview", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
 
 
 class Logic(unittest.TestCase):
@@ -131,6 +130,8 @@ class Logic(unittest.TestCase):
             "key-dates": ("What’s coming, from the milestones.", ["Heading", "Date (from milestones)"], ["half", "full"]),
             "needs": ("What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.", ["Heading", "Row: what is needed", "From", "By"], ["full", "half"]),
             "link-preview": ("A web page shown as a card you write: a dashboard, a news item, a recording.", ["Heading", "Link", "Card text"], ["full"]),
+            "quote": ("A voice from the business.", ["Heading", "Text (quote)", "Person"], ["half", "full"]),
+            "table": ("Anything with rows: a budget line, a cut-over plan, a training schedule.", ["Heading", "Table"], ["full"]),
             "one-doc": ("A single file to read.", ["Heading", "File", "Text"], ["half", "full"]),
         })
 
@@ -156,7 +157,7 @@ class Logic(unittest.TestCase):
     # ── search, kinds, counts, recently used ─────────────────────────────────
 
     def test_search_and_kinds_and_counts(self):
-        self.assertEqual(len(self.t("list()")), 13)
+        self.assertEqual(len(self.t("list()")), 15)
         self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["figures-4", "figures-3"])
         self.assertEqual([x["id"] for x in self.t('list({query: "KEY dates"})')], ["key-dates"], "case does not matter and every word must match")
         self.assertEqual(self.t('list({query: "zzz"})'), [])
@@ -285,9 +286,9 @@ class Box(Base):
             self.assertEqual(p.js(f"document.getElementById({d}.getAttribute('aria-labelledby')).textContent"), "Add a section")
             self.assertEqual(p.js("document.querySelector('#main').hasAttribute('inert') && document.querySelector('.top').hasAttribute('inert')"), True,
                              "the page behind cannot be reached")
-            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 13)
+            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 15)
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates13", "Text and pictures2", "Figures2", "Work items3", "Files and links3", "People and dates2", "Notes1"])
+                             ["All templates15", "Text and pictures3", "Figures2", "Work items3", "Files and links3", "People and dates2", "Notes2"])
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
@@ -437,7 +438,7 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-003")
-            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 13, "every template can be focused")
+            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 15, "every template can be focused")
             self.assertEqual(p.js("document.querySelector('button[data-place]').disabled"), False, "Text is chosen and can be placed")
             cat = {x["id"]: x["description"] for x in FIRST_SLICE_DESCRIPTIONS}
             for tid, desc in cat.items():
@@ -459,8 +460,9 @@ class Box(Base):
             self.assertIsNone(p.js("document.querySelector('button[data-place]').getAttribute('aria-describedby')"))
             self.assertEqual(self.sent, [], "reading and moving send nothing")
             p.js("document.querySelector('[data-kind=notes]').click()")
-            p.until("document.querySelectorAll('[data-template]').length === 1", "Notes")
-            self.assertEqual(p.js("document.querySelector('.ad-prev h3').textContent"), "Callout", "the preview shows it")
+            p.until("document.querySelectorAll('[data-template]').length === 2", "Notes")
+            p.js("document.querySelector('[data-template=callout]').click()")
+            p.until("document.querySelector('.ad-prev h3').textContent === 'Callout'", "the preview shows it")
             self.assertEqual(p.js("document.querySelector('.ad-prev .ad-lbl').textContent"), "Holds")
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-prev li')].map(l => l.textContent)"), ["Heading", "Callout · decision"])
 

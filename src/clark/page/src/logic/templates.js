@@ -36,6 +36,8 @@ export const TEMPLATES = [
     description: "Three or four numbers with labels and a change since last week.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"] },
   { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures3", title: "Key figures", body: "", ready: true,
     description: "Three numbers with labels, in wider cards, so a short note fits under the change.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed"] },
+  { id: "table", name: "Table", kind: "notes", fit: ["full"], type: "table", title: "Table", body: "", ready: true,
+    description: "Anything with rows: a budget line, a cut-over plan, a training schedule.", holds: ["Heading", "Table"] },
   { id: "raid-3", name: "RAID cards, three", kind: "work", fit: ["full"], type: "raid3", title: "Risks and issues", body: "", ready: true,
     description: "The risks, actions, issues or decisions you want the reader to see, as cards.", holds: ["Heading", "RAID card ×3", "Text source", "Text"] },
   { id: "raid-4", name: "RAID cards, four", kind: "work", fit: ["full"], type: "raid4", title: "Risks and issues", body: "", ready: true,
@@ -46,6 +48,8 @@ export const TEMPLATES = [
     description: "The papers that go with this week’s report.", holds: ["Heading", "File (one or more)", "Link list"] },
   { id: "callout", name: "Callout", kind: "notes", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
     description: "One thing the reader must see.", holds: ["Heading", "Callout · decision"] },
+  { id: "quote", name: "Quote", kind: "text", fit: ["half", "full"], type: "quote", title: "Quote", body: "", ready: true,
+    description: "A voice from the business.", holds: ["Heading", "Text (quote)", "Person"] },
   { id: "key-dates", name: "Key dates", kind: "dates", fit: ["half", "full"], type: "keydates", title: "Key dates", body: "", ready: true,
     description: "What’s coming, from the milestones.", holds: ["Heading", "Date (from milestones)"] },
   { id: "needs", name: NEEDS.title, kind: "dates", fit: ["full", "half"], type: "needs", title: NEEDS.title, body: "", ready: true,
@@ -63,9 +67,7 @@ export const TEMPLATES = [
 export const LATER = [
   { id: "headline", type: "headline", ready: true },
   { id: "gallery", type: "gallery", ready: true },
-  { id: "table", type: "table", ready: true },
   { id: "image-caption", type: "imagecap", ready: true },
-  { id: "quote", type: "quote", ready: true },
   { id: "contacts", type: "contacts", ready: true },
   { id: "checklist", type: "checklist", ready: true },
 ];

@@ -1025,6 +1025,11 @@
         "Full or half"
        ],
        [
+        "Table",
+        "Anything with rows: a budget line, a cut-over plan, a training schedule.",
+        "Full"
+       ],
+       [
         "RAID cards, three",
         "The risks, actions, issues or decisions you want the reader to see, as cards.",
         "Full"
@@ -1047,6 +1052,11 @@
        [
         "Callout",
         "One thing the reader must see.",
+        "Half or full"
+       ],
+       [
+        "Quote",
+        "A voice from the business.",
         "Half or full"
        ],
        [
