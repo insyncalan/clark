@@ -168,7 +168,8 @@ test_extra_folder.py 33.8
 test_filter_line.py 22.2
 test_filter_line_client.py 4.0
 test_filter_line_not_published.py 8.3
-test_filter_line_page.py 320.4
+test_filter_line_page.py 290.0
+test_filter_line_page_900.py 126.0
 test_filter_list_error.py 13.6
 test_filter_query.py 15.8
 test_filter_query_ui.py 6.8
