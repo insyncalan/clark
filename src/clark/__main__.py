@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import __version__, activity_read, ai_connect, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, store as clark_store, typed, updater as clark_updater, use_cases_read, word_route
+from clark import __version__, activity_read, ai_connect, brands, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, store as clark_store, typed, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -486,6 +486,12 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                 print(str(e), file=err or sys.stderr, flush=True)
                 return 1
             print(str(e), file=err or sys.stderr)
+        brand_root = page.BRANDING.parent.parent         # #944: the clark folder that holds system/branding (as page.BRANDING finds it)
+        server.set_brand_paths(brand_root, store.path.parent)       # before serve(): until it is told, the brand routes answer 503
+        try:
+            brands.recover(brand_root)           # a crash between a brand's two renames is put right now, not at the next brand action
+        except OSError as e:
+            LOG.warning("brands: could not put right a leftover from a crash: %s", e)
         connect, asker = ai_connect.chain(store.path.parent)       # #54: Settings › AI; asking goes through it
         done = serve(port=port, data_for=store.data_for, page_html=page.page_html,
                      projects=projects, out=shown,
