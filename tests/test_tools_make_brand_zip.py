@@ -40,7 +40,7 @@ class Tool(unittest.TestCase):
         (self.src / "assets").mkdir(parents=True)
         self.out = self.base / "out"
         self.out.mkdir()
-        (self.src / "clark-brand.json").write_text(json.dumps({"id": bz.BRAND_ID, "name": "Example Brand", "version": "1.0.0"}))
+        (self.src / "clark-brand.json").write_text(json.dumps({"id": bz.BRAND_ID, "name": "Example Brand", "version": "1.0.0"}), encoding="utf-8")
         (self.src / "tokens.css").write_bytes(bz.TOKENS_CSS)
         (self.src / "assets" / "cover.png").write_bytes(bz.COVER_PNG)
         (self.src / "assets" / "logo.png").write_bytes(bz.LOGO_PNG)
@@ -116,7 +116,7 @@ class Tool(unittest.TestCase):
         self.assertNotIn(word, err.message.lower())
 
     def test_a_bad_id_is_refused(self):
-        (self.src / "clark-brand.json").write_text(json.dumps({"id": "Bad_Id", "name": "n", "version": "1.0.0"}))
+        (self.src / "clark-brand.json").write_text(json.dumps({"id": "Bad_Id", "name": "n", "version": "1.0.0"}), encoding="utf-8")
         with self.assertRaises(brands.BrandError) as cm:
             tool.make(self.src)
         self.assertEqual(cm.exception.key, "id")

@@ -392,12 +392,15 @@ def _check_headers(infos, data, cd_start):
         raise _damaged("a member runs into the directory")
 
 
+_open_member = zipfile.ZipFile.open        # a zip member's stream (bytes), not a text-mode open()
+
+
 def _read_members(zf, infos):
     """{member name: bytes}, each read in bounded chunks and counted against its declared size and the total cap."""
     out, got_total = {}, 0
     for i in infos:
         parts, got = [], 0
-        with zf.open(i) as f:
+        with _open_member(zf, i) as f:
             while True:
                 chunk = f.read(max(1, min(CHUNK, i.file_size + 1 - got)))
                 if not chunk:
