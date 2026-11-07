@@ -2080,7 +2080,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-pop button:hover, .gt-pop button:focus-visible, .gt-menu button:hover, .gt-menu button:focus-visible { background: var(--grey-100); }
 .gt-ck { width: 14px; color: var(--brand-blue); font-weight: var(--weight-semibold); }
 /* the chart box: it scrolls inside itself with no scrollbar showing */
-.gt-gx { position: relative; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); scrollbar-width: none; -ms-overflow-style: none; }
+.gt-gx { position: relative; overflow: auto; max-height: 70vh; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); scrollbar-width: none; -ms-overflow-style: none; }
 .gt-gx::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .gt-in { --gt-rh: 32px; --gt-hh: 68px; position: relative; display: grid; width: max-content; min-width: 100%; }
 .gt-lhead { position: sticky; left: 0; top: 0; z-index: 6; height: var(--gt-hh); display: flex; align-items: flex-end; gap: var(--space-1); padding: 0 6px 6px; background: var(--surface); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); color: var(--text-muted); overflow: clip; }
