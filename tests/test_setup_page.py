@@ -209,6 +209,16 @@ class Setup(unittest.TestCase):
         self.assertTrue(self.present("#setup-ready"))
         self.assertEqual(self.js("T.calls.filter(c => c === 'checks').length"), 2)
 
+    def test_an_answer_that_arrives_after_the_page_is_gone_does_nothing(self):
+        self.load()
+        self.js("T.replies.checks = () => new Promise(r => { T.release = () => r({status: 200, body: [{id: 'a', status: 'ready', words: 'Fine.'}]}); })")
+        self.mount()
+        self.js("T.unmount()")
+        self.js("T.release()")
+        self.settle()
+        self.assertEqual(self.js("T.ready"), 0)
+        self.assertFalse(self.present("#setup-ready") or self.present("[data-line]"))
+
 
 if __name__ == "__main__":
     unittest.main()

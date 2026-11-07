@@ -13,3 +13,4 @@ T.mount = () => {
   root.innerHTML = '<div id="host" style="padding:16px"></div>';
   render(<SetupPage api={api} onReady={() => { T.ready += 1; }} />, document.getElementById("host"));
 };
+T.unmount = () => { render(null, document.getElementById("host")); };
