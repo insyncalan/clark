@@ -106,6 +106,16 @@ class ProjectSwitch(Base):
             p.until("!!document.querySelector('.toast-text')", "the toast")
             self.assertEqual(p.js("document.querySelector('.toast-text').textContent"), "Switched to Second Programme")
 
+    def test_C_choosing_the_project_that_is_already_open_says_nothing(self):
+        self.rig.httpd.projects = lambda archived=False: TWO
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_menu(p)
+            p.js("document.querySelector('#project-menu [role=menuitemradio][aria-checked=true]').click()")
+            p.until("!document.querySelector('#project-menu')", "the menu closed")
+            import time; time.sleep(0.6)
+            self.assertFalse(p.js("!!document.querySelector('.toast-text')"), "no 'Switched to' for the project already open")
+
     def test_C_Project_settings_opens_Settings(self):
         self.rig.httpd.projects = lambda archived=False: TWO
         with chrome() as cdp:

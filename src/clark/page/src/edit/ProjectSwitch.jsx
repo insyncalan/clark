@@ -45,6 +45,7 @@ export function ProjectSwitch({ name }) {
   const pick = (id) => {
     if (id === NEW) { openBox("project", { row: null, opener: document.getElementById("project-name"), onSaved: created }); return; }
     if (id === SETTINGS) { show("settings"); return; }
+    if (id === project.value) return;       // already open: nothing changed, so nothing is said and a save toast keeps its Undo
     const row = rows.find((p) => p.code === id);
     setProject(id);
     say("note", `Switched to ${(row && row.name) || id}`, null, id);
