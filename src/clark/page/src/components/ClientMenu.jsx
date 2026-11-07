@@ -95,7 +95,7 @@ export function ClientMenu() {
         {ini ? <span class="cm-ini" aria-hidden="true">{ini}</span> : <Icon name="user" />}
       </button>
       {open ? (
-        <MenuPanel label={WORDS.menu} id="client-menu" cls="cm-menu" fade anchor={btn.current} onClose={close}>
+        <MenuPanel label={WORDS.menu} id="client-menu" cls="cm-menu" anchor={btn.current} onClose={close}>
           {item("profile", WORDS.profile, () => setBox(true))}
           {book ? item("excel", WORDS.excel, () => download(book)) : null}
           {big ? <button type="button" class="cm-row" role="menuitem" aria-disabled="true" data-keep="1" tabIndex={-1} data-row="excel" aria-describedby="client-menu-big">{WORDS.excel}</button> : null}

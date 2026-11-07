@@ -22,7 +22,6 @@ import test_glance_page as gl  # noqa: E402
 import test_row_menu as rm  # noqa: E402
 import test_tracker_page as tp  # noqa: E402
 import test_bulk_bar as bb  # noqa: E402
-import test_client_menu as cm  # noqa: E402
 import test_use_cases_list as ucl  # noqa: E402
 from test_row_menu import key  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
@@ -30,7 +29,7 @@ from test_work_filters import click  # noqa: E402
 
 SRC = ROOT / "src/clark/page/src"
 read = lambda p: (SRC / p).read_text(encoding="utf-8")   # noqa: E731
-MENU_JSX, POP_JSX, EDIT_CSS = read("components/Menu.jsx"), read("edit/cells/Pop.jsx"), read("edit/edit.css")
+MENU_JSX, FADE_JS, POP_JSX, EDIT_CSS = read("components/Menu.jsx"), read("edit/fadeCopy.js"), read("edit/cells/Pop.jsx"), read("edit/edit.css")
 SHELL_CSS = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
 
 WATCH = """(() => { window.__saw = null; new MutationObserver(() => { const m = document.querySelector('SEL'); if (!m || window.__saw) return;
@@ -201,20 +200,6 @@ class Live(rm.Menu):
                 d.until("!document.querySelector('.secs .menu')", "closed")
 
 
-class Client(cm.Menu):
-    """Row 7: the published file's Report menu (the client menu) fades out as it closes, through the same MenuPanel fade."""
-
-    def test_row_962_7_the_client_menu_fades_out(self):
-        for motion in ("no-preference", "reduce"):
-            with self.subTest(motion=motion), chrome() as cdp:
-                js = self.show(cdp)
-                motion_of(cdp, self.sid, motion)
-                d = Drive(self, js, lambda e, what: self.assertTrue(wait(lambda: js(e)), what))
-                self.menu(cdp, js)
-                d.fades(motion, lambda: self.key(cdp, "Escape", 27), ".cm-menu.leaving")
-                d.until("!document.querySelector('.cm-wrap .ddmenu')", "closed")
-
-
 class Tile(gl.Setup):
     def test_row_962_6_the_tile_colour_menu_fades_out(self):
         for motion in ("no-preference", "reduce"):
@@ -323,16 +308,24 @@ class Pins(unittest.TestCase):
         self.assertNotRegex(SHELL_CSS, r"\.(cpop|menu|flist|fbox|gt-menu|tset|dpick)\.leaving")     # the published page carries none of it
 
     def test_row_962_the_copy_is_inert_hidden_idless_timed_out_and_never_drawn_when_motion_is_off(self):
-        self.assertRegex(MENU_JSX, r"setTimeout\(\(\) => done\(\), 400\)")
-        self.assertRegex(MENU_JSX, r'copy\.setAttribute\("role", "presentation"\); copy\.setAttribute\("aria-hidden", "true"\); copy\.setAttribute\("inert", ""\)')
-        self.assertRegex(MENU_JSX, r'n\.removeAttribute\("id"\)')
-        self.assertRegex(MENU_JSX, r"stillMotion\(\)\) return;")
-        self.assertRegex(MENU_JSX, r'animationName === "none"\) \{ done\(\); return; \}')       # a page whose stylesheet has no fade (the published one) leaves nothing standing
+        self.assertRegex(FADE_JS, r"setTimeout\(\(\) => done\(\), 400\)")
+        self.assertRegex(FADE_JS, r'copy\.setAttribute\("role", "presentation"\); copy\.setAttribute\("aria-hidden", "true"\); copy\.setAttribute\("inert", ""\)')
+        self.assertRegex(FADE_JS, r'n\.removeAttribute\("id"\)')
+        self.assertRegex(FADE_JS, r"stillMotion\(\)\) return;")
+        self.assertRegex(FADE_JS, r'animationName === "none"\) \{ done\(\); return; \}')       # a page whose stylesheet has no fade (the published one) leaves nothing standing
         self.assertRegex(POP_JSX, r"setTimeout\(gone, 400\)")
         self.assertRegex(POP_JSX, r'setAttribute\("inert", ""\)')
         self.assertRegex(POP_JSX, r'setAttribute\("aria-hidden", "true"\)')
         self.assertRegex(POP_JSX, r'setAttribute\("role", "presentation"\)')
         self.assertRegex(POP_JSX, r"stillMotion\(\)")
+
+    def test_row_962_the_published_page_carries_none_of_the_fade_copy_and_the_client_menu_is_not_faded(self):
+        view = (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8")
+        for word in ("data-edit-only", "cloneNode", "fadeCopy"):
+            self.assertNotIn(word, MENU_JSX, "the shared Menu.jsx holds no copy code: " + word)
+        self.assertNotIn("data-edit-only", view, "the published page names no edit-only attribute")
+        self.assertNotRegex(read("components/ClientMenu.jsx"), r"\bfade\b", "the client menu is the published file's own: it is not faded")
+        self.assertIn("fx.copy = fadeCopy", FADE_JS)
 
     def test_row_962_the_open_layer_lists_skip_a_fading_copy(self):
         for path, names in (("components/pick.js", (".ddmenu", ".dpick", ".fbox", ".cpop")), ("edit/Bulk.jsx", (".cpop", ".ddmenu", ".dpick", ".fbox")),
@@ -345,15 +338,15 @@ class Pins(unittest.TestCase):
         wired = {"components/FilterLine.jsx": r'<Fade tag="ul" class="flist"', "edit/UseCasesPage.jsx": r'<Fade boxRef=\{box\} class="fbox ucl-pop"', "edit/RowMenu.jsx": r'useFadeOut\(box, true, "rowmenu"\)',
                  "edit/Board.jsx": r"fade ", "edit/GlanceEdit.jsx": r'cls="left tilemenu" fade ',
                  "edit/Gutter.jsx": r'useFadeOut\(boxRef, true, ""\)', "gantt/components/GanttChart.jsx": r'<Fade class="gt-menu"',
-                 "edit/TemplateSettings.jsx": r'<Fade class="tset"', "components/ClientMenu.jsx": r'cls="cm-menu" fade ', "edit/cells/Pop.jsx": r"fadeOut\(box\.current\)"}
+                 "edit/TemplateSettings.jsx": r'<Fade class="tset"', "edit/cells/Pop.jsx": r"fadeOut\(box\.current\)"}
         for path, pattern in wired.items():
             self.assertRegex(read(path), pattern, path)
         self.assertEqual(len(re.findall(r"useFadeOut\(root, true", read("edit/Board.jsx"))), 2, "the date box and the decision box")
         self.assertIn("<Pop ", read("edit/Bulk.jsx"), "the bulk menu is a Pop")
 
 
-del rm, gc, gl, ucl, cm   # (the imported modules' own tests belong to their files)
-for _cls in (Live, Client, Tile, Settings, AddMenu, Bulk, UseCasesStatus):
+del rm, gc, gl, ucl   # (the imported modules' own tests belong to their files)
+for _cls in (Live, Tile, Settings, AddMenu, Bulk, UseCasesStatus):
     for _n in [n for n in dir(_cls) if n.startswith("test_") and "row_962" not in n]:
         setattr(_cls, _n, None)
 

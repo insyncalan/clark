@@ -67,35 +67,11 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
 // Row 922: motion is off when the computer asks for reduced motion or clark's own setting is on (the same test as the ask panel's).
 const stillMotion = () => document.documentElement.dataset.motion === "reduce" || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 
-// Row 962: a menu or popup that is taken off the page the moment its owner stops drawing it (RowMenu, the card's Move to, Gutter's options) fades out
-// as a copy. useFadeOut(ref, on, wrap) takes the element while it is still on the page and, when it unmounts, draws a copy on the window where it was:
-// no id, no data-* (but data-edit-only), role=presentation, inert and aria-hidden, class leaving, opacity only over --dur-instant (the stylesheet),
-// removed when the animation ends (a 400 ms timer guards it). `wrap` is a class for a box around the copy where the menu's styles need one (.rowmenu).
-// Nothing is drawn where motion is off.
-export function fadeCopy(el, wrap) {
-  if (!el || !el.isConnected || stillMotion()) return;
-  const r = el.getBoundingClientRect();
-  if (!r.width || !r.height) return;
-  const copy = el.cloneNode(true);
-  for (const n of [copy, ...copy.querySelectorAll("*")]) {
-    n.removeAttribute("id");
-    for (const a of Array.from(n.attributes)) if (a.name.startsWith("data-") && a.name !== "data-edit-only") n.removeAttribute(a.name);
-  }
-  copy.setAttribute("role", "presentation"); copy.setAttribute("aria-hidden", "true"); copy.setAttribute("inert", ""); copy.removeAttribute("tabindex");
-  copy.classList.add("leaving");
-  let top = copy;
-  if (wrap) { top = document.createElement("div"); top.className = wrap; top.appendChild(copy); }
-  top.style.pointerEvents = "none"; top.style.position = "fixed"; top.style.left = `${Math.round(r.left)}px`; top.style.top = `${Math.round(r.top)}px`; top.style.margin = "0"; top.style.right = "auto";
-  copy.style.width = `${Math.round(r.width)}px`; copy.style.height = `${Math.round(r.height)}px`; copy.style.boxSizing = "border-box";
-  if (wrap) { copy.style.position = "static"; copy.style.maxHeight = "none"; } else copy.style.zIndex = getComputedStyle(el).zIndex;
-  document.body.appendChild(top);
-  const t = setTimeout(() => done(), 400);
-  const done = () => { clearTimeout(t); if (top.parentNode) top.parentNode.removeChild(top); };
-  if (getComputedStyle(copy).animationName === "none") { done(); return; }      // no rule fades this one here (a page without the Edit part): nothing is left standing
-  copy.addEventListener("animationend", (e) => { if (e.target === copy) done(); });
-}
+// Row 962: the fade-out of a menu or popup that is taken off the page the moment its owner stops drawing it. The copy that fades is drawn by the Edit part
+// (a file of the Edit part), which puts it in `fx.copy`; the published page has none, so nothing is drawn there and none of that code is in its file.
+export const fx = { copy: null };
 export function useFadeOut(ref, on, wrap) {
-  useLayoutEffect(() => { const el = ref.current; return () => { if (on) fadeCopy(el, wrap); }; }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => { const el = ref.current; return () => { if (on && fx.copy) fx.copy(el, wrap); }; }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 }
 // A plain box (tag `tag`, any props) that fades out when its owner stops drawing it: the same as useFadeOut for a box that has no component of its own.
 export function Fade({ tag: Tag = "div", boxRef, wrap, ...rest }) {
