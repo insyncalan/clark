@@ -410,6 +410,22 @@ class Page(Base):
             p.until("document.querySelector('#mv-card-h').textContent === 'Pilot live'", "the card follows the row")
             self.assertEqual(p.js("document.querySelector('#mvNote').value"), "", "another milestone, its own note")
 
+    def test_text_typed_in_the_note_box_is_not_overwritten_when_the_data_is_read_again(self):      # #603
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.open_movement(p)
+            p.js("(() => { const t = document.querySelector('#mvNote'); t.focus(); t.value = 'First note'; t.dispatchEvent(new Event('input', {bubbles: true})); let n = 0; t.addEventListener('blur', () => n++); t.blur(); if (!n) t.dispatchEvent(new FocusEvent('blur')); })()")
+            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Note saved. Undo.'", "the toast")
+            p.js("(() => { const t = document.querySelector('#mvNote'); t.focus(); t.value = 'Half a sentence'; t.dispatchEvent(new Event('input', {bubbles: true})); })()")
+            p.js("document.querySelector('.toast [data-undo]').click()")      # a click that leaves the focus in the box: the data is read again under the typing
+            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
+            p.until("(window.__t = window.__t || Date.now(), Date.now() - window.__t > 800)", "a beat for the re-read to be drawn")
+            self.assertEqual(self.row(GO_LIVE)["internal_note"], INTERNAL)
+            self.assertEqual(p.js("document.querySelector('#mvNote').value"), "Half a sentence", "the typing is kept")
+            p.js("(() => { const t = document.querySelector('#mvNote'); let n = 0; t.addEventListener('blur', () => n++); t.blur(); if (!n) t.dispatchEvent(new FocusEvent('blur')); })()")
+            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Note saved. Undo.'", "the typing saves when the box is left")
+            self.assertEqual(self.row(GO_LIVE)["internal_note"], "Half a sentence")
+
     def test_the_movement_buttons_fit_at_both_widths_in_both_themes(self):
         for width in (1400, 900):
             for theme in ("light", "dark"):

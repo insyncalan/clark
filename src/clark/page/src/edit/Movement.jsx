@@ -200,10 +200,14 @@ function MoveForm({ r }) {
 // The owner's Internal note (#458): saved when the box is left, never published. It is read from the project's own data (the Movement
 // read leaves it out), and the data is read again after the save and after an Undo, so the box shows what clark holds.
 function Note({ r }) {
-  const m = milestoneRow(r.id), saved = (m && m.internal_note) || "", box = useRef(null);
-  useEffect(() => { if (box.current) box.current.value = saved; }, [r.id, saved]);
+  const m = milestoneRow(r.id), saved = (m && m.internal_note) || "", box = useRef(null), typed = useRef(null);   // typed: the milestone whose box has unsaved typing
+  useEffect(() => {                       // #603: the box takes what clark holds, but never over text being typed (it saves when the box is left)
+    if (!box.current || typed.current === r.id) return;
+    box.current.value = saved;
+  }, [r.id, saved]);
   useGrow(box, saved + r.id);
   const save = async (e) => {
+    typed.current = null;
     const text = e.currentTarget.value.trim();
     if (text === saved.trim()) return;
     const res = await changeMilestone({ id: r.id, changes: { internal_note: text } }, W.TOAST_NOTE);
@@ -213,7 +217,7 @@ function Note({ r }) {
   return (
     <>
       <h4>{W.NOTE_HEADING}</h4>
-      <textarea ref={box} class="field mvm-note grow" id="mvNote" rows="3" maxlength="2000" placeholder={W.NOTE_PLACEHOLDER} aria-describedby="mvNote-help" onBlur={save}></textarea>
+      <textarea ref={box} class="field mvm-note grow" id="mvNote" rows="3" maxlength="2000" placeholder={W.NOTE_PLACEHOLDER} aria-describedby="mvNote-help" onInput={() => { typed.current = r.id; }} onBlur={save}></textarea>
       <p class="muted mvm-help" id="mvNote-help">{W.NOTE_HELP}</p>
     </>
   );
