@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
-import { tabName, nameOf, requestFor, NAME_REFUSED, NAME_MAX } from "../gantt/ganttTab.js";
+import { tabName, nameOf, requestFor, NAME_MAX } from "../gantt/ganttTab.js";
+import { NAME_REFUSED } from "./ganttWords.js";
 
 /** Save a new tab name. Resolves to true when it was kept or needed no change, false when it was refused (the words are in the toast). */
 export async function saveTabName(text) {

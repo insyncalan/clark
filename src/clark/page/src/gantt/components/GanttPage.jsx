@@ -4,7 +4,8 @@
 // and the plain keys V and E in edit/keys.js), so the page looks and behaves like it.
 //
 //   host      the page's host (createMemoryHost for now, createStoreHost later)
-//   tools     the Edit tools (edit/index.js); without them (a published file) the page is View only and has no title box or pill
+//   tools     the Edit tools (edit/index.js); without them (a published file) the page is View only and has no title box or pill.
+//             The Edit-only parts and words come in here too: Toggle, GanttTitle, GanttBarNote and ganttWords (edit/ganttWords.js)
 //   above     the slot above the plan: a later step mounts the Dashboard's sections here (page scope on the sections table)
 //   below     the slot below the plan
 //   today     today as YYYY-MM-DD (default: the computer's)
@@ -16,7 +17,7 @@ import { coverLine } from "../../logic/cover.js";
 import { todayIso } from "../../workItems.js";
 import { GanttChart } from "./GanttChart.jsx";
 import { GanttTable } from "./GanttTable.jsx";
-import { WORDS as GW, addBelow, filtersFor, filterWord, visibleRows, tidyAll } from "../logic/gantt.js";
+import { addBelow, filtersFor, filterWord, visibleRows, tidyAll } from "../logic/gantt.js";
 import {
   PAGE_WORDS as W, toChart, toTable, fromTable, fromChartLine, applyChart, diff, without, renumber, sortLines, hiddenForTable, hiddenFromTable, onlyHideable,
 } from "../logic/ganttPage.js";
@@ -38,6 +39,8 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   const editing = !!(tools && tools.Toggle) && mode.value === "edit" && !fromFile.value;
   const Toggle = tools && tools.Toggle && !fromFile.value ? tools.Toggle : null;
   const Title = tools && tools.GanttTitle ? tools.GanttTitle : null;
+  const BarNote = tools && tools.GanttBarNote ? tools.GanttBarNote : null;
+  const E = (tools && tools.ganttWords) || {};      // the words only Edit uses; a published file has none, and none of the callbacks below can run in it
   const title = settings.gantt_title || project.name || "";
   const hidden = onlyHideable(settings.gantt_hidden_columns);
   const stored = sortLines(lines);
@@ -68,33 +71,33 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   const send = (after, words) => { const ops = diff(stored, after); if (ops.length) host.applyLines(ops, words); };
 
   // ── the chart's callbacks ──
-  const onChange = (id, field, value) => send(stored.map((l) => (l.id === id ? applyChart(l, field, value) : l)), W.changed(id));
+  const onChange = (id, field, value) => send(stored.map((l) => (l.id === id ? applyChart(l, field, value) : l)), E.changed(id));
   const onToggleEye = (id) => {
     const line = stored.find((l) => l.id === id);
     if (!line) return;
     const on = !(line.show && line.show !== "0");
-    send(stored.map((l) => (l.id === id ? { ...l, show: on ? 1 : 0 } : l)), on ? W.eyeOn(line.name) : W.eyeOff(line.name));
+    send(stored.map((l) => (l.id === id ? { ...l, show: on ? 1 : 0 } : l)), on ? E.eyeOn(line.name) : E.eyeOff(line.name));
   };
   const onAdd = (afterId, type) => {
     const got = addBelow(toChart(stored), afterId, type);
     const byId = new Map(stored.map((l) => [l.id, l]));
-    send(renumber(got.lines.map((c) => byId.get(c.id) || fromChartLine(c))), W.added);
+    send(renumber(got.lines.map((c) => byId.get(c.id) || fromChartLine(c))), E.added);
   };
-  const onDelete = (id) => send(without(stored, [id]), W.deleted(id));
+  const onDelete = (id) => send(without(stored, [id]), E.deleted(id));
   const onDefaultRows = (n) => {
     const total = visibleRows(tidyAll(toChart(stored)), { edit: true, filter }).length;
-    host.saveSettings({ gantt_default_rows: n }, n === null || n >= total ? W.rowsAll : W.rows(n, total));
+    host.saveSettings({ gantt_default_rows: n }, n === null || n >= total ? E.rowsAll : E.rows(n, total));
   };
 
   // ── the table's callbacks: it hands back the whole new list ──
   const onTable = (rows, change) => {
     const after = fromTable(rows);
     const gone = diff(stored, after).filter((o) => o.op === "delete").length;
-    send(after, change.type === "add" ? W.added : change.type === "delete" ? (gone === 1 ? W.deleted(change.ids[0]) : W.deletedMany(gone)) : W.changed((change.ids && change.ids[0]) || ""));
+    send(after, change.type === "add" ? E.added : change.type === "delete" ? (gone === 1 ? E.deleted(change.ids[0]) : E.deletedMany(gone)) : E.changed((change.ids && change.ids[0]) || ""));
   };
-  const onTableHidden = (keys) => host.saveSettings({ gantt_hidden_columns: hiddenFromTable(keys) }, W.columnsChanged);
+  const onTableHidden = (keys) => host.saveSettings({ gantt_hidden_columns: hiddenFromTable(keys) }, E.columnsChanged);
 
-  const saveTitle = (text) => host.saveSettings({ gantt_title: text }, W.titleChanged);
+  const saveTitle = (text) => host.saveSettings({ gantt_title: text }, E.titleChanged);
   const tableFilter = filter === "milestones" ? "phasesMilestones" : filter;
   const tableHidden = hiddenForTable(hidden);      // Start, End and Done are never hidden, so Days and Status (worked out from them) are always drawn
   const filters = filtersFor(editing);
@@ -103,9 +106,9 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
     <div class="gt gp-tools" data-gp-tools>
       <div class="gt-bar" role="toolbar" aria-label="Gantt">
         {Toggle ? (
-          <button type="button" class="gt-wd" data-gp-mode={editing ? "view" : "edit"} aria-label={editing ? W.view : W.edit} title={editing ? W.viewTip : W.editTip}
+          <button type="button" class="gt-wd" data-gp-mode={editing ? "view" : "edit"} aria-label={editing ? E.view : E.edit} title={editing ? E.viewTip : E.editTip}
             onClick={() => { mode.value = editing ? "view" : "edit"; }}>
-            <Icon name={editing ? "eye" : "pencil"} /> {editing ? W.view : W.edit}
+            <Icon name={editing ? "eye" : "pencil"} /> {editing ? E.view : E.edit}
           </button>
         ) : null}
         {dated ? <button type="button" class="gt-wd" data-gp-layout={layout === "chart" ? "table" : "chart"} aria-label={layout === "chart" ? W.table : W.chart}
@@ -128,31 +131,31 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
             ) : null}
           </span>
         ) : null}
-        {editing && layout === "table" ? <button type="button" class="gt-ib" disabled aria-label={W.importXl} title={W.soon} data-gp-import><Icon name="ul" /></button> : null}
-        {tools && tools.exportExcel && !fromFile.value ? <button type="button" class="gt-ib" aria-label={W.exportXl} title={W.exportXl} data-gp-export onClick={() => tools.exportExcel()}><Icon name="dl" /></button> : null}
+        {editing && layout === "table" ? <button type="button" class="gt-ib" disabled aria-label={E.importXl} title={E.soon} data-gp-import><Icon name="ul" /></button> : null}
+        {tools && tools.exportExcel && !fromFile.value ? <button type="button" class="gt-ib" aria-label={E.exportXl} title={E.exportXl} data-gp-export onClick={() => tools.exportExcel()}><Icon name="dl" /></button> : null}
       </div>
     </div>
   );
 
   return (
     <>
-    {Toggle ? <div class="rbar" id="gantt-bar"><Toggle pill />{editing ? <span class="rbar-state">{W.editNote}</span> : null}</div> : null}      {/* above the banner, as the Dashboard's bar is */}
+    {Toggle ? <div class="rbar" id="gantt-bar"><Toggle pill />{editing && BarNote ? <BarNote /> : null}</div> : null}      {/* above the banner, as the Dashboard's bar is */}
     <section class="frame report gp" id="gantt-page" data-mode={editing ? "edit" : "view"} data-gp-shown={layout}>
-      <Cover title={editing && Title ? <Title text={title} label={W.titleLabel} onSave={saveTitle} /> : title} lines={coverLine(project, fromFile.value ? "" : now)} />
+      <Cover title={editing && Title ? <Title text={title} label={E.titleLabel} onSave={saveTitle} /> : title} lines={coverLine(project, fromFile.value ? "" : now)} />
       {above ? <div class="gp-slot gp-above" data-slot="above">{above}</div> : null}
       <div class="gp-plan" data-gp-plan>
         {bar}
-        {editing && !stored.length ? <button type="button" class="gt-ib gp-first" data-gp-first aria-label={GW.addBelow} title={GW.addBelow} onClick={() => onAdd("", "phase")}><Icon name="plus" /></button> : null}      {/* a plan with no line has no row to add below: this starts it (a phase) */}
+        {editing && !stored.length ? <button type="button" class="gt-ib gp-first" data-gp-first aria-label={E.addBelow} title={E.addBelow} onClick={() => onAdd("", "phase")}><Icon name="plus" /></button> : null}      {/* a plan with no line has no row to add below: this starts it (a phase) */}
         {layout === "chart"
           ? <GanttChart lines={toChart(stored)} edit={editing} today={now} filter={filter} onFilter={setFilter} defaultRows={settings.gantt_default_rows ?? null}
-              onDefaultRows={onDefaultRows} onChange={onChange} onToggleEye={onToggleEye} onAdd={onAdd} onDelete={onDelete} />
-          : <GanttTable lines={toTable(stored)} edit={editing} today={now} filter={tableFilter} hidden={tableHidden} onChange={onTable} onHiddenChange={onTableHidden} onUndo={host.serverUndo ? () => host.undoLast() : undefined} />}
+              onDefaultRows={onDefaultRows} onChange={onChange} onToggleEye={onToggleEye} onAdd={onAdd} onDelete={onDelete} addBelowWord={E.addBelow} />
+          : <GanttTable lines={toTable(stored)} edit={editing} today={now} filter={tableFilter} hidden={tableHidden} onChange={onTable} onHiddenChange={onTableHidden} onUndo={host.serverUndo ? () => host.undoLast() : undefined} addBelowWord={E.addBelow} />}
       </div>
       {below ? <div class="gp-slot gp-below" data-slot="below">{below}</div> : null}
       {toast && toast.text ? (
         <div class="gp-toast" role="status" data-gp-toast>
           {toast.text}
-          {toast.undo && editing ? <button type="button" onClick={() => host.undoLast()} data-gp-undo>{W.undo}</button> : null}
+          {toast.undo && editing ? <button type="button" onClick={() => host.undoLast()} data-gp-undo>{E.undo}</button> : null}
         </div>
       ) : null}
     </section>

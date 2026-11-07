@@ -4,7 +4,8 @@
 import { useRef, useState } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
-import { editorOn, clientOn, tabName, nameOf, requestFor, NAME_REFUSED, NAME_MAX } from "../gantt/ganttTab.js";
+import { editorOn, clientOn, tabName, nameOf, requestFor, NAME_MAX } from "../gantt/ganttTab.js";
+import { NAME_REFUSED } from "./ganttWords.js";
 
 export function GanttSetting() {
   const p = data.value && data.value.project, now = tabName(p);

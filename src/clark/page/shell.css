@@ -43,8 +43,6 @@ a { color: var(--status-blue-text); }
 .tab[aria-selected="true"] { color: var(--white); font-weight: var(--weight-regular); }
 .tab::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--brand-cyan); transform: scaleX(0); transition: transform var(--dur-state) var(--ease-out); }
 .tab[aria-selected="true"]::after { transform: scaleX(1); }
-.top .tab-name { box-sizing: border-box; align-self: center; width: 12ch; min-width: 8ch; max-width: 24ch; height: 28px; margin: 0 8px; padding: 0 var(--space-2); border: 1px solid var(--brand-cyan); border-radius: 6px; background: transparent; color: var(--white); font: inherit; font-size: var(--size-small); }
-.top .tab-name:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 1px; }
 
 /* One page frame for every view: the page's 1280 px less its padding (1232 px), so the Dashboard is as wide as Work items. */
 main { position: relative; max-width: var(--max-width); margin: 0 auto; padding: 28px var(--space-5) 96px; }
@@ -1378,11 +1376,6 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-cards .fld > :not(label) { grid-column: 2; min-width: 0; }
 .fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-caption); }
 .fld-bad:empty { display: none; }
-.fld-tick { display: grid; gap: var(--space-1); margin: 0 0 var(--space-3); max-width: 420px; }
-.fld-tick label { display: flex; align-items: center; gap: var(--space-2); font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--text); cursor: pointer; }
-.fld-tick input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--brand-blue); }
-.fld-tick input[type="checkbox"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-.fld-tick small { color: var(--text-muted); font-size: var(--size-caption); }
 /* Settings › People (item 454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
 .pp-h { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; }
 .pp-h h2 { margin: 0; flex: 1; }
@@ -2048,19 +2041,19 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-wd { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-size: var(--size-caption); cursor: pointer; }
 .gt-wd:hover { border-color: var(--brand-blue); }
 .gt-showwrap { position: relative; display: inline-flex; }
-.gt-pop { position: absolute; top: 36px; right: 0; z-index: 70; min-width: 220px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
-.gt-pop button, .gt-menu button { all: unset; box-sizing: border-box; display: flex; width: 100%; gap: 8px; padding: 6px 10px; border-radius: var(--radius-sm); font-size: var(--size-caption); cursor: pointer; color: var(--text); }
+.gt-pop { position: absolute; top: 36px; right: 0; z-index: 70; min-width: 220px; padding: var(--space-1); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.gt-pop button, .gt-menu button { all: unset; box-sizing: border-box; display: flex; width: 100%; gap: var(--space-2); padding: 6px 10px; border-radius: var(--radius-sm); font-size: var(--size-caption); cursor: pointer; color: var(--text); }
 .gt-pop button:hover, .gt-pop button:focus-visible, .gt-menu button:hover, .gt-menu button:focus-visible { background: var(--grey-100); }
 .gt-ck { width: 14px; color: var(--brand-blue); font-weight: var(--weight-semibold); }
 /* the chart box: it scrolls inside itself with no scrollbar showing */
 .gt-gx { position: relative; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); scrollbar-width: none; -ms-overflow-style: none; }
 .gt-gx::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .gt-in { --gt-rh: 32px; --gt-hh: 68px; position: relative; display: grid; width: max-content; min-width: 100%; }
-.gt-lhead { position: sticky; left: 0; top: 0; z-index: 6; height: var(--gt-hh); display: flex; align-items: flex-end; gap: 4px; padding: 0 6px 6px; background: var(--surface); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); color: var(--text-muted); overflow: clip; }
+.gt-lhead { position: sticky; left: 0; top: 0; z-index: 6; height: var(--gt-hh); display: flex; align-items: flex-end; gap: var(--space-1); padding: 0 6px 6px; background: var(--surface); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); color: var(--text-muted); overflow: clip; }
 .gt-h { position: relative; flex: none; box-sizing: border-box; display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; line-height: 24px; }
 .gt-rz { position: absolute; right: -4px; top: -6px; bottom: -6px; width: 8px; cursor: col-resize; z-index: 9; }
 .gt-rz:hover { background: var(--brand-blue); opacity: .45; }
-.gt-eyeh { width: 24px; flex: none; display: inline-grid; place-items: center; margin-right: 4px; }
+.gt-eyeh { width: 24px; flex: none; display: inline-grid; place-items: center; margin-right: var(--space-1); }
 .gt-eye { all: unset; box-sizing: border-box; flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
 .gt-eye.on { color: var(--brand-blue-strong); }
 .gt-eye:hover { background: var(--grey-100); }
@@ -2074,13 +2067,13 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-tstem { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--status-red); opacity: .6; z-index: 2; pointer-events: none; }
 .gt-tstem-h { top: 24px; bottom: auto; height: 8px; }   /* only joins the flag to the date rows: it never runs through a month label */
 .gt-left { position: sticky; left: 0; z-index: 5; background: var(--surface); border-right: 1px solid var(--border); }
-.gt-ln { position: relative; height: var(--gt-rh); display: flex; align-items: center; gap: 4px; padding: 0 6px; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: clip; }
+.gt-ln { position: relative; height: var(--gt-rh); display: flex; align-items: center; gap: var(--space-1); padding: 0 6px; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: clip; }
 .gt-ln.gt-phase { font-weight: var(--weight-semibold); background: var(--grey-50); }
 .gt-ln.gt-task .gt-id, .gt-ln.gt-milestone .gt-id { padding-left: 0; }
 .gt-id { flex: none; width: 36px; color: var(--text-muted); font-weight: var(--weight-light); font-variant-numeric: tabular-nums; }
 .gt-nm { flex: none; overflow: hidden; text-overflow: ellipsis; }
 .gt-c { flex: none; overflow: hidden; color: var(--text-muted); font-weight: var(--weight-light); font-variant-numeric: tabular-nums; }
-.gt-li { box-sizing: border-box; height: 26px; margin: 0; padding: 1px 4px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; font-weight: inherit; min-width: 0; }
+.gt-li { box-sizing: border-box; height: 26px; margin: 0; padding: 1px var(--space-1); border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; font-weight: inherit; min-width: 0; }
 .gt-li:hover { border-color: var(--border); }
 .gt-li:focus { border-color: var(--brand-blue); background: var(--surface); color: var(--text); outline: 0; }
 .gt-addb { all: unset; box-sizing: border-box; position: absolute; right: 3px; top: 4px; width: 24px; height: 24px; display: inline-grid; place-items: center; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-muted); opacity: 0; cursor: pointer; }
@@ -2095,7 +2088,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-dep polygon { fill: var(--text-muted); }
 .gt-dep .gt-bad path { stroke: var(--status-amber-text); stroke-width: 2.2; }      /* heavier than a normal link (1.4), so the clash shows without colour or dash; its dash is in the Motion block */
 .gt-dep .gt-bad polygon { fill: var(--status-amber-text); }
-.gt-b { all: unset; box-sizing: border-box; position: absolute; height: 20px; line-height: 20px; border-radius: var(--radius-sm); background: var(--gt-task); color: var(--text-on-brand); padding: 0 8px; white-space: nowrap; overflow: hidden; cursor: pointer; user-select: none; touch-action: none; z-index: 1; }
+.gt-b { all: unset; box-sizing: border-box; position: absolute; height: 20px; line-height: 20px; border-radius: var(--radius-sm); background: var(--gt-task); color: var(--text-on-brand); padding: 0 var(--space-2); white-space: nowrap; overflow: hidden; cursor: pointer; user-select: none; touch-action: none; z-index: 1; }
 .gt-b > i { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--white) 30%, transparent); pointer-events: none; }
 .gt-bt { position: relative; }
 .gt-b-phase { height: 12px; background: var(--brand-navy); border: 1px solid var(--grey-500); border-radius: 2px; }
@@ -2114,8 +2107,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-grip > i { width: 46px; height: 4px; border-radius: 2px; background: var(--grey-300); }
 .gt-grip:hover > i, .gt-grip:focus-visible > i { background: var(--brand-blue); }
 .gt-grip:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: var(--radius-sm); }
-.gt-gl2 { position: absolute; right: 8px; top: -2px; padding: 1px 8px; border-radius: var(--radius-pill); background: var(--brand-navy); color: var(--white); }
-.gt-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 6px; color: var(--text-muted); }
+.gt-gl2 { position: absolute; right: 8px; top: -2px; padding: 1px var(--space-2); border-radius: var(--radius-pill); background: var(--brand-navy); color: var(--white); }
+.gt-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-3); margin-top: 6px; color: var(--text-muted); }
 .gt-sw { display: inline-block; width: 14px; height: 10px; margin-right: 5px; border-radius: 2px; vertical-align: middle; }
 .gt-sw-p { background: var(--brand-navy); border: 1px solid var(--grey-500); box-sizing: border-box; }
 .gt-sw-t { background: var(--gt-task); }
@@ -2127,18 +2120,18 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-sw-c { width: 18px; height: 0; border-top: 2px dashed var(--status-amber-text); border-radius: 0; }
 .gt-pill { border: 1px solid var(--status-amber-text); color: var(--status-amber-text); border-radius: var(--radius-sm); padding: 0 6px; }
 .gt-msg { color: var(--status-red-text); }
-.gt-detail { margin-top: 8px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--grey-50); font-size: var(--size-caption); }
-.gt-menu { position: fixed; z-index: 90; width: 210px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
-.gt-box { position: fixed; z-index: 95; width: 310px; padding: 10px 12px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); font-size: var(--size-caption); }
+.gt-detail { margin-top: var(--space-2); padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--grey-50); font-size: var(--size-caption); }
+.gt-menu { position: fixed; z-index: 90; width: 210px; padding: var(--space-1); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.gt-box { position: fixed; z-index: 95; width: 310px; padding: 10px var(--space-3); background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); font-size: var(--size-caption); }
 .gt-box label { display: block; margin: 6px 0 2px; color: var(--text-muted); }
-.gt-box input { box-sizing: border-box; width: 100%; padding: 4px 7px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+.gt-box input { box-sizing: border-box; width: 100%; padding: var(--space-1) 7px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
 .gt-box input.bad { border-color: var(--status-red); }
 .gt-box input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.gt-r { display: flex; gap: 8px; }
+.gt-r { display: flex; gap: var(--space-2); }
 .gt-r > div { flex: 1; min-width: 0; }
-.gt-emsg { min-height: 20px; margin-top: 4px; color: var(--status-red-text); }
-.gt-bt2 { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-.gt-btn { all: unset; box-sizing: border-box; min-height: 28px; padding: 3px 12px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); cursor: pointer; }
+.gt-emsg { min-height: 20px; margin-top: var(--space-1); color: var(--status-red-text); }
+.gt-bt2 { display: flex; align-items: center; gap: var(--space-2); margin-top: 6px; }
+.gt-btn { all: unset; box-sizing: border-box; min-height: 28px; padding: 3px var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); cursor: pointer; }
 .gt-btn:hover { border-color: var(--brand-blue); }
 .gt-primary { background: var(--pill-bg); color: var(--pill-fg); border-color: transparent; font-weight: var(--weight-semibold); }
 .gt-danger { color: var(--status-red-text); }
@@ -2146,33 +2139,27 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-full .gt-gx { max-height: calc(100vh - 170px); }
 @media (max-width: 900px) { .gt-full { padding: var(--space-2) var(--space-3); } }
 /* The Gantt page (rows 926 and 928): the title in the banner (Edit), the two section slots, the page's toolbar row and its Undo toast. Tokens only. */
-.gp .cover h1 .gp-title { display: inline-block; min-width: 4ch; max-width: 100%; border-radius: var(--radius); cursor: text; }
-.gp .cover h1 .gp-title:hover { outline: 1px dashed var(--white); outline-offset: 2px; }
-.gp .cover h1 .gp-title:focus { outline: 2px solid var(--white); outline-offset: 2px; }
 .gp-tools { margin-bottom: var(--space-2); }
 .gp-first { margin: 0 0 var(--space-2); border-color: var(--border); }      /* the first line of an empty plan */
 .gp-slot { margin: var(--space-4) 0; }
 .gp-plan { margin: var(--space-4) 0; }
-.gp-toast { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--size-small); }
-.gp-toast button { font: inherit; cursor: pointer; background: none; border: 0; color: var(--brand-blue); font-weight: var(--weight-semibold); }
-.gt-ib:disabled { opacity: .5; cursor: not-allowed; }
 
 /* The Gantt table (row 926). Lives here, not in the component: the page only runs inline style elements it has a hash for, so a style
    element drawn by the component at run time would never apply. Brand tokens only, so light and dark both follow the page. */
 [data-gt].gt { --gz: 1; --gt-max: 60vh; display: block; color: var(--text); font-size: var(--size-small); }
-[data-gt] .gt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--text-muted); font-size: var(--size-caption); min-height: 28px; }
-[data-gt] .gt-bar button { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius); height: 26px; min-width: 28px; padding: 0 8px; font: inherit; cursor: pointer; }
+[data-gt] .gt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0 0 6px; color: var(--text-muted); font-size: var(--size-caption); min-height: 28px; }
+[data-gt] .gt-bar button { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius); height: 26px; min-width: 28px; padding: 0 var(--space-2); font: inherit; cursor: pointer; }
 [data-gt] .gt-bar button:hover { border-color: var(--brand-blue); }
 [data-gt] .gt-bar button:focus-visible, [data-gt] .gt-menu button:focus-visible, [data-gt] .gt-eye:focus-visible, [data-gt] .gt-rb:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 [data-gt] .gt-msg { flex: 1 1 240px; min-width: 0; }
-[data-gt] .gt-msg.gt-bad { color: var(--status-red-text); font-weight: 600; }
-[data-gt] .gt-msg button { margin-left: 8px; }
+[data-gt] .gt-msg.gt-bad { color: var(--status-red-text); font-weight: var(--weight-medium); }
+[data-gt] .gt-msg button { margin-left: var(--space-2); }
 .gt-pos { margin-left: auto; }
 .gt-scroll { position: relative; overflow: auto; max-height: var(--gt-max, 60vh); border: 1px solid var(--border); border-radius: var(--radius); outline: 0; background: var(--surface); user-select: none; }
 .gt-scroll:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .gt table { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: var(--size-small); }
 .gt th, .gt td { height: calc(26px * var(--gz)); padding: 0 calc(7px * var(--gz)); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); background: var(--surface); text-align: left; white-space: nowrap; overflow: clip; text-overflow: ellipsis; box-sizing: border-box; }
-.gt thead th { position: sticky; top: 0; z-index: 5; background: var(--grey-100); color: var(--text-muted); font-weight: 600; cursor: pointer; padding-right: calc(24px * var(--gz)); }
+.gt thead th { position: sticky; top: 0; z-index: 5; background: var(--grey-100); color: var(--text-muted); font-weight: var(--weight-medium); cursor: pointer; padding-right: calc(24px * var(--gz)); }
 .gt thead th.hs, .gt .gt-rh.hs { background: color-mix(in srgb, var(--brand-blue) 22%, var(--grey-100)); color: var(--text); }
 .gt thead th.gt-hid { background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--text-muted) 22%, transparent) 6px 7px); }
 .gt th.gt-fz, .gt td.gt-fz { position: sticky; z-index: 3; }
@@ -2180,7 +2167,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt .gt-rh, .gt .gt-rh0 { position: sticky; left: 0; z-index: 6; background: var(--grey-100); color: var(--text-muted); text-align: center; font-weight: 400; cursor: pointer; padding: 0; }
 .gt thead .gt-rh0 { top: 0; z-index: 8; }
 .gt td.gt-ro { background: var(--grey-50); color: var(--text-muted); }
-.gt tr.gt-p td { font-weight: 700; }
+.gt tr.gt-p td { font-weight: var(--weight-semibold); }
 .gt td.gt-clash { color: var(--status-amber-text); }
 .gt td.gt-sel { background: color-mix(in srgb, var(--brand-blue) 14%, var(--surface)); }
 .gt td.gt-act { outline: 2px solid var(--brand-blue); outline-offset: -2px; background: var(--surface); }
@@ -2199,8 +2186,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt .gt-rh:hover .gt-rn, .gt .gt-rh:focus-within .gt-rn { display: none; }
 .gt .gt-rh:hover .gt-rb, .gt .gt-rh:focus-within .gt-rb { display: inline-flex; }
 .gt-rb.gt-del:hover { color: var(--status-red-text); }
-[data-gt] .gt-menu { position: fixed; z-index: 70; min-width: 200px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px; }
+[data-gt] .gt-menu { position: fixed; z-index: 70; min-width: 200px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: var(--space-1); }
 [data-gt] .gt-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: var(--text); padding: 6px 10px; border-radius: var(--radius-sm); font: inherit; cursor: pointer; }
 [data-gt] .gt-menu button:hover, [data-gt] .gt-menu button:focus-visible { background: var(--grey-100); outline: 0; }
 [data-gt] .gt-menu button.gt-danger { color: var(--status-red-text); }
-[data-gt] .gt-menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
+[data-gt] .gt-menu hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-1) 0; }

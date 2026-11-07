@@ -11,7 +11,6 @@ import { lineApi } from "./lineSlot.js";
 import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
 import { editorOn, tabName } from "../gantt/ganttTab.js";
-import { ganttSaid } from "../gantt/logic/ganttWords.js";
 
 export const VIEWS = route.VIEWS;
 export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", get gantt() { return tabName(data.value && data.value.project); }, get clientreport() { return fromFile.value ? "Weekly snapshot" : "Client Requested Report View"; }, settings: "Settings" };   // "Use cases" in the editor and in a published file alike (#383); the published client report tab is "Weekly snapshot" (a client has not asked for anything by that name)
@@ -370,10 +369,11 @@ const CHANGE_KNOWN = {
   // the whole change was over the size clark takes (server.py's words; any kind of section can be that big)
   "That is too big to save. Make the text shorter, or take some of the list out, then try again.": "That is too big to save, and nothing was changed. Make the text shorter, or take some of the list out.",
 };
+export const sayings = [];      // Edit adds the words of a refusal that is already plain (edit/ganttWords.js): each is (text) => the text, or ""
 export function plainChange(code, body) {
   const said = body && typeof body.message === "string" ? body.message : "";
   const known = Object.prototype.hasOwnProperty.call(CHANGE_KNOWN, said) ? CHANGE_KNOWN[said] : "";
-  if (code === 400 || code === 409) return known || ganttSaid(said) || CHANGE_FAILED;     // row 926: a Gantt refusal is already plain words
+  if (code === 400 || code === 409) return known || sayings.map((f) => f(said)).find(Boolean) || CHANGE_FAILED;     // row 926: a Gantt refusal is already plain words
   if (code === 403 || code === 0) return plain(code, body);
   if (code === 404) return "This project could not be found, and nothing was changed. Check the code in the address, then reload the page.";
   if (code === 500) return "A problem came up saving that, and nothing was changed. Try again. If it happens again, restart clark.";

@@ -33,7 +33,7 @@ export const WORDS = {
   legendDepends: "depends on", legendClash: "clash",
   detailEmpty: "Select a bar or a milestone to see its details here. Every bar also carries its name as text, so nothing depends on hover.",
   noLines: "No lines to show.",
-  addTask: "Add a task below", addPhase: "Add a phase below", addMilestone: "Add a milestone below", addBelow: "Add a line below",
+  addTask: "Add a task below", addPhase: "Add a phase below", addMilestone: "Add a milestone below",
   deleteLine: "Delete this line",
   boxName: "Name", boxStart: "Start (DD-MM-YYYY)", boxEnd: "End (DD-MM-YYYY)", boxDate: "Date (DD-MM-YYYY)", boxPct: "Done, 0 to 100",
   save: "Save", cancel: "Cancel",

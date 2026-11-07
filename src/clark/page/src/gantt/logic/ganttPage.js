@@ -15,27 +15,12 @@ export const DEFAULT_SETTINGS = {
   gantt_default_rows: null,                      // the saved plan height in rows (null = every row); not in the first contract, added by the page
 };
 
-// The page's words. Every one is in the spec's word list (#926 section 4) unless it says "added".
+// The page's words that a published file also carries. The ones used only while editing (the Edit and View pill, the toasts, Export and Import,
+// the title's label) are the Edit part's: edit/ganttWords.js, handed to the page as tools.ganttWords.
 export const PAGE_WORDS = {
-  edit: "Edit", view: "View", table: "Table", chart: "Chart",
-  editTip: "Edit the plan", viewTip: "Back to the view (what the client sees)", tableTip: "Show the plan as a table", chartTip: "Back to the chart",
-  exportXl: "Export to Excel", importXl: "Import from Excel",
-  soon: "Coming with the Excel step",                                                   // added: the disabled export and import
-  show: "Show", undo: "Undo",
-  editNote: "Editing · each change saves on its own",                                  // the Dashboard's own words, reused
-  titleLabel: "Title",                                                                   // added: the title box's accessible name
-  titleChanged: "Title changed.",                                                        // added: the title's Undo toast
-  changed: (id) => `${id} changed.`,                                                     // added: a line edited in the chart
-  added: "A line was added with the next free ID.",
-  deleted: (id) => `Line ${id} deleted.`,
-  deletedMany: (n) => `${n} lines deleted.`,                                             // added
-  eyeOn: (name) => `Shown on the dashboard: ${name}.`,
-  eyeOff: (name) => `Taken off the dashboard: ${name}.`,
-  colOn: (col) => `${col}: shown to the client.`,
-  colOff: (col) => `${col}: hidden from the client.`,
-  rows: (n, m) => `Plan height saved: ${n} of ${m} rows. Viewers can still change their own.`,
-  rowsAll: "Plan height: all rows shown.",
-  columnsChanged: "Hidden columns changed.",                                             // added: the table's column eye
+  table: "Table", chart: "Chart",
+  tableTip: "Show the plan as a table", chartTip: "Back to the chart",
+  show: "Show",
 };
 
 // The chart's column keys are the stored names; the table's keys are shorter. One map between them.
