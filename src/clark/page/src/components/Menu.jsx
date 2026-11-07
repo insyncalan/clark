@@ -58,8 +58,8 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose("esc"); }
     else if (e.key === "Tab") onClose("tab");
   };
-  // Row 922: while it fades out it is out of the tab order and the reading order (inert, aria-hidden) and takes no pointer.
-  return <div class={`ddmenu on${cls ? " " + cls : ""}${leaving ? " leaving" : ""}`} id={id} role="menu" aria-label={label} ref={box} tabIndex={-1} onKeyDown={keys}
+  // Row 922: while it fades out it has no id and is no role=menu (it is not "the menu" any more: code that looks for an open menu by id or role, such as the Help peek's Esc, must not find the fading one), it is out of the tab order and the reading order (inert, aria-hidden) and takes no pointer.
+  return <div class={`ddmenu on${cls ? " " + cls : ""}${leaving ? " leaving" : ""}`} id={leaving ? undefined : id} role={leaving ? "presentation" : "menu"} aria-label={label} ref={box} tabIndex={-1} onKeyDown={keys}
     inert={leaving ? true : undefined} aria-hidden={leaving ? "true" : undefined} onAnimationEnd={(e) => { if (leaving && e.target === e.currentTarget && e.animationName === "m-out" && onGone) onGone(); }}>{children}</div>;
 }
 
