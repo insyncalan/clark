@@ -21,6 +21,7 @@ Standard library only, Python 3.9.
 """
 import getpass
 import hashlib
+import json
 import re
 import secrets
 import shutil
@@ -163,9 +164,36 @@ def markers_for(store, code, published, template=""):
             value = (_text(row.get(field)) or "").strip()
             if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
                 add(value, row["id"])
+    gantt_markers(store, code, published, add)
     out = Markers(dict.fromkeys(found))
     out.where = where
     return out
+
+
+GANTT_SECRET_FIELDS = ("owner", "note", "budget", "effort", "baseline_start", "baseline_end")      # the columns a client's Gantt copy leaves out by default
+
+
+def gantt_markers(store, code, published, add):
+    """Row 'markers_for has no Gantt markers': what publish.gantt_for_client left out of the copy, looked for in the finished bytes.
+    The decision is gantt_for_client's alone (the eye and show_gantt_client are not read again here): `published
+    ["data"]["gantt"]` says which lines and columns are in the file. A line it does not carry (eye off, or no Gantt tab) is a marker
+    by id, name and every column; a line it carries is a marker only for a column it does not carry. A value that is also in
+    the published data (the same words in a shown column) is not a marker, and neither is one shorter than MIN_MARKER."""
+    gantt = published["data"].get("gantt") or {}
+    carried = {ln.get("id"): ln for ln in gantt.get("lines") or () if isinstance(ln, dict)}
+    kept = json.dumps(published["data"], ensure_ascii=False, default=str)
+    columns = publish.PUBLISH_FIELDS["gantt_lines"][2:]                  # every column a line may carry, after id and name
+    off = ("name",) + columns                                            # an eye-off line is not in the file at all: every column of it, a value also in the published data stays exempt
+    for row in store.read("gantt_lines", project=code):
+        line = carried.get(row.get("id"))
+        fields = off if line is None else tuple(dict.fromkeys(f for f in columns if f not in line))
+        if line is None:
+            add(row["id"], row["id"])
+        for field in fields:
+            v = row.get(field)
+            value = (v.strip() if isinstance(v, str) else str(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else "")
+            if len(value) >= MIN_MARKER and value not in kept:
+                add(value, row["id"])
 
 
 class Publisher:

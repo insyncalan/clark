@@ -1679,7 +1679,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     /* row 883: the check mark draws itself (the path is 22.6 long, 24 covers it; the still tick has no dash at all) */
     .pub-tick .i path { stroke-dasharray: 24; animation: m-draw var(--dur-layout) var(--ease-out) 1; }
   }
-  .gt-dep .gt-bad path { stroke-dasharray: 4 3; }      /* row 926: the Gantt clash line is dashed, a still form, kept with motion off too */
+  .gt-dep .gt-bad path { stroke-dasharray: 4 3; }      /* row 926: the Gantt clash line is dashed only where motion is allowed (this rule is inside the no-preference block); with motion off its heavier stroke, set below, is what marks it */
   @media (hover: hover) and (pointer: fine) {
     :root:not([data-motion="reduce"]) .ad-tpl { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
     :root:not([data-motion="reduce"]) .ad-tpl:not(.off):hover { transform: translateY(-1px); box-shadow: var(--shadow); }

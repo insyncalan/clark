@@ -29,7 +29,7 @@ class WorkNoMode(unittest.TestCase):
             with self.subTest(width=width, theme=theme), chrome() as cdp:
                 sid = self.open_page(cdp, width, edit=False)
                 self.themed(cdp, sid, theme)
-                self.assertEqual(cdp.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')", sid), "true", "the page is in View")
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch off the Dashboard: the page is always editable")
                 # W1: the eye is a button
                 self.assertEqual(cdp.js("document.querySelector('#work tbody tr[data-id] .weye').tagName", sid), "BUTTON", "the eye is a button in View")
                 # W3: Export to Excel is drawn

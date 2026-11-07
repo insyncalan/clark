@@ -62,8 +62,8 @@ class Migrating(unittest.TestCase):
 
     def test_the_step_is_at_its_number_and_the_literal_and_the_table_agree(self):
         self.assertIn((STEP, store_module.migrate_gantt_section_type), store_module.MIGRATIONS)
-        self.assertEqual(store_module.SCHEMA_VERSION, STEP)
-        self.assertEqual(store_module.MIGRATIONS[-1][0], STEP)
+        self.assertGreaterEqual(store_module.SCHEMA_VERSION, STEP)      # #944 T1: no longer the latest layout; test_v060 and test_gantt_migration pin the latest
+        self.assertIn(STEP, [n for n, _ in store_module.MIGRATIONS])      # #944 T1: as above
 
     def test_a_layout_18_file_opens_with_the_new_check_and_every_row_kept_in_order(self):
         path = self.old_file()
@@ -71,7 +71,7 @@ class Migrating(unittest.TestCase):
         before = section_rows(path)
         s = open_store(path, onedrive_roots=[])
         try:
-            self.assertEqual(version(path), str(STEP))
+            self.assertEqual(version(path), "20")
             self.assertEqual(s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
             self.assertEqual(s.con.execute("SELECT count(*) FROM applies").fetchone()[0], 0)     # a migration is not a step: no Undo
             s.con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) VALUES ('ABC', 'ABC-S-009', 'gantt', 'Gantt', 9)")
@@ -143,7 +143,7 @@ class Migrating(unittest.TestCase):
                 open_store(path, onedrive_roots=[])
         self.assertEqual(dump(path), was)
         open_store(path, onedrive_roots=[]).close()
-        self.assertEqual(version(path), str(STEP))
+        self.assertEqual(version(path), "20")
 
     def test_a_layout_17_file_is_brought_to_19_with_the_copy_first_every_row_kept_idempotent_and_refused_by_an_older_clark(self):
         """In-clark update across both Gantt steps (18 then 19) in one open."""
@@ -159,7 +159,7 @@ class Migrating(unittest.TestCase):
         before = section_rows(path)
         s = open_store(path, onedrive_roots=[])
         try:
-            self.assertEqual(version(path), "19")
+            self.assertEqual(version(path), "20")
             self.assertEqual(s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
             self.assertEqual(s.con.execute("SELECT count(*) FROM gantt_lines").fetchone()[0], 0)
             self.assertEqual(s.read("projects", ref="ABC")["gantt_tab_name"], "Gantt")

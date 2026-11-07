@@ -58,7 +58,7 @@ NEWABLE = ("actions", "raid", "decisions", "milestones")      # #67: the kinds a
 ARCHIVABLE = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")      # #126: archive and restore, no fields
 DOC_FIELDS = ("title", "kind", "url", "date")        # #74: a document link's own fields; its id, project, place and archive flag never come from a request
 GANTT_PROJECT_FIELDS = ("show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows")     # row 926: the project's six Gantt settings, changed like review_after_days
-PROJECT_FIELDS = ("health", "health_reason", "week_ending", "review_after_days") + GANTT_PROJECT_FIELDS
+PROJECT_FIELDS = ("health", "health_reason", "week_ending", "review_after_days") + GANTT_PROJECT_FIELDS + ("brand",)
 GANTT_FIELDS = ("name", "type", "parent", "start", "end", "pct", "health", "depends", "owner", "workstream", "priority",
                 "baseline_start", "baseline_end", "effort", "budget", "deliverable", "show", "note")     # row 926: what a request may give for a Gantt line; never its id, project, place or stamp
 CHANGE_KINDS = {
@@ -1731,6 +1731,11 @@ def _do_tile_change(store, by_user, req, project, table, columns, op, place):
     return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "tiles": _tiles(store, project)}
 
 
+def brand_ids():
+    """#944: the brand ids a project may take: generic and the installed ones. T1 knows only generic; the brand library fills this in."""
+    return {"generic"}
+
+
 def _checked_project_changes(fields):
     """The project's health and reason, checked for type and the closed set. The store's rule that a changed health has a
     reason in the same change stays the only such rule."""
@@ -1750,6 +1755,8 @@ def _checked_project_changes(fields):
                 raise Refused(NOT_FRIDAY.format(friday=friday.strftime("%d-%m-%Y")))
         if k == "review_after_days" and (type(v) is not int or not clark_store.REVIEW_DAYS_RANGE[0] <= v <= clark_store.REVIEW_DAYS_RANGE[1]):
             raise Refused(BAD_REVIEW_DAYS)      # #171: a real int only (not True, 14.5, "14", None or a list), checked before the step opens
+        if k == "brand" and (type(v) is not str or v not in brand_ids()):
+            raise Refused(BAD_OP)       # #944: an id that is not generic or installed (a real string only), refused before the step opens
         if k in ("show_gantt_editor", "show_gantt_client"):
             out[k] = _flag(v)                                   # row 926: 0 or 1 as a whole number; True, 1.0 or "1" are refused
         if k == "gantt_default_rows" and v is not None and (type(v) is not int or not clark_store.GANTT_ROWS_RANGE[0] <= v <= clark_store.GANTT_ROWS_RANGE[1]):
@@ -1798,7 +1805,7 @@ def _do_project_change(store, by_user, req, project, table, columns, place):
     now = store.read(table, ref=project)
     return 200, {"ok": True, "apply_id": apply_id, "ref": project,
                  "project": {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"],
-                             "review_after_days": now["review_after_days"],
+                             "review_after_days": now["review_after_days"], "brand": now["brand"],
                              **{f: now[f] for f in GANTT_PROJECT_FIELDS}}}
 
 
@@ -2382,6 +2389,11 @@ def words(reversed_, skipped, names):
                 seen.add("the days before an item counts as not reviewed")
                 put.append("the days before an item counts as not reviewed")
             continue
+        if e["field"] == "brand":                                   # #944: the project's brand
+            if "the brand" not in seen:
+                seen.add("the brand")
+                put.append("the brand")
+            continue
         if e["field"] in GANTT_PROJECT_FIELDS:                      # row 926: the project's Gantt settings, one line, never the title or the tab's name
             if "the Gantt settings" not in seen:
                 seen.add("the Gantt settings")
@@ -2526,7 +2538,7 @@ def _do_undo(store, by_user, req):
     if any(r["table"] == "projects" for r in step_rows):
         now = store.read("projects", ref=project)
         out["project"] = {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"],
-                          "review_after_days": now["review_after_days"],
+                          "review_after_days": now["review_after_days"], "brand": now["brand"],
                              **{f: now[f] for f in GANTT_PROJECT_FIELDS}}
     return 200, out
 

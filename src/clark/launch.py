@@ -5,7 +5,8 @@
 It asks what is on the port first, and never takes over what isn't its own:
 - nothing there: it starts clark (python3 -m clark) in the background, marked CLARK_LAUNCHED=1 so that it stops by itself a
   minute after the last clark window closes (idle.py), waits up to 15 seconds for it to answer, and opens the window
-- clark with this data folder: it is already running; only the window is opened
+- clark with this data folder: it is already running; only the window is opened, but only if it is this folder's clark of this
+  version and its page answers (row 975); otherwise it stops with a plain line and changes nothing
 - clark with another data folder, or any other program (creaite also answers /health, without the mark): said in plain words,
   nothing started, nothing opened
 
@@ -22,7 +23,7 @@ import sys
 import time
 from pathlib import Path
 
-from clark import appfiles, platform, same_version, server, typed, update_helper
+from clark import __version__, appfiles, platform, same_version, server, typed, update_helper
 from clark.__main__ import Usage, free_port_near, port_free, port_number
 
 NOTHING, OURS, OTHER_DATA, NOT_CLARK = "nothing", "ours", "other data folder", "not clark"
@@ -59,6 +60,45 @@ def ask_health(port, mark, timeout=ASK_TIMEOUT, connect=http.client.HTTPConnecti
     if not isinstance(answer, dict) or answer.get("ok") is not True or not isinstance(answer.get("this_data"), bool):
         return NOT_CLARK
     return OURS if answer["this_data"] else OTHER_DATA
+
+
+def ask_identity(port, mark, timeout=ASK_TIMEOUT, connect=http.client.HTTPConnection):
+    """Row 975: who the clark on `port` is, as (version, folder mark) from /health asked with `mark`; a missing or odd field is
+    None, so a server that cannot say (an older one) is never taken for this one. (None, None) if it does not answer."""
+    conn = connect("127.0.0.1", port, timeout=timeout)
+    try:
+        conn.request("GET", "/health", headers={appfiles.MARK_HEADER: mark})
+        reply = conn.getresponse()
+        raw = reply.read(HEALTH_BYTES + 1)
+        answer = json.loads(raw) if reply.status == 200 and len(raw) <= HEALTH_BYTES else None
+    except (OSError, http.client.HTTPException, ValueError):
+        return None, None
+    finally:
+        conn.close()
+    if not isinstance(answer, dict):
+        return None, None
+    version, folder = answer.get("version"), answer.get("folder")
+    return (version if isinstance(version, str) else None), (folder if isinstance(folder, str) else None)
+
+
+def ask_page(port, timeout=ASK_TIMEOUT * 5, connect=http.client.HTTPConnection):
+    """Row 975: the status the page at / of `port` answers with, or None if it does not answer. Read only; nothing is changed."""
+    conn = connect("127.0.0.1", port, timeout=timeout)
+    try:
+        conn.request("GET", "/")
+        reply = conn.getresponse()
+        reply.read(HEALTH_BYTES)
+        return reply.status
+    except (OSError, http.client.HTTPException):
+        return None
+    finally:
+        conn.close()
+
+
+NOT_THIS_ONE = ("clark is already running, but not from this folder or not this version. Nothing was changed. "
+                "Quit it first (press Ctrl+C in its Terminal window), then start this one again.")
+BROKEN_PAGE = ("clark is already running, but its page answers with an error. Nothing was opened or changed. "
+               "Quit it first (press Ctrl+C in its Terminal window), then start this one again.")
 
 
 def address(port):
@@ -157,7 +197,7 @@ def lock_refusal(folder):
 
 def launch(port, folder, say=print, environ=None, start=platform.start_detached, find_chrome=platform.find_chrome,
            open_window=platform.open_app_window, open_browser=platform.open_url, health=ask_health, wait=wait_for_clark,
-           free=port_free, finish=finish_update):
+           free=port_free, finish=finish_update, identity=ask_identity, page=ask_page):
     """Start clark if nothing answers on `port`, then open its window. An update that stopped part way is finished first
     (always back to the version that was there). The exit code: 0 opened, 1 not (the reason is said)."""
     environ = os.environ if environ is None else environ
@@ -172,6 +212,13 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
         say(report(seen, port, folder, free))
         return 1
     if seen == OURS:
+        if identity(port, mark) != (__version__, appfiles.code_mark()):     # row 975: this data, but not this folder's clark or not this version
+            say(NOT_THIS_ONE)
+            return 1
+        status = page(port)
+        if status is None or status >= 500:         # it answers /health but not its own page: no window is opened on it
+            say(BROKEN_PAGE)
+            return 1
         say("It is already running. Opening its window.")
     elif (refusal := lock_refusal(folder)):     # clark is open on this folder (on another port), or that can't be checked: none is started
         say(refusal)

@@ -27,7 +27,7 @@ from test_update_helper import FakeSeams
 BASH, UNZIP = shutil.which("bash"), shutil.which("unzip")
 PY3 = shutil.which("python3")
 MAC = sys.platform == "darwin"
-VISIBLE = ["README.md", "START-HERE.txt", "clark-release.json", "clark.command", "docker"]
+VISIBLE = ["README.md", "START-HERE.md", "clark-release.json", "clark.command", "docker"]
 TOKENS = b":root { --e2e-brand-mark: 694; }\n"
 STAMP = "20261101T120000Z"
 

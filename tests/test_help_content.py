@@ -94,9 +94,9 @@ class Shape(unittest.TestCase):
         self.assertEqual(SRC["tabs"], [["start", "Start here"], ["howto", "How do I…"], ["reference", "Reference"]])
 
     def test_the_counts(self):
-        """Start here: five loop steps, five first-ten-minutes steps, five jobs (the owner's five, 04-11-2026; the prototype had twelve), six places, four rules."""
+        """Start here: five loop steps, five first-ten-minutes steps, five jobs (the owner's five, 04-11-2026; the prototype had twelve), seven places (Dashboard, Work items, Milestones, Use cases, ask clark, the profile circle, Settings), four rules."""
         self.assertEqual((len(START["loop"]), len(START["first"]), len(START["jobs"]), len(START["where"]), len(START["rules"])),
-                         (5, 5, 5, 6, 4))
+                         (5, 5, 5, 7, 4))
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])

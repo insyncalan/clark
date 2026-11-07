@@ -57,7 +57,7 @@ function redraw(code, reply) {
     next.report_sections = reply.sections.map((sec) => ({ ...was.get(sec.id), ...sec }));
   }
   if (Array.isArray(reply.tiles)) next.glance_tiles = reply.tiles;
-  if (reply.project && typeof reply.project === "object") next.project = { ...next.project, health: reply.project.health, health_reason: reply.project.health_reason, ...(reply.project.week_ending !== undefined ? { week_ending: reply.project.week_ending } : {}), ...(reply.project.review_after_days !== undefined ? { review_after_days: reply.project.review_after_days } : {}), ...Object.fromEntries(Object.values(GANTT_FIELDS).filter((k) => reply.project[k] !== undefined).map((k) => [k, reply.project[k]])) };
+  if (reply.project && typeof reply.project === "object") next.project = { ...next.project, health: reply.project.health, health_reason: reply.project.health_reason, ...(reply.project.week_ending !== undefined ? { week_ending: reply.project.week_ending } : {}), ...(reply.project.review_after_days !== undefined ? { review_after_days: reply.project.review_after_days } : {}), ...(reply.project.brand !== undefined ? { brand: reply.project.brand } : {}), ...Object.fromEntries(Object.values(GANTT_FIELDS).filter((k) => reply.project[k] !== undefined).map((k) => [k, reply.project[k]])) };
   data.value = next;
 }
 

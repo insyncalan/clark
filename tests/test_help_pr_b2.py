@@ -78,7 +78,7 @@ class Commitment(unittest.TestCase):
 class WeekEnding(unittest.TestCase):
     def test_step_two(self):
         s = TASKS["write-the-weekly-report"]["s"][1]
-        self.assertEqual(s, "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, press [[Enter]] in the empty box to use the Friday shown, or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.")
+        self.assertEqual(s, "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, press [[Enter]] in the box to use the Friday shown (only while no week is kept yet), or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.")
         self.assertNotIn("write-the-weekly-report", LATER["howto"])
 
     def test_code(self):

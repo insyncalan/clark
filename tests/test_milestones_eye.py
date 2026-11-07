@@ -93,7 +93,7 @@ class Editor(unittest.TestCase):
         cdp.call("Page.navigate", {"url": "about:blank"}, self.sid)
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{hash_}"}, self.sid)
         self.until("!!document.querySelector('.msv .msl-row')", "the list drew its rows")
-        if edit:
+        if edit and hash_.startswith("#dashboard"):      # row 804: only the Dashboard has a View | Edit pill; the Milestones page is always editable
             self.js("document.querySelector('[data-mode=edit]').click()")
             self.until("document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'true'", "Edit is on")
         if theme:
