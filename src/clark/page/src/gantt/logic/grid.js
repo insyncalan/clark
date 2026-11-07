@@ -19,17 +19,17 @@ const TYPE_KEYS = { phase: "p", task: "t", milestone: "m" };
 // key, label, width at 100%, type (text, date, date0 a date that may be empty, num, num0 a number that may be empty, select, ro worked out).
 const WHEN = "date";      // the column kind for a plain DD-MM-YYYY box; held apart so no source line reads as a browser calendar field
 export const COLUMNS = [
-  { key: "id", label: "ID", width: 70, type: "ro", locked: true },
+  { key: "id", label: "ID", width: 116, type: "ro", locked: true },
   { key: "n", label: "Line", width: 220, type: "text", locked: true },
   { key: "t", label: "Type", width: 96, type: "select", options: ["Phase", "Task", "Milestone"] },
   { key: "par", label: "Parent", width: 76, type: "text" },
   { key: "s", label: "Start", width: 100, type: WHEN },
   { key: "e", label: "End", width: 100, type: WHEN },
-  { key: "dur", label: "Days", width: 62, type: "ro" },
-  { key: "pct", label: "Done %", width: 74, type: "num" },
+  { key: "dur", label: "Days", width: 76, type: "ro" },
+  { key: "pct", label: "Done %", width: 90, type: "num" },
   { key: "st", label: "Status", width: 104, type: "ro" },
   { key: "rag", label: "Health", width: 90, type: "select", options: ["", "Green", "Amber", "Red"] },
-  { key: "dep", label: "Depends on", width: 110, type: "text" },
+  { key: "dep", label: "Depends on", width: 124, type: "text" },
   { key: "o", label: "Owner", width: 150, type: "text" },
   { key: "ws", label: "Workstream", width: 120, type: "text" },
   { key: "pri", label: "Priority", width: 90, type: "select", options: ["", "High", "Medium", "Low"] },
@@ -46,6 +46,8 @@ export const COLUMNS = [
 // Type, Start, End and Done % are always in a client file (the chart cannot be drawn without them), so they have no eye and are never saved as hidden.
 export const MAX_EFFORT = 1000000, MAX_BUDGET = 10 ** 12;      // the same limits as the data layer (store.py GANTT_MAX_EFFORT, GANTT_MAX_BUDGET)
 export const NEVER_HIDDEN = ["t", "s", "e", "pct"];
+// Only a column the author types into can be hidden: ID, Days and Status are worked out, so they have no eye (the data layer's hideable list has none of them).
+export const hideable = (col) => !col.locked && col.type !== "ro" && !NEVER_HIDDEN.includes(col.key);
 export const DEFAULT_HIDDEN = ["show", "note", "cost", "eff", "bs", "be"];
 
 export const WORDS = {
@@ -137,7 +139,7 @@ export function clashes(lines) {
 // View shows no hidden column (it is not drawn at all); Edit shows all, with the hidden ones marked. ID and Line are never hidden.
 export function visibleColumns(hidden, edit) {
   const gone = new Set(hidden || []);
-  return COLUMNS.filter((c) => edit || c.locked || NEVER_HIDDEN.includes(c.key) || !gone.has(c.key));
+  return COLUMNS.filter((c) => edit || !hideable(c) || !gone.has(c.key));
 }
 
 export const FILTERS = { all: "All lines", phases: "Phases only", phasesMilestones: "Phases and milestones", ticked: "Ticked lines" };

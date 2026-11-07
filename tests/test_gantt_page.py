@@ -311,6 +311,25 @@ class Page(unittest.TestCase):
         self.assertEqual(self.mode(), "edit")
         self.assertEqual(self.count("[data-g-row]"), 6)
 
+    def test_the_table_reads_in_full_in_the_published_file_and_in_edit_at_both_widths(self):
+        # the real ID carries the project code; the ID cell and the Days, Done % and Depends on headers are not cut
+        lines = [{**l, "id": "PUB-" + l["id"], "parent": ("PUB-" + l["parent"]) if l["parent"] else "", "depends": ["PUB-" + d for d in l["depends"]]}
+                 for l in self.val("P.LINES")]
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                for published in (True, False):
+                    with self.subTest(width=width, scheme=scheme, published=published):
+                        self.look(width, scheme)
+                        self.mount(lines=lines, fromFile=published, mode="edit")
+                        self.click("[data-gp-layout]")
+                        self.until("document.querySelector('.gt-scroll td[data-k=id]')", "the table")
+                        cut = self.val("[...document.querySelectorAll(\"td[data-k=id], th[data-k=id], th[data-k=dur], th[data-k=pct], th[data-k=dep]\")]"
+                                       ".filter((e) => { var l = e.querySelector('.gt-hl') || e; return l.scrollWidth > l.clientWidth || l.getBoundingClientRect().right > e.getBoundingClientRect().right; })"
+                                       ".map((e) => e.tagName + ':' + e.dataset.k + ':' + e.textContent + ':' + e.scrollWidth + '>' + e.clientWidth)")
+                        self.assertEqual(cut, [])
+                        self.assertTrue(self.val("document.querySelector('td[data-k=id]').textContent.startsWith('PUB-GNT-')"))
+                        self.assertLessEqual(self.val("document.documentElement.scrollWidth"), width, "the page does not scroll sideways")
+
     def test_view_in_the_table_shows_the_same_three_lines(self):
         self.mount()
         self.click("[data-gp-layout]")
