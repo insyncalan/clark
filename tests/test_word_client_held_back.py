@@ -6,10 +6,8 @@ the file's own text (word_route._held_back, with the same markers) before it wri
 
 Case b: a risk whose working note (response_action, one of publish_flow.NOTE_FIELDS) is also pasted into its client-visible
 description; markers_for lists every row's note, so the web publish and the Word export both refuse.
-Not here, because the web publish does not refuse them either (no assertion it would fail): case c, the main text of a left-out
-row pasted into a client-visible row (it is then part of kept text, so it is not a marker), and case d, a hidden report section's
-body quoted in a visible row or section (markers_for reads no hidden section). In both the Word copy carries the text as the web
-file does.
+Cases c and d (#619): a left-out row's text, and a hidden section's text, pasted into a visible row. Neither route refuses them yet; their
+refusal checks are expectedFailure until the Head rules on what the check should read.
 
 Fictional data only: the demo store's project ABC, a few rows, a client folder and Local folders in a temporary folder.
 Run: python3 dev/run_tests.py test_word_client_held_back
@@ -204,9 +202,46 @@ class CleanReport(Setup, unittest.TestCase):
         self.assertNotIn("<w:", text)
 
 
-# Not covered here, and not refused by either path today (the web publish does not refuse them either): case c, a left-out row's
-# main text pasted into a client-visible row (it is then kept text, so it is not a marker: by design in markers_for), and case d,
-# a hidden report section's text quoted in a visible row (markers_for reads no hidden section). For the Head to decide separately.
+LEFT_OUT_TEXT = "Renegotiate the supplier penalty clause before the March audit"
+SECTION_TEXT = "Our fallback is to drop the second vendor if pricing slips"
+
+
+class LeftOutTextPasted(Cases, unittest.TestCase):
+    """#619 case c: the main text of a row left out of the client's view (client flag off), pasted into a client-visible row.
+    markers_for exempts a left-out text that is also kept text (the same words in a kept row), so neither route refuses it.
+    RED until the Head rules on that exemption (see the expectedFailure marks)."""
+    leak, absent = LEFT_OUT_TEXT, ()
+
+    def plant(self):
+        self.demo.action(description=LEFT_OUT_TEXT, client_visible=0)
+        self.visible = f"Next: {LEFT_OUT_TEXT}"
+        self.demo.action(description=self.visible, client_visible=1)
+        (hidden,) = [r for r in self.store.read("actions", "ABC") if r["description"] == LEFT_OUT_TEXT]
+        self.look_at = hidden["id"]
+
+
+class HiddenSectionTextPasted(Cases, unittest.TestCase):
+    """#619 case d: the body of a hidden report section, quoted in a client-visible row. markers_for reads no hidden section."""
+    leak, absent = SECTION_TEXT, ()
+
+    def plant(self):
+        with self.store.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "text", "title": "Internal fallback",
+                                          "body": SECTION_TEXT, "hidden": 1, "sort_order": 50})
+        (sec,) = [r for r in self.store.read("report_sections", "ABC") if r["title"] == "Internal fallback"]
+        self.look_at = sec["id"]
+        self.visible = f"Context: {SECTION_TEXT}"
+        self.demo.action(description=self.visible, client_visible=1)
+
+
+# Both classes fail today on every refusal check; the tests that hold already (the Local copy still saves) pass. The refusal
+# checks are marked expectedFailure so the suite stays green until the design is decided; remove the marks with the fix.
+for _cls in (LeftOutTextPasted, HiddenSectionTextPasted):
+    for _name in ("test_a_web_publish_to_the_client_refuses_it", "test_the_word_client_copy_refuses_it",
+                  "test_the_word_refusal_names_the_item_to_look_at_as_the_web_publish_does",
+                  "test_the_refusal_writes_nothing_in_either_folder"):
+        setattr(_cls, _name, unittest.expectedFailure(lambda self, _n=_name: getattr(Cases, _n)(self)))      # a copy: the function is shared with the other cases
+del _cls, _name                  # or the loader finds the last class twice
 
 
 if __name__ == "__main__":
