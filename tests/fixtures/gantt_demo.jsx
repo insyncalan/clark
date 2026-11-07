@@ -5,6 +5,7 @@ import { render } from "preact";
 import { useState } from "preact/hooks";
 import * as gantt from "@src/gantt/logic/gantt.js";
 import { GanttChart } from "@src/gantt/components/GanttChart.jsx";
+import { GANTT_EDIT_WORDS as EW } from "@src/edit/ganttWords.js";
 
 window.K = { gantt };
 window.calls = [];
@@ -17,7 +18,7 @@ function Host({ first, opts }) {
   const put = (id, fn) => setLines((all) => all.map((l) => (l.id === id ? fn(l) : l)));
   return (
     <div id="host" style={{ width: `${opts.width || 1000}px` }}>
-      <GanttChart lines={lines} edit={!!opts.edit} today={opts.today} defaultRows={rows} hiddenCols={hidden}
+      <GanttChart eyeWords={{ head: EW.eyeHead, on: EW.eyeTipOn, off: EW.eyeTipOff, detail: EW.eyeDetail }} lines={lines} edit={!!opts.edit} today={opts.today} defaultRows={rows} hiddenCols={hidden}
         onDefaultRows={(n) => { window.calls.push(["rows", n]); setRows(n); }}
         onToggleColumn={(k) => { window.calls.push(["column", k]); setHidden((h) => (h.includes(k) ? h.filter((x) => x !== k) : [...h, k])); }}
         onChange={(id, field, value) => { window.calls.push(["change", id, field, value]); put(id, (l) => (field === "dates" ? { ...l, ...value } : { ...l, [field]: value })); }}

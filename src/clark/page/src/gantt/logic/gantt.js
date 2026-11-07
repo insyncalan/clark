@@ -26,7 +26,6 @@ export const WORDS = {
   all: "All lines", phases: "Phases only", milestones: "Phases and milestones", ticked: "Ticked lines",
   show: "Show", scrollToday: "Scroll to today", expand: "Expand to full screen", unexpand: "Back to page width",
   name: "Phase / task", start: "Start", end: "End", date: "Date", pct: "Done",
-  eyeOn: "Shown on the dashboard. Press to take it off", eyeOff: "Not on the dashboard. Press to put it on", eyeHead: "Show on the dashboard",
   colOn: "Shown in the client view", colOff: "Hidden from the client view",
   grip: "Drag to show more or fewer rows", gripLabel: "Plan height: drag to show more or fewer rows",
   legendPhase: "Phase", legendTask: "Task (lighter part = done)", legendMilestone: "Milestone", legendAchieved: "Achieved", legendToday: "Today",

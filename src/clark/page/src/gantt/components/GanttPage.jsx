@@ -148,7 +148,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
         {editing && !stored.length ? <button type="button" class="gt-ib gp-first" data-gp-first aria-label={E.addBelow} title={E.addBelow} onClick={() => onAdd("", "phase")}><Icon name="plus" /></button> : null}      {/* a plan with no line has no row to add below: this starts it (a phase) */}
         {layout === "chart"
           ? <GanttChart lines={toChart(stored)} edit={editing} today={now} filter={filter} onFilter={setFilter} defaultRows={settings.gantt_default_rows ?? null}
-              onDefaultRows={onDefaultRows} onChange={onChange} onToggleEye={onToggleEye} onAdd={onAdd} onDelete={onDelete} addBelowWord={E.addBelow} />
+              onDefaultRows={onDefaultRows} onChange={onChange} onToggleEye={onToggleEye} onAdd={onAdd} onDelete={onDelete} addBelowWord={E.addBelow} eyeWords={{ head: E.eyeHead, on: E.eyeTipOn, off: E.eyeTipOff, detail: E.eyeDetail }} />
           : <GanttTable lines={toTable(stored)} edit={editing} today={now} filter={tableFilter} hidden={tableHidden} onChange={onTable} onHiddenChange={onTableHidden} onUndo={host.serverUndo ? () => host.undoLast() : undefined} addBelowWord={E.addBelow} />}
       </div>
       {below ? <div class="gp-slot gp-below" data-slot="below">{below}</div> : null}
