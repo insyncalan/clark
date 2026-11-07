@@ -1930,6 +1930,43 @@ def _gantt_new_values(values, lines, after_row, project):
     return out
 
 
+def _gantt_milestone_dates(changes, now):
+    """`changes` for a line `now`, with a milestone's one date kept: changing its Start moves its End too, and an End alone is refused."""
+    if changes.get("type", now["type"]) == "milestone":
+        if "end" in changes and changes["end"] != changes.get("start", now["start"]):
+            raise Refused(clark_store.GANTT_MILESTONE_ONE_DATE)
+        changes["end"] = changes.get("start", now["start"])
+    return changes
+
+
+def gantt_import_write(store, st, project, ref, given):
+    """Row 926, the workbook import: one Gantt line of `project` added (`ref` None; at the end of the list, with the next free id) or
+    changed, inside the caller's step, through the page's own checks (_checked_gantt, _gantt_new_values, _gantt_milestone_dates) and the
+    store's rules. Returns the line's id. A refusal is an Invalid in the Gantt words; nothing the request says is taken for the id,
+    the project, the place or the stamp."""
+    try:
+        if clark_store.is_archived(store.con, project):
+            raise Refused(PROJECT_NOT_ACTIVE)
+        if isinstance(given, dict) and "show" in given and type(given["show"]) is not int:
+            raise Refused(clark_store.GANTT_BAD_CHOICE)             # the sheet's Yes or No that could not be read
+        values = _checked_gantt(given, clark_store.columns(store.con, "gantt_lines"))
+        if ref is None:
+            lines = _gantt_lines(store, project)
+            return st.create("gantt_lines", {**_gantt_new_values(values, lines, None, project), "sort_order": order.end_slot(lines)})
+        now = store.read("gantt_lines", ref=ref)
+        if now is None or now["project"] != project:
+            raise Refused(GANTT_NOT_MINE)
+        st.update("gantt_lines", ref, _gantt_milestone_dates(values, now))
+        return ref
+    except Refused as e:
+        raise Invalid(e.message) from None
+    except Invalid as e:
+        words_ = _gantt_words(e)
+        if words_ is None:
+            raise
+        raise Invalid(words_) from None
+
+
 def _do_gantt_change(store, by_user, req, project, table, columns, op, place):
     """Row 926: add a Gantt line, change its fields (the eye is `show`), move it or delete it, in THIS project; each is one step with
     one Undo. A new line goes just after the line named by `after` (None: at the end) and gets the next free id; renumbering is
@@ -1973,13 +2010,7 @@ def _do_gantt_change(store, by_user, req, project, table, columns, op, place):
             elif ref not in by_id:
                 raise Refused(GANTT_NOT_MINE)
             elif op == UPDATE:
-                now = by_id[ref]
-                kind = changes.get("type", now["type"])
-                if kind == "milestone":                             # one date: Start; End follows it
-                    if "end" in changes and changes["end"] != changes.get("start", now["start"]):
-                        raise Refused(clark_store.GANTT_MILESTONE_ONE_DATE)
-                    changes["end"] = changes.get("start", now["start"])
-                st.update(table, ref, changes)
+                st.update(table, ref, _gantt_milestone_dates(changes, by_id[ref]))
             elif op == MOVE:
                 if before is not None and before not in by_id:
                     raise Refused(STALE)
