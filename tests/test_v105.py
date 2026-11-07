@@ -2,11 +2,11 @@
 
 Run: python3 dev/run_tests.py test_v105
 
-Same shape as test_v104 (bullets for unmerged rows wait under a WAIT heading). All eleven 1.0.5 rows are IN REVIEW today (none is merged), so COVERED is empty and every visible row is in WAITING
+Same shape as test_v104 (bullets for unmerged rows wait under a WAIT heading). All thirteen 1.0.5 rows are IN REVIEW today (none is merged), so COVERED is empty and every visible row is in WAITING
 (no pull request yet). The notes are written ahead of the merges. The cut tests skip until the cut commit sets 1.0.5; from then on a
 row that is not MERGED or DROPPED fails, a WAITING row whose marker has landed fails until it moves to COVERED, and the approved
 manual download lines must stay in. The data layout stays 19 (no 1.0.5 row changes it).
-Row 963 moved to 1.0.6: not a 1.0.5 row. Rows are now 11 (975 and 996 added).
+Rows 836 (PR 942) and 963 (PR 941) are tests or internal code only: in TEST_ONLY, no bullet. PR 943 (NOTICE.md) has no row. Rows are now 13.
 """
 import ast
 import re
@@ -23,7 +23,7 @@ COVERED = []
 
 # Merged rows with no visible change. None merged yet. 
 NO_VISIBLE_CHANGE = set()
-TEST_ONLY = set()
+TEST_ONLY = {"836", "963"}   # 836 step 3 (PR 942): internal code, no new words; 963 (PR 941): tests only. No bullet, no hand check.
 # No user note, and no hand check, once merged. 972 is not merged yet, so it cannot sit in NO_VISIBLE_CHANGE (that set must be MERGED).
 NO_NOTE_WHEN_MERGED = {"972"}
 
@@ -305,7 +305,7 @@ class Cut(unittest.TestCase):
         self.assertEqual(out, [])
 
     def test_at_the_cut_every_row_is_merged_or_dropped(self):
-        """Fails from the cut until each of the eleven rows has merged (or been dropped and taken out of the notes)."""
+        """Fails from the cut until each of the thirteen rows has merged (or been dropped and taken out of the notes)."""
         self.cut_made()
         out = [f"{item} is {status}" for item, title, status, pr in table_rows(read_sheet()) if status not in ("MERGED", "DROPPED")]
         self.assertEqual(out, [])
