@@ -64,6 +64,22 @@ class Source(unittest.TestCase):
                 for decl in body.split(";"):
                     self.assertFalse(decl.strip().startswith("outline") and "--brand-navy" in decl, f"{path.name}: {sel}")
 
+    def test_the_dialog_rings_follow_the_focus_token(self):
+        """Row 959: the Add dialog's rings take --focus (the role a custom brand sets), not --brand-blue, as every other ring does."""
+        found = [(s, b) for s, b in css_blocks(PAGE / "shell.css") if ".ad .pk-btn:focus-visible" in s]
+        self.assertEqual(len(found), 1)
+        self.assertIn("outline: 2px solid var(--focus)", found[0][1])
+        self.assertNotIn("--brand-blue", found[0][1])
+
+    def test_the_band_text_pairs_with_the_navy_not_the_text_on_brand(self):
+        """Row 959: no text-on-navy token exists (--text-on-brand pairs with --brand-blue and is dark in the dark theme), so the band
+        text is --white, the same pair as the top bar and the cover. Tokens only: no raw colour."""
+        for sel in (".tpl-band", ".tpl-band-words"):
+            rule = [b for s, b in css_blocks(PAGE / "shell.css") if s == sel]
+            self.assertEqual(len(rule), 1, sel)
+            self.assertNotIn("--text-on-brand", rule[0])
+            self.assertRegex(rule[0], r"color: var\(--white\)")
+
     def test_the_small_primary_button_is_the_pill(self):
         rule = [b for s, b in css_blocks(PAGE / "shell.css") if s == ".pk-btn.pri:not(:disabled)"]
         self.assertEqual(len(rule), 1)
