@@ -4,7 +4,8 @@ Written 07-11-2026. READY FOR READ (design). Review of this note and of every bu
 readers, never the builder): the guarded-code reader first, the project lead second. Nothing in this note is built. Line numbers
 are `origin/main` at `91c92da25`. Facts come only from the rows of the five fact tables that a second reader confirmed; a row
 marked NOT CONFIRMED there is not used here, or is named as unchecked. Main is frozen, so this is a document only: no code, no
-test and no string changes.
+test and no string changes. The changes in this note are docs only; a range diff against the earlier head also shows src and tests
+because main was merged in.
 
 ## Plain words, for the owner
 
@@ -84,7 +85,7 @@ CHANGED means the owner changed it.
 15. **DEFAULT.** New module `src/clark/brands.py`; it imports the public `path_problem` (`updates.py:189`), `collisions` (`:219`),
     `read_once` (`:349`) and copies the few private helpers. Nothing in `updates.py`, `update_install.py`, `update_helper.py`,
     `updater.py` is edited. No restart and no global 503; a brand-level lock refuses an install or remove while an export or publish
-    of that brand runs. Whether anything caches the page's style hash: checked by the first reader (section 6).
+    of that brand runs. Whether anything caches the page's style hash: listed as unchecked in section 5.
 16. **DEFAULT, keep 5.** Backup `<data>/brand-backups/<stamp>-<id>/`, outside `system/`; the last 5 sets are kept, older pruned; one-level Undo of the last brand change only.
 17. **DEFAULT.** Deny-list: a plain list of words in a file inside the code, checked on the brand's name, its file names and its
     `tokens.css`; the refusal names no word.
@@ -188,10 +189,12 @@ the project lead second. Proposed builders: builder A for T1 and T2; builder B f
 - **Hostile caps (design requirements, all checked before anything is extracted or parsed further):**
   - member count read from the end-of-central-directory record before any member is parsed; over 50 is refused (50 files);
   - zip64 refused (a zip64 end record or locator, or a size/offset field at its sentinel);
-  - total unpacked size cap and a compression ratio cap, counted while reading, not trusted from the headers (numbers to be
-    taken from the import spec);
+  - total unpacked size cap and a compression ratio cap, counted while reading, not trusted from the headers: total unpacked 24 MB (the central-directory sum, and also
+    counted while reading); any member over 64 KB that is more than 100 times its compressed size is refused; a total ratio over 20 is
+    refused; each refused before extraction;
   - overlapping members refused (two members whose local-header ranges cross, or share data);
-  - zip comment length cap (number to be taken from the import spec);
+  - zip comment at most 1 KB;
+  - the numbers 24 MB, 100 times over 64 KB, total ratio 20 and 1 KB are from the second critical reader;
   - every symlink or link re-checked in the staged tree (`system/branding/.clark-brand-new-<id>/`) before the install renames;
   - zip 16 MB, one file 5 MB as above.
 - **Zip-structure failures reuse the existing damaged-file refusal, no new sentence.** An encrypted member, compression method
@@ -206,7 +209,9 @@ the project lead second. Proposed builders: builder A for T1 and T2; builder B f
   backslash, case clash, link member, odd mode, oversize declared and actual, unlisted file, wrong hash, reserved id, deny-list hit,
   `@import`, `url()` to a picture, a PNG with a bad CRC, a JPEG cut short, a WebP with a wrong length, plus the missing hostile cases: an encrypted member, compression method 99, 51
   members (count from the end record), zip64, a member whose declared size lies (actual bytes differ), overlapping members, an
-  over-long zip comment, a link found only in the staged tree); `test_brands_install.py`
+  over-long zip comment, three bomb cases (a member over 64 KB at more than 100 times its compressed size; a zip whose total ratio is over 20; a
+  zip whose members together pass 24 MB unpacked, by the central-directory sum and by real inflation: each refused before extraction with the
+  damaged-file refusal; a lying declared size is the separate case above), a link found only in the staged tree); `test_brands_install.py`
   (install, replace with "removed" shown, remove, undo, crash between renames rolled back, backup outside `system/`, lock refuses
   while a publish of that brand runs); `test_brand_routes.py` (body limits, token, no path accepted). Existing kept green:
   `test_brand.py`, `test_brand_picture.py`, `test_page_branding_root.py`, `test_updates.py`, `test_update_placed.py`.
@@ -274,7 +279,5 @@ identifiers, not words shown as sentences.
 
 ## 6. Open questions left
 
-1. The first reader confirms nothing caches the page or its style hash (decision 15), and agrees the T3 swap is a server-side
-   page load (this note's recommendation) rather than a returned block with every brand's hash.
 None open. Settled here: Generic Excel Cover is clark's icon (via `brands.GENERIC`); brand backups keep 5 sets (decision 16;
 `update_install.py:50` `KEEP = 3` is the update set's own count and is not changed); Remove follows the spec's two clicks.
