@@ -107,6 +107,12 @@ class TheFields(Base):
         self.refused(self.req({"internal_note": "a\r\n" * 1001}), changes.ITEM_VALUE_WORDS)
         self.refused(self.req({"internal_note": "a\tb"}), changes.NOTE_TEXT_WORDS)
 
+    def test_the_note_limit_counts_after_nfc_normalisation(self):               # #584
+        composed = "e\u0301" * 1001                                         # 2002 characters as typed, 1001 once composed: fits
+        self.ok({"internal_note": composed})
+        self.assertEqual(self.row()["internal_note"], "\u00e9" * 1001)
+        self.refused(self.req({"internal_note": "\u0344" * 1001}), changes.ITEM_VALUE_WORDS)   # 1001 as typed, 2002 once composed: over
+
     def test_several_fields_in_one_request_are_one_step(self):
         got = self.ok({"forecast_date": "2030-03-20", "movement": "hold", "client_message": "A short delay."})
         self.assertEqual(len({r["via"] for r in self.s.step_rows(got["apply_id"])}), 1)

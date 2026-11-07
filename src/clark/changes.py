@@ -1100,7 +1100,7 @@ def _checked_milestone_changes(fields):
             if v is not None and not isinstance(v, str):
                 raise Refused(ITEM_VALUE_WORDS)
             if isinstance(v, str):
-                v = v.replace("\r\n", "\n").replace("\r", "\n")            # folded first, so a CRLF counts once
+                v = unicodedata.normalize("NFC", v.replace("\r\n", "\n").replace("\r", "\n"))   # folded first, so a CRLF counts once; composed (#584) before it is counted
                 if len(v) > INTERNAL_NOTE_MAX:
                     raise Refused(ITEM_VALUE_WORDS)
                 if not _plain_text(v.replace("\n", " ")):
