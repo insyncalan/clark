@@ -333,6 +333,57 @@ class Refusals(Base):
         self.assertTrue(any("Milestones, Use cases or Gantt, so there is nothing to compare" in x.message for x in p.problems), p.problems)
 
 
+class Limit(Base):
+    """Row 926: a Gantt line the data layer would refuse as the 501st refuses the whole file (store.GANTT_TOO_MANY), nothing is written."""
+
+    def three(self):
+        for i in range(3):
+            self.add(type="task", name=f"Old {i}", start="2026-11-02", end="2026-11-03")
+
+    def with_new(self, count, edit_first=False):
+        self.three()
+        path = self.export()
+        wb = load_workbook(str(path))
+        ws = wb["Gantt"]
+        head = {c.value: c.column for c in ws[1]}
+        if edit_first:
+            ws.cell(2, head["Line"]).value = "Renamed"
+        first = ws.max_row + 1
+        for k in range(count):
+            for label, v in {"ID": "TBD", "Line": f"New {k}", "Type": "Task", "Start": __import__("datetime").date(2026, 12, 1),
+                             "End": __import__("datetime").date(2026, 12, 3), "On dashboard": "Yes"}.items():
+                ws.cell(first + k, head[label]).value = v
+        wb.save(str(path))
+        return path, first
+
+    def refuses(self, count, edit_first=False):
+        path, first = self.with_new(count, edit_first)
+        before, steps = self.lines(), self.steps()
+        p = self.plan(path)
+        bad = [c for c in p.changes if c.problem]
+        self.assertEqual({c.problem for c in bad}, {store_module.GANTT_TOO_MANY}, p.report())
+        self.assertEqual(len(bad), len(p.changes))                        # the whole sheet is refused, not only the last line
+        the501 = next(c for c in bad if c.row == first + 497)             # the 501st line of the project is named by its row
+        self.assertIn(f"row {first + 497} of Gantt", the501.describe())
+        p.accept_all()
+        res = xi.apply_import(self.s, p, USER, state_path=self.state)
+        self.assertFalse(res.applied, res.message)
+        self.assertEqual((self.lines(), self.steps()), (before, steps))
+        self.assertEqual(len(self.lines()), 3)
+
+    def test_498_new_rows_on_3_lines_refuse_the_whole_file_and_write_nothing(self):
+        self.refuses(498)
+
+    def test_exactly_500_lines_in_all_import_in_one_step(self):
+        path, _ = self.with_new(497)
+        res, p = self.apply(path)
+        self.assertTrue(res.applied, res.message)
+        self.assertEqual((p.counts()["new"], len(self.lines())), (497, 500))
+
+    def test_updates_and_new_rows_together_making_501_refuse(self):
+        self.refuses(498, edit_first=True)
+
+
 class Isolation(Base):
     def test_importing_writes_no_client_file(self):
         self.twelve()

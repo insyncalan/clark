@@ -1313,6 +1313,9 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
         errs, _, refused = _try(store, lines, "Import check", commit=False)
         for c in lines:
             c.problem = next((e.message.split(": ", 1)[-1] for e in errs if e.row == c.row), refused)
+        if any(c.problem == writer.GANTT_TOO_MANY for c in lines):    # a count over the limit is the whole sheet's: no line of it is taken alone (the 501st keeps its row)
+            for c in lines:
+                c.problem = writer.GANTT_TOO_MANY
     rd.plan.refresh_ids()
     return rd.plan
 
