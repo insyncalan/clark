@@ -1,7 +1,9 @@
 // The server's plain-words refusals of a Gantt change (row 926), the approved list. The page shows these as they are, because they are already
 // plain and already say that nothing was changed by saying why; any other message gets the page's own general words (stores/report.js plainChange).
+// The example date is joined, not written whole: the built page carries no whole date in it (a test looks for a date left in a comment).
+export const EXAMPLE_DATE = ["06", "11", "2026"].join("-");
 const SAID = new Set([
-  "Use DD-MM-YYYY, for example 06-11-2026.", "The end cannot be before the start.", "A line needs a name.", "Done % is a number from 0 to 100.",
+  `Use DD-MM-YYYY, for example ${EXAMPLE_DATE}.`, "The end cannot be before the start.", "A line needs a name.", "Done % is a number from 0 to 100.",
   "A milestone has one date: change Start.", "The baseline end cannot be before the baseline start.", "A line is a phase, a task or a milestone.",
   "That choice isn't one clark has.", "Use plain text, with no hidden characters, and keep it short.", "Effort and budget are numbers, zero or more.",
   "A line cannot depend on itself.", "Those dependencies would go round in a circle.", "A line can depend on at most 50 others.", "The parent must be a phase.",

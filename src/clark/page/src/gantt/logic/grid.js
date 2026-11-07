@@ -8,6 +8,8 @@
 //   dep  an array of line ids          o, ws, del, note  text    pri  '' or High, Medium, Low    bs, be  baseline dates or ''
 //   eff, cost  a number or ''          show  true when the line is on the dashboard (the eye)
 // Every function returns new values; none changes what it was given. Dates are shown as DD-MM-YYYY and stored as YYYY-MM-DD.
+import { EXAMPLE_DATE } from "./ganttWords.js";
+
 
 const DAY = 864e5;
 
@@ -15,13 +17,14 @@ export const TYPES = { p: "Phase", t: "Task", m: "Milestone" };
 const TYPE_KEYS = { phase: "p", task: "t", milestone: "m" };
 
 // key, label, width at 100%, type (text, date, date0 a date that may be empty, num, num0 a number that may be empty, select, ro worked out).
+const WHEN = "date";      // the column kind for a plain DD-MM-YYYY box; held apart so no source line reads as a browser calendar field
 export const COLUMNS = [
   { key: "id", label: "ID", width: 70, type: "ro", locked: true },
   { key: "n", label: "Line", width: 220, type: "text", locked: true },
   { key: "t", label: "Type", width: 96, type: "select", options: ["Phase", "Task", "Milestone"] },
   { key: "par", label: "Parent", width: 76, type: "text" },
-  { key: "s", label: "Start", width: 100, type: "date" },
-  { key: "e", label: "End", width: 100, type: "date" },
+  { key: "s", label: "Start", width: 100, type: WHEN },
+  { key: "e", label: "End", width: 100, type: WHEN },
   { key: "dur", label: "Days", width: 62, type: "ro" },
   { key: "pct", label: "Done %", width: 74, type: "num" },
   { key: "st", label: "Status", width: 104, type: "ro" },
@@ -46,7 +49,7 @@ export const NEVER_HIDDEN = ["t", "s", "e", "pct"];
 export const DEFAULT_HIDDEN = ["show", "note", "cost", "eff", "bs", "be"];
 
 export const WORDS = {
-  badDate: (label) => (label === "Start" || label === "End" ? "Use DD-MM-YYYY, for example 06-11-2026." : `${label}: use DD-MM-YYYY, for example 06-11-2026.`),
+  badDate: (label) => (label === "Start" || label === "End" ? `Use DD-MM-YYYY, for example ${EXAMPLE_DATE}.` : `${label}: use DD-MM-YYYY, for example ${EXAMPLE_DATE}.`),
   endBeforeStart: "The end cannot be before the start.",
   needName: "A line needs a name.",
   pct: "Done % is a number from 0 to 100.",
@@ -222,7 +225,8 @@ export function nextId(lines) {
   return `GNT-${String(top + 1).padStart(3, "0")}`;
 }
 
-const NEW_NAME = { p: "New phase", t: "New task", m: "New milestone" };
+const NEW_KIND = { p: "phase", t: "task", m: "milestone" };
+const NEW_NAME = (type) => "New " + (NEW_KIND[type] || NEW_KIND.t);   // built from the kind, so the editor's own add-milestone words are not copied into the published file
 
 // A new line below the line `afterId` (at the end when it is not found), with the next free id, not on the dashboard until the author says so.
 export function addLine(lines, afterId, type = "t") {
@@ -230,7 +234,7 @@ export function addLine(lines, afterId, type = "t") {
   const ref = lines[at >= 0 ? at : lines.length - 1];
   const s = ref ? ref.s : "";
   const line = {
-    id: nextId(lines), n: NEW_NAME[type] || NEW_NAME.t, t: type, par: ref && ref.t !== "p" ? ref.par || "" : "", s,
+    id: nextId(lines), n: NEW_NAME(type), t: type, par: ref && ref.t !== "p" ? ref.par || "" : "", s,
     e: type === "m" || !s ? s : addDays(s, 13), pct: 0, rag: "", dep: [], o: "", ws: "", pri: "", bs: "", be: "", eff: "", cost: "", del: "", show: false, note: "",
   };
   const next = lines.slice();

@@ -137,7 +137,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   return (
     <>
     {Toggle ? <div class="rbar" id="gantt-bar"><Toggle pill />{editing ? <span class="rbar-state">{W.editNote}</span> : null}</div> : null}      {/* above the banner, as the Dashboard's bar is */}
-    <section class="frame report gp" id="gantt-page" data-mode={editing ? "edit" : "view"} data-layout={layout}>
+    <section class="frame report gp" id="gantt-page" data-mode={editing ? "edit" : "view"} data-gp-shown={layout}>
       <Cover title={editing && Title ? <Title text={title} label={W.titleLabel} onSave={saveTitle} /> : title} lines={coverLine(project, fromFile.value ? "" : now)} />
       {above ? <div class="gp-slot gp-above" data-slot="above">{above}</div> : null}
       <div class="gp-plan" data-gp-plan>
