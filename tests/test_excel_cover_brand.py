@@ -222,7 +222,7 @@ class NotOnThePublishedPage(unittest.TestCase):
     def test_only_the_local_export_reads_the_brand_pictures(self):
         users = [p.name for p in sorted(SRC.rglob("*.py"))
                  if re.search(r"excel_picture|local_logo|local_wave|load_wave|own_logo", p.read_text(encoding="utf-8"))]
-        self.assertEqual(users, ["excel.py", "excel_picture.py"])
+        self.assertEqual(users, ["brands.py", "excel.py", "excel_picture.py"])      # #944: brands.py only checks a brand picture's size when installing
 
     def test_the_client_workbook_the_publisher_and_the_word_file_draw_no_picture(self):
         for name in ("excel_client.py", "publish.py", "publish_flow.py", "publish_pdf.py", "published_copies.py", "docx_build.py"):
