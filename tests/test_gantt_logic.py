@@ -181,6 +181,12 @@ class Rules(unittest.TestCase):
 
     # ── rows to show ─────────────────────────────────────────────────────────
 
+    def test_a_line_with_no_usable_date_is_left_out_and_listed(self):
+        lines = LINES + [ln("GNT-012", "No dates", "task", "", "garbage", show=True), ln("GNT-013", "Bad start", "phase", "nope", "2026-10-01", show=True)]
+        self.assertEqual(self.g(f"tidyAll({lit(lines)}).length"), 11, "the chart still draws the dated lines only")
+        self.assertEqual(self.g(f"leftOut({lit(lines)}).map(l => l.id)"), ["GNT-012", "GNT-013"], "the left-out list is exact")
+        self.assertEqual(self.g(f"leftOut({lit(LINES)})"), [], "nothing is left out when every line has a date")
+
     def test_view_shows_only_the_lines_whose_eye_is_on(self):
         self.assertEqual(self.ids(edit=False, filter="all"), ["GNT-001", "GNT-003", "GNT-004", "GNT-007", "GNT-008", "GNT-011"])
 

@@ -363,6 +363,25 @@ class Page(Base):
             p.until(self.text_of(full, "[data-tr-words]") + " === '5 points behind plan.'", "the automatic words are back")
             self.assertEqual(p.js(self.count(full, "[data-tr-auto]")), 0, "the link shows only while the words are the owner's own")
 
+    def test_escape_puts_the_old_words_back_even_when_the_field_is_focused_before_any_frame(self):
+        """#992: the words are in the field before the first paint, so a focus that lands before the passive effects ran (a slow or
+        busy machine) still takes the old words. The frame and the 100 ms fallback are held here, so the order is the same everywhere."""
+        ref = self.make(BODY)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.js("(function(){var s=window.setTimeout, r=window.requestAnimationFrame; window.__held=[]; window.__real=[s, r];"
+                 "window.requestAnimationFrame=function(f){window.__held.push(f); return 0;};"
+                 "window.setTimeout=function(f,ms){if(ms===35||ms===100){window.__held.push(f); return 0;} return s.apply(window,arguments);};})()")
+            p.edit()
+            p.until(self.present(ref, "[data-tr-words]"), "the field is drawn")
+            self.assertGreater(p.js("window.__held.length"), 0, "the frame and the fallback are held, so no passive effect has run")
+            p.js("(function(){var el=" + self.one(ref, "[data-tr-words]") + "; el.focus(); getSelection().selectAllChildren(el);})()")
+            p.type("something else")
+            p.key("Escape", code="Escape", vk=27)
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-words]")), "Supplier slipped a week", "Escape puts the old words back")
+            p.js("(function(){window.setTimeout=window.__real[0]; window.requestAnimationFrame=window.__real[1]; window.__held.splice(0).forEach(function(f){f();});})()")
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-words]")), "Supplier slipped a week", "and they stay when the held work runs")
+
     def test_the_cog_and_the_grip_menu_open_the_template_settings_and_a_pick_is_one_change_shown_at_once(self):
         ref = self.make(BODY)
         with chrome() as cdp:

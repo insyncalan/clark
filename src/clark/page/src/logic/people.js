@@ -69,8 +69,8 @@ export function countLine(need, total) {
   return `${need} of ${total} ${total === 1 ? "person needs" : "people need"} details`;
 }
 
-// How many a done paste says: "2 people updated", "1 person updated"
-export const doneLine = (n) => `${n} ${n === 1 ? "person" : "people"} updated`;
+// How many a done paste says: "2 people added or updated", "1 person added or updated" (it counts both together; row 538)
+export const doneLine = (n) => `${n} ${n === 1 ? "person" : "people"} added or updated`;
 
 const isHeading = (cells) => key(cells[0]) === "name" && /mail/i.test(cells[1] || "");
 

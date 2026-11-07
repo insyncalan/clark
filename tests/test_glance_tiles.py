@@ -86,7 +86,7 @@ class Tiles(unittest.TestCase):
                     self.assertTrue(wait(lambda: cdp.js("location.hash", sid).startswith("#work&p=" + code + "&f=")))
                     count = cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid)
                     self.assertEqual(count, want[key], "the list holds exactly what the tile counted")
-                    chips = cdp.js("document.querySelector('#fline-input').value.split(/\\s+/).filter(Boolean)", sid)
+                    chips = cdp.js("document.querySelector('[data-fline]').dataset.line.split(/\\s+/).filter(Boolean)", sid)
                     self.assertEqual(chips, words[key], "the line shows what the tile counted")
                     self.assertEqual(cdp.js("document.querySelector('#work-count').textContent", sid), f"{count} open item" + ("" if count == 1 else "s"))
                     cdp.js("history.back()", sid)
