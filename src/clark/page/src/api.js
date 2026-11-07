@@ -81,6 +81,9 @@ export async function sendUndoMany(project, steps, { preview = false, confirm = 
 // A refusal of the route's is a fixed plain sentence (each ends "Nothing was saved."). Up to this many characters it is shown as it is;
 // text longer than that, or with a control character in it, is not one of the route's, so plainChange speaks instead (#307).
 const SENT_REFUSAL_MAX = 600;
+// #484: with no answer (or a server fault) the request may have been recorded, so the page does not say nothing was saved: it says it may
+// or may not be, and where to check before pressing again.
+const SENT_MAYBE = "clark did not answer, so this may or may not be saved to the history. Look in the history to check before you press I sent it again.";
 
 // "I sent it" (#50): saves one record in the history: the item ids, the mode and the day, never any words of the email. Row 983: `extra`
 // may add the recipient's people id (person), the tone and the reply-by the draft used; the server finds the name from that record and
@@ -101,9 +104,10 @@ export async function sendEmailSent(project, entry, extra) {
     const text = reply && typeof reply.message === "string" ? reply.message : "";
     const said = text.trim() && text.length <= SENT_REFUSAL_MAX && !/[\u0000-\u001f]/.test(text) ? text : "";
     if ((r.status === 400 || r.status === 404 || r.status === 409) && said) return { ok: false, message: said };
+    if (!r.ok && (r.status === 500 || r.status === 503)) return { ok: false, message: SENT_MAYBE };
     return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };
   } catch (e) {
-    return { ok: false, message: plainChange(0) };
+    return { ok: false, message: SENT_MAYBE };
   }
 }
 

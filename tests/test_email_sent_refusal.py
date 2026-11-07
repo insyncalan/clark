@@ -48,7 +48,7 @@ class Shown(unittest.TestCase):
         """What sendEmailSent answers when the server answers `status` with `body` (a JSON value, or a string sent as it is)."""
         code = ('globalThis.addEventListener = () => {}; globalThis.location = { hash: "", search: "", pathname: "/" };'
                 f'globalThis.document = {{ getElementById: () => ({{ textContent: "{{\\"token\\":\\"t\\"}}" }}) }};'
-                f'globalThis.fetch = async () => ({{ ok: {json.dumps(status < 400)}, status: {status}, json: async () => ({json.dumps(body)}) }});'
+                f'globalThis.fetch = async () => {{ if ({json.dumps(status == 0)}) throw new Error("down"); return {{ ok: {json.dumps(status < 400)}, status: {status}, json: async () => ({json.dumps(body)}) }}; }};'
                 f'const {{ sendEmailSent }} = await import({json.dumps(self.bundle.as_uri())});'
                 'console.log(JSON.stringify(await sendEmailSent("ABC", { ids: ["ABC-A-001"], mode: "chase", date: "2026-11-02" })));')
         done = subprocess.run(["node", "--input-type=module", "-e", code], capture_output=True, text=True)
@@ -79,6 +79,17 @@ class Shown(unittest.TestCase):
             got = self.ask(status, {"ok": False, "message": said})
             self.assertFalse(got["ok"])
             self.assertNotEqual(got["message"], said, status)
+
+    def test_no_answer_or_a_server_fault_says_it_may_or_may_not_be_saved_and_where_to_check(self):
+        for status in (500, 503, 0):
+            got = self.ask(status, {"ok": False, "message": "x"})
+            self.assertFalse(got["ok"])
+            self.assertIn("may or may not be saved", got["message"], status)
+            self.assertIn("check", got["message"])
+            self.assertIn("history", got["message"])
+            self.assertIn("before you press I sent it again", got["message"])
+            self.assertNotIn("Nothing was saved", got["message"])
+            self.assertNotIn("nothing was changed", got["message"])
 
 
 class RouteStaysUnderTheCap(unittest.TestCase):
