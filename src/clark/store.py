@@ -1560,12 +1560,16 @@ REASON_MARKUP_LIMIT = 64 * 1024                                           # byte
 def _reason_html(value):
     """Row 1005: a reason written as the editor's HTML, as it is stored: cleaned by the server's own cleaner, the words (not the markup)
     held to REASON_LIMIT, no hidden character among them. No words at all is None."""
+    value = unicodedata.normalize("NFC", value)                           # BEFORE the cleaner: composing after it can turn a tag's ">" into a letter (U+0338 after it makes U+226F)
     if any(c not in "\n\r\t" and unicodedata.category(c) in _BAD_TITLE_KINDS for c in value):
         raise Invalid(REASON_BAD_CHARS)                                   # a NUL or a bidi mark is refused, not quietly dropped by the cleaner
     try:
         html = sanitise.clean_html(value)
     except sanitise.SanitiseError:
         raise Invalid(REASON_TOO_LONG) from None
+    again = unicodedata.normalize("NFC", html)                            # an entity can decode to a mark that composes: take the composed text only if it is still clean
+    if sanitise.clean_html(again) == again:
+        html = again
     words = sanitise.plain_text(html)
     if any(c != "\n" and unicodedata.category(c) in _BAD_TITLE_KINDS for c in words):
         raise Invalid(REASON_BAD_CHARS)
@@ -1573,7 +1577,7 @@ def _reason_html(value):
         return None
     if len(words) > REASON_LIMIT or len(html.encode("utf-8")) > REASON_MARKUP_LIMIT:
         raise Invalid(REASON_TOO_LONG)
-    return unicodedata.normalize("NFC", html)
+    return html
 
 
 def health_reason_html(value):

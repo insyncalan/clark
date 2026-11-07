@@ -234,6 +234,21 @@ class Health(Setup):
             self.assertEqual(p.js("document.querySelectorAll('[data-fig=health] textarea, [data-fig=health] button').length"), 0, "View has no control on health")
 
 
+    def reason_in_view(self, stored):
+        with self.store.step("dashboard", USER) as st:               # written past the change route, as an old or hostile row is
+            st.update("projects", "ABC", {"health": "At risk", "health_reason": stored})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            return p.js("(() => { const e = document.querySelector('[data-fig=health] .hreason'); return e ? [e.tagName, e.innerHTML, e.textContent] : null; })()")
+
+    def test_view_draws_the_reason_through_the_pages_cleaner_and_an_old_plain_one_as_text(self):          # item 1005 (ReasonText, clean())
+        tag, html, text = self.reason_in_view('<p onclick="x()">Late <a href="javascript:alert(1)">link</a></p><script>alert(2)</script><img src=x onerror=alert(3)><ul><li>one</li></ul>')
+        self.assertEqual((tag, html), ("DIV", "<p>Late link</p><ul><li>one</li></ul>"), "the HTML went through clean(): no handler, script, image or javascript: link")
+        tag, html, text = self.reason_in_view('Old <b>plain</b> & "text"\nline two a < b')
+        self.assertEqual((tag, text), ("SPAN", 'Old <b>plain</b> & "text"\nline two a < b'), "an old plain reason is a text node, never markup")
+        self.assertNotIn("<b>", html)
+
+
 class EditTiles(Setup):
     def test_hide_with_the_eye_leaves_it_out_of_view_and_undo_brings_it_back(self):
         with chrome() as cdp:

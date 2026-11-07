@@ -407,20 +407,24 @@ def _rich_field(value, plain_max, long_words, hidden_words):
         raise Refused(ITEM_VALUE_WORDS)
     if len(value) > TEXT_BODY_MAX:
         raise Refused(long_words)
-    if not _plain_text(value.replace("\t", " ").replace("\n", " ").replace("\r", " ")):     # a NUL, a bidi mark or a zero-width space is refused as it always was, never dropped quietly by the cleaner
+    value = unicodedata.normalize("NFC", value.replace("\r\n", "\n").replace("\r", "\n"))     # BEFORE the cleaner: composing after it can turn a tag's ">" into a letter (U+0338 after it makes U+226F); a CR is a line break, in HTML as in plain text
+    if not _plain_text(value.replace("\t", " ").replace("\n", " ")):     # a NUL, a bidi mark or a zero-width space is refused as it always was, never dropped quietly by the cleaner
         raise Refused(hidden_words)
     try:
         html = sanitise.rich_or_plain(value)
     except sanitise.SanitiseError:
         raise Refused(long_words) from None
-    words = sanitise.plain_text(html)
+    again = unicodedata.normalize("NFC", html)                 # an entity can decode to a mark that composes: take the composed text only if it is still clean
+    if sanitise.rich_or_plain(again) == again:
+        html = again
+    words = sanitise.plain_text(html)                          # every check below is of the FINAL stored value (a count before NFC could end over the limit)
     if not _plain_text(words.replace("\n", " ")):
         raise Refused(hidden_words)
     if not words.strip():
         return None
     if len(words) > plain_max or len(html.encode("utf-8")) > TEXT_BODY_MAX:
         raise Refused(long_words)
-    return unicodedata.normalize("NFC", html)
+    return html
 
 
 def _checked_item_changes(fields, blank_clears=()):

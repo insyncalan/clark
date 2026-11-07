@@ -8,7 +8,7 @@ Run: python3 dev/run_tests.py test_rich_reason_note
 import unittest
 
 from _demo import USER, DemoStore
-from clark import ask_data, changes, glance, sanitise, store as clark_store
+from clark import ask_data, changes, glance, history, milestone_rows, publish, sanitise, store as clark_store
 
 HOSTILE = ('<p onclick="x()">ZQ-REASON-1005 <a href="javascript:alert(1)">link</a></p><script>alert(2)</script>'
            '<img src=x onerror=alert(3)><style>p{}</style><iframe src=//evil></iframe><ul><li>one</li></ul>')
@@ -102,6 +102,58 @@ class ReadSide(Base):
         self.assertEqual(tile["reason"], "First line\nsecond")
         self.assertNotIn("<", tile["label"])
         self.assertNotIn("<p>", "\n".join(ask_data.project_lines(project)))
+
+
+COMPOSING = ("<p\u0338>x</p>", "<p>a</p>\u0338", "<p>a</p><p>b</p>\u0338", "<p>a</p><p>\u0338text</p>", "<p>e\u0301 &#x301;</p>", "<p>&lt;\u0338 q</p>", "x <\u0338 y")
+
+
+class Composing(Base):
+    """A mark that composes with a tag's '>' (U+0338 gives U+226F) must be composed BEFORE the cleaner, or the stored markup is broken and a paragraph is lost."""
+
+    def note(self, text):
+        change = changes.make_change(self.s.path, [], USER)
+        status, got = change({"project": "ABC", "kind": "milestones", "op": "update", "id": self.demo.milestone, "changes": {"internal_note": text}, "place": "movement"})
+        self.assertEqual(status, 200, (text, got))
+        return self.s.read("milestones", ref=self.demo.milestone)["internal_note"]
+
+    def test_the_note_is_a_fixed_point_of_the_cleaner_and_keeps_every_paragraph(self):
+        for sent in COMPOSING:
+            got = self.note(sent)
+            self.assertEqual(sanitise.rich_or_plain(got), got, repr(got))
+            self.assertNotIn("\u226f", got, repr(got))
+
+    def test_the_reason_is_a_fixed_point_of_the_cleaner_and_keeps_every_paragraph(self):
+        for sent in COMPOSING:
+            status, got = self.send(health="At risk", health_reason=sent)
+            self.assertEqual(status, 200, (sent, got))
+            stored = self.reason()
+            self.assertEqual(sanitise.rich_or_plain(stored), stored, repr(stored))
+            self.assertNotIn("\u226f", stored, repr(stored))
+            self.assertEqual(publish.reason_html(stored), stored, "and the file carries it as it is")
+        with self.s.step("team", USER) as st:                  # a teammate's change, not the route: the store holds every writer to it
+            st.update("projects", "ABC", {"health_reason": "<p>a</p><p>\u0338text</p>"})
+        self.assertEqual(sanitise.rich_or_plain(self.reason()), self.reason())
+        self.assertNotIn("\u226f", self.reason())
+
+
+class Readers(Base):
+    """The readers that showed the raw HTML now show the words, for a new value and for an old plain one."""
+    HTML = "<p>Keep &amp; watch &lt;b&gt;</p><p>second line</p>"
+    WORDS = "Keep & watch <b>\nsecond line"
+
+    def test_history_shows_the_words_of_both_fields(self):
+        for table, field in (("milestones", "internal_note"), ("projects", "health_reason")):
+            self.assertEqual(history.shown_value(table, field, self.HTML), self.WORDS, field)
+            self.assertEqual(history.shown_value(table, field, self.WORDS), self.WORDS, "an old plain value is shown as typed")
+
+    def test_the_movement_list_names_the_words_of_a_note_change(self):
+        def event(after):
+            return {"step": 7, "event_id": 1, "at": "2026-11-01 10:00:00", "by_user": "x", "in_force": True, "table": "milestones", "ref": "M-1",
+                    "field": "internal_note", "before": None, "after": after, "is_undo": False}
+        for after in (self.HTML, self.WORDS):
+            entries = milestone_rows.movement([event(after)], "M-1")
+            self.assertEqual([e["detail"] for e in entries], [self.WORDS])
+            self.assertNotIn("<p>", repr(entries))
 
 
 if __name__ == "__main__":
