@@ -73,8 +73,8 @@ class Cells(unittest.TestCase):
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#work&p=TUL&f=mode:all"}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr').length", sid) > 0), "the list drew")
         cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
-        cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('table.items .cell-pick')", sid)), "Edit shows the cells' pickers")
+        self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch off the Dashboard: the page is always editable")
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('table.items .cell-pick')", sid)), "Work items shows the cells' pickers")
         self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "the page's motion has finished before anything is measured")
         return json.loads(cdp.js(MEASURE, sid))
 
