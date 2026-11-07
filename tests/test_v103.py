@@ -269,6 +269,12 @@ COVERED = [
      "test_update_layout_newer::NewerLayoutRelease::test_a_release_with_a_newer_layout_migrates_with_the_copy_and_undo_puts_the_old_file_back_byte_for_byte"),
     ("#947", "Grouped by workstream, the line under an item leaves the workstream out.",
      "test_work_items::Rules::test_the_sub_line_leaves_the_workstream_out_when_grouped_by_workstream"),
+    ("#940", "On Work items in Edit at 900 px the Due, Priority and Status cells keep spare width.",
+     "test_edit_cells_layout::Cells::test_every_edit_cell_is_one_tidy_box_at_both_widths_in_both_looks"),
+    ("#940", "A published report's Item column is wide enough and the table fits at 900 px.",
+     "test_published_item_column::PublishedItemColumn::test_the_item_column_is_wide_enough_and_the_table_fits"),
+    ("#935", "A board column is a lifted card with a rule under its heading (the closest test; none pins the missing top stripe yet).",
+     "test_work_board_page::Cards::test_row_775_columns_are_lifted_cards_and_the_full_screen_icon_are_arrows"),
     ("#902", 'The Appearance choice is a radio group with arrow keys.',
      "test_appearance::Appearance::test_C_appearance_arrow_keys_move_and_pick_row_902"),
     ("#903", 'Help Start here has a hero card and The loop above the jobs.',
@@ -472,8 +478,8 @@ class Notes(unittest.TestCase):
     def test_the_title_the_beta_line_and_the_update_sentence(self):
         self.assertEqual(self.text.splitlines()[0], f"# clark {VERSION} (Beta), Mac")
         self.assertIn("Beta", self.text)
-        self.assertIn("This is the 1.0 build. It is still marked Beta because updating from inside clark is not switched on yet.", self.text)
-        self.assertIn("Updating from inside clark is not switched on yet: install a new version by downloading it and replacing the old one.", self.text)
+        self.assertIn("This is the 1.0 build. It is still marked Beta: it works and is tested, but expect rough edges and changes between versions.", self.text)
+        self.assertIn("Updating from inside clark works from this version on. To move from 1.0.2 to 1.0.3, install by hand", self.text)
 
     def test_no_banned_word_and_no_lower_case_ask_clark_in_a_heading(self):
         for word in BANNED_WORDS:
@@ -493,7 +499,7 @@ class Notes(unittest.TestCase):
 
     def test_the_known_limits_carry_the_by_hand_install_and_the_demo_limit(self):
         self.assertIn("## Known limits", self.text)
-        self.assertIn("Updating from inside clark is still not switched on.", self.text)
+        self.assertIn("Updating from inside clark works from this version on.", self.text)
         self.assertIn("rename the old clark folder first", self.text)
         self.assertIn("Editing a demo project keeps it", self.text)
 
