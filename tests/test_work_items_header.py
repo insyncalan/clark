@@ -5,11 +5,12 @@ Every test runs at 1400 and 900 px, in light and dark, in View and in Edit.
 Run: python3 dev/run_tests.py test_work_items_header
 Headless Chrome (required: fails, never skips, without it).
 """
+import json
 import unittest
 
 from test_server import chrome
 from test_work_board_page import Base
-from test_work_filters import arm, click, hover, key, select_line
+from test_work_filters import arm, click, hover, key, select_line, set_line
 
 CASES = [(w, s, e) for w in (1400, 900) for s in ("light", "dark") for e in (False, True)]
 
@@ -403,6 +404,73 @@ class Header(Base):
             self.until(cdp, sid, "document.querySelector('table.items tbody tr.picked')", "a row is selected")
             self.assertTrue(cdp.js("!!document.querySelector('table.items tbody tr.picked .c-item .tick')", sid), "the list row keeps its tick")
         self.each(check)
+
+    # ---- row 833: the view and filter area is no taller than the prototype's (95 px from the tabs to the chips; first group at 305 px) ----
+    PROTO_FIRST_GROUP = 305
+
+    STACK = """(() => {
+      const r = (s) => document.querySelector(s).getBoundingClientRect();
+      const group = [...document.querySelectorAll('#work-list > *')].find(e => e.getBoundingClientRect().height > 2 && !e.classList.contains('sr'));
+      const wrap = document.querySelector('.fline-wrap');
+      return JSON.stringify({
+        hints: getComputedStyle(document.querySelector('.fhints')).position, hintsOn: !!document.querySelector('.fhints.on'),
+        wrap: r('.fline-wrap').height,
+        inflow: [...wrap.children].filter(e => getComputedStyle(e).display !== 'none' && getComputedStyle(e).position !== 'absolute').reduce((a, e) => a + e.getBoundingClientRect().height + parseFloat(getComputedStyle(e).marginTop) + parseFloat(getComputedStyle(e).marginBottom), 0),
+        group: group.getBoundingClientRect().top });
+    })()"""
+
+    def stack(self, cdp, sid):
+        cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, sid)
+        self.until(cdp, sid, "document.getAnimations().length === 0", "no animation running")
+        return json.loads(cdp.js(self.STACK, sid))
+
+    def test_row_833_the_hidden_examples_row_takes_no_room(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.go(cdp, width, "light", False)
+                got = self.stack(cdp, sid)
+                self.assertFalse(got["hintsOn"], "the line is not focused")
+                self.assertEqual(got["hints"], "absolute", "the examples row is out of the flow")
+                self.assertLessEqual(abs(got["wrap"] - got["inflow"]), 1, f"the filter area holds only what is drawn ({got})")
+
+    def test_row_833_the_examples_show_over_the_page_without_moving_it(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.go(cdp, width, "light", False)
+                before = self.stack(cdp, sid)
+                click(cdp, sid, "#fline-input")
+                self.until(cdp, sid, "document.querySelector('.fhints.on')", "the examples row")
+                self.until(cdp, sid, "document.getAnimations().length === 0", "no animation running")
+                after = json.loads(cdp.js(self.STACK, sid))
+                self.assertEqual(after["group"], before["group"], "the first group does not move when the examples show")
+                self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.fhints')).visibility", sid), "visible")
+                over = cdp.js("(() => { const h = document.querySelector('.fhints').getBoundingClientRect(); "
+                              "const e = document.elementFromPoint(h.left + 20, h.top + h.height / 2); return !!e && !!e.closest('.fhints'); })()", sid)
+                self.assertTrue(over, "the examples are on top of what is below, so they can be clicked")
+                self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.fhints')).zIndex", sid), "24", "over the sticky bars (20)")
+                self.assertLess(24, int(cdp.js("(() => { const m = document.createElement('div'); m.className = 'ddmenu'; document.body.append(m); const z = getComputedStyle(m).zIndex; m.remove(); return z; })()", sid)), "under the drop-down menus, so an open menu is not covered")
+
+    def test_row_833_the_examples_do_not_cover_the_filter_note(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.go(cdp, width, "light", False)
+                self.stack(cdp, sid)                       # reduced motion pinned, no animation running
+                set_line(cdp, sid, "is:open stat:Open")
+                self.until(cdp, sid, "document.querySelector('#fline-msg').textContent.trim()", "the note")
+                self.until(cdp, sid, "document.querySelector('.fhints.on')", "the examples row")
+                self.until(cdp, sid, "document.getAnimations().length === 0", "no animation running")
+                got = json.loads(cdp.js("(() => { const n = document.querySelector('#fline-msg').getBoundingClientRect(), h = document.querySelector('.fhints').getBoundingClientRect(), l = document.querySelector('.fline').getBoundingClientRect();"
+                                        " return JSON.stringify({noteTop: n.top, noteBottom: n.bottom, hintsTop: h.top, lineBottom: l.bottom, noteH: n.height}); })()", sid))
+                self.assertGreater(got["noteH"], 8, "the note is drawn")
+                self.assertGreaterEqual(got["noteTop"], got["lineBottom"] - 1, "the note sits under the line")
+                self.assertGreaterEqual(got["hintsTop"], got["noteBottom"] - 1, f"the examples start below the note, not over it ({got})")
+
+    def test_row_833_the_first_group_starts_within_the_prototype_plus_one_step(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.go(cdp, width, "light", False)
+                got = self.stack(cdp, sid)
+                self.assertLessEqual(got["group"], self.PROTO_FIRST_GROUP, f"first group top {got['group']} at {width}")
 
 
 if __name__ == "__main__":
