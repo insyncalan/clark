@@ -441,7 +441,7 @@ class Browser(unittest.TestCase):
         """Open the peek on `target` in Edit, open the words box and type `text`; waits for a reading."""
         cdp.js(f"clarkPage.openPeek({json.dumps(target)})", sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak-open]')", sid)))
-        cdp.js("document.querySelector('[data-sneak-open]').click()", sid)
+        cdp.js("(() => { const b = document.querySelector('[data-sneak-open]'); b.focus(); b.click(); })()", sid)      # a real press focuses the sparkle first; the box gives focus back to it when it closes
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sn-in')", sid)))
         cdp.js(f"(() => {{ const i = document.querySelector('.sn-in'); i.value = {json.dumps(text)}; i.dispatchEvent(new Event('input', {{bubbles: true}})); }})()", sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.sn-list li').length", sid) >= 1))
@@ -534,7 +534,7 @@ class Browser(unittest.TestCase):
                 real = changes.make_change(self.store.path, [], "Demo User")
                 s, sid = self.load_page(cdp, 1400, change=lambda req: (sent.append(req), real(req))[1])
                 self.edit_mode(cdp, sid)
-                self.words(cdp, sid, self.open_actions()[0 if how == "button" else 1], "high priority")
+                self.words(cdp, sid, self.open_actions()[0 if how == "button" else 2], "high priority")      # [1] is High already (nothing to read); [0] and [2] are not
                 if how == "button":
                     cdp.js("document.querySelector('[data-sneak-make]').click()", sid)
                 else:
