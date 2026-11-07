@@ -160,7 +160,6 @@ class Base(unittest.TestCase):
         return p
 
     def open_movement(self, p):
-        p.js("document.querySelector('[data-mode=edit]').click()")
         p.until("!!document.querySelector('[data-mspv=move]')", "the Plan / Movement switch drew")
         p.js("document.querySelector('[data-mspv=move]').click()")
         p.until("!!document.querySelector('#movement .mvm-sentence')", "Movement drew")
@@ -195,15 +194,15 @@ class Block(Base):
             p.until("document.querySelector('#mv-card-h').textContent === 'Pilot live'", "the card follows the row")
             self.assertEqual(p.js("document.querySelector('#mv-move').disabled"), True, "not slipped: no move")
             self.assertEqual(p.js("document.querySelector('#mv-why').textContent"), "This milestone hasn't slipped, so its agreed date can't be moved yet.")
-            p.js("document.querySelector('[data-mode=view]').click()")
-            p.until("!!document.querySelector('#movement .mvm-card') && !!document.querySelector('#mv-hold') && !document.querySelector('#movement[data-readonly]')", "View keeps the choices (row 823: the page has no mode)")
+            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
+            p.until("!!document.querySelector('#movement .mvm-card') && !!document.querySelector('#mv-hold') && !document.querySelector('#movement[data-readonly]')", "the choices are there (row 804: the page has no mode)")
 
     def test_plan_movement_switch_is_in_view_and_edit_and_remembered(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.until("!!document.querySelector('[data-mspage-switch]')", "View has the switch too (#436 row 18)")
-            p.js("document.querySelector('[data-mode=edit]').click()")
-            p.until("!!document.querySelector('[data-mspage-switch]')", "Edit has the switch")
+            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
+            p.until("!!document.querySelector('[data-mspage-switch]')", "the switch is there with no mode to choose")
             self.assertEqual(p.js("[...document.querySelectorAll('[data-mspv]')].map(b => b.textContent)"), ["Plan", "Movement"])
             self.assertEqual(p.js("document.querySelector('[data-mspv=plan]').getAttribute('aria-pressed')"), "true")
             self.assertEqual(p.js("!!document.querySelector('.msv') && !document.querySelector('#movement')"), True, "Plan shows the milestones, not Movement")
@@ -216,8 +215,8 @@ class Block(Base):
             self.assertIn("Undo", p.js("document.querySelector('[data-mspage-hint]').textContent"))
             p.js("document.querySelector('[data-mspv=plan]').click()")
             p.until("!!document.querySelector('.msv') && !document.querySelector('#movement')", "back to the Plan")
-            p.js("document.querySelector('[data-mode=view]').click()")
-            p.until("!!document.querySelector('[data-mspage-switch]') && !!document.querySelector('.msv') && !document.querySelector('#movement')", "View keeps the switch and the Plan")
+            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
+            p.until("!!document.querySelector('[data-mspage-switch]') && !!document.querySelector('.msv') && !document.querySelector('#movement')", "the page keeps the switch and the Plan")
 
     def test_hold_is_recorded_with_its_toast_and_undo(self):
         with chrome() as cdp:
@@ -326,7 +325,6 @@ class Block(Base):
         self.hold_read = threading.Event()
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.js("document.querySelector('[data-mode=edit]').click()")
             p.until("!!document.querySelector('[data-mspv=move]')", "the switch is there")
             p.js("document.querySelector('[data-mspv=move]').click()")
             p.until("!!document.querySelector('#movement')", "the block is there")

@@ -85,7 +85,7 @@ class AsAtPage(Base):
             p.js("document.querySelector('[data-view=work]').click()")
             p.until("location.hash.startsWith('#work') && !document.querySelector('#as-at-banner')", "Work items is now")
             p.until(f"document.querySelector('#main').textContent.includes({json.dumps(NEW)})", "today's words on Work items")
-            self.assertEqual(p.js("document.querySelectorAll('[data-mode=edit]').length"), 1, "the Edit switch is back")
+            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch on Work items: it is the Dashboard's alone")
 
     def test_refusals_in_plain_words(self):
         with chrome() as cdp:
