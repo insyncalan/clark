@@ -4,6 +4,7 @@ and issues, decisions) that are open and not archived, and only a number. The ar
 Run: python3 dev/run_tests.py test_project_open_items
 """
 import unittest
+from unittest import mock
 
 from _demo import USER, DemoStore
 from clark import __main__ as launcher
@@ -44,6 +45,19 @@ class OpenItems(unittest.TestCase):
         after = next(r for r in launcher.projects_of(self.s.path, [])() if r["code"] == "ABC")["open"]
         self.assertEqual(after, before - 1)
         self.assertEqual(after, self.expected())
+
+    def test_the_counts_take_one_read_of_each_kind_however_many_projects_there_are(self):
+        """#528: not one read of every project's items per project."""
+        calls = []
+        real = launcher.clark_store.Store.read
+
+        def counting(store, kind, *a, **k):
+            calls.append(kind)
+            return real(store, kind, *a, **k)
+        with mock.patch.object(launcher.clark_store.Store, "read", counting):
+            rows = launcher.projects_of(self.s.path, [])()
+        self.assertEqual(sorted(calls), ["actions", "decisions", "projects", "raid"], calls)
+        self.assertEqual(next(r for r in rows if r["code"] == "ABC")["open"], self.expected())
 
     def test_the_archived_list_has_no_count(self):
         for r in launcher.projects_of(self.s.path, [])(archived=True):
