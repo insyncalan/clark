@@ -266,6 +266,22 @@ class Screen(unittest.TestCase):
                 self.assertTrue(secret_screen.looks_like_secret(b64("so we know " + urllib.parse.quote(text, safe="") + " in full")))
         self.assertTrue(secret_screen.looks_like_secret(b64('password: "Sunshine"').rstrip("=")))
 
+    def test_base64_of_mostly_text_with_a_few_bad_bytes_is_still_read_for_key_words_but_mostly_bad_bytes_are_not_text_502(self):
+        """#502: in the lenient read of base64 that is not valid UTF-8, a bad byte (the replacement character) is not printable. A few
+        bad bytes around a key word and its value are still read and refused; data that is mostly bad bytes (random bytes) is not text and is not read."""
+        import base64
+        core = b'password: "' + PW.encode() + b'"\n'
+        def coded(raw):
+            return "Notes.\n" + base64.b64encode(raw).decode() + "\n(more notes)"
+        few = b"\xff" + core + b"\xfe\xff" + b"ordinary words after it " * 2
+        self.assertIsNone(secret_screen._plain(b"\xff" * 5 + b"abc"))
+        self.assertIsNotNone(secret_screen._plain(few))
+        self.assertTrue(secret_screen.looks_like_secret(coded(few)))
+        self.assertTrue(secret_screen.looks_like_secret(coded(few).replace("Notes.\n", "").replace("\n(more notes)", "")))
+        many = core + b"\xff" * 12
+        self.assertIsNone(secret_screen._plain(many))
+        self.assertFalse(secret_screen.looks_like_secret(coded(many)))
+
     def test_the_three_prose_texts_the_old_random_guess_caught_in_base64_are_allowed_as_they_are_plain(self):
         """A known gap, accepted in writing: these pass as plain text, so they pass as base64 too (the base64 of prose with a space is
         read as the text it is, not guessed at as a random key). A change that refuses them again must change this test on purpose."""

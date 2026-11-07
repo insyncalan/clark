@@ -134,10 +134,10 @@ def _mixed(value):
 
 
 def _plain(raw):
-    """Decoded base64 as text, or None when it is mostly not printable (a picture, a compressed file); the replacement
-    character counts as printable, so mostly-text data with a few bad bytes is still read."""
+    """Decoded base64 as text, or None when it is mostly not printable (a picture, a compressed file, random bytes); a bad byte
+    (the replacement character) is not printable (#502), so mostly-text data with a few bad bytes is still read."""
     text = raw.decode("utf-8", "replace")
-    return text if sum(c.isprintable() or c in "\r\n\t" for c in text) >= len(text) * 0.9 else None
+    return text if sum((c.isprintable() and c != "\ufffd") or c in "\r\n\t" for c in text) >= len(text) * 0.9 else None
 
 
 def _decoded(run):
