@@ -1122,7 +1122,7 @@
        ],
        [
         "Gantt",
-        "The plan as bars on a timeline, from your Gantt lines. Only lines put on the dashboard show.",
+        "The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.",
         "Full"
        ]
       ]
