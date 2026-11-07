@@ -130,7 +130,7 @@ class Live(unittest.TestCase):
         for n, (cdp, window, scheme) in enumerate(self.each()):
             sid = self.visit(cdp, window, scheme, LIST)
             self.until(cdp, sid, "document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "the list drew")
-            self.assertFalse(cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid), "not in Edit")
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch: the page has no mode")
             add = cdp.js("(document.querySelector('#usecases .head #ucAddPage') || {}).textContent || ''", sid)
             exp = cdp.js("(document.querySelector('#usecases .head #ucExp') || {}).textContent || ''", sid)
             self.assertRegex(add, r"Add a use case")
@@ -174,7 +174,7 @@ class Live(unittest.TestCase):
         for cdp, window, scheme in self.each():
             sid = self.visit(cdp, window, scheme, f"{LIST}&uc=1.1")
             self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-uc-step]') && !!document.querySelector('[data-ucd] [data-uc-link]')", "next step and link are on the detail")
-            self.assertFalse(cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid), "not in Edit")
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch: the page has no mode")
             self.assertRegex(cdp.js("document.querySelector('[data-ucd] [data-uc-step]').placeholder", sid), r"Add a next step")
             self.assertRegex(cdp.js("document.querySelector('[data-ucd] [data-uc-link]').textContent", sid), r"Link an existing work item")
             self.no_sideways(cdp, sid)
