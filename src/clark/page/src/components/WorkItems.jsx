@@ -120,7 +120,6 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group }) {
         <div class="tcell">
           <span class={`kb k-${row.kind}`} role="img" aria-label={KIND_WORDS[row.kind] || row.kind} title={KIND_WORDS[row.kind] || row.kind}>{kindLetter(row.kind)}</span>
           <span class="tx">
-            {picked ? <span class="tick" aria-hidden="true"><Icon name="check" /></span> : null}
             <span class="t">{row.title}</span>
             <span class="meta">{metaOf(row, group)}{isChanged(row.id) ? <span class="tag chg">{WORD}</span> : null}</span>
           </span>
