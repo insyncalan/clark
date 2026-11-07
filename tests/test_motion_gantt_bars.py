@@ -305,7 +305,7 @@ class OnThePage(unittest.TestCase):
     def until(self, expr, what, t=8):
         self.assertTrue(wait(lambda: self.js(f"!!({expr})"), t), what)
 
-    def open(self):
+    def open_page(self):
         self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, self.sid)
         self.cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
         self.cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.server.port}/"}, self.sid)
@@ -326,7 +326,7 @@ class OnThePage(unittest.TestCase):
         return n
 
     def test_the_page_gives_each_project_its_own_first_grow(self):
-        self.open()
+        self.open_page()
         self.mount("PRJ-A")
         n = self.bars()
         self.assertGreater(n, 0)
