@@ -111,6 +111,7 @@ import re
 import sqlite3
 import unicodedata
 import zipfile
+import zlib
 from html import unescape
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -1257,7 +1258,8 @@ def _column_number(letters):
 
 def _small_member(z, name, limit=1 << 20):
     try:
-        with z.open(name) as f:
+        member = z.open                                  # a zip member is read as bytes, never as text
+        with member(name) as f:
             data = f.read(limit + 1)
     except (KeyError, OSError, RuntimeError, zipfile.BadZipFile):
         return None
@@ -1277,7 +1279,8 @@ def _scan_member(z, member, title):
     tag; the read stops at what the zip declares (excel.MAX_MEMBER_BYTES)."""
     max_row = max_col = cells = row = col = read = 0
     buf = b""
-    with z.open(member) as f:
+    opener = z.open                                      # a zip member is read as bytes, never as text
+    with opener(member) as f:
         while True:
             chunk = f.read(_SCAN_CHUNK)
             read += len(chunk)
@@ -1316,7 +1319,8 @@ def check_sheets_early(path, wanted):
     took 7.6 s and 216 MB before it was refused). `wanted(title)` says whether a sheet is one the import reads; only those are
     streamed, one part at a time (_scan_member), against the same limits and with the same words as the loaded check in
     read_workbook, which stays as it was. A text longer than Excel can keep (MAX_CELL_TEXT), in the shared strings or a sheet,
-    refuses the file. A file that is not a zip, or has no readable sheet list, passes: opening it says what is wrong with it."""
+    refuses the file. A part that is damaged inside the zip
+    (cut short, or not what the zip says it is) is refused in the same words as a file that is not a workbook. A file that is not a zip, or has no readable sheet list, passes: opening it says what is wrong with it."""
     path = Path(path)
     try:
         z = zipfile.ZipFile(path)
@@ -1345,7 +1349,7 @@ def check_sheets_early(path, wanted):
                 if area > MAX_TOTAL_CELLS:
                     raise Invalid("The sheets in this workbook are too large together (most of the space is empty), which is more than "
                                   "clark will import in one go. Check this is the right file. Nothing was changed.")
-        except _TextTooLong:
+        except (_TextTooLong, zipfile.BadZipFile, zlib.error, EOFError, OSError, ValueError):   # ValueError: a digit run too long to be a number
             raise Invalid(f"{path.name} can't be read as an Excel workbook (.xlsx).")
 
 

@@ -6,6 +6,7 @@ import tempfile
 import time
 import unittest
 import zipfile
+import zlib
 from pathlib import Path
 from unittest import mock
 
@@ -56,6 +57,42 @@ def letters(n):
 def rows_xml(rows, cols=2, text="x"):
     return "".join('<row r="%d">%s</row>' % (r, "".join('<c r="%s%d" t="inlineStr"><is><t>%s</t></is></c>' % (letters(c), r, text)
                                                        for c in range(1, cols + 1))) for r in range(1, rows + 1))
+
+
+def declare_shared_strings(path, text):
+    """Give the workbook a shared-strings part that [Content_Types].xml and the workbook's rels both declare, holding one string."""
+    with zipfile.ZipFile(path) as z:
+        types, rels = z.read("[Content_Types].xml").decode(), z.read("xl/_rels/workbook.xml.rels").decode()
+    types = types.replace("</Types>", '<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.'
+                          'spreadsheetml.sharedStrings+xml"/></Types>')
+    rels = rels.replace("</Relationships>", '<Relationship Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/'
+                        'sharedStrings" Target="sharedStrings.xml" Id="rId99"/></Relationships>')
+    rewrite(path, "[Content_Types].xml", types)
+    rewrite(path, "xl/_rels/workbook.xml.rels", rels)
+    rewrite(path, "xl/sharedStrings.xml", '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="1" uniqueCount="1">'
+            '<si><t>%s</t></si></sst>' % text)
+
+
+def damage_stream(path, member):
+    """Overwrite the middle of the member's compressed bytes in the zip file itself (the zip's own records stay as they were)."""
+    with zipfile.ZipFile(path) as z:
+        info = z.getinfo(member)
+    raw = bytearray(Path(path).read_bytes())
+    start = info.header_offset + 30 + len(info.filename.encode()) + int.from_bytes(raw[info.header_offset + 28:info.header_offset + 30], "little")
+    mid = start + info.compress_size // 2
+    raw[mid:mid + 40] = b"\xff" * 40
+    Path(path).write_bytes(bytes(raw))
+
+
+def lie_about_crc(path, member):
+    """Change the CRC-32 the zip's central directory declares for the member (what the member holds is untouched)."""
+    raw = bytearray(Path(path).read_bytes())
+    name = member.encode()
+    at = raw.index(b"PK\x01\x02")
+    while raw[at + 46:at + 46 + int.from_bytes(raw[at + 28:at + 30], "little")] != name:
+        at = raw.index(b"PK\x01\x02", at + 4)
+    raw[at + 16:at + 20] = bytes(b ^ 0xFF for b in raw[at + 16:at + 20])
+    Path(path).write_bytes(bytes(raw))
 
 
 class Caps(unittest.TestCase):
@@ -122,6 +159,33 @@ class Caps(unittest.TestCase):
                     xi.check_sheets_early(path, lambda t: True)
             else:
                 xi.check_sheets_early(path, lambda t: True)          # MAX_TEXT still refuses that cell's row, after the load, as before
+
+    def test_a_damaged_part_is_refused_in_the_plain_words_and_not_as_a_raw_error(self):
+        part = part_of(self.path, "Actions")
+        for how, damage in (("a damaged deflate stream", damage_stream), ("a CRC the zip does not match", lie_about_crc)):
+            path = self.tmp / "damaged.xlsx"
+            shutil.copy(self.path, path)
+            rewrite(path, part, HEAD + rows_xml(400, cols=3) + TAIL)
+            damage(path, part)
+            with zipfile.ZipFile(path) as z, self.assertRaises((zipfile.BadZipFile, zlib.error, EOFError), msg=how):
+                z.read(part)                                    # the file really is damaged: a bare read raises
+            with self.assertRaises(Invalid, msg=how) as cm:
+                xi.check_sheets_early(path, lambda t: True)
+            self.assertEqual(str(cm.exception), "damaged.xlsx can't be read as an Excel workbook (.xlsx).")
+        self.path = path
+        self.assertIn("can't be read as an Excel workbook (.xlsx)", self.refused())       # and through read_workbook, as the route calls it
+
+    def test_a_damaged_shared_strings_part_is_refused_in_the_plain_words(self):
+        declare_shared_strings(self.path, "q" * 20000)
+        lie_about_crc(self.path, "xl/sharedStrings.xml")
+        self.assertIn("can't be read as an Excel workbook (.xlsx)", self.refused())
+
+    def test_a_cell_or_row_number_with_thousands_of_digits_is_refused_in_the_plain_words_and_not_as_a_raw_error(self):
+        part = part_of(self.path, "Actions")
+        for how, body in (("column letters then a long row number", '<row r="1"><c r="A%s"><v>1</v></c></row>' % ("9" * 5000)),
+                          ("a long row number", '<row r="%s"><c r="A1"><v>1</v></c></row>' % ("9" * 5000))):
+            rewrite(self.path, part, HEAD + body + TAIL)
+            self.assertEqual(self.refused(), "ABC.xlsx can't be read as an Excel workbook (.xlsx).", how)
 
     def test_a_hostile_sheet_the_import_does_not_read_is_left_to_the_ordinary_path(self):
         rewrite(self.path, part_of(self.path, "Actions"), HEAD + rows_xml(300000) + TAIL)
