@@ -10,7 +10,7 @@ import unittest
 
 from test_server import chrome
 from test_work_board_page import Base
-from test_work_filters import click, hover, key, select_line
+from test_work_filters import click, hover, key, select_line, set_line
 
 CASES = [(w, s, e) for w in (1400, 900) for s in ("light", "dark") for e in (False, True)]
 
@@ -447,6 +447,21 @@ class Header(Base):
                 self.assertTrue(over, "the examples are on top of what is below, so they can be clicked")
                 self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.fhints')).zIndex", sid), "24", "over the sticky bars (20)")
                 self.assertLess(24, int(cdp.js("(() => { const m = document.createElement('div'); m.className = 'ddmenu'; document.body.append(m); const z = getComputedStyle(m).zIndex; m.remove(); return z; })()", sid)), "under the drop-down menus, so an open menu is not covered")
+
+    def test_row_833_the_examples_do_not_cover_the_filter_note(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.go(cdp, width, "light", False)
+                self.stack(cdp, sid)                       # reduced motion pinned, no animation running
+                set_line(cdp, sid, "is:open stat:Open")
+                self.until(cdp, sid, "document.querySelector('#fline-msg').textContent.trim()", "the note")
+                self.until(cdp, sid, "document.querySelector('.fhints.on')", "the examples row")
+                self.until(cdp, sid, "document.getAnimations().length === 0", "no animation running")
+                got = json.loads(cdp.js("(() => { const n = document.querySelector('#fline-msg').getBoundingClientRect(), h = document.querySelector('.fhints').getBoundingClientRect(), l = document.querySelector('.fline').getBoundingClientRect();"
+                                        " return JSON.stringify({noteTop: n.top, noteBottom: n.bottom, hintsTop: h.top, lineBottom: l.bottom, noteH: n.height}); })()", sid))
+                self.assertGreater(got["noteH"], 8, "the note is drawn")
+                self.assertGreaterEqual(got["noteTop"], got["lineBottom"] - 1, "the note sits under the line")
+                self.assertGreaterEqual(got["hintsTop"], got["noteBottom"] - 1, f"the examples start below the note, not over it ({got})")
 
     def test_row_833_the_first_group_starts_within_the_prototype_plus_one_step(self):
         for width in (1400, 900):
