@@ -968,3 +968,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 #publish-dialog { width: min(560px, calc(100vw - 32px)); }
 /* row 988: with many lines the chart box is bounded and scrolls inside itself, so its sticky header row stays in view. Edit.css only: shell.css is the published page's. (.gt-full sets its own, tighter bound.) */
 .gt-gx { max-height: 70vh; }
+
+/* row 931: the icon at the start of a suggestion row (the Work items filter box); the row stays one line, the colours are tokens, nothing moves. */
+.fopt .i { align-self: center; color: var(--text-muted); }
+.fopt:hover .i, .fopt[aria-selected="true"] .i { color: inherit; }

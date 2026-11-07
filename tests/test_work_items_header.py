@@ -9,7 +9,7 @@ import unittest
 
 from test_server import chrome
 from test_work_board_page import Base
-from test_work_filters import click, hover, key, select_line
+from test_work_filters import arm, click, hover, key, select_line
 
 CASES = [(w, s, e) for w in (1400, 900) for s in ("light", "dark") for e in (False, True)]
 
@@ -78,6 +78,7 @@ class Header(Base):
         click(cdp, sid, "#fline-input")
         select_line(cdp, sid)
         key(cdp, sid, "Backspace")
+        arm(cdp, sid)
         self.until(cdp, sid, "document.querySelector('#fline-list')", "the suggestion list")
 
     def floats(self, cdp, sid, board):
@@ -250,6 +251,7 @@ class Header(Base):
         def check(cdp, sid, width):
             click(cdp, sid, "#fline-input")
             key(cdp, sid, "End")
+            arm(cdp, sid)
             cdp.call("Input.insertText", {"text": " status:"}, sid)
             self.until(cdp, sid, "document.querySelector('#fline-list [data-ins^=\"status:\"]')", "the values")
             got = cdp.js("[...document.querySelectorAll('#fline-list [data-ins^=\"status:\"]')].map((o) => [o.dataset.ins, o.querySelector('.c') ? o.querySelector('.c').textContent : null])", sid)
