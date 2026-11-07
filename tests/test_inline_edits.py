@@ -870,6 +870,7 @@ class Live(unittest.TestCase):
                 click(cdp, sid, cell)
                 self.until(cdp, sid, "!!document.querySelector('[data-pop] input.cp-in')", "the owner picker opened")
                 self.assertEqual(cdp.js("document.activeElement.value", sid), "Ada Quillfeather", "the box holds the owner, selected")
+                self.until(cdp, sid, "document.querySelectorAll('[data-pop] [data-name]').length >= 3", "the project's people draw once the register is read")  # row 985: the names wait for the list
                 self.assertGreaterEqual(cdp.js("document.querySelectorAll('[data-pop] [data-name]').length", sid), 3, "the project's people")
                 cdp.call("Input.insertText", {"text": "Zelda Quince"}, sid)
                 key(cdp, sid, "Enter")
