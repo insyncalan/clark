@@ -439,6 +439,7 @@ test_uc_row_parity.py 38.4
 test_undo_key.py 31.2
 test_undo_many.py 7.0
 test_unzip_merge.py 47.5
+test_update_17_to_18.py 80.0
 test_update_helper.py 80.9
 test_update_install.py 49.9
 test_update_migration.py 31.7

@@ -130,8 +130,12 @@ SHEET_TABLES["raid"] = "raid"                      # the oldest name, written ou
 HEADER_ALIASES = {"client messaging": "client_message", "client wording": "client_message",
                   "baseline": "baseline_date", "agreed": "baseline_date"}
 TABLE_ORDER = ("milestones", "use_cases", "actions", "raid", "decisions")     # the order changes are written in
+GANTT = "gantt_lines"          # row 926: the Gantt sheet (named for the project's Gantt tab, else 'Gantt'); read by gantt_sheet(), not by the generic reader
+WRITE_ORDER = TABLE_ORDER + (GANTT,)                                         # the Gantt lines are written after the rest
+GANTT_HEADERS = {label.lower(): f for label, f in excel.GANTT_SHEET_COLUMNS}      # the export's own labels (Days and Status are worked out: never read)
+GANTT_TEXT = {"name": 200, "owner": 200, "workstream": 200, "deliverable": 500, "note": 2000}     # the data layer's limits (store.GANTT_TEXT_LIMITS)
 WORDS = {"actions": "action", "raid": "RAID item", "decisions": "decision", "milestones": "milestone",
-         "use_cases": "use case"}
+         "use_cases": "use case", GANTT: "line"}
 LOCKED = {"id", "project", "source", "updated_at", "archived", "closed", "state_set"}
 LOCKED_IN = {"raid": {"priority"}}                       # worked out from impact and likelihood
 LABELS = "labels"      # not a column: an item's labels, as the export writes them (comma-separated); the store keeps them apart
@@ -142,13 +146,13 @@ FINISHED = {"actions": ("Closed", "Cancelled"), "raid": ("Closed", "Cancelled"),
             "milestones": ("Done", "Cancelled")}
 NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff￾￿]")   # (creaite excel_sync.NOT_XML)
 A_WORD = {"actions": "an action", "raid": "a RAID item", "decisions": "a decision", "milestones": "a milestone",
-          "use_cases": "a use case"}
+          "use_cases": "a use case", GANTT: "a line"}
 # RICH TEXT: fields that hold HTML (schema.sql "-- HTML"; docs: the editor writes it, publish.clean_html cleans it on output):
 # use_cases.standing is the only one the workbook carries ("Where it stands"); projects.current_state is HTML too but is not in
 # the workbook. The import writes what the cell holds, so this is the write-side seam.
 RICH_FIELDS = {"standing"}
 TITLE_OF = {"actions": "description", "raid": "description", "decisions": "decision", "milestones": "name",
-            "use_cases": "title"}                  # the column that says what an item is (a row's "other values" are matched on it)
+            "use_cases": "title", GANTT: "name"}                  # the column that says what an item is (a row's "other values" are matched on it)
 MAX_SHEET_ROWS, MAX_SHEET_COLUMNS = 5000, 100        # the area a sheet may span, empty cells included: checked before any cell is built
 MAX_SHEET_CELLS, MAX_TOTAL_CELLS = 200000, 400000     # rows times columns, empty cells included: one sheet, and all the sheets read together
 MAX_TEXT = 10000                                    # characters in one text cell; a longer one is refused (a hostile file can hold megabytes)
@@ -168,7 +172,7 @@ _FORMULA = object()        # a cell typed as a formula: not read (it is neither 
 
 def _label(table, f):
     """A column as the person sees it: the export's header label (Due, Agreed, Client wording ...)."""
-    for label, field_ in excel.COLUMN_OF.get(table, {}).items():
+    for label, field_ in (excel.COLUMN_OF.get(table, {}).items() if table != GANTT else ((l, g) for l, g in excel.GANTT_SHEET_COLUMNS)):
         if field_ == f:
             return label
     return f.replace("_", " ").capitalize()
@@ -211,6 +215,8 @@ def _got(value):
 def _shown(f, v):
     if v is None or v == "":
         return "empty"
+    if f == "show":
+        return "Yes" if v else "No"
     return writer.shown(v) if f in writer.DATE_FIELDS else _short(v, 120)
 
 
@@ -256,9 +262,12 @@ class StagedChange:
     seen_at: str = ""         # the database row's updated_at when staged
     fp: str = ""              # new: the row's fingerprint (fingerprint()), recorded once the row has been made
     preview: str = ""         # new: the ID it would get if the plan were applied as it stands (the real one is given at apply)
+    typed: str = ""           # a new Gantt line: the id its row carried (not taken: the lines that name it in Parent or Depends on get the real one)
 
     @property
     def label(self):
+        if self.table == GANTT:             # row 926: the row is said with every Gantt line, as the refusal is read beside the workbook
+            return f"{self.id or 'new line'} (row {self.row} of {self.sheet})"
         return self.id or f"new {WORDS[self.table]} (row {self.row} of {self.sheet})"
 
     def detail(self):
@@ -271,8 +280,9 @@ class StagedChange:
         if self.kind == "removed":
             return (f"{self.id}: No longer in the workbook. Accepting this archives it: it is hidden, not deleted. Undo brings it back.")
         if self.kind == "new":
-            return f"New: {_title_of(self)} → {self.preview or 'a new ID'}"
-        return f"{self.id}: " + "; ".join(f"{_label(self.table, f)} {_shown(f, self.before.get(f))} -> {_shown(f, v)}"
+            where = f" (row {self.row} of {self.sheet})" if self.table == GANTT else ""
+            return f"New: {_title_of(self)}{where} → {self.preview or 'a new ID'}"
+        return f"{self.label}: " + "; ".join(f"{_label(self.table, f)} {_shown(f, self.before.get(f))} -> {_shown(f, v)}"
                                           for f, v in self.after.items())
 
 
@@ -611,6 +621,78 @@ def _differs(v, old, f=""):
     return not (v == old or (isinstance(v, str) and same(v, old)))
 
 
+def _gantt_blank(v):
+    return v is None or (isinstance(v, str) and not v.strip())
+
+
+def gantt_cell_value(f, v):
+    """One Gantt sheet cell as the change route takes it (row 926). A blank is what the column holds when it is empty; a cell that
+    cannot be read is passed on as it is, so the data layer refuses it in its own words. Dates become YYYY-MM-DD, Yes/No become 1/0
+    (None: blank, the eye is left alone), a text is cleaned of the characters a workbook can't hold."""
+    blank = _gantt_blank(v)
+    if f == "show":
+        if blank:
+            return None
+        s_ = str(v).strip().lower()
+        return 1 if s_ in ("yes", "y", "1", "true", "1.0") else 0 if s_ in ("no", "n", "0", "false", "0.0") else str(v)
+    if f in excel.GANTT_DATES:
+        if blank:
+            return None
+        try:
+            return read_date(v)
+        except (ValueError, OverflowError):
+            return v if isinstance(v, str) else str(v)
+    if f == "pct":
+        if blank:
+            return 0
+        if isinstance(v, float) and v.is_integer():
+            return int(v)
+        if isinstance(v, str) and re.fullmatch(r"\d{1,3}", v.strip()):
+            return int(v.strip())
+        return v
+    if f in ("effort", "budget"):
+        return None if blank else v
+    if f == "parent":
+        return None if blank else (v.strip() if isinstance(v, str) else v)
+    if f == "type":
+        return "" if blank else (v.strip().lower() if isinstance(v, str) else v)
+    if f in ("health", "priority"):
+        if blank:
+            return ""
+        if not isinstance(v, str):
+            return v
+        return next((a for a in writer.ALLOWED[(GANTT, f)] if a.lower() == v.strip().lower()), v.strip())
+    if blank:
+        return ""
+    if f == "depends":
+        return ",".join(writer.gantt_list(v if isinstance(v, str) else str(v)))
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, (int, float)):
+        return str(int(v)) if float(v).is_integer() else str(v)
+    if isinstance(v, str):
+        return excel.unescape_text(str(cell_text(v)))
+    return v
+
+
+def gantt_differs(f, new, old):
+    """Whether a cell's value differs from the stored line's, as the data layer would store it (a text is compared after the data
+    layer's own tidying; a text it would refuse always differs, so the check names it)."""
+    if f in GANTT_TEXT:
+        try:
+            return writer.gantt_plain(new, GANTT_TEXT[f], writer.GANTT_NO_NAME if f == "name" else writer.GANTT_BAD_TEXT,
+                                      blank_ok=f != "name", lines=f == "note") != (old or "")
+        except Invalid:
+            return True
+    if f == "depends":
+        return writer.gantt_list(new) != writer.gantt_list(old)
+    if f in ("effort", "budget"):
+        if new is None or old is None:
+            return new is not old
+        return not (isinstance(new, (int, float)) and not isinstance(new, bool) and float(new) == float(old))
+    return new != old
+
+
 class _Reader:
     def __init__(self, store, project, filename, record=None, created=()):
         self.store, self.project, self.filename = store, project, filename
@@ -910,6 +992,103 @@ class _Reader:
         self.given[self.stage(kind="new", table=table, sheet=sheet, row=rn, after=values, fp=fp).n] = given
 
 
+def _gantt_sheet(self, ws):
+    """Row 926: stage the Gantt sheet's differences from the project's Gantt lines. A stored id that exists changes only the fields
+    that differ; an empty id, or one that is not a line of this project yet, makes a new line (the data layer gives the id; the one
+    typed is only the name the Parent and Depends on cells of the sheet use for it). Days and Status are worked out and never read.
+    A line missing from the sheet is left alone. The rules are the page's, applied when the plan is checked and again when it is applied."""
+    sheet = ws.title
+    if excel.CLIENT_COPY_NAME in ws.parent.defined_names:      # the client workbook's mark (excel_client.write_gantt_sheet): a client copy is never imported, whatever row its header is in
+        self.problem(f"{sheet}: this is the copy made for the client, not a workbook to import, so the sheet was skipped.", sheet)
+        return
+    first = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ())
+    header, ignored = {}, []
+    for i, h in enumerate(first):
+        if h is None or h is _FORMULA or not str(h).strip():
+            continue
+        f = GANTT_HEADERS.get(str(h).strip().lower())
+        if f is None:
+            ignored.append(str(h).strip())
+        elif not f.startswith("_") and f not in header:
+            header[f] = i
+        elif f.startswith("_"):
+            pass                                          # Days and Status: worked out
+    if "id" not in header or "name" not in header:       # also a client copy: its title band is row 1 and its header row 4
+        self.problem(f"{sheet}: there is no id column, so the sheet was skipped (every row would look new)", sheet)
+        return
+    if ignored:
+        self.plan.notes.append(f"{sheet}: column(s) {', '.join(ignored)} are not columns the import knows for this sheet and were ignored")
+    editable = [f for f in header if f != "id"]
+    db = {r["id"]: r for r in self.store.read(GANTT, project=self.project)}
+    seen, rows = set(), 0
+    for rn, row in self.rows_of(ws, 2):
+        cell = {f: (row[i] if i < len(row) else None) for f, i in header.items()}
+        raw_id = cell["id"]
+        if raw_id is _FORMULA:
+            self.problem(f"{sheet}, row {rn}: the ID is a formula, which is not read; the row was left out", sheet, rn, "", "id")
+            continue
+        rid = "" if raw_id is None else str(raw_id).strip()
+        placeholder = ""
+        if rid and not any(ch.isdigit() for ch in rid):
+            placeholder, rid = rid, ""
+        if not rid and all(_gantt_blank(v) for f, v in cell.items() if f != "id"):
+            continue
+        rows += 1
+        if rows > MAX_ROWS:
+            raise Invalid(f"The {sheet} sheet has more than {MAX_ROWS:,} rows, which is more than clark will import in one go. "
+                          "Check this is the right file. Nothing was changed.")
+        if rid:
+            m = writer.GANTT_ID.fullmatch(rid)
+            if not m or not rid.isascii():
+                self.problem(f"{sheet}, row {rn}: “{_short(rid)}” isn't {A_WORD[GANTT]} id (for example "
+                             f"{self.project}{writer.ID_PREFIX[GANTT]}001); the row was left out", sheet, rn, _short(rid), "id")
+                continue
+            if rid[:-8] != self.project:
+                self.problem(f"{sheet}, row {rn}: {_short(rid)} belongs to project {_short(rid[:-8])}, but this import is for "
+                             f"{self.project}; the row was left out", sheet, rn, _short(rid), "id")
+                continue
+            if rid in seen:
+                self.problem(f"{sheet}, row {rn}: {rid} appears twice; this second row was left out", sheet, rn, rid, "id")
+                continue
+            seen.add(rid)
+        values = {f: gantt_cell_value(f, cell[f]) for f in editable if cell[f] is not _FORMULA}
+        cur = db.get(rid) if rid else None
+        if cur is not None:
+            before, after = {}, {}
+            for f, v in values.items():
+                if f == "show" and v is None:
+                    continue
+                if gantt_differs(f, v, cur[f]):
+                    before[f], after[f] = cur[f], v
+            if not after:
+                self.plan.unchanged += 1
+            else:
+                self.stage(kind="changed", table=GANTT, sheet=sheet, row=rn, id=rid, before=before, after=after, seen_at=cur["updated_at"])
+            continue
+        new = {f: v for f, v in values.items() if not (v is None and f not in ("start", "end"))}
+        for f in ("start", "end", "type", "name"):
+            if f in header and f not in values:
+                new[f] = "" if f in ("type", "name") else None       # a formula there is not read: the line still needs it
+        fp = fingerprint(GANTT, new)
+        if self.made.get(fp):
+            made_id = self.made[fp].pop(0)
+            self.held.add(made_id)
+            self.plan.already_created += 1
+            self.plan.notes.append(f"{sheet}, row {rn}: Already imported as {made_id}: left as it is.")
+            continue
+        if fp in self.fp_rows:
+            self.plan.notes.append(f"{sheet}, row {rn} is the same as row {self.fp_rows[fp]}, so two items will be made. Delete one row "
+                                   "first if that isn't what you want.")
+        self.fp_rows.setdefault(fp, rn)
+        new["project"] = self.project
+        if rid:
+            self.plan.notes.append(f"{sheet}, row {rn}: the ID {_short(rid)} isn't one clark knows, so the item gets a new ID.")
+        self.stage(kind="new", table=GANTT, sheet=sheet, row=rn, after=new, fp=fp, typed=rid)
+
+
+_Reader.gantt_sheet = _gantt_sheet
+
+
 def header_map(first_row, table, cols, sheet):
     """(header, named, ignored) for a sheet's first row: header[column] = its position, named[column] = the heading as written,
     ignored = headings the import does not know. read_workbook and list_sheets read the heading row the same way (issue 737)."""
@@ -972,9 +1151,30 @@ def _rows_counted(ws, table, cols):
     return rows
 
 
-def list_sheets(path, store=None):
+def _gantt_listed(ws, store):
+    """Row 926: the rows of a sheet the import can read as the Gantt sheet (the editor's export layout: a header row 1 with the ID and Line
+    columns), None when it is not one (the client workbook's Gantt sheet has a title band in row 1, so it is never offered). Over the limits,
+    OVER_LIMIT, as for the other sheets."""
+    first = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ())
+    fields = {GANTT_HEADERS.get(str(h).strip().lower()) for h in first if isinstance(h, str)}
+    if "id" not in fields or "name" not in fields:
+        return None
+    reach_rows, reach_cols = ws.max_row or 0, ws.max_column or 0
+    if reach_rows > MAX_SHEET_ROWS or reach_cols > MAX_SHEET_COLUMNS or reach_rows * reach_cols > MAX_SHEET_CELLS:
+        return OVER_LIMIT
+    rows = 0
+    for row in ws.iter_rows(min_row=2, max_row=MAX_SHEET_ROWS + 2, max_col=MAX_SHEET_COLUMNS, values_only=True):
+        if any(not _blank(v) for v in row):
+            rows += 1
+            if rows > MAX_ROWS:
+                break
+    return min(rows, OVER_LIMIT)
+
+
+def list_sheets(path, store=None, project=None):
     """The sheets of the workbook at `path` that clark imports, for the person to choose from (issue 655): [{"table", "name", "rows"}]
     in CHOICE_ORDER, "rows" being the rows below the header read_workbook would count. A sheet the file does not have is not listed;
+    row 926: after them comes the Gantt sheet ({"table": GANTT, "name": the sheet's own name}) when the file has one the import can read;
     a History sheet (or any other) is never listed. Nothing is compared or written.
     A sheet that read_workbook would refuse for its size is given "rows" = OVER_LIMIT (MAX_ROWS + 1), whatever its real size: the
     box says "more than 2,000 rows", so the list never promises what ticking would refuse. That is every refusal read_workbook makes
@@ -993,10 +1193,20 @@ def list_sheets(path, store=None):
     except Exception:
         raise Invalid(f"{path.name} can't be read as an Excel workbook (.xlsx).")
     try:
-        found = {}
+        found, gantt = {}, None
+        gantt_names = {excel.GANTT_DEFAULT_NAME.lower()}
+        if store is not None and project is not None:
+            gantt_names.add(excel.gantt_sheet_name((store.read("projects", ref=project) or {}).get("gantt_tab_name")).lower())
         for ws in wb.worksheets:
             table = SHEET_TABLES.get(re.sub(r"[\s_]+", " ", ws.title.strip().lower()))
             if table is None:
+                if ws.title.strip().lower() in gantt_names:
+                    n = _gantt_listed(ws, store)
+                    if n is not None:
+                        if gantt is not None:
+                            raise Invalid(f"The workbook has two sheets for the same thing: “{gantt[0]}” and “{ws.title}”. Keep one of them and "
+                                          "import again. Nothing was changed.")
+                        gantt = (ws.title, n)
                 continue
             if table in found:
                 raise Invalid(f"The workbook has two sheets for the same thing: “{found[table][0]}” and “{ws.title}”. Keep one of them and "
@@ -1010,7 +1220,10 @@ def list_sheets(path, store=None):
                     cols = writer.columns(store.con, table) + ([LABELS] if table in writer.LABELLED else [])
                 rows = min(_rows_counted(ws, table, cols), OVER_LIMIT)
             found[table] = (ws.title, rows)
-        return [{"table": t, "name": SHEET_NAMES[t], "rows": found[t][1]} for t in CHOICE_ORDER if t in found]
+        listed = [{"table": t, "name": SHEET_NAMES[t], "rows": found[t][1]} for t in CHOICE_ORDER if t in found]
+        if gantt is not None:
+            listed.append({"table": GANTT, "name": gantt[0], "rows": gantt[1]})
+        return listed
     finally:
         wb.close()
 
@@ -1029,9 +1242,11 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
     staged as new, changed or "no longer in the workbook" (so nothing of it can be archived), and no note is made of it. The
     plan is then `partial`: applying it does not mark the file as imported as a whole."""
     if sheets is not None:
-        sheets = {t for t in sheets if t in CHOICE_ORDER}
-    if store.read("projects", ref=project) is None:
+        sheets = {t for t in sheets if t in CHOICE_ORDER or t == GANTT}      # row 926: the Gantt sheet is read when asked for (or when `sheets` is None)
+    project_row = store.read("projects", ref=project)
+    if project_row is None:
         raise Invalid(f"There is no project {project}.")
+    gantt_names = {excel.gantt_sheet_name(project_row.get("gantt_tab_name")).lower(), excel.GANTT_DEFAULT_NAME.lower()}
     path = Path(path)
     try:
         excel.check_workbook_size(path)
@@ -1077,6 +1292,8 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
         found, to_read, area = set(), [], 0
         for ws in wb.worksheets:
             table = SHEET_TABLES.get(re.sub(r"[\s_]+", " ", ws.title.strip().lower()))
+            if table is None and ws.title.strip().lower() in gantt_names:
+                table = GANTT                                                  # row 926: the sheet named for the Gantt tab, else 'Gantt'
             if table is None or (sheets is not None and table not in sheets):
                 continue
             if table in found:
@@ -1097,12 +1314,13 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
             raise Invalid("The sheets in this workbook are too large together (most of the space is empty), which is more than "
                           "clark will import in one go. Check this is the right file. Nothing was changed.")
         for ws, table in to_read:
-            rd.sheet(ws, table)
+            rd.gantt_sheet(ws) if table == GANTT else rd.sheet(ws, table)
         rd.plan.partial = sheets is not None and any(
-            SHEET_TABLES.get(re.sub(r"[\s_]+", " ", w.title.strip().lower())) not in (None, *sheets) for w in wb.worksheets)
+            (SHEET_TABLES.get(re.sub(r"[\s_]+", " ", w.title.strip().lower())) or (GANTT if w.title.strip().lower() in gantt_names else None))
+            not in (None, *sheets) for w in wb.worksheets)
         if not found:
-            rd.problem("The workbook has none of the sheets Actions, Risks & Issues, Decisions, Milestones or Use cases, so there is "
-                       "nothing to compare.")
+            rd.problem("The workbook has none of the sheets Actions, Risks & Issues, Decisions, Milestones, Use cases or "
+                       f"{excel.gantt_sheet_name(project_row.get('gantt_tab_name'))}, so there is nothing to compare.")
         else:
             for t in TABLE_ORDER:
                 if t not in found and (sheets is None or t in sheets):
@@ -1111,7 +1329,7 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
             shown = ", ".join(str(r) for r in sorted(rows_)[:10]) + (" and more" if len(rows_) > 10 else "")
             rd.plan.notes.append(f"{sheet_name}: a formula cell was ignored in row {shown}; clark reads typed values, not "
                                  "formulas, so type the value instead")
-        rd.plan.changes.sort(key=lambda c: (TABLE_ORDER.index(c.table), ("changed", "new", "removed").index(c.kind), c.row))
+        rd.plan.changes.sort(key=lambda c: (WRITE_ORDER.index(c.table), ("changed", "new", "removed").index(c.kind), c.row))
         for i, c in enumerate(rd.plan.changes, start=1):
             c.n = i
         rd.plan.store = store
@@ -1121,9 +1339,18 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
                           "Import fewer rows at a time, or check this is the right file. Nothing was changed.")
     finally:
         wb.close()
+    lines = [c for c in rd.plan.changes if c.table == GANTT]
     for c in rd.plan.changes:                  # which would the writer refuse? (each tried alone and rolled back)
-        errs, _, refused = _try(store, [c], "Import check", commit=False)
-        c.problem = errs[0].message.split(": ", 1)[-1] if errs else refused
+        if c.table != GANTT:
+            errs, _, refused = _try(store, [c], "Import check", commit=False)
+            c.problem = errs[0].message.split(": ", 1)[-1] if errs else refused
+    if lines:                                  # row 926: the Gantt lines are tried together (a line may name another new one), each refusal kept with its row
+        errs, _, refused = _try(store, lines, "Import check", commit=False)
+        for c in lines:
+            c.problem = next((e.message.split(": ", 1)[-1] for e in errs if e.row == c.row), refused)
+        if any(c.problem == writer.GANTT_TOO_MANY for c in lines):    # a count over the limit is the whole sheet's: no line of it is taken alone (the 501st keeps its row)
+            for c in lines:
+                c.problem = writer.GANTT_TOO_MANY
     rd.plan.refresh_ids()
     return rd.plan
 
@@ -1134,8 +1361,28 @@ class _Rollback(Exception):
     """Raised inside the step to roll all of it back."""
 
 
-def _write(st, store, c):
+def _gantt_ref(ids, text):
+    """A Parent or Depends on cell with the ids the sheet typed for its new lines put as the ids they were given."""
+    return ",".join(ids.get(d, d) for d in writer.gantt_list(text))
+
+
+def _write(st, store, c, ctx=None):
     """Write one staged change through the step."""
+    if c.table == GANTT:                     # row 926: through the page's own change route (changes.gantt_import_write)
+        from clark import changes
+        after = dict(c.after)
+        if c.kind == "changed":
+            now = store.read(GANTT, ref=c.id)
+            if now is None or now["updated_at"] != c.seen_at:
+                raise Invalid(f"{c.id} was changed in clark after this import was checked; run the import again")
+            return changes.gantt_import_write(store, st, now["project"], c.id, after)
+        later = {k: after.pop(k) for k in ("parent", "depends") if k in after}
+        ref = changes.gantt_import_write(store, st, after["project"], None, {k: v for k, v in after.items() if k != "project"})
+        if c.typed:
+            ctx["ids"][c.typed] = ref
+        if later:
+            ctx["later"].append((c, ref, later, after["project"]))
+        return ref
     after = dict(c.after)
     text = writer.OWNER_TEXT.get(c.table)
     if text in after and c.kind != "removed":      # row 873: the owner text and the person it links to are written together, as an owner edit does, else a later rename or merge puts the old name back
@@ -1163,16 +1410,28 @@ def _try(store, changes, by_user, commit, src_ref=None, made=None, route="excel"
     given, is filled with {change number: the id the store gave a new row}; it is only to be trusted when the step committed
     (no problems, nothing refused)."""
     problems, step_id, refused = [], None, ""
+    ctx = {"ids": {}, "later": []}               # row 926: the ids the sheet typed for new Gantt lines → the ids they got; their Parent and Depends on cells, written once every line is there
+
+    def broke(c, e):
+        f = next((f for f in list(c.after) if re.search(rf"\b{re.escape(f)}\b", str(e))), "")
+        problems.append(Problem(f"{c.label}: {plain(c.table, str(e))}", c.sheet, c.row, c.id, f))
     try:
         with store.step(route, by_user, place=place, src_ref=src_ref, dry=not commit) as st:   # #86: a preview takes no backup
             for c in changes:
                 try:
-                    ref = _write(st, store, c)
+                    ref = _write(st, store, c, ctx)
                     if made is not None and c.kind == "new":
                         made[c.n] = ref
                 except (Invalid, sqlite3.IntegrityError) as e:
-                    f = next((f for f in list(c.after) if re.search(rf"\b{re.escape(f)}\b", str(e))), "")
-                    problems.append(Problem(f"{c.label}: {plain(c.table, str(e))}", c.sheet, c.row, c.id, f))
+                    broke(c, e)
+            if not problems:
+                from clark import changes as route_changes
+                for c, ref, later, project in ctx["later"]:
+                    try:
+                        route_changes.gantt_import_write(store, st, project, ref, {k: (_gantt_ref(ctx["ids"], v) or None) if k == "parent" else _gantt_ref(ctx["ids"], v)
+                                                                                    for k, v in later.items()})
+                    except (Invalid, sqlite3.IntegrityError) as e:
+                        broke(c, e)
             if problems or not commit:
                 raise _Rollback()
             step_id = st.peek_apply_id()
