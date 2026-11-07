@@ -25,7 +25,7 @@ Written by a teammate, 29-10-2026. Nothing is built; docs only. Size M, review *
 - **Archived milestones are not listed** (FR-43c), and not counted in the sentence. Done and Cancelled milestones are not rows here (their dates still show in the peek's Activity).
 
 ### A2. What a "What changed" line says
-Each line is one entry of `milestone_rows.movement`, with who and when ("by {name}, DD-MM-YYYY HH:MM", the full name from Settings › Profile as FR-43a, local time). A line shows its reason ("why") under it, and a rebaseline shows its decision as a link to the decision ("Decision ABC-D-001", opening the decision's peek). A line whose step was later undone is shown dimmed with the tag **Undone** (the record shows what was tried); Undo rows themselves are not listed.
+Each line is one entry of `milestone_rows.movement`, with who and when ("by {name}, DD-MM-YYYY HH:MM", the full name from Settings › Personal › About you as FR-43a, local time). A line shows its reason ("why") under it, and a rebaseline shows its decision as a link to the decision ("Decision ABC-D-001", opening the decision's peek). A line whose step was later undone is shown dimmed with the tag **Undone** (the record shows what was tried); Undo rows themselves are not listed.
 
 | Entry | Words (pinned) |
 |---|---|
