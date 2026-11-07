@@ -2732,16 +2732,16 @@
      "d": "The new view appears as a tab, with the number of items it shows beside its name, and it is the open tab. The view is kept in your browser, for this project."
     },
     {
-     "d": "To come back to it later, press its tab. The filter line is set to what you saved. The tabs Open items, Actions, Risks and issues, Decisions and All work items are on every project."
+     "d": "To come back to it later, press its tab. The filter line is set to what you saved. Every project starts with the tabs Open items, Actions, Risks and issues, Decisions and All work items."
     },
     {
      "d": "If you change the filter line while a view is open, a small dot shows on its tab. Press the small arrow beside the open tab’s name and choose **Save changes** to keep the new filters under the same name, or **Save as a new view…** to keep them as another view. The five tabs that every project has cannot be changed this way, so use **Save as a new view…** for them."
     },
     {
-     "d": "To rename one of your own views, open it, press the small arrow beside its name and choose **Rename…**. Type the new name in the box labelled **New name for this view** and press **Save**."
+     "d": "To rename a view, open it, press the small arrow beside its name and choose **Rename…**. Type the new name in the box labelled **New name for this view** and press **Save**."
     },
     {
-     "d": "To remove a view you no longer want, open it, press the small arrow and choose **Archive**. It leaves the tabs but is kept. To get it back, press the small arrow beside an open tab and choose **Bring back** followed by its name."
+     "d": "To remove a view you no longer want, open it, press the small arrow and choose **Delete**, then press **Delete** to confirm. A deleted view cannot be brought back. This works for the five starting tabs too."
     }
    ],
    "result": "Your view is a tab on Work items with its item count. Pressing it sets the filter line to your saved filters, and a dot on the tab tells you when the line has changes you have not saved.",
