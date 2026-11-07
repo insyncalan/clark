@@ -147,7 +147,7 @@ class Logic(unittest.TestCase):
             "gallery": ("Pictures in a grid, each with a caption.", ["Heading", "Image", "Caption", "Image", "Caption", "Image"], ["full"]),
             "current-state": ("The state of the project in a few lines, to sit beside another section.", ["Heading", "Text"], ["full", "half"]),
             "plan-summary": ("Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.", ["Heading", "Rich text: headings, lists, quote, links", "AI menu"], ["full", "half"]),
-            "gantt": ("The plan as bars on a timeline, from your Gantt lines. Only lines put on the dashboard show.", ["Heading", "The Gantt chart"], ["full"]),
+            "gantt": ("The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.", ["Heading", "The Gantt chart"], ["full"]),
             "one-doc": ("A single file to read.", ["Heading", "File", "Text"], ["half", "full"]),
         })
 
