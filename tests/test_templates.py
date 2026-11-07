@@ -53,7 +53,7 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "checklist", "description": "Next steps or readiness, ticked off."},
 ]
 FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "gallery", "table", "raid-3", "raid-4", "work-items", "docs-links", "callout", "image-caption", "quote", "contacts", "checklist", "key-dates", "needs", "link-preview", "current-state", "plan-summary", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
-BOX = FIRST_SLICE[:-1] + ["gantt"] + FIRST_SLICE[-1:]      # the box's cards: the Gantt (#926 part 3) sits before One document, listed but not placeable until the store takes its type
+BOX = FIRST_SLICE[:-1] + ["gantt"] + FIRST_SLICE[-1:]      # the box's cards: the Gantt (row 926) sits before One document, placeable since the store takes its type (row 926)
 
 
 class Logic(unittest.TestCase):
@@ -160,18 +160,19 @@ class Logic(unittest.TestCase):
         self.assertEqual(self.t("ACCEPTS")["types"][:2], ["text", "needs"])
         self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title", "body"), "new takes a type, a title and (text only) a starting body")
         for x in self.t("TEMPLATES"):
-            if x["id"] == "gantt":      # #926 part 3: the page side is built; the store does not take the type until the guarded step lands
-                self.assertIs(x["ready"], False)
-                self.assertNotIn(x["type"], self.t("ACCEPTS")["types"])
+            if x["id"] == "gantt":      # row 926: no registry module (no content of its own), but the store takes the type at layout 19
+                self.assertIs(x["ready"], True)
+                self.assertIn(x["type"], self.t("ACCEPTS")["types"])
+                self.assertIn(x["type"], changes.NEW_SECTION_TYPES)
                 continue
             self.assertIn(x["type"], store.SECTION_TYPES, x["id"])
             self.assertIn(x["type"], changes.NEW_SECTION_TYPES, x["id"])
             self.assertIn(x["type"], self.t("ACCEPTS")["types"], x["id"])
             self.assertIs(x["ready"], True, x["id"])
-        self.assertEqual(self.t("TEMPLATES.filter(T.templates.available).map(x => x.id)"), FIRST_SLICE)
+        self.assertEqual(self.t("TEMPLATES.filter(T.templates.available).map(x => x.id)"), BOX)
         self.assertEqual(self.t("TEMPLATES.map(x => ({...x, ready: false})).filter(T.templates.available).map(x => x.id)"), [],
                          "with ready off, none is placeable")
-        self.assertEqual(self.t("TEMPLATES.map(x => ({...x, ready: true})).filter(T.templates.available).map(x => x.id)"), FIRST_SLICE,
+        self.assertEqual(self.t("TEMPLATES.map(x => ({...x, ready: true})).filter(T.templates.available).map(x => x.id)"), BOX,
                          "ready is the one switch (the Gantt also needs the store's type in ACCEPTS)")
 
     # ── search, kinds, counts, recently used ─────────────────────────────────
@@ -274,7 +275,7 @@ class Logic(unittest.TestCase):
         """Every template in the box sends the one new request the store takes; one not in the box (LATER) sends nothing."""
         by = {x["id"]: x for x in self.t("TEMPLATES")}
         gantt = self.t("plan(%s, 'gantt', 'a', false)" % lit(S))
-        self.assertEqual((gantt["ok"], gantt["message"]), (False, "Coming with a later release."), "the Gantt is not placeable until the store takes it")
+        self.assertEqual(gantt["requests"], [{"op": "new", "values": {"type": "gantt", "title": "Gantt"}, "after": "a", "place": "report"}], "row 926: the store takes the Gantt now")
         for tid in FIRST_SLICE[1:]:
             p = self.t(f"plan({lit(S)}, {lit(tid)}, 'a', false)")
             self.assertEqual(p["requests"], [{"op": "new", "values": {"type": by[tid]["type"], "title": by[tid]["title"]}, "after": "a", "place": "report"}], tid)
@@ -502,9 +503,6 @@ class Box(Base):
             for _ in range(len(BOX) - 1):
                 p.key("ArrowDown", code="ArrowDown", vk=40)
                 seen.append(p.js("document.activeElement.value"))
-                if seen[-1] == "gantt":      # listed, read and reached, but it cannot be placed until the store takes its type
-                    self.assertTrue(p.js("document.querySelector('button[data-place]').disabled"), "gantt waits for the store")
-                    continue
                 self.assertFalse(p.js("document.querySelector('button[data-place]').disabled"), seen[-1])
                 self.assertIsNone(p.js("document.activeElement.getAttribute('aria-disabled')"), seen[-1])
             self.assertEqual(seen, BOX, "the arrow keys reach every template, in order")

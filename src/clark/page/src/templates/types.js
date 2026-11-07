@@ -6,8 +6,8 @@ export const TEMPLATE_TYPES = [
   "workitems", "callout", "imagecap", "quote", "contacts", "checklist", "keydates", "onedoc",
 ];
 
-// Template types the page is ready for before the store takes them (#926 part 3): drawn by templateFor / templateEdit, but not in
-// TEMPLATE_TYPES, which tests/test_section_registry.py holds equal to the store's list. The step that adds the type to the store
-// (report_sections.type CHECK, section_kinds, publish rules) moves each id into TEMPLATE_TYPES, empties this list and turns the
-// catalogue entry's `ready` on.
+// Template types that have a page part but no section_kinds module, because they carry no content of their own (row 926: the Gantt
+// section draws the project's Gantt lines). Drawn by templateFor / templateEdit, taken by the store (changes.py NEW_SECTION_TYPES,
+// layout 19) and offered by logic/templates.js ACCEPTS, but not in TEMPLATE_TYPES, which tests/test_section_registry.py holds equal to
+// the registry's list.
 export const PENDING_TYPES = ["gantt"];
