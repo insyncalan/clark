@@ -5,6 +5,7 @@ Builds into temporary folders only and downloads nothing. Run: python3 dev/run_t
 import contextlib
 import functools
 import io
+import json
 import os
 import re
 import shutil
@@ -198,6 +199,17 @@ class MacZipTest(unittest.TestCase):
         subprocess.run(["unzip", "-q", str(self.zip), "-d", str(where)], check=True, timeout=60)
         self.assertTrue(os.access(where / self.top / "clark.command", os.X_OK))
         self.assertFalse(os.access(where / self.top / "README.md", os.X_OK))
+
+    def test_the_built_zip_carries_the_txt_start_file_and_not_the_md_one(self):
+        """An installed 1.0.x reads only START-HERE.txt, so the built zip writes that; the .md name ships later (the reader accepts both)."""
+        with zipfile.ZipFile(self.zip) as z:
+            names = z.namelist()
+            listed = json.loads(z.read(f"{self.top}/{package.MANIFEST}"))["files"]
+        self.assertEqual("START-HERE.txt", package.START_HERE)
+        self.assertIn(f"{self.top}/START-HERE.txt", names)
+        self.assertNotIn(f"{self.top}/START-HERE.md", names)
+        self.assertIn("START-HERE.txt", listed)
+        self.assertNotIn("START-HERE.md", listed)
 
     def test_start_here_in_plain_words(self):
         with zipfile.ZipFile(self.zip) as z:
