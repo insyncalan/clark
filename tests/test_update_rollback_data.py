@@ -398,6 +398,37 @@ class HandOverFailsAfterTheRestoreTest(Rolled):
         self.assertIn("put back as it was before the update", said["message"])
 
 
+class UndoThenTheOldAppFailsToStartTest(Rolled):
+    def test_a_failed_start_after_an_undo_is_not_judged_against_the_undo_sets_newer_copy(self):
+        """Read of PR 992: an Undo's backup set holds the NEWER layout (what the person had before pressing Undo). If the old app then
+        fails to start, the #479 check must not compare against it: the data was put back correctly, so no 'different version' and
+        no data_restore_pending."""
+        self.seams = MigratingSeams(self, answers=True)
+        body = self.reviewed()
+        self.assertEqual(200, self.up.install({"review_id": body["review_id"]})[0])
+        self.assertEqual(h.OK, self.run_helper()[0])
+        s = open_store(self.db, onedrive_roots=[])
+        copy = s.migration_backup
+        s.close()
+        now = self.make(version="0.3.1", migration_backup=copy)
+        now.settle()
+        armed = now.arm_undo({})[1]
+        self.seams = MigratingSeams(self, migrate=False)                      # the old app is started by the undo and does not answer
+        status, said = now.undo({"arm_id": armed["arm_id"]})
+        self.assertEqual(200, status, said)
+        at_handover = digest(self.db)
+        code, result = self.run_helper()
+        self.assertEqual(h.ROLLED_BACK, code)
+        self.assertNotIn("data", result)                                       # nothing for the data step to say
+        self.assertNotIn("different version", result["message"])
+        self.assertNotIn("install the update again", result["message"])
+        self.assertEqual("1", version(self.db))
+        self.assertEqual(at_handover, digest(self.db))                         # the put-back data is untouched
+        for record in (self.data / "updates").glob("*/update.json"):
+            self.assertNotIn("data_restore_pending", json.loads(record.read_text(encoding="utf-8")), record.parent.name)
+        self.assertEqual([], self.asides())
+
+
 class ParityTest(unittest.TestCase):
     """The helper's put-back and backup.restore_before_update leave the same files on the same input."""
 

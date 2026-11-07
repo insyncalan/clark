@@ -23,6 +23,7 @@ import textwrap
 import threading
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from _paths import ROOT, SRC
@@ -1110,6 +1111,17 @@ class DefaultSeamsTest(unittest.TestCase):
         with self.assertRaises(ChildProcessError):             # and it was reaped, not just seen
             os.waitpid(child.pid, os.WNOHANG)
         child.returncode = 0
+
+    def test_the_reaping_branch_runs_on_any_system(self):
+        """#476 where there is no /proc (the Mac): waitpid alone decides. A reaped child is gone; one that is not our child (or still
+        running) falls through to the kill check and is not."""
+        s = h.Seams()
+        with mock.patch.object(h.os, "waitpid", return_value=(os.getpid(), 0)) as reap:
+            self.assertTrue(s.process_gone(os.getpid()))                     # waitpid collected it: gone, though kill(pid, 0) would succeed
+        reap.assert_called_once_with(os.getpid(), os.WNOHANG)
+        for kw in ({"return_value": (0, 0)}, {"side_effect": ChildProcessError()}):
+            with mock.patch.object(h.os, "waitpid", **kw), mock.patch.object(h.Path, "read_text", side_effect=OSError("no /proc")):
+                self.assertFalse(s.process_gone(os.getpid()))
 
     def spare(self):
         child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])

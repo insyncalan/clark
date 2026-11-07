@@ -1046,6 +1046,13 @@ class Run:
         copy = Path(folder) / "clark.db" if folder else None
         if copy is None or copy.is_symlink() or not copy.is_file():
             return None
+        try:
+            if read_json(Path(folder) / "update.json").get("kind") == "undo":
+                return None                      # an Undo's set holds the NEWER layout (the data before Undo was pressed), not what to go back to
+        except (OSError, ValueError, AttributeError):
+            return None                          # a set whose record can't be read is not trusted as the thing to put back
+        # Note: the copy was taken when the update began, while the old server may still have been finishing a write, so putting it
+        # back can step the data back by those last moments; whatever the live file held is kept whole in backups/replaced-<stamp>.
         check_copy_file(copy, self.m.get("schema_before"), self.m.get("db_id_before"))
         con = sqlite3.connect(f"{copy.resolve().as_uri()}?mode=ro", uri=True, timeout=5)
         try:
