@@ -344,12 +344,12 @@ class Sizes87(unittest.TestCase):
     ALLOWED = (".tile .n", ".fig .v", ".tr-", "table.tracker", ".hp-", ".cp-m", ".ucp-body")
 
     def need(self):
-        pending(self, 240, TOKENS, "--size-body: 16px")        # merged on main: always passes now, kept as a guard
+        pending(self, 240, TOKENS, "--size-body: 15px")        # merged on main: always passes now, kept as a guard (row 843: the base text is 15 px)
 
     def test_87_1_the_size_scale_is_in_tokens_css(self):
         self.need()
         css = read(TOKENS)
-        want = {"body": 16, "caption": 13, "small": 14, "h3": 20, "h2": 24, "h1": 30, "display": 40}
+        want = {"body": 15, "caption": 13, "small": 14, "h3": 20, "h2": 24, "h1": 30, "display": 40}
         for name, px in want.items():
             self.assertRegex(css, rf"--size-{name}:\s*{px}px", f"--size-{name} is {px}px")
         self.assertRegex(css, r"--leading:\s*1\.5")
