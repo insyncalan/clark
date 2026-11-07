@@ -86,8 +86,11 @@ class ThePicture(unittest.TestCase):
     def test_a_task_is_a_bar_with_a_lighter_done_part(self):
         task = g.mix(self.t["brand-blue-strong"], self.t["text"], 0.6)
         lighter = g.mix(self.t["white"], task, 0.3)
-        self.assertEqual(colour_at(self.png, self.x("2026-11-05"), self.cy(1)), lighter)      # inside the first half (50 percent)
-        self.assertEqual(colour_at(self.png, self.x("2026-11-28"), self.cy(1)), task)
+        x1, x2 = self.x("2026-11-02"), self.x("2026-12-01")                                   # the bar's ends (the end day is counted)
+        at = lambda share: x1 + round((x2 - x1) * share)
+        self.assertEqual(colour_at(self.png, at(0.45), self.cy(1)), lighter)                  # done is 50 percent: lighter up to half
+        self.assertEqual(colour_at(self.png, at(0.55), self.cy(1)), task)
+        self.assertEqual(colour_at(self.png, at(0.9), self.cy(1)), task)
 
     def test_a_milestone_is_a_diamond_amber_and_green_when_done(self):
         self.assertEqual(colour_at(self.png, self.x("2026-12-01"), self.cy(2)), self.t["status-green"])
