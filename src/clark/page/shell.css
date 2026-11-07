@@ -1550,7 +1550,7 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .pk-stale { margin: 0 0 var(--space-2); }
 .pk-chip { display: inline-block; padding: 2px var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--grey-200); color: var(--text-muted); font-size: var(--size-caption); }
 
-/* Loading placeholder: still grey blocks in the shape of the screen (always still: no shimmer, #934). Shown only after a short wait (Views.jsx). */
+/* Loading placeholder: still grey blocks in the shape of the screen (always still: no shimmer). Shown only after a short wait (Views.jsx). */
 .skel { display: block; background: var(--grey-100); border-radius: var(--radius-sm); }
 .skel-title { width: min(280px, 60%); height: 28px; margin-bottom: var(--space-4); }
 .skel-line { height: 14px; width: 100%; }
