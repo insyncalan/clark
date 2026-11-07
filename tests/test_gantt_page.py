@@ -317,7 +317,7 @@ class Page(unittest.TestCase):
         self.until("document.querySelector('.gt-scroll')", "the table")
         self.assertEqual(self.count(".gt-scroll tbody tr"), 3)
 
-    def test_export_runs_the_editors_export_and_import_is_a_disabled_placeholder_with_the_tooltip(self):
+    def test_export_and_import_run_the_editors_own_excel_flows(self):
         self.mount(mode="edit")
         self.assertEqual(self.js("document.querySelector('[data-gp-export]').disabled"), False, "Export to Excel is on (row 926)")
         self.assertEqual(self.js("document.querySelector('[data-gp-export]').title"), "Export to Excel")
@@ -326,7 +326,10 @@ class Page(unittest.TestCase):
         self.assertEqual(self.count("[data-gp-import]"), 0, "Import is for Edit in the table")
         self.click("[data-gp-layout]")
         self.until("document.querySelector('[data-gp-import]')", "Import in the table")
-        self.assertEqual(self.js("document.querySelector('[data-gp-import]').disabled"), True)
+        self.assertEqual(self.js("document.querySelector('[data-gp-import]').disabled"), False, "Import from Excel is on")
+        self.assertEqual(self.js("document.querySelector('[data-gp-import]').title"), "Import from Excel")
+        self.click("[data-gp-import]")
+        self.assertEqual(self.js("window.__imports"), 1, "one press opens the editor's own import box once")
 
     def test_the_show_menu_filters_the_table_and_ticked_lines_is_for_edit_only(self):
         self.mount(mode="edit")

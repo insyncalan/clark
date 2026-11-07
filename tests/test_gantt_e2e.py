@@ -291,6 +291,11 @@ class E2E(unittest.TestCase):
         br.key("Enter")
         self.assertTrue(wait(lambda: "Handover" in self.names()), self.names())
         self.assertEqual(self.line("Handover")["type"], "milestone")
+        # Import from Excel opens the editor's own two-step box (the one Settings > Data opens), then Cancel puts the page back
+        br.click("[data-gp-import]")
+        br.until("document.querySelector('#import-box')", "Import from Excel opens the editor's own import box")
+        br.js("document.querySelector('#import-box').closest('dialog, [role=dialog], div').querySelector('.btn.quiet:not(.tpl-get)').click()")
+        br.until("!document.querySelector('#import-box')", "Cancel closes the import box")
         br.click("[data-gp-layout=chart]")
         br.until("document.querySelector('#gantt-page').dataset.gpShown === 'chart'", "the chart")
         self.assertEqual(br.js("document.querySelector('#gantt-page').dataset.mode"), "edit")
