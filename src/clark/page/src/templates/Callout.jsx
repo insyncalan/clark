@@ -6,13 +6,14 @@ import { source, tidyCallout, calloutEmpty, TONE_WORDS } from "./notes.js";
 export const READY = true;
 export const isEmpty = (section) => calloutEmpty(tidyCallout(source(section)));
 
-export function View({ section }) {
-  const c = tidyCallout(source(section));
+export function View({ section, clean }) {
+  const c = tidyCallout(source(section), clean);
   return (
     <div class={`tpl-callout tone-${c.tone}`} role="note">
       <p class="tpl-callout-tone">{TONE_WORDS[c.tone]}</p>
       {c.title ? <p class="tpl-callout-h">{c.title}</p> : null}
-      {c.paras.map((p, i) => <p class="tpl-callout-p" key={i}>{p}</p>)}
+      {c.html ? <div class="tpl-callout-p tpl-rich prose" dangerouslySetInnerHTML={{ __html: c.html }} />
+        : c.paras.map((p, i) => <p class="tpl-callout-p" key={i}>{p}</p>)}
     </div>
   );
 }

@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from clark import doclinks, freshness as fresh, people as people_rules, platform, published_copies, section_bodies
+from clark import doclinks, freshness as fresh, people as people_rules, platform, published_copies, sanitise, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
@@ -609,7 +609,19 @@ def _visible_ok(value):
     return any(unicodedata.category(c)[0] in "LNPS" and c not in _BLANK_LOOKING for c in value)
 
 
-BODY_RULES = section_bodies.Rules(plain=_plain_ok, visible=_visible_ok)
+def _html_ok(text):
+    """The editor's words for a template field (row 1005): sanitise.clean_html, '' when there is nothing to read, a line break written
+    as a space (a section's content holds none), or ValueError when the cleaner refuses the text (too long). Cleaning it again changes nothing."""
+    try:
+        out = sanitise.clean_html(text)
+        if not sanitise.plain_text(out).strip():
+            return ""
+        return sanitise.clean_html(out.replace("\r", " ").replace("\n", " "))
+    except sanitise.SanitiseError:
+        raise ValueError("too long") from None
+
+
+BODY_RULES = section_bodies.Rules(plain=_plain_ok, visible=_visible_ok, html=_html_ok)
 
 
 def check_section_body(kind, body):

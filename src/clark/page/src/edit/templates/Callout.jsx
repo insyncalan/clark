@@ -1,7 +1,8 @@
-// Callout (#96), store type "callout": its Edit part. Fill in place: the tone, a title and the paragraphs (one per line). Each save
+// Callout (item 96), store type "callout": its Edit part. Fill in place: the tone, a title and the words (the one editor, with its / menu). Each save
 // is one change() (noteEdit.jsx saveContent): one step, one Undo. The view part is templates/Callout.jsx.
 import { source, tidyCallout, TONES, TONE_WORDS, LIMITS } from "../../templates/notes.js";
-import { Field, useSaver } from "./noteEdit.jsx";
+import { Field, RichWords, useSaver } from "./noteEdit.jsx";
+import { wordsAsHtml, noBreaks } from "./filesEdit.js";
 
 export function Edit({ section }) {
   const saved = tidyCallout(source(section));
@@ -16,10 +17,10 @@ export function Edit({ section }) {
       <label class="tpl-lbl">Title (optional)
         <Field value={saved.title} label="Callout title" max={LIMITS.title} onCommit={(title) => write({ title })} />
       </label>
-      <label class="tpl-lbl">Words (one paragraph a line)
-        <Field multiline value={saved.paras.join("\n")} label="Callout words" onCommit={(t) => write({ paras: t.split(/\n+/).map((p) => p.trim()).filter(Boolean) })} />
-      </label>
-      {!saved.title && saved.paras.length === 0 ? <p class="quiet">Empty for now: add a title or some words. It stays out of the published page until then.</p> : null}
+      <div class="tpl-lbl">Words
+        <RichWords kind="callout" id={section.id} value={wordsAsHtml(saved.html, saved.paras)} label="Callout words" save={(html) => write({ html: noBreaks(html), paras: [] })} />
+      </div>
+      {!saved.title && saved.paras.length === 0 && !saved.html ? <p class="quiet">Empty for now: add a title or some words. It stays out of the published page until then.</p> : null}
     </div>
   );
 }
