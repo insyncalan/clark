@@ -175,6 +175,22 @@ class Caps(unittest.TestCase):
         self.path = path
         self.assertIn("can't be read as an Excel workbook (.xlsx)", self.refused())       # and through read_workbook, as the route calls it
 
+    def test_each_error_a_zip_member_read_can_raise_is_refused_in_the_plain_words_and_not_as_a_raw_error(self):
+        # Raised directly from inside the early check (the read of the sheet part), one type at a time. Before this, BadZipFile,
+        # zlib.error and EOFError were reached only through real damage, ValueError through the long digit run, and OSError not at all.
+        part = part_of(self.path, "Actions")
+        real_open = zipfile.ZipFile.open
+        for exc in (zipfile.BadZipFile("bad"), zlib.error("bad"), EOFError("bad"), OSError("bad"), ValueError("bad")):
+            def opener(zf, name, *a, _exc=exc, **kw):
+                if name == part:
+                    raise _exc
+                return real_open(zf, name, *a, **kw)
+            with self.subTest(error=type(exc).__name__):
+                with mock.patch.object(zipfile.ZipFile, "open", opener):
+                    with self.assertRaises(Invalid) as cm:
+                        xi.check_sheets_early(self.path, lambda t: True)
+                self.assertEqual(str(cm.exception), "ABC.xlsx can't be read as an Excel workbook (.xlsx).")
+
     def test_a_damaged_shared_strings_part_is_refused_in_the_plain_words(self):
         declare_shared_strings(self.path, "q" * 20000)
         lie_about_crc(self.path, "xl/sharedStrings.xml")
