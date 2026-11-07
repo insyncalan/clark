@@ -1227,6 +1227,10 @@ def list_sheets(path, store=None, project=None):
         if gantt is not None:
             listed.append({"table": GANTT, "name": gantt[0], "rows": gantt[1]})
         return listed
+    except Invalid:
+        raise
+    except Exception:                                        # cells that point at a shared-strings table the file does not have, and the like
+        raise Invalid(f"{path.name} can't be read as an Excel workbook (.xlsx).")
     finally:
         wb.close()
 

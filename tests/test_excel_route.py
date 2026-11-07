@@ -30,6 +30,25 @@ def encoded(path):
     return base64.b64encode(Path(path).read_bytes()).decode("ascii")
 
 
+def without_shared_strings(path):
+    """Point every cell of the Actions sheet at shared string 0 (t="s") in a package that has no shared-strings part."""
+    import re
+    import zipfile
+    out = Path(str(path) + ".new")
+    with zipfile.ZipFile(path) as src, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+        sheet = re.search(r'<sheet\b[^>]*name="Actions"[^>]*r:id="([^"]+)"', src.read("xl/workbook.xml").decode()).group(1)
+        part = re.search(r'<Relationship\b[^>]*Target="([^"]+)"[^>]*Id="%s"' % sheet, src.read("xl/_rels/workbook.xml.rels").decode()) or \
+            re.search(r'<Relationship\b[^>]*Id="%s"[^>]*Target="([^"]+)"' % sheet, src.read("xl/_rels/workbook.xml.rels").decode())
+        part = part.group(1).lstrip("/") if part.group(1).startswith("/") else "xl/" + part.group(1)
+        for info in src.infolist():
+            data = src.read(info.filename)
+            if info.filename == part:
+                data = re.sub(rb"<c\b([^>]*)>.*?</c>", lambda m: b"<c%s t=\"s\"><v>0</v></c>" % re.sub(rb"\st=\"[^\"]*\"", b"", m.group(1)), data, flags=re.S)
+            if info.filename != "xl/sharedStrings.xml":
+                dst.writestr(info.filename, data)
+    out.replace(path)
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         excel_route.PLANS.clear()
@@ -106,6 +125,22 @@ class Check(Base):
             self.assertIsNone(__import__("re").search(JARGON, got["message"]), got["message"])
         self.assertEqual(self.temp_folders(), was)
         self.assertEqual(excel_route.PLANS, {})
+
+    def test_a_sheets_list_of_a_workbook_with_cells_that_point_at_missing_shared_strings_is_refused_in_words(self):
+        without_shared_strings(self.path)
+        was = self.temp_folders()
+        status, got = self.post(op="sheets", project="ABC", name="ABC work items.xlsx", data=encoded(self.path))
+        self.assertEqual((status, got["ok"]), (400, False))
+        self.assertIn("can't be read as an Excel workbook (.xlsx)", got["message"])
+        self.assertEqual((self.temp_folders(), excel_route.PLANS), (was, {}))
+
+    def test_list_sheets_on_a_workbook_with_cells_that_point_at_missing_shared_strings_raises_invalid(self):
+        from clark import excel_import
+        from clark.store import Invalid
+        without_shared_strings(self.path)
+        with self.assertRaises(Invalid) as cm:
+            excel_import.list_sheets(self.path, self.store, "ABC")
+        self.assertEqual(str(cm.exception), "ABC work items.xlsx can't be read as an Excel workbook (.xlsx).")
 
     def test_a_macro_workbook_is_refused_in_words_and_nothing_is_stored(self):
         was, before = self.temp_folders(), self.steps()
