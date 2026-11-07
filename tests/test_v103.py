@@ -275,6 +275,32 @@ COVERED = [
      "test_published_item_column::PublishedItemColumn::test_the_item_column_is_wide_enough_and_the_table_fits"),
     ("#935", "A board column is a lifted card with a rule under its heading (the closest test; none pins the missing top stripe yet).",
      "test_work_board_page::Cards::test_row_775_columns_are_lifted_cards_and_the_full_screen_icon_are_arrows"),
+    ("#805", 'Work items has no intro sentence and no count line.',
+     "test_work_items_header::Header::test_row_805_no_intro_sentence_and_no_count_line_and_no_gap_left"),
+    ("#807", 'A selected Board card has no check mark but still shows it is selected.',
+     "test_work_items_header::Header::test_row_807_a_selected_card_has_no_check_mark_but_still_shows_it_is_selected_and_a_list_row_keeps_its_tick"),
+    ("#808", 'The filter suggestion list floats over the table and pushes nothing.',
+     "test_work_items_header::Header::test_row_808_the_suggestion_list_floats_over_the_table_and_pushes_nothing"),
+    ("#808", 'The filter suggestion list floats over the board and pushes nothing.',
+     "test_work_items_header::Header::test_row_808_the_suggestion_list_floats_over_the_board_and_pushes_nothing"),
+    ("#809", 'The saved views are text tabs on a rule.',
+     "test_work_items_header::Header::test_row_809_views_are_text_tabs_on_a_rule_the_same_for_made_and_user_views"),
+    ("#812", 'Table and Board are a two-icon switch; Group by stays in the View menu.',
+     "test_work_items_header::Header::test_row_812_table_and_board_are_a_two_icon_switch_and_group_by_stays_in_the_view_menu"),
+    ("#813", 'There is no Freshness button; the filter still works by typing and by a saved view.',
+     "test_work_items_header::Header::test_row_813_no_freshness_pill_and_the_filter_is_still_there_by_typing_and_by_a_saved_view"),
+    ("#832", 'Work items has no wrapping card.',
+     "test_page_frames::Frames::test_row_832_work_items_has_no_wrapping_card"),
+    ("#832", 'Milestones has no wrapping card but the viewer keeps its own.',
+     "test_page_frames::Frames::test_row_832_milestones_has_no_wrapping_card_but_the_viewer_keeps_its_own"),
+    ("#832", 'Use cases has no wrapping card.',
+     "test_page_frames::Frames::test_row_832_use_cases_has_no_wrapping_card"),
+    ("#832", 'The Settings head has no card; the cards below keep theirs.',
+     "test_page_frames::Frames::test_row_832_the_settings_head_has_no_card_but_the_cards_below_keep_theirs"),
+    ("#832", 'A published file keeps its white card.',
+     "test_published_frames::PublishedFrames::test_the_published_work_items_page_keeps_its_card"),
+    ("#832", 'The rows text has 4.5 to 1 contrast against what is behind it.',
+     "test_work_items_header::Header::test_row_832_the_rows_text_has_4_5_to_1_contrast_against_what_is_really_behind_it"),
     ("#902", 'The Appearance choice is a radio group with arrow keys.',
      "test_appearance::Appearance::test_C_appearance_arrow_keys_move_and_pick_row_902"),
     ("#903", 'Help Start here has a hero card and The loop above the jobs.',
@@ -313,7 +339,7 @@ COVERED = [
 NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874", "889", "895", "905", "907", "908", "914", "917", "918", "920", "932", "941"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
-PARTLY_MERGED = {"767", "766", "775", "776"}
+PARTLY_MERGED = {"767", "766", "775", "776", "807"}
 
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has
 # landed; marker None means there is no pull request to look for yet).
