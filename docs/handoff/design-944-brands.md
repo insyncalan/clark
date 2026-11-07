@@ -197,8 +197,8 @@ the project lead second. Proposed builders: builder A for T1 and T2; builder B f
 - **Zip-structure failures reuse the existing damaged-file refusal, no new sentence.** An encrypted member, compression method
   99 (AES) or any structure failure (`RuntimeError`, `BadZipFile`, `EOFError`, `zlib.error`, `OSError`, `ValueError`) gives the
   same refusal the update zip gives for a damaged file (`updates.py:106` `"damaged"`, raised from the `except` at `:469`). The
-  pattern is PR 934's catch in `excel_import.check_sheets_early` (commit `de750126f66e543927da20ed29f590ce691f9423`, on a branch
-  `team-cap-966-import-caps`, `excel_import.py:1326`, its `except` at `:1361`: `_TextTooLong, zipfile.BadZipFile, zlib.error,
+  pattern is PR 934's catch in `excel_import.check_sheets_early` (commit `de750126f66e543927da20ed29f590ce691f9423`, on the row 966 import-caps branch,
+  `excel_import.py:1326`, its `except` at `:1361`: `_TextTooLong, zipfile.BadZipFile, zlib.error,
   EOFError, OSError, ValueError, RuntimeError`); that commit is not in this tree.
 - **Refusals:** each check above fails with one plain sentence (section 4), never naming a deny-list word or showing a path from
   the request. The page never sends a path: the file comes from the system dialog or Downloads (`platform.py:429`, `:115`).
