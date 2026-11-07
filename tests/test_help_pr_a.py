@@ -135,14 +135,14 @@ class SettingsChips(unittest.TestCase):
         views = code("components", "Views.jsx")
         cards = re.search(r"const CARDS = \[(.*?)\];", views, re.S).group(1)
         names = [n for n in re.findall(r'\["\w+", "([^"]*)", "[\w-]+"\]', cards)]
-        self.assertEqual(names, ["Publishing", "Personal", "Freshness", "Logs and diagnostics", "Projects", "Data", "Backups", "", "People", "Asking"])
+        self.assertEqual(names, ["Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "", "People", "Asking"])
         self.assertIn('Update.chip = L.TITLE', code("edit", "Update.jsx"))
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))
-        self.assertIn("Publishing, Personal, Freshness, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn.", self.TEXT)
+        self.assertIn("Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn.", self.TEXT)
         self.assertIn('<nav class="set-bar"', views)
         self.assertIn('aria-current={here === headId ? "location" : undefined}', views)
-        self.assertIn('NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays"]', views)
-        self.assertIn("Publishing and Freshness need an open project. Published reports also needs one and has a card but no link.", self.TEXT)
+        self.assertIn('NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays", "GanttSetting"]', views)
+        self.assertIn("Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link.", self.TEXT)
         self.assertIn("A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title)", self.TEXT)
         self.assertIn("The link of the card you are reading is marked.", self.TEXT)
 

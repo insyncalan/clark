@@ -29,6 +29,8 @@ import { Personal } from "./Personal.jsx";
 import { Data } from "./Data.jsx";
 import { Boxes } from "./Boxes.jsx";
 import { ReviewDays } from "./ReviewDays.jsx";
+import { GanttSetting } from "./GanttSetting.jsx";
+import { GanttTabName } from "./GanttTabName.jsx";
 import { GLANCE } from "./GlanceEdit.jsx";
 import { ClientFolder } from "./ClientFolder.jsx";
 import { Movement } from "./Movement.jsx";
@@ -58,6 +60,11 @@ import { People } from "./People.jsx";
 import { askOn, setAsk, loadAsk } from "./askState.js";
 import { AskPanel } from "./AskPanel.jsx";
 import { installModeKeys } from "./keys.js";
+import { GanttTitle } from "./GanttTitle.jsx";
+import { GanttBarNote } from "./GanttBarNote.jsx";
+import { importExcel } from "./ganttImport.js";
+import { GANTT_EDIT_WORDS } from "./ganttWords.js";
+import { createStoreHost } from "../gantt/logic/ganttStoreHost.js";
 import { installAskKeys, openPanel, closePanel, panelOpen } from "./askPanelState.js";
 import { HelpLayer } from "../help/Help.jsx";
 import { SearchButton } from "./SearchButton.jsx";
@@ -84,4 +91,4 @@ import { HAND_OVER } from "./HandOver.jsx";
 // Help (#82) is among them: a published file has no Help panel and no "?" key.
 // `clean` is the page's own cleaner for a saved body that View draws as text (Section.jsx); a body it refuses draws as nothing.
 const clean = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
-export const EDIT = { clean, DemoBanner, NewProjectButton, glance: GLANCE, Personal, Data, Boxes, ReviewDays, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, ItemRowsEdit, richOn, Gutter, ExportBtn, ImportBtn, ArchivedItems, ArchivedPill, ProjectSwitch, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, PeekLatest, PeekWarn, PeekNeeded, PeekTitle, PeekWording, PeekPick, PeekDuplicate, PeekArchive, Cell, Eye, Publish, ReportBar, ProfileMenu, PublishedReports, exportExcel, ClientFolder, Safety, Update, Projects, Diagnostics, pageErrors: installPageErrors, AskSettings, People, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MilestoneEdit, MsEye, MsAddBack, MsLayers, ArchivedMilestones, UseCasesPage, ucEdit: UCEDIT, Board, RowMenu, HelpLayer, SearchButton, AskButton, HelpPeek, AddDialog, addItem, Palette, templateEdit, AskPanel, modeKeys: { install: installModeKeys }, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys, pictureUrl }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk }, HandOver: HAND_OVER };
+export const EDIT = { clean, DemoBanner, NewProjectButton, glance: GLANCE, Personal, Data, Boxes, ReviewDays, GanttSetting, GanttTabName, GanttTitle, GanttBarNote, ganttWords: GANTT_EDIT_WORDS, importExcel, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, ItemRowsEdit, richOn, Gutter, ExportBtn, ImportBtn, ArchivedItems, ArchivedPill, ProjectSwitch, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, PeekLatest, PeekWarn, PeekNeeded, PeekTitle, PeekWording, PeekPick, PeekDuplicate, PeekArchive, Cell, Eye, Publish, ReportBar, ProfileMenu, PublishedReports, exportExcel, ClientFolder, Safety, Update, Projects, Diagnostics, pageErrors: installPageErrors, AskSettings, People, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MilestoneEdit, MsEye, MsAddBack, MsLayers, ArchivedMilestones, UseCasesPage, ucEdit: UCEDIT, Board, RowMenu, HelpLayer, SearchButton, AskButton, HelpPeek, AddDialog, addItem, Palette, templateEdit, AskPanel, modeKeys: { install: installModeKeys }, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys, pictureUrl }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk }, HandOver: HAND_OVER, ganttHost: createStoreHost };
