@@ -2,6 +2,7 @@
 (POST /api/excel-import ops "sheets", "check", "apply", "undo"). Fictional data only.
 Run: python3 dev/run_tests.py test_gantt_excel_import_flow
 """
+import datetime
 import io
 import unittest
 from pathlib import Path
@@ -9,7 +10,8 @@ from pathlib import Path
 import _paths  # noqa: F401
 from openpyxl import load_workbook
 from test_excel_route import Base, encoded
-from clark import changes, excel, excel_import
+from clark import changes, excel, excel_import, excel_route
+from clark import store as store_module
 from _demo import USER
 import test_gantt_excel_export as ex
 
@@ -128,6 +130,94 @@ class Reading(Flow):
         self.assertTrue(any("XYZ-GNT-001" in p for p in got["problems"]), got["problems"])
         self.assertEqual(self.lines()["ABC-GNT-001"]["name"], "Alpha")
         self.assertEqual({r["id"] for r in self.store.read("gantt_lines", project="XYZ")}, other)
+
+
+class Partial(Flow):
+    """Row 926: a file read for only some of its sheets is never marked as imported as a whole (plan.partial), the Gantt sheet counting as one."""
+
+    def pick(self, tables):
+        st, listed = self.sheets()
+        self.assertEqual(st, 200, listed)
+        return self.post(op="check", project="ABC", file=listed["file"], sheets=list(tables))
+
+    def plan_of(self, tables):
+        st, got = self.pick(tables)
+        self.assertEqual(st, 200, got)
+        return got
+
+    def test_ticking_only_actions_on_a_file_with_a_gantt_sheet_is_partial_and_not_marked_imported(self):
+        self.edit("Actions", self.a1, Description="Draft the cut-over plan, two")
+        got = self.plan_of(["actions"])
+        self.assertTrue(excel_route.PLANS[got["plan"]]["plan"].partial)
+        self.assertFalse(got["already_imported"])
+        st, done = self.apply(got["plan"], confirm=True)
+        self.assertEqual((st, done["ok"]), (200, True), done)
+        self.assertFalse(excel_import.read_workbook(self.store, self.path, "ABC", state_path=Path(self.store.path).parent / excel.STATE_FILE).already_imported)
+
+    def test_ticking_only_the_gantt_sheet_on_a_file_with_an_actions_sheet_is_partial(self):
+        self.assertTrue(excel_route.PLANS[self.plan_of(["gantt_lines"])["plan"]]["plan"].partial)
+
+    def test_ticking_every_sheet_is_not_partial(self):
+        every = list(excel_import.CHOICE_ORDER) + ["gantt_lines"]
+        self.assertFalse(excel_route.PLANS[self.plan_of(every)["plan"]]["plan"].partial)
+
+    def test_ticking_the_five_tables_but_not_the_gantt_sheet_is_partial(self):
+        self.assertTrue(excel_route.PLANS[self.plan_of(list(excel_import.CHOICE_ORDER))["plan"]]["plan"].partial)
+
+    def test_after_a_partial_import_of_actions_the_same_file_is_accepted_again_for_the_gantt_sheet(self):
+        self.edit_gantt(Line="Alpha, renamed")
+        self.edit("Actions", self.a1, Description="Draft the cut-over plan, two")
+        got = self.plan_of(["actions"])
+        st, done = self.apply(got["plan"], confirm=True)
+        self.assertEqual((st, done["ok"]), (200, True), done)
+        self.assertEqual(self.lines()["ABC-GNT-001"]["name"], "Alpha")
+        again = self.plan_of(["gantt_lines"])
+        self.assertFalse(again["already_imported"])
+        self.assertEqual(again["counts"], {"new": 0, "changed": 1, "removed": 0})
+        st, done = self.apply(again["plan"], confirm=True)
+        self.assertEqual((st, done["ok"]), (200, True), done)
+        self.assertEqual(self.lines()["ABC-GNT-001"]["name"], "Alpha, renamed")
+
+
+class Limit(Flow):
+    """Row 926: a project has at most store.MAX_GANTT_LINES Gantt lines; an import that would pass it is refused whole."""
+
+    def add_rows(self, n):
+        wb = load_workbook(str(self.path))
+        ws = wb["Gantt"]
+        head = {c.value: c.column for c in ws[1]}
+        for i in range(n):
+            row = ws.max_row + 1
+            for label, v in {"ID": "TBD", "Line": f"Extra {i}", "Type": "Task", "Start": datetime.date(2026, 12, 1),
+                             "End": datetime.date(2026, 12, 3), "On dashboard": "Yes"}.items():
+                ws.cell(row, head[label]).value = v
+        wb.save(str(self.path))
+
+    def read(self):
+        plan = excel_import.read_workbook(self.store, self.path, "ABC", state_path=Path(self.store.path).parent / excel.STATE_FILE,
+                                          sheets=["gantt_lines"])
+        plan.accept_all()
+        return plan
+
+    def test_a_sheet_that_brings_the_project_to_exactly_the_maximum_is_accepted(self):
+        self.add_rows(store_module.MAX_GANTT_LINES - LINES)
+        before, steps = self.lines(), self.steps()
+        plan = self.read()
+        self.assertEqual((plan.counts()["new"], plan.problems), (store_module.MAX_GANTT_LINES - LINES, []))
+        res = excel_import.apply_import(self.store, plan, USER, state_path=Path(self.store.path).parent / excel.STATE_FILE)
+        self.assertTrue(res.applied, res.message)
+        self.assertEqual(len(self.lines()), store_module.MAX_GANTT_LINES)
+        self.assertEqual(self.steps(), steps + 1)
+
+    @unittest.expectedFailure      # PRODUCT GAP, row 926: the 501st line is dropped silently (497 of 498 new rows made, no problem, no sentence) instead of the whole file being refused
+    def test_a_sheet_that_brings_the_project_past_the_maximum_is_refused_whole_and_writes_nothing(self):
+        self.add_rows(store_module.MAX_GANTT_LINES - LINES + 1)
+        before, steps = self.lines(), self.steps()
+        plan = self.read()
+        res = excel_import.apply_import(self.store, plan, USER, state_path=Path(self.store.path).parent / excel.STATE_FILE)
+        self.assertFalse(res.applied, "the 501st line was accepted without a refusal")
+        self.assertIn(store_module.GANTT_TOO_MANY, plan.report() + " " + (res.message or "") + " " + " ".join(c.problem or "" for c in plan.changes))
+        self.assertEqual((self.lines(), self.steps()), (before, steps))
 
 
 if __name__ == "__main__":
