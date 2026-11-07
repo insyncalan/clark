@@ -46,7 +46,7 @@ const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
 export function GanttChart({
   lines, edit = false, today, filter: filterProp, onFilter, defaultRows = null, onDefaultRows, hiddenCols = [],
-  onChange, onToggleEye, onAdd, onDelete, addBelowWord = "",      // addBelowWord: the Edit-only add button's words (edit/ganttWords.js), given by the page
+  onChange, onToggleEye, onAdd, onDelete, addBelowWord = "", eyeWords = {},      // addBelowWord: the Edit-only add button's words (edit/ganttWords.js), given by the page
 }) {
   const now = today || todayIso();
   const all = useMemo(() => tidyAll(lines), [lines]);
@@ -300,7 +300,7 @@ export function GanttChart({
       <div class="gt-gx" ref={gx} style={height ? { height: `${height}px` } : undefined} data-g-gx>
         <div class="gt-in" style={{ gridTemplateColumns: `${leftW}px 1fr`, "--gt-rh": `${RH}px`, "--gt-hh": `${HH}px` }}>
           <div class="gt-lhead" data-g-lhead>
-            {edit ? <span class="gt-eyeh" title={WORDS.eyeHead} aria-label={WORDS.eyeHead}><Icon name="eye" /></span> : null}
+            {edit ? <span class="gt-eyeh" title={eyeWords.head} aria-label={eyeWords.head}><Icon name="eye" /></span> : null}
             <span class="gt-h gt-h-name" style={{ width: `${40 + cw.name}px` }}>{WORDS.name}<i class="gt-rz" data-g-rz="name" onPointerDown={startResize("name")} /></span>
             {cols.map((k) => (
               <span class={`gt-h gt-h-${k}`} style={{ width: `${cw[k]}px` }} key={k}>
@@ -326,7 +326,7 @@ export function GanttChart({
           <div class="gt-left" data-g-left>
             {rows.map((l) => (
               <div class={`gt-ln gt-${l.type}`} key={l.id} data-g-row={l.id} data-g-no={nos[l.id]}>
-                {edit ? eyeBtn(l.show, `${l.show ? WORDS.eyeOn : WORDS.eyeOff}: ${l.name}`, () => onToggleEye && onToggleEye(l.id), { "data-g-eye": l.id }) : null}
+                {edit ? eyeBtn(l.show, `${l.show ? eyeWords.on : eyeWords.off}: ${l.name}`, () => onToggleEye && onToggleEye(l.id), { "data-g-eye": l.id }) : null}
                 <span class="gt-id" aria-label={`Number ${nos[l.id]}`}>{nos[l.id]}</span>
                 {edit ? (
                   <input class="gt-li gt-nm" style={{ width: `${cw.name}px` }} key={`${l.id}-n-${l.name}`} defaultValue={l.name} aria-label={`Name of ${nos[l.id]}`} data-g-cell="name" data-g-edit={`${l.id}:name`}
@@ -421,7 +421,7 @@ export function GanttChart({
           <>
             <b>{detail.title}</b> · {detail.kind} · {detail.when} · {detail.pct}% done · {detail.status}
             <br />Depends on: {detail.depends.length ? detail.depends.join(", ") : "nothing"}
-            {detail.clash ? <> <span class="gt-pill" data-g-detail-clash>{detail.clash}</span></> : null} · On the dashboard: <b>{detail.shown ? "Yes" : "No"}</b>
+            {detail.clash ? <> <span class="gt-pill" data-g-detail-clash>{detail.clash}</span></> : null}{eyeWords.detail ? <> · {eyeWords.detail}: <b>{detail.shown ? "Yes" : "No"}</b></> : null}
           </>
         ) : WORDS.detailEmpty}
       </div>

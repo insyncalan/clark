@@ -13,6 +13,7 @@ export const GANTT_EDIT_WORDS = {
   added: "A line was added with the next free ID.",
   deleted: (id) => `Line ${id} deleted.`,
   deletedMany: (n) => `${n} lines deleted.`,                                             // added
+  eyeTipOn: "Shown on the dashboard. Press to take it off", eyeTipOff: "Not on the dashboard. Press to put it on", eyeHead: "Show on the dashboard", eyeDetail: "On the dashboard",      // the chart's eye column: Edit only
   eyeOn: (name) => `Shown on the dashboard: ${name}.`,
   eyeOff: (name) => `Taken off the dashboard: ${name}.`,
   colOn: (col) => `${col}: shown to the client.`,
