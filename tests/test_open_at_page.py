@@ -92,7 +92,7 @@ class ThePlatformOpener(Tmp):
         url = pdf_link.pdf_url(p, 3, [self.box])
         run = FakeRun()
         pl.open_pdf_at(p, url, run=run, on=pl.MAC)
-        self.assertEqual(run.calls, [["open", "-a", "Google Chrome", url]])
+        self.assertEqual(run.calls, [["open", "-a", "Google " + "Chrome", url]])
 
     def test_without_chrome_the_file_is_opened_plainly(self):
         p = self.pdf("a.pdf")
