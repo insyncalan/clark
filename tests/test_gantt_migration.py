@@ -99,7 +99,7 @@ class Migrating(unittest.TestCase):
                                  (0, 0, "Gantt", "", "show,note,budget,effort,baseline_start,baseline_end,owner", None))
         finally:
             s.close()
-        after = every_row(path, NEW_COLUMNS)
+        after = every_row(path, NEW_COLUMNS + ("brand",))      # #944: layout 20 adds brand after these
         self.assertEqual({t: after[t] for t in before}, before, "no existing value changed")
         self.assertEqual(set(after) - set(before), {"gantt_lines"})
         self.assertEqual(after["gantt_lines"], [])

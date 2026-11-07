@@ -306,7 +306,7 @@ class Update19To20(Rig):
         self.assertEqual(NEW_LAYOUT, layout(self.db))
 
     def test_the_install_side_run_by_the_old_builds_own_updater_code(self):
-        self.skipTest("not reachable without product changes: the install side of the update (review, backup, hand-over) is run here by "
+        self.skipTest("not driven by this test: the install side of the update (review, backup, hand-over) is run here by "
                       "the NEW build's updater code; the 1.0.4 updater that a person's 1.0.4 really runs is not driven, because its server "
                       "needs a live process, port and window")
 
