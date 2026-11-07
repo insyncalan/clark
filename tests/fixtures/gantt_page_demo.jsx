@@ -32,7 +32,7 @@ P.LINES = [
 ];
 
 P.mount = (opts = {}) => {
-  const host = createMemoryHost({ project: { name: "Demo project", client_name: "Example client", week_ending: "2026-11-06" }, lines: P.LINES, settings: opts.settings || {}, today: "2026-11-06" });
+  const host = createMemoryHost({ project: { name: "Demo project", client_name: "Example client", week_ending: "2026-11-06" }, lines: opts.lines || P.LINES, settings: opts.settings || {}, today: "2026-11-06" });
   P.host = host;
   data.value = { project: host.read().project };      // keys.js acts only with a report open
   fromFile.value = !!opts.fromFile;

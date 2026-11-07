@@ -371,6 +371,27 @@ class Chart(unittest.TestCase):
         self.assertEqual(self.calls(), [["change", "GNT-005", "dates", {"start": "2026-10-22", "end": "2026-12-10"}], ["change", "GNT-005", "pct", 80]])
         self.until("!document.querySelector('[data-g-box]')", "the box closed")
 
+    def test_the_edit_box_stays_inside_the_window_at_900_and_1400(self):
+        for width in (900, 1400):
+            for scheme, shift in (("light", 0), ("dark", 0), ("light", 45), ("dark", 45)):
+                with self.subTest(width=width, scheme=scheme, shift=shift):
+                    self.look(width, scheme)
+                    self.mount(edit=True)
+                    # the live page sits in a moved box (a transform makes a fixed box start from that box, not the window): 45 px in
+                    self.js(f"document.body.style.transform = {lit(f'translate({shift}px, {shift}px)') if shift else lit('')}")
+                    for bar in ("GNT-005", "GNT-007", "GNT-001"):
+                        self.js(f"document.querySelector('[data-g-bar={bar}]').dispatchEvent(new MouseEvent('dblclick', {{bubbles: true}}))")
+                        self.until("document.querySelector('[data-g-box]')", "the box")
+                        r = self.val("(function(){ var r = document.querySelector('[data-g-box]').getBoundingClientRect(); return {l: r.left, t: r.top, r: r.right, b: r.bottom, w: innerWidth, h: innerHeight, s: document.querySelector('[data-g-bsave]').getBoundingClientRect().right}; })()")
+                        self.assertGreaterEqual(r["l"], 0, f"{bar} {r}")
+                        self.assertGreaterEqual(r["t"], 0, f"{bar} {r}")
+                        self.assertLessEqual(r["r"], r["w"] - 8, f"{bar} {r}")
+                        self.assertLessEqual(r["b"], r["h"] - 8, f"{bar} {r}")
+                        self.assertLessEqual(r["s"], r["w"], f"Save is inside {bar} {r}")
+                        self.js("document.querySelector('[data-g-bcancel]').click()")
+                        self.until("!document.querySelector('[data-g-box]')", "closed")
+                    self.js("document.body.style.transform = ''")
+
     def test_the_edit_box_can_be_cancelled_and_can_delete_the_line(self):
         self.look(1400, "light")
         self.mount(edit=True)

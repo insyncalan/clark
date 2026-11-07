@@ -448,6 +448,19 @@ function EditBox({ line, no, at, onClose, onSave, onDelete }) {
   const [f, setF] = useState({ name: line.name, start: formatDate(line.start), end: formatDate(endOf(line)), pct: String(line.pct) });
   const [err, setErr] = useState(null);
   const first = useRef(null);
+  const boxEl = useRef(null);
+  const [place, setPlace] = useState({ left: at.left, top: at.top });
+  // The box's real size and place are only known once it is drawn: keep all of it inside the window.
+  useLayoutEffect(() => {
+    const el = boxEl.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    const vh = document.documentElement.clientHeight || window.innerHeight;
+    // A fixed box inside a moved or transformed ancestor sits off from where it was asked to be: that shift is measured and taken out.
+    const dx = r.left - at.left, dy = r.top - at.top;
+    setPlace({ left: clamp(at.left, 8, Math.max(8, vw - r.width - 8)) - dx, top: clamp(at.top, 8, Math.max(8, vh - r.height - 8)) - dy });
+  }, [at.left, at.top]);
   useEffect(() => { if (first.current) { first.current.focus(); first.current.select(); } }, []);
   const set = (k) => (e) => { const v = e.currentTarget.value; setF((old) => ({ ...old, [k]: v })); };   // from the latest values, so two edits before a redraw both stay
   const save = () => {
@@ -457,7 +470,7 @@ function EditBox({ line, no, at, onClose, onSave, onDelete }) {
   };
   const bad = (k) => (err && err.field === k ? " bad" : "");
   return (
-    <div class="gt-box" role="dialog" aria-label={`Edit ${no} ${line.name}`} style={{ left: `${at.left}px`, top: `${at.top}px` }} data-g-box
+    <div class="gt-box" role="dialog" aria-label={`Edit ${no} ${line.name}`} ref={boxEl} style={{ left: `${place.left}px`, top: `${place.top}px` }} data-g-box
       onKeyDown={(e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); save(); } else if (e.key === "Escape") { e.stopPropagation(); onClose(); } }}>
       <b>{no}</b> {typeWord(line.type)}
       <label for="gt-bn">{WORDS.boxName}</label>
