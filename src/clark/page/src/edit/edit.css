@@ -855,6 +855,12 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   }
 }
 
+/* row 938-1 (motion): the main buttons and the View/Edit pills sink 1 px while pressed, over --dur-instant. Here, not in shell.css, so the
+   published page carries none of it. Absent under reduced motion (the computer's setting or <html data-motion="reduce">): no movement. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) :is(.again, .btn.primary, .btn.pri, .modes.seg .mode):not(:disabled):active { transform: translateY(1px); transition: transform var(--dur-instant) var(--ease-out); }
+}
+
 /* row 880: opening a group, its column names and rows rise 4 px and fade in over --dur-layout (transform and opacity only: no height moves). Edit build only: the published file has no glide. */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
