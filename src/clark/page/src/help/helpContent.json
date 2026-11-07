@@ -1099,6 +1099,16 @@
         "One document",
         "A single file to read.",
         "Half or full"
+       ],
+       [
+        "Current state",
+        "The state of the project in a few lines, to sit beside another section.",
+        "Half or full"
+       ],
+       [
+        "Plan summary",
+        "Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.",
+        "Full or half"
        ]
       ]
      ]

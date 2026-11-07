@@ -57,7 +57,7 @@ NEWABLE = ("actions", "raid", "decisions", "milestones")      # #67: the kinds a
 ARCHIVABLE = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")      # #126: archive and restore, no fields
 DOC_FIELDS = ("title", "kind", "url", "date")        # #74: a document link's own fields; its id, project, place and archive flag never come from a request
 CHANGE_KINDS = {
-    "report_sections": {NEW: ("type", "title"), UPDATE: ("title", "hidden", "beside", "body"), MOVE: ("beside",), DELETE: ()},   # a body is written only for a needs or tracker section: see _section_body
+    "report_sections": {NEW: ("type", "title", "body"), UPDATE: ("title", "hidden", "beside", "body"), MOVE: ("beside",), DELETE: ()},   # a body is written only for a needs or tracker section: see _section_body
     # #68: the work items board changes an item's fields, and nothing else. Only `update`: no new, move or delete for these kinds
     # (an item is closed or cancelled by its status, and archived only by archiving). priority is not in raid's list because the
     # store works it out from impact and likelihood (D-12: the status picker's Rating sets those two); `archived` is in no list.
@@ -740,6 +740,13 @@ def _do_change(store, by_user, req):
         title = clark_store.section_title(values["title"]) if "title" in values else DEFAULT_TITLE
         if new_type in BUILT_IN_TYPES:                              # row 906: a built-in comes back with its own title and settings
             title = next(s["title"] for s in clark_store.DEFAULT_SECTIONS if s["type"] == new_type)
+        start_body = None
+        if "body" in values:                                        # #929: a text section may start with its words, in the one step (one Undo)
+            if not isinstance(values["body"], str):
+                raise Refused(BODY_NOT_TEXT)
+            if new_type != "text":
+                raise Refused(NO_BODY_HERE)
+            start_body = _text_body(values["body"])                 # the same cleaner and limits as an update of a text section's body
         after = _id_or_none(req.get("after"), STALE)
         beside = _flag(req["beside"]) if "beside" in req else 0
         if beside and after is None:
@@ -766,7 +773,7 @@ def _do_change(store, by_user, req):
                 _mine(after, ids, STALE)
                 if not _on_its_own(rows, after):
                     raise Refused(STALE)                            # it has a partner now: nothing is written, the page redraws
-            ref = _add(st, project, rows, ids, title, after, new_type)
+            ref = _add(st, project, rows, ids, title, after, new_type, start_body)
             if beside:
                 st.update(table, after, {"beside": 1})              # the same step: one Undo removes the section and the pairing
             elif ids and after in (None, ids[-1]) and rows[-1]["beside"] == 1 and _on_its_own(rows, ids[-1]):
@@ -1774,7 +1781,7 @@ def _do_project_change(store, by_user, req, project, table, columns, place):
                              "review_after_days": now["review_after_days"]}}
 
 
-def _add(st, project, rows, ids, title, after, kind="text"):
+def _add(st, project, rows, ids, title, after, kind="text", body=None):
     """Make a section of type `kind` (text, needs or tracker) just after section `after` (None: at the end); its id. A needs or
     tracker section starts with the body the registry gives it (section_bodies.EMPTY), never one from the request. When no whole number fits between its
     neighbours, the rows are renumbered in the same step (clark.order)."""
@@ -1787,6 +1794,8 @@ def _add(st, project, rows, ids, title, after, kind="text"):
         renumber = order.section_slot(probe, "", ids[ids.index(after) + 1])
         new_place = renumber.pop("", end)
     start = {"body": section_bodies.EMPTY[kind]} if section_bodies.EMPTY.get(kind) else {}
+    if body:
+        start = {"body": body}                                      # #929: only a text section is given one (checked by the caller)
     ref = st.create("report_sections", {"project": project, "type": kind, "title": title, "sort_order": new_place, **start})
     for other, place in renumber.items():
         st.update("report_sections", other, {"sort_order": place})
