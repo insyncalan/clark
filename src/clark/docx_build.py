@@ -58,7 +58,7 @@ HEX = re.compile(r"#?([0-9A-Fa-f]{6})")
 NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 
 TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use cases", "milestones": "Milestones",
-          "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions"}
+          "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt"}
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
 HEADING_STYLE = {"h1": "Heading2", "h2": "Heading3", "h3": "Heading4"}
 MAX_LEVELS = 3                                           # list levels written
@@ -448,6 +448,80 @@ def section_milestones(published, ctx, title, sec):
                                            [1200, 3038, 1150, 1100, 1100, 1100, 950], rows)
 
 
+GANTT_STATUS = {"done": "Done", "late": "Late", "inprogress": "In progress", "notstarted": "Not started"}     # the page's WORDS (gantt/logic/gantt.js)
+GANTT_LEGEND = ("Phase", "Task (lighter part = done)", "Milestone", "Achieved", "Today")
+
+
+def _gantt_status(r, today):
+    """The page's statusOf: Done (100%), Late (ended before today and not done), In progress, Not started."""
+    if r["pct"] >= 100:
+        return "done"
+    if r["end"] < today:
+        return "late"
+    return "inprogress" if r["pct"] > 0 or (r["start"] <= today and r["type"] != "milestone") else "notstarted"
+
+
+def _gantt_numbers(drawn):
+    """The page's outline numbers: phases 1, 2, 3; a task under a phase 2.1; a milestone M-1; a task with no phase T-1."""
+    phases = {r["line"].get("id"): r for r in drawn if r["type"] == "phase"}
+    num, p, m, t, under = {}, 0, 0, 0, {}
+    for i, r in enumerate(drawn):
+        if r["type"] == "phase":
+            p += 1
+            num[i] = str(p)
+    by_id = {r["line"].get("id"): num[i] for i, r in enumerate(drawn) if i in num}
+    for i, r in enumerate(drawn):
+        if r["type"] == "milestone":
+            m += 1
+            num[i] = f"M-{m}"
+        elif r["type"] == "task":
+            up = r["line"].get("parent")
+            if isinstance(up, str) and up in phases and up in by_id:
+                under[up] = under.get(up, 0) + 1
+                num[i] = f"{by_id[up]}.{under[up]}"
+            else:
+                t += 1
+                num[i] = f"T-{t}"
+    return [num[i] for i in range(len(drawn))]
+
+
+def section_gantt(published, ctx, title, sec):
+    """The Gantt tab as pictures (docx_graphics.gantt) with the words as Word text under each: the number, name, start, end, how far
+    along and the status of every line the picture holds, in the picture's order. The lines are published data.gantt's (an eye-off
+    line was never copied). No Gantt in the file, or no line, is no section."""
+    g = published["data"].get("gantt")
+    made = docx_graphics.gantt((g or {}).get("lines"), published["as_at"], ctx.tok) if isinstance(g, dict) else None
+    if not made:
+        return ""
+    out = [_heading(title)]
+    if made["pictures"]:
+        out.append(para(run(f"{_date(made['start'].isoformat())} to {_date(made['end'].isoformat())}", color=ctx.tok["grey-700"], size=16), keep_next=True))
+        out.append(para(run(" · ".join(GANTT_LEGEND), color=ctx.tok["grey-700"], size=16), keep_next=True))
+    if made["left_out"]:
+        shown = len(made["drawn"])
+        out.append(para(run(f"{shown} of {shown + made['left_out']} lines shown", color=ctx.tok["grey-700"], size=16)))
+    numbers = _gantt_numbers(made["drawn"])
+    at = 0
+    for image, run_lines in made["pictures"]:
+        status = [GANTT_STATUS[_gantt_status(r, ctx.today)] for r in run_lines]
+        alt = "; ".join(f"{r['line'].get('name') or ''}, {_date(r['start'].isoformat())}, {s}" for r, s in zip(run_lines, status))
+        out.append(para(picture(ctx, image, TEXT_W, alt), keep_next=True, spacing=(0, 60)))
+        rows = []
+        for r, s in zip(run_lines, status):
+            line = r["line"]
+            name = para(run(line.get("name") or "", bold=r["type"] == "phase"), "TableText")
+            rows.append([word_cell(numbers[at], ctx), (name, None), word_cell(_date(r["start"].isoformat()), ctx),
+                         word_cell(_date(r["end"].isoformat()), ctx), word_cell(f"{r['pct']}%", ctx),
+                         word_cell(s, ctx, colour={"done": "green", "late": "red"}.get(_status_key(s)))])
+            at += 1
+        out.append(table(ctx, ["No", "Phase / task", "Start", "End", "Done", "Status"], [800, 4238, 1150, 1150, 900, 1400], rows))
+    return "".join(out)
+
+
+def _status_key(word):
+    return {v: k for k, v in GANTT_STATUS.items()}[word]
+
+
 def _due(table_name, field, row, ctx, extra=()):
     iso = row.get(field)
     late = colours_table.is_late(table_name, field, row, ctx.today)
@@ -503,7 +577,7 @@ def section_decisions(published, ctx, title, sec):
 
 
 SIMPLE = {"current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
-          "raid": section_raid, "decisions": section_decisions}
+          "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt}
 
 
 def title_block(published, ctx):
