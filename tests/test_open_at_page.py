@@ -256,6 +256,9 @@ class OnTheRoute(Tmp):
         for body in ({"project": CODE, "file": "Saved Docs/ok.pdf", "page": 1}, {"project": "ZZZ", "file": "Saved Docs/ok.pdf", "page": 1}):
             status, got = self.post(**body)
             self.assertEqual((status, got["code"]), (409, "asking_off"), body)
+            self.assertEqual(got["message"], "Asking is off, so this file can't be opened from here. Turn it on in Settings.", body)
+            self.assertNotEqual(got["message"], ask_service.MESSAGES["asking_off"])
+        self.assertEqual(ask_service.MESSAGES["asking_off"], "Asking is off, so nothing was sent. Turn it on in Settings to ask questions.")   # the other routes keep theirs
         self.assertEqual(self.opened, [])
         self.set_switch(True)
         self.assertEqual(self.post(project=CODE, file="Saved Docs/ok.pdf", page=1)[0], 200)
