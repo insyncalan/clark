@@ -332,7 +332,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-box { margin-top: 14px; }
 .ucl-list { margin: 0; padding: 0; list-style: none; }
 .ucl-row { display: grid; grid-template-columns: 84px minmax(0, 1.1fr) minmax(0, 1.6fr) 112px 92px minmax(0, .9fr) 36px; gap: 14px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--grey-100); cursor: pointer; }
-.ucl-list .ucl-row:hover, .ucl-list .ucl-row:focus-within { background: var(--grey-50); box-shadow: inset 3px 0 0 var(--brand-blue); }
+.ucl-list .ucl-row:hover, .ucl-list .ucl-row:focus-within { background: var(--grey-100); }  /* row 936: a hovered row is a tint, no blue one-side stripe (a stripe is for selected) */
 .ucl-hd { cursor: default; padding-top: 8px; padding-bottom: 8px; border-top: 1px solid var(--grey-200); border-bottom-color: var(--grey-200); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
 .ucl-ref { font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
 .ucl-name { min-width: 0; display: flex; flex-direction: column; }
@@ -965,3 +965,5 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .sn-acts { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
 /* row 796: the Publish box is the prototype's 560 px; its heading keeps the .dlg h2 style every box uses. Edit's alone: the published file has no such box. */
 #publish-dialog { width: min(560px, calc(100vw - 32px)); }
+/* row 936: the Help note (a hint, a 'what you should see') is a tinted panel with a hairline all round, no blue one-side stripe. Edit's alone: shell.css and the published page are unchanged. */
+.hp-note { border: 1px solid var(--grey-200); border-radius: var(--radius); }
