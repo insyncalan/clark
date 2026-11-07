@@ -39,7 +39,7 @@ class SettingsBar(Base):
 
     def settle(self, p):
         """Wait for the scroll to stop (the same position on two reads): a box the browser scrolls into view may still move smoothly."""
-        p.until("(function(){var y = window.scrollY, same = window.__settled === y; window.__settled = y; return same;})()", "the scroll finished")
+        p.settled("the scroll finished")
 
     def clear_of_bar(self, p, sel):
         """Clear of the bar: below it when the bar is a row of chips (900 px and narrower), at its right when it is the list at the left."""

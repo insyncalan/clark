@@ -70,10 +70,10 @@ class ShardCoversEveryFileOnce(unittest.TestCase):
         self.assertEqual(sorted(seen), sorted(f.name for f in files), f"{n} shards: each file exactly once")
         self.assertEqual(len(seen), len(set(seen)))
 
-    def test_every_file_in_exactly_one_shard_for_1_to_4(self):
+    def test_every_file_in_exactly_one_shard_for_1_to_6(self):
         files = everything()
         self.assertGreater(len(files), 5)
-        for n in (1, 2, 3, 4):
+        for n in (1, 2, 3, 4, 5, 6):   # 6 = Ubuntu 3.x, 3 = macOS (tests.yml)
             self.check(files, n)
 
     def test_the_quick_tier_too(self):
