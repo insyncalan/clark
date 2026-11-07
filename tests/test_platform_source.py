@@ -145,6 +145,7 @@ class TheViewer(unittest.TestCase):
         text = (SRC / PLATFORM).read_text(encoding="utf-8")
         self.assertIn("def open_pdf_at(", text)
         self.assertIn('["open", "-a", CHROME, url]', text)
+        self.assertIn("timeout=OPEN_WAIT", text)          # the opener never waits for ever
         self.assertEqual(viewer_starts_in('x = ["open", "-a", "Google ' + 'Chrome", u]'), 1)
         self.assertEqual(viewer_starts_in('x = ["ls"]'), 0)
 
