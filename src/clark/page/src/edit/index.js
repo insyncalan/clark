@@ -1,5 +1,6 @@
 // The Edit parts, handed to the page as one object (`tools`). main.jsx passes this; view.jsx (the published page) passes nothing,
 // so nothing under edit/ and neither stores/changes.js nor api.js is in a published file.
+import "./fadeCopy.js";
 import { Gutter } from "./Gutter.jsx";
 import { Add } from "./Add.jsx";
 import { Title } from "./Title.jsx";
