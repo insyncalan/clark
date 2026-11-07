@@ -119,7 +119,7 @@ COVERED = [
     ("#74", "A published file leaves out an archived document",
      "test_documents_page::Archive::test_the_published_file_omits_an_archived_document"),
     ("#286", "The filter line no longer says Press / (that key opens ask clark)",
-     "test_filter_line_page::Line::test_the_line_does_not_say_press_slash_in_view_or_edit_because_that_key_opens_ask"),
+     "test_filter_line_page::Line::test_the_line_does_not_say_press_slash_because_that_key_opens_ask"),
     ("#481", "One plain Help line names the calendar's keys",
      "test_help_content::CalendarKeysHelp::test_the_calendar_line_names_the_keys_the_page_handles"),
     ("#618", "The Word client copy is refused when it carries text held back from the client",
