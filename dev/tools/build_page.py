@@ -224,7 +224,10 @@ REQUIRED_LIMITS = ("__CLARK_ITEM_TITLE_MAX__",)      # #942: names the page sour
 def page_limits():
     """#942: the limits the server holds that the page must agree with, by the name the page source reads them under. One source:
     clark.limits holds the number (it imports nothing, so the merge driver can rebuild with it), the build writes it into the page (esbuild --define), so the two cannot drift."""
-    return {"__CLARK_ITEM_TITLE_MAX__": limits.ITEM_TITLE_MAX}      # a work item's title, in characters (PeekTitle.jsx)
+    title_max = limits.ITEM_TITLE_MAX      # a work item's title, in characters (PeekTitle.jsx)
+    if not isinstance(title_max, int) or isinstance(title_max, bool) or title_max < 1:      # a bool is an int in Python, and json.dumps would write true
+        raise BuildError(f"limits.ITEM_TITLE_MAX must be a whole number of at least 1, not {title_max!r}: the page is built with it")
+    return {"__CLARK_ITEM_TITLE_MAX__": title_max}
 
 
 def preact_flags(held=True, inline_pictures=False):

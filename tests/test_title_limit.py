@@ -137,6 +137,19 @@ class Stamp(unittest.TestCase):
         for p in (page.PAGE, page.VIEW_PAGE):
             self.assertNotIn(NAME, p.read_text(encoding="utf-8"), p.name)
 
+    def test_page_limits_refuses_a_value_that_is_not_a_whole_number_of_at_least_one(self):
+        import types
+        real = build_page.limits
+        self.addCleanup(setattr, build_page, "limits", real)
+        for bad in (None, "x", 0, -1, True):
+            with self.subTest(bad=bad):
+                build_page.limits = types.SimpleNamespace(ITEM_TITLE_MAX=bad)
+                with self.assertRaises(build_page.BuildError) as got:
+                    build_page.page_limits()
+                self.assertIn("ITEM_TITLE_MAX", str(got.exception))
+        build_page.limits = types.SimpleNamespace(ITEM_TITLE_MAX=1)
+        self.assertEqual(build_page.page_limits(), {NAME: 1}, "1 is the smallest limit the build takes")
+
     def test_page_limits_raises_and_never_defaults(self):
         import types
         real = build_page.limits
