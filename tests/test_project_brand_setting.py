@@ -57,6 +57,9 @@ class Setting(Base):
         self.assertEqual(self.brand(), "generic")
         self.assertEqual(self.undo({"project": "ABC", "apply_id": body["apply_id"]})[0], 409, "an Undo is used once")
 
+    def test_the_history_names_the_brand_field_on_purpose(self):
+        self.assertEqual(history.FIELD_NAMES["projects"]["brand"], "Brand")
+
     def test_the_history_says_who_how_and_when(self):
         body = self.ok({**self.req(brand="alpha"), "place": "menu"})
         rows = [r for r in history.view_for_project(self.s.con, "ABC")["rows"] if r["table"] == "projects" and r["step"] == body["apply_id"]]
