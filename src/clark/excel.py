@@ -881,6 +881,7 @@ GANTT_DATES = {"start", "end", "baseline_start", "baseline_end"}
 GANTT_WIDTHS = {"id": 18, "name": 32, "type": 12, "parent": 18, "_days": 8, "pct": 10, "_status": 14, "depends": 30, "owner": 18, "workstream": 18,
                 "deliverable": 30, "show": 14, "note": 40}
 GANTT_DEFAULT_NAME = "Gantt"
+CLIENT_COPY_NAME = "clark_client_copy"       # row 926: the hidden workbook-level defined name only the client workbook carries (it points at the client Gantt sheet)
 GANTT_BAD_SHEET_CHARS = re.compile(r"[\\/*?:\[\]]")
 
 
