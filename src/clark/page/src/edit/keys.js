@@ -1,4 +1,4 @@
-// The keys V and E: on the Dashboard they switch to View and Edit, the same as the two buttons in Toggle.jsx. The listener is
+// The keys V and E: on the Dashboard and the Gantt page they switch to View and Edit, the same as the two buttons in Toggle.jsx. The listener is
 // installed once, at boot (boot.jsx calls installModeKeys), not by the switch, so it is there whichever bar draws the switch.
 // A plain key only: with a modifier, a held key or an input method composing, and anywhere focus is in a field, the editor, a
 // menu, a dialog or the open peek, the key belongs to that and is left alone. A screen reader's own V and E in browse mode never
@@ -7,6 +7,8 @@ import { view, data, mode, fromFile, peek } from "../stores/report.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 
 const FIELD = /^(INPUT|TEXTAREA|SELECT)$/;
+// The pages that have View and Edit with the plain keys: the Dashboard and the Gantt page (#928).
+const MODE_PAGES = ["dashboard", "gantt"];
 const OWN = '[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],dialog';
 
 // Whether focus (or the target of the key) is somewhere that uses letters itself.
@@ -19,7 +21,7 @@ export function modeKey(e) {
   if (!singleKeys.value) return false;                                  // #193: the switch in Settings › Personal
   const k = e.key && e.key.toLowerCase();
   if ((k !== "v" && k !== "e") || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.repeat || e.isComposing || e.defaultPrevented) return false;
-  if (fromFile.value || !data.value || view.value !== "dashboard" || peek.value) return false;
+  if (fromFile.value || !data.value || !MODE_PAGES.includes(view.value) || peek.value) return false;
   if (busy(document.activeElement) || busy(e.target)) return false;
   if (document.querySelector("dialog[open],[role=dialog],[role=alertdialog],[role=menu]")) return false;     // one is open, wherever focus is
   const next = k === "e" ? "edit" : "view";

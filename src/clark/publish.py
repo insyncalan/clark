@@ -44,7 +44,8 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from clark import doclinks, milestones, page, platform, section_bodies
-from clark.store import COMMITMENTS, Invalid as StoreInvalid, NumberTaken, check_section_body, excluded_label_names, open_store
+from clark.store import (COMMITMENTS, GANTT_COLUMNS, GANTT_HIDEABLE, GANTT_DEFAULT_HIDDEN, GANTT_DEFAULT_TAB, GANTT_ID, GANTT_TAB_LIMIT, GANTT_TEXT_LIMITS, Invalid as StoreInvalid,
+                         NumberTaken, check_section_body, excluded_label_names, gantt_list, open_store)
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
 
 LOG = logging.getLogger("clark.publish")
@@ -60,7 +61,7 @@ DEFAULT_SECTIONS = tuple({"id": f"s-{t}", "type": t, "title": title, "body": "",
                                                          ("usecases", "Use cases"), ("milestones", "Milestones"),
                                                          ("raid", "Risks and issues"), ("actions", "Actions"),
                                                          ("decisions", "Decisions")), 1))
-SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs") + section_bodies.BODY_TYPES
+SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs", "gantt") + section_bodies.BODY_TYPES      # row 926: gantt carries no data of its own
 BUILT_IN_SECTIONS = ("current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")      # row 906: the sections whose data lives elsewhere
 
 
@@ -90,12 +91,15 @@ PUBLISH_FIELDS = {
     "use_cases": ("id", "ref", "title", "status", "headline", "standing", "sort_order", "commitment"),   # #709: the flag goes with the use case
     "links": ("from_item", "to_item", "kind"),
     "documents": ("title", "kind", "url", "date"),        # #74: never its id, place or archive flag
+    "gantt_lines": ("id", "name") + tuple(c for c in GANTT_COLUMNS if c != "show"),   # row 926: every column a client may ever see; the line's eye (`show`) only decides, and gantt_hidden_columns takes columns out of the copy (gantt_for_client)
 }
 RICH = {"projects": ("current_state",), "use_cases": ("standing",)}     # HTML the editor wrote: through clean_html
 # Read from the database as well, only to decide (never copied): the gates, and what a milestone's state is worked out from.
 GATES = {"milestones": ("client_visible", "archived", "state", "state_set"), "workstreams": ("archived",),
          "actions": ("client_visible", "archived", "client_action"), "raid": ("client_visible", "archived", "client_action"),   # row 811: client_action only decides, it is never copied
-         "decisions": ("client_visible", "archived"), "use_cases": ("client_visible", "archived")}
+         "decisions": ("client_visible", "archived"), "use_cases": ("client_visible", "archived"),
+         "gantt_lines": ("show", "project"),      # row 926: a line with show 0 is dropped before anything is copied
+         "projects": ("show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows")}     # row 926: decide whether the Gantt tab is in the file and what it is called; none is copied as a project field
 ORDER = {"milestones": "sort_order, id", "workstreams": "id", "actions": "id", "raid": "id", "decisions": "id",
          "use_cases": "sort_order, id"}
 CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -367,6 +371,120 @@ def flagged_needs(rows):
     return out
 
 
+# ===== The Gantt (row 926): the client's copy of a project's lines =====
+GANTT_TYPES = ("phase", "task", "milestone")
+GANTT_HEALTHS, GANTT_PRIORITIES = ("Green", "Amber", "Red"), ("High", "Medium", "Low")
+GANTT_ONE_LINE = {"owner": GANTT_TEXT_LIMITS["owner"], "workstream": GANTT_TEXT_LIMITS["workstream"], "deliverable": GANTT_TEXT_LIMITS["deliverable"]}
+
+
+def _gantt_day(v):
+    """`v` when it is a real YYYY-MM-DD day, else None."""
+    try:
+        return v if isinstance(v, str) and re.fullmatch(r"\d{4}-\d\d-\d\d", v) and date.fromisoformat(v) else None
+    except ValueError:
+        return None
+
+
+def _gantt_amount(v):
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and 0 <= v < float("inf") else None
+
+
+def _gantt_hidden(project):
+    """The columns this project keeps out of the client's copy: gantt_hidden_columns as stored, only names that are columns. Exactly
+    empty text hides nothing (the person chose that; blanks and commas alone are not a choice, so they hide the default). Anything else that cannot be read as a list of known names hides the default seven,
+    never fewer: not text, an unknown name ('NOTE', '["note"]'), or text that names no column that can be hidden."""
+    raw = project.get("gantt_hidden_columns")
+    if not isinstance(raw, str):
+        return set(GANTT_DEFAULT_HIDDEN)
+    if raw == "":                                    # exactly the empty text, which is all the editor writes for "hide nothing"; ' ', ',' and ',,' are not a choice
+        return set()
+    names = gantt_list(raw)
+    known = set(GANTT_COLUMNS) | {"id", "name"}      # id, name and the four chart columns are tolerated in a list written before they were un-hideable
+    if any(n not in known for n in names):
+        return set(GANTT_DEFAULT_HIDDEN)
+    hidden = {n for n in names if n in GANTT_HIDEABLE}
+    return hidden or set(GANTT_DEFAULT_HIDDEN)
+
+
+def _gantt_line(row, code):
+    """One Gantt line as the client may have it before columns are chosen, or None to leave it out. Every value is checked again
+    here, never trusted (a row written around the writer): a line that fails (an id that is not this project's, a type that is not
+    one of the three, no name, a date that is not a real day, an end before its start, a milestone on two days) is left out, never
+    repaired, and its id only is logged."""
+    ident = row.get("id")
+    start, end = _gantt_day(row.get("start")), _gantt_day(row.get("end"))
+    name = " ".join(reason_text(row.get("name")).split())[:GANTT_TEXT_LIMITS["name"]] if isinstance(row.get("name"), str) else ""
+    ok = (isinstance(ident, str) and GANTT_ID.fullmatch(ident) and ident.startswith(code + "-GNT-") and row.get("type") in GANTT_TYPES
+          and name and start and end and start <= end and (row["type"] != "milestone" or start == end))
+    if not ok:
+        LOG.warning("Gantt line %s is not in the published file: it cannot be used.", ident if isinstance(ident, str) and GANTT_ID.fullmatch(ident) else "?")
+        return None
+    pct = row.get("pct")
+    c = {"id": ident, "name": name, "type": row["type"], "start": start, "end": end,
+         "pct": pct if type(pct) is int and 0 <= pct <= 100 else 0,
+         "health": row.get("health") if row.get("health") in GANTT_HEALTHS else "",
+         "priority": row.get("priority") if row.get("priority") in GANTT_PRIORITIES else "",
+         "baseline_start": _gantt_day(row.get("baseline_start")), "baseline_end": _gantt_day(row.get("baseline_end")),
+         "effort": _gantt_amount(row.get("effort")), "budget": _gantt_amount(row.get("budget")),
+         "note": reason_text(row.get("note"))[:GANTT_TEXT_LIMITS["note"]] if isinstance(row.get("note"), str) else "",
+         "parent": row.get("parent"), "depends": gantt_list(row.get("depends")) if isinstance(row.get("depends"), str) else []}
+    for f, limit in GANTT_ONE_LINE.items():
+        c[f] = " ".join(reason_text(row.get(f)).split())[:limit] if isinstance(row.get(f), str) else ""
+    return c
+
+
+def gantt_for_client(d, code, project_name):
+    """The Gantt tab's data for the published file, or None when there is no tab: the project's show_gantt_client is not 1, or no
+    line is left (the tab needs at least one line with its eye on). The ONE place a client's Gantt is decided, and it runs before
+    anything is copied: only a line whose `show` is exactly 1 and which belongs to this project is read at all; a dependency on a
+    line that is not in the copy is dropped; a parent that is not in the copy (or is not a phase) reads as no parent; a dependency that
+    would close a circle is dropped. The columns in the project's gantt_hidden_columns are not in the copy at all (not hidden by a
+    style): the copy holds the line's id and name and every column not on that list. Returns {"tab_name", "title", "columns",
+    "lines"}; `columns` names the columns a line carries."""
+    project = d.get("project") or {}
+    if type(project.get("show_gantt_client")) is not int or project["show_gantt_client"] != 1:      # exactly the whole number 1: True, 1.0 and "1" are not
+        return None
+    eyed = [r for r in d.get("gantt_lines") or () if type(r.get("show")) is int and r["show"] == 1 and r.get("project", code) == code]
+    eyed.sort(key=lambda r: (r["sort_order"] if type(r.get("sort_order")) is int else 0, str(r.get("id"))))
+    lines = {}
+    for r in eyed:
+        c = _gantt_line(r, code)
+        if c and c["id"] not in lines:
+            lines[c["id"]] = c
+    if not lines:
+        return None
+    reach = {}                                                   # the dependencies kept so far: id -> ids
+
+    def reaches(start, goal):
+        seen, todo = set(), [start]
+        while todo:
+            n = todo.pop()
+            if n == goal:
+                return True
+            if n not in seen:
+                seen.add(n)
+                todo.extend(reach.get(n, ()))
+        return False
+    for c in lines.values():
+        kept = []
+        for dep in c["depends"]:
+            if dep in lines and dep != c["id"] and dep not in kept and not reaches(dep, c["id"]):
+                kept.append(dep)
+        reach[c["id"]] = kept
+        c["depends"] = kept
+        up = lines.get(c["parent"]) if isinstance(c["parent"], str) else None
+        c["parent"] = up["id"] if up is not None and up["type"] == "phase" and c["type"] != "phase" else None
+    hidden = _gantt_hidden(project)
+    shown = [f for f in PUBLISH_FIELDS["gantt_lines"] if f in ("id", "name") or f not in hidden]
+    tab = " ".join(reason_text(project.get("gantt_tab_name")).split())[:GANTT_TAB_LIMIT] if isinstance(project.get("gantt_tab_name"), str) else ""
+    title = " ".join(reason_text(project.get("gantt_title")).split())[:120] if isinstance(project.get("gantt_title"), str) else ""
+    rows = project.get("gantt_default_rows")
+    return {"tab_name": tab or GANTT_DEFAULT_TAB, "title": title or project_name, "columns": shown,
+            "default_rows": rows if type(rows) is int and 1 <= rows <= 500 else None,
+            "lines": [{f: c[f] for f in shown} for c in lines.values()]}
+
+
+
 def select(inputs):
     """What goes in the file, from `inputs` (read_inputs' shape: data as Store.data_for gives it, and hidden, sections,
     label_rules, changes, undone, as_at). Returns {"data", "sections", "tabs", "as_at", "needs_dropped"} (the count of flagged items the 100-row cap left out; build() takes it out and logs it). Everything not allowed is absent,
@@ -430,6 +548,11 @@ def select(inputs):
     out["documents"] = documents(inputs.get("documents"), code, hidden_ids, hidden_types) if any(
         s.get("type") == "docs" and not s.get("hidden") for s in sections) else []          # #74: carried only with a section to draw them
 
+    gantt = gantt_for_client(d, code, proj["name"])               # row 926: decided here, from the rows as read, before anything of it is copied
+    if gantt:
+        out["gantt"] = gantt
+        proj["gantt_tab_name"], proj["gantt_title"] = gantt["tab_name"], gantt["title"]       # row 926: the project block carries the tab's name and the page's title, only when the tab is in the file
+        proj["gantt_default_rows"] = gantt["default_rows"]
     shown = []
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
     ctx = section_bodies.Context({k: out[k] for k in KINDS}, as_at)          # #96: only what is already kept, as the file carries it
@@ -450,7 +573,8 @@ def select(inputs):
             dropped = max(0, len(listed) - room)           # said by build() only, as a count (see the end of select)
             extra[mine["id"]] = {**(extra.get(mine["id"]) or {}), "rows": typed + listed[:room]}   # typed rows win: the section never holds more than a typed list may
     out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
-                             or (x.get("type") == "docs" and not out["documents"]))       # #74: no document to show, no section
+                             or (x.get("type") == "docs" and not out["documents"])       # #74: no document to show, no section
+                             or (x.get("type") == "gantt" and not gantt))                # row 926: no Gantt tab in the file, no Gantt section; the lines are data.gantt's, gated in gantt_for_client
     i = 0
     while i < len(sections):
         if sections[i].get("beside") and i + 1 < len(sections):
@@ -477,6 +601,8 @@ def select(inputs):
         tabs.append("usecases")
     if "milestones" not in hidden_types:      # the Client Requested Report View (#192) reads only what the file already holds; its figures are the milestones
         tabs.append("clientreport")
+    if gantt:
+        tabs.append("gantt")                  # row 926: only with the client switch on and at least one line with its eye on
     return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at, "needs_dropped": dropped}     # row 811b: build() takes needs_dropped out and logs it; no other caller does
 
 
@@ -1207,7 +1333,7 @@ def read_inputs(store, code, as_at=None):
     if not CODE.fullmatch(code or ""):
         raise PublishError("Give the project's code (3 to 7 capital letters or digits).")
     fields = {t: tuple(dict.fromkeys(PUBLISH_FIELDS.get(t, ()) + GATES.get(t, ()) + (("project",) if t in KINDS + ("workstreams",) else ())))
-              for t in ("projects",) + KINDS + ("workstreams",)}
+              for t in ("projects",) + KINDS + ("workstreams", "gantt_lines")}
     fields["projects"] += tuple(c for c in ("archived",) if c not in fields["projects"])      # #126: publish() refuses an archived project
     try:
         got = store.publish_inputs(code, fields)

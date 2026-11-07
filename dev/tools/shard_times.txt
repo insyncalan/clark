@@ -145,7 +145,9 @@ test_excel_protection.py 72.3
 test_excel_refs.py 74.1
 test_excel_roundtrip.py 383.2
 test_excel_route.py 126.3
-test_excel_sheet_choice.py 411.1
+test_excel_sheet_choice.py 164.4
+test_excel_sheet_followups.py 38.2
+test_excel_sheet_listing.py 208.5
 test_excel_text_cells.py 182.7
 test_excel_time.py 43.5
 test_export_colours.py 2.8
@@ -439,6 +441,7 @@ test_uc_row_parity.py 38.4
 test_undo_key.py 31.2
 test_undo_many.py 7.0
 test_unzip_merge.py 47.5
+test_update_17_to_18.py 80.0
 test_update_helper.py 80.9
 test_update_install.py 49.9
 test_update_migration.py 31.7

@@ -3,7 +3,7 @@
 // pages, then (when words are typed) work items (an ID first), use cases and milestones, then actions, projects, commands; with no words: pages, actions, projects, commands (row 900). Words match the text, the ID and the owner's name. Nothing here asks a server, and a
 // command that changes anything calls the very function the existing button or menu entry calls (profile menu, Publish).
 import { signal } from "@preact/signals";
-import { data, tabs, TITLES, project, projects, view, rows, show, setProject, openPeek, openUseCase, fromFile, status } from "../stores/report.js";
+import { data, shownTabs, TITLES, project, projects, view, rows, show, setProject, openPeek, openUseCase, fromFile, status } from "../stores/report.js";
 import { appearance, setAppearance, MODES } from "../stores/appearance.js";
 import { KIND_WORDS } from "../workItems.js";
 import { liveOf, nameOf, refOf } from "../logic/useCasesList.js";
@@ -33,7 +33,7 @@ function commands() {
     { key: "publish", label: "Publish…", more: "report send client", why, run: () => openPublish() },
     { key: "preview", label: "Preview the page in a new tab", more: "published page", why, run: () => preview() },
     { key: "export", label: "Export to Excel", more: "workbook download xlsx", why, run: () => exportExcel() },
-    { key: "settings", label: "Settings", more: "options folder client", why: tabs.value.includes("settings") ? "" : "Settings is not available on this page.", run: () => show("settings") },
+    { key: "settings", label: "Settings", more: "options folder client", why: shownTabs.value.includes("settings") ? "" : "Settings is not available on this page.", run: () => show("settings") },
     { key: "ask", label: PANEL_TITLE, more: "question chat", why: "", run: () => openPanel() },          // the same panel "/" and the ask button open (#47a)
     { key: "help", label: "Help", more: "keys shortcuts how", why: "", run: () => openHelp() },
     ...MODES.map((m) => ({ key: "look-" + m, label: "Appearance: " + LOOK_WORDS[m], more: "theme look colour", why: "", now: appearance.value === m, run: () => setAppearance(m) })),
@@ -41,7 +41,7 @@ function commands() {
 }
 
 function pages() {
-  return tabs.value.filter((v) => v !== "settings" && TITLES[v]).map((v) => ({ id: "page-" + v, kind: "Page", label: TITLES[v], more: "", disabled: "", current: view.value === v, run: () => show(v) }));
+  return shownTabs.value.filter((v) => v !== "settings" && TITLES[v]).map((v) => ({ id: "page-" + v, kind: "Page", label: TITLES[v], more: "", disabled: "", current: view.value === v, run: () => show(v) }));
 }
 
 // The create entries, each calling the very function the existing Add button calls: the Add menu on Work items (addItem) and the Milestones page's add. The words are the Add buttons' own (filters.js KIND_ADD, ADD_MILESTONE).

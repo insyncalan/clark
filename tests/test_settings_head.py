@@ -2,7 +2,7 @@
 light and dark. Issue 697: above 900 px the links are a list down the left with the cards at the right; at 900 px and narrower they are the
 row of chips under the title again. Run: python3 dev/run_tests.py test_settings_head
 
-What is asserted: the title and the help line; a chip for each card that is on the page (Publishing, Personal, Freshness, Logs and diagnostics, Projects, Data, Backups, Version and updates, People, Asking) and none
+What is asserted: the title and the help line; a chip for each card that is on the page (Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, People, Asking) and none
 for a card that is not; a click scrolls the card into view and moves focus to its heading; the keyboard does the same (Tab to a chip,
 Enter); the list stands at the left of the cards above 900 px and the chips wrap in a row under the title at 900 px and narrower, the page never scrolls sideways and nothing overlaps; each chip is at least 24 px high and wide; the chip text is at least 13 px
 and 4.5:1 on its ground; the focus ring is 2 px. Chrome is required: these tests fail, never skip, without it.
@@ -17,7 +17,7 @@ from test_server import chrome
 WIDTHS = (1400, 901, 900, 800)
 MODES = ("light", "dark")
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
-CARDS = [("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
+CARDS = [("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
          ("Version and updates", "update-h"), ("People", "people-h"), ("Asking", "ask-settings-h")]
 
 
@@ -43,19 +43,20 @@ class Head(Base):
         p.js("location.hash = '#settings&p=PUB'")
         p.until("!!document.querySelector('.set-nav .set-chip') && !!document.querySelector('#personal-h') && !!document.querySelector('#safety-h')",
                 "Settings and its chips drew")
+        p.settled("Settings finished drawing and scrolling")
 
     def chips(self, p):
         return p.js("[...document.querySelectorAll('.set-nav .set-chip')].map(b => b.textContent)")
 
     def at_top(self, p, head_id):
         """The card is in view and its heading has the focus."""
+        p.settled("the chip's scroll finished")      # before anything is measured: the smooth scroll may still be running (macOS)
         p.until(f"document.activeElement && document.activeElement.id === '{head_id}'", f"focus is on {head_id}")
         p.until(f"(function(){{var r = document.getElementById('{head_id}').getBoundingClientRect(); return r.top >= 56 && r.bottom <= window.innerHeight;}})()",
                 "the heading is in view, clear of the top bar")
-        # The chip's scroll is smooth and the heading is in view before it ends. A window.scrollTo while it is still running cancels it
-        # and leaves the next chip's smooth scroll stuck near the top, so wait for the scroll to stop (the same position on two reads).
-        p.until("(function(){var y = window.scrollY, same = window.__settled === y; window.__settled = y; return same;})()",
-                "the chip's scroll finished")
+        # A window.scrollTo while the smooth scroll is still running cancels it and leaves the next chip's scroll stuck near the top, so
+        # the position and the animations are checked again once the heading is found: still no animation, the same scrollY 100 ms apart.
+        p.settled("the chip's scroll finished")
 
     def test_C_the_title_the_help_line_and_a_chip_for_each_card_that_exists(self):
         for w in WIDTHS:
@@ -80,6 +81,7 @@ class Head(Base):
                 self.open_settings(p, w)
                 for name, head_id in reversed(CARDS):
                     p.js("window.scrollTo(0, 0)")
+                    p.settled("the scroll to the top finished")      # the click comes only when nothing is moving
                     p.js(f"[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === '{name}').click()")
                     self.at_top(p, head_id)
                 self.assertTrue(p.js("location.hash.indexOf('#settings') === 0"), "the page's own address is kept")

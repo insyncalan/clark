@@ -344,12 +344,12 @@ class Sizes87(unittest.TestCase):
     ALLOWED = (".tile .n", ".fig .v", ".tr-", "table.tracker", ".hp-", ".cp-m", ".ucp-body")
 
     def need(self):
-        pending(self, 240, TOKENS, "--size-body: 16px")        # merged on main: always passes now, kept as a guard
+        pending(self, 240, TOKENS, "--size-body: 15px")        # merged on main: always passes now, kept as a guard (row 843: the base text is 15 px)
 
     def test_87_1_the_size_scale_is_in_tokens_css(self):
         self.need()
         css = read(TOKENS)
-        want = {"body": 16, "caption": 13, "small": 14, "h3": 20, "h2": 24, "h1": 30, "display": 40}
+        want = {"body": 15, "caption": 13, "small": 14, "h3": 20, "h2": 24, "h1": 30, "display": 40}
         for name, px in want.items():
             self.assertRegex(css, rf"--size-{name}:\s*{px}px", f"--size-{name} is {px}px")
         self.assertRegex(css, r"--leading:\s*1\.5")
@@ -404,7 +404,7 @@ class Numbers120(unittest.TestCase):
         schema = read(SRC / "clark" / "schema.sql")
         for name in ("publications_no_delete", "publications_number_fixed", "publications_never_replaced"):
             self.assertRegex(schema, rf"CREATE TRIGGER IF NOT EXISTS {name}\b", name)
-        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = 17\b")      # 17 since step 17 (row 811, client_action); 16 was step 16 (issue 709, use_cases.commitment); 15 was step 15 (#269, publications.pdf_name); 14 was #171 (review_after_days); 13 was #368 (a web page and its Word copy share a number); 12 was #325 (the trigger guards client_path); step 10 is this item\'s
+        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = 19\b")      # 19 since step 19 (row 926, Gantt section type); 18 was step 18 (row 926, the Gantt lines); 17 was step 17 (row 811, client_action); 16 was step 16 (issue 709, use_cases.commitment); 15 was step 15 (#269, publications.pdf_name); 14 was #171 (review_after_days); 13 was #368 (a web page and its Word copy share a number); 12 was #325 (the trigger guards client_path); step 10 is this item\'s
 
     def test_120_2_a_number_is_fixed_and_never_reused(self):
         schema = read(SRC / "clark" / "schema.sql")

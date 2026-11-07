@@ -68,7 +68,7 @@ def every_row(path):
     try:
         names = [r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
                                            "AND name != 'meta' ORDER BY name")]
-        later = {"review_after_days"}                  # a column a later step adds (#171, step 14): what these older steps keep is every other one
+        later = {"review_after_days", "show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows"}                  # a column a later step adds (#171, step 14): what these older steps keep is every other one
         out = {}
         for n in names:
             kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if c[1] not in later)
@@ -434,11 +434,12 @@ class FrozenText(Base):
 
         def squash(text):
             return re.sub(r"\s+", " ", "\n".join(l.split("--")[0] for l in text.splitlines())).strip().rstrip(";")
-        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES), squash(statements[0]))
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT), squash(statements[0]))      # row 926: step 19 is now the newest; this step's own text is that one without 'gantt'
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES), squash(statements[0]).replace(",'gantt'", "", 1))
 
     def test_the_frozen_text_and_the_store_name_the_same_types(self):
         named = re.findall(r"'([a-z0-9]+)'", store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES.split("CHECK (type IN (")[1].split("))")[0])
-        self.assertEqual(tuple(named), store_module.SECTION_TYPES)
+        self.assertEqual(tuple(named), tuple(t for t in store_module.SECTION_TYPES if t != "gantt"))      # row 926: gantt comes with step 19
         self.assertEqual(tuple(w.strip("'") for w in store_module.TEMPLATE_TYPE_WORDS), section_kinds.TYPES)
 
     def test_the_step_does_not_read_the_live_schema(self):

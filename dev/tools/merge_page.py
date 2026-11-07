@@ -18,7 +18,7 @@ branch without this file cannot break it) with a file SOURCE-COMMIT beside it, a
 printed to stderr every run, so a stale copy shows. It needs only the Python standard library.
 
 TRUST: the whole repository is the trust boundary, so the driver works from an ALLOW-LIST and never runs code from the branch:
-  - the build's code is named in BUILD_CODE (dev/tools/build_page.py, dev/tools/esbuild.py, src/clark/__init__.py and
+  - the build's code is named in BUILD_CODE (dev/tools/build_page.py, dev/tools/esbuild.py, src/clark/__init__.py, src/clark/limits.py and
     src/clark/page/__init__.py, read from their imports); the rebuild runs only those, so they must be exactly HEAD's;
   - every path the merge changes under src/, dev/tools/, dev/.cache/ or vendor/ must be PAGE DATA: the page sources
     (src/clark/page/src/), the shell's CSS (src/clark/page/*.css) and the two built pages, as plain files and never a code file
@@ -88,11 +88,11 @@ def merged_tree(theirs):
 
 
 # THE BUILD'S CODE: every file of the repository that runs when dev/tools/build_page.py builds the page, found by reading the
-# imports (the standard library left out): build_page.py imports esbuild (dev/tools/esbuild.py) and clark.page, which loads
-# src/clark/__init__.py and src/clark/page/__init__.py; those import only the standard library. These four, and nothing else
-# Python could load, are unpacked from the merged tree, and the merge is refused unless all four are exactly HEAD's.
+# imports (the standard library left out): build_page.py imports esbuild (dev/tools/esbuild.py), clark.limits and clark.page, which
+# load src/clark/__init__.py, src/clark/limits.py and src/clark/page/__init__.py; those import only the standard library. These five, and nothing else
+# Python could load, are unpacked from the merged tree, and the merge is refused unless all five are exactly HEAD's.
 # tests/test_merge_driver.py fails if one of them gains an import from outside this set.
-BUILD_CODE = ("dev/tools/build_page.py", "dev/tools/esbuild.py", "src/clark/__init__.py", "src/clark/page/__init__.py")
+BUILD_CODE = ("dev/tools/build_page.py", "dev/tools/esbuild.py", "src/clark/__init__.py", "src/clark/limits.py", "src/clark/page/__init__.py")
 # What the build reads as data and the merge may NOT change (a change refuses): the vendored libraries and fonts it bundles, the
 # demo brand's tokens and the page's pictures. They are unpacked so the build can read them.
 BUILD_INPUTS = ("vendor/preact/", "vendor/tiptap/", "vendor/fonts/", "src/clark/brand/tokens.css", "src/clark/page/assets/",

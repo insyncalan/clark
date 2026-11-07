@@ -1,8 +1,7 @@
-"""Row 886 (motion): the loading placeholders shimmer. Run: python3 dev/run_tests.py test_motion_shimmer
+"""Row 934 (replaces 886): the loading placeholders are static. Run: python3 dev/run_tests.py test_skeleton_static
 
-A light band sweeps across each grey block, with a transform only (clipped to the block, so nothing shifts), over --dur-enter, for as long as
-the placeholder shows. Under reduced motion (the computer's setting or clark's own) the still grey blocks are all there is.
-Checked at 1400 and 900 px, light and dark.
+The grey blocks never animate, with motion allowed or reduced: no ::after band, no animation on the block. Checked at 1400 and 900 px,
+light and dark.
 """
 import json
 import re
@@ -16,12 +15,12 @@ from test_server import chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 CSS = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
-# One grey block, the way Views.jsx draws it; the sweep is its ::after.
+# One grey block, the way Views.jsx draws it.
 MAKE = """(() => { const t = document.createElement('span'); t.className = 'skel skel-line'; document.body.appendChild(t);
-  const c = getComputedStyle(t, '::after'); const b = getComputedStyle(t); return JSON.stringify([c.animationName, c.animationDuration, c.animationIterationCount, b.overflow]); })()"""
+  const c = getComputedStyle(t, '::after'); const b = getComputedStyle(t); return JSON.stringify([c.animationName, c.content, b.animationName, b.overflow]); })()"""
 
 
-class MotionShimmer(unittest.TestCase):
+class SkeletonStatic(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.store, cls.folder, cls.ids = load_demo()
@@ -48,26 +47,22 @@ class MotionShimmer(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#profile-btn')", sid)))
         return sid
 
-    def test_row_886_the_blocks_shimmer_and_are_still_when_reduced(self):
+    def test_row_934_the_blocks_are_still_with_motion_allowed_or_reduced(self):
         for width in (1400, 900):
             for scheme in ("light", "dark"):
                 for motion in ("no-preference", "reduce"):
                     with self.subTest(width=width, scheme=scheme, motion=motion), chrome() as cdp:
                         sid = self.load(cdp, width, scheme, motion)
-                        name, dur, count, overflow = json.loads(cdp.js(MAKE, sid))
-                        if motion == "no-preference":
-                            self.assertEqual((name, dur, count, overflow), ("m-shimmer", "0.7s", "infinite", "hidden"))
-                        else:
-                            self.assertEqual(name, "none")
+                        after_name, after_content, name, overflow = json.loads(cdp.js(MAKE, sid))
+                        self.assertEqual((after_name, name), ("none", "none"))
+                        self.assertIn(after_content, ("none", "normal"), "no ::after band")
 
-    def test_row_886_is_inside_the_motion_block_uses_tokens_and_moves_only_a_transform(self):
-        block = CSS[CSS.index("Motion: motion that explains"):]
-        block = block[:block.index("@media (hover: hover)")]
-        self.assertRegex(block, r"\.skel::after \{[^}]*animation: m-shimmer var\(--dur-enter\) var\(--ease-[a-z]+\) infinite;")
-        self.assertNotRegex(CSS.replace(block, ""), r"animation:[^;]*m-shimmer")
-        body = re.search(r"@keyframes m-shimmer \{(.*?)\}\s*\}", CSS, re.S).group(1)
-        self.assertRegex(body, r"transform")
-        self.assertNotRegex(body, r"height|margin|padding|top|left|width")
+    def test_row_934_no_shimmer_or_loop_is_left_in_the_stylesheet(self):
+        self.assertNotIn("m-shimmer", CSS)
+        self.assertNotRegex(CSS, r"\.skel[^{]*::after")
+        skel = re.findall(r"\.skel[\w-]*[^{]*\{([^{}]*)\}", CSS)
+        self.assertTrue(skel)
+        self.assertEqual([x for x in skel if "infinite" in x], [])   # .skel-leave fades the frame out once; that is not a loop
 
 
 if __name__ == "__main__":

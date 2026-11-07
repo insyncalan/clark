@@ -34,12 +34,12 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 17          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 19          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
 TABLES = ("projects", "milestones", "workstreams", "actions", "raid", "decisions", "use_cases", "links", "labels",
-          "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders", "people")
+          "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders", "people", "gantt_lines")
 SETTINGS_TABLES = ("app_settings",)     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
 ASK_WHEN_MISSING = False      # clark (#47): asking reads as OFF when the file holds no answer (no app_settings table or no row): it never fails open
 # clark: - promises, + use_cases, and + the report's own tables (#65, one amendment: the route admits only report_sections)
@@ -48,7 +48,7 @@ KEYS = {"projects": ("code",), "milestones": ("id",), "workstreams": ("id",), "a
         "item_labels": ("item_id", "label"), "updates": ("week_ending", "project"),
         "report_sections": ("id",), "glance_tiles": ("project", "tile"), "report_hidden": ("project", "item_id"),
         "documents": ("project", "id"), "source_folders": ("project", "path"), "app_settings": ("id",),
-        "people": ("id",)}
+        "people": ("id",), "gantt_lines": ("id",)}
 # clark (#65): a section's id holds its project's code, so one column finds the row (and next_id and history keep working)
 REQUIRED_NEW = {
     "projects": ("code", "name"),
@@ -69,14 +69,16 @@ REQUIRED_NEW = {
     "source_folders": ("project", "path"),                              # clark (#47): its sort_order is a rule (0 is a number)
     "app_settings": ("id",),                                            # clark (#47): the migration makes its one row; a second is refused
     "documents": ("project", "title", "url"),                           # clark (#126); #74: added and edited too (_document_rules)
+    "gantt_lines": ("project", "type", "name", "start", "end"),   # row 926
 }
 ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents", "people")   # what Step.archive takes (#126)
 SETTINGS_ROW = "This computer has one settings row. It can be changed, but not added, cancelled or archived."
 SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs",
                  "needs", "tracker",
                  "textimage", "headline", "figures4", "figures3", "gallery", "table", "doclinks", "linkcard", "raid3", "raid4",
-                 "workitems", "callout", "imagecap", "quote", "contacts", "checklist", "keydates", "onedoc")
-# the twenty-nine of schema.sql's CHECK: 'needs', 'tracker' and the eighteen section templates (#96) carry content, through the
+                 "workitems", "callout", "imagecap", "quote", "contacts", "checklist", "keydates", "onedoc",
+                 "gantt")                                                    # row 926: the Gantt section, which carries no body of its own
+# the thirty of schema.sql's CHECK, the first twenty-nine of them: 'needs', 'tracker' and the eighteen section templates (#96) carry content, through the
 # registry in section_bodies.py (section_kinds/); tests/test_section_registry.py pins this list to that registry
 BODY_TYPES = ("text",) + section_bodies.BODY_TYPES   # the section types that may have a body; text is written only by its own item (#188), the others by changes.py through the checker
 DELETABLE_TYPES = SECTION_TYPES                 # row 906: any section may be deleted; a built-in's row holds no data (its records live in their own tables)
@@ -106,18 +108,22 @@ ALLOWED = {
     ("labels", "default_choice"): ("include", "exclude"),
     ("projects", "health"): ("On track", "At risk", "Off track"),
     ("projects", "layout"): ("boxed", "spine", "cover"),                                           # clark
+    ("gantt_lines", "type"): ("phase", "task", "milestone"),                                       # row 926
+    ("gantt_lines", "health"): ("Green", "Amber", "Red"),                                          # row 926: and '' (no health, never checked)
+    ("gantt_lines", "priority"): ("High", "Medium", "Low"),                                        # row 926: and ''
     ("updates", "health"): ("On track", "At risk", "Off track"),
 }
 RATED = {"Risk": True, "Assumption": False, "Issue": True, "Dependency": False}   # EVERY RAID type and whether it carries an impact and likelihood; its keys are pinned to ALLOWED[("raid", "type")] in tests/test_rating_kinds.py, so a new type must be decided here
 RATING_TYPES = tuple(t for t, rated in RATED.items() if rated)   # derived: the RAID types that carry a rating
 CODE_RE = r"[A-Z][A-Z0-9]{2,6}"      # project codes: 3 to 7 capital letters or digits, starting with a letter
 DATE_FIELDS = {"due_date", "raised", "closed", "date", "week_ending", "baseline_date", "forecast_date", "created",
-               "needed_by", "actual_date"}
+               "needed_by", "actual_date", "start", "end", "baseline_start", "baseline_end"}      # row 926: + a Gantt line's dates
 NO_EDIT = {"id", "updated_at"}
 ID_PREFIX = {"actions": "-A-", "decisions": "-D-", "raid": "-", "milestones": "-M-", "workstreams": "-W-",
-             "use_cases": "-U-", "report_sections": "-S-", "documents": "-L-"}      # clark: - promises, + use cases, + sections (#65), + documents (#74)
+             "use_cases": "-U-", "report_sections": "-S-", "documents": "-L-", "gantt_lines": "-GNT-"}      # clark: - promises, + use cases, + sections (#65), + documents (#74)
 # ITEM_ID and ITEM_TABLE below stay as they are: a section is not linkable and carries no label
 ITEM_ID = re.compile(r"([A-Z][A-Z0-9]{2,6})-(?:([ADMWU])-)?\d{3}")
+GANTT_ID = re.compile(r"[A-Z][A-Z0-9]{2,6}-GNT-\d{3}")                # row 926: a Gantt line's id (CODE-GNT-001); never matches ITEM_ID
 DOC_ID = re.compile(r"[A-Z][A-Z0-9]{2,6}-L-\d{3}")                    # #74: a document's id (CODE-L-001); never matches ITEM_ID
 MAX_DOCUMENTS = 200                                                      # #74: a project's documents, archived ones included
 ITEM_TABLE = {"A": "actions", "D": "decisions", "M": "milestones", "W": "workstreams", "U": "use_cases", None: "raid"}
@@ -131,9 +137,10 @@ SHARED_NUMBERS = ("actions", "raid", "decisions")    # one number sequence per p
 BLANKABLE = {"decisions": ("date", "needed_by", "replaces", "reasoning", "options", "revisit"),
              "milestones": ("state", "state_reason", "owner", "actual_date", "client_message", "description", "internal_note",
                             "movement", "workstream"),
-             "documents": ("date",)}                                     # #74
+             "documents": ("date",),                                     # #74
+             "gantt_lines": ("parent", "baseline_start", "baseline_end", "effort", "budget")}     # row 926: the columns that may hold no value
 CLOSING = {"actions": CLOSED_STATUSES, "raid": CLOSED_STATUSES}          # statuses that set `closed`
-DELETED_ON_CANCEL = ("links", "item_labels", "labels", "report_sections", "glance_tiles", "report_hidden", "source_folders")
+DELETED_ON_CANCEL = ("links", "item_labels", "labels", "report_sections", "glance_tiles", "report_hidden", "source_folders", "gantt_lines")
 # the only rows a step deletes (Head ruling on #31; #65: + the report's own tables; delete_row refuses a section that isn't text)
 MAX_SECTIONS = 100                                                       # a project's sections (#65)
 TITLE_LIMIT = 120                                                        # a section's title, in characters
@@ -210,9 +217,10 @@ REVERT_CREATED = ("actions", "raid", "decisions", "milestones", "use_cases", "li
                   "report_sections", "source_folders", "people")      # #115: a person is never deleted; only the Undo of the step that made them takes the row away
 # a creation of these may be undone. clark: + use cases, and + links and labels, which creaite left to "undo last apply";
 # clark has only this one undo.
-REVERT_CREATED += ("report_hidden", "documents")    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
+REVERT_CREATED += ("report_hidden", "documents", "gantt_lines")    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
 REVERT_REFS = (("actions", "milestone"), ("raid", "milestone"), ("decisions", "replaces"), ("links", "from_item"),
                ("links", "to_item"), ("item_labels", "item_id"),
+               ("gantt_lines", "parent"),                                                   # row 926: a phase with lines under it (depends is a list: see referred_to)
                ("actions", "use_case"), ("raid", "use_case"), ("decisions", "use_case"),   # clark: + use_case
                ("item_labels", "label"))                                                # clark: a label still on an item
 
@@ -410,7 +418,8 @@ def is_archived(con, code):
 # Every column the schema holds as a 0/1 flag (CHECK (x IN (0,1))). `archived` is validated like the rest (#126), but only
 # archive and restore (and the Undo of them) ever set it: refuse_archived_field turns it away from a new row and an update. tests/test_store_flags.py reads schema.sql and fails if a flag column is not named here,
 # so a new flag can't slip past the rule (#89).
-FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "needs_details", "client_action"})
+FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "needs_details", "client_action",
+                          "show", "show_gantt_editor", "show_gantt_client"})      # row 926: a Gantt line's eye and the project's two Gantt switches
 FLAGS_ELSEWHERE = frozenset({"archived"})       # also named here: the flags test still reads it (#89)
 
 
@@ -714,6 +723,225 @@ def _person_rules(con, table, row, changed):
         raise Invalid("a person must record its source")
 
 
+# ── Gantt lines (row 926, step 18) ────────────────────────────────────────────
+
+# The columns of a Gantt line that can be left out of a client file (the project's gantt_hidden_columns names them). The line's id and
+# name can never be hidden. These are the table's own column names, in the order the table lists them.
+GANTT_COLUMNS = ("type", "parent", "start", "end", "pct", "health", "depends", "owner", "workstream", "priority",
+                 "baseline_start", "baseline_end", "effort", "budget", "deliverable", "show", "note")
+GANTT_NEVER_HIDDEN = ("type", "start", "end", "pct")      # the chart cannot be drawn without these (what kind of line, where it sits, how far along), so a client file always has them
+GANTT_HIDEABLE = tuple(c for c in GANTT_COLUMNS if c not in GANTT_NEVER_HIDDEN)
+GANTT_MAX_EFFORT, GANTT_MAX_BUDGET = 1_000_000, 1_000_000_000_000      # the table's own limits (schema.sql CHECKs): a number above them is refused in words, never left to the database
+GANTT_DEFAULT_HIDDEN = ("show", "note", "budget", "effort", "baseline_start", "baseline_end", "owner")     # the default of projects.gantt_hidden_columns
+GANTT_DEFAULT_TAB = "Gantt"
+MAX_GANTT_LINES = 500                    # a project's Gantt lines
+MAX_GANTT_DEPENDS = 50                   # the lines one line depends on
+GANTT_TAB_LIMIT, GANTT_TITLE_LIMIT = 30, 120
+GANTT_ROWS_RANGE = (1, 500)              # projects.gantt_default_rows: the saved plan height, in rows (NULL: every row)
+GANTT_TEXT_LIMITS = {"name": 200, "owner": 200, "workstream": 200, "deliverable": 500, "note": 2000}
+# Every refusal is a fixed sentence (the Gantt spec, section 4, and the few it needed besides). A line's id is the only thing ever said back.
+GANTT_NO_NAME = "A line needs a name."
+GANTT_BAD_DATE = "Use DD-MM-YYYY, for example 06-11-2026."
+GANTT_END_BEFORE_START = "The end cannot be before the start."
+GANTT_BAD_PCT = "Done % is a number from 0 to 100."
+GANTT_MILESTONE_ONE_DATE = "A milestone has one date: change Start."
+GANTT_BAD_BASELINE = "The baseline end cannot be before the baseline start."
+GANTT_BAD_TYPE = "A line is a phase, a task or a milestone."
+GANTT_BAD_CHOICE = "That choice isn't one clark has."
+GANTT_BAD_TEXT = "Use plain text, with no hidden characters, and keep it short."
+GANTT_BAD_NUMBER = "Effort and budget are numbers, zero or more."
+GANTT_SELF_DEPENDS = "A line cannot depend on itself."
+GANTT_LOOP = "Those dependencies would go round in a circle."
+GANTT_TOO_MANY_DEPENDS = f"A line can depend on at most {MAX_GANTT_DEPENDS} others."
+GANTT_PARENT_PHASE = "The parent must be a phase."
+GANTT_PHASE_TOP = "A phase is at the top level, so it has no parent."
+GANTT_PHASE_KEEPS = "A phase with lines under it stays a phase. Move or delete those lines first."
+GANTT_TOO_MANY = f"A project can have at most {MAX_GANTT_LINES} Gantt lines."
+GANTT_BAD_PLACE = "A line needs its place in the list."
+GANTT_BAD_TAB = f"The tab needs a name of 1 to {GANTT_TAB_LIMIT} characters, with no hidden characters."
+GANTT_BAD_TITLE = f"The title can be at most {GANTT_TITLE_LIMIT} characters, with no hidden characters."
+GANTT_BAD_ROWS = "Choose a whole number of rows from 1 to 500. Nothing was changed."
+GANTT_BAD_COLUMNS = "Choose the columns to hide from the list of columns clark has. The ID and the Line can't be hidden."
+GANTT_REFUSALS = frozenset({GANTT_NO_NAME, GANTT_BAD_DATE, GANTT_END_BEFORE_START, GANTT_BAD_PCT, GANTT_MILESTONE_ONE_DATE, GANTT_BAD_BASELINE,
+                            GANTT_BAD_TYPE, GANTT_BAD_CHOICE, GANTT_BAD_TEXT, GANTT_BAD_NUMBER, GANTT_SELF_DEPENDS, GANTT_LOOP,
+                            GANTT_TOO_MANY_DEPENDS, GANTT_PARENT_PHASE, GANTT_PHASE_TOP, GANTT_PHASE_KEEPS, GANTT_TOO_MANY, GANTT_BAD_PLACE,
+                            GANTT_BAD_TAB, GANTT_BAD_TITLE, GANTT_BAD_COLUMNS, GANTT_BAD_ROWS})
+GANTT_NO_DEPEND, GANTT_NO_PARENT = 'There is no line "{}" to depend on.', 'There is no line "{}" to be the parent.'     # the id is the request's, made safe: see _gantt_said
+
+
+def _gantt_said(value):
+    """A request's own id, made safe to say back: short, letters, digits and a few marks only."""
+    return re.sub(r"[^\w .-]", "", str(value))[:30]
+
+
+def gantt_list(value):
+    """A comma list (a line's depends) as a list of trimmed, non-empty items, in order, without repeats."""
+    out = []
+    for n in str(value or "").split(","):
+        n = n.strip()
+        if n and n not in out:
+            out.append(n)
+    return out
+
+
+def gantt_plain(value, limit, words, blank_ok=False, lines=False):
+    """A Gantt text as it is stored: text, NFC, trimmed, at most `limit` characters, no control, format, separator or private-use
+    character (a line break is allowed only with `lines`; a Windows one is made plain first). Blank is refused unless `blank_ok`.
+    The refusal is `words`, and never quotes the text."""
+    if value is None and blank_ok:
+        return ""
+    if not isinstance(value, str):
+        raise Invalid(words)
+    text = unicodedata.normalize("NFC", value.replace("\r\n", "\n") if lines else value).strip()
+    if not text and not blank_ok:
+        raise Invalid(words)
+    if len(text) > limit or not _plain_ok(text.replace("\n", "") if lines else text):
+        raise Invalid(GANTT_BAD_TEXT if words == GANTT_NO_NAME else words)
+    return text
+
+
+def gantt_hidden_columns(value):
+    """The project's gantt_hidden_columns as it is stored: a comma list of keys from GANTT_COLUMNS, in the order given, without repeats (the default is written in that form, so an Undo of a change puts it back as it was).
+    An unknown key (the id and the name included) is refused. Empty hides nothing."""
+    if not isinstance(value, str):
+        raise Invalid(GANTT_BAD_COLUMNS)
+    names = gantt_list(value)
+    if any(n not in GANTT_HIDEABLE for n in names):       # an unknown key, the id or name, and the columns the chart needs (GANTT_NEVER_HIDDEN)
+        raise Invalid(GANTT_BAD_COLUMNS)
+    return ",".join(names)
+
+
+def _gantt_graph(con, project, row_id, depends):
+    """The project's depends graph {id: [ids]} as stored, with row `row_id` taken as depending on `depends`."""
+    graph = {r[0]: gantt_list(r[1]) for r in con.execute("SELECT id, depends FROM gantt_lines WHERE project = ?", (project,))}
+    graph[row_id] = list(depends)
+    return graph
+
+
+def _gantt_reaches(graph, start, goal):
+    seen, todo = set(), [start]
+    while todo:
+        n = todo.pop()
+        if n == goal:
+            return True
+        if n not in seen:
+            seen.add(n)
+            todo.extend(graph.get(n, ()))
+    return False
+
+
+def gantt_number_limit(field):
+    return GANTT_MAX_EFFORT if field == "effort" else GANTT_MAX_BUDGET
+
+
+def _gantt_number(row, field):
+    v = row.get(field)
+    if v is None:
+        return
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or v != v or v in (float("inf"), float("-inf")) or v < 0 or v > gantt_number_limit(field):
+        raise Invalid(GANTT_BAD_NUMBER)
+
+
+def _gantt_rules(con, table, row, changed):
+    """Row 926: a Gantt line's own rules, in fixed sentences, on a new row and on each field a step writes (a write that leaves a field
+    alone does not check it again, so an older row never locks). The text is checked and tidied; the type, health and priority are
+    one of their words; the dates are real days with the end not before the start and a milestone on one day; the done % is a whole number
+    from 0 to 100; the parent is a phase of this project and the line is not one; depends names other lines of this project, never the
+    line itself, and never goes round in a circle (an id already in the list is not asked about again, so a list written before a
+    line went never locks); a phase with lines under it stays a phase."""
+    fresh = not row.get("id") or "id" in changed
+
+    def touched(*names):
+        return fresh or bool(set(names) & set(changed))
+    if row.get("type") not in ALLOWED[("gantt_lines", "type")]:
+        raise Invalid(GANTT_BAD_TYPE)
+    if touched("name"):
+        row["name"] = gantt_plain(row.get("name"), GANTT_TEXT_LIMITS["name"], GANTT_NO_NAME)
+    for f in ("owner", "workstream", "deliverable"):
+        if touched(f):
+            row[f] = gantt_plain(row.get(f), GANTT_TEXT_LIMITS[f], GANTT_BAD_TEXT, blank_ok=True)
+    if touched("note"):
+        row["note"] = gantt_plain(row.get("note"), GANTT_TEXT_LIMITS["note"], GANTT_BAD_TEXT, blank_ok=True, lines=True)
+    if fresh and row.get("pct") is None:
+        row["pct"] = 0                                   # a new line starts at 0 % done
+    if touched("pct") and (type(row.get("pct")) is not int or not 0 <= row["pct"] <= 100):
+        raise Invalid(GANTT_BAD_PCT)
+    for f in ("health", "priority"):
+        if touched(f):
+            if row.get(f) is None:
+                row[f] = ""
+            if row[f] != "" and row[f] not in ALLOWED[("gantt_lines", f)]:
+                raise Invalid(GANTT_BAD_CHOICE)
+    for f in ("effort", "budget"):
+        if touched(f):
+            _gantt_number(row, f)
+    if touched("sort_order") and type(row.get("sort_order")) is not int:
+        raise Invalid(GANTT_BAD_PLACE)
+    start, end = row.get("start"), row.get("end")
+    if touched("start", "end", "type"):
+        if not start or not end:
+            raise Invalid(GANTT_BAD_DATE)
+        if end < start:
+            raise Invalid(GANTT_END_BEFORE_START)
+        if row["type"] == "milestone" and end != start:
+            raise Invalid(GANTT_MILESTONE_ONE_DATE)
+    base_start, base_end = row.get("baseline_start"), row.get("baseline_end")
+    if touched("baseline_start", "baseline_end") and base_start and base_end and base_end < base_start:
+        raise Invalid(GANTT_BAD_BASELINE)
+    row_id, project = row.get("id"), row.get("project")
+    here = fetch(con, table, row_id) if row_id else None              # the row as stored now (None for a new row, or one an undo puts back)
+    parent = row.get("parent") or None
+    row["parent"] = parent
+    if touched("parent", "type"):
+        if parent is not None:
+            if row["type"] == "phase":
+                raise Invalid(GANTT_PHASE_TOP)
+            found = fetch(con, table, parent) if GANTT_ID.fullmatch(str(parent)) else None
+            if found is None or found["project"] != project or parent == row_id:
+                raise Invalid(GANTT_NO_PARENT.format(_gantt_said(parent)))
+            if found["type"] != "phase":
+                raise Invalid(GANTT_PARENT_PHASE)
+        if row["type"] != "phase" and here is not None and here["type"] == "phase" and \
+                con.execute("SELECT 1 FROM gantt_lines WHERE parent = ? LIMIT 1", (row_id,)).fetchone():
+            raise Invalid(GANTT_PHASE_KEEPS)
+    if touched("depends"):
+        wanted = gantt_list(row.get("depends"))
+        had = gantt_list(here["depends"]) if here is not None else []
+        if len(wanted) > MAX_GANTT_DEPENDS:
+            raise Invalid(GANTT_TOO_MANY_DEPENDS)
+        for d in wanted:
+            if d == row_id:
+                raise Invalid(GANTT_SELF_DEPENDS)
+            if d in had:
+                continue
+            found = fetch(con, table, d) if GANTT_ID.fullmatch(d) else None
+            if found is None or found["project"] != project:
+                raise Invalid(GANTT_NO_DEPEND.format(_gantt_said(d)))
+        if row_id and any(_gantt_reaches(_gantt_graph(con, project, row_id, wanted), d, row_id) for d in wanted if d not in had):
+            raise Invalid(GANTT_LOOP)
+        row["depends"] = ",".join(wanted)
+    if fresh:
+        n = con.execute("SELECT count(*) FROM gantt_lines WHERE project = ? AND id IS NOT ?", (project, row_id)).fetchone()[0]
+        if n >= MAX_GANTT_LINES:
+            raise Invalid(GANTT_TOO_MANY)
+
+
+def _gantt_detach(con, gone, step):
+    """Before a Gantt line is deleted, in the caller's one step: every other line of the project that depends on it loses its id from
+    depends, and every line under it (a phase's) loses its parent. Each is a logged change of its own, written before the delete, so the
+    Undo of the step puts the line back first and the others after it."""
+    cols = columns(con, "gantt_lines")
+    for r in con.execute("SELECT * FROM gantt_lines WHERE project = ? AND id <> ? ORDER BY sort_order, id", (gone["project"], gone["id"])).fetchall():
+        r, changes = dict(r), {}
+        if r["parent"] == gone["id"]:
+            changes["parent"] = None
+        deps = gantt_list(r["depends"])
+        if gone["id"] in deps:
+            changes["depends"] = ",".join(d for d in deps if d != gone["id"])
+        if changes:
+            _update_row(con, "gantt_lines", {"table": "gantt_lines", "op": "update"}, r["id"], r, changes, cols, step)
+
+
 ROW_RULES = {
     "actions": _ITEM_RULES,
     "raid": _ITEM_RULES,
@@ -730,6 +958,7 @@ ROW_RULES = {
     "glance_tiles": (_project_exists, _tile_rules),
     "report_hidden": (_project_exists, _hidden_item),
     "source_folders": (_project_exists, _source_folder),                     # clark (#47)
+    "gantt_lines": (_project_exists, _gantt_rules),                          # row 926
 }
 
 
@@ -1099,6 +1328,7 @@ def _new_project(values):
     """clark (#45, review MEDIUM 2): a new project's health reason is held to the same text rules as a change to it."""
     if "health_reason" in values:
         values["health_reason"] = health_reason_text(values["health_reason"])
+    _check_gantt_project(values, values)
 
 
 NEW_HOOKS = {"projects": _new_project, "workstreams": _new_workstream, "raid": _new_raid, "labels": _new_label, "milestones": _new_milestone,
@@ -1258,6 +1488,8 @@ def delete_row(con, table, key, current, step):
         n = con.execute("SELECT count(*) FROM item_labels WHERE label = ?", (current["name"],)).fetchone()[0]
         if n:
             raise Invalid(f"{n} item(s) still carry {current['name']}; remove it from them first")
+    if table == "gantt_lines":
+        _gantt_detach(con, current, step)         # row 926: its dependents lose the id and its children the parent, in this same step, before the row goes
     con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
     log(con, step, table, key, REMOVED, json.dumps(current, ensure_ascii=False), None, "update")
     return key
@@ -1320,7 +1552,22 @@ def health_reason_text(value):
     return text
 
 
+def _check_gantt_project(row, changes):
+    """Row 926: the project's tab name, title and hidden columns as they are stored (the two switches are flags, checked with the rest)."""
+    if "gantt_tab_name" in changes:
+        row["gantt_tab_name"] = gantt_plain(row.get("gantt_tab_name"), GANTT_TAB_LIMIT, GANTT_BAD_TAB)
+    if "gantt_title" in changes:
+        row["gantt_title"] = gantt_plain(row.get("gantt_title"), GANTT_TITLE_LIMIT, GANTT_BAD_TITLE, blank_ok=True)
+    if "gantt_hidden_columns" in changes:
+        row["gantt_hidden_columns"] = gantt_hidden_columns(row.get("gantt_hidden_columns"))
+    if "gantt_default_rows" in changes:
+        n = row.get("gantt_default_rows")
+        if n is not None and (type(n) is not int or not GANTT_ROWS_RANGE[0] <= n <= GANTT_ROWS_RANGE[1]):
+            raise Invalid(GANTT_BAD_ROWS)
+
+
 def _check_project(row, current, changes):
+    _check_gantt_project(row, changes)
     if "health_reason" in changes:                    # the one place the reason's text is checked, whoever writes it
         changes["health_reason"] = row["health_reason"] = health_reason_text(changes["health_reason"])
     if "health" in changes and changes["health"] != current.get("health") \
@@ -1347,6 +1594,8 @@ def _check_changes(table, changes, extras, cols):
         bad |= set(changes) & {"builtin"}
     if table == "report_sections":
         bad |= set(changes) & {"type", "project"}              # clark (#65): a section keeps its type and its project
+    if table == "gantt_lines":
+        bad |= set(changes) & {"project"}                      # row 926: a line stays in its project
     if bad:
         raise Invalid(f"these fields can't be changed: {', '.join(sorted(bad))}")
     if not changes and "labels" not in extras:
@@ -1490,6 +1739,10 @@ def referred_to(con, key):
             r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ? LIMIT 1", (key,)).fetchone()
             if r:
                 return table, key_of(table, r)
+    if GANTT_ID.fullmatch(str(key)):          # row 926: a Gantt line another line depends on (a comma list, so it is read, not matched)
+        for r in con.execute("SELECT id, depends FROM gantt_lines WHERE depends LIKE ? ORDER BY id", (f"%{key}%",)):
+            if key in gantt_list(r["depends"]):
+                return "gantt_lines", r["id"]
     return None
 
 
@@ -2257,6 +2510,84 @@ def migrate_client_action(con):
         con.execute("ALTER TABLE raid ADD COLUMN client_action INTEGER NOT NULL DEFAULT 0 CHECK (client_action IN (0,1))")
 
 
+GANTT_LINES_INDEX = "CREATE INDEX IF NOT EXISTS gantt_lines_project ON gantt_lines(project, sort_order, id)"
+GANTT_PROJECT_COLUMNS = (          # (name, definition) in the order schema.sql lists them; the same text as schema.sql's projects table
+    ("show_gantt_editor", "INTEGER NOT NULL DEFAULT 0 CHECK (show_gantt_editor IN (0,1))"),
+    ("show_gantt_client", "INTEGER NOT NULL DEFAULT 0 CHECK (show_gantt_client IN (0,1))"),
+    ("gantt_tab_name", "TEXT NOT NULL DEFAULT 'Gantt' CHECK (length(trim(gantt_tab_name)) BETWEEN 1 AND 30)"),
+    ("gantt_title", "TEXT NOT NULL DEFAULT '' CHECK (length(gantt_title) <= 120)"),
+    ("gantt_hidden_columns", "TEXT NOT NULL DEFAULT 'show,note,budget,effort,baseline_start,baseline_end,owner' CHECK (length(gantt_hidden_columns) <= 300)"),
+    ("gantt_default_rows", "INTEGER CHECK (gantt_default_rows IS NULL OR (typeof(gantt_default_rows) = 'integer' AND gantt_default_rows BETWEEN 1 AND 500))"))
+GANTT_LINES_TABLE = """CREATE TABLE IF NOT EXISTS gantt_lines (
+  id TEXT PRIMARY KEY,
+  project TEXT NOT NULL REFERENCES projects(code),
+  type TEXT NOT NULL CHECK (type IN ('phase','task','milestone')),
+  name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 200),
+  parent TEXT,
+  start TEXT NOT NULL CHECK (start GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  end TEXT NOT NULL CHECK (end GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  pct INTEGER NOT NULL DEFAULT 0 CHECK (typeof(pct) = 'integer' AND pct BETWEEN 0 AND 100),
+  health TEXT NOT NULL DEFAULT '' CHECK (health IN ('','Green','Amber','Red')),
+  depends TEXT NOT NULL DEFAULT '' CHECK (length(depends) <= 1000),
+  owner TEXT NOT NULL DEFAULT '' CHECK (length(owner) <= 200),
+  workstream TEXT NOT NULL DEFAULT '' CHECK (length(workstream) <= 200),
+  priority TEXT NOT NULL DEFAULT '' CHECK (priority IN ('','High','Medium','Low')),
+  baseline_start TEXT CHECK (baseline_start IS NULL OR baseline_start GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  baseline_end TEXT CHECK (baseline_end IS NULL OR baseline_end GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  effort REAL CHECK (effort IS NULL OR (typeof(effort) IN ('integer','real') AND effort >= 0 AND effort <= 1000000)),
+  budget REAL CHECK (budget IS NULL OR (typeof(budget) IN ('integer','real') AND budget >= 0 AND budget <= 1000000000000)),
+  deliverable TEXT NOT NULL DEFAULT '' CHECK (length(deliverable) <= 500),
+  show INTEGER NOT NULL DEFAULT 0 CHECK (show IN (0,1)),
+  note TEXT NOT NULL DEFAULT '' CHECK (length(note) <= 2000),
+  sort_order INTEGER NOT NULL DEFAULT 0 CHECK (typeof(sort_order) = 'integer'),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  CHECK (id GLOB '[A-Z]*-GNT-[0-9][0-9][0-9]' AND length(id) BETWEEN 11 AND 15 AND substr(id, 1, length(id) - 8) = project),
+  CHECK (end >= start),
+  CHECK (type <> 'milestone' OR end = start),
+  CHECK (parent IS NULL OR (parent <> id AND type <> 'phase')),
+  CHECK (baseline_start IS NULL OR baseline_end IS NULL OR baseline_end >= baseline_start)
+)"""      # the same statement as schema.sql's (a test pins the two together)
+
+
+def migrate_gantt(con):
+    """Schema version 17 to 18 (row 926): the `gantt_lines` table and the project's six Gantt columns (show_gantt_editor and
+    show_gantt_client, both 0; gantt_tab_name 'Gantt'; gantt_title empty; gantt_hidden_columns the GANTT_DEFAULT_HIDDEN seven; gantt_default_rows empty). The table
+    is new and empty, and each column is added at the end of projects with the CHECK of schema.sql, so no table is made again, no
+    existing value changes and no frozen schema file is needed. Each part is skipped when it is already there (a new database, or a
+    second run). The safety copy is taken by the runner before this runs (bring_up_to_date). Runs inside the caller's transaction and
+    does not touch the version (the runner does). It is step 18 in MIGRATIONS."""
+    con.execute(GANTT_LINES_TABLE)
+    con.execute(GANTT_LINES_INDEX)
+    have = columns(con, "projects")
+    for name, definition in GANTT_PROJECT_COLUMNS:
+        if name not in have:
+            con.execute("ALTER TABLE projects ADD COLUMN " + name + " " + definition)      # fixed names and text from GANTT_PROJECT_COLUMNS above
+
+
+# Row 926: the Gantt section type. The report_sections table as schema.sql makes it once a section may be of type 'gantt', frozen here
+# (tests/test_gantt_section_type.py pins it to schema.sql as it is today). It keeps every type the earlier steps allow.
+REPORT_SECTIONS_WITH_GANTT = REPORT_SECTIONS_WITH_TEMPLATE_TYPES.replace("'keydates','onedoc')),", "'keydates','onedoc','gantt')),", 1)
+
+
+def migrate_gantt_section_type(con):
+    """Schema version 18 to 19 (row 926): report_sections.type gains 'gantt'. SQLite cannot change a CHECK in place, so the table is
+    made again from the frozen text above, the rows copied in their order (as step 8 does; nothing references this table, it has no
+    trigger or index, and its one outgoing key is kept). Skipped when the table's own definition already names 'gantt' (a new
+    database, or a second run). The safety copy is taken by the runner before this runs. Runs inside the caller's transaction and
+    does not touch the version (the runner does). It is step 19 in MIGRATIONS."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'report_sections'").fetchone()
+    if have is None:
+        con.execute(REPORT_SECTIONS_WITH_GANTT)
+        return
+    if "'gantt'" in have[0]:
+        return
+    con.execute(REPORT_SECTIONS_WITH_GANTT.replace("CREATE TABLE IF NOT EXISTS report_sections (", "CREATE TABLE report_sections_gantt (", 1))
+    con.execute("INSERT INTO report_sections_gantt (project, id, type, title, body, beside, hidden, sort_order) "
+                "SELECT project, id, type, title, body, beside, hidden, sort_order FROM report_sections ORDER BY rowid")
+    con.execute("DROP TABLE report_sections")
+    con.execute("ALTER TABLE report_sections_gantt RENAME TO report_sections")
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
@@ -2264,7 +2595,7 @@ MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies),
               (11, migrate_use_case_done), (12, migrate_publication_trigger_client_path),
               (13, migrate_publication_shared_number),
               (REVIEW_DAYS_STEP, migrate_review_after_days), (15, migrate_publication_pdf_name), (16, migrate_use_case_commitment),
-              (17, migrate_client_action))
+              (17, migrate_client_action), (18, migrate_gantt), (19, migrate_gantt_section_type))
 
 
 def migration_plan(version, table=None):
@@ -2615,7 +2946,7 @@ class Store:
                 for sql in ("DELETE FROM actions WHERE project = ?", "DELETE FROM raid WHERE project = ?", "DELETE FROM decisions WHERE project = ?",
                             "DELETE FROM use_cases WHERE project = ?", "DELETE FROM milestones WHERE project = ?", "DELETE FROM workstreams WHERE project = ?",
                             "DELETE FROM updates WHERE project = ?", "DELETE FROM report_sections WHERE project = ?", "DELETE FROM glance_tiles WHERE project = ?",
-                            "DELETE FROM report_hidden WHERE project = ?", "DELETE FROM documents WHERE project = ?", "DELETE FROM source_folders WHERE project = ?",
+                            "DELETE FROM report_hidden WHERE project = ?", "DELETE FROM documents WHERE project = ?", "DELETE FROM source_folders WHERE project = ?", "DELETE FROM gantt_lines WHERE project = ?",
                             "DELETE FROM projects WHERE code = ?"):
                     con.execute(sql, (code,))
                 con.executemany("DELETE FROM change_log WHERE tbl = ? AND item_id = ?", sorted(keys))
@@ -2727,6 +3058,8 @@ class Store:
                 "SELECT item_id FROM report_hidden WHERE project = ? ORDER BY item_id", (code,))]
             out["label_rules"] = [dict(r) for r in con.execute(
                 "SELECT name, behaviour, default_choice FROM labels ORDER BY name COLLATE NOCASE")]
+            out["gantt_lines"] = [dict(r) for r in con.execute(               # row 926: the editor's own read keeps every line and every column (the eye and the hidden columns only matter to a client file: publish.select)
+                "SELECT * FROM gantt_lines WHERE project = ? ORDER BY sort_order, id", (code,))]
             out["documents"] = [dict(r) for r in con.execute(                 # #74: the Supporting documents section's links
                 "SELECT id, title, kind, url, date, sort_order, archived FROM documents WHERE project = ? AND archived IN (?, ?) "
                 "ORDER BY sort_order, id", (code, *flags))]
@@ -2772,6 +3105,10 @@ class Store:
                     picked_columns = pick(t)
                     data[t] = [dict(r) for r in con.execute(
                         f"SELECT {picked_columns} FROM {_table(t)} WHERE project = ? ORDER BY {PUBLISH_ORDER[t]}", (code,))]
+                if "gantt_lines" in fields:                  # row 926: asked for by name; publish.select drops the eye-off lines and the hidden columns
+                    picked_columns = pick("gantt_lines")
+                    data["gantt_lines"] = [dict(r) for r in con.execute(
+                        f"SELECT {picked_columns} FROM gantt_lines WHERE project = ? ORDER BY sort_order, id", (code,))]
                 ids = {r["id"] for t in ("milestones", "actions", "raid", "decisions") for r in data[t]}
                 mine_like = code + "-%"                      # every id of a project starts with its code and a hyphen
                 #                                              (links are kept only when BOTH ends are this project's rows)

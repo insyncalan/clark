@@ -20,7 +20,13 @@ CREATE TABLE IF NOT EXISTS projects (
   publish_local   TEXT,                                   -- clark: the local folder last used
   publish_client  TEXT,                                   -- clark: the client's SharePoint folder, as synced on this machine
   updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
-  review_after_days INTEGER NOT NULL DEFAULT 14 CHECK (typeof(review_after_days) = 'integer' AND review_after_days BETWEEN 1 AND 365)  -- clark: days before an open item counts as not reviewed (#171); last, as the migration's ADD COLUMN puts it
+  review_after_days INTEGER NOT NULL DEFAULT 14 CHECK (typeof(review_after_days) = 'integer' AND review_after_days BETWEEN 1 AND 365),  -- clark: days before an open item counts as not reviewed (#171); as the migration's ADD COLUMN puts it
+  show_gantt_editor INTEGER NOT NULL DEFAULT 0 CHECK (show_gantt_editor IN (0,1)),   -- clark: row 926, step 18: the Gantt tab is shown to the editor
+  show_gantt_client INTEGER NOT NULL DEFAULT 0 CHECK (show_gantt_client IN (0,1)),   -- clark: row 926: and (with an eye-on line) in the published file
+  gantt_tab_name TEXT NOT NULL DEFAULT 'Gantt' CHECK (length(trim(gantt_tab_name)) BETWEEN 1 AND 30),   -- clark: row 926: the tab's name
+  gantt_title TEXT NOT NULL DEFAULT '' CHECK (length(gantt_title) <= 120),   -- clark: row 926: the Gantt page's own banner title; empty is the project's name
+  gantt_hidden_columns TEXT NOT NULL DEFAULT 'show,note,budget,effort,baseline_start,baseline_end,owner' CHECK (length(gantt_hidden_columns) <= 300),   -- clark: row 926: the columns left out of every client file (store.GANTT_COLUMNS)
+  gantt_default_rows INTEGER CHECK (gantt_default_rows IS NULL OR (typeof(gantt_default_rows) = 'integer' AND gantt_default_rows BETWEEN 1 AND 500))   -- clark: row 926: the saved plan height in rows; NULL shows every row; last, as the migration's ADD COLUMN puts it
 );
 -- Not copied: next_milestone and milestone_date. clark works the next milestone out from `milestones` (the Next milestone tile).
 
@@ -251,7 +257,7 @@ CREATE TABLE IF NOT EXISTS report_sections (
   id      TEXT NOT NULL,
   type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs','needs','tracker',
                                          'textimage','headline','figures4','figures3','gallery','table','doclinks','linkcard','raid3','raid4',
-                                         'workitems','callout','imagecap','quote','contacts','checklist','keydates','onedoc')),
+                                         'workitems','callout','imagecap','quote','contacts','checklist','keydates','onedoc','gantt')),
   title   TEXT NOT NULL,
   body    TEXT NOT NULL DEFAULT '',
   beside  INTEGER NOT NULL DEFAULT 0 CHECK (beside IN (0,1)),
@@ -427,3 +433,40 @@ CREATE TABLE IF NOT EXISTS people (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS people_email ON people(email) WHERE email IS NOT NULL;
+
+-- clark: row 926, step 18. The Gantt lines of a project (phases, tasks and milestones), one row each. The id is the project's code
+-- then -GNT- and a number (ABC-GNT-001; the page shows GNT-001, and the outline numbers 2.1 are worked out there, never stored).
+-- parent (a phase of the same project) and depends (a comma list of line ids of the same project) are checked by the writer, not by
+-- a foreign key. show is the line's eye: 0 keeps it out of every client file. The same statement is store.GANTT_LINES_TABLE, which
+-- migrate_gantt runs on an older file (a test pins the two together).
+CREATE TABLE IF NOT EXISTS gantt_lines (
+  id TEXT PRIMARY KEY,
+  project TEXT NOT NULL REFERENCES projects(code),
+  type TEXT NOT NULL CHECK (type IN ('phase','task','milestone')),
+  name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 200),
+  parent TEXT,
+  start TEXT NOT NULL CHECK (start GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  end TEXT NOT NULL CHECK (end GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  pct INTEGER NOT NULL DEFAULT 0 CHECK (typeof(pct) = 'integer' AND pct BETWEEN 0 AND 100),
+  health TEXT NOT NULL DEFAULT '' CHECK (health IN ('','Green','Amber','Red')),
+  depends TEXT NOT NULL DEFAULT '' CHECK (length(depends) <= 1000),
+  owner TEXT NOT NULL DEFAULT '' CHECK (length(owner) <= 200),
+  workstream TEXT NOT NULL DEFAULT '' CHECK (length(workstream) <= 200),
+  priority TEXT NOT NULL DEFAULT '' CHECK (priority IN ('','High','Medium','Low')),
+  baseline_start TEXT CHECK (baseline_start IS NULL OR baseline_start GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  baseline_end TEXT CHECK (baseline_end IS NULL OR baseline_end GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  effort REAL CHECK (effort IS NULL OR (typeof(effort) IN ('integer','real') AND effort >= 0 AND effort <= 1000000)),
+  budget REAL CHECK (budget IS NULL OR (typeof(budget) IN ('integer','real') AND budget >= 0 AND budget <= 1000000000000)),
+  deliverable TEXT NOT NULL DEFAULT '' CHECK (length(deliverable) <= 500),
+  show INTEGER NOT NULL DEFAULT 0 CHECK (show IN (0,1)),
+  note TEXT NOT NULL DEFAULT '' CHECK (length(note) <= 2000),
+  sort_order INTEGER NOT NULL DEFAULT 0 CHECK (typeof(sort_order) = 'integer'),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  CHECK (id GLOB '[A-Z]*-GNT-[0-9][0-9][0-9]' AND length(id) BETWEEN 11 AND 15 AND substr(id, 1, length(id) - 8) = project),
+  CHECK (end >= start),
+  CHECK (type <> 'milestone' OR end = start),
+  CHECK (parent IS NULL OR (parent <> id AND type <> 'phase')),
+  CHECK (baseline_start IS NULL OR baseline_end IS NULL OR baseline_end >= baseline_start)
+);
+
+CREATE INDEX IF NOT EXISTS gantt_lines_project ON gantt_lines(project, sort_order, id);

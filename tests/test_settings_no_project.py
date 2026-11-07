@@ -81,7 +81,7 @@ class Browser(unittest.TestCase):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.visit(cdp, s.port, width, "light", "#settings")
                 self.until(cdp, sid, "document.querySelector('#npBtn') && document.querySelector('#import-workbook')", "the cards")
-                for gone in ("client-folder-h", "review-days-h"):
+                for gone in ("client-folder-h", "review-days-h", "gantt-setting-h"):
                     self.assertFalse(cdp.js(f"!!document.getElementById('{gone}')", sid), gone)
                 text = cdp.js("document.querySelector('main').innerText", sid)
                 for word in ("Publishing", "Choose folder", "Published reports", "Freshness"):

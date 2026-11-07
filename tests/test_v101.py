@@ -118,7 +118,7 @@ COVERED = [
     ("#662", "Typing offers fields then values.",
      "test_filter_line_page::Line::test_typing_offers_fields_then_values_with_arrows_and_enter_choose"),
     ("#655", "Import from Excel lists the workbook's sheets, all ticked, and reads only the ticked ones.",
-     "test_excel_sheet_choice::Listing::test_it_lists_the_five_sheets_in_order_with_their_row_counts_and_writes_nothing"),
+     "test_excel_sheet_listing::Listing::test_it_lists_the_five_sheets_in_order_with_their_row_counts_and_writes_nothing"),
     ("#709", "A use case carries a Commitment flag in the data: new use cases start with no flag, and a 1.0.0 file moves to layout 16 after a safety copy.",
      "test_store_commitment_migration::Migrating::test_a_1_0_0_file_with_use_cases_migrates_to_16_keeps_every_row_with_no_flag_and_takes_a_copy"),
     ("#709", "The published report carries each flag as written, and a use case the eye hides carries nothing of it.",

@@ -8,6 +8,7 @@ temporary folders. Nothing is sent anywhere. Chrome is required: these tests fai
 The non-browser checks (the published page names no publish route and holds no dialog) need no browser.
 """
 import re
+import time
 import unittest
 from pathlib import Path
 
@@ -35,6 +36,21 @@ class Pg:
 
     def until(self, expr, what, seconds=15):
         self.t.assertTrue(wait(lambda: self.js(expr), seconds), what)
+
+    def settled(self, what="the page settled", seconds=15):
+        """Wait until nothing is moving: no running animation (document.getAnimations()) and window.scrollY the same on two reads 100 ms
+        apart. A smooth scroll into view is not in getAnimations(), and macOS runs it longer than Linux, so a click or a measurement taken
+        while it was still moving was the macOS gate's red."""
+        seen = []
+
+        def still():
+            n, a = self.js("[document.getAnimations().length, window.scrollY]")
+            time.sleep(0.1)
+            b = self.js("window.scrollY")
+            seen[:] = [n, a, b]
+            return n == 0 and a == b
+        self.t.assertTrue(wait(still, seconds), "%s: %s still moving after %d s (animations, scrollY then and 100 ms later: %s)" % (
+            what, "an animation or the scroll was", seconds, seen))
 
     def key(self, key, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
@@ -159,9 +175,9 @@ class Dialog(Base):
             p.key(" ", code="Space", vk=32)
             p.until("document.querySelector('#pub-client').checked", "Space ticks it")
             p.key("Tab", code="Tab", vk=9)
-            self.assertEqual(p.js("document.activeElement.id"), "pub-pdf", "Tab goes to the PDF tick, then the Word tick")
+            self.assertEqual(p.js("document.activeElement.id"), "pub-word", "Tab goes to the Word tick, then the PDF tick (row 796)")
             p.key("Tab", code="Tab", vk=9)
-            self.assertEqual(p.js("document.activeElement.id"), "pub-word", "Tab goes to the Word tick, then Cancel")
+            self.assertEqual(p.js("document.activeElement.id"), "pub-pdf", "Tab goes to the PDF tick, then Cancel")
             p.key("Tab", code="Tab", vk=9)
             self.assertEqual(p.js("document.activeElement.hasAttribute('data-cancel')"), True, "then to the button")
             p.key("Tab", code="Tab", vk=9)
@@ -175,6 +191,45 @@ class Dialog(Base):
             p.key("Enter", code="Enter", vk=13)         # Enter on the tick submits: Local only
             p.until("document.querySelector('[data-go]').classList.contains('ok')", "Enter published")
             self.assertEqual(len(self.rig.rows()), 1)
+
+    def test_C_row_796_order_title_weight_size_heading_and_tab_at_both_widths_in_light_and_dark(self):
+        # row 796: Local, To client, Word, PDF; titles at the box's text size in the medium weight; the heading is the one every .dlg box has
+        with chrome() as cdp:
+            p = self.page(cdp)
+            for theme in Finished.THEMES:
+                for w in WIDTHS:
+                    where = f"{theme} {w}"
+                    Finished.look(self, p, theme, w)
+                    p.open_publish()
+                    p.until("document.getAnimations().length === 0", where + ": the box has finished opening")
+                    self.assertEqual(p.js("Array.from(document.querySelectorAll('#publish-dialog .pubopts > label input')).map(function(i){return i.id})"),
+                                     ["pub-local", "pub-client", "pub-word", "pub-pdf"], where + ": Local, To client, Word, PDF")
+                    self.assertEqual(p.js("Array.from(document.querySelectorAll('#publish-dialog .pubopt b')).map(function(b){return b.innerText})"),
+                                     ["Local", "To client", "Also a Word document", "Also a PDF"], where)
+                    body = p.js("getComputedStyle(document.querySelector('#publish-dialog .pubopt')).fontSize")
+                    med = p.js("getComputedStyle(document.documentElement).getPropertyValue('--weight-medium').trim()")      # the token (600 in this build)
+                    self.assertIn(med, ("500", "600"), where)
+                    self.assertEqual(p.js("Array.from(document.querySelectorAll('#publish-dialog .pubopt b')).map(function(b){var c=getComputedStyle(b);return [c.fontWeight,c.fontSize]})"),
+                                     [[med, body]] * 4, where + ": weight var(--weight-medium), size the box's own")
+                    self.assertEqual(p.js("getComputedStyle(document.querySelector('#publish-dialog')).fontSize"), body, where + ": the box's body size")
+                    # the heading equals another box's heading: a probe .dlg h2, which every other box has
+                    head = p.js("(function(){var d=document.createElement('dialog');d.className='dlg';d.innerHTML='<h2>x</h2>';document.body.appendChild(d);"
+                                "var a=getComputedStyle(d.firstChild),b=getComputedStyle(document.querySelector('#pub-title'));"
+                                "var r=[a.fontSize,a.fontWeight,b.fontSize,b.fontWeight];d.remove();return r})()")
+                    self.assertEqual(head[:2], head[2:], where + ": the heading is the other boxes' heading")
+                    self.assertEqual(p.js("Math.round(document.querySelector('#publish-dialog').getBoundingClientRect().width)"), 560, where)
+                    self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), where + ": no sideways scroll")
+                    # Tab: from the To client tick, Word, PDF, Cancel, Publish; the focus ring shows
+                    p.js("document.querySelector('#pub-client').focus()")
+                    seen = []
+                    for _ in range(4):
+                        p.key("Tab", code="Tab", vk=9)
+                        seen.append(p.js("(function(){var e=document.activeElement;return e.id || (e.hasAttribute('data-cancel') ? 'cancel' : e.hasAttribute('data-go') ? 'go' : e.tagName)})()"))
+                    self.assertEqual(seen, ["pub-word", "pub-pdf", "cancel", "pub-go"], where + ": Tab order")
+                    p.js("document.querySelector('#pub-word').focus()")
+                    self.assertNotEqual(p.js("getComputedStyle(document.querySelector('#pub-word').closest('.pubopt')).outlineStyle"), "none", where + ": focus ring shows")
+                    p.js("document.querySelector('[data-cancel]').click()")
+                    p.until("!document.querySelector('#publish-dialog')", where + ": closed")
 
     def test_C_reopen_is_unticked_after_a_client_publish(self):
         with chrome() as cdp:
@@ -593,6 +648,12 @@ class Published(unittest.TestCase):
                       "Publish and send to the client"):
             self.assertNotIn(never, text, never)
         self.assertIn("/api/publish", page.PAGE.read_text(encoding="utf-8"), "the served page has it")
+
+    def test_row_796_the_published_page_draws_no_publish_box_option_or_heading(self):
+        # shell.css is shared, so the published file carries the rules; no element wears them (no #publish-dialog, no .pubopt, no .dlg)
+        text = page.VIEW_PAGE.read_text(encoding="utf-8")
+        self.assertIsNone(re.search(r'class="[^"]*\b(pubopt|pubopts|dlg)\b', text), "no option or box element in the published page")
+        self.assertIsNone(re.search(r'id="(publish-dialog|pub-title)"', text))
 
     def test_only_publishApi_names_the_three_routes(self):
         for f in PAGE_SRC.rglob("*"):

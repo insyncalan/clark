@@ -10,9 +10,10 @@ import { searchIndex } from "../clientView.js";
 import { lineApi } from "./lineSlot.js";
 import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
+import { editorOn, tabName } from "../gantt/ganttTab.js";
 
 export const VIEWS = route.VIEWS;
-export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", get clientreport() { return fromFile.value ? "Weekly snapshot" : "Client Requested Report View"; }, settings: "Settings" };   // "Use cases" in the editor and in a published file alike (#383); the published client report tab is "Weekly snapshot" (a client has not asked for anything by that name)
+export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", get gantt() { return tabName(data.value && data.value.project); }, get clientreport() { return fromFile.value ? "Weekly snapshot" : "Client Requested Report View"; }, settings: "Settings" };   // "Use cases" in the editor and in a published file alike (#383); the published client report tab is "Weekly snapshot" (a client has not asked for anything by that name)
 export const SHORT_TITLES = { get clientreport() { return fromFile.value ? "Snapshot" : "Client report"; } };   // the tab button on a narrow window; the page keeps its full name (#192)
 
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
@@ -45,6 +46,11 @@ export const asAt = signal("");              // view mode: the publish date, YYY
 export const rebuilt = signal("");           // item 349: the day the Dashboard is shown as at, rebuilt from the change history (YYYY-MM-DD), else "": memory only, never in the address; while set the page is read only
 export const SERVED_TABS = VIEWS.filter((v) => v !== "clientreport");   // the served page never offers the client report (#559); only a published file lists it, from its own p.tabs
 export const tabs = signal(SERVED_TABS);           // the views the tab bar offers; a published file has no Settings, and only the Use Cases it was given
+// The tabs the bar offers right now. A published file lists its own (the server decides, #926); the served page adds the Gantt tab only
+// when the open project's setting says so, and until a project is read it does not (a reload on #gantt opens it once the setting is known).
+export const shownTabs = computed(() => (fromFile.value ? tabs.value : tabs.value.filter((v) => v !== "gantt" || editorOn(data.value && data.value.project))));
+// The served page with the setting off (or turned off after) has no Gantt page: the address opens the first tab, as a reload of it does.
+effect(() => { if (view.value === "gantt" && !fromFile.value && status.value === "ready" && !shownTabs.value.includes("gantt")) { view.value = SERVED_TABS[0]; route.navigate({ view: SERVED_TABS[0], project: project.value, item: "", ms: "", f: "" }, { replace: true }); } });
 export const moves = signal(0);              // counts Back and Forward (and a typed address): a menu that is open closes on each
 export const projects = signal([]);                 // [{code, name}] from GET /api/projects
 export const projectsState = signal("loading");     // loading | ready | failed
@@ -340,6 +346,7 @@ const CHANGE_KNOWN = {
   "The progress tracker holds an overall figure, the columns shown, and groups of lines.": "That tracker can't be saved, and nothing was changed. Reload the page and try again.",
   "The overall figures are two numbers from 0 to 100, a health word, and a short note, or empty.": "The overall figures could not be saved. Nothing was changed. Use numbers from 0 to 100, then try again.",
   "A line about it can be 100 characters at most. Shorten it and try again.": "That line is too long (100 characters at most). Nothing was changed. Shorten it and try again.",
+  "The progress tracker's size is Large, Medium, Small or Compact.": "That size could not be saved. Nothing was changed. Choose Large, Medium, Small or Compact, then try again.",
   "Each extra column is either shown or not.": "That column setting could not be saved. Nothing was changed. Reload the page and try again.",
   "A group holds a name and its lines.": "That group can't be saved, and nothing was changed. Reload the page and try again.",
   "A tracker can have at most 10 groups.": "A tracker can have 10 groups at most, and nothing was changed. Remove one to add another.",
@@ -363,10 +370,11 @@ const CHANGE_KNOWN = {
   // the whole change was over the size clark takes (server.py's words; any kind of section can be that big)
   "That is too big to save. Make the text shorter, or take some of the list out, then try again.": "That is too big to save, and nothing was changed. Make the text shorter, or take some of the list out.",
 };
+export const sayings = [];      // Edit adds the words of a refusal that is already plain (edit/ganttWords.js): each is (text) => the text, or ""
 export function plainChange(code, body) {
   const said = body && typeof body.message === "string" ? body.message : "";
   const known = Object.prototype.hasOwnProperty.call(CHANGE_KNOWN, said) ? CHANGE_KNOWN[said] : "";
-  if (code === 400 || code === 409) return known || CHANGE_FAILED;
+  if (code === 400 || code === 409) return known || sayings.map((f) => f(said)).find(Boolean) || CHANGE_FAILED;     // row 926: a Gantt refusal is already plain words
   if (code === 403 || code === 0) return plain(code, body);
   if (code === 404) return "This project could not be found, and nothing was changed. Check the code in the address, then reload the page.";
   if (code === 500) return "A problem came up saving that, and nothing was changed. Try again. If it happens again, restart clark.";

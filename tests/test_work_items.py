@@ -59,6 +59,8 @@ class Rules(unittest.TestCase):
             sort: WI.sortRows(c.sort.rows, c.today).map((r) => r.id),
             count: c.count_line.map((x) => WI.countOf(x.total, x.open)),
             useCase: WI.metaOf(WI.rowsOf(c.use_case_label.data)[0]),
+            sub: (() => { const r = { id: "A-1", uc: "Use case 1", milestone: "Go live", workstream: "Build" };   // #947
+                return ["workstream", "status", "nothing", undefined].map((g) => WI.metaOf(r, g)); })(),
             kinds: WI.rowsOf({ actions: [{ id: "A", description: "a", client_visible: 1 }],
                 raid: [{ id: "R", type: "Dependency", description: "r" }], decisions: [{ id: "D", decision: "d", made_by: "Q" }],
                 use_cases: [], milestones: [] }).map((r) => [r.id, r.kind, r.title, r.owner, r.client]),
@@ -98,6 +100,11 @@ class Rules(unittest.TestCase):
 
     def test_a_use_case_is_written_out_not_as_UC(self):
         self.assertEqual(self.out["useCase"], "A · " + CASES["use_case_label"]["expect"])
+
+    def test_the_sub_line_leaves_the_workstream_out_when_grouped_by_workstream(self):
+        """#947: the workstream is the group's heading, so the line under the title does not repeat it; any other grouping keeps it."""
+        full = "A-1 · Use case 1 · Go live · Build"
+        self.assertEqual(self.out["sub"], ["A-1 · Use case 1 · Go live", full, full, full])
 
     def test_the_cases_cover_what_the_spec_counts(self):
         self.assertEqual((len(CASES["due_and_pill"]), len(CASES["priority_colour"]), len(CASES["owner"])), (37, 5, 8))
