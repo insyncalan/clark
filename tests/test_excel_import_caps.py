@@ -1,5 +1,6 @@
 """Row 966: the Excel import refuses a hostile workbook while it is streamed, before openpyxl loads it whole. The fixtures are built
 here (a real export with one part rewritten); nothing big is committed."""
+import random
 import re
 import shutil
 import tempfile
@@ -218,6 +219,37 @@ class Caps(unittest.TestCase):
                         xi.check_sheets_early(self.path, lambda t: True)
                 self.assertEqual(str(cm.exception), "ABC.xlsx can't be read as an Excel workbook (.xlsx).")
 
+    def test_a_damaged_workbook_xml_or_rels_is_refused_in_the_plain_words_at_both_entry_points(self):
+        words = "damaged.xlsx can't be read as an Excel workbook (.xlsx)."
+        for member in ("xl/workbook.xml", "xl/_rels/workbook.xml.rels"):
+            path = self.tmp / "damaged.xlsx"
+            shutil.copy(self.path, path)
+            with zipfile.ZipFile(path) as z:
+                rewrite(path, member, z.read(member) + b" " * 4000 + b"<!--" + bytes(random.Random(1).randrange(97, 123) for _ in range(6000)) + b"-->")       # big enough that the damage lands inside the deflate data
+            damage_stream(path, member)
+            with zipfile.ZipFile(path) as z, self.assertRaises((zipfile.BadZipFile, zlib.error, EOFError), msg=member):
+                z.read(member)                                  # the file really is damaged: a bare read raises
+            for entry, call in (("check_sheets_early", lambda: xi.check_sheets_early(path, lambda t: True)),
+                                ("list_sheets", lambda: xi.list_sheets(path))):
+                with self.subTest(member=member, entry=entry):
+                    with self.assertRaises(Invalid) as cm:
+                        call()
+                    self.assertEqual(str(cm.exception), words)
+
+    def test_each_error_a_zip_member_read_can_raise_in_the_sheet_list_parts_is_refused_in_the_plain_words(self):
+        real_open = zipfile.ZipFile.open
+        for member in ("xl/workbook.xml", "xl/_rels/workbook.xml.rels"):
+            for exc in (zlib.error("bad"), EOFError("bad"), ValueError("bad")):
+                def opener(zf, name, *a, _exc=exc, _m=member, **kw):
+                    if name == _m:
+                        raise _exc
+                    return real_open(zf, name, *a, **kw)
+                with self.subTest(member=member, error=type(exc).__name__):
+                    with mock.patch.object(zipfile.ZipFile, "open", opener):
+                        with self.assertRaises(Invalid) as cm:
+                            xi.check_sheets_early(self.path, lambda t: True)
+                    self.assertEqual(str(cm.exception), "ABC.xlsx can't be read as an Excel workbook (.xlsx).")
+
     def test_an_encrypted_or_method_99_member_is_refused_in_the_plain_words_at_both_entry_points(self):
         words = "ABC.xlsx can't be read as an Excel workbook (.xlsx)."
         for how, kw, raw in (("encrypted", {"encrypted": True}, RuntimeError), ("method 99", {"method": 99}, NotImplementedError)):
@@ -356,6 +388,20 @@ class RealRoute(unittest.TestCase):
         self.assertEqual((status, got["ok"]), (400, False))
         self.assertEqual(got["message"], "ABC work items.xlsx can't be read as an Excel workbook (.xlsx).")
         self.assertEqual(excel_route.PLANS, {})
+
+    def test_a_damaged_workbook_xml_or_rels_is_refused_by_the_sheets_and_check_ops_in_the_plain_words(self):
+        good = self.path.read_bytes()
+        for member in ("xl/workbook.xml", "xl/_rels/workbook.xml.rels"):
+            self.path.write_bytes(good)
+            with zipfile.ZipFile(self.path) as z:
+                rewrite(self.path, member, z.read(member) + b" " * 4000 + b"<!--" + bytes(random.Random(1).randrange(97, 123) for _ in range(6000)) + b"-->")
+            damage_stream(self.path, member)
+            for op in ("sheets", "check"):
+                with self.subTest(member=member, op=op):
+                    status, got = self.post(op=op, name=self.path.name, data=self.data())
+                    self.assertEqual((status, got["ok"]), (400, False))
+                    self.assertEqual(got["message"], "ABC work items.xlsx can't be read as an Excel workbook (.xlsx).")
+                    self.assertEqual(excel_route.PLANS, {})
 
     def test_a_normal_workbook_with_a_declared_shared_string_is_listed_checked_and_applied(self):
         self.edit_description()

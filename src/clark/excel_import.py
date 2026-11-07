@@ -1336,12 +1336,12 @@ def check_sheets_early(path, wanted):
     except (zipfile.BadZipFile, OSError):
         return
     with z:
-        book, rels = _small_member(z, "xl/workbook.xml"), _small_member(z, "xl/_rels/workbook.xml.rels")
-        if book is None or rels is None:
-            return
-        target = {_attr(r, b"Id"): _attr(r, b"Target") for r in _REL_TAG.findall(rels)}
         area = 0
         try:
+            book, rels = _small_member(z, "xl/workbook.xml"), _small_member(z, "xl/_rels/workbook.xml.rels")
+            if book is None or rels is None:
+                return
+            target = {_attr(r, b"Id"): _attr(r, b"Target") for r in _REL_TAG.findall(rels)}
             if "xl/sharedStrings.xml" in z.NameToInfo:
                 _scan_member(z, "xl/sharedStrings.xml", "shared strings")
             for tag in _SHEET_TAG.findall(book):
