@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS projects (
   gantt_tab_name TEXT NOT NULL DEFAULT 'Gantt' CHECK (length(trim(gantt_tab_name)) BETWEEN 1 AND 30),   -- clark: row 926: the tab's name
   gantt_title TEXT NOT NULL DEFAULT '' CHECK (length(gantt_title) <= 120),   -- clark: row 926: the Gantt page's own banner title; empty is the project's name
   gantt_hidden_columns TEXT NOT NULL DEFAULT 'show,note,budget,effort,baseline_start,baseline_end,owner' CHECK (length(gantt_hidden_columns) <= 300),   -- clark: row 926: the columns left out of every client file (store.GANTT_COLUMNS)
-  gantt_default_rows INTEGER CHECK (gantt_default_rows IS NULL OR (typeof(gantt_default_rows) = 'integer' AND gantt_default_rows BETWEEN 1 AND 500))   -- clark: row 926: the saved plan height in rows; NULL shows every row; last, as the migration's ADD COLUMN puts it
+  gantt_default_rows INTEGER CHECK (gantt_default_rows IS NULL OR (typeof(gantt_default_rows) = 'integer' AND gantt_default_rows BETWEEN 1 AND 500)),   -- clark: row 926: the saved plan height in rows; NULL shows every row
+  brand TEXT NOT NULL DEFAULT 'generic' CHECK (length(brand) BETWEEN 1 AND 60)   -- clark: #944: the project's brand id; last, as the migration's ADD COLUMN puts it
 );
 -- Not copied: next_milestone and milestone_date. clark works the next milestone out from `milestones` (the Next milestone tile).
 
