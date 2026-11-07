@@ -214,7 +214,7 @@ class MovementEntries(unittest.TestCase):
         text = " ".join(strings(entry("howto", "handle-a-slipped-milestone")))
         for name in re.findall(r"\*\*(.+?)\*\*", text):
             base = re.sub(r"\s*\(.*?\)\s*$", "", name)
-            if base not in ("Milestones", "Undo"):
+            if base not in ("Milestones", "Undo", "Plan"):
                 self.assertIn(base, self.WORDS + self.BLOCK, name)
         for gone in ("Rebaseline", "Add a recovery action", "Escalate to steering", "Internal note", "diamond", "red line"):
             self.assertNotIn(gone, text, f"the page has no {gone}")
@@ -223,8 +223,8 @@ class MovementEntries(unittest.TestCase):
         self.assertIn("data-edit-only", self.BLOCK)
         self.assertIn("never published", self.WORDS)
         ref = json.dumps(entry("ref", "milestones-page"), ensure_ascii=False)
-        self.assertIn("**Movement** is under the list", ref)
-        self.assertNotIn("Plan", " ".join(strings(entry("ref", "milestones-page"))))        # the page has no tab called Plan
+        self.assertIn("**Movement** is the switch next to **Plan** at the top", ref)
+        self.assertIn("Plan", read("page", "src", "edit", "MilestonesPage.jsx"))        # the page has a Plan | Movement switch
 
     def test_the_rows_keys_are_the_arrows(self):
         self.assertIn("ArrowDown", self.BLOCK)
