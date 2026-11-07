@@ -51,6 +51,9 @@ class Picker(T.Live):
         self.until(cdp, sid, "!!document.querySelector('[data-pop] input.cp-in')", "the owner picker opened")
         self.until(cdp, sid, "document.querySelectorAll('[data-pop] [data-name]').length > 0", "the names drew")
 
+    def clear_box(self, cdp, sid):
+        cdp.js("(() => { const i = document.querySelector('[data-pop] input.cp-in'); i.focus(); i.value = ''; i.dispatchEvent(new Event('input', {bubbles: true})); return true; })()", sid)
+
     def section(self, cdp, sid, which):
         return cdp.js(f"[...document.querySelectorAll('[data-pop] [data-section={which}] [data-name]')].map(b => b.dataset.name)", sid)
 
@@ -60,9 +63,13 @@ class Picker(T.Live):
     def choose(self, cdp, sid, name, cell=CELL):
         before = self.steps()
         self.open_picker(cdp, sid, cell)
-        click(cdp, sid, f"[data-pop] [data-name={json.dumps(name)}]".replace('"', "'"))
-        self.until(cdp, sid, "!!document.querySelector('[data-undo]')", f"{name} saved")
-        self.assertEqual(self.steps(), before + 1)
+        want = f"[data-pop] [data-name='{name}']"
+        if not cdp.js(f"!!document.querySelector({json.dumps(want)})", sid):          # not drawn before typing: find them by typing
+            self.clear_box(cdp, sid)
+            cdp.call("Input.insertText", {"text": name}, sid)
+            self.until(cdp, sid, f"!!document.querySelector({json.dumps(want)})", f"typing finds {name}")
+        click(cdp, sid, want)
+        self.assertTrue(T.wait(lambda: self.steps() == before + 1, 10), f"{name} saved as one step")
         self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "the picker closed")
 
     # the other class's tests are not run again here
@@ -125,13 +132,14 @@ class Picker(T.Live):
             for typed, want in (("hartn", ["Gwen Hartnoll"]), ("bry c", ["Bryony Castellan"]), ("fen.search", ["Hugo Pellew"]),
                                 ("supplier", ["Cedric Dunmore"]), ("MARB", ["Edna Marblethorpe"])):
                 with self.subTest(typed=typed):
-                    cdp.js("const i = document.querySelector('[data-pop] input.cp-in'); i.select();", sid)
+                    self.clear_box(cdp, sid)
                     cdp.call("Input.insertText", {"text": typed}, sid)
-                    self.until(cdp, sid, f"{json.dumps(want)}.every(n => [...document.querySelectorAll('[data-pop] [data-name]')].some(b => b.dataset.name === n))", f"{typed} finds {want}")
+                    self.until(cdp, sid, f"{json.dumps(want)}.every(n => [...document.querySelectorAll('[data-pop] [data-name]')].some(b => b.dataset.name === n))",
+                               f"{typed} finds {want}, the box holds {cdp.js('document.querySelector(\"[data-pop] input.cp-in\").value', sid)!r} and the picker draws {self.all_names(cdp, sid)}")
                     got = self.all_names(cdp, sid)
                     self.assertTrue(set(want) <= set(got), (typed, got))
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-pop] [data-more]').length", sid), 0, "a search has no 'And N more'")
-            cdp.js("const i = document.querySelector('[data-pop] input.cp-in'); i.select();", sid)
+            self.clear_box(cdp, sid)
             cdp.call("Input.insertText", {"text": "e"}, sid)
             self.until(cdp, sid, "document.querySelectorAll('[data-pop] [data-name]').length > 0", "names drew")
             self.assertLessEqual(len(self.all_names(cdp, sid)), 8, "a search draws eight at most")
@@ -141,7 +149,7 @@ class Picker(T.Live):
             sid = self.open_page(cdp, 1400)
             self.open_picker(cdp, sid)
             before = self.steps()
-            cdp.js("document.querySelector('[data-pop] input.cp-in').select()", sid)
+            self.clear_box(cdp, sid)
             cdp.call("Input.insertText", {"text": "Zelda Quince"}, sid)
             key(cdp, sid, "Enter")
             self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved")
@@ -154,7 +162,7 @@ class Picker(T.Live):
             self.open_picker(cdp, sid)
             before = self.steps()
             click(cdp, sid, "[data-pop] [data-clear]")
-            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved")
+            self.assertTrue(T.wait(lambda: self.steps() == before + 1, 10), "saved as one step: " + cdp.js("document.body.innerText.slice(0, 300) + ' | ' + (document.querySelector('[data-pop]') || {innerText: 'closed'}).innerText", sid))
             self.assertEqual(self.row("actions", "TUL-A-001")["owner"], "TBC")
             self.changed_once(before, "owner")
             self.assertEqual(self.toast(cdp, sid), "Owner of TUL-A-001 changed to TBC.")

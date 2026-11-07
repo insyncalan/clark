@@ -101,3 +101,23 @@ export function noteAssigned(project, name) {
   remember(keyFor(project), next);
   return next;
 }
+
+export const PEOPLE_SHOWN = 5;     // the names the picker draws under People before anyone types
+
+/** What the picker draws before anyone types: {recent, people, more}. `recent` is shownRecents; `people` the first PEOPLE_SHOWN of
+ *  the register's live people and this project's other names, alphabetical, not already under Recent; `more` how many are left. */
+export function browse(recents, register, projectNames) {
+  const recent = shownRecents(recents, register, projectNames);
+  const seen = new Set(recent.map(same));
+  const all = [];
+  for (const p of live(register)) all.push(squash(p.name));
+  const onRegister = new Set(live(register).flatMap((p) => [same(p.name), ...aliasesOf(p).map(same)]));
+  for (const n of Array.isArray(projectNames) ? projectNames : []) if (usable(n) && !onRegister.has(same(n))) all.push(squash(n));
+  const distinct = [];
+  for (const n of all) if (!seen.has(same(n))) { seen.add(same(n)); distinct.push(n); }
+  distinct.sort((a, b) => a.localeCompare(b, "en-GB"));
+  return { recent, people: distinct.slice(0, PEOPLE_SHOWN), more: Math.max(0, distinct.length - PEOPLE_SHOWN) };
+}
+
+/** Whether two names are the same person's name as far as the picker is concerned (case and spacing do not matter). */
+export const sameName = (a, b) => same(a) === same(b);
