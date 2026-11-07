@@ -320,6 +320,13 @@ class Pins(unittest.TestCase):
         self.assertRegex(POP_JSX, r'setAttribute\("role", "presentation"\)')
         self.assertRegex(POP_JSX, r"stillMotion\(\)")
 
+    def test_row_962_the_open_layer_lists_skip_a_fading_copy(self):
+        for path, names in (("components/pick.js", (".ddmenu", ".dpick", ".fbox", ".cpop")), ("edit/Bulk.jsx", (".cpop", ".ddmenu", ".dpick", ".fbox")),
+                            ("edit/HandOver.jsx", (".cpop", ".ddmenu", ".dpick", ".fbox")), ("edit/Board.jsx", (".ddmenu", ".dpick", ".fbox"))):
+            text = read(path)
+            for n in names:
+                self.assertIn(n + ":not(.leaving)", text, f"{path}: {n} in the list of open layers ignores a copy that is fading")
+
     def test_row_962_every_one_of_the_eleven_is_wired_to_the_fade(self):
         wired = {"components/FilterLine.jsx": r'<Fade tag="ul" class="flist"', "edit/UseCasesPage.jsx": r'<Fade boxRef=\{box\} class="fbox ucl-pop"', "edit/RowMenu.jsx": r'useFadeOut\(box, true, "rowmenu"\)',
                  "edit/Board.jsx": r"fade ", "edit/GlanceEdit.jsx": r'cls="left tilemenu" fade ',
