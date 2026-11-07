@@ -24,8 +24,9 @@ export function menuMove(e, items) {
 }
 
 // The role="menu" box: focus to its first item (or, with `focusChecked`, the marked one) when it opens, the keys, and a click away.
-export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focusChecked, leaving, onGone, children }) {
+export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focusChecked, leaving, onGone, fade, children }) {
   const own = useRef(null), box = boxRef || own;
+  useFadeOut(box, !!fade && !leaving, typeof fade === "string" ? fade : "");
   const closeRef = useRef(onClose); closeRef.current = onClose;
   // `fixed`: the button sits inside a scrolling box that would cut the menu off, so the menu is placed on the window under the button (above it when
   // there is no room below), its right edge on the button's. It is placed once, so any scroll (the row's own included) or a resize closes it.
@@ -65,6 +66,43 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
 
 // Row 922: motion is off when the computer asks for reduced motion or clark's own setting is on (the same test as the ask panel's).
 const stillMotion = () => document.documentElement.dataset.motion === "reduce" || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+// Row 962: a menu or popup that is taken off the page the moment its owner stops drawing it (RowMenu, the card's Move to, Gutter's options) fades out
+// as a copy. useFadeOut(ref, on, wrap) takes the element while it is still on the page and, when it unmounts, draws a copy on the window where it was:
+// no id, no data-* (but data-edit-only), role=presentation, inert and aria-hidden, class leaving, opacity only over --dur-instant (the stylesheet),
+// removed when the animation ends (a 400 ms timer guards it). `wrap` is a class for a box around the copy where the menu's styles need one (.rowmenu).
+// Nothing is drawn where motion is off.
+export function fadeCopy(el, wrap) {
+  if (!el || !el.isConnected || stillMotion()) return;
+  const r = el.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  const copy = el.cloneNode(true);
+  for (const n of [copy, ...copy.querySelectorAll("*")]) {
+    n.removeAttribute("id");
+    for (const a of Array.from(n.attributes)) if (a.name.startsWith("data-") && a.name !== "data-edit-only") n.removeAttribute(a.name);
+  }
+  copy.setAttribute("role", "presentation"); copy.setAttribute("aria-hidden", "true"); copy.setAttribute("inert", ""); copy.removeAttribute("tabindex");
+  copy.classList.add("leaving");
+  let top = copy;
+  if (wrap) { top = document.createElement("div"); top.className = wrap; top.appendChild(copy); }
+  top.style.pointerEvents = "none"; top.style.position = "fixed"; top.style.left = `${Math.round(r.left)}px`; top.style.top = `${Math.round(r.top)}px`; top.style.margin = "0"; top.style.right = "auto";
+  copy.style.width = `${Math.round(r.width)}px`; copy.style.height = `${Math.round(r.height)}px`; copy.style.boxSizing = "border-box";
+  if (wrap) { copy.style.position = "static"; copy.style.maxHeight = "none"; } else copy.style.zIndex = getComputedStyle(el).zIndex;
+  document.body.appendChild(top);
+  const t = setTimeout(() => done(), 400);
+  const done = () => { clearTimeout(t); if (top.parentNode) top.parentNode.removeChild(top); };
+  if (getComputedStyle(copy).animationName === "none") { done(); return; }      // no rule fades this one here (a page without the Edit part): nothing is left standing
+  copy.addEventListener("animationend", (e) => { if (e.target === copy) done(); });
+}
+export function useFadeOut(ref, on, wrap) {
+  useLayoutEffect(() => { const el = ref.current; return () => { if (on) fadeCopy(el, wrap); }; }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+}
+// A plain box (tag `tag`, any props) that fades out when its owner stops drawing it: the same as useFadeOut for a box that has no component of its own.
+export function Fade({ tag: Tag = "div", boxRef, wrap, ...rest }) {
+  const own = useRef(null), ref = boxRef || own;
+  useFadeOut(ref, true, wrap);
+  return <Tag ref={ref} {...rest} />;
+}
 
 // The open state of a menu that Back or Forward (or a typed address) closes, with nothing chosen (#63). Only a menu that was already
 // open before the move closes. The move count is taken when the menu is opened (in the setter, not in a render), so a menu opened a

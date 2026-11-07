@@ -14,6 +14,7 @@
 //   onDelete(id)                 "Delete this line" in the edit box
 // Every colour is a token. Bars carry their name as text (beside the bar when the bar is too short), so nothing depends on hover.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+import { Fade } from "../../components/Menu.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import { todayIso } from "../../workItems.js";
 import {
@@ -427,12 +428,12 @@ export function GanttChart({
       </div>
 
       {menu ? (
-        <div class="gt-menu" role="menu" style={{ left: `${menu.left}px`, top: `${menu.top}px` }} data-g-addmenu>
+        <Fade class="gt-menu" role="menu" style={{ left: `${menu.left}px`, top: `${menu.top}px` }} data-g-addmenu>
           {[["task", WORDS.addTask], ["phase", WORDS.addPhase], ["milestone", WORDS.addMilestone]].map(([t, w], i) => (
             <button type="button" role="menuitem" key={t} data-g-addtype={t} ref={(el) => { if (el && i === 0) el.focus(); }}
               onClick={() => { const id = menu.id; setMenu(null); if (onAdd) onAdd(id, t); }}>{w}</button>
           ))}
-        </div>
+        </Fade>
       ) : null}
 
       {box && live.find((x) => x.id === box.id) ? <EditBox key={box.id} line={live.find((x) => x.id === box.id)} no={nos[box.id]} at={box} onClose={() => setBox(null)}

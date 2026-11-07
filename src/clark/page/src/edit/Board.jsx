@@ -12,7 +12,7 @@ import { build, moveFor, dateMove, movedWords, boardGroup, isCollapsed, toggleCo
   orderedColumns, moveColumn, stepColumn, widthOf, setColumnWidth, clampWidth, COL_MIN, COL_MAX, COL_DEFAULT, COL_STEP } from "../logic/board.js";
 import { createDrag } from "../logic/dragCore.js";
 import { useSettle } from "../stores/motion.js";
-import { MenuPanel } from "../components/Menu.jsx";
+import { MenuPanel, useFadeOut } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { Eye as WorkEye } from "./cells/Eye.jsx";
 import { cursor, stopOf, cardKeys } from "../listKeys.js";
@@ -95,12 +95,13 @@ function useEscape(close) {
 
 // A date to choose for Due, never before today (the page's rule; the server takes any real day so the peek can enter an old one).
 function DatePicker({ ask, today, onSet, onCancel }) {
-  const input = useRef(null), [error, setError] = useState("");
+  const input = useRef(null), root = useRef(null), [error, setError] = useState("");
   useEscape(onCancel);
+  useFadeOut(root, true, "");
   useEffect(() => { if (input.current) input.current.focus({ preventScroll: true }); }, []);
   const submit = () => { const r = onSet(input.current.value); if (r) setError(r); };
   return (
-    <div class="dpick" role="dialog" aria-label="Pick a due date" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onCancel(); } else if (e.key === "Enter" && e.target === input.current) { e.preventDefault(); submit(); } }}>
+    <div class="dpick" ref={root} role="dialog" aria-label="Pick a due date" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onCancel(); } else if (e.key === "Enter" && e.target === input.current) { e.preventDefault(); submit(); } }}>
       <label>Due date<input type="date" ref={input} min={today} value={ask.move.needsDate.suggested} onInput={() => setError("")} /></label>
       {error ? <p class="dp-err" role="alert">{error}</p> : null}
       <div class="dp-act"><button type="button" class="btn sm" data-set onClick={submit}>Set date</button><button type="button" class="btn sm" data-cancel onClick={onCancel}>Cancel</button></div>
@@ -110,11 +111,12 @@ function DatePicker({ ask, today, onSet, onCancel }) {
 
 // A decision dragged to Made is final (a made decision is replaced by a new one, never put back), so it asks first.
 function Confirm({ onYes, onCancel }) {
-  const yes = useRef(null);
+  const yes = useRef(null), root = useRef(null);
   useEscape(onCancel);
+  useFadeOut(root, true, "");
   useEffect(() => { if (yes.current) yes.current.focus({ preventScroll: true }); }, []);
   return (
-    <div class="dpick" role="dialog" aria-label="Record this decision" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onCancel(); } }}>
+    <div class="dpick" ref={root} role="dialog" aria-label="Record this decision" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onCancel(); } }}>
       <p>Record this decision as made today? A made decision can't go back to Pending. If it changes, record a new one.</p>
       <div class="dp-act"><button type="button" class="btn sm" data-yes ref={yes} onClick={onYes}>Record it</button><button type="button" class="btn sm" data-cancel onClick={onCancel}>Cancel</button></div>
     </div>
@@ -224,7 +226,7 @@ export function Board({ rows, today, type }) {
     if (!isFull) return undefined;
     const esc = (e) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
-      if (document.querySelector("[data-peek], .ddmenu, .dpick, .fbox")) return;
+      if (document.querySelector("[data-peek], .ddmenu:not(.leaving), .dpick:not(.leaving), .fbox:not(.leaving)")) return;
       leave(true);
     };
     document.addEventListener("keydown", esc);
@@ -369,7 +371,7 @@ export function Board({ rows, today, type }) {
               : <Confirm onCancel={() => setAsk(null)} onYes={() => { const { move, row } = ask; setAsk(null); changeItem(move.request, movedWords(move, row)); }} />
             : null}>
           {menu === cd.id ? (
-            <MenuPanel label={`Move ${cd.id} to`} cls="left" anchor={document.querySelector(`[data-move="${cd.id}"]`)} onClose={() => { setMenu(null); const el = document.querySelector(`[data-move="${cd.id}"]`); if (el) el.focus(); }}>
+            <MenuPanel label={`Move ${cd.id} to`} cls="left" fade anchor={document.querySelector(`[data-move="${cd.id}"]`)} onClose={() => { setMenu(null); const el = document.querySelector(`[data-move="${cd.id}"]`); if (el) el.focus(); }}>
               {menuFor(cd.id).map((it, i) => it.head
                 ? <div key={"h" + i} class="mh" role="presentation">{it.head}</div>
                 : <button key={(it.lane ? "l" : "c") + it.key} type="button" role="menuitem" tabIndex={-1} data-to={it.key} data-lane={it.lane ? "1" : undefined}

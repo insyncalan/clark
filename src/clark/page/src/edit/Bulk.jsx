@@ -28,7 +28,7 @@ export const bulkOpen = signal(null);
 
 const rowsOf = (ids) => { const all = new Map(itemRows.value.map((r) => [r.id, r])); return ids.map((id) => all.get(id)).filter(Boolean); };
 const FIELD = /^(INPUT|TEXTAREA|SELECT)$/;
-const OVERLAY = ".cpop, .ddmenu, .dpick, .fbox, [role='dialog']:not([data-peek]), [role='alertdialog'], dialog[open]";   // open over the list (the peek is not one)
+const OVERLAY = ".cpop:not(.leaving), .ddmenu:not(.leaving), .dpick:not(.leaving), .fbox:not(.leaving), [role='dialog']:not([data-peek]), [role='alertdialog'], dialog[open]";   // open over the list (the peek is not one)
 const ITEM = "#work-list tr[data-id], #work-list article.bcard[data-id]";
 
 // The row or card for one of `ids` (`from`, the one the change started from, first), or null.
