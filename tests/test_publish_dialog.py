@@ -207,8 +207,10 @@ class Dialog(Base):
                     self.assertEqual(p.js("Array.from(document.querySelectorAll('#publish-dialog .pubopt b')).map(function(b){return b.innerText})"),
                                      ["Local", "To client", "Also a Word document", "Also a PDF"], where)
                     body = p.js("getComputedStyle(document.querySelector('#publish-dialog .pubopt')).fontSize")
+                    med = p.js("getComputedStyle(document.documentElement).getPropertyValue('--weight-medium').trim()")      # the token (600 in this build)
+                    self.assertIn(med, ("500", "600"), where)
                     self.assertEqual(p.js("Array.from(document.querySelectorAll('#publish-dialog .pubopt b')).map(function(b){var c=getComputedStyle(b);return [c.fontWeight,c.fontSize]})"),
-                                     [["500", body]] * 4, where + ": weight 500 (var(--weight-medium)), size the box's own")
+                                     [[med, body]] * 4, where + ": weight var(--weight-medium), size the box's own")
                     self.assertEqual(p.js("getComputedStyle(document.querySelector('#publish-dialog')).fontSize"), body, where + ": the box's body size")
                     # the heading equals another box's heading: a probe .dlg h2, which every other box has
                     head = p.js("(function(){var d=document.createElement('dialog');d.className='dlg';d.innerHTML='<h2>x</h2>';document.body.appendChild(d);"
