@@ -110,6 +110,9 @@ import json
 import re
 import sqlite3
 import unicodedata
+import zipfile
+import zlib
+from html import unescape
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
@@ -1188,6 +1191,7 @@ def list_sheets(path, store=None, project=None):
         excel.check_workbook_size(path)
     except excel.TooBig as e:
         raise Invalid(str(e))
+    check_sheets_early(path, lambda title: False)             # row 966: only the shared-strings text scan, no sheet is counted; a text no Excel could hold is refused before the load
     try:
         wb = load_workbook(str(path), read_only=True)
     except Exception:
@@ -1224,8 +1228,138 @@ def list_sheets(path, store=None, project=None):
         if gantt is not None:
             listed.append({"table": GANTT, "name": gantt[0], "rows": gantt[1]})
         return listed
+    except Invalid:
+        raise
+    except Exception:                                        # cells that point at a shared-strings table the file does not have, and the like
+        raise Invalid(f"{path.name} can't be read as an Excel workbook (.xlsx).")
     finally:
         wb.close()
+
+
+MAX_CELL_TEXT = 32767                                # the most characters Excel itself keeps in a cell: a longer text is not from Excel
+_SCAN_CHUNK = 65536
+_TAG = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?(row|c)(?![\w:.-])[^>]*>")   # matched by local name: <row>, <x:row>, <ns:c>
+_ATTR_R = re.compile(rb"\sr=\"([A-Za-z]*)(\d*)\"")
+_TEXT = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?t(?:\s[^>]*)?>([^<]*)</(?:[A-Za-z_][\w.-]*:)?t>")   # by local name too: <x:t>
+_SHEET_TAG = re.compile(rb"<sheet\b[^>]*>")
+_REL_TAG = re.compile(rb"<Relationship\b[^>]*>")
+
+
+class _TextTooLong(Exception):
+    pass
+
+
+def _attr(tag, name):
+    m = re.search(rb"[\s:]" + name + rb"=\"([^\"]*)\"", tag)
+    return unescape(m.group(1).decode("utf-8", "replace")) if m else None
+
+
+def _column_number(letters):
+    n = 0
+    for ch in letters.upper():
+        n = n * 26 + ord(ch) - 64
+    return n
+
+
+def _small_member(z, name, limit=1 << 20):
+    try:
+        member = z.open                                  # a zip member is read as bytes, never as text
+        with member(name) as f:
+            data = f.read(limit + 1)
+    except (KeyError, OSError, RuntimeError, zipfile.BadZipFile):
+        return None
+    return data if len(data) <= limit else None
+
+
+def _too_large(title, rows, cols):
+    return (f"The {title} sheet is too large ({max(rows, 1):,} rows by {max(cols, 1)} columns, most of it empty), "
+            "which is more than clark will import in one go. Check this is the right file. Nothing was changed.")
+
+
+def _scan_member(z, member, title):
+    """Stream one part of the zip (never whole), counting the cells a worksheet really holds: (rows reached, columns reached).
+    The workbook's own dimension record is not trusted (a sheet can say A1:B2 and hold 300,000 rows). Raises Invalid at once,
+    with the words the loaded sheet would get, when it reaches past row MAX_SHEET_ROWS or column MAX_SHEET_COLUMNS or holds more
+    cells than the limits allow at all; raises _TextTooLong for a text longer than Excel can keep. Memory is one chunk and one
+    tag; the read stops at what the zip declares (excel.MAX_MEMBER_BYTES)."""
+    max_row = max_col = cells = row = col = read = 0
+    buf = b""
+    opener = z.open                                      # a zip member is read as bytes, never as text
+    with opener(member) as f:
+        while True:
+            chunk = f.read(_SCAN_CHUNK)
+            read += len(chunk)
+            buf += chunk
+            cut = len(buf) if (not chunk or buf.endswith(b">")) else max(buf.rfind(b"<"), 0)
+            head, buf = buf[:cut], buf[cut:]
+            if len(buf) > 8 * MAX_CELL_TEXT:             # a tag or a text node this long is not a cell
+                raise _TextTooLong()
+            for t in _TEXT.finditer(head):
+                if len(t.group(1)) > MAX_CELL_TEXT and len(unescape(t.group(1).decode("utf-8", "replace"))) > MAX_CELL_TEXT:
+                    raise _TextTooLong()
+            for m in _TAG.finditer(head):
+                tag = m.group(0)
+                at = _ATTR_R.search(tag)
+                if m.group(1) == b"row":
+                    row = int(at.group(2)) if at and at.group(2) else row + 1
+                    col = 0
+                    max_row = max(max_row, row)                  # an empty row counts toward the reach too
+                    if max_row > MAX_SHEET_ROWS:
+                        raise Invalid(f"The {title} sheet reaches past row {MAX_SHEET_ROWS:,} or column {MAX_SHEET_COLUMNS}, which is more than "
+                                      "clark will import in one go. Check this is the right file. Nothing was changed.")
+                    continue
+                cells += 1
+                if at and at.group(1) and at.group(2):
+                    col, row = _column_number(at.group(1).decode()), int(at.group(2))
+                else:
+                    col += 1
+                max_row, max_col = max(max_row, row), max(max_col, col)
+                if max_row > MAX_SHEET_ROWS or max_col > MAX_SHEET_COLUMNS:
+                    raise Invalid(f"The {title} sheet reaches past row {MAX_SHEET_ROWS:,} or column {MAX_SHEET_COLUMNS}, which is more than "
+                                  "clark will import in one go. Check this is the right file. Nothing was changed.")
+                if cells > MAX_SHEET_ROWS * MAX_SHEET_COLUMNS:
+                    raise Invalid(_too_large(title, max_row, max_col))
+            if not chunk or read > excel.MAX_MEMBER_BYTES:
+                return max_row, max_col
+
+
+def check_sheets_early(path, wanted):
+    """Refuse a hostile workbook BEFORE openpyxl loads it whole (a full load of a sheet that says A1:B2 and holds 300,000 rows
+    took 7.6 s and 216 MB before it was refused). `wanted(title)` says whether a sheet is one the import reads; only those are
+    streamed, one part at a time (_scan_member), against the same limits and with the same words as the loaded check in
+    read_workbook, which stays as it was. A text longer than Excel can keep (MAX_CELL_TEXT), in the shared strings or a sheet,
+    refuses the file. A part that is damaged inside the zip
+    (cut short, or not what the zip says it is) is refused in the same words as a file that is not a workbook. A file that is not a zip, or has no readable sheet list, passes: opening it says what is wrong with it."""
+    path = Path(path)
+    try:
+        z = zipfile.ZipFile(path)
+    except (zipfile.BadZipFile, OSError):
+        return
+    with z:
+        book, rels = _small_member(z, "xl/workbook.xml"), _small_member(z, "xl/_rels/workbook.xml.rels")
+        if book is None or rels is None:
+            return
+        target = {_attr(r, b"Id"): _attr(r, b"Target") for r in _REL_TAG.findall(rels)}
+        area = 0
+        try:
+            if "xl/sharedStrings.xml" in z.NameToInfo:
+                _scan_member(z, "xl/sharedStrings.xml", "shared strings")
+            for tag in _SHEET_TAG.findall(book):
+                title, part = _attr(tag, b"name"), target.get(_attr(tag, b"id"))
+                if not title or not part or not wanted(title):
+                    continue
+                part = part.lstrip("/") if part.startswith("/") else "xl/" + part
+                if part not in z.NameToInfo:
+                    continue
+                rows, cols = _scan_member(z, part, title)
+                if rows * cols > MAX_SHEET_CELLS:
+                    raise Invalid(_too_large(title, rows, cols))
+                area += rows * cols
+                if area > MAX_TOTAL_CELLS:
+                    raise Invalid("The sheets in this workbook are too large together (most of the space is empty), which is more than "
+                                  "clark will import in one go. Check this is the right file. Nothing was changed.")
+        except (_TextTooLong, zipfile.BadZipFile, zlib.error, EOFError, OSError, ValueError, RuntimeError):   # ValueError: a digit run too long to be a number
+            raise Invalid(f"{path.name} can't be read as an Excel workbook (.xlsx).")
 
 
 def read_workbook(store, path, project, state_path=None, allow_unrecorded=False, sheets=None):
@@ -1267,6 +1401,12 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
         plan.notes.append(f"{path.name} was already imported as it is now, so there is nothing to compare. Edit and save it "
                           "again, or export a fresh workbook, to import more.")
         return plan
+    def wanted(title):
+        table = SHEET_TABLES.get(re.sub(r"[\s_]+", " ", title.strip().lower()))
+        if table is None and title.strip().lower() in gantt_names:
+            table = GANTT
+        return table is not None and (sheets is None or table in sheets)
+    check_sheets_early(path, wanted)                   # row 966: a hostile sheet is refused while streamed, before the full load below
     try:
         wb = load_workbook(str(path))                  # not data_only: a formula is seen as one, and not read
     except Exception:
