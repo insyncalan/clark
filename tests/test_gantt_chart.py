@@ -96,6 +96,10 @@ class Chart(unittest.TestCase):
     def look(self, width, scheme):
         self.cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
         self.js(f"document.documentElement.dataset.theme = {lit(scheme)}; document.body.style.margin = '0'; document.body.style.padding = '0 20px'")
+        self.motion("no-preference")      # the clash arrow's dash is a Motion-block rule: a Mac set to reduce motion would otherwise lose it and this test would fail by the runner's own setting
+
+    def motion(self, value):
+        self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": value}]}, self.sid)
 
     def mount(self, edit=False, width=None, lines=LINES, **opts):
         width = width or int(self.js("innerWidth")) - 40
@@ -193,6 +197,16 @@ class Chart(unittest.TestCase):
             self.mount(edit=edit)
             self.assertEqual(self.val("[...document.querySelectorAll('.gt-lhead .gt-h')].map(e => e.textContent.trim())"), ["Phase / task", "Start", "End", "Done"])
             self.assertEqual(self.count("[data-g-coleye]"), 0, "the data layer never hides these, so the chart offers no eye on them")
+
+    def test_a_clash_arrow_with_reduced_motion_has_no_dash_but_is_still_heavier_than_a_link(self):
+        """The dash is set only where motion is allowed (the Motion block), so with reduced motion the clash is told apart by the heavier stroke, not colour alone."""
+        self.look(1400, "light")
+        self.motion("reduce")
+        self.mount(edit=True)
+        self.assertEqual(self.val("getComputedStyle(document.querySelector('[data-g-clash-arrow] path')).strokeDasharray"), "none")
+        clash = float(self.val("parseFloat(getComputedStyle(document.querySelector('[data-g-clash-arrow] path')).strokeWidth)"))
+        link = float(self.val("parseFloat(getComputedStyle(document.querySelector('[data-g-arrow]:not([data-g-clash-arrow]) path')).strokeWidth)"))
+        self.assertGreater(clash, link, "the clash arrow is heavier than an ordinary link")
 
     def test_selecting_a_bar_says_its_details_in_words(self):
         self.look(1400, "light")
