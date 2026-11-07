@@ -187,7 +187,7 @@ def _sheets(store, req, project, clock):
     workbook is kept (as a check is) so the check that follows names it by `file` and the page does not send it again."""
     now, folder, file = _staged_file(req, clock)
     try:
-        listed = word_route._excel_import().list_sheets(file, store)
+        listed = word_route._excel_import().list_sheets(file, store, project)
     except BaseException:
         shutil.rmtree(folder, ignore_errors=True)
         raise
@@ -196,10 +196,11 @@ def _sheets(store, req, project, clock):
 
 
 def _wanted_sheets(value):
-    """The tables the person ticked: a list of distinct names from the five (at least one), or None when `sheets` was not sent (all)."""
+    """The tables the person ticked: a list of distinct names from the five and the Gantt sheet (at least one), or None when `sheets` was not sent (all)."""
     if value is None:
         return None
-    tables = word_route._excel_import().CHOICE_ORDER
+    xi = word_route._excel_import()
+    tables = xi.CHOICE_ORDER + (xi.GANTT,)                 # row 926: the Gantt sheet is offered after the five
     if not isinstance(value, list) or not value or len(value) > len(tables) or any(not isinstance(t, str) or t not in tables for t in value) or len(set(value)) != len(value):
         raise Refused(BAD_SHEETS)
     return value

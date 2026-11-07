@@ -1148,9 +1148,30 @@ def _rows_counted(ws, table, cols):
     return rows
 
 
-def list_sheets(path, store=None):
+def _gantt_listed(ws, store):
+    """Row 926: the rows of a sheet the import can read as the Gantt sheet (the editor's export layout: a header row 1 with the ID and Line
+    columns), None when it is not one (the client workbook's Gantt sheet has a title band in row 1, so it is never offered). Over the limits,
+    OVER_LIMIT, as for the other sheets."""
+    first = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ())
+    fields = {GANTT_HEADERS.get(str(h).strip().lower()) for h in first if isinstance(h, str)}
+    if "id" not in fields or "name" not in fields:
+        return None
+    reach_rows, reach_cols = ws.max_row or 0, ws.max_column or 0
+    if reach_rows > MAX_SHEET_ROWS or reach_cols > MAX_SHEET_COLUMNS or reach_rows * reach_cols > MAX_SHEET_CELLS:
+        return OVER_LIMIT
+    rows = 0
+    for row in ws.iter_rows(min_row=2, max_row=MAX_SHEET_ROWS + 2, max_col=MAX_SHEET_COLUMNS, values_only=True):
+        if any(not _blank(v) for v in row):
+            rows += 1
+            if rows > MAX_ROWS:
+                break
+    return min(rows, OVER_LIMIT)
+
+
+def list_sheets(path, store=None, project=None):
     """The sheets of the workbook at `path` that clark imports, for the person to choose from (issue 655): [{"table", "name", "rows"}]
     in CHOICE_ORDER, "rows" being the rows below the header read_workbook would count. A sheet the file does not have is not listed;
+    row 926: after them comes the Gantt sheet ({"table": GANTT, "name": the sheet's own name}) when the file has one the import can read;
     a History sheet (or any other) is never listed. Nothing is compared or written.
     A sheet that read_workbook would refuse for its size is given "rows" = OVER_LIMIT (MAX_ROWS + 1), whatever its real size: the
     box says "more than 2,000 rows", so the list never promises what ticking would refuse. That is every refusal read_workbook makes
@@ -1169,10 +1190,20 @@ def list_sheets(path, store=None):
     except Exception:
         raise Invalid(f"{path.name} can't be read as an Excel workbook (.xlsx).")
     try:
-        found = {}
+        found, gantt = {}, None
+        gantt_names = {excel.GANTT_DEFAULT_NAME.lower()}
+        if store is not None and project is not None:
+            gantt_names.add(excel.gantt_sheet_name((store.read("projects", ref=project) or {}).get("gantt_tab_name")).lower())
         for ws in wb.worksheets:
             table = SHEET_TABLES.get(re.sub(r"[\s_]+", " ", ws.title.strip().lower()))
             if table is None:
+                if ws.title.strip().lower() in gantt_names:
+                    n = _gantt_listed(ws, store)
+                    if n is not None:
+                        if gantt is not None:
+                            raise Invalid(f"The workbook has two sheets for the same thing: “{gantt[0]}” and “{ws.title}”. Keep one of them and "
+                                          "import again. Nothing was changed.")
+                        gantt = (ws.title, n)
                 continue
             if table in found:
                 raise Invalid(f"The workbook has two sheets for the same thing: “{found[table][0]}” and “{ws.title}”. Keep one of them and "
@@ -1186,7 +1217,10 @@ def list_sheets(path, store=None):
                     cols = writer.columns(store.con, table) + ([LABELS] if table in writer.LABELLED else [])
                 rows = min(_rows_counted(ws, table, cols), OVER_LIMIT)
             found[table] = (ws.title, rows)
-        return [{"table": t, "name": SHEET_NAMES[t], "rows": found[t][1]} for t in CHOICE_ORDER if t in found]
+        listed = [{"table": t, "name": SHEET_NAMES[t], "rows": found[t][1]} for t in CHOICE_ORDER if t in found]
+        if gantt is not None:
+            listed.append({"table": GANTT, "name": gantt[0], "rows": gantt[1]})
+        return listed
     finally:
         wb.close()
 
@@ -1279,7 +1313,8 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
         for ws, table in to_read:
             rd.gantt_sheet(ws) if table == GANTT else rd.sheet(ws, table)
         rd.plan.partial = sheets is not None and any(
-            SHEET_TABLES.get(re.sub(r"[\s_]+", " ", w.title.strip().lower())) not in (None, *sheets) for w in wb.worksheets)
+            (SHEET_TABLES.get(re.sub(r"[\s_]+", " ", w.title.strip().lower())) or (GANTT if w.title.strip().lower() in gantt_names else None))
+            not in (None, *sheets) for w in wb.worksheets)
         if not found:
             rd.problem("The workbook has none of the sheets Actions, Risks & Issues, Decisions, Milestones or Use cases, so there is "
                        "nothing to compare.")
