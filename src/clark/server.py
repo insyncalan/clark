@@ -4,7 +4,7 @@ Copied from creaite v2.6.9 (db5adb2) system/scripts/live_server.py, only what cl
 function. Later items add their routes to GET_ROUTES and POST_ROUTES, where the one dispatcher checks the token first.
 
 Routes:
-- GET  /health           {"ok": true, "version": "x.y.z"} only (and "this_data" when asked with X-Clark-Data, #71); the Host is checked as everywhere
+- GET  /health           {"ok": true, "version": "x.y.z"} only (and "this_data", with "folder" (row 975), when asked with X-Clark-Data, #71); the Host is checked as everywhere
 - GET  /                 the page, with this run's token in a JSON data block (id="clark-boot"), never run as a script
 - GET  /api/projects     the projects the page can ask for: [{"code", "name", "open"?}], from the store (`projects`, #31); `open` is the count of open work items (#439)
 - GET  /api/data         ?project=<CODE>: one project's data, from the store (`data_for`, #31)
@@ -282,6 +282,15 @@ DATA_MARK = None
 VERSION = None            # issue 745: the running clark's version, given by __main__ (this server imports nothing from clark); /health says it
 
 
+CODE_MARK = None          # row 975: a mark of the folder this server's program files are in; /health tells it to the launcher (with the mark asked)
+
+
+def set_code_mark(mark):
+    """Give the server the mark of the folder its program files are in."""
+    global CODE_MARK
+    CODE_MARK = mark
+
+
 def set_version(version):
     """Give the server the version it is running."""
     global VERSION
@@ -301,6 +310,8 @@ def health_answer(asked):
         out["version"] = VERSION
     if asked:
         out["this_data"] = DATA_MARK is not None and asked == DATA_MARK
+        if CODE_MARK is not None:
+            out["folder"] = CODE_MARK
     return out
 
 

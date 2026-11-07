@@ -325,9 +325,9 @@ class Live(unittest.TestCase):
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{hash_}"}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr').length", sid) > 0), "the list drew")
+        self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch off the Dashboard: the page is always editable")
         if edit:
-            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-cell]')", sid)), "Edit shows the cells' pickers")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-cell]')", sid)), "Work items shows the cells' pickers")
         return sid
 
     def until(self, cdp, sid, expr, what, seconds=10):

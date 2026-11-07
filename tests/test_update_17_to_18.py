@@ -1,4 +1,4 @@
-"""Row 926 (gate G2): a real update from data layout 17 to the layout the new build has now (layout 19: step 18 added the Gantt lines, step 19 lets a report hold a Gantt section), through the updater's real package path.
+"""Row 926 (gate G2): a real update from data layout 17 to the layout the new build has now (layout 20: step 20 added the project's brand, step 18 added the Gantt lines, step 19 lets a report hold a Gantt section), through the updater's real package path.
 
 The previous release (tag v1.0.3, data layout 17) is built into a real zip with dev/tools/package.py, and so is this tree (its version
 raised by one, in a throwaway checkout, so the updater sees an update; the product files are otherwise this tree's own). The data is
@@ -35,7 +35,7 @@ from test_updater import Rig
 
 OLD_TAG = "v1.0.3"
 NEW_VERSION = "1.0.4"
-NEW_LAYOUT = 19      # the data layout of this build (schema steps 18 and 19); the test pins the number on purpose
+NEW_LAYOUT = 20      # the data layout of this build (schema steps 18 to 20); the test pins the number on purpose
 GANTT_COLUMNS = ("show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows")
 
 CHILD = r'''
@@ -256,12 +256,17 @@ class Update17To18(Rig):
         now, done = self.update_to_18()
         self.assertEqual(NEW_LAYOUT, done["layout"])
         self.assertEqual(NEW_LAYOUT, layout(self.db))
-        after = every_row(self.db, leave_out=GANTT_COLUMNS)
+        after = every_row(self.db, leave_out=GANTT_COLUMNS + ("brand",))
         self.assertEqual(self.base, {t: rows for t, rows in after.items() if t != "gantt_lines"}, "every row of every table is kept")
         for table in ("report_sections", "milestones", "use_cases", "actions", "raid", "decisions", "documents", "publications"):
             self.assertTrue(after[table], table)
         self.assertEqual([], after["gantt_lines"], "the new table is there and empty")
         self.assertEqual(self.fresh_defaults(), self.gantt_values(self.db), "every project has the six Gantt columns at their defaults")
+        con = sqlite3.connect(str(self.db))
+        try:
+            self.assertEqual({r[0] for r in con.execute("SELECT brand FROM projects")}, {"generic"}, "every project's brand is generic")
+        finally:
+            con.close()
         # the safety copy the migration took first: layout 17, every row
         copy = Path(done["copy"])
         self.assertEqual(self.data / "backups", copy.parent)

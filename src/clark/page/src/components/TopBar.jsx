@@ -7,7 +7,6 @@ const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" +
 
 export function TopBar({ tools }) {
   const name = data.value && data.value.project.name;
-  const Toggle = tools && tools.Toggle && !fromFile.value ? tools.Toggle : null;     // View or Edit: only a page clark serves has it
   const ProfileMenu = tools && tools.ProfileMenu && !fromFile.value ? tools.ProfileMenu : null;     // the profile circle's menu (#77)
   const ProjectSwitch = tools && tools.ProjectSwitch && !fromFile.value ? tools.ProjectSwitch : null;     // the project switcher (A-D25)
   const Publish = tools && tools.Publish && !fromFile.value ? tools.Publish : null;     // only a page clark serves can publish
@@ -47,7 +46,7 @@ export function TopBar({ tools }) {
       </nav>
       {fromFile.value && asAt.value ? <span class="asat num">As at {shownDate(asAt.value)}</span> : null}
       {Publish ? <Publish /> : null}
-      {Toggle && view.value !== "dashboard" && view.value !== "gantt" && view.value !== "settings" ? <Toggle /> : null}      {/* item 665: on the Dashboard and the Gantt page the switch is the bar's pill, never drawn twice; row 826: Settings has no switch */}
+      {/* row 804: the top bar never draws View | Edit. It exists only on the Dashboard, as the report bar's pill (ReportBar.jsx, item 665); the other tabs are always editable */}
       {SearchButton ? <SearchButton /> : null}
       {AskButton ? <AskButton /> : null}
       {ProfileMenu ? <ProfileMenu /> : null}

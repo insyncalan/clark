@@ -50,7 +50,7 @@ class InView(Base):
                         self.assertIn(want, text)
                     for want in ("Decide what to do", mv.HOLD_LABEL, mv.MOVE_LABEL, "Add a recovery action", "Escalate to steering", "Internal note"):
                         self.assertIn(want, text, want)
-                    self.assertEqual(p.js("document.documentElement.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true", "this is View")
+                    self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
                     self.assertEqual(p.js("!!document.querySelector('#mv-hold') && !!document.querySelector('#mv-move') && !!document.querySelector('#mvNote')"), True, "the choices and the note are there in View")
                     self.assertEqual(p.js("!!document.querySelector('#movement[data-readonly]')"), False)
                     p.js("document.querySelector('.mvm-row[data-id=\"%s\"]').click()" % PILOT)
@@ -60,10 +60,6 @@ class InView(Base):
                     self.assertEqual("dark" in dark, theme == "dark", dark)
                     self.assertTrue(self.reads, "View reads what Edit reads: GET /api/movement")
                     self.assertEqual(self.sent, [], "nothing changes until a choice is used")
-                    p.js("document.querySelector('[data-mode=edit]').click()")
-                    p.until("!!document.querySelector('#mv-hold')", "Edit has the same choices")
-                    p.js("document.querySelector('[data-mode=view]').click()")
-                    p.until("!!document.querySelector('#mv-hold') && !!document.querySelector('#mvNote')", "and View still does")
                     p.js("document.querySelector('[data-mspv=plan]').click()")
                     p.until("!!document.querySelector('.msv') && !document.querySelector('#movement')", "Plan in View")
 
@@ -71,7 +67,7 @@ class InView(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             self.view_movement(p)
-            self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true", "this is View")
+            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
             p.js("document.querySelector('#mv-hold').click()")
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Hold recorded in the note. Undo.'", "the Hold toast in View")
             self.assertEqual(self.store.read("milestones", ref=GO_LIVE)["movement"], "hold")

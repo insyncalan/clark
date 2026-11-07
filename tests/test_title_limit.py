@@ -67,6 +67,12 @@ class TextFields(unittest.TestCase):
         self.assertEqual(re.findall(r"^ITEM_TITLE_MAX\s*=", src, re.M), [], "changes.py imports it, it holds no number of its own")
         self.assertEqual(re.findall(r"len\([^)]*\)\s*>\s*200\b", src), [], "a length limit written as a bare 200; use changes.ITEM_TITLE_MAX")
 
+    def test_the_page_files_that_count_a_title_read_the_build_not_a_200(self):
+        for name in ("movementWords.js", "ItemRowsEdit.jsx"):
+            text = (SRC / "edit" / name).read_text(encoding="utf-8")
+            self.assertEqual(len(re.findall(r"^export const (?:TITLE_MAX|WORDS_MAX) = " + NAME + r";", text, re.M)), 1, f"{name} reads {NAME}")
+            self.assertEqual(re.findall(r"^export const (?:TITLE_MAX|WORDS_MAX) = \d", text, re.M), [], f"{name} holds no number of its own")
+
 
 class Server(unittest.TestCase):
     @classmethod
