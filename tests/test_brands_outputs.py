@@ -1,4 +1,4 @@
-"""#944 track T4 (FIXTURES, local draft): each output takes the brand of the project it is made for, and no other.
+"""#944 track T4 (FIXTURES): each output takes the brand of the project it is made for, and no other.
 
 Run: python3 dev/run_tests.py test_brands_outputs
 Two invented brands (ZEBRA teal, QUOKKA plum) and Generic (no brand folder) are made in a temporary folder with generated PNGs; nothing is
