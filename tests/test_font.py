@@ -143,12 +143,18 @@ class Vendored(unittest.TestCase):
             "src/clark/draft_email.py": "a comment: the email font list",
         }
         out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z", "--", "src"], capture_output=True, check=True).stdout.decode("utf-8").split("\0")
-        found = set()
+        found, counts = set(), {}
         for name in (n for n in out if n and not re.search(r"\.(png|jpe?g|gif|ico|icns|pdf|woff2?|ttf|otf|zip|xlsx|docx|db)$", n, re.I)):
-            if re.search(r"\bArial\b", (ROOT / name).read_text(encoding="utf-8", errors="ignore")):
+            n = len(re.findall(r"\bArial\b", (ROOT / name).read_text(encoding="utf-8", errors="ignore")))
+            if n:
                 found.add(name)
+                counts[name] = n
         self.assertEqual(sorted(found - set(reasons)), [], "Arial is named in a new place: say why in `reasons`, or use the page font")
         self.assertEqual(sorted(set(reasons) - found), [], "a place no longer names Arial: remove it from `reasons`")
+        # the number of times each place names it, so a second Arial in a place already listed is a choice too (add the count here with its reason above)
+        self.assertEqual(counts, {"src/clark/brand/tokens.css": 5, "src/clark/page/shell.css": 1, "src/clark/page/src/logic/printView.js": 1,
+                                  "src/clark/pdf.py": 3, "src/clark/look.py": 2, "src/clark/excel.py": 1, "src/clark/draft_email.py": 2},
+                         "Arial is named once more (or less) in a place that is already listed: say why in `reasons`, then update this count")
 
 
 class Built(unittest.TestCase):

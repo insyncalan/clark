@@ -15,7 +15,8 @@ from pathlib import Path
 from _paths import ROOT
 import _signing
 from clark import updates
-from test_updates import make_zip
+from clark import release_files
+from test_updates import listed_files, make_zip
 
 FIXTURES = ROOT / "tests" / "fixtures" / "v1_0_0"
 
@@ -42,9 +43,22 @@ class OldReader(unittest.TestCase):
     def read(self, path):
         return self.old.read_release(path, "mac", "1.0.0", 2, public_key=_signing.TEST_PUBLIC)
 
+    def flat_zip(self, start_file):
+        """The old flat shape with the one start file named `start_file`; nothing else differs between two such zips."""
+        files = {(start_file if rel == release_files.START_HERE else rel): body for rel, body in listed_files("1.0.1").items()}
+        return make_zip(self.tmp, version="1.0.1", files=files, placed=False)
+
     def test_the_saved_reader_still_reads_the_shape_it_shipped_with(self):
-        flat = make_zip(self.tmp, version="1.0.1", placed=False)
+        flat = self.flat_zip("START-HERE.txt")                # the start file 1.0.0 shipped with
         self.assertEqual("1.0.1", self.read(flat).version)
+
+    def test_it_refuses_the_flat_shape_carrying_START_HERE_md(self):
+        flat = self.flat_zip("START-HERE.md")
+        with self.assertRaises(self.old.UpdateError) as said:
+            self.read(flat)
+        self.assertEqual("unsafe", said.exception.key)
+        self.assertEqual(self.old.MESSAGES["unsafe"], said.exception.message)
+        self.assertIn("START-HERE.md", said.exception.detail)
 
     def test_it_refuses_the_new_layout_as_damaged(self):
         placed = make_zip(self.tmp, version="1.0.1")

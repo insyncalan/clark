@@ -307,7 +307,7 @@ FIELD_NAMES = {
     "projects": {"name": "Project name", "phase": "Phase", "sponsor": "Sponsor", "health": "Health", "health_reason": "Reason for the health",
                  "active": "Active", "client_name": "Client", "current_state": "Where things stand", "week_ending": "Week ending",
                  "review_after_days": "Not reviewed after (days)", "show_gantt_editor": "Show the Gantt to the editor", "show_gantt_client": "Show the Gantt to the client",
-                 "gantt_tab_name": "Gantt tab name", "gantt_title": "Gantt title", "gantt_hidden_columns": "Gantt columns hidden from the client", "gantt_default_rows": "Gantt rows shown", "layout": "Report layout", "publish_local": "Local publish folder", "publish_client": "Client publish folder"},
+                 "gantt_tab_name": "Gantt tab name", "gantt_title": "Gantt title", "gantt_hidden_columns": "Gantt columns hidden from the client", "gantt_default_rows": "Gantt rows shown", "brand": "Brand", "layout": "Report layout", "publish_local": "Local publish folder", "publish_client": "Client publish folder"},
     "milestones": {"name": "Name", "status": "Status"},
     "gantt_lines": {"name": "Line", "type": "Type", "parent": "Parent", "start": "Start", "end": "End", "pct": "Done %",
                     "health": "Health", "depends": "Depends on", "baseline_start": "Baseline start", "baseline_end": "Baseline end",

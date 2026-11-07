@@ -64,9 +64,11 @@ import functools
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -402,6 +404,11 @@ class Runner:
         self.timeout = timeout or None    # seconds a file may run before it is stopped (None: no limit)
         self.ids = ids or {}              # {file name: [unittest names]} when only some of a file's tests run
         self.dir = support.RunDir()
+        self.stub = Path(tempfile.mkdtemp(prefix="clark-nodialog-"))      # RULE 14: osascript is a stub for every child (below)
+        self.osascript_log = self.stub / "osascript-calls.log"
+        stub = self.stub / "osascript"
+        stub.write_text('#!/bin/sh\necho "osascript $*" >> "$CLARK_TEST_OSASCRIPT_LOG"\nexit 1\n', encoding="utf-8")
+        stub.chmod(0o755)
         self.procs = set()
         self.lock = threading.Lock()
 
@@ -410,7 +417,9 @@ class Runner:
         tmp = self.dir.for_file()
         path = os.pathsep.join([str(p) for p in PATHS] + [x for x in [os.environ.get("PYTHONPATH")] if x])
         env = {**os.environ, "PYTHONPATH": path, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8",
-               "TMPDIR": str(tmp), "TMP": str(tmp), "TEMP": str(tmp)}   # BL-246: everything it makes lands here
+               "TMPDIR": str(tmp), "TMP": str(tmp), "TEMP": str(tmp),   # BL-246: everything it makes lands here
+               "PATH": str(self.stub) + os.pathsep + os.environ.get("PATH", ""),      # RULE 14: a test never opens a real dialog
+               "CLARK_TEST_OSASCRIPT_LOG": str(self.osascript_log)}
         t, p, out, timed_out, reader = time.time(), None, [], False, None
         try:
             p = support.spawn([sys.executable, "-m", "unittest", *self.ids.get(f.name, [f.stem])], cwd=f.parent,
@@ -448,9 +457,25 @@ class Runner:
         for p in procs:
             support.stop(p, grace=0)
 
+    def osascript_calls(self):
+        """RULE 14: the lines the stub osascript logged (one per call a test made to the real dialog program)."""
+        try:
+            return self.osascript_log.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            return []
+
     def close(self):
         """Remove the run's folder."""
         self.dir.close()
+        shutil.rmtree(self.stub, ignore_errors=True)
+
+
+def osascript_message(calls):
+    """RULE 14: the line that fails the whole run when a test reached osascript (a real dialog on a Mac); "" when none did."""
+    if not calls:
+        return ""
+    return (f"FAIL: {len(calls)} call(s) to osascript were made by the tests (a real macOS dialog would have opened). "
+            "Give the test a stub for the dialog (choose_folder / run=). Logged:\n  " + "\n  ".join(calls[:20]))
 
 
 def rerun_alone(failed, runner, most=None):
@@ -636,7 +661,7 @@ def repeat(files, n, jobs, stress=0, timeout=FILE_TIMEOUT, ids=None):
     """Run each of `files` `n` times, `jobs` at a time, interleaved so each copy runs beside the others; no re-run alone.
     `stress` processes spin the processor meanwhile, so a fast laptop is as slow as a shared CI runner. Prints each
     copy's result, then the passes per file (creaite)."""
-    runner, start, results = Runner(timeout, ids), time.time(), {f.name: [] for f in files}
+    runner, start, results, dialogs = Runner(timeout, ids), time.time(), {f.name: [] for f in files}, []
     pool = ThreadPoolExecutor(max_workers=max(1, jobs))
     burners = [subprocess.Popen([sys.executable, "-c", "while True: pass"]) for _ in range(max(0, stress))]
     spin = f", {stress} processes spinning" if stress else ""
@@ -655,11 +680,14 @@ def repeat(files, n, jobs, stress=0, timeout=FILE_TIMEOUT, ids=None):
             b.wait()
         pool.shutdown(wait=False, cancel_futures=True)
         runner.stop()
+        dialogs = runner.osascript_calls()
         runner.close()
+    if dialogs:
+        print("\n" + osascript_message(dialogs))
     print(f"\nUnder load ({jobs} at a time{spin}, {time.time() - start:.0f}s):")
     for name, oks in results.items():
         print(f"  {sum(oks)}/{len(oks)}  {name}")
-    return 0 if all(all(v) for v in results.values()) else 1
+    return 0 if all(all(v) for v in results.values()) and not dialogs else 1
 
 
 def run_all(files, jobs, copies=0, stress=0, timeout=FILE_TIMEOUT, rerun_max=None, max_fail=0, ids=None):
@@ -671,7 +699,7 @@ def run_all(files, jobs, copies=0, stress=0, timeout=FILE_TIMEOUT, rerun_max=Non
         return repeat(files, copies, jobs, stress, timeout, ids)
     files = list(files)
     last = slowest_first(files)
-    start, runner = time.time(), Runner(timeout, ids)
+    start, runner, dialogs = time.time(), Runner(timeout, ids), []
     try:
         took, failed, outs = execute(files, jobs, runner, max_fail)
         try:
@@ -680,6 +708,7 @@ def run_all(files, jobs, copies=0, stress=0, timeout=FILE_TIMEOUT, rerun_max=Non
             pass                          # a read-only checkout loses only the ordering
         remember_failed([f.name for f in files], [n for n, _ in failed])
         failed, alone = rerun_alone(failed, runner, rerun_max)
+        dialogs = runner.osascript_calls()
     except KeyboardInterrupt:
         runner.stop()
         print("\nStopped. The tests still running were ended and their temporary folders removed.", flush=True)
@@ -699,7 +728,9 @@ def run_all(files, jobs, copies=0, stress=0, timeout=FILE_TIMEOUT, rerun_max=Non
     print(f"\n{passed} file{'s' if passed != 1 else ''} passed, {len(failed)} failed"
           + (f", {not_run} not run (--max-fail)" if not_run else "") + ".")
     count = sum(tests_ran(o) for o in outs.values())
-    ok = not failed and not not_run
+    ok = not failed and not not_run and not dialogs
+    if dialogs:
+        print("\n" + osascript_message(dialogs))
     print(summary(ok, count, time.time() - start))
     return 0 if ok and count else 1
 

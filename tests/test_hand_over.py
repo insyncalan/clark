@@ -321,6 +321,26 @@ class Page(Base):
             self.rtap(cdp, sid, shown[0])
             self.assertEqual(cdp.js("document.querySelectorAll('tr.picked').length", sid), 1, "the usual selection works again")
 
+    def test_esc_during_a_menu_leave_still_leaves_pick_mode(self):
+        # row 968: a menu on its way out (class leaving, inert) is not an open picker, so a second Esc is not swallowed by it
+        with chrome() as cdp:
+            sid = self.load(cdp)
+            shown = cdp.js(self.ROWS, sid)
+            for kind, left in (("ddmenu leaving", True), ("ddmenu", False)):
+                with self.subTest(kind=kind):
+                    self.start(cdp, sid)
+                    click(cdp, sid, "#hand-all")
+                    cdp.js(f"document.querySelector(\"tr[data-id='{shown[0]}']\").focus()", sid)
+                    cdp.js(f"(() => {{ const m = document.createElement('div'); m.id = 'fake-menu'; m.className = '{kind}'; document.body.appendChild(m); }})()", sid)
+                    press(cdp, sid, "Escape")
+                    if left:
+                        self.until(cdp, sid, "!document.querySelector('#hand-bar')", "Esc leaves pick mode while a menu is leaving")
+                    else:
+                        self.assertTrue(cdp.js("!!document.querySelector('#hand-bar')", sid), "an open menu still takes Esc first")
+                        click(cdp, sid, "#hand-cancel")
+                    cdp.js("document.getElementById('fake-menu').remove()", sid)
+                    self.until(cdp, sid, "!document.querySelector('#hand-bar')", "out of pick mode")
+
     def test_a_filter_that_hides_a_ticked_item_unticks_it(self):
         with chrome() as cdp:
             sid = self.load(cdp)

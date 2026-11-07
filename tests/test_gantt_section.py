@@ -60,7 +60,7 @@ class Static(unittest.TestCase):
         text = (PAGE_SRC / "logic" / "templates.js").read_text(encoding="utf-8")
         entry = text[text.index('{ id: "gantt"'):text.index('{ id: "one-doc"')]
         self.assertIn('fit: ["full"]', entry)
-        self.assertIn("The plan as bars on a timeline, from your Gantt lines. Only lines put on the dashboard show.", entry)
+        self.assertIn("The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.", entry)
         self.assertIn('holds: ["Heading", "The Gantt chart"]', entry)
 
 
