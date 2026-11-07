@@ -64,6 +64,8 @@ class Passage:
     """One chosen piece of text. `label` is a name relative to a source folder (or a plain heading for project data), never a path."""
     label: str
     text: str
+    file: object = None      # #943: the file it came from, as a name inside its saved folder (the label without "(part n)"); None for project data
+    page: object = None      # #943: the page it starts on (int), or None when not known (page numbers come with #891)
 
 
 @dataclass(frozen=True)

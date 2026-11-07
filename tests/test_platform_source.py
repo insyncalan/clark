@@ -123,6 +123,37 @@ class Source(unittest.TestCase):
         self.assertEqual(encoding_problems(), [])
 
 
+def viewer_starts(src=SRC):
+    """#943: every list literal in src that begins like a Mac `open` command (["open", ...]), as "rel:line" strings."""
+    out = []
+    for path in sorted(Path(src).rglob("*.py")):
+        rel = path.relative_to(src)
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.List) and node.elts and isinstance(node.elts[0], ast.Constant) and node.elts[0].value == "open":
+                out.append(f"{rel.as_posix()}:{node.lineno}")
+    return out
+
+
+class TheViewer(unittest.TestCase):
+    """#943: opening a PDF at a page is a program start, so its command is written only in platform.py."""
+
+    def test_only_platform_writes_an_open_command(self):
+        got = viewer_starts()
+        self.assertTrue(got and all(g.startswith("clark/platform.py:") for g in got), got)
+
+    def test_the_pdf_opener_is_platforms_and_the_others_only_pass_it_on(self):
+        text = (SRC / PLATFORM).read_text(encoding="utf-8")
+        self.assertIn("def open_pdf_at(", text)
+        self.assertIn('["open", "-a", CHROME, url]', text)
+        self.assertEqual(viewer_starts_in('x = ["open", "-a", "Google Chrome", u]'), 1)
+        self.assertEqual(viewer_starts_in('x = ["ls"]'), 0)
+
+
+def viewer_starts_in(source):
+    return sum(isinstance(n, ast.List) and n.elts and isinstance(n.elts[0], ast.Constant) and n.elts[0].value == "open"
+               for n in ast.walk(ast.parse(source)))
+
+
 BAD_TEXT = '''import subprocess
 import tarfile
 open("a.txt")
