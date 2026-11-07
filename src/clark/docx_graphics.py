@@ -43,7 +43,7 @@ def _day(iso):
 def _number(value):
     try:
         n = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):      # 10**400 is an int float() cannot hold
         return None
     return None if n != n else max(0.0, min(100.0, n))
 
@@ -96,7 +96,7 @@ def _rows(milestones):
             solid = (None, "")                                 # no date that can be drawn: an empty lane keeps the table's order
         try:
             slip = int(m.get("slip_days") or 0)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             slip = 0
         ghost = None
         if 0 < slip <= 36500 and state != ms.FORECAST and solid[1] == "agreed" and m.get("status") != "Done":

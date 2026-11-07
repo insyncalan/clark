@@ -18,6 +18,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 import zlib
 from datetime import date
+from unittest import mock
 
 from _paths import ROOT   # noqa: F401  (puts src/ on the path)
 
@@ -417,6 +418,64 @@ class InTheWordFile(unittest.TestCase):
         root = ET.fromstring(doc)
         self.assertNotIn(b"<w:p>INJECTED", doc)
         self.assertTrue(any(nasty in d.get("descr") for d in root.iter("{%s}docPr" % NS["wp"])))
+
+
+class PicturesNeverStopTheWords(unittest.TestCase):
+    """A picture only adds to words the report already has: whatever goes wrong drawing it, the text is written and no picture is."""
+
+    def text(self, data):
+        doc = ET.fromstring(parts(data)["word/document.xml"])
+        return doc, "".join(t.text or "" for t in doc.iter("{%s}t" % NS["w"]))
+
+    def test_a_percent_too_large_for_a_float_still_builds_with_its_words(self):
+        for bad in (10 ** 400, -10 ** 400, float("inf"), float("-inf")):
+            _, data = build_with(milestones=[ms(1, percent_complete=bad)])
+            doc, text = self.text(data)
+            self.assertIn(f"{bad}% complete", text, repr(bad))
+            for n, raw in parts(data).items():
+                read_png(raw) if n.startswith("word/media/") else ET.fromstring(raw)
+
+    def test_the_drawing_functions_themselves_do_not_raise_on_huge_numbers(self):
+        for bad in (10 ** 400, -10 ** 400):
+            self.assertIsNone(g.progress_bar(bad, TOKENS))
+        self.assertIsNotNone(g.progress_bar(float("inf"), TOKENS))
+        out = g.plan([ms(1, "Slipped", slip_days=10 ** 400)], "2026-11-08", TOKENS)
+        self.assertIsNone(out[1][0]["ghost"])
+        self.assertIsNone(g.plan([ms(1, "Slipped", slip_days=float("inf"))], "2026-11-08", TOKENS)[1][0]["ghost"])
+
+    def test_a_huge_slip_in_json_still_builds(self):
+        _, data = build_with(milestones=[ms(1, "Slipped", slip_days=10 ** 400)])
+        self.assertIn("Milestone 1", self.text(data)[1])
+
+    def test_a_failure_in_each_drawing_function_leaves_the_text_only_file(self):
+        rows = [ms(1, percent_complete=50)]
+        _, whole = build_with(milestones=rows)
+        full_text = self.text(whole)[1]
+        for name in ("health_bar", "progress_bar", "plan"):
+            with mock.patch.object(g, name, side_effect=RuntimeError("boom")):
+                _, data = build_with(milestones=rows)
+            doc, text = self.text(data)
+            self.assertEqual(text, full_text, name)
+            self.assertEqual(len(list(doc.iter("{%s}inline" % NS["wp"]))), 2, name)                  # the other two of the three pictures stay
+            for n, raw in parts(data).items():
+                read_png(raw) if n.startswith("word/media/") else ET.fromstring(raw)
+
+    def test_with_every_drawing_failing_there_is_no_picture_part_at_all(self):
+        rows = [ms(1, percent_complete=50)]
+        with mock.patch.object(g, "health_bar", side_effect=RuntimeError), mock.patch.object(g, "progress_bar", side_effect=RuntimeError), \
+                mock.patch.object(g, "plan", side_effect=RuntimeError):
+            _, data = build_with(milestones=rows)
+        names = parts(data)
+        self.assertFalse([n for n in names if n.startswith("word/media/")])
+        self.assertNotIn(b"<w:drawing>", names["word/document.xml"])
+        self.assertNotIn(b'Extension="png"', names["[Content_Types].xml"])
+        self.assertIn("50% complete", self.text(data)[1])
+
+    def test_a_failure_while_writing_the_picture_xml_also_leaves_the_words(self):
+        with mock.patch.object(docx_build, "picture", side_effect=RuntimeError):
+            _, data = build_with(milestones=[ms(1, percent_complete=50)])
+        self.assertIn("50% complete", self.text(data)[1])
+        self.assertNotIn(b"<w:drawing>", parts(data)["word/document.xml"])
 
 
 if __name__ == "__main__":
