@@ -103,6 +103,25 @@ def lie_about_crc(path, member):
     Path(path).write_bytes(bytes(raw))
 
 
+def mark_member(path, member, encrypted=False, method=None):
+    """Set the 'encrypted' flag, or compression method 99 (AES), on one member in the zip's own directory (the bytes are left as they are)."""
+    data = bytearray(Path(path).read_bytes())
+    pos = 0
+    while True:
+        pos = data.find(b"PK\x01\x02", pos)
+        if pos < 0:
+            raise AssertionError(member)
+        n = int.from_bytes(data[pos + 28:pos + 30], "little")
+        if bytes(data[pos + 46:pos + 46 + n]) == member.encode():
+            break
+        pos += 4
+    if encrypted:
+        data[pos + 8] |= 1
+    if method is not None:
+        data[pos + 10:pos + 12] = method.to_bytes(2, "little")
+    Path(path).write_bytes(bytes(data))
+
+
 class Caps(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
@@ -198,6 +217,27 @@ class Caps(unittest.TestCase):
                     with self.assertRaises(Invalid) as cm:
                         xi.check_sheets_early(self.path, lambda t: True)
                 self.assertEqual(str(cm.exception), "ABC.xlsx can't be read as an Excel workbook (.xlsx).")
+
+    def test_an_encrypted_or_method_99_member_is_refused_in_the_plain_words_at_both_entry_points(self):
+        words = "ABC.xlsx can't be read as an Excel workbook (.xlsx)."
+        for how, kw, raw in (("encrypted", {"encrypted": True}, RuntimeError), ("method 99", {"method": 99}, NotImplementedError)):
+            for member in (part_of(self.path, "Actions"), "xl/sharedStrings.xml"):
+                (self.tmp / "m").mkdir(exist_ok=True)
+                path = self.tmp / "m" / "ABC.xlsx"
+                shutil.copy(self.path, path)
+                if member == "xl/sharedStrings.xml":
+                    declare_shared_strings(path, "q")
+                mark_member(path, member, **kw)
+                with zipfile.ZipFile(path) as z, self.assertRaises(raw, msg=how):
+                    z.read(member)                              # the file really is that way: a bare read raises the raw error
+                for entry, call in (("check_sheets_early", lambda: xi.check_sheets_early(path, lambda t: True)),
+                                    ("list_sheets", lambda: xi.list_sheets(path))):
+                    if entry == "list_sheets" and member != "xl/sharedStrings.xml":
+                        continue                                # list_sheets scans only the shared strings
+                    with self.subTest(how=how, member=member, entry=entry):
+                        with self.assertRaises(Invalid) as cm:
+                            call()
+                        self.assertEqual(str(cm.exception), words)
 
     def test_a_damaged_shared_strings_part_is_refused_in_the_plain_words(self):
         declare_shared_strings(self.path, "q" * 20000)

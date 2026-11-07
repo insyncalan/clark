@@ -1358,7 +1358,7 @@ def check_sheets_early(path, wanted):
                 if area > MAX_TOTAL_CELLS:
                     raise Invalid("The sheets in this workbook are too large together (most of the space is empty), which is more than "
                                   "clark will import in one go. Check this is the right file. Nothing was changed.")
-        except (_TextTooLong, zipfile.BadZipFile, zlib.error, EOFError, OSError, ValueError):   # ValueError: a digit run too long to be a number
+        except (_TextTooLong, zipfile.BadZipFile, zlib.error, EOFError, OSError, ValueError, RuntimeError):   # ValueError: a digit run too long to be a number
             raise Invalid(f"{path.name} can't be read as an Excel workbook (.xlsx).")
 
 

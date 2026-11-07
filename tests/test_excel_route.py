@@ -30,6 +30,24 @@ def encoded(path):
     return base64.b64encode(Path(path).read_bytes()).decode("ascii")
 
 
+def mark_member(path, member, encrypted=False, method=None):
+    """Set the 'encrypted' flag, or compression method 99, on one member in the zip's own directory."""
+    data = bytearray(Path(path).read_bytes())
+    pos = 0
+    while True:
+        pos = data.find(b"PK\x01\x02", pos)
+        assert pos >= 0, member
+        n = int.from_bytes(data[pos + 28:pos + 30], "little")
+        if bytes(data[pos + 46:pos + 46 + n]) == member.encode():
+            break
+        pos += 4
+    if encrypted:
+        data[pos + 8] |= 1
+    if method is not None:
+        data[pos + 10:pos + 12] = method.to_bytes(2, "little")
+    Path(path).write_bytes(bytes(data))
+
+
 def without_shared_strings(path):
     """Point every cell of the Actions sheet at shared string 0 (t="s") in a package that has no shared-strings part."""
     import re
@@ -133,6 +151,20 @@ class Check(Base):
         self.assertEqual((status, got["ok"]), (400, False))
         self.assertIn("can't be read as an Excel workbook (.xlsx)", got["message"])
         self.assertEqual((self.temp_folders(), excel_route.PLANS), (was, {}))
+
+    def test_an_encrypted_or_method_99_member_is_refused_in_words_by_the_sheets_and_check_ops(self):
+        import zipfile
+        member = next(n for n in zipfile.ZipFile(self.path).namelist() if n.startswith("xl/worksheets/"))
+        pristine = self.path.read_bytes()
+        for how, kw in (("encrypted", {"encrypted": True}), ("method 99", {"method": 99})):
+            for op in ("sheets", "check"):
+                self.path.write_bytes(pristine)
+                mark_member(self.path, member, **kw)
+                with self.subTest(how=how, op=op):
+                    status, got = self.post(op=op, project="ABC", name="ABC work items.xlsx", data=encoded(self.path))
+                    self.assertEqual((status, got["ok"]), (400, False))
+                    self.assertIn("ABC work items.xlsx can't be read as an Excel workbook (.xlsx).", got["message"])
+                    self.assertEqual(excel_route.PLANS, {})
 
     def test_list_sheets_on_a_workbook_with_cells_that_point_at_missing_shared_strings_raises_invalid(self):
         from clark import excel_import
