@@ -10,6 +10,7 @@ import json
 import sys
 import time
 import unittest
+from _editor_checks import for_url
 from datetime import date
 from pathlib import Path
 from unittest import mock
@@ -289,7 +290,7 @@ class Browser(unittest.TestCase):
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/{hash_ or '#work&p=' + self.code}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/{hash_ or '#work&p=' + self.code}")}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
         return s, sid
 

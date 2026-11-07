@@ -23,7 +23,7 @@ from _paths import ROOT  # noqa: F401
 
 from clark import page, server as sv
 from test_brand_picture import png
-from test_server import Running
+from _real_server import Running
 
 NAVY = {"ONE": "#123456", "TWO": "#654321"}
 PIC = {"one-brand": png(8, 8, (10, 20, 30)), "two-brand": png(8, 8, (40, 50, 60))}

@@ -11,6 +11,7 @@ import json
 import sys
 import time
 import unittest
+from _editor_checks import for_project, for_url
 
 from _paths import SRC
 
@@ -83,7 +84,7 @@ class Rules(unittest.TestCase):
         cls.server = Running(page_html=lambda: "<!doctype html><title>t</title>")
         tid = next(t["targetId"] for t in cls.cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
         cls.sid = cls.cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
-        cls.cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{cls.server.port}/"}, cls.sid)
+        cls.cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{cls.server.port}/")}, cls.sid)
         assert wait(lambda: cls.cdp.js("document.readyState === 'complete'", cls.sid))
         cls.cdp.js(bundled(LOGIC, "SEL"), cls.sid)
 
@@ -635,7 +636,7 @@ class PublishedFile(unittest.TestCase):
         s = Running(data_for=DATA.get, page_html=published_page)
         self.addCleanup(s.close)
         with chrome() as cdp:
-            sid = navigate(cdp, s.port, "#work&p=ABC")
+            sid = navigate(cdp, s.port, for_project("#work&p=ABC"))
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tr[data-id]').length > 1", sid)), "the rows drew")
             cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
             rows = cdp.js("[...document.querySelectorAll('#work tr[data-id]')].map(r => r.dataset.id)", sid)

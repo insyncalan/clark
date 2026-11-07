@@ -10,6 +10,7 @@ import json
 import re
 import sqlite3
 import time
+from _editor_checks import for_url
 import unittest
 from unittest import mock
 
@@ -100,7 +101,7 @@ class Base(unittest.TestCase):
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
         cdp.call("Page.navigate", {"url": "about:blank"}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{hash_}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{self.s.port}/{hash_}")}, sid)
         self.until(cdp, sid, f"!!document.querySelector({json.dumps(wait_for)})", "the work items page")
         # row 804: no View | Edit switch off the Dashboard; the page is always editable, so `edit` changes nothing (kept for the callers)
         self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch on Work items")

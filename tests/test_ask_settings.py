@@ -13,6 +13,7 @@ import shutil
 import sqlite3
 import tempfile
 import unittest
+from _editor_checks import for_project
 from pathlib import Path
 from unittest import mock
 
@@ -103,7 +104,7 @@ class Settings(unittest.TestCase):
         return d
 
     def show_page(self, cdp, fake=False):
-        sid = navigate(cdp, self.s.port, "#settings&p=ABC")
+        sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC"))
         self.sid = sid
         js = lambda e: cdp.js(e, sid)          # noqa: E731
         if fake:
@@ -152,7 +153,7 @@ class Settings(unittest.TestCase):
 
     def test_a_choice_left_in_the_browsers_storage_by_an_earlier_build_is_ignored(self):
         with chrome() as cdp:
-            sid = navigate(cdp, self.s.port, "#settings&p=ABC")
+            sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC"))
             js = lambda e: cdp.js(e, sid)          # noqa: E731
             js("localStorage.setItem('clark.askEnabled', 'off')")
             reload_to_new_page(js, seconds=20)
@@ -169,7 +170,7 @@ class Settings(unittest.TestCase):
 
     def test_a_slow_server_leaves_the_switch_unpressable_until_it_answers(self):
         with chrome() as cdp:
-            sid = navigate(cdp, self.s.port, "#dashboard&p=ABC")
+            sid = navigate(cdp, self.s.port, for_project("#dashboard&p=ABC"))
             js = lambda e: cdp.js(e, sid)          # noqa: E731
             self.assertTrue(wait(lambda: js("!!document.querySelector('#report')"), 20))
             js("""window.__pending = []; window.__held = () => window.__pending.splice(0).forEach((f) => f()); const real = window.fetch;
@@ -186,7 +187,7 @@ class Settings(unittest.TestCase):
         # Settings asks again each time it opens. Open it twice quickly, then let the SECOND ask answer first (on) and the FIRST last (off):
         # the older answer must not overwrite the newer one (askState.js numbers its requests).
         with chrome() as cdp:
-            sid = navigate(cdp, self.s.port, "#dashboard&p=ABC")
+            sid = navigate(cdp, self.s.port, for_project("#dashboard&p=ABC"))
             js = lambda e: cdp.js(e, sid)          # noqa: E731
             self.assertTrue(wait(lambda: js("!!document.querySelector('#report')"), 20))
             js("""window.__q = []; const real = window.fetch;

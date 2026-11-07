@@ -11,6 +11,7 @@ fail, never skip, without Chrome.
 import json
 import tempfile
 import unittest
+from _editor_checks import for_url
 
 from _paths import SRC
 
@@ -124,7 +125,7 @@ class Browser(unittest.TestCase):
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
         cdp.call("Page.navigate", {"url": "about:blank"}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/#settings&p=TUL"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{port}/#settings&p=TUL")}, sid)
         self.until(cdp, sid, "document.querySelectorAll('#projects-table tbody tr').length > 0", "the projects table")
         return sid
 

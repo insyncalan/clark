@@ -10,6 +10,7 @@ import json
 import tempfile
 import time
 import unittest
+from _editor_checks import after_reload
 from pathlib import Path
 
 from _demo import USER
@@ -248,8 +249,10 @@ class Archived(Base):
             self.until(cdp, sid, f"!!document.querySelector('{PILL}')", "the Show archived button")
             click(cdp, sid, PILL)
             self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 2", "the rows")
-            cdp.js("location.hash = '#milestones&p=XYZ'", sid)
+            after_reload(lambda e: cdp.js(e, sid), "location.hash = '#milestones&p=XYZ'")      # #944: the other project is its own page load
             self.until(cdp, sid, f"document.querySelector('{PILL}') && document.querySelector('{PILL}').textContent === 'Show archived (1)'", "the other project's count")
+            self.assertEqual(cdp.js(f"document.querySelectorAll('{ROWS}').length", sid), 0, "the new page starts with the box shut: the first project's rows are gone")
+            click(cdp, sid, PILL)
             self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 1", "its one row")
             text = cdp.js("document.querySelector('#ms-archived').textContent", sid)
             self.assertIn("Other launch", text)
