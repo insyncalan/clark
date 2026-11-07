@@ -4,7 +4,7 @@
 // own limit of 100 characters (logic/tracker.js NOTE_MAX) stops it too. Enter ends the edit, Escape puts the old words back. Words
 // that are empty, or the same as the automatic words, are saved as no note (automatic again). A link puts the automatic words back.
 // Each save is one change with one Undo (the caller's `onSave`). Plain text only: the field is "plaintext-only" and read as text.
-import { useEffect, useRef } from "preact/hooks";
+import { useLayoutEffect, useRef } from "preact/hooks";
 import { NOTE_MAX } from "../logic/tracker.js";
 import { WORDS } from "../logic/trackerEdit.js";
 
@@ -22,7 +22,8 @@ export function TrackerWords({ note, auto, fit, busy, onSave }) {
   const shown = note || auto;
   const max = LINES[fit] || 1;
   // The field is not drawn by Preact's children (that would fight the typing): its text is set from here when what is saved changes.
-  useEffect(() => { if (box.current && document.activeElement !== box.current) box.current.textContent = shown; }, [shown]);
+  // Before the first paint (not after it, as a passive effect would): a focus that lands at once must find the words, or Escape puts back nothing.
+  useLayoutEffect(() => { if (box.current && document.activeElement !== box.current) box.current.textContent = shown; }, [shown]);
   const onInput = () => {
     const el = box.current;
     const text = el.textContent;
