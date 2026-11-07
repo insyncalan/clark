@@ -24,7 +24,7 @@ without the real page.
 
 ## 1. Where the code lives, so the guarded part stays small
 
-- **`server.py` stays free of clark imports** (its own rule, `server.py:592`: "this server imports nothing from clark"). It gets only the
+- **`server.py` stays free of clark imports** (its own rule, `server.py:593`: "this server imports nothing from clark"). It gets only the
   mechanism: a `SetupHandler(Handler)` class, two small route tables and one new constructor argument `setup=None` on
   `LocalServer.__init__` (`:1436`) and `serve()` (`:1502`), the same way each seam is given (`:1441-1471`). All the logic is in a new
   module `src/clark/setup_mode.py` (not guarded), which holds the checks, the chooser call and the pointer file (section 6).
@@ -49,7 +49,7 @@ that comes from a check carries that check's existing words, quoted unchanged.
 | `GET /` and `GET /setup` | no (as `/`, `:1381`) | none | 200 the setup page with the token in the `clark-boot` block (`with_boot`, `:565`), CSP from the bytes (`send`, `:1295-1307`). `/` is the same bytes because the launcher opens `/` (`launch.py:64-66`, `:198`). `page_load_is_ours` (`:931`) decides whether it counts as "a window is open" |
 | `GET /api/setup/checks` | yes | none (a body is 400, as `movement_route`, `:597-598`) | 200 `{"ok":true,"ready":bool,"folder":"~/...","checks":[{"id","status","required","words"}]}`. `status` is the doctor's `ready`, `fix`, `advice` or `not checked` (`doctor.py:37`); `words` is the doctor's line unchanged. `ready` is true when no required check is `fix` or `not checked` (the doctor's own rule, `doctor.py:206-216`). The folder is shown with `~` (`platform.with_tilde`, `:636`) |
 | `POST /api/setup/folder` | yes | `{}` only | The request never names a path (as `/api/section-file`, `server.py:66-67`): the folder comes only from the system dialog. See section 5 for the replies: 200 `{"ok":true,"chosen":false}` on Cancel; 200 `{"ok":true,"chosen":true,"folder","checks","ready"}`; 409 with the check's own refusal words (`code:"folder_refused"`); 409 `dialog_failed`; 409 `busy` |
-| `POST /api/setup/finish` | yes | `{}` only | Runs `launch.finish_update` (`launch.py:114-147`) with a `say` that collects its lines. 200 `{"ok":true,"finished":bool,"words":[...]}`. The words are `update_helper.MESSAGES` (`update_helper.py:116-125`) and the helper's own result message, unchanged. One at a time (409 `busy` for a second at the same moment) |
+| `POST /api/setup/finish` | yes | `{}` only | Runs `launch.finish_update` (`launch.py:114-147`) with a `say` that collects its lines. 200 `{"ok":true,"finished":bool,"words":[...]}`. The words are `update_helper.MESSAGES` (`update_helper.py:103-127`) and the helper's own result message, unchanged. One at a time (409 `busy` for a second at the same moment) |
 | `POST /api/setup/done` | yes | `{}` only | Re-runs every check **now**. Any required check not ready: 409 `{"ok":false,"code":"not_ready","checks":[...]}` and the server goes on. All ready: 200 `{"ok":true,"restart":true}`, sent first, then the server stops (the pattern of `update_route`, `:1190-1194`); `setup_mode.main` then starts the normal clark (section 4). Nothing is trusted from the page: "done" re-checks |
 | `POST /api/here` | yes | `{}` | the existing `here_route` (`:942-945`), so the idle stop counts the open setup page as "here" (section 4) |
 
@@ -78,7 +78,7 @@ command or a setting to carry.
   of date because clark was restarted. Reload the page and try again."). After a successful "done" the stand-in page and the real page
   poll `GET /api/setup/checks` every second and reload `/` on the first 403 `stale` (or when the connection comes back). No
   new `/health` key is needed (`/health` stays `{"ok":true,"version"}` plus `this_data` when asked, test 8).
-- **The one change to the normal `Handler`.** `do_POST` looks the route up in one place (`:1411`:
+- **The one change to the normal `Handler`.** `do_POST` looks the route up in one place (`:1422`:
   `here_route if route == HERE_ROUTE else POST_ROUTES.get(route)`). Recommended: move that line into a method `post_route(route)`
   that `SetupHandler` overrides, rather than copy `do_POST` (about 25 lines of gate order that must not drift). `SetupHandler.do_GET`
   is written out in full (about 15 lines): its list of routes is the point. Alternative, if the owner prefers no change to the
@@ -96,7 +96,7 @@ Nothing new is invented; the setup routes use the existing functions, in the exi
   `Sec-Fetch-Site: cross-site` is refused (`:408-414`), and the peer must be local (`local_peer`, `:121`). A page on another port is
   another site. No Origin (a plain client) is allowed, as today; the token still has to match, in constant time (`token_ok`, `:272`).
 - **Token:** none at all is 403 `not_allowed`; a wrong one 403 `stale`, which is what lets an old setup tab know it should reload.
-- **Container mode:** the container refusal (`:1376-1379`) applies unchanged. Setup mode is started only by `launch.py`, which is the
+- **Container mode:** the container refusal (`:1375-1377`) applies unchanged. Setup mode is started only by `launch.py`, which is the
   Mac's path; `python3 -m clark` by hand keeps printing its line (`__main__.py:450-452`).
 - **Why a folder-choosing POST needs all of that:** it opens a window on the person's screen. A web page the person happens to have
   open must not be able to do that. The token is in a data block that a page of another origin cannot read (it cannot read `GET /`
@@ -137,7 +137,7 @@ the hooks are these. `launch()` today says a line and returns 1 at six places (`
 | `launch.py:238-240` `except platform.PlatformError` in `main` (the OneDrive refusal of `check_data_dir`, `:233`) | `say(str(e)); return 1` | start setup mode with `reason="data_folder"`; the OneDrive case is the main first-run use. `main` has not made the folder (`:234`), so setup must not either |
 | `launch.py:241-243` `except OSError` (folder can't be made) | `say("The data folder can't be made ...")` | same, `reason="data_folder"` |
 | `launch.py:166-167` `if not finish(folder, say): return 1` | the update helper's `not_restored` or `busy` line | setup with `reason="update"` (the page's "Check again" is `POST /api/setup/finish`) |
-| `launch.py:168-169` `same_version.refuse()` | prints `MESSAGE` to stderr itself (`same_version.py:130`, no `say`) and returns 1 | setup with `reason="version"`. `refuse()` prints to the terminal, so the hook calls `same_version.mixed()` (`:128`) and passes `MESSAGE` as the check's words |
+| `launch.py:168-169` `same_version.refuse()` | prints `MESSAGE` to stderr itself (`same_version.py:130`, no `say`) and returns 1 | setup with `reason="version"`. `refuse()` prints to the terminal, so the hook calls `same_version.mixed()` (`:62`) and passes `MESSAGE` as the check's words |
 | `launch.py:171-173` `OTHER_DATA` / `NOT_CLARK` | `say(report(...))` | **unchanged in this step** (open question 2: the port is the thing that is taken) |
 | `launch.py:176-178` `lock_refusal` | `say(refusal)` | unchanged (there is nothing the person can fix on a page) |
 | `launch.py:189-196` the started clark did not answer | `say("Nothing opened ...")` | unchanged |
@@ -247,7 +247,7 @@ to `platform.py` (if the owner agrees) must not say it.
    The dialog or line stays.
 3. **Data already in the refused folder.** Recommend: leave it, say so in words, move nothing in this step. Moving a database is a
    restore/backup job (`backup.restore_into`, design-622) and would put the store back into setup mode's reach.
-4. **Which checks block "done".** Recommend: the doctor's `required` ones (`doctor.py:183-191`): Python, data folder, OneDrive,
+4. **Which checks block "done".** Recommend: the doctor's `required` ones (`doctor.py:185-193`): Python, data folder, OneDrive,
    nothing in the way; the advice ones (Chrome, the clark folder, Claude Code) never block.
 5. **`do_POST` parametrised (one line in the normal `Handler`) or copied.** Recommend parametrised, with the differential test
    listed anyway. The copy is longer but leaves the normal handler untouched.
@@ -258,4 +258,4 @@ to `platform.py` (if the owner agrees) must not say it.
    data"), and, from `NEW-WORDS.md`, items 8 to 12 (heading, "Check again", status labels, setup-mode notice, "Everything is ready.
    Opening clark."). Each is marked NEW in the code with a comment until approved.
 8. **Step 3 first.** Recommend building the doctor-as-data split (the prototype's step 3) before this one; otherwise `setup_mode.py`
-   must call `doctor.run_check` over `doctor.CHECKS` (`:187-195`, which have names but no stable ids) and map names to ids itself.
+   must call `doctor.run_check` over `doctor.CHECKS` (`:185-193`, which have names but no stable ids) and map names to ids itself.
