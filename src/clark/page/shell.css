@@ -2093,7 +2093,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-dep { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
 .gt-dep path { fill: none; stroke: var(--text-muted); stroke-width: 1.4; }
 .gt-dep polygon { fill: var(--text-muted); }
-.gt-dep .gt-bad path { stroke: var(--status-amber-text); stroke-width: 1.4; }      /* its dash is in the Motion block: that is the one place the sheet sets a dash */
+.gt-dep .gt-bad path { stroke: var(--status-amber-text); stroke-width: 2.2; }      /* heavier than a normal link (1.4), so the clash shows without colour or dash; its dash is in the Motion block */
 .gt-dep .gt-bad polygon { fill: var(--status-amber-text); }
 .gt-b { all: unset; box-sizing: border-box; position: absolute; height: 20px; line-height: 20px; border-radius: var(--radius-sm); background: var(--gt-task); color: var(--text-on-brand); padding: 0 8px; white-space: nowrap; overflow: hidden; cursor: pointer; user-select: none; touch-action: none; z-index: 1; }
 .gt-b > i { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--white) 30%, transparent); pointer-events: none; }
