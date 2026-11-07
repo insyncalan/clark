@@ -111,7 +111,7 @@ class Doctor(Case):
                 self.assertEqual(line.kind, doctor.FIX)
                 self.assertEqual(line.words, f"Your clark data is set to go in {pl.with_tilde(inside, self.home)}, which is "
                                              f"inside {service}. It copies files while they are being written, which damages "
-                                             "the data. Choose a folder on this computer that it doesn't sync.")
+                                             "the database. Choose a folder on this computer that it doesn't sync.")
                 shutil.rmtree(self.home / place.split("/")[0])
 
     def test_it_is_a_required_check_and_the_onedrive_one_is_unchanged(self):

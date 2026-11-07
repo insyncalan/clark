@@ -137,9 +137,10 @@ def check_data_not_in_synced_folder(seen):
     hit = platform.inside_synced(folder, list(seen.synced_roots()))
     if hit is None:
         return Line(READY, "Your clark data isn't inside Dropbox, iCloud Drive or Google Drive.")     # NEW words
-    # NEW words: the owner's proposed line (NEW-WORDS 9), with the service's name in place of {Dropbox}.
+    # NEW words: amended from the owner's proposed line (NEW-WORDS 9) to the existing platform.py words ('damages the database'),
+    # with the service's name in place of {Dropbox}.
     return Line(FIX, f"Your clark data is set to go in {seen.tilde(folder)}, which is inside {hit[0]}. It copies files while "
-                     "they are being written, which damages the data. Choose a folder on this computer that it doesn't sync.")
+                     "they are being written, which damages the database. Choose a folder on this computer that it doesn't sync.")
 
 
 def check_app_folder(seen):
