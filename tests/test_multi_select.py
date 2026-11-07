@@ -55,6 +55,16 @@ def peek_away(cdp, sid, width):
         time.sleep(0.2)
 
 
+def tap_bare_bar(cdp, sid):
+    """A real click on the top bar's left edge, where nothing is: no tab, no project name, no button. The test proves it is the bar itself."""
+    x, y = cdp.js("(function(){var r=document.querySelector('header.top').getBoundingClientRect();return [r.left + 2, r.top + r.height / 2];})()", sid)
+    assert cdp.js(f"document.elementFromPoint({x}, {y}) === document.querySelector('header.top')", sid), "the spot clicked is the bare top bar"
+    m = lambda kind, n, **kw: cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "modifiers": 0, "clickCount": n, **kw}, sid)
+    m("mouseMoved", 0)
+    m("mousePressed", 1, button="left", buttons=1)
+    m("mouseReleased", 1, button="left", buttons=0)
+
+
 def tap(cdp, sid, selector, mods=0, count=1):
     """A real mouse click (with Shift, Ctrl or Cmd held when `mods` says so); `count` 2 is a double click."""
     x, y = where(cdp, sid, selector)
@@ -432,7 +442,7 @@ class Page(Base):
             press(cdp, sid, "Escape")
             self.assertEqual(self.picked(cdp, sid), [], "Esc")
             pick2()
-            tap(cdp, sid, "#project-name")     # the bar's own text: its middle is a tab now (Use cases)
+            tap_bare_bar(cdp, sid)             # #526: the top bar's own empty edge; #project-name opens the project switcher now, so it is no neutral spot
             self.assertEqual(self.picked(cdp, sid), [], "a click outside")
             pick2()
             tap(cdp, sid, "#work h1")
