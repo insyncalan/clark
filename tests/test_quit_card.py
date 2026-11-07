@@ -2,8 +2,8 @@
 
 What is asserted: the card is on Settings with a chip, a heading and one button, "Quit clark"; one click posts /api/quit once (the server's stop is
 recorded, not carried out, so the page stays to be read), the button goes off so a second click does nothing, and the page says
-"clark is stopping. You can close this window."; when the server refuses the page shows the server's own plain words, and when
-nothing answers it shows "clark could not quit. Try again." and the button works again. No Export, Save, Publish or Import is pressed.
+"Stopping clark. You can close this window."; when the server refuses the page shows the server's own plain words, and when
+nothing answers it shows "Quitting did not work. Try again." and the button works again. No Export, Save, Publish or Import is pressed.
 Chrome is required: these tests fail, never skip, without it.
 """
 import tempfile
@@ -14,8 +14,8 @@ from clark import page
 from test_server import chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
 
-STOPPING = "clark is stopping. You can close this window."
-FAILED = "clark could not quit. Try again."
+STOPPING = "Stopping clark. You can close this window."
+FAILED = "Quitting did not work. Try again."
 
 
 class Card(unittest.TestCase):

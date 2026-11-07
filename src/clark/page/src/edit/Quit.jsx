@@ -3,8 +3,8 @@
 import { useState } from "preact/hooks";
 import { token } from "../stores/report.js";
 
-const STOPPING = "clark is stopping. You can close this window.";
-const FAILED = "clark could not quit. Try again.";
+const STOPPING = "Stopping clark. You can close this window.";
+const FAILED = "Quitting did not work. Try again.";
 
 // {status, body}: never a throw; a status of 0 is "no answer".
 async function quit() {

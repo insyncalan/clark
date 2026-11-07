@@ -24,7 +24,7 @@ from test_main import TempFolder
 from test_server import Running
 
 PAGES = Path(__file__).resolve().parents[1] / "src" / "clark" / "page"
-CARD_WORDS = ("Quit clark", "clark is stopping. You can close this window.", "clark could not quit. Try again.")
+CARD_WORDS = ("Quit clark", "Stopping clark. You can close this window.", "Quitting did not work. Try again.")
 
 
 class Watched(Running):

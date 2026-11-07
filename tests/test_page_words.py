@@ -175,7 +175,7 @@ class Words(unittest.TestCase):
             cdp.js("document.querySelector('[data-view=settings]').click()", sid)
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
-                                  "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "People", "Asking",      # the chips: one for each card below, in the order they are on the page
+                                  "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "People", "Asking", "Quit",      # the chips: one for each card below, in the order they are on the page
                                   "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
                                   "Local folder", "Always saved. Publish opens the save window where you last saved this report, so you choose the local folder there each time.",
                                   "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
@@ -235,7 +235,8 @@ class Words(unittest.TestCase):
                                   "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
                                   "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
                                   "Suggestions for the text you select in the report. Nothing changes until you accept one.",
-                                  "AI suggestions come in a later version."])
+                                  "AI suggestions come in a later version.",
+                                  "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"])      # #836: the Quit card, last on the page
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)
