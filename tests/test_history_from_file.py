@@ -3,6 +3,7 @@
 'By Word import (<file>)'; the Created row keeps its own wording and the first source stays."""
 import unittest
 
+import test_excel_route as ter
 from _demo import USER, DemoStore
 from clark import activity_read, history
 
@@ -69,6 +70,27 @@ class FromFile(unittest.TestCase):
         self.assertIn("from_file", row)
         row = activity_read._row(dict(self.changed()[0], from_file="", undo_refused=""))
         self.assertNotIn("from_file", row)
+
+
+class CreatedByExcel(ter.Base):
+    def test_an_item_an_excel_import_creates_keeps_its_own_wording(self):
+        import openpyxl
+        book = openpyxl.load_workbook(str(self.path))
+        ws = book["Actions"]
+        head = {c.value: c.column for c in ws[1]}
+        ws.append([None] * ws.max_column)
+        ws.cell(ws.max_row, head["Description"]).value = "Order the new laptops"
+        book.save(str(self.path))
+        status, done = self.apply(self.check()[1]["plan"])
+        self.assertEqual((status, done["ok"], done["counts"]["new"]), (200, True, 1), done)
+        con = self.store.con
+        rows = history.rows_for_project(con, "ABC")
+        made = [r for r in rows if r["kind"] == "Created" and r["step"] == done["apply_id"]]
+        self.assertEqual(len(made), 1, rows)
+        self.assertEqual(made[0]["from_file"], "")
+        self.assertIn("Excel", made[0]["how"])
+        tab = activity_read._row(dict(made[0], undo_refused=""))
+        self.assertNotIn("from_file", tab)
 
 
 if __name__ == "__main__":
