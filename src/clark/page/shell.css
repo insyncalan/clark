@@ -485,26 +485,56 @@ table.needs .n-over { margin-left: 2px; }
 /* 'Progress tracker' (item 189): the overall bar, then each group of lines. Only tokens; "behind plan" is never colour alone (▼ and words). */
 .sec-tracker { margin: 8px 0 8px; min-width: 0; }
 .tr-overall { margin: 0 0 16px; }
-.tr-tiles { display: flex; flex-wrap: wrap; gap: 12px; }
-.tr-tile { flex: 1 1 150px; display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 12px 16px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }
-.tr-tile-health { flex: 2 1 260px; }
-.tr-k { font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
-.tr-v { font-family: var(--font-head); font-size: 34px; line-height: 1.1; color: var(--heading); }
-.tr-d { font-size: var(--size-small); color: var(--text-muted); }
-.tr-hrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 4px; min-width: 0; }
-.tr-reason { color: var(--text); font-size: var(--size-small); min-width: 0; overflow-wrap: anywhere; }
-.tr-note { color: var(--text); font-size: var(--size-small); }
-.tr-barw { margin: 36px 0 0; }
-.tr-bar { position: relative; height: 16px; border-radius: 999px; background: var(--grey-200); box-shadow: inset 0 0 0 1px var(--grey-500); overflow: visible; }
+/* The tile (row 930): the branding tint behind two figures, the bar, then the chip and the words. Medium is the default; the size classes below change only the numbers, the bar and the spacing. */
+.tr-tile { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: center; min-width: 0; padding: 12px 16px; border-radius: var(--radius-lg); background: var(--brand-blue-tint); color: var(--text); }
+.tr-full .tr-tile { grid-template-columns: auto minmax(0, 1fr); gap: 20px; }
+.tr-nums { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.tr-fig { display: flex; flex-direction: column; min-width: 0; }
+.tr-fig-planned .tr-v { opacity: .8; }
+.tr-k { font-size: var(--size-caption); letter-spacing: .08em; text-transform: uppercase; font-weight: var(--weight-medium); color: var(--text-muted); }
+.tr-v { font-family: var(--font-head); font-weight: var(--weight-semibold); font-size: 32px; line-height: 1.05; color: var(--heading); }
+.tr-side { min-width: 0; }
+.tr-barw { margin: 22px 0 0; }
+.tr-bar { position: relative; height: 10px; border-radius: 999px; background: var(--grey-200); overflow: visible; }
 .tr-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: linear-gradient(90deg, var(--data-1), var(--data-2)); min-width: 0; }
-.tr-mark { position: absolute; top: -6px; bottom: -6px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--heading); box-shadow: 0 0 0 1px var(--surface); }
+.tr-mark { position: absolute; top: -6px; bottom: -6px; width: 2px; margin-left: -1px; border-radius: 2px; background: var(--heading); }
 .tr-mark-label { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 4px; font-size: var(--size-caption); font-weight: var(--weight-medium); white-space: nowrap; color: var(--heading); }
 .tr-mark-label.tr-edge-start { left: 0; transform: none; }
 .tr-mark-label.tr-edge-end { left: auto; right: 0; transform: none; }
 .tr-scale { display: flex; justify-content: space-between; margin-top: 6px; font-size: var(--size-caption); color: var(--text-muted); }
-.tr-behindline { color: var(--status-red-text); }
+.tr-stat { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin-top: 8px; min-width: 0; }
+.tr-half .tr-stat { flex-direction: column; align-items: flex-start; }
+.tr-chip { flex: none; white-space: nowrap; }
+.tr-words { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; line-height: 1.45; font-size: var(--size-small); display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; -webkit-line-clamp: 1; }
+.tr-half .tr-words { -webkit-line-clamp: 3; }
+.tr-words-edit { outline: 0; border-radius: 4px; padding: 0 2px; margin: 0 -2px; border-bottom: 1px dashed var(--text-muted); cursor: text; }
+.tr-words-edit:hover { background: var(--grey-100); }
+.tr-words-edit:focus { background: var(--surface); box-shadow: 0 0 0 2px var(--focus); display: block; overflow: visible; -webkit-line-clamp: unset; }
+.tr-hint { flex: 1 0 100%; font-size: var(--size-caption); }
+.tr-hint a { color: var(--link); text-decoration: underline; cursor: pointer; }
+/* The four sizes: Large 44 px numbers and a 12 px bar; Medium 32 and 10; Small 24 and 8, tighter; Compact 18 px numbers in one slim row, a 6 px bar, no scale and no Planned label. */
+.tr-size-large .tr-v { font-size: 44px; }
+.tr-size-large .tr-bar { height: 12px; }
+.tr-size-large .tr-tile { padding: 16px 20px; gap: 16px; }
+.tr-size-small .tr-tile { padding: 10px 14px; gap: 10px; }
+.tr-size-small .tr-v { font-size: 24px; }
+.tr-size-small .tr-nums { gap: 4px 16px; }
+.tr-size-small .tr-k { font-size: var(--size-caption); letter-spacing: .04em; }
+.tr-size-small .tr-bar { height: 8px; }
+.tr-size-small .tr-barw { margin-top: 20px; }
+.tr-size-small .tr-scale { margin-top: 4px; }
+.tr-size-small .tr-stat { margin-top: 6px; }
+.tr-size-compact .tr-tile { padding: 8px 12px; gap: 8px 14px; border-radius: var(--radius); }
+.tr-size-compact .tr-nums { flex-wrap: nowrap; gap: 12px; align-items: baseline; }
+.tr-size-compact .tr-fig { flex-direction: row; align-items: baseline; gap: 6px; }
+.tr-size-compact .tr-k { order: 2; letter-spacing: 0; text-transform: none; }
+.tr-size-compact .tr-v { font-size: 18px; }
+.tr-size-compact .tr-bar { height: 6px; }
+.tr-size-compact .tr-barw { margin-top: 4px; }
+.tr-size-compact .tr-mark-label, .tr-size-compact .tr-scale { display: none; }
+.tr-size-compact .tr-stat { margin-top: 4px; }
 .tr-behind { margin-left: 6px; padding: 0 7px; border-radius: 999px; background: var(--status-red-tint); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--status-red-text); white-space: nowrap; }
-.tr-ach { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; max-width: 100%; }
+.tr-ach { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 2px 8px; max-width: 100%; }
 .tr-ach b { font-weight: var(--weight-medium); min-width: 34px; text-align: right; }
 .tr-pbar { flex: 0 0 48px; height: 8px; border-radius: 999px; background: var(--grey-200); overflow: hidden; }
 .tr-pbar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--data-1), var(--data-2)); }
@@ -516,11 +546,11 @@ table.tracker th { text-align: left; font-weight: 400; font-size: var(--size-cap
 table.tracker td { padding: 8px 8px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
 table.tracker th:first-child, table.tracker td:first-child { padding-left: 4px; }
 /* Description takes what the fixed columns leave: 11% at the least (Edit with all three counts), 38% in View without them. */
-table.tracker .t-no { width: 5%; }
-table.tracker .t-date { width: 9%; }
+table.tracker .t-no { width: 8%; }
+table.tracker .t-date { width: 11%; white-space: nowrap; }
 table.tracker .t-status { width: 11%; }
 table.tracker .t-n { width: 8%; text-align: right; }
-table.tracker .t-ach { width: 12%; }
+table.tracker .t-ach { width: 17%; }
 table.tracker .t-count { width: 5%; }
 table.tracker tr.tr-total th, table.tracker tr.tr-total td { border-top: 1px solid var(--grey-300); color: var(--heading); font-weight: var(--weight-medium); text-transform: none; letter-spacing: 0; font-size: var(--size-small); }
 table.tracker tr.tr-none td { text-align: left; }
@@ -535,9 +565,9 @@ table.tracker tr.tr-none td { text-align: left; }
   table.tracker .t-ach { width: 20%; }
   .tr-pbar { flex-basis: 36px; }
   table.tracker .t-status { width: 15%; }
-  table.tracker .t-no { width: 6%; }
+  table.tracker .t-no { width: 10%; }
 }
-@media print { .tr-bar, .tr-fill, .tr-mark, .tr-pbar, .tr-pbar i, .tr-behind, .tr-tile { print-color-adjust: exact; -webkit-print-color-adjust: exact; } .tr-v { font-size: 26px; } }
+@media print { .tr-bar, .tr-fill, .tr-mark, .tr-pbar, .tr-pbar i, .tr-behind, .tr-tile, .tr-chip { print-color-adjust: exact; -webkit-print-color-adjust: exact; } .tr-overall .tr-v { font-size: 26px; } }
 
 /* A hidden section's words are dimmed, not the section: its control keeps its own rest strength (issue 101). */
 .sec.is-hidden { border-style: dashed; }
@@ -1622,6 +1652,8 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     .dlg[open]::backdrop, .ad-scrim { animation: m-in var(--dur-state) var(--ease-enter) 1; }
     /* row 878: a menu or picker drops 4 px as it opens */
     .menu, .ddmenu, .cpop { animation: m-drop var(--dur-instant) var(--ease-enter) 1; }
+    /* row 922: a menu fades out as it closes (opacity only; Menu.jsx keeps it drawn for the fade, inert, and removes it after) */
+    .ddmenu.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
     /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
     .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
     .secs.drop-end { animation: m-line-end var(--dur-state) var(--ease-enter) 1; }

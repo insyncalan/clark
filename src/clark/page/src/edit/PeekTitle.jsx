@@ -8,7 +8,7 @@ import { titleProblem } from "./actions.js";
 import { tableOf } from "./itemEdit.js";
 import { plainBox, read, show } from "./Title.jsx";
 
-export const TITLE_ITEM_MAX = 200;                       // clark/changes.py: a work item's title is 200 characters at most
+export const TITLE_ITEM_MAX = __CLARK_ITEM_TITLE_MAX__;      // #942: clark/changes.py ITEM_TITLE_MAX, written in by the build (dev/tools/build_page.py page_limits); the one source
 
 export function PeekTitle({ row }) {
   const ref = useRef(null), now = useRef(row.title), cancelled = useRef(false);

@@ -122,6 +122,40 @@ class Totals(unittest.TestCase):
         t = self.totals(ahead)
         self.assertEqual((t["groups"][0]["behind"], t["groups"][0]["lines"][0]["behind"], t["overall"]["behind"], t["overall"]["behindWords"]), (0, 0, 0, ""))
 
+    def test_the_automatic_words_say_behind_ahead_or_on_plan(self):
+        """#930: the words under the chip when the owner wrote none."""
+        for actual, planned, said in ((500, 700, "20 points behind plan."), (690, 700, "1 point behind plan."), (675, 700, "2.5 points behind plan."),
+                                      (700, 700, "On plan."), (710, 700, "1 point ahead of plan."), (800, 700, "10 points ahead of plan.")):
+            self.assertEqual(self.k(f"autoWords({actual}, {planned})"), said)
+        self.assertEqual(self.k("autoWords(null, 700)"), "")
+        self.assertEqual(self.k("autoWords(500, null)"), "")
+
+    def test_the_health_is_set_from_the_gap_in_tenths_of_a_point(self):
+        """#930: On track up to 2 points behind (ahead too), At risk from 2.1 to 9.9 behind, Off track from 10. The build counts in tenths."""
+        for gap, health in ((-300, "ontrack"), (0, "ontrack"), (20, "ontrack"), (21, "atrisk"), (99, "atrisk"), (100, "offtrack"), (400, "offtrack")):
+            self.assertEqual(self.k(f"healthRule({700 - gap}, 700)"), health, gap)
+        self.assertEqual(self.k("healthRule(null, 700)"), "")
+
+    def test_the_authors_pick_wins_over_the_rule_and_an_empty_pick_takes_the_rule(self):
+        behind = {**TRACKER, "groups": [{"name": "A", "lines": [line("x", 1000, 700, 500)]}]}
+        self.assertEqual(self.totals({**behind, "overall": {**TRACKER["overall"], "health": ""}})["overall"]["shownHealth"], "offtrack")
+        self.assertEqual(self.totals({**behind, "overall": {**TRACKER["overall"], "health": "ontrack"}})["overall"]["shownHealth"], "ontrack")
+        self.assertEqual(self.totals({**behind, "overall": {**TRACKER["overall"], "health": "atrisk"}})["overall"]["shownHealth"], "atrisk")
+        self.assertEqual(self.totals(behind)["overall"]["auto"], "20 points behind plan.")
+
+    def test_the_size_reads_as_medium_when_missing_or_odd_and_is_kept_by_the_body(self):
+        for size in ("large", "medium", "small", "compact"):
+            body = json.dumps({"v": 1, "size": size, **TRACKER})
+            self.assertEqual(self.k(f"trackerOf({{body: {lit(body)}}}, false)")["size"], size)
+        for body in (json.dumps({"v": 1, **TRACKER}), json.dumps({"v": 1, "size": "huge", **TRACKER}), "{", ""):
+            self.assertEqual(self.k(f"trackerOf({{body: {lit(body)}}}, false)")["size"], "medium")
+        self.assertEqual(self.k(f"trackerOf({lit({'size': 'small', 'groups': []})}, true)")["size"], "small")
+        self.assertEqual(self.k(f"trackerOf({lit({'groups': []})}, true)")["size"], "medium")
+        sent = lambda t: json.loads(self.val(f"(function(t){{ return t.bodyOf(t.withSize(t.trackerOf({{body: {lit(json.dumps({'v': 1, **TRACKER}))}}}, false), {lit(t)})); }})(K.tracker)"))
+        self.assertEqual(sent("compact")["size"], "compact")
+        self.assertNotIn("size", sent("medium"))               # Medium is left out, so an older build still reads the body
+        self.assertIsNone(self.val("K.tracker.withSize(K.tracker.trackerOf(null, false), 'huge')"))
+
     def test_the_words_for_points_behind(self):
         self.assertEqual(self.k("behindWords(10)"), "1 point behind plan")
         self.assertEqual(self.k("behindWords(25)"), "2.5 points behind plan")
@@ -294,9 +328,8 @@ class Totals(unittest.TestCase):
 
     def test_the_overall_tiles_and_scale_have_their_words(self):
         """#451 rows 49 and 50: the tile captions and the scale ends, as plain words."""
-        self.assertEqual(self.k("WORDS.actualOf"), "of the whole project")
-        self.assertEqual(self.k("WORDS.plannedBy"), "by")
-        self.assertEqual(self.k("WORDS.healthTile"), "Project health")
+        self.assertEqual(self.k("WORDS.actual"), "Achieved")
+        self.assertEqual(self.k("WORDS.planned"), "Planned")
         self.assertEqual((self.k("WORDS.scaleStart"), self.k("WORDS.scaleEnd")), ("0%", "100%"))
 
     def test_the_planned_label_leans_in_at_the_ends_of_the_bar(self):
