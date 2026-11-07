@@ -21,14 +21,13 @@ import { MsLegend } from "./MsLegend.jsx";
 export function MsBlock({ place, tools }) {
   const client = fromFile.value, today = client && asAt.value ? asAt.value : todayIso();
   const dash = !client && place !== "page";
-  const off = dash ? new Set(leftOutIds(data.value)) : null;
-  const rows = milestoneRows(data.value.milestones, today, client).filter((r) => !dash || (r.clientVisible && !off.has(r.id)));
+  const Eye = !client && tools && tools.MsEye && isEditing() ? tools.MsEye : null;
+  const left = dash || Eye ? new Set(leftOutIds(data.value)) : null;      // #520: the ids left out of the published page, built once (the Dashboard's rows and the Eye's marks both read it)
+  const rows = milestoneRows(data.value.milestones, today, client).filter((r) => !dash || (r.clientVisible && !left.has(r.id)));
   const AddBack = dash && tools && tools.MsAddBack && isEditing() ? tools.MsAddBack : null;
   const [view, setView] = useState(() => (client ? "line" : recall(`msv.${place}`, "line") === "cal" ? "cal" : "line"));
   const choose = (v) => { if (!client) remember(`msv.${place}`, v); setView(v); };
   const open = client ? null : (id) => openPeek(id, "milestone");   // a published file has nothing to open: its marks, labels, chips and rows are plain text
-  const Eye = !client && tools && tools.MsEye && isEditing() ? tools.MsEye : null;
-  const left = Eye ? new Set(leftOutIds(data.value)) : null;      // the ids left out of the published page
   if (!rows.length) return <><p class="muted" data-no-milestones>No milestones are shown yet.</p>{AddBack ? <AddBack /> : null}</>;
   return (
     <div class="msv" data-view={view} data-place={place}>
