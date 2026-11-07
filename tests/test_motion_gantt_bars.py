@@ -19,6 +19,7 @@ sys.path.insert(0, str(TOOLS))
 import build_page  # noqa: E402
 
 from test_gantt_logic import LINES, TODAY, page_html as bare_html  # noqa: E402
+import test_gantt_page  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 
 EDIT = (SRC / "clark" / "page" / "src" / "edit" / "edit.css").read_text(encoding="utf-8")
@@ -202,14 +203,6 @@ class Bars(unittest.TestCase):
         self.settle()
         self.js("window.calls.length = 0")
 
-    def test_leaving_and_returning_grows_again_per_mount(self):
-        self.page()
-        self.mount()
-        n = self.n_bars()
-        self.reset()
-        self.mount()
-        self.assertEqual(self.grow(), n)
-
     def mount_key(self, key, lines=LINES):
         w = int(self.js("innerWidth")) - 40
         self.js(f"mountGantt({lit(lines)}, {lit({'edit': True, 'today': TODAY, 'width': w, 'projectKey': key})})")
@@ -270,6 +263,82 @@ class Bars(unittest.TestCase):
         self.js(f"mountGantt({lit(LINES)}, {lit({'edit': False, 'today': TODAY, 'width': 900})})")
         self.until("document.querySelector('[data-g-bar]')", "bars")
         self.assertEqual(self.grow(), 0)
+
+
+    def test_a_childs_animationend_bubbling_to_the_bar_does_not_end_its_grow(self):
+        self.page()
+        self.mount_key("PRJ-A")
+        self.until("document.querySelector('.gt-b-task.gt-grow i')", "a task bar is growing")
+        id_ = self.js("document.querySelector('.gt-b-task.gt-grow').dataset.gBar")
+        bar = f"document.querySelector('[data-g-bar=\"{id_}\"]')"
+        # the nested progress fill reports an animationend that bubbles to the bar; a redraw (selecting it) then shows whether the grow was ended
+        self.js(f"{bar}.querySelector('i').dispatchEvent(new AnimationEvent('animationend', {{bubbles: true, animationName: 'x'}}))")
+        self.js(f"{bar}.click()")
+        self.until(f"{bar}.classList.contains('sel')", "the bar is selected")
+        self.assertTrue(self.js(f"{bar}.classList.contains('gt-grow')"), "a child's animationend left the grow in place")
+        self.js(f"{bar}.dispatchEvent(new AnimationEvent('animationend', {{bubbles: true, animationName: 'm-grow'}}))")
+        self.js(f"document.querySelector('{BARS}:not([data-g-bar=\"{id_}\"])').click()")
+        self.until(f"!{bar}.classList.contains('sel')", "another bar is selected")
+        self.assertFalse(self.js(f"{bar}.classList.contains('gt-grow')"), "its own animationend ends the grow")
+
+
+class OnThePage(unittest.TestCase):
+    """The same rule through the real GanttPage (the fixture gantt_page_demo.jsx): the page hands the chart its project's key."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.stack = contextlib.ExitStack()
+        cls.server = Running(page_html=test_gantt_page.page_html)
+        cls.stack.callback(cls.server.close)
+        cls.cdp = cls.stack.enter_context(chrome())
+        tid = next(t["targetId"] for t in cls.cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+        cls.sid = cls.cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+        cls.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, cls.sid)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.stack.close()
+
+    def js(self, expr):
+        return self.cdp.js(expr, self.sid)
+
+    def until(self, expr, what, t=8):
+        self.assertTrue(wait(lambda: self.js(f"!!({expr})"), t), what)
+
+    def open(self):
+        self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, self.sid)
+        self.cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+        self.cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.server.port}/"}, self.sid)
+        self.until("window.P && window.P.mount", "the page demo ran")
+        self.js("window.__st = []; document.addEventListener('animationstart', e => { if (e.animationName === 'm-grow') window.__st.push(e.target.dataset.gBar); }, true)")
+
+    def mount(self, code):
+        self.js(f"P.mount({lit({'project': {'name': 'Demo project', 'code': code, 'client_name': 'Example client', 'week_ending': '2026-11-06'}})})")
+        self.until("document.querySelector('[data-g-bar]')", "bars are drawn")
+
+    def bars(self):
+        return int(self.js(f"document.querySelectorAll('{BARS}').length"))
+
+    def grow(self):
+        self.until("document.getAnimations().length === 0", "every animation ended")
+        n = len(json.loads(self.js("JSON.stringify(window.__st)")))
+        self.js("window.__st = []")
+        return n
+
+    def test_the_page_gives_each_project_its_own_first_grow(self):
+        self.open()
+        self.mount("PRJ-A")
+        n = self.bars()
+        self.assertGreater(n, 0)
+        self.assertEqual(self.grow(), n, "the first project grows every bar")
+        self.mount("PRJ-A")
+        self.assertEqual(self.grow(), 0, "a remount of the same project grows none")
+        self.mount("PRJ-B")
+        self.assertEqual(self.grow(), n, "the second project grows every bar once")
+        self.mount("PRJ-B")
+        self.assertEqual(self.grow(), 0, "a remount of the second project grows none")
+        self.mount("PRJ-A")
+        self.assertEqual(self.grow(), n, "back on the first project it grows again")
 
 
 if __name__ == "__main__":
