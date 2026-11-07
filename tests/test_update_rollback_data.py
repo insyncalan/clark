@@ -416,7 +416,7 @@ class UndoThenTheOldAppFailsToStartTest(Rolled):
         self.seams = MigratingSeams(self, migrate=False)                      # the old app is started by the undo and does not answer
         status, said = now.undo({"arm_id": armed["arm_id"]})
         self.assertEqual(200, status, said)
-        at_handover = digest(self.db)
+        at_handover, asides = digest(self.db), self.asides()                   # the Undo itself kept the newer file aside
         code, result = self.run_helper()
         self.assertEqual(h.ROLLED_BACK, code)
         self.assertNotIn("data", result)                                       # nothing for the data step to say
@@ -426,7 +426,7 @@ class UndoThenTheOldAppFailsToStartTest(Rolled):
         self.assertEqual(at_handover, digest(self.db))                         # the put-back data is untouched
         for record in (self.data / "updates").glob("*/update.json"):
             self.assertNotIn("data_restore_pending", json.loads(record.read_text(encoding="utf-8")), record.parent.name)
-        self.assertEqual([], self.asides())
+        self.assertEqual(asides, self.asides())                                # the helper put nothing back, so kept nothing more
 
 
 class ParityTest(unittest.TestCase):
