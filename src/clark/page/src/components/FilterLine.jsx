@@ -252,6 +252,10 @@ export function FilterLine({ board }) {
       setActive(e.key === "ArrowDown" ? (active + 1) % options.length : (active < 0 ? options.length : active) - 1);
     } else if (e.key === "Backspace" && live.current.chips.length && e.target.selectionStart === 0 && e.target.selectionEnd === 0) {
       e.preventDefault(); dropChip(live.current.chips.length - 1);        // an empty box takes the last chip away
+    } else if ((e.key === "Backspace" || e.key === "Delete") && e.target.selectionStart === e.target.selectionEnd && Q.dropWordAt(live.current.draft, e.target.selectionStart)) {
+      e.preventDefault();        // item 1014: the caret right after a half-typed field:value takes the whole word away, not one letter at a time
+      const r = Q.dropWordAt(live.current.draft, e.target.selectionStart);
+      want.current = r.caret; edit(r.text, r.caret); setActive(-1);
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (listed && active >= 0 && options[active]) pick(options[active]);

@@ -318,6 +318,21 @@ class Line(unittest.TestCase):
             pause(cdp, sid)
             self.assertEqual(self.shown(cdp, sid), expect([r for r in rows if r["kind"] == "action"], "open", filters={"priority": ["High"]}))
 
+    def test_backspace_or_delete_right_after_a_half_typed_field_value_removes_the_whole_word(self):
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.load(cdp, s.port)
+            self.focus(cdp, sid)
+            for name in ("Backspace", "Delete"):
+                self.put(cdp, sid, "")
+                self.type(cdp, sid, "status:Op")
+                self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "status:Op")
+                key(cdp, sid, name)
+                self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "", name + " takes the whole status:Op")
+            self.type(cdp, sid, "fix ow")
+            key(cdp, sid, "Backspace")
+            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "fix o", "a plain word still goes one letter")
+
     def test_a_token_with_an_error_is_underlined_says_why_and_filters_nothing(self):
         s = self.serve()
         for theme in THEMES:
