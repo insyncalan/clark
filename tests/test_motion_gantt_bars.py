@@ -254,6 +254,25 @@ class Bars(unittest.TestCase):
                 self.assertEqual(self.val("getComputedStyle(document.querySelector('.gt-b')).animationName"), "none")
                 self.assertEqual(self.val("document.getAnimations().length"), 0)
 
+    def test_drawn_under_reduced_motion_then_switched_off_nothing_grows_row_1000(self):
+        """Drawn while reduced (by the computer or by the app's switch), then the setting goes OFF with the Gantt still open: no bar grows."""
+        for how in ("computer", "switch"):
+            with self.subTest(how=how):
+                self.page(motion="reduce" if how == "computer" else "no-preference", attr=(how == "switch"))
+                self.mount()
+                self.assertEqual(self.grow(), 0)
+                self.assertEqual(self.val(f"document.querySelectorAll('{BARS}.gt-grow').length"), 0, "no bar carries the grow class while reduced")
+                self.reset()
+                if how == "computer":
+                    self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, self.sid)
+                else:
+                    self.js("delete document.documentElement.dataset.motion")
+                self.assertEqual(self.grow(), 0, "switching reduced motion off replays nothing")
+                self.assertEqual(self.val("document.getAnimations().length"), 0)
+                # a redraw after the switch (selecting a bar) still grows nothing
+                self.js(f"document.querySelector('{BARS}').click()")
+                self.assertEqual(self.grow(), 0)
+
     def test_the_published_stylesheet_alone_runs_nothing(self):
         self.page()
         self.mount()
