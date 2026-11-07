@@ -241,8 +241,8 @@ class Switch(Base):
             cdp.call("Page.enable", {}, sid)
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED + "Storage.prototype.setItem = function () { throw new Error('blocked'); };"}, sid)
             cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#work&p=ABC"}, sid)
-            self.until(cdp, sid, "!!document.querySelector('#viewMenu')")
-            self.view_pick(cdp, sid, "layout:board")
+            self.until(cdp, sid, "document.documentElement.dataset.ready === '1' && !!document.querySelector('#work [data-lay=board]')", "the page settled with the switch drawn")
+            self.view_pick(cdp, sid, "layout:board", mouse=False)    # the filter line is still settling: coordinates taken once could miss the button
             self.until(cdp, sid, "!!document.querySelector('#work-board')", "the board, though nothing could be kept")
 
     def test_the_published_page_has_no_board(self):
