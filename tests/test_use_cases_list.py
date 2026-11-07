@@ -78,9 +78,9 @@ class Setup(Base):
             p.js("document.documentElement.dataset.theme = 'dark'")
         if hash_ == "#usecases&p=ABC":
             p.until("document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0 || !!document.querySelector('#usecases [data-empty]')", "the list drew")
+        self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
         if edit:
-            p.js("document.querySelector('[data-mode=edit]').click()")
-            p.until("!!document.querySelector('#usecases [data-eye]')", "Edit shows the eyes")
+            p.until("!!document.querySelector('#usecases [data-eye]')", "the page shows the eyes")
         return p
 
     def refs(self, p):
@@ -316,8 +316,8 @@ class List(Setup):
             p.js("document.querySelector('[data-undo]').click()")
             p.until(f"document.querySelector('{sel}').title === '{OFF}'", "Undo put it back")
             self.assertEqual(self.eye("1.10"), 0)
-            p.js("document.querySelector('[data-mode=edit]').click()")
-            p.until("document.querySelectorAll('#usecases [data-eye]').length === 4", "Edit keeps each eye a button")
+            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
+            p.until("document.querySelectorAll('#usecases [data-eye]').length === 4", "each eye is still a button")
 
     def test_the_eye_is_an_icon_alone_with_a_tooltip_and_never_meets_the_commitment_chip(self):
         """Issue 753: no heading and no words for 'show on report': the eye, a title on hover, the same words as the aria-label."""

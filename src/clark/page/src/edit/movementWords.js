@@ -52,9 +52,9 @@ export const PAST_DATE = "The new agreed date can't be before today (%s).";
 export const ARCHIVED = "That milestone is archived. Restore it first.";
 export const NOT_HERE = "That milestone isn't in this project.";
 
-// A title built from a template and a milestone's name, held to the 200 characters a title may have: the name is cut with an
+// A title built from a template and a milestone's name, held to the characters a title may have (ITEM_TITLE_MAX): the name is cut with an
 // ellipsis when the whole would run over (counted in characters, as the server counts).
-export const TITLE_MAX = 200;
+export const TITLE_MAX = __CLARK_ITEM_TITLE_MAX__;      // clark/limits.py ITEM_TITLE_MAX, written in by the build (PeekTitle.jsx has the same)
 export function fitTitle(template, name) {
   const room = TITLE_MAX - (template.length - 2);
   const chars = Array.from(String(name));
