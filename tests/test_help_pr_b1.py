@@ -43,6 +43,7 @@ class SheetChoice(unittest.TestCase):
 
     def test_only_ticked_sheets_are_read(self):
         self.assertIn("Only the sheets you tick in **What to import** are read; the others are not read or changed.", flat(SECS["excel"]))
+        self.assertIn("nothing in the file is imported, and the message gives the rule and the row number; untick the Gantt sheet in **What to import** to import the other sheets.", flat(SECS["excel"]))
         self.assertIn("sheets is not None and table not in sheets", text("excel_import.py"))
 
     def test_guide_row_limits(self):
