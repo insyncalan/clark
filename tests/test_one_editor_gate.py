@@ -322,6 +322,8 @@ class MovedFields(unittest.TestCase):
             with self.subTest(field):
                 self.assertIn(field, publish.RICH.get(table, ()), "published through clean_html")
                 self.assertIn((table, field), publish.LEGACY_RICH, "an old plain row reads as escaped paragraphs")
+        from clark import excel
+        self.assertEqual(excel.RICH_WORDS, publish.LEGACY_RICH, "the workbook carries the words of the same fields")
         src = (SRC / "clark" / "changes.py").read_text(encoding="utf-8")
         self.assertEqual(src.count("_rich_field("), 3, "the definition and the two fields' writes")
 

@@ -109,6 +109,39 @@ class Fields(Base):
                 self.assertEqual(self.send(table, field, "<p>x</p>" * 20000)[0], 400)
 
 
+    def test_a_mark_that_composes_with_a_tag_cannot_break_the_stored_markup(self):
+        """Second read: NFC after cleaning turned '<p' + U+0338 into a letter; it is composed BEFORE the cleaner now, and what is stored is a clean_html fixed point."""
+        for table, field, _ in FIELDS:
+            with self.subTest(field):
+                for sent in ("<p\u0338>x</p>", "<p>a</p>\u0338", "<p>a</p><p>b</p>\u0338", "<p>a</p><p\u0338>b</p>", "<p>e\u0301 &#x301;</p>", "<p>&lt;\u0338 q</p>", "x <\u0338 y"):
+                    status, body = self.send(table, field, sent)
+                    self.assertEqual(status, 200, (sent, body))
+                    got = self.stored(table, field)
+                    self.assertEqual(sanitise.rich_or_plain(got), got, "a fixed point of the cleaner: " + repr(got))
+                    self.assertNotIn("\u226f", got, "no tag end was composed away: " + repr(got))
+                    self.assertEqual(self.published(table, field), got)
+
+    def test_the_limit_counts_the_final_stored_words_after_nfc_and_cleaning(self):
+        """Issue 548: U+0344 written as an entity becomes two characters when composed (NFC), so a text at the limit can end over it. The count is of what is stored."""
+        for table, field, limit in FIELDS:
+            with self.subTest(field):
+                status, body = self.send(table, field, "<p>" + "a" * (limit - 2) + "1&#x344;</p>")
+                self.assertEqual(status, 400, "limit characters as written, limit + 1 once the mark is composed into two")
+                status, body = self.send(table, field, "<p>" + "a" * (limit - 3) + "1&#x344;</p>")
+                self.assertEqual(status, 200, body)
+                got = self.stored(table, field)
+                self.assertLessEqual(len(sanitise.plain_text(got)), limit)
+                self.assertEqual(sanitise.rich_or_plain(got), got)
+
+    def test_a_carriage_return_inside_html_is_a_line_break_not_a_hidden_character(self):
+        for table, field, _ in FIELDS:
+            with self.subTest(field):
+                for sent in ("<p>a\rb</p>", "<p>a\r\nb</p>", "<p>a</p>\r<p>b</p>"):
+                    status, body = self.send(table, field, sent)
+                    self.assertEqual(status, 200, (sent, body))
+                    self.assertNotIn("\r", self.stored(table, field))
+
+
 class Legacy(Base):
     def test_a_legacy_plain_value_is_published_as_escaped_paragraphs(self):
         for table, field, _ in FIELDS:

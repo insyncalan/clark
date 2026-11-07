@@ -334,11 +334,12 @@ class Browser(unittest.TestCase):
             key(cdp, sid, "Escape")
             self.assertEqual(sent, [], "opening and leaving saved nothing, so the old row is as it was")
 
-    def test_the_box_has_the_focus_when_it_opens_even_when_frames_arrive_late(self):
+    def test_the_box_has_the_focus_as_it_is_drawn_not_a_frame_later(self):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, OVERDUE, late=True)
             click(cdp, sid, self.SHOWN)
-            self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), 30), "the editor has the focus")
+            self.assertTrue(cdp.js("!!document.querySelector('#peek .ProseMirror')", sid), "the click opened the editor")
+            self.assertTrue(cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), "the editor has the focus with no frame in between")
 
     def test_a_too_long_update_is_refused_by_clark_in_words_and_the_box_stays(self):
         with chrome() as cdp:

@@ -62,7 +62,7 @@ from clark import glance
 from clark import excel_palette
 from clark import excel_picture
 from clark import look
-from clark import platform
+from clark import platform, sanitise
 from clark.milestones import STATES, milestone_state
 from clark.store import COMMITMENTS
 from clark.timefmt import local_text, parse
@@ -126,6 +126,7 @@ DATES = {"due_date", "raised", "closed", "date", "baseline_date", "forecast_date
          "original_date"}
 YES_NO = {"client_visible", "state_set"}
 LABELLED = ("actions", "raid", "decisions")
+RICH_WORDS = (("actions", "latest_update"), ("milestones", "description"))     # row 1005: rich now (the editor's HTML or an older plain text); the sheet carries its words, as the other readers do (publish.LEGACY_RICH is the same list)
 DERIVED = {"original_date", "shown_state", "open_items"}    # clark: worked out for the sheet, never read back as a change
 WIDE = {"description", "decision", "client_message", "latest_update", "response_action", "reasoning", "options", "revisit",
         "state_reason", "internal_note", "source", "headline", "standing"}
@@ -1225,6 +1226,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
                 r = {**r, "open_items": open_of.get(("milestone" if table == "milestones" else "use_case", r["id"]))}
             else:
                 r = {**r, **{f: names[f].get(r.get(f), r.get(f)) for f in REF_TABLES}}
+            r = {**r, **{f: sanitise.rich_plain_text(r[f]) for t, f in RICH_WORDS if t == table and isinstance(r.get(f), str)}}
             ws.append([to_cell(f, r.get(f)) for _, f in cols])
             for c in ws[ws.max_row]:
                 c.font = st.body_font
