@@ -305,6 +305,8 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .factive.pub .fchip button { width: 22px; height: 22px; }
 /* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
 :root { --layer-list: 26; }   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
+/* Item 955: the border every menu and floating list shares: grey-500 with a fifth of grey-700, so it is at least 3:1 against the page ground and against a card surface in light (3.4:1 and 3.7:1) and in dark (over 5:1). It was --border (grey-300), 1.46:1 to 2.09:1. It follows the theme because the two greys do. */
+:root { --menu-border: color-mix(in srgb, var(--grey-500), var(--grey-700) 20%); }
 .fline-wrap { position: relative; margin-top: 12px; }
 .fviews { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
 .fvrow { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--space-2); flex: 1 1 100%; min-width: 0; border-bottom: 1px solid var(--grey-200); }   /* row 809: the views are text tabs on a thin rule; the row of tabs scrolls inside its own box and the menus keep their place at the right */
@@ -1505,6 +1507,10 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 .seg button[aria-checked="true"] { background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); font-weight: var(--weight-semibold); }
 .seg button[aria-pressed="true"] em,
 .seg button[aria-checked="true"] em { color: var(--pill-fg); }
+/* Item 952: the chosen half of a segmented group is filled aqua, where the page's blue ring was 2.5:1 on it in dark. On that half the ring is ONE ring, the same outline the other halves have: its colour is the fill's own text colour (--pill-fg, dark; well over 3:1 on both ends of the aqua in light and in dark) and it is moved to 6 px INSIDE the half's edge (outline-offset -6px), so the aqua is on both sides of it. It is not a second ring on top of the blue one; the blue one is gone on that half. Covers every .seg whose chosen half is aqua: aria-pressed / aria-checked, the Layout pair (.seg.lsw: Table | Board, aqua too) and the Milestones calendar scale (.cal-sc, which marks its chosen scale with aria-current). Not the View | Edit pill (.modes: its own outset ring, edit.css) and not a .seg.icons (no screen has one now; its chosen half would be a tint, where the blue ring is right). */
+.seg:not(.icons):not(.modes) button[aria-pressed="true"]:focus-visible,
+.seg:not(.icons):not(.modes) button[aria-checked="true"]:focus-visible,
+.cal-sc button[aria-current="true"]:focus-visible { outline-color: var(--pill-fg); outline-offset: -6px; }
 .top { background-color: var(--brand-navy); background-image: linear-gradient(90deg, var(--brand-navy), var(--bar-end)); }   /* the bar still takes --brand-navy, with a soft lift to the right */
 .tab::after { background-color: var(--pill-color); background-image: var(--accent-line); }
 
@@ -2224,3 +2230,4 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 [data-gt] .gt-menu button:hover, [data-gt] .gt-menu button:focus-visible { background: var(--grey-100); outline: 0; }
 [data-gt] .gt-menu button.gt-danger { color: var(--status-red-text); }
 [data-gt] .gt-menu hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-1) 0; }
+.ddmenu, .menu, .cpop, .flist { border-color: var(--menu-border); }   /* last in the file, so it wins over each menu's own `border: 1px solid var(--border)` */

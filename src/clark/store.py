@@ -731,7 +731,7 @@ GANTT_COLUMNS = ("type", "parent", "start", "end", "pct", "health", "depends", "
 GANTT_NEVER_HIDDEN = ("type", "start", "end", "pct")      # the chart cannot be drawn without these (what kind of line, where it sits, how far along), so a client file always has them
 GANTT_HIDEABLE = tuple(c for c in GANTT_COLUMNS if c not in GANTT_NEVER_HIDDEN)
 GANTT_MAX_EFFORT, GANTT_MAX_BUDGET = 1_000_000, 1_000_000_000_000      # the table's own limits (schema.sql CHECKs): a number above them is refused in words, never left to the database
-GANTT_DEFAULT_HIDDEN = ("show", "note", "budget", "effort", "baseline_start", "baseline_end")     # the default of projects.gantt_hidden_columns
+GANTT_DEFAULT_HIDDEN = ("show", "note", "budget", "effort", "baseline_start", "baseline_end", "owner")     # the default of projects.gantt_hidden_columns
 GANTT_DEFAULT_TAB = "Gantt"
 MAX_GANTT_LINES = 500                    # a project's Gantt lines
 MAX_GANTT_DEPENDS = 50                   # the lines one line depends on
@@ -2515,7 +2515,7 @@ GANTT_PROJECT_COLUMNS = (          # (name, definition) in the order schema.sql 
     ("show_gantt_client", "INTEGER NOT NULL DEFAULT 0 CHECK (show_gantt_client IN (0,1))"),
     ("gantt_tab_name", "TEXT NOT NULL DEFAULT 'Gantt' CHECK (length(trim(gantt_tab_name)) BETWEEN 1 AND 30)"),
     ("gantt_title", "TEXT NOT NULL DEFAULT '' CHECK (length(gantt_title) <= 120)"),
-    ("gantt_hidden_columns", "TEXT NOT NULL DEFAULT 'show,note,budget,effort,baseline_start,baseline_end' CHECK (length(gantt_hidden_columns) <= 300)"),
+    ("gantt_hidden_columns", "TEXT NOT NULL DEFAULT 'show,note,budget,effort,baseline_start,baseline_end,owner' CHECK (length(gantt_hidden_columns) <= 300)"),
     ("gantt_default_rows", "INTEGER CHECK (gantt_default_rows IS NULL OR (typeof(gantt_default_rows) = 'integer' AND gantt_default_rows BETWEEN 1 AND 500))"))
 GANTT_LINES_TABLE = """CREATE TABLE IF NOT EXISTS gantt_lines (
   id TEXT PRIMARY KEY,
@@ -2550,7 +2550,7 @@ GANTT_LINES_TABLE = """CREATE TABLE IF NOT EXISTS gantt_lines (
 
 def migrate_gantt(con):
     """Schema version 17 to 18 (row 926): the `gantt_lines` table and the project's six Gantt columns (show_gantt_editor and
-    show_gantt_client, both 0; gantt_tab_name 'Gantt'; gantt_title empty; gantt_hidden_columns the six GANTT_DEFAULT_HIDDEN; gantt_default_rows empty). The table
+    show_gantt_client, both 0; gantt_tab_name 'Gantt'; gantt_title empty; gantt_hidden_columns the GANTT_DEFAULT_HIDDEN seven; gantt_default_rows empty). The table
     is new and empty, and each column is added at the end of projects with the CHECK of schema.sql, so no table is made again, no
     existing value changes and no frozen schema file is needed. Each part is skipped when it is already there (a new database, or a
     second run). The safety copy is taken by the runner before this runs (bring_up_to_date). Runs inside the caller's transaction and

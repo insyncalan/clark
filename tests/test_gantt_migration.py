@@ -96,7 +96,7 @@ class Migrating(unittest.TestCase):
                 p = s.read("projects", ref=code)
                 self.assertEqual((p["show_gantt_editor"], p["show_gantt_client"], p["gantt_tab_name"], p["gantt_title"],
                                   p["gantt_hidden_columns"], p["gantt_default_rows"]),
-                                 (0, 0, "Gantt", "", "show,note,budget,effort,baseline_start,baseline_end", None))
+                                 (0, 0, "Gantt", "", "show,note,budget,effort,baseline_start,baseline_end,owner", None))
         finally:
             s.close()
         after = every_row(path, NEW_COLUMNS)
