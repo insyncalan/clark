@@ -8,7 +8,7 @@ nothing, and it waits for document.getAnimations().length === 0 before it ends. 
 
   1 cell pickers (Pop)           live        2 filter suggestions        live        3 column filter box         live (Use cases Status; the Work items one is the published file's)
   4 row menu and its fly-out     live        5 Move to (Board)           live        6 tile outline colour menu  live (Glance)
-  7 client menu                  NOT DONE (see the report)   8 section options (Gutter)  live        9 Gantt Add menu           live (chart)
+  7 client menu                  live (Client)               8 section options (Gutter)  live        9 Gantt Add menu           live (chart)
  10 template settings            live        11 date and decision boxes on the Board, both live
 """
 import json
@@ -22,6 +22,7 @@ import test_glance_page as gl  # noqa: E402
 import test_row_menu as rm  # noqa: E402
 import test_tracker_page as tp  # noqa: E402
 import test_bulk_bar as bb  # noqa: E402
+import test_client_menu as cm  # noqa: E402
 import test_use_cases_list as ucl  # noqa: E402
 from test_row_menu import key  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
@@ -155,8 +156,7 @@ class Live(rm.Menu):
                 d = self.drive(cdp, sid)
                 self.drag(cdp, sid, self.id_of("Order the laptops"), self.cell("this_week"))
                 d.until("!!document.querySelector('.dpick')", "the date box")
-                cdp.js("document.activeElement && document.activeElement.blur()", sid)
-                d.fades(motion, lambda: key(cdp, sid, "Escape"), ".dpick.leaving")
+                d.fades(motion, esc_on(lambda e: cdp.js(e, sid), ".dpick"), ".dpick.leaving")
                 d.until("!document.querySelector('.dpick:not(.leaving)')", "closed")
 
 
@@ -199,6 +199,20 @@ class Live(rm.Menu):
                 d.until("!!document.querySelector('.secs .menu')", "options")
                 d.fades(motion, lambda: cdp.js("document.querySelector('.secs > .sec [data-options]').click()", sid), ".menu.leaving")
                 d.until("!document.querySelector('.secs .menu')", "closed")
+
+
+class Client(cm.Menu):
+    """Row 7: the published file's Report menu (the client menu) fades out as it closes, through the same MenuPanel fade."""
+
+    def test_row_962_7_the_client_menu_fades_out(self):
+        for motion in ("no-preference", "reduce"):
+            with self.subTest(motion=motion), chrome() as cdp:
+                js = self.show(cdp)
+                motion_of(cdp, self.sid, motion)
+                d = Drive(self, js, lambda e, what: self.assertTrue(wait(lambda: js(e)), what))
+                self.menu(cdp, js)
+                d.fades(motion, lambda: self.key(cdp, "Escape", 27), ".cm-menu.leaving")
+                d.until("!document.querySelector('.cm-wrap .ddmenu')", "closed")
 
 
 class Tile(gl.Setup):
@@ -331,15 +345,15 @@ class Pins(unittest.TestCase):
         wired = {"components/FilterLine.jsx": r'<Fade tag="ul" class="flist"', "edit/UseCasesPage.jsx": r'<Fade boxRef=\{box\} class="fbox ucl-pop"', "edit/RowMenu.jsx": r'useFadeOut\(box, true, "rowmenu"\)',
                  "edit/Board.jsx": r"fade ", "edit/GlanceEdit.jsx": r'cls="left tilemenu" fade ',
                  "edit/Gutter.jsx": r'useFadeOut\(boxRef, true, ""\)', "gantt/components/GanttChart.jsx": r'<Fade class="gt-menu"',
-                 "edit/TemplateSettings.jsx": r'<Fade class="tset"', "edit/cells/Pop.jsx": r"fadeOut\(box\.current\)"}
+                 "edit/TemplateSettings.jsx": r'<Fade class="tset"', "components/ClientMenu.jsx": r'cls="cm-menu" fade ', "edit/cells/Pop.jsx": r"fadeOut\(box\.current\)"}
         for path, pattern in wired.items():
             self.assertRegex(read(path), pattern, path)
         self.assertEqual(len(re.findall(r"useFadeOut\(root, true", read("edit/Board.jsx"))), 2, "the date box and the decision box")
         self.assertIn("<Pop ", read("edit/Bulk.jsx"), "the bulk menu is a Pop")
 
 
-del rm, gc, gl, ucl   # (the imported modules' own tests belong to their files)
-for _cls in (Live, Tile, Settings, AddMenu, Bulk, UseCasesStatus):
+del rm, gc, gl, ucl, cm   # (the imported modules' own tests belong to their files)
+for _cls in (Live, Client, Tile, Settings, AddMenu, Bulk, UseCasesStatus):
     for _n in [n for n in dir(_cls) if n.startswith("test_") and "row_962" not in n]:
         setattr(_cls, _n, None)
 
