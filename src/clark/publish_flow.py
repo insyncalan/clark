@@ -22,6 +22,7 @@ Standard library only, Python 3.9.
 import getpass
 import hashlib
 import json
+import os
 import re
 import secrets
 import shutil
@@ -328,6 +329,7 @@ class Publisher:
             return 409, self.fail("local_clark_files")
         try:
             earlier_local = self.earlier_bytes(dest)    # #120: a file this one replaces is put back if the record is refused
+            earlier_link = self.earlier_link(dest) if earlier_local is None else None      # #480: so is a link it replaces (the link, not its target)
             earlier_client = None
             if plan is not None and plan["replaces"]:   # #120: an Overwrite's old file is put back if the record is refused, as Local's is
                 earlier_client = self.earlier_bytes(Path(plan["folder"]) / plan["name"])
@@ -362,7 +364,7 @@ class Publisher:
         try:
             seq = store.log_publication(code, dest, week, digest, self.by_user(), client_path=client_path, number=number)
         except NumberTaken:               # #120: the files say a number they do not have: take back what this call wrote, and only that
-            self.take_back(dest, digest, earlier_local)
+            self.take_back(dest, digest, earlier_local, earlier_link)
             if client_path is not None:
                 self.take_back(client_path, digest, earlier_client)
             return 409, self.fail("number_taken")
@@ -447,15 +449,25 @@ class Publisher:
         except OSError:
             return None
 
-    def take_back(self, path, digest, earlier):
-        """Remove a file this publish wrote, only while it still holds the bytes written; a file it replaced is put back."""
+    def earlier_link(self, path):
+        """#480: where a link at `path` points, else None: what a refused record puts back in place of the file this publish wrote."""
         try:
-            if publish.still_ours(path, digest):
+            return os.readlink(path)
+        except OSError:
+            return None
+
+    def take_back(self, path, digest, earlier, earlier_link=None):
+        """Remove a file this publish wrote, only while it still holds the bytes written; a file it replaced is put back, and
+        so is a link it replaced (#480: publish.put_link_back, which never replaces anything that is not our file)."""
+        try:
+            if earlier is None and earlier_link is not None:
+                publish.put_link_back(path, earlier_link, digest)
+            elif publish.still_ours(path, digest):
                 if earlier is None:
                     Path(path).unlink()
                 else:
                     platform.write_file(Path(path), earlier)
-        except (OSError, platform.PlatformError):
+        except (OSError, platform.PlatformError, publish.PublishError):
             pass
 
     def result(self, ok, action, message, **extra):
