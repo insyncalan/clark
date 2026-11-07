@@ -78,6 +78,16 @@ class Route(unittest.TestCase):
         tracker["groups"][0]["lines"].append(line())             # one line more than TRACKER_MAX_LINES
         return tracker
 
+    def test_a_size_is_saved_over_the_real_route_and_a_bad_one_is_answered_in_the_checkers_words(self):
+        """#930: the optional size is kept as sent; any other word is refused with the checker's own sentence and nothing is changed."""
+        status, got = self.post(request(self.ref, {"v": 1, "size": "compact", "groups": [{"name": "A", "lines": [line()]}]}))
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        self.assertEqual(json.loads(self.stored())["size"], "compact")
+        before = self.stored()
+        status, got = self.post(request(self.ref, {"v": 1, "size": "huge", "groups": []}))
+        self.assertEqual((status, got["ok"], got["message"]), (400, False, sb.TRACKER_SIZE_BAD))
+        self.assertEqual(self.stored(), before)
+
     def test_the_widest_tracker_in_every_kind_of_letter_is_not_stopped_by_the_route_limit(self):
         for letter in LETTERS:
             for ascii_only in (True, False):

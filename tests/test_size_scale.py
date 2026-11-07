@@ -12,7 +12,8 @@ CSS = {"shell.css": ROOT / "src/clark/page/shell.css", "edit.css": ROOT / "src/c
 
 # Not text on the type scale: big figures in the At a glance tiles, and the calendar's month arrows (a glyph sized to its button).
 NOT_TEXT = {(".tile .n", "22px"), (".fig .v", "22px"), (".cp-m", "18px"),
-            (".tr-v", "34px"), (".tr-v", "26px")}  # the progress tracker's headline figures (#160), on screen and in print
+            (".tr-v", "32px"), (".tr-size-large .tr-v", "44px"), (".tr-size-small .tr-v", "24px"), (".tr-size-compact .tr-v", "18px"),
+            (".tr-overall .tr-v", "26px")}  # the progress tracker's headline figures (#160; #930: Large 44, Medium 32, Small 24, Compact 18), on screen and in print
 
 # Fixed boxes that a 14 px label overfills at 900 px: the "As at" date in the top bar, the avatars (initials in a 26 or 24 px
 # circle), the Type badge (102 px column), the template tick box (18 px).

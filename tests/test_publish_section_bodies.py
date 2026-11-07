@@ -64,7 +64,7 @@ class Kept(Published):
         got = self.sections()
         self.assertEqual(got[needs], {"id": needs, "type": "needs", "title": "Needs from you", "beside": 0,
                                       "rows": [{"what": "one", "kind": "decision", "from": "one", "by": ""}]})
-        self.assertEqual(got[tracker], {"id": tracker, "type": "tracker", "title": "Progress", "beside": 0,
+        self.assertEqual(got[tracker], {"id": tracker, "type": "tracker", "title": "Progress", "beside": 0, "size": "medium",
                                         "overall": {"actual": None, "planned": None, "health": "", "note": ""},
                                         "columns": {"tasks": False, "agents": False, "workflows": False},
                                         "groups": [{"name": "Plan", "lines": [{"no": "", "text": "two", "start": "", "end": "", "status": "planned",
@@ -73,7 +73,7 @@ class Kept(Published):
 
     def test_a_tracker_publishes_only_what_shows_and_picks_by_name(self):
         tracker = self.section("tracker")
-        self.write(tracker, json.dumps({"overall": {"actual": 625, "planned": 700, "health": "atrisk", "note": "Late supplier"},
+        self.write(tracker, json.dumps({"size": "compact", "overall": {"actual": 625, "planned": 700, "health": "atrisk", "note": "Late supplier"},
                                         "columns": {"tasks": True}, "groups": [
             {"name": "Empty", "lines": []},
             {"name": "Build", "lines": [{"no": "1", "text": "Site", "start": "2030-01-05", "end": "2030-02-01", "status": "late", "weight": 500, "tasks": 4}]}]}))
@@ -83,7 +83,8 @@ class Kept(Published):
         self.assertEqual(got["columns"], {"tasks": True, "agents": False, "workflows": False})
         self.assertEqual(got["groups"][0]["lines"][0]["start"], "05-01-2030")
         self.assertEqual(got["groups"][0]["lines"][0]["tasks"], 4)
-        self.assertEqual(set(got), {"id", "type", "title", "beside", "overall", "columns", "groups"})
+        self.assertEqual(set(got), {"id", "type", "title", "beside", "size", "overall", "columns", "groups"})
+        self.assertEqual(got["size"], "compact", "the size reaches the published file")
 
     def test_a_tracker_with_no_line_is_left_out_and_a_hidden_one_too(self):
         tracker = self.section("tracker")

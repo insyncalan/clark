@@ -346,6 +346,7 @@ const CHANGE_KNOWN = {
   "The progress tracker holds an overall figure, the columns shown, and groups of lines.": "That tracker can't be saved, and nothing was changed. Reload the page and try again.",
   "The overall figures are two numbers from 0 to 100, a health word, and a short note, or empty.": "The overall figures could not be saved. Nothing was changed. Use numbers from 0 to 100, then try again.",
   "A line about it can be 100 characters at most. Shorten it and try again.": "That line is too long (100 characters at most). Nothing was changed. Shorten it and try again.",
+  "The progress tracker's size is Large, Medium, Small or Compact.": "That size could not be saved. Nothing was changed. Choose Large, Medium, Small or Compact, then try again.",
   "Each extra column is either shown or not.": "That column setting could not be saved. Nothing was changed. Reload the page and try again.",
   "A group holds a name and its lines.": "That group can't be saved, and nothing was changed. Reload the page and try again.",
   "A tracker can have at most 10 groups.": "A tracker can have 10 groups at most, and nothing was changed. Remove one to add another.",

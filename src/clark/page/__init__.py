@@ -160,11 +160,12 @@ except ImportError:         # Windows: only the in-process lock
 
 def build_inputs():
     """Every file the build reads, sorted: the page's sources (not the built help copy), its shell CSS, this module (the build
-    imports it), its assets, the brand tokens, the vendored libraries and fonts, and the two build tools."""
+    imports it), its assets, the brand tokens, the shared limits (limits.py), the vendored libraries and fonts, and the two build tools."""
     files = []
     if SOURCES.is_dir():
         files += [f for f in SOURCES.rglob("*") if f.is_file() and "__pycache__" not in f.parts and "shown" not in f.relative_to(SOURCES).parts[:-1]]
     files += [HERE / "shell.css", HERE / "__init__.py", ROOT / "src" / "clark" / "brand" / "tokens.css",
+              ROOT / "src" / "clark" / "limits.py",      # #942: the limits the build writes into the page; a new number must make the pages stale
               ROOT / "dev" / "tools" / "build_page.py", ROOT / "dev" / "tools" / "esbuild.py",
               ROOT / "dev" / "tools" / "help_pins.json", ROOT / "dev" / "tools" / "help_shots.json"]
     for d in (HERE / "assets", HERE / "help-pictures", ROOT / "vendor" / "preact", ROOT / "vendor" / "tiptap", ROOT / "vendor" / "fonts"):

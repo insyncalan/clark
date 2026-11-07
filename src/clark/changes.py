@@ -42,6 +42,7 @@ from pathlib import Path
 from clark import backup, doclinks, milestone_rows, milestones, order, platform, sanitise, section_bodies, section_kinds
 from clark import people as people_rules
 from clark import store as clark_store
+from clark.limits import ITEM_TITLE_MAX      # a work item's title, at most (_checked_item_changes); one literal, in limits.py
 from clark.section_kinds import base as section_base, textimage as pictures
 from clark.store import Invalid
 
@@ -229,7 +230,6 @@ NEW_NEEDS = {"actions": "Say what the action is.", "raid": "Say what the risk or
 NEW_SOURCE = "Added by hand in clark"       # the row's source, as the prototype words it; never taken from a request
 COPY_SOURCE = "Duplicated from "             # #442: a copy's source, then the item's id (system/prototype/peek.js, Duplicate)
 COPY_MARK = " (copy)"                        # #442: the end of a copy's title
-ITEM_TITLE_MAX = 200                         # a work item's title, at most (_checked_item_changes)
 COPIED = {                                   # #442: what Duplicate copies from the stored item (the prototype copies the item whole); never the
     "actions": ("workstream", "owner", "owner_id", "priority", "due_date", "status", "latest_update", "client_message", "milestone", "use_case"),
     "raid": ("type", "workstream", "owner", "owner_id", "response_action", "due_date", "impact", "likelihood", "status", "client_message", "milestone", "use_case"),
@@ -418,7 +418,7 @@ def _checked_item_changes(fields, blank_clears=()):
     flag = {k: _flag(v) for k, v in fields.items() if k in ("client_visible", "client_action")}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
     fields = {k: v for k, v in fields.items() if k not in flag}
     for k, v in fields.items():
-        if v is None and k in ITEM_NOT_NULL or v is not None and (not isinstance(v, str) or not v.strip() or len(v) > 200):
+        if v is None and k in ITEM_NOT_NULL or v is not None and (not isinstance(v, str) or not v.strip() or len(v) > ITEM_TITLE_MAX):
             raise Refused(ITEM_VALUE_WORDS)
         if isinstance(v, str) and not _plain_text(v):
             raise Refused(ITEM_TEXT_WORDS)
