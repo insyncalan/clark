@@ -220,7 +220,7 @@ def finish_unfinished_update(folder, err):
         if not marker.exists():
             return True
         doc = json.loads(marker.read_text(encoding="utf-8"))
-        if doc.get("phase") == "started" and update_helper.Seams().helper_running(doc.get("helper_pid"), doc.get("helper_ident")):
+        if doc.get("phase") == "started" and update_helper.Seams().helper_running(doc.get("helper_pid"), doc.get("helper_ident"), doc.get("started_at")):
             return True
     except (OSError, ValueError, AttributeError):
         pass                                     # a marker that can't be read is for finish_update to deal with
