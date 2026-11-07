@@ -21,7 +21,7 @@ import logging
 import secrets
 import threading
 
-from clark import ai_menu, ask, ask_claude, secret_screen
+from clark import ai_menu, ask, ask_claude
 
 LOG = logging.getLogger("clark.ai")
 FIELDS = {"option", "place", "text", "instruction"}
@@ -118,7 +118,7 @@ class AiService:
         option, place, text, instruction = got
         # A password or key in the text or in Ask... is refused as it was given, before any cleaning or squeezing (screen
         # before the line breaks are joined), before the run lock and before the provider. Nothing is echoed or logged but the shape.
-        if secret_screen.looks_like_secret(text) or secret_screen.looks_like_secret(instruction):
+        if ai_menu.looks_like_secret(text) or ai_menu.looks_like_secret(instruction):
             LOG.info("ai suggest refused: secret option=%s place=%s length=%d", self.checked_option(option), place, len(text))
             return 400, self.fail("secret")
         state = self.state()
