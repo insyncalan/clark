@@ -57,6 +57,7 @@ main { position: relative; max-width: var(--max-width); margin: 0 auto; padding:
 @media (max-width: 900px) { .cover { margin: -18px -16px 16px; padding: 18px var(--space-4) var(--space-4); } }
 html:not([data-secstyle="card"]) .frame.report .cover { margin-top: 0; }      /* the report frame has only 4 px of top padding here, so the band starts at the frame, not 20 px above it */
 @media (max-width: 900px) { html:not([data-secstyle="card"]) .frame.report .cover { margin: 0 0 16px; } }      /* the report frame has no side padding here, so the band is the frame's width, not wider */
+html:not([data-secstyle="card"]) .frame.report .cover { border-radius: var(--radius-lg); box-shadow: var(--shadow); }      /* row 997: with separate section cards the band stands alone, so it is a card itself: four round corners and the shadow (DESIGN-SYSTEM.md:48); in the Card style it is the top of the frame and keeps the top two only */
 .crumbs { margin: 0 0 2px; font-size: var(--size-small); color: var(--text-muted); }
 .glance { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: 12px; }
 .tile { display: flex; flex-direction: column; }
