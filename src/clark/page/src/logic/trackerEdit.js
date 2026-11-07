@@ -7,7 +7,6 @@ import { COUNT_MAX, HEALTH, COLUMNS, MAX_GROUPS, MAX_LINES, NAME_MAX, NO_MAX, NO
 export const EDIT_WORDS = {
   overall: "Overall",
   health: "Health",
-  note: "A line about it",
   group: "Group name",
   noLinesEdit: "No lines yet. Press Add a line.",
   noneEdit: "Nothing is being tracked yet. Press Add a group to start.",
@@ -28,6 +27,14 @@ export const EDIT_WORDS = {
   datePlaceholder: "DD-MM-YYYY",
   percentPlaceholder: "Part of 100",
   noHealth: "Not set",
+  templateSettings: "Template settings",
+  settingsLine: "Template settings. These apply to this tracker only.",
+  sizeLabel: "Size",
+  autoHint: "Automatic words. Click them to write your own.",
+  yourWords: "Your words.",
+  useAuto: "Use the automatic words",
+  wordsLabelOne: "Note under the bar. One line.",
+  wordsLabelThree: "Note under the bar. Up to three lines.",
   added: "Line added.",
   saved: "Saved.",
   removed: "Line removed.",
@@ -37,6 +44,13 @@ export const EDIT_WORDS = {
   fullLines: `A tracker can have ${MAX_LINES} lines in all. Remove one to add another.`,
   fullGroups: `A tracker can have ${MAX_GROUPS} groups at most. Remove one to add another.`,
 };
+// The sizes, in the order the settings list them: [value, name, what it looks like].
+export const SIZE_OPTIONS = [
+  ["large", "Large", "Big numbers and a thick bar"],
+  ["medium", "Medium", "Numbers a little smaller"],
+  ["small", "Small", "Smaller numbers, a thinner bar"],
+  ["compact", "Compact", "One slim row, no scale"],
+];
 export const PROBLEMS = {
   text: "Describe each line.",
   // The words below that the store also says (text, textLong, noLong, percent, order, status, count, name, nameLong) are the store's own
@@ -61,6 +75,7 @@ export const ALL_WORDS = () => {
   const walk = (o) => { for (const v of Object.values(o)) { if (typeof v === "string") out.push(v); else walk(v); } };
   walk(WORDS);
   for (const [, w] of [...STATUSES, ...HEALTH, ...COLUMNS]) out.push(w);
+  for (const [, name, what] of SIZE_OPTIONS) out.push(name, what);
   return out;
 };
 
