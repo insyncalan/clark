@@ -120,6 +120,14 @@ class Section(unittest.TestCase):
         self.assertEqual(self.val(f"K.section.linesOf({lit(file_data)}).map((l) => l.id)"), ["GNT-1", "GNT-2"])
         self.assertEqual(self.val(f"K.section.linesOf({lit({**file_data, 'gantt_lines': []})}).length"), 0, "the editor's own list wins when it is there")
 
+    def test_a_line_with_no_usable_date_is_counted_and_keeps_the_section(self):
+        bad = {"id": "GNT-90", "name": "No date", "type": "task", "start": "garbage", "end": "", "show": 1}
+        off = {**bad, "id": "GNT-91", "show": 0}
+        d = report([bad, off])
+        self.assertEqual(self.val(f"K.section.leftOutOf({lit(d)})"), 1, "only the eye-on one is the viewer's")
+        self.assertEqual(self.val(f"K.section.linesOf({lit(d)}).length"), 0)
+        self.assertFalse(self.val(f"K.templateEmpty({{type: 'gantt'}}, {lit(d)})"), "the section is not dropped without a word")
+
     def test_nothing_on_the_dashboard_means_an_empty_section(self):
         none = [{**l, "show": False} for l in LINES]
         self.assertTrue(self.val(f"K.templateEmpty({{type: 'gantt'}}, {lit(report(none))})"))
