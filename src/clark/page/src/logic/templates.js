@@ -136,6 +136,8 @@ export const SKETCHES = {
   "plan-summary": ["grid-template-rows:repeat(4,1fr)", ["width:50%", "width:85%", "width:50%", "width:70%"]],
   "gantt": ["grid-template-rows:repeat(3,1fr)", ["width:60%", "width:50%;margin-left:25%", "width:40%;margin-left:55%"]],
   "one-doc": ["grid-template-rows:1fr 1fr", ["", "width:70%"]],
+  "current-state": ["grid-template-rows:repeat(3,1fr)", ["width:85%", "width:70%", "width:50%"]],
+  "plan-summary": ["grid-template-rows:repeat(4,1fr)", ["width:40%", "width:80%", "width:40%", "width:70%"]],
 };
 
 export const find = (id) => TEMPLATES.find((t) => t.id === id) || BUILT_INS.find((t) => t.id === id) || null;
