@@ -4,8 +4,8 @@ Run: python3 dev/run_tests.py test_v105
 
 Same shape as test_v104 (bullets for unmerged rows wait under a WAIT heading). All ten 1.0.5 rows are IN REVIEW today (none is merged), so COVERED is empty and every visible row is in WAITING
 (no pull request yet). The notes are written ahead of the merges. The cut tests skip until the cut commit sets 1.0.5; from then on a
-row that is not MERGED or DROPPED fails, a WAITING row whose marker has landed fails until it moves to COVERED, and the placeholder
-manual download line fails until the product manager's wording replaces it. The data layout stays 19 (no 1.0.5 row changes it).
+row that is not MERGED or DROPPED fails, a WAITING row whose marker has landed fails until it moves to COVERED, and the approved
+manual download lines must stay in. The data layout stays 19 (no 1.0.5 row changes it).
 Row 963 is test only (TEST_ONLY): no line in the notes and no hand check.
 """
 import ast
@@ -229,8 +229,11 @@ class Notes(unittest.TestCase):
         self.assertIn("From 1.0.3 or earlier, install by hand: the update inside those versions does not accept a download that holds START-HERE.md. Rename the old clark folder first, then unzip the download into a fresh empty folder. A plain unzip over the old folder merges old and new files. Your projects stay where they are.", self.text)
         self.assertIn("Editing a demo project keeps it", self.text)
 
-    def test_the_manual_download_line_is_there_as_a_marked_placeholder_for_the_update_from_1_0_3(self):
-        self.assertIn("- MANUAL DOWNLOAD LINE: wording from the product manager, pending approval", self.text)
+    def test_the_approved_manual_download_lines_are_present_and_the_placeholder_is_gone(self):
+        self.assertIn("- To move to 1.0.5 from 1.0.4, update from inside clark. From 1.0.3 or earlier, install by hand: the update inside those versions does not accept a download that holds START-HERE.md. Rename the old clark folder first, then unzip the download into a fresh empty folder. A plain unzip over the old folder merges old and new files. Your projects stay where they are.", self.text)
+        self.assertIn("- Updating from inside clark works from 1.0.4 to this version. To move from 1.0.3 or earlier to 1.0.5, install by hand as described under Known limits.", self.text)
+        self.assertNotIn("MANUAL DOWNLOAD LINE", self.text)
+        self.assertNotIn("pending approval", self.text)
 
     def test_a_date_in_the_notes_is_day_first_and_no_one_is_named(self):
         self.assertIsNone(re.search(r"\b\d{4}-\d\d-\d\d\b", self.text), "a date in the notes is DD-MM-YYYY")
@@ -307,7 +310,7 @@ class Cut(unittest.TestCase):
 
     def test_at_the_cut_the_manual_download_line_is_approved_wording(self):
         self.cut_made()
-        self.assertNotIn("MANUAL DOWNLOAD LINE", read_notes(), "replace the placeholder with the product manager's approved wording")
+        self.assertNotIn("MANUAL DOWNLOAD LINE", read_notes(), "the placeholder must be gone")
 
 
 def _skips():
