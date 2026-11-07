@@ -350,6 +350,7 @@ class Page(Base):
             self.resize(cdp, p, 1400, "light")
             p.edit()
             for ref, most in ((full, 1), (half, 3)):
+                p.until(self.text_of(ref, "[data-tr-words]") + " === 'Supplier slipped a week'", "the words are drawn before the field is focused")      # the words are set after the render; focus first and the old words are taken as empty
                 p.js("(function(){var el=" + self.one(ref, "[data-tr-words]") + "; el.focus(); getSelection().selectAllChildren(el);})()")
                 p.type("word " * 40)
                 lines = p.js("(function(){var el=" + self.one(ref, "[data-tr-words]") + "; return Math.round(el.scrollHeight / parseFloat(getComputedStyle(el).lineHeight));})()")
