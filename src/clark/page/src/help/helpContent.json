@@ -17,7 +17,7 @@
   "hero": {
    "label": "First day with clark",
    "title": "Keep the record. Shape the report. Publish it.",
-   "lead": "In clark you keep one project record of work items, milestones and use cases, shape the weekly report from it, and publish the report as a web page (and a Word document if you like) for the client. Every change saves on its own, and every change can be undone."
+   "lead": "In clark you keep one project record of work items, milestones and use cases, shape the weekly report from it, and publish the report as a web page (and a Word document if you like) for the client. Every change to the record and the report saves on its own and can be undone. Publishing and restoring a published report cannot be undone."
   },
   "loop": [
    {
@@ -124,6 +124,11 @@
     "Milestones",
     "**Plan** shows every milestone on a timeline or calendar; **Movement** shows slippage, for you and the team only.",
     "milestones"
+   ],
+   [
+    "Use cases",
+    "Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard.",
+    "dashboard+edit"
    ],
    [
     "ask clark",
@@ -259,7 +264,7 @@
      "**Local** is always ticked: the save window opens where you last saved for this project, and you choose the folder and the name. Tick **To client** to send it to the client folder set in Settings as well. With no folder set, the box is off and says so.",
      "Tick **Also a Word document** for a Word copy in the folder last used for this project. If a Word file with that name is already in the folder, you are asked whether to add a number or replace it. A copy already in the client folder is never replaced: the new one gets a number. Tick **Also a PDF** for the page as it prints: your browser’s print box opens, and you choose Save as PDF.",
      "With **To client** ticked, a line says the client will see the page, and the Word report if you ticked it, and only what is shown in View mode. If a work item shown to the client still has its placeholder title, the box warns you; it does not stop you, so rename the item or turn off its eye first.",
-     "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”; press it to close the box. If the file name is taken, the box asks what to do: Add a number, Rename it or, where it is allowed, Overwrite the existing file.",
+     "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”. The box closes by itself after a moment; you can press the button to close it at once. If the file name is taken, the box asks what to do: Add a number, Rename it or, where it is allowed, Overwrite the existing file.",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
     ],
     "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on). The line at the top of the Dashboard says when it was last published, and whether to the client or locally.",
@@ -2671,7 +2676,7 @@
      "d": "Press the button at the foot, which reads **Publish locally**, or **Publish and send to the client** when To client is ticked. A spinner shows while it works. If the file name is taken, the box asks what to do: **Add a number**, **Rename it** or, where it is allowed, **Overwrite the existing file**."
     },
     {
-     "d": "The button turns green and reads Published, with the publication number in brackets, such as Publication 4. Press it to close the box."
+     "d": "The button turns green and reads Published, with the publication number in brackets, such as Publication 4. The box closes by itself after a moment; you can press the button to close it at once."
     }
    ],
    "result": "The button shows a green tick and Published with its publication number. The saved page is the one the client sees, and the next publication gets the next number.",

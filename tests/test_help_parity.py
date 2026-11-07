@@ -214,7 +214,9 @@ class MovementEntries(unittest.TestCase):
         text = " ".join(strings(entry("howto", "handle-a-slipped-milestone")))
         for name in re.findall(r"\*\*(.+?)\*\*", text):
             base = re.sub(r"\s*\(.*?\)\s*$", "", name)
-            if base not in ("Milestones", "Undo", "Plan"):
+            if base == "Plan":      # this one entry only: the Plan | Movement switch is drawn by MilestonesPage.jsx, not by the Movement block
+                self.assertIn('["plan", "Plan"]', read("page", "src", "edit", "MilestonesPage.jsx"), name)
+            elif base not in ("Milestones", "Undo"):
                 self.assertIn(base, self.WORDS + self.BLOCK, name)
         for gone in ("Rebaseline", "Add a recovery action", "Escalate to steering", "Internal note", "diamond", "red line"):
             self.assertNotIn(gone, text, f"the page has no {gone}")
