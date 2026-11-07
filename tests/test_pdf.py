@@ -229,6 +229,38 @@ class Pure(unittest.TestCase):
         self.assertEqual(moves, [3, 4])
         self.assertEqual(seen["setpgroup"], 0)
 
+    def test_chrome_gets_a_small_environment_and_none_of_the_rest(self):
+        """#596: Chrome opens a page file; nothing else in this program's environment (tokens, keys) is passed to it."""
+        env = {"PATH": "/usr/bin", "HOME": "/home/x", "LANG": "en_GB.UTF-8", "TMPDIR": "/tmp", "LC_ALL": "C",
+               "MY_SERVICE_TOKEN": "s3cret", "AWS_SECRET_ACCESS_KEY": "k", "CLARK_CHROME": "/x", "GIT_ASKPASS": "y"}
+        got = pdf.chrome_env(env)
+        self.assertEqual(got, {"PATH": "/usr/bin", "HOME": "/home/x", "LANG": "en_GB.UTF-8", "TMPDIR": "/tmp", "LC_ALL": "C"})
+        self.assertEqual(pdf.chrome_env({}), {}, "what is not set is not made up")
+        seen = []
+
+        def fake(args, **k):
+            seen.append(k)
+            raise OSError("stop here")
+        with tempfile.TemporaryDirectory() as d, mock.patch.dict(os.environ, {"MY_SERVICE_TOKEN": "s3cret"}):
+            page = Path(d) / "p.html"
+            page.write_text(PAGE, encoding="utf-8")
+            with self.assertRaises(pdf.PdfError):
+                pdf.make_pdf(page, Path(d) / "o.pdf", chrome="/x", popen=fake)
+        self.assertTrue(seen and "MY_SERVICE_TOKEN" not in seen[0]["env"], "the start is given the small environment")
+        self.assertIn("PATH", seen[0]["env"])
+
+    def test_the_start_places_the_environment_it_is_given(self):
+        seen = {}
+
+        def fake_spawn(path, args, env, **k):
+            seen["env"] = env
+            return 1
+        with mock.patch.object(os, "posix_spawn", fake_spawn):
+            platform.start_child(["/c"], env={"PATH": "/p"})
+            self.assertEqual(seen["env"], {"PATH": "/p"})
+            platform.start_child(["/c"])
+            self.assertEqual(seen["env"], os.environ, "no environment given: the whole one, as before")
+
     def test_pipe_messages_are_nul_ended(self):
         import os
         import time
