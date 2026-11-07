@@ -5,6 +5,8 @@
 // 2.1, milestones M-1) is for the eye only: it is worked out from the order of the lines every time, so adding, deleting or moving a line
 // renumbers what a reader sees while every dependency and parent keeps pointing at the right line. A milestone has one date: its end is its start.
 
+import { EXAMPLE_DATE } from "./ganttWords.js";
+
 export const DAY_MS = 864e5;
 export const TYPES = ["phase", "task", "milestone"];
 export const SCALES = ["week", "month", "quarter"];
@@ -35,7 +37,7 @@ export const WORDS = {
   deleteLine: "Delete this line",
   boxName: "Name", boxStart: "Start (DD-MM-YYYY)", boxEnd: "End (DD-MM-YYYY)", boxDate: "Date (DD-MM-YYYY)", boxPct: "Done, 0 to 100",
   save: "Save", cancel: "Cancel",
-  badDate: "Use DD-MM-YYYY, for example 06-11-2026.", endBeforeStart: "The end cannot be before the start.", needName: "A line needs a name.",
+  badDate: `Use DD-MM-YYYY, for example ${EXAMPLE_DATE}.`, endBeforeStart: "The end cannot be before the start.", needName: "A line needs a name.",
   badPct: "Done % is a number from 0 to 100.", oneDate: "A milestone has one date: change Start.",
   startsBefore: "Starts before",
 };
@@ -115,7 +117,7 @@ export function addBelow(lines, afterId, type, id) {
   const parent = kind === "phase" ? "" : !ref ? "" : ref.type === "phase" ? ref.id : ref.parent;
   const start = ref ? endOf(ref) : "";
   const end = kind === "milestone" ? start : addDays(start, 13);
-  const name = kind === "phase" ? "New phase" : kind === "milestone" ? "New milestone" : "New task";
+  const name = "New " + kind;   // built from the kind, so the editor's own add-milestone words are not copied into the published file
   const line = { id: id || nextId(lines), name, type: kind, parent, start, end, pct: 0, depends: [], show: false };
   let to = at + 1;
   if (kind === "phase") { while (to < lines.length && lines[to].type !== "phase") to += 1; }

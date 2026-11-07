@@ -53,7 +53,7 @@ class Browser:
     def until(self, expr, what, seconds=12):
         self.t.assertTrue(wait(lambda: self.js(f"!!({expr})"), seconds), what + " | the toast says: " + str(self.text(".toasts")))
 
-    def open(self, url, ready="document.documentElement.dataset.ready === '1'"):
+    def visit(self, url, ready="document.documentElement.dataset.ready === '1'"):
         self.cdp.call("Page.navigate", {"url": "about:blank"}, self.sid)      # so that the same address is a real reload
         self.cdp.call("Page.navigate", {"url": url}, self.sid)
         self.until(ready, "the page is ready: " + url)
@@ -200,7 +200,7 @@ class E2E(unittest.TestCase):
             self.published_file(br)
 
     def settings_and_the_tab(self, br):
-        br.open(self.base + f"#settings&p={CODE}", "document.querySelector('#gantt-setting, [data-settings-menu], .setting')")
+        br.visit(self.base + f"#settings&p={CODE}", "document.querySelector('#gantt-setting, [data-settings-menu], .setting')")
         self.assertNotIn("Gantt", self.tabs(br), "the tab is off to begin with")
         br.until("[].some.call(document.querySelectorAll('button, a, li'), function(b){return b.textContent.trim()==='Gantt'})", "Settings lists Gantt")
         br.js("[].find.call(document.querySelectorAll('button, a'), function(b){return b.textContent.trim()==='Gantt'}).click()")
@@ -279,7 +279,7 @@ class E2E(unittest.TestCase):
     def chart_table_view(self, br):
         # the mode is kept when the layout changes
         br.click("[data-gp-layout=table]")
-        br.until("document.querySelector('#gantt-page').dataset.layout === 'table'", "the table")
+        br.until("document.querySelector('#gantt-page').dataset.gpShown === 'table'", "the table")
         self.assertEqual(br.js("document.querySelector('#gantt-page').dataset.mode"), "edit", "Edit is kept")
         br.until("document.querySelector('.gt-scroll td[data-r]')", "the table has rows")
         br.snap("gantt-table-edit")
@@ -292,7 +292,7 @@ class E2E(unittest.TestCase):
         self.assertTrue(wait(lambda: "Handover" in self.names()), self.names())
         self.assertEqual(self.line("Handover")["type"], "milestone")
         br.click("[data-gp-layout=chart]")
-        br.until("document.querySelector('#gantt-page').dataset.layout === 'chart'", "the chart")
+        br.until("document.querySelector('#gantt-page').dataset.gpShown === 'chart'", "the chart")
         self.assertEqual(br.js("document.querySelector('#gantt-page').dataset.mode"), "edit")
         self.assertEqual(br.js("document.querySelectorAll('[data-g-row]').length"), 3, "Edit draws every line")
         # View: only the lines with the eye on
@@ -303,7 +303,7 @@ class E2E(unittest.TestCase):
         self.assertEqual(br.js("document.querySelectorAll('[data-g-eye], [data-g-add]').length"), 0, "View has no editing controls")
         br.snap("gantt-view-chart")
         br.click("[data-gp-layout=table]")
-        br.until("document.querySelector('#gantt-page').dataset.layout === 'table'", "the table in View")
+        br.until("document.querySelector('#gantt-page').dataset.gpShown === 'table'", "the table in View")
         self.assertEqual(br.js("document.querySelectorAll('.gt-scroll td[data-c=\"1\"]').length"), 2, "the View table has the two lines with the eye on")
         br.snap("gantt-view-table")
         br.click("[data-gp-layout=chart]")
@@ -331,7 +331,7 @@ class E2E(unittest.TestCase):
         self.assertTrue(wait(lambda: len(self.lines()) == count), "the toast's Undo removed it")
         # a reload keeps everything
         shown = br.js("[].map.call(document.querySelectorAll('[data-g-row] .gt-nm'), function(e){return e.value||e.textContent}).join('|')")
-        br.open(self.base + f"#gantt&p={CODE}")
+        br.visit(self.base + f"#gantt&p={CODE}")
         br.until("document.querySelector('[data-g-row]')", "the Gantt page after a reload")
         self.assertEqual(br.js("document.querySelector('#gantt-page').dataset.mode"), "view", "a reload is View")
         br.click("[data-gp-mode=edit]")
@@ -384,7 +384,7 @@ class E2E(unittest.TestCase):
     def published_file(self, br):
         # the client switch on, then Publish: the file carries the Gantt
         self.send(kind="projects", op="update", changes={"gantt_hidden_columns": "show,note,budget,effort,baseline_start,baseline_end,owner"})
-        br.open(self.base + f"#settings&p={CODE}", "document.querySelector('.setting, #gantt-setting')")
+        br.visit(self.base + f"#settings&p={CODE}", "document.querySelector('.setting, #gantt-setting')")
         br.js("[].find.call(document.querySelectorAll('button, a'), function(b){return b.textContent.trim()==='Gantt'}).click()")
         br.until("document.querySelector('#gantt-client')", "the client tick")
         br.click("#gantt-client")
@@ -395,7 +395,7 @@ class E2E(unittest.TestCase):
         text = first.read_text(encoding="utf-8")
         self.assertNotIn("PUB-GNT-003", text, "the line with the eye off is not in the file")
         self.assertNotIn("Handover", text)
-        br.open("file://" + str(first) + f"#gantt")
+        br.visit("file://" + str(first) + f"#gantt")
         br.until("document.querySelector('#gantt-page')", "the published Gantt page")
         self.assertIn("Plan", self.tabs(br), "the Gantt tab is in the file, under its name")
         self.assertEqual(br.js("document.querySelector('#gantt-page').dataset.mode"), "view")
@@ -403,20 +403,20 @@ class E2E(unittest.TestCase):
         self.assertEqual(br.js("document.querySelectorAll('[data-gp-mode], [data-g-eye], [data-g-add], .modes').length"), 0, "a published file is View only")
         br.snap("published-chart")
         br.click("[data-gp-layout=table]")
-        br.until("document.querySelector('#gantt-page').dataset.layout === 'table'", "the table in the file")
+        br.until("document.querySelector('#gantt-page').dataset.gpShown === 'table'", "the table in the file")
         head = br.js("[].map.call(document.querySelectorAll('.gt-scroll thead th, .gt-scroll [role=columnheader]'), function(h){return h.innerText.replace(/\\s+/g,' ').trim()}).join('|')")
         self.assertNotIn("Owner", head, "a hidden column is not in the file")
         self.assertNotIn("Notes", head)
         self.assertIn("Start", head)
         br.snap("published-table")
         # untick: the next file has no Gantt tab
-        br.open(self.base + f"#settings&p={CODE}", "document.querySelector('.setting, #gantt-setting')")
+        br.visit(self.base + f"#settings&p={CODE}", "document.querySelector('.setting, #gantt-setting')")
         br.js("[].find.call(document.querySelectorAll('button, a'), function(b){return b.textContent.trim()==='Gantt'}).click()")
         br.until("document.querySelector('#gantt-client')", "the client tick")
         br.click("#gantt-client")
         self.assertTrue(wait(lambda: self.project()["show_gantt_client"] == 0), "unticked")
         second = self.publish(br)
-        br.open("file://" + str(second) + "#dashboard")
+        br.visit("file://" + str(second) + "#dashboard")
         br.until("document.querySelector('.tab')", "the second file")
         self.assertNotIn("Plan", self.tabs(br))
         self.assertNotIn("PUB-GNT-001", second.read_text(encoding="utf-8"), "no Gantt line is in a file made with the client switch off")
@@ -426,9 +426,9 @@ class E2E(unittest.TestCase):
         for r in self.lines():
             if r["show"]:
                 self.send(kind="gantt_lines", op="update", id=r["id"], changes={"show": 0})
-        br.open(self.base + f"#dashboard&p={CODE}")
+        br.visit(self.base + f"#dashboard&p={CODE}")
         third = self.publish(br)
-        br.open("file://" + str(third) + "#dashboard")
+        br.visit("file://" + str(third) + "#dashboard")
         br.until("document.querySelector('.tab')", "the third file")
         self.assertNotIn("Plan", self.tabs(br), "no line with its eye on, no tab")
         # one line back on, and every column the client may be denied hidden: the file still draws the chart with its dates (Type, Start, End and Done are
@@ -437,13 +437,13 @@ class E2E(unittest.TestCase):
         status, body = self.rig.call("POST", "/api/change", {"project": CODE, "kind": "projects", "op": "update", "changes": {"gantt_hidden_columns": "start,end,pct"}})
         self.assertEqual(status, 400, "the data layer refuses the dates as hidden columns")
         self.send(kind="projects", op="update", changes={"gantt_hidden_columns": "show,note,budget,effort,baseline_start,baseline_end,owner"})
-        br.open(self.base + f"#dashboard&p={CODE}")
+        br.visit(self.base + f"#dashboard&p={CODE}")
         fourth = self.publish(br)
-        br.open("file://" + str(fourth) + "#gantt")
+        br.visit("file://" + str(fourth) + "#gantt")
         br.until("document.querySelector('#gantt-page')", "the fourth file's Gantt page")
         self.assertIn("Plan", self.tabs(br))
         self.assertEqual(br.js("document.querySelectorAll('[data-g-none]').length"), 0, "a file with lines never says there are none")
-        self.assertEqual(br.js("document.querySelector('#gantt-page').dataset.layout"), "chart", "the dates are always in the file, so the bars are drawn")
+        self.assertEqual(br.js("document.querySelector('#gantt-page').dataset.gpShown"), "chart", "the dates are always in the file, so the bars are drawn")
         head = br.js("[].map.call(document.querySelectorAll('.gt-lhead .gt-h'), function(h){return h.innerText.trim()}).join('|')")
         self.assertIn("Start", head)
         self.assertIn("Done", head)

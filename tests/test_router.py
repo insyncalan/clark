@@ -151,7 +151,7 @@ class Pure(Browser):
             R.parse('#CLIENTREPORT').view])""")
         e = lambda i="": {"view": "clientreport", "project": "PDF", "item": i, "ms": "", "f": "", "uc": ""}  # noqa: E731
         views, plain, peek, f1, f2, near, upper = json.loads(got)
-        self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "clientreport", "settings"])
+        self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "gantt", "clientreport", "settings"])
         self.assertEqual((plain, peek, f1, f2), (e(), e("A-12"), "#clientreport&p=PDF", "#clientreport"))
         self.assertEqual((near, upper), ("dashboard", "dashboard"), "a near miss or another case falls back to the Dashboard")
 

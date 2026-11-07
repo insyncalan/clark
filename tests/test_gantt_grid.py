@@ -93,9 +93,10 @@ class Grid(unittest.TestCase):
         self.assertEqual(self.val("K.DEFAULT_HIDDEN"), ["show", "note", "cost", "eff", "bs", "be"])
 
     def test_id_and_line_can_never_be_hidden(self):
-        view = [c["key"] for c in self.val("K.visibleColumns(['id', 'n', 's'], false)")]
+        view = [c["key"] for c in self.val("K.visibleColumns(['id', 'n', 's', 'o'], false)")]
         self.assertEqual(view[:2], ["id", "n"])
-        self.assertNotIn("s", view)
+        self.assertIn("s", view, "Start can never be hidden from the client (the data layer refuses it: row 926)")
+        self.assertNotIn("o", view, "a column that may be hidden still goes")
 
     # ── what a cell holds ──
 
@@ -171,7 +172,8 @@ class Grid(unittest.TestCase):
         self.assertEqual(self.set(0, "rag", "amber")["lines"][0]["rag"], "Amber")
         self.assertEqual(self.set(0, "t", "p")["lines"][0]["t"], "p", "one letter picks a type")
         self.assertFalse(self.set(0, "show", "No")["lines"][0]["show"])
-        self.assertEqual(self.err(0, "cost", "-4"), "Budget is a number.")
+        self.assertEqual(self.err(0, "cost", "-4"), "Effort and budget are numbers, zero or more.")      # the server's own sentence (store.GANTT_BAD_NUMBER) for a number it would refuse
+        self.assertEqual(self.err(0, "cost", "lots"), "Effort and budget are numbers, zero or more.", "a word is not a number either")
         self.assertEqual(self.set(0, "cost", "1,500")["lines"][0]["cost"], 1500)
         self.assertEqual(self.set(0, "bs", "")["lines"][0]["bs"], "")
 

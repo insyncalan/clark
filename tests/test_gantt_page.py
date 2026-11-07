@@ -224,6 +224,7 @@ class Page(unittest.TestCase):
         self.mount(fromFile=True, mode="edit")
         self.assertEqual(self.mode(), "view")
         self.assertEqual(self.count(".modes, [data-gp-mode], [data-g-title]"), 0)
+        self.assertEqual(self.count("[data-gp-export], [data-gp-import]"), 0, "a published file has no server to export from")
 
     # ── the pill, the Edit/View button and the keys ──────────────────────────
 
@@ -316,10 +317,12 @@ class Page(unittest.TestCase):
         self.until("document.querySelector('.gt-scroll')", "the table")
         self.assertEqual(self.count(".gt-scroll tbody tr"), 3)
 
-    def test_export_and_import_are_disabled_placeholders_with_the_tooltip(self):
+    def test_export_runs_the_editors_export_and_import_is_a_disabled_placeholder_with_the_tooltip(self):
         self.mount(mode="edit")
-        self.assertEqual(self.js("document.querySelector('[data-gp-export]').disabled"), True)
-        self.assertEqual(self.js("document.querySelector('[data-gp-export]').title"), "Coming with the Excel step")
+        self.assertEqual(self.js("document.querySelector('[data-gp-export]').disabled"), False, "Export to Excel is on (row 926)")
+        self.assertEqual(self.js("document.querySelector('[data-gp-export]').title"), "Export to Excel")
+        self.click("[data-gp-export]")
+        self.assertEqual(self.js("window.__exports"), 1, "one press runs the editor's own workbook export once")
         self.assertEqual(self.count("[data-gp-import]"), 0, "Import is for Edit in the table")
         self.click("[data-gp-layout]")
         self.until("document.querySelector('[data-gp-import]')", "Import in the table")
