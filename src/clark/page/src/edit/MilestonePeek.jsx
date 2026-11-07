@@ -12,6 +12,9 @@ import { showDate, todayIso, ownerOf } from "../workItems.js";
 import { leftOutIds } from "../logic/picker.js";
 import { setMsHidden } from "./actions.js";
 import { useGrow } from "./useGrow.js";
+import { RichField } from "./RichField.jsx";
+import { richOrPlain } from "../logic/richOrPlain.js";
+import { richWords } from "../logic/richWords.js";
 import { PICKABLE, ALL_STATES, shownState, stateChange, textChange, progressChange } from "./msPeek.js";
 
 const DASH = "—";
@@ -56,6 +59,14 @@ function Text({ m, field, label, value, lines = false, required = false, max = 2
         onInput={(e) => setText(e.currentTarget.value)} onKeyDown={key} onBlur={(e) => { if (!settled.current) commit(e.currentTarget.value); }} />
     : <input type="text" class="pk-latest-in pk-ms-in" data-ms-in={field} aria-label={label} maxLength={max} value={text} ref={box} autocomplete="off" spellcheck={false}
         onInput={(e) => setText(e.currentTarget.value)} onKeyDown={key} onBlur={(e) => { if (!settled.current) commit(e.currentTarget.value); }} />;
+}
+
+// Item 1005: the description is on the one rich editor (RichField): the text drawn is cleanHtml of what is stored (the editor's HTML, or the plain
+// text an older clark stored), Cmd or Ctrl with Enter saves, Esc leaves it as it was. One change with one Undo; it stays open if clark refuses.
+function Description({ m }) {
+  const html = (() => { try { return richOrPlain(m.description || ""); } catch (e) { return ""; } })();
+  const put = (value) => save(m, { description: value }, richWords(value).trim() ? `Description of ${m.id} changed.` : `Description of ${m.id} cleared.`);
+  return <RichField field="description" id={m.id} value={html} label="Description" empty={DASH} save={put} />;
 }
 
 // A date you pick: the Work items' date picker, with no new words (its panel is named by the field and the id).
@@ -153,7 +164,7 @@ export function MilestoneEdit({ m }) {
       {m.status === "Done" ? <Row name="Achieved on" k="actual"><DateField m={m} field="actual_date" label="Achieved on" /></Row> : null}
       <Row name="State" k="state"><States m={m} /></Row>
       <Row name="Progress" k="progress"><Progress m={m} /></Row>
-      <Row name="Description" k="description"><Text m={m} field="description" label="Description" value={m.description || ""} lines max={2000} /></Row>
+      <Row name="Description" k="description"><Description m={m} /></Row>
       <Row name="Workstream" k="workstream"><Workstream m={m} /></Row>
       <Row name="Visible to client" k="visible"><Visible m={m} /></Row>
       <Row name="Client wording" k="client_message"><Text m={m} field="client_message" label="Client wording" value={m.client_message || ""} lines max={500} /></Row>

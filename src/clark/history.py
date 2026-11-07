@@ -7,8 +7,8 @@ import threading
 from datetime import datetime, timedelta, timezone
 
 from clark import freshness as fresh, timefmt
-from clark.publish import RICH
-from clark.sanitise import SanitiseError, plain_text
+from clark.publish import LEGACY_RICH, RICH
+from clark.sanitise import SanitiseError, plain_text, rich_plain_text
 from clark.store import BATCH_UNDO, FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
 
 JOINED = ("links", "item_labels")      # rows keyed by an item's ID with another: "from|to|kind", "item|label"
@@ -406,6 +406,8 @@ def rich_plain(text):
 
 def shown_value(table, field, value):
     """plain_value, and for a rich field (publish.RICH) the words without the markup."""
+    if isinstance(value, str) and (table, field) in LEGACY_RICH:     # row 1005: HTML now, plain text before
+        return rich_plain_text(value)
     if isinstance(value, str) and field in RICH.get(table, ()):
         return rich_plain(value)
     return plain_value(field, value)

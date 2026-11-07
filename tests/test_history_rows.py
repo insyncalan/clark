@@ -4,7 +4,7 @@ import unittest
 from unittest import mock
 
 from _demo import USER, DemoStore
-from clark import history
+from clark import history, sanitise
 from clark.store import REMOVED
 
 NO_ZONE = "Time zone not recorded (shown as UTC)"
@@ -204,7 +204,9 @@ class Rows(unittest.TestCase):
         self.make_action()
         html = "<p>Line one</p>\n<p>Line <b>two</b> " + "x" * 6000 + "</p>"
         self.step("peek", latest_update=html)
-        self.assertEqual([r["to"] for r in self.of("Changed")], [html])
+        words = sanitise.rich_plain_text(html)           # row 1005: a latest update is the editor's HTML, shown as its words, whole
+        self.assertGreater(len(words), 6000)
+        self.assertEqual([r["to"] for r in self.of("Changed")], [words])
 
     # -- filter
     def test_filter_and_empty_state(self):

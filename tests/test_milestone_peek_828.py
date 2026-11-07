@@ -12,6 +12,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from _demo import USER
 from _paths import SRC, TOOLS
 
 import sys
@@ -185,15 +186,42 @@ class Fields(Base):
             self.undo(p)
             self.saved(p, "forecast_date", before)
 
-    def test_description_takes_enter_as_a_new_line_and_ctrl_enter_saves(self):
+    def test_description_is_the_one_rich_editor_enter_adds_a_line_and_ctrl_enter_saves(self):
+        """Item 1005: the description is on RichField. Enter is a new paragraph (nothing sent), Ctrl or Cmd with Enter saves the editor's HTML, one Undo."""
         with chrome() as cdp:
             p = self.visit_peek(cdp)
-            self.click(p, "#peek [data-ms-field=description]")
-            self.type_in(p, "#peek [data-ms-in=description]", "Scope line\nSecond line", leave="none")
-            p.js("document.querySelector('#peek [data-ms-in=description]').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}))")
+            self.click(p, "#peek [data-rich=description]")
+            p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened with the focus")
+            self.assertEqual(p.js("document.querySelectorAll('#peek textarea[data-ms-in=description]').length"), 0, "not a plain box any more")
+            p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('Scope line'); true")
+            p.key("Enter", code="Enter", vk=13)
+            p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('Second line'); true")
             self.assertEqual(self.sent, [], "a plain Enter only adds a line")
-            self.type_in(p, "#peek [data-ms-in=description]", "Scope line\nSecond line", leave="ctrl")
-            self.saved(p, "description", "Scope line\nSecond line")
+            p.key("Enter", modifiers=4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
+            self.saved(p, "description", "<p>Scope line</p><p>Second line</p>")
+            self.assertEqual(self.sent[-1][1]["changes"]["description"], "<p>Scope line</p><p>Second line</p>")
+            p.until("!document.querySelector('#peek .ProseMirror')", "the editor closed after the save")
+            self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-rich=description] p')].map((e) => e.textContent)"), ["Scope line", "Second line"])
+            self.assertIn("Description of", self.toast_text(p))
+            self.undo(p)
+            self.saved(p, "description", None)
+
+    def test_a_legacy_plain_description_reads_as_paragraphs_and_is_not_saved_by_looking(self):
+        """Item 1005: an old row holds plain text (newlines, <, &, quotes); it is drawn escaped, opens in the editor, and leaving it saves nothing."""
+        legacy = 'Line one: a < b & "c"\nLine two'
+        with chrome() as cdp:
+            with self.store.step("dashboard", USER) as st:
+                st.update("milestones", GO_LIVE, {"description": legacy})
+            p = self.visit_peek(cdp)
+            self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-rich=description] p')].map((e) => e.textContent)"), ['Line one: a < b & "c"', "Line two"])
+            self.assertEqual(p.js("document.querySelectorAll('#peek [data-rich=description] script, #peek [data-rich=description] b').length"), 0)
+            self.click(p, "#peek [data-rich=description]")
+            p.until("!!document.querySelector('#peek .ProseMirror')", "the editor opened")
+            self.assertEqual(p.js("[...document.querySelectorAll('#peek .ProseMirror p')].map((e) => e.textContent)"), ['Line one: a < b & "c"', "Line two"])
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#peek .ProseMirror')", "Esc closed it")
+            self.assertEqual(self.sent, [], "looking saved nothing")
+            self.assertEqual(self.row(GO_LIVE)["description"], legacy, "the old row is still plain text")
 
     def test_workstream_and_client_wording_and_visible_to_client(self):
         with chrome() as cdp:

@@ -63,6 +63,7 @@ COLUMNS = {
 }
 COMMITMENT = ("Commitment", "commitment", 14)      # a use case's flag: a column only while the file carries it (publish.PUBLISH_FIELDS)
 OWN_TEXT = {"actions": "description", "raid": "description", "decisions": "decision", "milestones": "description"}
+LEGACY_RICH = set(publish.LEGACY_RICH)      # (table, field): rich now, plain before (row 1005)
 RICH = {"standing"}                      # HTML the editor wrote: shown as its text
 EDITOR_LOCKED = {table: locked for _, table, _, locked in excel.SHEETS}     # each sheet's own locked set in the editor export
 EDITOR_FIELD = {"state_word": "shown_state"}      # the client column that is the export's worked-out Shown state
@@ -81,7 +82,10 @@ def plain(value):
 
 def value_of(table, row, field):
     if field == "_words":
-        return (row.get("client_message") or "").strip() or row.get(OWN_TEXT[table])
+        own = row.get(OWN_TEXT[table])
+        return (row.get("client_message") or "").strip() or (sanitise.rich_plain_text(own) if (table, OWN_TEXT[table]) in LEGACY_RICH else own)
+    if (table, field) in LEGACY_RICH:                  # row 1005: the editor's HTML, or the plain text an older clark stored
+        return sanitise.rich_plain_text(row.get(field))
     if field in RICH:
         return plain(row.get(field))
     return row.get(field)

@@ -12,6 +12,7 @@ The published file carries, for each card whose item the file already holds, the
 item's own fields are in the file's data, which publish has already cleaned). A card whose item is hidden, archived, not client
 visible or sensitive is left out, never shown blank; a section with no card left stays out of the file.
 """
+from clark import sanitise
 from clark.section_kinds.base import Bad
 
 READY = True
@@ -90,7 +91,7 @@ def _words(card, row):
     if source == "own":
         return card.get("own") or ""
     if source == "latest":
-        return str(row.get("latest_update") or "").strip()
+        return sanitise.rich_plain_text(row.get("latest_update")).strip()      # row 1005: the editor's HTML (or an old plain text) as words
     return str(row.get("client_message") or "").strip()
 
 

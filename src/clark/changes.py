@@ -396,6 +396,32 @@ def _plain_text(v):
     return not any(unicodedata.category(c) in ITEM_BAD_KINDS for c in v)
 
 
+def _rich_field(value, plain_max, long_words, hidden_words):
+    """Row 1005: a field on the one rich editor, as it is stored: clean HTML (sanitise.rich_or_plain: the editor's markup is cleaned by
+    the server's own cleaner, plain text from an older caller is escaped into paragraphs), or None when it holds no words. The limit counts
+    the WORDS (as the plain field did), the markup is held to TEXT_BODY_MAX bytes. Not text, too long, or a hidden character: Refused."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise Refused(ITEM_VALUE_WORDS)
+    if len(value) > TEXT_BODY_MAX:
+        raise Refused(long_words)
+    if not _plain_text(value.replace("\t", " ").replace("\n", " ").replace("\r", " ")):     # a NUL, a bidi mark or a zero-width space is refused as it always was, never dropped quietly by the cleaner
+        raise Refused(hidden_words)
+    try:
+        html = sanitise.rich_or_plain(value)
+    except sanitise.SanitiseError:
+        raise Refused(long_words) from None
+    words = sanitise.plain_text(html)
+    if not _plain_text(words.replace("\n", " ")):
+        raise Refused(hidden_words)
+    if not words.strip():
+        return None
+    if len(words) > plain_max or len(html.encode("utf-8")) > TEXT_BODY_MAX:
+        raise Refused(long_words)
+    return unicodedata.normalize("NFC", html)
+
+
 def _checked_item_changes(fields, blank_clears=()):
     """A work item's fields with their values checked: plain text or None (None only where the field may be cleared), and
     short. The store checks the rest (the words a status may take, a real date, an active workstream, this project's
@@ -407,14 +433,8 @@ def _checked_item_changes(fields, blank_clears=()):
     fields = {k: v for k, v in fields.items() if k not in cleared}
     sent_latest = "latest_update" in fields                        # a JSON false is a value to refuse, not a field left out
     latest = fields.pop("latest_update", None)                     # the peek's Latest update: plain text, line breaks allowed, up to 1000 characters, blank clears it
-    if sent_latest:
-        if latest is not None and not isinstance(latest, str):
-            raise Refused(ITEM_VALUE_WORDS)
-        if isinstance(latest, str) and len(latest) > LATEST_UPDATE_MAX:
-            raise Refused(LATEST_LONG_WORDS)
-        if isinstance(latest, str) and not _plain_text(latest.replace("\n", "")):
-            raise Refused(LATEST_HIDDEN_WORDS)
-        latest = unicodedata.normalize("NFC", latest).strip() or None if isinstance(latest, str) else None
+    if sent_latest:                                                # row 1005: the rich editor's HTML (or plain text from an older caller), stored as clean HTML
+        latest = _rich_field(latest, LATEST_UPDATE_MAX, LATEST_LONG_WORDS, LATEST_HIDDEN_WORDS)
     flag = {k: _flag(v) for k, v in fields.items() if k in ("client_visible", "client_action")}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
     fields = {k: v for k, v in fields.items() if k not in flag}
     for k, v in fields.items():
@@ -1064,7 +1084,8 @@ MILESTONE_DATES = ("baseline_date", "forecast_date", "actual_date")
 MILESTONE_STATUSES = ("Planned", "Done")                 # Cancelled is its own matter, never set from a request
 MILESTONE_MOVEMENTS = ("hold", "rebaseline")             # recover and escalate come with their own item
 MILESTONE_TEXT = {"state_reason": 300, "client_message": 500, "owner": 200, "workstream": 200}
-MILESTONE_DESCRIPTION_MAX = 2000                         # row 828: the description, in characters; it may run over several lines
+MILESTONE_DESCRIPTION_LONG_WORDS = ITEM_VALUE_WORDS      # row 1005: the refusal it always had when too long (no new word)
+MILESTONE_DESCRIPTION_MAX = 2000                        # row 828: the description, in characters; it may run over several lines
 INTERNAL_NOTE_MAX = 2000                                 # #458: the internal note, in characters; it may run over several lines
 MILESTONE_SHOWN = ("id", "status", "baseline_date", "forecast_date", "actual_date", "state", "state_set", "state_reason",
                    "client_message", "movement")          # what a reply says of a milestone: never its internal note
@@ -1115,14 +1136,8 @@ def _checked_milestone_changes(fields):
             if v is not None and (type(v) is not int or not 0 <= v <= 100):
                 raise Refused(ITEM_VALUE_WORDS)
             out[k] = v
-        elif k == "description":                                    # row 828: plain text over several lines, as the internal note
-            if v is not None and (not isinstance(v, str) or len(v) > MILESTONE_DESCRIPTION_MAX):
-                raise Refused(ITEM_VALUE_WORDS)
-            if isinstance(v, str):
-                v = v.replace("\r\n", "\n").replace("\r", "\n")
-                if not _plain_text(v.replace("\n", " ")):
-                    raise Refused(NOTE_TEXT_WORDS)
-            out[k] = unicodedata.normalize("NFC", v).strip() or None if isinstance(v, str) else None
+        elif k == "description":                                    # row 828: several lines; row 1005: the rich editor's HTML, stored cleaned (plain text from an older caller is escaped into paragraphs)
+            out[k] = _rich_field(v, MILESTONE_DESCRIPTION_MAX, MILESTONE_DESCRIPTION_LONG_WORDS, NOTE_TEXT_WORDS)
         else:                                                       # state_reason, client_message, owner, workstream
             if v is not None and (not isinstance(v, str) or len(v) > MILESTONE_TEXT[k]):
                 raise Refused(ITEM_VALUE_WORDS)
