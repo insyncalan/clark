@@ -205,7 +205,7 @@ class Identity(unittest.TestCase):
         saved = (server.CODE_MARK, server.DATA_MARK, server.VERSION)
         self.addCleanup(lambda: (server.set_code_mark(saved[0]), server.set_data_mark(saved[1]), server.set_version(saved[2])))
         with mock.patch.object(pl, "system", return_value=pl.MAC):
-            code = entry.main(["--data", str(data), "--port", "8792"], out=open(os.devnull, "w"), err=open(os.devnull, "w"),
+            code = entry.main(["--data", str(data), "--port", "8792"], out=open(os.devnull, "w", encoding="utf-8"), err=open(os.devnull, "w", encoding="utf-8"),
                               serve=serve, home=home, is_free=lambda p: True, environ={"HOME": str(home)})
         self.assertEqual(code, 0)
         self.assertEqual(seen["answer"].get("folder"), appfiles.code_mark())
