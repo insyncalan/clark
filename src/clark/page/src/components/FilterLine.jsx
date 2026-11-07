@@ -9,7 +9,7 @@ import { rows as allRows, project, filterCtx, fromFile, peek } from "../stores/r
 import { lineText, setLine, local } from "../stores/line.js";
 import * as FL from "../logic/filterLine.js";
 import * as Q from "../logic/filterQueryUi.js";
-import { Menu } from "./Menu.jsx";
+import { Menu, Fade } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce } from "../stores/work.js";
 import { say } from "../stores/changes.js";
@@ -305,7 +305,7 @@ export function FilterLine({ board }) {
   // Item 954: it floats just under the box when the message line is empty, and under that line when it says something, so it never covers the message
   // (the unknown-field error is there). The message line is after the examples' room; the list is out of the flow, so it sits where it is written.
   const suggestions = listed ? (
-    <ul class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
+    <Fade tag="ul" class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
       {options.map((o, i) => (
         <li key={`${o.ins}|${o.label}`} id={`fo-${i}`} role="option" aria-selected={i === active ? "true" : "false"} class={`fopt ${o.kind}`} data-ins={o.ins}
           onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>
@@ -315,7 +315,7 @@ export function FilterLine({ board }) {
           {o.n !== undefined ? <span class="c num" data-n={o.n}>{o.n}</span> : null}
         </li>
       ))}
-    </ul>
+    </Fade>
   ) : null;
   return (
     <div class="fline-wrap" ref={box}

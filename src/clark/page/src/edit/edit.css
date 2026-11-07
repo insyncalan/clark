@@ -845,6 +845,12 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   @keyframes m-blink { 50% { transform: scaleY(.1); } }
 }
 
+/* row 962: a cell picker (Pop: MenuPick, RatingPick, the date and owner pickers, the bulk menu) fades out as it closes, as a menu does (row 922). Pop.jsx keeps a copy
+   (no id, role=presentation, inert, aria-hidden) for the fade; opacity only, m-out from shell.css, edit-only so the published page carries none of it. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) .cpop.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+}
+
 /* Row 881 (motion): press feedback on buttons and cards. Here, not in shell.css, so the published page (no Edit part) carries none of it.
    Gated like the Motion block: absent under reduced motion (the computer's setting or <html data-motion="reduce">). Tokens only; colour and
    transform only, so nothing else moves. */
@@ -930,6 +936,15 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) main.view-in { animation: m-view var(--dur-view) var(--ease-enter) 1; }
   @keyframes m-view { from { opacity: 0; transform: translateY(var(--space-2)); } }
+}
+/* row 962: the copy of a menu that has just closed (Menu.jsx fadeCopy: no id, inert, aria-hidden) fades out over --dur-instant; opacity only. A section's options box is .menu; the
+   other menus are .ddmenu.leaving in shell.css. Same gate as the Motion block; where motion is off no copy is drawn at all. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) .menu.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+}
+/* row 962: the same for the filter suggestion list, a column's filter box, the Gantt Add menu, the template settings box and the Board's small date and decision boxes. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) :is(.flist, .fbox, .gt-menu, .tset, .dpick).leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
 }
 
 /* row 938-6: a Gantt task or phase bar drawn for the first time grows from its start (GanttChart.jsx puts .gt-grow on it until the animation ends; never on a dragged bar or a milestone). Edit.css only: shell.css is the published page's. Same gate as the Motion block. */
