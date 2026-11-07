@@ -7,5 +7,5 @@ cd "$here/.." || exit 1
 # The check is one file with no imports from clark, run by its path (a download keeps src in .app).
 if [ -d .app ]; then check=.app/src/clark/starter_check.py; else check=src/clark/starter_check.py; fi
 export PYTHONDONTWRITEBYTECODE=1
-python3 "$check" || exit 1
+python3 "$check" --env-file "$PWD/docker/.env" || exit 1
 exec docker compose -f "$PWD/docker/compose.yaml" up -d "$@"
