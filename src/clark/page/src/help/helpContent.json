@@ -810,7 +810,7 @@
     "go": "settings#update",
     "s": [
      "Open [Settings](go:settings#update) and find **Version and updates**. **Installed** is the version you have now.",
-     "From the clark releases page, download the update attached to the release for your computer, and its .sig file. If they are in Downloads, **Update** shows **Review X.Y.Z**; otherwise press **Choose zip…** under **Install from a file** and pick the update.",
+     "From the clark releases page, download the update attached to the release for your computer. If it is in Downloads, **Update** shows **Review X.Y.Z**; otherwise press **Choose zip…** under **Install from a file** and pick the update.",
      "Read the review: the version change, the release notes, the files replaced, added and removed. Your projects, settings and published reports are kept, and a copy of your data is made first.",
      "Press **Install**. The new version starts by itself and the page reloads.",
      "To go back, press **Undo update** in the **Last update** row, then press it again within five seconds. More in [Updating clark](#ref-updating-clark)."
@@ -1878,9 +1878,9 @@
       "ul",
       [
        "**Installed** is the version you have. **Update** says Up to date, or shows **Review X.Y.Z** when a newer update is in Downloads. There is no online check.",
-       "**Choose zip…**, under **Install from a file**, takes an update you saved: the one attached to the release for your computer, with its .sig file in the same folder.",
+       "**Choose zip…**, under **Install from a file**, takes an update you saved: the one attached to the release for your computer.",
        "**Review** shows the version change, the release notes (**Copy**), the files replaced, added and removed (**Show the files**), and that your projects, settings and published reports are kept.",
-       "A copy of your data is made first, and if a step fails clark puts the old version back. An update is checked against its signature, and file by file against its list of checksums, before anything changes.",
+       "A copy of your data is made first, and if a step fails clark puts the old version back. An update is checked file by file against its list of checksums before anything changes.",
        "**Undo update** goes back to the version before: press it, then press it again within five seconds. If your data has changed since the update, the second button is **Put back the app and settings only**."
       ]
      ]
