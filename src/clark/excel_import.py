@@ -1238,7 +1238,7 @@ def list_sheets(path, store=None, project=None):
 
 MAX_CELL_TEXT = 32767                                # the most characters Excel itself keeps in a cell: a longer text is not from Excel
 _SCAN_CHUNK = 65536
-_TAG = re.compile(rb"<row\b[^>]*>|<c\b[^>]*>")
+_TAG = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?(row|c)(?![\w:.-])[^>]*>")   # matched by local name: <row>, <x:row>, <ns:c>
 _ATTR_R = re.compile(rb"\sr=\"([A-Za-z]*)(\d*)\"")
 _TEXT = re.compile(rb"<t(?:\s[^>]*)?>([^<]*)</t>")
 _SHEET_TAG = re.compile(rb"<sheet\b[^>]*>")
@@ -1300,7 +1300,7 @@ def _scan_member(z, member, title):
             for m in _TAG.finditer(head):
                 tag = m.group(0)
                 at = _ATTR_R.search(tag)
-                if tag.startswith(b"<row"):
+                if m.group(1) == b"row":
                     row = int(at.group(2)) if at and at.group(2) else row + 1
                     col = 0
                     continue

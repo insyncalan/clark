@@ -61,6 +61,12 @@ def rows_xml(rows, cols=2, text="x"):
                                                        for c in range(1, cols + 1))) for r in range(1, rows + 1))
 
 
+def prefixed(xml):
+    """The same sheet XML with every element written with the namespace prefix x: (declared on the root)."""
+    xml = re.sub(r"<(/?)([A-Za-z])", r"<\1x:\2", xml)
+    return xml.replace("<x:worksheet ", '<x:worksheet xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ', 1)
+
+
 def declare_shared_strings(path, text):
     """Give the workbook a shared-strings part that [Content_Types].xml and the workbook's rels both declare, holding one string."""
     with zipfile.ZipFile(path) as z:
@@ -211,6 +217,26 @@ class Caps(unittest.TestCase):
             self.plan(sheets={xi.SHEET_TABLES["decisions"]})        # only Decisions is read; Actions is not looked at
 
     def test_a_normal_export_passes_the_early_check_and_is_loaded(self):
+        with self.assertRaises(Loaded):
+            self.plan()
+
+    def test_a_prefixed_sheet_that_holds_6000_rows_is_refused_before_the_load(self):
+        rewrite(self.path, part_of(self.path, "Actions"), prefixed(HEAD + rows_xml(6000) + TAIL))
+        text = self.refused()
+        self.assertIn("The Actions sheet reaches past row 5,000", text)
+        self.assertIn("Nothing was changed", text)
+
+    def test_a_prefixed_cell_far_to_the_right_is_refused_and_a_normal_prefixed_workbook_passes(self):
+        part = part_of(self.path, "Decisions")
+        rewrite(self.path, part, prefixed(HEAD + '<row r="3"><c r="CW3"><v>1</v></c></row>' + TAIL))
+        self.assertIn("The Decisions sheet reaches past row 5,000 or column 100", self.refused())
+        with zipfile.ZipFile(self.path) as z:                         # a real export's own sheets, every element prefixed
+            sheets = {n: z.read(n).decode() for n in z.namelist() if n.startswith("xl/worksheets/") and n.endswith(".xml")}
+        small = self.tmp / "small-prefixed.xlsx"
+        shutil.copy(self.path, small)
+        for name, xml in sheets.items():
+            rewrite(small, name, prefixed(xml))
+        self.path = small
         with self.assertRaises(Loaded):
             self.plan()
 
