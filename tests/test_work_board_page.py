@@ -9,7 +9,6 @@ are real DevTools input events. Desktop (1400) and 900 px only. The pure rules a
 import json
 import re
 import sqlite3
-import time
 import unittest
 from unittest import mock
 
@@ -21,7 +20,7 @@ from _new_page import reload_to_new_page_cdp
 from clark import page, server as sv  # noqa: E402
 from test_board import make_data  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
-from test_work_filters import click, dblclick, key, need_chrome, select_line, where  # noqa: E402
+from test_work_filters import click, dblclick, key, need_chrome, pause, select_line, where  # noqa: E402
 from test_work_items import page_target  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -60,7 +59,7 @@ class Base(unittest.TestCase):
         select_line(cdp, sid)
         cdp.call("Input.insertText", {"text": text}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == text))
-        time.sleep(0.7)
+        pause(cdp, sid)         # was a fixed 0.7 s: too short on a loaded runner (the page's pause is about 400 ms), too long on a quick one
 
     # ---- the data ----
     def id_of(self, text):
