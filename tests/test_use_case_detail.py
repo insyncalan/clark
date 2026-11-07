@@ -229,7 +229,8 @@ class Detail(unittest.TestCase):
                     self.assertEqual(js("document.querySelector('[data-ucd] [data-word]').textContent"), "Flag", "the status is a word, not only a colour")
                     self.assertRegex(js("document.querySelector('.ucd-sub').textContent"), r"^FlagCommitted2 of 2 work items open · 1 milestone$")
                     self.assertEqual(js("document.querySelector('.ucd-eye[data-eye]').title"), "On the dashboard")
-                    self.assertEqual(js("document.querySelector('.ucd-eye[data-eye]').textContent.trim()"), "", "the eye has no words")
+                    self.assertEqual(js("document.querySelector('.ucd-eye[data-eye]').textContent.trim()"), "On the dashboard", "item 1010: the eye carries its words, one control")
+                    self.assertEqual(js("document.querySelectorAll('[data-dash]').length"), 0, "item 1010: no second Dashboard row while the control is there")
                     self.assertEqual(js("[...document.querySelectorAll('#ucd-status')].length"), 1)
                     self.assertEqual(js("document.querySelector('[data-rich=standing]').textContent"), re.sub(r"<[^>]+>", "", u["standing"]))
                     self.assertEqual(sorted(js("[...document.querySelectorAll('[data-item]')].map(b => b.dataset.item)")), linked)
@@ -554,7 +555,7 @@ class Detail(unittest.TestCase):
             self.undo(cdp, sid)
             self.assertEqual(self.row()["status"], "Flag")
 
-    def test_the_eye_is_an_icon_with_a_tooltip_and_toggles_with_one_undo(self):
+    def test_the_eye_is_one_button_with_its_words_and_toggles_with_one_undo(self):
         with chrome() as cdp:
             sid = self.open_detail(cdp)
             before = self.steps()
@@ -562,8 +563,8 @@ class Detail(unittest.TestCase):
             self.until(cdp, sid, "document.querySelector('.ucd-eye[data-eye]').title === 'Not on the dashboard'", "the tooltip changed")
             self.assertEqual((self.row()["client_visible"], self.steps()), (0, before + 1))
             self.assertEqual(cdp.js("document.querySelector('.ucd-eye[data-eye]').getAttribute('aria-label')", sid), "Not on the dashboard")
-            self.assertEqual(cdp.js("document.querySelector('.ucd-eye[data-eye]').textContent.trim()", sid), "")
-            self.assertEqual(cdp.js("document.querySelector('[data-dash]').textContent", sid), "Not on the dashboard")
+            self.assertEqual(cdp.js("document.querySelector('.ucd-eye[data-eye]').textContent.trim()", sid), "Not on the dashboard")
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-dash]').length", sid), 0)
             self.assertEqual(self.sent[-1][1]["changes"], {"client_visible": 0})
             self.undo(cdp, sid)
             self.assertEqual(self.row()["client_visible"], 1)
@@ -581,7 +582,7 @@ class Detail(unittest.TestCase):
                     self.assertGreaterEqual(got["gap"], 4, got)
                     self.assertGreaterEqual(got["eye"], got["btn"] - 1, got)
 
-    def test_the_eye_has_no_words_beside_it_works_from_the_keyboard_and_never_meets_the_commitment_chip(self):
+    def test_the_eye_and_its_words_are_one_button_that_works_from_the_keyboard_and_never_meets_the_commitment_chip(self):
         """Issue 753."""
         for width in (1400, 900):
             for scheme in ("light", "dark"):
@@ -593,7 +594,7 @@ class Detail(unittest.TestCase):
                           head: document.querySelector('[data-ucd]').innerText.toLowerCase().includes('home dashboard'), n: others.length,
                           inside: b.left >= 0 && b.right <= innerWidth, side: Math.min(b.width, b.height),
                           clash: others.some(x => { const c = x.getBoundingClientRect(); return b.left < c.right && c.left < b.right && b.top < c.bottom && c.top < b.bottom; }) }; })()""", sid)
-                    self.assertEqual((got["tag"], got["words"], got["svg"], got["head"]), ("BUTTON", "", 1, False), got)
+                    self.assertEqual((got["tag"], got["words"], got["svg"], got["head"]), ("BUTTON", "On the dashboard", 1, False), got)
                     self.assertEqual((got["title"], got["label"]), ("On the dashboard", "On the dashboard"))
                     self.assertTrue(got["inside"] and not got["clash"] and got["n"] >= 2, got)
                     self.assertGreaterEqual(got["side"], 24)
