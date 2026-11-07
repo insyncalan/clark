@@ -112,23 +112,33 @@ def click(cdp, sid, selector):
 TYPE_LINES = {"all": "is:open", "action": "is:open type:action", "decision": "is:open type:decision", "risk": "is:open type:risk,issue,assumption,dependency"}
 
 
+def select_line(cdp, sid):
+    """Row 845: the complete filters are chips outside the box. Empty the box and take the chips away with Backspace (an empty box takes the
+    last chip each time), so the next typing replaces the whole line, as selecting the text did before."""
+    cdp.js("document.querySelector('#fline-input').focus(); document.querySelector('#fline-input').select()", sid)
+    if cdp.js("document.querySelector('#fline-input').value !== ''", sid):
+        key(cdp, sid, "Backspace")
+    for _ in range(cdp.js("document.querySelectorAll('[data-fline] [data-chip]').length", sid)):
+        key(cdp, sid, "Backspace")
+
+
 def set_line(cdp, sid, text):
     """Replace the one filter line (issue 662): click its box, select what is in it, type the new line, and wait for the pause after which the
     list follows the box (the box holds the whole line, and the list changes about 400 ms after the last key, not on Enter)."""
     click(cdp, sid, "#fline-input")
-    cdp.js("document.querySelector('#fline-input').select()", sid)
+    select_line(cdp, sid)
     if text:
         cdp.call("Input.insertText", {"text": text}, sid)
     else:
         key(cdp, sid, "Backspace")
-    wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == text)
+    wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == text.strip())
     pause(cdp, sid)
 
 
 def pause(cdp, sid):
     """Wait out the filter line's pause: the line the page holds (the kept one) is the line in the box."""
     wait(lambda: cdp.js("(() => { try { const k = JSON.parse(sessionStorage.getItem('clark.fline') || '{}'); const v = Object.values(k)[0]; "
-                        "return v === undefined ? document.querySelector('#fline-input').value === 'is:open' : v === document.querySelector('#fline-input').value; } catch (e) { return true; } })()", sid))
+                        "return v === undefined ? document.querySelector('[data-fline]').dataset.line === 'is:open' : v === document.querySelector('[data-fline]').dataset.line; } catch (e) { return true; } })()", sid))
 
 
 def page_rows(data, code):

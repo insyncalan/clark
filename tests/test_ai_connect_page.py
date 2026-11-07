@@ -38,6 +38,8 @@ class Card(unittest.TestCase):
             self.assertIn("Connected", js("document.querySelector('[data-ai-tile=claude] .tag').innerText"))
             self.assertEqual(js("document.querySelector('[data-ai-tile=chatgpt] .tag').innerText"), "Not connected")
             self.assertEqual(js("document.querySelector('[data-ai-intro]').innerText"), ai_connect.CARD_INTRO)
+            self.assertEqual(js("document.querySelector('[data-ai-tile=claude] p.muted').innerText"),
+                             "Through your Claude subscription, on this computer.", "row 544: plain words, no 'the Claude command'")
             self.assertEqual(js("document.querySelector('#ai-model').value"), "sonnet")
             self.assertIn("(recommended)", js("document.querySelector('#ai-model option[value=sonnet]').innerText"))
 

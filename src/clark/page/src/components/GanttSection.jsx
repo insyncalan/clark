@@ -5,7 +5,7 @@
 // the published file read alike. isEmpty: true leaves the section out of the served View and the published file.
 import { data as reportData, fromFile, asAt } from "../stores/report.js";
 import { GanttChart } from "../gantt/components/GanttChart.jsx";
-import { linesOf, hiddenOf, savedRows, isEmptyData } from "../gantt/logic/section.js";
+import { allLinesOf, hiddenOf, savedRows, isEmptyData } from "../gantt/logic/section.js";
 
 export const READY = true;
 
@@ -16,7 +16,7 @@ export function View({ data }) {
   const today = fromFile.value && asAt.value ? asAt.value : undefined;
   return (
     <div class="tpl-gantt" data-tpl="gantt">
-      <GanttChart lines={linesOf(d)} edit={false} today={today} defaultRows={savedRows(d)} hiddenCols={hiddenOf(d)} />
+      <GanttChart lines={allLinesOf(d)} edit={false} today={today} defaultRows={savedRows(d)} hiddenCols={hiddenOf(d)} />
     </div>
   );
 }

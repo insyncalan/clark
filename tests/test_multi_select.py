@@ -20,7 +20,7 @@ from test_sizes import DATA, published_page  # noqa: E402
 from test_page import navigate  # noqa: E402
 import _testpage as testpage  # noqa: E402
 from test_work_board_page import Base as PageBase, FIXED  # noqa: E402
-from test_work_filters import click, set_line, where  # noqa: E402
+from test_work_filters import click, select_line, set_line, where  # noqa: E402
 from test_work_items import bundled  # noqa: E402
 
 LOGIC = SRC / "clark" / "page" / "src" / "logic" / "selection.js"
@@ -204,7 +204,7 @@ class Page(Base):
         sid = self.visit(cdp, width=width, edit=edit)
         if mode != "open":
             click(cdp, sid, "#fline-input")                 # no is: word means every item, open or closed
-            cdp.js("document.querySelector('#fline-input').select()", sid)
+            select_line(cdp, sid)
             press(cdp, sid, "Backspace")
             self.until(cdp, sid, "!/open/.test(document.querySelector('#work-count').textContent)", "every item shown")
             cdp.js("document.activeElement.blur()", sid)          # row 808: the box's list floats over the rows, so the person has left the box before clicking a row

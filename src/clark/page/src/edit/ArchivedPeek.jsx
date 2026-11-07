@@ -44,7 +44,7 @@ export function ArchivedPeek() {
   const facts = [
     ["State", stateOf(r, todayIso())], ["Agreed", r.baseline_date ? showDate(r.baseline_date) : "No agreed date"],
     ["Forecast", r.forecast_date || r.baseline_date ? showDate(r.forecast_date || r.baseline_date) : "No date"], ["Progress", r.percent_complete === null || r.percent_complete === undefined ? "Not set" : `${r.percent_complete}%`],
-    ["Owner", r.owner || "Not set"], ["Workstream", r.workstream], ["Linked work items", String(linked)],
+    ["Owner", r.owner || "Not set"], ["Workstream", r.workstream || "Not set"], ["Linked work items", String(linked)],
   ];
   const restore = () => restoreMilestone(r.id, r.name).then((reply) => {
     if (!reply) return reply;
