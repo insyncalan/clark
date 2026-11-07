@@ -450,14 +450,16 @@ function EditBox({ line, no, at, onClose, onSave, onDelete }) {
   const first = useRef(null);
   const boxEl = useRef(null);
   const [place, setPlace] = useState({ left: at.left, top: at.top });
-  // The box's real size (padding and border included) is only known once it is drawn: keep all of it inside the window.
+  // The box's real size and place are only known once it is drawn: keep all of it inside the window.
   useLayoutEffect(() => {
     const el = boxEl.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
     const vw = document.documentElement.clientWidth || window.innerWidth;
     const vh = document.documentElement.clientHeight || window.innerHeight;
-    setPlace({ left: clamp(at.left, 8, Math.max(8, vw - r.width - 8)), top: clamp(at.top, 8, Math.max(8, vh - r.height - 8)) });
+    // A fixed box inside a moved or transformed ancestor sits off from where it was asked to be: that shift is measured and taken out.
+    const dx = r.left - at.left, dy = r.top - at.top;
+    setPlace({ left: clamp(at.left, 8, Math.max(8, vw - r.width - 8)) - dx, top: clamp(at.top, 8, Math.max(8, vh - r.height - 8)) - dy });
   }, [at.left, at.top]);
   useEffect(() => { if (first.current) { first.current.focus(); first.current.select(); } }, []);
   const set = (k) => (e) => { const v = e.currentTarget.value; setF((old) => ({ ...old, [k]: v })); };   // from the latest values, so two edits before a redraw both stay

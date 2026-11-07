@@ -373,10 +373,12 @@ class Chart(unittest.TestCase):
 
     def test_the_edit_box_stays_inside_the_window_at_900_and_1400(self):
         for width in (900, 1400):
-            for scheme in ("light", "dark"):
-                with self.subTest(width=width, scheme=scheme):
+            for scheme, shift in (("light", 0), ("dark", 0), ("light", 45), ("dark", 45)):
+                with self.subTest(width=width, scheme=scheme, shift=shift):
                     self.look(width, scheme)
                     self.mount(edit=True)
+                    # the live page sits in a moved box (a transform makes a fixed box start from that box, not the window): 45 px in
+                    self.js(f"document.body.style.transform = {lit(f'translate({shift}px, {shift}px)') if shift else lit('')}")
                     for bar in ("GNT-005", "GNT-007", "GNT-001"):
                         self.js(f"document.querySelector('[data-g-bar={bar}]').dispatchEvent(new MouseEvent('dblclick', {{bubbles: true}}))")
                         self.until("document.querySelector('[data-g-box]')", "the box")
@@ -388,6 +390,7 @@ class Chart(unittest.TestCase):
                         self.assertLessEqual(r["s"], r["w"], f"Save is inside {bar} {r}")
                         self.js("document.querySelector('[data-g-bcancel]').click()")
                         self.until("!document.querySelector('[data-g-box]')", "closed")
+                    self.js("document.body.style.transform = ''")
 
     def test_the_edit_box_can_be_cancelled_and_can_delete_the_line(self):
         self.look(1400, "light")
