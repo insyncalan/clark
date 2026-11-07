@@ -567,6 +567,22 @@ class Retention(Backed):
             made.append(p.name)
         return made
 
+    def test_633_the_last_three_migrate_copies_stay_whatever_the_count_and_other_families_are_unchanged(self):
+        """#633: a person can go back one update, or two, or three: the `migrate` family keeps at least 3 even with keep=1."""
+        self.wipe()
+        migrate = self.plant("migrate", 5)
+        undo = self.plant("undo", 5, start=10)
+        removed = backup.prune(self.folder, keep=1)
+        self.assertEqual(self.names("migrate"), sorted(migrate[-3:]))
+        self.assertEqual(sorted(n for n in removed if n.endswith("-migrate.db")), sorted(migrate[:2]))
+        self.assertEqual(self.names("undo"), [undo[-1]], "the other families still keep only `keep`")
+
+    def test_633_a_keep_above_three_still_governs_the_migrate_copies(self):
+        self.wipe()
+        migrate = self.plant("migrate", 8)
+        backup.prune(self.folder, keep=5)
+        self.assertEqual(self.names("migrate"), sorted(migrate[-5:]))
+
     def test_l1_forty_copies_in_one_second_each_exist_when_made_and_the_newest_fourteen_stay(self):
         """L1: 15 same-kind copies in one second used to make the 16th reuse a freed name, sort as the oldest and be removed at once."""
         self.wipe()

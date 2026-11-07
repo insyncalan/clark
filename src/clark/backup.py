@@ -47,6 +47,7 @@ from clark.store import Invalid
 KEEP = 14
 TAGS = ("daily", "undo", "import", "changes", "restore", "migrate")
 FAMILY = {"daily": "daily", "undo": "undo", "import": "import", "changes": "import", "restore": "restore", "migrate": "migrate"}     # each family is counted on its own
+FLOOR = {"restore": 2, "migrate": 3}       # the fewest of a family kept whatever `keep` is; #633: a person can go back three updates
 KIND_WORDS = {"daily": "daily", "undo": "before an undo", "import": "before an import", "changes": "before a change",
               "restore": "restored copy", "migrate": "before an update"}     # what the restore list shows a person for each tag
 ROUTE_TAG = {"undo": "undo", "excel": "import", "team": "changes"}          # the routes that always take a copy; none takes "migrate" (#126's migration calls make(..., family="migrate") itself)
@@ -585,7 +586,7 @@ def prune(folder, keep=None, newest_has_rows=True, protect=(), lock=None):
             found = entries(folder)
             keepers = set()
             for family in set(FAMILY.values()):
-                keepers.update(e.path for e in [x for x in found if x.family == family][-max(2 if family == "restore" else 1, int(keep)):])
+                keepers.update(e.path for e in [x for x in found if x.family == family][-max(FLOOR.get(family, 1), int(keep)):])
             keepers.update(e.path for e in found if e.name in {Path(p).name for p in protect})      # by name: the folder is this one
             if found:
                 keepers.add(found[-1].path)

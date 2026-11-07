@@ -74,6 +74,11 @@ UNDO_DONE = "Version {to} has been put back. Your projects are as they were."
 CHOOSE_PROMPT = "Choose the clark update file"
 
 
+# #633: in the Docker container the clark folder is shared in read-only and the data stays in its own folder, so an update is a
+# newer clark folder started in its place (never an install from a file). Shown as the Update row's own words (a "blocked" reply).
+CONTAINER = "This clark runs in Docker, so it is updated by starting from the newer clark folder. Nothing was changed."
+
+
 def reply(status, code, message=None, **extra):
     return status, {"ok": False, "code": code, "message": message or MESSAGES[code], **extra}
 
@@ -143,6 +148,8 @@ class Updater:
 
     def _blocked(self):
         """The plain sentence why this copy can't update itself, or None."""
+        if platform.container_mode():
+            return CONTAINER
         try:
             updates.check_app_folder(self.app)
         except updates.UpdateError as e:
@@ -187,7 +194,7 @@ class Updater:
                                                     and len(released) == 10 and released[4] == "-" else ".")
         blocked = self._blocked()
         newer = None if blocked else self._newer_in_downloads()
-        last = ui.last_update(self.data)
+        last = None if platform.container_mode() else ui.last_update(self.data)      # #633: no Undo update in a container
         notice = self._read(NOTICE)
         if notice is not None:
             self._drop(NOTICE)                        # said once
@@ -256,6 +263,8 @@ class Updater:
     def install(self, req):
         if not isinstance(req, dict) or set(req) != {"review_id"}:
             return reply(400, "bad_request")
+        if platform.container_mode():
+            return reply(409, "blocked", CONTAINER)
         if not self.lock.acquire(blocking=False):
             return reply(409, "busy")
         try:
@@ -309,6 +318,8 @@ class Updater:
     def arm_undo(self, req):
         if req not in ({}, None):
             return reply(400, "bad_request")
+        if platform.container_mode():
+            return reply(409, "blocked", CONTAINER)
         if self._installing:
             return reply(409, "busy")
         try:
@@ -326,6 +337,8 @@ class Updater:
         if not isinstance(req, dict) or set(req) - {"arm_id", "app_only"} or "arm_id" not in req \
                 or not isinstance(req.get("app_only", False), bool):
             return reply(400, "bad_request")
+        if platform.container_mode():
+            return reply(409, "blocked", CONTAINER)
         if not self.lock.acquire(blocking=False):
             return reply(409, "busy")
         try:
