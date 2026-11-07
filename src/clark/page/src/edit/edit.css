@@ -133,6 +133,8 @@
 .rowmenu [role="menuitem"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .rowmenu .rm-t { flex: 1; min-width: 0; }
 .rowmenu .rm-t small { display: block; font-size: var(--size-caption); color: var(--text-muted); }
+.rowmenu .rm-ic { flex: none; width: 16px; height: 16px; color: var(--text-muted); }                /* row 978: the entry's icon, before its words, from the existing icon set; it takes the entry's colour on hover and focus */
+.rowmenu [role="menuitem"]:hover .rm-ic, .rowmenu [role="menuitem"]:focus-visible .rm-ic { color: inherit; }
 .rowmenu .rm-go { flex: none; width: 14px; height: 14px; color: var(--text-muted); }
 .rowmenu .rm-t b { font-weight: var(--weight-regular); }                /* item 977: the browser's bold for the entry words is not the menu's look; the entries are plain */
 .rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
@@ -748,6 +750,8 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 #data-card .row .btn { min-height: 32px; }
 #data-card .dc-note { font-size: var(--size-small); margin: 10px 0 0; }
 .projects .proj-head .sp { flex: 1 1 auto; }
+/* row 981: the Draft email box starts below the top bar (.ad-scrim), so its height cap leaves room for the bar and the scrim padding; the body scrolls inside and the buttons stay */
+.ad-scrim .de { max-height: min(720px, calc(100dvh - var(--topbar) - var(--space-6) - var(--space-6))); }
 .ad.dlg { width: min(520px, 100%); max-height: calc(100dvh - var(--topbar) - 2 * var(--space-6)); }
 .ad.dlg.wide { width: min(760px, 100%); }
 .ad.dlg .dlg-b { padding: var(--space-2) var(--space-5) var(--space-4); overflow: auto; min-height: 0; }
@@ -968,5 +972,8 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 #publish-dialog { width: min(560px, calc(100vw - 32px)); }
 /* row 936: the Help note (a hint, a 'what you should see') is a tinted panel with a hairline all round, no blue one-side stripe. Edit's alone: shell.css and the published page are unchanged. */
 .hp-note { border: 1px solid var(--grey-200); border-radius: var(--radius); }
+/* Row 833: the examples row under the filter line is out of the flow, so while it is hidden it takes no room (it reserved 33 px); shown it floats over what is below (layer 24: over the sticky bars, under the drop-down menus at 25, so an open menu is not covered). Edit only: the published page draws no filter line. */
+.fhints { position: absolute; left: 0; right: 0; z-index: 24; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; padding: 0 0 var(--space-1); background: var(--grey-50); visibility: hidden; }
+.fhints.on { visibility: visible; }
 /* row 988: with many lines the chart box is bounded and scrolls inside itself, so its sticky header row stays in view. Edit.css only: shell.css is the published page's. (.gt-full sets its own, tighter bound.) */
 .gt-gx { max-height: 70vh; }

@@ -356,6 +356,8 @@ export function FilterLine({ board }) {
         {draft || chips.length ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
       </div>
       {notes.length ? null : suggestions}
+      {/* Row 833: the note comes before the examples, which float (out of the flow) from where they stand: under the note, never over it. */}
+      <p class={`fmsg${words.length ? " bad" : ""}`} id="fline-msg" role="status" aria-live="polite">{notes.join(" ")}</p>
       {
         // Always drawn, hidden unless the line is focused: the room stays, so a click that moves focus away from the line does not shift the page under the pointer.
         // The examples and the list of suggestions are never shown together: while the list is open the examples keep their room but are hidden.
@@ -365,7 +367,6 @@ export function FilterLine({ board }) {
           <span class="fgloss" id="fline-gloss" aria-hidden="true" hidden={!gloss}>{gloss}</span>
         </div>
       }
-      <p class={`fmsg${words.length ? " bad" : ""}`} id="fline-msg" role="status" aria-live="polite">{notes.join(" ")}</p>
       {notes.length ? suggestions : null}
     </div>
   );
