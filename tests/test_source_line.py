@@ -29,7 +29,22 @@ class TheLine(unittest.TestCase):
 
     def test_an_import_line_keeps_its_words_and_adds_by(self):
         a = self.demo.action(source="Excel import, 2026-10-01, plan.xlsx")
-        self.assertEqual(self.source(a), "Excel import, 2026-10-01, plan.xlsx by " + USER)
+        self.assertEqual(self.source(a), "Excel import, 01-10-2026, plan.xlsx by " + USER)
+
+    def test_a_word_import_date_is_shown_day_first(self):
+        a = self.demo.action(source="Word import, 2026-11-07, notes.docx, under Risks")
+        self.assertEqual(self.source(a), "Word import, 07-11-2026, notes.docx, under Risks by " + USER)
+
+    def test_the_stored_column_is_not_changed(self):
+        a = self.demo.action(source="Excel import, 2026-10-01, plan.xlsx")
+        self.source(a)
+        row = self.demo.store.con.execute("SELECT source FROM actions WHERE id = ?", (a,)).fetchone()
+        self.assertEqual(row[0], "Excel import, 2026-10-01, plan.xlsx")
+
+    def test_digits_that_are_not_a_date_stay_as_they_are(self):
+        for text in ("Ref 12345-67-89 from the PMO", "Ticket 2026-13-45 filed", "Batch 20261001 and 2026-10-1", "Added by hand in clark"):
+            a = self.demo.action(source=text)
+            self.assertEqual(self.source(a), text + " by " + USER, text)
 
     def test_a_later_editor_is_not_the_creator(self):
         a = self.demo.action(source="demo")
@@ -45,7 +60,11 @@ class TheLine(unittest.TestCase):
         self.assertEqual(self.source(a), "demo")
 
     def test_a_milestone_and_a_decision_have_it_too(self):
-        self.assertTrue(self.source(self.demo.milestone).endswith(" by " + USER) or self.source(self.demo.milestone))
+        # The read gives every kind the same line; the Peek draws it for items only (Peek.jsx `forItem`), not for milestones.
+        self.assertEqual(self.source(self.demo.milestone), "demo by " + USER)
+        with self.demo.store.step("dashboard", USER) as st:
+            d = st.create("decisions", {"project": "ABC", "decision": "Go with option B", "status": "Pending", "source": "Excel import, 2026-11-07, log.xlsx"})
+        self.assertEqual(self.source(d), "Excel import, 07-11-2026, log.xlsx by " + USER)
 
     def test_the_text_is_data_not_markup_and_nothing_else_is_added(self):
         a = self.demo.action(source="<b>x</b>")
