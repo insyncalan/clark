@@ -67,8 +67,7 @@ class ExportButton(unittest.TestCase):
                 cdp.js("window.__asked = []; const f = window.fetch; window.fetch = (u, o) => { window.__asked.push(String(u)); return f(u, o); }", sid)
                 cdp.js("document.querySelector('#expBtn').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("window.__asked.some(u => u.startsWith('/api/export?project=ABC'))", sid)), "it asked GET /api/export")
-                cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-                self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'true'", sid)))
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch off the Dashboard")
                 self.assertEqual(cdp.js("document.querySelectorAll('#expBtn').length", sid), 1, "this page has no mode: still there (row 824)")
                 self.assertEqual(cdp.js("document.querySelectorAll('#newBtn').length", sid), 1)
 
