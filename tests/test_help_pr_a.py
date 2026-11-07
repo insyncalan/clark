@@ -135,10 +135,10 @@ class SettingsChips(unittest.TestCase):
         views = code("components", "Views.jsx")
         cards = re.search(r"const CARDS = \[(.*?)\];", views, re.S).group(1)
         names = [n for n in re.findall(r'\["\w+", "([^"]*)", "[\w-]+"\]', cards)]
-        self.assertEqual(names, ["Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "", "People", "Asking"])
+        self.assertEqual(names, ["Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "", "People", "Asking"])
         self.assertIn('Update.chip = L.TITLE', code("edit", "Update.jsx"))
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))
-        self.assertIn("Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn.", self.TEXT)
+        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn.", self.TEXT)
         self.assertIn('<nav class="set-bar"', views)
         self.assertIn('aria-current={here === headId ? "location" : undefined}', views)
         self.assertIn('NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays", "GanttSetting"]', views)
@@ -165,11 +165,14 @@ class SettingsChips(unittest.TestCase):
         for field in ('box("name"', 'box("alias"', 'box("email"'):
             self.assertIn(field, per)
         self.assertNotIn('box("phone"', per)
+        self.assertIn("<h2 id=\"profile-h\" tabIndex={-1}>Profile</h2>\n      <AboutYou />", per)      # row 950: About you is the Profile card, not part of Personal
+        self.assertNotIn("<AboutYou />\n      <fieldset class=\"styles keys\">", per)
         self.assertIn("<legend>Keys</legend>", per)
         self.assertIn('aria-label="Single-key shortcuts"', per)
         self.assertIn("<legend>Appearance</legend>", per)
         self.assertLess(per.index('["system", "System"'), per.index('["light", "Light"'))
-        self.assertIn("Appearance (System, Light or Dark), About you (your name, Alias and Email) and Keys (Single-key shortcuts)", self.TEXT)
+        self.assertIn("Appearance (System, Light or Dark) and Keys (Single-key shortcuts)", self.TEXT)
+        self.assertIn("About you (your name, Alias and Email).", self.TEXT)
         self.assertNotIn("Phone number", self.TEXT)
 
     def test_published_reports_row(self):

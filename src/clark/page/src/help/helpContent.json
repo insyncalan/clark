@@ -55,7 +55,7 @@
   "first": [
    {
     "t": "Say who you are",
-    "d": "In [Settings › Personal › About you](go:settings#personal), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
+    "d": "In [Settings › Profile › About you](go:settings#profile), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
    },
    {
     "t": "Pick a project",
@@ -761,15 +761,15 @@
     "id": "set-your-profile",
     "g": "Settings and safety",
     "t": "Set your profile",
-    "w": "Settings › Personal › About you",
-    "go": "settings#personal",
+    "w": "Settings › Profile › About you",
+    "go": "settings#profile",
     "s": [
      "Fill in your **Name**, **Alias**, **Email**, **Phone number** and **Organisation**.",
      "Each saves when you leave the box (or press [[Enter]]), with **Undo**.",
      "Your full name goes on every change you make, in each item’s history. Your initials fill the circle at the top right."
     ],
     "page": [
-     "settings#personal"
+     "settings#profile"
     ]
    },
    {
@@ -1806,7 +1806,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title): Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
+      "A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
      ],
      [
       "tbl",
@@ -1816,8 +1816,12 @@
       ],
       [
        [
+        "Profile",
+        "About you (your name, Alias and Email)."
+       ],
+       [
         "Personal",
-        "Dashboard sections (Slim gaps, Roomy gaps, Grey headers, One card), Appearance (System, Light or Dark), About you (your name, Alias and Email) and Keys (Single-key shortcuts)."
+        "Dashboard sections (Slim gaps, Roomy gaps, Grey headers, One card), Appearance (System, Light or Dark) and Keys (Single-key shortcuts)."
        ],
        [
         "Published reports",
@@ -1964,7 +1968,7 @@
       "ul",
       [
        "There is no Save button. Each change is written when you make it: a pick from a menu, [[Enter]] in a field, leaving a box, or closing an editor.",
-       "Each change records who made it (your full name from Settings › Personal › About you, or “You”), how (by hand, in words, imported, ask clark), what it was and what it became.",
+       "Each change records who made it (your full name from Settings › Profile › About you, or “You”), how (by hand, in words, imported, ask clark), what it was and what it became.",
        "**Undo** in the message reverses exactly that step. Several changes made together undo together."
       ]
      ]
@@ -2440,6 +2444,11 @@
    "full": "howto-find-a-past-publication",
    "cards": [
     {
+     "card": "profile",
+     "title": "Profile",
+     "line": "Your name, Alias and email."
+    },
+    {
      "card": "publishing",
      "title": "Publishing",
      "line": "Where Publish saves the report, and the client folder it is copied to."
@@ -2452,7 +2461,7 @@
     {
      "card": "personal",
      "title": "Personal",
-     "line": "How the Dashboard sections look, Light or Dark, your name and the single-key shortcuts."
+     "line": "How the Dashboard sections look, Light or Dark and the single-key shortcuts."
     },
     {
      "card": "freshness",

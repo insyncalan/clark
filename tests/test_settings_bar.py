@@ -114,7 +114,7 @@ class SettingsBar(Base):
                 p.until("document.activeElement && document.activeElement.id === 'about-name'", "the name box has the cursor")
                 self.settle(p)
                 self.assertTrue(self.clear_of_bar(p, "#about-name"), "the box is clear of the bar")
-                self.assertEqual(self.marked(p), "Personal", "the chip of the card holding the box is marked")
+                self.assertEqual(self.marked(p), "Profile", "the chip of the card holding the box is marked")
 
 
 if __name__ == "__main__":
