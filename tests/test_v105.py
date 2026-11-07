@@ -5,7 +5,7 @@ Run: python3 dev/run_tests.py test_v105
 Same shape as test_v104 (bullets for unmerged rows wait under a WAIT heading). All thirteen 1.0.5 rows are IN REVIEW today (none is merged), so COVERED is empty and every visible row is in WAITING
 (no pull request yet). The notes are written ahead of the merges. The cut tests skip until the cut commit sets 1.0.5; from then on a
 row that is not MERGED or DROPPED fails, a WAITING row whose marker has landed fails until it moves to COVERED, and the approved
-manual download lines must stay in. The data layout stays 19 (no 1.0.5 row changes it).
+manual download lines must stay in. The data layout moves to 20 (#944 T1, projects.brand).
 Rows 836 (PR 942) and 963 (PR 941) are tests or internal code only: in TEST_ONLY, no bullet. PR 943 (NOTICE.md) has no row. Rows are now 13.
 """
 import ast
@@ -16,7 +16,7 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "1.0.5"
-SCHEMA = 19              # 1.0.3 was layout 17; 1.0.5 ends at 19 (row 926)
+SCHEMA = 20              # 1.0.3 was layout 17; 1.0.4 ended at 19 (row 926); 1.0.5 ends at 20 (#944 T1, projects.brand)
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = []
@@ -33,6 +33,7 @@ PARTLY_MERGED = set()
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has landed).
 WAITING = [
     ("#804", "The View or Edit switch is on the Dashboard and the Gantt page only.", "no pull request yet (issue 804)", "", None),
+    ("#944", "The data file moves to layout 20.", "no pull request yet (issue 944)", "", None),
     ("#951", "The Settings Data card has an Excel file layout (preview) button.", "no pull request yet (issue 951)", "", None),
     ("#961", "The zip holds START-HERE.md.", "no pull request yet (issue 961)", "", None),
     ("#962", "The other pickers and menus fade out as they close.", "no pull request yet (issue 962)", "", None),
@@ -223,7 +224,7 @@ class Notes(unittest.TestCase):
                 self.assertNotIn("ask clark", line)
 
     def test_the_notes_do_not_name_a_newer_clark(self):
-        self.assertNotIn("needs a newer clark", self.text)
+        self.assertEqual(self.text.count("This data needs a newer clark. Nothing was changed. Install the latest clark, then try again."), 1, "the layout-20 bullet (#944) quotes the refusal once, as the 1.0.4 notes did")      # 1.0.5 moves the layout, so it now says what an older clark does
         self.assertNotIn("Read this first", self.text)
 
     def test_the_known_limits_carry_the_by_hand_install_and_the_demo_limit(self):
@@ -296,7 +297,7 @@ class Cut(unittest.TestCase):
 
     def test_the_data_layout_is_still_the_one_the_notes_say(self):
         self.cut_made()
-        self.assertEqual(schema_version(), SCHEMA, "no 1.0.5 row changes the data layout: it stays 19")
+        self.assertEqual(schema_version(), SCHEMA, "1.0.5 ends at layout 20: #944 T1 added projects.brand")
 
     def test_a_waiting_row_whose_pull_request_has_landed_has_been_moved_to_covered(self):
         self.cut_made()

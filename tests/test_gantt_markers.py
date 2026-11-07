@@ -146,6 +146,25 @@ class Markers(unittest.TestCase):
         self.assertIn("ZQ-DELIVERABLE-K", built["body"].decode("utf-8"))
         self.assertEqual(to_client.check_copy(built["body"], markers=got, folder=None), [], msg="the file as built passes")
 
+    def test_every_field_of_an_eye_off_line_is_a_marker_when_the_project_hides_nothing(self):
+        self.project(hidden="")
+        self.line("ZQ-SHOWN-LINE", owner="", note="", budget=None, effort=None, bs=None, be=None)
+        vals = {"owner": "ZQ-EO-OWNER-VALUE", "note": "ZQ-EO-NOTE-VALUE", "budget": 7654321.5, "effort": 876543.5,
+                "baseline_start": "2041-05-06", "baseline_end": "2041-05-07",
+                "deliverable": "ZQ-EO-DELIVERABLE-VALUE", "workstream": "ZQ-EO-WORKSTREAM-VALUE"}
+        off = self.line("ZQ-EYE-OFF-LINE", owner=vals["owner"], note=vals["note"], budget=vals["budget"], effort=vals["effort"],
+                        bs=vals["baseline_start"], be=vals["baseline_end"], show=0)
+        self.extra(off, deliverable=vals["deliverable"], workstream=vals["workstream"])
+        built, got = self.got()
+        self.assertEqual(to_client.check_copy(built["body"], markers=got, folder=None), [], msg="the file as built passes")
+        for field, v in vals.items():
+            with self.subTest(field=field):
+                leak = str(v)
+                self.assertGreaterEqual(len(leak), publish_flow.MIN_MARKER)
+                self.assertNotIn(leak, built["body"].decode("utf-8"))
+                body = built["body"].replace(b"</body>", b"<p>" + leak.encode() + b"</p></body>")
+                self.assertTrue(to_client.check_copy(body, markers=got, folder=None), msg=f"a file carrying the eye-off line's {field} must be refused")
+
     def test_the_word_check_uses_the_gantt_markers(self):
         self.line("ZQ-SHOWN-LINE")
         built, _ = self.got()

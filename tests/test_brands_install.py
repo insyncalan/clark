@@ -62,14 +62,14 @@ class Installed(Base):
         self.put(bz.valid())
         b = branding(self.root)
         (b / "broken").mkdir()
-        (b / "broken" / "clark-brand.json").write_text("{not json")
+        (b / "broken" / "clark-brand.json").write_text("{not json", encoding="utf-8")
         (b / "no-manifest").mkdir()
-        (b / "no-manifest" / "tokens.css").write_text(":root{}")
+        (b / "no-manifest" / "tokens.css").write_text(":root{}", encoding="utf-8")
         (b / (HIDDEN_NEW + "x")).mkdir()
         (b / (HIDDEN_OLD + "y")).mkdir()
         (b / "assets").mkdir()
         (b / "design-system").mkdir()
-        (b / "stray-file").write_text("x")
+        (b / "stray-file").write_text("x", encoding="utf-8")
         got = brands.installed(self.root)
         self.assertEqual([x["id"] for x in got], [bz.BRAND_ID])
         self.assertEqual(set(got[0]), {"id", "name", "version"})
@@ -82,7 +82,7 @@ class Installed(Base):
 
     def test_local_brand_is_listed_only_with_a_top_level_tokens_css(self):
         self.assertEqual(brands.installed(self.root), [])
-        (branding(self.root) / "tokens.css").write_text(":root { --brand-ink: #000000; }\n")
+        (branding(self.root) / "tokens.css").write_text(":root { --brand-ink: #000000; }\n", encoding="utf-8")
         self.assertEqual([x["id"] for x in brands.installed(self.root)], ["local-brand"])
 
     def test_a_missing_library_folder_is_an_empty_list(self):
@@ -111,7 +111,7 @@ class Folder(Base):
 
     def test_local_brand_is_the_top_folder_when_it_has_tokens(self):
         self.assertIs(brands.folder(self.root, "local-brand"), brands.GENERIC)
-        (branding(self.root) / "tokens.css").write_text(":root{}")
+        (branding(self.root) / "tokens.css").write_text(":root{}", encoding="utf-8")
         self.assertEqual(brands.folder(self.root, "local-brand"), branding(self.root))
 
     def test_ids_with_path_parts_are_generic_and_never_touch_the_disk(self):
@@ -198,7 +198,7 @@ class Install(Base):
     def test_the_staged_folder_is_private_and_a_leftover_one_is_cleared(self):
         leftover = branding(self.root) / (HIDDEN_NEW + bz.BRAND_ID)
         leftover.mkdir()
-        (leftover / "tokens.css").write_text("left over")
+        (leftover / "tokens.css").write_text("left over", encoding="utf-8")
         seen = {}
         brands.after_write = lambda staged: seen.update(mode=stat.S_IMODE(os.stat(staged).st_mode), names=sorted(os.listdir(staged)))
         self.put(bz.valid())
@@ -373,7 +373,7 @@ class Crash(Base):
         old = snapshot(self.brand_dir())
         for n in (HIDDEN_NEW + bz.BRAND_ID, HIDDEN_OLD + bz.BRAND_ID):
             (branding(self.root) / n).mkdir()
-            (branding(self.root) / n / "tokens.css").write_text("x")
+            (branding(self.root) / n / "tokens.css").write_text("x", encoding="utf-8")
         brands.recover(self.root)
         self.assertEqual(self.hidden(), [])
         self.assertEqual(snapshot(self.brand_dir()), old)
