@@ -64,6 +64,8 @@ def sug(text, caret=None, extra=None):
     return run_node(f"Q.suggestions({lit(text)}, {caret}, {lit(ROWS)}, {lit(CTX)}, {lit(extra or [])})")
 
 
+FIELDS = "You can filter by type:, status:, owner:, priority:, due:, workstream:, usecase:, milestone:, client: and is:, or type plain words to search titles."
+
 class Pieces(unittest.TestCase):
     def pieces(self, line, caret=None):
         c = "undefined" if caret is None else str(caret)
@@ -89,7 +91,7 @@ class Pieces(unittest.TestCase):
 
     def test_an_unusable_token_is_an_error_piece_with_its_words(self):
         p = [x for x in self.pieces("stat:x opn") if x["cls"] == "err"]
-        self.assertEqual([(x["text"], x["message"]) for x in p], [("stat:x", "Unknown field 'stat'. Did you mean Status?")])
+        self.assertEqual([(x["text"], x["message"]) for x in p], [("stat:x", "There is no \u201cstat\u201d filter. Did you mean status? "+FIELDS)])
 
     def test_a_token_still_being_typed_is_not_marked_while_the_caret_is_in_it(self):
         self.assertEqual([x["cls"] for x in self.pieces("status:", 7)], ["txt"])
@@ -97,13 +99,53 @@ class Pieces(unittest.TestCase):
         self.assertEqual([x["cls"] for x in self.pieces("status: type:action", 19)], ["err", "gap", "fld", "val"])
 
 
+class Chips(unittest.TestCase):
+    """Row 845: the complete filters of a line are chips; the box keeps the rest."""
+
+    def split(self, line):
+        return run_node(f"Q.splitLine({lit(line)}, {lit(ROWS)}, {lit(CTX)})")
+
+    def test_a_line_is_cut_into_its_filters_and_the_rest(self):
+        self.assertEqual(self.split('is:open status:Open,Pending supplier stat:x owner:"Owner One"'),
+                         {"chips": ["is:open", "status:Open,Pending", 'owner:"Owner One"'], "rest": "supplier stat:x"})
+        self.assertEqual(self.split(""), {"chips": [], "rest": ""})
+        self.assertEqual(self.split("status:"), {"chips": [], "rest": "status:"})
+
+    def test_the_chips_and_the_box_are_one_line_again(self):
+        self.assertEqual(run_node("Q.joinLine(['is:open', 'no:owner'], 'foo')"), "is:open no:owner foo")
+        self.assertEqual(run_node("Q.joinLine(['is:open'], '')"), "is:open")
+        self.assertEqual(run_node("Q.joinLine([], 'foo')"), "foo")
+
+    def test_a_filter_the_caret_has_moved_past_becomes_a_chip(self):
+        c = lambda text, caret: run_node(f"Q.commitDraft({lit(text)}, {caret}, {lit(ROWS)}, {lit(CTX)})")
+        self.assertEqual(c("status:Open ", 12), {"chips": ["status:Open"], "text": "", "caret": 0})
+        self.assertEqual(c("foo status:Open bar", 19), {"chips": ["status:Open"], "text": "foo bar", "caret": 7})
+        self.assertEqual(c("status:Open", 11), {"chips": [], "text": "status:Open", "caret": 11}, "the word still being typed stays")
+        self.assertEqual(c("stat:x ", 7), {"chips": [], "text": "stat:x ", "caret": 7}, "a word that cannot be used stays, with its message")
+        self.assertEqual(c("status: ", 8), {"chips": [], "text": "status: ", "caret": 8})
+        self.assertEqual(c("foo ", 4), {"chips": [], "text": "foo ", "caret": 4}, "a plain word stays")
+
+    def test_a_value_row_counts_the_items_it_would_leave_with_the_chips_on_other_fields(self):
+        opts = [{"kind": "value", "ins": "status:Open", "label": "Open", "close": True}, {"kind": "value", "ins": "status:Closed", "label": "Closed", "close": True},
+                {"kind": "field", "ins": "owner:", "label": "owner:", "close": False}]
+        out = run_node(f"Q.withCounts({lit(opts)}, ['status:Closed', 'priority:High'], {lit(ROWS)}, {lit(CTX)})")
+        self.assertEqual([o.get("n") for o in out], [1, 0, None], "Open and High: one item; Closed replaces the chip on its own field, High is not Closed's: none")
+
+    def test_a_chips_remove_button_is_named_by_its_field(self):
+        n = lambda chip: run_node(f"Q.chipName({lit(chip)}, {lit(ROWS)}, {lit(CTX)})")
+        self.assertEqual(n("status:Open"), "Status")
+        self.assertEqual(n("-owner:none"), "Owner")
+        self.assertEqual(n("is:open"), "is")
+        self.assertEqual(n("no:owner"), "no")
+
+
 class Words(unittest.TestCase):
     def say(self, line):
         return run_node(f"Q.parseFor({lit(line)}, {lit(ROWS)}, {lit(CTX)}).errors.map(Q.messageOf)")
 
     def test_each_approved_sentence(self):
-        self.assertEqual(self.say("stat:x"), ["Unknown field 'stat'. Did you mean Status?"])
-        self.assertEqual(self.say("zzzzzz:x"), ["Unknown field 'zzzzzz'."])
+        self.assertEqual(self.say("stat:x"), ["There is no \u201cstat\u201d filter. Did you mean status? "+FIELDS])
+        self.assertEqual(self.say("zzzzzz:x"), ["There is no \u201czzzzzz\u201d filter. "+FIELDS])
         self.assertEqual(self.say("is:opn"), ["Unknown state 'opn'. Did you mean open?"])
         self.assertEqual(self.say("status:"), ["Add a value after 'status:'."])
         self.assertEqual(self.say("has:zzzzzz"), ["Unknown field 'zzzzzz'."])

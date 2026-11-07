@@ -966,3 +966,5 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .sn-acts { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
 /* row 796: the Publish box is the prototype's 560 px; its heading keeps the .dlg h2 style every box uses. Edit's alone: the published file has no such box. */
 #publish-dialog { width: min(560px, calc(100vw - 32px)); }
+/* row 988: with many lines the chart box is bounded and scrolls inside itself, so its sticky header row stays in view. Edit.css only: shell.css is the published page's. (.gt-full sets its own, tighter bound.) */
+.gt-gx { max-height: 70vh; }
