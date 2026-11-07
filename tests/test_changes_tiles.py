@@ -12,7 +12,7 @@ from _paths import SRC
 from clark import changes, glance, store as store_module
 
 
-GANTT_DEFAULTS = {"show_gantt_editor": 0, "show_gantt_client": 0, "gantt_tab_name": "Gantt", "gantt_title": "", "gantt_hidden_columns": "show,note,budget,effort,baseline_start,baseline_end", "gantt_default_rows": None}   # row 926: the project echo carries the Gantt settings
+GANTT_DEFAULTS = {"show_gantt_editor": 0, "show_gantt_client": 0, "gantt_tab_name": "Gantt", "gantt_title": "", "gantt_hidden_columns": "show,note,budget,effort,baseline_start,baseline_end,owner", "gantt_default_rows": None}   # row 926: the project echo carries the Gantt settings
 
 class Base(unittest.TestCase):
     def setUp(self):
