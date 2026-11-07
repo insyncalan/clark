@@ -299,7 +299,7 @@ class Refusals(Base):
         before, steps = self.lines(), self.steps()
         p = self.plan(path)
         self.assertEqual(p.changes, [])
-        self.assertTrue(any("Gantt: there is no id column, so the sheet was skipped (every row would look new)" in x.message for x in p.problems), p.problems)
+        self.assertTrue(any("Gantt: this is the copy made for the client, not a workbook to import, so the sheet was skipped." in x.message for x in p.problems), p.problems)
         self.assertEqual((self.lines(), self.steps()), (before, steps))
 
     def test_a_client_copy_with_the_title_band_deleted_is_still_refused_by_the_mark(self):
@@ -307,7 +307,7 @@ class Refusals(Base):
         before = self.lines()
         p = self.plan(path)
         self.assertEqual(p.changes, [])
-        self.assertTrue(any(x.sheet == "Gantt" and "there is no id column" in x.message for x in p.problems), p.problems)
+        self.assertTrue(any(x.sheet == "Gantt" and "this is the copy made for the client" in x.message for x in p.problems), p.problems)
         self.assertEqual(self.lines(), before)
 
     def test_without_the_mark_only_the_layout_rule_refuses_a_client_copy(self):

@@ -999,7 +999,7 @@ def _gantt_sheet(self, ws):
     A line missing from the sheet is left alone. The rules are the page's, applied when the plan is checked and again when it is applied."""
     sheet = ws.title
     if excel.CLIENT_COPY_NAME in ws.parent.defined_names:      # the client workbook's mark (excel_client.write_gantt_sheet): a client copy is never imported, whatever row its header is in
-        self.problem(f"{sheet}: there is no id column, so the sheet was skipped (every row would look new)", sheet)
+        self.problem(f"{sheet}: this is the copy made for the client, not a workbook to import, so the sheet was skipped.", sheet)
         return
     first = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ())
     header, ignored = {}, []

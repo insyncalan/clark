@@ -963,7 +963,6 @@ def write_gantt(wb, lines, fields, name, today, pal=None):
     return ws
 
 
-
 def write_history(wb, view, pal=None):
     """The History sheet (#123), after the data sheets: `view` is exactly what history.view_for_project returns, so the sheet and
     the Activity tab show the same rows. Row 1 is the internal note and the footnote, row 2 the header (frozen with it), then the
