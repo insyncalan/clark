@@ -2868,7 +2868,7 @@ def _note_text(text):
 
 def email_note(name, day, subject):
     """The one History sentence for "I sent it" (row 983): NEW words, ruled by the Head, exactly
-    `Emailed Dana Hart on 29-10-2026, "Example Programme · ABC-A-004 · Chase: Order the laptops"`, or without the name when no
+    `Emailed Pat Example on 29-10-2026, "Example Programme · ABC-A-004 · Chase: Order the laptops"`, or without the name when no
     person is named. Never an address, never the body. A double quote inside the subject becomes a single one, and a subject too long
     for src_ref is cut with an ellipsis, so the sentence always fits (300 characters) and has no line break."""
     y, m, d = str(day).split("-")
@@ -3398,10 +3398,10 @@ class Store:
             sent = date.fromisoformat(str(day))
         except ValueError:
             raise Invalid("The date this page sent is not a real date. Reload the page and try again. Nothing was saved.") from None
-        now = today or date.today()                      # the server's own clock; the page's day is only accepted within a day of it
-        if sent < now - timedelta(days=1):
+        server_day = today or date.today()                      # the server's own clock; the page's day is only accepted within a day of it
+        if sent < server_day - timedelta(days=1):
             raise Invalid("The date on this computer is too far in the past to be right. Check its clock, then reload the page and try again. Nothing was saved.")
-        if sent > now + timedelta(days=1):
+        if sent > server_day + timedelta(days=1):
             raise Invalid("The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.")
         if self.con.in_transaction:
             raise Invalid("Another change is still being saved. Wait a moment, then try again. Nothing was saved.")

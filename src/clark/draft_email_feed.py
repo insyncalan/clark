@@ -269,7 +269,8 @@ def make_sent(path, onedrive_roots=None, by_user=None, today=None, subject_for=N
                 return refuse(409, "already_recording", BUSY_SENT)
             in_flight.add(key)
         try:
-            return _call(path, onedrive_roots, by_user, work, {"project": code, "ids": ids, "mode": mode, "day": day})
+            return _call(path, onedrive_roots, by_user, work, {"project": code, "ids": ids, "mode": mode, "day": day,
+                                                                "person": person, "tone": tone, "reply_by": reply_by})
         finally:
             with gate:
                 in_flight.discard(key)
