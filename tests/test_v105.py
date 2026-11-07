@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_v105
 
-Same shape as test_v104. All ten 1.0.5 rows are IN REVIEW today (none is merged), so COVERED is empty and every visible row is in WAITING
+Same shape as test_v104 (bullets for unmerged rows wait under a WAIT heading). All ten 1.0.5 rows are IN REVIEW today (none is merged), so COVERED is empty and every visible row is in WAITING
 (no pull request yet). The notes are written ahead of the merges. The cut tests skip until the cut commit sets 1.0.5; from then on a
 row that is not MERGED or DROPPED fails, a WAITING row whose marker has landed fails until it moves to COVERED, and the placeholder
 manual download line fails until the product manager's wording replaces it. The data layout stays 19 (no 1.0.5 row changes it).
@@ -24,6 +24,8 @@ COVERED = []
 # Merged rows with no visible change. None merged yet. Row 963 is test only and is in TEST_ONLY.
 NO_VISIBLE_CHANGE = set()
 TEST_ONLY = {"963"}
+# No user note, and no hand check, once merged. 972 is not merged yet, so it cannot sit in NO_VISIBLE_CHANGE (that set must be MERGED).
+NO_NOTE_WHEN_MERGED = {"972"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table. None in 1.0.5.
 PARTLY_MERGED = set()
@@ -101,6 +103,16 @@ def bullets(notes):
     return out
 
 
+WAIT_HEAD = "## WAIT: bullets that go in only when the PR merges (delete this heading when they do)"
+
+
+def wait_bullets(notes):
+    """The bullet lines under the WAIT heading (not counted as notes until the heading is deleted)."""
+    if WAIT_HEAD not in notes:
+        return []
+    return [l for l in notes.split(WAIT_HEAD, 1)[1].splitlines() if l.startswith("- ")]
+
+
 class Tables(unittest.TestCase):
     def test_every_covering_test_named_here_exists(self):
         out = []
@@ -172,7 +184,7 @@ class StatusTable(unittest.TestCase):
         for item, title, status, pr in table_rows(sheet):
             if status != "MERGED":
                 continue
-            self.assertTrue(item in NO_VISIBLE_CHANGE or item in TEST_ONLY or item in covered,
+            self.assertTrue(item in NO_VISIBLE_CHANGE or item in TEST_ONLY or item in NO_NOTE_WHEN_MERGED or item in covered,
                             f"{item} is MERGED: give it a covering test and a hand-check row, or list it in NO_VISIBLE_CHANGE")
             self.assertTrue(pr, f"{item} is MERGED and has no pull request in the table")
 
@@ -199,7 +211,7 @@ class Notes(unittest.TestCase):
     def test_the_title_the_beta_line_and_the_update_sentence(self):
         self.assertEqual(self.text.splitlines()[0], f"# clark {VERSION} (Beta), Mac")
         self.assertIn("This is the 1.0 build. It is still marked Beta: it works and is tested, but expect rough edges and changes between versions.", self.text)
-        self.assertIn("Updating from inside clark works from 1.0.4 to this version.", self.text)
+        self.assertIn("Updating from inside clark works from 1.0.4 to this version. To move from 1.0.3 or earlier to 1.0.5, install by hand as described under Known limits.", self.text)
 
     def test_no_banned_word_and_no_lower_case_ask_clark_in_a_heading(self):
         for word in BANNED_WORDS:
@@ -208,20 +220,17 @@ class Notes(unittest.TestCase):
             if line.startswith("#"):
                 self.assertNotIn("ask clark", line)
 
-    def test_the_notes_say_the_data_file_is_not_changed_and_do_not_name_a_newer_clark(self):
-        self.assertIn("## Read this first: your data file is not changed", self.text)
-        self.assertIn("This version does not change how your data file is stored.", self.text)
+    def test_the_notes_do_not_name_a_newer_clark(self):
         self.assertNotIn("needs a newer clark", self.text)
+        self.assertNotIn("Read this first", self.text)
 
     def test_the_known_limits_carry_the_by_hand_install_and_the_demo_limit(self):
         self.assertIn("## Known limits", self.text)
-        self.assertIn("From 1.0.3 or earlier, install by hand", self.text)
-        self.assertIn("rename the old clark folder first", self.text)
+        self.assertIn("From 1.0.3 or earlier, install by hand: the update inside those versions does not accept a download that holds START-HERE.md. Rename the old clark folder first, then unzip the download into a fresh empty folder. A plain unzip over the old folder merges old and new files. Your projects stay where they are.", self.text)
         self.assertIn("Editing a demo project keeps it", self.text)
 
     def test_the_manual_download_line_is_there_as_a_marked_placeholder_for_the_update_from_1_0_3(self):
         self.assertIn("- MANUAL DOWNLOAD LINE: wording from the product manager, pending approval", self.text)
-        self.assertIn("knows only START-HERE.txt", self.text)
 
     def test_a_date_in_the_notes_is_day_first_and_no_one_is_named(self):
         self.assertIsNone(re.search(r"\b\d{4}-\d\d-\d\d\b", self.text), "a date in the notes is DD-MM-YYYY")
@@ -235,11 +244,19 @@ class Notes(unittest.TestCase):
         for text in (self.text, read_sheet()):
             self.assertNotRegex(text, r"(?i)\bthe head\b")
 
-    def test_the_notes_have_a_bullet_for_each_visible_row_and_none_for_a_test_only_row(self):
-        visible = [r for r in table_rows(read_sheet()) if r[0] not in TEST_ONLY]
-        self.assertGreaterEqual(len(bullets(self.text)), len(visible) - 1, "a visible row has no bullet in the notes")
-        self.assertIn("963", TEST_ONLY)
+    def test_a_bullet_is_only_for_a_merged_visible_row_and_the_rest_wait_under_the_wait_heading(self):
+        found = bullets(self.text)
+        if not COVERED:
+            self.assertEqual(found, [], "a bullet in the notes but no merged, visible row in COVERED")
+        waiting = wait_bullets(self.text)
+        self.assertEqual(len(waiting), len([w for w in WAITING]), "each waiting row has one bullet under the WAIT heading")
+        for item, *_ in WAITING:
+            self.assertEqual(sum(1 for b in waiting if b.startswith("- Issue %s [" % item.lstrip("#"))), 1, item)
+        for item in TEST_ONLY | NO_NOTE_WHEN_MERGED:
+            self.assertFalse(any(b.startswith("- Issue %s " % item) for b in waiting), item)
         self.assertNotIn("focus-ring pin", self.text)
+        self.assertNotIn("checked for Gantt details", self.text)
+        self.assertNotIn("and says so", self.text)
 
     def test_the_notes_hold_no_status_table_and_no_row_ids(self):
         self.assertNotIn(BEGIN, self.text)
@@ -270,7 +287,7 @@ class Cut(unittest.TestCase):
 
     def test_the_data_layout_is_still_the_one_the_notes_say(self):
         self.cut_made()
-        self.assertEqual(schema_version(), SCHEMA, "the notes say the data file is not changed: the layout stays 19")
+        self.assertEqual(schema_version(), SCHEMA, "no 1.0.5 row changes the data layout: it stays 19")
 
     def test_a_waiting_row_whose_pull_request_has_landed_has_been_moved_to_covered(self):
         self.cut_made()
@@ -283,6 +300,10 @@ class Cut(unittest.TestCase):
         self.cut_made()
         out = [f"{item} is {status}" for item, title, status, pr in table_rows(read_sheet()) if status not in ("MERGED", "DROPPED")]
         self.assertEqual(out, [])
+
+    def test_at_the_cut_the_wait_heading_is_gone(self):
+        self.cut_made()
+        self.assertNotIn(WAIT_HEAD, read_notes(), "delete the WAIT heading and move its bullets under What is new, changed or fixed")
 
     def test_at_the_cut_the_manual_download_line_is_approved_wording(self):
         self.cut_made()
