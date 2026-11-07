@@ -85,7 +85,7 @@ class Print(_PageRig):
                         self.mount(width=w - 60)
                         if layout == "table":
                             self.click("[data-gp-layout]")
-                            self.until("[data-gp-shown=table]", "table")
+                            self.until("document.querySelector('[data-gp-shown=table]')", "table")
                         self.printing(w, scheme)
                         try:
                             got = self.probe()
@@ -101,7 +101,7 @@ class Print(_PageRig):
         self.look(794, "light")
         self.mount(width=734)
         self.click("[data-g-expand]")
-        self.until(".gt-full", "full screen")
+        self.until("document.querySelector('.gt-full')", "full screen")
         self.printing(794, "light")
         try:
             self.assertEqual(self.js("getComputedStyle(document.querySelector('.gt-full')).position"), "static")
@@ -120,7 +120,7 @@ class Print(_PageRig):
                         self.mount()
                         if layout == "table":
                             self.click("[data-gp-layout]")
-                            self.until("[data-gp-shown=table]", "table")
+                            self.until("document.querySelector('[data-gp-shown=table]')", "table")
                         snap = ("JSON.stringify([].slice.call(document.querySelectorAll('#gantt-page *')).map(function (e) { var c = getComputedStyle(e); return "
                                 + "[" + ",".join(f"c.{k}" for k in KEEP) + ", e.getBoundingClientRect().width, e.getBoundingClientRect().height]; }))")
                         before = self.js(snap)
