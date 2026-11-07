@@ -134,6 +134,7 @@
 .rowmenu .rm-t { flex: 1; min-width: 0; }
 .rowmenu .rm-t small { display: block; font-size: var(--size-caption); color: var(--text-muted); }
 .rowmenu .rm-go { flex: none; width: 14px; height: 14px; color: var(--text-muted); }
+.rowmenu .rm-t b { font-weight: var(--weight-regular); }                /* item 977: the browser's bold for the entry words is not the menu's look; the entries are plain */
 .rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
 .rowmenu .ddmenu { max-height: calc(100vh - 2 * var(--space-2)); overflow-y: auto; }
 .rowmenu .rm-fly { position: fixed; min-width: 160px; }              /* the list beside its entry (row 848): on the window, so the menu itself never changes */
@@ -867,6 +868,13 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
 }
 
+/* row 970: a row added to the list rises 4 px and fades in over --dur-state; a deleted row fades out over --dur-instant where it stood (opacity and transform only:
+   the table does not shift), then leaves. Edit build only: the published file has no add or delete. Still under reduced motion (the code adds neither). */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) table.items tr.entering { animation: m-rise var(--dur-state) var(--ease-enter) 1; }
+  :root:not([data-motion="reduce"]) table.items tr.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+}
+
 /* The Add a section box as the prototype draws it (row 783, system/prototype app.css .atd-*): the templates are a grid of cards, each a
    small sketch, its name and its widths as chips; the preview has the larger sketch and what it holds as chips; an X closes it.
    Each card is still a label round a radio (the radio is hidden, its card shows the focus), so the keys and the reading are the list's.
@@ -958,3 +966,8 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .sn-acts { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
 /* row 796: the Publish box is the prototype's 560 px; its heading keeps the .dlg h2 style every box uses. Edit's alone: the published file has no such box. */
 #publish-dialog { width: min(560px, calc(100vw - 32px)); }
+
+/* Row 985: the Owner picker's section headings, the "And N more" line and the TBC entry. Edit only (shell.css is in the published page). */
+.cp-sec { margin: 8px 6px 0; font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
+.cp-more { margin: 4px 6px 2px; font-size: var(--size-caption); color: var(--text-muted); }
+.cp-clear { margin-top: 6px; border-top: 1px solid var(--grey-200); border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
