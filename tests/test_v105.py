@@ -19,11 +19,43 @@ VERSION = "1.0.5"
 SCHEMA = 20              # 1.0.3 was layout 17; 1.0.4 ended at 19 (row 926); 1.0.5 ends at 20 (#944 T1, projects.brand)
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
-COVERED = []
+COVERED = [
+    ("#804", "The View or Edit switch is on the Dashboard and the Gantt page only.",
+     "test_filter_line_page::Line::test_the_chosen_filter_and_the_view_edit_toggle_look_different_from_the_others"),
+    ("#944", "The data file moves to layout 20.",
+     "test_store_brand_migration::Migrating::test_a_layout_19_file_opens_keeps_every_value_and_gets_generic"),
+    ("#961", "The zip holds START-HERE.md.",
+     "test_package::MacZipTest::test_the_built_zip_carries_the_md_start_file_and_not_the_txt_one"),
+    ("#966", "Excel import stops a workbook that is too large to read safely.",
+     "test_excel_import_caps::Caps::test_a_sheet_that_says_a1_b2_and_holds_too_many_cells_inside_the_reach_is_refused_before_the_load"),
+    ("#968", "A second Esc while a menu is closing is no longer ignored.",
+     "test_hand_over::Page::test_esc_during_a_menu_leave_still_leaves_pick_mode"),
+    ("#970", "Rows added or removed fade or fold.",
+     "test_motion_rows::MotionRows::test_a_deleted_row_fades_in_place_then_leaves_and_an_added_row_rises"),
+    ("#971", "The Gantt bars grow in once per page open or data folder change.",
+     "test_motion_gantt_bars::Bars::test_bars_grow_once_per_page_open_or_project_not_per_mount"),
+    ("#975", "Starting clark while another folder or version runs stops with a plain message.",
+     "test_launch_running::Running::test_another_folder_stops_with_the_words_and_changes_nothing"),
+    ("#996", "The View | Edit switch focus ring is clear in dark.",
+     "test_pill_focus_ring::PillFocusRing::test_the_chosen_half_of_the_pill_has_a_dark_ring_3_to_1_on_its_aqua_at_both_widths_in_both_looks"),
+]
+
+# The first sentence of each bullet, to find it by.
+BULLET_STARTS = {
+    "804": 'The View | Edit switch is shown only on the Dashboard and the Gantt page.',
+    "944": 'The data file moves to layout 20.',
+    "961": 'The download holds a start file named START-HERE.md, where 1.0.4 held START-HERE.txt.',
+    "966": 'Import from Excel stops a workbook that declares a huge sheet or holds one very large cell, instead of using up the memory of the computer.',
+    "968": 'A second Esc pressed while a menu is still fading out now closes the menu in Board, Hand over and Bulk, where it was ignored.',
+    "970": 'A row added to a list fades in, and a row taken away fades out.',
+    "971": 'The Gantt bars grow in from the left once, when the page opens.',
+    "975": 'When clark is already running from another folder or another version, starting this one tells you so, changes nothing and says how to quit the other one (press Ctrl+C in its Terminal window).',
+    "996": 'The focus ring on the View | Edit switch can be seen in dark mode.',
+}
 
 # Merged rows with no visible change. None merged yet. 
 NO_VISIBLE_CHANGE = set()
-TEST_ONLY = {"836", "963"}   # 836 step 3 (PR 942): internal code, no new words; 963 (PR 941): tests only. No bullet, no hand check.
+TEST_ONLY = {"963"}   # 836 step 3 (PR 942): internal code, no new words; 963 (PR 941): tests only. No bullet, no hand check.
 # No user note, and no hand check, once merged. 972 is not merged yet, so it cannot sit in NO_VISIBLE_CHANGE (that set must be MERGED).
 NO_NOTE_WHEN_MERGED = {"972"}
 
@@ -31,19 +63,7 @@ NO_NOTE_WHEN_MERGED = {"972"}
 PARTLY_MERGED = set()
 
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has landed).
-WAITING = [
-    ("#804", "The View or Edit switch is on the Dashboard and the Gantt page only.", "no pull request yet (issue 804)", "", None),
-    ("#944", "The data file moves to layout 20.", "no pull request yet (issue 944)", "", None),
-    ("#951", "The Settings Data card has an Excel file layout (preview) button.", "no pull request yet (issue 951)", "", None),
-    ("#961", "The zip holds START-HERE.md.", "no pull request yet (issue 961)", "", None),
-    ("#962", "The other pickers and menus fade out as they close.", "no pull request yet (issue 962)", "", None),
-    ("#966", "Excel import stops a workbook that is too large to read safely.", "no pull request yet (issue 966)", "", None),
-    ("#968", "A second Esc while a menu is closing is no longer ignored.", "no pull request yet (issue 968)", "", None),
-    ("#970", "Rows added or removed fade or fold.", "no pull request yet (issue 970)", "", None),
-    ("#971", "The Gantt bars grow in once per page open or data folder change.", "no pull request yet (issue 971)", "", None),
-    ("#975", "Starting clark while another folder or version runs stops with a plain message.", "no pull request yet (issue 975)", "", None),
-    ("#996", "The View | Edit switch focus ring is clear in dark.", "no pull request yet (issue 996)", "", None),
-]
+WAITING = []
 
 # (item, check, kind, why, what the person does)
 WALK_THROUGH = []
@@ -250,22 +270,20 @@ class Notes(unittest.TestCase):
         for text in (self.text, read_sheet()):
             self.assertNotRegex(text, r"(?i)\bthe head\b")
 
-    def test_a_bullet_is_only_for_a_merged_visible_row_and_the_rest_wait_under_the_wait_heading(self):
+    def test_a_bullet_is_only_for_a_merged_visible_row_and_none_waits(self):
         found = bullets(self.text)
-        if not COVERED:
-            self.assertEqual(found, [], "a bullet in the notes but no merged, visible row in COVERED")
-        waiting = wait_bullets(self.text)
-        self.assertEqual(len(waiting), len([w for w in WAITING]), "each waiting row has one bullet under the WAIT heading")
-        for item, *_ in WAITING:
-            self.assertEqual(sum(1 for b in waiting if b.startswith("- Issue %s [" % item.lstrip("#"))), 1, item)
-        for item in TEST_ONLY | NO_NOTE_WHEN_MERGED:
-            self.assertFalse(any(b.startswith("- Issue %s " % item) for b in waiting), item)
+        covered = {i.lstrip("#") for i, _, _ in COVERED}
+        self.assertEqual(wait_bullets(self.text), [], "no bullet waits at the cut")
+        self.assertEqual(len(found), len(covered), "one bullet for each merged visible row, and no other")
+        for item in covered:
+            self.assertEqual(sum(1 for b in found if b.startswith("- " + BULLET_STARTS[item])), 1, "%s has one bullet" % item)
+        self.assertNotRegex(self.text, r"(?m)^- Issue \d+ ", "no authoring tag is left in a bullet")
         self.assertNotIn("focus-ring pin", self.text)
         self.assertNotIn("checked for Gantt details", self.text)
         self.assertNotIn("and says so", self.text)
         self.assertIn(
-            "- Issue 966 [What is fixed]. Import from Excel stops a workbook that declares a huge sheet or holds one very large cell, instead of using up the memory of the computer.",
-            waiting,
+            "- Import from Excel stops a workbook that declares a huge sheet or holds one very large cell, instead of using up the memory of the computer.",
+            found,
         )
 
     def test_the_notes_hold_no_status_table_and_no_row_ids(self):
