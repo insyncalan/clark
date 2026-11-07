@@ -224,7 +224,7 @@ class Notes(unittest.TestCase):
                 self.assertNotIn("ask clark", line)
 
     def test_the_notes_do_not_name_a_newer_clark(self):
-        self.assertNotIn("needs a newer clark", self.text)
+        self.assertEqual(self.text.count("This data needs a newer clark. Nothing was changed. Install the latest clark, then try again."), 1, "the layout-20 bullet (#944) quotes the refusal once, as the 1.0.4 notes did")      # 1.0.5 moves the layout, so it now says what an older clark does
         self.assertNotIn("Read this first", self.text)
 
     def test_the_known_limits_carry_the_by_hand_install_and_the_demo_limit(self):
