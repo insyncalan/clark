@@ -6,6 +6,7 @@ launch.launch() runs in-process with fakes for starting clark, finding Chrome an
 """
 import http.server
 import json
+import os
 import tempfile
 import threading
 import unittest
@@ -120,6 +121,35 @@ class Running(unittest.TestCase):
         self.stopped(launch.BROKEN_PAGE)
         self.assertIn("error", launch.BROKEN_PAGE)
 
+    def test_a_page_that_gives_no_answer_stops_on_the_page_words(self):
+        # deliberate: a server that is this folder's and version but whose page does not answer is as unusable as one answering 500
+        self.stub(version=THIS[0], folder=THIS[1])
+        self.assertEqual(launch.launch(self.port, self.folder, self.said.append, {"PATH": "/bin"}, page=lambda p: None,
+                                       start=lambda *a, **k: self.fail("started"), find_chrome=lambda e: "/stub/chrome",
+                                       open_window=lambda u, c: self.windows.append((u, c)), open_browser=self.browser.append,
+                                       finish=lambda f, say: True), 1)
+        self.assertEqual(self.said, [launch.BROKEN_PAGE])
+        self.assertEqual((self.started, self.windows, self.browser), ([], [], []))
+
+    def test_ask_page_gives_none_when_nothing_answers(self):
+        self.assertIsNone(launch.ask_page(self.port))
+
+    def test_only_5xx_stops_the_page_status_boundary(self):
+        for status in (404, 403, 499, 200):
+            with self.subTest(status=status):
+                self.said.clear(), self.windows.clear()
+                s = self.stub(version=THIS[0], folder=THIS[1], page=status)
+                self.assertEqual(self.go(), 0)
+                self.assertEqual(self.said[0], "It is already running. Opening its window.")
+                self.assertEqual(len(self.windows), 1)
+                s.close()
+        for status in (500, 503, 599):
+            with self.subTest(status=status):
+                self.said.clear(), self.windows.clear()
+                s = self.stub(version=THIS[0], folder=THIS[1], page=status)
+                self.stopped(launch.BROKEN_PAGE)
+                s.close()
+
     def test_nothing_running_starts_as_today(self):
         started = []
         process = type("P", (), {"poll": lambda s: None})()
@@ -138,6 +168,50 @@ class Running(unittest.TestCase):
 
 
 class Identity(unittest.TestCase):
+    def ask(self, body):
+        class Conn:
+            def __init__(self, *a, **k):
+                pass
+
+            def request(self, *a, **k):
+                pass
+
+            def getresponse(self):
+                return type("R", (), {"status": 200, "read": lambda s, n=None: body})()
+
+            def close(self):
+                pass
+        return launch.ask_identity(1, "m", connect=Conn)
+
+    def test_ask_identity_fails_closed_on_odd_fields_and_replies(self):
+        self.assertEqual(self.ask(b'{"version": "1", "folder": "f"}'), ("1", "f"))
+        self.assertEqual(self.ask(b'{"version": 1, "folder": "f"}'), (None, "f"))
+        self.assertEqual(self.ask(b'{"version": "1", "folder": 5}'), ("1", None))
+        self.assertEqual(self.ask(b'{"version": ["1"], "folder": {"a": 1}}'), (None, None))
+        self.assertEqual(self.ask(b'{"version": null, "folder": true}'), (None, None))
+        for raw in (b'[1, 2]', b'"text"', b'7', b'null', b'not json'):
+            self.assertEqual(self.ask(raw), (None, None), raw)
+
+    def test_the_real_entry_gives_the_server_its_folder_mark(self):
+        from clark import __main__ as entry
+        data, home = Path(tempfile.mkdtemp()), Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(data, ignore_errors=True))
+        self.addCleanup(lambda: __import__("shutil").rmtree(home, ignore_errors=True))
+        seen = {}
+
+        def serve(**kw):
+            seen["answer"] = server.health_answer(appfiles.data_mark(data))
+            return 0
+        saved = (server.CODE_MARK, server.DATA_MARK, server.VERSION)
+        self.addCleanup(lambda: (server.set_code_mark(saved[0]), server.set_data_mark(saved[1]), server.set_version(saved[2])))
+        with mock.patch.object(pl, "system", return_value=pl.MAC):
+            code = entry.main(["--data", str(data), "--port", "8792"], out=open(os.devnull, "w"), err=open(os.devnull, "w"),
+                              serve=serve, home=home, is_free=lambda p: True, environ={"HOME": str(home)})
+        self.assertEqual(code, 0)
+        self.assertEqual(seen["answer"].get("folder"), appfiles.code_mark())
+        self.assertEqual(seen["answer"].get("version"), __version__)
+        self.assertTrue(seen["answer"]["this_data"])
+
     def test_the_server_tells_its_folder_only_when_asked_with_the_mark(self):
         with mock.patch.object(server, "CODE_MARK", "abc"), mock.patch.object(server, "DATA_MARK", "m"):
             self.assertEqual(server.health_answer("m")["folder"], "abc")
