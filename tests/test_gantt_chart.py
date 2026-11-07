@@ -203,6 +203,16 @@ class Chart(unittest.TestCase):
                         if g[0] != "Very long":
                             self.assertFalse(g[3], f"a normal label is not cut: {g}")
 
+    def test_a_line_with_no_usable_date_is_said_to_be_left_out(self):
+        bad = [dict(l) for l in LINES] + [dict(LINES[0], id="GNT-090", name="No date", start="garbage", end="", show=True)]
+        self.look(1400, "light")
+        self.mount(edit=False, lines=bad)
+        self.assertEqual(self.text("[data-g-count]"), "6 of 12 lines shown", "the View counts the undated line in the total")
+        self.mount(edit=True, lines=bad)
+        self.assertEqual(self.text("[data-g-count]"), "11 of 12 lines shown", "Edit counts it too")
+        self.mount(edit=False, lines=LINES)
+        self.assertEqual(self.count("[data-g-count]"), 0, "nothing left out, nothing said in the View")
+
     def test_every_bar_carries_its_name_as_text(self):
         self.look(1400, "light")
         self.mount(edit=True)
