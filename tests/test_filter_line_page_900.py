@@ -10,6 +10,7 @@ import inspect
 import unittest
 
 import test_filter_line_page as base
+from test_server import chrome  # noqa: F401  (this is a browser file: the runner tells the tiers by this import)
 
 
 class Line(base.Line):
