@@ -255,6 +255,16 @@ export function commitDraft(text, caret, rows, ctx, extra) {
   return { chips: done.map((t) => t.raw), text: out + text.slice(at), caret: caret - back };
 }
 
+/** Backspace or Delete with the caret right after a complete filter still in the box (status:Open): the whole filter goes, and the space after it.
+ *  {text, caret}, or null when the caret is not right after one (a key then takes one letter; the empty box is the chips' own case). */
+export function dropFilterBefore(text, caret, rows, ctx, extra) {
+  const t = parseFor(text, rows, ctx, extra).tokens.find((k) => isChipToken(k) && k.end === caret);
+  if (!t) return null;
+  let e = t.end;
+  while (spaceAt(text, e)) e++;
+  return { text: text.slice(0, t.start) + text.slice(e), caret: t.start };
+}
+
 const keyOfToken = (t) => (t.kind === "field" ? t.field : t.kind === "state" ? "is" : `${t.present ? "has" : "no"}:${(t.fields || []).join(",")}`);
 
 /** The suggestions with `n` on each row that closes a word: how many items the line would show with that choice in place of the chips on the

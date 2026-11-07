@@ -125,6 +125,18 @@ class Chips(unittest.TestCase):
         self.assertEqual(c("status: ", 8), {"chips": [], "text": "status: ", "caret": 8})
         self.assertEqual(c("foo ", 4), {"chips": [], "text": "foo ", "caret": 4}, "a plain word stays")
 
+    def test_backspace_or_delete_right_after_a_filter_being_typed_takes_the_whole_filter(self):
+        d = lambda text, caret: run_node(f"Q.dropFilterBefore({lit(text)}, {caret}, {lit(ROWS)}, {lit(CTX)})")
+        self.assertEqual(d("status:Open", 11), {"text": "", "caret": 0})
+        self.assertEqual(d("foo status:Open", 15), {"text": "foo ", "caret": 4}, "the words before it stay")
+        self.assertEqual(d("status:Open bar", 11), {"text": "bar", "caret": 0}, "the space after it goes with it")
+        self.assertEqual(d("-owner:none", 11), {"text": "", "caret": 0})
+        self.assertIsNone(d("status:Open", 10), "inside the filter a key takes one letter")
+        self.assertIsNone(d("status:", 7), "a key with no value yet is not a filter")
+        self.assertIsNone(d("stat:x", 6), "a word that cannot be used is not a filter")
+        self.assertIsNone(d("foo", 3), "a plain word goes letter by letter")
+        self.assertIsNone(d("", 0), "an empty box is the chip row's own case")
+
     def test_a_value_row_counts_the_items_it_would_leave_with_the_chips_on_other_fields(self):
         opts = [{"kind": "value", "ins": "status:Open", "label": "Open", "close": True}, {"kind": "value", "ins": "status:Closed", "label": "Closed", "close": True},
                 {"kind": "field", "ins": "owner:", "label": "owner:", "close": False}]

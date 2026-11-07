@@ -318,6 +318,23 @@ class Line(unittest.TestCase):
             pause(cdp, sid)
             self.assertEqual(self.shown(cdp, sid), expect([r for r in rows if r["kind"] == "action"], "open", filters={"priority": ["High"]}))
 
+    def test_backspace_or_delete_right_after_a_filter_being_typed_takes_the_whole_filter(self):
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.load(cdp, s.port)
+            self.focus(cdp, sid)
+            select_line(cdp, sid)
+            key(cdp, sid, "Backspace")                                               # the box is empty
+            value = lambda: cdp.js("document.querySelector('#fline-input').value", sid)
+            for name in ("Backspace", "Delete"):
+                self.type(cdp, sid, "status:Open")
+                self.assertEqual(value(), "status:Open")
+                key(cdp, sid, name)
+                self.assertTrue(wait(lambda: value() == ""), f"{name} takes the whole of status:Open")
+            self.type(cdp, sid, "sta")
+            key(cdp, sid, "Backspace")
+            self.assertTrue(wait(lambda: value() == "st"), "a word that is not yet a filter goes a letter at a time")
+
     def test_a_token_with_an_error_is_underlined_says_why_and_filters_nothing(self):
         s = self.serve()
         for theme in THEMES:

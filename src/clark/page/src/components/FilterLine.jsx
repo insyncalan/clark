@@ -252,6 +252,9 @@ export function FilterLine({ board }) {
       setActive(e.key === "ArrowDown" ? (active + 1) % options.length : (active < 0 ? options.length : active) - 1);
     } else if (e.key === "Backspace" && live.current.chips.length && e.target.selectionStart === 0 && e.target.selectionEnd === 0) {
       e.preventDefault(); dropChip(live.current.chips.length - 1);        // an empty box takes the last chip away
+    } else if ((e.key === "Backspace" || e.key === "Delete") && e.target.selectionStart === e.target.selectionEnd && Q.dropFilterBefore(draft, e.target.selectionStart, rows, ctx)) {
+      const r = Q.dropFilterBefore(draft, e.target.selectionStart, rows, ctx);        // the caret is right after a filter being typed: it goes whole, not a letter at a time
+      e.preventDefault(); want.current = r.caret; edit(r.text, r.caret); setActive(-1); setTouched(true);
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (listed && active >= 0 && options[active]) pick(options[active]);
