@@ -133,7 +133,7 @@ class Names(NameCase):
                 wb.remove(ws)
         wb.save(str(self.path))
         p = self.read()
-        self.assertTrue(any("none of the sheets Actions, Risks & Issues, Decisions, Milestones or Use cases" in x.message for x in p.problems), p.problems)
+        self.assertTrue(any("none of the sheets Actions, Risks & Issues, Decisions, Milestones, Use cases or Gantt, so there is nothing to compare" in x.message for x in p.problems), p.problems)       # row 926: the Gantt sheet is named too
 
     def test_a_mixed_workbook_imports(self):
         self.rename("RAID", Actions=("Client wording", "Client messaging"))      # old sheet and old Actions header, new elsewhere
