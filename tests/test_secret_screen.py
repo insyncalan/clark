@@ -86,6 +86,19 @@ class Screen(unittest.TestCase):
             with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
+    def test_uppercase_sk_and_pk_rk_keys_are_refused_and_near_misses_pass(self):
+        """#598: the prefix is read in any case, and pk- and rk- keys count like sk- keys (12 or more letters and digits with a digit and a letter)."""
+        for text in ("S" + "k-" + "ant-abcdefgh12", "S" + "K-" + "Ab12Cd34Ef56ghij", "s" + "K-" + "abc123def456", "p" + "k-" + "Ab12Cd34Ef56ghij",
+                     "P" + "k-" + "abc123def456", "r" + "k-" + "Ab12Cd34Ef56ghij", "R" + "K-" + "abc123def456", "my S" + "k-" + "abc123def456 key",
+                     "p" + "k-proj-abcdefgh12", "S" + "k-" + "A" * 40):
+            with self.subTest(text):
+                self.assertTrue(secret_screen.looks_like_secret(text))
+                self.assertTrue(ask._secret(text))
+        for text in ("Sk-learn", "pk-12345", "rk-bar-2026", "Pk-2026-plan-A1", "PK-ticket-2026", "Sk-abcdefghijkl", "pk-123456789012", "RK-20261101",
+                     "Task-force-2026-plan", "Park-abc123def456", "Ask-abc123def456", "Fork-abc123def456"):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
     def test_a_short_mixed_value_after_api_key_is_refused_on_purpose(self):
         """The accepted trade-off (#242): some ordinary mixed values after the name are refused too, because a short mixed value cannot be told from a key. Help says so."""
         for text in ("api " + "key: v2beta3", "access " + "key = rotate2026"):
