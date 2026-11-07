@@ -440,18 +440,22 @@ def csp_take(n):
         return room
 
 
+TIMER_SKIPPED = "The timer for the turned-away count could not start. The count is written by the next request, or when clark stops."
+
+
 class Refused:
     """Requests turned away before authorised() let them in (#234): counted, never a line of their own, so a page on another
     site looping requests at this port cannot fill the day's log. A burst in one window of `interval` seconds writes exactly
     one line, when the window ends: how many were turned away and how long the window was. A timer writes it, so a lone
     refusal or a last burst before quiet is still written; a later request writes it too if the timer has not yet. Nothing is
     written when the first request arrives. Only two whole numbers are written: nothing of any request (no path, query, header
-    or Origin). A timer that cannot start is skipped without a word. `clock` is monotonic, so a clock stepping back never holds the line back; tests pass their own clock and
+    or Origin). A timer that cannot start is skipped, and one line says so the first time it happens (#553). `clock` is monotonic, so a clock stepping back never holds the line back; tests pass their own clock and
     `timer=None`."""
 
     def __init__(self, interval=CSP_REPORT_WINDOW, clock=time.monotonic, timer=threading.Timer):
         self.interval, self.clock, self.timer, self.lock = interval, clock, timer, threading.Lock()
         self.since, self.n, self.gen = None, 0, 0
+        self.timer_noted = False                         # #553: the "no timer" line is written once
 
     def _close(self):
         """End the window (the lock is held): the count of the requests in it, or 0."""
@@ -489,7 +493,9 @@ class Refused:
                         t.daemon = True
                         t.start()
                     except (RuntimeError, OSError):      # no thread could be started: the next request or the stop writes the window
-                        pass
+                        noted, self.timer_noted = self.timer_noted, True
+                        if not noted:
+                            LOG.warning(TIMER_SKIPPED)   # #553: fixed words, once; nothing of the error
             self.n += 1
         self._say(done)
 
