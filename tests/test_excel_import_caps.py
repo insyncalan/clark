@@ -308,6 +308,15 @@ class RealRoute(unittest.TestCase):
         self.assertEqual(got["message"], "ABC work items.xlsx can't be read as an Excel workbook (.xlsx).")
         self.assertEqual(excel_route.PLANS, {})
 
+    def test_a_33000_character_shared_string_written_with_a_namespace_prefix_is_refused_in_the_plain_words(self):
+        declare_shared_strings(self.path, "a short text")
+        rewrite(self.path, "xl/sharedStrings.xml", '<x:sst xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="1" uniqueCount="1">'
+                '<x:si><x:t>%s</x:t></x:si></x:sst>' % ("s" * (xi.MAX_CELL_TEXT + 1000)))
+        status, got = self.post(op="sheets", name=self.path.name, data=self.data())
+        self.assertEqual((status, got["ok"]), (400, False))
+        self.assertEqual(got["message"], "ABC work items.xlsx can't be read as an Excel workbook (.xlsx).")
+        self.assertEqual(excel_route.PLANS, {})
+
     def test_a_normal_workbook_with_a_declared_shared_string_is_listed_checked_and_applied(self):
         self.edit_description()
         status, listed = self.post(op="sheets", name=self.path.name, data=self.data())

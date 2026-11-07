@@ -1240,7 +1240,7 @@ MAX_CELL_TEXT = 32767                                # the most characters Excel
 _SCAN_CHUNK = 65536
 _TAG = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?(row|c)(?![\w:.-])[^>]*>")   # matched by local name: <row>, <x:row>, <ns:c>
 _ATTR_R = re.compile(rb"\sr=\"([A-Za-z]*)(\d*)\"")
-_TEXT = re.compile(rb"<t(?:\s[^>]*)?>([^<]*)</t>")
+_TEXT = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?t(?:\s[^>]*)?>([^<]*)</(?:[A-Za-z_][\w.-]*:)?t>")   # by local name too: <x:t>
 _SHEET_TAG = re.compile(rb"<sheet\b[^>]*>")
 _REL_TAG = re.compile(rb"<Relationship\b[^>]*>")
 
