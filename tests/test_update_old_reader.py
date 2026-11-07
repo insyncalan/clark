@@ -15,7 +15,7 @@ from pathlib import Path
 from _paths import ROOT
 import _signing
 from clark import updates
-from test_updates import listed_files, make_zip
+from test_updates import make_zip
 
 FIXTURES = ROOT / "tests" / "fixtures" / "v1_0_0"
 
@@ -43,9 +43,7 @@ class OldReader(unittest.TestCase):
         return self.old.read_release(path, "mac", "1.0.0", 2, public_key=_signing.TEST_PUBLIC)
 
     def test_the_saved_reader_still_reads_the_shape_it_shipped_with(self):
-        files = listed_files("1.0.1")                   # the 1.0.0 reader knows only the .txt start file
-        files["START-HERE.txt"] = files.pop("START-HERE.md")
-        flat = make_zip(self.tmp, version="1.0.1", placed=False, files=files)
+        flat = make_zip(self.tmp, version="1.0.1", placed=False)
         self.assertEqual("1.0.1", self.read(flat).version)
 
     def test_it_refuses_the_new_layout_as_damaged(self):
@@ -62,9 +60,7 @@ class OldReader(unittest.TestCase):
         self.assertEqual("unsafe", said.exception.key)
 
     def test_the_new_reader_does_not_install_the_old_layout_either(self):
-        files = listed_files("1.0.1")                   # the 1.0.0 reader knows only the .txt start file
-        files["START-HERE.txt"] = files.pop("START-HERE.md")
-        flat = make_zip(self.tmp, version="1.0.1", placed=False, files=files)
+        flat = make_zip(self.tmp, version="1.0.1", placed=False)
         with self.assertRaises(updates.UpdateError) as said:
             updates.read_release(flat, "mac", "1.0.0", 2, public_key=_signing.TEST_PUBLIC)
         self.assertEqual("damaged", said.exception.key)

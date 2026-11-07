@@ -40,9 +40,9 @@ Publish as a single web page. It opens anywhere, with no server and no sign-in.
 
 Both use the same program and the same pages.
 
-**Double-click.** Open the folder called `clark` and double-click `clark.command`. This needs Python 3.9 or newer. Google Chrome works best. The file `START-HERE.md` explains the prompts your Mac may show the first time.
+**Double-click.** Open the folder called `clark` and double-click `clark.command`. This needs Python 3.9 or newer. Google Chrome works best. The file `START-HERE.txt` explains the prompts your Mac may show the first time.
 
-**Docker.** If your Mac will not open `clark.command`, or you would rather not use Python on your computer, install Docker, open Terminal in the unzipped `clark` folder and type `docker compose -f docker/compose.yaml up -d`. Then open http://localhost:8766. To stop it, type `docker compose -f docker/compose.yaml down`. Only your own computer can reach it. `START-HERE.md` has the same steps, with more detail.
+**Docker.** If your Mac will not open `clark.command`, or you would rather not use Python on your computer, install Docker, open Terminal in the unzipped `clark` folder and type `docker compose -f docker/compose.yaml up -d`. Then open http://localhost:8766. To stop it, type `docker compose -f docker/compose.yaml down`. Only your own computer can reach it. `START-HERE.txt` has the same steps, with more detail.
 
 **Check that your computer is ready.** Open Terminal in the unzipped `clark` folder (type `cd` and a space, drag the folder into the window and press Return), then type `bash clark.command --check`. It tells you what to fix, if anything, and where to get it.
 
@@ -50,7 +50,7 @@ To look around with made-up projects first, open Terminal in the folder and type
 
 ## The clark folder
 
-The download unzips to one folder called `clark`. Its program files are inside a hidden folder called `.app`, so what you see is only what you use: `README.md`, `START-HERE.md`, `clark.command`, `clark-release.json` and `docker`. If you add your own logo or colours, they go in a folder called `system/branding`, which clark never changes. If you already have a folder called `clark`, rename or move it before you unzip a newer download, so the two do not clash. Your projects are not in that folder. In clark 1.0, updating from inside clark is switched off, so install a newer version by hand: close clark, rename the old folder, unzip the new download and double-click `clark.command`. `START-HERE.md` has the full steps.
+The download unzips to one folder called `clark`. Its program files are inside a hidden folder called `.app`, so what you see is only what you use: `README.md`, `START-HERE.txt`, `clark.command`, `clark-release.json` and `docker`. If you add your own logo or colours, they go in a folder called `system/branding`, which clark never changes. If you already have a folder called `clark`, rename or move it before you unzip a newer download, so the two do not clash. Your projects are not in that folder. In clark 1.0, updating from inside clark is switched off, so install a newer version by hand: close clark, rename the old folder, unzip the new download and double-click `clark.command`. `START-HERE.txt` has the full steps.
 
 ## Where your data lives
 

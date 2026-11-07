@@ -165,7 +165,7 @@ class Refusals(unittest.TestCase):
         self.assertIn("given twice", refusal(self, self.meet, str(self.meet) + "/../meet clark"))
 
     def test_a_name_clark_uses_itself(self):
-        for name in ("docker", "system", "data", "System", "README.md", "clark.command", "clark-release.json", "START-HERE.md", ".app"):
+        for name in ("docker", "system", "data", "System", "README.md", "clark.command", "clark-release.json", "START-HERE.txt", "START-HERE.md", ".app"):
             with self.subTest(name=name):
                 folder = make_folder(self.tmp, name, {"a.txt": b"a"})
                 self.assertRegex(refusal(self, folder), "uses itself|can't be used")
