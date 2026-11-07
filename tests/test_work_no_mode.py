@@ -51,7 +51,9 @@ class WorkNoMode(unittest.TestCase):
                 cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "!!document.querySelector('#peek')", "Enter opens the peek")
-                self.until(cdp, sid, f"!!document.querySelector({PEEK_PARTS})", "the words box is in the peek in View")
+                self.assertFalse(cdp.js("!!document.querySelector('[data-sneak-open]')", sid), "no sparkle in the peek (row 1015)")
+                cdp.js("document.querySelector('[data-pk-close]').focus(); for (let i = 0; i < 2; i++) document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: '/', bubbles: true}))", sid)
+                self.until(cdp, sid, "!!document.querySelector('[data-sneak]')", "two slashes open the words box in the peek in View")
                 self.assertTrue(cdp.js("!!document.querySelector('#peek [role=tablist]')", sid), "the tabs are in the peek in View")
                 self.assertTrue(cdp.js("[...document.querySelectorAll('#peek dt')].some(d => d.textContent === 'Shown to client')", sid), "Shown to client")
 
