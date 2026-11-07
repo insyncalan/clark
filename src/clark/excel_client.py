@@ -20,7 +20,8 @@ from datetime import datetime
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import get_column_letter, quote_sheetname
+from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.xml.functions import tostring
 
 from clark import excel
@@ -184,6 +185,7 @@ def write_gantt_sheet(wb, published):
     ws.freeze_panes = "C5"
     excel.print_setup(ws)
     excel.protect_sheet(ws)
+    wb.defined_names[excel.CLIENT_COPY_NAME] = DefinedName(excel.CLIENT_COPY_NAME, attr_text=f"{quote_sheetname(ws.title)}!$A$1", hidden=True)   # row 926: the import's mark of a client copy (moving a row cannot remove it)
     return ws
 
 
