@@ -479,8 +479,11 @@ def check_coverage(system, rels):
     if extra:
         raise UpdateError("unsafe", "outside the app's own list: " + names_for_log(extra))
     present = set(rels)
+    starts = [n for n in release_files.START_HERE_NAMES if n in present]
+    if len(starts) > 1:                            # one start file only: the second is outside the list
+        raise UpdateError("unsafe", "outside the app's own list: " + names_for_log(starts[1:]))
     missing = []
-    for item in release_files.listed(system) + (release_files.START_HERE,):
+    for item in release_files.listed(system) + tuple(starts or [release_files.START_HERE]):
         placed = release_files.place(item)          # `rels` are names as the zip holds them
         if item.endswith("/"):
             if not any(r.startswith(placed) for r in present):
