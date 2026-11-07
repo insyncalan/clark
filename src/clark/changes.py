@@ -1164,12 +1164,18 @@ def _milestone_words(e):
     return ITEM_VALUE_WORDS
 
 
+def _note_with_line_trimmed(was, line):
+    """(the internal note with a dated line added at the end, whether lines were dropped): the oldest lines go first when it would pass the limit."""
+    text = ((was or "").strip() + "\n" + line).strip()
+    kept = text
+    while len(kept) > INTERNAL_NOTE_MAX and "\n" in kept:
+        kept = kept.split("\n", 1)[1]
+    return kept, kept != text
+
+
 def _note_with_line(was, line):
     """The internal note with a dated line added at the end; the oldest lines go first when it would pass the limit."""
-    text = ((was or "").strip() + "\n" + line).strip()
-    while len(text) > INTERNAL_NOTE_MAX and "\n" in text:
-        text = text.split("\n", 1)[1]
-    return text
+    return _note_with_line_trimmed(was, line)[0]
 
 
 def _hold_line(today, forecast):
@@ -1220,12 +1226,12 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
                 changes["movement"] = None                          # a Hold was for the old agreed date; the new one starts clear (an Undo puts it back)
         elif given and agreed:
             raise Refused(NEEDS_NEW_DATE)
-        note = None
+        note, trimmed = None, False
         if changes.get("movement") == "hold" and rebase is None:
             note = _hold_line(today, changes.get("forecast_date", row.get("forecast_date")))
             last = (row.get("internal_note") or "").strip().split("\n")[-1]
             if "internal_note" not in changes and last != note:     # #458: the Hold's dated line goes into the internal note too (the prototype's), in this same step and Undo; not twice when the last line is this same Hold today
-                changes["internal_note"] = _note_with_line(row.get("internal_note"), note)
+                changes["internal_note"], trimmed = _note_with_line_trimmed(row.get("internal_note"), note)   # #603: trimmed says so in the reply
         if "owner" in changes:                                      # row 828: the link follows the owner text, as a hand over writes it: the one live person it names, else none
             found = store.resolve_owner(changes["owner"] or "")
             changes["owner_id"] = found["id"] if found["status"] == "one" else None
@@ -1242,8 +1248,11 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
         if decision:                                                # the decision names who agreed the date: owner only, so it is
             st.update("decisions", decision, {"client_visible": 0})  # made not client-visible, in this same step (an Undo removes it)
     now = store.read(table, ref=ref)
-    return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref,
-                 "milestone": {k: now[k] for k in MILESTONE_SHOWN}, "decision": decision}
+    reply = {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref,
+             "milestone": {k: now[k] for k in MILESTONE_SHOWN}, "decision": decision}
+    if trimmed and apply_id is not None:
+        reply["note_trimmed"] = True                                # #603: the Hold's line pushed the oldest note lines out; the page says so (an Undo restores them)
+    return 200, reply
 
 
 
