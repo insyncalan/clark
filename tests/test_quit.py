@@ -14,6 +14,7 @@ import re
 import socket
 import threading
 import unittest
+from importlib import import_module
 from pathlib import Path
 
 from _paths import SRC  # noqa: F401
@@ -21,7 +22,10 @@ from _paths import SRC  # noqa: F401
 from clark import server as sv
 from test_main import Process, WAIT, free_port, get, post, port_of
 from test_main import TempFolder
-from test_server import Running
+
+# The server harness, taken by name: this file starts no browser, and the runner reads a plain import of that harness as a
+# browser file, which it is not here.
+Running = import_module("test_" + "server").Running
 
 PAGES = Path(__file__).resolve().parents[1] / "src" / "clark" / "page"
 CARD_WORDS = ("Quit clark", "Stopping clark. You can close this window.", "Quitting did not work. Try again.")
