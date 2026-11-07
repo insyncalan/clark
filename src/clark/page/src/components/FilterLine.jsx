@@ -17,7 +17,7 @@ import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
 export const PAUSE = 400;                                // ms after the last key before the typed line is applied (the owner's 300 to 500)
 
 // A saved view whose line the filter line no longer reads (a word it does not know) stays on the tabs with a plain message, and can be renamed
-// or archived like any other, so a view that cannot be read can still be fixed or removed. The one view left out is a starting view the page cannot answer yet (Waiting on the client, while
+// or deleted like any other, so a view that cannot be read can still be fixed or removed. The one view left out is a starting view the page cannot answer yet (Waiting on the client, while
 // is:needed is not on): Q.heldBackQuery. Choosing a view that cannot be read does not touch the line.
 
 // Which saved view is chosen, per project, for this visit. A page change keeps it; a reload goes back to the view the line matches.
@@ -65,7 +65,7 @@ function SavedViews({ board }) {
   const all = viewsOf(code), shown = FL.visibleViews(all).filter((v) => !Q.heldBackQuery(v, rows, ctx));
   const trouble = (v) => Q.troubleQuery(v, rows, ctx);
   const nameBox = useRef(null);
-  const [form, setForm] = useState(null);                 // null, or {mode: "saveas" | "rename", name, error}
+  const [form, setForm] = useState(null);                 // null, or {mode: "saveas" | "rename" | "delete" | "note", name, error}
   const mine = chosen.value[code];
   const active = shown.find((v) => v.id === mine) || shown.find((v) => !trouble(v) && !Q.differsQuery(v, line, rows, ctx)) || null;
   const said = active ? trouble(active) : "";
@@ -90,16 +90,15 @@ function SavedViews({ board }) {
     else if (id === "save" && active) { const r = FL.saveView(all, active.id, line.trim()); if (r.ok) saveViews(code, r.views); }
     else if (id === "saveas") setForm({ mode: "saveas", name: "", error: "" });
     else if (id === "rename" && active) setForm({ mode: "rename", name: active.name, error: "" });
-    else if (id === "archive" && active) {
-      const r = FL.archiveView(all, active.id);
-      if (r.ok) { saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; }
-    } else if (id.startsWith("restore:")) {
-      const r = FL.restoreView(all, id.slice(8));
-      if (r.ok) saveViews(code, r.views); else setForm({ mode: "note", name: "", error: r.message });
-    }
+    else if (id === "delete" && active) setForm({ mode: "delete", name: "", error: "" });
   };
   const submit = (e) => {
     e.preventDefault();
+    if (form.mode === "delete") {
+      const r = FL.deleteView(all, active.id);
+      if (r.ok) { saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; setForm(null); } else setForm({ ...form, error: r.message });
+      return;
+    }
     const r = form.mode === "rename" ? FL.renameView(all, active.id, form.name) : FL.addView(all, form.name, line.trim());
     if (!r.ok) { setForm({ ...form, error: r.message }); return; }
     saveViews(code, r.views);
@@ -113,15 +112,12 @@ function SavedViews({ board }) {
     return () => clearTimeout(t);
   }, [form && form.mode]);
   const lay = layoutItems(work.value, !!board);
-  // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Archive never on a core view.
+  // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Delete on any view, a core one too.
   const core = !!active && FL.isCoreView(active);
   const tabItems = [];
   if (active && dirty && !core) tabItems.push({ id: "save", name: "Save changes" });
   tabItems.push({ id: "saveas", name: "Save as a new view…" });
-  if (active && !core) { tabItems.push({ id: "rename", name: "Rename…" }); tabItems.push({ id: "archive", name: "Archive" }); }
-  // A view that was archived can be brought back from the open tab's menu, or from the + New view box when no tab is open.
-  const archived = FL.archivedViews(all).filter((v) => !Q.heldBackQuery(v, rows, ctx));
-  for (const v of archived) tabItems.push({ id: `restore:${v.id}`, name: `Bring back ${v.name}${trouble(v) ? " (cannot be used now)" : ""}` });
+  if (active) { tabItems.push({ id: "rename", name: "Rename…" }); tabItems.push({ id: "delete", name: "Delete" }); }
   return (
     <div class="fviews">
       <div class="fvrow">
@@ -156,7 +152,12 @@ function SavedViews({ board }) {
       </div>
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setForm(null); } }}>
-          {form.mode === "note" ? null : (
+          {form.mode === "delete" ? (
+            <>
+              <span class="vask" id="vask">Delete this view?</span>
+              <button type="submit" class="btn sm" id="vdelete" ref={nameBox}>Delete</button>
+            </>
+          ) : form.mode === "note" ? null : (
             <>
               <label for="vname">{form.mode === "rename" ? "New name for this view" : "Name for the new view"}</label>
               <input id="vname" type="text" value={form.name} maxLength={FL.MAX_NAME} ref={nameBox} onInput={(e) => setForm({ ...form, name: e.target.value, error: "" })} />
@@ -164,7 +165,6 @@ function SavedViews({ board }) {
             </>
           )}
           <button type="button" class="btn sm" onClick={() => setForm(null)}>{form.mode === "note" ? "Close" : "Cancel"}</button>
-          {form.mode === "saveas" ? archived.map((v) => <button type="button" class="btn sm" key={v.id} data-restore={v.id} onClick={() => { setForm(null); act(`restore:${v.id}`); }}>{`Bring back ${v.name}${trouble(v) ? " (cannot be used now)" : ""}`}</button>) : null}
           <span class="vmsg" role="status">{form.error}</span>
         </form>
       ) : null}
@@ -268,6 +268,21 @@ export function FilterLine({ board }) {
   }, []);
   const hints = FL.hints(ctx);
   const useHint = (h) => { const t = (draft && !/\s$/.test(draft) ? draft + " " : draft) + h.text; setTouched(true); want.current = t.length; edit(t); if (input.current) input.current.focus(); };
+  // Row 808: the list floats over the page just under the box (it is out of the flow), so opening it pushes no row or card down.
+  // #954: it floats just under the box when the message line is empty, and under that line when it says something, so it never covers the message
+  // (the unknown-field error is there). The message line is after the examples' room; the list is out of the flow, so it sits where it is written.
+  const suggestions = listed ? (
+    <ul class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
+      {options.map((o, i) => (
+        <li key={`${o.ins}|${o.label}`} id={`fo-${i}`} role="option" aria-selected={i === active ? "true" : "false"} class={`fopt ${o.kind}`} data-ins={o.ins}
+          onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>
+          {o.tone ? <i class={`fdv ${o.tone}`} data-tone={o.tone} aria-hidden="true"></i> : null}
+          <span class="fl1">{o.label}</span>
+          {o.note ? <span class="fl2">{o.note}</span> : null}
+        </li>
+      ))}
+    </ul>
+  ) : null;
   return (
     <div class="fline-wrap" ref={box}
       onFocusIn={() => setFocused(true)}
@@ -293,19 +308,7 @@ export function FilterLine({ board }) {
         <span class="fcount num" id="fline-count" data-fcount>{`${matches} of ${rows.length}`}</span>
         {draft ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
       </div>
-      {/* Row 808: the list floats over the page just under the box (it is out of the flow), so opening it pushes no row or card down. */}
-      {listed ? (
-        <ul class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
-          {options.map((o, i) => (
-            <li key={`${o.ins}|${o.label}`} id={`fo-${i}`} role="option" aria-selected={i === active ? "true" : "false"} class={`fopt ${o.kind}`} data-ins={o.ins}
-              onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>
-              {o.tone ? <i class={`fdv ${o.tone}`} data-tone={o.tone} aria-hidden="true"></i> : null}
-              <span class="fl1">{o.label}</span>
-              {o.note ? <span class="fl2">{o.note}</span> : null}
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {notes.length ? null : suggestions}
       {
         // Always drawn, hidden unless the line is focused: the room stays, so a click that moves focus away from the line does not shift the page under the pointer.
         // The examples and the list of suggestions are never shown together: while the list is open the examples keep their room but are hidden.
@@ -315,6 +318,7 @@ export function FilterLine({ board }) {
         </div>
       }
       <p class="fmsg" id="fline-msg" role="status" aria-live="polite">{notes.join(" ")}</p>
+      {notes.length ? suggestions : null}
     </div>
   );
 }

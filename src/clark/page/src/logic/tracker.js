@@ -1,7 +1,7 @@
 // The 'Progress tracker' section's rules (#189): pure functions and words, no DOM, no signals, no clock, nothing sent. The section keeps
 // its content as text in the section's body (clark/section_bodies.py is the store's own check of the same shape; the page checks first
 // so a mistake is said in words before anything is sent, and the store checks again). The shape is
-//   { v: 1, overall: { actual, planned, health, note }, columns: { tasks, agents, workflows },
+//   { v: 1, size?, overall: { actual, planned, health, note }, columns: { tasks, agents, workflows },
 //     groups: [ { name, lines: [ { no, text, start, end, status, weight, planned, achieved, tasks, agents, workflows } ] } ] }
 //
 // ASSUMPTIONS (the owner has not confirmed the first; the issue is silent on the second, and it reads "a total row sums weight,
@@ -28,6 +28,8 @@ export const WHOLE = 1000;                     // the whole, in tenths of a perc
 export const YEARS = [2000, 2100];
 export const STATUSES = [["planned", "Planned"], ["inprogress", "In progress"], ["completed", "Completed"], ["late", "Late"]];
 export const HEALTH = [["ontrack", "On track"], ["atrisk", "At risk"], ["offtrack", "Off track"]];
+export const SIZES = ["large", "medium", "small", "compact"];       // the tracker's size (#930); a body without one reads as Medium
+export const DEFAULT_SIZE = "medium";
 export const COLUMNS = [["tasks", "Tasks"], ["agents", "Agents"], ["workflows", "Workflows"]];
 export const statusWord = (s) => (STATUSES.find((x) => x[0] === s) || ["", ""])[1];
 export const healthWord = (h) => (HEALTH.find((x) => x[0] === h) || ["", ""])[1];
@@ -38,9 +40,6 @@ export const healthWord = (h) => (HEALTH.find((x) => x[0] === h) || ["", ""])[1]
 export const WORDS = {
   title: "Progress tracker",
   actual: "Achieved",
-  actualOf: "of the whole project",
-  plannedBy: "by",
-  healthTile: "Project health",
   scaleStart: "0%",
   scaleEnd: "100%",
   planned: "Planned",
@@ -55,6 +54,8 @@ export const WORDS = {
   noLines: "No lines yet",
   none: "Nothing is being tracked yet.",
   behindLabel: "behind plan",
+  aheadLabel: "ahead of plan",
+  onPlan: "On plan.",
 };
 export const ALL_WORDS = () => {
   const out = Object.values(WORDS);
@@ -77,6 +78,25 @@ export function pct(text) {
 
 // "1 point behind plan", "2.5 points behind plan"; "" when nothing is behind. `behind` is in tenths.
 export const behindWords = (behind) => (behind > 0 ? `${fmt(behind)} point${behind === 10 ? "" : "s"} ${WORDS.behindLabel}` : "");
+
+// The words under the chip when the owner has written none, from the gap in tenths (planned minus achieved; negative is ahead):
+// "2.5 points behind plan.", "1 point ahead of plan.", "On plan.". "" when there is no figure to compare.
+export function autoWords(actual, planned) {
+  if (actual === null || planned === null) return "";
+  const gap = planned - actual;
+  if (gap > 0) return `${behindWords(gap)}.`;
+  if (gap < 0) return `${fmt(-gap)} point${gap === -10 ? "" : "s"} ${WORDS.aheadLabel}.`;
+  return WORDS.onPlan;
+}
+
+// The health the rule gives, from the gap in tenths: On track up to 2 points behind (ahead counts as On track), At risk up to 9.9
+// behind, Off track from 10. "" when there is no figure.
+export const RULE = { ontrack: 20, atrisk: 99 };            // the most tenths behind each still allows
+export function healthRule(actual, planned) {
+  if (actual === null || planned === null) return "";
+  const behind = planned - actual;
+  return behind <= RULE.ontrack ? "ontrack" : behind <= RULE.atrisk ? "atrisk" : "offtrack";
+}
 
 // ── Reading ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -120,6 +140,7 @@ export function trackerOf(section, fromFile) {
     groups.push({ name: g.name, lines });
   }
   return {
+    size: SIZES.includes(v.size) ? v.size : DEFAULT_SIZE,
     overall: { actual: o.actual == null ? null : tenths(o.actual), planned: o.planned == null ? null : tenths(o.planned),
       health: HEALTH.some((h) => h[0] === o.health) ? o.health : "", note: str(o.note) },
     columns: { tasks: c.tasks === true, agents: c.agents === true, workflows: c.workflows === true },
@@ -150,7 +171,8 @@ export function totals(tracker) {
   const behind = actual !== null && planned !== null ? Math.max(0, planned - actual) : 0;
   const weights = sum(groups, "weight");
   return { groups, lines, weights,
-    overall: { actual, planned, behind, behindWords: behindWords(behind), health: o.health, note: o.note, fromLines } };
+    overall: { actual, planned, behind, behindWords: behindWords(behind), health: o.health, note: o.note, fromLines,
+      shownHealth: o.health || healthRule(actual, planned), auto: autoWords(actual, planned) } };
 }
 
 // The Achieved bar of one line: its achieved share of its own weight, as a whole percent from 0 to 100. A line with no weight is empty
@@ -174,7 +196,8 @@ export const blankLine = () => ({ no: "", text: "", start: "", end: "", status: 
 // ── The body, and the list after one change ─────────────────────────────────────────────────────────────────────────────
 
 // The body text for a tracker: what the one change sends.
-export const bodyOf = (t) => JSON.stringify({ v: 1, overall: t.overall, columns: t.columns, groups: t.groups });
+// A Medium size is left out (an old body has none), so an older clark build still reads a body that never chose a size.
+export const bodyOf = (t) => JSON.stringify({ v: 1, ...(t.size && t.size !== DEFAULT_SIZE ? { size: t.size } : {}), overall: t.overall, columns: t.columns, groups: t.groups });
 
 const total = (t) => t.groups.reduce((n, g) => n + g.lines.length, 0);
 const inRange = (list, i) => Number.isInteger(i) && i >= 0 && i < list.length;
@@ -191,4 +214,5 @@ export const withGroupRenamed = (t, g, name) => (inRange(t.groups, g) ? { ...t, 
 export const withoutGroup = (t, g) => (inRange(t.groups, g) ? { ...t, groups: t.groups.filter((_, k) => k !== g) } : null);
 export const withGroupMoved = (t, g, by) => (inRange(t.groups, g) && inRange(t.groups, g + by) ? { ...t, groups: swap(t.groups, g, g + by) } : null);
 export const withOverall = (t, overall) => ({ ...t, overall: { ...t.overall, ...overall } });
+export const withSize = (t, size) => (SIZES.includes(size) ? { ...t, size } : null);
 export const withColumn = (t, name, on) => ({ ...t, columns: { ...t.columns, [name]: !!on } });
