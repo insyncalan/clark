@@ -765,6 +765,16 @@ def _backup(data, root, brand_id):
     return name
 
 
+def _unjournal(data):
+    """Drop the undo journal. Called before a swap starts: the journal then never describes a change that did not happen, and
+    never a stale earlier one. A crash after the swap but before _journal leaves the brand changed with undo unavailable (the
+    backup folder stays); that is accepted. The journal is not a backup of user data and is never published."""
+    try:
+        os.unlink(Path(data) / JOURNAL)
+    except FileNotFoundError:
+        pass
+
+
 def _journal(data, kind, brand_id, backup):
     backups = Path(data) / "brand-backups"
     os.makedirs(backups, exist_ok=True)
@@ -797,6 +807,7 @@ def install(review_id, root, data):
                 raise BrandError("link", "the brand's place is not a folder")
             backup = _backup(data, root, brand_id) if had else None
             stage = _stage(base, brand_id, files)
+            _unjournal(data)
             _swap(base, brand_id, stage)
             _journal(data, "replace" if had else "install", brand_id, backup)
 
@@ -812,6 +823,7 @@ def remove(brand_id, root, data):
             if folder(root, brand_id) is GENERIC:
                 raise BrandError("failed", "not installed")
             backup = _backup(data, root, brand_id)
+            _unjournal(data)
             base = _branding(root)
             aside = base / (HIDDEN_OLD + brand_id)
             _rmtree(aside)

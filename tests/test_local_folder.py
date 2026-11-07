@@ -76,6 +76,18 @@ class Choosing(Base):
         self.assertEqual((status, got["changed"]), (200, False))
         self.assertNotIn("apply_id", got)
 
+    def test_an_empty_pick_is_nothing_chosen_and_saves_nothing(self):
+        for empty in ("", "   ", None):
+            with self.subTest(empty=empty):
+                self.rig.pick = empty
+                self.assertEqual(self.ask("choose_local"), (200, {"ok": True, "changed": False, "folder": None}))
+                self.assertIsNone(self.local(), "no empty (or current-directory) folder is saved")
+        self.rig.pick = self.mine
+        self.ask("choose_local")
+        self.rig.pick = ""
+        self.assertEqual(self.ask("choose_local"), (200, {"ok": True, "changed": False, "folder": str(self.mine)}))
+        self.assertEqual(self.local(), str(self.mine), "the saved folder stays")
+
     def test_the_window_starts_at_the_saved_folder(self):
         self.rig.pick = self.mine
         self.ask("choose_local")

@@ -496,7 +496,7 @@ class Publisher:
             picked = self.choose_folder(LOCAL_PROMPT, start=saved if saved and Path(saved).is_dir() else None)
         except platform.PlatformError as e:
             return 409, self.fail("dialog_failed", MESSAGES["dialog_failed"].format(reason=str(e).rstrip()).replace(" Nothing was published.", ""))
-        if picked is None:
+        if picked is None or not str(picked).strip():       # cancelled, or an empty answer: nothing chosen, nothing saved
             return 200, {"ok": True, "changed": False, "folder": saved}
         try:
             real = Path(picked).resolve(strict=True)
