@@ -1178,10 +1178,6 @@
     "t": "Archive and Restore",
     "b": [
      [
-      "p",
-      "An archived milestone is kept, and can be put back."
-     ],
-     [
       "ul",
       [
        "An archived milestone leaves the Milestones list, the counts, the Dashboard and the published page.",
