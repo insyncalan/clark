@@ -61,7 +61,7 @@ DEFAULT_SECTIONS = tuple({"id": f"s-{t}", "type": t, "title": title, "body": "",
                                                          ("usecases", "Use cases"), ("milestones", "Milestones"),
                                                          ("raid", "Risks and issues"), ("actions", "Actions"),
                                                          ("decisions", "Decisions")), 1))
-SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs") + section_bodies.BODY_TYPES
+SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs", "gantt") + section_bodies.BODY_TYPES      # row 926: gantt carries no data of its own
 BUILT_IN_SECTIONS = ("current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")      # row 906: the sections whose data lives elsewhere
 
 
@@ -390,12 +390,20 @@ def _gantt_amount(v):
 
 
 def _gantt_hidden(project):
-    """The columns this project keeps out of the client's copy: gantt_hidden_columns as stored, only names that are columns; anything
-    that does not read as a list of text (damaged or missing) hides the default six, never none."""
+    """The columns this project keeps out of the client's copy: gantt_hidden_columns as stored, only names that are columns. Exactly
+    empty text hides nothing (the person chose that; blanks and commas alone are not a choice, so they hide the default). Anything else that cannot be read as a list of known names hides the default seven,
+    never fewer: not text, an unknown name ('NOTE', '["note"]'), or text that names no column that can be hidden."""
     raw = project.get("gantt_hidden_columns")
     if not isinstance(raw, str):
         return set(GANTT_DEFAULT_HIDDEN)
-    return {n for n in gantt_list(raw) if n in GANTT_HIDEABLE}      # a stored list that names start, end, pct or type (written before they were un-hideable) hides nothing of them
+    if raw == "":                                    # exactly the empty text, which is all the editor writes for "hide nothing"; ' ', ',' and ',,' are not a choice
+        return set()
+    names = gantt_list(raw)
+    known = set(GANTT_COLUMNS) | {"id", "name"}      # id, name and the four chart columns are tolerated in a list written before they were un-hideable
+    if any(n not in known for n in names):
+        return set(GANTT_DEFAULT_HIDDEN)
+    hidden = {n for n in names if n in GANTT_HIDEABLE}
+    return hidden or set(GANTT_DEFAULT_HIDDEN)
 
 
 def _gantt_line(row, code):
@@ -565,7 +573,8 @@ def select(inputs):
             dropped = max(0, len(listed) - room)           # said by build() only, as a count (see the end of select)
             extra[mine["id"]] = {**(extra.get(mine["id"]) or {}), "rows": typed + listed[:room]}   # typed rows win: the section never holds more than a typed list may
     out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
-                             or (x.get("type") == "docs" and not out["documents"]))       # #74: no document to show, no section
+                             or (x.get("type") == "docs" and not out["documents"])       # #74: no document to show, no section
+                             or (x.get("type") == "gantt" and not gantt))                # row 926: no Gantt tab in the file, no Gantt section; the lines are data.gantt's, gated in gantt_for_client
     i = 0
     while i < len(sections):
         if sections[i].get("beside") and i + 1 < len(sections):

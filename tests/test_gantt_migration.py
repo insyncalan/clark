@@ -96,7 +96,7 @@ class Migrating(unittest.TestCase):
                 p = s.read("projects", ref=code)
                 self.assertEqual((p["show_gantt_editor"], p["show_gantt_client"], p["gantt_tab_name"], p["gantt_title"],
                                   p["gantt_hidden_columns"], p["gantt_default_rows"]),
-                                 (0, 0, "Gantt", "", "show,note,budget,effort,baseline_start,baseline_end", None))
+                                 (0, 0, "Gantt", "", "show,note,budget,effort,baseline_start,baseline_end,owner", None))
         finally:
             s.close()
         after = every_row(path, NEW_COLUMNS)
@@ -212,7 +212,9 @@ class Migrating(unittest.TestCase):
         path = make_at(self.dir, STEP - 1)
         keep = lambda d: {k: v for k, v in d.items() if k not in {("table", "projects"), ("table", "gantt_lines"), ("index", "gantt_lines_project"), ("index", "sqlite_autoindex_gantt_lines_1")}}
         before = keep(schema_of(path))
-        open_store(path, onedrive_roots=[]).close()
+        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP), \
+                mock.patch.object(store_module, "MIGRATIONS", tuple(m for m in store_module.MIGRATIONS if m[0] <= STEP)):      # row 926: this step alone (step 19 makes report_sections again)
+            open_store(path, onedrive_roots=[]).close()
         self.assertEqual(keep(schema_of(path)), before)
 
     def test_a_step_that_fails_after_its_changes_rolls_back_and_the_second_open_migrates(self):

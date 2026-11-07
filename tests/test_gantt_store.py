@@ -336,7 +336,7 @@ class ProjectColumns(Base):
     def test_the_defaults(self):
         p = self.proj()
         self.assertEqual((p["show_gantt_editor"], p["show_gantt_client"], p["gantt_tab_name"], p["gantt_title"], p["gantt_hidden_columns"], p["gantt_default_rows"]),
-                         (0, 0, "Gantt", "", "show,note,budget,effort,baseline_start,baseline_end", None))
+                         (0, 0, "Gantt", "", "show,note,budget,effort,baseline_start,baseline_end,owner", None))
         self.assertEqual(tuple(p["gantt_hidden_columns"].split(",")), store_module.GANTT_DEFAULT_HIDDEN)
 
     def test_each_is_one_step_with_one_undo_and_the_echo_carries_them(self):
@@ -352,7 +352,7 @@ class ProjectColumns(Base):
 
     def default_of(self, key):
         return {"show_gantt_editor": 0, "show_gantt_client": 0, "gantt_tab_name": "Gantt", "gantt_title": "",
-                "gantt_hidden_columns": "show,note,budget,effort,baseline_start,baseline_end", "gantt_default_rows": None}[key]
+                "gantt_hidden_columns": "show,note,budget,effort,baseline_start,baseline_end,owner", "gantt_default_rows": None}[key]
 
     def test_the_hidden_columns_are_a_checked_list_in_the_tables_order(self):
         status, body = self.change_project(gantt_hidden_columns="note, owner,note,health")
