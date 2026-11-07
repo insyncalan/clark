@@ -14,7 +14,7 @@ import { readDraftEmail, sendEmailSent } from "../api.js";
 import { DraftEmail } from "../components/DraftEmail.jsx";
 import { todayIso } from "../workItems.js";
 import { format } from "../router.js";
-import { MenuPanel, menuMove, menuItemsIn } from "../components/Menu.jsx";
+import { MenuPanel, menuMove, menuItemsIn, useFadeOut } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { people, tableOf, canClearDue } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
@@ -126,6 +126,7 @@ function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, 
     el.style.top = `${Math.round(Math.max(8, Math.min(a.top - 4, window.innerHeight - h - 8)))}px`;
     if (focus) (menuItemsIn(el)[0] || el).focus({ preventScroll: true });
   }, []);
+  useFadeOut(box, true, "rowmenu");
   const keys = (e) => {
     if (menuMove(e, menuItemsIn(box.current))) return;
     if (e.key === "ArrowLeft" || e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onLeave(); }
@@ -220,7 +221,7 @@ function Panel({ s }) {
   const list = entries(row, "", edit, d, today);
   return (
     <div class="rowmenu" ref={wrap} data-rowmenu={row.id} style="left:-10000px;top:0" onKeyDown={keys}>
-      {s.pick ? null : <MenuPanel label={`Actions for ${row.id}`} cls="rm" anchor={wrap.current} onClose={close}>
+      {s.pick ? null : <MenuPanel label={`Actions for ${row.id}`} cls="rm" fade="rowmenu" anchor={wrap.current} onClose={close}>
         {list.map((it) => it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.lab ? <div key={it.id} id={it.dom} class="lab" role="presentation">{it.lab}</div> : (
           <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} data-sub={it.sub ? "1" : undefined}
             aria-haspopup={it.sub ? "menu" : undefined} aria-expanded={it.sub ? (s.fly === it.id ? "true" : "false") : undefined}
