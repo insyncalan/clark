@@ -1,8 +1,10 @@
 // The At a glance controls (Edit only, #45), handed to the page as `tools.glance`: a tile's grip (drag, or Alt with the arrows), its
 // eye (hide it from the published report), a right-click menu for its outline colour, and Project health's pill menu and reason box.
 // Nothing here is in a published file.
-import { useRef, useState } from "preact/hooks";
-import { useGrow } from "./useGrow.js";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { RichText } from "./RichText.jsx";
+import { richOrPlain } from "../logic/richOrPlain.js";
+import { richWords } from "../logic/richWords.js";
 import { Menu, MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { OUTLINE_CHOICES, TILE_TITLES } from "../glanceTiles.js";
@@ -104,28 +106,44 @@ function HealthPill({ health, reason }) {
   );
 }
 
-// The reason, in place. Saved when the box is left; Esc puts the old words back. A health picked while it was empty is saved with it.
+// The reason, in place (item 1005: the one rich editor, with the / menu). A click opens it; it is saved when the field is left, and Esc
+// puts the old words back. It is drawn as richOrPlain of what is stored (an old reason is plain text), never the stored text itself.
+// A health picked while it was empty opens it, and is saved with it.
 function Reason({ health, reason }) {
-  const ref = useRef(null), skip = useRef(false);
-  useGrow(ref, reason);
+  const [open, setOpen] = useState(false);
+  const view = useRef(null), back = useRef(false);
   const pending = pendingHealth.value;                 // for the box's look; the save reads the signal itself, as it is when the box is left
-  const done = async () => {
-    const el = ref.current, text = el.value.trim(), pending = pendingHealth.value;
-    if (skip.current) { skip.current = false; el.value = reason; return; }
-    if (pending) {
+  useEffect(() => { if (pending) setOpen(true); }, [pending]);
+  useEffect(() => { if (!open && back.current) { back.current = false; if (view.current) view.current.focus(); } }, [open]);
+  let shown = "";
+  try { shown = richOrPlain(reason); } catch (e) { shown = ""; }
+  const save = async (html) => {
+    const words = richWords(html).trim(), pend = pendingHealth.value;
+    if (pend) {
       pendingHealth.value = "";
-      if (!text) { note("Nothing was changed. A health change needs a reason."); return; }
-      if (!(await sendHealth(pending, text))) el.value = reason;
-      return;
+      if (!words) { note("Nothing was changed. A health change needs a reason."); return true; }
+      const done = await sendHealth(pend, html);
+      if (!done) pendingHealth.value = pend;            // it failed (the toast says why): the health still waits for its reason
+      return done || null;
     }
-    if (text === String(reason || "").trim()) { el.value = reason; return; }
-    if (!text && health && health !== "On track") { el.value = reason; note("Say why in a line or two. The reason stays as it was."); return; }
-    if (!(await sendReason(text))) el.value = reason;
+    if (!words && health && health !== "On track") { note("Say why in a line or two. The reason stays as it was."); return true; }
+    return (await sendReason(words ? html : "")) || null;
   };
+  const close = (refocus) => {
+    back.current = refocus === true;
+    if (pendingHealth.value && refocus !== true) { pendingHealth.value = ""; note("Nothing was changed. A health change needs a reason."); }
+    else if (pendingHealth.value) pendingHealth.value = "";
+    setOpen(false);
+  };
+  if (open) {
+    return <div class={`hreason edit rich${pending ? " needs" : ""}`} data-reason><RichText value={shown} label="Why the project has this health" onSave={save} onClose={close} /></div>;
+  }
   return (
-    <textarea class={`hreason grow edit${pending ? " needs" : ""}`} data-reason rows="3" maxLength={2000} key={reason}
-      aria-label="Why the project has this health" placeholder={pending ? `Why is it ${pending}?` : "Say why"} defaultValue={reason} ref={ref}
-      onBlur={done} onKeyDown={(e) => { if (e.key === "Escape") { skip.current = true; pendingHealth.value = ""; e.currentTarget.blur(); } }} />
+    <div class="hreason edit rt-view" ref={view} data-reason role="button" tabindex="0" aria-label="Why the project has this health. Edit it"
+      onClick={(e) => { if (!e.target.closest("a")) setOpen(true); }}
+      onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); setOpen(true); } }}>
+      {shown ? <div class="prose" dangerouslySetInnerHTML={{ __html: shown }} /> : <p class="quiet">{pending ? `Why is it ${pending}?` : "Say why"}</p>}
+    </div>
   );
 }
 

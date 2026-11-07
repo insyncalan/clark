@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from clark import doclinks, freshness as fresh, people as people_rules, platform, published_copies, section_bodies
+from clark import doclinks, freshness as fresh, people as people_rules, platform, published_copies, sanitise, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
@@ -1536,6 +1536,8 @@ def health_reason_text(value):
         return None
     if not isinstance(value, str):
         raise Invalid(REASON_NOT_TEXT)
+    if sanitise.HTML_START.match(value):                                  # row 1005: the reason is the one rich editor's HTML now; an old row is still plain text
+        return _reason_html(value)
     text = value.replace("\r\n", "\n").replace("\t", " ")             # a tab (pasted from a table) becomes a space, not a refusal
     if not text:
         return None                                                        # an empty reason is stored one way only: None
@@ -1550,6 +1552,37 @@ def health_reason_text(value):
     if not text.strip():
         return None                                                        # spaces or line breaks only is blank: stored as None
     return text
+
+
+REASON_MARKUP_LIMIT = 64 * 1024                                           # bytes of the reason as stored, markup and all (the words are held to REASON_LIMIT)
+
+
+def _reason_html(value):
+    """Row 1005: a reason written as the editor's HTML, as it is stored: cleaned by the server's own cleaner, the words (not the markup)
+    held to REASON_LIMIT, no hidden character among them. No words at all is None."""
+    if any(c not in "\n\r\t" and unicodedata.category(c) in _BAD_TITLE_KINDS for c in value):
+        raise Invalid(REASON_BAD_CHARS)                                   # a NUL or a bidi mark is refused, not quietly dropped by the cleaner
+    try:
+        html = sanitise.clean_html(value)
+    except sanitise.SanitiseError:
+        raise Invalid(REASON_TOO_LONG) from None
+    words = sanitise.plain_text(html)
+    if any(c != "\n" and unicodedata.category(c) in _BAD_TITLE_KINDS for c in words):
+        raise Invalid(REASON_BAD_CHARS)
+    if not words.strip():
+        return None
+    if len(words) > REASON_LIMIT or len(html.encode("utf-8")) > REASON_MARKUP_LIMIT:
+        raise Invalid(REASON_TOO_LONG)
+    return unicodedata.normalize("NFC", html)
+
+
+def health_reason_html(value):
+    """Row 1005: what the change route stores for a reason: the editor's HTML cleaned, or plain text from an older caller checked as
+    before (health_reason_text) and then made into escaped paragraphs. None (no words) stays None."""
+    text = health_reason_text(value)
+    if text is None or sanitise.HTML_START.match(value):
+        return text
+    return health_reason_text(sanitise.legacy_to_html(text))
 
 
 def _check_gantt_project(row, changes):

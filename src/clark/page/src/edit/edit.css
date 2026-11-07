@@ -60,8 +60,14 @@
 .mvm-f span { font-size: var(--size-caption); color: var(--text-muted); }
 .mvm-f input { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .mvm-f input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.mvm-note { display: block; box-sizing: border-box; width: 100%; min-height: 84px; padding: var(--space-2) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; resize: vertical; }
-.mvm-note:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.mvm-note { display: block; box-sizing: border-box; width: 100%; }
+.mvm-note .rt-view { display: block; min-height: 84px; padding: var(--space-2) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+.mvm-note .rt-view .quiet { margin: 0; color: var(--text-muted); }
+/* item 1005: the At a glance reason is the one rich editor too: a bordered view that opens the editor in the tile */
+.fig .hreason.edit.rt-view { display: block; width: 100%; box-sizing: border-box; min-height: 62px; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); }
+.fig .hreason.edit.rt-view .quiet { margin: 0; color: var(--text-muted); }
+.fig .hreason.edit.rich { display: block; width: 100%; box-sizing: border-box; }
+.fig .hreason.edit.needs .rt, .fig .hreason.edit.needs.rt-view { border-color: var(--status-amber); }
 .mvm-confirm { margin: var(--space-3) 0 var(--space-1); }
 .mvm-problems p { margin: var(--space-1) 0; color: var(--status-red-text); }
 @media (max-width: 1100px) { .mvm-row { grid-template-columns: 1fr auto; } .mvm-track { grid-column: 1 / -1; } }

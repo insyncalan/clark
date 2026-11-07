@@ -92,6 +92,7 @@ html:not([data-secstyle="card"]) .frame.report .cover { border-radius: var(--rad
 .fig .hrow { display: flex; align-items: flex-start; gap: var(--space-3); margin-top: var(--space-1); }
 .fig .hrow .dd { font-size: inherit; color: inherit; }
 .fig .hreason { flex: 1 1 auto; min-width: 0; font-size: var(--size-body); color: var(--text); white-space: pre-line; overflow-wrap: anywhere; }
+.fig .hreason p { margin: 0 0 var(--space-1); } .fig .hreason p:last-child { margin-bottom: 0; }   /* item 1005: the reason is the editor's paragraphs and lists, drawn tight inside the tile */
 .fig textarea.hreason { width: 100%; min-height: 62px; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); font: inherit; resize: vertical; white-space: pre-wrap; }
 .fig textarea.hreason.needs { border-color: var(--status-amber); }
 .fig textarea.hreason:focus-visible, .pillbtn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }

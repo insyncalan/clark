@@ -396,6 +396,32 @@ def _plain_text(v):
     return not any(unicodedata.category(c) in ITEM_BAD_KINDS for c in v)
 
 
+def _rich_field(value, plain_max, long_words, hidden_words):
+    """Row 1005: a field on the one rich editor, as it is stored: clean HTML (sanitise.rich_or_plain: the editor's markup is cleaned by
+    the server's own cleaner, plain text from an older caller is escaped into paragraphs), or None when it holds no words. The limit counts
+    the WORDS (as the plain field did), the markup is held to TEXT_BODY_MAX bytes. Not text, too long, or a hidden character: Refused."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise Refused(ITEM_VALUE_WORDS)
+    if len(value) > TEXT_BODY_MAX:
+        raise Refused(long_words)
+    if not _plain_text(value.replace("\t", " ").replace("\n", " ").replace("\r", " ")):     # a NUL, a bidi mark or a zero-width space is refused as it always was, never dropped quietly by the cleaner
+        raise Refused(hidden_words)
+    try:
+        html = sanitise.rich_or_plain(value)
+    except sanitise.SanitiseError:
+        raise Refused(long_words) from None
+    words = sanitise.plain_text(html)
+    if not _plain_text(words.replace("\n", " ")):
+        raise Refused(hidden_words)
+    if not words.strip():
+        return None
+    if len(words) > plain_max or len(html.encode("utf-8")) > TEXT_BODY_MAX:
+        raise Refused(long_words)
+    return unicodedata.normalize("NFC", html)
+
+
 def _checked_item_changes(fields, blank_clears=()):
     """A work item's fields with their values checked: plain text or None (None only where the field may be cleared), and
     short. The store checks the rest (the words a status may take, a real date, an active workstream, this project's
@@ -1096,16 +1122,10 @@ def _checked_milestone_changes(fields):
             if v not in (None, "") and (not isinstance(v, str) or v not in MILESTONE_MOVEMENTS):
                 raise Refused(BAD_MOVEMENT)
             out[k] = v or None
-        elif k == "internal_note":                                  # #458: plain text over several lines; the line breaks are the only control character let through
-            if v is not None and not isinstance(v, str):
-                raise Refused(ITEM_VALUE_WORDS)
-            if isinstance(v, str):
-                v = v.replace("\r\n", "\n").replace("\r", "\n")            # folded first, so a CRLF counts once
-                if len(v) > INTERNAL_NOTE_MAX:
-                    raise Refused(ITEM_VALUE_WORDS)
-                if not _plain_text(v.replace("\n", " ")):
-                    raise Refused(NOTE_TEXT_WORDS)
-            out[k] = unicodedata.normalize("NFC", v).strip() or None if isinstance(v, str) else None
+        elif k == "internal_note":                                  # #458, row 1005: the owner's note, on the one rich editor: clean HTML, or plain text from an older caller made into paragraphs; the limit counts the words
+            if isinstance(v, str) and not _plain_text(v.replace("\r", "\n").replace("\n", " ") if not sanitise.HTML_START.match(v) else v.replace("\r", "").replace("\n", "").replace("\t", "")):
+                raise Refused(NOTE_TEXT_WORDS)                      # as before: a NUL, tab or bidi mark is refused, not quietly dropped by the cleaner
+            out[k] = _rich_field(v.strip() if isinstance(v, str) and not sanitise.HTML_START.match(v) else v, INTERNAL_NOTE_MAX, ITEM_VALUE_WORDS, NOTE_TEXT_WORDS)
         elif k == "name":                                           # row 828: a milestone is never nameless; the same limit as a work item's title
             text = unicodedata.normalize("NFC", v).strip() if isinstance(v, str) else ""
             if not text or len(text) > ITEM_TITLE_MAX or not _plain_text(text):
@@ -1164,12 +1184,19 @@ def _milestone_words(e):
     return ITEM_VALUE_WORDS
 
 
+_FIRST_BLOCK = re.compile(r"<p>.*?</p>|<h([123])>.*?</h\1>|<(ul|ol|blockquote)>.*?</\2>|<hr>", re.S)
+
+
 def _note_with_line(was, line):
-    """The internal note with a dated line added at the end; the oldest lines go first when it would pass the limit."""
-    text = ((was or "").strip() + "\n" + line).strip()
-    while len(text) > INTERNAL_NOTE_MAX and "\n" in text:
-        text = text.split("\n", 1)[1]
-    return text
+    """The internal note with a dated line added at the end, as a paragraph (row 1005: the note is HTML, or plain text from before);
+    the oldest block goes first when the words would pass the limit."""
+    html = sanitise.rich_or_plain(was) + "<p>%s</p>" % sanitise.text_escape(line)
+    while len(sanitise.plain_text(html)) > INTERNAL_NOTE_MAX:
+        first = _FIRST_BLOCK.match(html)
+        if not first or first.end() == len(html):
+            break
+        html = html[first.end():]
+    return html
 
 
 def _hold_line(today, forecast):
@@ -1223,7 +1250,7 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
         note = None
         if changes.get("movement") == "hold" and rebase is None:
             note = _hold_line(today, changes.get("forecast_date", row.get("forecast_date")))
-            last = (row.get("internal_note") or "").strip().split("\n")[-1]
+            last = sanitise.rich_plain_text(row.get("internal_note")).split("\n")[-1]
             if "internal_note" not in changes and last != note:     # #458: the Hold's dated line goes into the internal note too (the prototype's), in this same step and Undo; not twice when the last line is this same Hold today
                 changes["internal_note"] = _note_with_line(row.get("internal_note"), note)
         if "owner" in changes:                                      # row 828: the link follows the owner text, as a hand over writes it: the one live person it names, else none
@@ -1770,7 +1797,7 @@ def _checked_project_changes(fields):
                 raise Refused(str(e)) from None
         if k == "health_reason":
             try:
-                out[k] = clark_store.health_reason_text(v)      # the store's own check, called here so the first refusal is the route's
+                out[k] = clark_store.health_reason_html(v)      # the store's own check, called here so the first refusal is the route's; row 1005: stored as the editor's HTML (plain text from an older caller is made into paragraphs)
             except Invalid as e:
                 raise Refused(str(e)) from None
     return out

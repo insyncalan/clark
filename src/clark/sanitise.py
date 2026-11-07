@@ -401,3 +401,35 @@ def plain_text(html):
                     parts.append("\n")
                 i = j + 1
     return "".join(parts).strip()
+
+
+# ── Rich fields that held plain text before (row 1005) ───────────────────────────────────────────────────────────────────
+# A field that moves onto the one rich editor keeps its column; old rows hold plain text, new ones hold the editor's HTML. A stored
+# value is HTML when it starts with one of the tags clean_html's output starts with; anything else is legacy plain text. Either way
+# the result is cleaned, so a legacy text that merely looks like markup can only ever read as the cleaned allow-list.
+HTML_START = re.compile(r"[ \t\n\r\f\v]*<(?:p|h[123]|ul|ol|blockquote|hr)[ \t\n\r\f\v/>]", re.I)
+
+
+def legacy_to_html(text):
+    """Plain text as HTML: every character escaped, one paragraph per line (a blank line is an empty paragraph)."""
+    if text is None:
+        return ""
+    lines = str(text).replace("\r\n", "\n").replace("\r", "\n").strip("\n").split("\n")
+    return "".join("<p>%s</p>" % text_escape(line) for line in lines) if "".join(lines).strip() else ""
+
+
+def rich_or_plain(value):
+    """A stored rich-or-legacy value as clean HTML (None and "" give ""). Idempotent. Raises SanitiseError as clean_html does."""
+    if value is None or value == "":
+        return ""
+    if not isinstance(value, str):
+        raise SanitiseError("Rich text must be text, not %s." % type(value).__name__)
+    return clean_html(value if HTML_START.match(value) else legacy_to_html(CONTROL.sub("", value)))
+
+
+def rich_plain_text(value):
+    """The words in a stored rich-or-legacy value, one line each: for search, Excel, Word and length checks. Not HTML."""
+    try:
+        return plain_text(rich_or_plain(value))
+    except SanitiseError:
+        return ""
