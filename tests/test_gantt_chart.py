@@ -185,6 +185,24 @@ class Chart(unittest.TestCase):
                     self.assertEqual(self.val("[...document.querySelectorAll('.gt-lhead .gt-h')].map(e => e.textContent.trim())"), ["Phase / task", "Start", "End", "Done"])
                     self.assertEqual(self.text("[data-g-today]"), "Today")
 
+    def test_a_long_bar_label_ellipsises_and_a_short_one_does_not(self):
+        long = [dict(l) for l in LINES]
+        long[0]["name"] = "Very long phase name " * 10
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    self.look(width, scheme)
+                    self.mount(edit=False, lines=long)
+                    got = self.val("[...document.querySelectorAll('.gt-mslab')].map(e => [e.textContent.trim().slice(0, 9), e.getBoundingClientRect().width, getComputedStyle(e).textOverflow, e.scrollWidth > e.clientWidth])")
+                    longs = [g for g in got if g[0] == "Very long"]
+                    self.assertTrue(longs, "the long label is drawn")
+                    for _, w, to, cut in longs:
+                        self.assertLessEqual(w, 320.5, "a long label is held to a maximum width")
+                        self.assertEqual(to, "ellipsis")
+                    for g in got:
+                        if g[0] != "Very long":
+                            self.assertFalse(g[3], f"a normal label is not cut: {g}")
+
     def test_every_bar_carries_its_name_as_text(self):
         self.look(1400, "light")
         self.mount(edit=True)

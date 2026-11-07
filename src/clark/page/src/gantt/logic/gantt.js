@@ -97,6 +97,9 @@ export function tidy(line) {
     pct: cleanPct(line.pct), depends: Array.isArray(line.depends) ? line.depends.map(String) : [], show: line.show !== false && line.show !== 0 };
 }
 export const tidyAll = (lines) => (lines || []).map(tidy).filter((l) => l.start);
+// The lines tidyAll leaves out because their start is no usable date (so they have nowhere on the time line), in their order. Not shown yet:
+// the sentence that would say so awaits approved words.
+export const leftOut = (lines) => (lines || []).map(tidy).filter((l) => !l.start);
 
 // The next free steady id: GNT-001, GNT-002 ...
 export function nextId(lines) {
