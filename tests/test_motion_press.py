@@ -84,6 +84,43 @@ class MotionPress(unittest.TestCase):
         self.assertNotIn("row 881", CSS, "the shared stylesheet (the published page) holds none of it")
         self.assertNotRegex(CSS, r"\.hp-job:(hover|active) \{ transform")
 
+    def test_row_938_1_main_buttons_and_mode_pills_sink_1px_on_press_edit_only_gated_on_motion(self):
+        start = EDIT.index("row 938-1 (motion)")
+        end = EDIT.find("\n/* row ", start + 1)
+        edit = EDIT[start:end]
+        rule = re.search(r":is\(([^)]*)\)[^{]*:active \{([^}]*)\}", edit)
+        self.assertIsNotNone(rule)
+        self.assertEqual(set(x.strip() for x in rule.group(1).split(",")), {".again", ".btn.primary", ".btn.pri", ".modes.seg .mode"})
+        self.assertIn("transform: translateY(1px)", rule.group(2), "sinks 1 px")
+        self.assertIn("transform var(--dur-instant) var(--ease-out)", rule.group(2), "over --dur-instant")
+        self.assertTrue(edit.index("@media (prefers-reduced-motion: no-preference)") < edit.index(":active"), "gated on no-preference")
+        self.assertIn(':root:not([data-motion="reduce"])', edit.split(":active")[0], "and on clark's own reduced motion")
+        self.assertNotRegex(rule.group(2), r"(?<![-\w(])\d+(\.\d+)?m?s\b", "tokens only")
+        self.assertNotRegex(CSS, r"\.(again|btn\.primary|btn\.pri|modes\.seg \.mode)[^{]*:active", "the published page's stylesheet holds no press sink")
+        self.assertNotIn("938-1", CSS)
+
+    def test_row_938_1_press_sinks_in_the_browser_and_snaps_when_reduced(self):
+        for scheme in ("light", "dark"):
+            for motion in ("no-preference", "reduce"):
+                with self.subTest(scheme=scheme, motion=motion), chrome() as cdp:
+                    sid = self.load(cdp, 1400, scheme, motion)
+                    for cls, host in (("again", ""), ("btn primary", ""), ("btn pri", ""), ("mode", "modes seg")):
+                        cdp.js("""(() => { document.querySelectorAll('.t938').forEach(x => x.remove()); const h = document.createElement('div'); h.className = 't938 %s';
+                          h.style.cssText = 'position:fixed;left:20px;top:20px;z-index:99999'; const e = document.createElement('button'); e.id = 't938b'; e.className = '%s'; e.textContent = 'x';
+                          h.appendChild(e); document.body.appendChild(h); })()""" % (host, cls), sid)
+                        box = json.loads(cdp.js("(() => { const r = document.getElementById('t938b').getBoundingClientRect(); return JSON.stringify([r.x + r.width / 2, r.y + r.height / 2]); })()", sid))
+                        cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": box[0], "y": box[1]}, sid)
+                        M42 = "new DOMMatrix(getComputedStyle(document.getElementById('t938b')).transform).m42"
+                        hovered = cdp.js(M42, sid)       # the shared stylesheet's own hover lift (if any) is the baseline
+                        cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": box[0], "y": box[1], "button": "left", "buttons": 1, "clickCount": 1}, sid)
+                        self.assertTrue(wait(lambda: cdp.js("document.getElementById('t938b').matches(':active')", sid)), cls)
+                        if motion == "no-preference":
+                            self.assertTrue(wait(lambda: cdp.js(M42, sid) == 1), f"{cls} sinks 1 px")
+                            self.assertIn("0.12s", cdp.js("getComputedStyle(document.getElementById('t938b')).transitionDuration", sid), f"{cls} presses over --dur-instant")
+                        else:
+                            self.assertEqual(cdp.js(M42, sid), hovered, f"{cls} does not move under reduced motion")
+                        cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": box[0], "y": box[1], "button": "left", "buttons": 0, "clickCount": 1}, sid)
+
 
 if __name__ == "__main__":
     unittest.main()
