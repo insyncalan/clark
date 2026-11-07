@@ -2857,13 +2857,15 @@ NO_PEOPLE_UNDO = "That step can't be undone from here."
 PERSON_ID = re.compile(r"P-\d{3}")
 
 
-def _person_value(key, value):
+def _person_value(key, value, capped=True):
     if key == "needs_details":
         return value if isinstance(value, bool) or value in (0, 1) and type(value) is int else _refuse_person()
     if value is None:
         return value
     if not isinstance(value, str) or len(value) > 2000:
         _refuse_person()
+    if capped and key in ("organisation", "role") and len(" ".join(value.split())) > people_rules.CELL_MAX:
+        raise Refused(f"the {key} is too long (at most {people_rules.CELL_MAX} characters). Shorten it and try again. Nothing was changed.")
     return value
 
 
@@ -2903,7 +2905,7 @@ def _paste_people(st, rows):
     for row in rows:
         if not isinstance(row, dict) or not isinstance(row.get("name"), str) or any(k not in PASTE_FIELDS for k in row):
             raise Refused(PASTE_BAD_ROW)
-        given = {k: _person_value(k, v) for k, v in row.items()}
+        given = {k: _person_value(k, v, capped=False) for k, v in row.items()}      # the paste says the cap with the person's name, just below
         name = " ".join(given["name"].split())
         if not name:
             raise Refused("A row has no name. Give each person a name. Nothing was changed.")
