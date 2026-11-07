@@ -6,8 +6,8 @@ import { changeRecord } from "../stores/changes.js";
 import { Icon } from "../components/Icon.jsx";
 import { tableOf } from "./itemEdit.js";
 
-export function PeekArchive({ row }) {
-  const run = () => changeRecord({ kind: tableOf(row), op: "archive", id: row.id, place: "peek" },
+export function PeekArchive({ row, milestone = false }) {      // row 867: the milestone peek has the same button and words
+  const run = () => changeRecord({ kind: milestone ? "milestones" : tableOf(row), op: "archive", id: row.id, place: "peek" },
     { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.` })
     .then((r) => { if (r) closePeek(); });
   return <button type="button" class="pkp-btn" data-pk-archive title="Archive" aria-label="Archive" onClick={run}><Icon name="archive" /></button>;

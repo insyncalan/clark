@@ -141,16 +141,17 @@ export function MsCalendar({ rows, today, open, place, client }) {
       </div>
       {far ? <p class="cal-far" role="status" data-cal-far>{RANGE_NOTE} <button type="button" class="btn" data-cal-home onClick={toToday}>Go to today</button></p> : null}
       {body}
-      <section class="cal-list" aria-label="Milestones in this period" data-cal-list>
-        <h4>Milestones in this period</h4>
-        {inPeriod.length ? (
+      {inPeriod.length ? (
+        <section class="cal-list" aria-label="Milestones in this period" data-cal-list>
+          <h4>Milestones in this period</h4>
           <ul>{inPeriod.map((c, i) => (
             <li key={`${c.id}${c.ghost}${i}`} data-cl={c.id} data-ghost={c.ghost ? "1" : "0"}><span class="cal-ld">{showDate(c.date)}</span> <span class="cal-ln">{c.name}</span> <span class={`mst c-${c.colour}`}><MsMark name={c.mark} />{c.ghost ? `Expected, ${c.word}` : c.word}</span></li>
           ))}</ul>
-        ) : (
-          <p class="muted cal-empty" data-cal-empty>No milestones in this period. Use Earlier or Later to find the next one{far ? "." : <>, or <button type="button" class="btn" onClick={toToday}>go to today</button>.</>}</p>
-        )}
-      </section>
+        </section>
+      ) : (
+        /* item 555: the list is for a phone only, but this line is the calendar's answer, so it sits outside the list and shows at every width */
+        <p class="muted cal-empty" data-cal-empty>No milestones in this period. Use Earlier or Later to find the next one{far ? "." : <>, or <button type="button" class="btn" onClick={toToday}>go to today</button>.</>}</p>
+      )}
     </div>
   );
 }

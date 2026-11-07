@@ -177,7 +177,8 @@ class Words(unittest.TestCase):
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
                                   "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking",      # the chips: one for each card below, in the order they are on the page
                                   "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
-                                  "Local folder", "Always saved. Publish opens the save window where you last saved this report, so you choose the local folder there each time.",
+                                  "Local folder", "Always saved. Publish's save window opens in this folder; with none chosen, it opens where you last saved this report.",
+                                  "No local folder yet.", "Choose folder",      # row 852: the Local folder is chosen once, like the client folder
                                   "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",

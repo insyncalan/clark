@@ -21,7 +21,7 @@ from _new_page import reload_to_new_page_cdp
 from clark import page, server as sv  # noqa: E402
 from test_board import make_data  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
-from test_work_filters import click, dblclick, key, need_chrome, where  # noqa: E402
+from test_work_filters import click, dblclick, key, need_chrome, select_line, where  # noqa: E402
 from test_work_items import page_target  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -57,9 +57,9 @@ class Base(unittest.TestCase):
     def line(self, cdp, sid, text):
         """Replace the filter line the way a person does: click the box, select what is in it, type; the list follows after the pause."""
         click(cdp, sid, "#fline-input")
-        cdp.js("document.querySelector('#fline-input').select()", sid)
+        select_line(cdp, sid)
         cdp.call("Input.insertText", {"text": text}, sid)
-        self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == text))
+        self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == text))
         time.sleep(0.7)
 
     # ---- the data ----
@@ -153,7 +153,7 @@ class Base(unittest.TestCase):
         self.reload(cdp, sid)
         if mode != "open":
             click(cdp, sid, "#fline-input")                 # no is: word means every item, open or closed
-            cdp.js("document.querySelector('#fline-input').select()", sid)
+            select_line(cdp, sid)
             key(cdp, sid, "Backspace")
             self.until(cdp, sid, "!/open/.test(document.querySelector('#work-count').textContent)", "the count follows All")
         self.until(cdp, sid, "!!document.querySelector('#work-board .bcard')", "the board")
@@ -730,7 +730,7 @@ class Moves(Base):
                     self.assertEqual(t["text"], f"{a} is now Delayed.")
                     self.assertEqual((self.row(a)["status"], self.steps()), ("Delayed", before + 1))
                     dblclick(cdp, sid, ".col[data-col='Open'] .col-rz")          # the LOW: a reset never takes the move's Undo away
-                    self.until(cdp, sid, "/back to its usual width/.test(document.querySelector('#work-live').textContent)", "the reset said to a screen reader")
+                    self.until(cdp, sid, "/^Column width reset\.$/.test(document.querySelector('#work-live').textContent)", "the reset said to a screen reader")
                     self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), f"{a} is now Delayed.")
                     self.assertTrue(cdp.js("!!document.querySelector('.toast [data-undo]')", sid), "the move's Undo is still offered")
                     self.assertTrue(cdp.js("(() => { const r = document.querySelector('.toast').getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; })()", sid))

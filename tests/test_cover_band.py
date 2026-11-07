@@ -52,6 +52,34 @@ class Served(Setup):
                 self.assertGreaterEqual(min(p.js(LUM)), 4.5)
 
 
+RADII = """(() => { const c = document.querySelector('header.cover'), s = getComputedStyle(c);
+  return {r: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomRightRadius, s.borderBottomLeftRadius], shadow: s.boxShadow}; })()"""
+
+
+class Corners(Setup):
+    """Row 997: a band standing alone over separate section cards has four round corners and the card shadow; as the top of the
+    one-card frame (the Card style) it keeps the top two only and no shadow of its own."""
+
+    def test_the_band_is_rounded_all_round_with_a_shadow_when_the_sections_are_separate(self):
+        for style in ("slim", "roomy", "grey"):
+            with self.subTest(style=style), chrome() as cdp:
+                p = self.show(cdp)
+                p.js(f"document.documentElement.dataset.secstyle = '{style}'")
+                got = p.js(RADII)
+                self.assertEqual(len(set(got["r"])), 1, got)
+                self.assertNotEqual(got["r"][0], "0px", got)
+                self.assertNotEqual(got["shadow"], "none", got)
+
+    def test_the_band_keeps_its_top_corners_only_as_the_top_of_the_card_frame(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.js("document.documentElement.dataset.secstyle = 'card'")
+            got = p.js(RADII)
+            self.assertEqual(got["r"][2:], ["0px", "0px"], got)
+            self.assertNotEqual(got["r"][0], "0px", got)
+            self.assertEqual(got["shadow"], "none", got)
+
+
 class TheWeek(Setup):
     def coming_friday(self):
         d = date.today()
@@ -81,6 +109,14 @@ class InTheFile(Published):
                 self.assertIn("Week ending 23-10-2026", b["line"])
                 self.assertIn("for Example Client", b["line"])
                 self.assertGreaterEqual(min(p.js(LUM)), 4.5)
+
+    def test_row_997_the_published_slim_file_draws_the_band_rounded_with_the_shadow(self):
+        path = self.publish()
+        with chrome() as cdp:
+            got = self.draw(cdp, path).js(RADII)
+        self.assertEqual(len(set(got["r"])), 1, got)
+        self.assertNotEqual(got["r"][0], "0px", got)
+        self.assertNotEqual(got["shadow"], "none", got)
 
     def test_a_missing_week_and_client_leave_those_parts_out(self):
         with self.store.step("dashboard", USER) as st:

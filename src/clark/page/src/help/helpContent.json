@@ -267,7 +267,7 @@
      "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”. The box closes by itself after a moment; you can press the button to close it at once. If the file name is taken, the box asks what to do: Add a number, Rename it or, where it is allowed, Overwrite the existing file.",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
     ],
-    "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on). The line at the top of the Dashboard says when it was last published, and whether to the client or locally.",
+    "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on). A number is never used again, and **Undo** does not take it back. The line at the top of the Dashboard says when it was last published, and whether to the client or locally.",
     "next": [
      "howto-save-as-a-pdf",
      "howto-word-in-and-out",
@@ -355,7 +355,7 @@
      "The second picks **Open**, **Closed** or **All**, each with its count.",
      "Click the filter line, which says **Filter by keyword or by field**, and type. A plain word finds the items with it in the title or the ID. A list of fields and values opens under the line: choose from it, or keep typing.",
      "To pick a field, type field:value, for example status:Open or priority:High,Urgent. The fields are type, status, owner, priority, due, workstream, usecase, milestone, client and is. A comma means or, a space between two parts means and, and a - in front means not, as in -status:Closed. no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you (set your name in Settings first).",
-     "A word it cannot use gets a red wavy underline and is not applied. A message under the line says why, such as Unknown field 'x'. Did you mean Owner? or Add a value after 'x:'. If you ask for owner:@me before your name is set, it says Set your name in Settings to see your actions.",
+     "A word it cannot use gets a red wavy underline and is not applied. A message under the line says why, such as There is no “x” filter. or Add a value after 'x:'. If you ask for owner:@me before your name is set, it says Set your name in Settings to see your actions.",
      "The count at the right reads, for example, 12 of 40. **Clear filter** (the **×**) empties the line. When nothing matches the words you typed, the list says, for example, No open items match \"crane\". and offers **Clear search**.",
      "A published file has no filter line. It has a **Search work items** box, which finds words in the ID, the description, the owner, the latest update, the client wording and the use case, and a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone. Each opens a list with a count beside every value: tick the ones you want and choose **is any of** or **is not**. **Select all** and **Clear** are at the top. The filters that are on show as chips beside the count; **×** on a chip removes it, and **Clear all** removes the filters and the search but keeps the type and Open, Closed or All.",
      "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N work items” and the use case's reference), opens Work items already filtered to what it counts."
@@ -2746,7 +2746,7 @@
      "d": "To come back to it later, press its tab. The filter line is set to what you saved. Every project starts with the tabs Open items, Actions, Risks and issues, Decisions and All work items, then Overdue and My actions."
     },
     {
-     "d": "If you change the filter line while a view is open, a small dot shows on its tab. Press the small arrow beside the open tab’s name and choose **Save changes** to keep the new filters under the same name, or **Save as a new view…** to keep them as another view. The five tabs that every project has cannot be changed this way, so use **Save as a new view…** for them."
+     "d": "If you change the filter line while a view is open, a small dot shows on its tab, and **Save view** and **Discard changes** appear beside the tabs. Press **Save view** to keep the new filters under the same name, and a message at the foot of the page says View saved with the name. Press **Discard changes** to put the filter line back to what the view had. The small arrow beside the open tab’s name has the same **Save changes**, and **Save as a new view…** keeps the new filters as another view. The five tabs that every project has cannot be saved over, so they have no **Save view**. Use **Save as a new view…** for them. **Discard changes** is there on them too."
     },
     {
      "d": "To rename a view, open it, press the small arrow beside its name and choose **Rename…**. Type the new name in the box labelled **New name for this view** and press **Save**."
