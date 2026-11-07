@@ -210,15 +210,14 @@ class Line(unittest.TestCase):
             cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
             self.assertEqual(cdp.js("document.activeElement.id", sid), "other", "not while typing in a field")
 
-    def test_the_line_does_not_say_press_slash_in_view_or_edit_because_that_key_opens_ask(self):
-        # #286: the hint "Press /" pointed at a key that opens ask clark in the app, so it is gone. Pinned in both modes at both widths.
+    def test_the_line_does_not_say_press_slash_because_that_key_opens_ask(self):
+        # #286: the hint "Press /" pointed at a key that opens ask clark in the app, so it is gone. Pinned at both widths (row 804: the page has no mode now).
         s = self.serve()
         for width in SIZES:
-            for mode in ("view", "edit"):
+            for mode in ("work",):
                 with self.subTest(width=width, mode=mode), chrome() as cdp:
                     sid = self.load(cdp, s.port, width)
-                    cdp.js(f"document.querySelector('[data-mode={mode}]').click()", sid)
-                    self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('[data-mode={mode}]').getAttribute('aria-pressed')", sid) == "true"), f"the {mode} mode button is pressed")
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch on Work items")
                     self.assertEqual(cdp.js("document.querySelectorAll('.fkey, .fline kbd, .fline-wrap [aria-keyshortcuts]').length", sid), 0)
                     for focused in (False, True):
                         if focused:
@@ -1150,8 +1149,7 @@ class Line(unittest.TestCase):
             sid = self.load(cdp, s.port)
             bg = lambda sel: cdp.js(f"getComputedStyle(document.querySelector({json.dumps(sel)})).backgroundColor", sid)
             for on, off in (("[data-type][aria-pressed=true]", "[data-type][aria-pressed=false]"),
-                            ("[data-show][aria-pressed=true]", "[data-show][aria-pressed=false]"),
-                            (".mode[aria-pressed=true]", ".mode[aria-pressed=false]")):
+                            ("[data-show][aria-pressed=true]", "[data-show][aria-pressed=false]")):
                 with self.subTest(on=on):
                     self.assertTrue(cdp.js(f"!!document.querySelector({json.dumps(on)}) && !!document.querySelector({json.dumps(off)})", sid), "one of each is drawn")
                     self.assertNotEqual(bg(on), bg(off), "the pressed button has its own background")
@@ -1159,6 +1157,13 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.fline .k-val')", sid)), "a value token is drawn")
             self.assertNotEqual(bg(".fline .k-val"), bg(".fline"), "a chosen filter value is drawn as a chip with its own background")
             self.assertNotEqual(bg(".fline .k-val"), "rgba(0, 0, 0, 0)")
+            self.assertEqual(cdp.js("document.querySelectorAll('.mode').length", sid), 0, "no View | Edit switch on Work items (row 804)")
+            cdp.js("location.hash = '#dashboard&p=TUL'", sid)      # the switch is the Dashboard's alone: its highlight rule is checked there
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.mode[aria-pressed=true]') && !!document.querySelector('.mode[aria-pressed=false]')", sid)), "one of each is drawn on the Dashboard")
+            col = lambda sel: cdp.js(f"getComputedStyle(document.querySelector({json.dumps(sel)})).color", sid)
+            self.assertNotEqual(col(".mode[aria-pressed=true]"), col(".mode[aria-pressed=false]"), "the pressed half has its own colour")
+            self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('.modes'), '::before').backgroundColor", sid), "rgba(0, 0, 0, 0)",
+                                "the pill's thumb (the pressed half's background, row 884) is drawn")
 
     def test_the_targets_are_big_enough_and_the_colours_come_from_the_tokens(self):
         s = self.serve()
