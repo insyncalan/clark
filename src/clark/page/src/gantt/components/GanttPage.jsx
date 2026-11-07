@@ -129,7 +129,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
           </span>
         ) : null}
         {editing && layout === "table" ? <button type="button" class="gt-ib" disabled aria-label={W.importXl} title={W.soon} data-gp-import><Icon name="ul" /></button> : null}
-        <button type="button" class="gt-ib" disabled aria-label={W.exportXl} title={W.soon} data-gp-export><Icon name="dl" /></button>
+        {tools && tools.exportExcel && !fromFile.value ? <button type="button" class="gt-ib" aria-label={W.exportXl} title={W.exportXl} data-gp-export onClick={() => tools.exportExcel()}><Icon name="dl" /></button> : null}
       </div>
     </div>
   );
