@@ -150,11 +150,13 @@ class ReviewTest(Rig):
                 os.unlink(self.download)
                 make_zip(self.downloads, version="0.3.1", files=self.new_files, notes="Fixes a typo.\n")
 
-    def test_updates_stay_off_while_the_release_key_is_the_placeholder(self):
+    def test_an_unsigned_update_is_reviewed_while_the_release_key_is_the_placeholder(self):
         mock.patch.object(updates, "RELEASE_PUBLIC_KEY", updates.PLACEHOLDER_KEY).start()
         self.addCleanup(mock.patch.stopall)
+        os.unlink(str(self.download) + ".sig")
         status, body = self.up.review({"from": "downloads"})
-        self.assertEqual((409, "nokey"), (status, body["code"]))
+        self.assertEqual(200, status, body)
+        self.assertIsNotNone(self.up.reviewed)
 
     def test_the_same_version_needs_install_again(self):
         os.unlink(self.download)

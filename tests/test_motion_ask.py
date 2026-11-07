@@ -36,7 +36,9 @@ class MotionAsk(Panel):
                             if down:
                                 self.assertEqual(p.js(NAME), down, "it sinks before it goes")
                                 self.assertTrue(p.js("document.querySelector('#ask-panel').classList.contains('leaving')"))
-                            p.until("document.querySelector('#ask-panel') === null", "gone", seconds=0.5 if down else 10)
+                            # the panel's own guard is 400 ms (checked below); a slow hosted runner can draw the removal later than a fixed 0.5 s
+                            p.until("document.querySelector('#ask-panel') === null", "gone: the ask panel is removed after its exit", seconds=15)
+                            p.until("document.getAnimations().length === 0", "gone: no animation is left running after the exit", seconds=15)
 
     def test_row_885_is_edit_only_gated_uses_tokens_and_moves_only_transform(self):
         i = EDIT.index("row 885:")

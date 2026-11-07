@@ -10,7 +10,7 @@ a { color: var(--status-blue-text); }
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--text-muted); }
 .again { min-height: 36px; padding: 0 var(--space-4); border: 1px solid var(--brand-blue); border-radius: var(--radius); background: var(--brand-blue); color: var(--text-on-brand); font-size: var(--size-body); cursor: pointer; }
-.again:focus-visible { outline: 2px solid var(--brand-navy); outline-offset: 2px; }
+.again:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 [hidden] { display: none !important; }
 
 .skip { position: absolute; left: 12px; top: 8px; z-index: 40; padding: 8px 14px; border-radius: 6px; background: var(--brand-navy); color: var(--white); font-size: var(--size-body); text-decoration: none; transform: translateY(-200%); }   /* row 862: out of sight until it has focus */
@@ -179,7 +179,7 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .pk-btn { min-height: 32px; min-width: 24px; padding: var(--space-1) var(--space-3); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); cursor: pointer; }
 .pk-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-btn:disabled { color: var(--text-muted); cursor: default; }
-.pk-btn.pri:not(:disabled) { background: var(--brand-navy); border-color: var(--brand-navy); color: var(--text-on-brand); }
+.pk-btn.pri:not(:disabled) { background-color: var(--pill-color); background-image: var(--pill-bg); border-color: var(--pill-color); color: var(--pill-fg); }  /* row 946: the aqua pill, as .btn.pri */
 .pk-body { flex: 1 1 auto; overflow: auto; padding: 0 20px; min-height: 80px; }
 .pk-group h3 { margin: var(--space-3) 0 var(--space-1); font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
 .pick { list-style: none; margin: 0; padding: 0; }
@@ -674,6 +674,7 @@ table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
 .gtick:disabled { cursor: not-allowed; opacity: .45; }
 .gtick:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .selbar { display: flex; align-items: center; gap: var(--space-3); margin: 10px 0 2px; padding: 6px 6px 6px 14px; border: 1px solid var(--brand-blue); border-radius: var(--radius); background: color-mix(in srgb, var(--brand-blue-tint) 60%, var(--surface)); font-size: var(--size-small); }
+body:not(.board-view) #sel-bar { position: sticky; top: calc(var(--topbar) + var(--space-2)); z-index: 20; }   /* row 864: the bar stays under the top bar while a lower row is ticked; the board is its own scroller, so there it stays in the flow */
 .selbar .sb-n { font-weight: var(--weight-medium); color: var(--heading); }
 .selbar .sb-x { margin-left: auto; width: 30px; height: 30px; }
 .selbar .sb-x[data-tip]:hover::after, .selbar .sb-x[data-tip]:focus-visible::after { right: 0; }
@@ -766,7 +767,7 @@ table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--stat
 .col.over { outline: 2px solid var(--brand-blue); outline-offset: -1px; background: var(--brand-blue-tint); }
 .col-h { position: sticky; top: 0; z-index: 3; margin: 0; height: 40px; border-bottom: 1px solid var(--grey-200); background: var(--surface); border-radius: var(--radius-lg) var(--radius-lg) 0 0; font-size: var(--size-small); font-weight: var(--weight-medium); }
 .lane.has .col-h { top: 40px; }
-.col-b { all: unset; box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); cursor: pointer; border-top: 3px solid transparent; border-radius: var(--radius-lg) var(--radius-lg) 0 0; color: var(--heading); }
+.col-b { all: unset; box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); cursor: pointer; border-radius: var(--radius-lg) var(--radius-lg) 0 0; color: var(--heading); }
 .col .nd { margin: 0; padding: var(--space-1) var(--space-3) 0; font-size: var(--size-small); }
 .col-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 /* Moving and resizing a column (B-16): a grip on the heading's right edge, and a bar where a dragged heading will land. */
@@ -781,11 +782,11 @@ body.col-resizing { cursor: col-resize; user-select: none; -webkit-user-select: 
 .col-b { touch-action: none; }
 .col-b .dot { display: none; width: 9px; height: 9px; border-radius: 50%; background: var(--status-grey); flex: none; }
 .col-b .cn { margin-left: auto; color: var(--text-muted); font-weight: var(--weight-light); background: var(--grey-100); border-radius: var(--radius-lg); padding: 0 7px; }
-.col.tone-blue .col-b { border-top-color: var(--status-blue); color: var(--status-blue-text); } .col.tone-blue .dot { background: var(--status-blue); }
-.col.tone-amber .col-b { border-top-color: var(--status-amber); color: var(--status-amber-text); } .col.tone-amber .dot { background: var(--status-amber); }
-.col.tone-red .col-b { border-top-color: var(--status-red); color: var(--status-red-text); } .col.tone-red .dot { background: var(--status-red); }
-.col.tone-green .col-b { border-top-color: var(--status-green); color: var(--status-green-text); } .col.tone-green .dot { background: var(--status-green); }
-.col.tone-grey .col-b { border-top-color: var(--status-grey); color: var(--grey-700); }
+.col.tone-blue .col-b { color: var(--status-blue-text); } .col.tone-blue .dot { background: var(--status-blue); }
+.col.tone-amber .col-b { color: var(--status-amber-text); } .col.tone-amber .dot { background: var(--status-amber); }
+.col.tone-red .col-b { color: var(--status-red-text); } .col.tone-red .dot { background: var(--status-red); }
+.col.tone-green .col-b { color: var(--status-green-text); } .col.tone-green .dot { background: var(--status-green); }
+.col.tone-grey .col-b { color: var(--grey-700); }
 .col[class*="tone-"] .dot { display: inline-block; }
 .col.shut .col-b { flex-direction: column; justify-content: flex-start; padding: 10px 0; gap: 10px; height: 160px; }
 .col.shut .col-b .cl { writing-mode: vertical-rl; }
@@ -972,7 +973,6 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-next ul { margin: 0; padding-left: 20px; }
 .hp-next li { margin: 0 0 4px; }
 .hp-next a { color: var(--status-blue-text); }
-.hp-prev { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 34px; }
 .hp-col { min-width: 0; }
 .hp-col .hp-sh h2 { font-size: var(--size-h2); }
 .hp-grp { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); font-weight: 500; margin: 28px 0 10px; }
@@ -1020,17 +1020,14 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-head { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); align-items: flex-start; justify-content: space-between; }
 .hp-head h1 { margin: 0 0 var(--space-1); font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
 .hp-head p { margin: 0; }
-.hp-actions { display: flex; gap: 10px; align-items: center; }
+.hp-head > div:first-child { flex: 1 1 24rem; min-width: 0; }   /* the intro gives way, so the search sits at the top right beside it */
+.hp-actions { display: flex; gap: 10px; align-items: center; margin-left: auto; }
 .hp-search input { box-sizing: border-box; min-height: 36px; padding: 0 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; width: 300px; }
 .hp-search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .hp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .hp-search { position: relative; display: block; }
 .hp-search > .i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted); pointer-events: none; }
 .hp-search input { padding-left: 32px; padding-right: 34px; }
-.hp-back { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px 0 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
-.hp-back .i { width: 16px; height: 16px; }
-.hp-back:hover { border-color: var(--brand-blue); }
-.hp-back:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 /* the line under the title names the key on a keyboard and the button on a phone (a phone has no ? key) */
 .hp-taphint { display: none; }
 @media (max-width: 700px), (hover: none) { .hp-keyhint { display: none; } .hp-taphint { display: inline; } }
@@ -1040,7 +1037,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .tb-act:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
 .tb-act:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tb-ico { width: 20px; height: 20px; flex: none; }
-.tb-ask { padding: 0 10px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); }
+.tb-act:not(.tb-ask) { min-width: 38px; height: 28px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius); }   /* row 772: the search button is a bordered 38 by 28 box, as in the prototype */
+.tb-ask { height: 34px; padding: 0 10px; font-size: var(--size-small); border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); }   /* row 772: the ask clark text at 14 px in a 34 px button */
+.tb-ask .tb-ico { width: 16px; height: 16px; }
 .tb-key { font: inherit; font-size: var(--size-small); padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius-sm); }
 @media (max-width: 1100px) { .tb-ask { padding: 0 6px; border-color: transparent; } .tb-ask-w, .tb-key { display: none; } }   /* icon only below 1100 px, so nothing in the bar overlaps */
 /* the Help peek (item 645): the item peek's frame (.peek) below the top bar, so the "?" button stays in view; text only */
@@ -1218,7 +1217,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn.quiet { background: transparent; }
 .btn { min-height: 32px; }
 .btn:disabled { cursor: default; opacity: .6; }
-.setting { margin-top: var(--space-4); }
+.setting { margin-top: var(--space-3); }
 .set-head p { margin: 0; }
 /* The Settings links (item 440, S2; issue 697). Above 900 px they are a list down the left, the cards at the right; the list stays under the top bar
    as you scroll (and scrolls itself if the window is short). At 900 px and narrower it is the old bar of chips under the head, on the page's own
@@ -1243,7 +1242,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-chip[aria-current], .set-chip[aria-current]:hover { border-color: var(--brand-blue); background: var(--brand-blue); color: var(--text-on-brand); }      /* the same weight, so marking a chip never moves the row */
 .set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
-.setting h2 { margin: 0 0 6px; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
+/* The Settings cards (row 841): the prototype's card, compact: less padding, a smaller heading, a 14 px intro line and no shadow. Later than .frame and its 900 px rule, and more specific. */
+.set-cards .frame { padding: var(--space-4) var(--space-5); box-shadow: none; }
+.set-cards .frame > h2 + p { font-size: var(--size-small); }
+.setting h2 { margin: 0 0 6px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .setting .row { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
 .folder-now { overflow-wrap: anywhere; }
 /* item 647: the pasted folder path, under Choose folder; the box takes the row's room and the button stays beside it. */
@@ -1335,8 +1337,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
 
 /* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): One card is the default (row 667). */
-.personal { margin-top: var(--space-4); }
-.personal h2 { margin: 0 0 var(--space-1); font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); }
+.personal { margin-top: var(--space-3); }
+.personal h2 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .styles { border: 0; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: var(--space-2); }
 .styles legend { padding: 0; margin-bottom: 6px; font-size: var(--size-caption); color: var(--text-muted); }
 .stylepick { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
@@ -1372,6 +1374,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .fld input[aria-invalid="true"] { border-color: var(--status-red-text); }
 .fld small { color: var(--text-muted); font-size: var(--size-caption); }
 .fld.copy-fld { max-width: 640px; }
+/* Settings fields (row 840): a label column at the left and the control beside it, the way the prototype draws them; the hint, a refusal and any buttons stand in the control's column.
+   The control is not capped: it takes the rest of the card. The Welcome form keeps its own stacked layout (it is not inside the Settings cards). */
+.set-cards .fld, .set-cards .fld.copy-fld { grid-template-columns: 8rem minmax(0, 1fr); column-gap: var(--space-3); align-items: center; max-width: none; }
+.set-cards .fld > label { grid-column: 1; }
+.set-cards .fld > :not(label) { grid-column: 2; min-width: 0; }
 .fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-caption); }
 .fld-bad:empty { display: none; }
 /* Settings › People (item 454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
@@ -1463,9 +1470,9 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 
 /* The look: pill buttons, the header and the type, from the committed look (tokens only; made by the branding tool). */
 /* primary buttons and pills: the pale-to-bright aqua of the reference, dark text, a soft glow */
-.again, .btn.primary { border: 0; border-radius: var(--radius-pill); padding: 0 22px; min-height: 38px; font-weight: 800; letter-spacing: .04em;
+.again, .btn.primary, .btn.pri { border: 0; border-radius: var(--radius-pill); padding: 0 22px; min-height: 38px; font-weight: 800; letter-spacing: .04em;
   background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); box-shadow: var(--pill-glow); transition: transform var(--dur-state) var(--ease-out), box-shadow var(--dur-state) var(--ease-out); }
-.again:hover, .btn.primary:hover { transform: translateY(-1px); box-shadow: var(--pill-glow-hover); }
+.again:hover, .btn.primary:hover, .btn.pri:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--pill-glow-hover); }
 .btn, .seg { border-radius: var(--radius-pill); }
 .btn { padding-left: 18px; padding-right: 18px; }
 .seg button[aria-pressed="true"],
@@ -1476,13 +1483,19 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 .tab::after { background-color: var(--pill-color); background-image: var(--accent-line); }
 
 /* reduced motion: no transition and no lift on the main button */
-@media (prefers-reduced-motion: reduce) { .again, .btn.primary { transition: none; } .again:hover, .btn.primary:hover { transform: none; } }
+/* row 771: the dialog and form main button (.btn.pri) takes the same aqua pill; the finished state keeps its green, and the spinner and tick follow the dark text */
+.btn.pri.ok { background-color: var(--status-green-text); background-image: none; color: var(--text-on-brand); }
+.btn.pri .spin { border-color: color-mix(in srgb, var(--pill-fg) 30%, transparent); border-top-color: var(--pill-fg); }
+.btn.pri .pub-tick { background: var(--pill-fg); color: var(--pill-color); }
+.btn.pri.ok .pub-tick { background: var(--text-on-brand); color: var(--status-green-text); }
+.btn.pri:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .again, .btn.primary, .btn.pri { transition: none; } .again:hover, .btn.primary:hover, .btn.pri:hover { transform: none; } }
 
 /* type: Montserrat extra-bold for headings and figures, Inter for text, tracked capitals for the small line above a title */
 h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800; letter-spacing: -.01em; line-height: 1.15; }
 .crumbs { font-family: var(--font-label); font-weight: var(--weight-semibold); font-size: var(--size-caption); text-transform: uppercase; letter-spacing: .1em; }
 /* Work items: the project name above the title is plain (not tracked capitals); row 805 took the intro line away */
-#work .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }
+#work .crumbs, #milestones.pub .crumbs, #usecases-file .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }   /* the published tabs share one plain line (the editor's Milestones keeps its own) */
 #work .head h1 { margin: 0; }
 .fig .k, .tile .l { font-family: var(--font-label); font-weight: var(--weight-medium); }
 .tab, .proj { font-family: var(--font-label); font-weight: 500; }
@@ -1780,12 +1793,12 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-gal.n-1 { grid-template-columns: minmax(0, 1fr); }
 .tpl-gal.n-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .tpl-gal .tpl-fig img { aspect-ratio: 4 / 3; object-fit: cover; max-height: none; }
-.tpl-band { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); align-items: center; padding: var(--space-5) var(--space-6); border-radius: var(--radius-lg); background: var(--brand-navy); color: var(--text-on-brand); }
+.tpl-band { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); align-items: center; padding: var(--space-5) var(--space-6); border-radius: var(--radius-lg); background: var(--brand-navy); color: var(--white); }  /* row 946: white on the navy band in both themes */
 .tpl-band.has-pic { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
-.tpl-band-words { margin: 0; font-family: var(--font-head); font-size: var(--size-h2); font-weight: var(--weight-semibold); line-height: 1.25; color: var(--text-on-brand); }
+.tpl-band-words { margin: 0; font-family: var(--font-head); font-size: var(--size-h2); font-weight: var(--weight-semibold); line-height: 1.25; color: var(--white); }
 .tpl-band-btn { display: inline-flex; align-items: center; min-height: 36px; margin-top: var(--space-4); padding: 0 var(--space-4); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font-weight: var(--weight-medium); text-decoration: none; }
 .tpl-band-btn:hover { background: var(--grey-100); }
-.tpl-band-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tpl-band-btn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tpl-band .tpl-fig img { max-height: 240px; background: transparent; }
 @media (max-width: 900px) {
   .tpl-ti, .tpl-ti.pic-left, .tpl-band.has-pic { grid-template-columns: minmax(0, 1fr); }
@@ -1873,7 +1886,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ucp summary .cchip { align-self: center; }
 .ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
 .ucp-body h2 { margin: 14px 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
-.ucp-headline { margin: 0 0 8px; }
+.ucp-headline { margin: 0; flex-basis: 100%; color: var(--text-muted); overflow-wrap: anywhere; }
 /* Issue 713, a published file only: the reader's badge and menu at the top right of the bar, and the box "Your profile". Tokens only.
    The bar is dark in light and dark alike, so the badge uses the profile tokens. The bar's print rule hides all of it. */
 .cm-wrap { position: relative; display: inline-flex; flex: none; margin-left: auto; }
@@ -1914,6 +1927,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .print-tab-title { margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-body); font-weight: 400; color: var(--text-muted); }
   html.print-all .sec, html.print-all article, html.print-all .tile, html.print-all .fig, html.print-all figure, html.print-all blockquote, html.print-all tr, html.print-all li, html.print-all h1, html.print-all h2, html.print-all h3, html.print-all details { break-inside: avoid; }
   html.print-all h1, html.print-all h2, html.print-all h3 { break-after: avoid; }
+  html.print-all .ucp-none, html.print-all .ucp-body h2:has(+ .ucp-none) { display: none; }   /* row 767: the print opens every use case, so an empty list's line and its heading are left off the paper (no new words) */
   html.print-all .mv-wrap { overflow: hidden; resize: none; min-height: 0; }   /* row 767: the printed timeline is drawn to the page width (MsTimeline.jsx), so it needs no sideways scroll; nothing is cut off */
   html.print-all thead { display: table-header-group; }
   html.print-all a { color: inherit; text-decoration: none; }
@@ -1953,6 +1967,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-title { overflow-wrap: anywhere; color: var(--text); }
 .wl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: var(--size-small); color: var(--text-muted); }
 .wl-meta .av { width: 22px; height: 22px; font-size: var(--size-small); }
+.cr-wl .wl-meta .av { width: auto; min-width: 22px; height: 22px; padding: 0 var(--space-1); box-sizing: border-box; border-radius: 11px; font-size: var(--size-caption); line-height: 1; }      /* row 799: the snapshot's work lists only; WM at the 13 px floor is 24.3 px wide and clips a 22 or 24 px circle, so two letters widen it to a 22 px-high pill (no 12 px token exists; test_font holds 13 px) */
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }

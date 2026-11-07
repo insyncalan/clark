@@ -127,7 +127,7 @@
    ],
    [
     "ask clark",
-    "Answers questions about the project and checks the report. Press [[/]], or open the palette with [[Mod+K]] and choose Ask about this project.",
+    "Answers questions about the project and checks the report. Press [[/]], or open the palette with [[Mod+K]] and choose ask clark.",
     "ask"
    ],
    [
@@ -233,10 +233,10 @@
     "id": "check-the-report",
     "g": "Every week",
     "t": "Check the report with ask clark",
-    "w": "[[/]] · [[Mod+K]] › Ask about this project",
+    "w": "[[/]] · [[Mod+K]] › ask clark",
     "go": "ask",
     "s": [
-     "Press [[/]] when you aren’t typing in a box and no peek, menu or box is open, or press [[Mod+K]] and choose **Ask about this project**. It opens down the right-hand side.",
+     "Press [[/]] when you aren’t typing in a box and no peek, menu or box is open, or press [[Mod+K]] and choose **ask clark**. It opens down the right-hand side.",
      "Press **Check this report**. It reads the project’s data and says what looks wrong.",
      "An answer may suggest a change to a work item or a milestone as a card that shows it now and as it would be. Nothing is saved until you press **Apply**; **Undo** takes it back. If the change came from one of your files, you tick a box first.",
      "Ask anything else in your own words, or press a suggestion: **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week** or **Which use cases need attention?**.",
@@ -462,7 +462,7 @@
     "s": [
      "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a move button and, under it, a **+**. They are faint until you point at the section or tab to them.",
      "Drag the move button to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
-     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and, for a text section or the Needs from you section, **Delete section**. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
+     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and **Delete section**. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
      "To rearrange the page, pick up a section by its move button and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a narrow window a pair stacks.",
      "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "A section left out stays in Edit, greyed, and disappears in View and on the published page."
@@ -810,7 +810,7 @@
     "go": "settings#update",
     "s": [
      "Open [Settings](go:settings#update) and find **Version and updates**. **Installed** is the version you have now.",
-     "From the clark releases page, download the update attached to the release for your computer, and its .sig file. If they are in Downloads, **Update** shows **Review X.Y.Z**; otherwise press **Choose zip…** under **Install from a file** and pick the update.",
+     "From the clark releases page, download the update attached to the release for your computer. If it is in Downloads, **Update** shows **Review X.Y.Z**; otherwise press **Choose zip…** under **Install from a file** and pick the update.",
      "Read the review: the version change, the release notes, the files replaced, added and removed. Your projects, settings and published reports are kept, and a copy of your data is made first.",
      "Press **Install**. The new version starts by itself and the page reloads.",
      "To go back, press **Undo update** in the **Last update** row, then press it again within five seconds. More in [Updating clark](#ref-updating-clark)."
@@ -884,7 +884,7 @@
      ],
      [
       "p",
-      "The magnifying glass opens **Go to or do**, the same box as [[Mod+K]]. Type to find a command (Publish, Preview the page in a new tab, Export to Excel, Settings, Ask about this project, Help or Appearance), a page, a project, a work item or a milestone, then press [[Enter]]. A published file has no such button."
+      "The magnifying glass opens **Go to or do**, the same box as [[Mod+K]]. Type to find a command (Publish, Preview the page in a new tab, Export to Excel, Settings, ask clark, Help or Appearance), a page, a project, a work item or a milestone, then press [[Enter]]. A published file has no such button."
      ]
     ]
    },
@@ -1099,6 +1099,16 @@
         "One document",
         "A single file to read.",
         "Half or full"
+       ],
+       [
+        "Current state",
+        "The state of the project in a few lines, to sit beside another section.",
+        "Half or full"
+       ],
+       [
+        "Plan summary",
+        "Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.",
+        "Full or half"
        ]
       ]
      ]
@@ -1357,7 +1367,7 @@
     "id": "ask-clark",
     "g": "Screens",
     "t": "ask clark",
-    "w": "[[/]] · [[Mod+K]] › Ask about this project",
+    "w": "[[/]] · [[Mod+K]] › ask clark",
     "b": [
      [
       "p",
@@ -1863,9 +1873,9 @@
       "ul",
       [
        "**Installed** is the version you have. **Update** says Up to date, or shows **Review X.Y.Z** when a newer update is in Downloads. There is no online check.",
-       "**Choose zip…**, under **Install from a file**, takes an update you saved: the one attached to the release for your computer, with its .sig file in the same folder.",
+       "**Choose zip…**, under **Install from a file**, takes an update you saved: the one attached to the release for your computer.",
        "**Review** shows the version change, the release notes (**Copy**), the files replaced, added and removed (**Show the files**), and that your projects, settings and published reports are kept.",
-       "A copy of your data is made first, and if a step fails clark puts the old version back. An update is checked against its signature, and file by file against its list of checksums, before anything changes.",
+       "A copy of your data is made first, and if a step fails clark puts the old version back. An update is checked file by file against its list of checksums before anything changes.",
        "**Undo update** goes back to the version before: press it, then press it again within five seconds. If your data has changed since the update, the second button is **Put back the app and settings only**."
       ]
      ]
@@ -2128,7 +2138,7 @@
    ],
    [
     "[[Mod+K]]",
-    "The palette, from any page, even in a box: type to find a command, page, project, work item or milestone. [[Up]] and [[Down]] move, [[Enter]] runs it, [[Esc]] closes it and puts you back. It also opens ask clark: choose Ask about this project"
+    "The palette, from any page, even in a box: type to find a command, page, project, work item or milestone. [[Up]] and [[Down]] move, [[Enter]] runs it, [[Esc]] closes it and puts you back. It also opens ask clark: choose ask clark"
    ],
    [
     "[[Up]] [[Down]] [[Home]] [[End]]",
@@ -2533,7 +2543,7 @@
      "pic": "arrange-leave-out"
     },
     {
-     "d": "A text section, and the Needs from you section, also have **Delete section** in the menu. It removes the section from the report."
+     "d": "Every section also has **Delete section** in the menu. It removes the section from the report."
     }
    ],
    "result": "Edit shows the sections in their new order, and the published page follows it. A section you left out is greyed in Edit and gone from View and from the published page. **Undo** puts back a move, a section left out or a section removed.",

@@ -92,7 +92,7 @@ function focusRow(tr, id, cell) {
   (cellIn(r, fieldOf(cell)) || r).focus();
 }
 
-function Row({ row, today, Cell, Eye, stop, pos, size }) {
+function Row({ row, today, Cell, Eye, stop, pos, size, group }) {
   const due = dueCell(row, today), pill = pillOf(row, today);
   const cell = (field, said, content) => (Cell ? <Cell row={row} field={field} said={said}>{content}</Cell> : content);
   const hand = handing(), can = isOpen(row), ticked = hand && ticks.ids.value.includes(row.id);
@@ -122,7 +122,7 @@ function Row({ row, today, Cell, Eye, stop, pos, size }) {
           <span class="tx">
             {picked ? <span class="tick" aria-hidden="true"><Icon name="check" /></span> : null}
             <span class="t">{row.title}</span>
-            <span class="meta">{metaOf(row)}{isChanged(row.id) ? <span class="tag chg">{WORD}</span> : null}</span>
+            <span class="meta">{metaOf(row, group)}{isChanged(row.id) ? <span class="tag chg">{WORD}</span> : null}</span>
           </span>
         </div>
       </td>
@@ -159,7 +159,7 @@ function Table({ rows, today, type, Cell, Eye }) {
   const n = COLS.length + (Eye ? 1 : 0) + (hand ? 1 : 0);
   const stopOf = (drawn) => stopOfIds(drawn.map((r) => r.id));
   let order = [];                                  // the rows drawn, in order: each one's place for a screen reader ("3 of 12")
-  const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} Eye={Eye} stop={r.id === stop} pos={order.indexOf(r.id) + 1} size={order.length} />;
+  const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} Eye={Eye} stop={r.id === stop} pos={order.indexOf(r.id) + 1} size={order.length} group={g} />;
   if (g === "nothing") {
     const flat = sortRows(rows, today), stop = stopOf(flat);
     order = flat.map((r) => r.id);

@@ -259,7 +259,7 @@ Raised by the second the project lead, reviewed by the lead.
 "Let's build a help for clark.... emulate the help built for creaite. review creaite help and capture ALL features and functions".
 - **FR-120:** **Help is one page in three tabs**, all from one source of content: **Start here** (the report loop, the first ten minutes and the twelve everyday jobs), **How do I…** (26 tasks, each as numbered steps) and **Reference** (30 sections covering every view, field, key and the icon legend). The counts are as at 28-10-2026; the prototype's Help (`system/prototype/help.js`) is the source of truth for the list.
 - **FR-121:** **One search across all three tabs** finds a word in titles and text, shows where each match sits, and opens it in place.
-- **FR-122:** **Help opens from the profile menu** and from the **"?"** key anywhere outside a text field. Esc or Back returns to where the user was.
+- **FR-122:** **Help opens from the profile menu** and from the **"?"** key anywhere outside a text field. Esc returns to where the user was.
 - **FR-123:** Other parts of clark can **open Help at a given place** (a task or a reference section), for example from an empty state or a setting's note.
 - **FR-124:** Help works offline, follows light and dark mode, and is kept in step with the build: a test checks that every link inside Help finds its place and every screen it sends you to exists.
 

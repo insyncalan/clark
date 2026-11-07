@@ -12,10 +12,10 @@ export const TITLE_MAX = 120;
 const list = () => (data.value && data.value.report_sections) || [];
 const indexOf = (id) => list().findIndex((s) => s.id === id);
 
-export function titleProblem(text) {
+export function titleProblem(text, max = TITLE_MAX) {
   if (!text) return "A title can't be blank. The old title was kept. Type a new title to change it.";
   const n = Array.from(text).length;
-  if (n > TITLE_MAX) return `A title can be ${TITLE_MAX} characters at most, and this one has ${n}. The old title was kept. Shorten it and try again.`;
+  if (n > max) return `A title can be ${max} characters at most, and this one has ${n}. The old title was kept. Shorten it and try again.`;
   return "";
 }
 
@@ -26,7 +26,7 @@ const run = (result, id, where, part) => {
     if (!result.quiet) note(result.message);
     return Promise.resolve(null);
   }
-  const done = change({ ...result.payload, place: where }, result.words);
+  const done = change({ ...result.payload, place: where }, result.words, { focus: `.secs > .sec[data-id="${id}"] [data-drag]` });
   return part ? keep(done, id, part) : done;
 };
 
@@ -49,7 +49,7 @@ export function setMsHidden(id, hide, name) {
   eyeBusy.add(id);
   const what = name ? String(name) : "Milestone";
   const words = hide ? `${what} taken off the page.` : `${what} added back to the page.`;
-  return change({ kind: "report_hidden", op: hide ? "new" : "delete", id, place: "report" }, words).finally(() => eyeBusy.delete(id));
+  return change({ kind: "report_hidden", op: hide ? "new" : "delete", id, place: "report" }, words, { focus: `[data-ms-eye="${id}"]` }).finally(() => eyeBusy.delete(id));
 }
 
 // "+ Add a milestone from your project record": the picker's Add (the page's one `pick` change): every chosen milestone is taken off
@@ -89,7 +89,10 @@ export function remove(id, place) {
 export async function addFromTemplate(id, after, beside) {
   const p = planTemplate(list(), id, after, beside);
   if (!p.ok) { note(p.message); return null; }
-  const first = await change(p.requests[0], p.words);
+  // A template with a starter body (Plan summary) sends it in the one `new` request, so one Undo takes the whole section away.
+  const start = p.template && p.template.body && p.template.type === "text" ? { body: p.template.body } : {};
+  const req = p.requests[0];
+  const first = await change({ ...req, values: { ...req.values, ...start } }, p.words);
   if (first) keep(Promise.resolve(first), "new", "title");
   else await reread(project.value);       // clark said no: the page may be out of date (the section above gone, or paired since), so it shows what clark holds
   return first;

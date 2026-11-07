@@ -51,7 +51,8 @@ class Frames(Base):
             with self.subTest(width=width, scheme=scheme, edit=edit), chrome() as cdp:
                 sid = self.visit(cdp, width=width, edit=edit, hash_="#settings&p=ABC", wait_for=".set-head")
                 cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
-                got = cdp.js("(() => { const c = getComputedStyle(document.querySelector('.frame.setting')); return [c.borderTopWidth, c.boxShadow !== 'none']; })()", sid)
+                got = cdp.js("(() => { const c = getComputedStyle(document.querySelector('.frame.setting')); return [c.borderTopWidth, c.backgroundColor !== 'rgba(0, 0, 0, 0)']; })()", sid)
+                # Row 841 took the Settings cards' shadow away on purpose; a card is its border and its own surface.
                 self.assertEqual(got, ["1px", True], "a Settings card is still a card")
 
 

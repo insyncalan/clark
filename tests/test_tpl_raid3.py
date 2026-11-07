@@ -302,7 +302,11 @@ class PageSide(PageBase):
             self.assertEqual(kinds1, ["client", "own"], "a risk has none")
             self.set_select(p, f"[data-id={json.dumps(sec)}] select[aria-label='Card 2 text']", "latest")
             self.assertTrue(self.wait_for(lambda: json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])["cards"][1]["source"] == "latest"))
-            p.until(f"document.querySelector('[data-id={json.dumps(sec)}] select[aria-label=\"Card 2 text\"]').value === 'latest'", "the page has read it back")
+            p.until(f"document.querySelector('[data-id={json.dumps(sec)}] select[aria-label=\"Card 2 text\"]').value === 'latest'", "the select shows latest")
+            # That select shows what the test just set, so it proves nothing about the page. The page takes the saved body only after it has read the
+            # project again, and says so with the toast ("Card text changed." is new here: the two earlier changes said "Card added."). The next
+            # choice is built from the body the page holds, so it must not be made before then (the hosted Mac made it first and dropped the latest update).
+            p.until("(document.querySelector('.toast-text') || {}).textContent === 'Card text changed.'", "the page has taken the saved text source of card 2 (toast)")
             n = len([s for s in self.sent if s[0] == "change"])
             self.set_select(p, f"[data-id={json.dumps(sec)}] select[aria-label='Card 1 text']", "own")
             p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] input[aria-label=\"Card 1 own words\"]')", "own words box")
@@ -310,6 +314,8 @@ class PageSide(PageBase):
             p.until(f"document.querySelector('[data-id={json.dumps(sec)}] input[aria-label=\"Card 1 own words\"]').value === 'Typed words'", "kept")
             self.assertTrue(self.wait_for(lambda: json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])["cards"][0].get("own") == "Typed words"))
             self.assertEqual(len([s for s in self.sent if s[0] == "change"]), n + 2, "the source and the words are one change each")
+            final = json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])["cards"]
+            self.assertEqual(final[1]["source"], "latest", "the words change did not undo the earlier choice of card 2")
             # View now draws the cards
             p.view()
             self.assertEqual(self.card_ids(p, sec), [ids["risk"], ids["action"]])
