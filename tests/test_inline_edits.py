@@ -487,9 +487,9 @@ class Live(unittest.TestCase):
                 sid = self.open_page(cdp, width)
                 cell = "[data-cell='TUL-A-001:priority']"
                 self.assertEqual(self.cell_text(cdp, sid, "TUL-A-001", "priority"), "Urgent")
-                # each picker cell looks changeable before any hover: a caret after its value and a quiet edge under it
-                looks = cdp.js("[...document.querySelectorAll('.cell-pick')].map(b => [getComputedStyle(b, '::after').content, getComputedStyle(b).boxShadow !== 'none'])", sid)
-                self.assertTrue(looks and all(x == ['"▾"', True] for x in looks), looks[:4])
+                # row 1013: a picker cell reads as natural text at rest: no caret after its value and no edge under it (hover, focus and an open picker still draw one)
+                looks = cdp.js("[...document.querySelectorAll('.cell-pick[data-cell]')].map(b => [getComputedStyle(b, '::after').content, getComputedStyle(b).boxShadow !== 'none'])", sid)
+                self.assertTrue(looks and all(x == ['none', False] for x in looks), looks[:4])
                 # by click: the menu opens on the value it has; a pick changes the row and the store, in one step, and the peek stays shut
                 before = self.steps()
                 click(cdp, sid, cell)
