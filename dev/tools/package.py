@@ -9,16 +9,16 @@ Who the zip is for is decided by the tree it is built from, not by a flag (#463)
 it (any path publish_public.is_excluded names: the notes in EXCLUDED and docs/public/), it is the private copy, and the zip
 is for the team only: its files may still carry the team's names in comments and README.md may be the private one. If
 git tracks none, the tree holds none of the team's private notes, it is what the public repository holds, and the zip
-may be published there. The Built line and START-HERE.txt say which, and nothing else: they never claim the files are
+may be published there. The Built line and START-HERE.md say which, and nothing else: they never claim the files are
 scrubbed. If git cannot say, the zip is for the team only. A zip for a client is built with --for-client, which refuses, and writes nothing, unless (1) this folder is the scrubbed
 public snapshot that dev/tools/publish_public.py makes (#94; see snapshot_problem for how that is told) and (2) the name
-guard finds nothing in any file going into the zip, START-HERE.txt included. The name guard is the one the publish tool
+guard finds nothing in any file going into the zip, START-HERE.md included. The name guard is the one the publish tool
 runs: its own list of the team's and private names (publish_public.guard_kinds) and the hashed list of real client
 names in tests/test_no_real_names.py. Nothing here keeps a second list. A refusal names the files, never the names.
 
 What goes in is the one list below: SHARED for every system, plus the short list for each system in SYSTEMS. A folder in
 the list means the files git tracks under it, so nothing untracked (a database, a log, __pycache__) can slip in, and
-LEFT_OUT drops those even if one is ever tracked. START-HERE.txt is written from START_HERE.
+LEFT_OUT drops those even if one is ever tracked. START-HERE.md is written from START_HERE.
 
 clark-release.json (#109) is written here from the same files it zips: product, version, system, the date of the
 last commit, notes, the data layout number (store.SCHEMA_VERSION), min_from, and each file's SHA-256, size and mode. --release
@@ -110,7 +110,7 @@ Getting started on a Mac
 
 These steps are for a Mac.
 
-What is in this folder: README.md says what clark is. START-HERE.txt is this
+What is in this folder: README.md says what clark is. START-HERE.md is this
 page. Double-click clark.command to start clark. docker is for starting clark
 with Docker. system/branding holds your own logo and colours, if you add them.
 The program files are in a hidden folder called .app: you do not need to open
@@ -246,7 +246,7 @@ def zip_source(name, root=ROOT):
 
 
 def files(system, root=ROOT):
-    """The repo files that go in the zip for `system`, sorted (START-HERE.txt is not one: it is written here)."""
+    """The repo files that go in the zip for `system`, sorted (START-HERE.md is not one: it is written here)."""
     chosen, kept = set(), set()
     for item in listed(system):
         found = tracked(root, [item]) if item.endswith("/") else [item]
@@ -313,7 +313,7 @@ def private_paths(root):
 
 def audience(root=ROOT):
     """The audience line of a default build (not --for-client): TEAM_ONLY if `root` tracks any private-only path, or if
-    git cannot say; else PUBLIC_BUILD. The Built line, START-HERE.txt and the tests all read it from here."""
+    git cannot say; else PUBLIC_BUILD. The Built line, START-HERE.md and the tests all read it from here."""
     found = private_paths(root)
     return TEAM_ONLY if found is None or found else PUBLIC_BUILD
 

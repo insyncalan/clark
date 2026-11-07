@@ -21,7 +21,7 @@ from _new_page import reload_to_new_page_cdp
 from clark import page, server as sv  # noqa: E402
 from test_board import make_data  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
-from test_work_filters import click, dblclick, key, need_chrome, where  # noqa: E402
+from test_work_filters import click, dblclick, key, need_chrome, select_line, where  # noqa: E402
 from test_work_items import page_target  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -57,9 +57,9 @@ class Base(unittest.TestCase):
     def line(self, cdp, sid, text):
         """Replace the filter line the way a person does: click the box, select what is in it, type; the list follows after the pause."""
         click(cdp, sid, "#fline-input")
-        cdp.js("document.querySelector('#fline-input').select()", sid)
+        select_line(cdp, sid)
         cdp.call("Input.insertText", {"text": text}, sid)
-        self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == text))
+        self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == text))
         time.sleep(0.7)
 
     # ---- the data ----
@@ -153,7 +153,7 @@ class Base(unittest.TestCase):
         self.reload(cdp, sid)
         if mode != "open":
             click(cdp, sid, "#fline-input")                 # no is: word means every item, open or closed
-            cdp.js("document.querySelector('#fline-input').select()", sid)
+            select_line(cdp, sid)
             key(cdp, sid, "Backspace")
             self.until(cdp, sid, "!/open/.test(document.querySelector('#work-count').textContent)", "the count follows All")
         self.until(cdp, sid, "!!document.querySelector('#work-board .bcard')", "the board")
@@ -239,8 +239,8 @@ class Switch(Base):
             cdp.call("Page.enable", {}, sid)
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED + "Storage.prototype.setItem = function () { throw new Error('blocked'); };"}, sid)
             cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#work&p=ABC"}, sid)
-            self.until(cdp, sid, "!!document.querySelector('#viewMenu')")
-            self.view_pick(cdp, sid, "layout:board")
+            self.until(cdp, sid, "document.documentElement.dataset.ready === '1' && !!document.querySelector('#work [data-lay=board]')", "the page settled with the switch drawn")
+            self.view_pick(cdp, sid, "layout:board", mouse=False)    # the filter line is still settling: coordinates taken once could miss the button
             self.until(cdp, sid, "!!document.querySelector('#work-board')", "the board, though nothing could be kept")
 
     def test_the_published_page_has_no_board(self):
