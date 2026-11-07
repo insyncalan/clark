@@ -639,6 +639,30 @@ class AddBeside(Api):
         self.assertEqual(self.undone(got["apply_id"])[0], 200)
         self.assertEqual(self.snapshot()[2], before, "the section is gone and the one above is on its own again")
 
+    def test_add_beside_with_a_stray_flag_elsewhere_pairs_and_leaves_the_stray_flag_alone(self):
+        """A stray 1 on a second half (the page ignores it) is not this step's business: the add beside writes the new row and the one flag."""
+        for ref in ("ABC-S-003", "ABC-S-004"):
+            self.ok("update", id=ref, changes={"beside": 1})                # S3 and S4 are a pair; S4's own 1 is the stray flag
+        target = next(r["id"] for r in self.rows() if changes._on_its_own(self.rows(), r["id"]) and r["id"] != self.ids_now()[-1])
+        before = {r["id"]: r["beside"] for r in self.rows()}
+        got = self.ok("new", values={"title": "Beside"}, after=target, beside=1)
+        flags = {r["id"]: r["beside"] for r in self.rows()}
+        self.assertEqual((flags[target], flags[got["ref"]]), (1, 0), "the pair is made")
+        self.assertEqual({k: v for k, v in flags.items() if k not in (target, got["ref"])}, {k: v for k, v in before.items() if k != target}, "the stray flag stays as it was")
+        updates = [(r["key"], r["field"]) for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update"]
+        self.assertEqual(updates, [(target, "beside")], "one step: the new row and the one flag")
+        self.assertEqual(self.undone(got["apply_id"])[0], 200)
+        self.assertEqual({r["id"]: r["beside"] for r in self.rows()}, before, "one Undo puts everything back, stray flag included")
+
+    def test_add_beside_the_last_section_that_carries_a_stray_flag_still_pairs_them(self):
+        last = self.stale_last()                                            # the page ignores a 1 on the last section
+        before = {r["id"]: r["beside"] for r in self.rows()}
+        got = self.ok("new", values={"title": "Beside"}, after=last, beside=1)
+        flags = {r["id"]: r["beside"] for r in self.rows()}
+        self.assertEqual((flags[last], flags[got["ref"]]), (1, 0), "the old last section now starts a real pair")
+        self.assertEqual(self.undone(got["apply_id"])[0], 200)
+        self.assertEqual({r["id"]: r["beside"] for r in self.rows()}, before)
+
     def stale_last(self):
         last = self.ids_now()[-1]
         self.ok("update", id=last, changes={"beside": 1})
