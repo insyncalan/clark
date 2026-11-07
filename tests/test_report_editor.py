@@ -229,6 +229,14 @@ class Modes(Base):
                     "a reload is View")
             self.assertNotIn("edit", p.js("location.hash"))
 
+    def test_the_finder_skips_the_week_ending_box_and_only_that_one_in_the_report_bar(self):
+        """#533: the finder leaves out #week-ending (View has it too) but still reports any other field in the report bar."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.assertEqual(edit_elements(cdp, p.sid), [], "View: the Week ending box alone is left out")
+            p.js("(function(){var i=document.createElement('input');i.id='stray-bar-field';document.getElementById('report-bar').appendChild(i);})()")
+            self.assertEqual(edit_elements(cdp, p.sid), ["input#stray-bar-field"], "another field in the report bar is reported")
+
     def test_view_is_read_only(self):
         """View has none of the finder's elements (absent, not hidden); typing changes nothing; Edit has them all."""
         with chrome() as cdp:
