@@ -273,6 +273,65 @@ class Refusals(Base):
         self.assertTrue(any("no id column" in x.message for x in p.problems))
         self.assertEqual(self.lines(), before)
 
+    def client_copy(self, name="client.xlsx", band=True, mark=True):
+        """The client workbook built by the export (the lines of this project, ids as stored), saved to a file. band=False deletes the
+        3 title rows so the header is row 1; mark=False removes the client copy mark."""
+        import io
+        import test_gantt_excel_export as ge
+        from clark import publish
+        self.twelve()
+        inputs = ge.plant(gantt_tab_name="Gantt")
+        inputs["data"]["project"]["code"] = "ABC"
+        inputs["data"]["gantt_lines"] = [{k: (v.replace("PUB-", "ABC-") if isinstance(v, str) else v) for k, v in r.items()} | {"project": "ABC"}
+                                         for r in inputs["data"]["gantt_lines"]]
+        wb = load_workbook(io.BytesIO(excel_client.workbook_bytes(publish.select(inputs))))
+        self.assertIn(excel.CLIENT_COPY_NAME, wb.defined_names)
+        if not band:
+            wb["Gantt"].delete_rows(1, 3)
+        if not mark:
+            del wb.defined_names[excel.CLIENT_COPY_NAME]
+        path = self.tmp / name
+        wb.save(str(path))
+        return path
+
+    def test_a_client_copy_imported_by_hand_is_refused_and_nothing_is_written(self):
+        path = self.client_copy()
+        before, steps = self.lines(), self.steps()
+        p = self.plan(path)
+        self.assertEqual(p.changes, [])
+        self.assertTrue(any("Gantt: there is no id column, so the sheet was skipped (every row would look new)" in x.message for x in p.problems), p.problems)
+        self.assertEqual((self.lines(), self.steps()), (before, steps))
+
+    def test_a_client_copy_with_the_title_band_deleted_is_still_refused_by_the_mark(self):
+        path = self.client_copy(band=False)
+        before = self.lines()
+        p = self.plan(path)
+        self.assertEqual(p.changes, [])
+        self.assertTrue(any(x.sheet == "Gantt" and "there is no id column" in x.message for x in p.problems), p.problems)
+        self.assertEqual(self.lines(), before)
+
+    def test_without_the_mark_only_the_layout_rule_refuses_a_client_copy(self):
+        self.assertTrue(any(x.sheet == "Gantt" and "there is no id column" in x.message for x in self.plan(self.client_copy(mark=False)).problems))       # the band is row 1
+        p = self.plan(self.client_copy("moved.xlsx", band=False, mark=False))                                                       # header in row 1: read
+        self.assertFalse(any(x.sheet == "Gantt" for x in p.problems), p.problems)
+
+    def test_an_editor_export_has_no_mark_and_still_imports(self):
+        self.twelve()
+        path = self.export()
+        self.assertNotIn(excel.CLIENT_COPY_NAME, load_workbook(str(path)).defined_names)
+        self.assertFalse(any(x.sheet == "Gantt" for x in self.plan(path).problems))
+
+    def test_a_workbook_with_no_sheet_names_the_gantt_sheet_in_the_refusal(self):
+        self.twelve()
+        path = self.export()
+        wb = load_workbook(str(path))
+        for ws in wb.worksheets:
+            ws.title = "Old " + ws.title
+        wb.save(str(path))
+        p = self.plan(path)
+        self.assertEqual(p.changes, [])
+        self.assertTrue(any("Milestones, Use cases or Gantt, so there is nothing to compare" in x.message for x in p.problems), p.problems)
+
 
 class Isolation(Base):
     def test_importing_writes_no_client_file(self):

@@ -998,6 +998,9 @@ def _gantt_sheet(self, ws):
     typed is only the name the Parent and Depends on cells of the sheet use for it). Days and Status are worked out and never read.
     A line missing from the sheet is left alone. The rules are the page's, applied when the plan is checked and again when it is applied."""
     sheet = ws.title
+    if excel.CLIENT_COPY_NAME in ws.parent.defined_names:      # the client workbook's mark (excel_client.write_gantt_sheet): a client copy is never imported, whatever row its header is in
+        self.problem(f"{sheet}: there is no id column, so the sheet was skipped (every row would look new)", sheet)
+        return
     first = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ())
     header, ignored = {}, []
     for i, h in enumerate(first):
@@ -1281,8 +1284,8 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
         rd.plan.partial = sheets is not None and any(
             SHEET_TABLES.get(re.sub(r"[\s_]+", " ", w.title.strip().lower())) not in (None, *sheets) for w in wb.worksheets)
         if not found:
-            rd.problem("The workbook has none of the sheets Actions, Risks & Issues, Decisions, Milestones or Use cases, so there is "
-                       "nothing to compare.")
+            rd.problem("The workbook has none of the sheets Actions, Risks & Issues, Decisions, Milestones, Use cases or "
+                       f"{excel.gantt_sheet_name(project_row.get('gantt_tab_name'))}, so there is nothing to compare.")
         else:
             for t in TABLE_ORDER:
                 if t not in found and (sheets is None or t in sheets):
