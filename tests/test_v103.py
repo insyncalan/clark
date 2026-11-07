@@ -257,6 +257,18 @@ COVERED = [
      "test_templates::Box::test_the_templates_are_a_grid_of_cards_with_a_sketch_and_width_chips_and_an_x_closes_it"),
     ("#783", "The chosen template's card shows the focus ring in light and dark.",
      "test_templates::Box::test_the_focus_ring_is_the_brand_blue_in_light_and_dark_and_the_scrim_is_a_token"),
+    ("#939", "An update file with no signature file installs while the release key is the placeholder.",
+     "test_update_signature::PlaceholderKeyTest::test_an_unsigned_file_installs_through_take_in_with_the_placeholder_key"),
+    ("#939", "With a real release key an update with no signature, or a wrong one, is refused.",
+     "test_update_signature::PlaceholderKeyTest::test_a_real_release_key_in_force_refuses_unsigned_and_wrongly_signed"),
+    ("#939", "An unsigned update is reviewed like any other while the release key is the placeholder.",
+     "test_updater::ReviewTest::test_an_unsigned_update_is_reviewed_while_the_release_key_is_the_placeholder"),
+    ("#939", "The Choose hint names the update for this computer and has no sentence about a signature file.",
+     "test_update_page::Rows::test_row_60_the_choose_hint_names_the_update_for_this_computer_and_never_the_file_type_or_the_source_code"),
+    ("#939", "An update with a newer data layout migrates with a copy, and Undo puts the old file back.",
+     "test_update_layout_newer::NewerLayoutRelease::test_a_release_with_a_newer_layout_migrates_with_the_copy_and_undo_puts_the_old_file_back_byte_for_byte"),
+    ("#947", "Grouped by workstream, the line under an item leaves the workstream out.",
+     "test_work_items::Rules::test_the_sub_line_leaves_the_workstream_out_when_grouped_by_workstream"),
     ("#902", 'The Appearance choice is a radio group with arrow keys.',
      "test_appearance::Appearance::test_C_appearance_arrow_keys_move_and_pick_row_902"),
     ("#903", 'Help Start here has a hero card and The loop above the jobs.',
@@ -292,7 +304,7 @@ COVERED = [
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
-NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874", "889", "895", "905", "907", "914", "917", "918", "920", "932"}
+NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874", "889", "895", "905", "907", "908", "914", "917", "918", "920", "932", "941"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
 PARTLY_MERGED = {"767", "766", "775", "776"}
