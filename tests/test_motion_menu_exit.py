@@ -32,6 +32,7 @@ class MotionMenuExit(Base):
                             got = json.loads(cdp.js(STATE, sid))
                             self.assertEqual(got, {"name": "m-out", "leaving": True, "inert": True, "hidden": "true"})
                         self.assertTrue(wait(lambda: cdp.js("document.querySelector('.ddmenu') === null", sid), 15), "gone after the fade (or the guard)")
+                        self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid), 15), "no animation is left running after the exit")
                         self.assertTrue(wait(lambda: cdp.js("document.activeElement.id === 'profile-btn'", sid), 15), "focus is back on the button")
 
     def test_row_922_css_is_inside_the_motion_block_with_tokens_and_the_menu_keeps_its_guard(self):
