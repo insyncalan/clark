@@ -70,7 +70,7 @@ class Head(Base):
                     for name, head_id in CARDS:
                         self.assertEqual(p.js(f"document.getElementById('{head_id}').textContent"), name, "a chip says what its card's heading says")
                         self.assertEqual(p.js(f"document.getElementById('{head_id}').getAttribute('tabindex')"), "-1")
-                    for gone in ("Profile", "AI", "Client folder", "Published reports"):
+                    for gone in ("AI", "Client folder", "Published reports"):
                         self.assertNotIn(gone, self.chips(p), f"no chip for {gone}: there is no such card")
                     self.assertNotIn("Settings are not ready yet.", p.js("document.querySelector('main').innerText"))
 

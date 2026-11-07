@@ -53,7 +53,7 @@ class SettingsBar(Base):
                     p = self.page(cdp)
                     self.open_settings(p, w, mode)
                     self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-bar')).position"), "sticky")
-                    self.assertEqual(self.marked(p), "Publishing", "at the top of the page the first chip is marked")
+                    self.assertEqual(self.marked(p), "Profile", "at the top of the page the first chip is marked")
                     p.js("window.scrollTo(0, 900)")
                     self.settle(p)
                     self.assertLess(abs(p.js("document.querySelector('.set-bar').getBoundingClientRect().top - document.querySelector('.top').getBoundingClientRect().bottom")), 2,
@@ -80,7 +80,7 @@ class SettingsBar(Base):
                     self.assertEqual(p.js("document.querySelectorAll('.set-nav .set-chip[aria-current]').length"), 1, "one chip is marked")
                     self.assertEqual(p.js(f"{MARKED}.getAttribute('aria-current')"), "location")
                 p.js("window.scrollTo(0, 0)")
-                p.until(f"({MARKED} || {{}}).textContent === 'Publishing'", "back at the top, the first chip is marked")
+                p.until(f"({MARKED} || {{}}).textContent === 'Profile'", "back at the top, the first chip is marked")
                 self.chip(p, "Asking")
                 p.until("document.activeElement && document.activeElement.id === 'ask-settings-h'", "focus is on the Asking heading")
                 self.settle(p)
