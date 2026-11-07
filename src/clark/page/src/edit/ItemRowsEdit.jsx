@@ -18,7 +18,7 @@ import { Cell } from "./cells/Cell.jsx";
 import { plainBox, read, show } from "./Title.jsx";
 import { tableOf } from "./itemEdit.js";
 
-export const WORDS_MAX = 200;                                        // clark/changes.py: a work item's text is 200 characters at most
+export const WORDS_MAX = __CLARK_ITEM_TITLE_MAX__;      // clark/limits.py ITEM_TITLE_MAX, written in by the build: a work item's text is that many characters at most
 const A = { raid: "a risk", actions: "an action", decisions: "a decision" };
 const PLACEHOLDER = (type) => `+ Add ${A[type]}: type “Owner: what it is”, then Enter`;
 

@@ -12,7 +12,7 @@ from _paths import SRC
 from clark import changes, glance, store as store_module
 
 
-GANTT_DEFAULTS = {"show_gantt_editor": 0, "show_gantt_client": 0, "gantt_tab_name": "Gantt", "gantt_title": "", "gantt_hidden_columns": "show,note,budget,effort,baseline_start,baseline_end,owner", "gantt_default_rows": None}   # row 926: the project echo carries the Gantt settings
+GANTT_DEFAULTS = {"show_gantt_editor": 0, "show_gantt_client": 0, "gantt_tab_name": "Gantt", "gantt_title": "", "gantt_hidden_columns": "show,note,budget,effort,baseline_start,baseline_end,owner", "gantt_default_rows": None, "brand": "generic"}   # row 926: the project echo carries the Gantt settings
 
 class Base(unittest.TestCase):
     def setUp(self):
@@ -65,7 +65,7 @@ class Base(unittest.TestCase):
 class Kinds(Base):
     def test_the_two_kinds_and_their_fields(self):
         self.assertEqual(changes.CHANGE_KINDS["glance_tiles"], {"update": ("hidden", "outline"), "move": ()})
-        self.assertEqual(changes.CHANGE_KINDS["projects"], {"update": ("health", "health_reason", "week_ending", "review_after_days", "show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows"), "archive": (), "restore": ()})   # #126 adds archive and restore
+        self.assertEqual(changes.CHANGE_KINDS["projects"], {"update": ("health", "health_reason", "week_ending", "review_after_days", "show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows", "brand"), "archive": (), "restore": ()})   # #126 adds archive and restore
         for kind in ("glance_tiles", "projects"):
             columns = set(store_module.columns(self.s.con, kind))
             for fields in changes.CHANGE_KINDS[kind].values():
@@ -479,7 +479,7 @@ class WhatAnUndoMayReverse(Base):
         self.assertEqual(set(changes.UNDOABLE), {"report_sections", "actions", "raid", "decisions", "glance_tiles", "projects",
                                                  "milestones", "use_cases", "documents", "workstreams", "report_hidden", "gantt_lines"})   # row 926: + the Gantt lines; #126 adds the archivable records
         self.assertEqual(changes.UNDOABLE["glance_tiles"], ("hidden", "outline", "sort_order"))
-        self.assertEqual(changes.UNDOABLE["projects"], ("health", "health_reason", "week_ending", "review_after_days", "show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows", "archived", "active"))
+        self.assertEqual(changes.UNDOABLE["projects"], ("health", "health_reason", "week_ending", "review_after_days", "show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows", "brand", "archived", "active"))
         self.assertTrue(set(changes.UNDOABLE) >= set(changes.CHANGE_KINDS), "every kind the route admits can be undone")
 
     def test_a_dashboard_step_that_renamed_the_project_is_refused(self):

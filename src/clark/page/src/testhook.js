@@ -20,5 +20,6 @@ export function install(tools) {
   window.clarkPage = Object.freeze({ show, openPeek, closePeek, setProject, setFilters, filters: () => f.value, peek: () => peek.value, project: () => project.value, selected: () => workSelection.ids.value.slice(),
     markChanged, changed: () => changed.value.slice(), useClock,
     publishCloseMs: (ms) => { if (ms !== undefined) closeAfter.ms = ms; return { now: closeAfter.ms, page: CLOSE_MS }; },
+    changeData: (fn) => { data.value = fn(data.value); },      // #970: a test adds or removes a work item as the data being read again does
     showHealth: (health, reason) => { data.value = { ...data.value, project: { ...data.value.project, health, health_reason: reason } }; }, ...help });
 }

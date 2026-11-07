@@ -65,7 +65,7 @@ class TopBarTabs(Base):
                 p = self.visit(cdp)
                 size(cdp, p, width, 700)
                 p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
-                p.until("!!document.querySelector('.modes')", f"at {width} px, {theme}: the View/Edit switch (.modes; on the Dashboard it is the report bar's pill, off it the top bar's) never appeared")
+                p.until("!!document.querySelector('.modes')", f"at {width} px, {theme}: the View/Edit switch (.modes; the Dashboard report bar's pill) never appeared")
                 if edit:
                     p.js("document.querySelector('.modes [data-mode=edit]').click()")
                 p.js("document.querySelector('.top .projbtn > span').textContent = 'Customer onboarding programme, phase two, northern region'")
@@ -127,10 +127,11 @@ class TopBarTabs(Base):
             p = self.visit(cdp)       # ready() waits for the Dashboard's sections, so open there and go to Work items by its tab
             size(cdp, p, width, 700)
             p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
+            if edit:       # row 804: View | Edit is the Dashboard's pill, so Edit is chosen there, before Work items opens
+                p.js("document.querySelector('.top [data-mode=edit]').click()")
             p.js("document.querySelector('.top .tab[data-view=work]').click()")
             p.until("document.querySelector('.top .tab[aria-selected=true]').dataset.view === 'work'", "Work items did not open")
-            if edit:
-                p.js("document.querySelector('.top [data-mode=edit]').click()")
+            self.assertEqual(p.js("document.querySelectorAll('.top [data-mode]').length"), 0, "no View | Edit switch on Work items")
             where = f"at {width} px, {theme}, {'Edit' if edit else 'View'}"
             self.assertEqual(p.js("document.querySelector('.top .logo') && document.querySelector('.top .logo').tagName"), "BUTTON", f"{where}: the logo is not a button")
             self.assertTrue(p.js("(document.querySelector('.top .logo').getAttribute('aria-label') || '').trim().length > 0"), f"{where}: the logo has no accessible name")

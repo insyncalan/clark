@@ -216,6 +216,22 @@ def summary(results):
     return "Everything clark needs is ready.", 0
 
 
+def run_checks(seen, checks=CHECKS):
+    """Every check's (check, Line), in order, without saying anything."""
+    return [(check, run_check(check, seen)) for check in checks]
+
+
+def check_id(check):
+    """A check's short name for a page or a program (the name of its function, without 'check_'): 'python', 'port'..."""
+    name = getattr(check.run, "__name__", "")
+    return name[len("check_"):] if name.startswith("check_") else name
+
+
+def as_data(results):
+    """The results as plain data for a page: [{id, status, words}, ...]. `status` is the Line's kind."""
+    return [{"id": check_id(check), "status": line.kind, "words": line.words} for check, line in results]
+
+
 def doctor(seen, say=print, checks=CHECKS):
     """Run every check and say its line, then the summary. The exit code: 0 all required checks ready, 1 not."""
     say("Checking what clark needs on this computer...")

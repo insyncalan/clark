@@ -21,7 +21,7 @@ import { people } from "./itemEdit.js";
 import { ask } from "./Bulk.jsx";
 import * as H from "../logic/handOver.js";
 
-const OVERLAY = ".bask-back, .cpop, .ddmenu, .dpick, .fbox, [role='dialog']:not([data-peek]), [role='alertdialog'], dialog[open]";
+const OVERLAY = ".bask-back, .cpop, .ddmenu:not(.leaving), .dpick, .fbox, [role='dialog']:not([data-peek]), [role='alertdialog'], dialog[open]";
 const editing = () => isEditing() && !fromFile.value;      // no mode on Work items (row 824)
 
 /** Turn pick mode on: nothing ticked, the usual selection cleared, the people list read again. */

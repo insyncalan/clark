@@ -24,7 +24,7 @@ class Inline(Base):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     p = self.visit(cdp, width=width, theme=theme)
                     p.until("!!document.querySelector('.msv .msl-row')", "the list drew")
-                    self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true", "this is View")
+                    self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
                     p.until("!!document.querySelector('#addMs')", "View has Add milestone")
                     self.assertGreater(p.js("document.querySelectorAll('%s').length" % PAGE_EYE), 0, "View has the eye on the page")
                     self.assertEqual(p.js("document.querySelector('%s').disabled" % PAGE_EYE), False)

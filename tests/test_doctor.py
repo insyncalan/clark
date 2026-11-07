@@ -268,6 +268,53 @@ class Claude(DoctorCase):
         self.assertNotIn("C:/Tools", "\n".join(lines))
 
 
+class AsData(DoctorCase):
+    """The checks as data (for the setup page): the same results as the printed ones, without printing."""
+
+    def both(self, **over):
+        seams = self.seams(**over)
+        said = []
+        code = doctor.doctor(doctor.Seen(**seams), said.append)
+        results = doctor.run_checks(doctor.Seen(**seams))
+        return said, code, results
+
+    def test_the_printed_lines_are_the_results_said_in_order(self):
+        for over in ({}, dict(version=(3, 8, 9)), dict(find_chrome=None, find_claude=lambda: None),
+                     dict(health=lambda port, mark: launch.OTHER_DATA, free=lambda port: True),
+                     dict(on=pl.WINDOWS)):
+            said, code, results = self.both(**over)
+            rebuilt = ["Checking what clark needs on this computer..."]
+            rebuilt += [f"{doctor.LABELS[line.kind]} {line.words}" for check, line in results]
+            last, want = doctor.summary(results)
+            rebuilt.append(last)
+            self.assertEqual("\n".join(said), "\n".join(rebuilt), over)
+            self.assertEqual(code, want, over)
+
+    def test_it_says_nothing(self):
+        out = []
+        with mock.patch("builtins.print", side_effect=out.append):
+            doctor.run_checks(doctor.Seen(**self.seams()))
+        self.assertEqual(out, [])
+
+    def test_the_shape_is_id_status_words(self):
+        said, code, results = self.both(version=(3, 8, 9))
+        data = doctor.as_data(results)
+        self.assertEqual(len(data), len(doctor.CHECKS))
+        self.assertTrue(all(set(row) == {"id", "status", "words"} for row in data), data)
+        self.assertEqual(len({row["id"] for row in data}), len(data), data)
+        self.assertEqual(data[0]["id"], "python")
+        self.assertEqual(data[0]["status"], doctor.FIX)
+        for row, (check, line) in zip(data, results):
+            self.assertEqual((row["status"], row["words"]), (line.kind, line.words))
+            self.assertIn(f"{doctor.LABELS[line.kind]} {line.words}", said)
+
+    def test_a_check_that_stops_is_data_too(self):
+        boom = doctor.Check("The test check", True, lambda seen: 1 / 0)
+        data = doctor.as_data(doctor.run_checks(doctor.Seen(**self.seams()), (boom,)))
+        self.assertEqual(data[0]["status"], doctor.NOT_CHECKED)
+        self.assertIn("The test check couldn't finish.", data[0]["words"])
+
+
 class NotBuiltYet(DoctorCase):
     """A system whose platform branch isn't written: it says so, never crashes, and the exit code is 1."""
 
