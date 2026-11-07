@@ -19,6 +19,17 @@ export const SHORT_TITLES = { get clientreport() { return fromFile.value ? "Snap
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
 // Back and Forward step through them (#63). Each change of page, project or peek goes through navigate() there.
 const start = route.current();
+
+// The brand block is the server's, for the project in the address (#944, GET /?project=<code>). An address for another project than the
+// one this page was served for (typed, bookmarked, or a Back) is loaded again for its own; a published file and a non-served page never are.
+function reloadFor(s) {
+  try {
+    if (published() || !s.project || !/^https?:$/.test(location.protocol) || s.project === (new URLSearchParams(location.search).get("project") || "")) return false;
+    location.replace("/?project=" + s.project + route.format(s));
+    return true;
+  } catch (e) { return false; }
+}
+reloadFor(start);
 export const project = signal(start.project);
 export const view = signal(start.view === "clientreport" && !published() ? "dashboard" : start.view);   // the served page has no client report (#559): its address opens the first tab; a published file keeps it (its own tab list decides in openPublished)
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
@@ -145,7 +156,7 @@ function leave() {
 
 let backingAt = -Infinity;                               // when a Back from closePeek was started: a second close before it lands must not step Back again; after 1.5 s it counts as lost (row 894; no timer on the open path, see test_peek OpenTime)
 const backing = () => performance.now() - backingAt < 1500;
-route.onPop((s) => { backingAt = -Infinity; leave(); apply(s); });
+route.onPop((s) => { if (reloadFor(s)) return; backingAt = -Infinity; leave(); apply(s); });
 
 /** Go to a page: one new entry; an open peek closes, and so do the filters (they belong to one page). */
 export function show(next) {
@@ -206,7 +217,16 @@ export function closePeek() {
 /** Switch project: one new entry (and any peek and the filters close), so Back returns to the earlier one. */
 export function setProject(code) {
   if (!route.isProject(code)) return;
-  go({ view: view.value, project: code, item: "", ms: "", f: "" });
+  loadProject({ view: view.value, project: code, item: "", ms: "", f: "" });
+}
+
+// A different project is a fresh page load, GET /?project=<code> (#944): the server sends that project's one brand block with the policy's
+// hashes of exactly those bytes. The page is asked for first: if it cannot be had, this page stays and moves in place as before (as it does
+// for the same project, or an address that cannot be set).
+function loadProject(s) {
+  if (s.project === project.value || typeof fetch !== "function") { go(s); return; }
+  const url = "/?project=" + s.project + route.format(s);
+  fetch(url, { cache: "no-store" }).then((r) => { if (r.ok) location.assign(url); else go(s); }, () => go(s));
 }
 
 /** A filter change (#64a): `text` goes in the address as `f`, exactly as given (the router does not read, decode or encode it; the
@@ -240,7 +260,7 @@ export function openProject(code) {
 // Open a project on a given page (Settings › Projects: Open): one new entry.
 export function openProjectAt(code, next) {
   if (!route.isProject(code)) return;
-  go({ view: next, project: code, item: "", ms: "", f: "" });
+  loadProject({ view: next, project: code, item: "", ms: "", f: "" });
 }
 
 // The published file's data block: null when the page is the editor's, "bad" when the block is there but is not ours.

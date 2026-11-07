@@ -282,6 +282,27 @@ def projects_of(path, onedrive_roots=None):
     return projects
 
 
+def page_of(path, onedrive_roots=None):
+    """The `page_html` the server calls for GET / (#944): page_html(project) gives the page in that open project's brand, one
+    brand-local block or none (Generic, no project, an unknown code, a removed brand). The brand is read from the project's row."""
+    def page_html(project=None):
+        brand = "generic"
+        if project is not None:
+            try:
+                found = clark_store.open_store(path, onedrive_roots=onedrive_roots)
+            except clark_store.Invalid as e:
+                if str(e) == backup.RESTORE_BUSY:
+                    raise server.Busy(str(e)) from None
+                raise
+            try:
+                brand = next((r["brand"] for r in found.read("projects") if r["code"] == project), "generic")
+            finally:
+                found.close()
+        folder = brands.folder(page.BRANDING.parent.parent, brand)
+        return page.page_html(branding=page.NO_BRAND if folder is brands.GENERIC else folder)
+    return page_html
+
+
 CLOSED_STATUSES = ("Closed", "Cancelled", "Made", "Withdrawn")      # as the page's isOpen (workItems.js): an action, risk, issue or decision with any other status is open
 
 
@@ -493,7 +514,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         except OSError as e:
             LOG.warning("brands: could not put right a leftover from a crash: %s", e)
         connect, asker = ai_connect.chain(store.path.parent)       # #54: Settings › AI; asking goes through it
-        done = serve(port=port, data_for=store.data_for, page_html=page.page_html,
+        done = serve(port=port, data_for=store.data_for, page_html=page_of(store.path, roots),
                      projects=projects, out=shown,
                      err=err,
                      publisher=publish_flow.Publisher(store.path, roots, by_user=who.who, data_dir=store.path.parent),
@@ -517,7 +538,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      publication_mark=changes.make_publication_mark(store.path, roots, by_user=who.who),
                      as_at=as_at.AsAt(store.path),
                      demo=None if args.demo else demo_seed.Demo(store.path, roots),      # #731: --demo has its own demo, which is not removable
-                     brand_picture=page.brand_picture,
+                     brand_picture=page.brand_picture_of,
                      updater=updates_seam,
                      **handlers)
         LOG.info("stopped with code %d", done)
