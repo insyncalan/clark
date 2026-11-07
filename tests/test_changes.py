@@ -632,6 +632,31 @@ class AddBeside(Api):
         updates = [(r["key"], r["field"]) for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update"]
         self.assertEqual(updates, [(target, "beside")], "one step holds the new row and the one flag: nothing else")
 
+    def test_add_beside_the_last_section_that_carries_a_stray_flag_makes_the_pair_and_one_undo_puts_the_flag_back(self):
+        """#536: the last section's 1 is ignored by the page (stray). An add beside it is allowed: the flag now starts a real pair."""
+        last = self.ids_now()[-1]
+        self.ok("update", id=last, changes={"beside": 1})
+        before = self.snapshot()[2]
+        got = self.ok("new", values={"title": "Beside"}, after=last, beside=1)
+        flags = {r["id"]: r["beside"] for r in self.rows()}
+        self.assertEqual((flags[last], flags[got["ref"]]), (1, 0), "the old last starts the pair, the new one is its second half")
+        self.assertEqual(self.ids_now()[-1], got["ref"])
+        updates = [(r["key"], r["field"]) for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update"]
+        self.assertEqual(updates, [], "the flag was already 1: nothing but the new row is written")
+        self.assertEqual(self.undone(got["apply_id"])[0], 200)
+        self.assertEqual(self.snapshot()[2], before, "one Undo takes the section away and leaves the flag as it was")
+
+    def test_add_beside_a_lone_section_leaves_a_stray_flag_elsewhere_alone(self):
+        """#536: an add that carries beside does not run the add-after-the-last tidy; a stray 1 on the last section stays."""
+        last = self.ids_now()[-1]
+        self.ok("update", id=last, changes={"beside": 1})
+        target = self.lone()
+        got = self.ok("new", values={"title": "Beside"}, after=target, beside=1)
+        flags = {r["id"]: r["beside"] for r in self.rows()}
+        self.assertEqual((flags[target], flags[got["ref"]], flags[last]), (1, 0, 1), "the pair is made and the stray flag is untouched")
+        updates = sorted((r["key"], r["field"]) for r in self.s.step_rows(got["apply_id"]) if r["op"] == "update")
+        self.assertEqual(updates, [(target, "beside")])
+
     def test_one_undo_removes_the_section_and_the_pairing(self):
         target = self.lone()
         before = self.snapshot()[2]
