@@ -965,3 +965,6 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .sn-acts { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
 /* row 796: the Publish box is the prototype's 560 px; its heading keeps the .dlg h2 style every box uses. Edit's alone: the published file has no such box. */
 #publish-dialog { width: min(560px, calc(100vw - 32px)); }
+/* Row 833: the examples row under the filter line is out of the flow, so while it is hidden it takes no room (it reserved 33 px); shown it floats over what is below (layer 24: over the sticky bars, under the drop-down menus at 25, so an open menu is not covered). Edit only: the published page draws no filter line. */
+.fhints { position: absolute; left: 0; right: 0; z-index: 24; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; padding: 0 0 var(--space-1); background: var(--grey-50); visibility: hidden; }
+.fhints.on { visibility: visible; }
