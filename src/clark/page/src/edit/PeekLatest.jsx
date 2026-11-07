@@ -85,7 +85,7 @@ export function PeekLatest({ row }) {
   return (
     <div class="pk-latest" data-pk-latest>
       {action ? <>
-        <div class="pk-lab"><span id="pk-latest-lab">Latest update</span> <button type="button" class="pk-draft" data-pk-draft onClick={draft}><Icon name="sparkle" cls="s" />Draft</button>
+        <div class="pk-lab"><span id="pk-latest-lab">Latest update</span> <button type="button" class="pk-draft" data-pk-draft onMouseDown={(e) => e.preventDefault()} onClick={draft}><Icon name="sparkle" cls="s" />Draft</button>
           {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
         {open
           ? <>

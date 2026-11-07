@@ -304,6 +304,18 @@ class Browser(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("(document.querySelector('[data-pk-latest-text]') || {textContent: ''}).textContent", sid) == "Brand new words"))
                 self.assertEqual((len(sent), sent[0]["changes"]), (1, {"latest_update": "Brand new words"}))
 
+    def test_pressing_draft_does_not_take_the_focus_from_the_box(self):
+        """Safari and Firefox give a pressed button no focus, so the box's blur has no relatedTarget and saves the typed text before the click.
+        A press on Draft is cancelled (no focus move at all), so the box keeps its focus and its blur never races the click."""
+        with chrome() as cdp:
+            sent, sid = self.load(cdp, 1400, OVERDUE)
+            click(cdp, sid, "[data-pk-latest-text]")
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid)), "focus is in the box")
+            self.assertTrue(cdp.js("(b => { const e = new MouseEvent('mousedown', {bubbles: true, cancelable: true}); b.dispatchEvent(e); return e.defaultPrevented; })(document.querySelector('[data-pk-draft]'))", sid),
+                            "the press on Draft is cancelled")
+            self.assertTrue(cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid), "the box still has the focus")
+            self.assertEqual(sent, [], "nothing was sent by the press")
+
     def test_the_box_has_the_focus_as_it_is_drawn_not_a_frame_later(self):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, OVERDUE, late=True)
