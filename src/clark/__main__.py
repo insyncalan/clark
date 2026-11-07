@@ -469,6 +469,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         server.set_idle(idle.Idle.from_environ(environ) if idle.launched(environ) else None)
         server.set_data_mark(appfiles.data_mark(store.path.parent))
         server.set_version(__version__)
+        server.set_code_mark(appfiles.code_mark())
         shown = ServerOutput(out, code, open_url if args.open else None, err)
         projects = projects_of(store.path, roots)
         log, handler, logs = start_log(store.path.parent, projects, home, scratch)
