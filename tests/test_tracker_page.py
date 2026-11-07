@@ -229,6 +229,22 @@ class Page(Base):
                     self.assertTrue(p.js(self.one(ref, "[data-tr-mark-label]") + ".getBoundingClientRect().left >= " + self.one(ref, "[data-tr-bar]") + ".getBoundingClientRect().left - 1"), "the label stays over the bar" + where)
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light"}]}, p.sid)
 
+    def test_the_planned_label_of_a_marker_near_95_percent_stays_over_the_bar_at_its_right_edge(self):
+        """#529: the test above checks the label's left edge only. A marker near the right end must not push the label past the bar."""
+        ref = self.make({"v": 1, "overall": {"health": "", "note": ""}, "groups": [{"name": "A", "lines": [line("One", 1000, 950, 400)]}]})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for width in (1400, 900):
+                self.resize(cdp, p, width, "light")
+                where = " at " + str(width)
+                self.assertEqual(p.js(self.one(ref, ".tr-mark") + ".style.left"), "95%", "the marker is near the right end" + where)
+                self.assertEqual(p.js(self.text_of(ref, "[data-tr-mark-label]")), "Planned 95%", where)
+                self.assertTrue(p.js(self.one(ref, "[data-tr-mark-label]") + ".getBoundingClientRect().right <= " + self.one(ref, "[data-tr-bar]") + ".getBoundingClientRect().right + 1"),
+                                "the label stays over the bar at its right edge" + where)
+                self.assertTrue(p.js(self.one(ref, "[data-tr-mark-label]") + ".getBoundingClientRect().left >= " + self.one(ref, "[data-tr-bar]") + ".getBoundingClientRect().left - 1"),
+                                "and at its left edge" + where)
+                self.assertEqual(self.overflow(p, ref), [], "nothing leaves the section" + where)
+
     def test_view_half_is_the_bar_and_a_short_list_with_no_dates(self):
         ref = self.make(BODY, after="ABC-S-005", beside=1)
         with chrome() as cdp:
