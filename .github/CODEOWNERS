@@ -8,6 +8,7 @@
 /tests/test_workflow.py @insyncalan
 /tests/test_no_real_names.py @insyncalan
 /tests/test_publish_public.py @insyncalan
+/tests/test_publish_public_slow.py @insyncalan
 /vendor/ed25519_verify/ @insyncalan
 /dev/tools/sign_release.py @insyncalan
 /dev/tools/ed25519_sign.py @insyncalan
