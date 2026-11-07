@@ -22,6 +22,8 @@ SCHEMA = 20              # 1.0.3 was layout 17; 1.0.4 ended at 19 (row 926); 1.0
 COVERED = [
     ("#804", "The View or Edit switch is on the Dashboard and the Gantt page only.",
      "test_filter_line_page::Line::test_the_chosen_filter_and_the_view_edit_toggle_look_different_from_the_others"),
+    ("#838", "The Help pages match the program again.",
+     "test_help_parity::WhatIsShownIsOnThePage::test_every_label_in_a_shown_entry_is_on_the_page"),
     ("#944", "The data file moves to layout 20.",
      "test_store_brand_migration::Migrating::test_a_layout_19_file_opens_keeps_every_value_and_gets_generic"),
     ("#961", "The zip holds START-HERE.md.",
@@ -43,6 +45,7 @@ COVERED = [
 # The first sentence of each bullet, to find it by.
 BULLET_STARTS = {
     "804": 'The View | Edit switch is shown only on the Dashboard and the Gantt page.',
+    "838": 'The Help pages are corrected where they no longer matched the program: the profile circle menu, Publish and Published reports, Import from Excel, the Movement switch on Milestones and the Gantt template.',
     "944": 'The data file moves to layout 20.',
     "961": 'The download holds a start file named START-HERE.md, where 1.0.4 held START-HERE.txt.',
     "966": 'Import from Excel stops a workbook that declares a huge sheet or holds one very large cell, instead of using up the memory of the computer.',
@@ -55,7 +58,7 @@ BULLET_STARTS = {
 
 # Merged rows with no visible change. None merged yet. 
 NO_VISIBLE_CHANGE = set()
-TEST_ONLY = {"963"}   # 836 step 3 (PR 942): internal code, no new words; 963 (PR 941): tests only. No bullet, no hand check.
+TEST_ONLY = {"963", "974"}   # 836 step 3 (PR 942): internal code, no new words; 963 (PR 941): tests only. No bullet, no hand check.
 # No user note, and no hand check, once merged. 972 is not merged yet, so it cannot sit in NO_VISIBLE_CHANGE (that set must be MERGED).
 NO_NOTE_WHEN_MERGED = {"972"}
 
