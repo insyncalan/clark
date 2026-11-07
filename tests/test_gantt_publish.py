@@ -114,6 +114,17 @@ class TheGate(unittest.TestCase):
         empty = chosen(plant(gantt_hidden_columns=""))["data"]["gantt"]          # empty text is a choice: nothing is hidden
         self.assertIn("owner", empty["columns"])
 
+    def test_blank_or_comma_only_text_hides_the_default_and_only_the_empty_text_hides_nothing(self):
+        z = "\u200b"
+        for blank in (" ", ",", ",,", ", ,", " , ", "\t", z, "," + z, "owner" + z, z + ",note" + z):
+            g = chosen(plant(gantt_hidden_columns=blank))["data"]["gantt"]
+            text = json.dumps(g)
+            for col in store_module.GANTT_DEFAULT_HIDDEN:
+                self.assertNotIn(col, g["columns"], (blank, col))
+            for secret in (SECRET_NOTE, str(SECRET_BUDGET), "A. Builder"):
+                self.assertNotIn(secret, text, repr(blank))
+        self.assertIn("note", chosen(plant(gantt_hidden_columns=""))["data"]["gantt"]["columns"])
+
     def test_a_stored_list_that_names_start_end_pct_or_type_still_leaves_them_in_the_copy(self):
         g = chosen(plant(gantt_hidden_columns="type,start,end,pct,owner"))["data"]["gantt"]       # written before these four were un-hideable
         self.assertTrue({"type", "start", "end", "pct"} <= set(g["columns"]))

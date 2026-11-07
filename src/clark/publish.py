@@ -390,18 +390,20 @@ def _gantt_amount(v):
 
 
 def _gantt_hidden(project):
-    """The columns this project keeps out of the client's copy: gantt_hidden_columns as stored, only names that are columns. Empty
-    text hides nothing (the person chose that). Anything else that cannot be read as a list of known names hides the default seven,
+    """The columns this project keeps out of the client's copy: gantt_hidden_columns as stored, only names that are columns. Exactly
+    empty text hides nothing (the person chose that; blanks and commas alone are not a choice, so they hide the default). Anything else that cannot be read as a list of known names hides the default seven,
     never fewer: not text, an unknown name ('NOTE', '["note"]'), or text that names no column that can be hidden."""
     raw = project.get("gantt_hidden_columns")
     if not isinstance(raw, str):
         return set(GANTT_DEFAULT_HIDDEN)
+    if raw == "":                                    # exactly the empty text, which is all the editor writes for "hide nothing"; ' ', ',' and ',,' are not a choice
+        return set()
     names = gantt_list(raw)
     known = set(GANTT_COLUMNS) | {"id", "name"}      # id, name and the four chart columns are tolerated in a list written before they were un-hideable
     if any(n not in known for n in names):
         return set(GANTT_DEFAULT_HIDDEN)
     hidden = {n for n in names if n in GANTT_HIDEABLE}
-    return hidden if hidden or not names else set(GANTT_DEFAULT_HIDDEN)
+    return hidden or set(GANTT_DEFAULT_HIDDEN)
 
 
 def _gantt_line(row, code):
