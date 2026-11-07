@@ -12,8 +12,8 @@ Same shape as test_v103.
   WALK_THROUGH  judgement or live only. Skipped: 'needs a person'.
 
 The notes hold only merged, user-visible rows; no DRAFT line is allowed anywhere. The cut checks (version, files, layout) skip until the
-cut commit sets 1.0.4. The data layout moves from 17 to 19 in 1.0.4 (row 926: step 18 is merged, step 19 is the Gantt section, PR 899):
-the notes carry the Read this first paragraph and, at the cut, the store must say 19.
+cut commit sets 1.0.4. The data layout moves from 17 to 18 in 1.0.4 (row 926, the Gantt data layer):
+the notes carry the Read this first paragraph and, at the cut, the store must say 18. The Gantt page, tab and section (PR 896, PR 899) are in 1.0.6.
 """
 import ast
 import re
@@ -23,7 +23,7 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "1.0.4"
-SCHEMA = 19              # 1.0.3 was layout 17; 1.0.4 ends at 19 (row 926)
+SCHEMA = 18              # 1.0.3 was layout 17; 1.0.4 ends at 18 (row 926)
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
@@ -77,14 +77,11 @@ COVERED = [
 # 945 (the update message) has no test of its words: it is a WALK_THROUGH check below.
 NO_VISIBLE_CHANGE = {"945", "936", "937", "942", "953", "956"}
 
-# Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
-PARTLY_MERGED = {"926"}
+# Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table. None in 1.0.4.
+PARTLY_MERGED = set()
 
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has landed).
-WAITING = [
-    ("#928", "The Gantt page, tab, chart and table.", "PR 896", "src/clark/page/src/gantt/components/GanttPage.jsx", "GanttPage"),
-    ("#926", "The Gantt section type (layout step 19).", "PR 899", "src/clark/store.py", "SCHEMA_VERSION = 19"),
-]
+WAITING = []
 
 # (item, check, kind, why, what the person does)
 WALK_THROUGH = [
@@ -323,7 +320,7 @@ class Cut(unittest.TestCase):
         self.cut_made()
         if schema_version() > SCHEMA:
             self.skipTest("the layout has moved on past %d (now %d, a later release's step): these are 1.0.4's notes" % (SCHEMA, schema_version()))
-        self.assertEqual(schema_version(), SCHEMA, "the notes name layout 19: row 926 step 19 (PR 899) has not landed")
+        self.assertEqual(schema_version(), SCHEMA, "the notes name layout 18: row 926 (the Gantt data layer)")
 
     def test_a_waiting_row_whose_pull_request_has_landed_has_been_moved_to_covered(self):
         self.cut_made()
