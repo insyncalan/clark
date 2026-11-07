@@ -35,6 +35,43 @@ class MotionMenuExit(Base):
                         self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid), 15), "no animation is left running after the exit")
                         self.assertTrue(wait(lambda: cdp.js("document.activeElement.id === 'profile-btn'", sid), 15), "focus is back on the button")
 
+    def test_row_922_reduced_motion_never_draws_the_leaving_menu(self):
+        from test_server import chrome, wait
+        # a MutationObserver installed before the Esc records any node that ever carries class leaving, so a one-frame appearance is not missed
+        WATCH = """(() => { window.__sawLeaving = false; const see = () => { if (document.querySelector('.ddmenu.leaving')) window.__sawLeaving = true; };
+          new MutationObserver((rs) => { see(); for (const r of rs) { if (r.target.classList && r.target.classList.contains('leaving')) window.__sawLeaving = true;
+            for (const n of r.addedNodes) if (n.classList && n.classList.contains('leaving')) window.__sawLeaving = true; } })
+            .observe(document.body, {subtree: true, childList: true, attributes: true, attributeFilter: ['class']}); return true; })()"""
+        with chrome() as cdp:
+            sid = self.load(cdp, 1400, "light", "reduce")
+            cdp.js(MENU, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.ddmenu')", sid)), "opened")
+            cdp.js(WATCH, sid)
+            cdp.js("document.querySelector('.ddmenu').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))", sid)
+            gone = wait(lambda: cdp.js("document.querySelector('.ddmenu') === null", sid), 0.3)
+            self.assertFalse(cdp.js("window.__sawLeaving", sid), "reduced motion: the menu was never drawn leaving")
+            self.assertTrue(gone, "reduced motion: the menu is gone at once, within 300 ms")
+
+    def test_row_922_the_guard_timer_removes_a_menu_whose_animation_never_ends(self):
+        import time
+        from test_server import chrome, wait
+        with chrome() as cdp:
+            sid = self.load(cdp, 1400, "light", "no-preference")
+            cdp.js(MENU, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.ddmenu')", sid)), "opened")
+            # a constructed style sheet: the page's content policy refuses an inline <style> element (it was tried and had no effect)
+            cdp.js("(() => { const sh = new CSSStyleSheet(); sh.replaceSync('.ddmenu.leaving { animation: none !important; }'); document.adoptedStyleSheets = [...document.adoptedStyleSheets, sh]; })()", sid)
+            t0 = time.monotonic()
+            cdp.js("document.querySelector('.ddmenu').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))", sid)
+            gone = False
+            while time.monotonic() - t0 < 1.5:        # the guard is 400 ms: not the 15 s budget, so removing the guard fails this
+                if cdp.js("document.querySelector('.ddmenu') === null", sid):
+                    gone = True
+                    break
+                time.sleep(0.05)
+            self.assertTrue(gone, "with no animation to end, the 400 ms guard removed the menu within 1.5 s")
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id === 'profile-btn'", sid), 3), "focus is back on the button")
+
     def test_row_922_css_is_inside_the_motion_block_with_tokens_and_the_menu_keeps_its_guard(self):
         block = CSS[CSS.index("Motion: motion that explains"):]
         block = block[:block.index("@media (hover: hover)")]
