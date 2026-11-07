@@ -199,7 +199,9 @@ class Peek(Base):
             p = self.page(cdp)
             p.key("/", **KEY)
             p.until("!!document.querySelector('#ask-panel')", "ask clark open")
-            p.js("document.activeElement.blur()")
+            p.until("!!document.activeElement && !!document.activeElement.closest('#ask-panel')", "the panel has put focus in itself")   # its first focus runs after it is drawn
+            # A blur would not hold: when the panel's check answers, an effect puts focus back in the box if nothing has it. A control on the page keeps it.
+            p.js("document.querySelector('[data-mode=edit]').focus()")
             self.open_on_key(p)
             p.until("!document.querySelector('#ask-panel')", "the ask panel went")
             self.assertEqual(p.js("document.querySelectorAll('aside.peek:not(.leaving), #ask-panel').length"), 1)
