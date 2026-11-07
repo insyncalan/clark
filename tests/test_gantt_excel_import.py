@@ -273,6 +273,116 @@ class Refusals(Base):
         self.assertTrue(any("no id column" in x.message for x in p.problems))
         self.assertEqual(self.lines(), before)
 
+    def client_copy(self, name="client.xlsx", band=True, mark=True):
+        """The client workbook built by the export (the lines of this project, ids as stored), saved to a file. band=False deletes the
+        3 title rows so the header is row 1; mark=False removes the client copy mark."""
+        import io
+        import test_gantt_excel_export as ge
+        from clark import publish
+        self.twelve()
+        inputs = ge.plant(gantt_tab_name="Gantt")
+        inputs["data"]["project"]["code"] = "ABC"
+        inputs["data"]["gantt_lines"] = [{k: (v.replace("PUB-", "ABC-") if isinstance(v, str) else v) for k, v in r.items()} | {"project": "ABC"}
+                                         for r in inputs["data"]["gantt_lines"]]
+        wb = load_workbook(io.BytesIO(excel_client.workbook_bytes(publish.select(inputs))))
+        self.assertIn(excel.CLIENT_COPY_NAME, wb.defined_names)
+        if not band:
+            wb["Gantt"].delete_rows(1, 3)
+        if not mark:
+            del wb.defined_names[excel.CLIENT_COPY_NAME]
+        path = self.tmp / name
+        wb.save(str(path))
+        return path
+
+    def test_a_client_copy_imported_by_hand_is_refused_and_nothing_is_written(self):
+        path = self.client_copy()
+        before, steps = self.lines(), self.steps()
+        p = self.plan(path)
+        self.assertEqual(p.changes, [])
+        self.assertTrue(any("Gantt: there is no id column, so the sheet was skipped (every row would look new)" in x.message for x in p.problems), p.problems)
+        self.assertEqual((self.lines(), self.steps()), (before, steps))
+
+    def test_a_client_copy_with_the_title_band_deleted_is_still_refused_by_the_mark(self):
+        path = self.client_copy(band=False)
+        before = self.lines()
+        p = self.plan(path)
+        self.assertEqual(p.changes, [])
+        self.assertTrue(any(x.sheet == "Gantt" and "there is no id column" in x.message for x in p.problems), p.problems)
+        self.assertEqual(self.lines(), before)
+
+    def test_without_the_mark_only_the_layout_rule_refuses_a_client_copy(self):
+        self.assertTrue(any(x.sheet == "Gantt" and "there is no id column" in x.message for x in self.plan(self.client_copy(mark=False)).problems))       # the band is row 1
+        p = self.plan(self.client_copy("moved.xlsx", band=False, mark=False))                                                       # header in row 1: read
+        self.assertFalse(any(x.sheet == "Gantt" for x in p.problems), p.problems)
+
+    def test_an_editor_export_has_no_mark_and_still_imports(self):
+        self.twelve()
+        path = self.export()
+        self.assertNotIn(excel.CLIENT_COPY_NAME, load_workbook(str(path)).defined_names)
+        self.assertFalse(any(x.sheet == "Gantt" for x in self.plan(path).problems))
+
+    def test_a_workbook_with_no_sheet_names_the_gantt_sheet_in_the_refusal(self):
+        self.twelve()
+        path = self.export()
+        wb = load_workbook(str(path))
+        for ws in wb.worksheets:
+            ws.title = "Old " + ws.title
+        wb.save(str(path))
+        p = self.plan(path)
+        self.assertEqual(p.changes, [])
+        self.assertTrue(any("Milestones, Use cases or Gantt, so there is nothing to compare" in x.message for x in p.problems), p.problems)
+
+
+class Limit(Base):
+    """Row 926: a Gantt line the data layer would refuse as the 501st refuses the whole file (store.GANTT_TOO_MANY), nothing is written."""
+
+    def three(self):
+        for i in range(3):
+            self.add(type="task", name=f"Old {i}", start="2026-11-02", end="2026-11-03")
+
+    def with_new(self, count, edit_first=False):
+        self.three()
+        path = self.export()
+        wb = load_workbook(str(path))
+        ws = wb["Gantt"]
+        head = {c.value: c.column for c in ws[1]}
+        if edit_first:
+            ws.cell(2, head["Line"]).value = "Renamed"
+        first = ws.max_row + 1
+        for k in range(count):
+            for label, v in {"ID": "TBD", "Line": f"New {k}", "Type": "Task", "Start": __import__("datetime").date(2026, 12, 1),
+                             "End": __import__("datetime").date(2026, 12, 3), "On dashboard": "Yes"}.items():
+                ws.cell(first + k, head[label]).value = v
+        wb.save(str(path))
+        return path, first
+
+    def refuses(self, count, edit_first=False):
+        path, first = self.with_new(count, edit_first)
+        before, steps = self.lines(), self.steps()
+        p = self.plan(path)
+        bad = [c for c in p.changes if c.problem]
+        self.assertEqual({c.problem for c in bad}, {store_module.GANTT_TOO_MANY}, p.report())
+        self.assertEqual(len(bad), len(p.changes))                        # the whole sheet is refused, not only the last line
+        the501 = next(c for c in bad if c.row == first + 497)             # the 501st line of the project is named by its row
+        self.assertIn(f"row {first + 497} of Gantt", the501.describe())
+        p.accept_all()
+        res = xi.apply_import(self.s, p, USER, state_path=self.state)
+        self.assertFalse(res.applied, res.message)
+        self.assertEqual((self.lines(), self.steps()), (before, steps))
+        self.assertEqual(len(self.lines()), 3)
+
+    def test_498_new_rows_on_3_lines_refuse_the_whole_file_and_write_nothing(self):
+        self.refuses(498)
+
+    def test_exactly_500_lines_in_all_import_in_one_step(self):
+        path, _ = self.with_new(497)
+        res, p = self.apply(path)
+        self.assertTrue(res.applied, res.message)
+        self.assertEqual((p.counts()["new"], len(self.lines())), (497, 500))
+
+    def test_updates_and_new_rows_together_making_501_refuse(self):
+        self.refuses(498, edit_first=True)
+
 
 class Isolation(Base):
     def test_importing_writes_no_client_file(self):

@@ -252,6 +252,14 @@ class TheClientsWorkbook(unittest.TestCase):
         self.assertTrue(gantt_sheet(blob).protection.sheet)
         self.assertEqual(blob, client(plant()))
 
+    def test_the_client_workbook_carries_the_client_copy_mark_and_the_editors_does_not(self):
+        wb = load_workbook(io.BytesIO(client(plant())))
+        self.assertIn(excel.CLIENT_COPY_NAME, wb.defined_names)
+        self.assertEqual(wb.defined_names[excel.CLIENT_COPY_NAME].attr_text, "'Plan'!$A$1")
+        self.assertIn(excel.CLIENT_COPY_NAME, load_workbook(io.BytesIO(client(plant())), read_only=True).defined_names)
+        self.assertNotIn(excel.CLIENT_COPY_NAME, TheEditorsWorkbook().book().defined_names)
+        self.assertNotIn(excel.CLIENT_COPY_NAME, load_workbook(io.BytesIO(client(plant(show_gantt_client=0)))).defined_names)
+
 
 class WordIsUnchanged(unittest.TestCase):
     def test_a_word_build_is_the_same_bytes_with_or_without_gantt_lines(self):
