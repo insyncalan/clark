@@ -78,9 +78,11 @@ class Line(unittest.TestCase):
         self.addCleanup(s.close)
         return s
 
-    def load(self, cdp, port, width=1400, hash_="#work&p=TUL", theme="light"):
+    def load(self, cdp, port, width=1400, hash_="#work&p=TUL", theme="light", motion=None):
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)
+        if motion:
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": motion}]}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE + "window.__push = 0; const P = history.pushState; history.pushState = function () { window.__push++; return P.apply(this, arguments); };"}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
@@ -1214,7 +1216,7 @@ class Line(unittest.TestCase):
         # (a rename of the attribute once lost them), and a chosen filter on the line is drawn as a chip, not as plain text.
         s = self.serve()
         with chrome() as cdp:
-            sid = self.load(cdp, s.port)
+            sid = self.load(cdp, s.port, motion="no-preference")   # the thumb is a motion rule: pin the media, as a runner may report reduce
             bg = lambda sel: cdp.js(f"getComputedStyle(document.querySelector({json.dumps(sel)})).backgroundColor", sid)
             for on, off in (("[data-type][aria-pressed=true]", "[data-type][aria-pressed=false]"),
                             ("[data-show][aria-pressed=true]", "[data-show][aria-pressed=false]")):
@@ -1232,6 +1234,10 @@ class Line(unittest.TestCase):
             self.assertNotEqual(col(".mode[aria-pressed=true]"), col(".mode[aria-pressed=false]"), "the pressed half has its own colour")
             self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('.modes'), '::before').backgroundColor", sid), "rgba(0, 0, 0, 0)",
                                 "the pill's thumb (the pressed half's background, row 884) is drawn")
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, sid)
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.modes'), '::before').backgroundColor", sid), "rgba(0, 0, 0, 0)",
+                             "under reduced motion there is no thumb")
+            self.assertNotEqual(bg(".mode[aria-pressed=true]"), "rgba(0, 0, 0, 0)", "under reduced motion the pressed half has its own background (the still form)")
 
     def test_the_targets_are_big_enough_and_the_colours_come_from_the_tokens(self):
         s = self.serve()
