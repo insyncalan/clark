@@ -17,7 +17,7 @@ from _paths import SRC, TOOLS
 sys.path.insert(0, str(TOOLS))
 import build_page  # noqa: E402
 
-from test_gantt_logic import LINES, TODAY, page_html  # noqa: E402
+from test_gantt_logic import LINES, TODAY, ln, page_html  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 
 GANTT_SRC = SRC / "clark" / "page" / "src" / "gantt"
@@ -166,6 +166,24 @@ class Chart(unittest.TestCase):
         self.assertLessEqual(flag, upper + 1, "the Today flag sits above the dates")
 
     # ── View ─────────────────────────────────────────────────────────────────
+
+    def test_row_988_the_header_row_stays_in_view_with_many_lines(self):
+        """#988: with 500 lines the chart is bounded and scrolls inside itself, so the header row is never scrolled off the window."""
+        many = [ln(f"GNT-{i:03d}", f"Task {i}", "task", "2026-09-01", "2026-10-14", show=True) for i in range(1, 501)]
+        edit_css = (build_page.EDIT_CSS).read_text(encoding="utf-8")      # the bare test page holds the published CSS only: add the served page's Edit CSS, where the bound lives
+        self.js(f"(function(){{ var s = new CSSStyleSheet(); s.replaceSync({lit(edit_css)}); document.adoptedStyleSheets = document.adoptedStyleSheets.concat([s]); window.row988 = s; }})()")
+        self.addCleanup(self.js, "document.adoptedStyleSheets = document.adoptedStyleSheets.filter(function(x){ return x !== window.row988; })")
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    self.look(width, scheme)
+                    self.mount(edit=False, lines=many)
+                    self.js("window.scrollTo(0, 3000)")
+                    top, bottom, vh = self.val("(function(){ var r = document.querySelector('.gt-rhead').getBoundingClientRect(); return [r.top, r.bottom, innerHeight]; })()")
+                    self.assertGreaterEqual(top, 0, "the header row is not above the window")
+                    self.assertLessEqual(bottom, vh, "the header row is inside the window")
+                    gx = self.val("(function(){ var g = document.querySelector('.gt-gx'); return [g.clientHeight, g.scrollHeight]; })()")
+                    self.assertLess(gx[0], gx[1], "the chart scrolls inside its own box")
 
     def test_view_at_every_width_and_in_both_schemes(self):
         for width in (1400, 900):
