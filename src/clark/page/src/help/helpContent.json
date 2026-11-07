@@ -257,7 +257,7 @@
     "s": [
      "Press your profile circle at the top right and choose **Publish…**.",
      "**Local** is always ticked: the save window opens where you last saved for this project, and you choose the folder and the name. Tick **To client** to send it to the client folder set in Settings as well. With no folder set, the box is off and says so.",
-     "Tick **Also a PDF** for the page as it prints: your browser’s print box opens, and you choose Save as PDF. Tick **Also a Word document** for a Word copy in the folder last used for this project. If a Word file with that name is already in the folder, you are asked whether to add a number or replace it. A copy already in the client folder is never replaced: the new one gets a number.",
+     "Tick **Also a Word document** for a Word copy in the folder last used for this project. If a Word file with that name is already in the folder, you are asked whether to add a number or replace it. A copy already in the client folder is never replaced: the new one gets a number. Tick **Also a PDF** for the page as it prints: your browser’s print box opens, and you choose Save as PDF.",
      "A line reminds you that the client will see the page, and only what is shown in View. If a work item shown to the client still has its placeholder title, the box warns you; it does not stop you, so rename the item or turn off its eye first.",
      "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”; press it to close the box. If the name is already taken, a box asks what to do.",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
@@ -2654,7 +2654,7 @@
      "pic": "publish-dialog"
     },
     {
-     "d": "If you want them, tick **Also a PDF** (your browser’s print box opens and you choose Save as PDF) and **Also a Word document** (a Word copy of the report, saved in the folder last used for this project)."
+     "d": "If you want them, tick **Also a Word document** (a Word copy of the report, saved in the folder last used for this project) and **Also a PDF** (your browser’s print box opens and you choose Save as PDF)."
     },
     {
      "d": "With **To client** ticked, a line says the client will see the page, and the Word report if you ticked it, and only what is shown in View mode. A hidden section or a work item with its eye turned off is not included."

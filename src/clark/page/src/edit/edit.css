@@ -919,3 +919,6 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .gp-toast { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--size-small); }
 .gp-toast button { font: inherit; cursor: pointer; background: none; border: 0; color: var(--brand-blue); font-weight: var(--weight-semibold); }
 .gt-ib:disabled { opacity: .5; cursor: not-allowed; }
+
+/* row 796: the Publish box is the prototype's 560 px; its heading keeps the .dlg h2 style every box uses. Edit's alone: the published file has no such box. */
+#publish-dialog { width: min(560px, calc(100vw - 32px)); }
