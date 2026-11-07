@@ -25,7 +25,9 @@ SHOWN = shown_content()
 # describes the button exactly as the page labels it. FOR THE RULING (the owner / the review): archive it too, or keep Delete.
 SECTION_DELETE = "Delete section"
 # Signed by the owner on 04-11-2026, build notes: the Start here job and its entry are named this on the signed mockups. Exact strings only.
-SIGNED_DELETE = {"Move, hide and delete sections"}
+# Row 810 (the owner: "Deleted, not archived"): the Save a view guide's step on the Delete entry of a saved view's menu, exactly.
+VIEW_DELETE = "To remove a view you no longer want, open it, press the small arrow and choose **Delete**, then press **Delete** to confirm. A deleted view cannot be brought back. This works for the five starting tabs too."
+SIGNED_DELETE = {"Move, hide and delete sections", VIEW_DELETE}
 # A feature word in shown text needs proof that the page has it: a pattern that must match the page's own code (outside Help).
 FEATURES = [
     ("the peek", r"\bpeek\b", r"<Peek\b"),

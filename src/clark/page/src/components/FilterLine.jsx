@@ -2,7 +2,7 @@
 // logic/filterQueryParse.js and shown with its tokens drawn over the text (field names plain, values as coloured chips, a token that cannot be
 // used underlined in red with its words), the match count sits inside the box on the right, an x clears it, and the list changes about 400 ms
 // after the last key, not on Enter. The pure parts (pieces, messages, the rows a line shows) are in logic/filterQueryUi.js; saved views as
-// tabs, the Freshness menu and the one View menu stay as they were. The list of suggestions (fields, then a field's values) is step 5 of the issue. "/" focuses the line only where nothing took the key first.
+// tabs and the one View menu stay as they were (row 813 took the Freshness menu away; its words stay in the typed line). The list of suggestions (fields, then a field's values) is step 5 of the issue. "/" focuses the line only where nothing took the key first.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { rows as allRows, project, filterCtx, fromFile, peek } from "../stores/report.js";
@@ -10,13 +10,14 @@ import { lineText, setLine, local } from "../stores/line.js";
 import * as FL from "../logic/filterLine.js";
 import * as Q from "../logic/filterQueryUi.js";
 import { Menu } from "./Menu.jsx";
+import { Icon } from "./Icon.jsx";
 import { work, setWork, announce } from "../stores/work.js";
 import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
 
 export const PAUSE = 400;                                // ms after the last key before the typed line is applied (the owner's 300 to 500)
 
 // A saved view whose line the filter line no longer reads (a word it does not know) stays on the tabs with a plain message, and can be renamed
-// or archived like any other, so a view that cannot be read can still be fixed or removed. The one view left out is a starting view the page cannot answer yet (Waiting on the client, while
+// or deleted like any other, so a view that cannot be read can still be fixed or removed. The one view left out is a starting view the page cannot answer yet (Waiting on the client, while
 // is:needed is not on): Q.heldBackQuery. Choosing a view that cannot be read does not touch the line.
 
 // Which saved view is chosen, per project, for this visit. A page change keeps it; a reload goes back to the view the line matches.
@@ -26,30 +27,30 @@ const viewsRev = signal(0);
 function viewsOf(code) { void viewsRev.value; return FL.viewsGet(local(), code); }
 function saveViews(code, views) { FL.viewsPut(local(), code, views); viewsRev.value++; }
 
-// Freshness: the two plain values, each a toggle for the line's word. The words are the line's own (is:quiet, is:incomplete) and are
-// never shown alone: the menu and the chips read "Not reviewed in 14 days" and "No owner or no date".
-const FRESH = ["quiet", "incomplete"];
-function FreshnessMenu() {
-  const rows = allRows.value, ctx = filterCtx(), line = lineText.value;
-  const parsed = Q.parseFor(line, rows, ctx);
-  const isW = (t, w) => t.kind === "state" && !t.negate && t.states.length === 1 && t.states[0] === w;
-  const on = (w) => parsed.tokens.some((t) => isW(t, w));
-  const items = FL.offers("is", rows, ctx).filter(([v]) => FRESH.includes(v)).map(([v, label]) => ({ id: v, name: label, on: on(v) }));
-  const pick = (w) => setLine(on(w) ? Q.withoutTokens(line, (t) => isW(t, w), rows, ctx) : `${line.trim()} is:${w}`.trim());
-  return <Menu label="Freshness" ariaLabel="Freshness" id="freshMenu" btnCls="btn sm" menuId="freshMenuList" menuLabel="Freshness" items={items.map((i) => ({ id: i.id, name: i.on ? `${i.name} (on)` : i.name }))} onPick={pick} />;
-}
 
-// The View menu's Layout, Group by and Swimlanes entries (the prototype's words: "Group by", then on the board "Swimlanes" with
+// The View menu's Group by and Swimlanes entries (row 812: Table and Board are the two-icon switch beside it; the prototype's words: "Group by", then on the board "Swimlanes" with
 // "No lanes", "Workstream lanes", "Type lanes"; the lane Group by uses is not offered). `board` is false where there is no board.
 export function layoutItems(w, board) {
   const onBoard = board && w.view === "board", g = onBoard ? boardGroup(w.group) : w.group;
   const lane = onBoard && w.lane && w.lane !== g && LANE_GROUPS.includes(w.lane) ? w.lane : "none";
   const out = [];
-  if (board) out.push({ id: "lab-layout", lab: "Layout" }, ...["table", "board"].map((k) => ({ id: `layout:${k}`, name: k === "table" ? "Table" : "Board", checked: (w.view === "board") === (k === "board") })), { id: "sep-layout", sep: true });
   out.push({ id: "lab-group", lab: "Group by" }, ...GROUPS.filter((x) => !onBoard || x.id !== "nothing").map((x) => ({ id: `group:${x.id}`, name: x.label, checked: x.id === g })));
   if (onBoard) out.push({ id: "sep-lanes", sep: true }, { id: "lab-lanes", lab: "Swimlanes" }, { id: "lane:none", name: "No lanes", checked: lane === "none" },
     ...LANE_GROUPS.filter((x) => x !== g).map((x) => ({ id: `lane:${x}`, name: `${groupLabel(x)} lanes`, checked: lane === x })));
   return { items: out, label: `View: ${onBoard ? "board" : board ? "table" : ""}${board ? ", " : ""}grouped by ${groupLabel(g)}${lane !== "none" ? `, ${groupLabel(lane).toLowerCase()} lanes` : ""}` };
+}
+
+// Row 812: Table and Board as a two-icon switch (the words "Table" and "Board" name the buttons; "Layout" names the pair).
+function LayoutSwitch() {
+  const onBoard = work.value.view === "board";
+  return (
+    <div class="seg lsw" role="group" aria-label="Layout">
+      {["table", "board"].map((k) => {
+        const word = k === "table" ? "Table" : "Board";
+        return <button type="button" key={k} data-lay={k} aria-label={word} title={word} aria-pressed={onBoard === (k === "board") ? "true" : "false"} onClick={() => pickLayout(`layout:${k}`)}><Icon name={k} /></button>;
+      })}
+    </div>
+  );
 }
 
 function pickLayout(id) {
@@ -64,7 +65,7 @@ function SavedViews({ board }) {
   const all = viewsOf(code), shown = FL.visibleViews(all).filter((v) => !Q.heldBackQuery(v, rows, ctx));
   const trouble = (v) => Q.troubleQuery(v, rows, ctx);
   const nameBox = useRef(null);
-  const [form, setForm] = useState(null);                 // null, or {mode: "saveas" | "rename", name, error}
+  const [form, setForm] = useState(null);                 // null, or {mode: "saveas" | "rename" | "delete" | "note", name, error}
   const mine = chosen.value[code];
   const active = shown.find((v) => v.id === mine) || shown.find((v) => !trouble(v) && !Q.differsQuery(v, line, rows, ctx)) || null;
   const said = active ? trouble(active) : "";
@@ -89,16 +90,15 @@ function SavedViews({ board }) {
     else if (id === "save" && active) { const r = FL.saveView(all, active.id, line.trim()); if (r.ok) saveViews(code, r.views); }
     else if (id === "saveas") setForm({ mode: "saveas", name: "", error: "" });
     else if (id === "rename" && active) setForm({ mode: "rename", name: active.name, error: "" });
-    else if (id === "archive" && active) {
-      const r = FL.archiveView(all, active.id);
-      if (r.ok) { saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; }
-    } else if (id.startsWith("restore:")) {
-      const r = FL.restoreView(all, id.slice(8));
-      if (r.ok) saveViews(code, r.views); else setForm({ mode: "note", name: "", error: r.message });
-    }
+    else if (id === "delete" && active) setForm({ mode: "delete", name: "", error: "" });
   };
   const submit = (e) => {
     e.preventDefault();
+    if (form.mode === "delete") {
+      const r = FL.deleteView(all, active.id);
+      if (r.ok) { saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; setForm(null); } else setForm({ ...form, error: r.message });
+      return;
+    }
     const r = form.mode === "rename" ? FL.renameView(all, active.id, form.name) : FL.addView(all, form.name, line.trim());
     if (!r.ok) { setForm({ ...form, error: r.message }); return; }
     saveViews(code, r.views);
@@ -112,17 +112,15 @@ function SavedViews({ board }) {
     return () => clearTimeout(t);
   }, [form && form.mode]);
   const lay = layoutItems(work.value, !!board);
-  // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Archive never on a core view.
+  // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Delete on any view, a core one too.
   const core = !!active && FL.isCoreView(active);
   const tabItems = [];
   if (active && dirty && !core) tabItems.push({ id: "save", name: "Save changes" });
   tabItems.push({ id: "saveas", name: "Save as a new view…" });
-  if (active && !core) { tabItems.push({ id: "rename", name: "Rename…" }); tabItems.push({ id: "archive", name: "Archive" }); }
-  // A view that was archived can be brought back from the open tab's menu, or from the + New view box when no tab is open.
-  const archived = FL.archivedViews(all).filter((v) => !Q.heldBackQuery(v, rows, ctx));
-  for (const v of archived) tabItems.push({ id: `restore:${v.id}`, name: `Bring back ${v.name}${trouble(v) ? " (cannot be used now)" : ""}` });
+  if (active) { tabItems.push({ id: "rename", name: "Rename…" }); tabItems.push({ id: "delete", name: "Delete" }); }
   return (
     <div class="fviews">
+      <div class="fvrow">
       <div class="vtabs" role="group" aria-label="Saved views" ref={tabsBox}>
         {shown.map((v) => {
           const on = !!active && active.id === v.id, dot = on && dirty, bad = trouble(v), count = bad ? 0 : Q.rowsFor(rows, v.line, ctx).length;
@@ -149,11 +147,17 @@ function SavedViews({ board }) {
         })}
         {fromFile.value ? null : <button type="button" class="vnew" id="viewNew" onClick={() => act("saveas")}>{"+ New view"}</button>}
       </div>
-      <FreshnessMenu />
+      {fromFile.value || !board ? null : <LayoutSwitch />}
       {fromFile.value ? null : <Menu label="View" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={lay.items} onPick={act} />}
+      </div>
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setForm(null); } }}>
-          {form.mode === "note" ? null : (
+          {form.mode === "delete" ? (
+            <>
+              <span class="vask" id="vask">Delete this view?</span>
+              <button type="submit" class="btn sm" id="vdelete" ref={nameBox}>Delete</button>
+            </>
+          ) : form.mode === "note" ? null : (
             <>
               <label for="vname">{form.mode === "rename" ? "New name for this view" : "Name for the new view"}</label>
               <input id="vname" type="text" value={form.name} maxLength={FL.MAX_NAME} ref={nameBox} onInput={(e) => setForm({ ...form, name: e.target.value, error: "" })} />
@@ -161,7 +165,6 @@ function SavedViews({ board }) {
             </>
           )}
           <button type="button" class="btn sm" onClick={() => setForm(null)}>{form.mode === "note" ? "Close" : "Cancel"}</button>
-          {form.mode === "saveas" ? archived.map((v) => <button type="button" class="btn sm" key={v.id} data-restore={v.id} onClick={() => { setForm(null); act(`restore:${v.id}`); }}>{`Bring back ${v.name}${trouble(v) ? " (cannot be used now)" : ""}`}</button>) : null}
           <span class="vmsg" role="status">{form.error}</span>
         </form>
       ) : null}
@@ -227,8 +230,8 @@ export function FilterLine({ board }) {
       e.preventDefault(); e.stopPropagation(); setClosed(true); setActive(-1);
     }
   };
-  // Leaving the line closes the list. The list is in the page flow, so closing it moves the rows: while the button is still down (a click on a
-  // row or card took the focus) the closing waits for the button to come up, so the row under the pointer is still the one that is clicked.
+  // Leaving the line closes the list. While the button is still down (a click on a row or card took the focus) the closing waits for the
+  // button to come up, so the click still lands on the row under the pointer.
   const down = useRef(false), late = useRef(false);
   const leave = () => {
     if (down.current) { late.current = true; return; }
@@ -290,7 +293,7 @@ export function FilterLine({ board }) {
         <span class="fcount num" id="fline-count" data-fcount>{`${matches} of ${rows.length}`}</span>
         {draft ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
       </div>
-      {/* The list sits in the page flow under the box, not over the table or board: the first rows and cards stay clickable while it is open. */}
+      {/* Row 808: the list floats over the page just under the box (it is out of the flow), so opening it pushes no row or card down. */}
       {listed ? (
         <ul class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
           {options.map((o, i) => (

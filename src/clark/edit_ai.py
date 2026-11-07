@@ -17,7 +17,7 @@ import unicodedata
 
 from clark import confusables
 
-ID_RE = re.compile(r"\b[A-Z][A-Z0-9]{2,6}-(?:[A-Z]-)?\d{3}\b")       # ABC-A-001, ABC-001, ABC-D-001, ABC-M-001, ABC-W-001, ABC-U-001
+ID_RE = re.compile(r"\b[A-Z][A-Z0-9]{2,6}-(?:(?:[A-Z]|GNT)-)?\d{3}\b")       # ABC-A-001, ABC-001, ABC-D-001, ABC-M-001, ABC-W-001, ABC-U-001, ABC-GNT-001 (a Gantt line, row 926)
 CODE_RE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 
 

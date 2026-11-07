@@ -324,7 +324,7 @@ class PageSide(unittest.TestCase):
         cat = self.val("T.templates.CATALOGUE")
         cat_types = [x["type"] for x in cat if x["type"] not in ("text", "needs")]
         self.assertEqual(sorted(cat_types), sorted(types), "one catalogue entry per template type")
-        self.assertEqual([x["type"] for x in cat if x["type"] in ("text", "needs")], ["text", "needs"], "and Text and Needs from you (#121), once each")
+        self.assertEqual([x["type"] for x in cat if x["type"] in ("text", "needs")], ["text", "needs", "text", "text"], "and Text, Current state and Plan summary (all the type text) and Needs from you (#121), in the catalogue's order")
         self.assertEqual(len({x["id"] for x in cat}), len(cat))
         self.assertEqual(self.val("T.templates.TEMPLATES.length + T.templates.LATER.length"), len(cat))
         self.assertTrue(set(store_module.SECTION_TYPES) >= set(x["type"] for x in cat))
@@ -344,7 +344,7 @@ class PageSide(unittest.TestCase):
         accepts = self.val("T.templates.ACCEPTS.types")
         self.assertEqual(accepts, ["text", "needs"] + list(section_kinds.TYPES) + list(changes.BUILT_IN_TYPES))      # needs: the section that carries content (#121)
         self.assertLessEqual(set(accepts), set(changes.NEW_SECTION_TYPES), "the page's ACCEPTS is all taken by the change route")
-        self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title"), "new still takes a type and a title only")
+        self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title", "body"), "new takes a type, a title and (text only) a starting body")
         for x in self.val("T.templates.CATALOGUE"):
             tid = x["id"]
             if x["type"] in ("text", "needs"):       # not templates of the registry: always placeable

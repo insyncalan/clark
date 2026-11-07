@@ -24,26 +24,25 @@ class OneMenu(Base):
         click(cdp, sid, "#viewMenu")
         self.until(cdp, sid, "!!document.querySelector('#viewMenuList')", "the View menu")
 
-    def test_the_table_menu_holds_layout_and_group_by_and_no_longer_the_saved_views(self):
+    def test_the_table_menu_holds_group_by_only_layout_is_the_two_icon_switch_beside_it(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
             self.open_menu(cdp, sid)
-            self.assertEqual(cdp.js(LABS, sid), ["Layout", "Group by"])
+            self.assertEqual(cdp.js(LABS, sid), ["Group by"], "row 812: Table and Board left the menu")
             kinds = cdp.js(KINDS, sid)
-            self.assertEqual(kinds[:2], ["layout:table", "layout:board"])
-            self.assertEqual(kinds[2:10], [f"group:{g}" for g in GROUPS + ["nothing"]])
-            self.assertEqual(kinds[10:], [], "the saved-view actions are on the open tab's arrow and + New view now (#640)")
+            self.assertEqual(kinds[:8], [f"group:{g}" for g in GROUPS + ["nothing"]])
+            self.assertEqual(kinds[8:], [], "the saved-view actions are on the open tab's arrow and + New view now (#640)")
             self.assertFalse([k for k in kinds if k.startswith("lane:")], "no swimlanes in the table")
             self.assertEqual(cdp.js("[...document.querySelectorAll('#viewMenuList [role=group]')].map(g => document.getElementById(g.getAttribute('aria-labelledby')).textContent)", sid),
-                             ["Layout", "Group by"], "each set of choices is a named group of radio items")
-            self.assertEqual(cdp.js("document.querySelectorAll('#viewMenuList [role=menuitemradio][aria-checked=true]').length", sid), 2, "one layout and one grouping are marked")
+                             ["Group by"], "each set of choices is a named group of radio items")
+            self.assertEqual(cdp.js("document.querySelectorAll('#viewMenuList [role=menuitemradio][aria-checked=true]').length", sid), 1, "one grouping is marked")
 
     def test_on_the_board_the_menu_adds_the_swimlanes_and_drops_nothing(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             self.open_menu(cdp, sid)
-            self.assertEqual(cdp.js(LABS, sid), ["Layout", "Group by", "Swimlanes"])
+            self.assertEqual(cdp.js(LABS, sid), ["Group by", "Swimlanes"])
             kinds = cdp.js(KINDS, sid)
             self.assertNotIn("group:nothing", kinds)
             self.assertEqual([k for k in kinds if k.startswith("lane:")], ["lane:none", "lane:workstream", "lane:type"])
@@ -54,18 +53,19 @@ class OneMenu(Base):
         # item 450: the bar may hold one .vctl wrapper again, and it holds the Archived pill and nothing else
         got = cdp.js("[...document.querySelectorAll('.wbar .vctl')].map(v => [...v.children].map(c => c.className))", sid)
         self.assertEqual(got, [["arch-pill"]], "one wrapper, holding only the Archived pill")
-        self.assertEqual(cdp.js("document.querySelectorAll('.wbar .vctl #group-by, .wbar .vctl [data-layout], .wbar .vctl [aria-label=Layout], .wbar .vctl #swimlanes, .wbar .vctl [aria-haspopup=menu]').length", sid), 0,
+        self.assertEqual(cdp.js("document.querySelectorAll('.wbar .vctl #group-by, .wbar .vctl [data-layout], .wbar .vctl [aria-label=Layout], .wbar .vctl [data-lay], .wbar .vctl #swimlanes, .wbar .vctl [aria-haspopup=menu]').length", sid), 0,
                          "no layout or group controls in it")
 
     def test_the_old_separate_controls_are_gone(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
-            self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout], [aria-label=Layout]').length", sid), 0)
+            self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout]').length", sid), 0)
+            self.assertEqual(cdp.js("document.querySelectorAll('.fvrow [role=group][aria-label=Layout] [data-lay]').length", sid), 2, "row 812: the two-icon switch is beside the View menu")
             self.only_the_archived_pill_in_the_bar(cdp, sid)
             self.board(cdp, sid, "status")
             self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout], #swimlanes').length", sid), 0)
             self.only_the_archived_pill_in_the_bar(cdp, sid)
-            self.assertEqual(cdp.js("document.querySelectorAll('#work .wbar [aria-haspopup=menu], #work .fline-wrap [aria-haspopup=menu], #work .lanebar [aria-haspopup=menu]').length", sid), 3, "Freshness, View and the open tab's arrow, nothing else")
+            self.assertEqual(cdp.js("document.querySelectorAll('#work .wbar [aria-haspopup=menu], #work .fline-wrap [aria-haspopup=menu], #work .lanebar [aria-haspopup=menu]').length", sid), 2, "View and the open tab's arrow, nothing else (row 813: no Freshness pill)")
             self.assertTrue(cdp.js("!!document.querySelector('.lanebar #board-full')", sid), "full screen stays on the board bar")
 
     def test_each_entry_works(self):
@@ -96,31 +96,28 @@ class OneMenu(Base):
             cdp.js("document.querySelector('#viewMenu').focus()", sid)
             key(cdp, sid, "ArrowDown")
             self.until(cdp, sid, "!!document.querySelector('#viewMenuList')", "Down opens the menu")
-            self.assertEqual(cdp.js("document.activeElement.dataset.kind", sid), "layout:table", "the first entry has the focus")
+            self.assertEqual(cdp.js("document.activeElement.dataset.kind", sid), "group:workstream", "the first entry has the focus")
             key(cdp, sid, "ArrowDown")
-            self.assertEqual(cdp.js("document.activeElement.dataset.kind", sid), "layout:board")
+            self.assertEqual(cdp.js("document.activeElement.dataset.kind", sid), "group:status")
             key(cdp, sid, "ArrowUp")
             key(cdp, sid, "ArrowUp")
-            self.assertNotEqual(cdp.js("document.activeElement.dataset.kind", sid), "layout:table", "Up wraps to the last entry")
+            self.assertNotEqual(cdp.js("document.activeElement.dataset.kind", sid), "group:workstream", "Up wraps to the last entry")
             key(cdp, sid, "Home")
-            self.assertEqual(cdp.js("document.activeElement.dataset.kind", sid), "layout:table")
+            self.assertEqual(cdp.js("document.activeElement.dataset.kind", sid), "group:workstream")
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('#viewMenuList')", "Esc closes it")
             self.until(cdp, sid, "document.activeElement.id === 'viewMenu'", "the focus back on the button")
             # pick Group by: Status with arrows and Enter
             key(cdp, sid, "ArrowDown")
             self.until(cdp, sid, "!!document.querySelector('#viewMenuList')")
-            for _ in range(3):
-                key(cdp, sid, "ArrowDown")
+            key(cdp, sid, "ArrowDown")
             self.assertEqual(cdp.js("document.activeElement.dataset.kind", sid), "group:status")
             key(cdp, sid, "Enter")
             self.until(cdp, sid, "!document.querySelector('#viewMenuList')", "Enter picks and closes")
             self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'View: table, grouped by Status' && !!document.querySelector('tbody[data-group]')", "grouped by status")
             self.until(cdp, sid, "document.activeElement.id === 'viewMenu'", "the focus back on the button after a pick")
-            # and the board from the keyboard
-            key(cdp, sid, "ArrowDown")
-            self.until(cdp, sid, "!!document.querySelector('#viewMenuList')")
-            key(cdp, sid, "ArrowDown")
+            # and the board from the keyboard: the Board icon is a button, Enter or Space presses it
+            cdp.js("document.querySelector('[data-lay=board]').focus()", sid)
             key(cdp, sid, "Enter")
             self.until(cdp, sid, "!!document.querySelector('#work-board')", "the board from the keyboard")
 
@@ -150,7 +147,7 @@ class OneMenu(Base):
                     cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
                     self.open_menu(cdp, sid)
                     got = cdp.js(js, sid)
-                    self.assertGreaterEqual(got["n"], 15, got)
+                    self.assertGreaterEqual(got["n"], 12, got)      # row 812: three fewer, the Layout label and its two entries
                     self.assertGreaterEqual(got["left"], 0, got)
                     self.assertLessEqual(got["right"], got["w"], got)
                     self.assertFalse(got["sideways"], got)
