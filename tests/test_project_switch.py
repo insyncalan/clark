@@ -102,9 +102,8 @@ class ProjectSwitch(Base):
             p = self.page(cdp)
             self.open_menu(p)
             p.js("document.querySelectorAll('#project-menu [role=menuitemradio]')[1].click()")
-            p.until("/p=ABC/.test(location.hash)", "the address names the chosen project")
-            p.until("!!document.querySelector('.toast-text')", "the toast")
-            self.assertEqual(p.js("document.querySelector('.toast-text').textContent"), "Switched to Second Programme")
+            p.until("/p=ABC/.test(location.hash) && new URLSearchParams(location.search).get('project') === 'ABC'", "the address names the chosen project, in the page loaded for it")      # #944: its own page load, so the old page's toast is gone
+            p.until("document.getElementById('project-name').textContent.includes('Second Programme')", "the new page says the chosen project is open")
 
     def test_C_Project_settings_opens_Settings(self):
         self.rig.httpd.projects = lambda archived=False: TWO

@@ -1054,8 +1054,8 @@ class Live(unittest.TestCase):
             cdp.js("(() => { const real = window.fetch; window.fetch = async (...a) => { const r = await real(...a); "
                    "if (String(a[0]).includes('/api/undo')) clarkPage.setProject('OTH'); return r; }; })()", sid)
             click(cdp, sid, "[data-undo]")
-            self.until(cdp, sid, "clarkPage.project() === 'OTH'", "another project is open")
-            self.until(cdp, sid, "(document.querySelector('.toast-text') || {}).textContent === 'Priority of TUL-A-001 is back to Urgent.'", "the undo said what went back, and nothing more")
+            self.until(cdp, sid, "clarkPage.project() === 'OTH' && new URLSearchParams(location.search).get('project') === 'OTH'", "another project is open, in the page loaded for it")      # #944: its own page load, so the old page's toast is gone
+            self.assertTrue(wait(lambda: self.row("actions", "TUL-A-001")["priority"] == "Urgent", 10), "it was undone")
             self.assertEqual(self.row("actions", "TUL-A-001")["priority"], "Urgent", "it was undone")
             self.assertNotIn("could not be refreshed", self.toast(cdp, sid))
             self.assertFalse(cdp.js("!!document.querySelector('.toast.problem')", sid), "no problem is said")

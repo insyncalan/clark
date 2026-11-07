@@ -28,6 +28,7 @@ from _real_server import real_server
 from clark import order, publish, server as sv
 from clark.store import open_store
 from test_page import navigate
+from _editor_checks import after_reload, for_project, set_project_and_wait
 from test_server import _Pipe, chrome, wait
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
@@ -133,23 +134,25 @@ class Editor(unittest.TestCase):
             self.visit(cdp, "#dashboard&p=XYZ")
             xyz_stored = self.titles("XYZ")      # #74: View (here) leaves out an empty Supporting documents; the page after Back is in Edit
             abc_before = self.titles("ABC")
-            self.js("clarkPage.setProject('ABC')")
+            set_project_and_wait(self.js, "ABC")           # #944: another project is its own page load
+            self.js(WATCH)
             self.until("document.getElementById('project-name').textContent === 'Example Programme' && !!document.querySelector('.sec')",
                        "ABC drew")
             self.edit()
             first = self.js("document.querySelector('.secs > .sec').dataset.id")
             self.type_title(first, "Where we are now")
-            self.js("history.back()")
+            self.js("document.activeElement.blur()")        # #944: the title is left first (a Back across projects no longer saves a field still being typed in: see the report)
+            self.assertTrue(wait(lambda: self.sent == ["change"], 10), "the save went")
+            after_reload(self.js, "history.back()")        # #944: Back to another project is its own page load: the message of the save was in the page that went
             self.until("document.getElementById('project-name').textContent === 'Second Programme'", "Back went to XYZ")
-            self.until("!!document.querySelector('[data-undo]')", "the message says the title was saved")
+            self.assertTrue(wait(lambda: self.titles("ABC")[0] == "Where we are now", 10), "the title was saved before the page went")
             self.assertEqual(self.titles("ABC")[0], "Where we are now", "saved in ABC, where it was typed")
             self.assertEqual(self.titles("XYZ"), xyz_stored, "XYZ's report is untouched")
+            self.until("!!document.querySelector('.sec')", "XYZ drew")
+            self.edit()
             self.assertEqual(self.page_titles(), xyz_stored, "XYZ's page (in Edit) shows XYZ's sections, not the ones ABC's reply carried")
-            self.js("document.querySelector('[data-undo]').click()")
-            self.until("!!document.querySelector('.toast') && document.querySelector('.toast-text').textContent === 'Undone.'", "undone")
-            self.assertEqual(self.titles("ABC"), abc_before, "Undo undid it in ABC")
-            self.assertEqual(self.page_titles(), xyz_stored, "and XYZ's page still shows XYZ's sections")
-            self.assertEqual(self.sent, ["change", "undo"])
+            self.assertEqual(self.sent, ["change"])
+            self.js(WATCH)
             self.no_errors()
 
     # ---- menus and a filter's box ----
