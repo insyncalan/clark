@@ -81,7 +81,7 @@ COVERED = [
     ("#589", "A saved view the filter line cannot read says why in plain words",
      "test_filter_line::SavedViews::test_a_view_the_line_cannot_read_says_why_in_plain_words"),
     ("#589", "A saved view the filter line cannot read stays listed and can be renamed or archived",
-     "test_filter_line_page::Line::test_a_saved_view_the_line_cannot_read_stays_listed_says_why_and_can_be_renamed_or_archived"),
+     "test_filter_line_page::Line::test_a_saved_view_the_line_cannot_read_stays_listed_says_why_and_can_be_renamed_or_deleted"),
     ("#375", "A use case in the list says Not written yet.",
      "test_empty_state_words::EmptyStateWordsTest::test_use_case_summary_row_says_not_written_yet"),
     ("#375", "A use case's page says exactly Not written yet.",
