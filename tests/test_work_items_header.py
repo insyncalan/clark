@@ -203,7 +203,7 @@ class Header(Base):
         self.each(check)
 
     # ---- row 807 ----
-    def test_row_807_a_selected_card_has_no_check_mark_but_still_shows_it_is_selected_and_a_list_row_keeps_its_tick(self):
+    def test_row_807_a_selected_card_and_a_selected_list_row_have_no_check_mark_but_still_show_it_is_selected(self):
         def check(cdp, sid, width):
             self.board(cdp, sid, "status")
             card = "#work-board article.bcard .bc-main"
@@ -219,12 +219,37 @@ class Header(Base):
             self.assertNotEqual(got["shadow"], "none")
             key(cdp, sid, "Escape")             # a click opens the peek (row 806), which covers the layout switch
             self.until(cdp, sid, "!document.querySelector('#peek')", "the peek is closed")
-            # the list row keeps its tick
+            # the list row has no check mark either (row 807): the tint, border and bar show it
             self.view_pick(cdp, sid, "layout:table")
             self.until(cdp, sid, "document.querySelector('table.items')", "the table")
             click(cdp, sid, "table.items tbody tr[data-id] .c-item .t")
             self.until(cdp, sid, "document.querySelector('table.items tbody tr.picked')", "a row is selected")
-            self.assertTrue(cdp.js("!!document.querySelector('table.items tbody tr.picked .c-item .tick')", sid), "the list row keeps its tick")
+            got = cdp.js("(() => { const r = document.querySelector('table.items tbody tr.picked'), c = getComputedStyle(r);"
+                         " return {tick: !!r.querySelector('.tick'), svg: r.querySelectorAll('.c-item svg').length, sel: r.getAttribute('aria-selected'),"
+                         " shadow: c.boxShadow, other: getComputedStyle(document.querySelector('table.items tbody tr[data-id]:not(.picked)')).boxShadow}; })()", sid)
+            self.assertFalse(got["tick"], "no check mark on the selected list row")
+            self.assertEqual(got["svg"], 0, "no icon drawn in the item cell of the selected row")
+            self.assertEqual(got["sel"], "true", "a screen reader still hears it")
+            self.assertIn("inset", got["shadow"], "the border and the bar show the selection")
+            self.assertNotEqual(got["shadow"], got["other"])
+        self.each(check)
+
+    def test_row_807_a_list_row_is_as_tall_selected_as_not_selected(self):
+        from test_multi_select import MOD, tap
+
+        def check(cdp, sid, width):
+            self.until(cdp, sid, "document.querySelector('table.items tbody tr[data-id]')", "the table")
+            rid = cdp.js("document.querySelector('table.items tbody tr[data-id]').dataset.id", sid)
+            row = "#work-list tr[data-id='%s']" % rid
+            h = "document.querySelector(\"%s\").getBoundingClientRect().height" % row
+            self.until(cdp, sid, "document.getAnimations().length === 0", "animations finished")
+            before = cdp.js(h, sid)
+            tap(cdp, sid, row + " .c-item .t", MOD)
+            self.until(cdp, sid, "document.querySelector(\"%s\").classList.contains('picked')" % row, "the row is selected")
+            self.until(cdp, sid, "document.getAnimations().length === 0", "animations finished")
+            self.assertFalse(cdp.js("!!document.querySelector('#peek')", sid), "a Ctrl or Cmd click selects without opening the peek, so the table keeps its width")
+            self.assertEqual(cdp.js(h, sid), before, "the row's height is the same selected and not selected")
+            self.assertGreater(before, 20, "the row was measured")
         self.each(check)
 
 
