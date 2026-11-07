@@ -13,7 +13,7 @@ Same shape as test_v103.
 
 The notes hold only merged, user-visible rows; no DRAFT line is allowed anywhere. The cut checks (version, files, layout) skip until the
 cut commit sets 1.0.4. The data layout moves from 17 to 18 in 1.0.4 (row 926, the Gantt data layer):
-the notes carry the Read this first paragraph and, at the cut, the store must say 18. The Gantt page, tab and section (PR 896, PR 899) are in 1.0.6.
+the notes carry the Read this first paragraph and, at the cut, the store must say 18. The Gantt page, tab and table (row 928, PR 896) are in 1.0.4; the Gantt section (PR 899) is not.
 """
 import ast
 import re
@@ -59,6 +59,18 @@ COVERED = [
      "test_menu_border::MenuBorder::test_every_menu_border_is_3_to_1_on_the_page_and_on_a_card_at_both_widths_in_both_looks"),
     ("#965", "Owner is left out of a client Gantt by default.",
      "test_gantt_publish::TheGate::test_owner_is_hidden_where_nothing_is_saved_and_kept_where_a_list_is_saved"),
+    ("#928", "The Gantt tab appears when the Gantt is on and lines exist.",
+     "test_gantt_tab::Tab::test_the_editor_tick_adds_the_tab_with_the_project_name_for_it"),
+    ("#928", "The tab's name is a box after a click in Edit.",
+     "test_gantt_tab::Tab::test_the_name_is_a_box_after_a_click_in_edit_and_enter_saves_with_an_undo"),
+    ("#928", "The Gantt page shows a timeline or a table of the same lines.",
+     "test_gantt_page::Page::test_the_table_toggle_keeps_the_mode_and_the_lines"),
+    ("#928", "The Edit Gantt table has an Import from Excel button that opens the import box.",
+     "test_gantt_page::Page::test_export_and_import_run_the_editors_own_excel_flows"),
+    ("#928", "View and a published file have no Gantt import button.",
+     "test_gantt_page::Page::test_a_published_file_has_no_pill_no_edit_button_and_no_title_box"),
+    ("#928", "The published Gantt table draws read only, without the columns left out of a client file.",
+     "test_gantt_page::Page::test_the_table_reads_in_full_in_the_published_file_and_in_edit_at_both_widths"),
     ("#926", "The editor workbook's Gantt sheet; the client workbook's Gantt sheet has no hidden column.",
      "test_gantt_excel_export::TheClientsWorkbook::test_a_hidden_owner_is_absent_as_a_header_and_as_a_value"),
     ("#926", "A line with its eye off is in no part of the client copy.",
