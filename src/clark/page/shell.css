@@ -1252,8 +1252,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn:disabled { cursor: default; opacity: .6; }
 .setting { margin-top: var(--space-3); }
 .set-head p { margin: 0; }
-/* The Settings links (item 440, S2; issue 697). Above 900 px they are a list down the left, the cards at the right; the list stays under the top bar
-   as you scroll (and scrolls itself if the window is short). At 900 px and narrower it is the old bar of chips under the head, on the page's own
+/* The Settings links (item 440, S2; issue 697). At 900 px and wider (item 842) they are a list down the left, the cards at the right; the list stays under the top bar
+   as you scroll (and scrolls itself if the window is short). Below 900 px it is the old bar of chips under the head, on the page's own
    ground carried out to both edges, and its height is kept clear when a card or a box is scrolled into view (--set-bar, Views.jsx). */
 .set-layout { display: grid; grid-template-columns: minmax(150px, 14rem) minmax(0, 1fr); column-gap: var(--space-5); align-items: start; }
 .set-layout > .set-head { grid-column: 1 / -1; }
@@ -1263,7 +1263,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-nav { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .set-nav li { display: block; }
 .set-chip { all: unset; box-sizing: border-box; display: flex; align-items: center; width: 100%; min-height: 28px; padding: 3px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out); }      /* no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
-@media (max-width: 900px) {
+@media (max-width: 899px) {
   .set-layout { display: block; }
   .set-bar { position: sticky; padding: var(--space-2) 0; margin-top: var(--space-3); max-height: none; overflow-y: visible; box-shadow: 0 0 0 100vmax var(--grey-50); clip-path: inset(0 -100vmax); }
   :root:has(.set-bar) { scroll-padding-top: var(--set-bar, 0px); }

@@ -1,10 +1,10 @@
-"""The Settings head: the title, a line of help and one link for each card on the page, in a real browser at 1400, 901, 900 and 800 px,
-light and dark. Issue 697: above 900 px the links are a list down the left with the cards at the right; at 900 px and narrower they are the
-row of chips under the title again. Run: python3 dev/run_tests.py test_settings_head
+"""The Settings head: the title, a line of help and one link for each card on the page, in a real browser at 1400, 901, 900, 899 and 800 px,
+light and dark. Issues 697 and 842: at 900 px and wider the links are a list down the left with the cards at the right; below 900 px they are the
+row of chips under the title. Run: python3 dev/run_tests.py test_settings_head
 
 What is asserted: the title and the help line; a chip for each card that is on the page (Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, People, Asking) and none
 for a card that is not; a click scrolls the card into view and moves focus to its heading; the keyboard does the same (Tab to a chip,
-Enter); the list stands at the left of the cards above 900 px and the chips wrap in a row under the title at 900 px and narrower, the page never scrolls sideways and nothing overlaps; each chip is at least 24 px high and wide; the chip text is at least 13 px
+Enter); the list stands at the left of the cards at 900 px and wider and the chips wrap in a row under the title below 900 px, the page never scrolls sideways and nothing overlaps; each chip is at least 24 px high and wide; the chip text is at least 13 px
 and 4.5:1 on its ground; the focus ring is 2 px. Chrome is required: these tests fail, never skip, without it.
 """
 import re
@@ -14,7 +14,7 @@ from test_appearance import scheme
 from test_publish_dialog import Base
 from test_server import chrome
 
-WIDTHS = (1400, 901, 900, 800)
+WIDTHS = (1400, 901, 900, 899, 800)
 MODES = ("light", "dark")
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
 CARDS = [("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
@@ -99,7 +99,7 @@ class Head(Base):
             self.at_top(p, "personal-h")
             self.assertEqual(p.js("getComputedStyle(document.activeElement).outlineWidth"), "2px", "the heading shows the ring after the keyboard")
 
-    def test_C_the_list_is_at_the_left_above_900_and_a_row_of_chips_at_900_and_narrower(self):
+    def test_C_the_list_is_at_the_left_at_900_and_wider_and_a_row_of_chips_below_900(self):
         for w in WIDTHS:
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
@@ -115,7 +115,7 @@ class Head(Base):
                     for h, wd in ((c[3] - c[1], c[2] - c[0]) for c in chips):
                         self.assertGreaterEqual(h, 24)
                         self.assertGreaterEqual(wd, 24)
-                    if w > 900:
+                    if w >= 900:
                         self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-nav')).flexDirection"), "column")
                         self.assertLessEqual(max(c[0] for c in chips) - min(c[0] for c in chips), 1, "the links stand in one column")
                         self.assertTrue(all(b[1] > a[1] for a, b in zip(chips, chips[1:])), "each link is below the one before")
