@@ -25,7 +25,7 @@ export function SneakPeek({ row, kind = "item" }) {
     if (box.current) box.current.focus();
     return () => {
       if (wordsOpen.value) return;                    // the box is still wanted (another item): the new box takes focus
-      const back = before && before !== document.body && before.isConnected ? before : (document.querySelector("[data-sneak-open]") || document.querySelector("#peek [data-pk-close]"));
+      const back = before && before !== document.body && before.isConnected ? before : document.querySelector("[data-sneak-open]");
       if (back && back.focus) back.focus();
     };
   }, []);

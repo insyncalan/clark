@@ -9,7 +9,7 @@ import { rows as allRows, project, filterCtx, fromFile, peek } from "../stores/r
 import { lineText, setLine, local } from "../stores/line.js";
 import * as FL from "../logic/filterLine.js";
 import * as Q from "../logic/filterQueryUi.js";
-import { Menu } from "./Menu.jsx";
+import { Menu, Fade } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce } from "../stores/work.js";
 import { say } from "../stores/changes.js";
@@ -305,7 +305,7 @@ export function FilterLine({ board }) {
   // Item 954: it floats just under the box when the message line is empty, and under that line when it says something, so it never covers the message
   // (the unknown-field error is there). The message line is after the examples' room; the list is out of the flow, so it sits where it is written.
   const suggestions = listed ? (
-    <ul class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
+    <Fade tag="ul" class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
       {options.map((o, i) => (
         <li key={`${o.ins}|${o.label}`} id={`fo-${i}`} role="option" aria-selected={i === active ? "true" : "false"} class={`fopt ${o.kind}`} data-ins={o.ins}
           onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>
@@ -315,7 +315,7 @@ export function FilterLine({ board }) {
           {o.n !== undefined ? <span class="c num" data-n={o.n}>{o.n}</span> : null}
         </li>
       ))}
-    </ul>
+    </Fade>
   ) : null;
   return (
     <div class="fline-wrap" ref={box}
@@ -356,6 +356,8 @@ export function FilterLine({ board }) {
         {draft || chips.length ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
       </div>
       {notes.length ? null : suggestions}
+      {/* Row 833: the note comes before the examples, which float (out of the flow) from where they stand: under the note, never over it. */}
+      <p class={`fmsg${words.length ? " bad" : ""}`} id="fline-msg" role="status" aria-live="polite">{notes.join(" ")}</p>
       {
         // Always drawn, hidden unless the line is focused: the room stays, so a click that moves focus away from the line does not shift the page under the pointer.
         // The examples and the list of suggestions are never shown together: while the list is open the examples keep their room but are hidden.
@@ -365,7 +367,6 @@ export function FilterLine({ board }) {
           <span class="fgloss" id="fline-gloss" aria-hidden="true" hidden={!gloss}>{gloss}</span>
         </div>
       }
-      <p class={`fmsg${words.length ? " bad" : ""}`} id="fline-msg" role="status" aria-live="polite">{notes.join(" ")}</p>
       {notes.length ? suggestions : null}
     </div>
   );

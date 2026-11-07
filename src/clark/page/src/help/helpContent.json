@@ -267,7 +267,7 @@
      "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”. The box closes by itself after a moment; you can press the button to close it at once. If the file name is taken, the box asks what to do: Add a number, Rename it or, where it is allowed, Overwrite the existing file.",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
     ],
-    "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on). The line at the top of the Dashboard says when it was last published, and whether to the client or locally.",
+    "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on). A number is never used again, and **Undo** does not take it back. The line at the top of the Dashboard says when it was last published, and whether to the client or locally.",
     "next": [
      "howto-save-as-a-pdf",
      "howto-word-in-and-out",
@@ -410,10 +410,10 @@
     "id": "change-an-item-in-words",
     "g": "Work items",
     "t": "Change an item with words (Sneak peek)",
-    "w": "A work item open in Edit › [[/]] [[/]]",
+    "w": "A work item open in Edit › the sparkle, or [[/]] [[/]]",
     "go": "work",
     "s": [
-     "With a work item open in the peek in Edit, press [[/]] twice quickly (when you aren’t typing in a box). On a use case’s own page, the sparkle at the top does the same, “Change an item with words”.",
+     "With a work item open in the peek in Edit, press [[/]] twice quickly (when you aren’t typing in a box), or press the sparkle at the top, “Change an item with words”.",
      "Type the change, for example “move to Friday, owner Jo, high priority”.",
      "Under the box, the words you typed are shown in the order you typed them, then a line for each field shows what it is now and what it will become.",
      "Press **Make the change** or [[Enter]] to make every change shown, in one step ([[Shift+Enter]] makes them and keeps the box open). **Not now** or [[Esc]] closes the box. The fields that changed flash for a moment, and the message has **Undo**.",
@@ -1420,7 +1420,7 @@
      [
       "ul",
       [
-       "**The top bar**: Close, Across the whole screen, Previous and Next, then the eye, Copy link and **⋯** (Duplicate, Archive).",
+       "**The top bar**: Close, Across the whole screen, Previous and Next, then the eye, the sparkle (Sneak peek, in Edit), Copy link and **⋯** (Duplicate, Archive).",
        "**The line above the title**: the type, the ID, the project, and Client when it is shown to the client.",
        "**A warning**, when an action is overdue or due on a weekend, with fixes.",
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
@@ -1521,7 +1521,7 @@
     "id": "sneak-peek",
     "g": "Working with items",
     "t": "Sneak peek",
-    "w": "A work item open in Edit › [[/]] [[/]]",
+    "w": "A work item open in Edit › the sparkle or [[/]] [[/]]",
     "b": [
      [
       "p",
