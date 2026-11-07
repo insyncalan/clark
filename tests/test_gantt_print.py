@@ -13,6 +13,7 @@ import unittest
 from _paths import SRC
 import test_gantt_page as rig
 from test_gantt_page import Page as _PageRig, lit
+from test_server import chrome  # noqa: F401  # this file drives Chrome through test_gantt_page's rig; the runner's text check looks for this import
 
 A4 = {"portrait": 794, "landscape": 1123}      # A4's width in CSS pixels
 KEEP = "display position overflowX overflowY maxHeight height backgroundColor borderTopColor color zIndex".split()
