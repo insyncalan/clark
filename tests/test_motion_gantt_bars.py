@@ -152,8 +152,10 @@ class Bars(unittest.TestCase):
     def test_a_drag_or_a_grab_during_the_first_moments_adds_and_leaves_nothing(self):
         self.page()
         self.mount()
-        # grab at once (inside the first 220 ms): the dragged bar has no growing animation
-        r = self.val("(function(){ var r = document.querySelector('[data-g-bar=\"GNT-006\"]').getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()")
+        # grab at once (inside the first 220 ms): the dragged bar has no growing animation. The bar grows from its left edge and is 0 px wide in its
+        # very first frame, so a click on its centre then lands on the row behind it: wait until it has some width, and press just inside its left edge.
+        self.until("(function(){ var b = document.querySelector('[data-g-bar=\"GNT-006\"]'); return !!b && b.getBoundingClientRect().width >= 4; })()", "the bar has started to grow")
+        r = self.val("(function(){ var r = document.querySelector('[data-g-bar=\"GNT-006\"]').getBoundingClientRect(); return {x: r.left + 2, y: r.top + r.height / 2}; })()")
         self.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": r["x"], "y": r["y"], "button": "left"}, self.sid)
         self.cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": r["x"], "y": r["y"], "button": "left", "buttons": 1, "clickCount": 1}, self.sid)
         for k in range(1, 5):
@@ -253,6 +255,25 @@ class Bars(unittest.TestCase):
                 self.assertEqual(self.grow(), 0)
                 self.assertEqual(self.val("getComputedStyle(document.querySelector('.gt-b')).animationName"), "none")
                 self.assertEqual(self.val("document.getAnimations().length"), 0)
+
+    def test_drawn_under_reduced_motion_then_switched_off_nothing_grows_row_1000(self):
+        """Drawn while reduced (by the computer or by the app's switch), then the setting goes OFF with the Gantt still open: no bar grows."""
+        for how in ("computer", "switch"):
+            with self.subTest(how=how):
+                self.page(motion="reduce" if how == "computer" else "no-preference", attr=(how == "switch"))
+                self.mount()
+                self.assertEqual(self.grow(), 0)
+                self.assertEqual(self.val(f"document.querySelectorAll('{BARS}.gt-grow').length"), 0, "no bar carries the grow class while reduced")
+                self.reset()
+                if how == "computer":
+                    self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, self.sid)
+                else:
+                    self.js("delete document.documentElement.dataset.motion")
+                self.assertEqual(self.grow(), 0, "switching reduced motion off replays nothing")
+                self.assertEqual(self.val("document.getAnimations().length"), 0)
+                # a redraw after the switch (selecting a bar) still grows nothing
+                self.js(f"document.querySelector('{BARS}').click()")
+                self.assertEqual(self.grow(), 0)
 
     def test_the_published_stylesheet_alone_runs_nothing(self):
         self.page()

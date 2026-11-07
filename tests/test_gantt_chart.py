@@ -17,7 +17,7 @@ from _paths import SRC, TOOLS
 sys.path.insert(0, str(TOOLS))
 import build_page  # noqa: E402
 
-from test_gantt_logic import LINES, TODAY, page_html  # noqa: E402
+from test_gantt_logic import LINES, TODAY, ln, page_html  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 
 GANTT_SRC = SRC / "clark" / "page" / "src" / "gantt"
@@ -167,6 +167,24 @@ class Chart(unittest.TestCase):
 
     # ── View ─────────────────────────────────────────────────────────────────
 
+    def test_row_988_the_header_row_stays_in_view_with_many_lines(self):
+        """#988: with 500 lines the chart is bounded and scrolls inside itself, so the header row is never scrolled off the window."""
+        many = [ln(f"GNT-{i:03d}", f"Task {i}", "task", "2026-09-01", "2026-10-14", show=True) for i in range(1, 501)]
+        edit_css = (build_page.EDIT_CSS).read_text(encoding="utf-8")      # the bare test page holds the published CSS only: add the served page's Edit CSS, where the bound lives
+        self.js(f"(function(){{ var s = new CSSStyleSheet(); s.replaceSync({lit(edit_css)}); document.adoptedStyleSheets = document.adoptedStyleSheets.concat([s]); window.row988 = s; }})()")
+        self.addCleanup(self.js, "document.adoptedStyleSheets = document.adoptedStyleSheets.filter(function(x){ return x !== window.row988; })")
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    self.look(width, scheme)
+                    self.mount(edit=False, lines=many)
+                    self.js("window.scrollTo(0, 3000)")
+                    top, bottom, vh = self.val("(function(){ var r = document.querySelector('.gt-rhead').getBoundingClientRect(); return [r.top, r.bottom, innerHeight]; })()")
+                    self.assertGreaterEqual(top, 0, "the header row is not above the window")
+                    self.assertLessEqual(bottom, vh, "the header row is inside the window")
+                    gx = self.val("(function(){ var g = document.querySelector('.gt-gx'); return [g.clientHeight, g.scrollHeight]; })()")
+                    self.assertLess(gx[0], gx[1], "the chart scrolls inside its own box")
+
     def test_view_at_every_width_and_in_both_schemes(self):
         for width in (1400, 900):
             for scheme in ("light", "dark"):
@@ -184,6 +202,34 @@ class Chart(unittest.TestCase):
                     self.assertEqual(self.text("[data-g-cell=start]"), "01-09-2026")
                     self.assertEqual(self.val("[...document.querySelectorAll('.gt-lhead .gt-h')].map(e => e.textContent.trim())"), ["Phase / task", "Start", "End", "Done"])
                     self.assertEqual(self.text("[data-g-today]"), "Today")
+
+    def test_a_long_bar_label_ellipsises_and_a_short_one_does_not(self):
+        long = [dict(l) for l in LINES]
+        long[0]["name"] = "Very long phase name " * 10
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    self.look(width, scheme)
+                    self.mount(edit=False, lines=long)
+                    got = self.val("[...document.querySelectorAll('.gt-mslab')].map(e => [e.textContent.trim().slice(0, 9), e.getBoundingClientRect().width, getComputedStyle(e).textOverflow, e.scrollWidth > e.clientWidth])")
+                    longs = [g for g in got if g[0] == "Very long"]
+                    self.assertTrue(longs, "the long label is drawn")
+                    for _, w, to, cut in longs:
+                        self.assertLessEqual(w, 320.5, "a long label is held to a maximum width")
+                        self.assertEqual(to, "ellipsis")
+                    for g in got:
+                        if g[0] != "Very long":
+                            self.assertFalse(g[3], f"a normal label is not cut: {g}")
+
+    def test_a_line_with_no_usable_date_is_said_to_be_left_out(self):
+        bad = [dict(l) for l in LINES] + [dict(LINES[0], id="GNT-090", name="No date", start="garbage", end="", show=True)]
+        self.look(1400, "light")
+        self.mount(edit=False, lines=bad)
+        self.assertEqual(self.text("[data-g-count]"), "6 of 12 lines shown", "the View counts the undated line in the total")
+        self.mount(edit=True, lines=bad)
+        self.assertEqual(self.text("[data-g-count]"), "11 of 12 lines shown", "Edit counts it too")
+        self.mount(edit=False, lines=LINES)
+        self.assertEqual(self.count("[data-g-count]"), 0, "nothing left out, nothing said in the View")
 
     def test_every_bar_carries_its_name_as_text(self):
         self.look(1400, "light")
