@@ -67,7 +67,7 @@ class TheFourGuides(unittest.TestCase):
         for name in ("**Work items**", "**Hand over**", "**All**", "**None**", "**Hand over to**", "**Cancel**", "**Change**", "**Undo**"):
             self.assertIn(name, text["hand-an-item-over"], name)
         for name in ("**Work items**", "**+ New view**", "**Name for the new view**", "**Save**", "**Save changes**", "**Save as a new view…**",
-                     "**Rename…**", "**New name for this view**", "**Archive**", "**Bring back**"):
+                     "**Rename…**", "**New name for this view**", "**Delete**"):
             self.assertIn(name, text["save-a-view"], name)
         for name in ("**Dashboard**", "**Week ending**", "**Published weeks**", "**Dashboard as at a day…**", "**Published reports**",
                      "**Dashboard as at a day**", "**Show**", "**Back to now**"):
@@ -81,7 +81,8 @@ class TheFourGuides(unittest.TestCase):
                 self.assertIsNone(re.search(BANNED, t), f"{i}: {re.search(BANNED, t)}")
                 self.assertNotRegex(t, r"(?<!\d)\d{1,2}/\d{1,2}/\d{2,4}", i)
                 self.assertNotRegex(t, r"\b\d{4}-\d{2}-\d{2}\b", i)
-                self.assertNotRegex(t, r"(?i)\b(delete|deleted)\b", i)
+                if i != "save-a-view":          # row 810 (owner): a saved view is Deleted, for good; every other guide still keeps the word out
+                    self.assertNotRegex(t, r"(?i)\b(delete|deleted)\b", i)
                 self.assertNotRegex(t, r"\bAI\b", i)
 
     def test_no_guide_promises_what_the_page_does_not_have(self):

@@ -2,7 +2,7 @@
 // for a token that cannot be used, the rows a line shows, and the list of suggestions with how a chosen one changes the text. No DOM,
 // no store, no clock: the component (components/FilterLine.jsx) draws these and owns the timing. It reads the parser and the evaluation of
 // issue 662 (filterQueryParse.js, filterQueryEval.js), so a field added to the schema, or passed in as `extra`, is understood here too.
-import { LINE_FIELDS, FIELD_NOTES, NO_ME, offers, isOn, word as typedWord, isStartingView } from "./filterLine.js";
+import { LINE_FIELDS, FIELD_NOTES, NO_ME, unknownFilter, offers, isOn, word as typedWord, isStartingView } from "./filterLine.js";
 import { NONE } from "../filters.js";
 import { parseQuery, schemaOf, resolveField, squash, colonAt } from "./filterQueryParse.js";
 import { evaluateQuery } from "./filterQueryEval.js";
@@ -35,7 +35,8 @@ export function messageOf(e) {
   if (!e) return "";
   const first = e.suggestions && e.suggestions[0];
   switch (e.code) {
-    case "unknown-field": return first ? `Unknown field '${e.name}'. Did you mean ${first.name}?` : `Unknown field '${e.name}'.`;
+    case "unknown-field": if (!e.qualifier) return unknownFilter(e.name);      // a word before a colon: the line's own sentence; has: and no: keep theirs
+      return first ? `Unknown field '${e.name}'. Did you mean ${first.name}?` : `Unknown field '${e.name}'.`;
     case "ambiguous-field": return `'${e.name}' could mean more than one field. Use the full name.`;
     case "unknown-state": return first ? `Unknown state '${e.name}'. Did you mean ${first.name}?` : `Unknown state '${e.name}'.`;
     case "missing-value": return `Add a value after '${e.name}:'.`;
@@ -111,7 +112,7 @@ export function troubleQuery(view, rows, ctx, extra) {
   const errors = parseFor(view.line, rows, ctx, extra).errors;
   if (!errors.length) return "";
   const first = /^(.+?[.?!])(\s|$)/.exec(messageOf(errors[0]));
-  return `This view cannot be used any more. ${first ? first[1] : "Its words are not ones the filter line knows."} Rename it or archive it.`;
+  return `This view cannot be used any more. ${first ? first[1] : "Its words are not ones the filter line knows."} Rename it or delete it.`;
 }
 export const heldBackQuery = (view, rows, ctx, extra) => isStartingView(view) && troubleQuery(view, rows, ctx, extra) !== "";
 
@@ -219,4 +220,60 @@ export function accept(text, caret, opt) {
   if (opt.close && /^\s/.test(tail)) tail = tail.slice(1);
   const head = String(text).slice(0, start) + opt.ins + (opt.close ? " " : "");
   return { text: head + tail, caret: head.length };
+}
+
+// ── Chips: the words of the line that are complete filters (row 845) ───────────────────────────────────────────────────────
+// The line stays one text (the saved views, the count and the parser read it); the box draws the complete filters as chips, each with its own
+// remove button, and holds only the rest (plain words, a word still being typed, a word that cannot be used).
+
+const isChipToken = (t) => !t.error && t.kind !== "text";
+const spaceAt = (s, i) => i < s.length && /\s/.test(s[i]);
+
+/** A line cut in two: its complete filters (each as typed) and the rest of the line (plain words and unusable words, in order). */
+export function splitLine(line, rows, ctx, extra) {
+  const toks = parseFor(line, rows, ctx, extra).tokens;
+  return { chips: toks.filter(isChipToken).map((t) => t.raw), rest: toks.filter((t) => !isChipToken(t)).map((t) => t.raw).join(" ") };
+}
+
+/** The chips and the text in the box as one line. */
+export function joinLine(chips, draft) {
+  const d = draft || "";
+  return d === "" ? chips.join(" ") : [...chips, d].join(" ");
+}
+
+/** Complete filters the caret has moved past (a space follows them) leave the text and become chips: {chips: [typed], text, caret}. */
+export function commitDraft(text, caret, rows, ctx, extra) {
+  const done = parseFor(text, rows, ctx, extra).tokens.filter((t) => isChipToken(t) && t.end < caret && spaceAt(text, t.end));
+  if (!done.length) return { chips: [], text, caret };
+  let out = "", at = 0, back = 0;
+  for (const t of done) {
+    let e = t.end;
+    while (spaceAt(text, e)) e++;
+    out += text.slice(at, t.start); at = e;
+    back += Math.min(e, caret) - t.start;
+  }
+  return { chips: done.map((t) => t.raw), text: out + text.slice(at), caret: caret - back };
+}
+
+const keyOfToken = (t) => (t.kind === "field" ? t.field : t.kind === "state" ? "is" : `${t.present ? "has" : "no"}:${(t.fields || []).join(",")}`);
+
+/** The suggestions with `n` on each row that closes a word: how many items the line would show with that choice in place of the chips on the
+ *  same field (row 846; the other chips still count). */
+export function withCounts(options, chips, rows, ctx, extra) {
+  if (!options.some((o) => o.close)) return options;
+  const held = chips.map((c) => ({ raw: c, tok: parseFor(c, rows, ctx, extra).tokens[0] }));
+  return options.map((o) => {
+    if (!o.close) return o;
+    const t = parseFor(o.ins, rows, ctx, extra).tokens[0];
+    if (!t || t.error || t.kind === "text") return o;
+    const k = keyOfToken(t), keep = held.filter((h) => !(h.tok && !h.tok.error && keyOfToken(h.tok) === k)).map((h) => h.raw);
+    return { ...o, n: rowsFor(rows, [...keep, o.ins].join(" "), ctx, extra).length };
+  });
+}
+
+/** The word a chip's remove button names: the field's name, or the word typed before the colon (is, has, no). */
+export function chipName(chip, rows, ctx, extra) {
+  const t = parseFor(chip, rows, ctx, extra).tokens[0];
+  if (t && t.kind === "field") { const f = pageSchema(rows, ctx, extra).fields.find((x) => x.key === t.field); return f ? f.name : t.field; }
+  return String(chip).replace(/^-/, "").split(":")[0];
 }

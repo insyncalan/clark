@@ -12,12 +12,13 @@ import * as Q from "../logic/filterQueryUi.js";
 import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce } from "../stores/work.js";
+import { say } from "../stores/changes.js";
 import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
 
 export const PAUSE = 400;                                // ms after the last key before the typed line is applied (the owner's 300 to 500)
 
 // A saved view whose line the filter line no longer reads (a word it does not know) stays on the tabs with a plain message, and can be renamed
-// or archived like any other, so a view that cannot be read can still be fixed or removed. The one view left out is a starting view the page cannot answer yet (Waiting on the client, while
+// or deleted like any other, so a view that cannot be read can still be fixed or removed. The one view left out is a starting view the page cannot answer yet (Waiting on the client, while
 // is:needed is not on): Q.heldBackQuery. Choosing a view that cannot be read does not touch the line.
 
 // Which saved view is chosen, per project, for this visit. A page change keeps it; a reload goes back to the view the line matches.
@@ -65,11 +66,14 @@ function SavedViews({ board }) {
   const all = viewsOf(code), shown = FL.visibleViews(all).filter((v) => !Q.heldBackQuery(v, rows, ctx));
   const trouble = (v) => Q.troubleQuery(v, rows, ctx);
   const nameBox = useRef(null);
-  const [form, setForm] = useState(null);                 // null, or {mode: "saveas" | "rename", name, error}
+  const [form, setForm] = useState(null);                 // null, or {mode: "saveas" | "rename" | "delete" | "note", name, error}
   const mine = chosen.value[code];
-  const active = shown.find((v) => v.id === mine) || shown.find((v) => !trouble(v) && !Q.differsQuery(v, line, rows, ctx)) || null;
+  const matching = shown.find((v) => !trouble(v) && !Q.differsQuery(v, line, rows, ctx)) || null;
+  const active = shown.find((v) => v.id === mine) || matching;
   const said = active ? trouble(active) : "";
   const dirty = !!active && !said && Q.differsQuery(active, line, rows, ctx);
+  // Row 844: the view the line matched stays the chosen tab when the line is then changed, so the dot shows on it and Discard changes has a view to go back to.
+  useEffect(() => { if (matching && !shown.some((v) => v.id === mine)) chosen.value = { ...chosen.value, [code]: matching.id }; }, [matching && matching.id, code]);
   const pick = (v) => { chosen.value = { ...chosen.value, [code]: v.id }; if (!trouble(v)) setLine(v.line); };
   // The open tab and its arrow are brought into view inside the scrolling row (the row alone moves, never the page).
   const tabsBox = useRef(null);
@@ -84,22 +88,22 @@ function SavedViews({ board }) {
     show();
     window.addEventListener("resize", show);      // a narrower window can push the open tab out of the box
     return () => window.removeEventListener("resize", show);
-  }, [active && active.id, shown.length]);
+  }, [active && active.id, shown.length, dirty]);      // dirty: Save view and Discard changes take room beside the tabs, so the open tab is brought into view again
   const act = (id) => {
     if (/^(layout|group|lane):/.test(id)) pickLayout(id);
-    else if (id === "save" && active) { const r = FL.saveView(all, active.id, line.trim()); if (r.ok) saveViews(code, r.views); }
+    else if (id === "discard" && active) { pick(active); const el = document.querySelector('.vtab[aria-pressed="true"]'); if (el) el.focus(); }
+    else if (id === "save" && active) { const r = FL.saveView(all, active.id, line.trim()); if (r.ok) { saveViews(code, r.views); say("done", `View saved: ${active.name}`); } }
     else if (id === "saveas") setForm({ mode: "saveas", name: "", error: "" });
     else if (id === "rename" && active) setForm({ mode: "rename", name: active.name, error: "" });
-    else if (id === "archive" && active) {
-      const r = FL.archiveView(all, active.id);
-      if (r.ok) { saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; }
-    } else if (id.startsWith("restore:")) {
-      const r = FL.restoreView(all, id.slice(8));
-      if (r.ok) saveViews(code, r.views); else setForm({ mode: "note", name: "", error: r.message });
-    }
+    else if (id === "delete" && active) setForm({ mode: "delete", name: "", error: "" });
   };
   const submit = (e) => {
     e.preventDefault();
+    if (form.mode === "delete") {
+      const r = FL.deleteView(all, active.id);
+      if (r.ok) { saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; setForm(null); } else setForm({ ...form, error: r.message });
+      return;
+    }
     const r = form.mode === "rename" ? FL.renameView(all, active.id, form.name) : FL.addView(all, form.name, line.trim());
     if (!r.ok) { setForm({ ...form, error: r.message }); return; }
     saveViews(code, r.views);
@@ -113,15 +117,12 @@ function SavedViews({ board }) {
     return () => clearTimeout(t);
   }, [form && form.mode]);
   const lay = layoutItems(work.value, !!board);
-  // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Archive never on a core view.
+  // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Delete on any view, a core one too. Save view and Discard changes sit beside the tabs while the dot shows (Save view never on a core view).
   const core = !!active && FL.isCoreView(active);
   const tabItems = [];
   if (active && dirty && !core) tabItems.push({ id: "save", name: "Save changes" });
   tabItems.push({ id: "saveas", name: "Save as a new view…" });
-  if (active && !core) { tabItems.push({ id: "rename", name: "Rename…" }); tabItems.push({ id: "archive", name: "Archive" }); }
-  // A view that was archived can be brought back from the open tab's menu, or from the + New view box when no tab is open.
-  const archived = FL.archivedViews(all).filter((v) => !Q.heldBackQuery(v, rows, ctx));
-  for (const v of archived) tabItems.push({ id: `restore:${v.id}`, name: `Bring back ${v.name}${trouble(v) ? " (cannot be used now)" : ""}` });
+  if (active) { tabItems.push({ id: "rename", name: "Rename…" }); tabItems.push({ id: "delete", name: "Delete" }); }
   return (
     <div class="fviews">
       <div class="fvrow">
@@ -129,7 +130,7 @@ function SavedViews({ board }) {
         {shown.map((v) => {
           const on = !!active && active.id === v.id, dot = on && dirty, bad = trouble(v), count = bad ? 0 : Q.rowsFor(rows, v.line, ctx).length;
           // the small arrow sits right beside the open tab's name
-          const arrow = on && !fromFile.value ? <Menu label="" ariaLabel={`Options for ${v.name}`} id="viewTabMenu" btnCls="vtabmenu" menuId="viewTabMenuList" fixed menuLabel={`Options for ${v.name}`} items={tabItems} onPick={act} /> : null;
+          const arrow = on && !fromFile.value ? <Menu label="" ariaLabel={`Options for ${v.name}`} id="viewTabMenu" btnCls="vtabmenu" menuId="viewTabMenuList" fixed="start" menuLabel={`Options for ${v.name}`} items={tabItems} onPick={act} /> : null;
           if (bad) {          // no count: the line is not applied, so there is nothing to count
             return (
               <span class="vt" key={v.id}>
@@ -151,12 +152,23 @@ function SavedViews({ board }) {
         })}
         {fromFile.value ? null : <button type="button" class="vnew" id="viewNew" onClick={() => act("saveas")}>{"+ New view"}</button>}
       </div>
+      {fromFile.value || !dirty ? null : (
+        <span class="fvacts">
+          {core ? null : <button type="button" class="btn sm" id="fvSave" onClick={() => act("save")}>Save view</button>}
+          <button type="button" class="link" id="fvRevert" onClick={() => act("discard")}>Discard changes</button>
+        </span>
+      )}
       {fromFile.value || !board ? null : <LayoutSwitch />}
       {fromFile.value ? null : <Menu label="View" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={lay.items} onPick={act} />}
       </div>
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setForm(null); } }}>
-          {form.mode === "note" ? null : (
+          {form.mode === "delete" ? (
+            <>
+              <span class="vask" id="vask">Delete this view?</span>
+              <button type="submit" class="btn sm" id="vdelete" ref={nameBox}>Delete</button>
+            </>
+          ) : form.mode === "note" ? null : (
             <>
               <label for="vname">{form.mode === "rename" ? "New name for this view" : "Name for the new view"}</label>
               <input id="vname" type="text" value={form.name} maxLength={FL.MAX_NAME} ref={nameBox} onInput={(e) => setForm({ ...form, name: e.target.value, error: "" })} />
@@ -164,7 +176,6 @@ function SavedViews({ board }) {
             </>
           )}
           <button type="button" class="btn sm" onClick={() => setForm(null)}>{form.mode === "note" ? "Close" : "Cancel"}</button>
-          {form.mode === "saveas" ? archived.map((v) => <button type="button" class="btn sm" key={v.id} data-restore={v.id} onClick={() => { setForm(null); act(`restore:${v.id}`); }}>{`Bring back ${v.name}${trouble(v) ? " (cannot be used now)" : ""}`}</button>) : null}
           <span class="vmsg" role="status">{form.error}</span>
         </form>
       ) : null}
@@ -175,21 +186,40 @@ function SavedViews({ board }) {
 
 export function FilterLine({ board }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
-  const [draft, setDraft] = useState(line);               // the text in the box; the line (lineText) is what the list shows, and follows it after a pause
+  const first = useRef(null);
+  if (first.current === null) first.current = Q.splitLine(line, rows, ctx);
+  const live = useRef({ chips: first.current.chips, draft: first.current.rest });     // what the box holds right now, for a key that comes before the next draw
+  const [chips, setChipsRaw] = useState(first.current.chips);   // row 845: the complete filters, each a chip with its own remove button
+  const [draft, setDraftRaw] = useState(first.current.rest);    // the text in the box (plain words and the word being typed); the line (lineText) is what the list shows, and follows chips and box after a pause
   const [focused, setFocused] = useState(false);
   const [caret, setCaret] = useState(0);
   const [active, setActive] = useState(-1);                   // the suggestion the arrows are on (-1: none)
   const [closed, setClosed] = useState(false);                // Esc closed the list; typing opens it again
+  const [gloss, setGloss] = useState("");                    // the plain meaning of the chip the pointer or focus is on, shown in the examples line
   const [touched, setTouched] = useState(false);              // something was typed or chosen since the focus came: a list is then wanted even after a space
+  const setChips = (v) => { live.current.chips = v; setChipsRaw(v); };
+  const setDraft = (v) => { live.current.draft = v; setDraftRaw(v); };
   const input = useRef(null), over = useRef(null), box = useRef(null), timer = useRef(0), applied = useRef(line), want = useRef(null);
   // A change that did not come from this box (a tab, a switch, Clear filter, another project) puts its line in the box and drops a pending apply.
-  useEffect(() => {
-    if (line !== applied.current) { clearTimeout(timer.current); applied.current = line; setDraft(line); }
+  useLayoutEffect(() => {      // before paint: a late run would wipe what was typed just after a tab was chosen
+    const now = lineText.value;      // the line as it is now, not as the draw that scheduled this saw it: a key can apply a newer one before the effect runs
+    if (now !== applied.current) { clearTimeout(timer.current); applied.current = now; const s = Q.splitLine(now, rows, ctx); setChips(s.chips); setDraft(s.rest); }
   }, [line]);
   useEffect(() => () => clearTimeout(timer.current), []);
   const apply = (text) => { applied.current = text; setLine(text); };
   const later = (text) => { clearTimeout(timer.current); timer.current = setTimeout(() => { if (text !== lineText.value) apply(text); }, PAUSE); };
-  const edit = (text) => { setDraft(text); later(text); };
+  // A change of the text: filters the caret has moved past become chips, the rest stays in the box.
+  const edit = (text, at) => {
+    const c = Q.commitDraft(text, at === undefined ? text.length : at, rows, ctx), next = c.chips.length ? [...live.current.chips, ...c.chips] : live.current.chips;
+    if (c.chips.length) { setChips(next); want.current = c.caret; }
+    setDraft(c.text); later(Q.joinLine(next, c.text));
+  };
+  const dropChip = (i) => {
+    clearTimeout(timer.current);
+    const next = live.current.chips.filter((_, j) => j !== i);
+    setChips(next); apply(Q.joinLine(next, live.current.draft));
+    if (input.current) input.current.focus();
+  };
   const readCaret = () => { if (input.current) setCaret(input.current.selectionStart || 0); };
   // The tokens are drawn in a layer over the (clear-text) input: it follows the input's own sideways scroll. A caret put by a choice is set here, after the draw.
   useLayoutEffect(() => {
@@ -199,19 +229,19 @@ export function FilterLine({ board }) {
   const parsed = Q.parseFor(draft, rows, ctx), shown = Q.pieces(draft, parsed, focused ? caret : undefined);
   const matches = Q.rowsFor(rows, line, ctx).length;
   const words = shown.filter((p) => p.cls === "err" && p.message).map((p) => p.message);
-  const notes = [...words, ...(Q.wantsMe(parsed, ctx) ? [Q.NO_ME] : [])];
-  const options = focused ? Q.suggestions(draft, caret, rows, ctx) : [];
+  const notes = [...words, ...(Q.wantsMe(Q.parseFor(Q.joinLine(chips, draft), rows, ctx), ctx) ? [Q.NO_ME] : [])];
+  const options = focused ? Q.withCounts(Q.suggestions(draft, caret, rows, ctx), chips, rows, ctx) : [];
   const wordNow = Q.wordAt(draft, caret).word;
-  const listed = focused && !closed && options.length > 0 && (draft.trim() === "" || touched);
+  const listed = focused && !closed && options.length > 0 && ((draft.trim() === "" && chips.length === 0) || touched);
   const pick = (o) => {
     const r = Q.accept(draft, caret, o);
-    want.current = r.caret; edit(r.text); setActive(-1); setClosed(false); setTouched(true);
+    want.current = r.caret; edit(r.text, r.caret); setActive(-1); setClosed(false); setTouched(true);
     if (input.current) input.current.focus();
   };
   const clear = () => {
     clearTimeout(timer.current);
     chosen.value = { ...chosen.value, [code]: "" };
-    setDraft(""); apply("");
+    setChips([]); setDraft(""); apply("");
     if (input.current) input.current.focus();
   };
   const onKeyDown = (e) => {
@@ -220,6 +250,8 @@ export function FilterLine({ board }) {
       e.preventDefault();
       if (!listed) { setClosed(false); setTouched(true); setActive(e.key === "ArrowDown" ? 0 : options.length - 1); return; }
       setActive(e.key === "ArrowDown" ? (active + 1) % options.length : (active < 0 ? options.length : active) - 1);
+    } else if (e.key === "Backspace" && live.current.chips.length && e.target.selectionStart === 0 && e.target.selectionEnd === 0) {
+      e.preventDefault(); dropChip(live.current.chips.length - 1);        // an empty box takes the last chip away
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (listed && active >= 0 && options[active]) pick(options[active]);
@@ -267,13 +299,27 @@ export function FilterLine({ board }) {
     return () => document.removeEventListener("keydown", slash);
   }, []);
   const hints = FL.hints(ctx);
-  const useHint = (h) => { const t = (draft && !/\s$/.test(draft) ? draft + " " : draft) + h.text; setTouched(true); want.current = t.length; edit(t); if (input.current) input.current.focus(); };
+  const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
+  const useHint = (h) => { const t = (draft && !/\s$/.test(draft) ? draft + " " : draft) + h.text + " "; setTouched(true); want.current = t.length; edit(t); if (input.current) input.current.focus(); };
   return (
     <div class="fline-wrap" ref={box}
       onFocusIn={() => setFocused(true)}
       onFocusOut={(e) => { if (!e.relatedTarget || !box.current.contains(e.relatedTarget)) leave(); }}>
       <SavedViews board={board} />
-      <div class={`fline${focused ? " on" : ""}`} data-fline>
+      <div class={`fline${focused ? " on" : ""}${words.length ? " bad" : ""}`} data-fline data-line={Q.joinLine(chips, draft)}>
+        {chips.length ? (
+          <span class="fchips" data-fchips>
+            {chips.map((c, i) => {
+              const name = Q.chipName(c, rows, ctx);
+              return (
+                <span class="fchip" key={`${i}|${c}`} data-chip={c} data-gloss={`${c}: ${meaning(c)}`}
+                  onMouseEnter={() => setGloss(`${c}: ${meaning(c)}`)} onMouseLeave={() => setGloss("")} onFocusIn={() => setGloss(`${c}: ${meaning(c)}`)} onFocusOut={() => setGloss("")}>{c}
+                  <button type="button" data-fx={c} aria-label={`Remove the ${name} filter`} onMouseDown={(e) => e.preventDefault()} onClick={() => dropChip(i)}>{"×"}</button>
+                </span>
+              );
+            })}
+          </span>
+        ) : null}
         <div class="fedit">
           <div class="fhi" ref={over} aria-hidden="true" data-fhi>
             <span class="fhs">{shown.map((p, i) => (
@@ -285,13 +331,13 @@ export function FilterLine({ board }) {
           <input ref={input} id="fline-input" type="text" role="combobox" autocomplete="off" spellcheck={false} aria-expanded={listed ? "true" : "false"} aria-controls={listed ? "fline-list" : undefined}
             aria-activedescendant={listed && active >= 0 ? `fo-${active}` : undefined}
             aria-label="Filter work items" aria-autocomplete="list" aria-describedby="fline-msg"
-            placeholder={FL.PLACEHOLDER} value={draft}
+            placeholder={chips.length ? undefined : FL.PLACEHOLDER} value={draft}
             onFocus={() => { setClosed(false); setTouched(false); readCaret(); }}
-            onInput={(e) => { edit(e.target.value); setCaret(e.target.selectionStart || 0); setActive(-1); setClosed(false); setTouched(true); }} onKeyDown={onKeyDown} onKeyUp={readCaret} onClick={readCaret}
+            onInput={(e) => { edit(e.target.value, e.target.selectionStart || 0); setCaret(e.target.selectionStart || 0); setActive(-1); setClosed(false); setTouched(true); }} onKeyDown={onKeyDown} onKeyUp={readCaret} onClick={readCaret}
             onScroll={() => { if (over.current && input.current) over.current.scrollLeft = input.current.scrollLeft; }} />
         </div>
         <span class="fcount num" id="fline-count" data-fcount>{`${matches} of ${rows.length}`}</span>
-        {draft ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
+        {draft || chips.length ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
       </div>
       {/* Row 808: the list floats over the page just under the box (it is out of the flow), so opening it pushes no row or card down. */}
       {listed ? (
@@ -302,6 +348,7 @@ export function FilterLine({ board }) {
               {o.tone ? <i class={`fdv ${o.tone}`} data-tone={o.tone} aria-hidden="true"></i> : null}
               <span class="fl1">{o.label}</span>
               {o.note ? <span class="fl2">{o.note}</span> : null}
+              {o.n !== undefined ? <span class="c num" data-n={o.n}>{o.n}</span> : null}
             </li>
           ))}
         </ul>
@@ -312,9 +359,10 @@ export function FilterLine({ board }) {
         <div class={`fhints${focused && !listed ? " on" : ""}`} role="group" aria-label="Examples" aria-hidden={focused && !listed ? undefined : "true"}>
           <span class="fhl">Try</span>
           {hints.map((h) => <button type="button" key={h.text} class="fhint" title={h.gloss} onMouseDown={(e) => e.preventDefault()} onClick={() => useHint(h)}>{h.text}</button>)}
+          <span class="fgloss" id="fline-gloss" aria-hidden="true" hidden={!gloss}>{gloss}</span>
         </div>
       }
-      <p class="fmsg" id="fline-msg" role="status" aria-live="polite">{notes.join(" ")}</p>
+      <p class={`fmsg${words.length ? " bad" : ""}`} id="fline-msg" role="status" aria-live="polite">{notes.join(" ")}</p>
     </div>
   );
 }
