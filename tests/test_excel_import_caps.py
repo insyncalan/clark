@@ -240,6 +240,18 @@ class Caps(unittest.TestCase):
         with self.assertRaises(Loaded):
             self.plan()
 
+    def test_a_sheet_of_empty_rows_past_the_row_cap_is_refused_before_the_load(self):
+        part = part_of(self.path, "Actions")
+        for how, row in (("<row/> with no number", "<row/>"), ("<row r=\"N\"/> numbered", None), ("an empty open and close", "<row></row>")):
+            body = "".join('<row r="%d"/>' % r for r in range(1, 6002)) if row is None else row * 6001
+            rewrite(self.path, part, HEAD + body + TAIL)
+            text = self.refused()
+            self.assertIn("The Actions sheet reaches past row 5,000", text, how)
+            self.assertIn("Nothing was changed", text, how)
+        rewrite(self.path, part, HEAD + "<row/>" * 4000 + TAIL)          # inside the cap, empty rows alone do not refuse
+        with self.assertRaises(Loaded):
+            self.plan()
+
     def test_tags_and_texts_split_across_chunks_are_counted_the_same(self):
         rewrite(self.path, part_of(self.path, "Actions"), HEAD + rows_xml(300000) + TAIL)
         for chunk in (7, 64, 65536):

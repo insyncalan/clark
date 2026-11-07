@@ -1303,6 +1303,10 @@ def _scan_member(z, member, title):
                 if m.group(1) == b"row":
                     row = int(at.group(2)) if at and at.group(2) else row + 1
                     col = 0
+                    max_row = max(max_row, row)                  # an empty row counts toward the reach too
+                    if max_row > MAX_SHEET_ROWS:
+                        raise Invalid(f"The {title} sheet reaches past row {MAX_SHEET_ROWS:,} or column {MAX_SHEET_COLUMNS}, which is more than "
+                                      "clark will import in one go. Check this is the right file. Nothing was changed.")
                     continue
                 cells += 1
                 if at and at.group(1) and at.group(2):
