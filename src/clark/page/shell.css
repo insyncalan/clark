@@ -1505,6 +1505,10 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 .seg button[aria-checked="true"] { background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); font-weight: var(--weight-semibold); }
 .seg button[aria-pressed="true"] em,
 .seg button[aria-checked="true"] em { color: var(--pill-fg); }
+/* Item 952: the chosen half of a segmented group is filled aqua, where the page's blue ring was 2.5:1 on it in dark. On that half the ring is ONE ring, the same outline the other halves have: its colour is the fill's own text colour (--pill-fg, dark; well over 3:1 on both ends of the aqua in light and in dark) and it is moved to 6 px INSIDE the half's edge (outline-offset -6px), so the aqua is on both sides of it. It is not a second ring on top of the blue one; the blue one is gone on that half. Covers every .seg whose chosen half is aqua: aria-pressed / aria-checked, the Layout pair (.seg.lsw: Table | Board, aqua too) and the Milestones calendar scale (.cal-sc, which marks its chosen scale with aria-current). Not the View | Edit pill (.modes: its own outset ring, edit.css) and not a .seg.icons (no screen has one now; its chosen half would be a tint, where the blue ring is right). */
+.seg:not(.icons):not(.modes) button[aria-pressed="true"]:focus-visible,
+.seg:not(.icons):not(.modes) button[aria-checked="true"]:focus-visible,
+.cal-sc button[aria-current="true"]:focus-visible { outline-color: var(--pill-fg); outline-offset: -6px; }
 .top { background-color: var(--brand-navy); background-image: linear-gradient(90deg, var(--brand-navy), var(--bar-end)); }   /* the bar still takes --brand-navy, with a soft lift to the right */
 .tab::after { background-color: var(--pill-color); background-image: var(--accent-line); }
 
