@@ -1459,7 +1459,7 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 .rt-slash { flex-direction: column; min-width: 180px; max-width: calc(100vw - 16px); max-height: 50vh; overflow-y: auto; padding: var(--space-1) 0; }
 .rt-opt { all: unset; box-sizing: border-box; display: block; padding: var(--space-2) 14px; font-size: var(--size-small); color: var(--text); cursor: pointer; }
 .rt-opt:hover, .rt-opt.on { background: var(--grey-100); }
-.rt-view { border-radius: var(--radius-sm); cursor: text; }
+.rt-view { border-radius: var(--radius-sm); cursor: text; min-height: 24px; }   /* row 843: a one-line view is 22.5 px at the 15 px base; a click target is 24 px */
 .rt-view:hover { outline: 1px solid var(--grey-300); }
 .rt-view:focus-visible { outline: 2px solid var(--focus); }
 
