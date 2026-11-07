@@ -49,7 +49,12 @@ class TopBarTabs(Base):
                                      "if (!s) return false; s.textContent = 'Customer onboarding programme, phase two, northern region'; return true; })()"),
                                 f"at {width} px, {theme}: the long-name check found no project name in the top bar ('.top .projbtn > span' or '.top .proj'), "
                                 "so it did not test a long name at all; the bar's markup has changed")
-            if active:
+            if active == "Settings":      # row 976: Settings is no tab; it opens from the profile circle's menu
+                p.js("document.querySelector('#profile-btn').click()")
+                p.until("!!document.querySelector('#profile-menu')", "the profile menu opened")
+                p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+                p.until("document.querySelector('h1') && document.querySelector('h1').textContent === 'Settings'", "Settings opened from the menu")
+            elif active:
                 p.js(f"[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === '{active}')[0].click()")
                 p.until(f"[...document.querySelectorAll('.top .tab')].some(t => t.textContent.trim() === '{active}' && t.getAttribute('aria-selected') === 'true')", f"{active} is the open tab")
             p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
@@ -89,7 +94,8 @@ class TopBarTabs(Base):
             if t["open"] or not scrolls:       # the open tab is whole inside the tab row's box; with no scroll every tab is
                 self.assertGreaterEqual(t["left"], got["row"][0] - 0.5, f"{where}: {t['name']!r} starts left of the tab row")
                 self.assertLessEqual(t["right"], got["row"][1] + 1, f"{where}: {t['name']!r} is cut off by the tab row's right edge")
-        self.assertEqual(sum(1 for t in got["tabs"] if t["open"]), 1, where)
+        self.assertNotIn("Settings", [t["name"] for t in got["tabs"]], f"{where}: Settings is not a top-bar tab (row 976)")
+        self.assertEqual(sum(1 for t in got["tabs"] if t["open"]), 0 if active == "Settings" else 1, where)      # on Settings no tab is pressed: it is not a tab
         if scrolls and width > 800:       # 800 px and below stay as main has them (the name keeps its width, the row scrolls): row 757 is 900 px only
             self.assertLessEqual(got["name"], 73, f"{where}: the tab row scrolls while the project name is still {got['name']} px wide")
         self.assertAlmostEqual(got["bar"][3] - got["bar"][2], 56, delta=0.5, msg=f"{where}: the bar is not one 56 px row")
@@ -162,7 +168,7 @@ class TopBarTabs(Base):
                 self.assertLessEqual(max(i["right"] for i in got["items"]), got["bar"][1] + 0.5, f"at {width} px, {active}: an item runs past the window")
 
     def test_a_row_narrowed_after_the_scroll_shows_the_open_tab_again_at_900(self):
-        # The exact failing case: 900 px, the profile circle in the bar, Settings open; then the tab row narrows (as it does when the mode switch joins
+        # The exact failing case: 900 px, the profile circle in the bar, the last tab open; then the tab row narrows (as it does when the mode switch joins
         # the bar on leaving the Dashboard) and the open tab, already scrolled to, must be brought into the row again.
         with sqlite3.connect(str(self.store.path)) as con:
             con.execute("UPDATE app_settings SET ask_enabled = 1 WHERE id = 1")
@@ -170,7 +176,7 @@ class TopBarTabs(Base):
             p = self.visit(cdp)
             size(cdp, p, 900, 700)
             p.until("!!document.querySelector('#ask-btn') && !!document.querySelector('#profile-btn')", "the ask button and the profile circle show")
-            p.js("[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === 'Settings')[0].click()")
+            p.js("[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === 'Use cases')[0].click()")      # row 976: the last tab (Settings was it before)
             p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
             p.js("(function(){ var s = document.createElement('span'); s.id = 'test-spacer'; s.style.cssText = 'flex:none;width:90px;height:1px'; "
                  "document.querySelector('.top .tabs').after(s); })()")
@@ -182,8 +188,8 @@ class TopBarTabs(Base):
             p.js("new Promise(r => setTimeout(r, 1500))")
             got = p.js("(function(){ var row = document.querySelector('.top .tabs').getBoundingClientRect(), "
                        "t = document.querySelector('.top .tab[aria-selected=true]').getBoundingClientRect(); return [t.left, t.right, row.left, row.right]; })()")
-            self.assertGreaterEqual(got[0], got[2] - 0.5, f"Settings starts left of the tab row {got}")
-            self.assertLessEqual(got[1], got[3] + 0.5, f"Settings is cut off by the tab row's right edge {got}")
+            self.assertGreaterEqual(got[0], got[2] - 0.5, f"Use cases starts left of the tab row {got}")
+            self.assertLessEqual(got[1], got[3] + 0.5, f"Use cases is cut off by the tab row's right edge {got}")
 
 
 class SkipLink(Base):

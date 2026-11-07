@@ -422,7 +422,7 @@ class HiddenOnTheServedPage(unittest.TestCase):
                     cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid)))
                 self.assertEqual(cdp.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.dataset.view)", sid),
-                                 ["dashboard", "work", "milestones", "usecases", "settings"], dashboard_mode)
+                                 ["dashboard", "work", "milestones", "usecases"], dashboard_mode)      # row 976: no Settings tab
                 self.assertEqual(cdp.js("document.querySelectorAll('#clientreport').length", sid), 0, dashboard_mode)
                 self.assertEqual(cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid), "dashboard", dashboard_mode)
             self.assertNotIn("Client Requested Report View", cdp.js("document.body.innerText", sid))

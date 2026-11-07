@@ -82,6 +82,8 @@ def opened(cdp, url, extra=""):
     return sid
 
 
+SHOWN = "(document.querySelector('.tab[aria-selected=true]') || {dataset: {view: document.querySelector('h1').textContent === 'Settings' ? 'settings' : null}}).dataset.view"      # the open page: the pressed tab, or Settings (no tab)
+
 class Browser(unittest.TestCase):
     """Helpers for a test that drives one Chrome page."""
 
@@ -576,10 +578,15 @@ class BuiltPage(Browser):
         self.assertTrue(wait(lambda: url() == "about:blank", 10), f"Back from the first entry leaves clark: {url()}")
 
     def click_tab(self, view):
-        self.ev(f"document.querySelector('[data-view={view}]').click()")
+        if view == "settings":      # row 976: Settings is no tab; the profile circle's menu calls show("settings"), the same router step
+            self.assertEqual(self.ev("document.querySelectorAll('[data-view=settings]').length"), 0, "no Settings tab in the top bar")
+            self.ev("clarkPage.show('settings')")
+        else:
+            self.ev(f"document.querySelector('[data-view={view}]').click()")
+
 
     def tab(self):
-        return self.ev("document.querySelector('.tab[aria-selected=true]').dataset.view")
+        return self.ev(SHOWN)
 
     def peek(self):
         return self.ev("clarkPage.peek()")
@@ -594,11 +601,11 @@ class BuiltPage(Browser):
             self.assertEqual(self.tab(), "settings")
             for view in ("milestones", "work", "dashboard"):
                 self.ev("history.back()")
-                self.until("document.querySelector('.tab[aria-selected=true]').dataset.view", view, "back")
+                self.until(SHOWN, view, "back")
             self.assertEqual(self.at(), ["#dashboard&p=PDF", start + 3])
             for view in ("work", "milestones", "settings"):
                 self.ev("history.forward()")
-                self.until("document.querySelector('.tab[aria-selected=true]').dataset.view", view, "forward")
+                self.until(SHOWN, view, "forward")
             self.assertEqual(self.ev("document.querySelector('h1').textContent"), "Settings")
             self.click_tab("settings")
             self.assertEqual(self.at()[1], start + 3, "the same tab again adds nothing")
@@ -944,10 +951,10 @@ class FileUrl(Browser):
             self.assertEqual(self.ev("location.protocol"), "file:")
             n = self.at()[1]
             for view in ("milestones", "settings"):
-                self.ev(f"document.querySelector('[data-view={view}]').click()")
+                self.ev("clarkPage.show('settings')" if view == "settings" else f"document.querySelector('[data-view={view}]').click()")      # row 976: Settings is no tab; the profile circle's menu calls show("settings")
             self.assertEqual(self.at(), ["#settings&p=PDF", n + 2])
             self.ev("history.back()")
-            self.until("document.querySelector('.tab[aria-selected=true]').dataset.view", "milestones", "back")
+            self.until(SHOWN, "milestones", "back")
             self.ev("clarkPage.openPeek('M-3', 'milestone')")
             self.assertEqual(self.at(), ["#milestones&p=PDF&ms=M-3", n + 2], "no data to check it against, so it stays")
             self.ev("history.back()")
