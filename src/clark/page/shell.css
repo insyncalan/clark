@@ -1367,6 +1367,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucdetail p { margin: 0 0 6px; }
 .ucdetail ul.plain li { border-top: 0; padding: 2px 0; }
 .ucdetail ul.ucstepl li { display: flex; align-items: center; gap: 8px; }
+.ucstepl [data-stepid] { white-space: nowrap; }
 .ucstepl .av { width: 26px; height: 26px; font-size: var(--size-caption); }
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
 

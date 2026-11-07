@@ -421,6 +421,19 @@ class UseCases(Setup):
             p.js("history.back()")
             p.until("!!document.querySelector('.ucrow')", "back on the Dashboard")
 
+    def test_a_next_step_carries_only_its_work_item_id_as_one_unbroken_link(self):
+        """#1004: no separate due text on the line, and the id never breaks into pieces (also at a narrow width)."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width=width)
+                p.js("document.querySelector('.ucrow .ucbar').click()")
+                p.until("!!document.querySelector('.ucdetail')", "the row opened")
+                self.assertEqual(p.js("document.querySelectorAll('.ucdetail [data-stepid]').length"), 3)
+                self.assertNotIn("due", p.js("document.querySelector('.ucstepl').innerText").lower(), "no due text on a step line")
+                self.assertEqual(p.js("document.querySelectorAll('.ucstepl li .muted').length"), 0)
+                self.assertEqual(p.js("[...document.querySelectorAll('.ucstepl [data-stepid]')].every(e => getComputedStyle(e).whiteSpace === 'nowrap')"), True, "the id is one unbreakable link")
+                self.assertEqual(p.js("[...document.querySelectorAll('.ucstepl [data-stepid]')].every(e => e.getClientRects().length === 1)"), True, "the id is on one line")
+
     def test_next_steps_are_every_open_item_in_the_client_wording_with_the_owner_in_a_circle(self):
         """#441: a risk and a decision linked to the use case are next steps too; an item with client wording shows that, not its title."""
         uc = self.demo.use_case
