@@ -1267,17 +1267,26 @@ class BrandLibrary:
             return 200, dict(call(lib), ok=True)
         except lib.BrandError as e:
             return (409 if e.key in ("expired", "busy") else 400), {"ok": False, "code": e.key or "refused", "message": e.message}
+        except OSError:             # the Downloads folder or the Open dialog failing: the same plain refusal as the library's own
+            return 400, {"ok": False, "code": "failed", "message": lib.MESSAGES["failed"]}
 
     def listing(self):
-        return self._run(lambda lib: {"brands": lib.installed(self.root), "undo": bool(getattr(lib, "can_undo", lambda *a: False)(self.root, self.data))})
+        return self._run(lambda lib: {"brands": lib.installed(self.root), "undo": lib.can_undo(self.root, self.data)})
 
     def _file(self, source):
         plat = importlib.import_module("clark.platform")
         if source == "file":
             return (self.choose or plat.choose_zip_file)("Choose a brand file", start=self._downloads(plat))
         folder = self._downloads(plat)
-        zips = [p for p in (sorted(folder.glob("*.zip")) if folder else []) if p.is_file() and not p.is_symlink()]
-        return max(zips, key=lambda p: p.stat().st_mtime) if zips else None
+        lib = self.library()
+        found = []
+        for p in (sorted(folder.glob("*.zip")) if folder else []):
+            try:        # only a file named as a brand zip (a browser's " (1)" allowed) counts; a newer unrelated zip hides nothing
+                if lib.ZIP_NAME_RE.fullmatch(lib.BROWSER_COPY.sub("", p.name)) and p.is_file() and not p.is_symlink():
+                    found.append((p.stat().st_mtime, p))
+            except OSError:
+                continue
+        return max(found, key=lambda t: t[0])[1] if found else None
 
     def _downloads(self, plat):
         return self.downloads if self.downloads is not None else plat.downloads_dir()
@@ -1285,10 +1294,10 @@ class BrandLibrary:
     def review(self, body):
         if set(body) - BRAND_BODY_KEYS["review"] or body.get("from") not in ("downloads", "file"):
             return 400, error_body("bad_request")
-        path = self._file(body["from"])
-        if path is None:
-            return 200, {"ok": True, "review": None}
-        return self._run(lambda lib: {"review": lib.review(path, self.root)})
+        def look(lib):
+            path = self._file(body["from"])
+            return {"review": None if path is None else lib.review(path, self.root)}
+        return self._run(look)
 
     def install(self, body):
         if set(body) - BRAND_BODY_KEYS["install"] or not isinstance(body.get("review_id"), str):
