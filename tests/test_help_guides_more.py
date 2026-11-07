@@ -69,6 +69,9 @@ class TheFourGuides(unittest.TestCase):
         for name in ("**Work items**", "**+ New view**", "**Name for the new view**", "**Save**", "**Save changes**", "**Save as a new view…**",
                      "**Rename…**", "**New name for this view**", "**Delete**"):
             self.assertIn(name, text["save-a-view"], name)
+        self.assertIn("To remove a view you no longer want, open it, press the small arrow and choose **Delete**, then press **Delete** to confirm. A deleted view cannot be brought back. This works for the five starting tabs too.", text["save-a-view"])
+        self.assertNotIn("Bring back", text["save-a-view"])
+        self.assertNotIn("Archive", text["save-a-view"])
         for name in ("**Dashboard**", "**Week ending**", "**Published weeks**", "**Dashboard as at a day…**", "**Published reports**",
                      "**Dashboard as at a day**", "**Show**", "**Back to now**"):
             self.assertIn(name, text["see-the-dashboard-as-at-a-day"], name)

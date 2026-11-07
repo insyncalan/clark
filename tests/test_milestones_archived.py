@@ -206,8 +206,7 @@ class Archived(Base):
             self.assertNotIn("(0)", cdp.js("document.querySelector('#milestones').textContent", sid))
             down["on"] = False
             reload_to_new_page_cdp(cdp, sid)
-            self.until(cdp, sid, "!!document.querySelector('.msv') && !!document.querySelector('[data-mode=edit]')", "the Plan after a reload")
-            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('.msv')", "the Plan after a reload")
             self.until(cdp, sid, f"!!document.querySelector('{PILL}')", "the button once the read works")
             click(cdp, sid, PILL)
             self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 2", "the rows")

@@ -92,6 +92,39 @@ class TheGate(unittest.TestCase):
             g = chosen(plant(gantt_hidden_columns=damaged))["data"]["gantt"]
             self.assertTrue(set(store_module.GANTT_DEFAULT_HIDDEN).isdisjoint(g["columns"]), damaged)
 
+    def test_owner_is_hidden_where_nothing_is_saved_and_kept_where_a_list_is_saved(self):
+        self.assertIn("owner", store_module.GANTT_DEFAULT_HIDDEN)
+        for nothing_saved in (None, 5):
+            g = chosen(plant(gantt_hidden_columns=nothing_saved))["data"]["gantt"]
+            self.assertNotIn("owner", g["columns"], nothing_saved)
+            self.assertNotIn("A. Builder", json.dumps(g), nothing_saved)
+        saved = chosen(plant(gantt_hidden_columns="show,note,budget,effort,baseline_start,baseline_end"))["data"]["gantt"]
+        self.assertIn("owner", saved["columns"])                               # a saved list is not changed by the new default
+        for kept in ("type", "start", "end", "pct"):
+            self.assertIn(kept, chosen(plant(gantt_hidden_columns=None))["data"]["gantt"]["columns"])
+
+    def test_a_malformed_stored_list_hides_the_default_and_leaks_no_internal_column(self):
+        for bad in ("NOTE,Budget", '["note"]', "note,nonsense", "id,name", "type", "start,end,pct", "Owner", "note;budget"):
+            g = chosen(plant(gantt_hidden_columns=bad))["data"]["gantt"]
+            text = json.dumps(g)
+            for col in store_module.GANTT_DEFAULT_HIDDEN:
+                self.assertNotIn(col, g["columns"], (bad, col))
+            for secret in (SECRET_NOTE, str(SECRET_BUDGET), "A. Builder"):
+                self.assertNotIn(secret, text, bad)
+        empty = chosen(plant(gantt_hidden_columns=""))["data"]["gantt"]          # empty text is a choice: nothing is hidden
+        self.assertIn("owner", empty["columns"])
+
+    def test_blank_or_comma_only_text_hides_the_default_and_only_the_empty_text_hides_nothing(self):
+        z = "\u200b"
+        for blank in (" ", ",", ",,", ", ,", " , ", "\t", z, "," + z, "owner" + z, z + ",note" + z):
+            g = chosen(plant(gantt_hidden_columns=blank))["data"]["gantt"]
+            text = json.dumps(g)
+            for col in store_module.GANTT_DEFAULT_HIDDEN:
+                self.assertNotIn(col, g["columns"], (blank, col))
+            for secret in (SECRET_NOTE, str(SECRET_BUDGET), "A. Builder"):
+                self.assertNotIn(secret, text, repr(blank))
+        self.assertIn("note", chosen(plant(gantt_hidden_columns=""))["data"]["gantt"]["columns"])
+
     def test_a_stored_list_that_names_start_end_pct_or_type_still_leaves_them_in_the_copy(self):
         g = chosen(plant(gantt_hidden_columns="type,start,end,pct,owner"))["data"]["gantt"]       # written before these four were un-hideable
         self.assertTrue({"type", "start", "end", "pct"} <= set(g["columns"]))
@@ -284,7 +317,7 @@ class FromTheStore(unittest.TestCase):
         self.assertEqual(len(data["gantt_lines"]), 3)
         mine = next(l for l in data["gantt_lines"] if l["id"] == "ABC-GNT-002")
         self.assertEqual((mine["note"], mine["budget"], mine["depends"]), ("internal words", 900.0, "ABC-GNT-003"))
-        self.assertEqual(data["project"]["gantt_hidden_columns"], "show,note,budget,effort,baseline_start,baseline_end")
+        self.assertEqual(data["project"]["gantt_hidden_columns"], "show,note,budget,effort,baseline_start,baseline_end,owner")
 
     def test_every_client_file_made_from_the_selection_is_clean(self):
         out = publish.select(self.inputs())
@@ -313,7 +346,8 @@ class FromTheStore(unittest.TestCase):
         self.change({"project": "ABC", "kind": "projects", "op": "update", "changes": {"show_gantt_client": 0}})
         built = publish.build(self.s, "ABC", now="2026-11-06")
         body = built["body"].decode("utf-8")
-        self.assertNotIn('"gantt"', body)
+        self.assertNotIn('"gantt":', body, "no Gantt data in the file (the page's own code names the tab, so the word alone is not the test)")
+        self.assertNotIn('"tabs":["dashboard","work","milestones","usecases","gantt"', body.replace(" ", ""))
         self.assertNotIn("Dig", body)
         self.assertNotIn("gantt", built["published"]["tabs"])
 

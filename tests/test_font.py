@@ -129,6 +129,34 @@ class Vendored(unittest.TestCase):
         self.assertEqual(sorted(p.name for p in (ROOT / "vendor" / "fonts").iterdir()), ["inter", "montserrat"])
 
 
+    def test_arial_is_named_only_where_the_page_font_cannot_reach_and_each_place_has_its_reason(self):
+        """#937: where can Arial show instead of Inter? The page's text is set in `--font` (Inter, then Arial for a character the Latin subset lacks),
+        the headings in `--font-head`, and every form control inherits (`font: inherit`); radios and checkboxes draw no text. Arial is named in source
+        only in the places below. A new place has to be added here with its reason, so it is a choice and not an accident."""
+        reasons = {
+            "src/clark/brand/tokens.css": "the fallback after Inter in the font lists; the Office and email lists (Word, Excel and Outlook have no Inter)",
+            "src/clark/page/shell.css": "the printed 'Page N' in @page: Chrome draws a page margin box in a system font and cannot use the page's own web fonts",
+            "src/clark/page/src/logic/printView.js": "the printed 'Publication N' foot in @page: the same margin-box rule",
+            "src/clark/pdf.py": "Chrome's PDF header and footer templates are drawn apart from the page and cannot use its fonts",
+            "src/clark/look.py": "an example in a docstring",
+            "src/clark/excel.py": "a comment on column widths",
+            "src/clark/draft_email.py": "a comment: the email font list",
+        }
+        out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z", "--", "src"], capture_output=True, check=True).stdout.decode("utf-8").split("\0")
+        found, counts = set(), {}
+        for name in (n for n in out if n and not re.search(r"\.(png|jpe?g|gif|ico|icns|pdf|woff2?|ttf|otf|zip|xlsx|docx|db)$", n, re.I)):
+            n = len(re.findall(r"\bArial\b", (ROOT / name).read_text(encoding="utf-8", errors="ignore")))
+            if n:
+                found.add(name)
+                counts[name] = n
+        self.assertEqual(sorted(found - set(reasons)), [], "Arial is named in a new place: say why in `reasons`, or use the page font")
+        self.assertEqual(sorted(set(reasons) - found), [], "a place no longer names Arial: remove it from `reasons`")
+        # the number of times each place names it, so a second Arial in a place already listed is a choice too (add the count here with its reason above)
+        self.assertEqual(counts, {"src/clark/brand/tokens.css": 5, "src/clark/page/shell.css": 1, "src/clark/page/src/logic/printView.js": 1,
+                                  "src/clark/pdf.py": 3, "src/clark/look.py": 2, "src/clark/excel.py": 1, "src/clark/draft_email.py": 2},
+                         "Arial is named once more (or less) in a place that is already listed: say why in `reasons`, then update this count")
+
+
 class Built(unittest.TestCase):
     def setUp(self):
         self.html = page.PAGE.read_text(encoding="utf-8")

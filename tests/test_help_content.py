@@ -30,7 +30,7 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'Show the files' and 'Put back the app and settings only' are the update card's own buttons (logic/update.js LABELS, item 445); the prototype has neither.
 # 'Set commitment' and 'No flag' (#692) are read on the page itself (edit/CommitMenu.jsx SET_WORDS, NO_FLAG); the prototype has no commitment flag.
 # 'Report menu' and 'Export to PDF' are the published file's own menu words (components/ClientMenu.jsx WORDS, #713); the prototype has no such menu.
-CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯'])
+CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -94,9 +94,9 @@ class Shape(unittest.TestCase):
         self.assertEqual(SRC["tabs"], [["start", "Start here"], ["howto", "How do I…"], ["reference", "Reference"]])
 
     def test_the_counts(self):
-        """Start here: five loop steps, five first-ten-minutes steps, five jobs (the owner's five, 04-11-2026; the prototype had twelve), six places, four rules."""
+        """Start here: five loop steps, five first-ten-minutes steps, five jobs (the owner's five, 04-11-2026; the prototype had twelve), seven places (Dashboard, Work items, Milestones, Use cases, ask clark, the profile circle, Settings), four rules."""
         self.assertEqual((len(START["loop"]), len(START["first"]), len(START["jobs"]), len(START["where"]), len(START["rules"])),
-                         (5, 5, 5, 6, 4))
+                         (5, 5, 5, 7, 4))
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])

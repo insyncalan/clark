@@ -91,7 +91,7 @@ class Fields(Base):
     def test_the_fields_are_there_on_the_milestones_page_in_view_and_not_on_the_dashboard_in_view(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
-            self.assertEqual(p.js("document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') || 'view'") in ("false", "view"), True)
+            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
             self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-edit] .pk-row')].map((r) => r.dataset.row)"), list(ROWS))
         with chrome() as cdp:
             p = self.visit_peek(cdp, view="dashboard")

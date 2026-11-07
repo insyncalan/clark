@@ -1,4 +1,4 @@
-"""Row 926 (gate G2): a real update from data layout 17 to layout 18, through the updater's real package path.
+"""Row 926 (gate G2): a real update from data layout 17 to the layout the new build has now (layout 20: step 20 added the project's brand, step 18 added the Gantt lines, step 19 lets a report hold a Gantt section), through the updater's real package path.
 
 The previous release (tag v1.0.3, data layout 17) is built into a real zip with dev/tools/package.py, and so is this tree (its version
 raised by one, in a throwaway checkout, so the updater sees an update; the product files are otherwise this tree's own). The data is
@@ -8,7 +8,7 @@ faked (no process is started, no port is used), as test_updater does. The "new b
 steps run in a real child python from the installed app folder, so the code that opens the data is the code that is installed.
 
 Covered: the update succeeds; the backup set was made before anything was changed (layout 17, every row); the new build migrates to
-layout 18 keeping every row and takes its own safety copy first; a second open changes nothing; Undo puts the app folder and the data
+layout 19 keeping every row and takes its own safety copy first; a second open changes nothing; Undo puts the app folder and the data
 back at layout 17 and the old build opens it; the old build refuses the new data with its plain "newer" sentence and touches nothing.
 Not covered (said in the test that skips): the install side run by the OLD build's own updater code (the one in the installed 1.0.3).
 No network, no browser, no window. Run: python3 dev/run_tests.py test_update_17_to_18
@@ -35,6 +35,7 @@ from test_updater import Rig
 
 OLD_TAG = "v1.0.3"
 NEW_VERSION = "1.0.4"
+NEW_LAYOUT = 20      # the data layout of this build (schema steps 18 to 20); the test pins the number on purpose
 GANTT_COLUMNS = ("show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows")
 
 CHILD = r'''
@@ -217,12 +218,12 @@ class Update17To18(Rig):
 
     # --- the update itself ---
 
-    def test_the_release_zips_are_the_real_ones_at_layouts_17_and_18(self):
+    def test_the_release_zips_are_the_real_ones_at_layouts_17_and_19(self):
         old = json.loads((self.old_app / "clark-release.json").read_text(encoding="utf-8"))
         self.assertEqual(("1.0.3", 17), (old["version"], old["schema_version"]))
         with zipfile.ZipFile(self.new_zip) as z:
             new = json.loads(z.read("clark/clark-release.json"))
-        self.assertEqual((NEW_VERSION, 18), (new["version"], new["schema_version"]))
+        self.assertEqual((NEW_VERSION, NEW_LAYOUT), (new["version"], new["schema_version"]))
         self.assertEqual(17, layout(self.seed / "clark.db"))
         self.assertEqual(17, child(self.old_app / ".app" / "src", self.seed / "clark.db", "open")["layout"])
 
@@ -253,30 +254,35 @@ class Update17To18(Rig):
 
     def test_the_new_build_migrates_17_to_18_keeping_every_row_and_a_second_open_changes_nothing(self):
         now, done = self.update_to_18()
-        self.assertEqual(18, done["layout"])
-        self.assertEqual(18, layout(self.db))
-        after = every_row(self.db, leave_out=GANTT_COLUMNS)
+        self.assertEqual(NEW_LAYOUT, done["layout"])
+        self.assertEqual(NEW_LAYOUT, layout(self.db))
+        after = every_row(self.db, leave_out=GANTT_COLUMNS + ("brand",))
         self.assertEqual(self.base, {t: rows for t, rows in after.items() if t != "gantt_lines"}, "every row of every table is kept")
         for table in ("report_sections", "milestones", "use_cases", "actions", "raid", "decisions", "documents", "publications"):
             self.assertTrue(after[table], table)
         self.assertEqual([], after["gantt_lines"], "the new table is there and empty")
         self.assertEqual(self.fresh_defaults(), self.gantt_values(self.db), "every project has the six Gantt columns at their defaults")
+        con = sqlite3.connect(str(self.db))
+        try:
+            self.assertEqual({r[0] for r in con.execute("SELECT brand FROM projects")}, {"generic"}, "every project's brand is generic")
+        finally:
+            con.close()
         # the safety copy the migration took first: layout 17, every row
         copy = Path(done["copy"])
         self.assertEqual(self.data / "backups", copy.parent)
         self.assertEqual(17, layout(copy))
         self.assertEqual(self.base, every_row(copy))
-        self.assertEqual({"backup": copy.name, "from": 17, "to": 18}, ui.last_update(self.data)[1]["migration"])
+        self.assertEqual({"backup": copy.name, "from": 17, "to": NEW_LAYOUT}, ui.last_update(self.data)[1]["migration"])
         # a second open changes nothing
         before, backups = dump(self.db), sorted(p.name for p in (self.data / "backups").iterdir())
         again = child(self.app / ".app" / "src", self.db, "open")
-        self.assertEqual({"layout": 18, "copy": None}, again)
+        self.assertEqual({"layout": NEW_LAYOUT, "copy": None}, again)
         self.assertEqual(before, dump(self.db))
         self.assertEqual(backups, sorted(p.name for p in (self.data / "backups").iterdir()))
 
     def test_undo_puts_the_app_and_the_data_back_at_layout_17_and_the_old_build_opens_it(self):
         now, done = self.update_to_18()
-        self.assertEqual(18, layout(self.db))
+        self.assertEqual(NEW_LAYOUT, layout(self.db))
         status, armed = now.arm_undo({})
         self.assertEqual((200, "full"), (status, armed["choice"]))
         self.assertIn("Changes made after the update will be lost.", armed["line"])
@@ -300,7 +306,7 @@ class Update17To18(Rig):
         self.assertEqual("Invalid", said["kind"])
         self.assertEqual("This data needs a newer clark. Nothing was changed. Install the latest clark, then try again.", said["error"])
         self.assertEqual(before, (digest(self.db), sorted(p.name for p in (self.data / "backups").iterdir())))
-        self.assertEqual(18, layout(self.db))
+        self.assertEqual(NEW_LAYOUT, layout(self.db))
 
     def test_the_install_side_run_by_the_old_builds_own_updater_code(self):
         self.skipTest("not reachable without product changes: the install side of the update (review, backup, hand-over) is run here by "

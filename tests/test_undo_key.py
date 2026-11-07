@@ -103,8 +103,7 @@ class UndoKey(unittest.TestCase):
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#work&p=TUL&f=mode:all"}, sid)
         self.until(cdp, sid, "document.querySelectorAll('#work tbody tr').length > 0", "the list drew")
         if edit:
-            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-            self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "Edit shows the cells' pickers")
+            self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "Work items shows the cells' pickers: no switch, always editable")
         return sid
 
     def until(self, cdp, sid, expr, what, seconds=10):
@@ -150,7 +149,9 @@ class UndoKey(unittest.TestCase):
             self.pick(cdp, sid, "Low")
             self.pick(cdp, sid, "High")
             cdp.js("location.hash = '#dashboard&p=TUL'", sid)
-            self.until(cdp, sid, "location.hash.startsWith('#dashboard')", "the Dashboard opened")
+            self.until(cdp, sid, "location.hash.startsWith('#dashboard') && !!document.querySelector('[data-mode=edit]')", "the Dashboard opened")
+            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)   # the Dashboard opens in View: the pill is its own, so Edit is chosen there
+            self.until(cdp, sid, "document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'true'", "the Dashboard is in Edit")
             press_z(cdp, sid, CTRL)
             self.until(cdp, sid, "/back to Low\\.$/.test((document.querySelector('.toast-text') || {}).textContent || '')", "the newest went back first")
             self.assertEqual(self.priority(), "Low")
@@ -233,8 +234,8 @@ class UndoKey(unittest.TestCase):
         with chrome() as cdp:
             sid = self.open_page(cdp, 1400, edit=False)
             count = "document.querySelectorAll('.toasts').length"
-            self.assertEqual(cdp.js("document.querySelector('[data-mode=edit]').getAttribute('aria-pressed')", sid), "false", "View")
-            self.assertEqual(cdp.js(count, sid), 1, "Work items in View")
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch off the Dashboard")
+            self.assertEqual(cdp.js(count, sid), 1, "Work items")
             cdp.js("location.hash = '#dashboard&p=TUL'", sid)
             self.until(cdp, sid, "location.hash.startsWith('#dashboard') && !!document.querySelector('[data-mode=view]')", "the Dashboard opened")
             self.until(cdp, sid, "document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'false'", "still View")
@@ -280,8 +281,7 @@ class UndoKey(unittest.TestCase):
             self.assertEqual([p for p in posts[opened:] if "?" in p and not re.fullmatch(r"GET /api/data\?project=[A-Za-z0-9]+&archived=only", p)], [], "nor in the address of a request")
             self.assertEqual(self.kept(cdp, sid), before, "nothing was kept in the browser")
             reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#work tbody tr').length > 0", "the page was read again")
-            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-            self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "Edit shows the cells' pickers")
+            self.until(cdp, sid, "!!document.querySelector('[data-cell]')", "Work items shows the cells' pickers")
             cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
             press_z(cdp, sid, CTRL)
             self.until(cdp, sid, f"(document.querySelector('.toast-text') || {{}}).textContent === {json.dumps(NOTHING)}",

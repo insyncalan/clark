@@ -34,7 +34,7 @@ def listed_files(version="0.3.1"):
     for item in release_files.listed(SYSTEM):
         files[item + "x.py" if item.endswith("/") else item] = f"# fictional {item}\n".encode()
     files["src/clark/__init__.py"] = f'__version__ = "{version}"\n'.encode()
-    files["START-HERE.txt"] = b"Getting started.\n"
+    files[release_files.START_HERE] = b"Getting started.\n"
     return files
 
 
@@ -290,7 +290,7 @@ class MemberTest(Base):
         shutil.rmtree(self.tmp)
         os.mkdir(self.tmp)
         files = listed_files()
-        del files["START-HERE.txt"]
+        del files[release_files.START_HERE]
         self.refuses(make_zip(self.tmp, files=files), "incomplete")
 
     def test_extra_file_outside_the_list_is_unsafe(self):
@@ -1384,6 +1384,63 @@ class ProtectedTest(Base):
         with self.assertRaises(UpdateError) as said:
             updates.plan(self.read(make_zip(self.fresh())), app)
         self.assertEqual("unsafe", said.exception.key)
+
+
+class StartFileNameTest(Base):
+    """The one start file at the top of a download may be START-HERE.txt or START-HERE.md, never both, never another name."""
+
+    def start_zip(self, start=None, extra=None):
+        files = listed_files()
+        del files[release_files.START_HERE]
+        for name in (start or ()):
+            files[name] = b"Getting started.\n"
+        return make_zip(self.fresh(), files=files, extra=extra)
+
+    def test_the_txt_start_file_passes_as_before(self):
+        self.assertEqual("0.3.1", self.read(self.start_zip(["START-HERE.txt"])).version)
+
+    def test_the_md_start_file_passes(self):
+        r = self.read(self.start_zip(["START-HERE.md"]))
+        self.assertIn("START-HERE.md", r.files)
+        self.assertNotIn(".app/START-HERE.md", r.files)
+
+    def test_both_start_files_are_refused_as_outside_the_list(self):
+        self.refuses(self.start_zip(["START-HERE.txt", "START-HERE.md"]), "unsafe", detail="outside the app's own list: START-HERE.txt")
+
+    def test_no_start_file_is_still_incomplete(self):
+        self.refuses(self.start_zip([]), "incomplete", detail="missing: START-HERE.md")
+
+    def test_another_name_is_not_a_start_file(self):
+        for name in ("START-HERE.rtf", "start-here.md", "Start-Here.txt", "x/START-HERE.md", ".app/START-HERE.md", ".app/START-HERE.txt"):
+            with self.subTest(name=name):
+                files = listed_files()
+                files[name] = b"x"
+                self.assertEqual("unsafe", self.refuses(make_zip(self.fresh(), files=files), "unsafe").key)
+
+    def test_a_start_file_that_is_a_link_or_a_folder_is_refused(self):
+        for mode, key in ((0o120777, "unsafe"), (0o040755, "damaged")):
+            with self.subTest(mode=oct(mode)):
+                files = listed_files()
+                del files[release_files.START_HERE]
+                path = make_zip(self.fresh(), files=files, sign=False, extra={"clark/START-HERE.md": b"x"})
+                tmp = Path(str(path) + ".new")
+                with zipfile.ZipFile(path) as zin, zipfile.ZipFile(tmp, "w") as zout:
+                    for info in zin.infolist():
+                        j = entry_copy(info)
+                        if info.filename == "clark/START-HERE.md":
+                            j.external_attr = mode << 16
+                        zout.writestr(j, zin.read(info))
+                os.replace(tmp, path)
+                _signing.sign_file(path)
+                self.refuses(path, key)
+
+    def test_an_update_to_a_md_start_file_removes_the_recorded_txt_one(self):
+        old = listed_files("0.3.0")
+        old["START-HERE.txt"] = old.pop(release_files.START_HERE)
+        app = install_to(Path(self.tmp) / "app", "0.3.0", files=old)
+        plan = updates.plan(self.read(self.start_zip(["START-HERE.md"])), app)
+        self.assertIn("START-HERE.md", plan.added)
+        self.assertIn("START-HERE.txt", plan.removed)
 
 
 class WalkSkipsThePersonsFoldersTest(Base):

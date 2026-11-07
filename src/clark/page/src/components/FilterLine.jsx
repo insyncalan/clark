@@ -301,6 +301,22 @@ export function FilterLine({ board }) {
   const hints = FL.hints(ctx);
   const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
   const useHint = (h) => { const t = (draft && !/\s$/.test(draft) ? draft + " " : draft) + h.text + " "; setTouched(true); want.current = t.length; edit(t); if (input.current) input.current.focus(); };
+  // Row 808: the list floats over the page just under the box (it is out of the flow), so opening it pushes no row or card down.
+  // Item 954: it floats just under the box when the message line is empty, and under that line when it says something, so it never covers the message
+  // (the unknown-field error is there). The message line is after the examples' room; the list is out of the flow, so it sits where it is written.
+  const suggestions = listed ? (
+    <ul class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
+      {options.map((o, i) => (
+        <li key={`${o.ins}|${o.label}`} id={`fo-${i}`} role="option" aria-selected={i === active ? "true" : "false"} class={`fopt ${o.kind}`} data-ins={o.ins}
+          onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>
+          {o.tone ? <i class={`fdv ${o.tone}`} data-tone={o.tone} aria-hidden="true"></i> : null}
+          <span class="fl1">{o.label}</span>
+          {o.note ? <span class="fl2">{o.note}</span> : null}
+          {o.n !== undefined ? <span class="c num" data-n={o.n}>{o.n}</span> : null}
+        </li>
+      ))}
+    </ul>
+  ) : null;
   return (
     <div class="fline-wrap" ref={box}
       onFocusIn={() => setFocused(true)}
@@ -339,20 +355,7 @@ export function FilterLine({ board }) {
         <span class="fcount num" id="fline-count" data-fcount>{`${matches} of ${rows.length}`}</span>
         {draft || chips.length ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
       </div>
-      {/* Row 808: the list floats over the page just under the box (it is out of the flow), so opening it pushes no row or card down. */}
-      {listed ? (
-        <ul class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
-          {options.map((o, i) => (
-            <li key={`${o.ins}|${o.label}`} id={`fo-${i}`} role="option" aria-selected={i === active ? "true" : "false"} class={`fopt ${o.kind}`} data-ins={o.ins}
-              onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>
-              {o.tone ? <i class={`fdv ${o.tone}`} data-tone={o.tone} aria-hidden="true"></i> : null}
-              <span class="fl1">{o.label}</span>
-              {o.note ? <span class="fl2">{o.note}</span> : null}
-              {o.n !== undefined ? <span class="c num" data-n={o.n}>{o.n}</span> : null}
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {notes.length ? null : suggestions}
       {
         // Always drawn, hidden unless the line is focused: the room stays, so a click that moves focus away from the line does not shift the page under the pointer.
         // The examples and the list of suggestions are never shown together: while the list is open the examples keep their room but are hidden.
@@ -363,6 +366,7 @@ export function FilterLine({ board }) {
         </div>
       }
       <p class={`fmsg${words.length ? " bad" : ""}`} id="fline-msg" role="status" aria-live="polite">{notes.join(" ")}</p>
+      {notes.length ? suggestions : null}
     </div>
   );
 }

@@ -96,10 +96,10 @@ class Migrating(unittest.TestCase):
                 p = s.read("projects", ref=code)
                 self.assertEqual((p["show_gantt_editor"], p["show_gantt_client"], p["gantt_tab_name"], p["gantt_title"],
                                   p["gantt_hidden_columns"], p["gantt_default_rows"]),
-                                 (0, 0, "Gantt", "", "show,note,budget,effort,baseline_start,baseline_end", None))
+                                 (0, 0, "Gantt", "", "show,note,budget,effort,baseline_start,baseline_end,owner", None))
         finally:
             s.close()
-        after = every_row(path, NEW_COLUMNS)
+        after = every_row(path, NEW_COLUMNS + ("brand",))      # #944: layout 20 adds brand after these
         self.assertEqual({t: after[t] for t in before}, before, "no existing value changed")
         self.assertEqual(set(after) - set(before), {"gantt_lines"})
         self.assertEqual(after["gantt_lines"], [])
@@ -185,7 +185,8 @@ class Migrating(unittest.TestCase):
         path = make_v1(self.dir)
         open_store(path, onedrive_roots=[]).close()
         self.assertEqual(version(path), NOW)
-        self.assertEqual([c[1] for c in project_columns(path)][-6:], list(NEW_COLUMNS))
+        self.assertEqual([c[1] for c in project_columns(path)][-7:-1], list(NEW_COLUMNS))
+        self.assertEqual([c[1] for c in project_columns(path)][-1], "brand")      # #944: the brand column comes after the Gantt ones
 
     def test_a_brought_up_file_and_a_new_file_have_the_same_columns_in_the_same_order(self):
         path = make_at(self.dir, STEP - 1)
@@ -212,7 +213,9 @@ class Migrating(unittest.TestCase):
         path = make_at(self.dir, STEP - 1)
         keep = lambda d: {k: v for k, v in d.items() if k not in {("table", "projects"), ("table", "gantt_lines"), ("index", "gantt_lines_project"), ("index", "sqlite_autoindex_gantt_lines_1")}}
         before = keep(schema_of(path))
-        open_store(path, onedrive_roots=[]).close()
+        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP), \
+                mock.patch.object(store_module, "MIGRATIONS", tuple(m for m in store_module.MIGRATIONS if m[0] <= STEP)):      # row 926: this step alone (step 19 makes report_sections again)
+            open_store(path, onedrive_roots=[]).close()
         self.assertEqual(keep(schema_of(path)), before)
 
     def test_a_step_that_fails_after_its_changes_rolls_back_and_the_second_open_migrates(self):

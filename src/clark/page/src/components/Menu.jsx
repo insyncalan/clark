@@ -24,7 +24,7 @@ export function menuMove(e, items) {
 }
 
 // The role="menu" box: focus to its first item (or, with `focusChecked`, the marked one) when it opens, the keys, and a click away.
-export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focusChecked, children }) {
+export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focusChecked, leaving, onGone, children }) {
   const own = useRef(null), box = boxRef || own;
   const closeRef = useRef(onClose); closeRef.current = onClose;
   // `fixed`: the button sits inside a scrolling box that would cut the menu off, so the menu is placed on the window under the button (above it when
@@ -59,8 +59,13 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose("esc"); }
     else if (e.key === "Tab") onClose("tab");
   };
-  return <div class={`ddmenu on${cls ? " " + cls : ""}`} id={id} role="menu" aria-label={label} ref={box} tabIndex={-1} onKeyDown={keys}>{children}</div>;
+  // Row 922: while it fades out it has no id and is no role=menu (it is not "the menu" any more: code that looks for an open menu by id or role, such as the Help peek's Esc, must not find the fading one), it is out of the tab order and the reading order (inert, aria-hidden) and takes no pointer.
+  return <div class={`ddmenu on${cls ? " " + cls : ""}${leaving ? " leaving" : ""}`} id={leaving ? undefined : id} role={leaving ? "presentation" : "menu"} aria-label={label} ref={box} tabIndex={-1} onKeyDown={keys}
+    inert={leaving ? true : undefined} aria-hidden={leaving ? "true" : undefined} onAnimationEnd={(e) => { if (leaving && e.target === e.currentTarget && e.animationName === "m-out" && onGone) onGone(); }}>{children}</div>;
 }
+
+// Row 922: motion is off when the computer asks for reduced motion or clark's own setting is on (the same test as the ask panel's).
+const stillMotion = () => document.documentElement.dataset.motion === "reduce" || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 
 // The open state of a menu that Back or Forward (or a typed address) closes, with nothing chosen (#63). Only a menu that was already
 // open before the move closes. The move count is taken when the menu is opened (in the setter, not in a render), so a menu opened a
@@ -110,12 +115,22 @@ function entry(it, close, onPick) {
 // is `onClick()` (so a button that sometimes has a menu keeps the same element when it has none).
 export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, id, btnCls, labelCls, menuId, menuLabel, left, fixed, chevron = true, onOpen, focusChecked }) {
   const [open, setOpen] = useMenuState();
+  const [, redraw] = useState(0);
   const btn = useRef(null);
   const back = useRef(false);
   const menu = items.length > 0;
+  // Row 922: after it closes the menu stays drawn for its fade (opacity only), then goes; at once where motion is off. A 400 ms timer guards it,
+  // and opening it again (a new `gen`) is a fresh menu, so the first item takes the focus and the drop-in runs again.
+  const phase = useRef("closed"), gen = useRef(0), wasOpen = useRef(false);
+  if (open && menu) phase.current = "open"; else if (phase.current === "open") phase.current = stillMotion() || !menu ? "closed" : "leaving";
+  if (open && !wasOpen.current) gen.current++;
+  wasOpen.current = open;
+  const leaving = phase.current === "leaving";
+  const gone = () => { if (phase.current === "leaving") { phase.current = "closed"; redraw((n) => n + 1); } };
+  useEffect(() => { if (!leaving) return undefined; const t = setTimeout(gone, 400); return () => clearTimeout(t); }, [leaving]);
   const close = (how) => { back.current = how === "esc" || how === "pick"; setOpen(false); };
   // Focus goes back to the button only if nothing took it: an item that opens a dialog has put focus there, and the menu must not steal it.
-  useEffect(() => { if (!open && back.current) { back.current = false; const at = document.activeElement; if (btn.current && (!at || at === document.body || at === btn.current)) btn.current.focus(); } }, [open]);
+  useEffect(() => { if (!open && back.current) { back.current = false; const at = document.activeElement; if (btn.current && (!at || at === document.body || at === btn.current || (at.closest && at.closest(".ddmenu.leaving") && btn.current.parentNode.contains(at)))) btn.current.focus(); } }, [open]);
   const opens = () => { setOpen(true); if (onOpen) onOpen(); };   // `onOpen` runs each time the menu is opened, by a click or by Down
   const onBtnKey = (e) => { if (menu && e.key === "ArrowDown" && !open) { e.preventDefault(); opens(); } };
   return (
@@ -124,8 +139,8 @@ export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, id, 
         aria-label={ariaLabel} title={tip} data-tip={tip} onKeyDown={onBtnKey} onClick={(e) => { e.preventDefault(); if (menu) { if (open) setOpen(false); else opens(); } else if (onClick) onClick(); }}>
         {icon ? <Icon name={icon} /> : null}<span class={labelCls}>{label}</span>{chevron ? <Icon name="chevdown" cls="nch" /> : null}
       </button>
-      {open && menu ? (
-        <MenuPanel label={menuLabel || ariaLabel || label} id={menuId} cls={left ? "left" : ""} fixed={fixed} focusChecked={focusChecked} anchor={btn.current} onClose={close}>
+      {(open || leaving) && menu ? (
+        <MenuPanel key={gen.current} leaving={leaving} onGone={gone} label={menuLabel || ariaLabel || label} id={menuId} cls={left ? "left" : ""} fixed={fixed} focusChecked={focusChecked} anchor={btn.current} onClose={close}>
           {groupedItems(items, menuId).map((n) => n.group
             ? <div key={n.id} role="group" aria-labelledby={n.labelId}>
                 <div class="lab" role="presentation" id={n.labelId}>{n.lab}</div>

@@ -7,7 +7,7 @@ import { undoLast } from "../stores/changes.js";
 const FIELD = /^(INPUT|TEXTAREA|SELECT)$/;
 const OWN = "[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],dialog";
 const OPEN = "dialog[open],[role=dialog],[role=alertdialog],[role=menu],[role=listbox]";
-const PAGES = ["dashboard", "work", "milestones"];
+const PAGES = ["dashboard", "gantt", "work", "milestones"];
 
 function busy(el) {
   return !!el && el.nodeType === 1 && (el.isContentEditable || FIELD.test(el.tagName) || !!el.closest(OWN));
@@ -17,7 +17,7 @@ function busy(el) {
 export function isUndoKey(e) {
   if (!e || (e.key !== "z" && e.key !== "Z" && e.code !== "KeyZ")) return false;
   if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || e.repeat || e.isComposing || e.defaultPrevented) return false;
-  if (fromFile.value || !data.value || (mode.value !== "edit" && view.value === "dashboard") || !PAGES.includes(view.value)) return false;
+  if (fromFile.value || !data.value || (mode.value !== "edit" && (view.value === "dashboard" || view.value === "gantt")) || !PAGES.includes(view.value)) return false;
   if (busy(document.activeElement) || busy(e.target)) return false;
   return !document.querySelector(OPEN);
 }

@@ -300,12 +300,8 @@ class Page(Base):
             p = self.visit(cdp)
             p.until("!!document.querySelector('#ms-summary')", "the head drew")
             p.until("!!document.querySelector('#addMs')", "View has Add milestone")
-            self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true", "this is View")
+            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
             self.assertEqual(self.sent, [], "nothing is sent until it is used")
-            p.js("document.querySelector('[data-mode=edit]').click()")
-            p.js("document.querySelector('[data-mode=view]').click()")
-            p.until("!!document.querySelector('#addMs')", "and still there after Edit and back")
-            self.assertEqual(self.sent, [], "still no request")
         self.assertEqual({r["id"] for r in self.store.read("milestones")}, before)
 
     def test_add_milestone_adds_one_thirty_days_out_opens_it_and_one_undo_takes_it_away(self):
@@ -313,7 +309,6 @@ class Page(Base):
         before = {r["id"] for r in self.store.read("milestones")}
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.js("document.querySelector('[data-mode=edit]').click()")
             p.until("!!document.querySelector('#addMs')", "the button is there")
             p.js("document.querySelector('#addMs').click()")
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Milestone added. Undo.'", "the toast")

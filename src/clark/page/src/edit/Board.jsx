@@ -224,7 +224,7 @@ export function Board({ rows, today, type }) {
     if (!isFull) return undefined;
     const esc = (e) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
-      if (document.querySelector("[data-peek], .ddmenu, .dpick, .fbox")) return;
+      if (document.querySelector("[data-peek], .ddmenu:not(.leaving), .dpick, .fbox")) return;
       leave(true);
     };
     document.addEventListener("keydown", esc);

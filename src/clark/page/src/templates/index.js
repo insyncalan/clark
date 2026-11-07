@@ -2,7 +2,7 @@
 // template's builder changes only its own <Type>.jsx, never this file, Section.jsx or Dashboard.jsx. Section.jsx draws a template
 // section through templateFor(type) (its Edit part comes from tools.templateEdit, edit/templates/, never in a published file);
 // Dashboard.jsx leaves it out of the served View and the published file while isEmpty is true.
-import { TEMPLATE_TYPES } from "./types.js";
+import { TEMPLATE_TYPES, PENDING_TYPES } from "./types.js";
 import * as textimage from "./TextImage.jsx";
 import * as headline from "./Headline.jsx";
 import * as figures4 from "./Figures4.jsx";
@@ -21,6 +21,7 @@ import * as contacts from "./Contacts.jsx";
 import * as checklist from "./Checklist.jsx";
 import * as keydates from "./KeyDates.jsx";
 import * as onedoc from "./OneDoc.jsx";
+import * as gantt from "../components/GanttSection.jsx";
 
 const MODULES = { textimage, headline, figures4, figures3, gallery, table, doclinks, linkcard, raid3, raid4, workitems, callout, imagecap, quote, contacts, checklist, keydates, onedoc };
 
@@ -28,9 +29,16 @@ export const TEMPLATE_PARTS = Object.freeze(Object.fromEntries(TEMPLATE_TYPES.ma
   view: MODULES[t].View, isEmpty: MODULES[t].isEmpty, ready: MODULES[t].READY === true,
 })])));
 
+// The parts of the types the page is ready for before the store takes them (types.js PENDING_TYPES).
+const PENDING_MODULES = { gantt };
+export const PENDING_PARTS = Object.freeze(Object.fromEntries(PENDING_TYPES.map((t) => [t, Object.freeze({
+  view: PENDING_MODULES[t].View, isEmpty: PENDING_MODULES[t].isEmpty, ready: PENDING_MODULES[t].READY === true,
+})])));
+
 // The parts for a section type, or null when it is not a template (text, glance, needs and the other built-in types).
 export function templateFor(type) {
-  return Object.prototype.hasOwnProperty.call(TEMPLATE_PARTS, type) ? TEMPLATE_PARTS[type] : null;
+  const has = (o) => Object.prototype.hasOwnProperty.call(o, type);
+  return has(TEMPLATE_PARTS) ? TEMPLATE_PARTS[type] : has(PENDING_PARTS) ? PENDING_PARTS[type] : null;
 }
 
 // Whether a template section has nothing to show (FR-11: the served View and the published file decide alike). A section that is

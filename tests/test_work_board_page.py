@@ -102,9 +102,8 @@ class Base(unittest.TestCase):
         cdp.call("Page.navigate", {"url": "about:blank"}, sid)
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{hash_}"}, sid)
         self.until(cdp, sid, f"!!document.querySelector({json.dumps(wait_for)})", "the work items page")
-        if edit:
-            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-            self.until(cdp, sid, "document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'true'", "Edit")
+        # row 804: no View | Edit switch off the Dashboard; the page is always editable, so `edit` changes nothing (kept for the callers)
+        self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch on Work items")
         return sid
 
     def view_pick(self, cdp, sid, kind, mouse=True):
@@ -152,7 +151,6 @@ class Base(unittest.TestCase):
         """Remember the layout (as the person would by clicking), then reload so it is drawn."""
         cdp.js(f"localStorage.setItem('clark.work.v1', JSON.stringify({{ABC: {{view: 'board', group: {json.dumps(group)}, lane: {json.dumps(lane)}, collapsed: []}}}}))", sid)
         self.reload(cdp, sid)
-        cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
         if mode != "open":
             click(cdp, sid, "#fline-input")                 # no is: word means every item, open or closed
             select_line(cdp, sid)
@@ -241,8 +239,8 @@ class Switch(Base):
             cdp.call("Page.enable", {}, sid)
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED + "Storage.prototype.setItem = function () { throw new Error('blocked'); };"}, sid)
             cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#work&p=ABC"}, sid)
-            self.until(cdp, sid, "!!document.querySelector('#viewMenu')")
-            self.view_pick(cdp, sid, "layout:board")
+            self.until(cdp, sid, "document.documentElement.dataset.ready === '1' && !!document.querySelector('#work [data-lay=board]')", "the page settled with the switch drawn")
+            self.view_pick(cdp, sid, "layout:board", mouse=False)    # the filter line is still settling: coordinates taken once could miss the button
             self.until(cdp, sid, "!!document.querySelector('#work-board')", "the board, though nothing could be kept")
 
     def test_the_published_page_has_no_board(self):
@@ -692,7 +690,7 @@ class Moves(Base):
         with chrome() as cdp:
             sid = self.visit(cdp, edit=False)
             self.board(cdp, sid, "status", mode="open")
-            cdp.js("document.querySelector('[data-mode=view]').click()", sid)
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch to choose View with")
             self.assertGreater(cdp.js("document.querySelectorAll('[data-move]').length", sid), 0, "the Move to button is on each card in View")
             self.assertNotIn("Switch to Edit", cdp.js("document.querySelector('.lanebar').textContent", sid))
             a = self.id_of("Order the laptops")

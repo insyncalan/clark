@@ -273,12 +273,18 @@ class MergeDriverTests(unittest.TestCase):
         import importlib.util
         import sysconfig
         mod = self.driver_module()
-        ours = {"esbuild": "dev/tools/esbuild.py", "clark": "src/clark/__init__.py", "clark.page": "src/clark/page/__init__.py"}
+        ours = {"esbuild": "dev/tools/esbuild.py", "clark": "src/clark/__init__.py", "clark.limits": "src/clark/limits.py",
+                "clark.page": "src/clark/page/__init__.py"}
         stdlib = os.path.realpath(sysconfig.get_paths()["stdlib"])
         for name in mod.BUILD_CODE:
-            for node in ast.walk(ast.parse((ROOT / name).read_text(encoding="utf-8"))):
+            tree = ast.parse((ROOT / name).read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
                 names = [a.name for a in node.names] if isinstance(node, ast.Import) else (
                     [node.module] if isinstance(node, ast.ImportFrom) and node.module else [])
+                if isinstance(node, ast.ImportFrom) and node.module == "clark" and (node in tree.body or name.endswith("build_page.py") or name.endswith("esbuild.py")):      # the build tools run all of their code, so a function-level import counts; the two package files import lazily inside functions the build never calls      # "from clark import changes" imports the module clark.changes
+                    for a in node.names:
+                        if (ROOT / "src" / "clark" / f"{a.name}.py").exists() or (ROOT / "src" / "clark" / a.name / "__init__.py").exists():
+                            self.assertIn(ours.get(f"clark.{a.name}"), mod.BUILD_CODE, f"{name}: from clark import {a.name} is a module the merge driver does not unpack")
                 for n in names:
                     if n in ours:
                         self.assertIn(ours[n], mod.BUILD_CODE, n)
@@ -429,6 +435,54 @@ class MergeDriverTests(unittest.TestCase):
         text = (ROOT / ".gitattributes").read_text(encoding="utf-8")
         for p in PAGES:
             self.assertIn(f"{p} merge=clark-page", text)
+
+
+class BuildTreeOnly(unittest.TestCase):
+    """#942: the page builds in the tree the merge driver unpacks (BUILD_CODE, the build's inputs and the page data), not in a full
+    clone. One setup, one build; the repository copy is only the source of a git tree object."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory(prefix="clark-buildtree-")
+        cls.addClassCleanup(cls.tmp.cleanup)
+        base = Path(cls.tmp.name)
+        repo = base / "repo"
+        shutil.copytree(ROOT, repo, ignore=LEFT_OUT, symlinks=True)       # the sources and the cached esbuild, as MergeDriverTests.setUp
+        run(repo, "git", "init", "-q", "-b", "main")
+        run(repo, "git", "add", "-A")
+        run(repo, "git", "add", "-f", "vendor")           # the real repository tracks vendored dist folders that .gitignore's dist/ would skip
+        tree = run(repo, "git", "write-tree").stdout.strip()
+        here = os.getcwd()
+        os.chdir(repo)          # merge_page reads the work tree at import
+        try:
+            cls.mod = MergeDriverTests.driver_module(None)
+            cls.into = base / "unpacked"
+            cls.into.mkdir()
+            cls.page = cls.mod.rebuilt(tree, "page.html", str(cls.into))
+        finally:
+            os.chdir(here)
+
+    def test_the_page_builds_in_the_tree_the_driver_unpacks(self):
+        self.assertIsNotNone(self.page, "the build failed in the unpacked tree (its error is printed above)")
+
+    def test_the_tree_holds_exactly_the_build_code(self):
+        code = sorted(p.relative_to(self.into).as_posix() for p in self.into.rglob("*.py") if "vendor" not in p.relative_to(self.into).parts
+                      and "__pycache__" not in p.parts)
+        self.assertEqual(code, sorted(self.mod.BUILD_CODE))
+
+    def test_the_pages_equal_the_ones_built_in_the_repository(self):
+        sys.path.insert(0, str(ROOT / "dev" / "tools"))
+        try:
+            import build_page
+        finally:
+            sys.path.pop(0)
+        self.assertEqual(self.page.decode("utf-8"), build_page.build(build_page.ENTRY), "page.html: tree build and repository build differ")
+        view = (self.into / "src" / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
+        self.assertEqual(view, build_page.build(build_page.ENTRY_VIEW), "page-view.html: tree build and repository build differ")
+
+    def test_no_page_keeps_the_name_the_build_defines(self):
+        for name in ("page.html", "page-view.html"):
+            self.assertNotIn("__CLARK_ITEM_TITLE_MAX__", (self.into / "src" / "clark" / "page" / name).read_text(encoding="utf-8"), name)
 
 
 if __name__ == "__main__":

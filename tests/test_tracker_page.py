@@ -109,7 +109,7 @@ class Page(Base):
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-actual]")), "45%")
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-planned]")), "50%")
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-health]")), "At risk")
-            self.assertEqual(p.js(self.text_of(ref, "[data-tr-behind]")), "5 points behind plan")
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-words]")), "Supplier slipped a week", "the owner's words replace the automatic words")
             self.assertEqual(p.js(self.count(ref, "[data-tr-weights]")), 0, "the weights note is for Edit only: a reader never sees it")
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-group] caption")), "Foundations")
             self.assertEqual(p.js("[..." + self.many(ref, "th.t-what, thead th") + "].slice(0, 8).map(e => e.textContent)"),
@@ -130,21 +130,68 @@ class Page(Base):
             self.assertEqual(edit_elements(cdp, p.sid), [], "View has no field, button or edit part")
             self.assertEqual(p.js(self.count(ref, "button, input, select, textarea, a")), 0)
 
-    def test_view_overall_is_three_tiles_a_labelled_bar_and_a_scale(self):
-        """#451 rows 49 and 50, as the approved weekly-snapshot design draws them."""
+    def test_view_overall_is_one_tinted_tile_with_two_figures_a_labelled_bar_a_scale_a_chip_and_words(self):
+        """#930: the approved tile replaces the three white tiles; #451 rows 49 and 50 still hold for the bar and the scale."""
         ref = self.make(BODY)
         with chrome() as cdp:
             p = self.visit(cdp)
-            tiles = p.js("[..." + self.many(ref, "[data-tr-tile]") + "].map(t => t.textContent.replace(/\\s+/g, ' ').trim())")
-            self.assertEqual(len(tiles), 3)
-            self.assertEqual(tiles[0], "Project health At risk 5 points behind plan Supplier slipped a week")
-            self.assertEqual(tiles[1], "Achieved 45% of the whole project")
-            self.assertRegex(tiles[2], r"^Planned 50% by \d{2}-\d{2}-\d{4}$")
+            self.assertEqual(p.js(self.count(ref, "[data-tr-tile]")), 1)
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-tile] .tr-nums")), "Achieved 45% Planned 50%")
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-health]")), "At risk")
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-words]")), "Supplier slipped a week")
             self.assertEqual(p.js(self.text_of(ref, "[data-tr-mark-label]")), "Planned 50%")
             self.assertEqual(p.js("[..." + self.many(ref, "[data-tr-scale] span") + "].map(e => e.textContent)"), ["0%", "100%"])
             self.assertEqual(p.js(self.one(ref, "[data-tr-scale]") + ".getAttribute('aria-hidden')"), "true")
             self.assertEqual(p.js(self.one(ref, ".tr-mark") + ".style.left"), "50%")
             self.assertEqual(p.js(self.one(ref, ".tr-fill") + ".style.width"), "45%")
+            self.assertNotEqual(p.js("getComputedStyle(" + self.one(ref, "[data-tr-tile]") + ").backgroundColor"), "rgba(0, 0, 0, 0)", "the tile is tinted from the branding")
+            self.assertEqual(p.js(self.one(ref, "[data-tr-overall]") + ".dataset.size"), "medium", "a body with no size reads as Medium")
+
+    def test_the_chip_is_set_from_the_gap_when_the_author_has_not_picked_one_and_the_words_are_automatic(self):
+        """#930: On track within 2 points behind (ahead too), At risk up to 9.9 behind, Off track from 10. The build counts in tenths of a point."""
+        cases = ((0, 0, "On track", "On plan."), (500, 480, "On track", "2 points behind plan."), (500, 470, "At risk", "3 points behind plan."),
+                 (500, 401, "At risk", "9.9 points behind plan."), (500, 400, "Off track", "10 points behind plan."), (400, 500, "On track", "10 points ahead of plan."),
+                 (400, 399, "On track", "0.1 points behind plan."))
+        for planned, achieved, chip, words in cases:
+            with self.subTest(planned=planned, achieved=achieved):
+                body = {"v": 1, "overall": {"health": "", "note": ""}, "groups": [{"name": "A", "lines": [line("One", 1000, planned, achieved)]}]}
+                ref = self.make(body)
+                with chrome() as cdp:
+                    p = self.visit(cdp)
+                    self.assertEqual(p.js(self.text_of(ref, "[data-tr-health]")), chip)
+                    self.assertEqual(p.js(self.text_of(ref, "[data-tr-words]")), words)
+
+    def test_the_authors_pick_stays_over_the_rule(self):
+        body = {"v": 1, "overall": {"health": "ontrack", "note": ""}, "groups": [{"name": "A", "lines": [line("One", 1000, 500, 100)]}]}
+        ref = self.make(body)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-health]")), "On track")
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-words]")), "40 points behind plan.")
+
+    def test_each_size_draws_its_numbers_and_bar_at_1400_and_900_and_old_trackers_read_as_medium(self):
+        """#930: Large 44 px / 12 px bar, Medium 32 / 10, Small 24 / 8, Compact 18 px in one slim row with a 6 px bar and no scale."""
+        sizes = {"large": (44, 12), "medium": (32, 10), "small": (24, 8), "compact": (18, 6)}
+        refs = {name: self.make({**BODY, "size": name}) for name in sizes}
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for width in (1400, 900):
+                self.resize(cdp, p, width, "light")
+                for name, (number, bar) in sizes.items():
+                    ref = refs[name]
+                    where = name + " at " + str(width)
+                    self.assertEqual(p.js(self.one(ref, "[data-tr-overall]") + ".dataset.size"), name, where)
+                    self.assertEqual(p.js("parseFloat(getComputedStyle(" + self.one(ref, "[data-tr-actual]") + ").fontSize)"), number, where)
+                    self.assertEqual(p.js("parseFloat(getComputedStyle(" + self.one(ref, "[data-tr-bar]") + ").height)"), bar, where)
+                    shown = p.js("getComputedStyle(" + self.one(ref, "[data-tr-scale]") + ").display !== 'none'")
+                    self.assertEqual(shown, name != "compact", "the scale is gone in Compact only: " + where)
+                    self.assertEqual(self.overflow(p, ref), [], "nothing leaves the section: " + where)
+
+    def test_a_size_comes_through_the_published_read_with_the_note(self):
+        from clark import section_bodies as sb2
+        got = sb2.published("tracker", {**BODY, "size": "small"})
+        self.assertEqual((got["size"], got["overall"]["note"]), ("small", "Supplier slipped a week"))
+        self.assertEqual(sb2.published("tracker", BODY)["size"], "medium")
 
     def test_view_achieved_column_has_a_bar_the_figure_and_the_red_chip(self):
         """#451 row 51: a bar in each line's Achieved cell; the red chip only on the line behind plan; the total row has no bar."""
@@ -178,7 +225,7 @@ class Page(Base):
                     self.resize(cdp, p, width, scheme)
                     where = " at " + str(width) + " in " + scheme
                     self.assertEqual(self.overflow(p, ref), [], "nothing leaves the section" + where)
-                    self.assertTrue(p.js("[..." + self.many(ref, "[data-tr-tile]") + "].every(t => t.getBoundingClientRect().width > 80)"), "tiles have room" + where)
+                    self.assertTrue(p.js(self.one(ref, "[data-tr-tile]") + ".getBoundingClientRect().width > 80"), "the tile has room" + where)
                     self.assertTrue(p.js(self.one(ref, "[data-tr-mark-label]") + ".getBoundingClientRect().left >= " + self.one(ref, "[data-tr-bar]") + ".getBoundingClientRect().left - 1"), "the label stays over the bar" + where)
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light"}]}, p.sid)
 
@@ -278,22 +325,69 @@ class Page(Base):
             time.sleep(0.05)
         return False
 
-    def test_the_overall_health_note_and_columns_are_each_one_change(self):
+    def test_the_overall_health_words_and_columns_are_each_one_change(self):
         ref = self.make(BODY)
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
             self.set(p, ref, "[data-overall-edit] [data-f=health]", "ontrack", "change")
             self.assertTrue(self.wait_until(lambda: self.stored(ref)["overall"]["health"] == "ontrack"))
-            p.until("!" + self.one(ref, "[data-overall-edit] [data-f=note]") + ".disabled", "the note field is free again")
-            p.js("(function(){var el=" + self.one(ref, "[data-overall-edit] [data-f=note]") + "; el.focus(); el.select();})()")
+            self.assertEqual(p.js(self.count(ref, "[data-overall-edit] input[data-f=note]")), 0, "the words are edited in place now")
+            p.js("(function(){var el=" + self.one(ref, "[data-tr-words]") + "; el.focus(); getSelection().selectAllChildren(el);})()")
             p.type("All good")
             p.key("Enter", code="Enter", vk=13)
             self.assertTrue(self.wait_until(lambda: self.stored(ref)["overall"]["note"] == "All good"))
-            p.until("!" + self.one(ref, "[data-col=tasks]") + ".disabled", "the columns are free again after the note saved")      # a click on a disabled box does nothing
+            p.until("!" + self.one(ref, "[data-col=tasks]") + ".disabled", "the columns are free again after the words saved")      # a click on a disabled box does nothing
             p.js(self.one(ref, "[data-col=tasks]") + ".click()")
             self.assertTrue(self.wait_until(lambda: self.stored(ref)["columns"]["tasks"] is True))
             p.until(self.present(ref, "th.t-count"), "the Tasks column is drawn")
+
+    def test_the_words_stop_at_one_line_on_full_and_three_on_half_and_the_link_puts_the_automatic_words_back(self):
+        full = self.make(BODY)
+        half = self.make(BODY, after="ABC-S-005", beside=1)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.resize(cdp, p, 1400, "light")
+            p.edit()
+            for ref, most in ((full, 1), (half, 3)):
+                p.until(self.text_of(ref, "[data-tr-words]") + " === 'Supplier slipped a week'", "the words are drawn before the field is focused")      # the words are set after the render; focus first and the old words are taken as empty
+                p.js("(function(){var el=" + self.one(ref, "[data-tr-words]") + "; el.focus(); getSelection().selectAllChildren(el);})()")
+                p.type("word " * 40)
+                lines = p.js("(function(){var el=" + self.one(ref, "[data-tr-words]") + "; return Math.round(el.scrollHeight / parseFloat(getComputedStyle(el).lineHeight));})()")
+                self.assertLessEqual(lines, most, "typing stops at the line limit")
+                self.assertLessEqual(len(p.js(self.text_of(ref, "[data-tr-words]"))), 100, "and at the note's own limit")
+                p.key("Escape", code="Escape", vk=27)
+                self.assertEqual(p.js(self.text_of(ref, "[data-tr-words]")), "Supplier slipped a week", "Escape puts the old words back")
+            self.click(p, full, "[data-tr-auto]")
+            self.assertTrue(self.wait_until(lambda: self.stored(full)["overall"]["note"] == ""))
+            p.until(self.text_of(full, "[data-tr-words]") + " === '5 points behind plan.'", "the automatic words are back")
+            self.assertEqual(p.js(self.count(full, "[data-tr-auto]")), 0, "the link shows only while the words are the owner's own")
+
+    def test_the_cog_and_the_grip_menu_open_the_template_settings_and_a_pick_is_one_change_shown_at_once(self):
+        ref = self.make(BODY)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            before = self.steps()
+            self.click(p, ref, "[data-template-settings]")
+            p.until("!!document.querySelector('[data-template-settings-box]')", "the popover")
+            self.assertEqual(p.js("document.querySelector('[data-template-settings-box] h4').textContent"), "Progress tracker")
+            self.assertEqual(p.js("document.querySelector('[data-template-settings-box] .tset-line').textContent"), "Template settings. These apply to this tracker only.")
+            self.assertEqual(p.js("[...document.querySelectorAll('[data-template-settings-box] label')].map(l => l.textContent)"),
+                             ["LargeBig numbers and a thick bar", "MediumNumbers a little smaller", "SmallSmaller numbers, a thinner bar", "CompactOne slim row, no scale"])
+            p.js("document.querySelector('[data-template-settings-box] input[value=small]').click()")
+            self.assertTrue(self.wait_until(lambda: self.stored(ref).get("size") == "small"))
+            p.until(self.one(ref, "[data-tr-overall]") + ".dataset.size === 'small'", "the size shows at once")
+            self.assertEqual(self.steps(), before + 1, "one change, one Undo")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('[data-template-settings-box]')", "Escape closes it")
+            self.assertTrue(p.js("document.activeElement === " + self.one(ref, "[data-template-settings]")), "focus goes back to the cog")
+            p.js(self.one(ref, ".handle") + ".click()")
+            p.until(self.present(ref, "[data-act=settings]"), "the grip menu has Template settings")
+            self.assertEqual(p.js(self.text_of(ref, "[data-act=settings]")), "Template settings")
+            p.js(self.one(ref, "[data-act=settings]") + ".click()")
+            p.until("!!document.querySelector('[data-template-settings-box]')", "the menu item opens the same popover")
+            self.assertTrue(p.js("document.querySelector('[data-template-settings-box] input[value=small]').checked"))
 
     def test_a_line_that_cannot_be_saved_says_why_in_plain_words_and_sends_nothing(self):
         ref = self.make(BODY)
@@ -487,8 +581,10 @@ class Source(unittest.TestCase):
             self.assertNotIn(words, view, words)
         text = (PAGE / "src" / "components" / "Tracker.jsx").read_text(encoding="utf-8")
         self.assertNotIn("weightsNote", text, "only Edit may draw the weights note")
-        for marker in ("data-tr-tile", "data-tr-mark-label", "data-tr-scale", "tr-pbar", "of the whole project"):
+        for marker in ("data-tr-tile", "data-tr-mark-label", "data-tr-scale", "tr-pbar", "tr-size-"):
             self.assertIn(marker, view, marker)
+        for marker in ("data-template-settings", "tset-opts", "contenteditable", "data-tr-auto", "TrackerWords"):
+            self.assertNotIn(marker, view, marker)
 
     def test_a_published_file_carries_none_of_the_authors_words_for_the_tracker(self):
         """#451 item 6: every word only Edit shows (logic/trackerEdit.js: buttons, placeholders, the sentences about a bad line) is in the
@@ -517,10 +613,11 @@ class Source(unittest.TestCase):
             for banned in ("trackerEdit", "trackerNote"):
                 self.assertNotIn(banned, imports, name)
 
-    def test_the_page_view_reads_the_publish_date_for_the_planned_tile(self):
+    def test_the_view_draws_the_owners_words_or_the_automatic_ones_and_the_size_from_the_file(self):
         text = (PAGE / "src" / "components" / "Tracker.jsx").read_text(encoding="utf-8")
-        self.assertIn("asAt", text)
-        self.assertIn("todayIso", text)
+        self.assertIn("note || auto", text)
+        self.assertIn("tracker.size", text)
+        self.assertIn("trackerOf(section, fromFile.value)", text)
 
     def test_every_word_of_the_stores_tracker_checker_has_its_plain_words_on_the_page(self):
         text = (PAGE / "src" / "stores" / "report.js").read_text(encoding="utf-8")

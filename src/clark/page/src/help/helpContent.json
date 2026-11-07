@@ -17,7 +17,7 @@
   "hero": {
    "label": "First day with clark",
    "title": "Keep the record. Shape the report. Publish it.",
-   "lead": "In clark you keep one project record of work items, milestones and use cases, shape the weekly report from it, and publish the report as a web page (and a Word document if you like) for the client. Every change saves on its own, and every change can be undone."
+   "lead": "In clark you keep one project record of work items, milestones and use cases, shape the weekly report from it, and publish the report as a web page (and a Word document if you like) for the client. Every change to the record and the report saves on its own and can be undone. Publishing and restoring a published report cannot be undone."
   },
   "loop": [
    {
@@ -126,13 +126,18 @@
     "milestones"
    ],
    [
+    "Use cases",
+    "Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard.",
+    "dashboard+edit"
+   ],
+   [
     "ask clark",
     "Answers questions about the project and checks the report. Press [[/]], or open the palette with [[Mod+K]] and choose ask clark.",
     "ask"
    ],
    [
     "The profile circle",
-    "Publish, Preview, Export to Excel, Appearance (System, Light or Dark) and Settings. At the top right.",
+    "Publish, Preview, Export to Excel, Export to Word, Import from Word, Published reports, Appearance (System, Light or Dark), Settings and Help. At the top right.",
     ""
    ],
    [
@@ -198,7 +203,7 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
-     "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, press [[Enter]] in the empty box to use the Friday shown, or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
+     "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, press [[Enter]] in the box to use the Friday shown (only while no week is kept yet), or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
      "Click the text under **Current state** and write where the project stands. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back. Write the Summary, This week and Next week sections the same way.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
      "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
@@ -258,8 +263,8 @@
      "Press your profile circle at the top right and choose **Publish…**.",
      "**Local** is always ticked: the save window opens where you last saved for this project, and you choose the folder and the name. Tick **To client** to send it to the client folder set in Settings as well. With no folder set, the box is off and says so.",
      "Tick **Also a Word document** for a Word copy in the folder last used for this project. If a Word file with that name is already in the folder, you are asked whether to add a number or replace it. A copy already in the client folder is never replaced: the new one gets a number. Tick **Also a PDF** for the page as it prints: your browser’s print box opens, and you choose Save as PDF.",
-     "A line reminds you that the client will see the page, and only what is shown in View. If a work item shown to the client still has its placeholder title, the box warns you; it does not stop you, so rename the item or turn off its eye first.",
-     "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”; press it to close the box. If the name is already taken, a box asks what to do.",
+     "With **To client** ticked, a line says the client will see the page, and the Word report if you ticked it, and only what is shown in View mode. If a work item shown to the client still has its placeholder title, the box warns you; it does not stop you, so rename the item or turn off its eye first.",
+     "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”. The box closes by itself after a moment; you can press the button to close it at once. If the file name is taken, the box asks what to do: Add a number, Rename it or, where it is allowed, Overwrite the existing file.",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
     ],
     "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on). The line at the top of the Dashboard says when it was last published, and whether to the client or locally.",
@@ -296,7 +301,8 @@
     "s": [
      "Press your profile circle and choose **Published reports**, or go to Settings and find the **Published reports** card for the open project.",
      "Each row has the publication's number, the date and time, where it went and who published it. The newest is first, and the card lists the latest ten.",
-     "Press **Open** to see the kept copy of the page in a new tab, as it was published. A row that says **Not kept** has no copy to open."
+     "Press **Open** to see the kept copy of the page in a new tab, as it was published. A row that says **Not kept** has no copy to open.",
+     "**Archive** on a row takes the publication out of the list. **Show archived** lists the archived ones, each with **Restore**. Times are shown as UTC."
     ],
     "page": [
      "settings#pubs"
@@ -409,9 +415,9 @@
     "s": [
      "With a work item open in the peek in Edit, press [[/]] twice quickly (when you aren’t typing in a box), or press the sparkle at the top, “Change an item with words”.",
      "Type the change, for example “move to Friday, owner Jo, high priority”.",
-     "Under the box, a line for each field shows what it is now and what it will become.",
-     "Press [[Enter]] to make every change shown, in one step ([[Shift+Enter]] makes them and keeps the box open). [[Esc]] closes the box. The fields that changed flash for a moment, and the message has **Undo**.",
-     "Closing an item, making or withdrawing a decision, marking a milestone Achieved or a use case Done asks first: press **Confirm and apply** or [[Mod+Enter]]. A decision that is made cannot be undone from here."
+     "Under the box, the words you typed are shown in the order you typed them, then a line for each field shows what it is now and what it will become.",
+     "Press **Make the change** or [[Enter]] to make every change shown, in one step ([[Shift+Enter]] makes them and keeps the box open). **Not now** or [[Esc]] closes the box. The fields that changed flash for a moment, and the message has **Undo**.",
+     "Closing an item, making or withdrawing a decision, marking a milestone Achieved or a use case Done asks first: press **Confirm and apply**, [[Mod+Enter]] or **Make the change** (the words and the lines are on screen above it). A decision that is made cannot be undone from here."
     ],
     "n": "If the owner is not already named in the project, the line is marked “new name”. See [Sneak peek](#ref-sneak-peek) for what it understands.",
     "page": [
@@ -443,9 +449,9 @@
     "w": "Work items toolbar · Settings › Data · profile circle",
     "go": "work",
     "s": [
-     "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, named after today and the project.",
+     "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines, named after today and the project.",
      "**Import**: press the up-arrow icon. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
-     "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, each with its rows and all ticked: untick any you do not want, then press **Continue**. **Check the import** then shows how many rows are new, updated or skipped, and the first few; press **Import** to save them.",
+     "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows and all ticked: untick any you do not want, then press **Continue**. **Check the import** then shows how many rows are new, updated or skipped, and the first few; press **Import** to save them.",
      "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
     ],
     "n": "The whole import is one step: one **Undo** takes it all back.",
@@ -462,7 +468,7 @@
     "s": [
      "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a move button and, under it, a **+**. They are faint until you point at the section or tab to them.",
      "Drag the move button to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
-     "The menu has **Add a template below…**, then **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and **Delete section**. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
+     "The menu has **Add a template below…**, then **Template settings** (for a section whose template has settings), **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and **Delete section**. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
      "To rearrange the page, pick up a section by its move button and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a narrow window a pair stacks.",
      "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "A section left out stays in Edit, greyed, and disappears in View and on the published page."
@@ -517,8 +523,9 @@
      "In a group, press **Add a line**. Give it a number if you like, say what it is, and pick its **Status**: Planned, In progress, Completed or Late. Type its **Weight**, what was **Planned** and what was **Achieved** as percentages, and its start and end as DD-MM-YYYY. Weight is how much of the whole plan the line is worth. Across all the lines, the weights, the Planned figures and the Achieved figures can each add up to 100% at most. Press **Add**.",
      "Each line has **Edit**, the arrows to move it up or down, and **Remove**. A group has **Rename**, the arrows and **Remove group**.",
      "The figures at the top are worked out for you: Achieved and Planned are the totals of all the lines. A line, a group or the whole that is behind plan shows ▼ and how many points behind. If the weights do not add up to 100%, a note under the section in Edit says so. Change a weight to fix it.",
-     "Pick the **Health** (On track, At risk or Off track), write a line about it, and switch on the Tasks, Agents or Workflows columns if you want them. Each of those columns holds a count you type for every line. In View and on the published page the section can be read but not changed.",
-     "Each line, group or setting you change is one change with its own **Undo**."
+     "Under the bar is a status and a line of words. Unless you pick the **Health** yourself (On track, At risk or Off track), the status is set for you: On track when the work is ahead of plan or no more than 2 points behind it, At risk from there up to 9.9 points behind, and Off track from 10 points behind. The words say how far behind or ahead of plan you are. Click the words to write your own: they stop at one line when the section is full width and three lines when it sits beside another. Press **Use the automatic words** to go back. Switch on the Tasks, Agents or Workflows columns if you want them. Each of those columns holds a count you type for every line. In View and on the published page the section can be read but not changed.",
+     "To change how big the section is, press the cog on it, or press the grip and choose **Template settings**. Choose Large, Medium, Small or Compact. The choice applies to this section only, and the published page shows the same size.",
+  "Each line, group or setting you change is one change with its own **Undo**."
     ],
     "page": [
      "dashboard+edit"
@@ -654,7 +661,7 @@
     "w": "Milestones › Movement",
     "go": "milestones",
     "s": [
-     "On **Milestones**, open **Movement**, the block under the list. It is for you and the team: it is never published.",
+     "On **Milestones**, use the **Movement** switch next to **Plan** at the top. It is for you and the team: it is never published.",
      "The first line says how many open milestones are behind their agreed date. The line under it names the one furthest behind.",
      "Each open milestone has a row, the furthest behind first: its state, its agreed date, a small bar with a mark for the agreed date, one for the forecast and one for today, how far after the agreed date it is, and how often the agreed date has moved. Click a row, or move between rows with [[Up]] and [[Down]] and press [[Enter]], to choose it.",
      "Its card shows the original, agreed and forecast dates, its progress and its owner, then **What changed**: each change, with who made it and when.",
@@ -903,9 +910,12 @@
        "**Publish…**: the Publish box, on the Dashboard.",
        "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
        "**Export to Excel**: the whole project as one workbook.",
+       "**Export to Word**: the report saved as a Word file, without publishing the web page.",
+       "**Import from Word**: reads a Word file and lists the new actions, risks, issues and decisions it found.",
+       "**Published reports**: the **Published reports** card in Settings for the open project.",
        "**Appearance**: System, Light or Dark; the one in use has a tick.",
-       "**Settings**.",
-       "**Help**: opens this Help."
+       "**Settings**. Until you add your name in Settings, the top line is a link to Settings and this entry is left out.",
+       "**Help**: opens Help for the page you are on, with a link to all of Help."
       ]
      ],
      [
@@ -1103,12 +1113,17 @@
        [
         "Current state",
         "The state of the project in a few lines, to sit beside another section.",
-        "Half or full"
+        "Full or half"
        ],
        [
         "Plan summary",
         "Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.",
         "Full or half"
+       ],
+       [
+        "Gantt",
+        "The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.",
+        "Full"
        ]
       ]
      ]
@@ -1163,10 +1178,6 @@
     "t": "Archive and Restore",
     "b": [
      [
-      "p",
-      "An archived milestone is kept, and can be put back."
-     ],
-     [
       "ul",
       [
        "An archived milestone leaves the Milestones list, the counts, the Dashboard and the published page.",
@@ -1214,7 +1225,7 @@
      ],
      [
       "p",
-      "A count opens Work items filtered to it. In Edit: drag or [[Alt+Left]] / [[Alt+Right]] to reorder, the eye to hide, right-click for **Outline colour**: Automatic, Green, Amber, Red or No colour."
+      "A count opens Work items filtered to it. In Edit: drag or [[Alt+Left]] / [[Alt+Right]] to reorder, the eye to hide, right-click for **Outline colour**: Automatic, Green, Amber, Red or No colour. Decisions needed starts hidden in a new project; show it with the eye in Edit. Project health always shows."
      ]
     ]
    },
@@ -1359,7 +1370,7 @@
      ],
      [
       "p",
-      "**Movement** is under the list: the open milestones against their agreed and forecast dates, with how far after the agreed date each is, what changed and a choice to make. It is never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
+      "**Movement** is the switch next to **Plan** at the top: the open milestones against their agreed and forecast dates, with how far after the agreed date each is, what changed and a choice to make. It is never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
      ]
     ]
    },
@@ -1555,7 +1566,7 @@
      ],
      [
       "p",
-      "It reads your words with plain rules on this computer: no model is used and nothing is sent. [[Enter]] makes the changes shown as one step, with **Undo**; [[Shift+Enter]] makes them and keeps the box open; [[Esc]] closes it."
+      "It reads your words with plain rules on this computer: no model is used and nothing is sent. **Make the change** or [[Enter]] makes the changes shown as one step, with **Undo**; [[Shift+Enter]] makes them and keeps the box open; **Not now** or [[Esc]] closes it."
      ]
     ]
    },
@@ -1580,7 +1591,7 @@
      ],
      [
       "p",
-      "A state follows the dates: Achieved when the milestone is done; Overdue once the agreed date has passed; Slipped when the forecast is later than the agreed date; otherwise On track. Two states are set by you, not the dates: At risk, when the project team marks it, and Forecast, for a date not yet agreed."
+      "A state follows the dates: Achieved when the milestone is done; Overdue once the agreed date has passed; Slipped when the forecast is later than the agreed date; otherwise On track. You can set a state by hand: Forecast, On track, At risk, Slipped or Achieved. Press it again and the dates decide again. Overdue always comes from the dates."
      ],
      [
       "p",
@@ -1795,7 +1806,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title): Publishing, Personal, Freshness, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn. The link of the card you are reading is marked. Publishing and Freshness need an open project. Published reports also needs one and has a card but no link."
+      "A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title): Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, People and Asking, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
      ],
      [
       "tbl",
@@ -1940,7 +1951,7 @@
      ],
      [
       "p",
-      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Candidate, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
+      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. The Gantt sheet, named after the Gantt tab or Gantt, is read the same way: a row whose ID exists updates that line, and a row without an ID adds a line with the next free ID. Its Days and Status columns are worked out and ignored, and an import never removes a Gantt line. If a row of the Gantt sheet breaks a rule (a bad date, Done over 100, a parent that is not a phase, or more than 500 lines), nothing in the file is imported, and the message gives the rule and the row number; untick the Gantt sheet in **What to import** to import the other sheets. A row whose ID belongs to another project, or is not written as a full Gantt line ID, is left out and named with its row number, and the rest of the sheet is imported. A row with no ID, or with a word in the ID column, adds a new line. When an ID appears twice, the second row is left out. On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Candidate, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
      ]
     ]
    },
@@ -2449,6 +2460,11 @@
      "line": "How many days an open item can go without a review before it counts as not reviewed."
     },
     {
+     "card": "gantt",
+     "title": "Gantt",
+     "line": "Whether the project has a Gantt tab, for you and for the client, and what the tab is called."
+    },
+    {
      "card": "diagnostics",
      "title": "Logs and diagnostics",
      "line": "The logs and checks to look at when something goes wrong."
@@ -2469,14 +2485,14 @@
      "line": "The daily copies of your data, to preview or put back."
     },
     {
-     "card": "people",
-     "title": "People",
-     "line": "Who is on the project, with their emails and roles."
-    },
-    {
      "card": "update",
      "title": "Version and updates",
      "line": "The installed version of clark."
+    },
+    {
+     "card": "people",
+     "title": "People",
+     "line": "Who is on the project, with their emails and roles."
     }
    ]
   }
@@ -2563,26 +2579,26 @@
      "pic": "excel-in-button"
     },
     {
-     "d": "The box **Import from Excel** says which sheets can be imported: sheets called Actions, Risks & Issues (or Risks and issues, or RAID), Decisions, Milestones and Use cases. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
+     "d": "The box **Import from Excel** says which sheets can be imported: sheets called Actions, Risks & Issues (or Risks and issues, or RAID), Decisions, Milestones and Use cases. A Gantt sheet is offered in the next box when the workbook has one. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
     },
     {
      "d": "Press **Choose a file** and pick an .xlsx workbook of up to 25 MB. A macro workbook (.xlsm) is turned away and nothing is saved; save a copy as an ordinary .xlsx workbook and choose that.",
      "pic": "excel-in-box"
     },
     {
-     "d": "The box **What to import** lists the sheets the workbook has, each with its number of rows, for example Actions (12 rows). They all start ticked. Tick the sheets you want and untick the rest: anything you leave unticked is not read and not changed. **Select all** ticks every sheet and **Clear** unticks them. With no sheet ticked, **Continue** is off. A sheet with more than 2,000 rows shows **more than 2,000 rows**. It is refused whole when you press **Continue**, and the message says so."
+     "d": "The box **What to import** lists the sheets the workbook has, each with its number of rows, for example Actions (12 rows), the Gantt sheet after the others. They all start ticked. Tick the sheets you want and untick the rest: anything you leave unticked is not read and not changed. **Select all** ticks every sheet and **Clear** unticks them. With no sheet ticked, **Continue** is off. A sheet with more than 2,000 rows shows **more than 2,000 rows**. It is refused whole when you press **Continue**, and the message says so."
     },
     {
-     "d": "The box **Check the import** opens. A line gives the counts: how many rows are new, how many changed, how many are no longer in the workbook and how many are unchanged. Unchanged rows are left alone. Nothing has been saved yet. It counts only the sheets you ticked."
+     "d": "The box **Check the import** opens. A line gives the counts: new, updated, refused and not in the workbook (the last two only when there are any). Unchanged rows are left alone. Nothing has been saved yet. It counts only the sheets you ticked."
     },
     {
-     "d": "Read the list under the counts. Each change has a tick and a tag: **New** rows will be added, **Changed** rows will update the item already in clark, and a row tagged Not in the workbook would archive its item. A line under a change says what differs. A change that would be refused says why and cannot be ticked."
+     "d": "Read the list under the counts. Each change has a tag and the choice **Accept** or **Reject**: **New** rows will be added, **Changed** rows will update the item already in clark, and a row tagged Not in the workbook would archive its item. A line under a change says what differs. A change that has a problem says why and stays on **Reject**."
     },
     {
-     "d": "Untick any change you do not want. New and changed rows start ticked, except a change that clashes: a line under it says it changed in clark after the workbook was made, and it starts unticked. Rows tagged Not in the workbook also start unticked. If clark has no record of exporting the workbook, it warns you, and the button reads **Import anyway**."
+     "d": "Choose **Reject** for any change you do not want; **Accept all** and **Reject all** set every change at once. New and changed rows start on **Accept**, except a change that clashes: a line under it says it changed in clark after the workbook was made, and it starts on **Reject**. Rows tagged Not in the workbook also start on **Reject**. If clark has no record of exporting the workbook, it warns you, and the button reads **Import anyway**."
     },
     {
-     "d": "Press the button at the foot, which reads Import and the number you ticked, such as Import 3 changes. The whole import is one step. The box says what was done. Press **Undo this import** to put the project back as it was before, or **Close** to keep it. The project’s pages then show the new and changed items."
+     "d": "Press the button at the foot, which reads Import and the number you accepted, such as Import 3 changes. The whole import is one step. The box says what was done. Press **Undo this import** to put the project back as it was before, or **Close** to keep it. The project’s pages then show the new and changed items."
     }
    ],
    "result": "The box tells you what was added and updated, the rows you left are untouched, and one press of Undo this import takes the whole import back.",
@@ -2615,7 +2631,7 @@
      "d": "Open the file. It opens on the Cover: a title band with the project name, tagged INTERNAL, and under it a line with Weekly report, the week ending and who it is for. Then come the sections the published page shows, in the report’s order: the current state, the At a glance tiles side by side (the health is one of them) and the text sections, with This week and Next week side by side when both have words. A quiet About this export block comes last: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs."
     },
     {
-     "d": "After the Cover come the sheets of rows: Actions, Risks & Issues, Decisions, Milestones and Use cases. Each row is one item, with its ID in the first column. A History sheet follows with the record of changes, read only. Changes made on the Cover are ignored."
+     "d": "After the Cover come the sheets of rows: Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines. Each row is one item, with its ID in the first column. A History sheet follows with the record of changes, read only. Changes made on the Cover are ignored."
     },
     {
      "d": "The workbook includes internal notes and Sensitive items, so never send it to a client. To send changes back, edit the rows on the data sheets, leave every ID as it is, and import the file with **Import workbook**."
@@ -2656,7 +2672,7 @@
      "d": "Press the button at the foot, which reads **Publish locally**, or **Publish and send to the client** when To client is ticked. A spinner shows while it works. If the file name is taken, the box asks what to do: **Add a number**, **Rename it** or, where it is allowed, **Overwrite the existing file**."
     },
     {
-     "d": "The button turns green and reads Published, with the publication number in brackets, such as Publication 4. Press it to close the box."
+     "d": "The button turns green and reads Published, with the publication number in brackets, such as Publication 4. The box closes by itself after a moment; you can press the button to close it at once."
     }
    ],
    "result": "The button shows a green tick and Published with its publication number. The saved page is the one the client sees, and the next publication gets the next number.",
@@ -2722,7 +2738,7 @@
      "d": "The new view appears as a tab, with the number of items it shows beside its name, and it is the open tab. The view is kept in your browser, for this project."
     },
     {
-     "d": "To come back to it later, press its tab. The filter line is set to what you saved. Every project starts with the tabs Open items, Actions, Risks and issues, Decisions and All work items."
+     "d": "To come back to it later, press its tab. The filter line is set to what you saved. Every project starts with the tabs Open items, Actions, Risks and issues, Decisions and All work items, then Overdue and My actions."
     },
     {
      "d": "If you change the filter line while a view is open, a small dot shows on its tab, and **Save view** and **Discard changes** appear beside the tabs. Press **Save view** to keep the new filters under the same name, and a message at the foot of the page says View saved with the name. Press **Discard changes** to put the filter line back to what the view had. The small arrow beside the open tab’s name has the same **Save changes**, and **Save as a new view…** keeps the new filters as another view. The five tabs that every project has cannot be saved over, so they have no **Save view**. Use **Save as a new view…** for them. **Discard changes** is there on them too."

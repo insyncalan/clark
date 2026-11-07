@@ -15,7 +15,7 @@ What it does, and does not:
   does ALL its work under one lock: for an undo, the check that the step is the report's and the undo itself are one
   does not make an empty database, when clark.db isn't there.
 - The reply carries only what the page needs of each section: id, type, title, beside, hidden, sort_order. Never its body.
-- A section may be added as text, needs or tracker (NEW_SECTION_TYPES, an allow-list). An update may write `body` only for a
+- A section may be added as text, needs, tracker, a template or gantt (NEW_SECTION_TYPES, an allow-list; a gantt section has no body, row 926). An update may write `body` only for a
   needs or tracker section, through the checker registry section_bodies.CHECKERS keyed by the STORED type, or for a text section
   through sanitise.clean_html (_text_body); each save replaces the whole body in one step with one Undo. A needs or tracker
   section may be deleted like a text one (Undo-able, kept in
@@ -42,6 +42,7 @@ from pathlib import Path
 from clark import backup, doclinks, milestone_rows, milestones, order, platform, sanitise, section_bodies, section_kinds
 from clark import people as people_rules
 from clark import store as clark_store
+from clark.limits import ITEM_TITLE_MAX      # a work item's title, at most (_checked_item_changes); one literal, in limits.py
 from clark.section_kinds import base as section_base, textimage as pictures
 from clark.store import Invalid
 
@@ -57,7 +58,7 @@ NEWABLE = ("actions", "raid", "decisions", "milestones")      # #67: the kinds a
 ARCHIVABLE = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")      # #126: archive and restore, no fields
 DOC_FIELDS = ("title", "kind", "url", "date")        # #74: a document link's own fields; its id, project, place and archive flag never come from a request
 GANTT_PROJECT_FIELDS = ("show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows")     # row 926: the project's six Gantt settings, changed like review_after_days
-PROJECT_FIELDS = ("health", "health_reason", "week_ending", "review_after_days") + GANTT_PROJECT_FIELDS
+PROJECT_FIELDS = ("health", "health_reason", "week_ending", "review_after_days") + GANTT_PROJECT_FIELDS + ("brand",)
 GANTT_FIELDS = ("name", "type", "parent", "start", "end", "pct", "health", "depends", "owner", "workstream", "priority",
                 "baseline_start", "baseline_end", "effort", "budget", "deliverable", "show", "note")     # row 926: what a request may give for a Gantt line; never its id, project, place or stamp
 CHANGE_KINDS = {
@@ -229,7 +230,6 @@ NEW_NEEDS = {"actions": "Say what the action is.", "raid": "Say what the risk or
 NEW_SOURCE = "Added by hand in clark"       # the row's source, as the prototype words it; never taken from a request
 COPY_SOURCE = "Duplicated from "             # #442: a copy's source, then the item's id (system/prototype/peek.js, Duplicate)
 COPY_MARK = " (copy)"                        # #442: the end of a copy's title
-ITEM_TITLE_MAX = 200                         # a work item's title, at most (_checked_item_changes)
 COPIED = {                                   # #442: what Duplicate copies from the stored item (the prototype copies the item whole); never the
     "actions": ("workstream", "owner", "owner_id", "priority", "due_date", "status", "latest_update", "client_message", "milestone", "use_case"),
     "raid": ("type", "workstream", "owner", "owner_id", "response_action", "due_date", "impact", "likelihood", "status", "client_message", "milestone", "use_case"),
@@ -277,7 +277,7 @@ UC_REF_WORDS = f"A use case needs an ID of 1 to {UC_REF_LIMIT} characters, with 
 UC_REF_USED = "That ID is already used by another use case of this project."
 UC_NOT_MINE = NOT_MINE_RECORD                          # another project's use case and a missing one: the same words
 BUILT_IN_TYPES = tuple(s["type"] for s in clark_store.DEFAULT_SECTIONS if s["type"] != "text")   # row 906: re-added from Add a section, one of each
-NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES + BUILT_IN_TYPES         # what a new section may be: an allow-list, never the request's own spelling
+NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES + BUILT_IN_TYPES + ("gantt",)         # what a new section may be: an allow-list, never the request's own spelling
 NEW_TYPE_WORDS = "That kind of section can't be added."
 NO_BODY_HERE = "That kind of section can't take content this way."
 BODY_NOT_TEXT = "A section's content must be sent as text."
@@ -418,7 +418,7 @@ def _checked_item_changes(fields, blank_clears=()):
     flag = {k: _flag(v) for k, v in fields.items() if k in ("client_visible", "client_action")}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
     fields = {k: v for k, v in fields.items() if k not in flag}
     for k, v in fields.items():
-        if v is None and k in ITEM_NOT_NULL or v is not None and (not isinstance(v, str) or not v.strip() or len(v) > 200):
+        if v is None and k in ITEM_NOT_NULL or v is not None and (not isinstance(v, str) or not v.strip() or len(v) > ITEM_TITLE_MAX):
             raise Refused(ITEM_VALUE_WORDS)
         if isinstance(v, str) and not _plain_text(v):
             raise Refused(ITEM_TEXT_WORDS)
@@ -1731,6 +1731,11 @@ def _do_tile_change(store, by_user, req, project, table, columns, op, place):
     return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "tiles": _tiles(store, project)}
 
 
+def brand_ids():
+    """#944: the brand ids a project may take: generic and the installed ones. T1 knows only generic; the brand library fills this in."""
+    return {"generic"}
+
+
 def _checked_project_changes(fields):
     """The project's health and reason, checked for type and the closed set. The store's rule that a changed health has a
     reason in the same change stays the only such rule."""
@@ -1750,6 +1755,8 @@ def _checked_project_changes(fields):
                 raise Refused(NOT_FRIDAY.format(friday=friday.strftime("%d-%m-%Y")))
         if k == "review_after_days" and (type(v) is not int or not clark_store.REVIEW_DAYS_RANGE[0] <= v <= clark_store.REVIEW_DAYS_RANGE[1]):
             raise Refused(BAD_REVIEW_DAYS)      # #171: a real int only (not True, 14.5, "14", None or a list), checked before the step opens
+        if k == "brand" and (type(v) is not str or v not in brand_ids()):
+            raise Refused(BAD_OP)       # #944: an id that is not generic or installed (a real string only), refused before the step opens
         if k in ("show_gantt_editor", "show_gantt_client"):
             out[k] = _flag(v)                                   # row 926: 0 or 1 as a whole number; True, 1.0 or "1" are refused
         if k == "gantt_default_rows" and v is not None and (type(v) is not int or not clark_store.GANTT_ROWS_RANGE[0] <= v <= clark_store.GANTT_ROWS_RANGE[1]):
@@ -1798,7 +1805,7 @@ def _do_project_change(store, by_user, req, project, table, columns, place):
     now = store.read(table, ref=project)
     return 200, {"ok": True, "apply_id": apply_id, "ref": project,
                  "project": {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"],
-                             "review_after_days": now["review_after_days"],
+                             "review_after_days": now["review_after_days"], "brand": now["brand"],
                              **{f: now[f] for f in GANTT_PROJECT_FIELDS}}}
 
 
@@ -2382,6 +2389,11 @@ def words(reversed_, skipped, names):
                 seen.add("the days before an item counts as not reviewed")
                 put.append("the days before an item counts as not reviewed")
             continue
+        if e["field"] == "brand":                                   # #944: the project's brand
+            if "the brand" not in seen:
+                seen.add("the brand")
+                put.append("the brand")
+            continue
         if e["field"] in GANTT_PROJECT_FIELDS:                      # row 926: the project's Gantt settings, one line, never the title or the tab's name
             if "the Gantt settings" not in seen:
                 seen.add("the Gantt settings")
@@ -2526,7 +2538,7 @@ def _do_undo(store, by_user, req):
     if any(r["table"] == "projects" for r in step_rows):
         now = store.read("projects", ref=project)
         out["project"] = {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"],
-                          "review_after_days": now["review_after_days"],
+                          "review_after_days": now["review_after_days"], "brand": now["brand"],
                              **{f: now[f] for f in GANTT_PROJECT_FIELDS}}
     return 200, out
 

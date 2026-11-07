@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_edit_cells_layout
 The real page and a real server over the fictional demo data, at 1400 and 900 px, light and dark: in each Edit cell the caret stays
 beside the value (the box is no taller than the value, never a second line for the caret), a priority, a status or a due date is
-on one line, and no word of it (the date's hyphens included) is broken in the middle, an owner's name breaks only between words, and the kind badge (a letter, #456) is one line. The browser parts are required: they fail, never skip, without Chrome (set CLARK_CHROME to its path).
+on one line, and no word of it (the date's hyphens included) is broken in the middle, an owner's name stays on one line (#948: an ellipsis when it is long), and the kind badge (a letter, #456) is one line. The browser parts are required: they fail, never skip, without Chrome (set CLARK_CHROME to its path).
 """
 import json
 import shutil
@@ -34,7 +34,7 @@ MEASURE = r"""(() => {
     const walker = document.createTreeWalker(v, NodeFilter.SHOW_TEXT); let n;
     while ((n = walker.nextNode())) { const re = /\S+/g; let m; while ((m = re.exec(n.textContent))) { const r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length); if (new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size > 1) broken++; } }
     out.push({ field, text: v.textContent.trim().slice(0, 30), pick: Math.round(b.getBoundingClientRect().height), val: Math.round(v.getBoundingClientRect().height),
-               lines: lines(v), broken, over: b.scrollWidth > b.clientWidth + 1, spill: spill(v) });
+               lines: lines(v), reach: Math.round(v.getBoundingClientRect().right - b.closest('td').getBoundingClientRect().right), broken, over: b.scrollWidth > b.clientWidth + 1, spill: spill(v) });
   }
   const pills = [...document.querySelectorAll('table.items td.c-item .kb')].map((p) => ({ text: p.getAttribute('title'), h: Math.round(p.getBoundingClientRect().height), broken: false }));   // #456: the kind is a one-letter badge now
   return JSON.stringify({ cells: out, pills, sw: document.documentElement.scrollWidth, vw: innerWidth });
@@ -73,8 +73,9 @@ class Cells(unittest.TestCase):
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#work&p=TUL&f=mode:all"}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr').length", sid) > 0), "the list drew")
         cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
-        cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('table.items .cell-pick')", sid)), "Edit shows the cells' pickers")
+        self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch off the Dashboard: the page is always editable")
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('table.items .cell-pick')", sid)), "Work items shows the cells' pickers")
+        self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "the page's motion has finished before anything is measured")
         return json.loads(cdp.js(MEASURE, sid))
 
     def test_every_edit_cell_is_one_tidy_box_at_both_widths_in_both_looks(self):
@@ -89,14 +90,16 @@ class Cells(unittest.TestCase):
                         label = f"{where}: {c['field']} '{c['text']}'"
                         self.assertEqual(c["broken"], 0, label + " has a word broken in the middle")
                         self.assertFalse(c["over"], label + " runs outside its box")
-                        self.assertLessEqual(c["spill"], 1, label + " runs past its value box into the caret")
+                        if c["field"] != "owner":       # an owner's long name is clipped with an ellipsis (#948): its text box reaches past what is drawn, so its reach (below) is measured instead
+                            self.assertLessEqual(c["spill"], 1, label + " runs past its value box into the caret")
                         self.assertLessEqual(c["pick"] - c["val"], 12, label + ": the caret has a line of its own (the box is taller than the value)")
                         if c["field"] in ("priority", "status"):
                             self.assertLessEqual(c["val"], 30, label + " is not on one line")
                         if c["field"] == "due":
                             self.assertLessEqual(c["val"], 48, label + " is taller than the date and its 'In n days' line")
                         if c["field"] == "owner":
-                            self.assertLessEqual(c["val"], 56, label + " is taller than two lines of a name")
+                            self.assertLessEqual(c["val"], 30, label + " is taller than one line of a name (#948)")
+                            self.assertLessEqual(c["reach"], 0, label + " runs past the right edge of its cell (#948)")
                     for p in got["pills"]:
                         self.assertFalse(p["broken"], f"{where}: the kind badge '{p['text']}' is broken across lines")
                     self.assertLessEqual(got["sw"], got["vw"], where + ": the page does not scroll sideways")   # not equal: a page with a scroll bar of its own (Linux) is a little narrower
