@@ -6,6 +6,8 @@ build: PeekTitle.jsx holds no number (it reads the name the build defines), the 
 a different value in the build gives a different limit in the built page, so the two cannot drift. Part 3 runs the page's own check
 (titleProblem, bundled with the pinned esbuild, run in node; no browser) at the built limit: the limit itself passes, one more is refused.
 """
+import contextlib
+import io
 import json
 import re
 import shutil
@@ -18,7 +20,7 @@ from _paths import ROOT
 
 import build_page  # noqa: E402
 import esbuild  # noqa: E402
-from clark import changes  # noqa: E402
+from clark import changes, page  # noqa: E402
 from test_work_items import load_demo  # noqa: E402
 
 SRC = ROOT / "src" / "clark" / "page" / "src"
@@ -59,8 +61,10 @@ class TextFields(unittest.TestCase):
                     changes._checked_item_changes({field: "t" * (changes.ITEM_TITLE_MAX + 1)}, blank_clears=("client_message",))
 
     def test_changes_py_holds_the_number_once_for_these_limits(self):
+        lim = (ROOT / "src" / "clark" / "limits.py").read_text(encoding="utf-8")
+        self.assertEqual(len(re.findall(r"^ITEM_TITLE_MAX\s*=\s*200\b", lim, re.M)), 1, "the one literal, in limits.py")
         src = (ROOT / "src" / "clark" / "changes.py").read_text(encoding="utf-8")
-        self.assertEqual(len(re.findall(r"^ITEM_TITLE_MAX\s*=\s*200\b", src, re.M)), 1, "the one literal")
+        self.assertEqual(re.findall(r"^ITEM_TITLE_MAX\s*=", src, re.M), [], "changes.py imports it, it holds no number of its own")
         self.assertEqual(re.findall(r"len\([^)]*\)\s*>\s*200\b", src), [], "a length limit written as a bare 200; use changes.ITEM_TITLE_MAX")
 
 
@@ -104,6 +108,73 @@ class Source(unittest.TestCase):
     def test_the_build_writes_the_servers_constant_under_that_name(self):
         self.assertEqual(build_page.page_limits(), {NAME: changes.ITEM_TITLE_MAX})
         self.assertIn(f"--define:{NAME}={changes.ITEM_TITLE_MAX}", build_page.preact_flags())
+
+
+class Stamp(unittest.TestCase):
+    """The pages are stale when the source stamp differs from the committed one, so every file the build reads must be in the stamp.
+    limits.py supplies the title limit the build writes into the page: if it were left out, a new number would leave stale pages."""
+
+    def test_limits_py_is_a_build_input(self):
+        self.assertIn(ROOT / "src" / "clark" / "limits.py", page.build_inputs())
+
+    def test_the_stamp_changes_when_the_limit_changes(self):
+        import pathlib
+        from unittest import mock
+        lim = ROOT / "src" / "clark" / "limits.py"
+        real = pathlib.Path.read_bytes
+        before = page.source_stamp()
+
+        def other(self):
+            return real(self) + (b"\nITEM_TITLE_MAX = 201\n" if self == lim else b"")
+        with mock.patch.object(pathlib.Path, "read_bytes", other):
+            self.assertNotEqual(page.source_stamp(), before, "a different limit gives a different stamp")
+        self.assertEqual(page.source_stamp(), before)
+
+    def test_page_limits_raises_and_never_defaults(self):
+        import types
+        real = build_page.limits
+        build_page.limits = types.SimpleNamespace()      # a limits module without the number
+        self.addCleanup(setattr, build_page, "limits", real)
+        with self.assertRaises(AttributeError):
+            build_page.page_limits()
+
+
+class MissingDefine(unittest.TestCase):
+    """The page reads the limit under a name only the build defines. If the build stops defining it, the name stays in the page as a bare
+    identifier and the page throws when it runs: so the BUILD refuses, naming it, instead of writing that page."""
+
+    def with_limits(self, limits):
+        real = build_page.page_limits
+        build_page.page_limits = lambda: limits
+        self.addCleanup(setattr, build_page, "page_limits", real)
+
+    def test_a_build_that_does_not_define_the_limit_is_refused_naming_it(self):
+        self.with_limits({})
+        with self.assertRaises(build_page.BuildError) as got:
+            build_page.preact_flags()
+        self.assertIn(NAME, str(got.exception), "the refusal names the missing definition")
+
+    def test_the_build_command_stops_with_a_refusal_and_writes_nothing(self):
+        self.with_limits({})
+        before = [(f, f.read_bytes() if f.exists() else None) for f in (build_page.OUT, build_page.OUT_VIEW)]
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            done = build_page.main([])
+        self.assertEqual(done, 1, "build_page exits with 1")
+        self.assertIn(NAME, err.getvalue(), "and says which definition is missing")
+        self.assertEqual(before, [(f, f.read_bytes() if f.exists() else None) for f in (build_page.OUT, build_page.OUT_VIEW)], "no page was written")
+
+    def test_a_name_left_in_the_built_script_is_refused(self):
+        real = build_page.preact_flags
+        build_page.preact_flags = lambda held=True, inline_pictures=False: [f for f in real(held, inline_pictures) if not f.startswith("--define:")]
+        self.addCleanup(setattr, build_page, "preact_flags", real)
+        with self.assertRaises(build_page.BuildError) as got:
+            build_page.bundle(build_page.ENTRY)      # the editing page: PeekTitle is in it, not in the published page
+        self.assertIn(NAME, str(got.exception), "the refusal names the identifier left in the script")
+
+    def test_a_clean_build_of_every_page_has_no_name_left(self):
+        for entry in (build_page.ENTRY, build_page.ENTRY_VIEW):
+            self.assertNotIn(NAME, build_page.build(entry), f"{entry} carries a number, not the name")
 
 
 @unittest.skipUnless(shutil.which("node"), "no node")

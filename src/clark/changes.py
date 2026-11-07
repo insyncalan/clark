@@ -42,6 +42,7 @@ from pathlib import Path
 from clark import backup, doclinks, milestone_rows, milestones, order, platform, sanitise, section_bodies, section_kinds
 from clark import people as people_rules
 from clark import store as clark_store
+from clark.limits import ITEM_TITLE_MAX      # a work item's title, at most (_checked_item_changes); one literal, in limits.py
 from clark.section_kinds import base as section_base, textimage as pictures
 from clark.store import Invalid
 
@@ -222,7 +223,6 @@ NEW_NEEDS = {"actions": "Say what the action is.", "raid": "Say what the risk or
 NEW_SOURCE = "Added by hand in clark"       # the row's source, as the prototype words it; never taken from a request
 COPY_SOURCE = "Duplicated from "             # #442: a copy's source, then the item's id (system/prototype/peek.js, Duplicate)
 COPY_MARK = " (copy)"                        # #442: the end of a copy's title
-ITEM_TITLE_MAX = 200                         # a work item's title, at most (_checked_item_changes)
 COPIED = {                                   # #442: what Duplicate copies from the stored item (the prototype copies the item whole); never the
     "actions": ("workstream", "owner", "owner_id", "priority", "due_date", "status", "latest_update", "client_message", "milestone", "use_case"),
     "raid": ("type", "workstream", "owner", "owner_id", "response_action", "due_date", "impact", "likelihood", "status", "client_message", "milestone", "use_case"),

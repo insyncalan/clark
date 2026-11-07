@@ -273,12 +273,18 @@ class MergeDriverTests(unittest.TestCase):
         import importlib.util
         import sysconfig
         mod = self.driver_module()
-        ours = {"esbuild": "dev/tools/esbuild.py", "clark": "src/clark/__init__.py", "clark.page": "src/clark/page/__init__.py"}
+        ours = {"esbuild": "dev/tools/esbuild.py", "clark": "src/clark/__init__.py", "clark.limits": "src/clark/limits.py",
+                "clark.page": "src/clark/page/__init__.py"}
         stdlib = os.path.realpath(sysconfig.get_paths()["stdlib"])
         for name in mod.BUILD_CODE:
-            for node in ast.walk(ast.parse((ROOT / name).read_text(encoding="utf-8"))):
+            tree = ast.parse((ROOT / name).read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
                 names = [a.name for a in node.names] if isinstance(node, ast.Import) else (
                     [node.module] if isinstance(node, ast.ImportFrom) and node.module else [])
+                if isinstance(node, ast.ImportFrom) and node.module == "clark" and node in tree.body:      # module level only: a lazy import inside a function is not run by the build      # "from clark import changes" imports the module clark.changes
+                    for a in node.names:
+                        if (ROOT / "src" / "clark" / f"{a.name}.py").exists() or (ROOT / "src" / "clark" / a.name / "__init__.py").exists():
+                            self.assertIn(ours.get(f"clark.{a.name}"), mod.BUILD_CODE, f"{name}: from clark import {a.name} is a module the merge driver does not unpack")
                 for n in names:
                     if n in ours:
                         self.assertIn(ours[n], mod.BUILD_CODE, n)
