@@ -31,6 +31,15 @@ def lines(r):
 
 
 class Milestone(unittest.TestCase):
+    def test_row_776_every_change_has_a_phrase_that_is_part_of_the_typed_words(self):
+        for words in ("forecast 30-11-2026", "done and forecast Friday", "achieved yesterday"):
+            r = read("M-1", words)
+            self.assertTrue(r["ok"], words)
+            for c in r["changes"]:
+                self.assertTrue(c["phrase"], (words, c["field"]))
+                self.assertIn(c["phrase"], words)
+        self.assertEqual(read("M-1", "forecast 30-11-2026")["changes"][0]["phrase"], "forecast 30-11-2026")
+
     def test_a_forecast_date_is_a_from_to_line(self):
         r = read("M-1", "forecast 30-11-2026")
         self.assertEqual((r["ok"], lines(r), r["confirm"]), (True, {"forecast_date": ("10-11-2026", "30-11-2026")}, False))
@@ -96,6 +105,15 @@ class Milestone(unittest.TestCase):
 
 
 class UseCase(unittest.TestCase):
+    def test_row_776_every_change_has_a_phrase_that_is_part_of_the_typed_words(self):
+        words = "high risk, candidate, headline: Vendor is late"
+        r = read("U-1", words)
+        self.assertTrue(r["ok"])
+        got = {c["field"]: c["phrase"] for c in r["changes"]}
+        self.assertEqual(got, {"status": "high risk", "commitment": "candidate", "headline": "headline: Vendor is late"})
+        for phrase in got.values():
+            self.assertIn(phrase, words)
+
     def test_status_headline_and_commitment(self):
         r = read("U-1", "flagged, committed, headline: Late vendor")
         self.assertEqual(lines(r), {"status": ("On track", "Flag"), "headline": ("Steady", "Late vendor"), "commitment": ("No flag", "Committed")})
