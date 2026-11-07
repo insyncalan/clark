@@ -150,7 +150,7 @@ class Migrating(Base):
         fresh = Path(tempfile.mkdtemp(dir=str(self.dir)))
         open_store(fresh / "clark.db", onedrive_roots=[]).close()
         self.assertEqual(project_columns(path), project_columns(fresh / "clark.db"))
-        self.assertEqual(project_columns(path)[-1][1:], ("review_after_days", "INTEGER", 1, "14", 0))
+        self.assertIn(("review_after_days", "INTEGER", 1, "14", 0), [c[1:] for c in project_columns(path)])   # a later step (row 926, 18) adds the Gantt columns after it
         self.assertEqual(set(schema_of(path)), set(schema_of(fresh / "clark.db")), "the same tables, indexes and triggers by name")
 
     def test_a_second_open_changes_nothing_and_takes_no_copy(self):

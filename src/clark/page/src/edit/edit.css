@@ -247,10 +247,10 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
 /* #47e: a suggested change in the ask panel */
 .ask-changes { display: flex; flex-direction: column; gap: 10px; margin-top: var(--space-1); }
-.ask-passage { margin: 0; padding: 6px 10px; border-left: 3px solid var(--grey-300); background: var(--surface); }
+.ask-passage { margin: 0; padding: 6px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--surface); }  /* row 936: a quote edge is a hairline all round, no one-side stripe */
 .ask-passage figcaption { font-size: var(--size-caption); overflow-wrap: anywhere; }
 .ask-passage blockquote { margin: var(--space-1) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--size-caption); }
-.ask-change { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) 10px; border: 1px solid var(--grey-200); border-left: 3px solid var(--brand-blue); border-radius: var(--radius-sm); background: var(--grey-50); }
+.ask-change { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--grey-50); }  /* row 936: no blue one-side stripe, the hairline all round is enough */
 .ask-change-head { display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
 .ask-diff { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--size-caption); }
 .ask-diff th, .ask-diff td { padding: 3px 6px; text-align: left; vertical-align: top; border-top: 1px solid var(--grey-200); overflow-wrap: anywhere; }
