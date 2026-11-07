@@ -124,12 +124,13 @@ def port_number(text, where):
 
 
 def port_free(port):
-    """True when nothing is listening on `port` of 127.0.0.1 (the address the server uses)."""
+    """True when nothing is listening on `port` of the address the server binds: 127.0.0.1, or in the Docker container (#575) the
+    container's own bind address, so a listener on any of the container's addresses counts."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         if os.name == "posix":
             probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)       # as the server binds: a recent stop is not "in use"
         try:
-            probe.bind(("127.0.0.1", port))
+            probe.bind((server.CONTAINER_BIND if platform.container_mode() else "127.0.0.1", port))
         except OSError as e:
             if e.errno == errno.EADDRINUSE:
                 return False
