@@ -624,6 +624,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .rbar .seg .mode:hover { color: var(--text); }
 .rbar .seg .mode[aria-pressed="true"] { background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); }   /* the aqua pill with dark text, in light and dark alike */
 .rbar .seg .mode:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.rbar .seg .mode[aria-pressed="true"]:focus-visible { box-shadow: inset 0 0 0 2px var(--pill-fg); }   /* #996: the blue outset ring is under 3:1 on the aqua in dark, so the chosen half also gets an inner ring in the fill's own text colour (--pill-fg); the outset ring stays */
 .rbar .seg .mode { gap: var(--space-1); }
 .rbar .seg .mode .tb-ico { width: 14px; height: 14px; }
 .rbar-week { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); }
@@ -917,6 +918,12 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) main.view-in { animation: m-view var(--dur-view) var(--ease-enter) 1; }
   @keyframes m-view { from { opacity: 0; transform: translateY(var(--space-2)); } }
+}
+
+/* row 938-6: a Gantt task or phase bar drawn for the first time grows from its start (GanttChart.jsx puts .gt-grow on it until the animation ends; never on a dragged bar or a milestone). Edit.css only: shell.css is the published page's. Same gate as the Motion block. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) .gt-b.gt-grow:not(.drag) { transform-origin: left center; animation: m-grow var(--dur-state) var(--ease-out) 1; }
+  @keyframes m-grow { from { transform: scaleX(0); } }
 }
 
 /* row 940 (macOS gate, test_edit_cells_layout): in Edit at 900 px and below the Due, priority and status columns are 8 px wider than the bare minimum, so a font a little wider than Linux's (macOS draws these three 2 to 3 px wider) stays inside its box. EDIT ONLY: shell.css is also the published page's, whose Item column must stay at least 280 px (test_published_item_column), so the widths are not set there. Same specificity as shell.css's 900 px rule and later in the page, so these win without !important. */
