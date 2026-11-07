@@ -57,8 +57,12 @@ NEW, UPDATE, MOVE, DELETE, ARCHIVE, RESTORE, PICK, BULK, HAND_OVER, LINK = "new 
 NEWABLE = ("actions", "raid", "decisions", "milestones")      # #67: the kinds a report row can be added to (use cases: never from here)
 ARCHIVABLE = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents")      # #126: archive and restore, no fields
 DOC_FIELDS = ("title", "kind", "url", "date")        # #74: a document link's own fields; its id, project, place and archive flag never come from a request
+GANTT_PROJECT_FIELDS = ("show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows")     # row 926: the project's six Gantt settings, changed like review_after_days
+PROJECT_FIELDS = ("health", "health_reason", "week_ending", "review_after_days") + GANTT_PROJECT_FIELDS
+GANTT_FIELDS = ("name", "type", "parent", "start", "end", "pct", "health", "depends", "owner", "workstream", "priority",
+                "baseline_start", "baseline_end", "effort", "budget", "deliverable", "show", "note")     # row 926: what a request may give for a Gantt line; never its id, project, place or stamp
 CHANGE_KINDS = {
-    "report_sections": {NEW: ("type", "title"), UPDATE: ("title", "hidden", "beside", "body"), MOVE: ("beside",), DELETE: ()},   # a body is written only for a needs or tracker section: see _section_body
+    "report_sections": {NEW: ("type", "title", "body"), UPDATE: ("title", "hidden", "beside", "body"), MOVE: ("beside",), DELETE: ()},   # a body is written only for a needs or tracker section: see _section_body
     # #68: the work items board changes an item's fields, and nothing else. Only `update`: no new, move or delete for these kinds
     # (an item is closed or cancelled by its status, and archived only by archiving). priority is not in raid's list because the
     # store works it out from impact and likelihood (D-12: the status picker's Rating sets those two); `archived` is in no list.
@@ -69,7 +73,7 @@ CHANGE_KINDS = {
     # #45: the At a glance tiles and the project's health. A tile is hidden, given an outline colour or moved (its place is worked
     # out here, never sent); the project's change takes no `id` (it is the request's project) and only its health and the reason.
     "glance_tiles": {UPDATE: ("hidden", "outline"), MOVE: ()},
-    "projects": {UPDATE: ("health", "health_reason", "week_ending", "review_after_days")},     # week_ending: the report bar's date (YYYY-MM-DD); #171: review_after_days, a whole number from 1 to 365
+    "projects": {UPDATE: PROJECT_FIELDS},     # week_ending: the report bar's date (YYYY-MM-DD); #171: review_after_days, a whole number from 1 to 365; row 926: the five Gantt settings
     # #136: Milestones Movement. The dates, Done, the state with its reason, the client wording and the Movement choice. Never the
     # owner, the name, the workstream, the place or the archive flag (archive stays its own op). #458: + the internal note, the one
     # box Movement keeps for the owner (owner only: never in a reply, a Movement entry or a published file).
@@ -83,10 +87,12 @@ CHANGE_KINDS = {
     # (no values: the row is the pair project + item, and the project is the request's).
     # `pick` is the picker's Add (see _do_pick): it puts several hidden rows back on the page in one step.
     "report_hidden": {NEW: (), DELETE: (), PICK: ()},
+    "gantt_lines": {NEW: GANTT_FIELDS, UPDATE: GANTT_FIELDS, MOVE: (), DELETE: ()},      # row 926: the eye is an update of `show`; each op is one step with one Undo
 }
 KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values", "copy_of") if k in ("actions", "raid", "decisions") else ("values",)} for k in NEWABLE},   # per kind, the keys an op takes when they are not OP_KEYS' (a project has no id)
                 "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)},
-                "report_sections": {NEW: ("values", "after", "beside")}}      # #149: a new section may go beside the one it is added after, in the same step
+                "report_sections": {NEW: ("values", "after", "beside")},
+                "gantt_lines": {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "before"), DELETE: ("id",)}}      # #149: a new section may go beside the one it is added after, in the same step
 KIND_OP_KEYS["use_cases"] = {NEW: ("values",), LINK: ("id", "ids")}    # #455: a new use case is only `values` (its reference, name, status and headline); no id is sent. #485: `link` names the use case and the work items to link to it
 KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline")     # #136: a milestone's agreed date moves with a `rebaseline`
 TILES = ("health", "overdue", "risks", "decisions")  # glance_tiles.tile (the store's ALLOWED holds the same four; a test says so)
@@ -101,7 +107,8 @@ HEALTHS = ("On track", "At risk", "Off track")
 # that changed another project field (a name, a phase) is never undone from here. `updated_at` and `note` follow any change.
 UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions": None, "report_hidden": None,
             "glance_tiles": ("hidden", "outline", "sort_order"),
-            "projects": ("health", "health_reason", "week_ending", "review_after_days", "archived", "active"),       # #126: a project's own archive or restore step sets the flag and `active`
+            "projects": PROJECT_FIELDS + ("archived", "active"),       # #126: a project's own archive or restore step sets the flag and `active`
+            "gantt_lines": None,                                                                     # row 926: a Gantt line, any field (a Gantt step holds nothing else: see _eligible)
             "milestones": ("archived", "baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
                            "client_message", "movement", "internal_note",
                            "name", "owner", "owner_id", "workstream", "percent_complete", "description"),     # row 828: the peek's fields (owner_id: the link that goes with an owner edit, never asked for); #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
@@ -710,6 +717,8 @@ def _do_change(store, by_user, req):
     if op in (ARCHIVE, RESTORE):
         return _do_archive(store, by_user, project, table, op, place, req.get("id"))
     columns = clark_store.columns(store.con, table)
+    if kind == "gantt_lines":                                        # row 926: a Gantt line's add, edit, eye, move and delete
+        return _do_gantt_change(store, by_user, req, project, table, columns, op, place)
     if kind == "documents":                                         # #74: a document link's add or edit
         return _do_document_change(store, by_user, req, project, table, columns, op, place)
     if kind == "use_cases":                                         # #164: first, and before any work item line, so that a use case
@@ -740,6 +749,13 @@ def _do_change(store, by_user, req):
         title = clark_store.section_title(values["title"]) if "title" in values else DEFAULT_TITLE
         if new_type in BUILT_IN_TYPES:                              # row 906: a built-in comes back with its own title and settings
             title = next(s["title"] for s in clark_store.DEFAULT_SECTIONS if s["type"] == new_type)
+        start_body = None
+        if "body" in values:                                        # #929: a text section may start with its words, in the one step (one Undo)
+            if not isinstance(values["body"], str):
+                raise Refused(BODY_NOT_TEXT)
+            if new_type != "text":
+                raise Refused(NO_BODY_HERE)
+            start_body = _text_body(values["body"])                 # the same cleaner and limits as an update of a text section's body
         after = _id_or_none(req.get("after"), STALE)
         beside = _flag(req["beside"]) if "beside" in req else 0
         if beside and after is None:
@@ -766,7 +782,7 @@ def _do_change(store, by_user, req):
                 _mine(after, ids, STALE)
                 if not _on_its_own(rows, after):
                     raise Refused(STALE)                            # it has a partner now: nothing is written, the page redraws
-            ref = _add(st, project, rows, ids, title, after, new_type)
+            ref = _add(st, project, rows, ids, title, after, new_type, start_body)
             if beside:
                 st.update(table, after, {"beside": 1})              # the same step: one Undo removes the section and the pairing
             elif ids and after in (None, ids[-1]) and rows[-1]["beside"] == 1 and _on_its_own(rows, ids[-1]):
@@ -1734,6 +1750,17 @@ def _checked_project_changes(fields):
                 raise Refused(NOT_FRIDAY.format(friday=friday.strftime("%d-%m-%Y")))
         if k == "review_after_days" and (type(v) is not int or not clark_store.REVIEW_DAYS_RANGE[0] <= v <= clark_store.REVIEW_DAYS_RANGE[1]):
             raise Refused(BAD_REVIEW_DAYS)      # #171: a real int only (not True, 14.5, "14", None or a list), checked before the step opens
+        if k in ("show_gantt_editor", "show_gantt_client"):
+            out[k] = _flag(v)                                   # row 926: 0 or 1 as a whole number; True, 1.0 or "1" are refused
+        if k == "gantt_default_rows" and v is not None and (type(v) is not int or not clark_store.GANTT_ROWS_RANGE[0] <= v <= clark_store.GANTT_ROWS_RANGE[1]):
+            raise Refused(clark_store.GANTT_BAD_ROWS)       # row 926: a real whole number from 1 to 500, or None (every row)
+        if k in ("gantt_tab_name", "gantt_title", "gantt_hidden_columns"):
+            try:                                                # row 926: the store's own check, called here so the first refusal is the route's
+                out[k] = (clark_store.gantt_hidden_columns(v) if k == "gantt_hidden_columns" else
+                          clark_store.gantt_plain(v, clark_store.GANTT_TAB_LIMIT if k == "gantt_tab_name" else clark_store.GANTT_TITLE_LIMIT,
+                                                  clark_store.GANTT_BAD_TAB if k == "gantt_tab_name" else clark_store.GANTT_BAD_TITLE, blank_ok=k == "gantt_title"))
+            except Invalid as e:
+                raise Refused(str(e)) from None
         if k == "health_reason":
             try:
                 out[k] = clark_store.health_reason_text(v)      # the store's own check, called here so the first refusal is the route's
@@ -1749,7 +1776,7 @@ def _project_words(e):
         return None
     if "needs a reason" in text:
         return HEALTH_NEEDS_REASON
-    return text if text in clark_store.REASON_REFUSALS else ITEM_VALUE_WORDS
+    return text if text in clark_store.REASON_REFUSALS or text in clark_store.GANTT_REFUSALS else ITEM_VALUE_WORDS
 
 
 def _do_project_change(store, by_user, req, project, table, columns, place):
@@ -1771,10 +1798,238 @@ def _do_project_change(store, by_user, req, project, table, columns, place):
     now = store.read(table, ref=project)
     return 200, {"ok": True, "apply_id": apply_id, "ref": project,
                  "project": {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"],
-                             "review_after_days": now["review_after_days"]}}
+                             "review_after_days": now["review_after_days"],
+                             **{f: now[f] for f in GANTT_PROJECT_FIELDS}}}
 
 
-def _add(st, project, rows, ids, title, after, kind="text"):
+
+# ── Gantt lines (row 926) ─────────────────────────────────────────────────────
+
+GANTT_NOT_MINE = NOT_MINE_RECORD                                    # another project's line and a missing one: the same words
+GANTT_WORKED_OUT = "{} is worked out; it cannot be typed over."     # Days and Status are never stored: {} is the column's name
+GANTT_WORKED_OUT_NAMES = {"days": "Days", "status": "Status", "outline": "The outline number", "outline_number": "The outline number"}
+GANTT_NEW_NAMES = {"phase": "New phase", "task": "New task", "milestone": "New milestone"}     # a line added with no name starts with one
+GANTT_TEXT_FIELDS = ("name", "owner", "workstream", "deliverable", "note")
+GANTT_DATE_FIELDS = ("start", "end", "baseline_start", "baseline_end")
+GANTT_ENUM_FIELDS = ("type", "health", "priority")
+GANTT_CLEARED_TO = {"parent": None, "baseline_start": None, "baseline_end": None, "effort": None, "budget": None}     # a blank clears these to no value; the other text columns hold ''
+GANTT_SHOWN = ("id", "type", "name", "parent", "start", "end", "pct", "health", "depends", "owner", "workstream",
+               "priority", "baseline_start", "baseline_end", "effort", "budget", "deliverable", "show", "note", "sort_order")   # what a reply says of a line: all of it (the editor's own page)
+
+
+def _gantt_words(e):
+    """The store's refusal of a Gantt change as a fixed plain sentence; None for a busy database (_call words that). The store's
+    own sentences for a line are already plain; its generic ones (a date, a number, a choice) are put in the Gantt words."""
+    text = str(e)
+    if text.startswith("clark's data is in use") or text.startswith(NOT_OPENED):
+        return None
+    if text in clark_store.GANTT_REFUSALS or (text.startswith('There is no line "') and text.endswith('" to depend on.')) \
+            or (text.startswith('There is no line "') and text.endswith('" to be the parent.')):
+        return text
+    if "pct" in text:
+        return clark_store.GANTT_BAD_PCT
+    if "must be a date" in text or "is not a real date" in text:
+        return clark_store.GANTT_BAD_DATE
+    if "must be one of" in text:
+        return clark_store.GANTT_BAD_CHOICE
+    if text.startswith("Project ") and text.endswith("is archived. Restore it first."):
+        return PROJECT_NOT_ACTIVE
+    return ITEM_VALUE_WORDS
+
+
+def _checked_gantt(given, columns):
+    """A Gantt line's fields from a request with their JSON types checked and blanks turned into what the column holds; the values'
+    own rules (a real date, the order of two dates, a parent that is a phase, depends) are the store's, inside the step. A field that
+    is worked out is refused with its own words; a field that is not in the allow-list is refused as everywhere else."""
+    if given is None:
+        given = {}
+    if not isinstance(given, dict):
+        raise Refused("Send the line's values as an object.")
+    out = {}
+    for k, v in given.items():
+        if k in GANTT_WORKED_OUT_NAMES:
+            raise Refused(GANTT_WORKED_OUT.format(GANTT_WORKED_OUT_NAMES[k]))
+        if k not in GANTT_FIELDS or k not in columns:
+            raise Refused(f"The field '{_shown(k)}' can't be set here.")
+        if k == "show":
+            out[k] = _flag(v)
+        elif k == "pct":
+            if type(v) is not int or not 0 <= v <= 100:
+                raise Refused(clark_store.GANTT_BAD_PCT)
+            out[k] = v
+        elif k in ("effort", "budget"):
+            if v is None or (isinstance(v, str) and not v.strip()):
+                out[k] = None
+            elif isinstance(v, bool) or not isinstance(v, (int, float)) or v != v or not 0 <= v <= clark_store.gantt_number_limit(k):
+                raise Refused(clark_store.GANTT_BAD_NUMBER)
+            else:
+                out[k] = v
+        elif k == "depends":
+            if v is None:
+                v = ""
+            if isinstance(v, list) and all(isinstance(x, str) for x in v):
+                v = ",".join(v)
+            if not isinstance(v, str):
+                raise Refused(clark_store.GANTT_BAD_TEXT)
+            out[k] = v
+        elif k == "parent":
+            if v is not None and not isinstance(v, str):
+                raise Refused(clark_store.GANTT_NO_PARENT.format(""))
+            out[k] = (v or "").strip() or None
+        elif k in GANTT_DATE_FIELDS:
+            if v is None or (isinstance(v, str) and not v.strip()):
+                if k in ("start", "end"):
+                    raise Refused(clark_store.GANTT_BAD_DATE)
+                out[k] = None
+            elif not isinstance(v, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", v) or not _real_day(v):
+                raise Refused(clark_store.GANTT_BAD_DATE)
+            else:
+                out[k] = v
+        elif k in GANTT_ENUM_FIELDS:
+            if k == "type" and v not in clark_store.ALLOWED[("gantt_lines", "type")]:
+                raise Refused(clark_store.GANTT_BAD_TYPE)
+            if k != "type" and not (v is None or v == "" or (isinstance(v, str) and v in clark_store.ALLOWED[("gantt_lines", k)])):
+                raise Refused(clark_store.GANTT_BAD_CHOICE)
+            out[k] = v or ""
+        else:                                                       # a text field: the store tidies it and holds it to its limit
+            if k == "name" and (not isinstance(v, str) or not v.strip()):
+                raise Refused(clark_store.GANTT_NO_NAME)
+            if v is not None and not isinstance(v, str):
+                raise Refused(clark_store.GANTT_BAD_TEXT)
+            out[k] = v if v is not None else ""
+    return out
+
+
+def _gantt_lines(store, project):
+    return order.in_order(store.read("gantt_lines", project=project))
+
+
+def _gantt_reply(store, project, ref, apply_id, **more):
+    lines = _gantt_lines(store, project)
+    return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref,
+                 "lines": [{k: r[k] for k in GANTT_SHOWN} for r in lines], **more}
+
+
+def _gantt_new_values(values, lines, after_row, project):
+    """The values of a new line: what the request gave and, for what it left out, a name by type, the dates of the line it follows
+    (else today; a milestone is on one day) and the parent that line has (after a phase, under it). Nothing is taken from the request
+    but its allow-listed fields; the project and the place are clark's."""
+    out = dict(values)
+    out.setdefault("type", "task")
+    out.setdefault("name", GANTT_NEW_NAMES[out["type"]] if out["type"] in GANTT_NEW_NAMES else GANTT_NEW_NAMES["task"])
+    day = after_row["end"] if after_row else clark_store.today()
+    out.setdefault("start", day)
+    out.setdefault("end", out["start"])
+    if out.get("type") == "milestone":
+        out["end"] = out["start"]
+    if "parent" not in out and after_row and out["type"] != "phase":
+        out["parent"] = after_row["id"] if after_row["type"] == "phase" else after_row["parent"]
+    if out.get("parent") is None:
+        out.pop("parent", None)
+    out["project"] = project
+    return out
+
+
+def _gantt_milestone_dates(changes, now):
+    """`changes` for a line `now`, with a milestone's one date kept: changing its Start moves its End too, and an End alone is refused."""
+    if changes.get("type", now["type"]) == "milestone":
+        if "end" in changes and changes["end"] != changes.get("start", now["start"]):
+            raise Refused(clark_store.GANTT_MILESTONE_ONE_DATE)
+        changes["end"] = changes.get("start", now["start"])
+    return changes
+
+
+def gantt_import_write(store, st, project, ref, given):
+    """Row 926, the workbook import: one Gantt line of `project` added (`ref` None; at the end of the list, with the next free id) or
+    changed, inside the caller's step, through the page's own checks (_checked_gantt, _gantt_new_values, _gantt_milestone_dates) and the
+    store's rules. Returns the line's id. A refusal is an Invalid in the Gantt words; nothing the request says is taken for the id,
+    the project, the place or the stamp."""
+    try:
+        if clark_store.is_archived(store.con, project):
+            raise Refused(PROJECT_NOT_ACTIVE)
+        if isinstance(given, dict) and "show" in given and type(given["show"]) is not int:
+            raise Refused(clark_store.GANTT_BAD_CHOICE)             # the sheet's Yes or No that could not be read
+        values = _checked_gantt(given, clark_store.columns(store.con, "gantt_lines"))
+        if ref is None:
+            lines = _gantt_lines(store, project)
+            return st.create("gantt_lines", {**_gantt_new_values(values, lines, None, project), "sort_order": order.end_slot(lines)})
+        now = store.read("gantt_lines", ref=ref)
+        if now is None or now["project"] != project:
+            raise Refused(GANTT_NOT_MINE)
+        st.update("gantt_lines", ref, _gantt_milestone_dates(values, now))
+        return ref
+    except Refused as e:
+        raise Invalid(e.message) from None
+    except Invalid as e:
+        words_ = _gantt_words(e)
+        if words_ is None:
+            raise
+        raise Invalid(words_) from None
+
+
+def _do_gantt_change(store, by_user, req, project, table, columns, op, place):
+    """Row 926: add a Gantt line, change its fields (the eye is `show`), move it or delete it, in THIS project; each is one step with
+    one Undo. A new line goes just after the line named by `after` (None: at the end) and gets the next free id; renumbering is
+    display only, so nothing is renumbered here and ids never change. Deleting a line takes its id out of the lines that depend on it
+    and the parent from the lines under it, in the same step. The store checks every rule again on write, and a refusal writes
+    nothing. A milestone has one date: changing its Start moves its End too, and changing its End alone is refused."""
+    if clark_store.is_archived(store.con, project):
+        raise Refused(PROJECT_NOT_ACTIVE)
+    ref = req.get("id")
+    values = changes = None
+    if op == NEW:
+        values = _checked_gantt(req.get("values"), columns)
+        after = _id_or_none(req.get("after"), STALE)
+    elif op == UPDATE:
+        changes = _checked_gantt(req.get("changes"), columns)
+        if not changes:
+            raise Refused("Say what to change.")
+    elif op == MOVE:
+        if "before" not in req:
+            raise Refused("Say where to move it.")
+        before = _id_or_none(req.get("before"), STALE)
+    if op != NEW and not (isinstance(ref, str) and clark_store.GANTT_ID.fullmatch(ref) and _belongs(table, ref, project)):
+        raise Refused(GANTT_NOT_MINE)
+    with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: what is read next is what is changed
+        lines = _gantt_lines(store, project)
+        by_id = {r["id"]: r for r in lines}
+        try:
+            if op == NEW:
+                if after is not None and after not in by_id:
+                    raise Refused(STALE)
+                made = _gantt_new_values(values, lines, by_id.get(after), project)
+                end = order.end_slot(lines)
+                new_place, renumber = end, {}
+                if after is not None and lines.index(by_id[after]) + 1 < len(lines):
+                    nxt = lines[lines.index(by_id[after]) + 1]["id"]
+                    renumber = order.section_slot(lines + [{"id": "", "sort_order": end}], "", nxt)
+                    new_place = renumber.pop("", end)
+                ref = st.create(table, {**made, "sort_order": new_place})
+                for other, slot in renumber.items():
+                    st.update(table, other, {"sort_order": slot})
+            elif ref not in by_id:
+                raise Refused(GANTT_NOT_MINE)
+            elif op == UPDATE:
+                st.update(table, ref, _gantt_milestone_dates(changes, by_id[ref]))
+            elif op == MOVE:
+                if before is not None and before not in by_id:
+                    raise Refused(STALE)
+                if before == ref:
+                    raise Refused("A line can't be moved before itself.")
+                for other, slot in order.section_slot(lines, ref, before).items():
+                    st.update(table, other, {"sort_order": slot})
+            else:
+                st.cancel(table, ref)
+        except Invalid as e:                                        # a rule of the store, in fixed words: no field name, no value
+            words_ = _gantt_words(e)
+            if words_ is None:
+                raise
+            raise Refused(words_) from None
+        apply_id = st.peek_apply_id()                               # None when nothing changed: the page shows no Undo
+    return _gantt_reply(store, project, ref, apply_id)
+
+
+def _add(st, project, rows, ids, title, after, kind="text", body=None):
     """Make a section of type `kind` (text, needs or tracker) just after section `after` (None: at the end); its id. A needs or
     tracker section starts with the body the registry gives it (section_bodies.EMPTY), never one from the request. When no whole number fits between its
     neighbours, the rows are renumbered in the same step (clark.order)."""
@@ -1787,6 +2042,8 @@ def _add(st, project, rows, ids, title, after, kind="text"):
         renumber = order.section_slot(probe, "", ids[ids.index(after) + 1])
         new_place = renumber.pop("", end)
     start = {"body": section_bodies.EMPTY[kind]} if section_bodies.EMPTY.get(kind) else {}
+    if body:
+        start = {"body": body}                                      # #929: only a text section is given one (checked by the caller)
     ref = st.create("report_sections", {"project": project, "type": kind, "title": title, "sort_order": new_place, **start})
     for other, place in renumber.items():
         st.update("report_sections", other, {"sort_order": place})
@@ -1807,6 +2064,8 @@ def _row_is_ours(row, project, project_step, flagged):
     allowed = UNDOABLE[table]
     if table == "report_sections":
         return key.startswith(project + "-S-")
+    if table == "gantt_lines":                                      # row 926
+        return bool(clark_store.GANTT_ID.fullmatch(key)) and key.startswith(project + "-GNT-")
     if table == "report_hidden":                                    # #67: the key is "CODE|item id"; the separator keeps ABC from matching ABCD
         return key.startswith(f"{project}|{project}-") and field in (None, "project", "item_id", clark_store.REMOVED)
     if table == "glance_tiles":                                     # #45
@@ -1817,7 +2076,7 @@ def _row_is_ours(row, project, project_step, flagged):
         return False
     if field == "archived":
         return _belongs(table, key, project)
-    if table == "projects" and key == project and field in ("health", "health_reason", "week_ending", "review_after_days", "note"):      # #45: the health change; #171: and the review days
+    if table == "projects" and key == project and field in PROJECT_FIELDS + ("note",):      # #45: the health change; #171: and the review days
         return True
     if field == "updated_at":                                       # the stamp goes only with its own record's flag or change
         return ((table, key) in flagged and _belongs(table, key, project)) or (table == "projects" and key == project)
@@ -1888,8 +2147,10 @@ def _eligible(rows, project, hand_over=False):
     record in the same step that is its archive flag, its `active`, or its health change. The project's own row has the bare code
     as its key."""
     flagged = {(r["table"], str(r["key"])) for r in rows if r.get("field") == "archived"}
-    beside = {(r["table"], str(r["key"])) for r in rows if r.get("field") in ("archived", "active", "health", "health_reason", "week_ending", "review_after_days", "note")}
+    beside = {(r["table"], str(r["key"])) for r in rows if r.get("field") in ("archived", "active") + PROJECT_FIELDS + ("note",)}
     project_step = ("projects", project) in flagged
+    if any(r["table"] == "gantt_lines" for r in rows):              # row 926: a Gantt step is one family: lines of this project and nothing else
+        return all(r["table"] == "gantt_lines" and r["via"] == VIA and _row_is_ours(r, project, False, flagged) for r in rows)
     items = {"actions": re.compile(re.escape(project) + r"-A-\d{3}"), "raid": re.compile(re.escape(project) + r"-\d{3}"),
              "decisions": re.compile(re.escape(project) + r"-D-\d{3}"),
              "milestones": re.compile(re.escape(project) + r"-M-\d{3}"),     # #68: an item of this project, in its own table (#67: + a milestone, for a row added in the report)
@@ -1943,7 +2204,7 @@ def _eligible(rows, project, hand_over=False):
         return all((r["via"] in (VIA, clark_store.SEED_VIA) or (r["via"] == ASSISTANT and r["table"] in ASK_KINDS))      # ask clark's: its own kinds only, never a use case
                    and not r["via"].startswith(clark_store.REVERT_VIA) and (item_field_row(r) or item_stamp_row(r) or (made_item and r["table"] == "report_hidden" and _row_is_ours(r, project, False, flagged))) for r in rows)
     archive_family = any(r.get("field") in ("archived", "active") for r in rows)
-    page_family = any(r["table"] in ("report_sections", "glance_tiles", "report_hidden") or (r["table"] == "projects" and r.get("field") in ("health", "health_reason", "week_ending", "review_after_days", "note"))
+    page_family = any(r["table"] in ("report_sections", "glance_tiles", "report_hidden") or (r["table"] == "projects" and r.get("field") in PROJECT_FIELDS + ("note",))
                       for r in rows)
     if archive_family and page_family:                              # a mix of families is not undone from here
         return False
@@ -1970,9 +2231,18 @@ MILESTONE_KEPT_AS_WAS = {"state": "state", "state_set": "state", "state_reason":
                          "movement": "Movement choice", "internal_note": "internal note"}        # said without the value: a reason or wording is never repeated
 
 
+GANTT_REF = re.compile(r"[A-Z][A-Z0-9]{2,6}-(GNT-\d{3})")             # row 926: a Gantt line is known by the id the page shows (GNT-001), never by its name
+GANTT_FIELD_NAMES = {"name": "name", "type": "type", "parent": "parent", "start": "start", "end": "end", "pct": "done %",
+                     "health": "health", "depends": "dependency list", "owner": "owner", "workstream": "workstream", "priority": "priority",
+                     "baseline_start": "baseline start", "baseline_end": "baseline end", "effort": "effort", "budget": "budget",
+                     "deliverable": "deliverable", "note": "notes", "sort_order": "place"}
+
+
 def _name(names, ref):
     """A section as a person knows it: by its title; a section with no title to hand is "a section", never its id. A work
     item (#68) is known by its id."""
+    if GANTT_REF.fullmatch(str(ref)):
+        return "line " + GANTT_REF.fullmatch(ref).group(1)         # row 926
     if isinstance(ref, str) and ref not in names and (ITEM_REF.fullmatch(ref) or MILESTONE_REF.fullmatch(ref)):
         return ref
     hidden = HIDDEN_REF.fullmatch(str(ref))
@@ -1989,6 +2259,8 @@ def _name(names, ref):
 def _kind_word(ref):
     """What a removed row is called in the words: a work item by its kind, anything else a section."""
     ref = str(ref)
+    if GANTT_REF.fullmatch(ref):
+        return "line"                                               # row 926
     if DOC_REF.fullmatch(ref):
         return "document"                                           # #74
     if not ITEM_REF.fullmatch(ref):
@@ -2009,6 +2281,10 @@ def _use_case_words(f, to, name):
 
 def _field_words(entry, name):
     f, to = entry["field"], entry.get("to")
+    if GANTT_REF.fullmatch(str(entry.get("ref"))):                  # row 926: the field's name, never the text or the value
+        if f == "show":
+            return f"{name} is hidden from the client again" if to == "0" else f"{name} is shown to the client again"
+        return f"the {GANTT_FIELD_NAMES.get(f, 'details')} of {name} is back as it was"
     if MILESTONE_REF.fullmatch(str(entry.get("ref"))):                  # #136
         if f in MILESTONE_FIELD_NAMES:
             what = MILESTONE_FIELD_NAMES[f]
@@ -2106,6 +2382,11 @@ def words(reversed_, skipped, names):
                 seen.add("the days before an item counts as not reviewed")
                 put.append("the days before an item counts as not reviewed")
             continue
+        if e["field"] in GANTT_PROJECT_FIELDS:                      # row 926: the project's Gantt settings, one line, never the title or the tab's name
+            if "the Gantt settings" not in seen:
+                seen.add("the Gantt settings")
+                put.append("the Gantt settings")
+            continue
         if e["field"] == "closed" and ITEM_REF.fullmatch(str(e["ref"])):
             continue                                                # a closing date follows the status: one line says both
         if HIDDEN_REF.fullmatch(str(e["ref"])) and "-L-" in str(e["ref"]) and not e.get("doc"):     # #74: the eye of a document, undone either way
@@ -2115,9 +2396,9 @@ def words(reversed_, skipped, names):
             phrase = (f"{_name(names, e['ref'])} is back in the report" if e["ref"] in removed
                       else f"{_name(names, e['ref'])} is hidden from the report again")
         elif e["ref"] in removed:
-            phrase = f"the new {_kind_word(e['ref'])} {_name(names, e['ref'])} was removed"
+            phrase = f"the new {_name(names, e['ref'])} was removed" if GANTT_REF.fullmatch(str(e["ref"])) else f"the new {_kind_word(e['ref'])} {_name(names, e['ref'])} was removed"
         elif e["ref"] in restored:
-            phrase = f"the section {_name(names, e['ref'])} is back"
+            phrase = f"the {_name(names, e['ref'])} is back" if GANTT_REF.fullmatch(str(e["ref"])) else f"the section {_name(names, e['ref'])} is back"
         else:
             phrase = _field_words(e, _name(names, e["ref"]))
         if phrase not in seen:
@@ -2240,10 +2521,13 @@ def _do_undo(store, by_user, req):
             break
     if any(r["table"] == "report_hidden" for r in step_rows):
         out["hidden"] = _hidden_ids(store, project)                 # #67: what the report hides now
+    if any(r["table"] == "gantt_lines" for r in step_rows):
+        out["lines"] = [{k: r[k] for k in GANTT_SHOWN} for r in _gantt_lines(store, project)]      # row 926: the lines as they are now
     if any(r["table"] == "projects" for r in step_rows):
         now = store.read("projects", ref=project)
         out["project"] = {"health": now["health"], "health_reason": now["health_reason"], "week_ending": now["week_ending"],
-                          "review_after_days": now["review_after_days"]}
+                          "review_after_days": now["review_after_days"],
+                             **{f: now[f] for f in GANTT_PROJECT_FIELDS}}
     return 200, out
 
 
