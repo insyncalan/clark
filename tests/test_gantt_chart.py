@@ -169,7 +169,10 @@ class Chart(unittest.TestCase):
 
     def test_row_988_the_header_row_stays_in_view_with_many_lines(self):
         """#988: with 500 lines the chart is bounded and scrolls inside itself, so the header row is never scrolled off the window."""
-        many = [ln(f"GNT-{i:03d}", f"Task {i}", "task", "2026-09-01", "2026-10-14") for i in range(1, 501)]
+        many = [ln(f"GNT-{i:03d}", f"Task {i}", "task", "2026-09-01", "2026-10-14", show=True) for i in range(1, 501)]
+        edit_css = (build_page.EDIT_CSS).read_text(encoding="utf-8")      # the bare test page holds the published CSS only: add the served page's Edit CSS, where the bound lives
+        self.js(f"(function(){{ var s = new CSSStyleSheet(); s.replaceSync({lit(edit_css)}); document.adoptedStyleSheets = document.adoptedStyleSheets.concat([s]); window.row988 = s; }})()")
+        self.addCleanup(self.js, "document.adoptedStyleSheets = document.adoptedStyleSheets.filter(function(x){ return x !== window.row988; })")
         for width in (1400, 900):
             for scheme in ("light", "dark"):
                 with self.subTest(width=width, scheme=scheme):
