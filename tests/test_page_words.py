@@ -112,7 +112,7 @@ class Words(unittest.TestCase):
             return page.page_html(tempfile.mkdtemp())
         self.s.httpd.page_html = page_then_stop
         with chrome() as cdp:
-            sid = navigate(cdp, port, "#dashboard&p=ABC")
+            sid = navigate(cdp, port, "?project=ABC#dashboard&p=ABC")      # #944: served for ABC already, so the page does not load itself again from a server that is gone
             self.shown(cdp, sid, [WENT_WRONG, NOT_ANSWERING, "Try again"])
             back = sv.LocalServer((sv.HOST, port), data_for=self.fake)       # clark is opened again, on the same port
             threading.Thread(target=back.serve_forever, daemon=True).start()
