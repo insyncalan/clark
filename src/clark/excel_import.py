@@ -1191,6 +1191,7 @@ def list_sheets(path, store=None, project=None):
         excel.check_workbook_size(path)
     except excel.TooBig as e:
         raise Invalid(str(e))
+    check_sheets_early(path, lambda title: False)             # row 966: only the shared-strings text scan, no sheet is counted; a text no Excel could hold is refused before the load
     try:
         wb = load_workbook(str(path), read_only=True)
     except Exception:

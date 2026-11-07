@@ -10,8 +10,10 @@ import zlib
 from pathlib import Path
 from unittest import mock
 
-from _demo import DemoStore
+import base64
+from _demo import USER, DemoStore
 import _workbook as wbk
+from clark import excel, excel_route
 from clark import excel_import as xi
 from clark.store import Invalid
 
@@ -223,6 +225,62 @@ class Caps(unittest.TestCase):
         for chunk in (1, 3, 7, 100, 65536):
             with mock.patch.object(xi, "_SCAN_CHUNK", chunk), zipfile.ZipFile(small) as z:
                 self.assertEqual(xi._scan_member(z, part_of(small, "Actions"), "Actions"), (30, 3))
+
+
+class RealRoute(unittest.TestCase):
+    """Added beside Caps (which patches load_workbook and so never reaches the real list_sheets): sheets -> check -> apply through
+    make_excel_import on a DemoStore, with nothing patched. The hostile fixture DECLARES its shared-strings part in [Content_Types].xml and
+    the workbook rels, holding one string longer than Excel can keep."""
+    def setUp(self):
+        excel_route.PLANS.clear()
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.addCleanup(excel_route.PLANS.clear)
+        self.store = self.demo.store
+        self.tmp = Path(tempfile.mkdtemp(prefix="clark-caps-route-"))
+        self.addCleanup(shutil.rmtree, str(self.tmp), True)
+        self.seam = excel_route.make_excel_import(self.store.path, [], USER)
+        self.a1 = self.demo.action(description="Draft the cut-over plan", due_date="2030-04-15")
+        self.path = self.tmp / "ABC work items.xlsx"
+        made = excel.export_project(self.store, "ABC", self.path, self.tmp / "state.json", on="2030-06-01")
+        record = excel.load_state(self.tmp / "state.json", made)
+        excel.save_state(Path(self.store.path).parent / excel.STATE_FILE, excel.id_key("ABC", record["export_id"]), record)
+
+    def post(self, **req):
+        return self.seam(dict(req, project="ABC"))
+
+    def data(self):
+        return base64.b64encode(self.path.read_bytes()).decode("ascii")
+
+    def edit_description(self):
+        """A real change through openpyxl (the export writes its texts inline), then a shared-strings part that the package declares."""
+        import openpyxl
+        wb = openpyxl.load_workbook(str(self.path))
+        ws = wb["Actions"]
+        head = {c.value: c.column for c in ws[1]}
+        row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, 1).value == self.a1)
+        ws.cell(row, head["Description"]).value = "Draft the cut-over plan, version two"
+        wb.save(str(self.path))
+        declare_shared_strings(self.path, "a short text")
+
+    def test_a_33000_character_shared_string_is_refused_by_the_sheets_op_in_the_plain_words(self):
+        declare_shared_strings(self.path, "s" * (xi.MAX_CELL_TEXT + 1000))
+        status, got = self.post(op="sheets", name=self.path.name, data=self.data())
+        self.assertEqual((status, got["ok"]), (400, False))
+        self.assertEqual(got["message"], "ABC work items.xlsx can't be read as an Excel workbook (.xlsx).")
+        self.assertEqual(excel_route.PLANS, {})
+
+    def test_a_normal_workbook_with_a_declared_shared_string_is_listed_checked_and_applied(self):
+        self.edit_description()
+        status, listed = self.post(op="sheets", name=self.path.name, data=self.data())
+        self.assertEqual(status, 200, listed)
+        self.assertIn("actions", [s["table"] for s in listed["sheets"]])
+        status, got = self.post(op="check", file=listed["file"], sheets=[s["table"] for s in listed["sheets"]])
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        self.assertEqual([i["kind"] for i in got["items"]], ["changed"])
+        status, done = self.post(op="apply", plan=got["plan"], accept="all", confirm=True)
+        self.assertEqual((status, done["ok"]), (200, True), done)
+        self.assertEqual(self.store.read("actions", ref=self.a1)["description"], "Draft the cut-over plan, version two")
 
 
 if __name__ == "__main__":
