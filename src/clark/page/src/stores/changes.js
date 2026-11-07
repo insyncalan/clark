@@ -5,6 +5,7 @@ import { signal } from "@preact/signals";
 import { data, project, reread } from "./report.js";
 import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendRecordChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData, sendRestore } from "../api.js";
 import { flashed } from "./wordsState.js";
+import { assignNewPerson } from "../edit/peopleApi.js";
 import { diffIds, markChanged } from "./changed.js";
 import { undoRequest as wordUndoRequest, words as wordWords } from "../edit/wordApi.js";
 
@@ -247,6 +248,23 @@ export function changeCell(table, id, changes, done) {
     if (step) { itemSteps.set(step, done.back || ""); say("done", done.text, step, code); }
     else if (done.always) say("done", done.text, null, code);                   // a decision that is made: it changed, and has no Undo
     return r.reply;
+  });
+}
+
+// Row 986: Assign to a person who is not on the list yet, in one step with one Undo (the person and the owner go back together).
+// Resolves to {ok: true} or {ok: false, message, code, person}: a refusal is shown by the picker that is still open, beside what was typed.
+export function changeNewPerson(table, id, c, place) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await assignNewPerson(table, id, c.changes, c.new_person, place || "cell");
+    if (!r.ok) return r;
+    const item = r.reply.item;
+    const d = data.value;
+    if (d && project.value === code && Array.isArray(d[table])) data.value = { ...d, [table]: d[table].map((row) => (row.id === item.id ? { ...row, ...item } : row)) };
+    const step = r.reply.undoable === true && r.reply.apply_id ? r.reply.apply_id : null;
+    if (step) { itemSteps.set(step, c.back || ""); say("done", c.words, step, code); }
+    else say("done", c.words, null, code);
+    return { ok: true };
   });
 }
 

@@ -971,3 +971,9 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .cp-sec { margin: 8px 6px 0; font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
 .cp-more { margin: 4px 6px 2px; font-size: var(--size-caption); color: var(--text-muted); }
 .cp-clear { margin-top: 6px; border-top: 1px solid var(--grey-200); border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+
+/* Row 986: Assign to, add a new person. The no-match offer and the small form (Name, optional Email) in the Owner picker. Edit only. */
+.cp-add { margin: 6px 0 2px; border-top: 1px solid var(--grey-200); padding-top: 4px; }
+.cp-new { display: flex; flex-direction: column; gap: var(--space-2); margin-top: 8px; }
+.cp-new .cp-sec { display: block; margin: 0 0 2px; }
+.cp-acts { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-1); }
