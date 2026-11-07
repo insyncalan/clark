@@ -79,14 +79,14 @@ class Allowed(Api):
         for never in ("project", "id", "sort_order"):
             self.assertFalse(any(never in fields for ops in changes.CHANGE_KINDS.values() for fields in ops.values()), never)
         self.assertEqual([(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields],
-                         [(KIND, "update")])             # a body is written by one request only: a section's update, and then only for a needs or tracker section
+                         [(KIND, "new"), (KIND, "update")])             # a body is written by a section's update, and by a new text section (#929: its starting words)
         self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk", "handover", "link"})      # #196: + bulk; #199: + handover; #485: + link
 
     def test_the_route_admits_only_the_approved_kinds(self):
         """#45 (Full tier, approved) added glance_tiles and projects (test_changes_tiles holds their tests) and #67 the eye,
         report_hidden (test_changes_hidden). The records can be archived and restored (#126), and the work items also updated
         (#68), and so are a project's health, an existing use case's fields (#164) and the milestones (#136), never given other ops."""
-        self.assertEqual(set(changes.CHANGE_KINDS), {"report_sections", "glance_tiles", "report_hidden", *changes.ARCHIVABLE})
+        self.assertEqual(set(changes.CHANGE_KINDS), {"report_sections", "glance_tiles", "report_hidden", "gantt_lines", *changes.ARCHIVABLE})
         for kind in changes.ARCHIVABLE:
             ops = set(changes.CHANGE_KINDS[kind])
             want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases", "documents") else set())
@@ -121,7 +121,7 @@ class Refusals(Api):
         self.refused(self.req("new", values={"project": "XYZ"}), "The field 'project' can't be set here.")
         self.refused(self.req("new", values={"id": "ABC-S-099"}), "The field 'id' can't be set here.")
         self.refused(self.req("new", values={"hidden": 1}), "The field 'hidden' can't be set here.")
-        self.refused(self.req("new", values={"body": "x"}), "The field 'body' can't be set here.")
+        self.refused(self.req("new", values={"type": "needs", "body": "x"}), changes.NO_BODY_HERE)      # #929: a body on new is for a text section only
         self.refused(self.req("new", values={"type": "raid"}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", values={"type": "docs", "title": "x"}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", values={"type": ["text"]}), changes.NEW_TYPE_WORDS)

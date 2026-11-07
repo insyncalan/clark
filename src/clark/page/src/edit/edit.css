@@ -247,10 +247,10 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
 /* #47e: a suggested change in the ask panel */
 .ask-changes { display: flex; flex-direction: column; gap: 10px; margin-top: var(--space-1); }
-.ask-passage { margin: 0; padding: 6px 10px; border-left: 3px solid var(--grey-300); background: var(--surface); }
+.ask-passage { margin: 0; padding: 6px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--surface); }  /* row 936: a quote edge is a hairline all round, no one-side stripe */
 .ask-passage figcaption { font-size: var(--size-caption); overflow-wrap: anywhere; }
 .ask-passage blockquote { margin: var(--space-1) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--size-caption); }
-.ask-change { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) 10px; border: 1px solid var(--grey-200); border-left: 3px solid var(--brand-blue); border-radius: var(--radius-sm); background: var(--grey-50); }
+.ask-change { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--grey-50); }  /* row 936: no blue one-side stripe, the hairline all round is enough */
 .ask-change-head { display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
 .ask-diff { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--size-caption); }
 .ask-diff th, .ask-diff td { padding: 3px 6px; text-align: left; vertical-align: top; border-top: 1px solid var(--grey-200); overflow-wrap: anywhere; }
@@ -900,3 +900,11 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   :root:not([data-motion="reduce"]) main.view-in { animation: m-view var(--dur-view) var(--ease-enter) 1; }
   @keyframes m-view { from { opacity: 0; transform: translateY(var(--space-2)); } }
 }
+
+/* row 940 (macOS gate, test_edit_cells_layout): in Edit at 900 px and below the Due, priority and status columns are 8 px wider than the bare minimum, so a font a little wider than Linux's (macOS draws these three 2 to 3 px wider) stays inside its box. EDIT ONLY: shell.css is also the published page's, whose Item column must stay at least 280 px (test_published_item_column), so the widths are not set there. Same specificity as shell.css's 900 px rule and later in the page, so these win without !important. */
+@media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 101px; } table.items .c-status { width: 150px; } }
+.sn-chips { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); list-style: none; margin: 10px 0 0; padding: 0; }   /* row 776: the typed words, plain text, not buttons */
+.sn-chip { padding: 0 var(--space-2); border-radius: var(--radius-lg); background: var(--brand-blue-tint); color: var(--text); font-size: var(--size-small); overflow-wrap: anywhere; }
+.sn-acts { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
+/* row 796: the Publish box is the prototype's 560 px; its heading keeps the .dlg h2 style every box uses. Edit's alone: the published file has no such box. */
+#publish-dialog { width: min(560px, calc(100vw - 32px)); }

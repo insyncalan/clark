@@ -25,7 +25,19 @@ class Fields(unittest.TestCase):
     load = _tl.Browser.load
     action = _tl.Browser.action
     toast = _tl.Browser.toast
-    inside = _tl.Browser.inside
+    _inside_now = _tl.Browser.inside
+
+    def calm(self, cdp, sid):
+        """Wait until the peek (it slides in) and everything in it has stopped moving: a box measured, or a button clicked, mid-slide is
+        somewhere else a moment later (a slow runner draws the slide late)."""
+        self.assertTrue(wait(lambda: cdp.js("(p => !p || p.getAnimations({subtree: true}).every(a => a.playState !== 'running'))(document.querySelector('#peek'))", sid)),
+                        "the peek has stopped moving")
+
+    def inside(self, cdp, sid, selector):
+        """Whether the box fits the peek, asked once the peek has settled and for as long as it takes to hold (the answer is still read last)."""
+        self.calm(cdp, sid)
+        wait(lambda: self._inside_now(cdp, sid, selector))
+        return self._inside_now(cdp, sid, selector)
 
     def setUp(self):
         self.fresh()
@@ -209,12 +221,14 @@ class Duplicate(Fields):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 sent, sid = self.load(cdp, width, ACTION, dark=dark)
                 self.assertTrue(self.inside(cdp, sid, "[data-pk-dup]"), "the button fits the peek")
+                self.calm(cdp, sid)
                 click(cdp, sid, "#peek [data-pk-dup]")
                 self.assertTrue(wait(lambda: len(sent) == 1))
                 self.assertEqual((sent[0]["kind"], sent[0]["op"], sent[0]["copy_of"]), ("actions", "new", ACTION))
                 self.assertEqual(sent[0]["values"], {"description": a["description"] + " (copy)"})
                 self.assertTrue(wait(lambda: f"a copy of {ACTION}." in self.toast(cdp, sid)))
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').dataset.peek", sid) != ACTION), "the copy opens in the peek")
+                self.assertTrue(wait(lambda: len(self.store.data_for(self.code)["actions"]) == before + 1))
                 self.assertEqual(len(self.store.data_for(self.code)["actions"]), before + 1)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
@@ -234,10 +248,12 @@ class Archive(Fields):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 sent, sid = self.load(cdp, width, ACTION, dark=dark)
                 self.assertTrue(self.inside(cdp, sid, "[data-pk-archive]"), "the button fits the peek")
+                self.calm(cdp, sid)
                 click(cdp, sid, "#peek [data-pk-archive]")
                 self.assertTrue(wait(lambda: len(sent) == 1))
                 self.assertEqual((sent[0]["kind"], sent[0]["op"], sent[0]["id"]), ("actions", "archive", ACTION))
                 self.assertTrue(wait(lambda: f"{ACTION} archived. It is out of the lists and the published page." in self.toast(cdp, sid)))
+                self.assertTrue(wait(lambda: self.row(ACTION)["archived"] == 1))
                 self.assertEqual(self.row(ACTION)["archived"], 1)
                 self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)), "the peek closes with the item")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
