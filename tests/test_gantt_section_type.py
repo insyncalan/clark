@@ -159,7 +159,7 @@ class Migrating(unittest.TestCase):
         before = section_rows(path)
         s = open_store(path, onedrive_roots=[])
         try:
-            self.assertEqual(version(path), "19")
+            self.assertEqual(version(path), "20")
             self.assertEqual(s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
             self.assertEqual(s.con.execute("SELECT count(*) FROM gantt_lines").fetchone()[0], 0)
             self.assertEqual(s.read("projects", ref="ABC")["gantt_tab_name"], "Gantt")
