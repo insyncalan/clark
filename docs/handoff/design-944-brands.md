@@ -144,7 +144,7 @@ the project lead second. Proposed builders: builder A for T1 and T2; builder B f
   1 to 20; new equals migrated columns; touches no other table; rollback; CHECK refusals. `test_project_brand_setting.py`: change,
   undo, history label, unknown id refused. **EDIT (WEAKENS: none, a pin moves forward):** `test_v060.py:407`
   before `r"SCHEMA_VERSION = 19\b"`, after `r"SCHEMA_VERSION = 20\b"` (and the comment's history); `test_update_17_to_18.py:38`
-  before `NEW_LAYOUT = 19`, after `NEW_LAYOUT = 20` (its docstring says 17 to 20). Run set: `test_store_migration`,
+  before `NEW_LAYOUT = 19`, after `NEW_LAYOUT = 20` (its docstring says 17 to 20). Other pins that move with the layout (found by the check): `test_gantt_migration.py:188` (`[-6:] == NEW_COLUMNS`, `brand` becomes the last column), `test_gantt_section_type.py:162` (`version == "19"`) and `:65-66` (`SCHEMA_VERSION == STEP`, `MIGRATIONS[-1][0] == STEP`), `test_update_17_to_18.py:259` (`leave_out` gains `brand`), the `later` column sets at `test_store_section_templates_migration.py:71` and `test_store_use_case_done_migration.py:103`, `test_changes_tiles.py` (`GANTT_DEFAULTS`, `CHANGE_KINDS`, `UNDOABLE`, `PROJECT_FIELDS`), and the `-- clark:` marker rule for `schema.sql` (`test_store_schema.py`). All move forward, WEAKENS: none. Run set: `test_store_migration`,
   `test_migration_chain`, `test_store_schema`, `test_store_flags`, `test_gantt_migration`, `test_gantt_section_type`,
   `test_update_17_to_18`, `test_update_layout_newer`, `test_release_manifest`, `test_v060`, `test_v104`, the five movement files.
 - **Never:** `brand` in `PUBLISH_FIELDS`; a test asserts `"brand" not in PUBLISH_FIELDS["projects"]` and that it is in `GATES`.
@@ -158,7 +158,7 @@ the project lead second. Proposed builders: builder A for T1 and T2; builder B f
   - `brands.installed(root) -> list[{"id", "name", "version"}]`: lists `system/branding/<id>/` folders with a valid
     `clark-brand.json`, plus `local-brand` when a top-level `tokens.css` exists. Ignores hidden-prefix folders. Read per Settings
     call, never per page request.
-  - `brands.folder(root, brand_id) -> Path | None`: `None` for `generic`, for an unknown id and for a removed brand (the read-time
+  - `brands.folder(root, brand_id) -> Path | None`: `brands.GENERIC` (a distinct sentinel, never `None`: `excel_picture.load(None)` falls back to system/branding) for `generic`, for an unknown id and for a removed brand (the read-time
     fallback); the top folder for `local-brand`; otherwise `system/branding/<id>`, the id looked up in `installed()`, never joined
     from request text.
   - `brands.review(path) -> {"review_id", "id", "name", "version", "zip_sha256", "added", "replaced", "removed"}`: one
