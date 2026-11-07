@@ -417,6 +417,27 @@ class RealBrowser(unittest.TestCase):
             cdp.js("document.querySelector('[data-cal-empty] button').click()", sid)
             self.assertTrue(wait(lambda: self.title(cdp, sid) == "October 2026"))
 
+    def test_the_empty_period_line_is_seen_at_laptop_widths_not_only_on_a_phone(self):
+        """item 555: the period list is for a phone only, but 'No milestones in this period' is the calendar's own answer and shows at every width."""
+        port = self.serve()
+        for width in (1400, 900, 390):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width, "#milestones&p=MOSS", port)
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, sid)
+                cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal')", sid)))
+                for _ in range(40):
+                    self.key(cdp, sid, "PageDown")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-cal-empty]')", sid)), "an empty period")
+                self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "no animation is running")
+                got = cdp.js("""(() => { const e = document.querySelector('[data-cal-empty]'), r = e.getBoundingClientRect(), cal = document.querySelector('.cal').getBoundingClientRect();
+                    return {h: r.height, w: r.width, vis: getComputedStyle(e).visibility, shown: !!e.offsetParent, inside: r.left >= cal.left - 1 && r.right <= cal.right + 1}; })()""", sid)
+                self.assertTrue(got["shown"], "the line is on the page, not hidden")
+                self.assertGreater(got["h"], 0)
+                self.assertGreater(got["w"], 0)
+                self.assertEqual(got["vis"], "visible")
+                self.assertTrue(got["inside"], "and inside the calendar")
+
     def test_the_keys_move_the_period_and_the_range_message_offers_go_to_today(self):
         port = self.serve()
         with chrome() as cdp:

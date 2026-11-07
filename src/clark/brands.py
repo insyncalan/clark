@@ -7,6 +7,7 @@ with a backup under <data>/brand-backups/. installed(root) lists the brands; fol
 A zip is read once into memory and judged by its end record and headers before any member is read; every structure failure is
 the update zip's own "damaged" refusal. Nothing here joins text from a request onto a path: an id must match ID_RE first.
 """
+import functools
 import hashlib
 import importlib.util
 import json
@@ -308,6 +309,18 @@ _ZIP_FAILS = (zipfile.BadZipFile, zipfile.LargeZipFile, zlib.error, EOFError, Ru
               NotImplementedError, OverflowError, struct.error)
 
 
+def _refusing(fn):
+    """A brand action's OSError (disk full, no permission, a folder pruned from under it) is the "failed" refusal, never a bare
+    error. What may be left behind is a hidden folder, put right by the next recover()."""
+    @functools.wraps(fn)
+    def run(*a, **k):
+        try:
+            return fn(*a, **k)
+        except OSError as e:
+            raise BrandError("failed", "%s: %s" % (type(e).__name__, e))
+    return run
+
+
 def _damaged(detail):
     return BrandError("damaged", detail)
 
@@ -316,7 +329,7 @@ def _end_record(data):
     """(position, directory start) of the zip's end record, checked: no zip64, one disk, a comment of at most 1 KB that runs to
     the end of the file, and at most FILE_CAP entries. Nothing else of the zip has been parsed yet."""
     pos = data.rfind(b"PK\x05\x06")
-    if len(data) < 22 or pos < 0:
+    if pos < 0 or pos + 22 > len(data):                 # none, or cut short: fewer than 22 bytes from the signature on
         raise _damaged("no end record")
     _sig, disk, cd_disk, here, total, cd_size, cd_off, clen = struct.unpack("<4sHHHHIIH", data[pos:pos + 22])
     if clen > COMMENT_CAP or pos + 22 + clen != len(data):
@@ -380,7 +393,9 @@ def _check_headers(infos, data, cd_start):
         if data[at:at + 4] != b"PK\x03\x04" or at + 30 > len(data):
             raise _damaged("no local header")
         nlen, elen = struct.unpack("<HH", data[at + 26:at + 30])
-        end = at + 30 + nlen + elen + i.compress_size + (16 if i.flag_bits & 0x8 else 0)
+        end = at + 30 + nlen + elen + i.compress_size
+        if i.flag_bits & 0x8:                           # a data descriptor follows: 16 bytes with its signature, else 12
+            end += 16 if data[end:end + 4] == b"PK\x07\x08" else 12
         spans.append((at, end))
     spans.sort()
     last = 0
@@ -424,9 +439,9 @@ def _open_zip(path):
         data = updates.read_once(path, ZIP_CAP)
     except updates.UpdateError as e:
         raise _damaged(e.detail)
-    _pos, cd_start, total = _end_record(data)
     try:
         import io
+        _pos, cd_start, total = _end_record(data)
         with zipfile.ZipFile(io.BytesIO(data)) as zf:
             infos = zf.infolist()
             if len(infos) != total:
@@ -597,6 +612,7 @@ def _purge(now):
         del _reviews[key]
 
 
+@_refusing
 def review(path, root):
     """Check a brand zip and hold it for 15 minutes. Returns {"review_id", "id", "name", "version", "zip_sha256", "added",
     "replaced", "removed"}. Writes nothing (it only puts right what a crash left, first)."""
@@ -760,6 +776,7 @@ def _journal(data, kind, brand_id, backup):
         _rmtree(backups / old)
 
 
+@_refusing
 def install(review_id, root, data):
     """Put a reviewed brand in place, replacing the same id; one go per review."""
     with _mutex:
@@ -784,6 +801,7 @@ def install(review_id, root, data):
             _journal(data, "replace" if had else "install", brand_id, backup)
 
 
+@_refusing
 def remove(brand_id, root, data):
     """Back the brand up, then take it out. generic, local-brand and anything not installed are refused."""
     with _mutex:
@@ -802,15 +820,42 @@ def remove(brand_id, root, data):
             _journal(data, "remove", brand_id, backup)
 
 
+@_refusing
+def _last_change(data):
+    """The undo journal's contents ({"kind", "id", "backup"}) when <data>/brand-last.json is there and valid, else None."""
+    raw = _read_small(Path(data) / JOURNAL, 4096)
+    doc = _parse_manifest(raw) if raw else None
+    if not doc or doc.get("kind") not in ("install", "replace", "remove") or not isinstance(doc.get("id"), str) \
+            or not ID_RE.fullmatch(doc["id"]) or doc["id"] in RESERVED:
+        return None
+    return doc
+
+
+def can_undo(root, data):
+    """True when undo() has something to put back: the journal is there and valid and, for a replace or a remove, so is its
+    backup folder. Reads only; never raises."""
+    try:
+        doc = _last_change(data)
+        if doc is None:
+            return False
+        if doc["kind"] == "install":
+            return True
+        name = doc.get("backup")
+        if not isinstance(name, str) or "/" in name or not name.endswith("-" + doc["id"]):
+            return False
+        return stat.S_ISDIR(os.lstat(Path(data) / "brand-backups" / name).st_mode)
+    except (OSError, ValueError):
+        return False
+
+
+@_refusing
 def undo(root, data):
     """Put the last install, replace or remove back. One level: a second undo has nothing to undo."""
     with _mutex:
         recover(root)
         backups = Path(data) / "brand-backups"
-        raw = _read_small(Path(data) / JOURNAL, 4096)
-        doc = _parse_manifest(raw) if raw else None
-        if not doc or doc.get("kind") not in ("install", "replace", "remove") or not isinstance(doc.get("id"), str) \
-                or not ID_RE.fullmatch(doc["id"]) or doc["id"] in RESERVED:
+        doc = _last_change(data)
+        if doc is None:
             raise BrandError("failed", "nothing to undo")
         brand_id, base = doc["id"], _branding(root)
         with _write(brand_id):
