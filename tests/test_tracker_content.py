@@ -64,6 +64,32 @@ class Shape(unittest.TestCase):
                                                          "weight": 0, "planned": 0, "achieved": 0, "tasks": None, "agents": None, "workflows": None})
         self.assertEqual(json.loads(check({})), {"v": 1, "overall": got["overall"], "columns": got["columns"], "groups": []})
 
+    def test_the_size_is_one_of_four_words_and_a_body_without_one_stays_as_it_was(self):
+        """#930: an optional `size` (Large, Medium, Small, Compact); the version stays 1; a missing size is not added."""
+        self.assertNotIn("size", json.loads(check(DEMO)))
+        for size in sb.TRACKER_SIZES:
+            body = {**DEMO, "size": size}
+            got = check(body)
+            self.assertEqual(json.loads(got)["size"], size)
+            self.assertEqual(json.loads(got)["v"], 1)
+            self.assertEqual(check(got), got)
+            self.assertEqual(sb.published("tracker", json.loads(got))["size"], size)
+        self.assertEqual(sb.TRACKER_SIZES, ("large", "medium", "small", "compact"))
+
+    def test_any_other_size_is_refused_in_plain_words_that_never_quote_it(self):
+        for bad in ("huge", "", "Large", None, 3, ["small"], {"a": 1}, True):
+            with self.subTest(size=bad):
+                self.assertEqual(self.refuses({**DEMO, "size": bad}), sb.TRACKER_SIZE_BAD)
+        self.assertNotIn("huge", sb.TRACKER_SIZE_BAD)
+
+    def test_a_bad_size_is_not_published_it_reads_as_medium(self):
+        self.assertEqual(sb.published("tracker", {**json.loads(check(DEMO)), "size": "huge"})["size"], "medium")
+
+    def test_the_owners_words_are_the_note_and_reach_the_published_file(self):
+        body = copy.deepcopy(DEMO)
+        body["overall"]["note"] = "Two weeks lost to a late supplier."
+        self.assertEqual(sb.published("tracker", json.loads(check(body)))["overall"]["note"], "Two weeks lost to a late supplier.")
+
     def test_a_group_with_no_lines_is_kept(self):
         self.assertEqual(json.loads(check({"groups": [{"name": "Later"}]}))["groups"], [{"name": "Later", "lines": []}])
 
@@ -240,7 +266,8 @@ class Shape(unittest.TestCase):
 
     def test_the_tracker_publishes_its_lines_by_name_and_leaves_an_empty_one_out(self):
         got = sb.published("tracker", json.loads(check(DEMO)))
-        self.assertEqual(set(got), {"overall", "columns", "groups"})
+        self.assertEqual(set(got), {"size", "overall", "columns", "groups"})
+        self.assertEqual(got["size"], "medium")                                    # a body with no size publishes as Medium
         self.assertEqual([g["name"] for g in got["groups"]], ["Build"])           # Launch has no line, so it stays out
         self.assertEqual(len(got["groups"][0]["lines"]), 2)
         self.assertEqual(got["groups"][0]["lines"][0]["start"], "01-01-2030")

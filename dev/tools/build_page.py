@@ -42,7 +42,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import esbuild  # noqa: E402
 sys.path.insert(0, str(HERE.parents[1] / "src"))
-from clark import page  # noqa: E402
+from clark import limits, page  # noqa: E402
 from clark.page import strip_css_comments  # noqa: E402
 
 ROOT = HERE.parents[1]
@@ -218,13 +218,31 @@ def vendor_modules(vendor=None):
     return out
 
 
+REQUIRED_LIMITS = ("__CLARK_ITEM_TITLE_MAX__",)      # #942: names the page source reads that the build MUST define (a missing one would reach the page as a bare name and throw there)
+
+
+def page_limits():
+    """#942: the limits the server holds that the page must agree with, by the name the page source reads them under. One source:
+    clark.limits holds the number (it imports nothing, so the merge driver can rebuild with it), the build writes it into the page (esbuild --define), so the two cannot drift."""
+    title_max = limits.ITEM_TITLE_MAX      # a work item's title, in characters (PeekTitle.jsx)
+    if not isinstance(title_max, int) or isinstance(title_max, bool) or title_max < 1:      # a bool is an int in Python, and json.dumps would write true
+        raise BuildError(f"limits.ITEM_TITLE_MAX must be a whole number of at least 1, not {title_max!r}: the page is built with it")
+    return {"__CLARK_ITEM_TITLE_MAX__": title_max}
+
+
 def preact_flags(held=True, inline_pictures=False):
-    """JSX through esbuild (the automatic runtime, from Preact), each library specifier mapped to its vendored file, and Help's words."""
+    """JSX through esbuild (the automatic runtime, from Preact), each library specifier mapped to its vendored file, Help's words, and
+    the server's limits the page shares (page_limits)."""
+    limits = page_limits()
+    missing = [name for name in REQUIRED_LIMITS if name not in limits]
+    if missing:
+        raise BuildError(f"the build does not define {', '.join(missing)}: the page reads it, so it must be written in from clark.limits (page_limits)")
     return ["--jsx=automatic", "--jsx-import-source=preact", "--loader:.jsx=jsx",
             *(f"--alias:{spec}={path}" for spec, path in vendor_modules()),
             f"--alias:tiptap={VENDOR_TIPTAP / 'tiptap.module.js'}",      # the editor (#66); only the Edit entry imports it
             f"--alias:clark-help-content={help_content_path(held)}",
-            f"--alias:clark-help-pictures={help_pictures_path(inline_pictures)}"]      # the editing page only: see help_pictures_path
+            f"--alias:clark-help-pictures={help_pictures_path(inline_pictures)}",      # the editing page only: see help_pictures_path
+            *(f"--define:{name}={json.dumps(value)}" for name, value in limits.items())]
 
 
 def bundle(entry=ENTRY):
@@ -237,7 +255,11 @@ def bundle(entry=ENTRY):
         done = esbuild.run(args, cwd=SRC, capture_output=True, text=True)
         if done.returncode != 0:
             raise BuildError(f"esbuild failed on src/{entry}:\n{done.stderr.strip()}")
-        return out.read_text(encoding="utf-8")
+        text = out.read_text(encoding="utf-8")
+        left = [name for name in REQUIRED_LIMITS if name in text]
+        if left:
+            raise BuildError(f"src/{entry}: {', '.join(left)} is still in the built script: the build did not write it in, and the page would throw when it runs")
+        return text
 
 
 def data_uri(mime, name):
@@ -384,7 +406,7 @@ def pages():
 def main(argv):
     try:
         made = pages()          # every page is made before any is written, so a refused font or module leaves the committed pages alone
-    except (FontManifestError, VendorManifestError, PictureError) as e:
+    except (FontManifestError, VendorManifestError, PictureError, BuildError) as e:
         print(f"build refused: {e}", file=sys.stderr)
         return 1
     if "--check" in argv:

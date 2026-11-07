@@ -29,7 +29,7 @@ WANTED = {
 }
 RICH = ("section.body", "current.state", "usecase.standing", "notes.section")
 # The section title is a one-line plain field and stays out of the AI.
-LEFT_OUT = {"edit/Title.jsx"}
+LEFT_OUT = {"edit/Title.jsx", "edit/TrackerWords.jsx"}     # row 930: the tracker's status words are one limited plain-text line, like a title: no AI place
 
 
 class Page:
