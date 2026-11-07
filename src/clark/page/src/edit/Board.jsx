@@ -298,7 +298,7 @@ export function Board({ rows, today, type }) {
     e.preventDefault(); stepCol(c, ln, e.key === "ArrowLeft" ? -1 : 1);
   };
   const setWidth = (c, w) => { setWork(setColumnWidth(work.value, g, c.key, w)); };
-  const sayWidth = (c, w) => { announce.value = `${c.label} column ${w === COL_DEFAULT ? "back to its usual width" : `${w} pixels wide`}.`; };
+  const sayWidth = (c, w) => { announce.value = w === COL_DEFAULT ? "Column width reset." : `${c.label} column ${w} pixels wide.`; };
   // #449 (row 48): a double-click says "Column width reset" in a toast, as the prototype does. A width is never saved, so it has no
   // Undo; a toast that still offers one (a move just made) is kept, and the reset is said to a screen reader instead.
   const sayReset = (c) => {
