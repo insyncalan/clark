@@ -4,7 +4,6 @@ export const GANTT_EDIT_WORDS = {
   edit: "Edit", view: "View",
   editTip: "Edit the plan", viewTip: "Back to the view (what the client sees)",
   exportXl: "Export to Excel", importXl: "Import from Excel",
-  soon: "Coming with the Excel step",                                                   // added: the disabled export and import
   undo: "Undo",
   addBelow: "Add a line below",                                                          // the add button beside a row (chart and table) and the first line of an empty plan
   editNote: "Editing · each change saves on its own",                                  // the Dashboard's own words, reused
