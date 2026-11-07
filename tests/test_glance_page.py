@@ -430,7 +430,19 @@ class UseCases(Setup):
             self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucstepl li').length"), 3)
             self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail .ucstepl li')].filter(e => /due/i.test(e.innerText)).length"), 0, "no due text on a step line")
             self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucstepl li > .muted').length"), 0, "no muted tail after the id")
-            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => getComputedStyle(e).whiteSpace === 'nowrap')"), True, "the id never breaks")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => getComputedStyle(e).overflowWrap === 'anywhere')"), True, "an id breaks only when longer than the line")
+
+    def test_next_step_ids_stay_whole_at_420_and_a_very_long_one_does_not_push_the_page_sideways(self):
+        """Row 1004: at 420 px a short id is one piece; an id longer than the line breaks inside the line, with no sideways scroll."""
+        with chrome() as cdp:
+            p = self.show(cdp, width=420)
+            p.js("document.querySelector('.ucrow .ucbar').click()")
+            p.until("!!document.querySelector('.ucdetail [data-stepid]')", "the row opened")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => e.getClientRects().length === 1)"), True, "a short id is not cut")
+            before = p.js("document.documentElement.scrollWidth")      # the top bar alone can be wider than 420 px; the id must add nothing
+            p.js("document.querySelector('.ucdetail [data-stepid]').textContent = 'ABC-A-' + '0'.repeat(90)")
+            self.assertLessEqual(p.js("document.documentElement.scrollWidth"), before, "a long id adds no sideways scroll")
+            self.assertEqual(p.js("document.querySelector('.ucdetail [data-stepid]').getBoundingClientRect().right <= 420"), True, "the long id sits inside the window")
 
     def test_next_steps_are_every_open_item_in_the_client_wording_with_the_owner_in_a_circle(self):
         """#441: a risk and a decision linked to the use case are next steps too; an item with client wording shows that, not its title."""
@@ -527,7 +539,19 @@ class Published(PublishedFile, Setup):
             p.until("!!document.querySelector('.ucdetail [data-stepid]')", "opened")
             self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail .ucstepl li')].filter(e => /due/i.test(e.innerText)).length"), 0)
             self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucstepl li > .muted').length"), 0)
-            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => getComputedStyle(e).whiteSpace === 'nowrap')"), True)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => getComputedStyle(e).overflowWrap === 'anywhere')"), True)
+
+    def test_published_next_step_ids_stay_whole_at_420_and_a_long_one_does_not_scroll_sideways(self):
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path, width=420)
+            p.js("document.querySelector('.ucrow .ucbar').click()")
+            p.until("!!document.querySelector('.ucdetail [data-stepid]')", "opened")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => e.getClientRects().length === 1)"), True)
+            before = p.js("document.documentElement.scrollWidth")      # the top bar alone can be wider than 420 px; the id must add nothing
+            p.js("document.querySelector('.ucdetail [data-stepid]').textContent = 'ABC-A-' + '0'.repeat(90)")
+            self.assertLessEqual(p.js("document.documentElement.scrollWidth"), before)
+            self.assertEqual(p.js("document.querySelector('.ucdetail [data-stepid]').getBoundingClientRect().right <= 420"), True)
 
     def test_a_hidden_tile_and_a_hidden_use_case_are_absent(self):
         self.store.con.execute("UPDATE use_cases SET client_visible = 0 WHERE id = ?", (self.uc2,))
