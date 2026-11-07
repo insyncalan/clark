@@ -152,8 +152,10 @@ class Bars(unittest.TestCase):
     def test_a_drag_or_a_grab_during_the_first_moments_adds_and_leaves_nothing(self):
         self.page()
         self.mount()
-        # grab at once (inside the first 220 ms): the dragged bar has no growing animation
-        r = self.val("(function(){ var r = document.querySelector('[data-g-bar=\"GNT-006\"]').getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()")
+        # grab at once (inside the first 220 ms): the dragged bar has no growing animation. The bar grows from its left edge and is 0 px wide in its
+        # very first frame, so a click on its centre then lands on the row behind it: wait until it has some width, and press just inside its left edge.
+        self.until("(function(){ var b = document.querySelector('[data-g-bar=\"GNT-006\"]'); return !!b && b.getBoundingClientRect().width >= 4; })()", "the bar has started to grow")
+        r = self.val("(function(){ var r = document.querySelector('[data-g-bar=\"GNT-006\"]').getBoundingClientRect(); return {x: r.left + 2, y: r.top + r.height / 2}; })()")
         self.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": r["x"], "y": r["y"], "button": "left"}, self.sid)
         self.cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": r["x"], "y": r["y"], "button": "left", "buttons": 1, "clickCount": 1}, self.sid)
         for k in range(1, 5):
