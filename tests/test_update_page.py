@@ -391,7 +391,7 @@ class Rows(InBrowser):
     def test_row_60_the_choose_hint_names_the_update_for_this_computer_and_never_the_file_type_or_the_source_code(self):
         for _ in self.each(UP_TO_DATE):
             hint = self.text("#update-file-hint")
-            self.assertEqual(hint, "The update attached to the release for your computer. Keep its .sig file in the same folder.")
+            self.assertEqual(hint, "The update attached to the release for your computer.")
             self.assertIsNone(re.search(r"(?i)zip|source|manifest|sha", hint), hint)
             self.assertFalse(hint.startswith(("clark", "Clark")))
             self.assertEqual(self.text("[data-choose]"), "Choose zip…")
