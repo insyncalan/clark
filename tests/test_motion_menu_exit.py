@@ -15,6 +15,11 @@ JSX = (ROOT / "src/clark/page/src/components/Menu.jsx").read_text(encoding="utf-
 STATE = """(() => { const m = document.querySelector('.ddmenu'); return m ? JSON.stringify({name: getComputedStyle(m).animationName, leaving: m.classList.contains('leaving'),
   inert: m.inert, hidden: m.getAttribute('aria-hidden')}) : null; })()"""
 
+# Row 938-3: records, from before the open, the longest end time (delay + duration, in ms) of every animation drawn on a .ddmenu, by name.
+WATCH_ANIMATIONS = """(() => { window.__menuAnims = {}; const tick = () => { for (const a of document.getAnimations()) { const t = a.effect && a.effect.target;
+  if (t && t.closest && t.closest('.ddmenu') && a.animationName) window.__menuAnims[a.animationName] = Math.max(window.__menuAnims[a.animationName] || 0, a.effect.getComputedTiming().endTime); }
+  requestAnimationFrame(tick); }; tick(); return true; })()"""
+
 
 class MotionMenuExit(Base):
     def test_row_922_a_menu_fades_out_and_is_gone_at_once_when_reduced(self):
@@ -81,6 +86,64 @@ class MotionMenuExit(Base):
         self.assertRegex(JSX, r'inert=\{leaving \? true : undefined\} aria-hidden=\{leaving \? "true" : undefined\}')
         self.assertRegex(JSX, r"stillMotion\(\) \|\| !menu \? \"closed\" : \"leaving\"")
         self.assertRegex(re.search(r"@keyframes m-out \{(.*?)\}\s*\}?", CSS).group(0), r"opacity: 0")
+
+    def test_row_938_3_every_menu_opens_and_closes_in_under_180_ms_and_a_reduced_motion_menu_runs_nothing(self):
+        import json
+        from test_server import chrome, wait
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                for motion in ("no-preference", "reduce"):
+                    with self.subTest(width=width, scheme=scheme, motion=motion), chrome() as cdp:
+                        sid = self.load(cdp, width, scheme, motion)
+                        cdp.js(WATCH_ANIMATIONS, sid)
+                        cdp.js(MENU, sid)
+                        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.ddmenu')", sid)), "opened")
+                        self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid), 15), "the open finished")
+                        cdp.js("document.querySelector('.ddmenu').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))", sid)
+                        self.assertTrue(wait(lambda: cdp.js("document.querySelector('.ddmenu') === null", sid), 15), "gone")
+                        self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid), 15), "the close finished")
+                        self.assert_timings(json.loads(cdp.js("JSON.stringify(window.__menuAnims)", sid)), motion)
+
+    def assert_timings(self, seen, motion, closes_instantly=False):
+        if motion == "reduce":
+            self.assertEqual(seen, {}, "reduced motion: no menu animation ever ran")
+            return
+        # the client Report menu has no leaving phase: it is removed at once (0 ms), which is under 180 ms too
+        self.assertEqual(sorted(seen), ["m-drop"] if closes_instantly else ["m-drop", "m-out"], "the open and the close each ran one animation")
+        for name, end in seen.items():
+            self.assertTrue(0 < end < 180, f"{name} ends at {end} ms: under 180 ms (the --dur-view token)")
+
+    def test_row_938_3_the_published_page_menus_open_and_close_in_under_180_ms(self):
+        """The published Group by menu and the client Report menu are the same .ddmenu from the shared stylesheet (shell.css)."""
+        import json
+        import test_client_page_filters as cpf
+        from test_server import chrome, wait
+        cpf.ClientPageFilters.setUpClass()
+        self.addCleanup(cpf.ClientPageFilters.tearDownClass)
+        path = cpf.ClientPageFilters.path
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                for button, motion in (("#group-by", "no-preference"), ("#client-menu-btn", "no-preference"), ("#group-by", "reduce"), ("#client-menu-btn", "reduce")):
+                    with self.subTest(width=width, scheme=scheme, button=button, motion=motion), chrome() as cdp:
+                        sid = cpf.open_page(cdp, path.as_uri() + "#work", width, scheme)
+                        cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}, {"name": "prefers-reduced-motion", "value": motion}]}, sid)
+                        self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({json.dumps(button)})", sid)), "the page drew")
+                        cdp.js(WATCH_ANIMATIONS, sid)
+                        cdp.js(f"document.querySelector({json.dumps(button)}).click()", sid)
+                        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.ddmenu')", sid)), "opened")
+                        self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid), 15), "the open finished")
+                        cdp.js("document.querySelector('.ddmenu').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))", sid)
+                        self.assertTrue(wait(lambda: cdp.js("document.querySelector('.ddmenu') === null", sid), 15), "gone")
+                        self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid), 15), "the close finished")
+                        self.assert_timings(json.loads(cdp.js("JSON.stringify(window.__menuAnims)", sid)), motion, button == "#client-menu-btn")
+
+    def test_row_938_3_no_menu_rule_uses_a_duration_of_180_ms_or_more(self):
+        block = CSS[CSS.index("Motion: motion that explains"):]
+        block = block[:block.index("@media (hover: hover)")]
+        for line in block.splitlines():
+            if re.search(r"\.(ddmenu|menu|cpop)\b[^{]*\{[^}]*animation:", line):
+                self.assertRegex(line, r"var\(--dur-instant\)", line.strip())
+                self.assertNotRegex(line, r"--dur-(view|state|layout|enter)")
 
 
 for _n in [n for n in dir(Base) if n.startswith("test_") and "row_922" not in n]:
