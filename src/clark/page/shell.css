@@ -485,7 +485,7 @@ table.needs .n-over { margin-left: 2px; }
 /* 'Progress tracker' (item 189): the overall bar, then each group of lines. Only tokens; "behind plan" is never colour alone (▼ and words). */
 .sec-tracker { margin: 8px 0 8px; min-width: 0; }
 .tr-overall { margin: 0 0 16px; }
-/* The tile (#930): the branding tint behind two figures, the bar, then the chip and the words. Medium is the default; the size classes below change only the numbers, the bar and the spacing. */
+/* The tile (row 930): the branding tint behind two figures, the bar, then the chip and the words. Medium is the default; the size classes below change only the numbers, the bar and the spacing. */
 .tr-tile { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: center; min-width: 0; padding: 12px 16px; border-radius: var(--radius-lg); background: var(--brand-blue-tint); color: var(--text); }
 .tr-full .tr-tile { grid-template-columns: auto minmax(0, 1fr); gap: 20px; }
 .tr-nums { display: flex; flex-wrap: wrap; gap: 6px 20px; }
