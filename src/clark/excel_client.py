@@ -20,7 +20,8 @@ from datetime import datetime
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import get_column_letter, quote_sheetname
+from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.xml.functions import tostring
 
 from clark import excel
@@ -152,12 +153,50 @@ def write_sheet(wb, published, table):
     return ws
 
 
+def write_gantt_sheet(wb, published):
+    """The Gantt sheet (row 926), from publish.gantt_for_client's output alone (published["data"]["gantt"]): its lines are the eye-on
+    lines only, with the hidden columns already not in them, dependencies and parents already cleaned. Days and Status are worked out
+    from the start, end and Done %, which are never hidden. The sheet is the tab's name, and every cell is locked."""
+    g = published["data"]["gantt"]
+    fields = set(g["columns"]) | {"_days", "_status"}
+    cols = [(label, f, excel.GANTT_WIDTHS.get(f, 12)) for label, f in excel.GANTT_SHEET_COLUMNS if f in fields]
+    ws = wb.create_sheet(excel.gantt_sheet_name(g["tab_name"], wb.sheetnames))
+    name, sub = title_text(published)
+    for r, (text, font) in enumerate(((name, TITLE), (sub, SUB)), start=1):
+        for c in range(1, len(cols) + 1):
+            ws.cell(row=r, column=c).fill = HEAD_FILL
+        cell = ws.cell(row=r, column=1, value=excel.cell_text(text))
+        cell.font = font
+        excel.protect_text_cell(cell)
+    ws.row_dimensions[1].height = 26
+    for i, (label, _, width) in enumerate(cols, start=1):
+        head = ws.cell(row=4, column=i, value=label)
+        head.font, head.fill = HEAD, HEAD_FILL
+        head.alignment = Alignment(wrap_text=True, vertical="center")
+        ws.column_dimensions[get_column_letter(i)].width = width
+    for n, line in enumerate(g["lines"], start=5):
+        for i, (_, f, _) in enumerate(cols, start=1):
+            cell = ws.cell(row=n, column=i, value=excel.gantt_cell(line, f, published["as_at"]))
+            cell.font = BODY
+            cell.alignment = Alignment(horizontal="left" if f in excel.GANTT_DATES else None, wrap_text=True, vertical="top")
+            if f in excel.GANTT_DATES:
+                cell.number_format = excel.DATE_FORMAT
+            excel.protect_text_cell(cell)
+    ws.freeze_panes = "C5"
+    excel.print_setup(ws)
+    excel.protect_sheet(ws)
+    wb.defined_names[excel.CLIENT_COPY_NAME] = DefinedName(excel.CLIENT_COPY_NAME, attr_text=f"{quote_sheetname(ws.title)}!$A$1", hidden=True)   # row 926: the import's mark of a client copy (moving a row cannot remove it)
+    return ws
+
+
 def workbook_bytes(published):
     """The client workbook as .xlsx bytes (the same bytes for the same published content)."""
     wb = Workbook()
     wb.remove(wb.active)
     for table in sheet_tables(published):
         write_sheet(wb, published, table)
+    if (published["data"].get("gantt") or {}).get("lines"):       # row 926: only when the file carries the Gantt tab (publish.gantt_for_client)
+        write_gantt_sheet(wb, published)
     name, sub = title_text(published)
     if not wb.sheetnames:                       # no table section on the page: one sheet with the title band alone
         ws = wb.create_sheet(excel.SHEET_OF["actions"])

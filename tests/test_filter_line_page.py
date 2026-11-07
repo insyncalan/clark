@@ -108,6 +108,7 @@ class Line(unittest.TestCase):
 
     def focus(self, cdp, sid):
         click(cdp, sid, INPUT)
+        wait(lambda: cdp.js("document.activeElement.id", sid) == "fline-input")      # the focus lands a frame after the click on a slow runner
         self.assertEqual(cdp.js("document.activeElement.id", sid), "fline-input")
 
     def type(self, cdp, sid, text):

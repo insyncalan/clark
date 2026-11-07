@@ -95,8 +95,8 @@ MESSAGES = {
                 "Download the update again from the clark releases page, together with its .sig file.",
     "badsig": "This update's signature doesn't match, so it wasn't installed. Don't use this file. "
               "Download it again from the clark releases page.",
-    "nokey": "Updating is switched off in this copy of clark, because it has no release key to check updates against. "
-             "Download the latest release from the clark releases page instead.",
+    "nokey": "This copy of clark can't check update files, because a part it needs for that is missing. Nothing was changed. "
+             "Download the latest release from the clark releases page and use that instead.",
     "name": "That isn't a clark update. Choose the update file from the clark releases page. "
             "Its name looks like clark-1.2.3-{ending}.",
     "source": "That is the whole source code, not an update. On the releases page, download the file under Assets "
