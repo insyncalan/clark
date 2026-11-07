@@ -185,6 +185,16 @@ class Chart(unittest.TestCase):
                     self.assertEqual(self.val("[...document.querySelectorAll('.gt-lhead .gt-h')].map(e => e.textContent.trim())"), ["Phase / task", "Start", "End", "Done"])
                     self.assertEqual(self.text("[data-g-today]"), "Today")
 
+    def test_today_flag_is_read_in_full_when_today_is_at_the_start_of_the_plan(self):
+        # #995 D4b: the flag is centred on today's line, so at the plan's first day half of it ran under the label column ("oday")
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    self.look(width, scheme)
+                    self.mount(today="2026-09-01")
+                    box = self.val("(function(){ var f = document.querySelector('[data-g-today]').getBoundingClientRect(), l = document.querySelector('[data-g-left]').getBoundingClientRect(); return {flagLeft: Math.round(f.left * 10) / 10, labelRight: Math.round(l.right * 10) / 10}; })()")
+                    self.assertGreaterEqual(box["flagLeft"], box["labelRight"] - 0.5, f"the Today flag starts right of the label column: {box}")
+
     def test_every_bar_carries_its_name_as_text(self):
         self.look(1400, "light")
         self.mount(edit=True)

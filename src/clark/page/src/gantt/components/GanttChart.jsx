@@ -331,7 +331,7 @@ export function GanttChart({
               return <div class="gt-hc gt-u" key={`u${c.iso}`} style={{ left: `${X(c.iso)}px`, width: `${room}px` }}>{show ? c.label : ""}</div>;
             })}
             {lowerShown.map(({ c, show }) => <div class={`gt-hc gt-l${c.edge ? " gt-edge" : ""}`} key={`l${c.iso}`} style={{ left: `${X(c.iso)}px` }}>{show ? c.label : ""}</div>)}
-            <button type="button" class="gt-tflag" style={{ left: `${X(now)}px` }} onClick={goToday} title={WORDS.scrollToday} data-g-today>{WORDS.today}</button>
+            <button type="button" class="gt-tflag" style={{ left: `${X(now)}px`, "--tx": `${X(now)}px` }} onClick={goToday} title={WORDS.scrollToday} data-g-today>{WORDS.today}</button>
             <div class="gt-tstem gt-tstem-h" style={{ left: `${X(now)}px` }} />
           </div>
 

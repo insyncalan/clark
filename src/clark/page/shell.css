@@ -2096,8 +2096,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-hc.gt-u { top: 32px; height: 18px; line-height: 18px; font-weight: var(--weight-medium); color: var(--text); }
 .gt-hc.gt-l { top: 50px; height: 18px; line-height: 18px; }
 .gt-hc.gt-l:not(.gt-edge) { border-left-color: transparent; }
-.gt-tflag { all: unset; box-sizing: border-box; position: absolute; top: 2px; transform: translateX(-50%); z-index: 3; padding: 2px 10px; border-radius: var(--radius-sm); background: var(--status-red-tint); color: var(--status-red-text); border: 1px solid var(--status-red); font-weight: var(--weight-medium); line-height: 14px; cursor: pointer; white-space: nowrap; }
-.gt-tflag::after { content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -6px; border: 6px solid transparent; border-top-color: var(--status-red); border-bottom: 0; }
+.gt-tflag { all: unset; box-sizing: border-box; position: absolute; top: 2px; transform: translateX(max(-50%, calc(-1 * var(--tx, 999px)))); z-index: 3; padding: 2px 10px; border-radius: var(--radius-sm); background: var(--status-red-tint); color: var(--status-red-text); border: 1px solid var(--status-red); font-weight: var(--weight-medium); line-height: 14px; cursor: pointer; white-space: nowrap; }
+.gt-tflag::after { content: ""; position: absolute; bottom: -7px; margin-left: -6px; left: min(50%, var(--tx, 999px)); border: 6px solid transparent; border-top-color: var(--status-red); border-bottom: 0; }
 .gt-tstem { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--status-red); opacity: .6; z-index: 2; pointer-events: none; }
 .gt-tstem-h { top: 24px; bottom: auto; height: 8px; }   /* only joins the flag to the date rows: it never runs through a month label */
 .gt-left { position: sticky; left: 0; z-index: 5; background: var(--surface); border-right: 1px solid var(--border); }
