@@ -150,6 +150,8 @@ class Archived(Base):
                 self.until(cdp, sid, f"document.activeElement && document.activeElement.dataset.maOpen === '{self.dated}'", "focus goes back to the name")
                 self.open_peek(cdp, sid, self.undated)
                 self.assertEqual(cdp.js("document.querySelector('#archived-peek .pk-title').textContent", sid), "Hand over the keys")
+                self.assertEqual(cdp.js("[...document.querySelectorAll('#archived-peek .pk-row')].filter(r => r.querySelector('dt').textContent === 'Workstream').map(r => r.querySelector('dd').textContent).join('|')", sid),
+                                 "Not set", "row 521: an empty Workstream says Not set, as Owner does, not a blank")
                 click(cdp, sid, "#archived-peek [data-pk-close]")
                 self.until(cdp, sid, "!document.querySelector('#archived-peek')", "Close closes it")
                 self.assertEqual(self.flags(), {self.dated: 1, self.undated: 1})

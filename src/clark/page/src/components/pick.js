@@ -11,7 +11,7 @@ const CONTROL = "a, button, input, select, textarea, label, .ddmenu, .dpick, [da
 // Open things that take Esc and clicks for themselves: a menu, a picker, a date or filter box, a dialog, the peek, Help.
 // Help is found by its panel, not through its store: the published file has no Help, and an import of the store would bundle
 // Help's words into it.
-let OVERLAY = "#help, aside[role='complementary'], .ddmenu, .dpick, .fbox, .pop, [role='dialog'], [aria-modal='true'], [data-peek], .cpop, [data-pop], [role='menu'], [role='listbox']";
+let OVERLAY = "#help, aside[role='complementary'], .ddmenu:not(.leaving), .dpick:not(.leaving), .fbox:not(.leaving), .pop, [role='dialog'], [aria-modal='true'], [data-peek], .cpop:not(.leaving), [data-pop], [role='menu'], [role='listbox']";
 
 /** Edit-only layers name themselves here (edit/index.js registers the Help peek), so their selectors are never in the published build. */
 export function addOverlay(selector) { if (selector && !OVERLAY.includes(selector)) OVERLAY = selector + ", " + OVERLAY; }

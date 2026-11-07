@@ -57,6 +57,7 @@ main { position: relative; max-width: var(--max-width); margin: 0 auto; padding:
 @media (max-width: 900px) { .cover { margin: -18px -16px 16px; padding: 18px var(--space-4) var(--space-4); } }
 html:not([data-secstyle="card"]) .frame.report .cover { margin-top: 0; }      /* the report frame has only 4 px of top padding here, so the band starts at the frame, not 20 px above it */
 @media (max-width: 900px) { html:not([data-secstyle="card"]) .frame.report .cover { margin: 0 0 16px; } }      /* the report frame has no side padding here, so the band is the frame's width, not wider */
+html:not([data-secstyle="card"]) .frame.report .cover { border-radius: var(--radius-lg); box-shadow: var(--shadow); }      /* row 997: with separate section cards the band stands alone, so it is a card itself: four round corners and the shadow (DESIGN-SYSTEM.md:48); in the Card style it is the top of the frame and keeps the top two only */
 .crumbs { margin: 0 0 2px; font-size: var(--size-small); color: var(--text-muted); }
 .glance { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: 12px; }
 .tile { display: flex; flex-direction: column; }
@@ -363,8 +364,6 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fdv.g { background: var(--status-green); }
 .fdv.n { background: var(--status-grey); }
 .fopt .c { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); }
-.fhints { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; min-height: 26px; visibility: hidden; }
-.fhints.on { visibility: visible; }
 .fgloss { flex-basis: 100%; font-size: var(--size-small); color: var(--text); }   /* row 845: the plain meaning of the chip the pointer or focus is on */
 .fgloss[hidden] { display: none; }
 .fhl { font-size: var(--size-small); color: var(--text-muted); }
@@ -2139,7 +2138,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-b.sel, .gt-ms.sel { outline: 2px solid var(--text); outline-offset: 2px; }
 .gt-ms { all: unset; box-sizing: border-box; position: absolute; z-index: 1; width: 14px; height: 14px; margin-left: -7px; transform: rotate(45deg); background: var(--status-amber); border: 2px solid var(--status-amber-text); cursor: pointer; }
 .gt-ms.done { background: var(--status-green); border-color: var(--status-green-text); }
-.gt-mslab { position: absolute; line-height: 20px; white-space: nowrap; color: var(--text); }
+.gt-mslab { position: absolute; line-height: 20px; white-space: nowrap; color: var(--text); max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
 .gt-flip { padding: 0 3px; margin-right: -3px; background: var(--surface); }
 .gt-phlab.gt-flip { background: var(--grey-50); }
 .gt-clash { position: absolute; line-height: 20px; color: var(--status-amber-text); font-weight: var(--weight-semibold); }
