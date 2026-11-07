@@ -934,7 +934,7 @@ def _checked_new_person(req, table, place):
     name = _checked_item_changes({field: given["name"]})[field]
     owner = _checked_item_changes({field: sent[field]})[field]
     name, owner = " ".join(name.split()), " ".join(owner.split())
-    if people_rules.name_key(name) in people_rules.NO_PERSON or name == CLEAR_ENTRY:
+    if people_rules.name_key(name) in people_rules.NO_PERSON or people_rules.name_key(name) == people_rules.name_key(CLEAR_ENTRY):
         raise Refused(NEW_PERSON_NOT_A_NAME, code="not_a_name")
     if name != owner or len(name) > people_rules.NAME_MAX:
         raise Refused(NEW_PERSON_BAD)
@@ -955,7 +955,10 @@ def _add_new_person(st, store, name, email):
     clean, problems = people_rules.check_person({"name": name, "email": email}, have)
     if problems:
         raise Refused(" ".join(problems) + " Nothing was changed.")
-    return st.add_person(source=PEOPLE_SOURCE, name=clean["name"], needs_details=0 if clean["email"] else 1, **({"email": clean["email"]} if clean["email"] else {}))
+    try:
+        return st.add_person(source=PEOPLE_SOURCE, name=clean["name"], needs_details=0 if clean["email"] else 1, **({"email": clean["email"]} if clean["email"] else {}))
+    except (Invalid, ValueError):                                   # a store rule, or the person ids used up (P-999): plain words, the step rolls back
+        raise Refused(NEW_PERSON_BAD) from None
 
 
 def _do_item_change(store, by_user, req, project, table, columns, place):
