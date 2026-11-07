@@ -941,7 +941,7 @@ class Line(unittest.TestCase):
             self.put(cdp, sid, "is:open")
             key(cdp, sid, " ")                                                    # a real Space: the space is typed and the list opens
             self.assertTrue(wait(lambda: self.listed(cdp, sid) == self.FIELDS_ALL), "Space opens the list of fields")
-            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "is:open ", "the space is typed as always")
+            self.assertEqual(cdp.js("document.querySelector('[data-fline]').dataset.line", sid), "is:open", "the space ends the word as always: it is a chip")
             self.type(cdp, sid, "pr")
             self.assertTrue(wait(lambda: self.listed(cdp, sid) == ["priority:"]), "typing narrows the open list")
             key(cdp, sid, "Escape")
