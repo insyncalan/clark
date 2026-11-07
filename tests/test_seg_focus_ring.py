@@ -27,7 +27,7 @@ VIEWS = {"settings": "#settings", "work": "#work&p=TUL&f=mode:all", "milestones"
 MEASURE = r"""(() => {
   const out = [];
   const root = getComputedStyle(document.documentElement);
-  for (const b of document.querySelectorAll('.seg:not(.icons):not(.modes) button[aria-pressed="true"], .seg:not(.icons):not(.modes) button[aria-checked="true"]')) {
+  for (const b of document.querySelectorAll('.seg:not(.icons):not(.modes) button[aria-pressed="true"], .seg:not(.icons):not(.modes) button[aria-checked="true"], .cal-sc button[aria-current="true"]')) {
     if (!b.getClientRects().length) continue;
     b.focus({ preventScroll: true });
     const cs = getComputedStyle(b);
@@ -97,7 +97,11 @@ class SegFocusRing(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"), "the bundle ran")
         cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
         cdp.js("(document.querySelector('[data-mode=edit]') || {click() {}}).click()", sid)
-        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.seg:not(.icons):not(.modes) button[aria-pressed=\"true\"], .seg:not(.icons):not(.modes) button[aria-checked=\"true\"]')", sid)),
+        if view == "milestones":        # the Timeline | Calendar switch: the calendar has its own scale group (Day / Week / ...), aqua on the chosen scale
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-msvb=cal]')", sid)), "the calendar switch is on the page")
+            cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal-sc')", sid)), "the calendar drew")
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.seg:not(.icons):not(.modes) button[aria-pressed=\"true\"], .seg:not(.icons):not(.modes) button[aria-checked=\"true\"], .cal-sc button[aria-current=\"true\"]')", sid)),
                         f"{view}: a chosen half is on the page")
         self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "the page's motion has finished before anything is measured")
         for kind in ("keyDown", "keyUp"):       # a key, so the page is in keyboard mode and a focused button matches :focus-visible
@@ -125,7 +129,7 @@ class SegFocusRing(unittest.TestCase):
                                 self.assertGreaterEqual(ratio(ring, fill), 3.0, f"{label}: ring {ring} on fill {fill} is {ratio(ring, fill):.2f}:1")
                         if got["pill"]:
                             self.assertEqual(got["pill"]["offset"], 1, where + ": the View | Edit pill keeps its own outset ring")
-        self.assertTrue({"Appearance", "Type", "Milestones view"} <= seen, f"the groups measured: {sorted(seen)}")
+        self.assertTrue({"Appearance", "Type", "Milestones view", "Calendar scale", "Layout"} <= seen, f"the groups measured: {sorted(seen)}")
 
 
 if __name__ == "__main__":
