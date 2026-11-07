@@ -72,6 +72,16 @@ class Reader(unittest.TestCase):
         self.assertTrue(self.read("A-1", "we will close this call, owner Jo")["confirm"], "a free word read as Closed is always confirmed")
         self.assertFalse(self.read("A-1", "delayed")["confirm"])
 
+    def test_row_776_every_change_has_a_phrase_that_is_part_of_the_typed_words(self):
+        for item, words in (("A-1", "move to Friday, owner Jo Ellis, high priority and done"), ("D-1", "made on 2026-11-01"), ("A-1", "owner Pat Moss; due 30-10-2026")):
+            r = self.read(item, words)
+            self.assertTrue(r["ok"], words)
+            for c in r["changes"]:
+                self.assertTrue(c["phrase"], (words, c["field"]))
+                self.assertIn(c["phrase"], words)
+        by = {c["field"]: c["phrase"] for c in self.read("A-1", "move to Friday, owner Jo Ellis, high priority")["changes"]}
+        self.assertEqual(by, {"due_date": "move to Friday", "owner": "owner Jo Ellis", "priority": "high priority"})
+
     def test_things_that_do_not_apply_are_left_out_in_words(self):
         r = self.read("R-1", "high priority, owner Jo Ellis")
         self.assertEqual([c["field"] for c in r["changes"]], ["owner"])
@@ -467,6 +477,99 @@ class Browser(unittest.TestCase):
                 self.assertNotEqual(self.row_text(cdp, sid, "priority"), "High", "and the priority, in the same step")
                 self.assertTrue(wait(lambda: "Undone" in cdp.js("(document.querySelector('.toast') || {textContent: ''}).textContent", sid)))
 
+    def chips(self, cdp, sid):
+        return cdp.js("[...document.querySelectorAll('.sn-chips .sn-chip')].map((c) => c.textContent)", sid)
+
+    def test_row_776_chips_in_typed_order_and_the_button_row_in_both_widths_and_themes(self):
+        for theme in ("light", "dark"):
+            for width in (1400, 900):
+                with self.subTest(theme=theme, width=width), chrome() as cdp:
+                    s, sid = self.load_page(cdp, width)
+                    cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
+                    self.edit_mode(cdp, sid)
+                    self.words(cdp, sid, self.open_actions()[0], "high priority, owner Jo Ellis, move to Friday")
+                    self.assertEqual(cdp.js("document.querySelector('.sn-in').placeholder", sid), "For example: move to Friday, owner Jo Ellis, high priority")
+                    self.assertEqual(self.chips(cdp, sid), ["high priority", "owner Jo Ellis", "move to Friday"], "the chips follow the typed order")
+                    self.assertEqual(cdp.js("[...document.querySelectorAll('.sn-acts button')].map((b) => b.textContent.replace(/\\s*\u23ce$/, ''))", sid), ["Not now", "Make the change"])
+                    self.assertTrue(cdp.js("document.querySelector('.sn-chips').compareDocumentPosition(document.querySelector('.sn-list')) & 4", sid), "chips above the lines")
+                    self.assertTrue(cdp.js("document.querySelector('.sn-list').compareDocumentPosition(document.querySelector('.sn-acts')) & 4", sid), "buttons below the lines")
+
+    def test_row_776_a_line_without_a_phrase_falls_back_to_its_label(self):
+        with chrome() as cdp:
+            s, sid = self.load_page(cdp, 1400)
+            self.edit_mode(cdp, sid)
+            real = sneak.read
+
+            def bare(*a, **k):
+                r = real(*a, **k)
+                for c in r.get("changes", []):
+                    c["phrase"] = ""
+                return r
+            with mock.patch.object(sneak, "read", bare):
+                self.words(cdp, sid, self.open_actions()[0], "done")
+                self.assertEqual(self.chips(cdp, sid), ["Status: Closed"])
+
+    def test_row_776_not_now_and_esc_behave_the_same_and_change_nothing(self):
+        for how in ("button", "Escape"):
+            with self.subTest(how=how), chrome() as cdp:
+                sent = []
+                real = changes.make_change(self.store.path, [], "Demo User")
+                s, sid = self.load_page(cdp, 1400, change=lambda req: (sent.append(req), real(req))[1])
+                self.edit_mode(cdp, sid)
+                self.words(cdp, sid, self.open_actions()[0], "owner Jo Ellis")
+                if how == "button":
+                    cdp.js("document.querySelector('[data-sneak-not-now]').click()", sid)
+                else:
+                    key(cdp, sid, "Escape")
+                self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-sneak]')", sid)))
+                self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "the peek stays")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-sneak-open')", sid)), "focus returns to the sparkle")
+                self.assertEqual(sent, [], "nothing was changed")
+
+    def test_row_776_make_the_change_and_enter_send_the_same_request(self):
+        got = {}
+        for how in ("button", "Enter"):
+            with chrome() as cdp:
+                sent = []
+                real = changes.make_change(self.store.path, [], "Demo User")
+                s, sid = self.load_page(cdp, 1400, change=lambda req: (sent.append(req), real(req))[1])
+                self.edit_mode(cdp, sid)
+                self.words(cdp, sid, self.open_actions()[0 if how == "button" else 1], "high priority")
+                if how == "button":
+                    cdp.js("document.querySelector('[data-sneak-make]').click()", sid)
+                else:
+                    key(cdp, sid, "Enter")
+                self.assertTrue(wait(lambda: len(sent) == 1))
+                self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-sneak]')", sid)), "the box closes")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
+                got[how] = (sent[0]["place"], sent[0]["op"], sent[0]["changes"])
+        self.assertEqual(got["button"], got["Enter"])
+
+    def test_row_776_make_the_change_is_the_ok_for_a_reading_that_asks_and_the_line_stays(self):
+        with chrome() as cdp:
+            sent = []
+            real = changes.make_change(self.store.path, [], "Demo User")
+            s, sid = self.load_page(cdp, 1400, change=lambda req: (sent.append(req), real(req))[1])
+            self.edit_mode(cdp, sid)
+            self.words(cdp, sid, self.open_actions()[0], "done")
+            self.assertTrue(cdp.js("!!document.querySelector('[data-sneak-confirm]') && !!document.querySelector('[data-sneak-confirm-btn]')", sid), "the OK line and its link are there")
+            self.assertIn("This change needs your OK", cdp.js("document.querySelector('[data-sneak-confirm]').textContent", sid))
+            self.assertEqual(self.chips(cdp, sid), ["done"], "the chips are on screen with the button")
+            key(cdp, sid, "Enter")
+            cdp.js("new Promise(r => setTimeout(r, 150))", sid)
+            self.assertEqual(sent, [], "Enter alone still only asks")
+            cdp.js("document.querySelector('[data-sneak-make]').click()", sid)
+            self.assertTrue(wait(lambda: len(sent) == 1))
+            self.assertEqual(sent[0]["changes"], {"status": "Closed"})
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)), "one Undo")
+            cdp.js("new Promise(r => setTimeout(r, 200))", sid)
+            self.assertEqual(len(sent), 1, "applied once")
+
+    def test_row_776_the_published_file_has_no_words_box(self):
+        view = (ROOT / "src" / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
+        for needle in ("data-sneak", "Make the change", "sn-chips"):
+            self.assertNotIn(needle, view, needle)
+
     def test_shift_enter_applies_and_keeps_the_box_open(self):
         with chrome() as cdp:
             s, sid = self.load_page(cdp, 1400)
@@ -563,7 +666,7 @@ class Browser(unittest.TestCase):
             key(cdp, sid, "/")
             key(cdp, sid, "/")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak] .sn-in')", sid)), "two slashes open the box")
-            self.assertEqual(cdp.js("document.querySelector('.sn-in').placeholder", sid), "forecast Friday, achieved yesterday")
+            self.assertEqual(cdp.js("document.querySelector('.sn-in').placeholder", sid), "For example: forecast Friday, achieved yesterday")
             cdp.js("(() => { const i = document.querySelector('.sn-in'); i.value = 'forecast 05-01-2030'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.sn-list li').length", sid) == 1))
             key(cdp, sid, "Enter")

@@ -135,6 +135,8 @@ COVERED = [
      "test_work_board_page::Cards::test_row_775_columns_are_lifted_cards_and_the_full_screen_icon_are_arrows"),
     ("#776", "The Sneak peek words box is a floating card.",
      "test_peek_arrows::Arrows::test_row_776_the_words_box_is_a_floating_card_in_light_and_dark"),
+    ("#776", "The Sneak peek card shows phrase chips, with Not now and Make the change under the lines.",
+     "test_peek_arrows::Arrows::test_row_776_the_words_box_has_chips_and_the_button_row_after_a_reading_in_light_and_dark"),
     ("#839", "A date before 1900 in the Excel export is dd-mm-yyyy text, not ####.",
      "test_excel_pre1900::ToCell::test_cell_types_in_the_saved_file"),
     ("#839", "The same date in the client workbook is text, and the Week ending line reads in the same form.",
