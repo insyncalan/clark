@@ -133,6 +133,8 @@
 .rowmenu [role="menuitem"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .rowmenu .rm-t { flex: 1; min-width: 0; }
 .rowmenu .rm-t small { display: block; font-size: var(--size-caption); color: var(--text-muted); }
+.rowmenu .rm-ic { flex: none; width: 16px; height: 16px; color: var(--text-muted); }                /* row 978: the entry's icon, before its words, from the existing icon set; it takes the entry's colour on hover and focus */
+.rowmenu [role="menuitem"]:hover .rm-ic, .rowmenu [role="menuitem"]:focus-visible .rm-ic { color: inherit; }
 .rowmenu .rm-go { flex: none; width: 14px; height: 14px; color: var(--text-muted); }
 .rowmenu .rm-t b { font-weight: var(--weight-regular); }                /* item 977: the browser's bold for the entry words is not the menu's look; the entries are plain */
 .rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
