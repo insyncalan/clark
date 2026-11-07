@@ -3527,8 +3527,11 @@ class Store:
 
     def step_undone(self, apply_id, reverted=None):
         """Whether step `apply_id` has been undone already: every row it really wrote (not a note, an updated_at stamp or a starting
-        section) has been put back by an undo still in force, the rule undo_many skips a step by. Read only. #377: a caller that asks about
+        section) has been put back by an undo still in force, or the step's applies row says undone_at: the two rules undo_many skips a step by. Read only. #377: a caller that asks about
         many steps passes `reverted` (reverted_rowids, computed once) so it is not rescanned for every step."""
+        flagged = self.con.execute("SELECT undone_at FROM applies WHERE apply_id = ?", (apply_id,)).fetchone()
+        if flagged and flagged[0]:                         # #600: the flag undo_many also skips a step by
+            return True
         real = [r[0] for r in self.con.execute("SELECT rowid FROM change_log WHERE apply_id = ? AND field NOT IN ('note', 'updated_at') "
                                                "AND via != ?", (apply_id, SEED_VIA))]
         back = (reverted if reverted is not None else reverted_rowids(self.con)) if real else set()
