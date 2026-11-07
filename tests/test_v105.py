@@ -2,11 +2,11 @@
 
 Run: python3 dev/run_tests.py test_v105
 
-Same shape as test_v104 (bullets for unmerged rows wait under a WAIT heading). All ten 1.0.5 rows are IN REVIEW today (none is merged), so COVERED is empty and every visible row is in WAITING
+Same shape as test_v104 (bullets for unmerged rows wait under a WAIT heading). All eleven 1.0.5 rows are IN REVIEW today (none is merged), so COVERED is empty and every visible row is in WAITING
 (no pull request yet). The notes are written ahead of the merges. The cut tests skip until the cut commit sets 1.0.5; from then on a
 row that is not MERGED or DROPPED fails, a WAITING row whose marker has landed fails until it moves to COVERED, and the approved
 manual download lines must stay in. The data layout stays 19 (no 1.0.5 row changes it).
-Row 963 is test only (TEST_ONLY): no line in the notes and no hand check.
+Row 963 moved to 1.0.6: not a 1.0.5 row. Rows are now 11 (975 and 996 added).
 """
 import ast
 import re
@@ -21,9 +21,9 @@ SCHEMA = 19              # 1.0.3 was layout 17; 1.0.5 ends at 19 (row 926)
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = []
 
-# Merged rows with no visible change. None merged yet. Row 963 is test only and is in TEST_ONLY.
+# Merged rows with no visible change. None merged yet. 
 NO_VISIBLE_CHANGE = set()
-TEST_ONLY = {"963"}
+TEST_ONLY = set()
 # No user note, and no hand check, once merged. 972 is not merged yet, so it cannot sit in NO_VISIBLE_CHANGE (that set must be MERGED).
 NO_NOTE_WHEN_MERGED = {"972"}
 
@@ -40,6 +40,8 @@ WAITING = [
     ("#968", "A second Esc while a menu is closing is no longer ignored.", "no pull request yet (issue 968)", "", None),
     ("#970", "Rows added or removed fade or fold.", "no pull request yet (issue 970)", "", None),
     ("#971", "The Gantt bars grow in once per page open or data folder change.", "no pull request yet (issue 971)", "", None),
+    ("#975", "Starting clark while another folder or version runs stops with a plain message.", "no pull request yet (issue 975)", "", None),
+    ("#996", "The View | Edit switch focus ring is clear in dark.", "no pull request yet (issue 996)", "", None),
 ]
 
 # (item, check, kind, why, what the person does)
@@ -226,11 +228,11 @@ class Notes(unittest.TestCase):
 
     def test_the_known_limits_carry_the_by_hand_install_and_the_demo_limit(self):
         self.assertIn("## Known limits", self.text)
-        self.assertIn("From 1.0.3 or earlier, install by hand: the update inside those versions does not accept a download that holds START-HERE.md. Rename the old clark folder first, then unzip the download into a fresh empty folder. A plain unzip over the old folder merges old and new files. Your projects stay where they are.", self.text)
+        self.assertIn("From 1.0.3 or earlier, install by hand: the update inside those versions does not accept a download that holds START-HERE.md. Quit clark first, then rename the old clark folder. Then unzip the download into a fresh empty folder. A plain unzip over the old folder merges old and new files. Your projects stay where they are.", self.text)
         self.assertIn("Editing a demo project keeps it", self.text)
 
     def test_the_approved_manual_download_lines_are_present_and_the_placeholder_is_gone(self):
-        self.assertIn("- To move to 1.0.5 from 1.0.4, update from inside clark. From 1.0.3 or earlier, install by hand: the update inside those versions does not accept a download that holds START-HERE.md. Rename the old clark folder first, then unzip the download into a fresh empty folder. A plain unzip over the old folder merges old and new files. Your projects stay where they are.", self.text)
+        self.assertIn("- To move to 1.0.5 from 1.0.4, update from inside clark. From 1.0.3 or earlier, install by hand: the update inside those versions does not accept a download that holds START-HERE.md. Quit clark first, then rename the old clark folder. Then unzip the download into a fresh empty folder. A plain unzip over the old folder merges old and new files. Your projects stay where they are.", self.text)
         self.assertIn("- Updating from inside clark works from 1.0.4 to this version. To move from 1.0.3 or earlier to 1.0.5, install by hand as described under Known limits.", self.text)
         self.assertNotIn("MANUAL DOWNLOAD LINE", self.text)
         self.assertNotIn("pending approval", self.text)
@@ -303,7 +305,7 @@ class Cut(unittest.TestCase):
         self.assertEqual(out, [])
 
     def test_at_the_cut_every_row_is_merged_or_dropped(self):
-        """Fails from the cut until each of the ten rows has merged (or been dropped and taken out of the notes)."""
+        """Fails from the cut until each of the eleven rows has merged (or been dropped and taken out of the notes)."""
         self.cut_made()
         out = [f"{item} is {status}" for item, title, status, pr in table_rows(read_sheet()) if status not in ("MERGED", "DROPPED")]
         self.assertEqual(out, [])
