@@ -369,6 +369,18 @@ class Table(unittest.TestCase):
             self.assertIn(k, heads)
         self.assertNotIn("o", heads)
 
+    def test_only_the_columns_the_author_types_into_have_an_eye(self):
+        self.load()
+        got = self.val("[...document.querySelectorAll('th[data-k]')].filter((e) => e.querySelector('.gt-eye')).map((e) => e.dataset.k)")
+        self.assertEqual(got, ["par", "rag", "dep", "o", "ws", "pri", "bs", "be", "eff", "cost", "del", "show", "note"])
+        for k in ("id", "n", "t", "s", "e", "pct", "dur", "st"):
+            self.assertFalse(self.val(f"!!document.querySelector('th[data-k={k}] .gt-eye')"), k + " has no eye")
+        self.go("T.setProps({edit: false, hidden: ['dur', 'st', 'o']})")
+        heads = self.state()["heads"]
+        self.assertIn("dur", heads)
+        self.assertIn("st", heads)
+        self.assertNotIn("o", heads)
+
     # ── menu, width, zoom ──
 
     def test_right_click_menu_adds_and_deletes_lines(self):
@@ -435,7 +447,7 @@ class Table(unittest.TestCase):
         line = self.val("T.cell(0, 1).getBoundingClientRect().left")
         ident = self.val("T.cell(0, 0).getBoundingClientRect().left")
         self.assertAlmostEqual(ident, box + 44, delta=2)
-        self.assertAlmostEqual(line, ident + 70, delta=2)
+        self.assertAlmostEqual(line, ident + 116, delta=2)
         self.assertGreater(self.val("document.querySelector('.gt-scroll').scrollLeft"), 0)
 
     # ── 1400 and 900, light and dark ──
@@ -468,6 +480,25 @@ class Table(unittest.TestCase):
                 seen[where] = self.val("getComputedStyle(T.cell(0, 1)).backgroundColor")
         self.assertNotEqual(seen["1400 light"], seen["1400 dark"], "dark really is dark")
         self.assertEqual(seen["1400 light"], seen["900 light"])
+
+    def test_the_id_and_the_short_headers_are_not_cut_at_both_widths(self):
+        # the real ID carries the project code ("PUB-GNT-001"); Days, Done % and Depends on read in full
+        lines = [{**l, "id": "PUB-" + l["id"], "dep": ["PUB-" + d for d in l["dep"]]} for l in LINES]
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                for edit in (True, False):
+                    with self.subTest(width=width, scheme=scheme, edit=edit):
+                        self.cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                        self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, self.sid)
+                        self.cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.server.port}/"}, self.sid)
+                        self.assertTrue(wait(lambda: self.cdp.js("!!(window.T && window.T.mount)", self.sid)), "the test bundle ran")
+                        self.go(f"T.mount({lit(lines)}, {lit({'edit': edit})})")
+                        cut = self.val("[...document.querySelectorAll(\"td[data-k=id], th[data-k=id], th[data-k=dur], th[data-k=pct], th[data-k=dep]\")]"
+                                       ".filter((e) => { var l = e.querySelector('.gt-hl') || e; return l.scrollWidth > l.clientWidth || l.getBoundingClientRect().right > e.getBoundingClientRect().right; })"
+                                       ".map((e) => e.tagName + ':' + e.dataset.k + ':' + e.textContent + ':' + e.scrollWidth + '>' + e.clientWidth)")
+                        self.assertEqual(cut, [], f"nothing cut at {width} {scheme}")
+                        self.assertEqual(self.val("document.querySelector('td[data-k=id]').textContent"), "PUB-GNT-001")
+                        self.assertLessEqual(self.val("document.documentElement.scrollWidth"), width, "the page does not scroll sideways")
 
 
 if __name__ == "__main__":
