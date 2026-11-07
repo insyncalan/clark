@@ -15,7 +15,7 @@ import unittest
 from unittest import mock
 
 from _demo import USER, DemoStore
-from clark import changes, people as people_rules
+from clark import changes, history as history_module, people as people_rules
 from clark import store as store_module
 
 KINDS = (("actions", "owner"), ("raid", "owner"), ("decisions", "made_by"), ("milestones", "owner"))
@@ -113,9 +113,9 @@ class Adding(Base):
     def test_the_history_has_one_line_for_the_owner_and_the_person_is_in_the_people_history(self):
         """Mutation: a second line for owner_id (row 866 says one), or no line for the person."""
         body = self.go()
-        lines = [e for e in self.s.history(self.a) if e["step"] == body["apply_id"]]
+        lines = [e for e in history_module.rows_for_item(self.s.con, self.a) if e["step"] == body["apply_id"]]
         self.assertEqual(len(lines), 1, lines)
-        self.assertEqual((lines[0]["before"], lines[0]["after"], lines[0]["place"], lines[0]["by_user"]), ("Sara Khan", "Zelda Quince", "cell", USER))
+        self.assertEqual((lines[0]["from"], lines[0]["to"], lines[0]["field"], lines[0]["how"]), ("Sara Khan", "Zelda Quince", "Owner", "In the table"))
         p = self.person("Zelda Quince")
         mine = [e for e in self.s.history(p["id"]) if e["step"] == body["apply_id"]]
         self.assertTrue(mine, "the person's own history shows they were added, by the same step")
@@ -256,16 +256,17 @@ class Refusals(Base):
         self.go(name="Probe Person")
         r = self.req("actions", "owner", "Zelda Quince")
         self.refused({**r, "id": "ABC-A-999"})
-        self.refused({**r, "project": "XYZ"})
+        self.refused({**r, "project": "XYZ"}, status=404)
         with self.s.step("dashboard", USER) as st:
-            arch = st.create("actions", {"project": "ABC", "description": "Old", "raised": "2026-10-01", "source": "demo", "archived": 1})
+            arch = st.create("actions", {"project": "ABC", "description": "Old", "raised": "2026-10-01", "source": "demo"})
+            st.archive("actions", arch)
         self.refused({**r, "id": arch})
         self.assertEqual([p["name"] for p in self.s.people(archived=None)], ["Probe Person"])
 
     def test_a_store_error_after_the_person_was_added_rolls_the_whole_step_back(self):
         """Mutation: the person is committed first. The store's update of the item is made to fail after add_person ran."""
         self.go(name="Probe Person")
-        with mock.patch.object(store_module.Store, "update", side_effect=store_module.Invalid("rule")):
+        with mock.patch.object(store_module.Step, "update", side_effect=store_module.Invalid("rule")):
             status, body = self.change(self.req("actions", "owner", "Zelda Quince"))
         self.assertEqual((status, body["ok"]), (400, False), body)
         self.assertIsNone(self.person("Zelda Quince"))
@@ -281,7 +282,7 @@ class Duplicates(Base):
         """Matching is people.name_key (NFKC, casefold, squash, confusable skeleton), as the resolver does. The refusal carries the
         existing person (id, name) so the page can offer 'Use this one'. Mutation: compare raw strings; or silently link them."""
         pid = self.person_on_list("José Álvarez")
-        for typed in ("José Álvarez", "jose alvarez", "JOSÉ ÁLVAREZ", "Jose  Alvarez", "  josé álvarez ", "Jеse Alvarez"):
+        for typed in ("José Álvarez", "jose alvarez", "JOSÉ ÁLVAREZ", "Jose  Alvarez", "  josé álvarez ", "Jоse Alvarez"):
             with self.subTest(typed=typed):
                 body = self.refused(self.req("actions", "owner", typed), code="person_exists")
                 self.assertEqual(body["person"], {"id": pid, "name": "José Álvarez"})
@@ -357,6 +358,7 @@ class Clearing(Base):
 
     def test_a_plain_tbc_update_reads_tbc_in_history(self):
         """Pin of 'check nothing downstream changes': history shows TBC verbatim, never the picker's words."""
+        self.demo.update("raid", self.r, {"owner": "Mia Hale"})     # a new risk starts as TBC already, so there is a change to read
         status, body = self.change({"project": "ABC", "kind": "raid", "op": "update", "id": self.r, "changes": {"owner": "TBC"}, "place": "cell"})
         self.assertEqual(status, 200)
         line = [e for e in self.s.history(self.r) if e["step"] == body["apply_id"]]
