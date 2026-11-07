@@ -130,7 +130,7 @@
     const K = esc(u.key), R = esc(refLab(u)), RW = esc(refOf(u)), n = itemsOf(u).length, o = openOf(u).length, ms = msLinked(u), arch = !!u.archived, last = D.historyOf('uc', u.id).filter(h => h.code === u.code)[0];
     const on = !!u.client, sub = `${n ? `${o} of ${plural(n, 'work item')} open` : 'No work items'} · ${plural(ms.length, 'milestone')}`;
     const acts = arch ? '' : `<div class="hacts ucx-acts"><button class="btn" id="ucxStatus" aria-haspopup="menu">Change status ${C.icon('chev', 's')}</button>
-        <span class="ucx-eye-s${on ? ' on' : ''}">${C.icon(on ? 'eye' : 'eyeoff', 's')}${on ? EYE_ON : EYE_OFF}</span><button class="btn" id="ucxToggle">${on ? 'Take off the dashboard' : 'Put on the dashboard'}</button></div>`;
+        <button class="btn ucx-eye-s${on ? ' on' : ''}" id="ucxToggle" aria-pressed="${on}" title="${on ? 'Shown on the dashboard and the published page. Select to take it off' : 'Not shown. Select to put it on the dashboard'}">${C.icon(on ? 'eye' : 'eyeoff', 's')}${on ? EYE_ON : EYE_OFF}</button></div>`;
     const nm = arch ? esc(titles(u)[0]) : `<span class="ucx-ce ucx-nm" contenteditable="plaintext-only" role="textbox" spellcheck="true" data-ucx-name aria-label="Name of use case ${RW}">${esc(titles(u)[0])}</span>`;
     const hl = arch ? `<p class="ucx-hl">${esc(u.headline || 'No headline yet')}</p>` : `<p class="ucx-hl"><span class="ucx-ce" contenteditable="plaintext-only" role="textbox" spellcheck="true" data-ucx-head data-ph="Today's position, in one line" aria-label="Headline for use case ${RW}">${esc(u.headline)}</span></p>`;
     return `<div class="crumbs ucx-crumb"><button class="link" data-ucx-back>Use cases</button> › ${R}</div>

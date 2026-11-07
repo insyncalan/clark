@@ -276,7 +276,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
             <h2 id="ucd-h-det" class="ucd-ch">Details</h2>
             <dl class="ucd-kv">
               {u.owner ? <><dt>Owner</dt><dd>{u.owner}</dd></> : null}
-              <dt>Dashboard</dt><dd data-dash>{archived ? "Archived" : on ? EYE.on : EYE.off}</dd>
+              {ro ? <><dt>Dashboard</dt><dd data-dash>{archived ? "Archived" : on ? EYE.on : EYE.off}</dd></> : null}
               <dt>Last change</dt><dd>{last || "No changes recorded"}</dd>
             </dl>
           </section>
