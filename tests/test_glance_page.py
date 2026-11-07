@@ -421,6 +421,17 @@ class UseCases(Setup):
             p.js("history.back()")
             p.until("!!document.querySelector('.ucrow')", "back on the Dashboard")
 
+    def test_a_next_step_line_ends_with_its_id_link_alone_that_never_breaks(self):
+        """Row 1004: no ' due' text after the id; the id link keeps to one line."""
+        with chrome() as cdp:
+            p = self.show(cdp, width=900)
+            p.js("document.querySelector('.ucrow .ucbar').click()")
+            p.until("!!document.querySelector('.ucdetail [data-stepid]')", "the row opened")
+            self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucstepl li').length"), 3)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail .ucstepl li')].filter(e => /due/i.test(e.innerText)).length"), 0, "no due text on a step line")
+            self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucstepl li > .muted').length"), 0, "no muted tail after the id")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => getComputedStyle(e).whiteSpace === 'nowrap')"), True, "the id never breaks")
+
     def test_next_steps_are_every_open_item_in_the_client_wording_with_the_owner_in_a_circle(self):
         """#441: a risk and a decision linked to the use case are next steps too; an item with client wording shows that, not its title."""
         uc = self.demo.use_case
@@ -506,6 +517,17 @@ class Published(PublishedFile, Setup):
             self.assertIn("See all 1 work item for", shown, "the one item the file keeps")
             self.assertNotIn("Sam Demo", shown)
             self.assertNotIn("Lee Demo", shown)
+
+    def test_published_next_steps_show_only_the_id_link(self):
+        """Row 1004: in the finished file a step line has the id link and no due text, and the id does not break."""
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path)
+            p.js("document.querySelector('.ucrow .ucbar').click()")
+            p.until("!!document.querySelector('.ucdetail [data-stepid]')", "opened")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail .ucstepl li')].filter(e => /due/i.test(e.innerText)).length"), 0)
+            self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucstepl li > .muted').length"), 0)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => getComputedStyle(e).whiteSpace === 'nowrap')"), True)
 
     def test_a_hidden_tile_and_a_hidden_use_case_are_absent(self):
         self.store.con.execute("UPDATE use_cases SET client_visible = 0 WHERE id = ?", (self.uc2,))
