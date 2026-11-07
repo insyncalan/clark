@@ -69,7 +69,7 @@ class HelpAskAndSneakPeek(unittest.TestCase):
         self.assertNotIn("[[Up]]", [k for k, d in RAW["reference"]["keys"] if "Sneak" in d])
 
     def test_no_fields_the_code_does_not_read(self):
-        for bad in ("show to client", "hide from client", "rename to", "use case 3.1", "update: …", "red · amber · green", "Make the change", "Not now", "next week"):
+        for bad in ("show to client", "hide from client", "rename to", "use case 3.1", "update: …", "red · amber · green", "next week"):
             self.assertNotIn(bad, SNEAK)
 
     def test_ask_clark_is_not_off_until_switched_on(self):

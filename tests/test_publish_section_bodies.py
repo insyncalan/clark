@@ -242,12 +242,12 @@ class ThePageDrawsNeedsAndLeavesTheTrackerQuiet(unittest.TestCase):
         self.assertIn('section.type === "needs"', src)
         self.assertIn('section.type === "tracker"', src)            # #189: the tracker is drawn, in Edit and in View and the file
 
-    def test_a_published_file_draws_no_type_it_does_not_know(self):
+    def test_a_published_file_draws_a_tracker_and_no_other_type_it_does_not_know(self):
         src = (self.PAGE / "Dashboard.jsx").read_text(encoding="utf-8")
         line = next(l for l in src.splitlines() if "const fileDraws" in l)
-        self.assertTrue(line.rstrip().endswith("!!KINDS[s.type] && rowsFor(s.type).length > 0);"), line)   # every other type: drawn only when it is a known kind with rows, so an unknown one is left out of the file
+        self.assertTrue(line.rstrip().endswith('s.type === "tracker" ? true : !!KINDS[s.type] && rowsFor(s.type).length > 0);'), line)   # row 933: a tracker is drawn (publish already leaves out one with no lines); every other type: drawn only when it is a known kind with rows, so an unknown one is left out of the file
         self.assertIn("needs", line)
-        self.assertNotIn("tracker", line)
+        self.assertEqual(line.count("tracker"), 1)
 
     def test_the_page_writes_only_the_body_of_a_text_section(self):
         rich = (self.PAGE.parent / "edit" / "richSave.js").read_text(encoding="utf-8")

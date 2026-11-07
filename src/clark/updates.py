@@ -95,8 +95,8 @@ MESSAGES = {
                 "Download the update again from the clark releases page, together with its .sig file.",
     "badsig": "This update's signature doesn't match, so it wasn't installed. Don't use this file. "
               "Download it again from the clark releases page.",
-    "nokey": "Updating is switched off in this copy of clark, because it has no release key to check updates against. "
-             "Download the latest release from the clark releases page instead.",
+    "nokey": "This copy of clark can't check update files, because a part it needs for that is missing. Nothing was changed. "
+             "Download the latest release from the clark releases page and use that instead.",
     "name": "That isn't a clark update. Choose the update file from the clark releases page. "
             "Its name looks like clark-1.2.3-{ending}.",
     "source": "That is the whole source code, not an update. On the releases page, download the file under Assets "
@@ -479,8 +479,11 @@ def check_coverage(system, rels):
     if extra:
         raise UpdateError("unsafe", "outside the app's own list: " + names_for_log(extra))
     present = set(rels)
+    starts = [n for n in release_files.START_HERE_NAMES if n in present]
+    if len(starts) > 1:                            # one start file only: the second is outside the list
+        raise UpdateError("unsafe", "outside the app's own list: " + names_for_log(starts[1:]))
     missing = []
-    for item in release_files.listed(system) + (release_files.START_HERE,):
+    for item in release_files.listed(system) + tuple(starts or [release_files.START_HERE]):
         placed = release_files.place(item)          # `rels` are names as the zip holds them
         if item.endswith("/"):
             if not any(r.startswith(placed) for r in present):

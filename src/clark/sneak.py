@@ -30,6 +30,10 @@ CONFIRM_STATUS = {"Cancelled", "Closed", "Made", "Withdrawn"}          # creaite
 MAX_WORDS = 400
 NUMERIC_DATE = re.compile(r"\b(\d{1,2})-(\d{1,2})-(\d{4})\b|\b(\d{4})-(\d{1,2})-(\d{1,2})\b")
 OWNER = re.compile(r"\b(?:owner(?:\s+is)?|assign(?:ed)?\s+to|owned\s+by|give\s+(?:it\s+)?to)\s+([^,;.]+?)(?=\s+(?:and|with|due|by|priority|(?:urgent|high|medium|low)\s+priority)\b|[,;]|\.\s|\.$|$)", re.I)
+DATE_RX = re.compile(NUMERIC_DATE.pattern + r"|\b(?:today|yesterday|tomorrow|" + "|".join(DAYS) + r")\b", re.I)
+STATUS_RX = re.compile(r"\b(?:cancel(?:led)?|canceled|done|close[d]?|complete[d]?|finished|reopen|re-open|open again|delayed|withdraw(?:n)?|made|decided|approved?|pending|achieved|reached|planned)\b", re.I)
+PRIORITY_RX = re.compile(r"\b(?:urgent|high|medium|low)\s+priority\b|\bpriority\s+(?:is\s+|to\s+)?(?:urgent|high|medium|low)\b", re.I)
+SPLIT_RX = re.compile(r"\s*(?:[,;]|\band\b)\s*", re.I)
 BAD_DATE = "That date isn't a real day, so nothing was changed. Check the day and month."
 NOTHING = ("I couldn't find a change in that. Here I can change the due date, the owner, the priority and the status. "
            "Try, for example, “move to Friday, owner Jo Ellis, high priority”.")
@@ -124,6 +128,23 @@ def clean_name(text):
     return name
 
 
+def phrase_of(words, rx, skip=None):
+    """The typed words that gave one change (row 776): the part of the sentence, between commas, semicolons and "and", where `rx`
+    matches. `skip` is a span (start, end) of the sentence not to look in (an owner's name, a headline). "" when nothing matches."""
+    hay = words if not skip else words[:skip[0]] + " " * (skip[1] - skip[0]) + words[skip[1]:]
+    m = rx.search(hay)
+    if not m:
+        return ""
+    a, b = 0, len(words)
+    for sep in SPLIT_RX.finditer(words):
+        if sep.end() <= m.start():
+            a = sep.end()
+        elif sep.start() >= m.start():
+            b = sep.start()
+            break
+    return words[a:b].strip(" .")
+
+
 def _dmy(iso):
     m = re.fullmatch(r"(\d{4})-(\d\d)-(\d\d)", iso or "")
     return f"{m.group(3)}-{m.group(2)}-{m.group(1)}" if m else (iso or "—")
@@ -186,17 +207,18 @@ def read(data, item_id, words, now=None, known_owners=None, archived=None):
         return {"ok": False, "message": "That item isn't in this project any more. Reload the page."}
     changes, notes, same = [], [], []
 
-    def add(field, new, text=None, confirm=False, new_name=False):
+    def add(field, new, text=None, confirm=False, new_name=False, phrase=""):
         old = row.get(field)
         if new == old:
             same.append(f"The {LABELS[field].lower()} is already {text or new}.")
             return
         changes.append({"field": field, "label": LABELS[field], "from": old, "to": new,
                         "from_text": _dmy(old) if field in ("due_date", "needed_by", "date") else (old or "—"),
-                        "to_text": text or new, "confirm": confirm, "new_name": new_name})
+                        "to_text": text or new, "confirm": confirm, "new_name": new_name, "phrase": phrase})
 
     m = OWNER.search(words)
     rest = (words[:m.start()] + " " + words[m.end():]) if m else words        # the owner's name is not scanned for dates, statuses or priorities
+    skip = (m.start(), m.end()) if m else None
     found, bad = dates_in(rest, now)
     if bad:
         return {"ok": False, "message": BAD_DATE}
@@ -220,13 +242,13 @@ def read(data, item_id, words, now=None, known_owners=None, archived=None):
             if status == "Made":
                 if when > now:
                     notes.append(f"{text} hasn't come yet. Check it is the day the decision was made.")
-                add("date", when.isoformat(), text)               # the day it was made
+                add("date", when.isoformat(), text, phrase=phrase_of(words, DATE_RX, skip))               # the day it was made
             else:
                 notes.append("A decision that is made has no due date, so the date was left out.")
         elif kind == "decision" and (status or current) == "Withdrawn":
             notes.append("A withdrawn decision has no due date, so the date was left out.")
         else:
-            add("needed_by" if kind == "decision" else "due_date", when.isoformat(), text)
+            add("needed_by" if kind == "decision" else "due_date", when.isoformat(), text, phrase=phrase_of(words, DATE_RX, skip))
         if when < now and status != "Made":
             notes.append(f"{text} is in the past.")
         elif re.search(r"\b(today|yesterday|tomorrow|" + "|".join(DAYS) + r")\b", NUMERIC_DATE.sub(" ", rest.lower())):
@@ -241,7 +263,7 @@ def read(data, item_id, words, now=None, known_owners=None, archived=None):
             notes.append("A decision's owner is who made it; that is not changed here.")
         else:
             known = known_owners if known_owners is not None else _owners(data)
-            add("owner", name, name, new_name=name.casefold() not in {str(k).casefold() for k in known})
+            add("owner", name, name, new_name=name.casefold() not in {str(k).casefold() for k in known}, phrase=m.group(0).strip())
     p = re.search(r"\b(urgent|high|medium|low)\s+priority\b|\bpriority\s+(?:is\s+|to\s+)?(urgent|high|medium|low)\b", rest.lower())
     if p:
         if kind not in ("action", "decision"):
@@ -249,9 +271,9 @@ def read(data, item_id, words, now=None, known_owners=None, archived=None):
         elif kind == "decision":
             notes.append("A decision has no priority, so it was left out.")
         else:
-            add("priority", PRIORITIES[p.group(1) or p.group(2)])
+            add("priority", PRIORITIES[p.group(1) or p.group(2)], phrase=phrase_of(words, PRIORITY_RX, skip))
     if status:
-        add("status", status, confirm=status in CONFIRM_STATUS)
+        add("status", status, confirm=status in CONFIRM_STATUS, phrase=phrase_of(words, STATUS_RX, skip))
     if DELETE.search(rest):
         if not changes:
             return {"ok": False, "message": NO_DELETE}
@@ -265,7 +287,7 @@ def read(data, item_id, words, now=None, known_owners=None, archived=None):
     return {"ok": True, "id": item_id, "changes": changes, "confirm": any(c["confirm"] for c in changes), "note": " ".join(notes)}
 
 
-def _line(row, field, new, text=None, confirm=False, from_text=None):
+def _line(row, field, new, text=None, confirm=False, from_text=None, phrase=""):
     """One from → to line for a milestone or a use case, or None when the value is already that."""
     old = row.get(field)
     if new == old:
@@ -273,7 +295,7 @@ def _line(row, field, new, text=None, confirm=False, from_text=None):
     label = WORDS["labels"].get(field) or LABELS.get(field) or field.capitalize()
     dated = field in ("forecast_date", "actual_date")
     return {"field": field, "label": label, "from": old, "to": new, "from_text": from_text if from_text is not None else (_dmy(old) if dated else (old or "—")),
-            "to_text": text or (_dmy(new) if dated else new), "confirm": confirm, "new_name": False}
+            "to_text": text or (_dmy(new) if dated else new), "confirm": confirm, "new_name": False, "phrase": phrase}
 
 
 def _prepare(words, now):
@@ -323,6 +345,8 @@ def read_milestone(data, row, words, now):
     current = row.get("status") or "Planned"
     target = status or current
     out, notes, same = [], [], []
+    skip = (owner.start(), owner.end()) if owner else None
+    said_date, said_status = phrase_of(words, DATE_RX, skip), phrase_of(words, STATUS_RX, skip)
     target_is_forecast = bool(re.search(r"\bforecast\b", low))
 
     def put(line, said):
@@ -335,23 +359,23 @@ def read_milestone(data, row, words, now):
         if target == "Done" and not re.search(r"\bforecast\b", low):
             if when > now:
                 return {"ok": False, "message": ACHIEVED_DATE}
-            put(_line(row, "actual_date", when.isoformat()), f"The achieved date is already {text}.")
+            put(_line(row, "actual_date", when.isoformat(), phrase=said_date), f"The achieved date is already {text}.")
         else:
-            put(_line(row, "forecast_date", when.isoformat()), f"The forecast is already {text}.")
+            put(_line(row, "forecast_date", when.isoformat(), phrase=said_date), f"The forecast is already {text}.")
             if when < now:
                 notes.append(f"{text} is in the past.")
         if re.search(r"\b(today|yesterday|tomorrow|" + "|".join(DAYS) + r")\b", NUMERIC_DATE.sub(" ", low)):
             notes.append(f"Read as {text}.")
     if status and status != current:                    # the store fills or clears the achieved date with the status; it is said here so the lines show it
         shown = {"Done": WORDS["achieved"], "Planned": "Planned"}
-        out.append(_line(row, "status", status, shown[status], confirm=status == "Done" or current == "Done", from_text=shown.get(current, current)))
+        out.append(_line(row, "status", status, shown[status], confirm=status == "Done" or current == "Done", from_text=shown.get(current, current), phrase=said_status))
         if status == "Done" and not found and not row.get("actual_date"):
             fc = row.get("forecast_date")
-            out.append(_line(row, "actual_date", fc if fc and fc <= now.isoformat() else now.isoformat()))
+            out.append(_line(row, "actual_date", fc if fc and fc <= now.isoformat() else now.isoformat(), phrase=said_status))
         elif status == "Done" and found and target_is_forecast and not row.get("actual_date"):
-            out.append(_line(row, "actual_date", now.isoformat()))      # "done, forecast Friday": the store still sets the achieved date, so the lines show it
+            out.append(_line(row, "actual_date", now.isoformat(), phrase=said_status))      # "done, forecast Friday": the store still sets the achieved date, so the lines show it
         elif status == "Planned" and row.get("actual_date"):
-            out.append(_line(row, "actual_date", None, "—"))
+            out.append(_line(row, "actual_date", None, "—", phrase=said_status))
     elif status:
         same.append(f"The status is already {WORDS['achieved'] if status == 'Done' else status}.")
     if owner:
@@ -377,10 +401,11 @@ def read_use_case(data, row, words, now):
         return {"ok": False, "message": WORDS["nothing_use_case"]}
     if len(words) > MAX_WORDS:
         return {"ok": False, "message": TOO_LONG}
-    rest, head = words, None
+    rest, head, head_said, skip = words, None, "", None
     for rx in (HEADLINE_QUOTED, HEADLINE_PLAIN):
         h = rx.search(rest)
         if h:
+            head_said, skip = h.group(0).strip(), (h.start(), h.end())
             head = next((g for g in h.groups() if g is not None), "").strip()
             rest = rest[:h.start()] + " " + rest[h.end():]
             break
@@ -397,6 +422,8 @@ def read_use_case(data, row, words, now):
         got.discard("Flag")
     if len(got) > 1 or (got and NEGATION.search(rest.replace("’", "'"))):
         return {"ok": False, "message": UNSURE_STATUS}
+    said = {"headline": head_said, "status": phrase_of(words, re.compile("|".join(r for _, r in USE_CASE_STATUS), re.I), skip),
+            "commitment": phrase_of(words, re.compile("|".join([rx.pattern for _, rx in COMMIT_WORDS] + [NO_COMMIT.pattern]), re.I), skip)}
     values = {}
     if head:
         values["headline"] = head
@@ -415,7 +442,7 @@ def read_use_case(data, row, words, now):
         new = values[field]
         none = WORDS["no_flag"]
         line = _line(row, field, new, new or none, confirm=field == "status" and new == "Done",
-                     from_text=(row.get(field) or (none if field == "commitment" else "—")))
+                     from_text=(row.get(field) or (none if field == "commitment" else "—")), phrase=said[field])
         if line is None:
             same.append(f"The {WORDS['labels'].get(field, field).lower()} is already {new or none}.")
         else:
