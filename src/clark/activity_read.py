@@ -11,7 +11,7 @@ from clark import changes, history
 from clark.store import Store, connect
 
 TABLES = ("actions", "raid", "decisions", "milestones")      # the rows a peek opens on
-ROW_KEYS = ("step", "when_text", "who", "how", "kind", "field", "from", "to", "diff", "diff_note", "undo_refused")
+ROW_KEYS = ("step", "when_text", "who", "how", "kind", "field", "from", "to", "diff", "diff_note", "from_file", "undo_refused")
 ROW_LIMIT = 200                      # the newest changes the tab shows; the closing line says when older ones are left out
 CLOSING = "Older changes are kept in clark. Showing the newest 200."
 TEXT_LIMIT = 4000                    # characters of a from or to value the tab gets; a longer text ends with an ellipsis
@@ -28,6 +28,8 @@ def _row(r):
     out["undo_refused"] = out["undo_refused"] or ""
     if out["diff_note"] is None:
         out.pop("diff_note")
+    if not out["from_file"]:
+        out.pop("from_file")
     return out
 
 

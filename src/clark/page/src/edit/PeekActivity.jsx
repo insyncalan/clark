@@ -155,6 +155,7 @@ export function PeekActivity({ id }) {
                   <div class="pa-body">
                     <p class="pa-meta"><span class="pa-who">{r.who || "Someone on this computer"}</span>{r.how ? <span> · {r.how}</span> : null}<span> · {r.when_text}</span></p>
                     <Change r={r} />
+                    {r.from_file ? <p class="muted pa-from-file" data-pa-from-file>{r.from_file}</p> : null}
                     {why ? <p class="muted pa-why" data-pa-why>{why}</p> : null}
                   </div>
                 </div>
