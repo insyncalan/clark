@@ -14,8 +14,9 @@ from clark import (activity_read, app_settings, as_at, ask_folders, changes, dra
 from test_server import Running
 
 
-def real_handlers(path, data_for, who=USER, roots=None):
-    """The launcher's handlers over the data file at `path`, by the name the server's keyword has."""
+def real_handlers(path, data_for, who=USER, roots=None, choose_folder=None):
+    """The launcher's handlers over the data file at `path`, by the name the server's keyword has. RULE 14: the Word export's
+    folder window is never the system's here: `choose_folder` (prompt -> folder or None) or, by default, Cancel."""
     roots = [] if roots is None else roots
     return {"change": changes.make_change(path, roots, who),
             "undo": changes.make_undo(path, roots, who),
@@ -26,7 +27,7 @@ def real_handlers(path, data_for, who=USER, roots=None):
             "people_undo": changes.make_people_undo(path, roots, who),
             "people_list": changes.make_people_list(path, roots, who),
             "word_import": word_route.make_word_import(path, roots),
-            "word_export": word_route.make_word_export(path, roots),
+            "word_export": word_route.make_word_export(path, roots, choose_folder=choose_folder or (lambda prompt: None)),
             "activity": activity_read.make_read(path, data_for),
             "as_at": as_at.AsAt(path),
             "milestones": milestone_feed.make_feed(data_for),
@@ -36,10 +37,10 @@ def real_handlers(path, data_for, who=USER, roots=None):
             "safety": safety.Safety(path, roots)}
 
 
-def real_server(path, data_for, who=USER, roots=None, seam=None, **kw):
+def real_server(path, data_for, who=USER, roots=None, seam=None, choose_folder=None, **kw):
     """A started Running (the caller closes it) whose routes are the real handlers over `path`; `kw` is what Running takes
     (page_html, projects, publisher, ...) and replaces a handler of the same name."""
-    handlers = real_handlers(path, data_for, who, roots)
+    handlers = real_handlers(path, data_for, who, roots, choose_folder)
     if seam is not None:
         handlers = {k: seam(v, "change" if k == "section_body" else k) if k in ("change", "undo", "section_body") else v for k, v in handlers.items()}
     if "change" in kw and "section_body" not in kw:
