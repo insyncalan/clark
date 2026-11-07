@@ -203,6 +203,34 @@ class Chart(unittest.TestCase):
                     self.assertEqual(self.val("[...document.querySelectorAll('.gt-lhead .gt-h')].map(e => e.textContent.trim())"), ["Phase / task", "Start", "End", "Done"])
                     self.assertEqual(self.text("[data-g-today]"), "Today")
 
+    def test_a_long_bar_label_ellipsises_and_a_short_one_does_not(self):
+        long = [dict(l) for l in LINES]
+        long[0]["name"] = "Very long phase name " * 10
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    self.look(width, scheme)
+                    self.mount(edit=False, lines=long)
+                    got = self.val("[...document.querySelectorAll('.gt-mslab')].map(e => [e.textContent.trim().slice(0, 9), e.getBoundingClientRect().width, getComputedStyle(e).textOverflow, e.scrollWidth > e.clientWidth])")
+                    longs = [g for g in got if g[0] == "Very long"]
+                    self.assertTrue(longs, "the long label is drawn")
+                    for _, w, to, cut in longs:
+                        self.assertLessEqual(w, 320.5, "a long label is held to a maximum width")
+                        self.assertEqual(to, "ellipsis")
+                    for g in got:
+                        if g[0] != "Very long":
+                            self.assertFalse(g[3], f"a normal label is not cut: {g}")
+
+    def test_a_line_with_no_usable_date_is_said_to_be_left_out(self):
+        bad = [dict(l) for l in LINES] + [dict(LINES[0], id="GNT-090", name="No date", start="garbage", end="", show=True)]
+        self.look(1400, "light")
+        self.mount(edit=False, lines=bad)
+        self.assertEqual(self.text("[data-g-count]"), "6 of 12 lines shown", "the View counts the undated line in the total")
+        self.mount(edit=True, lines=bad)
+        self.assertEqual(self.text("[data-g-count]"), "11 of 12 lines shown", "Edit counts it too")
+        self.mount(edit=False, lines=LINES)
+        self.assertEqual(self.count("[data-g-count]"), 0, "nothing left out, nothing said in the View")
+
     def test_every_bar_carries_its_name_as_text(self):
         self.look(1400, "light")
         self.mount(edit=True)
