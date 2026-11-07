@@ -130,6 +130,13 @@ class Stamp(unittest.TestCase):
             self.assertNotEqual(page.source_stamp(), before, "a different limit gives a different stamp")
         self.assertEqual(page.source_stamp(), before)
 
+    def test_the_served_page_was_built_with_the_servers_limit(self):
+        """What build_page.py --check does, so a stale page.html fails by name: the page the server serves equals a fresh build."""
+        page.ensure_built()
+        self.assertEqual(page.PAGE.read_text(encoding="utf-8"), build_page.build(build_page.ENTRY))
+        for p in (page.PAGE, page.VIEW_PAGE):
+            self.assertNotIn(NAME, p.read_text(encoding="utf-8"), p.name)
+
     def test_page_limits_raises_and_never_defaults(self):
         import types
         real = build_page.limits
