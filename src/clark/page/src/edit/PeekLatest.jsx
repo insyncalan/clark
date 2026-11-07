@@ -49,6 +49,7 @@ export function PeekNeeded({ row }) {
 export function PeekLatest({ row }) {
   const rec = raw(row), action = row.kind === "action";
   const [open, setOpen] = useState(false), [text, setText] = useState(""), [problem, setProblem] = useState("");
+  const lab = `pk-latest-lab-${row.id}`, txt = `pk-latest-txt-${row.id}`;       // ids come from the item, so two of these on one page never share an id
   const settled = useRef(false), saving = useRef(false), shown = useRef(null), box = useRef(null);
   useGrow(box, open ? text : null);
   // A layout effect: the box takes the focus in the step that draws it, not a frame later. A frame that arrives late (a busy runner) left the
@@ -85,7 +86,7 @@ export function PeekLatest({ row }) {
   return (
     <div class="pk-latest" data-pk-latest>
       {action ? <>
-        <div class="pk-lab"><span id="pk-latest-lab">Latest update</span> <button type="button" class="pk-draft" data-pk-draft onClick={draft}><Icon name="sparkle" cls="s" />Draft</button>
+        <div class="pk-lab"><span id={lab} data-pk-latest-lab>Latest update</span> <button type="button" class="pk-draft" data-pk-draft onClick={draft}><Icon name="sparkle" cls="s" />Draft</button>
           {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
         {open
           ? <>
@@ -93,7 +94,7 @@ export function PeekLatest({ row }) {
               onInput={(e) => { setText(e.currentTarget.value); if (problem) setProblem(""); }} onKeyDown={key} onBlur={(e) => { const to = e.relatedTarget; if (!settled.current && !(to && to.hasAttribute && to.hasAttribute("data-pk-draft"))) save(e.currentTarget.value); }} />
             {problem ? <p class="pk-latest-err" role="alert" data-pk-latest-err>{problem}</p> : <p class="pk-latest-hint">Enter saves, Shift+Enter adds a line, Esc leaves it as it was.</p>}
           </>
-          : <button type="button" class="pk-latest-text" data-pk-latest-text ref={shown} onClick={start} id="pk-latest-txt" aria-labelledby="pk-latest-lab pk-latest-txt" title="Edit the latest update">{now || <span class="muted">Add the latest update…</span>}</button>}
+          : <button type="button" class="pk-latest-text" data-pk-latest-text ref={shown} onClick={start} id={txt} aria-labelledby={`${lab} ${txt}`} title="Edit the latest update">{now || <span class="muted">Add the latest update…</span>}</button>}
       </> : null}
       {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
     </div>
