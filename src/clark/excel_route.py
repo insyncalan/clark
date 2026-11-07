@@ -6,7 +6,7 @@ its own: reading a workbook, staging the differences, the clash rules, the expor
 excel_import.py's (#38), the code the command line and the tests of the import already use.
 
 Four ops of one route:
-- "sheets" (#655): the same file handling as "check", but nothing is compared: it lists which of the five sheets the workbook has,
+- "sheets" (#655): the same file handling as "check", but nothing is compared: it lists which sheets the workbook has (the five tables and the Gantt sheet),
   with each one's row count, and keeps the copy (named by `file`) so the check that follows does not send the workbook again.
   "check" then takes `sheets`, the tables ticked: only those sheets are read, and an unticked one is not read, not changed and
   not archived (excel_import.read_workbook enforces it here, whatever the page sends).
