@@ -636,7 +636,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 /* item 344: the week picker beside Week ending (the prototype's #wkPast), in View and Edit; picking only opens, it changes nothing */
 .rbar-past { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); padding: 3px 8px; min-height: 28px; width: auto; max-width: min(260px, 100%); box-sizing: border-box; }
 .rbar-past:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-.rbar-state { font-size: var(--size-caption); padding: 2px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); }
+.rbar-state, .gp-state { font-size: var(--size-caption); padding: 2px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); }
 .rbar-hint { color: var(--status-blue-text); background: var(--brand-blue-tint); border-radius: var(--radius-sm); padding: 4px 9px; }   /* row 773: the prototype chip */
 
 /* The eye on a milestone row (edit/MsEye.jsx): the row's cells and the eye sit side by side; the eye is a real button, 28 px square. */

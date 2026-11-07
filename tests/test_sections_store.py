@@ -85,7 +85,7 @@ class Seed(Base):
         self.assertEqual([(s["type"], s["title"], s.get("beside", 0)) for s in default_sections.DEFAULT_SECTIONS], list(ELEVEN))
         self.assertTrue(all(s["type"] in NINE for s in default_sections.DEFAULT_SECTIONS))
         from clark.section_kinds import TYPES as TEMPLATE_TYPES
-        self.assertEqual(set(store_module.SECTION_TYPES), set(NINE) | {"needs", "tracker"} | set(TEMPLATE_TYPES))      # the nine of the starting report, and those that carry content (#96: the section templates too)
+        self.assertEqual(set(store_module.SECTION_TYPES), set(NINE) | {"needs", "tracker", "gantt"} | set(TEMPLATE_TYPES))      # the nine of the starting report, and those that carry content (#96: the section templates too)
 
     def test_data_for_gives_the_sections_in_order_with_their_own_query(self):
         data = self.s.data_for("ABC")
