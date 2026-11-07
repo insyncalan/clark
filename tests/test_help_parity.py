@@ -29,10 +29,10 @@ def read(*parts):
 # prototype entry id (howto- or ref-) -> (the feature it needs, a pattern that must NOT yet match the page's code, and the one file to look in when it is not all of it)
 WAITS = {
     "howto-check-before-you-publish": ("the stale and incomplete notes with Show them in the Publish box", r"Show them"),
-    "howto-start-from-last-report": ("Start from last week's report", r"Start from last"),
-    "ref-since-last-report": ("the Since the last report panel", r"Since the last report"),
     "howto-excel-file-layout": ("the Excel file layout with drop-downs and locked IDs (drawn in the prototype only)", r"Excel file layout"),
 }
+# prototype entries the owner dropped (#919): the prototype still draws them, the build will never have them
+DROPPED = {"howto-start-from-last-report", "ref-since-last-report"}
 # prototype entries the build has under another id, written for what the page does
 REPLACED = {
     "howto-work-the-use-cases": "howto-find-a-use-case",
@@ -64,7 +64,7 @@ class EveryPrototypeEntryIsAccountedFor(unittest.TestCase):
         self.assertEqual((len([i for i in ids if i.startswith("howto-")]), len([i for i in ids if i.startswith("ref-")])), (35, 36))
 
     def test_each_one_is_shown_held_replaced_or_waiting(self):
-        known = shown_ids() | held_ids() | set(WAITS) | set(REPLACED)
+        known = shown_ids() | held_ids() | set(WAITS) | set(REPLACED) | DROPPED
         self.assertEqual([i for i in prototype_ids() if i not in known], [], "a prototype Help entry the build neither shows, holds nor waits for")
 
     def test_a_waiting_entry_is_not_in_the_source_and_its_feature_is_not_on_the_page(self):

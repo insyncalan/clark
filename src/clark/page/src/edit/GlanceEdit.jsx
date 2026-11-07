@@ -84,7 +84,7 @@ function Cell({ tile, order, children }) {
       {children}
       {tile.hidden ? <span class="tag hid thid">Hidden from the published report</span> : null}
       {menu ? (
-        <MenuPanel label={`Outline colour for ${title}`} cls="left tilemenu" anchor={grip.current} onClose={() => setMenu(false)}>
+        <MenuPanel label={`Outline colour for ${title}`} cls="left tilemenu" fade anchor={grip.current} onClose={() => setMenu(false)}>
           <div class="lab" role="presentation">Outline colour</div>
           {OUTLINE_CHOICES.map(([value, name]) => (
             <button key={value || "auto"} type="button" role="menuitemradio" aria-checked={tile.outline === value ? "true" : "false"} tabIndex={-1} data-outline={value || "auto"}

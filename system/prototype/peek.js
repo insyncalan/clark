@@ -68,7 +68,8 @@
 
   function draw(swap, how) {
     const p = pk(); applyWidth();
-    const a = document.activeElement, inside = !!a && p.contains(a), had = inside && a.id && a.tagName === 'BUTTON' ? a.id : '';   // the button that had the focus, to give it back after the redraw
+    const a = document.activeElement, inside = !!a && p.contains(a), had = inside && a.id && a.tagName === 'BUTTON' ? a.id : '',
+      keep = !swap && how === 'redraw' ? { top: (C.$('.pk-scroll', p) || {}).scrollTop || 0, id: inside && a.id && a.tagName !== 'BUTTON' ? a.id : '' } : null;   // the button that had the focus, to give it back after the redraw; a redraw after a choice keeps the scroll and the field's focus (item 1007)
     if (cur.kind === 'item') { const x = findItem(cur.id); if (!x) return C.closePeek(); if (x.archived) { p.innerHTML = archHtml('item', x); wireArch('item', x); } else { p.innerHTML = itemHtml(x); wireItem(x); } }
     else { const m = findMs(cur.id); if (!m) return C.closePeek(); if (m.archived) { p.innerHTML = archHtml('ms', m); wireArch('ms', m); } else { p.innerHTML = msHtml(m); wireMs(m); } }
     p.insertAdjacentHTML('afterbegin', '<div class="resize" title="Drag to change the width; double-click for the usual width"></div>');
@@ -89,6 +90,7 @@
        (Previous, Next), or on whatever was clicked outside; it is never left on nothing */
     if (how) { const was = had && C.$('#' + had, p), act = document.activeElement, lost = !act || act === document.body, go = was && !was.disabled ? was : null;
       if (go) go.focus({ preventScroll: true }); else if (how === 'open' && (!swap || lost)) C.$('#pkClose', p)?.focus({ preventScroll: true }); }
+    if (keep) { const s = C.$('.pk-scroll', p); if (s) s.scrollTop = keep.top; const f = keep.id && C.$('#' + keep.id, p); if (f && !f.disabled) f.focus({ preventScroll: true }); }   /* the peek stays still after a dropdown choice */
     if (swap) { const s = C.$('.pk-scroll', p); s.style.animation = 'none'; void s.offsetWidth; s.style.animation = 'view-in 260ms var(--ease-enter)'; }
   }
 

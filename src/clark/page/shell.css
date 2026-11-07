@@ -365,8 +365,6 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fdv.g { background: var(--status-green); }
 .fdv.n { background: var(--status-grey); }
 .fopt .c { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); }
-.fhints { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; min-height: 26px; visibility: hidden; }
-.fhints.on { visibility: visible; }
 .fgloss { flex-basis: 100%; font-size: var(--size-small); color: var(--text); }   /* row 845: the plain meaning of the chip the pointer or focus is on */
 .fgloss[hidden] { display: none; }
 .fhl { font-size: var(--size-small); color: var(--text-muted); }

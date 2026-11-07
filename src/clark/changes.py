@@ -228,6 +228,7 @@ NOT_A_CHOICE = "That choice isn't one clark has."
 NEW_NEEDS = {"actions": "Say what the action is.", "raid": "Say what the risk or issue is, and whether it is a risk, assumption, issue or dependency.",
              "decisions": "Say what the decision is.", "milestones": "Give the milestone a name."}
 NEW_SOURCE = "Added by hand in clark"       # the row's source, as the prototype words it; never taken from a request
+ASK_SOURCE = "Added by ask clark"          # #1009: the source of an item ask clark created (Apply), not "by hand"
 COPY_SOURCE = "Duplicated from "             # #442: a copy's source, then the item's id (system/prototype/peek.js, Duplicate)
 COPY_MARK = " (copy)"                        # #442: the end of a copy's title
 COPIED = {                                   # #442: what Duplicate copies from the stored item (the prototype copies the item whole); never the
@@ -894,7 +895,7 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
         values["raised"] = clark_store.today()
     if table == "decisions":
         values.setdefault("status", "Pending")
-    values.update(project=project, source=NEW_SOURCE)
+    values.update(project=project, source=ASK_SOURCE if isinstance(store, _AskStore) else NEW_SOURCE)
     source = req.get("copy_of")
     if source is not None and (table not in ITEM_KINDS or not isinstance(source, str)):
         raise Refused(ITEM_NOT_MINE)

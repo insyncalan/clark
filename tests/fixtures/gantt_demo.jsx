@@ -5,6 +5,7 @@ import { render } from "preact";
 import { useState } from "preact/hooks";
 import * as gantt from "@src/gantt/logic/gantt.js";
 import { GanttChart } from "@src/gantt/components/GanttChart.jsx";
+import "@src/edit/fadeCopy.js";   // the edit page registers the fade-out copy; the bare page stands in for it
 import { GANTT_EDIT_WORDS as EW } from "@src/edit/ganttWords.js";
 
 window.K = { gantt };

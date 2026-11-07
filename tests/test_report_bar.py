@@ -174,6 +174,7 @@ class Bar(Base):
             p = self.show(cdp)
             self.type_week(p, "")
             p.until("document.querySelector('#week-ending').value === '02-05-2031'", "the old day came back")
+            p.until("/Week ending cannot be left empty\\. The old week ending date was kept\\./.test(document.body.textContent)", "item 535: the date does not come back silently")
             self.assertEqual(self.week(), "2031-05-02")
             self.assertEqual([k for k, r in self.sent if r.get("kind") == "projects"], [])
 

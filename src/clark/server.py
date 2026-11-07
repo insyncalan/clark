@@ -74,6 +74,7 @@ import base64
 import errno
 import hashlib
 import hmac
+import importlib
 import json
 import logging
 import os
@@ -174,6 +175,7 @@ MESSAGES = {
     "saving_off": "Saving is switched off, so that change was not kept. Restart clark the usual way to turn it on.",
     "updating": "An update is being installed, so nothing was changed. Wait a minute, then reload the page.",
     "no_updates": "Updates can't be shown right now. Restart clark the usual way and try again.",
+    "no_brands": "Brands can't be shown right now. Restart clark the usual way and try again.",
     "item_not_found": f"That item could not be found. {RELOAD}",
     "reading_off": "Changing items with words is not available right now, and nothing was changed. Restart clark the usual way to turn it on.",
 }
@@ -221,6 +223,7 @@ ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECT
                      "/api/draft-email/sent": 4 * 1024,                # #50: the ids, the mode and the day: never the email's words
                      "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024,      # #48
                      "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024, "/api/update/undo": 1024,
+                     "/api/brands/review": 1024, "/api/brands/install": 1024, "/api/brands/remove": 1024, "/api/brands/undo": 1024,      # #944: a source word, a review id or a brand id; never a path
                      "/api/excel-import": (EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,      # #444: a workbook as text, like the Word one
                      "/api/project": 4 * 1024,      # #444: a name, a code, a client and a few workstreams
                      "/api/demo/clear": 1024,      # #731: no words, only the token
@@ -1216,12 +1219,109 @@ def updating(handler, route):
     return True
 
 
+# ===== The brands (#944 T2) =====
+BRAND_BODY_KEYS = {"review": {"from"}, "install": {"review_id"}, "remove": {"id"}, "undo": set()}
+
+
+def brand_route(method):
+    """GET /api/brands and POST /api/brands/review, /install, /remove, /undo: hand the request to the server's `brands` seam (listing(),
+    review(body), install(body), remove(body), undo(body); each answers (status, body)). Without one: 503. A body that is not an object is
+    a plain 400; a "path" is dropped before the seam hears (the page never sends one: the file is chosen in the system dialog or is the
+    newest in Downloads). Checked like change_route before this runs (token, Host, Origin, JSON only, the route's own 1 KiB limit)."""
+    def route(handler, *req):
+        seam = handler.server.brands
+        if seam is None:
+            return handler.send(503, error_body("no_brands"))
+        if method != "listing":
+            if not isinstance(req[0], dict):
+                return handler.send(400, error_body("bad_request"))
+            req = ({k: v for k, v in req[0].items() if k != "path"},)
+        status, body = getattr(seam, method)(*req)
+        return handler.send(status, body)
+    return route
+
+
+BRAND_PATHS = {"root": None, "data": None}
+
+
+def set_brand_paths(root, data):
+    """Give the server the clark folder (holding system/branding) and the data folder, so serve() can make the brand seam."""
+    BRAND_PATHS["root"], BRAND_PATHS["data"] = root, data
+
+
+class BrandLibrary:
+    """The `brands` seam over clark.brands (found by name when asked, so this module imports no other clark module). It chooses the
+    file (the newest zip in Downloads, or the system's Open dialog) and turns the library's refusals into (status, body); the checks
+    are all in the library. `choose` and `downloads` are seams for tests."""
+
+    def __init__(self, root, data, choose=None, downloads=None):
+        self.root, self.data, self.choose, self.downloads = root, data, choose, downloads
+
+    @staticmethod
+    def library():
+        return importlib.import_module("clark.brands")
+
+    def _run(self, call):
+        lib = self.library()
+        try:
+            return 200, dict(call(lib), ok=True)
+        except lib.BrandError as e:
+            return (409 if e.key in ("expired", "busy") else 400), {"ok": False, "code": e.key or "refused", "message": e.message}
+        except OSError:             # the Downloads folder or the Open dialog failing: the same plain refusal as the library's own
+            return 400, {"ok": False, "code": "failed", "message": lib.MESSAGES["failed"]}
+
+    def listing(self):
+        return self._run(lambda lib: {"brands": lib.installed(self.root), "undo": lib.can_undo(self.root, self.data)})
+
+    def _file(self, source):
+        plat = importlib.import_module("clark.platform")
+        if source == "file":
+            return (self.choose or plat.choose_zip_file)("Choose a brand file", start=self._downloads(plat))
+        folder = self._downloads(plat)
+        lib = self.library()
+        found = []
+        for p in (sorted(folder.glob("*.zip")) if folder else []):
+            try:        # only a file named as a brand zip (a browser's " (1)" allowed) counts; a newer unrelated zip hides nothing
+                if lib.ZIP_NAME_RE.fullmatch(lib.BROWSER_COPY.sub("", p.name)) and p.is_file() and not p.is_symlink():
+                    found.append((p.stat().st_mtime, p))
+            except OSError:
+                continue
+        return max(found, key=lambda t: t[0])[1] if found else None
+
+    def _downloads(self, plat):
+        return self.downloads if self.downloads is not None else plat.downloads_dir()
+
+    def review(self, body):
+        if set(body) - BRAND_BODY_KEYS["review"] or body.get("from") not in ("downloads", "file"):
+            return 400, error_body("bad_request")
+        def look(lib):
+            path = self._file(body["from"])
+            return {"review": None if path is None else lib.review(path, self.root)}
+        return self._run(look)
+
+    def install(self, body):
+        if set(body) - BRAND_BODY_KEYS["install"] or not isinstance(body.get("review_id"), str):
+            return 400, error_body("bad_request")
+        return self._run(lambda lib: (lib.install(body["review_id"], self.root, self.data), {})[1])
+
+    def remove(self, body):
+        if set(body) - BRAND_BODY_KEYS["remove"] or not isinstance(body.get("id"), str):
+            return 400, error_body("bad_request")
+        return self._run(lambda lib: (lib.remove(body["id"], self.root, self.data), {})[1])
+
+    def undo(self, body):
+        if body:
+            return 400, error_body("bad_request")
+        return self._run(lambda lib: (lib.undo(self.root, self.data), {})[1])
+
+
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics"),
-              "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route, "/api/demo": demo_route("status")}
+              "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route, "/api/demo": demo_route("status"),
+              "/api/brands": brand_route("listing")}
 POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
@@ -1241,6 +1341,8 @@ POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_ro
                 "/api/word-import": word_import_route, "/api/word-export": word_export_route,
                 "/api/excel-import": excel_import_route, "/api/project": project_save_route,     # #444
                "/api/demo/clear": demo_route("remove"),     # #731
+               "/api/brands/review": brand_route("review"), "/api/brands/install": brand_route("install"),     # #944
+               "/api/brands/remove": brand_route("remove"), "/api/brands/undo": brand_route("undo"),
                 "/api/section-file": publisher_route("section_file")}     # later items: /api/import
 # ===== end of the page and the data =====
 
@@ -1447,7 +1549,7 @@ class LocalServer(ThreadingHTTPServer):
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None):
+                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None):
         if server_address[0] != HOST and not (container_mode() and server_address[0] == CONTAINER_BIND):
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -1479,6 +1581,7 @@ class LocalServer(ThreadingHTTPServer):
         self.ai = ai                          # ai_service.AiService (#72): AI suggestions, on the ask service's provider; None: 404
         self.past = past                      # past_reports.PastReports (#443): the Published reports list and Open; None: those routes answer 404
         self.publication_mark = publication_mark   # changes.make_publication_mark (#345): archive or restore one publication; None: saving off (503)
+        self.brands = brands                  # BrandLibrary (#944), or any object with listing/review/install/remove/undo; None: those routes answer 503
         self.as_at = as_at                    # as_at.AsAt (#349): the dashboard as at a day, rebuilt from the history, read only; None: 404
         super().__init__(server_address, handler)
 
@@ -1513,16 +1616,18 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-          people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None):
+          people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None):
     """Start the server on 127.0.0.1 (in the container, on its own addresses: see container_mode) and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
+    if brands is None and BRAND_PATHS["root"] is not None:
+        brands = BrandLibrary(BRAND_PATHS["root"], BRAND_PATHS["data"])      # #944: the real library, once the launcher has said where
     port = port_setting() if port is None else port
     try:
         httpd = LocalServer((CONTAINER_BIND if container_mode() else HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, ai=ai, ai_connect=ai_connect, updater=updater,
-                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo)
+                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo, brands=brands)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)
