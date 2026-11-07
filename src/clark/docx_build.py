@@ -477,13 +477,13 @@ def _gantt_status(r, today):
 
 def _gantt_numbers(drawn):
     """The page's outline numbers: phases 1, 2, 3; a task under a phase 2.1; a milestone M-1; a task with no phase T-1."""
-    phases = {r["line"].get("id"): r for r in drawn if r["type"] == "phase"}
+    phases = {r["line"].get("id"): r for r in drawn if r["type"] == "phase" and isinstance(r["line"].get("id"), str)}
     num, p, m, t, under = {}, 0, 0, 0, {}
     for i, r in enumerate(drawn):
         if r["type"] == "phase":
             p += 1
             num[i] = str(p)
-    by_id = {r["line"].get("id"): num[i] for i, r in enumerate(drawn) if i in num}
+    by_id = {r["line"].get("id"): num[i] for i, r in enumerate(drawn) if i in num and isinstance(r["line"].get("id"), str)}
     for i, r in enumerate(drawn):
         if r["type"] == "milestone":
             m += 1
@@ -504,7 +504,10 @@ def section_gantt(published, ctx, title, sec):
     along and the status of every line the picture holds, in the picture's order. The lines are published data.gantt's (an eye-off
     line was never copied). No Gantt in the file, or no line, is no section."""
     g = published["data"].get("gantt")
-    made = docx_graphics.gantt((g or {}).get("lines"), published["as_at"], ctx.tok) if isinstance(g, dict) else None
+    try:
+        made = docx_graphics.gantt((g or {}).get("lines"), published["as_at"], ctx.tok) if isinstance(g, dict) else None
+    except Exception:                                                                       # a picture is only an addition: nothing to draw from, no section
+        made = None
     if not made:
         return ""
     out = [_heading(title)]
@@ -514,12 +517,15 @@ def section_gantt(published, ctx, title, sec):
     if made["left_out"]:
         shown = len(made["drawn"])
         out.append(para(run(f"{shown} of {shown + made['left_out']} lines shown", color=ctx.tok["grey-700"], size=16)))
-    numbers = _gantt_numbers(made["drawn"])
+    try:
+        numbers = _gantt_numbers(made["drawn"])
+    except Exception:
+        numbers = [""] * len(made["drawn"])
     at = 0
     for image, run_lines in made["pictures"]:
         status = [GANTT_STATUS[_gantt_status(r, ctx.today)] for r in run_lines]
-        alt = "; ".join(f"{r['line'].get('name') or ''}, {_date(r['start'].isoformat())}, {s}" for r, s in zip(run_lines, status))
-        out.append(para(picture(ctx, image, TEXT_W, alt), keep_next=True, spacing=(0, 60)))
+        out.append(picture_para(ctx, lambda: (image, "; ".join(f"{r['line'].get('name') or ''}, {_date(r['start'].isoformat())}, {s}"
+                                                                for r, s in zip(run_lines, status))), TEXT_W, keep_next=True, spacing=(0, 60)))
         rows = []
         for r, s in zip(run_lines, status):
             line = r["line"]

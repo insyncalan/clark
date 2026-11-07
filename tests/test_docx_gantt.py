@@ -13,6 +13,7 @@ import io
 import re
 import time
 import unittest
+from unittest import mock
 import xml.etree.ElementTree as ET
 import zipfile
 from datetime import date
@@ -50,6 +51,13 @@ def gantt_pictures(p):
     bare["sections"] = [x for x in bare["sections"] if x["type"] != "gantt"]
     other = set(pictures(docx_build.build(bare)))
     return [x for x in pictures(docx_build.build(p)) if x not in other]
+
+
+def gantt_pictures_of(data, p):
+    bare = copy.deepcopy(p)
+    bare["sections"] = [x for x in bare["sections"] if x["type"] != "gantt"]
+    other = set(pictures(docx_build.build(bare)))
+    return [x for x in pictures(data) if x not in other]
 
 
 def colour_at(png, x, y):
@@ -242,6 +250,46 @@ class HostileData(unittest.TestCase):
         data = docx_build.build(p)
         ET.fromstring(parts(data)["word/document.xml"])
         self.assertIn("</w:t><w:p> & \"x\"", words(data))
+
+class WhenTheGraphicsFail(unittest.TestCase):
+    """A picture is only an addition: whatever goes wrong drawing it, build() still gives the file, with the words and the table."""
+
+    def lines(self, **kw):
+        return [gp.line("PUB-GNT-001", "Alpha", **kw), gp.line("PUB-GNT-002", "Beta")]
+
+    def test_an_unhashable_line_id_or_parent_does_not_break_the_file(self):
+        for bad in ([1], {"a": 1}):
+            for field in ("id", "parent"):
+                p = published(self.lines())
+                p["data"]["gantt"]["lines"][0]["type"] = "phase"
+                p["data"]["gantt"]["lines"][1]["type"] = "task"
+                p["data"]["gantt"]["lines"][0][field] = bad
+                p["data"]["gantt"]["lines"][1]["parent"] = bad
+                text = words(docx_build.build(p))
+                self.assertIn("Alpha", text, (bad, field))
+                self.assertIn("Beta", text, (bad, field))
+
+    def test_a_failure_in_gantt_leaves_the_section_out_and_the_file_whole(self):
+        p = published(self.lines())
+        with mock.patch.object(g, "gantt", side_effect=TypeError("boom")):
+            data = docx_build.build(p)
+        self.assertNotIn("Alpha", words(data))
+        ET.fromstring(parts(data)["word/document.xml"])
+
+    def test_a_failure_in_picture_keeps_the_words_and_the_table_and_writes_no_picture(self):
+        p = published(self.lines())
+        with mock.patch.object(docx_build, "picture", side_effect=ValueError("boom")):
+            data = docx_build.build(p)
+        text = words(data)
+        self.assertIn("Alpha", text)
+        self.assertIn("Beta", text)
+        self.assertEqual(gantt_pictures_of(data, p), [])
+
+    def test_a_number_too_large_to_read_keeps_the_words(self):
+        p = published(self.lines(pct=10 ** 400))
+        text = words(docx_build.build(p))
+        self.assertIn("Alpha", text)
+        self.assertIn("Beta", text)
 
 
 if __name__ == "__main__":
