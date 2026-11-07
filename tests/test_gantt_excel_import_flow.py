@@ -209,7 +209,6 @@ class Limit(Flow):
         self.assertEqual(len(self.lines()), store_module.MAX_GANTT_LINES)
         self.assertEqual(self.steps(), steps + 1)
 
-    @unittest.expectedFailure      # PRODUCT GAP, row 926: the 501st line is dropped silently (497 of 498 new rows made, no problem, no sentence) instead of the whole file being refused
     def test_a_sheet_that_brings_the_project_past_the_maximum_is_refused_whole_and_writes_nothing(self):
         self.add_rows(store_module.MAX_GANTT_LINES - LINES + 1)
         before, steps = self.lines(), self.steps()
