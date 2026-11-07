@@ -248,7 +248,7 @@ def _shown_needs_row(row):
 
 
 # ── 'Progress tracker' (#189) ─────────────────────────────────────────────────
-# The content is one object: {"v": 1, "overall": {...}, "columns": {...}, "groups": [{"name", "lines": [line, ...]}]}.
+# The content is one object: {"v": 1, "size" (optional), "overall": {...}, "columns": {...}, "groups": [{"name", "lines": [line, ...]}]}.
 # Every number is a whole number of TENTHS of a percent (625 shows as 62.5%), so a sum never drifts. weight, planned and achieved
 # are each 0 to 1000 on their own line; this checker does not decide how the page weighs them (the page works out every total and
 # every "points behind plan" figure and never stores one), it only keeps each value inside its range. A key that is missing
@@ -267,10 +267,12 @@ TRACKER_TENTHS = (0, 1000)               # weight, planned, achieved, and the ov
 TRACKER_COUNT_MAX = 99999                # tasks, agents, workflows: whole, or empty
 TRACKER_STATUSES = ("planned", "inprogress", "completed", "late")
 TRACKER_HEALTH = ("ontrack", "atrisk", "offtrack")
+TRACKER_SIZES = ("large", "medium", "small", "compact")   # the tracker's size (#930), a template setting of that tracker; missing reads as Medium
 TRACKER_COLUMNS = ("tasks", "agents", "workflows")
 TRACKER_LINE_KEYS = ("no", "text", "start", "end", "status", "weight", "planned", "achieved") + TRACKER_COLUMNS
 
 TRACKER_SHAPE = "The progress tracker holds an overall figure, the columns shown, and groups of lines."
+TRACKER_SIZE_BAD = "The progress tracker's size is Large, Medium, Small or Compact."
 TRACKER_OVERALL = "The overall figures are two numbers from 0 to 100, a health word, and a short note, or empty."
 TRACKER_NOTE_LONG = f"A line about it can be {TRACKER_NOTE_MAX} characters at most. Shorten it and try again."
 TRACKER_COLUMNS_BAD = "Each extra column is either shown or not."
@@ -351,10 +353,12 @@ def _checked_tracker(value, rules):
     """The progress tracker's own shape (see the block comment above). Everything is rebuilt field by field: nothing the checker
     does not name is kept, and an unknown key is refused in plain words. Totals and the overall figures are never stored as
     sums, so the stored lines can't disagree with them."""
-    if type(value) is not dict or set(value) - {"v", "overall", "columns", "groups"}:
+    if type(value) is not dict or set(value) - {"v", "size", "overall", "columns", "groups"}:
         raise Bad(TRACKER_SHAPE)
     if "v" in value and (type(value["v"]) is not int or value["v"] != TRACKER_VERSION):
         raise Bad(TRACKER_SHAPE)
+    if "size" in value and (type(value["size"]) is not str or value["size"] not in TRACKER_SIZES):
+        raise Bad(TRACKER_SIZE_BAD)
     overall, columns, groups = value.get("overall", {}), value.get("columns", {}), value.get("groups", [])
     if type(overall) is not dict or set(overall) - {"actual", "planned", "health", "note"}:
         raise Bad(TRACKER_OVERALL)
@@ -387,8 +391,11 @@ def _checked_tracker(value, rules):
     for key in ("weight", "planned", "achieved"):          # the reading is "shares of the whole" (logic/tracker.js): no total can pass the whole
         if sum(line[key] for group in checked_groups for line in group["lines"]) > TRACKER_TENTHS[1]:
             raise Bad(TRACKER_TOTAL)
-    return {"v": TRACKER_VERSION, "overall": checked_overall, "columns": {k: columns.get(k, False) for k in TRACKER_COLUMNS},
-            "groups": checked_groups}
+    out = {"v": TRACKER_VERSION, "overall": checked_overall, "columns": {k: columns.get(k, False) for k in TRACKER_COLUMNS},
+           "groups": checked_groups}
+    if "size" in value:                      # kept only when given, so a body that never chose a size is stored as it always was
+        out["size"] = value["size"]
+    return out
 
 
 CHECKERS = {NEEDS: _checked_needs, TRACKER: _checked_tracker, **{t: m.check for t, m in TEMPLATES.items()}}
@@ -443,7 +450,9 @@ def _published_tracker(value):
     o, cols = value.get("overall"), value.get("columns")
     o = o if type(o) is dict else {}
     cols = cols if type(cols) is dict else {}
-    return {"overall": {"actual": o.get("actual") if type(o.get("actual")) is int else None,
+    size = value.get("size")
+    return {"size": size if size in TRACKER_SIZES else "medium",
+            "overall": {"actual": o.get("actual") if type(o.get("actual")) is int else None,
                         "planned": o.get("planned") if type(o.get("planned")) is int else None,
                         "health": o.get("health") if o.get("health") in TRACKER_HEALTH else "",
                         "note": o.get("note") if isinstance(o.get("note"), str) else ""},
@@ -456,7 +465,7 @@ def published(kind, value, ctx=None):
     publish already kept: a Context); a stub answers None, so it is never in a file.
     needs (#121): {"rows": [{"what", "kind", "from", "by"}]}, the rows that show (a hidden row is absent, not marked), `by` written
     DD-MM-YYYY; None when no row shows. Fields are picked by name, never copied whole, and text only.
-    tracker (#189): {"overall", "columns", "groups"}: each group that has at least one line shows, with its lines (a group with no line is
+    tracker (#189, #930): {"size", "overall", "columns", "groups"}, `size` one of the four words (Medium when the body has none): each group that has at least one line shows, with its lines (a group with no line is
     absent), each field picked by name and kept as the checked text, a whole number of tenths or a count, dates written DD-MM-YYYY;
     None when no group has a line. Totals are never published: the page works them out."""
     if kind in TEMPLATES:
