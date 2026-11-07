@@ -584,7 +584,7 @@ def mailto_link(draft):
 
 
 def mailto_offered(draft):
-    """Open in mail app is offered only when the finished, encoded link (not the plain text: a space is 3 characters in a link and
+    """Open in your mail app is offered only when the finished, encoded link (not the plain text: a space is 3 characters in a link and
     a line break 6) is no longer than MAILTO_LIMIT, which every mail app keeps whole."""
     return not draft.get("problems") and len(mailto_link(draft)) <= MAILTO_LIMIT
 
