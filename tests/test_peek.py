@@ -418,7 +418,7 @@ class Browser(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-close]')", sid)), "the peek's top bar is up")
                 self.assertFalse(cdp.js("!!document.querySelector('[data-sneak-open]')", sid), "row 1015: no sparkle in the top bar")
                 self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)), "focus went into the peek, so its keys are set")
-                cdp.js("document.activeElement.blur()", sid)
+                cdp.js("document.activeElement.blur(); document.querySelector('[data-pk-close]').focus()", sid)      # a button has focus: the keys still work, and the box gives it back
                 key(cdp, sid, "/")
                 key(cdp, sid, "/")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak]')", sid)), "two slashes open it")
@@ -433,7 +433,7 @@ class Browser(unittest.TestCase):
                 key(cdp, sid, "Escape")
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-sneak]')", sid)))
                 self.assertEqual(cdp.js("!!document.querySelector('#peek')", sid), True)
-                self.assertTrue(wait(lambda: cdp.js("!document.activeElement.closest('[data-sneak]')", sid)), "focus left the closed box")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)), "focus returns to what had it when the box opened (the Close button)")
                 self.assertIn("Shown to client", cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid), "Edit shows it")
                 # a date that is not a day is refused in plain words
                 self.open_words(cdp, sid)
@@ -443,7 +443,7 @@ class Browser(unittest.TestCase):
     def open_words(self, cdp, sid):
         """Row 1015: the sparkle is gone, so the words box opens only with two slashes (nothing in a box has focus)."""
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
-        cdp.js("document.activeElement.blur()", sid)
+        cdp.js("document.querySelector('[data-pk-close]').focus()", sid)      # a button has focus, so the box has somewhere to give it back to
         key(cdp, sid, "/")
         key(cdp, sid, "/")
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sn-in')", sid)), "two slashes open the words box")
@@ -532,7 +532,7 @@ class Browser(unittest.TestCase):
                     key(cdp, sid, "Escape")
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-sneak]')", sid)))
                 self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "the peek stays")
-                self.assertTrue(wait(lambda: cdp.js("!document.activeElement.closest('[data-sneak]')", sid)), "focus left the closed box")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)), "focus returns to what had it when the box opened (the Close button)")
                 self.assertEqual(sent, [], "nothing was changed")
 
     def test_row_776_make_the_change_and_enter_send_the_same_request(self):
@@ -656,6 +656,29 @@ class Browser(unittest.TestCase):
             self.assertEqual(self.row_text(cdp, sid, "owner"), before)
             self.assertFalse(cdp.js("!!document.querySelector('.toast [data-undo]')", sid))
             self.assertTrue(cdp.js("!!document.querySelector('[data-sneak]')", sid), "the box stays so the words can be changed")
+
+    def test_the_words_box_gives_focus_back_to_what_had_it_when_it_opened(self):
+        """Row 1015: with no sparkle to return to, Esc puts focus back on the Close button or on a list row, whichever had it."""
+        with chrome() as cdp:
+            s, sid = self.load_page(cdp, 1400)
+            self.edit_mode(cdp, sid)
+            target = next(r["id"] for r in self.data["actions"] if r["status"] == "Open")
+            cdp.js(f"clarkPage.openPeek({json.dumps(target)})", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)))
+            self.open_words(cdp, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.className", sid) == "sn-in"), "the box took focus")
+            key(cdp, sid, "Escape")
+            self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-sneak]')", sid)))
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)), "back on the Close button")
+            cdp.js("(() => { const r = document.querySelector('#work tbody tr[data-id]'); r.setAttribute('data-was-focused', ''); r.focus(); })()", sid)
+            self.assertTrue(cdp.js("document.activeElement.hasAttribute('data-was-focused')", sid), "a list row has focus")
+            key(cdp, sid, "/")
+            key(cdp, sid, "/")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sn-in')", sid)))
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.className", sid) == "sn-in"), "the box took focus")
+            key(cdp, sid, "Escape")
+            self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-sneak]')", sid)))
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-was-focused')", sid)), "back on the row that had it")
 
     def test_a_milestone_peek_in_edit_has_no_sparkle_and_two_slashes_change_it_in_one_step(self):
         """The words box also changes a milestone: a forecast date is one request (kind milestones, place peek) with one Undo."""
