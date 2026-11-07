@@ -748,6 +748,8 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 #data-card .row .btn { min-height: 32px; }
 #data-card .dc-note { font-size: var(--size-small); margin: 10px 0 0; }
 .projects .proj-head .sp { flex: 1 1 auto; }
+/* row 981: the Draft email box starts below the top bar (.ad-scrim), so its height cap leaves room for the bar and the scrim padding; the body scrolls inside and the buttons stay */
+.ad-scrim .de { max-height: min(720px, calc(100dvh - var(--topbar) - var(--space-6) - var(--space-6))); }
 .ad.dlg { width: min(520px, 100%); max-height: calc(100dvh - var(--topbar) - 2 * var(--space-6)); }
 .ad.dlg.wide { width: min(760px, 100%); }
 .ad.dlg .dlg-b { padding: var(--space-2) var(--space-5) var(--space-4); overflow: auto; min-height: 0; }
