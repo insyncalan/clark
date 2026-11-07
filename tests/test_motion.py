@@ -81,6 +81,14 @@ class Rules(unittest.TestCase):
         for r in rules:
             self.assertIsNone(re.search(r"(?<![-\w])(margin|padding)[-\w]*\s*:|(?<![-\w])(border|width|height|top|left|transform)[-\w]*\s*:", r.split("{", 1)[1]), r)
 
+    def test_a_drag_over_a_changed_section_keeps_its_glow_and_gets_its_drop_line(self):
+        """Item 519: .sec.is-changed and .sec.drop-before each set `animation`, so the later one replaced the other. A section that
+        is both has one rule that runs the glow and the drop line together."""
+        rule = re.search(r"\.sec\.is-changed\.drop-before\s*\{([^}]*)\}", MOTION)
+        self.assertTrue(rule, "a rule for a section that is changed and dragged over")
+        self.assertIn("m-glow", rule.group(1))
+        self.assertIn("m-line-top", rule.group(1))
+
     def test_the_still_forms_of_the_ring_and_the_tick_are_in_the_base_rules(self):
         base = CSS[:CSS.index("Motion:")]
         self.assertRegex(base, r"\.spin \{[^}]*border-top-color")            # a still ring with one strong quarter
