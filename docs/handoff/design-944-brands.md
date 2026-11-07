@@ -189,8 +189,8 @@ the project lead second. Proposed builders: builder A for T1 and T2; builder B f
 
 - **Files:** `server.py`, `__main__.py` (seams), `page/__init__.py`, the page's project-change code under `page/src/`.
 - **Seams:** `page_html(project=None)` on the server: `__main__` passes a function that reads the open project's `brand`, calls
-  `brands.folder`, then `page.page_html(branding=folder)`; `None` folder gives no brand block (Generic keeps clark's icon,
-  `CLIENT_BRAND` only goes in with a brand). `brand_picture(name, brand_id)`: two arguments; the id must be in `installed()`; the
+  `brands.folder`, then `page.page_html(branding=folder)`; the `GENERIC` sentinel gives no brand block (the page has no brand look; the Excel Cover
+  keeps clark's icon through the explicit `GENERIC` branch, `CLIENT_BRAND` only goes in with a brand). `brand_picture(name, brand_id)`: two arguments; the id must be in `installed()`; the
   name in `BRAND_PICTURES`. The test string `brand_picture=page.brand_picture` in `test_brand_picture.py:229-237` changes with the
   seam (WEAKENS: none; the string is replaced by the new seam's text, the equality check of the two lists stays).
 - **Swap on project change:** the CSP's style hashes are computed per response from the page bytes (`server.py:353`), so a style
