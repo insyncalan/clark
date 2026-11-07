@@ -34,7 +34,7 @@ def text(name):
 class SheetChoice(unittest.TestCase):
     def test_import_step_three(self):
         t = flat(TASKS["import-and-export"])
-        self.assertIn("Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, each with its rows and all ticked: untick any you do not want, then press **Continue**.", t)
+        self.assertIn("Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows and all ticked: untick any you do not want, then press **Continue**.", t)
         self.assertNotIn("Excel or CSV", t)
         self.assertIn('accept=".xlsx,', (PAGE / "edit" / "ImportWorkbook.jsx").read_text(encoding="utf-8"))
         cards = (PAGE / "logic" / "dataCard.js").read_text(encoding="utf-8")
@@ -43,6 +43,7 @@ class SheetChoice(unittest.TestCase):
 
     def test_only_ticked_sheets_are_read(self):
         self.assertIn("Only the sheets you tick in **What to import** are read; the others are not read or changed.", flat(SECS["excel"]))
+        self.assertIn("nothing in the file is imported, and the message gives the rule and the row number; untick the Gantt sheet in **What to import** to import the other sheets.", flat(SECS["excel"]))
         self.assertIn("sheets is not None and table not in sheets", text("excel_import.py"))
 
     def test_guide_row_limits(self):
