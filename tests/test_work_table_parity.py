@@ -177,9 +177,8 @@ class Table(unittest.TestCase):
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#work&p=TUL&f=mode:all"}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0), "the list drew")
         cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
-        if mode == "edit":
-            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-cell]')", sid)), "Edit shows the cells' pickers")
+        self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch off the Dashboard: the page is always editable")
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-cell]')", sid)), "Work items shows the cells' pickers")
         return sid
 
     def measure(self, cdp, sid):

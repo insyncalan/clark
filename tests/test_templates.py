@@ -147,7 +147,7 @@ class Logic(unittest.TestCase):
             "gallery": ("Pictures in a grid, each with a caption.", ["Heading", "Image", "Caption", "Image", "Caption", "Image"], ["full"]),
             "current-state": ("The state of the project in a few lines, to sit beside another section.", ["Heading", "Text"], ["full", "half"]),
             "plan-summary": ("Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.", ["Heading", "Rich text: headings, lists, quote, links", "AI menu"], ["full", "half"]),
-            "gantt": ("The plan as bars on a timeline, from your Gantt lines. Only lines put on the dashboard show.", ["Heading", "The Gantt chart"], ["full"]),
+            "gantt": ("The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.", ["Heading", "The Gantt chart"], ["full"]),
             "one-doc": ("A single file to read.", ["Heading", "File", "Text"], ["half", "full"]),
         })
 
@@ -827,10 +827,15 @@ class Box(Base):
             p.js("document.querySelector('[data-cancel]').click()")
 
     def test_the_focus_ring_is_the_brand_blue_in_light_and_dark_and_the_scrim_is_a_token(self):
-        """Every focus ring in the box is --brand-blue (the cyan --focus is 1.8:1 on white); the scrim names no raw colour."""
+        """Every focus ring in the box is --brand-blue, not --focus: the two tokens hold the same colour today but are separate, so a custom brand can set --focus apart; the box's ring follows the brand blue. The scrim names no raw colour."""
         css = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
         block = [ln for ln in css.splitlines() if ln.startswith((".ad", ".pk-btn"))]
-        self.assertFalse([ln for ln in block if "var(--focus)" in ln and ".ad" in ln], "no ring in the box uses the cyan focus colour")
+        self.assertFalse([ln for ln in block if "var(--focus)" in ln and ".ad" in ln], "no ring in the box uses the --focus token")
+        edit_css = (SRC / "clark" / "page" / "src" / "edit" / "edit.css").read_text(encoding="utf-8")
+        add_rings = [ln for ln in edit_css.splitlines() if ln.startswith(".ad-add") and "focus-visible" in ln]
+        self.assertTrue(add_rings, "the box's rings in edit.css are found")
+        self.assertFalse([ln for ln in add_rings if "var(--focus)" in ln], "no ring in the box (edit.css) uses the --focus token")
+        self.assertTrue(all("var(--brand-blue)" in ln for ln in add_rings), "every ring in the box (edit.css) is the brand blue")
         self.assertFalse([ln for ln in css.splitlines() if ln.startswith(".ad-scrim") and "rgba(" in ln], "the scrim is made from a token")
         with chrome() as cdp:
             p = self.visit(cdp)
