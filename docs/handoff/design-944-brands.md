@@ -23,9 +23,14 @@ CHANGED means the owner changed it.
 
 **Two points the finders disagreed on:**
 - **A. Generic on the Excel Cover: CHANGED.** Generic shows **clark's own icon** (today's "no branding folder" case,
-  `excel_picture.py:34` `OWN_LOGO`, `branding_base` `:110`, `load` `:172`). So Generic is passed down as `branding=None`-like "no
-  folder", never as an empty folder (an existing folder with no logo gives no logo). An installed brand with no logo file gives no
-  logo, as today.
+  `excel_picture.py:34` `OWN_LOGO`, `branding_base` `:110-114`, `load` `:172-180`). **`None` cannot carry this:** `branding_base(None)`
+  falls back to `page.BRANDING` (the `system/branding` folder), which exists as soon as any brand is installed, so `load` takes the
+  folder branch and `local_logo` finds no logo: Generic would get NO logo. The design therefore needs a DISTINCT signal: a module
+  constant `brands.GENERIC` (a sentinel, not `None`, not a path) which `brands.folder` returns for Generic, and an explicit branch at
+  the top of `excel_picture.load` (and the same in `excel_palette.palette`, which has the same None-means-default fallback) that
+  answers clark's icon / the committed palette for `GENERIC`. An existing folder with no logo gives no logo, and an installed
+  brand with no logo file gives no logo, as today. The T4 test for decision A MUST run with `system/branding` present AND another
+  brand installed (the case where `None` would silently give no logo).
 - **B. The editor follows the open project's brand: CHANGED, yes.** One brand block in the page at any time, swapped when the open
   project changes. This needs a `server.py` change (guarded): T3.
 
@@ -208,8 +213,9 @@ the project lead second. Proposed builders: builder A for T1 and T2; builder B f
   `:550`, `:591`), `publish.py` (`build` passes the folder to the client workbook), `excel_client.py` (`workbook_bytes(published,
   palette=None)`, `embed(published, palette=None)`; `PALETTE` stays the default), `word_route.py:544` (pass `colours=`),
   `excel.py` only if `export` needs the Generic rule.
-- **Generic:** `brands.folder` returns `None`, so `excel_picture.load(None)` gives clark's icon (decision A) and the palette is the
-  committed one. An installed brand without a logo: no logo.
+- **Generic:** `brands.folder` returns the sentinel `brands.GENERIC` (NOT `None`: `branding_base(None)` falls back to
+  `page.BRANDING`, see decision A), and `excel_picture.load` and `excel_palette.palette` answer clark's icon and the committed palette
+  for it, by an explicit first branch. An installed brand without a logo: no logo.
 - **Word colours:** `colours = {token: "rrggbb"}` from the brand's `tokens.css` through the same reader Excel uses
   (`excel_palette`), passed as `docx_build.build(published, colours=colours)`; `palette()` already ignores what is not six hex.
 - **Client workbook palette:** `{"fill", "text"}` taken from the same palette, per call; no module state changes.
@@ -218,7 +224,7 @@ the project lead second. Proposed builders: builder A for T1 and T2; builder B f
   `publish_pdf.py:287` re-reads `page_html` only for markers and must be given the same folder as the build (one line, in T4).
 - **Tests (NEW):** `test_brand_isolation.py`: two brands X and Y with distinct names, colours and pictures; project P on X; P's
   published page, preview, Excel workbook, client workbook and Word file contain none of Y's name, colours or picture bytes, and
-  none contains X's id or name; Generic P gets clark's icon on the Cover. Existing: `test_excel_brand_export.py`,
+  none contains X's id or name; Generic P gets clark's icon on the Cover, with `system/branding` present and a second brand installed (the case a `None` fallback would break). Existing: `test_excel_brand_export.py`,
   `test_excel_cover_brand.py` (incl. `NotOnThePublishedPage`), `test_excel_picture.py`, `test_brand_circle.py`,
   `test_docx_build.py`, `test_to_client.py`, the five movement files.
 
