@@ -504,7 +504,7 @@ table.needs .n-over { margin-left: 2px; }
 .tr-scale { display: flex; justify-content: space-between; margin-top: 6px; font-size: var(--size-caption); color: var(--text-muted); }
 .tr-behindline { color: var(--status-red-text); }
 .tr-behind { margin-left: 6px; padding: 0 7px; border-radius: 999px; background: var(--status-red-tint); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--status-red-text); white-space: nowrap; }
-.tr-ach { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; max-width: 100%; }
+.tr-ach { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 2px 8px; max-width: 100%; }
 .tr-ach b { font-weight: var(--weight-medium); min-width: 34px; text-align: right; }
 .tr-pbar { flex: 0 0 48px; height: 8px; border-radius: 999px; background: var(--grey-200); overflow: hidden; }
 .tr-pbar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--data-1), var(--data-2)); }
@@ -516,11 +516,11 @@ table.tracker th { text-align: left; font-weight: 400; font-size: var(--size-cap
 table.tracker td { padding: 8px 8px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
 table.tracker th:first-child, table.tracker td:first-child { padding-left: 4px; }
 /* Description takes what the fixed columns leave: 11% at the least (Edit with all three counts), 38% in View without them. */
-table.tracker .t-no { width: 5%; }
-table.tracker .t-date { width: 9%; }
+table.tracker .t-no { width: 8%; }
+table.tracker .t-date { width: 11%; white-space: nowrap; }
 table.tracker .t-status { width: 11%; }
 table.tracker .t-n { width: 8%; text-align: right; }
-table.tracker .t-ach { width: 12%; }
+table.tracker .t-ach { width: 17%; }
 table.tracker .t-count { width: 5%; }
 table.tracker tr.tr-total th, table.tracker tr.tr-total td { border-top: 1px solid var(--grey-300); color: var(--heading); font-weight: var(--weight-medium); text-transform: none; letter-spacing: 0; font-size: var(--size-small); }
 table.tracker tr.tr-none td { text-align: left; }
@@ -535,7 +535,7 @@ table.tracker tr.tr-none td { text-align: left; }
   table.tracker .t-ach { width: 20%; }
   .tr-pbar { flex-basis: 36px; }
   table.tracker .t-status { width: 15%; }
-  table.tracker .t-no { width: 6%; }
+  table.tracker .t-no { width: 10%; }
 }
 @media print { .tr-bar, .tr-fill, .tr-mark, .tr-pbar, .tr-pbar i, .tr-behind, .tr-tile { print-color-adjust: exact; -webkit-print-color-adjust: exact; } .tr-v { font-size: 26px; } }
 
@@ -1624,6 +1624,8 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     .dlg[open]::backdrop, .ad-scrim { animation: m-in var(--dur-state) var(--ease-enter) 1; }
     /* row 878: a menu or picker drops 4 px as it opens */
     .menu, .ddmenu, .cpop { animation: m-drop var(--dur-instant) var(--ease-enter) 1; }
+    /* row 922: a menu fades out as it closes (opacity only; Menu.jsx keeps it drawn for the fade, inert, and removes it after) */
+    .ddmenu.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
     /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
     .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
     .secs.drop-end { animation: m-line-end var(--dur-state) var(--ease-enter) 1; }
