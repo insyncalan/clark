@@ -22,7 +22,7 @@ from unittest import mock
 
 from _paths import ROOT, SRC
 
-from clark import appfiles, launch, platform as pl
+from clark import __version__, appfiles, launch, platform as pl
 
 BASH = "/bin/bash"
 
@@ -53,7 +53,8 @@ class Fake:
                     fake.release.wait(5)
                     return
                 body, code = {
-                    "ours": (appfiles.health_answer(self.headers.get(appfiles.MARK_HEADER), fake.mark), 200),
+                    "ours": ({**appfiles.health_answer(self.headers.get(appfiles.MARK_HEADER), fake.mark),
+                             "version": __version__, "folder": appfiles.code_mark()}, 200),     # row 975: as the real server says
                     "other": (appfiles.health_answer(self.headers.get(appfiles.MARK_HEADER), "another folder's mark"), 200),
                     "creaite": ({"ok": True}, 200),
                     "html": (b"<html>hello</html>", 200),
@@ -151,7 +152,8 @@ class Fakes:
     def kw(self):
         return dict(say=self.said.append, environ={"HOME": "/nowhere", "PATH": "/bin"}, start=self.start, health=self.health,
                     wait=self.wait, find_chrome=lambda env: self.chrome, open_window=lambda u, c: self.windows.append((u, c)),
-                    open_browser=self.browser.append, free=lambda p: p == 8801)
+                    open_browser=self.browser.append, free=lambda p: p == 8801,
+                    identity=lambda port, mark: (__version__, appfiles.code_mark()), page=lambda port: 200)
 
 
 def as_the_mac(case):

@@ -124,6 +124,12 @@ def data_mark(folder):
     return hashlib.sha256(os.path.normcase(str(Path(folder).expanduser().resolve())).encode("utf-8")).hexdigest()[:16]
 
 
+def code_mark():
+    """Row 975: the same mark, of the folder these program files are in (two levels above this file: the checkout, or .app in a
+    download). A server and a launcher from one folder agree; a renamed or moved folder is another mark."""
+    return data_mark(Path(__file__).resolve().parents[2])
+
+
 def health_answer(asked, mark):
     """What /health says. Only {"ok": true} for anyone; the launcher, which sends its mark in X-Clark-Data, is also told
     whether this server's data folder is the same one."""
