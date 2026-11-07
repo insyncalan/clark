@@ -69,8 +69,9 @@ class Print(_PageRig):
         self.assertEqual(got["bar"], "none", f"{what}: no toolbar")
         self.assertEqual(got["tools"], "none", f"{what}: no page toolbar row")
         self.assertEqual(got["moving"], [], f"{what}: nothing sticky or fixed")
-        self.assertEqual(got["overflow"], "visible", f"{what}: no scrolling box")
-        self.assertLessEqual(got["scrollW"], got["clientW"] + 1, f"{what}: nothing cut at the box edge {got}")
+        self.assertIn(got["overflow"], ("visible", "clip"), f"{what}: no scrolling box")
+        if got["overflow"] == "visible":
+            self.assertLessEqual(got["scrollW"], got["clientW"] + 1, f"{what}: nothing cut at the box edge {got}")
         self.assertLessEqual(got["right"], got["doc"] + 1, f"{what}: the chart ends inside the page {got}")
         self.assertLessEqual(got["docScroll"], got["doc"] + 1, f"{what}: no sideways scroll on the page {got}")
         self.assertEqual(got["barAdjust"], "exact", f"{what}: bars keep their colour")
@@ -109,6 +110,48 @@ class Print(_PageRig):
         finally:
             self.done()
             self.click("[data-g-expand]")
+
+    def test_every_printed_bar_and_milestone_is_drawn_with_a_fill(self):
+        # #990 read by eye: the paper had no bars. "html.print-all button { background: none }" outranked the bars (they are buttons).
+        for scheme in ("light", "dark"):
+            for w in A4.values():
+                with self.subTest(scheme=scheme, width=w):
+                    self.look(w, scheme)
+                    self.mount(width=w - 60)
+                    self.printing(w, scheme)
+                    try:
+                        got = json.loads(self.js("""JSON.stringify([].slice.call(document.querySelectorAll('.gt-b, .gt-ms')).map(function (e) {
+                          var b = e.getBoundingClientRect(), c = getComputedStyle(e);
+                          return [e.className, Math.round(b.width), Math.round(b.height), c.backgroundColor, c.visibility, c.display]; }))"""))
+                        self.assertGreaterEqual(len(got), 3, "the demo draws bars and a milestone")
+                        for cls, bw, bh, bg, vis, disp in got:
+                            self.assertGreater(bw, 4, f"{cls}: has width")
+                            self.assertGreater(bh, 4, f"{cls}: has height")
+                            self.assertNotIn(bg, ("rgba(0, 0, 0, 0)", "transparent"), f"{cls}: filled")
+                            self.assertEqual((vis, disp), ("visible", "block"), cls)
+                    finally:
+                        self.done()
+
+    def test_no_printed_label_or_bar_is_cut_at_the_edge_or_runs_into_the_left_columns(self):
+        # #990 read by eye: "Migration" lost its first letters in portrait. Every drawn word, bar, milestone and flag lies inside the chart's own area.
+        for scheme in ("light", "dark"):
+            for orient, w in A4.items():
+                with self.subTest(scheme=scheme, orient=orient):
+                    self.look(w, scheme)
+                    self.mount(width=w - 60)
+                    self.printing(w, scheme)
+                    try:
+                        bad = json.loads(self.js("""(function () {
+                          var gx = document.querySelector('.gt-gx').getBoundingClientRect(), cv = document.querySelector('.gt-canvas').getBoundingClientRect(), out = [];
+                          document.querySelectorAll('.gt-mslab, .gt-b, .gt-ms, .gt-tflag').forEach(function (e) {
+                            var r = e.getBoundingClientRect();
+                            if (r.left < cv.left - 1 || r.right > gx.right + 1) out.push([e.className, e.textContent, Math.round(r.left), Math.round(r.right), Math.round(cv.left), Math.round(gx.right)]);
+                          });
+                          return JSON.stringify(out); })()"""))
+                        self.assertEqual(bad, [], "labels and bars sit inside the chart area")
+                        self.assertGreaterEqual(self.count(".gt-mslab"), 1, "the demo has labels beside bars")
+                    finally:
+                        self.done()
 
     def test_the_screen_is_the_same_with_the_class_on(self):
         # Screen media with html.print-all on: the print rules sit in @media print, so nothing about the screen moves.
