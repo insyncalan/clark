@@ -17,7 +17,7 @@
   "hero": {
    "label": "First day with clark",
    "title": "Keep the record. Shape the report. Publish it.",
-   "lead": "In clark you keep one project record of work items, milestones and use cases, shape the weekly report from it, and publish the report as a web page (and a Word document if you like) for the client. Every change to the record and the report saves on its own and can be undone. Publishing a report and restoring a backup cannot be undone."
+   "lead": "In clark you keep one project record of work items, milestones and use cases, shape the weekly report from it, and publish the report as a web page (and a Word document if you like) for the client. Every change to the record and the report saves on its own and can be undone. Publishing and restoring a published report cannot be undone."
   },
   "loop": [
    {
