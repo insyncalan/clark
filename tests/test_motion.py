@@ -81,6 +81,14 @@ class Rules(unittest.TestCase):
         for r in rules:
             self.assertIsNone(re.search(r"(?<![-\w])(margin|padding)[-\w]*\s*:|(?<![-\w])(border|width|height|top|left|transform)[-\w]*\s*:", r.split("{", 1)[1]), r)
 
+    def test_the_fading_placeholder_sits_where_main_pads_it_at_900(self):
+        """Item 517: main pads 28 px top and the space-5 sides on desktop and 20 px top and the space-4 sides at 900 px; the fading
+        placeholder (.skel-leave) used the desktop offsets at both, so it sat a few px off for its 120 ms."""
+        narrow = re.search(r"@media \(max-width: 900px\)\s*\{\s*\.skel-leave\s*\{([^}]*)\}", MOTION)
+        self.assertTrue(narrow, "a 900 px rule for .skel-leave inside the motion block")
+        for part in ("left: var(--space-4)", "right: var(--space-4)", "top: 20px"):
+            self.assertIn(part, narrow.group(1))
+
     def test_the_still_forms_of_the_ring_and_the_tick_are_in_the_base_rules(self):
         base = CSS[:CSS.index("Motion:")]
         self.assertRegex(base, r"\.spin \{[^}]*border-top-color")            # a still ring with one strong quarter
