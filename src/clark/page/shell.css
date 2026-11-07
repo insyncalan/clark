@@ -1623,6 +1623,8 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     .dlg[open]::backdrop, .ad-scrim { animation: m-in var(--dur-state) var(--ease-enter) 1; }
     /* row 878: a menu or picker drops 4 px as it opens */
     .menu, .ddmenu, .cpop { animation: m-drop var(--dur-instant) var(--ease-enter) 1; }
+    /* row 922: a menu fades out as it closes (opacity only; Menu.jsx keeps it drawn for the fade, inert, and removes it after) */
+    .ddmenu.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
     /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
     .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
     .secs.drop-end { animation: m-line-end var(--dur-state) var(--ease-enter) 1; }
