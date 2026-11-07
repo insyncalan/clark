@@ -155,6 +155,35 @@ class RestoredTest(Rolled):
         self.assertNotIn("data", result)
         self.assertEqual([], self.asides())
 
+    def test_a_failed_start_that_did_not_migrate_but_changed_the_data_is_put_back_byte_for_byte(self):
+        """#479: the put-back covers any failed start. The new version did not change the layout but wrote a row; the data goes back
+        to the update's own pre-update copy (compared as bytes), and the written row is kept aside."""
+        self.seams = MigratingSeams(self, migrate=False)
+
+        def start(app_dir, data_dir, port, log_path, original=self.seams.start_server):
+            if not self.seams.started:                                   # the new version's start only
+                con = sqlite3.connect(str(self.db))
+                con.execute("INSERT INTO projects (code, name) VALUES ('NEW', 'Written by a start that failed')")
+                con.commit()
+                con.close()
+            return original(app_dir, data_dir, port, log_path)
+        self.seams.start_server = start
+        body = self.reviewed()
+        self.assertEqual(200, self.up.install({"review_id": body["review_id"]})[0])
+        seen = []
+        first = self.seams.start_server
+        self.seams.start_server = lambda *a: (seen.append(digest(self.db)) if self.seams.started else None, first(*a))[1]
+        kept = Path(h.read_json(h.marker_path(self.data))["backup_dir"]) / "clark.db"
+        before_bytes = digest(kept)
+        self.seams.now += 20
+        code, result = self.run_helper()
+        self.assertEqual((h.ROLLED_BACK, "restored"), (code, result["data"]))
+        self.assertEqual([before_bytes], seen)                                  # the same bytes as the copy taken before
+        self.assertNotIn("NEW", [r[0] for r in rows(self.db, "projects")])
+        aside = self.asides()
+        self.assertEqual(1, len(aside))
+        self.assertIn("NEW", [r[0] for r in rows(aside[0] / "clark.db", "projects")])  # the write is not lost
+
     def test_the_helper_run_twice_is_safe_and_changes_nothing_the_second_time(self):
         code, result = self.go()
         after_first = (digest(self.db), [a.name for a in self.asides()])

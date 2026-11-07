@@ -199,13 +199,22 @@ class Seams:
     def process_gone(self, pid):
         if not pid:
             return True
+        try:                                    # a server this helper started and that has exited is a zombie until it is reaped (#476)
+            if os.waitpid(pid, os.WNOHANG)[0] == pid:
+                return True
+        except (ChildProcessError, OSError, AttributeError):     # not this process's child: the usual case for a helper's or an old server's id
+            pass
         try:
             os.kill(pid, 0)
         except ProcessLookupError:
             return True
         except PermissionError:
             return False
-        return False
+        try:                                     # exited but not collected by its parent (Linux): gone for every purpose here
+            state = Path(f"/proc/{int(pid)}/stat").read_text(encoding="utf-8", errors="replace").rsplit(")", 1)[1].split()[0]
+            return state in ("Z", "X")
+        except (OSError, IndexError, ValueError):
+            return False
 
     def helper_running(self, pid, ident):
         """Whether the helper that wrote `pid` is still running: the id is alive AND, when an identity was recorded, it is still
@@ -549,6 +558,21 @@ def table_stats(con):
             top = None
         stats[name] = (count, top)
     return stats
+
+
+def content_digest(con):
+    """A hash of every row of every table (in rowid order), to tell whether two files with the same layout hold the same data."""
+    h = hashlib.sha256()
+    names = [n for (n,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").fetchall()]
+    for name in sorted(names):
+        h.update(name.encode("utf-8") + b"\0")
+        try:
+            rows = con.execute("SELECT * FROM " + _ident(name) + " ORDER BY rowid")
+        except sqlite3.OperationalError:         # a table without a rowid
+            rows = con.execute("SELECT * FROM " + _ident(name))
+        for row in rows:
+            h.update(repr(row).encode("utf-8") + b"\n")
+    return h.hexdigest()
 
 
 def check_copy_file(path, schema, db_id):
@@ -976,8 +1000,8 @@ class Run:
                 found = None
             self.keep_pending(Refused("unreadable", "the database could not be read after the update"), None, found)
             return
-        if live is None or live["schema"] <= before:
-            return                                       # no migration ran, or the data is already back (or there is no file)
+        if live is None or (live["schema"] <= before and not self.m.get("new_pid")):
+            return                                       # no new version was started, or the data is already back (or no file)
         copy = None
         try:
             if not self.seams.process_gone(self.m.get("new_pid")):
@@ -989,11 +1013,16 @@ class Run:
                     live = meta_state(probe)             # looked at again with the file held (through the probe: it holds the lock)
                     if live is None:
                         raise Refused("unreadable", "the database could not be read with the file held")
-                    if live["schema"] <= before:
+                    if live["schema"] <= before and not self.m.get("new_pid"):
                         return
                     if self.m.get("db_id_before") and live["db_id"] != self.m["db_id_before"]:
                         raise Refused("mismatch", "the data belongs to another database")
-                    copy = self.find_copy(before)
+                    if live["schema"] > before:
+                        copy = self.find_copy(before)                # the new version migrated: its own safety copy
+                    else:                                            # #479: a start that did not migrate may still have written
+                        copy = self.same_layout_copy(probe)
+                        if copy is None:
+                            return                                   # nothing differs from before the update (or no set to compare)
                     stats = table_stats(probe) if probe is not None else None
                     aside, changed = put_back_database(db, copy, before, self.m.get("db_id_before"), stats)
                 finally:
@@ -1009,6 +1038,21 @@ class Run:
             self.keep_pending(Refused("stopped", f"{type(e).__name__}: {e}"), live["schema"] if live else None, copy)
             return
         self.save(data_restore=self.restored(db, before, aside, changed))
+
+    def same_layout_copy(self, probe):
+        """The update's own pre-update copy (the backup set's database) when the live data, still at the old layout, differs from it in
+        any row: the new version started and changed something. None when they hold the same rows or there is no such copy."""
+        folder = self.m.get("backup_dir")
+        copy = Path(folder) / "clark.db" if folder else None
+        if copy is None or copy.is_symlink() or not copy.is_file():
+            return None
+        check_copy_file(copy, self.m.get("schema_before"), self.m.get("db_id_before"))
+        con = sqlite3.connect(f"{copy.resolve().as_uri()}?mode=ro", uri=True, timeout=5)
+        try:
+            same = content_digest(con) == content_digest(probe)
+        finally:
+            con.close()
+        return None if same else copy
 
     def find_copy(self, before):
         """The safety copy the new version's migration took: the newest `migrate` copy made since this update began that passes

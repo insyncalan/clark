@@ -1095,6 +1095,22 @@ class DefaultSeamsTest(unittest.TestCase):
             self.assertFalse(s.port_free(port))
         self.assertTrue(s.port_free(port))
 
+    def test_a_child_that_exited_without_being_waited_for_counts_as_gone(self):
+        if not Path("/proc/self/stat").exists():
+            self.skipTest("needs /proc")
+        """#476: a server this helper started that exits early stays a zombie until reaped; process_gone reaps it (a real process)."""
+        s = h.Seams()
+        child = subprocess.Popen([sys.executable, "-c", "pass"])
+        end = time.time() + 20
+        while time.time() < end and Path(f"/proc/{child.pid}").exists() and \
+                Path(f"/proc/{child.pid}/stat").read_text(encoding="utf-8").rsplit(")", 1)[1].split()[0] != "Z":
+            time.sleep(0.05)
+        os.kill(child.pid, 0)                                  # still there to the kill test: the zombie
+        self.assertTrue(s.process_gone(child.pid))
+        with self.assertRaises(ChildProcessError):             # and it was reaped, not just seen
+            os.waitpid(child.pid, os.WNOHANG)
+        child.returncode = 0
+
     def spare(self):
         child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
         self.addCleanup(lambda: (child.kill(), child.wait()))
