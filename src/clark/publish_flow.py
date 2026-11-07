@@ -175,16 +175,15 @@ GANTT_SECRET_FIELDS = ("owner", "note", "budget", "effort", "baseline_start", "b
 
 def gantt_markers(store, code, published, add):
     """Row 'markers_for has no Gantt markers': what publish.gantt_for_client left out of the copy, looked for in the finished bytes.
-    The decision is gantt_for_client's alone (the eye and show_gantt_client are not read again here; the project's hidden list is read once, only to name the markers of an eye-off line): `published
+    The decision is gantt_for_client's alone (the eye and show_gantt_client are not read again here): `published
     ["data"]["gantt"]` says which lines and columns are in the file. A line it does not carry (eye off, or no Gantt tab) is a marker
-    by id, name and every secret column; a line it carries is a marker only for a column it does not carry. A value that is also in
+    by id, name and every column; a line it carries is a marker only for a column it does not carry. A value that is also in
     the published data (the same words in a shown column) is not a marker, and neither is one shorter than MIN_MARKER."""
     gantt = published["data"].get("gantt") or {}
     carried = {ln.get("id"): ln for ln in gantt.get("lines") or () if isinstance(ln, dict)}
     kept = json.dumps(published["data"], ensure_ascii=False, default=str)
     columns = publish.PUBLISH_FIELDS["gantt_lines"][2:]                  # every column a line may carry, after id and name
-    hidden = publish._gantt_hidden(store.read("projects", ref=code) or {})      # the project's own list, read as gantt_for_client reads it
-    off = ("name",) + tuple(dict.fromkeys(GANTT_SECRET_FIELDS + tuple(f for f in columns if f in hidden)))
+    off = ("name",) + columns                                            # an eye-off line is not in the file at all: every column of it, a value also in the published data stays exempt
     for row in store.read("gantt_lines", project=code):
         line = carried.get(row.get("id"))
         fields = off if line is None else tuple(dict.fromkeys(f for f in columns if f not in line))
