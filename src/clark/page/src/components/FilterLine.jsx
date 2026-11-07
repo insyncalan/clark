@@ -250,11 +250,11 @@ export function FilterLine({ board }) {
       e.preventDefault();
       if (!listed) { setClosed(false); setTouched(true); setActive(e.key === "ArrowDown" ? 0 : options.length - 1); return; }
       setActive(e.key === "ArrowDown" ? (active + 1) % options.length : (active < 0 ? options.length : active) - 1);
-    } else if (e.key === "Backspace" && live.current.chips.length && e.target.selectionStart === 0 && e.target.selectionEnd === 0) {
-      e.preventDefault(); dropChip(live.current.chips.length - 1);        // an empty box takes the last chip away
-    } else if ((e.key === "Backspace" || e.key === "Delete") && e.target.selectionStart === e.target.selectionEnd && Q.dropWordAt(live.current.draft, e.target.selectionStart)) {
+    } else if (((e.key === "Backspace" && e.target.selectionStart === 0 && e.target.selectionEnd === 0) || (e.key === "Delete" && live.current.draft === "")) && live.current.chips.length) {
+      e.preventDefault(); dropChip(live.current.chips.length - 1);        // an empty box takes the last chip away (Delete too, item 1014)
+    } else if ((e.key === "Backspace" || e.key === "Delete") && e.target.selectionStart === e.target.selectionEnd && Q.dropWordAt(live.current.draft, e.target.selectionStart, e.key)) {
       e.preventDefault();        // item 1014: the caret right after a half-typed field:value takes the whole word away, not one letter at a time
-      const r = Q.dropWordAt(live.current.draft, e.target.selectionStart);
+      const r = Q.dropWordAt(live.current.draft, e.target.selectionStart, e.key);
       want.current = r.caret; edit(r.text, r.caret); setActive(-1);
     } else if (e.key === "Enter") {
       e.preventDefault();

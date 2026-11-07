@@ -214,10 +214,10 @@ export function suggestions(text, caret, rows, ctx, extra) {
 }
 
 /** Item 1014: Backspace or Delete with the caret right after a half-typed `field:value` takes the whole word away. Returns the text and caret
- *  after it goes, or null when the caret is not at the end of such a word (a bare `field:`, a plain word, or a caret inside the word). */
-export function dropWordAt(text, caret) {
+ *  after it goes, or null when the caret is not at the end of such a word (a bare `field:`, a plain word, a caret inside the word, or Delete with a space after the caret: that takes the space). */
+export function dropWordAt(text, caret, key) {
   const s = String(text || ""), { start, word } = wordAt(s, caret);
-  if (!/^-?[a-z]+:./i.test(word) || (caret < s.length && !/\s/.test(s[caret]))) return null;
+  if (!/^-?[a-z]+:./i.test(word) || (caret < s.length && (key === "Delete" || !/\s/.test(s[caret])))) return null;
   return { text: s.slice(0, start) + s.slice(caret).replace(/^\s+/, ""), caret: start };
 }
 

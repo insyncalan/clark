@@ -254,13 +254,17 @@ class Autocomplete(unittest.TestCase):
         self.assertEqual(run_node('Q.wordAt(\'a "b c\', 6)'), {"start": 2, "word": '"b c'})
 
     def test_a_half_typed_field_value_goes_whole_when_the_caret_is_right_after_it(self):
-        d = lambda text, caret: run_node(f"Q.dropWordAt({lit(text)}, {caret})")
+        d = lambda text, caret, key="Backspace": run_node(f"Q.dropWordAt({lit(text)}, {caret}, {lit(key)})")
         self.assertEqual(d("status:Open", 11), {"text": "", "caret": 0})
         self.assertEqual(d("fix status:Op", 13), {"text": "fix ", "caret": 4})
         self.assertEqual(d("-owner:Ann x", 10), {"text": "x", "caret": 0})
         self.assertIsNone(d("status:", 7), "a bare field: loses its colon the usual way")
         self.assertIsNone(d("status:Open", 8), "a caret inside the word is the usual one letter")
         self.assertIsNone(d("fix", 3), "a plain word is the usual one letter")
+        self.assertEqual(d("status:Open", 11, "Delete"), {"text": "", "caret": 0}, "Delete with nothing after the caret goes whole too")
+        self.assertEqual(d("status:Open x", 11), {"text": "x", "caret": 0}, "Backspace right before the space after the word takes the word")
+        self.assertIsNone(d("status:Open x", 11, "Delete"), "Delete before a space takes that space, not the word behind the caret")
+        self.assertIsNone(d("status:Open ", 12), "Backspace after the space takes the space")
 
     def test_accepting_a_value_adds_a_space_and_a_field_adds_none(self):
         a = lambda text, caret, opt: run_node(f"Q.accept({lit(text)}, {caret}, {lit(opt)})")
