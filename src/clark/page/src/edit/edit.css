@@ -134,6 +134,7 @@
 .rowmenu .rm-t { flex: 1; min-width: 0; }
 .rowmenu .rm-t small { display: block; font-size: var(--size-caption); color: var(--text-muted); }
 .rowmenu .rm-go { flex: none; width: 14px; height: 14px; color: var(--text-muted); }
+.rowmenu .rm-t b { font-weight: var(--weight-regular); }                /* item 977: the browser's bold for the entry words is not the menu's look; the entries are plain */
 .rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
 .rowmenu .ddmenu { max-height: calc(100vh - 2 * var(--space-2)); overflow-y: auto; }
 .rowmenu .rm-fly { position: fixed; min-width: 160px; }              /* the list beside its entry (row 848): on the window, so the menu itself never changes */
@@ -965,3 +966,5 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .sn-acts { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
 /* row 796: the Publish box is the prototype's 560 px; its heading keeps the .dlg h2 style every box uses. Edit's alone: the published file has no such box. */
 #publish-dialog { width: min(560px, calc(100vw - 32px)); }
+/* row 988: with many lines the chart box is bounded and scrolls inside itself, so its sticky header row stays in view. Edit.css only: shell.css is the published page's. (.gt-full sets its own, tighter bound.) */
+.gt-gx { max-height: 70vh; }
