@@ -7,8 +7,7 @@ import { milestoneRows, headLine, showDate, todayIso } from "../logic/milestones
 
 import { MsBlock } from "./MsBlock.jsx";
 
-// The placeholder shown while a project's data is on its way: grey blocks in the shape of the screen, still under reduced
-// motion and shimmering otherwise (shell.css, Motion), and only if the wait is longer than SKELETON_AFTER_MS, so data that arrives at once never flashes one. A published
+// The placeholder shown while a project's data is on its way: grey blocks in the shape of the screen, always still (no shimmer), and only if the wait is longer than SKELETON_AFTER_MS, so data that arrives at once never flashes one. A published
 // file has its data inside it and no wait, so it never draws one. The words are for a screen reader; the blocks are hidden from it.
 export const SKELETON_AFTER_MS = 150;
 

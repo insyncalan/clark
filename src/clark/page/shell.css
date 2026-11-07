@@ -1590,7 +1590,7 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .pk-stale { margin: 0 0 var(--space-2); }
 .pk-chip { display: inline-block; padding: 2px var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--grey-200); color: var(--text-muted); font-size: var(--size-caption); }
 
-/* Loading placeholder: still grey blocks in the shape of the screen (the shimmer is in the Motion block and only when motion is allowed). Shown only after a short wait (Views.jsx). */
+/* Loading placeholder: still grey blocks in the shape of the screen (always still: no shimmer). Shown only after a short wait (Views.jsx). */
 .skel { display: block; background: var(--grey-100); border-radius: var(--radius-sm); }
 .skel-title { width: min(280px, 60%); height: 28px; margin-bottom: var(--space-4); }
 .skel-line { height: 14px; width: 100%; }
@@ -1618,8 +1618,8 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .sec-hint { position: absolute; left: 30px; top: 0; white-space: nowrap; pointer-events: none; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: var(--size-small); }
 
 /* Motion: motion that explains and never decorates. Every rule here is inside one block, so a motion is absent (not switched
-   off afterwards) when the computer asks for reduced motion or clark's own setting (<html data-motion="reduce">) is on. Only
-   the placeholder shimmer loops here (as the publish ring, above, turns only while it works, it runs only while the placeholder shows and stops when the screen arrives); only the --dur and --ease tokens are used, and nothing waits for it: the elements
+   off afterwards) when the computer asks for reduced motion or clark's own setting (<html data-motion="reduce">) is on. Nothing
+   loops here; only the --dur and --ease tokens are used, and nothing waits for it: the elements
    stay live while it runs. The block uses native CSS nesting, so a browser without it (older than current Chrome or Edge) keeps the still forms only. */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) {
@@ -1636,10 +1636,6 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
        and an eye blinks once when it is pressed (that rule is in edit.css, as the eyes are Edit's). Transform only */
     .col-b .cn.settle { animation: m-count var(--dur-state) var(--ease-out) 1; }
     .toast-btn[data-undo] { animation: m-undo var(--dur-enter) var(--ease-out) 1; }
-    /* row 886: a light band sweeps across each grey block (transform only, clipped to the block) for as long as the placeholder shows; it is
-       bounded by the wait, as the publish ring is, and the still grey block is all there is under reduced motion */
-    .skel { position: relative; overflow: hidden; }
-    .skel::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface) 70%, transparent), transparent); animation: m-shimmer var(--dur-enter) var(--ease-toggle) infinite; }
     /* a changed row glows, then settles to the still mark (tint, bar and the word stay) */
     .sec.is-changed, table.items tr.changed td, .msl-row.changed { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1; }
     /* row 879: a changed field in the peek flashes its tint for about 1.6 s, the "please look here" line for about 1 s, then both settle */
@@ -1693,7 +1689,6 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
   @keyframes m-col-line { from { box-shadow: -6px 0 0 -3px transparent; } }
   @keyframes m-count { 40% { transform: scale(1.3); } }
   @keyframes m-undo { 40% { transform: scale(1.12); } }
-  @keyframes m-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
   @keyframes m-tick { from { opacity: 0; transform: scale(.4); } }
   @keyframes m-line-top { from { box-shadow: 0 -3px 0 transparent; } }
   @keyframes m-line-end { from { box-shadow: 0 3px 0 transparent; } }
