@@ -193,6 +193,12 @@ class Browser(unittest.TestCase):
             self.until(cdp, sid, "!document.querySelector('tr[data-project=TUL]')", "the archived project to leave the list")
             self.until(cdp, sid, "new URLSearchParams(location.search).get('project') === 'MOSS'", "the page loaded for the other project")      # #944: its own page load, so the old page's message is gone
             self.until(cdp, sid, f"document.getElementById('project-name').textContent.includes({json.dumps(self.names['MOSS'])})", "the new page says the other project is open")
+            self.until(cdp, sid, "document.querySelector('.toast-text')", "the message, carried across the page load")      # #944: shown once in the page that loaded
+            text = cdp.js("document.querySelector('.toast-text').textContent", sid)
+            self.assertIn("archived. ", text)
+            self.assertIn(self.names["MOSS"] + " is open now.", text)
+            self.assertIn("Show archived brings it back.", text)
+            self.assertIsNone(cdp.js("sessionStorage.getItem('clark-toast-carried')", sid), "and cleared: it is not shown again")
 
     def test_the_only_live_project_is_not_archived_and_the_page_says_so(self):       # #444, row 46
         s = self.serve()

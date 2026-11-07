@@ -4,6 +4,7 @@ the calls these tests expect.
 
 Run: python3 dev/run_tests.py test_brands_install
 """
+import json
 import os
 import stat
 import unittest
@@ -298,19 +299,59 @@ class Crash(Base):
 
         def flaky(src, dst, *a, **k):
             calls.append((src, dst))
-            if len(calls) == 2:
+            if len(calls) in (2, 3):         # #944: the power goes for good: the second rename fails and so does the old folder's way back
                 raise OSError("the power went")
             return real(src, dst, *a, **k)
         with mock.patch.object(brands.os, "rename", flaky):
             with self.assertRaises(Exception):
                 brands.install(review["review_id"], self.root, self.data)
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(calls), 3, "the second rename failed and the old folder's way back was tried")
         self.assertFalse(self.brand_dir().exists(), "the crash left the brand missing")
         self.assertTrue(any(h.startswith(HIDDEN_OLD) for h in self.hidden()))
         self.assertEqual([b["id"] for b in brands.installed(self.root)], [], "hidden folders are never listed")
         brands.recover(self.root)
         self.assertEqual(snapshot(self.brand_dir()), old)
         self.assertEqual(self.hidden(), [])
+
+    def test_a_failed_second_rename_puts_the_old_folder_back_at_once(self):       # #944 (957's follow-up): no wait for the next brand action
+        self.put(bz.valid())
+        old = snapshot(self.brand_dir())
+        before = (self.data / brands.JOURNAL).read_bytes()
+        review = brands.review(write_zip(self.scratch, self.second_brand(), version="1.0.1"), self.root)
+        real, calls = os.rename, []
+
+        def flaky(src, dst, *a, **k):
+            calls.append((src, dst))
+            if len(calls) == 2:
+                raise OSError("the disk said no")
+            return real(src, dst, *a, **k)
+        with mock.patch.object(brands.os, "rename", flaky):
+            with self.assertRaises(brands.BrandError):
+                brands.install(review["review_id"], self.root, self.data)
+        self.assertEqual(snapshot(self.brand_dir()), old, "the old brand is in place again, with no recover() run")
+        self.assertEqual(self.hidden(), [], "and nothing hidden is left")
+        self.assertEqual((self.data / brands.JOURNAL).read_bytes(), before, "the undo journal still says what it said: nothing was changed")
+
+    def test_the_journal_is_written_before_the_swap(self):       # #944: a failed journal write leaves the install not done, not done and reported failed
+        self.put(bz.valid())
+        old = snapshot(self.brand_dir())
+        review = brands.review(write_zip(self.scratch, self.second_brand(), version="1.0.1"), self.root)
+        with mock.patch.object(brands, "_journal", side_effect=OSError("no room")):
+            with self.assertRaises(brands.BrandError):
+                brands.install(review["review_id"], self.root, self.data)
+        self.assertEqual(snapshot(self.brand_dir()), old, "the journal could not be written, so nothing was swapped")
+        self.assertEqual(self.hidden(), [])
+
+    def test_the_journal_names_the_change_when_the_swap_has_gone_through(self):
+        self.put(bz.valid())
+        order = []
+        real_swap, real_journal = brands._swap, brands._journal
+        with mock.patch.object(brands, "_swap", lambda *a: (order.append("swap"), real_swap(*a))[1]), \
+                mock.patch.object(brands, "_journal", lambda *a: (order.append("journal"), real_journal(*a))[1]):
+            review = brands.review(write_zip(self.scratch, self.second_brand(), version="1.0.1"), self.root)
+            brands.install(review["review_id"], self.root, self.data)
+        self.assertEqual(order, ["journal", "swap"])
+        self.assertEqual(json.loads((self.data / brands.JOURNAL).read_text(encoding="utf-8"))["kind"], "replace")
 
     def test_a_crash_between_the_renames_is_also_put_right_by_the_next_brand_action(self):
         self.put(bz.valid())
@@ -320,7 +361,7 @@ class Crash(Base):
 
         def flaky(src, dst, *a, **k):
             calls.append((src, dst))
-            if len(calls) == 2:
+            if len(calls) in (2, 3):         # #944: the power goes for good: the second rename fails and so does the old folder's way back
                 raise OSError("the power went")
             return real(src, dst, *a, **k)
         with mock.patch.object(brands.os, "rename", flaky):

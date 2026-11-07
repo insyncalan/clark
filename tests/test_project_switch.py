@@ -1,6 +1,6 @@
 """A-D25 and #439 row 37 (prototype core.js:292-295): the project switcher in the top bar, in a real browser. The name is always a
 button with a chevron and a menu, with one project as with two. The menu lists the projects (the open one marked, each with "N open
-items"), then Project settings; choosing a project changes the address and the toast says "Switched to <name>"; a published file shows
+items"), then Project settings; choosing a project changes the address and the page loads for that project (no "Switched to" message: the name is on screen); a published file shows
 the name as plain words and holds no switcher.
 
 Run: python3 dev/run_tests.py test_project_switch
@@ -104,6 +104,7 @@ class ProjectSwitch(Base):
             p.js("document.querySelectorAll('#project-menu [role=menuitemradio]')[1].click()")
             p.until("/p=ABC/.test(location.hash) && new URLSearchParams(location.search).get('project') === 'ABC'", "the address names the chosen project, in the page loaded for it")      # #944: its own page load, so the old page's toast is gone
             p.until("document.getElementById('project-name').textContent.includes('Second Programme')", "the new page says the chosen project is open")
+            self.assertEqual(p.js("(document.querySelector('.toast-text') || {textContent: ''}).textContent"), "", "no 'Switched to' message: the name is on the screen (#944 ruling)")
 
     def test_C_Project_settings_opens_Settings(self):
         self.rig.httpd.projects = lambda archived=False: TWO

@@ -146,8 +146,8 @@ class DiskTrouble(Base):
         self.assertEqual([b["id"] for b in self.listing()["brands"]], [bz.BRAND_ID])       # nothing was taken out
         with mock.patch.object(brands, "_journal", side_effect=OSError(5, "I/O error")):
             self.failed(self.post("remove", {"id": bz.BRAND_ID}), "failed")
-        # the brand was taken out and its backup made, only the undo note was not written: the next listing still answers
-        self.assertEqual(self.listing()["brands"], [])
+        # #944: the undo note is written before the brand is taken out, so when it cannot be written the brand stays: the next listing still answers
+        self.assertEqual([b["id"] for b in self.listing()["brands"]], [bz.BRAND_ID])
 
     def test_recover_failing_before_an_action_is_the_failed_refusal(self):
         (branding(self.root) / (brands.HIDDEN_OLD + "ghost")).mkdir()

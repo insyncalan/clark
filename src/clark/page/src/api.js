@@ -2,10 +2,14 @@
 // build that leaves this file out (the published page, view.jsx) has no way to change a thing and no mention of them.
 // Every reply is turned into plain words here: the page never shows the server's own text, only what plainChange (report.js)
 // picks for the status, or for a message it knows.
-import { token, plainChange } from "./stores/report.js";
+import { token, plainChange, leaving } from "./stores/report.js";
 import { knownRefusal } from "./edit/movementWords.js";
 
 const KIND = "report_sections";
+
+// While the page is going away (Back to another page load, a closed tab) a save started by leaving a field must still reach clark: the browser
+// keeps a keepalive request going, up to its size limit (64 KiB, so a smaller body only; the reply is not read by a page that has gone).
+const alive = (body) => (leaving.on && body.length < 60000 ? { keepalive: true } : {});
 
 // {ok: true, reply} or {ok: false, message}: never a throw, whatever the network or the server did.
 // `fits(reply)` says whether a 200 reply has what the page needs: a section change's and an undo's carry the sections, a work
@@ -15,11 +19,13 @@ const hasItem = (reply) => !!reply.item && typeof reply.item === "object" && typ
 
 async function post(path, body, fits = hasSections) {
   try {
+    const sent = JSON.stringify(body);
     const r = await fetch(path, {
       method: "POST",
       headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: sent,
       cache: "no-store",
+      ...alive(sent),
     });
     const reply = await r.json().catch(() => null);
     if (!r.ok || !reply || reply.ok !== true || !fits(reply)) return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };
@@ -33,11 +39,13 @@ async function post(path, body, fits = hasSections) {
 // sentences (changes.py), so a short one is shown as it is; anything else gets plainChange's words.
 async function postItem(path, body, fits = (r) => !!r.item) {
   try {
+    const sent = JSON.stringify(body);
     const r = await fetch(path, {
       method: "POST",
       headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: sent,
       cache: "no-store",
+      ...alive(sent),
     });
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true && fits(reply)) return { ok: true, reply };
@@ -142,9 +150,10 @@ export async function sneakRead(project, id, words) {
 // other failure is said by plainChange.
 export async function sendPeekChange(project, kind, id, changes) {
   try {
+    const sent = JSON.stringify({ project, kind, op: "update", id, changes, place: "peek" });
     const r = await fetch("/api/change", {
       method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
-      body: JSON.stringify({ project, kind, op: "update", id, changes, place: "peek" }), cache: "no-store",
+      body: sent, cache: "no-store", ...alive(sent),
     });
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true) return { ok: true, reply };
@@ -273,11 +282,13 @@ export async function sendMilestoneRestore(project, id) {
 // {ok: false, message, known}: `known` is true when the message is clark's own fixed refusal (shown as it is).
 export async function sendMilestoneChange(project, req) {
   try {
+    const sent = JSON.stringify({ project, kind: "milestones", op: "update", place: "movement", ...req });
     const r = await fetch("/api/change", {
       method: "POST",
       headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
-      body: JSON.stringify({ project, kind: "milestones", op: "update", place: "movement", ...req }),
+      body: sent,
       cache: "no-store",
+      ...alive(sent),
     });
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true) return { ok: true, reply };

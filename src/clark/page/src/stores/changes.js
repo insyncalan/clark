@@ -2,8 +2,9 @@
 // A change is sent as it is; the page never edits its own copy. It redraws from the sections the reply carries, so what is on
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
-import { data, project, reread } from "./report.js";
+import { data, project, reread, busy, beforeReload } from "./report.js";
 import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendRecordChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData, sendRestore } from "../api.js";
+import { isProject } from "../router.js";
 import { flashed } from "./wordsState.js";
 import { diffIds, markChanged } from "./changed.js";
 import { undoRequest as wordUndoRequest, words as wordWords } from "../edit/wordApi.js";
@@ -38,6 +39,31 @@ export function say(kind, text, undo = null, code = project.value) {
   toast.value = { id, kind, text, undo, code };
   if (kind !== "problem") timer = setTimeout(() => { if (toast.value && toast.value.id === id) toast.value = null; }, 20000);
 }
+
+// A different project is a page load (report.js), which would take the message with its Undo away: the one message on show goes with the
+// person, once, in sessionStorage (cleared when it is read; never kept longer), and is said again, with the same Undo and project, in the page that loads.
+const CARRIED = "clark-toast-carried";
+function carry() {
+  try {
+    const t = toast.value;
+    if (t && !t.local && (t.kind === "done" || t.kind === "note") && typeof t.text === "string") {
+      window.sessionStorage.setItem(CARRIED, JSON.stringify({ kind: t.kind, text: t.text.slice(0, 400), undo: t.undo, code: t.code }));
+    }
+  } catch (e) { /* storage unavailable: the message stays behind */ }
+}
+function takeCarried() {
+  try {
+    const raw = window.sessionStorage.getItem(CARRIED);
+    if (raw === null) return;
+    window.sessionStorage.removeItem(CARRIED);
+    const c = JSON.parse(raw);
+    if (c && (c.kind === "done" || c.kind === "note") && typeof c.text === "string" && c.text && c.text.length <= 400
+      && (c.undo === null || Number.isInteger(c.undo)) && isProject(c.code)) say(c.kind, c.text, c.undo, c.code);
+  } catch (e) { /* nothing usable was kept */ }
+}
+busy.push(() => tail);                    // report.js waits for what is still being saved before it loads another project
+beforeReload.push(carry);
+takeCarried();
 
 export function dismiss() {
   clearTimeout(timer);

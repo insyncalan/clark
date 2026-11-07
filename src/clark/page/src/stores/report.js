@@ -22,14 +22,38 @@ const start = route.current();
 
 // The brand block is the server's, for the project in the address (#944, GET /?project=<code>). An address for another project than the
 // one this page was served for (typed, bookmarked, or a Back) is loaded again for its own; a published file and a non-served page never are.
-function reloadFor(s) {
+// What is being typed is saved first, and the page waits for it (saved below), so a title not yet left is not lost; a message with Undo
+// goes with the person to the new page (the hooks in beforeReload, given by the changes store: edit only).
+export const busy = [];                  // functions that give a promise for what is still being saved (changes.js: its queue)
+export const beforeReload = [];          // functions run just before the page is loaded again (changes.js: keep the message, once)
+async function saved(limit = 8000) {
+  const end = performance.now() + limit, left = () => Math.max(0, end - performance.now());
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  await wait(0);                                           // what the field's blur starts is started by now
+  for (let i = 0; i < 20; i++) {
+    const mine = busy.map((f) => f());
+    await Promise.race([Promise.all(mine), wait(left())]);
+    await wait(0);
+    if (!left() || busy.map((f) => f()).every((p, k) => p === mine[k])) return;      // nothing new was queued meanwhile
+  }
+}
+// The page going away for good (Back or Forward to another page load, which is what leaving a project by Back is: each project is its own
+// load, and the browser steps to that load without asking this page): a field still being typed in is left, so its save starts now, and api.js
+// sends it so that it outlives the page. The reply is not read by a page that has gone, so no message follows it.
+export const leaving = { on: false };
+addEventListener("pagehide", () => { if (published()) return; leaving.on = true; leaveField(); });
+addEventListener("pageshow", () => { leaving.on = false; });
+function reloadFor(s, wait = true) {
   try {
     if (published() || !s.project || !/^https?:$/.test(location.protocol) || s.project === (new URLSearchParams(location.search).get("project") || "")) return false;
-    location.replace("/?project=" + s.project + route.format(s));
+    const url = "/?project=" + s.project + route.format(s);
+    if (!wait) { location.replace(url); return true; }
+    leaveField();
+    saved().then(() => { try { beforeReload.forEach((f) => f()); } catch (e) {} location.replace(url); }, () => location.replace(url));
     return true;
   } catch (e) { return false; }
 }
-reloadFor(start);
+reloadFor(start, false);
 export const project = signal(start.project);
 export const view = signal(start.view === "clientreport" && !published() ? "dashboard" : start.view);   // the served page has no client report (#559): its address opens the first tab; a published file keeps it (its own tab list decides in openPublished)
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
@@ -144,11 +168,14 @@ function settle() {
 // (a section's title) is kept: the field is left first, so it is saved as a click on a tab saves it, to the project it belongs to,
 // before the page moves, and the message says so, with Undo. A menu or a drag closes, and nothing is chosen. The
 // peek has an entry of its own (closing it is a Back), so the page redraws after this as it would anyway.
-function leave() {
+function leaveField() {
   const el = document.activeElement;
   const typing = !!el && el !== document.body && (el.isContentEditable || el.tagName === "TEXTAREA" ||
     (el.tagName === "INPUT" && /^(text|search)$/.test(el.type)));
   if (typing && typeof el.blur === "function") el.blur();
+}
+function leave() {
+  leaveField();
   openFilter.value = "";
   dropAt.value = undefined;
   moves.value++;
@@ -226,7 +253,12 @@ export function setProject(code) {
 function loadProject(s) {
   if (s.project === project.value || typeof fetch !== "function") { go(s); return; }
   const url = "/?project=" + s.project + route.format(s);
-  fetch(url, { cache: "no-store" }).then((r) => { if (r.ok) location.assign(url); else go(s); }, () => go(s));
+  leaveField();                                            // what is being typed is saved first, in its own project, and waited for
+  saved().then(() => fetch(url, { cache: "no-store" })).then((r) => {
+    if (!r.ok) { go(s); return; }
+    try { beforeReload.forEach((f) => f()); } catch (e) {}
+    location.assign(url);
+  }, () => go(s));
 }
 
 /** A filter change (#64a): `text` goes in the address as `f`, exactly as given (the router does not read, decode or encode it; the
