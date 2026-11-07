@@ -21,6 +21,7 @@ Standard library only, Python 3.9.
 """
 import getpass
 import hashlib
+import json
 import re
 import secrets
 import shutil
@@ -163,9 +164,38 @@ def markers_for(store, code, published, template=""):
             value = (_text(row.get(field)) or "").strip()
             if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
                 add(value, row["id"])
+    gantt_markers(store, code, published, add)
     out = Markers(dict.fromkeys(found))
     out.where = where
     return out
+
+
+def gantt_markers(store, code, published, add):
+    """Row 998: the Gantt markers are read from the RAW lines in the store, never from what publish.gantt_for_client produced, so a
+    bug in its decision cannot blind the scan too. The policy is the same rules, read again here: the tab is in the file only when the
+    project's show_gantt_client is exactly 1; a line is in it only when its `show` is exactly 1. A line that cannot be in the file
+    (eye off, or no Gantt tab) is a marker by id, name and every column; a line that can be is a marker for each column the project's
+    hidden list (publish._gantt_hidden) takes out. A value that is also in the published data other than the Gantt copy (the same
+    words in a kept row) is not a marker, and neither is one shorter than MIN_MARKER; what the Gantt copy itself carries exempts nothing."""
+    data = published["data"]
+    kept = json.dumps({k: v for k, v in data.items() if k != "gantt"}, ensure_ascii=False, default=str)
+    project = store.read("projects", ref=code) or {}
+    tab = type(project.get("show_gantt_client")) is int and project["show_gantt_client"] == 1
+    hidden = publish._gantt_hidden(project)
+    columns = publish.PUBLISH_FIELDS["gantt_lines"][2:]                  # every column a line may carry, after id and name
+
+    def text(v):
+        return v.strip() if isinstance(v, str) else str(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else ""
+    rows = [(r, tab and type(r.get("show")) is int and r["show"] == 1) for r in store.read("gantt_lines", project=code)]
+    shown = [r[f] for r, eyed in rows if eyed for f in ("id", "name") + columns if f in r and (f in ("id", "name") or f not in hidden)]
+    kept += "\n" + "\n".join(text(v) for v in shown)                      # what a line that can be in the file may legitimately show
+    for row, eyed in rows:
+        if not eyed:
+            add(row["id"], row["id"])
+        for field in (tuple(f for f in columns if f in hidden) if eyed else ("name",) + columns):
+            value = text(row.get(field))
+            if len(value) >= MIN_MARKER and value not in kept:
+                add(value, row["id"])
 
 
 class Publisher:

@@ -16,8 +16,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { Icon } from "../../components/Icon.jsx";
 import { todayIso } from "../../workItems.js";
+import { reduced } from "../../stores/motion.js";
 import {
-  WORDS, SCALES, tidyAll, visibleRows, filtersFor, filterWord, outline, clashes, statusOf, statusWord, typeWord, rowsShown, rowsFromDrag,
+  WORDS, SCALES, tidyAll, leftOut, visibleRows, filtersFor, filterWord, outline, clashes, statusOf, statusWord, typeWord, rowsShown, rowsFromDrag,
   chartRange, fitPpd, ppdFor, zoomIn, zoomOut, xOf, headerCells, arrowPath, moved, resized, checkEdit, checkBox, detailOf,
   formatDate, endOf, linesShown,
 } from "../logic/gantt.js";
@@ -42,14 +43,25 @@ const Glyph = ({ name }) => (
     dangerouslySetInnerHTML={{ __html: G[name] }} />
 );
 
+// row 971: the lines whose bar has grown in once, kept across mounts (a tab return draws nothing again) per project; a different project key clears it.
+const grown = new Map();
+let grownKey = null;
+function grownFor(key) {
+  const k = key || "";
+  if (grownKey !== k) { grown.clear(); grownKey = k; }
+  if (!grown.has(k)) grown.set(k, new Set());
+  return grown.get(k);
+}
+
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
 export function GanttChart({
-  lines, edit = false, today, filter: filterProp, onFilter, defaultRows = null, onDefaultRows, hiddenCols = [],
+  lines, edit = false, today, filter: filterProp, onFilter, defaultRows = null, onDefaultRows, hiddenCols = [], projectKey = "",
   onChange, onToggleEye, onAdd, onDelete, addBelowWord = "", eyeWords = {},      // addBelowWord: the Edit-only add button's words (edit/ganttWords.js), given by the page
 }) {
   const now = today || todayIso();
   const all = useMemo(() => tidyAll(lines), [lines]);
+  const out = useMemo(() => leftOut(lines, { edit }).length, [lines, edit]);      // lines with no usable start date: not drawn, and said so
   const [scale, setScale] = useState("month");
   const [zoom, setZoom] = useState(1);
   const [ownFilter, setOwnFilter] = useState("all");
@@ -67,6 +79,8 @@ export function GanttChart({
   const gx = useRef(null);
   const dragged = useRef(false);
   const dragNow = useRef(null);
+  const seen = grownFor(projectKey);                   // row 971: lines whose bar has been drawn once since the page opened or the project changed (not per mount)
+  const born = useRef(new Map());                      // line id to true while its first-draw grow may still run
 
   // On a narrow page the left columns give up some width so the chart keeps room for its month labels (a person's own widths still win when smaller).
   const narrow = width < 1000;
@@ -125,6 +139,7 @@ export function GanttChart({
     return (
       <section class="gt" data-gantt data-mode={edit ? "edit" : "view"}>
         <p class="gt-none" data-g-none>{WORDS.noLines}</p>
+        {out ? <p data-g-count>{linesShown(0, out)}</p> : null}
       </section>
     );
   }
@@ -378,10 +393,13 @@ export function GanttChart({
                 );
               }
               const w = q.x2 - q.x1, out = labelOut(l, w);
+              if (!seen.has(l.id)) { seen.add(l.id); born.current.set(l.id, !reduced()); }       // row 1000: drawn while reduced = drawn once, never marked (no animationend would take the mark off, and switching reduced motion off would then grow every bar)
+              if (drag && drag.id === l.id) born.current.set(l.id, false);       // a grabbed bar never grows, nor does it start when let go
               const label = `${l.name}, ${formatDate(l.start)} to ${formatDate(l.end)}, ${l.pct} percent, ${statusWord(st)}`;
               return (
                 <div key={l.id}>
-                  <div role="button" tabindex="0" class={`gt-b gt-b-${l.type}${edit ? " edit" : ""}${sel === l.id ? " sel" : ""}${drag && drag.id === l.id ? " drag" : ""}`}
+                  <div role="button" tabindex="0" class={`gt-b gt-b-${l.type}${edit ? " edit" : ""}${sel === l.id ? " sel" : ""}${drag && drag.id === l.id ? " drag" : ""}${born.current.get(l.id) ? " gt-grow" : ""}`}
+                    onAnimationEnd={(e) => { if (e.target === e.currentTarget) born.current.set(l.id, false); }}
                     style={{ left: `${q.x1}px`, width: `${w}px`, top: `${l.type === "phase" ? top + 10 : top + 6}px` }} aria-label={label} data-g-bar={l.id} data-g-type={l.type}
                     onPointerDown={barDown(l)} onClick={() => { if (!dragged.current) setSel(l.id); }}
                     onDblClick={(e) => { if (edit) openBox(l.id, e.currentTarget); }}
@@ -412,7 +430,7 @@ export function GanttChart({
         <span><b class="gt-sw gt-sw-n" />{WORDS.legendToday}</span>
         <span><b class="gt-sw gt-sw-a" />{WORDS.legendDepends}</span>
         <span class="gt-pill"><b class="gt-sw gt-sw-c" />{WORDS.legendClash}</span>
-        {edit ? <span data-g-count>{linesShown(rows.length, all.length)}</span> : null}
+        {edit || out ? <span data-g-count>{linesShown(rows.length, all.length + out)}</span> : null}
         {msg ? <span class="gt-msg" role="alert" data-g-msg>{msg}</span> : null}
       </div>
 

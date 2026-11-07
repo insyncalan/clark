@@ -215,9 +215,16 @@ function distance(a, b) {
   return m[a.length][b.length];
 }
 function nearest(name) {
+  if (String(name).length > 40) return null;      // no field name is near a word this long (and a very long one is not measured)
   const n = low(name);
   const best = [...names(), ...Object.keys(ALIAS).filter((a) => live(ALIAS[a]))].map((k) => [k, distance(n, k)]).sort((a, b) => a[1] - b[1])[0];
   return best && best[1] <= 2 ? fieldOf(best[0]) : (n.length >= 2 && names().find((k) => k.startsWith(n))) || null;
+}
+
+/** The sentence for a word before a colon that is not a filter: what the line can filter by, and the nearest field when there is one. */
+export function unknownFilter(name) {
+  const n = nearest(name);
+  return `There is no “${name}” filter.${n ? ` Did you mean ${n}?` : ""} You can filter by ${list(names().map((x) => `${x}:`))}, or type plain words to search titles.`;
 }
 
 /** The sentence for a value that is not one of the choices. */
@@ -253,8 +260,7 @@ function readWord(w, rows, ctx, memo) {
   }
   const k = fieldOf(name);
   if (!k) {
-    const n = nearest(name);
-    return { err: `There is no “${name}” filter.${n ? ` Did you mean ${n}?` : ""} You can filter by ${list(names().map((x) => `${x}:`))}, or type plain words to search titles.`, near: n };
+    return { err: unknownFilter(name), near: nearest(name) };
   }
   const typed = splitValues(rest);
   if (!typed.length) {

@@ -362,7 +362,7 @@ class E2E(unittest.TestCase):
         br.js("document.dispatchEvent(new CustomEvent('clark:add-section', {detail: {after: document.querySelector('#report [data-id]').dataset.id, opener: document.activeElement}, cancelable: true, bubbles: true}))")
         br.until("document.querySelector('[data-template=gantt]')", "the Add a section box lists the Gantt template")
         card = br.text("[data-template=gantt]")
-        self.assertIn("The plan as bars on a timeline, from your Gantt lines. Only lines put on the dashboard show.", card)
+        self.assertIn("The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.", card)
         self.assertNotIn("Coming with a later release.", card)
         br.js("document.querySelector('[data-template=gantt] input, input[value=gantt]').click()")
         br.until("!document.querySelector('button[data-place]').disabled", "the Gantt can be placed")

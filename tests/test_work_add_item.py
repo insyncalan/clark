@@ -28,8 +28,9 @@ class AddMenu(Base):
         p = Pg.at(self, cdp, self.s.port, "#work&p=ABC&f=mode:all")
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         p.until("document.querySelectorAll('#work tbody tr[data-id]').length >= 1", "the rows drew")
-        p.js("window.clarkPage.closePeek(); document.querySelector('[data-mode=view]').click()")      # the same tab is reused: start in View
-        p.until("document.querySelector('[data-mode=view]').getAttribute('aria-pressed') === 'true' && !window.clarkPage.peek()", "View, no panel open")
+        p.js("window.clarkPage.closePeek()")      # the same tab is reused: start with no panel open
+        p.until("!window.clarkPage.peek()", "no panel open")
+        self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
         return p
 
     def pick(self, p, kind):
@@ -48,11 +49,9 @@ class AddMenu(Base):
                         p = self.work(cdp, width)
                         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, p.sid)
                         before = self.items(table)
-                        self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true", "the page opens in View")
                         self.pick(p, kind)
                         p.saved()
-                        self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true", "a pick in View leaves the page in View (#449)")
-                        self.assertEqual(p.js("document.querySelector('[data-mode=edit]').getAttribute('aria-pressed')"), "false")
+                        self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "a pick leaves the page with no View | Edit switch (#449, row 804)")
                         made = [r for k, r in self.items(table).items() if k not in before]
                         self.assertEqual(len(made), 1, "one item was made")
                         row = made[0]
@@ -66,7 +65,6 @@ class AddMenu(Base):
                         p.until(f"(window.clarkPage.peek() || {{}}).id === '{row['id']}'", "the new item opened in its panel")
                         p.until(f"!!document.querySelector('#work tr[data-id=\"{row['id']}\"]')", "the new row is in the table")
                         self.assertFalse(p.js("!!document.querySelector('.toasts[data-edit-only]')"), "the message region carries no edit mark in View")      # the table's cells stay edit parts on this page: View and Edit exist only on the Dashboard
-                        self.assertEqual(p.js("document.querySelector('[data-mode=view]').getAttribute('aria-pressed')"), "true")
                         p.js("document.querySelector('[data-undo]').click()")
                         p.until(f"(document.querySelector('.toast-text') || {{}}).textContent === '{row['id']} removed.'", "the Undo said what it removed")
                         self.assertEqual(set(self.items(table)), set(before), "Undo removed exactly what was made")
@@ -76,8 +74,8 @@ class AddMenu(Base):
     def with_filter(self, cdp, f):
         p = Pg.at(self, cdp, self.s.port, f"#work&p=ABC&f={f}")
         p.until("document.querySelectorAll('#work tbody tr[data-id]').length >= 1", "the rows drew")
-        p.js("window.clarkPage.closePeek(); document.querySelector('[data-mode=edit]').click()")
-        p.until("document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'true' && !window.clarkPage.peek()", "Edit, no panel open")
+        p.js("window.clarkPage.closePeek()")
+        p.until("!window.clarkPage.peek()", "no panel open")
         return p
 
     def test_with_a_filter_on_the_new_row_is_shown_and_its_title_has_the_keyboard(self):

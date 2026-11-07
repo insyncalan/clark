@@ -1,4 +1,4 @@
-/* clark prototype: the first-start guide (#427). The real one is START-HERE.txt and the starters in the download, before clark is open; here it is drawn so it can be tried.
+/* clark prototype: the first-start guide (#427). The real one is START-HERE.md and the starters in the download, before clark is open; here it is drawn so it can be tried.
    Two routes. Docker is the default, the terminal route (clark.command) the alternative. The Docker route checks that Docker is installed, that it is
    running (and starts it, or shows how) and that clark's port is free, then starts clark and opens it. Prototype: nothing is really started; a small
    control pretends what the computer has, so every message can be seen. */

@@ -1,5 +1,5 @@
 """The View | Edit switch (#665): on the Dashboard it is a pill at the left of the report bar and not in the top bar; on every other
-tab it stays at the top right. Chrome is required: these tests fail, never skip, without it.
+tab there is no switch at all (row 804). Chrome is required: these tests fail, never skip, without it.
 
 Run: python3 dev/run_tests.py test_mode_pill
 """
@@ -18,10 +18,10 @@ PLACE = (f"(function(){{var g={GROUP}; return [{COUNT}, !!g.closest('#report-bar
 
 
 class ModePill(Base):
-    def tab(self, p, name):
+    def tab(self, p, name, count=1):
         p.js(f"document.querySelector('.tab[data-view=\"{name}\"]').click()")
         p.until(f"document.querySelector('.tab[data-view=\"{name}\"]').getAttribute('aria-selected') === 'true'", f"{name} open")
-        p.until(f"{COUNT} === 1", f"{name}: one switch")
+        p.until(f"{COUNT} === {count}", f"{name}: {count} switch(es)")
 
     def test_on_the_dashboard_it_is_in_the_report_bar_at_its_left_and_not_in_the_top_bar(self):
         with chrome() as cdp:
@@ -33,12 +33,12 @@ class ModePill(Base):
                        f"return [first === {GROUP}, g.left - b.getBoundingClientRect().left < 4, g.right <= x.left];}})()")
             self.assertEqual(got, [True, True, True])
 
-    def test_on_the_other_tabs_it_stays_in_the_top_bar(self):
+    def test_on_the_other_tabs_there_is_no_switch_at_all(self):      # row 804: View | Edit is the Dashboard's alone
         with chrome() as cdp:
             p = self.visit(cdp)
-            for name in ("work", "milestones", "usecases"):
-                self.tab(p, name)
-                self.assertEqual(p.js(PLACE), [1, False, True], name)
+            for name in ("work", "milestones", "usecases", "settings"):
+                self.tab(p, name, 0)
+                self.assertEqual(p.js(COUNT), 0, name)
             self.tab(p, "dashboard")
             self.assertEqual(p.js(PLACE), [1, True, False])
 
@@ -56,6 +56,7 @@ class ModePill(Base):
         for theme in ("light", "dark"):
             with self.subTest(theme=theme), chrome() as cdp:
                 p = self.visit(cdp)
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)      # pinned: no transition is mid-way when the colours are read
                 p.js(f"document.documentElement.dataset.theme = '{theme}'")
                 got = p.js(f"(function(){{var b={GROUP}.querySelector('[aria-pressed=\"true\"]'), s=getComputedStyle(b), r=document.querySelector('#report-state');"
                            "var root=getComputedStyle(document.documentElement);"
@@ -87,9 +88,9 @@ class ModePill(Base):
         # keys.js acts on the Dashboard only; the switch moves between the top bar and the report bar, and one listener must survive that
         with chrome() as cdp:
             p = self.visit(cdp)
-            self.tab(p, "work")
+            self.tab(p, "work", 0)
             p.key("e", code="KeyE", vk=69)
-            self.assertEqual(p.js("document.querySelector('[aria-label=\"View or Edit\"] [data-mode=\"edit\"]').getAttribute('aria-pressed')"), "false")
+            self.assertEqual(p.js(COUNT), 0)      # off the Dashboard E draws nothing
             self.tab(p, "dashboard")
             p.key("e", code="KeyE", vk=69)
             p.until(f"{MODE} === 'edit'", "E")

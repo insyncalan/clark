@@ -14,7 +14,7 @@
 // Hand over (#199, edit/HandOver.jsx): while pick mode is on the table is drawn with a tick box on each open item, a click or Space on a
 // row only ticks it, and none of the keys above, the cells' pickers or the peek is on. The ticks are stores/handover.js `ticks`.
 import { signal } from "@preact/signals";
-import { useEffect, useLayoutEffect } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { cursor, stopOf as stopOfIds, moveTo } from "../listKeys.js";
 import { data, rows as allRows, filterState, setFilterState, filterNote, openPeek, fromFile, filterCtx, query, setQuery, asAt } from "../stores/report.js";
 import { workSelection as sel } from "../stores/selection.js";
@@ -92,7 +92,49 @@ function focusRow(tr, id, cell) {
   (cellIn(r, fieldOf(cell)) || r).focus();
 }
 
-function Row({ row, today, Cell, Eye, stop, pos, size, group }) {
+// #970: a row deleted in Edit keeps its place for the fade (a copy with no id and no role, inert, hidden from a screen reader), then leaves the DOM.
+function GhostRow({ row, today, Eye, group, onMotionEnd }) {
+  const due = dueCell(row, today), pill = pillOf(row, today), o = ownerOf(row.owner);
+  return (
+    <tr class="leaving" role="presentation" aria-hidden="true" inert onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "m-out") onMotionEnd(row.id); }}>
+      <td class="c-item"><div class="tcell"><span class={`kb k-${row.kind}`} aria-hidden="true">{kindLetter(row.kind)}</span><span class="tx"><span class="t">{row.title}</span><span class="meta">{metaOf(row, group)}</span></span></div></td>
+      <td class="c-owner">{o.text}</td>
+      <td class="c-due"><span class="num">{due.date}</span>{due.words ? <span class="due-l">{due.words}</span> : null}</td>
+      <td class="c-prio">{row.priority || ""}</td>
+      <td class="c-status"><span class={`pill ${pill.class}`}>{pill.text}</span></td>
+      {Eye ? <td class="c-eye" /> : null}
+    </tr>
+  );
+}
+
+const stillMotion = () => document.documentElement.dataset.motion === "reduce" || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+// #970: which rows are new since the last draw (they rise in) and which were deleted (they fade in place). Only a row added to or removed from
+// the project's items counts: a filter, a sort, Group by or a search never animates, nor does the first draw, a project change, or a still-motion setting.
+// `lay` is the drawn layout, [{ key, rows }]. Returns { motion(id), ghostsFor(key), done(id) }. Edit only: a published file has none.
+function useRowMotion(lay) {
+  const memo = useRef(null), fresh = useRef(new Set()), ghosts = useRef(new Map()), [, redraw] = useState(0);
+  const ids = new Set(allRows.value.map((r) => r.id)), prev = memo.current;
+  const drawn = new Map();
+  lay.forEach((c) => c.rows.forEach((r, i) => drawn.set(r.id, { row: r, key: c.key, at: i })));
+  if (prev && !fromFile.value && !stillMotion() && Array.from(prev.ids).some((id) => ids.has(id))) {
+    drawn.forEach((_, id) => { if (!prev.ids.has(id)) fresh.current.add(id); });
+    prev.drawn.forEach((d, id) => { if (!ids.has(id) && !ghosts.current.has(id)) ghosts.current.set(id, d); });
+  }
+  ghosts.current.forEach((_, id) => { if (ids.has(id)) ghosts.current.delete(id); });      // undone: the row is back
+  memo.current = { ids, drawn };
+  const done = (id) => { fresh.current.delete(id); if (ghosts.current.delete(id)) redraw((n) => n + 1); };
+  const n = ghosts.current.size;
+  useEffect(() => { if (!n) return undefined; const t = setTimeout(() => { ghosts.current.clear(); redraw((k) => k + 1); }, 400); return () => clearTimeout(t); }, [n]);
+  return {
+    done,
+    motion: (id) => (fresh.current.has(id) ? "enter" : undefined),
+    ghostsFor: (key) => Array.from(ghosts.current.values()).filter((d) => d.key === key).sort((a, b) => a.at - b.at),
+  };
+}
+
+function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEnd }) {
+  if (motion === "leave") return <GhostRow row={row} today={today} Eye={Eye} group={group} onMotionEnd={onMotionEnd} />;
   const due = dueCell(row, today), pill = pillOf(row, today);
   const cell = (field, said, content) => (Cell ? <Cell row={row} field={field} said={said}>{content}</Cell> : content);
   const hand = handing(), can = isOpen(row), ticked = hand && ticks.ids.value.includes(row.id);
@@ -105,10 +147,10 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group }) {
   };
   const dbl = (e) => { if (on && ownClick(e.target, e.currentTarget)) pickOpen(row.id); };
   return (
-    <tr data-id={row.id} data-kind={row.kind} data-changed={isChanged(row.id) ? "1" : undefined} class={`${can ? "" : "done"}${picked || ticked ? " picked" : ""}${isChanged(row.id) ? " changed" : ""}${Eye ? " has-eye" : ""}`.trim()} tabIndex={stop ? 0 : -1} aria-posinset={pos} aria-setsize={size}
+    <tr data-id={row.id} data-kind={row.kind} data-changed={isChanged(row.id) ? "1" : undefined} class={`${can ? "" : "done"}${motion === "enter" ? " entering" : ""}${picked || ticked ? " picked" : ""}${isChanged(row.id) ? " changed" : ""}${Eye ? " has-eye" : ""}`.trim()} tabIndex={stop ? 0 : -1} aria-posinset={pos} aria-setsize={size}
       aria-label={hand ? (can ? `Tick ${row.id}` : `${row.id}, closed, not offered`) : on ? `Select or open ${row.id}` : `Open ${row.id}`}
       aria-selected={on ? (picked ? "true" : "false") : hand && can ? (ticked ? "true" : "false") : undefined}
-      onFocusIn={() => { active.value = row.id; if (on) sel.moveCursor(row.id); }} onKeyDown={(e) => keys(e, row)} onMouseDown={on ? noTextRange : undefined} onClick={click} onDblClick={dbl}>
+      onFocusIn={() => { active.value = row.id; if (on) sel.moveCursor(row.id); }} onKeyDown={(e) => keys(e, row)} onMouseDown={on ? noTextRange : undefined} onClick={click} onDblClick={dbl} onAnimationEnd={motion === "enter" ? (e) => { if (e.target === e.currentTarget && e.animationName === "m-rise") onMotionEnd(row.id); } : undefined}>
       {hand ? (
         <td class="c-pick">
           {can ? <label class="rtick-hit" onClick={(e) => e.stopPropagation()}>
@@ -158,17 +200,25 @@ function Table({ rows, today, type, Cell, Eye }) {
   const n = COLS.length + (Eye ? 1 : 0) + (hand ? 1 : 0);
   const stopOf = (drawn) => stopOfIds(drawn.map((r) => r.id));
   let order = [];                                  // the rows drawn, in order: each one's place for a screen reader ("3 of 12")
-  const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} Eye={Eye} stop={r.id === stop} pos={order.indexOf(r.id) + 1} size={order.length} group={g} />;
+  let mo = null;
+  const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} Eye={Eye} stop={r.id === stop} pos={order.indexOf(r.id) + 1} size={order.length} group={g} motion={mo.motion(r.id)} onMotionEnd={mo.done} />;
+  const rowsOf = (key, list, stop) => {                                             // the rows, with a deleted row's fading copy back in its old place
+    const out = list.map((r) => row(r, stop));
+    mo.ghostsFor(key).forEach((d) => out.splice(Math.min(d.at, out.length), 0, <Row key={"gone-" + d.row.id} row={d.row} today={today} Eye={Eye} group={g} motion="leave" onMotionEnd={mo.done} />));
+    return out;
+  };
   if (g === "nothing") {
     const flat = sortRows(rows, today), stop = stopOf(flat);
     order = flat.map((r) => r.id);
-    return <div class="wgroup"><table class="items" {...grid}><Cols eye={Eye} hand={hand} /><thead><tr><Heads eye={Eye} hand={hand} /></tr></thead><tbody>{flat.map((r) => row(r, stop))}</tbody></table></div>;
+    mo = useRowMotion([{ key: "", rows: flat }]);
+    return <div class="wgroup"><table class="items" {...grid}><Cols eye={Eye} hand={hand} /><thead><tr><Heads eye={Eye} hand={hand} /></tr></thead><tbody>{rowsOf("", flat, stop)}</tbody></table></div>;
   }
   const ctx = contextFor(today, type);
   const groups = columnsFor(g, rows, ctx).map((c) => ({ ...c, rows: sortRows(rows.filter((r) => cellOf(g, r, ctx) === c.key), today) })).filter((c) => c.rows.length > 0)
     .map((c) => ({ ...c, shut: isCollapsed(st, g, c.key) }));
   const shown = groups.flatMap((c) => (c.shut ? [] : c.rows)), stop = stopOf(shown);
   order = shown.map((r) => r.id);
+  mo = useRowMotion(groups.map((c) => ({ key: c.key, rows: c.shut ? [] : c.rows })));
   return (
     <>
       {groups.map((c) => {
@@ -186,7 +236,7 @@ function Table({ rows, today, type, Cell, Eye }) {
                   </button>
                 </th></tr>
                 {shut ? null : <tr class="colh"><Heads eye={Eye} hand={hand} /></tr>}
-                {shut ? null : c.rows.map((r) => row(r, stop))}
+                {shut ? null : rowsOf(c.key, c.rows, stop)}
               </tbody>
             </table>
           </div>

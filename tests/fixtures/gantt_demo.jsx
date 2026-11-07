@@ -15,10 +15,11 @@ function Host({ first, opts }) {
   const [rows, setRows] = useState(opts.defaultRows === undefined ? null : opts.defaultRows);
   const [hidden, setHidden] = useState(opts.hiddenCols || []);
   window.hostLines = () => lines;
+  window.hostSet = setLines;
   const put = (id, fn) => setLines((all) => all.map((l) => (l.id === id ? fn(l) : l)));
   return (
     <div id="host" style={{ width: `${opts.width || 1000}px` }}>
-      <GanttChart eyeWords={{ head: EW.eyeHead, on: EW.eyeTipOn, off: EW.eyeTipOff, detail: EW.eyeDetail }} lines={lines} edit={!!opts.edit} today={opts.today} defaultRows={rows} hiddenCols={hidden}
+      <GanttChart eyeWords={{ head: EW.eyeHead, on: EW.eyeTipOn, off: EW.eyeTipOff, detail: EW.eyeDetail }} projectKey={opts.projectKey} lines={lines} edit={!!opts.edit} today={opts.today} defaultRows={rows} hiddenCols={hidden}
         onDefaultRows={(n) => { window.calls.push(["rows", n]); setRows(n); }}
         onToggleColumn={(k) => { window.calls.push(["column", k]); setHidden((h) => (h.includes(k) ? h.filter((x) => x !== k) : [...h, k])); }}
         onChange={(id, field, value) => { window.calls.push(["change", id, field, value]); put(id, (l) => (field === "dates" ? { ...l, ...value } : { ...l, [field]: value })); }}

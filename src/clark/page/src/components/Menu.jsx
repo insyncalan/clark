@@ -28,14 +28,15 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
   const own = useRef(null), box = boxRef || own;
   const closeRef = useRef(onClose); closeRef.current = onClose;
   // `fixed`: the button sits inside a scrolling box that would cut the menu off, so the menu is placed on the window under the button (above it when
-  // there is no room below), its right edge on the button's. It is placed once, so any scroll (the row's own included) or a resize closes it.
+  // there is no room below), its right edge on the button's (`fixed="start"`: its left edge). It is placed once, so any scroll (the row's own included) or a resize closes it.
   useLayoutEffect(() => {
     if (!fixed || !anchor || !box.current) return;
     const el = box.current, a = anchor.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
     el.style.position = "fixed"; el.style.right = "auto";
     const below = Math.round(a.bottom + 4), above = Math.round(a.top - 4 - h);
     el.style.top = `${below + h > window.innerHeight && above >= 0 ? above : below}px`;
-    el.style.left = `${Math.round(Math.max(8, Math.min(a.right - w, window.innerWidth - w - 8)))}px`;
+    const edge = fixed === "start" ? a.left : a.right - w;       // "start": the menu's left edge on the button's (a button near the page's left edge), else its right edge on the button's
+    el.style.left = `${Math.round(Math.max(8, Math.min(edge, window.innerWidth - w - 8)))}px`;
     const shut = () => closeRef.current("away");
     window.addEventListener("scroll", shut, true);
     window.addEventListener("resize", shut);

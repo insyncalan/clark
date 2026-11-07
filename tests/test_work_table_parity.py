@@ -177,9 +177,8 @@ class Table(unittest.TestCase):
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#work&p=TUL&f=mode:all"}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0), "the list drew")
         cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
-        if mode == "edit":
-            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-cell]')", sid)), "Edit shows the cells' pickers")
+        self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch off the Dashboard: the page is always editable")
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-cell]')", sid)), "Work items shows the cells' pickers")
         return sid
 
     def measure(self, cdp, sid):
@@ -243,17 +242,17 @@ class Table(unittest.TestCase):
             self.assertEqual(self.hidden(), set())
             click(cdp, sid, eye)
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'false'", sid)), "the eye turned off")
-            self.assertEqual(self.hidden(), {ref}, "the item is hidden from the report, in the store")
+            self.assertTrue(wait(lambda: self.hidden() == {ref}), "the item is hidden from the report, in the store")
             self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), f"{ref} hidden from the client.")
             self.assertEqual(cdp.js("document.querySelector('#peek') ? 1 : 0", sid), 0, "a click on the eye does not open the peek")
             click(cdp, sid, "[data-undo]")
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'true'", sid)), "Undo turned it on again")
-            self.assertEqual(self.hidden(), set())
+            self.assertTrue(wait(lambda: self.hidden() == set()), "Undo put it back in the store")      # the eye shows at once and the store write follows: wait for it, as the 'hidden again' step does
             click(cdp, sid, eye)
             self.assertTrue(wait(lambda: self.hidden() == {ref}), "hidden again")
             click(cdp, sid, eye)
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'true'", sid)), "the eye turned it on")
-            self.assertEqual(self.hidden(), set())
+            self.assertTrue(wait(lambda: self.hidden() == set()), "the item is shown again, in the store")
             self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), f"{ref} shown to the client.")
 
     def test_the_eye_turns_an_item_on_by_its_own_flag_and_refuses_a_sensitive_one_in_words(self):

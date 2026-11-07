@@ -9,7 +9,7 @@ import unittest
 
 from test_server import chrome
 from test_work_board_page import Base
-from test_work_filters import click, key
+from test_work_filters import click, hover, key, select_line
 
 CASES = [(w, s, e) for w in (1400, 900) for s in ("light", "dark") for e in (False, True)]
 
@@ -76,7 +76,7 @@ class Header(Base):
     # ---- row 808 ----
     def open_list(self, cdp, sid):
         click(cdp, sid, "#fline-input")
-        cdp.js("document.querySelector('#fline-input').select()", sid)
+        select_line(cdp, sid)
         key(cdp, sid, "Backspace")
         self.until(cdp, sid, "document.querySelector('#fline-list')", "the suggestion list")
 
@@ -87,7 +87,7 @@ class Header(Base):
             self.until(cdp, sid, "!document.querySelector('#fline-list')", "the list closed")
         else:
             click(cdp, sid, "#fline-input")
-            cdp.js("document.querySelector('#fline-input').select()", sid)
+            select_line(cdp, sid)
             key(cdp, sid, "Backspace")
             cdp.js("document.activeElement.blur()", sid)
             self.until(cdp, sid, "!document.querySelector('#fline-list')", "the list closed")
@@ -149,6 +149,181 @@ class Header(Base):
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.vtab[data-view-id=mine]')).borderBottomWidth", sid), "2px")
         self.each(check)
 
+    # ---- row 844 ----
+    def test_row_844_a_changed_view_keeps_its_tab_with_a_dot_and_save_view_and_discard_changes_act_on_it(self):
+        saved = [{"id": "risky", "name": "Risky", "line": "is:open type:risk"}]
+
+        def check(cdp, sid, width):
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({ABC: %s}))" % __import__("json").dumps(saved), sid)
+            self.reload(cdp, sid)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]')", "the made view")
+            # a fresh load: Open items is the chosen tab; a typed change leaves it chosen, with the dot and Discard changes (a core view cannot be saved over)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=core-open]').getAttribute('aria-pressed') === 'true'", "Open items is chosen")
+            click(cdp, sid, "#fline-input")
+            key(cdp, sid, "End")
+            cdp.call("Input.insertText", {"text": " no:owner "}, sid)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=core-open] [data-dot]')", "the dot on Open items")
+            self.assertEqual(cdp.js("document.querySelectorAll('.vtab[aria-pressed=true]').length", sid), 1, "a tab stays chosen")
+            self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), "core-open")
+            self.assertEqual(cdp.js("!!document.querySelector('#fvSave')", sid), False, "a core view cannot be saved over")
+            self.assertEqual(cdp.js("document.querySelector('#fvRevert').textContent", sid), "Discard changes")
+            self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
+            click(cdp, sid, "#fvRevert")
+            self.until(cdp, sid, "!document.querySelector('[data-dot]') && !document.querySelector('#fvRevert')", "discarded: no dot, no buttons")
+            self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line.trim() === 'is:open'", "the saved line is back")
+            # a made view: Save view writes the line into it
+            click(cdp, sid, ".vtab[data-view-id=risky]")
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "the made view is open")
+            click(cdp, sid, "#fline-input")
+            key(cdp, sid, "End")
+            cdp.call("Input.insertText", {"text": " no:owner "}, sid)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky] [data-dot]')", "the dot on the made view")
+            got = cdp.js("(() => { const b = document.querySelector('#fvSave'); return b ? [b.textContent, b.getBoundingClientRect().height] : null; })()", sid)
+            self.assertEqual(got[0], "Save view")
+            self.assertGreaterEqual(got[1], 24)
+            click(cdp, sid, "#fvSave")
+            self.until(cdp, sid, "!document.querySelector('[data-dot]') && !document.querySelector('#fvSave')", "saved: no dot")
+            self.assertIn("no:owner", cdp.js("JSON.parse(localStorage.getItem('clark.fviews')).ABC.find((v) => v.id === 'risky').line", sid))
+            self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
+        self.each(check)
+
+    def test_row_844_the_saved_view_menu_opens_under_its_arrow_not_at_the_page_edge(self):
+        saved = [{"id": "risky", "name": "Risky", "line": "is:open type:risk"}]
+        probe = ("(() => { const a = document.querySelector('#viewTabMenu').getBoundingClientRect(), m = document.querySelector('#viewTabMenuList').getBoundingClientRect();"
+                 " return {al: a.left, ab: a.bottom, ml: m.left, mt: m.top, mr: m.right}; })()")
+
+        def check(cdp, sid, width):
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({ABC: %s}))" % __import__("json").dumps(saved), sid)
+            self.reload(cdp, sid)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]')", "the made view")
+            for tab in ("core-open", "risky"):         # the first tab (its arrow is near the page's left edge) and a later one
+                click(cdp, sid, f".vtab[data-view-id={tab}]")
+                self.until(cdp, sid, f"document.querySelector('.vtab[data-view-id={tab}]').getAttribute('aria-pressed') === 'true' && document.querySelector('#viewTabMenu')", f"{tab} chosen")
+                click(cdp, sid, "#viewTabMenu")
+                self.until(cdp, sid, "document.querySelector('#viewTabMenuList')", "the menu")
+                got = cdp.js(probe, sid)
+                self.assertLessEqual(abs(got["ml"] - got["al"]), 2, f"{tab}: the menu starts at its arrow {got}")
+                self.assertGreaterEqual(got["mt"], got["ab"], f"{tab}: below the arrow {got}")
+                self.assertLessEqual(got["mr"], width, f"{tab}: inside the page {got}")
+                key(cdp, sid, "Escape")
+                self.until(cdp, sid, "!document.querySelector('#viewTabMenuList')", "closed")
+        self.each(check)
+
+    # ---- row 845 ----
+    def test_row_845_accepted_filters_are_chips_each_with_its_own_remove_button(self):
+        chips = "[...document.querySelectorAll('[data-fline] [data-chip]')].map((e) => e.dataset.chip)"
+        line = "document.querySelector('[data-fline]').dataset.line"
+
+        def check(cdp, sid, width):
+            self.assertEqual(cdp.js(chips, sid), ["is:open"], "the starting line is a chip")
+            self.assertEqual(cdp.js("document.querySelector('#fline-input').placeholder", sid), "", "no placeholder once a chip exists")
+            self.assertEqual(cdp.js("document.querySelector('[data-chip] button').getAttribute('aria-label')", sid), "Remove the is filter")
+            click(cdp, sid, "#fline-input")
+            cdp.call("Input.insertText", {"text": "priority:High "}, sid)
+            self.until(cdp, sid, f"JSON.stringify({chips}) === JSON.stringify(['is:open', 'priority:High'])", "the accepted word became a chip")
+            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "", "the box is empty again")
+            self.assertEqual(cdp.js("document.querySelector('[data-chip=\"priority:High\"] button').getAttribute('aria-label')", sid), "Remove the Priority filter")
+            self.assertGreaterEqual(cdp.js("document.querySelector('[data-chip] button').getBoundingClientRect().height", sid), 22)
+            self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
+            # a plain word stays in the box
+            cdp.call("Input.insertText", {"text": "hello "}, sid)
+            self.assertEqual(cdp.js(chips, sid), ["is:open", "priority:High"])
+            self.assertEqual(cdp.js("document.querySelector('#fline-input').value", sid), "hello ")
+            for _ in range(6):
+                key(cdp, sid, "Backspace")
+            self.until(cdp, sid, f"document.querySelector('#fline-input').value === ''", "the word is gone")
+            # Backspace in an empty box takes the last chip away
+            key(cdp, sid, "Backspace")
+            self.until(cdp, sid, f"JSON.stringify({chips}) === JSON.stringify(['is:open'])", "the last chip is gone")
+            self.until(cdp, sid, f"{line} === 'is:open'", "and the line follows")
+            # the x on a chip removes only that chip and returns the focus to the box
+            cdp.call("Input.insertText", {"text": "no:owner "}, sid)
+            self.until(cdp, sid, f"JSON.stringify({chips}) === JSON.stringify(['is:open', 'no:owner'])", "a second chip")
+            click(cdp, sid, "[data-chip='is:open'] button")
+            self.until(cdp, sid, f"JSON.stringify({chips}) === JSON.stringify(['no:owner'])", "only that chip is gone")
+            self.assertEqual(cdp.js("document.activeElement.id", sid), "fline-input")
+            self.until(cdp, sid, f"{line} === 'no:owner'", "the line follows")
+        self.each(check)
+
+    # ---- row 846 ----
+    def test_row_846_each_suggested_value_shows_how_many_items_it_leaves_and_an_unknown_field_lists_the_valid_ones(self):
+        def check(cdp, sid, width):
+            click(cdp, sid, "#fline-input")
+            key(cdp, sid, "End")
+            cdp.call("Input.insertText", {"text": " status:"}, sid)
+            self.until(cdp, sid, "document.querySelector('#fline-list [data-ins^=\"status:\"]')", "the values")
+            got = cdp.js("[...document.querySelectorAll('#fline-list [data-ins^=\"status:\"]')].map((o) => [o.dataset.ins, o.querySelector('.c') ? o.querySelector('.c').textContent : null])", sid)
+            closing = [g for g in got if g[0] != "status:" and not g[0].startswith("-")]
+            self.assertTrue(closing and all(g[1] is not None and g[1].isdigit() for g in closing), f"a count beside every value: {closing}")
+            self.assertTrue(all(isinstance(g[1], str) for g in closing))
+            # choosing a value leaves exactly that many items (the open chip still counts)
+            pick = next(g for g in closing if g[0] == "status:Pending")
+            click(cdp, sid, "#fline-list [data-ins='status:Pending']")
+            self.until(cdp, sid, f"document.querySelector('#fline-count').textContent.startsWith('{pick[1]} of ')", "the count the list promised")
+            # an unknown field turns the box red
+            before = cdp.js("getComputedStyle(document.querySelector('.fline')).borderTopColor", sid)
+            cdp.call("Input.insertText", {"text": "zzz:a "}, sid)
+            self.until(cdp, sid, "document.querySelector('#fline-msg').textContent.startsWith('There is no')", "the message")
+            said = cdp.js("document.querySelector('#fline-msg').textContent", sid)
+            self.assertEqual(said, "There is no \u201czzz\u201d filter. You can filter by type:, status:, owner:, priority:, due:, workstream:, usecase:, milestone:, client: and is:, or type plain words to search titles.")
+            self.assertTrue(cdp.js("document.querySelector('.fline').classList.contains('bad')", sid))
+            self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('.fline')).borderTopColor", sid), before, "the box is red")
+        self.each(check)
+
+    def test_row_846_a_mistyped_field_names_the_nearest_one(self):
+        def check(cdp, sid, width):
+            click(cdp, sid, "#fline-input")
+            key(cdp, sid, "End")
+            cdp.call("Input.insertText", {"text": " stauts:a "}, sid)
+            self.until(cdp, sid, "document.querySelector('#fline-msg').textContent.startsWith('There is no')", "the message")
+            said = cdp.js("document.querySelector('#fline-msg').textContent", sid)
+            self.assertTrue(said.startswith("There is no \u201cstauts\u201d filter. Did you mean status? You can filter by type:"), said)
+        self.each(check)
+
+    # ---- row 844: the toast ----
+    def test_row_844_save_view_says_what_was_saved_in_the_toast(self):
+        saved = [{"id": "risky", "name": "Risky", "line": "is:open type:risk"}]
+
+        def check(cdp, sid, width):
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({ABC: %s}))" % __import__("json").dumps(saved), sid)
+            self.reload(cdp, sid)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]')", "the made view")
+            click(cdp, sid, ".vtab[data-view-id=risky]")
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "open")
+            self.assertFalse(cdp.js("!!document.querySelector('.toast')", sid), "no message before")
+            click(cdp, sid, "#fline-input")
+            key(cdp, sid, "End")
+            cdp.call("Input.insertText", {"text": " no:owner "}, sid)
+            self.until(cdp, sid, "document.querySelector('#fvSave')", "Save view")
+            click(cdp, sid, "#fvSave")
+            self.until(cdp, sid, "document.querySelector('.toast .toast-text')", "the message")
+            self.assertEqual(cdp.js("document.querySelector('.toast .toast-text').textContent", sid), "View saved: Risky")
+            self.assertFalse(cdp.js("!!document.querySelector('.toast [data-undo]')", sid), "a saved view has no Undo to offer")
+            self.assertTrue(cdp.js("(() => { const r = document.querySelector('.toast').getBoundingClientRect(); return r.height > 0 && r.bottom <= innerHeight && r.right <= innerWidth; })()", sid), "it is on the screen")
+        self.each(check)
+
+    # ---- row 845: a chip's meaning ----
+    def test_row_845_a_chip_says_what_it_means_in_the_examples_line_on_hover_and_focus(self):
+        gloss = "(() => { const g = document.querySelector('#fline-gloss'); const r = g.getBoundingClientRect(); const v = getComputedStyle(g.parentElement).visibility; return [g.textContent, r.height > 0, v]; })()"
+
+        def check(cdp, sid, width):
+            click(cdp, sid, "#fline-input")
+            cdp.call("Input.insertText", {"text": "priority:High,Urgent -status:Closed "}, sid)
+            self.until(cdp, sid, "document.querySelectorAll('[data-fline] [data-chip]').length === 3", "three chips")
+            key(cdp, sid, "Escape")      # the suggestions close, so the examples line (where the meaning is said) shows
+            self.until(cdp, sid, "document.querySelector('.fhints.on')", "the examples line")
+            self.assertFalse(cdp.js(gloss, sid)[1], "nothing is said until a chip is pointed at")
+            hover(cdp, sid, "[data-chip='priority:High,Urgent']")
+            self.until(cdp, sid, "document.querySelector('#fline-gloss').textContent !== ''", "the meaning on hover")
+            self.assertEqual(cdp.js(gloss, sid), ["priority:High,Urgent: Priority is High or Urgent", True, "visible"])
+            cdp.js("document.querySelector('[data-chip=\"-status:Closed\"] button').focus()", sid)
+            self.until(cdp, sid, "document.querySelector('#fline-gloss').textContent.startsWith('-status:Closed')", "the meaning on focus")
+            self.assertEqual(cdp.js("document.querySelector('#fline-gloss').textContent", sid), "-status:Closed: Status is not Closed")
+            click(cdp, sid, "#fline-input")
+            hover(cdp, sid, "#fline-input")
+            self.until(cdp, sid, "document.querySelector('#fline-gloss').hidden", "the meaning goes when the pointer and focus leave")
+        self.each(check)
+
     # ---- row 812 ----
     def test_row_812_table_and_board_are_a_two_icon_switch_and_group_by_stays_in_the_view_menu(self):
         def check(cdp, sid, width):
@@ -193,12 +368,12 @@ class Header(Base):
             self.assertEqual(cdp.js("[...document.querySelectorAll('.fvrow > *')].map(e => e.className.split(' ')[0])", sid)[-2:], ["seg", "dd"], "the row ends with the layout switch and the View menu")
             # the saved view draws the word, the typed word filters, and the page does not scroll sideways
             click(cdp, sid, ".vtab[data-view-id=quiet]")
-            self.until(cdp, sid, "document.querySelector('#fline-input').value === 'is:open is:quiet'", "the saved view's line")
+            self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line === 'is:open is:quiet'", "the saved view's line")
             self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
-            click(cdp, sid, "#fline-input")
-            cdp.js("document.querySelector('#fline-input').select()", sid)
+            click(cdp, sid, "#fline-x")          # row 845: the saved line's filters are chips; Clear takes them away before the new word is typed
+            select_line(cdp, sid)
             cdp.call("Input.insertText", {"text": "is:incomplete"}, sid)
-            self.until(cdp, sid, "document.querySelector('#fline-input').value === 'is:incomplete'", "typed")
+            self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line === 'is:incomplete'", "typed")
             self.until(cdp, sid, "document.querySelector('.fhi .k-val')", "the typed word is a chip")
         self.each(check)
 
@@ -217,8 +392,9 @@ class Header(Base):
             self.assertIn(", selected", got["label"], "a screen reader still hears it")
             self.assertNotEqual(got["border"], got["other"], "the border shows the selection")
             self.assertNotEqual(got["shadow"], "none")
-            key(cdp, sid, "Escape")             # a click opens the peek (row 806), which covers the layout switch
-            self.until(cdp, sid, "!document.querySelector('#peek')", "the peek is closed")
+            # a click opens the details panel (row 806), which covers the layout switch, so it is closed first
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('#peek:not([hidden])') || document.querySelector('#peek').getBoundingClientRect().width === 0 || getComputedStyle(document.querySelector('#peek')).display === 'none'", "the details panel closed")
             # the list row has no check mark either (row 807): the tint, border and bar show it
             self.view_pick(cdp, sid, "layout:table")
             self.until(cdp, sid, "document.querySelector('table.items')", "the table")
