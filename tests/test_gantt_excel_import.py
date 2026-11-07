@@ -254,6 +254,29 @@ class Refusals(Base):
         self.assertEqual(self.lines("DEF"), theirs)
         self.assertEqual(self.lines(), mine)
 
+    def test_a_duplicate_id_leaves_the_second_row_out_and_the_first_is_read(self):
+        self.twelve()
+        path = self.export()
+        wb = load_workbook(str(path))
+        ws = wb["Gantt"]
+        head = {c.value: c.column for c in ws[1]}
+        row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, 1).value == gid(2))
+        last = ws.max_row + 1
+        for col in range(1, ws.max_column + 1):
+            ws.cell(last, col).value = ws.cell(row, col).value
+        ws.cell(row, head["Line"]).value = "First reading"
+        ws.cell(last, head["Line"]).value = "Second reading"          # the same ID again, further down
+        wb.save(str(path))
+        before = self.lines()
+        p = self.plan(path)
+        self.assertTrue(any("appears twice; this second row was left out" in x.message and x.row == last for x in p.problems), p.problems)
+        p.accept_all()
+        xi.apply_import(self.s, p, USER, state_path=self.state)
+        after = self.lines()
+        self.assertEqual(after[gid(2)]["name"], "First reading", "the first row of the ID is the one that is read")
+        self.assertNotIn("Second reading", [v["name"] for v in after.values()])
+        self.assertEqual(len(after), len(before), "no line was added for the second row")
+
     def test_the_client_workbook_sheet_is_refused(self):
         self.twelve()
         self.s.read("projects", ref="ABC")
