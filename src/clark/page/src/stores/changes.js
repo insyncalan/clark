@@ -9,6 +9,7 @@ import { diffIds, markChanged } from "./changed.js";
 import { undoRequest as wordUndoRequest, words as wordWords } from "../edit/wordApi.js";
 
 // null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in }
+import { FIELDS as GANTT_FIELDS } from "../gantt/ganttTab.js";
 export const toast = signal(null);
 // Counts the undos that worked, so the Movement block (edit/Movement.jsx) reads its milestones again after one.
 export const undone = signal(0);
@@ -56,7 +57,7 @@ function redraw(code, reply) {
     next.report_sections = reply.sections.map((sec) => ({ ...was.get(sec.id), ...sec }));
   }
   if (Array.isArray(reply.tiles)) next.glance_tiles = reply.tiles;
-  if (reply.project && typeof reply.project === "object") next.project = { ...next.project, health: reply.project.health, health_reason: reply.project.health_reason, ...(reply.project.week_ending !== undefined ? { week_ending: reply.project.week_ending } : {}), ...(reply.project.review_after_days !== undefined ? { review_after_days: reply.project.review_after_days } : {}) };
+  if (reply.project && typeof reply.project === "object") next.project = { ...next.project, health: reply.project.health, health_reason: reply.project.health_reason, ...(reply.project.week_ending !== undefined ? { week_ending: reply.project.week_ending } : {}), ...(reply.project.review_after_days !== undefined ? { review_after_days: reply.project.review_after_days } : {}), ...Object.fromEntries(Object.values(GANTT_FIELDS).filter((k) => reply.project[k] !== undefined).map((k) => [k, reply.project[k]])) };
   data.value = next;
 }
 

@@ -53,6 +53,7 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "checklist", "description": "Next steps or readiness, ticked off."},
 ]
 FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "gallery", "table", "raid-3", "raid-4", "work-items", "docs-links", "callout", "image-caption", "quote", "contacts", "checklist", "key-dates", "needs", "link-preview", "current-state", "plan-summary", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
+BOX = FIRST_SLICE[:-1] + ["gantt"] + FIRST_SLICE[-1:]      # the box's cards: the Gantt (#926 part 3) sits before One document, listed but not placeable until the store takes its type
 
 
 class Logic(unittest.TestCase):
@@ -88,7 +89,7 @@ class Logic(unittest.TestCase):
 
     def test_the_first_slice_is_all_there_with_everything_filled_in(self):
         cat = self.t("TEMPLATES")
-        self.assertEqual([x["id"] for x in cat], FIRST_SLICE)
+        self.assertEqual([x["id"] for x in cat], BOX)
         kinds = {k["id"] for k in self.t("KINDS")}
         for x in cat:
             self.assertTrue(x["name"] and x["description"] and x["title"] and x["holds"], x["id"])
@@ -146,6 +147,7 @@ class Logic(unittest.TestCase):
             "gallery": ("Pictures in a grid, each with a caption.", ["Heading", "Image", "Caption", "Image", "Caption", "Image"], ["full"]),
             "current-state": ("The state of the project in a few lines, to sit beside another section.", ["Heading", "Text"], ["full", "half"]),
             "plan-summary": ("Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.", ["Heading", "Rich text: headings, lists, quote, links", "AI menu"], ["full", "half"]),
+            "gantt": ("The plan as bars on a timeline, from your Gantt lines. Only lines put on the dashboard show.", ["Heading", "The Gantt chart"], ["full"]),
             "one-doc": ("A single file to read.", ["Heading", "File", "Text"], ["half", "full"]),
         })
 
@@ -158,6 +160,10 @@ class Logic(unittest.TestCase):
         self.assertEqual(self.t("ACCEPTS")["types"][:2], ["text", "needs"])
         self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title", "body"), "new takes a type, a title and (text only) a starting body")
         for x in self.t("TEMPLATES"):
+            if x["id"] == "gantt":      # #926 part 3: the page side is built; the store does not take the type until the guarded step lands
+                self.assertIs(x["ready"], False)
+                self.assertNotIn(x["type"], self.t("ACCEPTS")["types"])
+                continue
             self.assertIn(x["type"], store.SECTION_TYPES, x["id"])
             self.assertIn(x["type"], changes.NEW_SECTION_TYPES, x["id"])
             self.assertIn(x["type"], self.t("ACCEPTS")["types"], x["id"])
@@ -166,12 +172,12 @@ class Logic(unittest.TestCase):
         self.assertEqual(self.t("TEMPLATES.map(x => ({...x, ready: false})).filter(T.templates.available).map(x => x.id)"), [],
                          "with ready off, none is placeable")
         self.assertEqual(self.t("TEMPLATES.map(x => ({...x, ready: true})).filter(T.templates.available).map(x => x.id)"), FIRST_SLICE,
-                         "ready is the one switch")
+                         "ready is the one switch (the Gantt also needs the store's type in ACCEPTS)")
 
     # ── search, kinds, counts, recently used ─────────────────────────────────
 
     def test_search_and_kinds_and_counts(self):
-        self.assertEqual(len(self.t("list()")), 21)
+        self.assertEqual(len(self.t("list()")), 22)
         self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["figures-4", "figures-3"])
         self.assertEqual([x["id"] for x in self.t('list({query: "KEY dates"})')], ["key-dates"], "case does not matter and every word must match")
         self.assertEqual(self.t('list({query: "zzz"})'), [])
@@ -267,6 +273,8 @@ class Logic(unittest.TestCase):
     def test_a_template_the_store_cannot_make_yet_sends_nothing(self):
         """Every template in the box sends the one new request the store takes; one not in the box (LATER) sends nothing."""
         by = {x["id"]: x for x in self.t("TEMPLATES")}
+        gantt = self.t("plan(%s, 'gantt', 'a', false)" % lit(S))
+        self.assertEqual((gantt["ok"], gantt["message"]), (False, "Coming with a later release."), "the Gantt is not placeable until the store takes it")
         for tid in FIRST_SLICE[1:]:
             p = self.t(f"plan({lit(S)}, {lit(tid)}, 'a', false)")
             self.assertEqual(p["requests"], [{"op": "new", "values": {"type": by[tid]["type"], "title": by[tid]["title"]}, "after": "a", "place": "report"}], tid)
@@ -300,9 +308,9 @@ class Box(Base):
             self.assertEqual(p.js(f"document.getElementById({d}.getAttribute('aria-labelledby')).textContent"), "Add a section")
             self.assertEqual(p.js("document.querySelector('#main').hasAttribute('inert') && document.querySelector('.top').hasAttribute('inert')"), True,
                              "the page behind cannot be reached")
-            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 21)
+            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 22)
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates21", "Text and pictures7", "Figures2", "Work items3", "Files and links3", "People and dates4", "Notes2"])
+                             ["All templates22", "Text and pictures7", "Figures2", "Work items3", "Files and links3", "People and dates5", "Notes2"])
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
@@ -393,7 +401,7 @@ class Box(Base):
                   heard: document.querySelector('[data-template=text]').textContent.includes('Full width or Half width'),
                   big: !!document.querySelector('.ad-prev .ad-sk.big'),
                   holds: [...document.querySelectorAll('.ad-prev .ad-els li')].map(l => l.textContent)};})()""")
-            self.assertEqual(got, {"cards": 21, "sketched": 21, "radios": 21, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
+            self.assertEqual(got, {"cards": 22, "sketched": 22, "radios": 22, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
                                    "chipsHidden": "true", "heard": True, "big": True, "holds": ["Heading", "Text"]})
             x = "document.querySelector('.ad-head [data-close]')"
             self.assertEqual(p.js(f"{x}.getAttribute('aria-label')"), "Close")
@@ -481,7 +489,7 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-003")
-            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 21, "every template can be focused")
+            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 22, "every template can be focused")
             self.assertEqual(p.js("document.querySelector('button[data-place]').disabled"), False, "Text is chosen and can be placed")
             cat = {x["id"]: x["description"] for x in FIRST_SLICE_DESCRIPTIONS}
             for tid, desc in cat.items():
@@ -491,12 +499,15 @@ class Box(Base):
             # the arrow keys walk through all thirteen, and the preview follows; each one can be placed
             p.js("document.querySelector('input[name=template]:checked').focus()")
             seen = [p.js("document.activeElement.value")]
-            for _ in range(len(FIRST_SLICE) - 1):
+            for _ in range(len(BOX) - 1):
                 p.key("ArrowDown", code="ArrowDown", vk=40)
                 seen.append(p.js("document.activeElement.value"))
+                if seen[-1] == "gantt":      # listed, read and reached, but it cannot be placed until the store takes its type
+                    self.assertTrue(p.js("document.querySelector('button[data-place]').disabled"), "gantt waits for the store")
+                    continue
                 self.assertFalse(p.js("document.querySelector('button[data-place]').disabled"), seen[-1])
                 self.assertIsNone(p.js("document.activeElement.getAttribute('aria-disabled')"), seen[-1])
-            self.assertEqual(seen, FIRST_SLICE, "the arrow keys reach every template, in order")
+            self.assertEqual(seen, BOX, "the arrow keys reach every template, in order")
             self.assertEqual(p.js("document.querySelector('.ad-prev h3').textContent"), "One document")
             self.assertIn("A single file to read.", p.js("document.querySelector('.ad-prev').textContent"))
             self.assertFalse(p.js("!!document.getElementById('ad-later-prev')"), "no reason to give: it can be placed")

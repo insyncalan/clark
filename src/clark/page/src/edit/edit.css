@@ -922,6 +922,22 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   table.items td .cell-pick[data-cell$=":owner"] .who { display: flex; align-items: center; max-width: 100%; }
   table.items td .cell-pick[data-cell$=":owner"] .who > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+/* The Gantt parts only Edit draws (rows 926 and 928), moved here from shell.css so a published file carries none of them: the Gantt tab's name box, the two
+   ticks of Settings › Gantt, the title box in the banner, the Undo toast and the disabled Import button. */
+.top .tab-name { box-sizing: border-box; align-self: center; width: 12ch; min-width: 8ch; max-width: 24ch; height: 28px; margin: 0 var(--space-2); padding: 0 var(--space-2); border: 1px solid var(--brand-cyan); border-radius: 6px; background: transparent; color: var(--white); font: inherit; font-size: var(--size-small); }
+.top .tab-name:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 1px; }
+.fld-tick { display: grid; gap: var(--space-1); margin: 0 0 var(--space-3); max-width: 420px; }
+.fld-tick label { display: flex; align-items: center; min-height: 24px; gap: var(--space-2); font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--text); cursor: pointer; }
+.fld-tick input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--brand-blue); }
+.fld-tick input[type="checkbox"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.fld-tick small { color: var(--text-muted); font-size: var(--size-caption); }
+.gp .cover h1 .gp-title { display: inline-block; min-width: 4ch; max-width: 100%; border-radius: var(--radius); cursor: text; }
+.gp .cover h1 .gp-title:hover { outline: 1px dashed var(--white); outline-offset: 2px; }
+.gp .cover h1 .gp-title:focus { outline: 2px solid var(--white); outline-offset: 2px; }
+.gp-toast { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--size-small); }
+.gp-toast button { font: inherit; cursor: pointer; background: none; border: 0; color: var(--brand-blue); font-weight: var(--weight-semibold); }
+.gt-ib:disabled { opacity: .5; cursor: not-allowed; }
+
 
 .sn-chips { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); list-style: none; margin: 10px 0 0; padding: 0; }   /* row 776: the typed words, plain text, not buttons */
 .sn-chip { padding: 0 var(--space-2); border-radius: var(--radius-lg); background: var(--brand-blue-tint); color: var(--text); font-size: var(--size-small); overflow-wrap: anywhere; }

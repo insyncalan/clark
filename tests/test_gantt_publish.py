@@ -313,7 +313,8 @@ class FromTheStore(unittest.TestCase):
         self.change({"project": "ABC", "kind": "projects", "op": "update", "changes": {"show_gantt_client": 0}})
         built = publish.build(self.s, "ABC", now="2026-11-06")
         body = built["body"].decode("utf-8")
-        self.assertNotIn('"gantt"', body)
+        self.assertNotIn('"gantt":', body, "no Gantt data in the file (the page's own code names the tab, so the word alone is not the test)")
+        self.assertNotIn('"tabs":["dashboard","work","milestones","usecases","gantt"', body.replace(" ", ""))
         self.assertNotIn("Dig", body)
         self.assertNotIn("gantt", built["published"]["tabs"])
 
