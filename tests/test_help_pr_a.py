@@ -87,7 +87,7 @@ class TypedFilter(unittest.TestCase):
         self.assertIn("`Add a value after '${e.name}:'.`", ui)
         self.assertIn('EMPTY = { none: "No work items match.", clear: "Clear filter" }', ui)
         self.assertIn('NO_ME = "Set your name in Settings to see your actions."', code("logic", "filterLine.js"))
-        for s in ("Unknown field 'x'. Did you mean Owner?", "Add a value after 'x:'.", "Set your name in Settings to see your actions.", "**Clear search**", "No open items match"):
+        for s in ("There is no “x” filter.", "Add a value after 'x:'.", "Set your name in Settings to see your actions.", "**Clear search**", "No open items match"):
             self.assertIn(s, self.FIND)
         self.assertIn("text-decoration: underline wavy var(--status-red)", (PAGE.parent / "shell.css").read_text(encoding="utf-8"))
         self.assertIn('PLACEHOLDER = "Filter by keyword or by field"', code("logic", "filterLine.js"))

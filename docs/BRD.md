@@ -198,7 +198,7 @@ Programme managers spend hours each week turning their work items into a report 
 - **FR-93 (new):** The client sees their earlier comments, and the user's replies, on the next published page.
 - **FR-94 (on hold, "Put this on hold for the client for now - editor only"):** **The client can draft an email too.** On the client page, an envelope in an item's peek, or on a set of ticked items, drafts an email to the project contact the user chose at publish: a question or an update about those items.
   - The same builder and look as FR-44, run inside the page: no server and no model. Nothing leaves the page except what the client copies.
-  - Copy for Outlook, Copy as text, and Open in mail app (plain text only, for a short email).
+  - Copy for Outlook, Copy as text, and Open in your mail app (plain text only, for a short email).
   - Only rows and fields that were published can appear. The contact's name and address are put in the page at publish. Team members' addresses are never in the page.
 - **FR-95 (new):** A Draft email never carries a change into clark. The client's edits come back only through the changes file (FR-92). The email may remind the reader that changes were saved.
 - **How FR-91 to 93 work** is open (section 10, D-1). The recommendation, for the owner's decision:
@@ -340,7 +340,7 @@ Written by a teammate (technical architect), 28-10-2026. It reads with `ARCHITEC
 - One builder, a pure function with no page reads, takes the items, the options and the time and returns the To, the Subject, the HTML and the plain text. It is a Preact component, from creaite's `ChasePane.jsx`, and the editor and the published page bundle the same code.
 - The HTML is for Outlook's Word engine: inline styles on every element, tables with cellpadding and bottom borders, Calibri or Arial at 11 pt, no classes, variables, images or web fonts. The colours come from one small table, tested at 4.5:1 on white.
 - Copying uses `navigator.clipboard.write` with `text/html` and `text/plain`. A page opened from a file or from SharePoint over https is a secure context. If the browser refuses, the preview is selected and the page says "Press ⌘C to copy". It never fails silently.
-- Open in mail app uses a `mailto:` link with the plain text only, offered only under about 1,800 characters, because longer links are cut off by some mail apps.
+- Open in your mail app uses a `mailto:` link with the plain text only, offered only under about 1,800 characters, because longer links are cut off by some mail apps.
 - Reuse: the wording, the rules and the tests come from creaite's Draft email and Draft chase (BL-83, BL-224, BL-298) and are recorded in the reuse record. creaite's `drafts.py` is mostly model drafting and is not copied. None of this is a guarded file.
 - Tests run with a fixed clock: the greeting at 09:00, 13:00 and 19:00, the subject, overdue and due-soon marking, inline styles only, internal items unticked for an outside address, no hidden or internal text, and both clipboard types on a stubbed clipboard.
 
