@@ -201,27 +201,59 @@ def chase_counts_of(records):
 
 # ---- "I sent it" (#50 item 5): the seam of POST /api/draft-email/sent -----------------------------------------------------------
 SENT_KEYS = ("project", "ids", "mode", "day")
+SENT_OPTIONAL = ("person", "tone", "reply_by")      # row 983: a people id (P-001), the tone and the reply-by the draft used; never a name, an address or a subject
+PERSON = re.compile(r"P-[0-9]{3}")
 MAX_SENT = 50                                      # the ids one record can hold (Store.EMAIL_MAX_IDS)
 BUSY_SENT = "That is already being recorded. Wait a moment and look at the history before you press again."
 BAD_SENT = "That could not be recorded. Reload the page and try again."
 
 
-def make_sent(path, onedrive_roots=None, by_user=None, today=None):
+def subject_of(draft):
+    """The Subject as `draft_email_feed.make`'s own seam builds it, for `make_sent` (row 983): the server composes it again from the same
+    inputs, so a subject sent by the page is never trusted (and none is accepted). Returns `subject_for(code, ids, mode, tone, reply_by)`,
+    "" when the seam refuses."""
+    def subject_for(code, ids, mode, tone, reply_by):
+        req = {"project": code, "mode": mode, "picked": list(ids)}
+        if tone is not None:
+            req["tone"] = tone
+        if reply_by:
+            req["reply_by"] = reply_by
+        try:
+            status, body = draft(req)
+        except Exception:
+            return ""
+        got = ((body or {}).get("draft") or {}).get("subject") if status == 200 else ""
+        return got if isinstance(got, str) else ""
+    return subject_for
+
+
+def make_sent(path, onedrive_roots=None, by_user=None, today=None, subject_for=None):
     """The `draft_email_sent` seam for server.LocalServer: `seam(req)` records one press of "I sent it" and answers (status, body).
     The request holds the project code, the item ids ticked (1 to 50), the mode and the day (YYYY-MM-DD); a key not listed, anything
     that is not text of the right shape, or any words of the email is refused before the store is opened. Who pressed it comes from
     `by_user` (the login name unless one is given), never from the request. The store checks the rest (the project, that each id is
     one of its work items, the day) and writes one record in one transaction (Store.log_email_sent); nothing else is written.
-    Answer: {"ok": true, "seq": n}, or a refusal in plain words."""
+    Row 983: the request may also hold `person` (a people id), `tone` (0 to 2) and `reply_by` (a day); with `subject_for` (subject_of) the
+    store writes the one History sentence (the person's name from their record, the subject composed here), and still never an
+    address or a body. Answer: {"ok": true, "seq": n}, or a refusal in plain words."""
     gate, in_flight = threading.Lock(), set()           # #258: the same record while one is being written is refused, not written twice
 
     def work(store, who, req):
-        seq = store.log_email_sent(req["project"], req["ids"], req["mode"], req["day"], who, today=today() if callable(today) else today)
+        subject = subject_for(req["project"], req["ids"], req["mode"], req.get("tone"), req.get("reply_by")) if subject_for else None
+        seq = store.log_email_sent(req["project"], req["ids"], req["mode"], req["day"], who, today=today() if callable(today) else today,
+                                   person=req.get("person"), subject=subject)
         return 200, {"ok": True, "seq": seq}
 
     def seam(req):
-        if not isinstance(req, dict) or any(k not in SENT_KEYS for k in req) or any(k not in req for k in SENT_KEYS):
+        if not isinstance(req, dict) or any(k not in SENT_KEYS + SENT_OPTIONAL for k in req) or any(k not in req for k in SENT_KEYS):
             return refuse(400, "bad_request", BAD_SENT)
+        person, tone, reply_by = (req.get(k) for k in SENT_OPTIONAL)
+        if person is not None and not (isinstance(person, str) and PERSON.fullmatch(person)):
+            return refuse(400, "bad_request", BAD_SENT)
+        if tone is not None and not (type(tone) is int and 0 <= tone <= 2):
+            return refuse(400, "bad_request", BAD_SENT)
+        if reply_by is not None and not (isinstance(reply_by, str) and (reply_by == "" or DAY.fullmatch(reply_by) and _day(reply_by))):
+            return refuse(400, "bad_date", BAD_DATE)
         code, ids, mode, day = (req[k] for k in SENT_KEYS)
         if not isinstance(code, str) or not CODE.fullmatch(code):
             return refuse(400, "bad_project_code", BAD_CODE)

@@ -82,13 +82,19 @@ export async function sendUndoMany(project, steps, { preview = false, confirm = 
 // text longer than that, or with a control character in it, is not one of the route's, so plainChange speaks instead (#307).
 const SENT_REFUSAL_MAX = 600;
 
-// "I sent it" (#50): saves one record in the history: the item ids, the mode and the day, never any words of the email. Answers
+// "I sent it" (#50): saves one record in the history: the item ids, the mode and the day, never any words of the email. Row 983: `extra`
+// may add the recipient's people id (person), the tone and the reply-by the draft used; the server finds the name from that record and
+// composes the subject again itself, so no name, address or subject is sent from here. Answers
 // {ok: true} or {ok: false, message}; a refusal comes back in the route's own plain words, any other failure in plainChange's.
-export async function sendEmailSent(project, entry) {
+export async function sendEmailSent(project, entry, extra) {
+  const more = {};
+  if (extra && typeof extra.person === "string" && /^P-\d{3}$/.test(extra.person)) more.person = extra.person;
+  if (extra && Number.isInteger(extra.tone) && extra.tone >= 0 && extra.tone <= 2) more.tone = extra.tone;
+  if (extra && typeof extra.reply_by === "string" && /^\d{4}-\d{2}-\d{2}$/.test(extra.reply_by)) more.reply_by = extra.reply_by;
   try {
     const r = await fetch("/api/draft-email/sent", {
       method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
-      body: JSON.stringify({ project, ids: entry.ids, mode: entry.mode, day: entry.date }), cache: "no-store",
+      body: JSON.stringify({ project, ids: entry.ids, mode: entry.mode, day: entry.date, ...more }), cache: "no-store",
     });
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true) return { ok: true };
