@@ -74,7 +74,7 @@ class Route(unittest.TestCase):
     def test_a_host_that_is_not_this_machine_stops_nothing(self):
         for host in ("evil.example", f"evil.example:{self.s.port}", f"127.0.0.1.evil.example:{self.s.port}", "10.0.0.5"):
             self.assertEqual(self.quit(host=host)[0], 403, host)
-        self.assertEqual(self.quit(host=None)[0], 400)
+        self.assertEqual(self.quit(host=None)[0], 403, "no Host at all is refused too")
         self.assertTrue(self.not_stopped())
 
     def test_a_page_on_another_site_stops_nothing(self):
