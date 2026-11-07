@@ -8,12 +8,12 @@
 // it is listed but says "Coming with a later release." LATER holds the second slice's entries: in the catalogue, not yet in the
 // box; the lead moves each one into TEMPLATES with its Help row.
 import { rows } from "./placement.js";
-import { TEMPLATE_TYPES } from "../templates/types.js";
+import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
 import { WORDS as NEEDS } from "./needs.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text, needs since the section that carries content (#121),
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
-export const ACCEPTS = { types: ["text", "needs", ...TEMPLATE_TYPES, "current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs"] };
+export const ACCEPTS = { types: ["text", "needs", ...TEMPLATE_TYPES, "current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs", ...PENDING_TYPES] };      // row 926: the Gantt section (no body, no registry module) is taken by the store at layout 19
 
 export const KINDS = [
   { id: "text", name: "Text and pictures" },
@@ -70,7 +70,7 @@ export const TEMPLATES = [
     body: "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>",
     description: "Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.",
     holds: ["Heading", "Rich text: headings, lists, quote, links", "AI menu"] },
-  { id: "gantt", name: "Gantt", kind: "dates", fit: ["full"], type: "gantt", title: "Gantt", body: "", ready: false,
+  { id: "gantt", name: "Gantt", kind: "dates", fit: ["full"], type: "gantt", title: "Gantt", body: "", ready: true,
     description: "The plan as bars on a timeline, from your Gantt lines. Only lines put on the dashboard show.", holds: ["Heading", "The Gantt chart"] },
   { id: "one-doc", name: "One document", kind: "files", fit: ["half", "full"], type: "onedoc", title: "Document", body: "", ready: true,
     description: "A single file to read.", holds: ["Heading", "File", "Text"] },
