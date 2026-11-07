@@ -5,6 +5,8 @@ import { render } from "preact";
 import { mode, fromFile, data } from "@src/stores/report.js";
 import { Toggle } from "@src/edit/Toggle.jsx";
 import { GanttTitle } from "@src/edit/GanttTitle.jsx";
+import { GanttBarNote } from "@src/edit/GanttBarNote.jsx";
+import { GANTT_EDIT_WORDS } from "@src/edit/ganttWords.js";
 import { modeKey } from "@src/edit/keys.js";
 import { GanttPage } from "@src/gantt/components/GanttPage.jsx";
 import { createMemoryHost } from "@src/gantt/logic/ganttHost.js";
@@ -39,7 +41,7 @@ P.mount = (opts = {}) => {
   render(null, root);
   root.innerHTML = "";
   window.__exports = 0;
-  const tools = opts.fromFile ? null : { Toggle, GanttTitle, exportExcel: () => { window.__exports += 1; } };
+  const tools = opts.fromFile ? null : { Toggle, GanttTitle, GanttBarNote, ganttWords: GANTT_EDIT_WORDS, exportExcel: () => { window.__exports += 1; } };
   render(<div id="host" style={{ width: `${opts.width || 1000}px` }}>
     <GanttPage host={host} tools={tools} today="2026-11-06"
       above={opts.slots === false ? null : <div id="slot-above-box">Above</div>} below={opts.slots === false ? null : <div id="slot-below-box">Below</div>} />

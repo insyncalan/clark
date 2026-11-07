@@ -5,7 +5,6 @@
 export const FIELDS = { editor: "show_gantt_editor", client: "show_gantt_client", name: "gantt_tab_name" };
 export const DEFAULT_NAME = "Gantt";
 export const NAME_MAX = 30;
-export const NAME_REFUSED = `Give the tab a name of 1 to ${NAME_MAX} characters. Nothing was changed.`;
 
 const on = (v) => v === 1 || v === true || v === "1";
 

@@ -46,7 +46,7 @@ const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
 export function GanttChart({
   lines, edit = false, today, filter: filterProp, onFilter, defaultRows = null, onDefaultRows, hiddenCols = [],
-  onChange, onToggleEye, onAdd, onDelete,
+  onChange, onToggleEye, onAdd, onDelete, addBelowWord = "",      // addBelowWord: the Edit-only add button's words (edit/ganttWords.js), given by the page
 }) {
   const now = today || todayIso();
   const all = useMemo(() => tidyAll(lines), [lines]);
@@ -339,7 +339,7 @@ export function GanttChart({
                     onKeyDown={(e) => cellKey(e, "name", l.name)} />
                 ) : <span class="gt-nm" style={{ width: `${cw.name}px` }} title={l.name} data-g-cell="name">{l.name}</span>}
                 {cols.map((k) => (cell(l, k) || <span class={`gt-c gt-c-${k}`} style={{ width: `${cw[k]}px` }} key={k} />))}
-                {edit ? <button type="button" class="gt-addb" data-g-add={l.id} aria-label={`${WORDS.addBelow} ${nos[l.id]}`} title={WORDS.addBelow} onClick={(e) => openAdd(l.id, e.currentTarget)}><Icon name="plus" /></button> : null}
+                {edit ? <button type="button" class="gt-addb" data-g-add={l.id} aria-label={`${addBelowWord} ${nos[l.id]}`} title={addBelowWord} onClick={(e) => openAdd(l.id, e.currentTarget)}><Icon name="plus" /></button> : null}
               </div>
             ))}
           </div>

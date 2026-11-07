@@ -20,7 +20,7 @@ import {
 const ROW_HEAD = 44;
 const PAGE_ROWS = 10;
 
-export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filter = "all", today = "", onChange, onAdd, onDelete, onHiddenChange, onUndo }) {
+export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filter = "all", today = "", onChange, onAdd, onDelete, onHiddenChange, onUndo, addBelowWord = "" }) {
   const cols = visibleColumns(hidden, edit);
   const rows = visibleRows(lines, { edit, filter });
   const clash = clashes(lines);
@@ -396,7 +396,7 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
                   {edit ? (
                     <th class={`gt-rh${r >= range.r0 && r <= range.r1 ? " hs" : ""}`} data-row={r} data-r={r} scope="row">
                       <span class="gt-rn">{i + 1}</span>
-                      <button type="button" class="gt-rb" data-add={r} aria-label="Add a line below" title="Add a line below"
+                      <button type="button" class="gt-rb" data-add={r} aria-label={addBelowWord} title={addBelowWord}
                         onClick={(e) => { e.stopPropagation(); const b = e.currentTarget.getBoundingClientRect(); setSel(makeSel(r, 0, r, cols.length - 1)); showMenu(b.left, b.bottom + 4, [["Add a task below", () => addBelow(r, "t")], ["Add a phase below", () => addBelow(r, "p")], ["Add a milestone below", () => addBelow(r, "m")]]); }}><Icon name="plus" /></button>
                       <button type="button" class="gt-rb gt-del" data-del={r} aria-label="Delete this line" title="Delete this line"
                         onClick={(e) => { e.stopPropagation(); if (r >= range.r0 && r <= range.r1 && range.r1 > range.r0) removeRows(range.r0, range.r1); else removeRows(r, r); }}><Icon name="x" /></button>
