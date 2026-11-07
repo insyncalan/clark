@@ -409,9 +409,9 @@
     "s": [
      "With a work item open in the peek in Edit, press [[/]] twice quickly (when you aren’t typing in a box), or press the sparkle at the top, “Change an item with words”.",
      "Type the change, for example “move to Friday, owner Jo, high priority”.",
-     "Under the box, a line for each field shows what it is now and what it will become.",
-     "Press [[Enter]] to make every change shown, in one step ([[Shift+Enter]] makes them and keeps the box open). [[Esc]] closes the box. The fields that changed flash for a moment, and the message has **Undo**.",
-     "Closing an item, making or withdrawing a decision, marking a milestone Achieved or a use case Done asks first: press **Confirm and apply** or [[Mod+Enter]]. A decision that is made cannot be undone from here."
+     "Under the box, the words you typed are shown in the order you typed them, then a line for each field shows what it is now and what it will become.",
+     "Press **Make the change** or [[Enter]] to make every change shown, in one step ([[Shift+Enter]] makes them and keeps the box open). **Not now** or [[Esc]] closes the box. The fields that changed flash for a moment, and the message has **Undo**.",
+     "Closing an item, making or withdrawing a decision, marking a milestone Achieved or a use case Done asks first: press **Confirm and apply**, [[Mod+Enter]] or **Make the change** (the words and the lines are on screen above it). A decision that is made cannot be undone from here."
     ],
     "n": "If the owner is not already named in the project, the line is marked “new name”. See [Sneak peek](#ref-sneak-peek) for what it understands.",
     "page": [
@@ -1555,7 +1555,7 @@
      ],
      [
       "p",
-      "It reads your words with plain rules on this computer: no model is used and nothing is sent. [[Enter]] makes the changes shown as one step, with **Undo**; [[Shift+Enter]] makes them and keeps the box open; [[Esc]] closes it."
+      "It reads your words with plain rules on this computer: no model is used and nothing is sent. **Make the change** or [[Enter]] makes the changes shown as one step, with **Undo**; [[Shift+Enter]] makes them and keeps the box open; **Not now** or [[Esc]] closes it."
      ]
     ]
    },

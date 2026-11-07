@@ -189,6 +189,25 @@ class Arrows(unittest.TestCase):
                     self.assertEqual(r[0], "sticky", r)
                     self.assertNotEqual(r[1], "none", r)
 
+    def test_row_776_the_words_box_has_chips_and_the_button_row_after_a_reading_in_light_and_dark(self):
+        for theme in ("light", "dark"):
+            for width in (1400, 900):
+                with self.subTest(theme=theme, width=width), chrome() as cdp:
+                    s, sid = self.load_page(cdp, width)
+                    cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
+                    self.edit_mode(cdp, sid)
+                    ids = self.ids_on_page(cdp, sid)
+                    self.open_by_double_click(cdp, sid, ids, 1)
+                    cdp.js("document.querySelector('[data-sneak-open]').click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sn-in')", sid)))
+                    self.assertFalse(cdp.js("!!document.querySelector('.wordsbox .sn-acts, .wordsbox .sn-chips')", sid), "empty box: no chips, no buttons")
+                    cdp.js("(() => { const i = document.querySelector('.sn-in'); i.value = 'owner Jo Ellis'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.wordsbox .sn-acts')", sid)))
+                    self.assertEqual(cdp.js("document.querySelectorAll('.wordsbox .sn-acts button').length", sid), 2)
+                    self.assertEqual(cdp.js("[...document.querySelectorAll('.wordsbox .sn-chip')].map((c) => c.textContent)", sid), ["owner Jo Ellis"])
+                    bg = cdp.js("getComputedStyle(document.querySelector('.sn-chip')).backgroundColor", sid)
+                    self.assertNotIn(bg, ("rgba(0, 0, 0, 0)", "transparent"), "the chip is tinted")
+
     def test_a_menu_open_or_a_modifier_held_leaves_the_arrow_alone(self):
         with chrome() as cdp:
             s, sid = self.load_page(cdp, 1400)
