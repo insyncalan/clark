@@ -1408,7 +1408,7 @@ class StartFileNameTest(Base):
         self.refuses(self.start_zip(["START-HERE.txt", "START-HERE.md"]), "unsafe", detail="outside the app's own list: START-HERE.txt")
 
     def test_no_start_file_is_still_incomplete(self):
-        self.refuses(self.start_zip([]), "incomplete", detail="missing: START-HERE.txt")
+        self.refuses(self.start_zip([]), "incomplete", detail="missing: START-HERE.md")
 
     def test_another_name_is_not_a_start_file(self):
         for name in ("START-HERE.rtf", "start-here.md", "Start-Here.txt", "x/START-HERE.md", ".app/START-HERE.md", ".app/START-HERE.txt"):
