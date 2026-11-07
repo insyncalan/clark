@@ -48,7 +48,7 @@ DIST = ROOT / "dist"
 
 if str(Path(__file__).resolve().parents[2] / "src") not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
-from clark.release_files import (EXTRA_TOP, INCLUDE_DEMO, MANIFEST, NOT_BUILT_YET, RUN_BIT, SHARED, START_HERE, SYSTEMS, TOP,  # noqa: E402,F401
+from clark.release_files import (EXTRA_TOP, INCLUDE_DEMO, MANIFEST, NOT_BUILT_YET, RUN_BIT, SHARED, START_HERE, START_HERE_NAMES, SYSTEMS, TOP,  # noqa: E402,F401
                                  ZIP_README, place, protected, source, unplace)
 
 # The one list of what the download holds is src/clark/release_files.py (shipped, so the updater reads the same list).
@@ -437,7 +437,7 @@ def placed_bytes(name, data):
 # Folders that are not in git (written at build time) go at the top of the clark folder under their own names. At most
 # EXTRA_MAX_BYTES of files in all of them; regular files only; a link anywhere refuses the build.
 EXTRA_MAX_BYTES = 5 * 1024 * 1024
-RESERVED_TOP = (".app", "README.md", START_HERE, MANIFEST, "clark.command", "clark.cmd", "docker", "system", "data", "clark")
+RESERVED_TOP = (".app", "README.md", *START_HERE_NAMES, MANIFEST, "clark.command", "clark.cmd", "docker", "system", "data", "clark")
 
 
 def extra_name(path):
