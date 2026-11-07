@@ -201,7 +201,7 @@ export function FilterLine({ board }) {
   const setDraft = (v) => { live.current.draft = v; setDraftRaw(v); };
   const input = useRef(null), over = useRef(null), box = useRef(null), timer = useRef(0), applied = useRef(line), want = useRef(null);
   // A change that did not come from this box (a tab, a switch, Clear filter, another project) puts its line in the box and drops a pending apply.
-  useEffect(() => {
+  useLayoutEffect(() => {      // before paint: a late run would wipe what was typed just after a tab was chosen
     const now = lineText.value;      // the line as it is now, not as the draw that scheduled this saw it: a key can apply a newer one before the effect runs
     if (now !== applied.current) { clearTimeout(timer.current); applied.current = now; const s = Q.splitLine(now, rows, ctx); setChips(s.chips); setDraft(s.rest); }
   }, [line]);
