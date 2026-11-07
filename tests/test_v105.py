@@ -260,6 +260,10 @@ class Notes(unittest.TestCase):
         self.assertNotIn("focus-ring pin", self.text)
         self.assertNotIn("checked for Gantt details", self.text)
         self.assertNotIn("and says so", self.text)
+        self.assertIn(
+            "- Issue 966 [What is fixed]. Import from Excel stops a workbook that declares a huge sheet or holds one very large cell, instead of using up the memory of the computer.",
+            waiting,
+        )
 
     def test_the_notes_hold_no_status_table_and_no_row_ids(self):
         self.assertNotIn(BEGIN, self.text)
