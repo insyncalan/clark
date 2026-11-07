@@ -33,7 +33,7 @@ PARTLY_MERGED = set()
 # Not on main yet: (item, check, pull request, a file under the top folder and the text that is in it once the pull request has landed).
 WAITING = [
     ("#804", "The View or Edit switch is on the Dashboard and the Gantt page only.", "no pull request yet (issue 804)", "", None),
-    ("#944", "The data file moves to layout 20 to hold each project's brand.", "no pull request yet (issue 944)", "", None),
+    ("#944", "The data file moves to layout 20.", "no pull request yet (issue 944)", "", None),
     ("#951", "The Settings Data card has an Excel file layout (preview) button.", "no pull request yet (issue 951)", "", None),
     ("#961", "The zip holds START-HERE.md.", "no pull request yet (issue 961)", "", None),
     ("#962", "The other pickers and menus fade out as they close.", "no pull request yet (issue 962)", "", None),
