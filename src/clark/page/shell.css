@@ -1178,6 +1178,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pubopts, .pub-clash { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-3) 0 0; padding: 0; border: 0; min-width: 0; }
 .pubopt { display: flex; align-items: flex-start; gap: 10px; padding: var(--space-2) 10px; border: 1px solid var(--grey-200); border-radius: var(--radius); cursor: pointer; }
 .pubopt.off { color: var(--text-muted); }
+.pubopt b { font-weight: var(--weight-medium); }   /* row 796: the option titles take the box's text size and the medium weight, not bold */
 .pubopt input { margin: 3px 0 0; flex: none; width: 16px; height: 16px; }
 .pubopt span { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 .pubopt small { font-size: var(--size-caption); color: var(--text-muted); }
@@ -1464,7 +1465,7 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 .rt-slash { flex-direction: column; min-width: 180px; max-width: calc(100vw - 16px); max-height: 50vh; overflow-y: auto; padding: var(--space-1) 0; }
 .rt-opt { all: unset; box-sizing: border-box; display: block; padding: var(--space-2) 14px; font-size: var(--size-small); color: var(--text); cursor: pointer; }
 .rt-opt:hover, .rt-opt.on { background: var(--grey-100); }
-.rt-view { border-radius: var(--radius-sm); cursor: text; }
+.rt-view { border-radius: var(--radius-sm); cursor: text; min-height: 24px; }   /* row 843: a one-line view is 22.5 px at the 15 px base; a click target is 24 px */
 .rt-view:hover { outline: 1px solid var(--grey-300); }
 .rt-view:focus-visible { outline: 2px solid var(--focus); }
 

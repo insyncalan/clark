@@ -6,7 +6,7 @@ its own: reading a workbook, staging the differences, the clash rules, the expor
 excel_import.py's (#38), the code the command line and the tests of the import already use.
 
 Four ops of one route:
-- "sheets" (#655): the same file handling as "check", but nothing is compared: it lists which of the five sheets the workbook has,
+- "sheets" (#655): the same file handling as "check", but nothing is compared: it lists which sheets the workbook has (the five tables and the Gantt sheet),
   with each one's row count, and keeps the copy (named by `file`) so the check that follows does not send the workbook again.
   "check" then takes `sheets`, the tables ticked: only those sheets are read, and an unticked one is not read, not changed and
   not archived (excel_import.read_workbook enforces it here, whatever the page sends).
@@ -187,7 +187,7 @@ def _sheets(store, req, project, clock):
     workbook is kept (as a check is) so the check that follows names it by `file` and the page does not send it again."""
     now, folder, file = _staged_file(req, clock)
     try:
-        listed = word_route._excel_import().list_sheets(file, store)
+        listed = word_route._excel_import().list_sheets(file, store, project)
     except BaseException:
         shutil.rmtree(folder, ignore_errors=True)
         raise
@@ -196,10 +196,11 @@ def _sheets(store, req, project, clock):
 
 
 def _wanted_sheets(value):
-    """The tables the person ticked: a list of distinct names from the five (at least one), or None when `sheets` was not sent (all)."""
+    """The tables the person ticked: a list of distinct names from the five and the Gantt sheet (at least one), or None when `sheets` was not sent (all)."""
     if value is None:
         return None
-    tables = word_route._excel_import().CHOICE_ORDER
+    xi = word_route._excel_import()
+    tables = xi.CHOICE_ORDER + (xi.GANTT,)                 # row 926: the Gantt sheet is offered after the five
     if not isinstance(value, list) or not value or len(value) > len(tables) or any(not isinstance(t, str) or t not in tables for t in value) or len(set(value)) != len(value):
         raise Refused(BAD_SHEETS)
     return value
