@@ -1,4 +1,5 @@
 # Start clark with Docker instead of a Terminal window (item 427). In the unzipped clark folder:
+#   bash docker/start.command        checks the data folder is not in OneDrive, Dropbox, iCloud Drive or Google Drive, then does the next line
 #   docker compose -f docker/compose.yaml up -d        then open http://localhost:8766
 #   docker compose -f docker/compose.yaml down         to stop it
 # The data is kept in ~/Library/Application Support/clark, the same place clark.command uses, not in this folder. To use another data
