@@ -289,7 +289,9 @@ def _cut_bare(text):
     in the key word ("pass", a break, then `word "orangebicycle"`) or between the key word and the quoted word (`my password`, a
     line break (CRLF, blank lines, trailing spaces), `"orangebicycle"`). A break that only ends the line before the key word or
     follows the quote is not inside the hit. Refused on purpose, as the text as written was refused before #340: `Forgot password`
-    at the end of a line with a quoted word starting the next cannot be told apart from a password written over two lines."""
+    at the end of a line with a quoted word starting the next cannot be told apart from a password written over two lines.
+    Accepted on purpose (#582): the key word, a line break with no space or tab before it, then the quoted word is not a hit, as the text
+    as written was never refused for it; its base64 is accepted too, so base64 matches plain."""
     parts = _BREAKS.split(text)
     if len(parts) < 2:
         return False
