@@ -16,6 +16,7 @@ Not shipped, so not listed as bundled: esbuild (MIT), the tool that builds the p
 | openpyxl | 3.1.5 | MIT | 2010 openpyxl | vendor/openpyxl/ | [L1](#l1) |
 | et_xmlfile | 2.0.0 | MIT | 2010 openpyxl | vendor/et_xmlfile/ | [L1](#l1) |
 | et_xmlfile (parts taken from the Python standard library) | 2.0.0 | PSF-2.0 (Python licence) | 2001-present Python Software Foundation; All Rights Reserved | vendor/et_xmlfile/ | [L2](#l2) |
+| ed25519_verify | 1 | CC0 1.0 (public domain dedication) | Written for clark from RFC 8032, section 5.1.7; dedicated to the public domain | vendor/ed25519_verify/; licence file vendor/licenses/ed25519_verify-1-LICENSE.txt | The dedication is in that file |
 
 ### Page libraries
 
