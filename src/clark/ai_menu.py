@@ -30,7 +30,7 @@ import unicodedata
 from collections import Counter
 from urllib.parse import unquote
 
-from clark import ask, edit_ai, sanitise, secret_screen
+from clark import ask, edit_ai, sanitise
 from clark.edit_ai import Refused
 
 LOG = logging.getLogger("clark.ai")
@@ -207,10 +207,14 @@ def _hidden_set(text):
 SECRET_MESSAGE = ask.SECRET        # one note for the typed question and the selected text
 
 
-def _secret(text):
+def looks_like_secret(text):
     """Whether a text holds something that looks like a secret (a key, a token, a private key block or a labelled password). It
-    is a yes or no: the match is never kept, shown or logged."""
-    return secret_screen.looks_like_secret(str(text or ""))
+    is a yes or no: the match is never kept, shown or logged. The suggestions path and ask clark share one screen: `ask._secret`,
+    which refuses what either of the two checks refuses."""
+    return ask._secret(str(text or ""))
+
+
+_secret = looks_like_secret
 
 
 def _instruction(option, instruction):
@@ -573,7 +577,7 @@ def check_reply(reply, original, option, place, people=(), known=None):
     reply = reply or ""
     if len(reply) > MAX_REPLY * 4:
         return _fail("The suggestion was far too long to use. Try again.", option)
-    if _secret(reply) or ask.looks_like_secret(reply):     # the text sent was screened, so a key or password here came from the model, not the user
+    if _secret(reply):     # the text sent was screened, so a key or password here came from the model, not the user
         return _fail("The suggestion looked like it held a password or a key, so it was not shown. Try again.", option)
     text = parse(reply)
     if not text.strip():
