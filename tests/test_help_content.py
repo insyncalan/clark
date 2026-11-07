@@ -22,7 +22,7 @@ BASE = {"start": "start-", "howto": "howto-", "reference": "ref-"}
 UI_NAMES = {"Version and updates", "clark version and updates"}     # the name of a Settings section (BRD FR-8a), shown as a name, not as the start of a sentence
 # 'Archive', 'Archive use case' and 'Show archived' are the owner's rule (we archive, never delete) and are not in the prototype, which still
 # says Delete; 'Delete section' is the label the page has today (edit/Gutter.jsx), kept as it is for the ruling.
-# 'Ask about this project', 'Confirm and apply', 'Folders asking may read', 'Turn off asking' (#721) and the two long pills are the page's own words (edit/askWords.js, AskSettings.jsx, SneakPeek.jsx); the prototype words them differently.
+# 'ask clark', 'Confirm and apply', 'Folders asking may read', 'Turn off asking' (#721) and the two long pills are the page's own words (edit/askWords.js, AskSettings.jsx, SneakPeek.jsx); the prototype words them differently.
 # 'Add a row' is no longer listed here: the prototype now draws that button (the Excel layout window, files.js), so it is found there like any other.
 # 'Outline colour' (the tile's right-click menu, edit/GlanceEdit.jsx) is read on the page itself; the prototype words it differently. 'Shown to client' left this list with the tag on a work item row (#456: the eye column says it, and Help no longer bolds it)
 # 'New agreed date (DD-MM-YYYY)', 'Who agreed it' and 'Keep the date' are the words of the Movement block (edit/movementWords.js); 'Open folder' is the button of Settings > Logs and diagnostics (edit/Diagnostics.jsx). The prototype words these differently, so they are read against the page.
@@ -30,7 +30,7 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'Show the files' and 'Put back the app and settings only' are the update card's own buttons (logic/update.js LABELS, item 445); the prototype has neither.
 # 'Set commitment' and 'No flag' (#692) are read on the page itself (edit/CommitMenu.jsx SET_WORDS, NO_FLAG); the prototype has no commitment flag.
 # 'Report menu' and 'Export to PDF' are the published file's own menu words (components/ClientMenu.jsx WORDS, #713); the prototype has no such menu.
-CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Ask about this project', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯'])
+CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -277,7 +277,7 @@ class WordingRound(unittest.TestCase):
     def test_the_panel_header_does_not_say_question_mark_comes_back_from_help(self):       # HIGH
         jsx = (HELP / "Help.jsx").read_text(encoding="utf-8")
         self.assertNotIn("to come back", jsx)
-        self.assertRegex(jsx, r"to open Help; Esc or Back takes you where you were")
+        self.assertRegex(jsx, r"to open Help; Esc takes you where you were")
 
     def test_the_import_help_names_the_button_the_import_box_shows(self):                   # LOW (#432)
         jsx = (HELP.parent / "edit" / "Word.jsx").read_text(encoding="utf-8")
@@ -451,11 +451,15 @@ class HelpMatchesThePage(unittest.TestCase):
         self.assertNotIn("**Tile colour**", self.ALL)
         self.assertGreaterEqual(self.ALL.count("right-click for **Outline colour**") + self.ALL.count("Right-click a tile in Edit for **Outline colour**"), 2)
 
-    def test_delete_section_is_said_for_both_kinds_that_have_it(self):
+    def test_delete_section_is_said_for_both_kinds_that_have_it(self):      # the name is kept (test_v070 lists it); row 906: now every kind
+        """Row 906: the menu offers Delete section for every section type (no type list gates it), and Help says so."""
         gutter = (self.SRC / "edit" / "Gutter.jsx").read_text(encoding="utf-8")
-        self.assertIn('DELETABLE = ["text", "needs"]', gutter)
-        arrange = next(t for t in STEPS if t["id"] == "arrange-the-report")
-        self.assertIn("for a text section or the Needs from you section, **Delete section**", " ".join(arrange["s"]))
+        self.assertNotIn("DELETABLE", gutter)
+        self.assertNotIn("canDelete", gutter)
+        self.assertIn('text: "Delete section"', gutter)
+        arrange = " ".join(next(t for t in STEPS if t["id"] == "arrange-the-report")["s"])
+        self.assertRegex(arrange, r"and\s+\*\*Delete section\*\*")
+        self.assertNotIn("for a text section or the Needs from you section", arrange)
 
 
 class CalendarKeysHelp(unittest.TestCase):

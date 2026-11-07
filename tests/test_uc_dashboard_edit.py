@@ -32,6 +32,7 @@ class Edit(Setup):
         p = self.show(cdp, width, dark)
         p.js("document.querySelector('[data-mode=edit]').click()")
         p.until("!!document.querySelector('.uc [data-uc-status]')", "Edit shows the status buttons")
+        p.until("document.getAnimations().length === 0", "the animations to end before anything is measured")
         return p
 
     def row(self, uc):
@@ -69,7 +70,7 @@ class Edit(Setup):
             rest = width()
             self.assertLess(rest, 40, "a plus at rest")
             p.js("document.querySelector('#ucAdd').focus()")
-            p.until("document.querySelector('#ucAdd').getBoundingClientRect().width > 90", "it grew with the keyboard on it")
+            p.until("document.querySelector('#ucAdd').getBoundingClientRect().width > 90 && document.getAnimations().length === 0", "it grew with the keyboard on it")
             self.assertEqual(p.js("document.querySelector('#ucAdd .w').textContent"), "Add use case")
 
     def test_the_status_menu_changes_the_status_in_one_step_with_undo(self):
@@ -250,9 +251,25 @@ class Edit(Setup):
             self.assertEqual(self.steps(), before + 1, "one step")
             p.until("document.querySelectorAll('.ucrow').length === 1", "the row left the dashboard")
             self.assertEqual(p.js("document.querySelector('[data-uc-back]').textContent"), "+ Add a use case from your project record (3)")
-            self.undone(p)
+            p.js("document.querySelector('[data-undo]').click()")      # row 865: Undo names the change
+            p.until("((document.querySelector('.toast-text') || {}).textContent || '').startsWith('Undone')", "undone")
             self.assertEqual(self.row(self.uc2)["client_visible"], 1)
             p.until("document.querySelectorAll('.ucrow').length === 2", "Undo brought the row back")
+
+    def test_row_865_undo_of_the_eye_names_the_use_case_and_focus_returns_to_its_eye_at_both_widths_in_both_themes(self):
+        for width in (1400, 900):
+            for dark in (False, True):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    p = self.edit(cdp, width, dark)
+                    p.js("document.querySelector('[data-uc-eye=\"%s\"]').click()" % self.uc2)
+                    p.until("document.querySelectorAll('.ucrow').length === 1", "the row left the dashboard")
+                    p.js("document.activeElement && document.activeElement.blur()")
+                    p.until("(document.querySelector('.toast-text') || {}).textContent === 'Use case 1.2 taken off the page.'", "the toast")
+                    p.until("document.getAnimations().length === 0", "the toast finished arriving")
+                    p.js("document.querySelector('[data-undo]').click()")
+                    p.until("(document.querySelector('.toast-text') || {}).textContent === 'Undone: Use case 1.2 taken off the page.'", "Undo names the use case")
+                    p.until("document.getAnimations().length === 0", "the animations ended before focus is read")
+                    p.until("document.activeElement && document.activeElement.dataset.ucEye === %s" % json.dumps(self.uc2), "focus is on the use case's eye")
 
     def test_where_it_stands_is_changed_in_place_in_one_step_with_one_undo(self):
         with chrome() as cdp:

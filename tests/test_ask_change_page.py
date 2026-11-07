@@ -214,11 +214,58 @@ class TheCard(Card):
                 for theme in ("light", "dark"):
                     p.js(f"document.documentElement.dataset.theme = '{theme}'")
                     css = lambda sel, prop: p.js(f"getComputedStyle(document.querySelector('{sel}'))['{prop}']")  # noqa: E731
-                    self.assertEqual(css("[data-ask-change]", "borderLeftWidth"), "3px", f"{width} {theme}: the card has an accent edge")
+                    self.assertEqual(css("[data-ask-change]", "borderLeftWidth"), css("[data-ask-change]", "borderTopWidth"), f"{width} {theme}: the card has no one-side stripe (row 936)")
                     self.assertEqual(css("[data-ask-apply]", "backgroundImage"), "none", f"{width} {theme}: Apply is flat, not the pill gradient")
                     self.assertEqual(css("[data-ask-apply]", "boxShadow"), "none", f"{width} {theme}: no glow")
                     self.assertEqual(css("[data-ask-apply]", "minHeight"), "24px")
                     self.assertEqual(p.js("document.querySelector('[data-ask-apply]').textContent"), "Apply", "the words are unchanged")
+
+    def edge_and_contrast(self, p, sel):
+        """The sides' widths and the text-on-background contrast of sel, as the page draws it now."""
+        return p.js("""(function(sel){ var el = document.querySelector(sel), cs = getComputedStyle(el);
+            var num = function(c){ return c.match(/[\\d.]+/g).map(Number); };
+            var bg = null; for (var n = el; n && !bg; n = n.parentElement) { var c = num(getComputedStyle(n).backgroundColor);
+              if (c.length < 4 || c[3] > 0.99) { if (c.length < 4 || c[3] > 0) bg = c; } }
+            var lin = function(v){ v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+            var lum = function(c){ return 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]); };
+            var fg = num(cs.color), a = lum(fg), b = bg ? lum(bg) : 1;
+            return {l: cs.borderLeftWidth, t: cs.borderTopWidth, r: cs.borderRightWidth, b: cs.borderBottomWidth,
+                    ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)}; })(%s)""" % json.dumps(sel))
+
+    def check_no_stripe(self, p, cdp, sel):
+        for width in (1400, 900):
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+            for theme in ("light", "dark"):
+                p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                got = self.edge_and_contrast(p, sel)
+                self.assertEqual({got["l"], got["r"], got["b"]}, {got["t"]}, f"{sel} {width} {theme}: no one-side stripe (row 936)")
+                self.assertGreaterEqual(got["ratio"], 4.5, f"{sel} {width} {theme}: text reads on its background")
+
+    def test_the_card_has_no_one_side_stripe_and_reads(self):          # row 936
+        self.says(self.close_it())
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            self.check_no_stripe(p, cdp, "[data-ask-change]")
+
+    def test_the_passage_has_no_one_side_stripe_and_reads(self):       # row 936
+        self.says(self.close_it(), "CITE: P5", files=(FILE,))
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("!!document.querySelector('[data-ask-passage]')", "the passage")
+            self.check_no_stripe(p, cdp, "[data-ask-passage] blockquote")
+            self.check_no_stripe(p, cdp, "[data-ask-passage]")
+
+    def test_the_published_css_has_neither_changed_rule(self):         # row 936: edit.css is served-page only
+        css = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "edit.css").read_text(encoding="utf-8")
+        self.assertIn(".ask-passage {", css)
+        view = (ROOT / "src" / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
+        for needle in (".ask-passage", ".ask-change {"):
+            self.assertNotIn(needle, view)
+        self.assertIn(".ask-passage {", (ROOT / "src" / "clark" / "page" / "page.html").read_text(encoding="utf-8"))
 
 
 class Words(unittest.TestCase):

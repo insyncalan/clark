@@ -204,7 +204,8 @@ def from_store(store, code, exported, by=None, owner=None, email=None, internal=
     inputs = publish.read_inputs(store, code, as_at)
     shown = publish.select(inputs)
     today = inputs["as_at"]
-    kept = glance.kept_rows(inputs["data"], today, sections=inputs.get("sections"), label_rules=inputs.get("label_rules"))
+    kept = glance.kept_rows(inputs["data"], today, sections=inputs.get("sections"), label_rules=inputs.get("label_rules"),
+                             deleted=inputs.get("sections_deleted"))
     tiles = glance.tiles(inputs["data"], today, for_client=True, kept=kept)
     sections = [dict(s, hidden=0) for s in shown["sections"]]
     return lines(shown["data"]["project"], sections, tiles, exported, by, owner, email, internal)

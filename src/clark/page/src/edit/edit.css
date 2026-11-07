@@ -104,6 +104,17 @@
 .pk-latest-hint { color: var(--text-muted); }
 .pk-latest-err { color: var(--status-red-text); }
 .pk-last { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px; color: var(--text-muted); font-size: var(--size-small); }
+/* The peek's title, edited in place (Edit only): plain text that looks like the title until hovered or focused. */
+.pk-title-in { display: block; box-sizing: border-box; min-height: 1.3em; margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2); border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; line-height: inherit; cursor: text; overflow-wrap: anywhere; }
+.pk-title-in:hover { border-color: var(--grey-200); }
+.pk-title-in:focus { outline: 2px solid var(--focus); outline-offset: 2px; border-color: var(--brand-blue); background: var(--surface); }
+/* The peek's Client wording and (below) its choices, edited in place (Edit only). */
+.pk-ce { display: block; box-sizing: border-box; min-height: var(--space-6); padding: calc(var(--space-1) * 3 / 4) var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; cursor: text; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pk-ce:hover { border-color: var(--grey-300); }
+.pk-ce:focus { outline: 2px solid var(--focus); outline-offset: 2px; border-color: var(--brand-blue); background: var(--surface); }
+.pk-pick { display: inline-block; max-width: 100%; min-height: var(--space-6); padding: calc(var(--space-1) * 3 / 4) var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.pk-pick:hover { border-color: var(--grey-300); background: var(--grey-100); }
+.pk-pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pa-list { list-style: none; margin: 0; padding: 0; }
 .pa-row { padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); }
 .pa-meta { margin: 0; font-size: var(--size-caption); color: var(--text-muted); }
@@ -236,10 +247,10 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
 /* #47e: a suggested change in the ask panel */
 .ask-changes { display: flex; flex-direction: column; gap: 10px; margin-top: var(--space-1); }
-.ask-passage { margin: 0; padding: 6px 10px; border-left: 3px solid var(--grey-300); background: var(--surface); }
+.ask-passage { margin: 0; padding: 6px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--surface); }  /* row 936: a quote edge is a hairline all round, no one-side stripe */
 .ask-passage figcaption { font-size: var(--size-caption); overflow-wrap: anywhere; }
 .ask-passage blockquote { margin: var(--space-1) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--size-caption); }
-.ask-change { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) 10px; border: 1px solid var(--grey-200); border-left: 3px solid var(--brand-blue); border-radius: var(--radius-sm); background: var(--grey-50); }
+.ask-change { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--grey-50); }  /* row 936: no blue one-side stripe, the hairline all round is enough */
 .ask-change-head { display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
 .ask-diff { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--size-caption); }
 .ask-diff th, .ask-diff td { padding: 3px 6px; text-align: left; vertical-align: top; border-top: 1px solid var(--grey-200); overflow-wrap: anywhere; }
@@ -407,7 +418,6 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-eye .ic, .ucd-eye svg { width: 16px; height: 16px; flex: none; }
 .ucd-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: 0 0 16px; padding: 10px 16px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--grey-100); }
 .ucd-note p { margin: 0; flex: 1 1 360px; }
-.ucd-note .btn.pri { background: var(--brand-navy); border-color: var(--brand-navy); color: var(--text-on-brand); }
 .ucd-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .ucd-main, .ucd-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .ucd-card { padding: 16px 20px; border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); min-width: 0; }
@@ -837,3 +847,59 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
 }
+
+/* The Add a section box as the prototype draws it (row 783, system/prototype app.css .atd-*): the templates are a grid of cards, each a
+   small sketch, its name and its widths as chips; the preview has the larger sketch and what it holds as chips; an X closes it.
+   Each card is still a label round a radio (the radio is hidden, its card shows the focus), so the keys and the reading are the list's.
+   Edit only: shell.css keeps the box's frame, these rules come after it. Tokens only, so dark mode follows. */
+.ad.ad-add { width: min(1080px, 100%); }
+.ad-add .ad-head h2 { flex: 0 1 auto; }
+.ad-add .ad-q { margin-left: auto; }
+.ad-add .ad-x { flex: none; color: var(--text-muted); }
+.ad-add .ad-x:hover { color: var(--text); }
+.ad-add .ad-x:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ad-add .ad-main { grid-template-columns: 170px minmax(0, 1fr) minmax(0, 300px); }
+.ad-add .ad-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-content: start; }
+.ad-add .ad-list > .ad-none { grid-column: 1 / -1; }
+.ad-add .ad-tpl { position: relative; display: flex; flex-direction: column; gap: 4px; align-items: stretch; padding: var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); font-size: var(--size-caption); }
+.ad-add .ad-tpl:hover:not(.off) { border-color: var(--grey-500); }
+.ad-add .ad-tpl:has(input:checked) { border-color: var(--brand-blue); background: var(--surface); box-shadow: 0 0 0 2px var(--brand-blue-tint); }
+.ad-add .ad-tpl:has(input:focus-visible) { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ad-add .ad-tpl input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.ad-add .ad-tn { display: block; overflow-wrap: anywhere; }
+.ad-add .ad-fit { display: flex; flex-wrap: wrap; gap: 4px; }
+.ad-add .ad-fit em, .ad-add .ad-els li { font-style: normal; font-size: var(--size-caption); line-height: 18px; padding: 0 7px; color: var(--status-blue-text); background: var(--brand-blue-tint); border: 1px solid color-mix(in srgb, var(--brand-blue) 30%, transparent); border-radius: 999px; }
+.ad-add .ad-fit em { color: var(--text-muted); background: var(--grey-50); border-color: var(--grey-200); }
+.ad-add .ad-later { font-size: var(--size-caption); color: var(--text-muted); }
+.ad-sk { display: grid; gap: 4px; height: 56px; padding: 6px; box-sizing: border-box; border-radius: var(--radius-sm); background: var(--grey-50); }
+.ad-sk i { display: block; min-height: 0; border-radius: 2px; background: var(--grey-300); }
+.ad-sk.big { height: 84px; margin: 0 0 var(--space-2); }
+.ad-add .ad-els { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; padding: 0; }
+@media (max-width: 900px) {
+  .ad-add .ad-main { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .ad-add .ad-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* row 830: the Use cases page head buttons, the archived box under the list, and the next step row on the detail. Spacing is on the --space tokens; no exact token for 6px (gap, padding: --space-2), 10px (--space-3) or 280px (4 x --space-8 = 256px) */
+.ucl-acts { flex-wrap: wrap; justify-content: flex-end; }
+.ucl-acts .btn { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--space-6); color: var(--text); }
+.ucl-arch { margin-top: var(--space-4); }
+.ucl-arch .arch-l { margin: 0; padding: 0; list-style: none; }
+.ucl-arch .arch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); color: var(--text-muted); }
+.ucl-arch .arch:first-child { border-top: 0; }
+.ucl-arch .arch .btn { margin-left: auto; min-height: var(--space-6); color: var(--text); }
+.ucl-arch .arch .link { min-height: var(--space-5); }
+.ucx-foot { margin: var(--space-3) 0 0; font-size: var(--size-body); color: var(--text-muted); }
+.ucx-foot .link { min-height: var(--space-5); }
+.ucx-addrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--grey-100); }
+.ucx-addrow .ucx-step { flex: 1 1 calc(var(--space-8) * 4); min-width: 0; margin: 0; }
+.ucx-addrow .add-from { min-height: var(--space-5); }
+/* row 876: the page fades in and rises 8 px on a tab change in Edit only (App.jsx puts .view-in on <main> then; a published file never does). Same gate as the Motion block in shell.css. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) main.view-in { animation: m-view var(--dur-view) var(--ease-enter) 1; }
+  @keyframes m-view { from { opacity: 0; transform: translateY(var(--space-2)); } }
+}
+
+/* row 940 (macOS gate, test_edit_cells_layout): in Edit at 900 px and below the Due, priority and status columns are 8 px wider than the bare minimum, so a font a little wider than Linux's (macOS draws these three 2 to 3 px wider) stays inside its box. EDIT ONLY: shell.css is also the published page's, whose Item column must stay at least 280 px (test_published_item_column), so the widths are not set there. Same specificity as shell.css's 900 px rule and later in the page, so these win without !important. */
+@media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 101px; } table.items .c-status { width: 150px; } }

@@ -112,7 +112,9 @@ class Migrating(unittest.TestCase):
         def keep(d):
             return {k: v for k, v in d.items() if k not in {("table", t) for t in TABLES}}
         before = keep(schema_of(path))
-        open_store(path, onedrive_roots=[]).close()
+        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP), \
+                mock.patch.object(store_module, "MIGRATIONS", tuple(m for m in store_module.MIGRATIONS if m[0] <= STEP)):     # this step alone (row 926's, step 18, adds a table and projects columns)
+            open_store(path, onedrive_roots=[]).close()
         self.assertEqual(keep(schema_of(path)), before)
 
     def test_a_second_open_changes_nothing_and_takes_no_copy(self):

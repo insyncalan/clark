@@ -37,7 +37,7 @@ export function bodyOf(slots) {
 export function liveFigures(d, today) {
   if (!d || dayNumber(today) === null) return {};
   const rules = rulesFor({ code: d.project && d.project.code, hidden: (d.report_hidden || []).map((h) => (h && h.item_id) || h),
-    labelRules: d.label_rules || [], labels: d.labels || {}, sections: d.report_sections || [] });
+    labelRules: d.label_rules || [], labels: d.labels || {}, sections: d.report_sections || [], deleted: !!d.sections_deleted });
   const kept = Object.fromEntries(Object.values(KIND_OF).map((k) => [k, keptRows(d, k, rules)]));
   const rows = rowsOf({ ...kept, use_cases: d.use_cases || [], milestones: d.milestones || [] });
   const by = Object.fromEntries(tiles(rows, today).map((t) => [t.key, t]));

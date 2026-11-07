@@ -92,8 +92,8 @@ class Adding(Content):
         self.assertEqual(self.s.read(KIND, ref=ref)["type"], "text")
 
     def test_a_new_section_takes_no_body_from_the_request(self):
-        for kind in TYPES + ("text",):
-            self.refused(self.req("new", values={"type": kind, "title": "x", "body": text(BODY)}), "The field 'body' can't be set here.")
+        for kind in TYPES:        # #929: only a text section may start with words (test_changes_text_body)
+            self.refused(self.req("new", values={"type": kind, "title": "x", "body": text(BODY)}), changes.NO_BODY_HERE)
         self.refused(self.req("new", values={"type": "needs"}, body=text(BODY)), "clark doesn't know 'body' in that request.")
 
     def test_the_starting_body_comes_from_the_registry_not_the_request(self):
@@ -338,17 +338,19 @@ class Deleting(Content):
         self.assertNotIn(ref, self.ids_now())
         self.assertEqual(self.undone(deleted["apply_id"])[0], 200)
 
-    def test_the_built_in_sections_still_can_not_be_deleted(self):
-        for row in self.rows():
-            if row["type"] in ("text",) + TYPES:
-                continue
-            self.refused(self.req("delete", id=row["id"]), "Only a text, needs or tracker section can be deleted; hide the others.")
+    def test_the_built_in_sections_can_be_deleted_too_and_undo_puts_each_back(self):      # row 906
+        for row in [r for r in self.rows() if r["type"] not in ("text",) + TYPES]:
+            before = [dict(r) for r in self.rows()]
+            gone = self.ok("delete", id=row["id"])
+            self.assertNotIn(row["id"], self.ids_now())
+            self.assertEqual(self.undone(gone["apply_id"])[0], 200)
+            self.assertEqual([dict(r) for r in self.rows()], before, row["type"])
 
 
 class NothingElseOpens(unittest.TestCase):
     def test_only_the_section_update_may_carry_a_body(self):
         carrying = [(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields]
-        self.assertEqual(carrying, [(KIND, "update")])
+        self.assertEqual(carrying, [(KIND, "new"), (KIND, "update")])      # #929: new takes a body for a text section only (the others are refused)
 
     def test_only_a_text_body_has_a_markup_path_and_it_is_the_cleaner(self):
         src = (store_module.Path(changes.__file__)).read_text(encoding="utf-8")

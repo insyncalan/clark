@@ -35,7 +35,7 @@ export const ROWS = { installed: "Installed", update: "Update", file: "Install f
 export const HINTS = {
   upToDate: "Download the new version from the clark releases page, then choose it below.",
   ready: (v) => `Version ${v} is ready to install.`,
-  file: "The update attached to the release for your computer. Keep its .sig file in the same folder.",
+  file: "The update attached to the release for your computer.",
 };
 export const LABELS = { choose: "Choose zip…", install: "Install", installAgain: "Install again", cancel: "Cancel", copy: "Copy",
   files: "Show the files", undo: "Undo update", undoConfirm: "Undo update", appOnly: "Put back the app and settings only", tryAgain: "Try again" };

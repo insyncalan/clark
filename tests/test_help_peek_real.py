@@ -95,7 +95,7 @@ class Real(base.Base):
                 self.assertEqual(p.js("document.querySelector('#help-peek')"), None, f"{screen}: the peek closed")
                 self.assertEqual(p.js("document.querySelector('#hpTab-%s').getAttribute('aria-selected')" % TAB[full.split("-")[0]]), "true", f"{screen}: on the tab of {full}")
                 p.until("!!document.querySelector('[id$=\"%s\"]')" % full, f"{screen}: {full} is drawn (a shown entry, never a held one)")
-                p.js("document.querySelector('#hpBack').click()")
+                p.key("Escape", code="Escape", vk=27)
                 p.until("!document.querySelector('#help') && !!document.querySelector('#main')", f"{screen}: Back")
 
     def test_row_896_the_peek_lists_the_how_to_articles_of_the_open_page(self):

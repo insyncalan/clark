@@ -79,14 +79,14 @@ class Allowed(Api):
         for never in ("project", "id", "sort_order"):
             self.assertFalse(any(never in fields for ops in changes.CHANGE_KINDS.values() for fields in ops.values()), never)
         self.assertEqual([(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields],
-                         [(KIND, "update")])             # a body is written by one request only: a section's update, and then only for a needs or tracker section
+                         [(KIND, "new"), (KIND, "update")])             # a body is written by a section's update, and by a new text section (#929: its starting words)
         self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk", "handover", "link"})      # #196: + bulk; #199: + handover; #485: + link
 
     def test_the_route_admits_only_the_approved_kinds(self):
         """#45 (Full tier, approved) added glance_tiles and projects (test_changes_tiles holds their tests) and #67 the eye,
         report_hidden (test_changes_hidden). The records can be archived and restored (#126), and the work items also updated
         (#68), and so are a project's health, an existing use case's fields (#164) and the milestones (#136), never given other ops."""
-        self.assertEqual(set(changes.CHANGE_KINDS), {"report_sections", "glance_tiles", "report_hidden", *changes.ARCHIVABLE})
+        self.assertEqual(set(changes.CHANGE_KINDS), {"report_sections", "glance_tiles", "report_hidden", "gantt_lines", *changes.ARCHIVABLE})
         for kind in changes.ARCHIVABLE:
             ops = set(changes.CHANGE_KINDS[kind])
             want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases", "documents") else set())
@@ -121,7 +121,7 @@ class Refusals(Api):
         self.refused(self.req("new", values={"project": "XYZ"}), "The field 'project' can't be set here.")
         self.refused(self.req("new", values={"id": "ABC-S-099"}), "The field 'id' can't be set here.")
         self.refused(self.req("new", values={"hidden": 1}), "The field 'hidden' can't be set here.")
-        self.refused(self.req("new", values={"body": "x"}), "The field 'body' can't be set here.")
+        self.refused(self.req("new", values={"type": "needs", "body": "x"}), changes.NO_BODY_HERE)      # #929: a body on new is for a text section only
         self.refused(self.req("new", values={"type": "raid"}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", values={"type": "docs", "title": "x"}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", values={"type": ["text"]}), changes.NEW_TYPE_WORDS)
@@ -502,8 +502,8 @@ class Steps(Api):
                 st.create(KIND, {"project": "ABC", "type": "text", "title": f"S{n}", "sort_order": 100000 + n})
         self.refused(self.req("new"), "A report can have at most 100 sections.")
 
-    def test_delete_only_a_text_section(self):
-        self.refused(self.req("delete", id="ABC-S-001"), "Only a text, needs or tracker section can be deleted; hide the others.")
+    def test_delete_any_section(self):      # row 906
+        self.assertEqual(self.ok("delete", id="ABC-S-001")["ref"], "ABC-S-001")
         self.assertEqual(self.ok("delete", id="ABC-S-005")["ref"], "ABC-S-005")
         self.assertNotIn("Summary", self.titles())
 
@@ -572,13 +572,14 @@ class Steps(Api):
         self.assertEqual(changes._stray_flags([row("a", 1), row("b", 0), row("c", 1)]), ["c"])
         self.assertEqual(changes._stray_flags([row("a", 0), row("b", 0)]), [])
 
-    def test_a_delete_the_store_refuses_leaves_every_flag_as_it_was(self):
-        self.ok("update", id="ABC-S-001", changes={"beside": 1})           # S-002 is the second half of S-001; it is not a text section
-        before, snap = self.beside_now(), self.snapshot()
+    def test_deleting_the_partner_clears_the_flag_in_the_same_step_and_one_undo_restores_both(self):      # row 906: S-002 is a built-in
+        self.ok("update", id="ABC-S-001", changes={"beside": 1})
+        before = self.beside_now()
         self.assertEqual(before["ABC-S-001"], 1)
-        self.refused(self.req("delete", id="ABC-S-002"), "Only a text, needs or tracker section can be deleted; hide the others.")
-        self.assertEqual(self.beside_now(), before, "the partner's flag was written inside the step, so the refusal rolled it back")
-        self.assertEqual(self.snapshot(), snap, "no step, no change_log row")
+        gone = self.ok("delete", id="ABC-S-002")
+        self.assertEqual(self.beside_now()["ABC-S-001"], 0)
+        self.assertEqual(self.undone(gone["apply_id"])[0], 200)
+        self.assertEqual(self.beside_now(), before)
 
     def test_guard_deleting_a_lone_section_changes_nothing_else(self):
         a = self.ok("new", values={"title": "Alone"})["ref"]

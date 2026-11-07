@@ -169,6 +169,15 @@ class Panel(Base):
             p = self.opened(cdp)
             self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Ask about this project.")
 
+    def test_the_panel_title_reads_ask_clark_and_the_ready_line_is_unchanged(self):
+        # row 820: the title is the row's own words; the ready line is a separate sentence and stays
+        self.stub.model = ""
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.assertEqual(p.js("document.querySelector('#ask-panel h2').textContent.trim()"), "ask clark")
+            self.assertEqual(p.js("document.querySelector('#ask-panel').getAttribute('aria-label')"), "ask clark")
+            self.assertIn("Ask about this project", p.js("document.querySelector('#ask-status').textContent"))
+
     def test_a_reply_is_shown_and_sent_with_the_project_and_the_earlier_turns(self):
         with chrome() as cdp:
             p = self.opened(cdp)

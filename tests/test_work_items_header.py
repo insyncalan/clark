@@ -26,6 +26,38 @@ class Header(Base):
             with self.subTest(width=width, scheme=scheme, edit=edit), chrome() as cdp:
                 check(cdp, self.go(cdp, width, scheme, edit, **kw), width)
 
+
+    # ---- row 832 (the rows' text sits on the tinted page, no wrapping card): the text contrast is measured against the colour
+    # really behind each text element, translucent layers composited, white at the bottom (the Movement audit does the same) ----
+    ROW_CONTRAST = """(() => {
+      function lum(m) { m = m.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]; }
+      function behind(el) {
+        var layers = [];
+        for (; el; el = el.parentElement) { var m = getComputedStyle(el).backgroundColor.match(/[\\d.]+/g).map(Number); var al = m.length > 3 ? m[3] : 1; if (al > 0) { layers.push([m[0], m[1], m[2], al]); if (al === 1) break; } }
+        var c = [255, 255, 255];
+        for (var k = layers.length - 1; k >= 0; k--) { var l = layers[k]; c = [0, 1, 2].map(i => l[i] * l[3] + c[i] * (1 - l[3])); }
+        return c;
+      }
+      var bad = [], n = 0;
+      [...document.querySelectorAll('#work-list > *')].slice(0, 40).forEach(r => r.querySelectorAll('*').forEach(e => {
+        if (!e.getClientRects().length || getComputedStyle(e).visibility === 'hidden') return;
+        if (![].some.call(e.childNodes, x => x.nodeType === 3 && x.textContent.trim())) return;
+        n++;
+        var a = lum(getComputedStyle(e).color.match(/[\\d.]+/g).map(Number).slice(0, 3)), b = lum(behind(e)), hi = Math.max(a, b), lo = Math.min(a, b), ratio = (hi + 0.05) / (lo + 0.05);
+        if (ratio < 4.5) bad.push((e.tagName + '.' + e.className).slice(0, 40) + ' ' + ratio.toFixed(2));
+      }));
+      return JSON.stringify({n: n, bad: bad});
+    })()"""
+
+    def test_row_832_the_rows_text_has_4_5_to_1_contrast_against_what_is_really_behind_it(self):
+        import json
+
+        def check(cdp, sid, width):
+            got = json.loads(cdp.js(self.ROW_CONTRAST, sid))
+            self.assertGreater(got["n"], 20, "the rows' text was measured")
+            self.assertEqual(got["bad"], [], "row text contrast under 4.5:1")
+        self.each(check)
+
     # ---- row 805 ----
     def test_row_805_no_intro_sentence_and_no_count_line_and_no_gap_left(self):
         def check(cdp, sid, width):

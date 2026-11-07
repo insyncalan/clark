@@ -41,6 +41,8 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "key-dates", "description": "What’s coming, from the milestones."},
     {"id": "needs", "description": "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by."},
     {"id": "link-preview", "description": "A web page shown as a card you write: a dashboard, a news item, a recording."},
+    {"id": "current-state", "description": "The state of the project in a few lines, to sit beside another section."},
+    {"id": "plan-summary", "description": "Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in."},
     {"id": "one-doc", "description": "A single file to read."},
     {"id": "text", "description": "Words under a heading, written in clark’s one editor."},
     {"id": "table", "description": "Anything with rows: a budget line, a cut-over plan, a training schedule."},
@@ -50,7 +52,7 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "contacts", "description": "Who to ask."},
     {"id": "checklist", "description": "Next steps or readiness, ticked off."},
 ]
-FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "gallery", "table", "raid-3", "raid-4", "work-items", "docs-links", "callout", "image-caption", "quote", "contacts", "checklist", "key-dates", "needs", "link-preview", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
+FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "gallery", "table", "raid-3", "raid-4", "work-items", "docs-links", "callout", "image-caption", "quote", "contacts", "checklist", "key-dates", "needs", "link-preview", "current-state", "plan-summary", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
 
 
 class Logic(unittest.TestCase):
@@ -142,6 +144,8 @@ class Logic(unittest.TestCase):
             "checklist": ("Next steps or readiness, ticked off.", ["Heading", "Checklist · linked to work items"], ["half", "full"]),
             "image-caption": ("One picture with its caption.", ["Heading", "Image", "Caption"], ["half", "full"]),
             "gallery": ("Pictures in a grid, each with a caption.", ["Heading", "Image", "Caption", "Image", "Caption", "Image"], ["full"]),
+            "current-state": ("The state of the project in a few lines, to sit beside another section.", ["Heading", "Text"], ["full", "half"]),
+            "plan-summary": ("Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.", ["Heading", "Rich text: headings, lists, quote, links", "AI menu"], ["full", "half"]),
             "one-doc": ("A single file to read.", ["Heading", "File", "Text"], ["half", "full"]),
         })
 
@@ -152,7 +156,7 @@ class Logic(unittest.TestCase):
         (#121) and every template type."""
         from clark import changes, store
         self.assertEqual(self.t("ACCEPTS")["types"][:2], ["text", "needs"])
-        self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title"), "new still takes a type and a title only")
+        self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title", "body"), "new takes a type, a title and (text only) a starting body")
         for x in self.t("TEMPLATES"):
             self.assertIn(x["type"], store.SECTION_TYPES, x["id"])
             self.assertIn(x["type"], changes.NEW_SECTION_TYPES, x["id"])
@@ -167,7 +171,7 @@ class Logic(unittest.TestCase):
     # ── search, kinds, counts, recently used ─────────────────────────────────
 
     def test_search_and_kinds_and_counts(self):
-        self.assertEqual(len(self.t("list()")), 19)
+        self.assertEqual(len(self.t("list()")), 21)
         self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["figures-4", "figures-3"])
         self.assertEqual([x["id"] for x in self.t('list({query: "KEY dates"})')], ["key-dates"], "case does not matter and every word must match")
         self.assertEqual(self.t('list({query: "zzz"})'), [])
@@ -296,9 +300,9 @@ class Box(Base):
             self.assertEqual(p.js(f"document.getElementById({d}.getAttribute('aria-labelledby')).textContent"), "Add a section")
             self.assertEqual(p.js("document.querySelector('#main').hasAttribute('inert') && document.querySelector('.top').hasAttribute('inert')"), True,
                              "the page behind cannot be reached")
-            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 19)
+            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 21)
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates19", "Text and pictures5", "Figures2", "Work items3", "Files and links3", "People and dates4", "Notes2"])
+                             ["All templates21", "Text and pictures7", "Figures2", "Work items3", "Files and links3", "People and dates4", "Notes2"])
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
@@ -367,6 +371,35 @@ class Box(Base):
             p.js("document.querySelector('[data-cancel]').click()")
             p.until("!document.querySelector('[role=dialog]')", "Cancel closed it")
             self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-options]')"), 5))
+            self.assertEqual(self.sent, [])
+
+    def test_the_templates_are_a_grid_of_cards_with_a_sketch_and_width_chips_and_an_x_closes_it(self):
+        """#783: the box looks like the prototype's (system/prototype views.js addDialog): the templates are cards in a grid, each a
+        sketch, its name and its widths as chips; the preview has the larger sketch and what it holds as chips; an X closes the box
+        and gives focus back. Each card is still a radio, so the keys and the reading stay the list's."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+            self.open_box(p, "ABC-S-003", focus='[data-id="ABC-S-003"] [data-drag]')
+            p.until("document.getAnimations().length === 0", "the box has finished opening")
+            got = p.js("""(function(){var cs=[...document.querySelectorAll('.ad-tpl')], top=cs[0].getBoundingClientRect().top;
+                return {cards: cs.length, sketched: cs.filter(c => { var k = c.querySelector('.ad-sk'); return k && k.getAttribute('aria-hidden') === 'true' && k.children.length > 0; }).length,
+                  radios: cs.filter(c => !!c.querySelector('input[type=radio][name=template]')).length,
+                  firstRow: cs.filter(c => Math.abs(c.getBoundingClientRect().top - top) < 1).length,
+                  text: [...document.querySelectorAll('[data-template=text] .ad-fit em')].map(e => e.textContent),
+                  gallery: [...document.querySelectorAll('[data-template=gallery] .ad-fit em')].map(e => e.textContent),
+                  chipsHidden: document.querySelector('[data-template=text] .ad-fit').getAttribute('aria-hidden'),
+                  heard: document.querySelector('[data-template=text]').textContent.includes('Full width or Half width'),
+                  big: !!document.querySelector('.ad-prev .ad-sk.big'),
+                  holds: [...document.querySelectorAll('.ad-prev .ad-els li')].map(l => l.textContent)};})()""")
+            self.assertEqual(got, {"cards": 21, "sketched": 21, "radios": 21, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
+                                   "chipsHidden": "true", "heard": True, "big": True, "holds": ["Heading", "Text"]})
+            x = "document.querySelector('.ad-head [data-close]')"
+            self.assertEqual(p.js(f"{x}.getAttribute('aria-label')"), "Close")
+            p.js(f"{x}.click()")
+            p.until("!document.querySelector('[role=dialog]')", "the X closed it")
+            self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-drag]') && document.activeElement.closest('.sec').dataset.id === 'ABC-S-003'"), 5), "focus is back on the opener")
             self.assertEqual(self.sent, [])
 
     def test_after_a_click_inside_or_outside_the_box_escape_and_tab_still_work(self):
@@ -448,7 +481,7 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-003")
-            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 19, "every template can be focused")
+            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 21, "every template can be focused")
             self.assertEqual(p.js("document.querySelector('button[data-place]').disabled"), False, "Text is chosen and can be placed")
             cat = {x["id"]: x["description"] for x in FIRST_SLICE_DESCRIPTIONS}
             for tid, desc in cat.items():
@@ -744,7 +777,7 @@ class Box(Base):
                       announced: [...document.querySelectorAll('.ad-prev [aria-live]')].map(e => e.tagName),
                       say: (q('[data-ad-say]') || {}).textContent, sayLive: q('[data-ad-say]') && q('[data-ad-say]').getAttribute('aria-live'),
                       sayOutside: !!q('[data-ad-say]') && !q('[data-ad-say]').closest('.ad-prev'),
-                      name: q('.ad-prev h3').textContent, desc: q('.ad-prev h3 + p').textContent};})()""")
+                      name: q('.ad-prev h3').textContent, desc: q('.ad-prev h3 ~ p').textContent};})()""")
                 say = order.pop("say"); name = order.pop("name"); desc = order.pop("desc")
                 self.assertEqual(order, {"ok": True, "prevDisplay": "block", "prevBox": True, "label": "About this template", "live": None, "announced": [],
                                          "sayLive": "polite", "sayOutside": True},
@@ -808,6 +841,9 @@ class Box(Base):
                         p.key("Tab", 8, code="Tab", vk=9)
                         got = p.js("getComputedStyle(document.activeElement).outlineColor")
                         self.assertEqual(got, want, f"{theme}: {sel} ring is the brand blue")
+                    if sel == "input[name=template]":   # #783: the radio is hidden in its card, and the card draws the ring
+                        card = p.js("(function(){var a=document.activeElement, c=a.closest('.ad-tpl');return c && a.matches(':focus-visible') ? getComputedStyle(c).outlineColor : 'not visible';})()")
+                        self.assertIn(card, (want, "not visible"), f"{theme}: the chosen card's ring")
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('[role=dialog]')", "closed")
 

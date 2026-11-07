@@ -68,7 +68,7 @@ def every_row(path):
     try:
         names = [r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
                                            "AND name != 'meta' ORDER BY name")]
-        later = {"review_after_days"}                  # a column a later step adds (#171, step 14): what these older steps keep is every other one
+        later = {"review_after_days", "show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows"}                  # a column a later step adds (#171, step 14): what these older steps keep is every other one
         out = {}
         for n in names:
             kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if c[1] not in later)

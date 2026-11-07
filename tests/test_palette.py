@@ -213,6 +213,7 @@ class Results(Base):
         """Row 901: words in the text, the ID and the owner's name find work items and milestones, at both widths; nothing matching shows the plain empty line."""
         data = project("ABC", "Example Programme")
         data["actions"].append({"id": "ABC-A-010", "description": "Book user testing sessions", "status": "Open", "owner": "Priya Nair"})
+        data["actions"].append({"id": "ABC-A-011", "description": "Plan the room", "status": "Open"})          # no owner: its missing owner must not be searchable as the word 'undefined' or 'null'
         data["milestones"].append({"id": "ABC-M-002", "name": "Handover", "owner": "Priya Nair"})
         data["use_cases"] = [{"id": "uc1", "ref": "1.1", "title": "User testing programme", "headline": "Weekly sessions", "status": "On track"}]
         DATA["ABC"] = data
@@ -237,6 +238,9 @@ class Results(Base):
                 self.assertEqual([r[:2] for r in p.rows()], [["Action", "Book user testing sessions"], ["Milestone", "Handover"]], f"person at {w} px")
                 p.find("nair user")
                 self.assertEqual([r[:2] for r in p.rows()], [["Action", "Book user testing sessions"]], f"person and words at {w} px")
+                for word in ("undefined", "null"):          # an item with no owner is not found by the text a missing value would print
+                    p.find(word)
+                    self.assertEqual(p.rows(), [], f"{word!r} finds nothing at {w} px")
                 p.find("zzzz")
                 self.assertEqual(p.rows(), [])
                 self.assertIn("Nothing matches", p.js("document.querySelector('#palette .pal-none').innerText"))
@@ -355,7 +359,7 @@ class Enter(Base):
     def test_the_ask_command_opens_the_ask_panel(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            self.run_first(p, "ask about")
+            self.run_first(p, "ask clark")
             p.until("!!document.querySelector('#ask-panel')", "the ask panel opened (the one the slash key opens)")
             self.assertFalse(p.js("!!document.querySelector('#palette[open]')"), "the palette closed first")
 
