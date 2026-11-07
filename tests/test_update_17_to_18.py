@@ -15,6 +15,7 @@ No network, no browser, no window. Run: python3 dev/run_tests.py test_update_17_
 """
 import hashlib
 import json
+import os
 import shutil
 import sqlite3
 import subprocess
@@ -135,7 +136,15 @@ class Update17To18(Rig):
         cls.trees = []
         try:
             if git("rev-parse", "--verify", "--quiet", OLD_TAG + "^{commit}").returncode:
-                raise unittest.SkipTest(f"the tag {OLD_TAG} is not in this clone (a shallow clone has no tags): the layout-17 release cannot be built")
+                try:
+                    subprocess.run(["git", "fetch", "--depth=1", "origin", "tag", OLD_TAG], cwd=str(ROOT), capture_output=True, text=True, timeout=120)
+                except subprocess.TimeoutExpired:
+                    pass
+            if git("rev-parse", "--verify", "--quiet", OLD_TAG + "^{commit}").returncode:
+                words = f"the tag {OLD_TAG} is not in this clone (a shallow clone has no tags) and could not be fetched: the layout-17 release cannot be built"
+                if os.environ.get("CI"):
+                    raise AssertionError(words)      # in CI a missing tag is a failure, never a quiet skip
+                raise unittest.SkipTest(words)
             cls.old_tree, cls.new_tree = cls.tmp / "old-tree", cls.tmp / "new-tree"
             for tree, ref in ((cls.old_tree, OLD_TAG), (cls.new_tree, "HEAD")):
                 made = git("worktree", "add", "--detach", str(tree), ref)
@@ -293,11 +302,10 @@ class Update17To18(Rig):
         self.assertEqual(before, (digest(self.db), sorted(p.name for p in (self.data / "backups").iterdir())))
         self.assertEqual(18, layout(self.db))
 
-    @unittest.skip("not reachable without product changes: the install side of the update (review, backup, hand-over) is run here by "
-                   "the NEW build's updater code; the 1.0.3 updater that a person's 1.0.3 really runs is not driven, because its server "
-                   "needs a live process, port and window")
     def test_the_install_side_run_by_the_old_builds_own_updater_code(self):
-        pass
+        self.skipTest("not reachable without product changes: the install side of the update (review, backup, hand-over) is run here by "
+                      "the NEW build's updater code; the 1.0.3 updater that a person's 1.0.3 really runs is not driven, because its server "
+                      "needs a live process, port and window")
 
     # --- helpers ---
 
