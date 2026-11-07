@@ -49,6 +49,7 @@ MESSAGES = {
     "change_bad_request": "That change could not be read. Nothing was changed. Reload the page and ask again.",
     "no_reply": "That answer's changes are no longer waiting. Nothing was changed. Ask again.",
     "shown_already": "Those changes were shown already. Nothing was changed. Ask again to see them afresh.",
+    "open_asking_off": "Asking is off, so this file can't be opened from here. Turn it on in Settings.",   # #943: the open-file click's own sentence
     "file_unavailable": "That file can't be opened from here.",
     "folders_unreadable": "Your folders couldn't be read just now, so nothing was sent. Try again, or remove a folder in Settings.",
 }
@@ -197,14 +198,15 @@ class AskService:
         """{project, file, page} -> the PDF `file` (a source's `file`: a name inside one of the project's saved folders) opened at
         `page` (a whole number, or null for the file alone) in the system's PDF viewer. The name is mapped back to the saved folder
         here, judged again by reach and pdf_link (a .pdf, no links, inside the folder, and starting %PDF-), and opened only by platform.open_pdf_at.
-        Nothing is read, sent or changed."""
+        Nothing is read, sent or changed.
+        Known LOW (#943, note only): if the viewer's start times out here but Chrome launches late, the PDF can open twice."""
         if not isinstance(body, dict) or set(body) != OPEN_FIELDS or not isinstance(body["project"], str) or not isinstance(body["file"], str):
             return 400, self.fail("bad_request")
         code, name, page = body["project"], body["file"], body["page"]
         if not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
         if not self.enabled():                       # fails closed, like the other ask routes: asking off, nothing is looked at
-            return 409, self.fail("asking_off")
+            return 409, self.fail("asking_off", MESSAGES["open_asking_off"])   # same code, its own sentence (MESSAGES["asking_off"] is for the other routes)
         if page is not None and (isinstance(page, bool) or not isinstance(page, int)):
             return 400, self.fail("bad_request")
         parts = name.split("/")
