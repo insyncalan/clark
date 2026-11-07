@@ -225,7 +225,7 @@ class Dialog(Base):
                     for _ in range(4):
                         p.key("Tab", code="Tab", vk=9)
                         seen.append(p.js("(function(){var e=document.activeElement;return e.id || (e.hasAttribute('data-cancel') ? 'cancel' : e.hasAttribute('data-go') ? 'go' : e.tagName)})()"))
-                    self.assertEqual(seen, ["pub-word", "pub-pdf", "cancel", "go"], where + ": Tab order")
+                    self.assertEqual(seen, ["pub-word", "pub-pdf", "cancel", "pub-go"], where + ": Tab order")
                     p.js("document.querySelector('#pub-word').focus()")
                     self.assertNotEqual(p.js("getComputedStyle(document.querySelector('#pub-word').closest('.pubopt')).outlineStyle"), "none", where + ": focus ring shows")
                     p.js("document.querySelector('[data-cancel]').click()")
