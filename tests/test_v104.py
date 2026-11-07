@@ -53,6 +53,12 @@ COVERED = [
      "test_edit_cells_layout::Cells::test_every_edit_cell_is_one_tidy_box_at_both_widths_in_both_looks"),
     ("#954", "The filter suggestion list sits under the message line.",
      "test_filter_list_error::ListAndError::test_the_list_never_covers_the_unknown_field_error"),
+    ("#952", "The chosen half of a segmented control has a dark focus ring.",
+     "test_seg_focus_ring::SegFocusRing::test_the_ring_on_every_chosen_half_reaches_3_to_1_on_its_fill_at_both_widths_in_both_looks"),
+    ("#955", "Menus have a stronger border.",
+     "test_menu_border::MenuBorder::test_every_menu_border_is_3_to_1_on_the_page_and_on_a_card_at_both_widths_in_both_looks"),
+    ("#965", "Owner is left out of a client Gantt by default.",
+     "test_gantt_publish::TheGate::test_owner_is_hidden_where_nothing_is_saved_and_kept_where_a_list_is_saved"),
     ("#926", "The editor workbook's Gantt sheet; the client workbook's Gantt sheet has no hidden column.",
      "test_gantt_excel_export::TheClientsWorkbook::test_a_hidden_owner_is_absent_as_a_header_and_as_a_value"),
     ("#926", "A line with its eye off is in no part of the client copy.",
@@ -78,8 +84,6 @@ PARTLY_MERGED = {"926"}
 WAITING = [
     ("#928", "The Gantt page, tab, chart and table.", "PR 896", "src/clark/page/src/gantt/components/GanttPage.jsx", "GanttPage"),
     ("#926", "The Gantt section type (layout step 19).", "PR 899", "src/clark/store.py", "SCHEMA_VERSION = 19"),
-    ("#965", "Owner is hidden from the client by default.", "PR 920", "src/clark/store.py",
-     'GANTT_DEFAULT_HIDDEN = ("show", "note", "budget", "effort", "baseline_start", "baseline_end", "owner")'),
 ]
 
 # (item, check, kind, why, what the person does)
