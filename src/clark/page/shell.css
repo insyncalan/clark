@@ -1961,6 +1961,15 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .mv-wrap { overflow: hidden; resize: none; min-height: 0; }   /* row 767: the printed timeline is drawn to the page width (MsTimeline.jsx), so it needs no sideways scroll; nothing is cut off */
   html.print-all thead { display: table-header-group; }
   html.print-all a { color: inherit; text-decoration: none; }
+  /* row 990: the Gantt on paper. No toolbar, menu or hover control; the chart and the table are drawn whole to the page width (no box to scroll, nothing sticky or fixed); the bars, the Today flag and the swatches keep their colour; a row is not split across two pages. */
+  html.print-all .gp-tools, html.print-all .gt-bar, html.print-all .gt-pop, html.print-all .gt-menu, html.print-all .gt-box, html.print-all .gt-grip, html.print-all .gt-addb, html.print-all .gt-rz { display: none; }
+  html.print-all .gt-full { position: static; inset: auto; z-index: auto; overflow: visible; padding: 0; background: none; }
+  html.print-all .gt-gx, html.print-all .gt-full .gt-gx { overflow: visible; max-width: 100%; max-height: none; height: auto !important; }
+  html.print-all .gt-scroll { overflow: visible; max-height: none; }
+  html.print-all .gt-lhead, html.print-all .gt-rhead, html.print-all .gt-left { position: relative; }
+  html.print-all .gt thead th, html.print-all .gt th.gt-fz, html.print-all .gt td.gt-fz, html.print-all .gt .gt-rh, html.print-all .gt .gt-rh0 { position: static; }
+  html.print-all .gt-b, html.print-all .gt-b > i, html.print-all .gt-b-phase, html.print-all .gt-ms, html.print-all .gt-tflag, html.print-all .gt-tstem, html.print-all .gt-sw, html.print-all .gt-dep { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html.print-all .gt-ln, html.print-all .gt-rw, html.print-all .gt-legend { break-inside: avoid; }
 }
 
 .pk-rating { color: var(--text-muted); }   /* a closed risk keeps its rating word beside its Closed pill */
