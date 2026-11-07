@@ -48,6 +48,9 @@ class OpenItems(unittest.TestCase):
 
     def test_the_counts_take_one_read_of_each_kind_however_many_projects_there_are(self):
         """#528: not one read of every project's items per project."""
+        with self.s.step("dashboard", USER) as st:
+            for code in ("DEF", "GHI"):
+                st.create("projects", {"code": code, "name": "Another " + code, "health": "On track"})
         calls = []
         real = launcher.clark_store.Store.read
 
@@ -57,7 +60,7 @@ class OpenItems(unittest.TestCase):
         with mock.patch.object(launcher.clark_store.Store, "read", counting):
             rows = launcher.projects_of(self.s.path, [])()
         self.assertEqual(sorted(calls), ["actions", "decisions", "projects", "raid"], calls)
-        self.assertEqual(next(r for r in rows if r["code"] == "ABC")["open"], self.expected())
+        self.assertEqual({r["code"]: r["open"] for r in rows}, {"ABC": self.expected(), "DEF": 0, "GHI": 0})
 
     def test_the_archived_list_has_no_count(self):
         for r in launcher.projects_of(self.s.path, [])(archived=True):
