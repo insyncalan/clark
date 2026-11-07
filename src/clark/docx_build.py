@@ -222,6 +222,20 @@ def picture(ctx, drawn, width_twips, alt):
             "</a:graphicData></a:graphic></wp:inline></w:drawing></w:r>")
 
 
+def picture_para(ctx, make, width_twips, style=None, **kw):
+    """A paragraph holding a picture, or "" when it cannot be made. `make()` gives (drawn, alt text) or None. A picture is only an
+    addition to words the report already carries, so any failure in drawing it (a number too large to read, a bug) leaves the
+    words alone and writes no picture."""
+    try:
+        made = make()
+        if not made:
+            return ""
+        drawn, alt = made
+        return para(picture(ctx, drawn, width_twips, alt), style, **kw)
+    except Exception:
+        return ""
+
+
 def word_cell(text, ctx, colour=None, late=False, extra=()):
     """A cell of words. `colour` (red, amber, green, blue, grey) gives a fill and text of the same hue, the words always shown;
     `late` draws the text red; `extra` are quieter lines under it."""
@@ -372,8 +386,8 @@ def section_glance(published, ctx, title, sec, kept):
             fill, text = ctx.hexes(health["colour"])
         out.append(para(run("Project health: ", bold=True) + run(health["value"], bold=True, color=text), fill=fill,
                         spacing=(60, 60)))
-        bar = docx_graphics.health_bar(health["colour"], ctx.tok)
-        out.append(para(picture(ctx, bar, TEXT_W, "Project health: " + str(health["value"])), keep_next=True, spacing=(0, 60)))
+        out.append(picture_para(ctx, lambda: (docx_graphics.health_bar(health["colour"], ctx.tok), "Project health: " + str(health["value"])),
+                                TEXT_W, keep_next=True, spacing=(0, 60)))
         if health["reason"].strip():
             out.append(text_paras(health["reason"], ctx, style=None))
     others = [t for t in tiles if t["tile"] != "health"]
@@ -426,9 +440,8 @@ def section_milestones(published, ctx, title, sec):
                 name += text_paras(line, ctx, **kw)
         if m.get("percent_complete") is not None:
             name += para(run(f"{m['percent_complete']}% complete", color=ctx.tok["grey-700"], size=16), "TableText")
-            bar = docx_graphics.progress_bar(m["percent_complete"], ctx.tok)
-            if bar:
-                name += para(picture(ctx, bar, 1440, f"{m['percent_complete']}% complete"), "TableText")
+            name += picture_para(ctx, lambda: (docx_graphics.progress_bar(m["percent_complete"], ctx.tok), f"{m['percent_complete']}% complete"),
+                                 1440, "TableText")
         when = f"Achieved {_date(m.get('actual_date'))}" if achieved else _date(m.get("forecast_date"))
         colour = colours_table.colour_for("milestones", "state", m.get("state"))
         rows.append([word_cell(m.get("id"), ctx), (name, None), word_cell(m.get("owner"), ctx, extra=[m.get("workstream")]),
@@ -437,13 +450,14 @@ def section_milestones(published, ctx, title, sec):
                      word_cell(f"+{slip} days" if slip and not achieved else "", ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
-    drawn = docx_graphics.plan(kept, published["as_at"], ctx.tok)
-    chart = ""
-    if drawn:                                          # one lane for each milestone, in the order of the table; the words are the table's
+    def plan():                                        # one lane for each milestone, in the order of the table; the words are the table's
+        drawn = docx_graphics.plan(kept, published["as_at"], ctx.tok)
+        if not drawn:
+            return None
         image, lanes = drawn
-        alt = "; ".join(f"{r['row'].get('name') or ''}, {_date(r['row'].get('baseline_date'))}, {r['row'].get('state_word') or r['row'].get('state') or ''}"
-                        for r in lanes)
-        chart = para(picture(ctx, image, TEXT_W, alt), keep_next=True, spacing=(0, 60))
+        return image, "; ".join(f"{r['row'].get('name') or ''}, {_date(r['row'].get('baseline_date'))}, "
+                                f"{r['row'].get('state_word') or r['row'].get('state') or ''}" for r in lanes)
+    chart = picture_para(ctx, plan, TEXT_W, keep_next=True, spacing=(0, 60))
     return _heading(title) + chart + table(ctx, ["ID", "Milestone", "Owner", "Agreed", "Forecast", "State", "Slip"],
                                            [1200, 3038, 1150, 1100, 1100, 1100, 950], rows)
 
