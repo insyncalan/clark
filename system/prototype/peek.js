@@ -187,7 +187,7 @@
       const go = () => { const u = D.undoMany(kind, rec2() || rec, plan()), n = sel.size; sel.clear(); phase = null; lastTick = null; if (u) { C.refresh(); C.toast(`${n} change${n === 1 ? '' : 's'} undone`, u); } else { redraw(); C.toast('Those changes cancel each other out, so nothing was changed.'); } };
       C.$('[data-pa-go]', pk())?.addEventListener('click', () => { if (sel.size > D.CONFIRM_ABOVE) { phase = { kind: 'sure', plan: phase.plan }; drawBar(); C.$('[data-pa-head]', pk())?.focus(); } else go(); });
       C.$('[data-pa-yes]', pk())?.addEventListener('click', go); }
-    C.$$('.pk-tabs button').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; redraw(); })); redraw(); }
+    C.$$('.pk-tabs button').forEach(b => b.addEventListener('click', () => { if (tab === b.dataset.tab) return; const sc = C.$('.pk-scroll', pk()), fd = C.$('#pkFeed', pk()), top = sc ? sc.scrollTop : 0, all = sc ? sc.scrollHeight : 0; const h = fd.offsetHeight; tab = b.dataset.tab; fd.style.minHeight = h + 'px'; redraw(); if (sc) { const lack = all - sc.scrollHeight; if (lack > 0) fd.style.minHeight = (h + lack) + 'px'; sc.scrollTop = top; } /* a shorter tab keeps the space and the place (item 1008) */ })); redraw(); }
   C.peekSel = () => ({ size: sel.size, steps: [...sel] });
   /* Esc clears the ticked rows first; the next Esc closes the peek */
   document.addEventListener('keydown', e => { if (e.key !== 'Escape' || !UI.peek || !sel.size || C.popOpen() || document.querySelector('dialog[open]') || (C.sneakIsOpen && C.sneakIsOpen()) || C.askIsOpen()) return; e.preventDefault(); e.stopPropagation(); sel.clear(); phase = null; C.redrawPeek(); }, true);
