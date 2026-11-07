@@ -12,8 +12,9 @@ Same shape as test_v103.
   WALK_THROUGH  judgement or live only. Skipped: 'needs a person'.
 
 The notes hold only merged, user-visible rows; no DRAFT line is allowed anywhere. The cut checks (version, files, layout) skip until the
-cut commit sets 1.0.4. The data layout moves from 17 to 18 in 1.0.4 (row 926, the Gantt data layer):
-the notes carry the Read this first paragraph and, at the cut, the store must say 18. The Gantt page, tab and section (PR 896, PR 899) are in 1.0.6.
+cut commit sets 1.0.4. The data layout moves from 17 to 19 in 1.0.4 (row 926: step 18 is the Gantt data layer, step 19 the Gantt
+section type, PR 899): the notes carry the Read this first paragraph and, at the cut, the store must say 19. The Gantt page and tab
+(row 928, PR 896) are in 1.0.4 too.
 """
 import ast
 import re
@@ -23,7 +24,7 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "1.0.4"
-SCHEMA = 18              # 1.0.3 was layout 17; 1.0.4 ends at 18 (row 926)
+SCHEMA = 19              # 1.0.3 was layout 17; 1.0.4 ends at 19 (row 926)
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
@@ -71,6 +72,26 @@ COVERED = [
      "test_update_17_to_18::Update17To18::test_the_new_build_migrates_17_to_18_keeping_every_row_and_a_second_open_changes_nothing"),
     ("#926", "The older clark says it needs a newer one and touches nothing.",
      "test_update_17_to_18::Update17To18::test_the_old_build_refuses_the_new_data_with_its_plain_sentence_and_touches_nothing"),
+    ("#928", "In Edit the Gantt tab is renamed by clicking its name.",
+     "test_gantt_tab::Tab::test_the_name_is_a_box_after_a_click_in_edit_and_enter_saves_with_an_undo"),
+    ("#928", "The title on the Gantt page can be changed in Edit.",
+     "test_gantt_page::Page::test_the_title_is_editable_in_edit_and_saves_on_click_away_enter_and_not_on_esc"),
+    ("#928", "The Gantt table has an Import from Excel button in Edit.",
+     "test_gantt_page::Page::test_export_and_import_run_the_editors_own_excel_flows"),
+    ("#928", "The Gantt tab is in a published file only when it is shown to the client and a line is.",
+     "test_gantt_publish::TheGate::test_the_tab_is_in_only_when_the_client_switch_is_on_and_a_line_has_its_eye_on"),
+    ("#928", "A published file draws the Gantt table to read only.",
+     "test_gantt_page::Page::test_the_table_reads_in_full_in_the_published_file_and_in_edit_at_both_widths"),
+    ("#926", "Add a section offers a Gantt section, with one Undo.",
+     "test_gantt_section_type::TheChangeRoute::test_a_gantt_section_is_added_with_one_undo_and_the_undo_takes_it_away"),
+    ("#926", "A Gantt section can be hidden, moved and deleted, each with one Undo.",
+     "test_gantt_section_type::TheChangeRoute::test_a_gantt_section_can_be_retitled_hidden_moved_and_deleted_each_with_one_undo"),
+    ("#926", "A published file holds the Gantt section only with the Gantt tab.",
+     "test_gantt_section_type::Published::test_the_section_is_in_the_file_exactly_with_the_gantt_tab"),
+    ("#926", "The Word and Excel files leave the Gantt section out.",
+     "test_gantt_section_type::Published::test_the_word_and_excel_paths_leave_a_gantt_section_out"),
+    ("#926", "An in-clark update from layout 17 reaches layout 19 and 1.0.3 refuses it.",
+     "test_gantt_section_type::Migrating::test_a_layout_17_file_is_brought_to_19_with_the_copy_first_every_row_kept_idempotent_and_refused_by_an_older_clark"),
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
@@ -320,7 +341,7 @@ class Cut(unittest.TestCase):
         self.cut_made()
         if schema_version() > SCHEMA:
             self.skipTest("the layout has moved on past %d (now %d, a later release's step): these are 1.0.4's notes" % (SCHEMA, schema_version()))
-        self.assertEqual(schema_version(), SCHEMA, "the notes name layout 18: row 926 (the Gantt data layer)")
+        self.assertEqual(schema_version(), SCHEMA, "the notes name layout 19: row 926 (the Gantt data layer and the Gantt section type)")
 
     def test_a_waiting_row_whose_pull_request_has_landed_has_been_moved_to_covered(self):
         self.cut_made()
