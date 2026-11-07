@@ -321,6 +321,7 @@ class PageSide(PageBase):
             self.assertEqual(self.card_ids(p, sec), [ids["risk"], ids["action"]])
             p.until(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent.includes('Typed words')", "View draws the words just typed")      # the page takes the saved section a moment after the field shows it; the hosted Mac drew View first
             self.assertIn("Typed words", p.js(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent"))
+            p.until(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent.includes('LATESTWORDS')", "View draws the latest update of card 2")      # drawn with the words above, but a slow hosted Mac has drawn the card without it for a moment
             self.assertIn("LATESTWORDS", p.js(f"document.querySelector('[data-id={json.dumps(sec)}]').textContent"))
             self.assertEqual(self.sent[-1][1]["place"], "report")
 
