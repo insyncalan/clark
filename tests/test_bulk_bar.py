@@ -422,6 +422,7 @@ class Page(Base):
             cdp.js("document.activeElement.blur()", sid)
             letter(cdp, sid, "c")
             letter(cdp, sid, "o")
+            self.until(cdp, sid, "document.getAnimations().length === 0", "the closing picker's fade is over")      # row 962: a closed picker leaves a fading copy for 120 ms
             self.assertFalse(cdp.js("!!document.querySelector('.cpop, .bask')", sid), "nothing acts when the table has no keyboard")
             self.focus(cdp, sid, risk)
             for mods in (CTRL, META):
