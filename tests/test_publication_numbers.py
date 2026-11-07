@@ -938,6 +938,24 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertEqual(list(folder.iterdir()), [])
 
 
+class StillOurs(unittest.TestCase):
+    """#597: still_ours is true only for an ordinary file with the bytes; a link to such a file is not ours."""
+
+    def test_a_link_to_the_same_bytes_is_not_still_ours_but_the_file_is(self):
+        folder = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        real, link = folder / "real.html", folder / "link.html"
+        real.write_bytes(b"<p>ours</p>")
+        try:
+            link.symlink_to(real)
+        except (OSError, NotImplementedError):
+            self.skipTest("no symlinks here")
+        digest = hashlib.sha256(b"<p>ours</p>").hexdigest()
+        self.assertTrue(publish.still_ours(real, digest))
+        self.assertFalse(publish.still_ours(link, digest))
+        self.assertFalse(publish.still_ours(folder / "missing.html", digest))
+
+
 class TheHistoryLine(unittest.TestCase):
     def test_each_publish_is_one_line_in_all_and_in_no_other_filter(self):
         demo = DemoStore()
