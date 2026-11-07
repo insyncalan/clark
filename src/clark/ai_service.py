@@ -153,7 +153,8 @@ class AiService:
         if not isinstance(reply, str):
             return 200, self.fail("failed")
         # Deferred (#587, Low): no `people` or `known` is given here, so for a client message this check cannot see the project's
-        # names or item codes; the page's own check (which has them) still runs before anything is shown. Fixed with slice 5.
+        # names or item codes. This server check is the only reply check for now: the page does not run one of its own, so a reply
+        # that adds a known name or code is not stopped. Nothing is exposed while the AI routes answer 404. Fixed with slice 5 and #277.
         checked = ai_menu.check_reply(reply, req["original"], req["option"], req["place"])
         if not checked["ok"]:
             return 200, self.fail("failed", checked["message"])
