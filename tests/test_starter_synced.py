@@ -79,6 +79,10 @@ class EnvFile(unittest.TestCase):
         self.assertEqual(sc.data_folder({"HOME": "/h"}, self.env('CLARK_DATA_DIR="/Users/sam/Dropbox/a b"\n')), "/Users/sam/Dropbox/a b")
         self.assertEqual(sc.data_folder({"HOME": "/h"}, self.env("CLARK_DATA_DIR='/x y'\n")), "/x y")
 
+    def test_a_name_set_empty_in_the_shell_is_not_looked_for_in_the_file(self):
+        f = self.env("CLARK_DATA_DIR=/Users/sam/OneDrive/clark\n")
+        self.assertEqual(sc.data_folder({"HOME": "/h", "CLARK_DATA_DIR": ""}, f), "/h/Library/Application Support/clark")
+
     def test_the_shell_wins_over_the_env_file_and_a_missing_file_is_nothing(self):
         f = self.env("CLARK_DATA_DIR=/from/file\n")
         self.assertEqual(sc.data_folder({"HOME": "/h", "CLARK_DATA_DIR": "/from/shell"}, f), "/from/shell")

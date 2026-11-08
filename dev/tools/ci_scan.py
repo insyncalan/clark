@@ -34,7 +34,7 @@ MAGIC_WITH_NUL = ((b"MZ", "a program"), (b"BZh", "a bzip2 file"), (b"Rar!", "a R
 ARCHIVE_SUFFIXES = (".zip", ".gz", ".tgz", ".tar", ".bz2", ".xz", ".7z", ".rar", ".jar", ".whl", ".egg", ".docx", ".xlsx",
                     ".pptx", ".exe", ".dll", ".so", ".dylib", ".pyc", ".pyd", ".class", ".bin", ".dmg", ".pkg", ".app")
 PROTECTED = (".github/", "dev/tools/ci_scan.py", "dev/tools/publish_public.py", "tests/test_ci_scan.py", "tests/test_workflow.py",
-             "tests/test_no_real_names.py", "tests/test_publish_public.py")       # the rules a change could loosen
+             "tests/test_no_real_names.py", "tests/test_publish_public.py", "tests/test_publish_public_slow.py")       # the rules a change could loosen
 NOREPLY = re.compile(r"^(?:\d+\+)?[A-Za-z0-9-]+@users\.noreply\.github\.com$|^noreply@github\.com$")
 TRAILER_OK = re.compile(NOREPLY.pattern + r"|^noreply@anthropic\.com$")      # also fine in a message: the Co-Authored-By trailer
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
