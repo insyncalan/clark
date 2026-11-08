@@ -96,7 +96,7 @@ class Pg:
 
 class Base(unittest.TestCase):
     def setUp(self):
-        self.s = Running(data_for=DATA.get, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda archived=False: LIST)
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda archived=False: LIST)
         self.addCleanup(self.s.close)
 
     def visit(self, cdp, hash_="#dashboard&p=ABC"):

@@ -131,12 +131,73 @@ class InAContainer(unittest.TestCase):
 class Compose(unittest.TestCase):
     """The compose file's published port is a security control (see docs/handoff/design-427-docker-first-start.md)."""
 
+    @staticmethod
+    def published(text):
+        """The published ports as a list of entries, and the network_mode values. A short entry ("host:port:port", any quoting) is
+        {"short": text}; a long entry is its keys (target, published, host_ip). Read by structure, whatever the indentation."""
+        entries, modes, inside, base = [], [], False, 0
+        for line in text.splitlines():
+            line = line.split("#", 1)[0].rstrip()
+            if not line.strip():
+                continue
+            indent, body = len(line) - len(line.lstrip()), line.strip()
+            if body.startswith("network_mode:"):
+                modes.append(body.partition(":")[2].strip().strip("\"'"))
+            if body == "ports:":
+                inside, base = True, indent
+                continue
+            if inside and indent <= base and not body.startswith("- "):
+                inside = False
+            if not inside:
+                continue
+            if body.startswith("- "):
+                entries.append({})
+                body = body[2:].strip()
+                if not re.match(r"^\w+:(\s|$)", body):
+                    entries[-1]["short"] = body.strip("\"'")
+                    continue
+            key, _, value = body.partition(":")
+            if entries:
+                entries[-1][key.strip()] = value.strip().strip("\"'")
+        return entries, modes
+
+    def bad_ports(self, text):
+        """What is wrong with how the text publishes its ports (an empty list when it is 127.0.0.1 only)."""
+        entries, modes = self.published(text)
+        problems = ["network_mode: " + m for m in modes if m == "host"]
+        if not entries:
+            problems.append("no published port found")
+        for entry in entries:
+            if "short" in entry:
+                if not entry["short"].startswith("127.0.0.1:"):
+                    problems.append(entry["short"])
+            elif entry.get("host_ip") != "127.0.0.1":
+                problems.append(repr(entry))
+        return problems
+
     def test_every_published_port_is_on_127_0_0_1_only(self):
+        """The short form, the long form (host_ip), a host taken from an env variable and network_mode: host are all checked."""
         text = (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8")
-        ports = re.findall(r'^\s*-\s*"?([0-9][^"\n]*:[0-9]+(?::[0-9]+)?(?:/\w+)?)"?\s*$', text, re.M)
-        self.assertTrue(ports, "no published port found")
-        for port in ports:
-            self.assertTrue(port.startswith("127.0.0.1:"), port)
+        self.assertEqual(self.bad_ports(text), [])
+
+    def test_the_port_check_catches_every_way_of_publishing_wide(self):
+        head = "services:\n  clark:\n    image: x\n"
+        long_form = "    ports:\n      - target: 8766\n        published: 8766\n"
+        good = ['    ports:\n      - "127.0.0.1:8766:8766"\n',
+                long_form + "        host_ip: 127.0.0.1\n"]
+        bad = ['    ports:\n      - "8766:8766"\n',
+               '    ports:\n      - "0.0.0.0:8766:8766"\n',
+               '    ports:\n      - "${CLARK_HOST:-127.0.0.1}:8766:8766"\n',
+               "    ports:\n      - 8766:8766\n",
+               long_form,
+               long_form + "        host_ip: 0.0.0.0\n",
+               long_form + "        host_ip: ${CLARK_HOST}\n",
+               '    network_mode: host\n    ports:\n      - "127.0.0.1:8766:8766"\n',
+               '    network_mode: "host"\n']
+        for block in good:
+            self.assertEqual(self.bad_ports(head + block), [], block)
+        for block in bad:
+            self.assertTrue(self.bad_ports(head + block), block)
 
     def service(self):
         return (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8")

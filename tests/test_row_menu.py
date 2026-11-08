@@ -236,6 +236,25 @@ class Menu(board.Base):
             self.assertEqual(ring[:2], ["solid", "2px"], ring)
             self.assertNotEqual(ring[2], "rgba(0, 0, 0, 0)")
 
+    def test_item_977_the_entry_words_are_plain_not_the_browsers_bold_in_the_menu_and_in_the_list_beside_it(self):
+        """Item 977: every entry's words (the <b> in each entry) draw at regular weight. The control is a <b> outside the menu, which the browser
+        draws bold, so the test fails if the rule goes (the entries turn bold) and fails if the probe stops reading weights (the control is not bold)."""
+        weights = "[...document.querySelectorAll('%s')].map(b => getComputedStyle(b).fontWeight)"
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Order the laptops")
+            self.open_menu(cdp, sid, self.TABLE % a)
+            control = cdp.js("(() => { const b = document.body.appendChild(document.createElement('b')); const w = getComputedStyle(b).fontWeight; b.remove(); return w; })()", sid)
+            self.assertIn(control, ("700", "bold"), "the control: a plain <b> is bold, so a weight of 400 below is the rule's doing")
+            got = cdp.js(weights % ".rowmenu [role=menuitem] .rm-t b", sid)
+            self.assertEqual(len(got), 10, "every entry of the menu was read")
+            self.assertEqual(set(got), {"400"}, "the menu's entries are regular weight")
+            cdp.js("document.querySelector('.rowmenu [data-rm=status]').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly [role=menuitem]')", "the list beside Change status")
+            listed = cdp.js(weights % ".rowmenu .rm-fly [role=menuitem] .rm-t b", sid)
+            self.assertTrue(listed, "the list's entries were read")
+            self.assertEqual(set(listed), {"400"}, "the list's entries are regular weight")
+
     def test_row_978_every_entry_has_an_icon_from_the_existing_set_before_its_words_16px_muted_and_taking_the_entry_colour_on_hover(self):
         """Row 978: each entry of the menu has an icon (the page's own set, named here) before its words, 16 px, in the muted text colour at rest,
         and in the entry's own colour under the pointer. The list beside an entry (statuses, dates, names) has none."""

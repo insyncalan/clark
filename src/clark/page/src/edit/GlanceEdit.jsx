@@ -2,7 +2,9 @@
 // eye (hide it from the published report), a right-click menu for its outline colour, and Project health's pill menu and reason box.
 // Nothing here is in a published file.
 import { useRef, useState } from "preact/hooks";
-import { useGrow } from "./useGrow.js";
+import { RichField } from "./RichField.jsx";
+import { richOrPlain } from "../logic/richOrPlain.js";
+import { richWords } from "../logic/richWords.js";
 import { Menu, MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { OUTLINE_CHOICES, TILE_TITLES } from "../glanceTiles.js";
@@ -82,7 +84,7 @@ function Cell({ tile, order, children }) {
       {children}
       {tile.hidden ? <span class="tag hid thid">Hidden from the published report</span> : null}
       {menu ? (
-        <MenuPanel label={`Outline colour for ${title}`} cls="left tilemenu" anchor={grip.current} onClose={() => setMenu(false)}>
+        <MenuPanel label={`Outline colour for ${title}`} cls="left tilemenu" fade anchor={grip.current} onClose={() => setMenu(false)}>
           <div class="lab" role="presentation">Outline colour</div>
           {OUTLINE_CHOICES.map(([value, name]) => (
             <button key={value || "auto"} type="button" role="menuitemradio" aria-checked={tile.outline === value ? "true" : "false"} tabIndex={-1} data-outline={value || "auto"}
@@ -104,28 +106,33 @@ function HealthPill({ health, reason }) {
   );
 }
 
-// The reason, in place. Saved when the box is left; Esc puts the old words back. A health picked while it was empty is saved with it.
+// The reason, in place (item 1005: the one rich editor, with the / menu). A click opens it; it is saved when the field is left, and Esc
+// puts the old words back. It is drawn as richOrPlain of what is stored (an old reason is plain text), never the stored text itself.
+// A health picked while it was empty opens it, and is saved with it.
 function Reason({ health, reason }) {
-  const ref = useRef(null), skip = useRef(false);
-  useGrow(ref, reason);
   const pending = pendingHealth.value;                 // for the box's look; the save reads the signal itself, as it is when the box is left
-  const done = async () => {
-    const el = ref.current, text = el.value.trim(), pending = pendingHealth.value;
-    if (skip.current) { skip.current = false; el.value = reason; return; }
-    if (pending) {
+  let shown = "";
+  try { shown = richOrPlain(reason); } catch (e) { shown = ""; }
+  const save = async (html) => {
+    const words = richWords(html).trim(), pend = pendingHealth.value;
+    if (pend) {
       pendingHealth.value = "";
-      if (!text) { note("Nothing was changed. A health change needs a reason."); return; }
-      if (!(await sendHealth(pending, text))) el.value = reason;
-      return;
+      if (!words) { note("Nothing was changed. A health change needs a reason."); return true; }
+      const done = await sendHealth(pend, html);
+      if (!done) pendingHealth.value = pend;            // it failed (the toast says why): the health still waits for its reason
+      return done || null;
     }
-    if (text === String(reason || "").trim()) { el.value = reason; return; }
-    if (!text && health && health !== "On track") { el.value = reason; note("Say why in a line or two. The reason stays as it was."); return; }
-    if (!(await sendReason(text))) el.value = reason;
+    if (!words && health && health !== "On track") { note("Say why in a line or two. The reason stays as it was."); return true; }
+    return (await sendReason(words ? html : "")) || null;
+  };
+  const close = (refocus) => {
+    if (pendingHealth.value && refocus !== true) { pendingHealth.value = ""; note("Nothing was changed. A health change needs a reason."); }
+    else if (pendingHealth.value) pendingHealth.value = "";
   };
   return (
-    <textarea class={`hreason grow edit${pending ? " needs" : ""}`} data-reason rows="3" maxLength={2000} key={reason}
-      aria-label="Why the project has this health" placeholder={pending ? `Why is it ${pending}?` : "Say why"} defaultValue={reason} ref={ref}
-      onBlur={done} onKeyDown={(e) => { if (e.key === "Escape") { skip.current = true; pendingHealth.value = ""; e.currentTarget.blur(); } }} />
+    <RichField field="health_reason" value={shown} label="Why the project has this health" save={save} onClose={close} forceOpen={!!pending}
+      cls={`hreason edit${pending ? " needs" : ""}`} attrs={{ "data-reason": true, "data-rich": undefined }} aria="Why the project has this health. Edit it"
+      empty={pending ? `Why is it ${pending}?` : "Say why"} />
   );
 }
 
