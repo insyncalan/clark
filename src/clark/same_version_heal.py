@@ -25,8 +25,11 @@ import sys
 
 # Before any other import: drop the script's own folder and the folder it was started in from the path (python3 -I does this
 # already; this keeps it true when the file is run any other way).
-_DROP = {os.path.abspath(os.path.dirname(os.path.abspath(__file__))), os.path.abspath(os.getcwd())}
-sys.path[:] = [p for p in sys.path if os.path.abspath(p or os.getcwd()) not in _DROP]
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_DROP = {os.path.abspath(_HERE), os.path.realpath(_HERE), os.path.abspath(os.getcwd()), os.path.realpath(os.getcwd())}
+# abspath and realpath both: a link to either folder (a symlinked clark folder or working folder) cannot lead the path either.
+sys.path[:] = [p for p in sys.path
+               if os.path.abspath(p or os.getcwd()) not in _DROP and os.path.realpath(p or os.getcwd()) not in _DROP]
 
 import hashlib  # noqa: E402
 import json  # noqa: E402
@@ -55,8 +58,10 @@ def marker_path(data):
 
 
 def _safe(name):
+    """Whether a record's name stays inside the folder: relative, no .. part, no backslash, no drive letter, no NUL."""
     parts = PurePosixPath(name).parts
-    return bool(parts) and not PurePosixPath(name).is_absolute() and ".." not in parts and "\\" not in name
+    return (bool(parts) and not PurePosixPath(name).is_absolute() and ".." not in parts and "\\" not in name
+            and "\0" not in name and ":" not in parts[0])
 
 
 def _wanted(name):

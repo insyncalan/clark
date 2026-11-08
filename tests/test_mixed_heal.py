@@ -512,6 +512,70 @@ echo "OPEN $*" >> "{log}"
 
 
 @unittest.skipUnless(BASH, "needs bash")
+class HostileNames(Fixture):
+    """A record that names a file outside the folder (or in a form that could): nothing is written, nothing is asked, nothing changes."""
+
+    NAMES = (".app/../../escaped.txt", ".app/../escaped.txt", "../escaped.txt", ".app/sub/../../../escaped.txt",
+             "/escaped.txt", "//escaped.txt", ".app\\..\\escaped.txt", ".app/sub\\..\\escaped.txt", "\\\\server\\share\\escaped.txt",
+             "\\escaped.txt", "C:\\escaped.txt", "C:/escaped.txt", "c:escaped.txt", ".app/x\x00y.txt", "")
+
+    def record_with(self, name, data=b"PAYLOAD"):
+        files = {n: {"sha256": sha(d), "size": len(d), "mode": "755" if n == "clark.command" else "644"}
+                 for n, d in sorted(self.good.items())}
+        files[name] = {"sha256": sha(data), "size": len(data), "mode": "644"}
+        (self.top / "clark-release.json").write_text(json.dumps({"product": "clark", "version": "9.9.9", "files": files}),
+                                                      encoding="utf-8")
+        zpath = self.home / "Downloads" / "clark-9.9.9-mac.zip"
+        with zipfile.ZipFile(str(zpath), "w") as z:
+            for rel, d in sorted(self.good.items()):
+                z.writestr("clark/" + rel, d)
+            z.writestr("clark/" + name, data)
+
+    def test_safe_refuses_every_hostile_name_and_keeps_the_good_ones(self):
+        for name in self.NAMES:
+            with self.subTest(name=name):
+                self.assertFalse(self.heal_module._safe(name))
+        for name in (".app/src/clark/a.py", "clark.command", ".app/a b/c.txt", ".app/..x/y", ".app/a..b"):
+            with self.subTest(name=name):
+                self.assertTrue(self.heal_module._safe(name))
+
+    def test_a_record_naming_a_hostile_file_is_unreadable(self):
+        for name in self.NAMES:
+            with self.subTest(name=name):
+                self.record_with(name)
+                with self.assertRaises(ValueError):
+                    self.heal_module.read_record(self.top)
+
+    def test_a_hostile_name_writes_nothing_asks_nothing_and_changes_nothing(self):
+        def never():
+            raise AssertionError("asked a key for a record with a hostile name")
+        for name in self.NAMES:
+            with self.subTest(name=name):
+                self.record_with(name)
+                before = snapshot(self.tmp)
+                outside = sorted(p for p in self.tmp.parent.glob("escaped.txt"))
+                out, err = io.StringIO(), io.StringIO()
+                code = self.heal_module.run(self.top, self.data, key=never, out=out, err=err, home=self.home, tty=True)
+                self.assertEqual(0, code)
+                self.assertEqual((("", "")), (out.getvalue(), err.getvalue()))
+                self.assertNotIn("Put ", out.getvalue())
+                self.assertEqual(before, snapshot(self.tmp))
+                self.assertFalse((self.tmp / "escaped.txt").exists())
+                self.assertEqual(outside, sorted(self.tmp.parent.glob("escaped.txt")))
+
+    def test_a_hostile_name_with_an_older_folder_asks_only_to_move_it_and_still_writes_nothing(self):
+        self.add_stale()
+        self.record_with(".app/../../escaped.txt")
+        asked = []
+        out, err = io.StringIO(), io.StringIO()
+        keys = iter("n")
+        code = self.heal_module.run(self.top, self.data, key=lambda: (asked.append(1), next(keys, ""))[1], out=out, err=err,
+                                    home=self.home, tty=True)
+        self.assertEqual(3, code)
+        self.assertNotIn("Put ", out.getvalue())
+        self.assertFalse((self.tmp / "escaped.txt").exists())
+
+
 class ClarkCommand(Fixture):
     def setUp(self):
         super().setUp()
@@ -652,6 +716,29 @@ class ClarkCommand(Fixture):
                               stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
         self.assertEqual(0, done.returncode, done.stderr)
         self.assertNotIn("SHADOWED", done.stderr)
+
+    def test_a_path_entry_that_is_a_link_to_the_folder_it_was_started_in_is_dropped_too(self):
+        real = self.tmp / "started here"
+        real.mkdir()
+        link = self.tmp / "link to started here"
+        link.symlink_to(real, target_is_directory=True)
+        for name in ("json.py", "zipfile.py", "hashlib.py"):
+            self.put(real / name, b"raise RuntimeError('SHADOWED')\n")
+        env = dict(self.env(), PYTHONPATH=str(link))
+        done = subprocess.run([sys.executable, str(HEAL_PATH), str(self.top), str(self.data)], cwd=str(real), env=env,
+                              stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
+        self.assertEqual(0, done.returncode, done.stderr)
+        self.assertNotIn("SHADOWED", done.stderr)
+
+    def test_a_path_entry_that_is_a_link_to_the_scripts_own_folder_is_dropped_too(self):
+        link = self.tmp / "link to script folder"
+        link.symlink_to(HEAL_PATH.parent, target_is_directory=True)
+        out = subprocess.run([sys.executable, "-c",
+                              "import sys, runpy; sys.argv = [sys.argv[0]]; sys.path.insert(0, %r);"
+                              "g = runpy.run_path(%r, run_name='x'); print(sys.path)" % (str(link), str(HEAL_PATH))],
+                             cwd=str(self.tmp), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
+        self.assertEqual(0, out.returncode, out.stderr)
+        self.assertNotIn(str(link), out.stdout)
 
 
 if __name__ == "__main__":
