@@ -297,7 +297,7 @@ class Labels(unittest.TestCase):
 
     def gutter(self, png, i):
         w, h, palette, rows = read_png(png)
-        return [bytes(rows[y][:g.LABEL_W]) for y in range(g.TOP + i * g.LANE, g.TOP + (i + 1) * g.LANE)]
+        return [[palette[v] == tok()["text"] for v in rows[y][:g.LABEL_W]] for y in range(g.TOP + i * g.LANE, g.TOP + (i + 1) * g.LANE)]
 
     def draw(self, rows):
         return g.plan(rows, self.TODAY, TOKENS)[0][0]
@@ -311,14 +311,14 @@ class Labels(unittest.TestCase):
     def test_the_same_name_looks_the_same_in_any_lane_and_a_different_name_looks_different(self):
         png = self.draw([ms(1, name="Go live"), ms(2, name="Sign off"), ms(3, name="Go live")])
         a, b, c = (self.gutter(png, i) for i in range(3))
-        self.assertNotEqual(a, b)
-        self.assertEqual(a, c)
+        self.assertFalse(a == b)
+        self.assertTrue(a == c)
 
     def test_a_small_letter_and_a_capital_are_the_same_picture_but_two_letters_are_not(self):
         png = self.draw([ms(1, name="go live"), ms(2, name="GO LIVE"), ms(3, name="GO LIVF")])
         a, b, c = (self.gutter(png, i) for i in range(3))
-        self.assertEqual(a, b)
-        self.assertNotEqual(b, c)
+        self.assertTrue(a == b)
+        self.assertFalse(b == c)
 
     def test_a_name_stays_in_the_name_column_and_its_own_lane(self):
         png = self.draw([ms(1, name="W" * 400), ms(2, name="x"), ms(3, name="W" * 400)])
@@ -339,7 +339,7 @@ class Labels(unittest.TestCase):
     def test_a_character_the_font_lacks_is_a_question_box_not_a_gap(self):
         a = self.gutter(self.draw([ms(1, name="\u05e9")]), 0)
         b = self.gutter(self.draw([ms(1, name="?")]), 0)
-        self.assertEqual(a, b)
+        self.assertTrue(a == b)
         self.assertEqual(g.label("a\u05e9  b\n"), "A? B")
 
     def test_a_long_name_ends_in_two_dots(self):
@@ -354,8 +354,8 @@ class Labels(unittest.TestCase):
     def test_the_axis_dates_follow_the_months_shown(self):
         a = self.draw([ms(1), ms(2, baseline_date="2027-02-20")])
         b = self.draw([ms(1, baseline_date="2028-05-20"), ms(2, baseline_date="2028-08-20")])
-        band = lambda png: [bytes(r) for r in read_png(png)[3][:g.TOP]]
-        self.assertNotEqual(band(a), band(b))
+        band = lambda png: (lambda r: [[r[2][v] for v in row] for row in r[3][:g.TOP]])(read_png(png))
+        self.assertFalse(band(a) == band(b))
 
     def test_a_hundred_years_keeps_the_dates_from_touching(self):
         png = self.draw([ms(1, baseline_date="2001-01-05"), ms(2, baseline_date="2099-12-30")])
