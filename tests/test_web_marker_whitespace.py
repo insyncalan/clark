@@ -59,8 +59,9 @@ class Pasted(Setup, unittest.TestCase):
     def test_letter_case_still_ignored_with_odd_spacing(self):
         self.refused("Remember: HIDDEN  SUPPLIER review of the contract.")
 
-    def test_exact_text_in_a_kept_row_still_saves(self):
-        self.fresh(f"Remember: {LEFT_OUT}.")
+    def test_a_kept_value_that_is_exactly_the_whole_text_still_saves(self):
+        """The whole-value rule (PR 982): only a kept value equal to the whole left-out text is excused; the same words inside a longer row are refused."""
+        self.fresh(LEFT_OUT)
         status, web = self.web_publish()
         self.assertEqual(status, 200, web)
 
