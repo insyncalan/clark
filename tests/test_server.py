@@ -1445,6 +1445,17 @@ class _Pipe:
         """One CDP call. A Runtime.evaluate that meets a page navigating (error -32000) is asked again until NAVIGATION_WAIT passes:
         the page is between two loads, not wrong. Any other error, and any answer, comes straight back (an assertion in the page
         is a result, not an error, so it is never retried away)."""
+        if method == "Target.attachToTarget":
+            attached = self._call_once(method, params, session)
+            # A headless page starts without page focus: focus, blur and hover tests read None or a stale state (macOS runners).
+            # Every page a test attaches to gets focus emulation here, once, so no test file has to ask for it.
+            sid = attached.get("sessionId") if isinstance(attached, dict) else None
+            if sid:
+                try:
+                    self._call_once("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
+                except RuntimeError:
+                    pass                    # a target without the Emulation domain simply stays as it was
+            return attached
         if method != "Runtime.evaluate":
             return self._call_once(method, params, session)
         end = time.monotonic() + self.NAVIGATION_WAIT
@@ -1499,6 +1510,30 @@ def chrome():
             os.close(from_r)
     finally:
         remove_profile(prof)                   # not TemporaryDirectory: Chrome's helpers may still be writing (Linux)
+
+
+class PipeFocus(unittest.TestCase):
+    """Every page attached through the shared pipe gets focus emulation (no browser: a fake records the calls)."""
+
+    def pipe(self):
+        p = _Pipe(0, 0)
+        p.sent = []
+
+        def once(method, params=None, session=None):
+            p.sent.append((method, session))
+            return {"sessionId": "S1"} if method == "Target.attachToTarget" else {}
+        p._call_once = once
+        return p
+
+    def test_attaching_turns_on_focus_emulation_for_that_session(self):
+        p = self.pipe()
+        p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
+        self.assertEqual(p.sent, [("Target.attachToTarget", None), ("Emulation.setFocusEmulationEnabled", "S1")])
+
+    def test_other_calls_are_left_alone(self):
+        p = self.pipe()
+        p.call("Page.enable", {}, "S1")
+        self.assertEqual(p.sent, [("Page.enable", "S1")])
 
 
 if __name__ == "__main__":
