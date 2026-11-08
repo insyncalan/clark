@@ -44,12 +44,20 @@ def uc_columns(path):
         con.close()
 
 
+def add_milestone_with_owner(path):
+    """A milestone that has an owner: a step that touched milestones.owner would show here (the other tables are empty)."""
+    con = sqlite3.connect(str(path), isolation_level=None)
+    con.execute("INSERT INTO milestones (id, project, name, owner, source) VALUES ('ABC-M-001', 'ABC', 'Go live', 'Carol Example', 'test')")
+    con.close()
+
+
 def every_row(path, leave_out=()):
+    """Every row of every table; `leave_out` is (table, column) pairs to leave out, so only the columns the step adds are skipped."""
     con = sqlite3.connect(str(path))
     try:
         out = {}
         for (n,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'meta' ORDER BY name").fetchall():
-            kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if c[1] not in leave_out)
+            kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if (n, c[1]) not in leave_out)
             out[n] = con.execute(f'SELECT rowid, {kept} FROM "{n}" ORDER BY rowid').fetchall()
         return out
     finally:
@@ -95,7 +103,7 @@ class Migrating(unittest.TestCase):
                              [("ABC-U-001", None, None), ("ABC-U-002", None, None)])
         finally:
             s.close()
-        after = every_row(path, NEW_COLUMNS)
+        after = every_row(path, [("use_cases", c) for c in NEW_COLUMNS])
         self.assertEqual({t: after[t] for t in before}, before, "no existing value changed")
         self.assertEqual([c[1] for c in uc_columns(path)][-2:], list(NEW_COLUMNS))
 
@@ -184,9 +192,11 @@ class Migrating(unittest.TestCase):
     def test_the_step_changes_no_other_table_index_or_trigger(self):
         path = make_at(self.dir, STEP - 1)
         add_use_cases(path)
+        add_milestone_with_owner(path)
         before = every_row(path)
+        self.assertEqual(len(before["milestones"]), 1)
         open_store(path, onedrive_roots=[]).close()
-        after = every_row(path, NEW_COLUMNS)
+        after = every_row(path, [("use_cases", c) for c in NEW_COLUMNS])
         for t in before:
             if t not in ("meta",):
                 self.assertEqual(after[t], before[t], t)

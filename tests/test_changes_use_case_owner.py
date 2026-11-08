@@ -116,8 +116,13 @@ class Owner(unittest.TestCase):
 
     def test_history_has_one_owner_line_and_undo_words_name_the_use_case(self):
         body = self.ok({"owner": "Anna Example"})
-        shown = [r for r in history.rows_for_project(self.s.con, "ABC", "all") if r.get("ref") == self.uc or r.get("item_id") == self.uc]
-        self.assertEqual([(r["field"], r["from"], r["to"]) for r in shown if r["kind"] == "Changed"], [("Owner", "", "Anna Example")], "one Owner line, no second line for the link")
+        events = [e for e in history.history(self.s.con, self.uc) if e["step"] == body["apply_id"]]
+        raw = [(e["field"], e["before"], e["after"]) for e in events if e["field"] in ("owner", "owner_id")]
+        self.assertIn(("owner", None, "Anna Example"), raw)
+        self.assertEqual(sorted(raw), [("owner", None, "Anna Example"), ("owner_id", None, self.anna)])
+        shown = [r for r in history.rows_for_project(self.s.con, "ABC", "all") if (r.get("ref") == self.uc or r.get("item_id") == self.uc) and r["step"] == body["apply_id"]]
+        self.assertEqual([(r["kind"], r["field"], r["from"], r["to"]) for r in shown], [("Changed", "Owner", "", "Anna Example")],
+                         "one Owner line of any kind in this step, no second line for the link")
         status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
         self.assertEqual(undone["words"], "Put back: the owner of \u201cInvoice matching\u201d is cleared again.")
         body = self.ok({"owner": "Anna Example"})
@@ -134,6 +139,20 @@ class Owner(unittest.TestCase):
         with self.s.step("dashboard", USER) as st:
             st.merge_people(self.anna, ben)
         self.assertEqual((self.row()["owner"], self.row()["owner_id"]), ("Ben Example", ben))
+
+    def test_the_200_limit_counts_the_stored_text_not_the_spaces_round_it(self):
+        self.ok({"owner": " " + "x" * 200})
+        self.assertEqual(self.row()["owner"], "x" * 200)
+        self.ok({"owner": "y" * 200 + "   "})
+        self.assertEqual(self.row()["owner"], "y" * 200)
+        self.ok({"owner": "  " + "e\u0301" * 101})      # 202 characters typed, 101 stored
+        self.assertEqual(self.row()["owner"], "\u00e9" * 101)
+        for v in ("x" * 201, " " + "x" * 201 + " "):
+            with self.subTest(n=len(v)):
+                before = self.row()["owner"]
+                status, body = self.edit({"owner": v})
+                self.assertEqual(status, 400, body)
+                self.assertEqual(self.row()["owner"], before)
 
     def test_an_archived_use_case_is_not_edited(self):
         con = sqlite3.connect(str(self.s.path))
