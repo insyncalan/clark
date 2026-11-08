@@ -548,6 +548,16 @@ def _due(table_name, field, row, ctx, extra=()):
     return word_cell(_date(iso) + (" (overdue)" if late else "") if iso else "", ctx, late=late, extra=extra)
 
 
+def _status_cell(row, kind, ctx):
+    """The status as the page says it (glance.client_pill): Overdue, Delayed, Due soon or On track on an action; Red, Amber or Green
+    on a risk or issue. Any other RAID type (an assumption, a dependency) is not on the page's lists: it keeps its own status."""
+    if kind not in ("action", "risk", "issue"):
+        return word_cell(row.get("status"), ctx)
+    pill = glance.client_pill({"kind": kind, "status": row.get("status"), "priority": row.get("priority"), "due_date": row.get("due_date")},
+                              ctx.as_at)
+    return word_cell(pill["text"], ctx, colour={"r": "red", "a": "amber", "g": "green"}.get(pill["class"]))
+
+
 def section_actions(published, ctx, title, sec):
     rows = []
     for a in _open(_rows(published, "actions")):
@@ -558,7 +568,7 @@ def section_actions(published, ctx, title, sec):
             body += text_paras(update, ctx, color=ctx.tok["grey-700"])
         rows.append([word_cell(a.get("id"), ctx), (body, None), word_cell(a.get("owner"), ctx, extra=[a.get("workstream")]),
                      word_cell(a.get("priority"), ctx, colour=colours_table.colour_for("actions", "priority", a.get("priority"))),
-                     _due("actions", "due_date", a, ctx), word_cell(a.get("status"), ctx)])
+                     _due("actions", "due_date", a, ctx), _status_cell(a, "action", ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
     return _heading(title) + table(ctx, ["ID", "Action", "Owner", "Priority", "Due", "Status"], [1200, 4038, 1250, 950, 1100, 1100], rows)
@@ -572,7 +582,7 @@ def section_raid(published, ctx, title, sec):
                      (text_paras(_words(r, "client_message", "description"), ctx), None),
                      word_cell(r.get("owner"), ctx, extra=[r.get("workstream")]),
                      word_cell(r.get("priority"), ctx, colour=colours_table.colour_for("raid", "priority", r.get("priority"))),
-                     word_cell(both, ctx), _due("raid", "due_date", r, ctx), word_cell(r.get("status"), ctx)])
+                     word_cell(both, ctx), _due("raid", "due_date", r, ctx), _status_cell(r, str(r.get("type") or "").lower(), ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
     return _heading(title) + table(ctx, ["ID", "Type", "Item", "Owner", "Priority", "Impact / likelihood", "Due", "Status"],
