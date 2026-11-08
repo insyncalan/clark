@@ -365,6 +365,37 @@ class Clearing(Base):
         self.assertTrue(line and all("no one yet" not in str(e) for e in line))
         self.assertEqual(self.s.read("raid", ref=self.r)["owner"], "TBC")
 
+class Lows(Base):
+    def test_any_case_accent_or_space_variant_of_the_clear_entry_is_refused(self):
+        """Row 986 follow-up: the clear entry is matched by the people key, not by exact text. Mutation: compare name == CLEAR_ENTRY."""
+        for word in ("tbc (No one yet)", "TBC (NO ONE YET)", "Tbc  (no   one yet)", "TBC (no onê yet)", "tbc (no one yet) "):
+            for kind, field in KINDS:
+                with self.subTest(word=word, kind=kind):
+                    self.refused(self.req(kind, field, word))
+        self.assertEqual(self.go(name="Zelda Quince")["person"]["name"], "Zelda Quince")
+
+    def _boom(self, exc):
+        def add(self_, **fields):
+            raise exc
+        return mock.patch.object(store_module.Step, "add_person", add)
+
+    def test_a_value_error_from_add_person_is_a_plain_refusal(self):
+        """P-999 used up: ValueError out of add_person is a plain Refused, no 500, nothing changed. Mutation: catch only Invalid."""
+        with self._boom(ValueError("no more ids")):
+            for kind, field in KINDS:
+                with self.subTest(kind=kind):
+                    body = self.refused(self.req(kind, field, "Zelda Quince"))
+                    self.assertEqual(body["message"], changes.NEW_PERSON_BAD)
+        self.assertIsNone(self.person("Zelda Quince"))
+
+    def test_an_invalid_from_add_person_is_a_plain_refusal(self):
+        """Mutation: catch only ValueError."""
+        with self._boom(store_module.Invalid("rule")):
+            for kind, field in KINDS:
+                with self.subTest(kind=kind):
+                    body = self.refused(self.req(kind, field, "Zelda Quince"))
+                    self.assertEqual(body["message"], changes.NEW_PERSON_BAD)
+
 
 if __name__ == "__main__":
     unittest.main()
