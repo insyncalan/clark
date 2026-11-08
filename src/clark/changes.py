@@ -230,6 +230,7 @@ NOT_A_CHOICE = "That choice isn't one clark has."
 NEW_NEEDS = {"actions": "Say what the action is.", "raid": "Say what the risk or issue is, and whether it is a risk, assumption, issue or dependency.",
              "decisions": "Say what the decision is.", "milestones": "Give the milestone a name."}
 NEW_SOURCE = "Added by hand in clark"       # the row's source, as the prototype words it; never taken from a request
+ASK_SOURCE = "Added by ask clark"          # #1009: the source of an item ask clark created (Apply), not "by hand"
 COPY_SOURCE = "Duplicated from "             # #442: a copy's source, then the item's id (system/prototype/peek.js, Duplicate)
 COPY_MARK = " (copy)"                        # #442: the end of a copy's title
 COPIED = {                                   # #442: what Duplicate copies from the stored item (the prototype copies the item whole); never the
@@ -870,7 +871,7 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
         values["raised"] = clark_store.today()
     if table == "decisions":
         values.setdefault("status", "Pending")
-    values.update(project=project, source=NEW_SOURCE)
+    values.update(project=project, source=ASK_SOURCE if isinstance(store, _AskStore) else NEW_SOURCE)
     source = req.get("copy_of")
     if source is not None and (table not in ITEM_KINDS or not isinstance(source, str)):
         raise Refused(ITEM_NOT_MINE)
@@ -1220,12 +1221,18 @@ def _milestone_words(e):
     return ITEM_VALUE_WORDS
 
 
+def _note_with_line_trimmed(was, line):
+    """(the internal note with a dated line added at the end, whether lines were dropped): the oldest lines go first when it would pass the limit."""
+    text = ((was or "").strip() + "\n" + line).strip()
+    kept = text
+    while len(kept) > INTERNAL_NOTE_MAX and "\n" in kept:
+        kept = kept.split("\n", 1)[1]
+    return kept, kept != text
+
+
 def _note_with_line(was, line):
     """The internal note with a dated line added at the end; the oldest lines go first when it would pass the limit."""
-    text = ((was or "").strip() + "\n" + line).strip()
-    while len(text) > INTERNAL_NOTE_MAX and "\n" in text:
-        text = text.split("\n", 1)[1]
-    return text
+    return _note_with_line_trimmed(was, line)[0]
 
 
 def _hold_line(today, forecast):
@@ -1280,12 +1287,12 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
                 changes["movement"] = None                          # a Hold was for the old agreed date; the new one starts clear (an Undo puts it back)
         elif given and agreed:
             raise Refused(NEEDS_NEW_DATE)
-        note = None
+        note, trimmed = None, False
         if changes.get("movement") == "hold" and rebase is None:
             note = _hold_line(today, changes.get("forecast_date", row.get("forecast_date")))
             last = (row.get("internal_note") or "").strip().split("\n")[-1]
             if "internal_note" not in changes and last != note:     # #458: the Hold's dated line goes into the internal note too (the prototype's), in this same step and Undo; not twice when the last line is this same Hold today
-                changes["internal_note"] = _note_with_line(row.get("internal_note"), note)
+                changes["internal_note"], trimmed = _note_with_line_trimmed(row.get("internal_note"), note)   # #603: trimmed says so in the reply
         if "owner" in changes:                                      # row 828: the link follows the owner text, as a hand over writes it: the one live person it names, else none
             found = store.resolve_owner(changes["owner"] or "")
             changes["owner_id"] = found["id"] if found["status"] == "one" else None
@@ -1302,8 +1309,11 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
         if decision:                                                # the decision names who agreed the date: owner only, so it is
             st.update("decisions", decision, {"client_visible": 0})  # made not client-visible, in this same step (an Undo removes it)
     now = store.read(table, ref=ref)
-    return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref,
-                 "milestone": {k: now[k] for k in MILESTONE_SHOWN}, "decision": decision, **({"person": {"id": person, "name": new[0]}} if person else {})}
+    reply = {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref,
+             "milestone": {k: now[k] for k in MILESTONE_SHOWN}, "decision": decision, **({"person": {"id": person, "name": new[0]}} if person else {})}
+    if trimmed and apply_id is not None:
+        reply["note_trimmed"] = True                                # #603: the Hold's line pushed the oldest note lines out; the page says so (an Undo restores them)
+    return 200, reply
 
 
 
@@ -2921,13 +2931,15 @@ NO_PEOPLE_UNDO = "That step can't be undone from here."
 PERSON_ID = re.compile(r"P-\d{3}")
 
 
-def _person_value(key, value):
+def _person_value(key, value, capped=True):
     if key == "needs_details":
         return value if isinstance(value, bool) or value in (0, 1) and type(value) is int else _refuse_person()
     if value is None:
         return value
     if not isinstance(value, str) or len(value) > 2000:
         _refuse_person()
+    if capped and key in ("organisation", "role") and len(" ".join(value.split())) > people_rules.CELL_MAX:
+        raise Refused(f"the {key} is too long (at most {people_rules.CELL_MAX} characters). Shorten it and try again. Nothing was changed.")
     return value
 
 
@@ -2967,7 +2979,7 @@ def _paste_people(st, rows):
     for row in rows:
         if not isinstance(row, dict) or not isinstance(row.get("name"), str) or any(k not in PASTE_FIELDS for k in row):
             raise Refused(PASTE_BAD_ROW)
-        given = {k: _person_value(k, v) for k, v in row.items()}
+        given = {k: _person_value(k, v, capped=False) for k, v in row.items()}      # the paste says the cap with the person's name, just below
         name = " ".join(given["name"].split())
         if not name:
             raise Refused("A row has no name. Give each person a name. Nothing was changed.")
