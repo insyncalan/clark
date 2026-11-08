@@ -86,13 +86,17 @@ def _check(value, rules, size):
 
 
 def _words(card, row):
-    """The words under a card: the item's client wording, the card's own words, or an action's latest update."""
+    """The words under a card: the item's client wording (else its title), the card's own words, or an action's latest update."""
     source = card.get("source")
     if source == "own":
         return card.get("own") or ""
     if source == "latest":
         return sanitise.rich_plain_text(row.get("latest_update")).strip()      # row 1005: the editor's HTML (or an old plain text) as words
-    return str(row.get("client_message") or "").strip()
+    said = str(row.get("client_message") or "").strip()
+    if said:
+        return said
+    title = row.get("decision") if _id(card.get("id"))[1] == "D" else row.get("description")
+    return str(title or "").strip()               # no client wording: the item's title, never its update, notes or owner
 
 
 def _published(value, ctx, size):

@@ -10,10 +10,6 @@ import { Icon } from "../components/Icon.jsx";
 import { applyReading } from "./sneakApply.js";
 import { PLACEHOLDER, LEAD } from "./sneakWords.js";
 
-export function SneakButton() {
-  return <button type="button" class="pkp-btn" data-sneak-open title="Change an item with words" aria-label="Change an item with words" aria-pressed={wordsOpen.value} onClick={() => { wordsOpen.value = !wordsOpen.value; }}><Icon name="sparkle" /></button>;
-}
-
 export function SneakPeek({ row, kind = "item" }) {
   const [words, setWords] = useState("");
   const [reading, setReading] = useState(null);       // null: nothing typed; {ok, reading | message}
@@ -25,7 +21,7 @@ export function SneakPeek({ row, kind = "item" }) {
     if (box.current) box.current.focus();
     return () => {
       if (wordsOpen.value) return;                    // the box is still wanted (another item): the new box takes focus
-      const back = before && before !== document.body && before.isConnected ? before : document.querySelector("[data-sneak-open]");
+      const back = before && before !== document.body && before.isConnected ? before : null;
       if (back && back.focus) back.focus();
     };
   }, []);

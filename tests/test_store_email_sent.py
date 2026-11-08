@@ -386,7 +386,7 @@ class Migration(unittest.TestCase):
 class Refusals258(Base):
     """#258: hidden, closed, archived, Sensitive items and a day before 2020 are refused, each writing nothing."""
     def test_hidden_closed_archived_sensitive_and_withdrawn_items_are_refused(self):
-        words = "hidden, closed or marked Sensitive"
+        words = "hidden, closed or labelled to be kept out of emails"
         mk = self.demo.action
         hidden, closed, cancelled, archived, sens = (mk(description=n) for n in ("h", "c", "x", "a", "s"))
         with self.store.step("dashboard", USER) as st:
@@ -445,8 +445,8 @@ class Refusals258(Base):
             st.create("labels", {"name": "Never", "behaviour": "exclude", "default_choice": "include"})
             st.create("item_labels", {"item_id": item, "label": "Keep quiet"})
             st.create("item_labels", {"item_id": other, "label": "Never"})
-        self.refuses("hidden, closed or marked Sensitive", ids=[self.a, item])
-        self.refuses("hidden, closed or marked Sensitive. Nothing was saved.", ids=[other])
+        self.refuses("hidden, closed or labelled to be kept out of emails", ids=[self.a, item])
+        self.refuses("hidden, closed or labelled to be kept out of emails. Nothing was saved.", ids=[other])
         self.assertTrue(self.send(ids=[self.a]))
 
     def test_the_sent_record_publish_and_the_picker_agree_on_which_labels_are_kept_off(self):

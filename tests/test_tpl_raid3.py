@@ -9,6 +9,8 @@ Run: python3 dev/run_tests.py test_tpl_raid3
 Needs Chrome for the page tests (they fail, never skip, without it).
 """
 import json
+import shutil
+import subprocess
 import unittest
 
 from _demo import USER
@@ -177,6 +179,18 @@ class Items(Api):
             self.assertEqual(sec["cards"][2]["text"], "Own decision words")
             self.assertNotIn("DECISIONWORDS", json.dumps(sec["cards"]), "a card that says Own words never carries the item's client wording")
         self.assertNotIn("source", json.dumps(sec["cards"]))
+
+    def test_a_client_card_with_no_wording_publishes_the_items_title_and_never_other_fields(self):
+        """#916: Client wording falls back to the title (a decision's decision, else description), never latest_update, notes or owner."""
+        with self.s.step("dashboard", USER) as st:
+            st.update("actions", self.action, {"client_message": "", "latest_update": "LATESTWORDS", "owner": "Pat Owner"})
+            st.update("raid", self.risk, {"client_message": ""})
+            st.update("decisions", self.decision, {"client_message": ""})
+        self.save(card(self.action), card(self.risk), card(self.decision))
+        cards = self.file_section()["cards"]
+        self.assertEqual([c["text"] for c in cards], ["Agree the plan", "Supplier may slip", "Use the blue vendor"][: self.SIZE])
+        for marker in ("LATESTWORDS", "Pat Owner"):
+            self.assertNotIn(marker, json.dumps(cards), marker)
 
     def test_a_risk_has_no_latest_update_so_client_wording_and_own_words_only(self):
         self.save(card(self.action, "client"))
@@ -370,6 +384,25 @@ class PageSide(PageBase):
         self.assertIn("raid-card", view)
         for f in ("templates/RaidCards.jsx", "templates/Raid3.jsx", "templates/Raid4.jsx", "edit/templates/raidEdit.jsx"):
             self.assertNotIn("dangerouslySetInnerHTML=", (SRC / "clark" / "page" / "src" / f).read_text(encoding="utf-8"))
+
+
+class PageWordsOf(unittest.TestCase):
+    """#916: the page's wordsOf (templates/raid.js) chooses the same words as raid3._words, with no browser."""
+    def words(self, card, row):
+        if not shutil.which("node"):
+            raise unittest.SkipTest("no node")
+        url = (SRC / "clark" / "page" / "src" / "templates" / "raid.js").as_uri()
+        code = f"const m = await import({json.dumps(url)}); console.log(JSON.stringify(m.wordsOf({json.dumps(card)}, {json.dumps(row)})));"
+        done = subprocess.run(["node", "--input-type=module", "-e", code], capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return json.loads(done.stdout)
+
+    def test_client_wording_falls_back_to_the_title_only(self):
+        row = {"description": "Agree the plan", "client_message": "  ", "latest_update": "LATESTWORDS", "notes": "N", "owner": "O"}
+        self.assertEqual(self.words({"id": "ABC-A-001", "source": "client"}, row), "Agree the plan")
+        self.assertEqual(self.words({"id": "ABC-D-001", "source": "client"}, {"decision": "Use the blue vendor", "description": "x", "client_message": ""}),
+                         "Use the blue vendor")
+        self.assertEqual(self.words({"id": "ABC-A-001", "source": "client"}, {**row, "client_message": "Said so"}), "Said so")
 
 
 class Raid3Checker(CheckerBase, unittest.TestCase):

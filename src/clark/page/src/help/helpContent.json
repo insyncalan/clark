@@ -410,10 +410,10 @@
     "id": "change-an-item-in-words",
     "g": "Work items",
     "t": "Change an item with words (Sneak peek)",
-    "w": "A work item open in Edit › the sparkle, or [[/]] [[/]]",
+    "w": "A work item open in Edit › [[/]] [[/]]",
     "go": "work",
     "s": [
-     "With a work item open in the peek in Edit, press [[/]] twice quickly (when you aren’t typing in a box), or press the sparkle at the top, “Change an item with words”.",
+     "With a work item open in the peek in Edit, press [[/]] twice quickly (when you aren’t typing in a box).",
      "Type the change, for example “move to Friday, owner Jo, high priority”.",
      "Under the box, the words you typed are shown in the order you typed them, then a line for each field shows what it is now and what it will become.",
      "Press **Make the change** or [[Enter]] to make every change shown, in one step ([[Shift+Enter]] makes them and keeps the box open). **Not now** or [[Esc]] closes the box. The fields that changed flash for a moment, and the message has **Undo**.",
@@ -1420,7 +1420,7 @@
      [
       "ul",
       [
-       "**The top bar**: Close, Across the whole screen, Previous and Next, then the eye, the sparkle (Sneak peek, in Edit), Copy link and **⋯** (Duplicate, Archive).",
+       "**The top bar**: Close, Across the whole screen, Previous and Next, then the eye, Copy link and **⋯** (Duplicate, Archive).",
        "**The line above the title**: the type, the ID, the project, and Client when it is shown to the client.",
        "**A warning**, when an action is overdue or due on a weekend, with fixes.",
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
@@ -1521,7 +1521,7 @@
     "id": "sneak-peek",
     "g": "Working with items",
     "t": "Sneak peek",
-    "w": "A work item open in Edit › the sparkle or [[/]] [[/]]",
+    "w": "A work item open in Edit › [[/]] [[/]]",
     "b": [
      [
       "p",
@@ -2221,8 +2221,8 @@
    ],
    [
     "sparkle",
-    "Sneak peek",
-    "Change a work item with words",
+    "Draft",
+    "Write the latest update from the item’s own facts",
     "The peek, in Edit"
    ],
    [
