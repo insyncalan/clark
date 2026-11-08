@@ -332,9 +332,18 @@ def page_html(branding=None, view=False):
         from clark import platform      # here, not at the top (see ensure_built)
         if platform.container_mode():   # item 427: the page learns it is in the container; the published page never says so
             html = html.replace("<html", '<html data-container="1"', 1)
-    css = local_tokens(branding)
+    return layer_brand(html, local_tokens(branding))
+
+
+BACKDROP_CSS = ""      # row 1023: filled in by the next commit (the rules that ride with a brand that has a cover picture)
+HAS_PICTURE = re.compile(r"--image-cover\s*:\s*(?!none\b)[^;}\s]", re.I)
+
+
+def layer_brand(html, css):
+    """`html` with the person's brand tokens `css` (comment-stripped text, or None) layered after the demo block."""
     if css is None:
         return html
     css = escape_style(css)
+    extra = BACKDROP_CSS if HAS_PICTURE.search(css) else ""
     i = after_demo_block(html)
-    return html[:i] + f'\n<style id="brand-local">\n{CLIENT_BRAND}{css}\n</style>' + html[i:]
+    return html[:i] + f'\n<style id="brand-local">\n{CLIENT_BRAND}{css}\n{extra}</style>' + html[i:]
