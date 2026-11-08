@@ -273,10 +273,10 @@ export function GanttChart({
   // A name beside a bar or a milestone goes on the right; where it would run off the right edge of the chart it goes on the left instead.
   const textW = (t) => Math.ceil(t.length * 8 + 6);
   const beside = (x1, x2, text, top, cls, gap) => (x2 + 6 + textW(text) > W
-    ? <span class={`${cls} gt-flip`} style={{ right: `${W - x1 + gap}px`, top: `${top}px`, textAlign: "right" }}>{text}</span>
+    ? <span class={`${cls} gt-flip`} style={{ right: `${W - x1 + gap}px`, top: `${top}px`, textAlign: "right", "--gt-room": `${Math.max(40, x1 - gap - 4)}px` }}>{text}</span>
     : <span class={cls} style={{ left: `${x2 + 6}px`, top: `${top}px` }}>{text}</span>);
   const ms2 = (x1, text, top) => (x1 + 22 + textW(text) > W
-    ? <span class="gt-mslab gt-flip" style={{ right: `${W - x1 + 6}px`, top: `${top}px`, textAlign: "right" }}>{text}</span>
+    ? <span class="gt-mslab gt-flip" style={{ right: `${W - x1 + 6}px`, top: `${top}px`, textAlign: "right", "--gt-room": `${Math.max(40, x1 - 10)}px` }}>{text}</span>
     : <span class="gt-mslab" style={{ left: `${x1 + 22}px`, top: `${top}px` }}>{text}</span>);
   const filters = filtersFor(edit);
   const height = cut ? HH + nShown * RH + 2 : undefined;
@@ -335,7 +335,7 @@ export function GanttChart({
               return <div class="gt-hc gt-u" key={`u${c.iso}`} style={{ left: `${X(c.iso)}px`, width: `${room}px` }}>{show ? c.label : ""}</div>;
             })}
             {lowerShown.map(({ c, show }) => <div class={`gt-hc gt-l${c.edge ? " gt-edge" : ""}`} key={`l${c.iso}`} style={{ left: `${X(c.iso)}px` }}>{show ? c.label : ""}</div>)}
-            <button type="button" class="gt-tflag" style={{ left: `${X(now)}px` }} onClick={goToday} title={WORDS.scrollToday} data-g-today>{WORDS.today}</button>
+            <button type="button" class="gt-tflag" style={{ left: `${X(now)}px`, "--tx": `${X(now)}px` }} onClick={goToday} title={WORDS.scrollToday} data-g-today>{WORDS.today}</button>
             <div class="gt-tstem gt-tstem-h" style={{ left: `${X(now)}px` }} />
           </div>
 

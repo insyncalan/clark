@@ -165,6 +165,15 @@ class TheNumber(Base):
         self.assertIs(steps[STEP - 2], store_module.migrate_people)
         self.assertIs(steps[STEP], store_module.migrate_use_case_done)
 
+    def test_the_steps_up_to_this_one_run_in_their_order(self):
+        """#586: the older step tests were loosened to 'at least' and to slices, so none caught a wrong order after the renumber to
+        step 11. The steps 2 to this one, by number, in order; later steps follow them."""
+        want = ["migrate_to_2", "migrate_to_3", "migrate_section_bodies", "migrate_to_history", "migrate_settings",
+                "migrate_email_sent", "migrate_section_templates", "migrate_people", "migrate_publication_numbers",
+                "migrate_use_case_done"]
+        got = [(n, fn.__name__) for n, fn in store_module.MIGRATIONS if n <= STEP]
+        self.assertEqual(got, list(zip(range(2, STEP + 1), want)))
+
     def test_the_step_changes_no_other_table_index_or_trigger(self):
         path = make_before(self.dir)
         before = {k: v for k, v in schema_of(path).items() if k != ("table", "use_cases")}
