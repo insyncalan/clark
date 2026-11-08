@@ -63,6 +63,11 @@ class TheAddress(Tmp):
             with self.assertRaises(pdf_link.PdfLinkRefused, msg=repr(page)):
                 pdf_link.pdf_url(p, page, [self.box])
 
+    def test_a_capital_extension_is_a_pdf_and_a_nul_in_the_path_is_refused(self):
+        self.assertTrue(pdf_link.pdf_url(self.pdf("B.PDF"), 1, [self.box]).endswith("B.PDF#page=1"))
+        with self.assertRaises(pdf_link.PdfLinkRefused):
+            pdf_link.pdf_url(str(self.box / "a\x00.pdf"), 1, [self.box])
+
     def test_not_a_pdf_a_link_or_outside_is_refused(self):
         txt = self.box / "a.txt"
         txt.write_text("x", encoding="utf-8")
