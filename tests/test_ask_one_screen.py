@@ -25,11 +25,11 @@ COVERED = {
     "private key": "-----BEGIN " + "OPENSSH PRIVATE KEY",
     "a long mixed run": "Ab1+/=" * 6,
     "sk- key": "s" + "k-" + "abcdefgh12345678",
+    "pk- key": "p" + "k-" + "abcdefgh12345678",
+    "rk- key": "r" + "k-" + "abcdefgh12345678",
     "access-key colon": "access-" + "key: k9k9k9",
 }
 GAPS = {
-    "pk- key": "p" + "k-" + "abcdefgh12345678",
-    "rk- key": "r" + "k-" + "abcdefgh12345678",
     "sk- key, letters only": "s" + "k-" + "A" * 20,
     "JWT with two parts": "ey" + "J" + "a" * 10 + "." + "b" * 10 + ".",
     "Bearer, no header": "Bear" + "er " + "a" * 20,
