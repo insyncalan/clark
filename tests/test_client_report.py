@@ -421,8 +421,9 @@ class HiddenOnTheServedPage(unittest.TestCase):
                 if dashboard_mode == "edit":
                     cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid)))
-                self.assertEqual(cdp.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.dataset.view)", sid),
-                                 ["dashboard", "work", "milestones", "usecases", "settings"], dashboard_mode)
+                tabs = "[...document.querySelectorAll('.tabs .tab')].map(t => t.dataset.view)"
+                wait(lambda: len(cdp.js(tabs, sid)) >= 5)   # ready is set before the tab bar is drawn on a slow runner (CI flake); the assertion below still judges the list
+                self.assertEqual(cdp.js(tabs, sid), ["dashboard", "work", "milestones", "usecases", "settings"], dashboard_mode)
                 self.assertEqual(cdp.js("document.querySelectorAll('#clientreport').length", sid), 0, dashboard_mode)
                 self.assertEqual(cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid), "dashboard", dashboard_mode)
             self.assertNotIn("Client Requested Report View", cdp.js("document.body.innerText", sid))
