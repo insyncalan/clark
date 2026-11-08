@@ -61,7 +61,7 @@ html:not([data-secstyle="card"]) .frame.report .cover { border-radius: var(--rad
 .crumbs { margin: 0 0 2px; font-size: var(--size-small); color: var(--text-muted); }
 .glance { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: 12px; }
 .tile { display: flex; flex-direction: column; }
-.tile .n { font-size: 22px; font-weight: var(--weight-medium); color: var(--heading); }
+.tile .n { font-size: var(--size-figure); font-weight: var(--weight-medium); color: var(--heading); }
 .tile .l { font-size: var(--size-caption); color: var(--text-muted); }
 /* A tile is neutral, with a thin outline in its status colour that fades out from the bottom-left corner. The
    outline is drawn on ::after under a mask, so the text and its contrast are those of the neutral tile. The tiles fill the row
@@ -77,7 +77,7 @@ html:not([data-secstyle="card"]) .frame.report .cover { border-radius: var(--rad
 .fig::after { content: ""; position: absolute; inset: -1px; border: 2px solid transparent; border-radius: inherit; pointer-events: none; -webkit-mask-image: linear-gradient(45deg, currentColor 0%, transparent 75%); mask-image: linear-gradient(45deg, currentColor 0%, transparent 75%); }
 .fig.rag-g::after { border-color: var(--status-green); } .fig.rag-a::after { border-color: var(--status-amber); } .fig.rag-r::after { border-color: var(--status-red); }
 .fig .k { display: flex; align-items: center; gap: 6px; font-size: var(--size-caption); color: var(--text-muted); }
-.fig .v { font-size: 22px; font-weight: var(--weight-medium); color: var(--heading); }
+.fig .v { font-size: var(--size-figure); font-weight: var(--weight-medium); color: var(--heading); }
 .fig .dd { font-size: var(--size-caption); color: var(--text-muted); }
 /* The status word is a small chip: its border is the word's own colour, so the edge keeps the text's contrast (5 to 1 or more on the
    tile and on a hidden tile, light and dark) and no fill is drawn over the tile. As in the prototype it sits beside the figure, at the
