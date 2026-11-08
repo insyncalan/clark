@@ -136,8 +136,8 @@ def markers_for(store, code, published, template=""):
     and main text of every row that was left out (archived, the client flag off, hidden, a Sensitive or other excluded label),
     and every row's internal note, Movement and working notes. Texts shorter than MIN_MARKER are not used (they would be found
     anywhere); an ID always is. A note that is also in `template` (the bare page, which every file holds whatever the data)
-    is not a marker either: it cannot tell a leak from the page's own words. A left-out row's text that is also part of something published (the same words in a kept
-    row) is not a marker, because it may rightly be in the file. check_copy looks for each in its plain, lower-case, HTML-escaped
+    is not a marker either: it cannot tell a leak from the page's own words. A left-out row's text, or a hidden section's body, that is exactly the whole of a kept value (the same words as a kept
+    row, nothing around them) is not a marker, because it may rightly be in the file; the same words inside other kept text are (#619). check_copy looks for each in its plain, lower-case, HTML-escaped
     and JSON-escaped spellings."""
     data = published["data"]
     kept_ids = {r["id"] for kind in publish.KINDS for r in data.get(kind, ()) if isinstance(r, dict) and "id" in r}
@@ -146,6 +146,7 @@ def markers_for(store, code, published, template=""):
                  for v in r.values() if isinstance(v, str)]
     kept_text += [s.get("body") or "" for s in published.get("sections", ()) if isinstance(s, dict)]
     kept_text += [v for r in data.get("documents", ()) if isinstance(r, dict) for v in r.values() if isinstance(v, str)]     # #74: the links the client may see
+    kept_whole = {" ".join(t.split()) for t in kept_text}              # #619: only a kept value that IS the whole text excuses it; the words pasted inside other text do not
     found, where = [], {}
     bare = to_client._key(template)
 
@@ -162,8 +163,12 @@ def markers_for(store, code, published, template=""):
             add(row["id"], row["id"])
             for field in TEXT_FIELDS[kind]:
                 value = (_text(row.get(field)) or "").strip()
-                if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
+                if len(value) >= MIN_MARKER and " ".join(value.split()) not in kept_whole:
                     add(value, row["id"])
+    for sec in store.read("report_sections", project=code):      # #619: the body of a hidden section is absent, unless a kept value is exactly those words
+        body = (_text(sec.get("body")) or "").strip()
+        if sec.get("hidden") and len(body) >= MIN_MARKER and " ".join(body.split()) not in kept_whole:
+            add(body, sec["id"])
     for row in store.read("documents", project=code):              # #74: a document's id, title and link are absent unless a kept document carries the same words (publish carries no id)
         add(row["id"], row["id"])
         for field in ("title", "url"):
