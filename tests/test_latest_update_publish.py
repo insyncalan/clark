@@ -21,7 +21,7 @@ class LatestUpdatePublished(unittest.TestCase):
     def make(self, kind):
         """An action with a Latest update set through the real change route; returns (ref, token)."""
         token = f"zz-latest-token-{kind}"
-        ref = self.demo.action(description=f"Action for {kind}")
+        ref = self.demo.action(description=f"Action for {kind}", client_message=f"Client wording for {kind}")      # row 560: the update is published with client wording
         status, body = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": ref,
                                     "changes": {"latest_update": token}, "place": "peek"})
         self.assertEqual(status, 200, body)
@@ -30,6 +30,19 @@ class LatestUpdatePublished(unittest.TestCase):
 
     def published(self):
         return publish.build(self.s, "ABC", now="2026-10-29")["body"].decode("utf-8")
+
+    def test_a_client_message_of_only_invisible_characters_is_no_client_wording(self):
+        """Row 560: zero-width characters are not wording: the latest update stays out, as for a blank client message."""
+        for hidden in ("\u200b", "\ufeff", "\u200b\ufeff\u2060", " \u200b "):
+            with self.subTest(hidden=hidden):
+                ref = self.demo.action(description="Hidden wording", client_message="x")
+                token = "zz-hidden-token-%d" % len(hidden)
+                status, body = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": ref,
+                                            "changes": {"latest_update": token}, "place": "peek"})
+                self.assertEqual(status, 200, body)
+                with self.s.step("dashboard", "t") as st:
+                    st.update("actions", ref, {"client_message": hidden})
+                self.assertNotIn(token, self.published())
 
     def test_a_plain_client_visible_action_publishes_its_latest_update(self):
         ref, token = self.make("plain")
