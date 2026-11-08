@@ -31,6 +31,7 @@ from clark.store import open_store
 from test_page import navigate
 from _editor_checks import after_reload, for_project, set_project_and_wait
 from test_server import _Pipe, chrome, wait
+from _new_page import reload_to_new_page
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
 WATCH = ("window.errs = []; window.violations = [];"
@@ -234,13 +235,13 @@ class Editor(unittest.TestCase):
             for bad in ('not json', '{"kind":"done","text":"x","undo":"1; drop","code":"ABC"}', '{"kind":"done","text":"x","undo":5,"code":"../x"}',
                         '{"kind":"problem","text":"x","undo":null,"code":"ABC"}', '{"kind":"done","text":"%s","undo":null,"code":"ABC"}' % ("y" * 500)):
                 self.js("sessionStorage.setItem('clark-toast-carried', %s)" % json.dumps(bad))
-                after_reload(self.js, "location.reload()")
+                reload_to_new_page(self.js)
                 self.until("!!document.querySelector('.sec')", "the page drew")
                 self.edit()            # View draws no message on the Dashboard: Edit would
                 self.assertIsNone(self.js("sessionStorage.getItem('clark-toast-carried')"), "cleared: " + bad[:30])
                 self.assertFalse(self.js("!!document.querySelector('.toast-text')"), "nothing shown for " + bad[:30])
             self.js("sessionStorage.setItem('clark-toast-carried', %s)" % json.dumps('{"kind":"note","text":"Carried words.","undo":null,"code":"ABC"}'))
-            after_reload(self.js, "location.reload()")
+            reload_to_new_page(self.js)
             self.edit()
             self.until("!!document.querySelector('.toast-text')", "a well-formed one is shown")
             self.assertEqual(self.js("document.querySelector('.toast-text').textContent"), "Carried words.")
