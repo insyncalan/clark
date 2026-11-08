@@ -132,6 +132,11 @@ class Source(unittest.TestCase):
         self.assertIn("printing.value", jsx, "the timeline knows the page is printing")
         self.assertIn("PRINT_W / Math.max(1, dayNumber(end) - dayNumber(start))", jsx, "the whole span is fitted to the printed width")
 
+    def test_the_hover_only_legend_button_is_not_printed(self):
+        block = css_block(self.css, "@media print", "html.print-all, html.print-all body")
+        hide = re.search(r"((?:html\.print-all [^{,]+,\s*)+html\.print-all [^{,]+)\{\s*display: none;", block).group(1)
+        self.assertRegex(hide, r"html\.print-all \.mlg(?![\w-])", "the Legend help control is not content")
+
     def test_the_print_rules_are_in_the_pages_own_style_and_name_no_address(self):
         block = css_block(self.css, "@media print", "html.print-all, html.print-all body")
         for need in ("print-all", ".top", ".toc", ".peek", ".fbar", ".wbar", "print-color-adjust", ".print-tab", "break-inside", "break-before"):
