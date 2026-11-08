@@ -12,11 +12,11 @@ import { recall, remember } from "../logic/remember.js";
 import { printing } from "../stores/print.js";
 import { reduced } from "../stores/motion.js";
 
-const PXD0 = 5, BASE = 68, LINE = 20;       // pixels a day at 100%, the strip's own height and each label line's (zoom scale)
+const PXD0 = 5, BASE = 68, LINE = 24;       // pixels a day at 100%, the strip's own height and each label line's (zoom scale)
 const SBROOM = 16;                              // an overlay scrollbar's height, kept free under the last lane
 const MARGIN = 2;                               // spare pixels added to every measured label width (sub-pixel differences between fonts and systems)
 const PRINT_W = 680;                            // the printed line is this wide (an A4 page less its margins): the whole span fits, nothing scrolls (row 767)
-const LY0 = 50, T00 = 64, LANE = 20, GAP = 8;   // the line, the first label lane and each lane's height never shrink: a label is always readable
+const LY0 = 50, T00 = 64, LANE = 24, GAP = 8;   // the line, the first label lane and each lane's height never shrink: a label is always readable
 
 export function MsTimeline({ rows: all, today, place, open }) {
   const far = farRows(all), rows = all.filter((r) => !far.includes(r));   // a date far outside 2000 to 2100 is named below the line, not drawn
@@ -88,10 +88,12 @@ export function MsTimeline({ rows: all, today, place, open }) {
     const ro = new ResizeObserver(() => {
       const h = w.offsetHeight;
       if (!h || Math.abs(h - height) < 4) return;
+      if (height < h && h <= (parseFloat(getComputedStyle(w).minHeight) || 0) + 1) return;   // the box is held up by its CSS minimum (taller than the lanes need): not a drag
       clearTimeout(timer);
       timer = setTimeout(() => {
-        centre.current = (w.scrollLeft + w.clientWidth / 2) / (w.scrollWidth || 1);
         const next = clampZoom(Math.round((h - sb - room) / (BASE + nLines * LINE) * 100) / 100);
+        if (Math.abs(next - z) < 0.02) return;           // the box only changed by the room kept under an overlay scrollbar: not a drag
+        centre.current = (w.scrollLeft + w.clientWidth / 2) / (w.scrollWidth || 1);
         remember(`tlZoom.${place}`, next);
         setZoom(next);
       }, 120);
