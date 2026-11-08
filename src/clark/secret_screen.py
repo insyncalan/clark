@@ -177,7 +177,7 @@ def _name_like(run):
         return False
     if any(len(p) >= 12 and _random_look(p) for p in parts):
         return False
-    word = [bool(re.fullmatch(r"([A-Z][a-z]{2,}|[a-z]{3,}|[A-Z]{3,})\d{0,4}", p)) for p in parts]
+    word = [bool(re.fullmatch(r"([A-Z][a-z]{2,}|[a-z]{3,}|[A-Z]{3,})\d{0,4}[A-Za-z]?", p)) for p in parts]
     plain = [p.isalpha() or p.isdigit() for p in parts]
     return any(word) or sum(plain) * 2 > len(parts)
 
