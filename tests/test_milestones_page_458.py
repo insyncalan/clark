@@ -426,6 +426,30 @@ class Page(Base):
             p.until("document.querySelector('#mv-card-h').textContent === 'Pilot live'", "the card follows the row")
             self.assertEqual(p.js("document.querySelector('#mvNote .rt-view .quiet').textContent"), "What is going on, what you are waiting for", "another milestone, its own (empty) note")
 
+    def test_text_typed_in_the_note_editor_is_not_overwritten_when_the_data_is_read_again(self):      # #603, now the one rich editor
+        IN = "document.activeElement && !!document.activeElement.closest('#mvNote .ProseMirror')"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.open_movement(p)
+            p.js("document.querySelector('#mvNote .rt-view').click()")
+            p.until(IN, "the editor opened")
+            p.js("document.execCommand('selectAll')")
+            p.type("First note")
+            p.js("document.activeElement.blur()")
+            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Note saved. Undo.'", "the toast")
+            p.js("document.querySelector('#mvNote .rt-view').click()")
+            p.until(IN, "the editor opened again")
+            p.js("document.execCommand('selectAll')")
+            p.type("Half a sentence")
+            p.js("document.querySelector('.toast [data-undo]').click()")      # a script click leaves the focus in the editor: the data is read again under the typing
+            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
+            p.until("(window.__t = window.__t || Date.now(), Date.now() - window.__t > 800)", "a beat for the re-read to be drawn")
+            self.assertEqual(self.row(GO_LIVE)["internal_note"], INTERNAL)
+            self.assertEqual(p.js("document.querySelector('#mvNote .ProseMirror').textContent"), "Half a sentence", "the typing is kept")
+            p.js("document.activeElement.blur()")
+            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Note saved. Undo.'", "the typing saves when the editor is left")
+            self.assertEqual(self.row(GO_LIVE)["internal_note"], "<p>Half a sentence</p>")
+
     def test_the_movement_buttons_fit_at_both_widths_in_both_themes(self):
         for width in (1400, 900):
             for theme in ("light", "dark"):

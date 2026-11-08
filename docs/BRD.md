@@ -141,7 +141,7 @@ Programme managers spend hours each week turning their work items into a report 
   - Three modes: an update request, a chase (First, Second, Firmer, stepping up with each chase recorded) and a decision request to a decision's maker.
   - Items can be unticked, and the wording can be edited in the preview before copying.
   - **Copy for Outlook** puts the HTML and the plain text on the clipboard; **Copy as text** gives the plain text. Nothing is sent and no Outlook draft is made.
-  - **I sent it** records the item IDs, the date and the mode in the item's history, never the email's text.
+  - **I sent it** records the item IDs, the date and the mode, and writes one History line, once, when it is pressed: Emailed <Name> on 29-10-2026, "<the email's subject>". The History line may hold the recipient's name and the email's subject, never the address or the body.
 - **FR-45 (new):** For an address outside the user's own domains, items not marked client-visible start unticked and tagged "internal". Internal notes, hidden rows and the source of an item are never put in an email. The email is drawn on white with inline styles and simple tables, whatever the theme, so it pastes into Outlook as it looks. Polish the wording (a model call) waits for ask clark.
 
 ### 5.6 Milestones
