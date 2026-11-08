@@ -227,21 +227,26 @@ class Editor(unittest.TestCase):
         self.failure = lambda req: (400, {"ok": False, "message": "Not that."})
         with chrome() as cdp:
             self.visit(cdp, "?project=ABC#dashboard&p=ABC")
+            self.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, self.sid)      # the editor saves when the focus leaves it, and only a focused page says so
+            self.until("document.hasFocus()", "the page has the focus")
             self.edit()
             ref = self.store.data_for("ABC")["actions"][0]["id"]
             self.js("window.__before = 1")
             self.js(f"clarkPage.openPeek('{ref}', 'item')")
-            self.until("!!document.querySelector('[data-pk-latest-text]')", "the peek drew")
-            self.js("document.querySelector('[data-pk-latest-text]').click()")
-            self.until("document.activeElement.hasAttribute('data-pk-latest-in')", "the box is open")
-            self.cdp.call("Input.insertText", {"text": "Typed, then refused"}, self.sid)
+            self.until("!!document.querySelector('#peek dt')", "the peek drew")
+            self.until("!!document.querySelector('[data-pk-latest] [data-rich=latest_update]')", "the Latest update is drawn")
+            self.js("document.querySelector('[data-pk-latest] [data-rich=latest_update]').click()")       # item 1005: the one rich editor
+            self.until("document.activeElement.classList.contains('ProseMirror')", "the editor is open with the focus in it")
+            self.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('Typed, then refused'); true")
+            self.until("document.querySelector('#peek .ProseMirror').textContent.includes('Typed, then refused')", "the words are in the editor")
+            self.assertEqual(self.sent, [], "nothing is sent while it is being typed")
             self.js("clarkPage.setProject('XYZ')")
-            self.assertTrue(wait(lambda: "change" in self.sent, 10), "the box's change was sent, and refused")
-            time.sleep(1.5)
+            self.until("!!document.querySelector('.toast.problem')", "the problem is said", 20)
+            self.assertIn("change", self.sent, "the editor's change was sent, and refused")
             self.assertEqual(self.js("window.__before"), 1, "the same page")
             self.assertEqual(self.js("clarkPage.project()"), "ABC")
             self.assertEqual(self.js("document.getElementById('project-name').textContent"), "Example Programme")
-            self.assertEqual(self.js("(document.querySelector('[data-pk-latest-err]') || {textContent: ''}).textContent"), "That change could not be made, and nothing was changed. Reload the page and try again.", "the box says why")
+            self.assertTrue(self.js("document.querySelector('#peek .ProseMirror').textContent.includes('Typed, then refused')"), "the editor keeps what was typed")
 
     def test_a_save_that_runs_past_the_wait_keeps_the_page_and_says_so(self):
         self.slow = 11
