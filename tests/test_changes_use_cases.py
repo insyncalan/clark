@@ -238,6 +238,8 @@ class NoCreateNoDelete(unittest.TestCase):
         self.assertIn("/api/use-cases", sv.GET_ROUTES)
         self.assertNotIn("/api/use-cases", sv.POST_ROUTES)
         for r in routes:
+            if r.startswith("/api/brands/"):
+                continue                      # #944: removing an installed brand is not a use-case or work-item delete
             self.assertFalse(any(w in r for w in ("add", "create", "delete", "remove", "new")), r)
 
 

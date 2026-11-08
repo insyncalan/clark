@@ -5,6 +5,27 @@
 // Tab closes it too, and focus carries on from the control. The key never reaches anything behind it (the peek's own Esc).
 import { useLayoutEffect, useRef } from "preact/hooks";
 
+// Row 962 (the pattern of row 922, Menu.jsx): a picker that closes is gone from the page at once, so a copy of it (no id, role="presentation", inert,
+// aria-hidden, class leaving) fades out over --dur-instant (opacity only, edit.css) and removes itself when the animation ends; a 400 ms timer guards it.
+// Under reduced motion (the computer's setting or <html data-motion="reduce">) no copy is made at all.
+const stillMotion = () => document.documentElement.dataset.motion === "reduce" || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+export function fadeOut(el) {
+  if (!el || !el.isConnected || !el.parentNode || stillMotion()) return null;
+  const copy = el.cloneNode(true);
+  for (const n of [copy, ...copy.querySelectorAll("[id]")]) n.removeAttribute("id");
+  for (const a of ["data-pop", "data-edit-only", "aria-label"]) copy.removeAttribute(a);
+  copy.setAttribute("role", "presentation");
+  copy.setAttribute("aria-hidden", "true");
+  copy.setAttribute("inert", "");
+  copy.removeAttribute("tabindex");
+  copy.classList.add("leaving");
+  document.body.appendChild(copy);
+  const gone = () => { if (copy.parentNode) copy.parentNode.removeChild(copy); };
+  copy.addEventListener("animationend", (e) => { if (e.target === copy && e.animationName === "m-out") gone(); });
+  setTimeout(gone, 400);
+  return copy;
+}
+
 export function Pop({ anchor, label, role = "dialog", cls = "", onClose, children }) {
   const box = useRef(null);
   const place = () => {
@@ -19,6 +40,7 @@ export function Pop({ anchor, label, role = "dialog", cls = "", onClose, childre
     el.style.top = `${Math.round(top)}px`;
   };
   useLayoutEffect(place, []);                             // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => () => { fadeOut(box.current); }, []);   // closing (any way) leaves the fading copy where the picker was
   // (it is drawn off screen first, not hidden, so the picker inside can take focus as it opens, before it is placed)
   useLayoutEffect(() => {                                 // at once, not after the next frame: a click that quick still closes it
     const away = (e) => {

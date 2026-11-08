@@ -19,6 +19,7 @@ export async function call(method, path, body) {
 
 // The report is published, and previewed, in the section style chosen in Settings › Personal: it goes with the request and the file carries it.
 export const publishRequest = (body) => call("POST", "/api/publish", { ...body, section_style: style.value });
+export const localUndoRequest = (project, applyId) => call("POST", "/api/client-folder", { project, action: "undo_local", apply_id: applyId });
 export const folderRequest = (project, action, value) => call("POST", "/api/client-folder", action === "paste" ? { project, action, value } : { project, action });
 export const previewRequest = (project) => call("POST", "/api/preview", { project, section_style: style.value });
 export const latestRequest = (project) => call("GET", `/api/publication?project=${encodeURIComponent(project)}`);
