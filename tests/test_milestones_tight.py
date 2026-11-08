@@ -30,7 +30,8 @@ ROW_BUDGET = 37                # about half of 62: one 17 px line and a small 13
 LOOK = r"""(() => {
   const q = (s) => document.querySelector(s), box = (e) => { const r = e.getBoundingClientRect(); return {l: r.left, r: r.right, t: r.top, b: r.bottom, h: r.height, w: r.width}; };
   const probe = (v) => { const e = document.createElement('i'); e.style.borderColor = `var(${v})`; e.style.borderStyle = 'solid'; document.body.appendChild(e); const c = getComputedStyle(e).borderTopColor; e.remove(); return c; };
-  const wrap = q('.mv-wrap'), tog = q('.msl-det'), leg = q('.mlg-b'), bar = q('.msl-bar');
+  const prim = (v, prop) => { const e = document.createElement('i'); e.style[prop] = `var(${v})`; document.body.appendChild(e); const c = getComputedStyle(e)[prop]; e.remove(); return c; };
+  const slipEl = q('[data-slip]'), wrap = q('.mv-wrap'), tog = q('.msl-det'), leg = q('.mlg-b'), bar = q('.msl-bar');
   const rows = [...document.querySelectorAll('.msl-row')].map((row) => {
     const n = row.querySelector('.node'), cs = getComputedStyle(n), rb = row.getBoundingClientRect(), nb = n.getBoundingClientRect();
     const sub = row.querySelector('.msl-sub'), cells = row.querySelector('.msl-cells').getBoundingClientRect();
@@ -44,6 +45,7 @@ LOOK = r"""(() => {
   return {wrap: wrap ? wrap.getBoundingClientRect().height : null, rows,
     tog: tog ? box(tog) : null, leg: leg ? box(leg) : null, bar: bar ? box(bar) : null,
     barKids: bar ? [...bar.children].map((c) => c.className) : null,
+    slipColour: slipEl ? getComputedStyle(slipEl).color : null, redText: prim('--status-red-text', 'color'), bodyColour: getComputedStyle(document.body).color,
     colours: {green: probe('--status-green'), red: probe('--status-red'), amber: probe('--status-amber'), surface: probe('--surface')},
     slips: [...document.querySelectorAll('[data-slip]')].map((e) => e.textContent), labs: [...document.querySelectorAll('.mv-lab')].map((e) => { const c = e.cloneNode(true); c.querySelectorAll('.sr').forEach((x) => x.remove()); return c.textContent; }),   // what is seen: the screen-reader-only words are left out
     labH: [...document.querySelectorAll('.mv-lab')].map((e) => e.getBoundingClientRect().height),
@@ -61,6 +63,26 @@ def narrow_ok(case, got, where):
     for r in got["rows"]:
         case.assertTrue(r["inRow"], f"{where}: every cell stays inside its row ({r['sub']})")
         case.assertFalse(r["clip"], f"{where}: no cell cuts text off ({r['sub']})")
+
+# Below 801 px the cells are three columns (auto 1fr auto): the first and third as wide as their content, the second the rest.
+GRID = r"""(() => [...document.querySelectorAll('.msl-row')].map((row) => {
+  const cells = row.querySelector('.msl-cells'), cs = getComputedStyle(cells);
+  const cols = cs.gridTemplateColumns.split(' ').map(parseFloat);
+  const fit = (el) => { const old = el.style.width; el.style.width = 'max-content'; const w = el.getBoundingClientRect().width; el.style.width = old; return w; };
+  const inner = cells.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), gap = parseFloat(cs.columnGap);
+  return {cols, date: fit(cells.querySelector('.msl-date')), prog: Math.max(fit(cells.querySelector('.msl-prog')), parseFloat(getComputedStyle(cells.querySelector('.msl-prog')).minWidth) || 0),
+          rest: inner - gap * 2 - cols[0] - cols[2], text: cells.querySelector('.msl-sub').textContent};
+}))()"""
+
+
+def grid_ok(case, rows, where):
+    case.assertTrue(rows, where)
+    for r in rows:
+        w = f"{where} ({r['text']})"
+        case.assertEqual(len(r["cols"]), 3, f"{w}: three columns")
+        case.assertAlmostEqual(r["cols"][0], r["date"], delta=1.5, msg=f"{w}: the first column is as wide as its content")
+        case.assertGreaterEqual(r["cols"][2], r["prog"] - 1.5, f"{w}: the third column holds its content")
+        case.assertAlmostEqual(r["cols"][1], r["rest"], delta=1.5, msg=f"{w}: the second column is the rest")
 
 
 class Both(unittest.TestCase):
@@ -85,6 +107,11 @@ class Both(unittest.TestCase):
         self.assertTrue(got["slips"], f"{where}: the demo has a slipped milestone")
         for s in got["slips"]:
             self.assertRegex(s, r"^\+\d+ days?$", where)
+        self.assertEqual(got["slipColour"], got["redText"], f"{where}: the late '+N days' text is the red text colour")
+        self.assertNotEqual(got["slipColour"], got["bodyColour"], f"{where}: the late text is not the body colour")
+        for r in got["rows"]:
+            if r["late"]:
+                self.assertEqual(r["subColour"], got["redText"], f"{where}: the late second line is red ({r['sub']})")
         for lab in got["labs"]:
             self.assertNotIn("later", lab, f"{where}: the long late text is gone from the timeline ({lab})")
             self.assertNotIn("Expected", lab, f"{where}: the expected date stays in the detail list ({lab})")
@@ -134,6 +161,19 @@ class Both(unittest.TestCase):
                     if width == 420:
                         narrow_ok(self, got, where)
 
+    def test_the_narrow_cells_are_auto_1fr_auto_at_700_and_420(self):
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.addCleanup(s.close)
+        for width in (700, 420):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = page_target(cdp)
+                cdp.call("Page.enable", {}, sid)
+                cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#milestones&p=MOSS"}, sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.msl-row')", sid)))
+                grid_ok(self, cdp.js(GRID, sid), f"live {width}px")
+
     def test_the_published_file_at_1400_and_420_light_and_dark(self):
         demo, folder, path, _ids = publish_with_plants()
         self.addCleanup(demo.close)
@@ -156,6 +196,7 @@ class Both(unittest.TestCase):
                         self.assertLessEqual(got["wrap"], TIMELINE_BUDGET, where)
                     else:
                         narrow_ok(self, got, where)
+                        grid_ok(self, cdp.js(GRID, sid), where)
                     html = cdp.js("document.documentElement.outerHTML", sid)
                     self.assertNotIn("Activity", cdp.js("document.querySelector('.msv').innerText", sid), "no Activity text in the section")
                     self.assertNotIn("PLANTED-INTERNAL", html, "no Source or internal text reaches the published file")

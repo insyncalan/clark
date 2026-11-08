@@ -38,7 +38,11 @@ MEASURE = r"""(() => {
     const texts = [...row.querySelectorAll('.msl-cells > *')];
     return {text: small.textContent, lines: lines(small), nameLines: lines(name),
             inRow: cells.every((c) => c.left >= rb.left - 1 && c.right <= rb.right + 1),
-            smallInDate: sb.right <= cr.right + 1 && sb.left >= cr.left - 1, dateClearOfName: db.right <= nb.left + 1,
+            subLeft: sb.left - cr.left, subRight: cr.right - sb.right, subBelow: sb.top - Math.max(db.bottom, nb.bottom),
+            subSize: parseFloat(getComputedStyle(small).fontSize), mainSize: parseFloat(getComputedStyle(name).fontSize),
+            subCut: small.scrollWidth > small.clientWidth + 1,
+            dateTextW: (() => { const g = document.createRange(); g.selectNodeContents(row.querySelector('.msl-date')); return Math.max(...[...g.getClientRects()].map((q) => q.right)) - db.left; })(), dateW: db.width,
+            dateClearOfName: db.right <= nb.left + 1,
             cellsClip: texts.some((t) => t.scrollWidth > t.clientWidth + 1),
             cols: getComputedStyle(row.querySelector('.msl-cells')).gridTemplateColumns.split(' ').length,
             across: cells.every((c, i) => i === 0 || c.left > cells[i - 1].left),
@@ -54,6 +58,17 @@ def show_all(cdp, sid):
     if cdp.js("!!document.querySelector('.msl-all')", sid) and cdp.js("document.querySelector('.msl-all').textContent", sid).startswith("Show all"):
         cdp.js("document.querySelector('.msl-all').click()", sid)
         wait(lambda: cdp.js("document.querySelectorAll('.msl-row').length", sid) > 5)
+
+
+def small_line_ok(case, r, where):
+    """The exact things: the small second line sits inside its own cell (the left and right of the row's cells, below the date and name) in a
+    smaller font than the main line, and the date text of the main line is not wider than the date cell."""
+    t = r["text"]
+    case.assertGreaterEqual(r["subLeft"], -1, f"{where}: the second line starts inside its cell ({t})")
+    case.assertGreaterEqual(r["subRight"], -1, f"{where}: the second line ends inside its cell ({t})")
+    case.assertGreaterEqual(r["subBelow"], -1, f"{where}: the second line sits below the date and name, in its own row ({t})")
+    case.assertLess(r["subSize"], r["mainSize"], f"{where}: the second line is smaller than the main line ({t})")
+    case.assertLessEqual(r["dateTextW"], r["dateW"] + 1, f"{where}: the date text is not wider than its cell ({t})")
 
 
 class Rows(unittest.TestCase):
@@ -102,9 +117,10 @@ class Rows(unittest.TestCase):
                             self.assertTrue(r["inCard"], f"{where}: the row stays inside the card ({r['text']})")
                             self.assertTrue(r["inRow"], f"{where}: every cell stays inside its row ({r['text']})")
                             self.assertTrue(r["dateClearOfName"], f"{where}: the date cell does not run into the name ({r['text']})")
+                            small_line_ok(self, r, where)
                             if width >= 1201:               # the rule starts at 1201 px, so its first width is tested too
                                 self.assertEqual(r["lines"], 1, f"{where}: the second line is one line ({r['text']})")
-                                self.assertTrue(r["smallInDate"], f"{where}: the second line stays inside its cell ({r['text']})")
+                                self.assertFalse(r["subCut"], f"{where}: the second line is not cut off in its cell ({r['text']})")
                                 self.assertFalse(r["cellsClip"], f"{where}: no cell cuts text off ({r['text']})")
                         if code == "TUL":
                             long = [r for r in got["rows"] if r["nameLines"] > 1]
@@ -172,6 +188,7 @@ class Published(unittest.TestCase):
                     self.assertFalse(got["pageScroll"] or got["cardScroll"] or got["listScroll"], f"{where}: nothing scrolls sideways")
                     for r in got["rows"]:
                         self.assertTrue(r["inCard"] and r["inRow"] and r["dateClearOfName"], f"{where}: {r['text']}")
+                        small_line_ok(self, r, where)
                         self.assertEqual((r["cols"], r["across"]), (4, True), f"{where}: the columns stay side by side ({r['text']})")
                         if width == 1400:
                             self.assertEqual(r["lines"], 1, f"{where}: one line ({r['text']})")
