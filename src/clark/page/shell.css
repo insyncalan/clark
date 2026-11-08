@@ -979,7 +979,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-job span { display: block; font-size: var(--size-small); color: var(--text-muted); }
 .hp-undo { margin: var(--space-4) 0 0; font-size: var(--size-small); }
 .hp-start-jobs { margin-top: 0; }
-.hp-start-jobs > h2 { font-size: var(--size-h2); margin: 0; }
+.hp-start-jobs > h2 { font-size: var(--size-h3); margin: 0; }
 .hp-jobs-h { margin: var(--space-4) 0 0; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .hp-where-g { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-3); }
 .hp-wt { display: block; font-weight: 500; font-size: var(--size-h3); color: var(--heading); margin-bottom: var(--space-1); }
