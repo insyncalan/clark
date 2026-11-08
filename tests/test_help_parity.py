@@ -329,7 +329,7 @@ class KeyRowsSayWhatTheKeysDo(unittest.TestCase):
     def test_mod_enter_is_only_what_the_page_does(self):
         row = self.KEYS["[[Mod+Enter]]"]
         self.assertIn("In an editor: keep the text and close it", row)     # core/editor.js
-        self.assertIn("In Sneak peek: make a change that asks you to confirm", row)    # SneakPeek.jsx apply(mod, shift)
+        self.assertIn("In Sneak peek: confirm and apply a change that needs your OK", row)    # SneakPeek.jsx apply(mod, shift)
         self.assertNotIn("AI suggestion", row)                             # AiCard.jsx handles only Escape
         self.assertNotIn("health reason", row)                             # a reason saves on blur
         self.assertNotIn("Accept** ([[Mod+Enter]])", self.ALL)

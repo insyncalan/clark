@@ -2061,7 +2061,7 @@
    ],
    [
     "[[Mod+Enter]]",
-    "In an editor: keep the text and close it. In Sneak peek: make a change that asks you to confirm"
+    "In an editor: keep the text and close it. In Sneak peek: confirm and apply a change that needs your OK"
    ],
    [
     "[[/]] in an editor",
