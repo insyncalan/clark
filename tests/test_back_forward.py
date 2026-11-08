@@ -224,24 +224,34 @@ class Editor(unittest.TestCase):
             self.stays("location.hash = '#dashboard&p=XYZ'", "address typed")
 
     def test_a_refused_change_in_a_peek_box_keeps_the_page_when_another_project_is_chosen(self):      # #944 follow-up: a refusal the box shows is a problem too
-        self.failure = lambda req: (400, {"ok": False, "message": "Not that."})
+        self.peek_refused("Not that.", "That change could not be made, and nothing was changed. Reload the page and try again.")      # a message the page does not know: the standard words
+
+    def test_a_refused_change_in_a_peek_box_says_the_words_for_this_refusal(self):      # the server's message is turned into its plain words (CHANGE_KNOWN, report.js)
+        self.peek_refused("That content is too long to save.", "That is too long to save, and nothing was changed. Make the text shorter, or take some of the list out.")
+
+    def peek_refused(self, message, words):
+        self.failure = lambda req: (400, {"ok": False, "message": message})
         with chrome() as cdp:
             self.visit(cdp, "?project=ABC#dashboard&p=ABC")
             self.edit()
             ref = self.store.data_for("ABC")["actions"][0]["id"]
             self.js("window.__before = 1")
             self.js(f"clarkPage.openPeek('{ref}', 'item')")
-            self.until("!!document.querySelector('[data-pk-latest-text]')", "the peek drew")
-            self.js("document.querySelector('[data-pk-latest-text]').click()")
-            self.until("document.activeElement.hasAttribute('data-pk-latest-in')", "the box is open")
-            self.cdp.call("Input.insertText", {"text": "Typed, then refused"}, self.sid)
+            self.until("!!document.querySelector('[data-pk-latest] [data-rich=latest_update]')", "the peek drew")
+            self.js("document.querySelector('[data-pk-latest] [data-rich=latest_update]').click()")
+            self.until("document.activeElement.classList.contains('ProseMirror')", "the editor is open", 15)
+            self.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('Typed, then refused'); true")
+            mod = 4 if self.js("/Mac/.test(navigator.platform)") else 2          # the editor saves on Cmd/Ctrl+Enter, not on leaving
+            for kind in ("keyDown", "keyUp"):
+                self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, "modifiers": mod}, self.sid)
             self.js("clarkPage.setProject('XYZ')")
             self.assertTrue(wait(lambda: "change" in self.sent, 10), "the box's change was sent, and refused")
             time.sleep(1.5)
             self.assertEqual(self.js("window.__before"), 1, "the same page")
             self.assertEqual(self.js("clarkPage.project()"), "ABC")
             self.assertEqual(self.js("document.getElementById('project-name').textContent"), "Example Programme")
-            self.assertEqual(self.js("(document.querySelector('[data-pk-latest-err]') || {textContent: ''}).textContent"), "That change could not be made, and nothing was changed. Reload the page and try again.", "the box says why")
+            self.until("!!document.querySelector('.toast.problem')", "the refusal is said in a toast")
+            self.assertEqual(self.js("[...document.querySelectorAll('.toast.problem .toast-text')].map(e => e.textContent)"), [words], "one toast, in the words for this refusal")
 
     def test_a_save_that_runs_past_the_wait_keeps_the_page_and_says_so(self):
         self.slow = 11
