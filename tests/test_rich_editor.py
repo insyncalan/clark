@@ -346,5 +346,18 @@ class Ui(unittest.TestCase):
         self.h.theme("light")
 
 
+class FreshPage(unittest.TestCase):
+    """A page nobody has typed into yet: focus events still fire (a headless page starts without the system focus, and an
+    element.focus() then fires no blur, so a field never saw the focus leave: the slow macOS runner failed on that)."""
+
+    def test_a_fresh_page_has_the_focus_and_leaving_the_field_closes_it(self):
+        with rp.Harness(chrome) as h:
+            h.mount("<p>Start</p>")
+            self.assertTrue(h.ev("document.hasFocus()"), "the page has the focus before any input")
+            h.ev("document.getElementById('outside').focus(); true")
+            self.assertTrue(h.until("window.ended === 1"), "leaving the field closed it")
+            self.assertEqual(h.ev("window.saves"), [])
+
+
 if __name__ == "__main__":
     unittest.main()
