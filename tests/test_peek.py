@@ -319,7 +319,10 @@ class Browser(unittest.TestCase):
                 self.assertIn("Shown to client", labels, "an internal field shows on Work items in View too (row 824)")
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)), "the slide-in has ended")
                 self.assertEqual(cdp.js("document.querySelector('#peek').getBoundingClientRect().right", sid), cdp.js("document.documentElement.clientWidth", sid))
-                self.assertEqual(cdp.js("!!document.querySelector('[data-sneak-open],[data-sneak]')", sid), True, "the words box is in View too (row 824)")
+                self.open_words(cdp, sid)
+                self.assertEqual(cdp.js("!!document.querySelector('[data-sneak]')", sid), True, "the words box is in View too (row 824)")
+                key(cdp, sid, "Escape")      # the first Esc closes the box only
+                self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-sneak]')", sid)))
                 # Previous and Next replace the entry (they add none) and follow the list that opened it
                 length = cdp.js("history.length", sid)
                 click(cdp, sid, "[data-pk-next]")
@@ -412,9 +415,10 @@ class Browser(unittest.TestCase):
                 self.edit_mode(cdp, sid)
                 target = next(r["id"] for r in self.data["actions"] if r["status"] == "Open")
                 cdp.js(f"clarkPage.openPeek({json.dumps(target)})", sid)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak-open]')", sid)), "the sparkle is in the top bar")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-close]')", sid)), "the peek's top bar is up")
+                self.assertFalse(cdp.js("!!document.querySelector('[data-sneak-open]')", sid), "row 1015: no sparkle in the top bar")
                 self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)), "focus went into the peek, so its keys are set")
-                cdp.js("document.activeElement.blur()", sid)
+                cdp.js("document.activeElement.blur(); document.querySelector('[data-pk-close]').focus()", sid)      # a button has focus: the keys still work, and the box gives it back
                 key(cdp, sid, "/")
                 key(cdp, sid, "/")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak]')", sid)), "two slashes open it")
@@ -429,20 +433,25 @@ class Browser(unittest.TestCase):
                 key(cdp, sid, "Escape")
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-sneak]')", sid)))
                 self.assertEqual(cdp.js("!!document.querySelector('#peek')", sid), True)
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-sneak-open')", sid)), "focus returns to the sparkle")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)), "focus returns to what had it when the box opened (the Close button)")
                 self.assertIn("Shown to client", cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid), "Edit shows it")
                 # a date that is not a day is refused in plain words
-                cdp.js("document.querySelector('[data-sneak-open]').click()", sid)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sn-in')", sid)))
+                self.open_words(cdp, sid)
                 cdp.js("(() => { const i = document.querySelector('.sn-in'); i.value = 'due 31-02-2026'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
                 self.assertTrue(wait(lambda: "isn't a real day" in cdp.js("(document.querySelector('[data-sneak-message]') || {textContent: ''}).textContent", sid)))
+
+    def open_words(self, cdp, sid):
+        """Row 1015: the sparkle is gone, so the words box opens only with two slashes (nothing in a box has focus)."""
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
+        cdp.js("document.querySelector('[data-pk-close]').focus()", sid)      # a button has focus, so the box has somewhere to give it back to
+        key(cdp, sid, "/")
+        key(cdp, sid, "/")
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sn-in')", sid)), "two slashes open the words box")
 
     def words(self, cdp, sid, target, text):
         """Open the peek on `target` in Edit, open the words box and type `text`; waits for a reading."""
         cdp.js(f"clarkPage.openPeek({json.dumps(target)})", sid)
-        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak-open]')", sid)))
-        cdp.js("(() => { const b = document.querySelector('[data-sneak-open]'); b.focus(); b.click(); })()", sid)      # a real press focuses the sparkle first; the box gives focus back to it when it closes
-        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sn-in')", sid)))
+        self.open_words(cdp, sid)
         cdp.js(f"(() => {{ const i = document.querySelector('.sn-in'); i.value = {json.dumps(text)}; i.dispatchEvent(new Event('input', {{bubbles: true}})); }})()", sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.sn-list li').length", sid) >= 1))
 
@@ -523,7 +532,7 @@ class Browser(unittest.TestCase):
                     key(cdp, sid, "Escape")
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-sneak]')", sid)))
                 self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "the peek stays")
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-sneak-open')", sid)), "focus returns to the sparkle")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)), "focus returns to what had it when the box opened (the Close button)")
                 self.assertEqual(sent, [], "nothing was changed")
 
     def test_row_776_make_the_change_and_enter_send_the_same_request(self):
@@ -587,9 +596,7 @@ class Browser(unittest.TestCase):
             self.edit_mode(cdp, sid)
             target = next(r["id"] for r in self.data["actions"] if r["status"] == "Open")
             cdp.js(f"clarkPage.openPeek({json.dumps(target)})", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak-open]')", sid)))
-            cdp.js("document.querySelector('[data-sneak-open]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sn-in')", sid)))
+            self.open_words(cdp, sid)
             cdp.js("(() => { const i = document.querySelector('.sn-in'); i.value = 'cancel it'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak-confirm]')", sid)))
             key(cdp, sid, "Enter")
@@ -650,7 +657,30 @@ class Browser(unittest.TestCase):
             self.assertFalse(cdp.js("!!document.querySelector('.toast [data-undo]')", sid))
             self.assertTrue(cdp.js("!!document.querySelector('[data-sneak]')", sid), "the box stays so the words can be changed")
 
-    def test_a_milestone_peek_in_edit_has_the_sparkle_and_two_slashes_change_it_in_one_step(self):
+    def test_the_words_box_gives_focus_back_to_what_had_it_when_it_opened(self):
+        """Row 1015: with no sparkle to return to, Esc puts focus back on the Close button or on a list row, whichever had it."""
+        with chrome() as cdp:
+            s, sid = self.load_page(cdp, 1400)
+            self.edit_mode(cdp, sid)
+            target = next(r["id"] for r in self.data["actions"] if r["status"] == "Open")
+            cdp.js(f"clarkPage.openPeek({json.dumps(target)})", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)))
+            self.open_words(cdp, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.className", sid) == "sn-in"), "the box took focus")
+            key(cdp, sid, "Escape")
+            self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-sneak]')", sid)))
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)), "back on the Close button")
+            cdp.js("(() => { const r = document.querySelector('#work tbody tr[data-id]'); r.setAttribute('data-was-focused', ''); r.focus(); })()", sid)
+            self.assertTrue(cdp.js("document.activeElement.hasAttribute('data-was-focused')", sid), "a list row has focus")
+            key(cdp, sid, "/")
+            key(cdp, sid, "/")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sn-in')", sid)))
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.className", sid) == "sn-in"), "the box took focus")
+            key(cdp, sid, "Escape")
+            self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-sneak]')", sid)))
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-was-focused')", sid)), "back on the row that had it")
+
+    def test_a_milestone_peek_in_edit_has_no_sparkle_and_two_slashes_change_it_in_one_step(self):
         """The words box also changes a milestone: a forecast date is one request (kind milestones, place peek) with one Undo."""
         ms = next(m["id"] for m in self.data["milestones"] if m["status"] == "Planned" and m["id"] not in self.data.get("report_hidden", []))
         with chrome() as cdp:
@@ -661,7 +691,7 @@ class Browser(unittest.TestCase):
             cdp.js(f"clarkPage.openPeek({json.dumps(ms)}, 'milestone')", sid)
             self.assertTrue(wait(lambda: cdp.js("(document.querySelector('#peek') || {dataset: {}}).dataset.peek", sid) == ms))
             self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)))
-            self.assertTrue(cdp.js("!!document.querySelector('#peek [data-sneak-open]')", sid), "a sparkle on a milestone")
+            self.assertFalse(cdp.js("!!document.querySelector('#peek [data-sneak-open]')", sid), "row 1015: no sparkle on a milestone")
             cdp.js("document.activeElement.blur()", sid)
             key(cdp, sid, "/")
             key(cdp, sid, "/")
@@ -683,9 +713,7 @@ class Browser(unittest.TestCase):
             s, sid = self.load_page(cdp, 1400)
             self.edit_mode(cdp, sid)
             cdp.js(f"clarkPage.openPeek({json.dumps(ms)}, 'milestone')", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-sneak-open]')", sid)))
-            cdp.js("document.querySelector('#peek [data-sneak-open]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak] .sn-in')", sid)))
+            self.open_words(cdp, sid)
             cdp.js("(() => { const i = document.querySelector('.sn-in'); i.value = 'done'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak-confirm]')", sid)), "Done asks first")
             key(cdp, sid, "Enter")
@@ -701,9 +729,7 @@ class Browser(unittest.TestCase):
             s, sid = self.load_page(cdp, 1400)
             self.edit_mode(cdp, sid)
             cdp.js(f"clarkPage.openPeek({json.dumps(ms)}, 'milestone')", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-sneak-open]')", sid)))
-            cdp.js("document.querySelector('#peek [data-sneak-open]').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak] .sn-in')", sid)))
+            self.open_words(cdp, sid)
             cdp.js("(() => { const i = document.querySelector('.sn-in'); i.value = 'planned'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak-confirm]')", sid)), "leaving Achieved asks first")
             key(cdp, sid, "Enter")
@@ -870,9 +896,15 @@ class PlainLabels(unittest.TestCase):
                 (self.SRC / "src" / "components" / "Peek.jsx").read_text(encoding="utf-8"),
                 (self.SRC / "page.html").read_text(encoding="utf-8")]
 
-    def test_the_sparkle_has_a_title_and_a_matching_label(self):
+    def test_there_is_no_sparkle_button_but_the_words_box_stays(self):
+        """Row 1015: the AI star beside Change status is gone; the box (its title and label) and the two slashes stay."""
+        for text in self.texts():
+            self.assertNotIn("data-sneak-open", text)
+            self.assertNotIn("SneakButton", text)
+            self.assertNotIn("WordsButton", text)
+        self.assertNotIn("SneakButton", (self.SRC / "src" / "components" / "UseCaseDetail.jsx").read_text(encoding="utf-8"), "nor beside Change status on a use case")
         jsx = self.texts()[0]
-        self.assertIn('title="Change an item with words" aria-label="Change an item with words"', jsx)
+        self.assertIn('aria-label="Change an item with words"', jsx)
 
     def test_the_width_button_follows_the_state(self):
         peek = self.texts()[1]
