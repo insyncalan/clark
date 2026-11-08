@@ -202,9 +202,14 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .link:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 3px; }
 .empty { text-align: center; }
 .choose { display: inline-block; text-align: left; }
+/* Spacing (item 1025): the gaps, paddings and row heights of Work items, per density. Compact is the standard and the fallback for any
+   other word, and is exactly the look before this item; Comfortable is one step looser. Type sizes, colours and the 44 px tap targets
+   do not change with the density. */
+:root { --d-row-y: 9px; --d-colh-y: var(--space-2); --d-grp-y: 10px; --d-group-gap: var(--space-3); --d-card-gap: var(--space-2); --d-card-row-y: 10px; --d-bcard-y: 7px; --d-colbody-top: 10px; --d-colbody-bottom: 14px; --d-fbar-top: 10px; --d-fbar-gap: 6px; --d-fline-top: 12px; --d-fline-y: 5px; }
+html[data-density="comfortable"] { --d-row-y: 13px; --d-colh-y: var(--space-3); --d-grp-y: 14px; --d-group-gap: var(--space-4); --d-card-gap: var(--space-3); --d-card-row-y: 14px; --d-bcard-y: 11px; --d-colbody-top: 14px; --d-colbody-bottom: 18px; --d-fbar-top: 14px; --d-fbar-gap: 10px; --d-fline-top: 16px; --d-fline-y: 7px; }
 table.items { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--size-small); margin-top: var(--space-2); }
-table.items th { text-align: left; font-weight: var(--weight-regular); font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: var(--space-2) 10px; border-top: 1px solid var(--grey-200); }
-table.items td { padding: 9px 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
+table.items th { text-align: left; font-weight: var(--weight-regular); font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: var(--d-colh-y) 10px; border-top: 1px solid var(--grey-200); }
+table.items td { padding: var(--d-row-y) 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
 .sec:focus { outline: none; }
 table.items th:first-child, table.items td:first-child { padding-left: var(--space-1); }
 table.items .c-eye { width: 44px; }
@@ -295,7 +300,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .seg em { font-style: normal; color: var(--text-muted); margin-left: var(--space-1); }
 .seg button[aria-pressed="true"] em,
 .seg button[aria-checked="true"] em { color: inherit; }
-.fbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-2); margin-top: 10px; }
+.fbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--d-fbar-gap) var(--space-2); margin-top: var(--d-fbar-top); }
 .fl { font-size: var(--size-small); color: var(--text-muted); margin-right: 2px; }
 .fwrap { position: relative; display: inline-block; }
 .fbtn { position: relative; display: inline-flex; align-items: center; gap: var(--space-1); padding: 3px 10px; min-height: 28px; border: 1px solid transparent; border-radius: var(--radius-pill); background: transparent; cursor: pointer; font-size: var(--size-small); color: var(--text-muted); }
@@ -310,7 +315,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 :root { --layer-list: 26; }   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
 /* Item 955: the border every menu and floating list shares: grey-500 with a fifth of grey-700, so it is at least 3:1 against the page ground and against a card surface in light (3.4:1 and 3.7:1) and in dark (over 5:1). It was --border (grey-300), 1.46:1 to 2.09:1. It follows the theme because the two greys do. */
 :root { --menu-border: color-mix(in srgb, var(--grey-500), var(--grey-700) 20%); }
-.fline-wrap { position: relative; margin-top: 12px; }
+.fline-wrap { position: relative; margin-top: var(--d-fline-top); }
 .fviews { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
 .fvrow { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--space-2); flex: 1 1 100%; min-width: 0; border-bottom: 1px solid var(--grey-200); }   /* row 809: the views are text tabs on a thin rule; the row of tabs scrolls inside its own box and the menus keep their place at the right */
 .fvrow > .dd { flex: none; margin-bottom: var(--space-1); }
@@ -333,7 +338,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .vtab[data-broken="true"] { border-bottom-style: dashed; border-bottom-color: var(--border); }
 .vbad { flex: 1 1 100%; margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
 .vbad:empty { display: none; }
-.fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: var(--d-fline-y) 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
 .fedit { position: relative; flex: 1 1 140px; min-width: 0; display: flex; align-items: center; }   /* issue 662: the box holds the whole line; its tokens are drawn over the text */
 .fchips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }   /* row 845: the complete filters as chips (the chip look is .fchip, below) */
@@ -396,7 +401,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
   .fbox .isnot button { min-height: 24px; display: inline-flex; align-items: center; }
   table.items, table.items tbody, table.items.grouped thead { display: block; width: 100%; }
   table.items:not(.grouped) thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  table.items tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); gap: 6px var(--space-3); padding: 10px var(--space-1); border-top: 1px solid var(--grey-100); }
+  table.items tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); gap: 6px var(--space-3); padding: var(--d-card-row-y) var(--space-1); border-top: 1px solid var(--grey-100); }
   table.items td, table.items td:first-child { display: block; min-width: 0; width: auto; padding: 0; border-top: 0; }
   table.items .c-item { grid-column: 1 / 4; grid-row: 1; }
   table.items .c-owner { grid-column: 1 / -1; grid-row: 2; }
@@ -772,10 +777,10 @@ body:not(.board-view) #sel-bar { position: sticky; top: calc(var(--topbar) + var
 [data-tip]:hover::after, [data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; z-index: 19;      /* row 774: under every menu and panel (lowest is .menu, 20), so a tip never covers one */ top: calc(100% + 6px); right: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--brand-navy); color: var(--white); font-size: var(--size-small); line-height: 1.4; white-space: nowrap; pointer-events: none; }
 [data-tip][aria-expanded="true"]::after, html[data-tip-off] [data-tip]::after { content: none; display: none; }      /* row 774: no tip on a button whose menu is open, nor after Esc until the pointer or a key moves on */
 /* Each group is its own bordered card (prototype `.group`): a grey heading bar, then the column names and the rows. */
-.wgroup { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); margin-bottom: var(--space-3); overflow: hidden; }
+.wgroup { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); margin-bottom: var(--d-group-gap); overflow: hidden; }
 .wgroup table.items { margin-top: 0; }
 .wgroup table.items th:first-child, .wgroup table.items td:first-child { padding-left: var(--space-4); }
-table.items.grouped tr.grp th { padding: 10px var(--space-4); border-top: 0; text-transform: none; letter-spacing: 0; font-size: var(--size-small); color: var(--heading); background: var(--grey-50); }
+table.items.grouped tr.grp th { padding: var(--d-grp-y) var(--space-4); border-top: 0; text-transform: none; letter-spacing: 0; font-size: var(--size-small); color: var(--heading); background: var(--grey-50); }
 table.items thead tr.grp, table.items thead tr.colh { cursor: default; }
 table.items td.c-eye, table.items th.c-eye { padding-left: 0; padding-right: var(--space-2); text-align: center; vertical-align: middle; }
 table.items .weye { width: 28px; height: 28px; }
@@ -793,11 +798,11 @@ table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--stat
 .lb-hint { font-size: var(--size-small); }
 .boardbox { margin-top: 0; overflow: auto; max-height: calc(100vh - var(--topbar) - 16px); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); overscroll-behavior: contain; }
 .lane { width: max-content; min-width: 100%; }
-.lane + .lane { margin-top: var(--space-3); }
+.lane + .lane { margin-top: var(--d-group-gap); }
 .lane-h { position: sticky; top: 0; z-index: 4; height: 40px; display: flex; align-items: center; background: var(--surface); border-bottom: 1px solid var(--grey-200); font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); }
 .lh-in { position: sticky; left: 0; display: inline-flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-1); }
 .lc { color: var(--text-muted); font-weight: var(--weight-light); }
-.cols { display: flex; align-items: stretch; gap: var(--space-3); }
+.cols { display: flex; align-items: stretch; gap: var(--d-group-gap); }
 .col { flex: 0 0 272px; width: 272px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); position: relative; }
 .col.shut { flex-basis: 44px; width: 44px; }
 .col.over { outline: 2px solid var(--brand-blue); outline-offset: -1px; background: var(--brand-blue-tint); }
@@ -827,10 +832,10 @@ body.col-resizing { cursor: col-resize; user-select: none; -webkit-user-select: 
 .col.shut .col-b { flex-direction: column; justify-content: flex-start; padding: 10px 0; gap: 10px; height: 160px; }
 .col.shut .col-b .cl { writing-mode: vertical-rl; }
 .col.shut .col-b .cn { margin-left: 0; order: -1; }
-.col-body { display: flex; flex-direction: column; gap: var(--space-2); padding: 10px var(--space-2) 14px; min-height: 64px; }
+.col-body { display: flex; flex-direction: column; gap: var(--d-card-gap); padding: var(--d-colbody-top) var(--space-2) var(--d-colbody-bottom); min-height: 64px; }
 .col-body .none { margin: var(--space-2) var(--space-1); font-size: var(--size-small); }
 .bwrap { position: relative; }
-.bcard { position: relative; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius); box-shadow: var(--shadow); padding: 7px 10px; }
+.bcard { position: relative; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius); box-shadow: var(--shadow); padding: var(--d-bcard-y) 10px; }
 .board[data-editing="1"] .bcard { cursor: grab; user-select: none; -webkit-user-select: none; }
 .bcard:hover { border-color: var(--grey-300); }
 .bcard.sel { border-color: var(--brand-blue); }
