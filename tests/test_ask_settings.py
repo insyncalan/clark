@@ -92,7 +92,7 @@ class Settings(unittest.TestCase):
     ready = True
 
     def setUp(self):
-        self.s = Running(data_for=DATA.get, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(self.s.close)
         self.db = make_db(self.folder(), ready=self.ready, cleanup=self.addCleanup)
         self.s.httpd.app_settings = service(self.db)

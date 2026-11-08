@@ -1,6 +1,6 @@
 """Row 986: Assign to adds a new person from the Owner picker, on the real page (1400 and 900 px, headless Chrome, real key and mouse events).
 
-Run: python3 dev/run_tests.py test_assign_new_person_live
+Run: ~/bin/clark-chrome-slot env CLARK_CHROME=/usr/local/bin/clark-chrome python3 dev/run_tests.py test_assign_new_person_live
 A name with no match offers "Add {typed} as a new person" and "Keep the name only"; the form has Name and an optional Email; Enter saves
 and assigns in ONE step with ONE Undo (the person goes too); the same name a second time says "Use this one"; the clear entry reads
 "TBC (no one yet)" and stores TBC; a name with markup is text, never elements. Browser parts fail, never skip, without Chrome.
