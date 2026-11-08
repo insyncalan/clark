@@ -314,6 +314,40 @@ class LocalNeverLandsInTheClientFolder(Base):
         self.check(sub / "mine.html", to_client=True)
 
 
+    def test_local_through_a_link_to_the_client_folder_is_refused(self):
+        """#1047: a link (as the folder, as a parent of it, or as the saved client folder) that leads into the client folder."""
+        links = self.rig.root / "links"
+        links.mkdir()
+        (links / "to-client").symlink_to(self.rig.client, target_is_directory=True)
+        (self.rig.client / "Drafts").mkdir()
+        (links / "to-drafts-parent").symlink_to(self.rig.client, target_is_directory=True)
+        self.check(links / "to-client" / "mine.html", to_client=False)
+        self.check(links / "to-client" / "mine.html")
+        self.check(links / "to-drafts-parent" / "Drafts" / "mine.html")
+        # the client folder saved by its link, the Local file in the real folder
+        self.rig.set_folder(str(links / "to-client"))
+        self.check(self.rig.client / "mine.html", to_client=False)
+        self.check(self.rig.client / "Drafts" / "mine.html")
+
+    def test_a_link_to_somewhere_else_is_not_the_client_folder(self):
+        links = self.rig.root / "links"
+        links.mkdir()
+        (links / "to-local").symlink_to(self.rig.local, target_is_directory=True)
+        self.rig.save_to = links / "to-local" / "mine.html"
+        status, got = self.rig.publish(to_client=False)
+        self.assertEqual((status, got["ok"]), (200, True), got)
+
+    def test_local_through_a_link_into_clarks_own_data_is_refused(self):
+        links = self.rig.root / "links"
+        links.mkdir()
+        (links / "to-data").symlink_to(self.rig.data_dir, target_is_directory=True)
+        self.rig.save_to = links / "to-data" / "mine.html"
+        before = self.rig.everything_written()
+        status, got = self.rig.publish(to_client=False)
+        self.assertNotEqual(status, 200, got)
+        self.assertEqual((self.rig.everything_written(), self.rig.rows()), (before, []))
+
+
 class LocalNeverOverwritesClarksOwnFiles(Base):
     """#43 review, MEDIUM 2: the Save dialog can't choose the database, the data folder, the backups, or a non-.html name."""
 
