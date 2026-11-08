@@ -11,15 +11,24 @@ named clark-<version>-mac.zip that is not empty, is marked Pre-release, has "(Be
 From 0.5.0 on it must also carry the zip's own SHA-256 in its text (the 64-character digest GitHub reports for the zip asset;
 when GitHub gives no digest for the asset, as on an older release, any 64-character SHA-256 in the text passes and the check says
 so), and its zip must have been attached before the release was published (the order in dev/RELEASING.md: build, attach, launch, then publish; 0.3.0 and 0.4.0 got their zips afterwards).
+Once RELEASE_PUBLIC_KEY in src/clark/updates.py is a real key (not the placeholder), the release must also carry
+clark-<version>-mac.zip.sig (dev/RELEASING.md step 7a), and that file must verify over the zip's bytes with that key
+(updates.check_signature); a missing, wrong-length or non-verifying .sig fails. While the key is still the placeholder the app
+asks for no signature, so the check does not either (it says so on standard error).
 A tag named on the command line that matches no published release (a typo, or a release that is still a draft) fails too.
 Exit 0 when all pass, 1 when any fails, 2 when the releases can't be read (gh missing, not signed in, no answer within
 60 seconds, or an unreadable answer).
 The pure check is `problems(releases, tags, notes)`, tested with made-up data.
 """
 import json
+import os
 import re
 import subprocess
 import sys
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path[:0] = [os.path.join(_REPO_ROOT, "src"), os.path.join(_REPO_ROOT, "vendor")]
+from clark import updates  # noqa: E402  (the release key and the verifier the app itself uses)
 
 REPO = "insyncalan/clark"
 REPO_FORM = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
@@ -53,7 +62,37 @@ def _zip_digest(r, want):
     return None
 
 
-def _rules(r, tag, want, notes=None):
+def _asset(r, name):
+    for a in r.get("assets", []):
+        if a.get("name") == name:
+            return a
+    return None
+
+
+def _signature_lines(r, tag, want, notes, fetch, key):
+    """The lines for a release whose .sig is missing or does not verify against the release key (none while the key is the placeholder)."""
+    if not updates.signature_required(key):
+        return []
+    sig_name = want + updates.SIGNATURE_SUFFIX
+    sig, zipped = _asset(r, sig_name), _asset(r, want)
+    if sig is None:
+        return [f"{tag}: the release has no {sig_name}, so the app would refuse this update as unsigned. The owner signs the zip "
+                f"(`python3 dev/tools/sign_release.py sign {want}`, dev/RELEASING.md step 7a), attaches the .sig beside the zip, "
+                f"then run this check again."]
+    if fetch is None:
+        return []
+    sig_bytes, zip_bytes = fetch(sig), fetch(zipped)
+    if sig_bytes is None or zip_bytes is None:
+        return [f"{tag}: {sig_name} or {want} could not be downloaded to check the signature. Try again in a minute."]
+    try:
+        updates.check_signature(zip_bytes, sig_bytes, key)
+    except updates.UpdateError as e:
+        return [f"{tag}: {sig_name} does not verify over {want} with the release key ({e.key}: {e}). Sign the zip again with "
+                f"the release key (dev/RELEASING.md step 7a) and replace the .sig on the release."]
+    return []
+
+
+def _rules(r, tag, want, notes=None, fetch=None, key=None):
     """The lines for a release that has its zip but breaks a release rule (Beta, pre-release, digest, publish order).
     A line added to `notes` (when given) is not a failure: it says a check was done in its looser form."""
     out = []
@@ -68,6 +107,7 @@ def _rules(r, tag, want, notes=None):
                    f"from the notes file.")
     if _ver(tag) < FIRST_ORDERED:
         return out
+    out.extend(_signature_lines(r, tag, want, notes, fetch, key))
     body = r.get("body") or ""
     own = _zip_digest(r, want)
     if not DIGEST.search(body):
@@ -89,9 +129,10 @@ def _rules(r, tag, want, notes=None):
     return out
 
 
-def problems(releases, tags=None, notes=None):
+def problems(releases, tags=None, notes=None, fetch=None, key=None):
     """One plain line for each published release (or the named tags) that lacks its clark-X.Y.Z-mac.zip asset, and one for each
-    named tag that matches no published release."""
+    named tag that matches no published release. `fetch(asset)` returns an asset's bytes (None when it can't be read); `key` is a
+    public key for tests (None: the one built into the app). Without `fetch` a signature is only checked to be attached."""
     out = []
     published = {r.get("tag_name", "") for r in releases if not r.get("draft")}
     for tag in sorted(tags or ()):
@@ -105,7 +146,7 @@ def problems(releases, tags=None, notes=None):
         want = f"clark-{tag.lstrip('v')}-mac.zip"
         have = {a.get("name"): a.get("size", 0) for a in r.get("assets", [])}
         if have.get(want):
-            out.extend(_rules(r, tag, want, notes))
+            out.extend(_rules(r, tag, want, notes, fetch, key))
             continue
         if want in have:
             why = f"{want} is on the release but it is empty."
@@ -115,6 +156,18 @@ def problems(releases, tags=None, notes=None):
             why = f"the release has no download; {want} is missing."
         out.append(f"{tag}: {why} {_fix(tag)}")
     return out
+
+
+def _download(repo):
+    """A function that returns an asset's bytes through `gh api` (None when gh can't give them)."""
+    def fetch(asset):
+        try:
+            run = subprocess.run(["gh", "api", "-H", "Accept: application/octet-stream",
+                                  f"repos/{repo}/releases/assets/{asset.get('id')}"], capture_output=True, timeout=GH_TIMEOUT * 5)
+        except (subprocess.TimeoutExpired, OSError):
+            return None
+        return run.stdout if run.returncode == 0 else None
+    return fetch
 
 
 def _args(argv):
@@ -166,7 +219,9 @@ def main(argv=None):
         if len(got) < 100:
             break
     notes = []
-    found = problems(releases, tags, notes)
+    if not updates.signature_required():
+        print("RELEASE_PUBLIC_KEY is still the placeholder, so no release's .sig was asked for or checked.", file=sys.stderr)
+    found = problems(releases, tags, notes, _download(repo))
     for line in found:
         print(line)
     for line in notes:
