@@ -1,7 +1,7 @@
 // The Help peek (#645 steps 3 to 5): a right-hand panel over the page with the context text for the screen you are on (text only) and a
 // foot link to the full Help. The frame, the slide in and the slide out are the item peek's (.peek, peek/exit.js). Edit parts only:
 // App.jsx mounts it from `tools`, so a published file has none. Focus goes in on open and back on close (helpStore.js gives it back).
-import { useLayoutEffect, useEffect, useRef } from "preact/hooks";
+import { useLayoutEffect, useEffect, useRef, useCallback } from "preact/hooks";
 import { contextOpen, contextScreen, contextOf, closeContext, openFull } from "./helpStore.js";
 import { peek } from "../stores/report.js";
 import { Icon } from "../components/Icon.jsx";
@@ -22,10 +22,15 @@ export function HelpPeek() {
     const x = box.current.querySelector("[data-hpk-close]");
     if (x) x.focus();
   }, [itemOpen]);                                         // eslint-disable-line react-hooks/exhaustive-deps
-  if (!on) slideOut(box.current);                         // closed: a copy of the panel slides out
+  // Closed: a copy of the panel slides out, made in a layout effect from the node kept as it mounted.
+  const last = useRef(null);
+  const keep = useCallback((n) => { box.current = n; if (n) last.current = n; }, []);
+  useLayoutEffect(() => {
+    if (!on && last.current) { slideOut(last.current, true); last.current = null; }
+  }, [on]);
   if (!on) return null;
   return (
-    <aside class="peek hpk" id="help-peek" ref={box} aria-label={`Help for ${c.title}`}>
+    <aside class="peek hpk" id="help-peek" ref={keep} aria-label={`Help for ${c.title}`}>
       <div class="hpk-head">
         <h2 class="hpk-title">{c.title}</h2>
         <button type="button" class="pkp-btn" data-hpk-close title="Close" aria-label="Close" onClick={() => closeContext()}><Icon name="x" /></button>
