@@ -285,6 +285,22 @@ class Screen(unittest.TestCase):
                 self.assertTrue(secret_screen.looks_like_secret(b64("so we know " + urllib.parse.quote(text, safe="") + " in full")))
         self.assertTrue(secret_screen.looks_like_secret(b64('password: "Sunshine"').rstrip("=")))
 
+    def test_base64_of_mostly_text_with_a_few_bad_bytes_is_still_read_for_key_words_but_mostly_bad_bytes_are_not_text_502(self):
+        """#502: in the lenient read of base64 that is not valid UTF-8, a bad byte (the replacement character) is not printable. A few
+        bad bytes around a key word and its value are still read and refused; data that is mostly bad bytes (random bytes) is not text and is not read."""
+        import base64
+        core = b'password: "' + PW.encode() + b'"\n'
+        def coded(raw):
+            return "Notes.\n" + base64.b64encode(raw).decode() + "\n(more notes)"
+        few = b"\xff" + core + b"\xfe\xff" + b"ordinary words after it " * 2
+        self.assertIsNone(secret_screen._plain(b"\xff" * 5 + b"abc"))
+        self.assertIsNotNone(secret_screen._plain(few))
+        self.assertTrue(secret_screen.looks_like_secret(coded(few)))
+        self.assertTrue(secret_screen.looks_like_secret(coded(few).replace("Notes.\n", "").replace("\n(more notes)", "")))
+        many = core + b"\xff" * 12
+        self.assertIsNone(secret_screen._plain(many))
+        self.assertFalse(secret_screen.looks_like_secret(coded(many)))
+
     def test_a_key_word_then_a_line_break_with_no_space_then_a_quoted_word_is_accepted_plain_and_in_base64(self):
         """#582, a known gap accepted in writing: `password`, a line break with no space or tab before it, then a quoted word passes as plain
         text (it did on main before #340), so its base64 passes too. With a space or tab before the break it is refused, plain and in base64."""
