@@ -1475,7 +1475,26 @@ class _Pipe:
     def __init__(self, w, r):
         self.w, self.r, self.n, self.buf = w, r, 0, b""
 
+    NAVIGATING = -32000           # CDP: "Inspected target navigated or closed", answered to an evaluate the page's own reload cut off
+    NAVIGATION_WAIT = 30.0        # how long a poll waits out a page that is loading again (a slow runner loads twice, #1011)
+
     def call(self, method, params=None, session=None):
+        """One CDP call. A Runtime.evaluate that meets a page navigating (error -32000) is asked again until NAVIGATION_WAIT passes:
+        the page is between two loads, not wrong. Any other error, and any answer, comes straight back (an assertion in the page
+        is a result, not an error, so it is never retried away)."""
+        if method != "Runtime.evaluate":
+            return self._call_once(method, params, session)
+        end = time.monotonic() + self.NAVIGATION_WAIT
+        while True:
+            try:
+                return self._call_once(method, params, session)
+            except RuntimeError as e:
+                err = e.args[0] if e.args else None
+                if not (isinstance(err, dict) and err.get("code") == self.NAVIGATING) or time.monotonic() >= end:
+                    raise
+                time.sleep(0.05)
+
+    def _call_once(self, method, params=None, session=None):
         self.n += 1
         msg = {"id": self.n, "method": method, "params": params or {}}
         if session:

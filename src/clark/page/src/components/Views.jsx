@@ -109,8 +109,7 @@ export function Milestones({ tools }) {
 
 // The Settings head: the title, a line of help and one chip for each card that is on the page. A chip scrolls to its card and moves
 // focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
-// The links (item 440, S2; issue 697) are a list down the left of the cards above 900 px and the old row of chips under the head at 900 px and
-// narrower. Either way it stays under the top bar as you scroll, and the link of the card you are reading is marked (aria-current).
+// The links (item 440, S2; issue 697) are a list down the left of the cards at 900 px and wider and the old row of chips under the head below 900 px. Either way it stays under the top bar as you scroll, and the link of the card you are reading is marked (aria-current).
 const CARDS = [["Profile", "Profile", "profile-h"], ["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["GanttSetting", "Gantt", "gantt-setting-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
   ["Projects", "Projects", "projects-h"], ["Data", "Data", "data-card-h"], ["Safety", "Backups", "safety-h"], ["Update", "", "update-h"], ["Brands", "", "brands-h"],
   ["People", "People", "people-h"], ["AskSettings", "Asking", "ask-settings-h"]];       // in the order the cards are drawn; a card that is not on the page has no chip
@@ -130,7 +129,7 @@ function goToCard(headId) {
 function cardHere(cards, picked) {
   const bar = document.querySelector(".set-bar");
   if (!bar || !cards.length) return "";
-  const top = document.querySelector(".top"), row = window.matchMedia("(max-width: 900px)").matches;      // a row of chips has the cards under it; a list at the left has them beside it
+  const top = document.querySelector(".top"), row = window.matchMedia("(max-width: 899px)").matches;      // a row of chips has the cards under it; a list at the left has them beside it
   const edge = (row ? bar : top || bar).getBoundingClientRect().bottom + 24, foot = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
   const chosen = picked && cardOf(picked);
   if (foot && chosen && chosen.getBoundingClientRect().top < window.innerHeight) return picked;
