@@ -3,12 +3,9 @@
 An update file is checked against the list of checksums INSIDE it (clark-release.json). That proves the file is whole, not that
 it is clark's: whoever builds a download can write a list that matches whatever they put in it. This test builds such a
 download, a store.py that differs from the published one and a list rewritten to match, and says what should happen: it is
-refused, because nothing ties it to the people who make clark. The refusal must be the one named "signature", not any
-error: an unrelated check that starts rejecting this file must not make the expected failure look cured.
-It fails today, so it is marked as an expected failure. When the update checks a signature or a pinned source, add the
-"signature" sentence to MESSAGES, remove the marker from the refusal test, and delete or turn round the first test too
-(it will then fail, because the file is no longer read). If #282 point 1 is instead closed by writing the gap into the
-release notes, change both tests to say so.
+refused, because nothing ties it to the people who make clark. The refusal must be the one for the signature ("badsig" when another key signed it, "unsigned" when nothing did), not any
+error: an unrelated check that starts rejecting this file must not make the failure look cured. The control test beside them
+shows the same forged file IS read when the release key signed it, so the refusals come from the signature alone.
 Builds fake downloads in temporary folders; reads only, no network.
 Run: python3 dev/run_tests.py test_update_trust
 """
@@ -42,14 +39,23 @@ class ProvenanceTest(unittest.TestCase):
             updates.read_release(make_zip(self.tmp, tweak=change), SYSTEM, "0.3.0", 2)
         self.assertEqual("damaged", caught.exception.key)
 
-    @unittest.expectedFailure       # no signature or pinned source is checked yet (ticket #282 point 1)
-    def test_a_changed_file_with_a_matching_list_is_refused(self):
+    def test_a_changed_file_with_a_matching_list_signed_by_another_key_is_refused(self):
+        """The forged download is signed, but not by the release key: refused as a bad signature (the old marked test signed
+        it with the trusted key, so it was a genuine release and failed as expected for the wrong reason)."""
+        files = listed_files()
+        files["src/clark/store.py"] = b"# a different file from the one clark published\n"
+        path = make_zip(self.tmp, files=files, sign=False)
+        _signing.sign_file(path, _signing.OTHER_SEED)
+        with self.assertRaises(updates.UpdateError) as caught:
+            updates.read_release(path, SYSTEM, "0.3.0", 2)
+        self.assertEqual("badsig", caught.exception.key)
+
+    def test_a_changed_file_with_a_matching_list_and_no_signature_is_refused(self):
         files = listed_files()
         files["src/clark/store.py"] = b"# a different file from the one clark published\n"
         with self.assertRaises(updates.UpdateError) as caught:
-            updates.read_release(make_zip(self.tmp, files=files), SYSTEM, "0.3.0", 2)
-        self.assertEqual("signature", caught.exception.key)
-
+            updates.read_release(make_zip(self.tmp, files=files, sign=False), SYSTEM, "0.3.0", 2)
+        self.assertEqual("unsigned", caught.exception.key)
 
 if __name__ == "__main__":
     unittest.main()

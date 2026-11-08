@@ -43,7 +43,7 @@ import unicodedata
 from html.parser import HTMLParser
 from pathlib import Path
 
-from clark import doclinks, milestones, page, platform, section_bodies
+from clark import doclinks, milestones, page, platform, sanitise, section_bodies
 from clark.store import (COMMITMENTS, GANTT_COLUMNS, GANTT_HIDEABLE, GANTT_DEFAULT_HIDDEN, GANTT_DEFAULT_TAB, GANTT_ID, GANTT_TAB_LIMIT, GANTT_TEXT_LIMITS, Invalid as StoreInvalid,
                          NumberTaken, check_section_body, excluded_label_names, gantt_list, open_store)
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
@@ -93,7 +93,8 @@ PUBLISH_FIELDS = {
     "documents": ("title", "kind", "url", "date"),        # #74: never its id, place or archive flag
     "gantt_lines": ("id", "name") + tuple(c for c in GANTT_COLUMNS if c != "show"),   # row 926: every column a client may ever see; the line's eye (`show`) only decides, and gantt_hidden_columns takes columns out of the copy (gantt_for_client)
 }
-RICH = {"projects": ("current_state",), "use_cases": ("standing",)}     # HTML the editor wrote: through clean_html
+RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update",), "milestones": ("description",)}     # HTML the editor wrote: through clean_html
+LEGACY_RICH = (("actions", "latest_update"), ("milestones", "description"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain)
 # Read from the database as well, only to decide (never copied): the gates, and what a milestone's state is worked out from.
 GATES = {"milestones": ("client_visible", "archived", "state", "state_set"), "workstreams": ("archived",),
          "actions": ("client_visible", "archived", "client_action"), "raid": ("client_visible", "archived", "client_action"),   # row 811: client_action only decides, it is never copied
@@ -248,6 +249,23 @@ def reason_text(value):
         return None
     text = str(value).replace("\r\n", "\n")
     return "".join(c for c in text if c == "\n" or unicodedata.category(c) not in _UNSEEN)[:REASON_LIMIT]
+
+
+def reason_html(value):
+    """Row 1005: a project's health reason as the file carries it: the editor's HTML cleaned (publish.clean_html after the server's
+    cleaner), or an old plain reason made into escaped paragraphs; whatever is stored, hidden characters out and the words cut at
+    REASON_LIMIT. None stays None."""
+    if value is None:
+        return None
+    text = "".join(c for c in str(value) if c == "\n" or unicodedata.category(c) not in _UNSEEN)
+    try:
+        html = sanitise.rich_or_plain(text)
+    except sanitise.SanitiseError:
+        return ""
+    words = sanitise.plain_text(html)
+    if len(words) > REASON_LIMIT:
+        html = sanitise.rich_or_plain(words[:REASON_LIMIT])
+    return clean_html(html)
 
 
 def _pick(row, fields):
@@ -519,7 +537,7 @@ def select(inputs):
         for r in rows[k]:
             c = _pick(r, PUBLISH_FIELDS[k])
             for f in RICH.get(k, ()):
-                c[f] = clean_html(c[f])
+                c[f] = clean_html(sanitise.legacy_to_html(c[f]) if (k, f) in LEGACY_RICH and c[f] and not sanitise.HTML_START.match(c[f]) else c[f])
             if k == "use_cases":                              # plain text the editor wrote: hidden characters out, cut at a limit
                 for f in ("ref", "title", "headline"):
                     c[f] = reason_text(c[f])
@@ -542,7 +560,7 @@ def select(inputs):
                     if x.get("from_item") in linkable and x.get("to_item") in linkable]
     out["labels"] = {i: list(item_labels[i]) for i in sorted(linkable) if item_labels.get(i)}
     proj = _pick(project, PUBLISH_FIELDS["projects"])
-    proj["health_reason"] = reason_text(proj["health_reason"])
+    proj["health_reason"] = reason_html(proj["health_reason"])
     proj["current_state"] = "" if "current" in hidden_types else clean_html(proj["current_state"])
     out["project"] = proj
     out["documents"] = documents(inputs.get("documents"), code, hidden_ids, hidden_types) if any(
@@ -555,7 +573,10 @@ def select(inputs):
         proj["gantt_default_rows"] = gantt["default_rows"]
     shown = []
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
-    ctx = section_bodies.Context({k: out[k] for k in KINDS}, as_at)          # #96: only what is already kept, as the file carries it
+    for_templates = {k: out[k] for k in KINDS}
+    for_templates["actions"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
+                                for r in out["actions"]]                      # row 1005: a template (pure) is handed the words of the latest update, as the file's HTML would be markup to it
+    ctx = section_bodies.Context(for_templates, as_at)          # #96: only what is already kept, as the file carries it
     extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
     dropped = 0
     listed = flagged_needs(rows)         # row 811b: the flagged open items, as rows of the 'Needs from you' list
@@ -1038,7 +1059,9 @@ IMPORT_FOUND = "a stylesheet that imports another"
 ADDRESS_FOUND = "a stylesheet address that isn't embedded data"
 
 
-_CSS_ESCAPE = re.compile(r"\\(?:([0-9A-Fa-f]{1,6})(?:\r\n|[ \t\n\r\f])?|(\r\n|[\n\r\f])|(.))", re.S)
+# A run of escapes that stay as typed (a backslash, a quote: see _NOT_DECODED) is ONE match ("run"): it reads exactly as the escapes
+# one at a time would (each is a backslash and one character, left to right) and costs one step, not one per escape (#871).
+_CSS_ESCAPE = re.compile(r"(?P<run>(?:\\[\\\"'])+)|\\(?:(?P<hex>[0-9A-Fa-f]{1,6})(?:\r\n|[ \t\n\r\f])?|(?P<eol>\r\n|[\n\r\f])|(?P<one>.))", re.S)
 _CSS_PIECE = re.compile(r"""(?s:\"[^"\\\n\r\f]*(?:\\.[^"\\\n\r\f]*)*"?|'[^'\\\n\r\f]*(?:\\.[^'\\\n\r\f]*)*'?)|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|[\w-]+|(?:(?s:\\.|\\)|[^"'()\w\\-])+""")
 _IMAGE_FUNCTION = re.compile(r"(?:-[a-z]+-)?(?:image-set|src|image|cross-fade)$", re.I)
 _URL_OPEN = re.compile(r"url\(", re.I)
@@ -1048,16 +1071,19 @@ _NOT_DECODED = frozenset("\"'\\\n\r\f")      # an escape for one of these stays 
 
 
 def _css_escape(m):
-    if m.group(1):
-        n = int(m.group(1), 16)
+    if m.group("run"):
+        return m.group(0)             # every escape in the run stays as typed
+    if m.group("hex"):
+        n = int(m.group("hex"), 16)
         c = chr(n) if 0 < n <= 0x10FFFF and not 0xD800 <= n <= 0xDFFF else "\ufffd"
         return m.group(0) if c in _NOT_DECODED else c
-    if m.group(2):
+    if m.group("eol"):
         return "\\\n"                 # a backslash and a line end stays one (as LF): in a string it joins the lines, outside one it is a break between tokens
-    return m.group(0) if m.group(3) in _NOT_DECODED else m.group(3)
+    return m.group(0) if m.group("one") in _NOT_DECODED else m.group("one")
 
 
 _COMMENT_STOP = re.compile(r"/\*|[\"'\\(]")
+_BACKSLASH_RUN = re.compile(r"(?:\\.)+", re.S)       # a run of backslash + one character, read as one step (#871): the same as one at a time
 _DQ_STRING = re.compile(r'"(?:[^"\\\n\r\f]|\\\r\n|\\.)*"?', re.S)
 _SQ_STRING = re.compile(r"'(?:[^'\\\n\r\f]|\\\r\n|\\.)*'?", re.S)
 _UNQUOTED_URL = re.compile(r"[\t\n\f\r ]*(?![\"'\t\n\f\r ])(?:[^)\\]|\\.)*\)?", re.S)
@@ -1089,7 +1115,8 @@ def _without_comments(css, gap=" "):
         if c in "\"'":
             piece = (_DQ_STRING if c == '"' else _SQ_STRING).match(css, m.start()).group(0)
         elif c == "\\":
-            piece = css[m.start():m.start() + 2]
+            run = _BACKSLASH_RUN.match(css, m.start())
+            piece = run.group(0) if run else css[m.start():m.start() + 2]      # no run: a lone backslash at the very end
         else:
             piece = "("
             ident = _IDENT_AT_END.search(tail[-24:]) if tail[-1:] in _URL_NAME_ENDS else None      # "url" is at most 24 characters even spelled with escapes; most names end otherwise
@@ -1423,9 +1450,9 @@ def read_earlier(path):
 
 
 def still_ours(path, digest):
-    """Whether the file at `path` still holds exactly the bytes whose SHA-256 is `digest`."""
+    """Whether the ordinary file at `path` still holds exactly the bytes whose SHA-256 is `digest`. A link there is not ours (#597)."""
     try:
-        return hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
+        return hashlib.sha256(read_plain(path)).hexdigest() == digest
     except OSError:
         return False
 

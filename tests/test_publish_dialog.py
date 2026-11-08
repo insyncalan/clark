@@ -10,12 +10,13 @@ The non-browser checks (the published page names no publish route and holds no d
 import re
 import time
 import unittest
+from _editor_checks import for_project
 from pathlib import Path
 
 from _paths import SRC
 from _new_page import reload_to_new_page_cdp
 from test_page import navigate
-from test_publish_route import Rig, WANTED
+from test_publish_route import Rig, WANTED, USER
 from test_server import chrome, wait
 import _testpage as testpage
 
@@ -87,7 +88,7 @@ class Base(unittest.TestCase):
         self.rig = Rig(self, saved=self.saved, page_html=testpage.html)
 
     def page(self, cdp, hash_="#dashboard&p=PUB"):
-        sid = navigate(cdp, self.rig.httpd.server_port, hash_, section_style=None)      # the standard style is what these tests see (row 667)
+        sid = navigate(cdp, self.rig.httpd.server_port, for_project(hash_), section_style=None)      # the standard style is what these tests see (row 667)
         p = Pg(self, cdp, sid)
         p.until("!!document.querySelector('#profile-btn')", "the profile circle is in the top bar")
         return p
@@ -569,6 +570,31 @@ class Settings(Base):
             p.until("!!document.querySelector('#profile-btn')", "back")
             p.open_publish()
             self.assertTrue(p.js("document.querySelector('#pub-client').disabled"))
+
+    def test_C_settings_local_folder(self):
+        """Row 852: Choose folder under Local folder saves once; the toast says 'Local folder saved' with Undo; Clear puts none back."""
+        with self.rig.store.step("dashboard", USER) as st:      # the plant carries a made-up Local folder; this starts with none
+            st.update("projects", "PUB", {"publish_local": None})
+        mine = self.rig.root / "My reports"
+        mine.mkdir()
+        self.rig.pick = mine
+        with chrome() as cdp:
+            p = self.page(cdp, "#settings&p=PUB")
+            p.until("!!document.querySelector('[data-choose-local]')", "the Local folder's button")
+            self.assertEqual(p.js("document.querySelector('#local-folder-now').innerText.trim()"), "No local folder yet.")
+            p.js("document.querySelector('[data-choose-local]').click()")
+            p.until("document.querySelector('#local-folder-now').innerText.trim() === 'My reports'", "the folder is shown by its name")
+            self.assertEqual(self.rig.store.read("projects", ref="PUB")["publish_local"], str(mine))
+            self.assertEqual(p.js("document.querySelector('.toast .toast-text').innerText"), "Local folder saved")
+            self.assertIsNone(self.rig.store.read("projects", ref="PUB")["publish_client"], "the client folder is untouched")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            p.until("document.querySelector('#local-folder-now').innerText.trim() === 'No local folder yet.'", "Undo puts it back")
+            self.assertIsNone(self.rig.store.read("projects", ref="PUB")["publish_local"])
+            p.js("document.querySelector('[data-choose-local]').click()")
+            p.until("!!document.querySelector('[data-clear-local]')", "Clear")
+            p.js("document.querySelector('[data-clear-local]').click()")
+            p.until("document.querySelector('#local-folder-now').innerText.trim() === 'No local folder yet.'", "cleared")
+            self.assertIsNone(self.rig.store.read("projects", ref="PUB")["publish_local"])
 
     def test_C_settings_fits_at_900(self):
         with chrome() as cdp:

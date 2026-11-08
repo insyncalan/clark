@@ -8,6 +8,7 @@ headless Chrome at 1400 and 900 px, light and dark. The browser parts are requir
 """
 import json
 import re
+import time
 import unittest
 
 from _paths import ROOT
@@ -17,6 +18,7 @@ from test_dark_contrast import dark_blocks, ratio
 from test_peek import key
 from test_peek_activity import light_tokens
 import test_undo_key as tuk
+import _testpage as testpage
 from test_server import chrome, wait
 from test_work_filters import where, dblclick
 
@@ -181,6 +183,33 @@ class Tab(unittest.TestCase):
             self.assertEqual(self.steps(), before + 1)
             self.assertTrue(self.sent[-1][1].get("confirm"), "the run said it was confirmed")
             self.assertEqual(sorted(self.sent[-1][1]["steps"]), sorted(done))
+
+    def test_clark_asking_for_the_second_confirm_counts_as_a_problem_when_another_project_is_chosen(self):      # #944 follow-up
+        done = self.alter(26)
+        real = self.s.httpd.undo
+        asked = []
+
+        def asks(req):
+            if req.get("confirm"):
+                asked.append(1)
+                time.sleep(1)                                        # still in the queue when the other project is chosen
+                return 409, {"ok": False, "code": "confirm", "message": "Are you sure?"}
+            return real(req)
+        self.s.httpd.undo = asks
+        self.s.httpd.page_html = lambda: testpage.html()       # the test page, built from this source, has clarkPage
+        with chrome() as cdp:
+            sid = self.open_activity(cdp, 1400)
+            self.range(cdp, sid, done)
+            self.until(cdp, sid, "document.querySelectorAll('[data-pa-tick]:checked').length === 26", "all 26 chosen")
+            cdp.js("document.querySelector('[data-pa-undo-n]').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('[data-pa-go]')", "the preview")
+            cdp.js("document.querySelector('[data-pa-go]').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('[data-pa-yes]')", "asks again")
+            cdp.js("window.__before = 1; document.querySelector('[data-pa-yes]').click(); clarkPage.setProject('MOSS')", sid)
+            self.assertTrue(wait(lambda: asked, 10), "the second confirm reached clark")
+            time.sleep(3)              # the proof is that no page load follows the answer: a bounded settle, after the real condition
+            self.assertEqual(cdp.js("window.__before", sid), 1, "the same page: clark asking first is no save")
+            self.assertEqual(cdp.js("location.search + '|' + document.getElementById('project-name').textContent", sid), "?project=TUL|Tulip Records Migration")
 
     def test_at_exactly_25_there_is_no_second_question(self):
         done = self.alter(25)

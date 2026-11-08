@@ -12,13 +12,13 @@ import test_peek as TP
 from test_server import chrome, wait
 from test_work_filters import click
 
-KEYS = {"ArrowUp": (38, ""), "ArrowDown": (40, ""), "ArrowLeft": (37, ""), "ArrowRight": (39, ""), "Escape": (27, "")}
+KEYS = {"ArrowUp": (38, ""), "ArrowDown": (40, ""), "ArrowLeft": (37, ""), "ArrowRight": (39, ""), "Escape": (27, ""), "/": (191, "/")}
 
 
 def key(cdp, sid, name):
     vk, text = KEYS[name]
-    common = {"key": name, "code": name, "windowsVirtualKeyCode": vk}
-    cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", **common}, sid)
+    common = {"key": name, "code": {"/": "Slash"}.get(name, name), "windowsVirtualKeyCode": vk}
+    cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", **common, **({"text": text} if text else {})}, sid)
     cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
 
 
@@ -162,7 +162,9 @@ class Arrows(unittest.TestCase):
                     cdp.js("new Promise(r => setTimeout(r, 100))", sid)
                     self.assertEqual(self.shown(cdp, sid), target, "Down on the edge does not step the item")
                 # a box: the words box keeps its arrows (the caret moves, the item does not change)
-                cdp.js("document.querySelector('[data-sneak-open]').click()", sid)
+                cdp.js("document.activeElement.blur()", sid)      # row 1015: no sparkle; two slashes open the words box
+                key(cdp, sid, "/")
+                key(cdp, sid, "/")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sn-in')", sid)))
                 cdp.js("(() => { const i = document.querySelector('.sn-in'); i.value = 'abc'; i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); i.setSelectionRange(3, 3); })()", sid)
                 key(cdp, sid, "ArrowLeft")
@@ -183,7 +185,9 @@ class Arrows(unittest.TestCase):
                     self.edit_mode(cdp, sid)
                     ids = self.ids_on_page(cdp, sid)
                     self.open_by_double_click(cdp, sid, ids, 1)
-                    cdp.js("document.querySelector('[data-sneak-open]').click()", sid)
+                    cdp.js("document.activeElement.blur()", sid)      # row 1015: no sparkle; two slashes open the words box
+                    key(cdp, sid, "/")
+                    key(cdp, sid, "/")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.wordsbox')", sid)))
                     r = cdp.js("(() => { const c = getComputedStyle(document.querySelector('.wordsbox')); return [c.position, c.boxShadow]; })()", sid)
                     self.assertEqual(r[0], "sticky", r)
@@ -198,7 +202,9 @@ class Arrows(unittest.TestCase):
                     self.edit_mode(cdp, sid)
                     ids = self.ids_on_page(cdp, sid)
                     self.open_by_double_click(cdp, sid, ids, 1)
-                    cdp.js("document.querySelector('[data-sneak-open]').click()", sid)
+                    cdp.js("document.activeElement.blur()", sid)      # row 1015: no sparkle; two slashes open the words box
+                    key(cdp, sid, "/")
+                    key(cdp, sid, "/")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sn-in')", sid)))
                     self.assertFalse(cdp.js("!!document.querySelector('.wordsbox .sn-acts, .wordsbox .sn-chips')", sid), "empty box: no chips, no buttons")
                     cdp.js("(() => { const i = document.querySelector('.sn-in'); i.value = 'owner Jo Ellis'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)

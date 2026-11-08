@@ -61,7 +61,7 @@ Gaps, in plain words
 import re
 from datetime import date
 
-from clark import publish        # select(): the one function that chooses what a client may see (#39)
+from clark import publish, sanitise        # select(): the one function that chooses what a client may see (#39)
 
 HEALTHS = ("On track", "At risk", "Off track")                       # (projects.health, schema.sql)
 HEALTH_COLOUR = {"On track": "green", "At risk": "amber", "Off track": "red"}
@@ -300,7 +300,7 @@ def _label(title, value, detail, colour):
 
 def _health_tile(project):
     pill = health_pill(project.get("health"))
-    reason = str(project.get("health_reason") or "")
+    reason = sanitise.rich_plain_text(project.get("health_reason"))          # row 1005: the reason may be the editor's HTML; the tile says its words
     return {"tile": "health", "title": TILE_TITLES["health"], "value": pill["words"], "detail": "", "health": pill["health"],
             "reason": reason, "pill": pill, "auto_colour": pill["colour"],
             "label": pill["label"] + (f". {reason}" if reason.strip() else "")}

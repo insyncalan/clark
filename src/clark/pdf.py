@@ -36,6 +36,15 @@ NO_CHROME = "A PDF needs Google Chrome, and clark could not find it on this comp
 FAILED = "Chrome could not make the PDF. Try again; if it keeps happening, leave the PDF box unticked."
 TOO_SLOW = "Chrome took too long to make the PDF. Try again; if it keeps happening, leave the PDF box unticked."
 ORIENTATIONS = ("portrait", "landscape")
+CHROME_ENV_KEEP = ("PATH", "HOME", "USER", "LOGNAME", "LANG", "TZ", "TMPDIR", "TEMP", "TMP", "XDG_RUNTIME_DIR",
+                   "SYSTEMROOT", "WINDIR", "USERPROFILE", "APPDATA", "LOCALAPPDATA")      # what Chrome needs to start; LC_* too
+
+
+def chrome_env(environ=None):
+    """The small environment Chrome is started with (#596): the few variables it needs to run and nothing else, so a token or key
+    in this program's own environment is never handed to a program that opens a page file."""
+    environ = os.environ if environ is None else environ
+    return {k: v for k, v in environ.items() if k in CHROME_ENV_KEEP or k.startswith("LC_")}
 
 
 def stop_child(proc):
@@ -420,7 +429,7 @@ def _devtools_args(chrome, profile, pipe=True):
 def _start(args, popen, **more):
     """Start Chrome (platform.start_child, or the `popen` a test gives instead); NO_CHROME if it cannot be started."""
     try:
-        return (popen or platform.start_child)(args, **more)
+        return (popen or platform.start_child)(args, env=chrome_env(), **more)
     except OSError as e:
         raise PdfError(NO_CHROME) from e
 

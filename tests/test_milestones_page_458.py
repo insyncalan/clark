@@ -25,7 +25,7 @@ sys.path.insert(0, str(TOOLS))
 import build_page  # noqa: E402
 import esbuild  # noqa: E402
 
-from clark import changes, page, publish  # noqa: E402
+from clark import changes, history, page, publish, sanitise  # noqa: E402
 from test_milestones_page import CASES, EMPTY_BRANDING, MODULE, TODAY  # noqa: E402
 from test_movement_page import GO_LIVE, INTERNAL, PILOT, Base, in_days  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
@@ -123,7 +123,7 @@ class Requests(unittest.TestCase):
         due = (date.today() + timedelta(days=7)).isoformat()
         got = self.send("actions", {"description": "Recover pilot live", "priority": "High", "due_date": due, "milestone": self.m,
                                     "latest_update": "Pilot live is 3 days behind its agreed date."})
-        self.assertEqual(self.s.read("actions", ref=got["ref"])["latest_update"], "Pilot live is 3 days behind its agreed date.")
+        self.assertEqual(sanitise.rich_plain_text(self.s.read("actions", ref=got["ref"])["latest_update"]), "Pilot live is 3 days behind its agreed date.")      # row 1005: stored as the editor's HTML; the words are pinned
         done = self.send("decisions", {"decision": "Steering decision on pilot live", "needed_by": due, "reasoning": "Pilot live is 3 days behind its agreed date."})
         self.assertEqual(self.s.read("decisions", ref=done["ref"])["reasoning"], "Pilot live is 3 days behind its agreed date.")
         for reply in (got, done):
@@ -334,7 +334,8 @@ class Page(Base):
             text = self.toast(p)
             action = self.store.read("actions", ref=text.split(" ")[0])
             self.assertEqual((action["description"], action["priority"], action["due_date"], action["milestone"]), ("Recover go live", "High", iso, GO_LIVE))
-            self.assertRegex(action["latest_update"], r"^Go live is \d+ days? behind its agreed date\.$")
+            self.assertRegex(sanitise.rich_plain_text(action["latest_update"]), r"^Go live is \d+ days? behind its agreed date\.$")
+            self.assertEqual(history.shown_value("actions", "latest_update", action["latest_update"]), sanitise.rich_plain_text(action["latest_update"]), "history shows the words, not the markup")
             self.assertEqual(action["workstream"], "Build", "the first open workstream (Go live has none of its own)")
             p.until("!!document.querySelector('#peek') && document.querySelector('#peek').dataset.peek === %s" % json.dumps(action["id"]), "the action opens in the peek")
             p.js("document.querySelector('[data-pk-close]').click()")
@@ -384,47 +385,70 @@ class Page(Base):
                 self.assertIsNone(self.store.read("actions", ref=ref))
                 self.assertNotIn(ref, [r["item_id"] for r in self.store.read("report_hidden")], "one Undo took the hiding back too")
 
-    def test_the_internal_note_saves_when_the_box_is_left_undoes_and_follows_the_row(self):
+    def test_the_internal_note_is_the_one_rich_editor_saves_when_left_undoes_and_follows_the_row(self):          # item 1005: it was a plain textarea
+        IN = "document.activeElement && !!document.activeElement.closest('#mvNote .ProseMirror')"
         with chrome() as cdp:
             p = self.visit(cdp)
             self.open_movement(p)
             self.assertEqual(p.js("document.querySelector('#mvNote').previousElementSibling.textContent"), "Internal note")
-            self.assertEqual(p.js("document.querySelector('#mvNote').placeholder"), "What is going on, what you are waiting for")
             self.assertEqual(p.js("document.querySelector('#mvNote-help').textContent"), "Saves when you leave the box. Never published.")
-            self.assertEqual(p.js("document.querySelector('#mvNote').value"), INTERNAL, "the box shows the note the milestone holds")
+            self.assertEqual(p.js("document.querySelector('#mvNote .rt-view').textContent"), INTERNAL, "an old plain note reads as the words the milestone holds")
+            self.assertEqual(p.js("document.querySelector('#mvNote .rt-view').getAttribute('aria-label')"), "Edit internal note")
             before = len(self.sent)
-            p.js("document.querySelector('#mvNote').focus(); document.querySelector('#mvNote').blur()")
-            self.assertEqual(len(self.sent), before, "leaving the box with no change sends nothing")
-            p.js("(() => { const t = document.querySelector('#mvNote'); t.focus(); t.value = 'Waiting for the vendor\\nChase on Friday'; t.dispatchEvent(new Event('input', {bubbles: true})); let n = 0; t.addEventListener('blur', () => n++); t.blur(); if (!n) t.dispatchEvent(new FocusEvent('blur')); })()")
+            p.js("document.querySelector('#mvNote .rt-view').click()")
+            p.until(IN, "the editor opened")
+            self.assertEqual(p.js("document.querySelectorAll('#mvNote .rt-bar, #mvNote .ProseMirror').length"), 2, "the toolbar and the editor, as everywhere")
+            p.key("Escape", 0, "Escape", 27)          # a key, not blur(): a page with no input event yet has no focus, and the editor ignores a blur then
+            p.until("!document.querySelector('#mvNote .ProseMirror')", "the editor closed")
+            self.assertEqual(len(self.sent), before, "closing the box with no change sends nothing")
+            p.js("document.querySelector('#mvNote .rt-view').click()")
+            p.until(IN, "the editor opened again")
+            p.js("document.execCommand('selectAll')")
+            p.type("Waiting for the vendor")
+            p.key("Enter", 0, "Enter", 13)
+            p.type("/")
+            p.until("!!document.querySelector('.rt-slash')", "the / menu opens in the note too")
+            p.key("Escape", 0, "Escape", 27)
+            p.key("Backspace", 0, "Backspace", 8)
+            p.type("Chase on Friday")
+            p.js("document.activeElement.blur()")
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Note saved. Undo.'", "the toast")
-            self.assertEqual(self.row(GO_LIVE)["internal_note"], "Waiting for the vendor\nChase on Friday")
+            self.assertEqual(self.row(GO_LIVE)["internal_note"], "<p>Waiting for the vendor</p><p>Chase on Friday</p>")
             self.assertEqual(self.sent[-1][1]["place"], "movement")
-            p.until("document.querySelector('#mvNote').value === 'Waiting for the vendor\\nChase on Friday'", "the box keeps what was saved")
+            p.until("document.querySelector('#mvNote .rt-view') && document.querySelector('#mvNote .rt-view .prose').innerHTML === '<p>Waiting for the vendor</p><p>Chase on Friday</p>'", "the box keeps what was saved")
             self.assertNotIn("Waiting for the vendor", p.js("document.querySelector('.mvm-list') ? document.querySelector('.mvm-list').textContent : ''"),
                              "What changed never says what the note says")
             p.js("document.querySelector('.toast [data-undo]').click()")
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
             self.assertEqual(self.row(GO_LIVE)["internal_note"], INTERNAL)
-            p.until("document.querySelector('#mvNote').value === %s" % json.dumps(INTERNAL), "the box follows the Undo")
+            p.until("document.querySelector('#mvNote .rt-view').textContent === %s" % json.dumps(INTERNAL), "the box follows the Undo")
             p.js("document.querySelector('.mvm-row[data-id=\"%s\"]').click()" % PILOT)
             p.until("document.querySelector('#mv-card-h').textContent === 'Pilot live'", "the card follows the row")
-            self.assertEqual(p.js("document.querySelector('#mvNote').value"), "", "another milestone, its own note")
+            self.assertEqual(p.js("document.querySelector('#mvNote .rt-view .quiet').textContent"), "What is going on, what you are waiting for", "another milestone, its own (empty) note")
 
-    def test_text_typed_in_the_note_box_is_not_overwritten_when_the_data_is_read_again(self):      # #603
+    def test_text_typed_in_the_note_editor_is_not_overwritten_when_the_data_is_read_again(self):      # #603, now the one rich editor
+        IN = "document.activeElement && !!document.activeElement.closest('#mvNote .ProseMirror')"
         with chrome() as cdp:
             p = self.visit(cdp)
             self.open_movement(p)
-            p.js("(() => { const t = document.querySelector('#mvNote'); t.focus(); t.value = 'First note'; t.dispatchEvent(new Event('input', {bubbles: true})); let n = 0; t.addEventListener('blur', () => n++); t.blur(); if (!n) t.dispatchEvent(new FocusEvent('blur')); })()")
+            p.js("document.querySelector('#mvNote .rt-view').click()")
+            p.until(IN, "the editor opened")
+            p.js("document.execCommand('selectAll')")
+            p.type("First note")
+            p.js("document.activeElement.blur()")
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Note saved. Undo.'", "the toast")
-            p.js("(() => { const t = document.querySelector('#mvNote'); t.focus(); t.value = 'Half a sentence'; t.dispatchEvent(new Event('input', {bubbles: true})); })()")
-            p.js("document.querySelector('.toast [data-undo]').click()")      # a click that leaves the focus in the box: the data is read again under the typing
+            p.js("document.querySelector('#mvNote .rt-view').click()")
+            p.until(IN, "the editor opened again")
+            p.js("document.execCommand('selectAll')")
+            p.type("Half a sentence")
+            p.js("document.querySelector('.toast [data-undo]').click()")      # a script click leaves the focus in the editor: the data is read again under the typing
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
             p.until("(window.__t = window.__t || Date.now(), Date.now() - window.__t > 800)", "a beat for the re-read to be drawn")
             self.assertEqual(self.row(GO_LIVE)["internal_note"], INTERNAL)
-            self.assertEqual(p.js("document.querySelector('#mvNote').value"), "Half a sentence", "the typing is kept")
-            p.js("(() => { const t = document.querySelector('#mvNote'); let n = 0; t.addEventListener('blur', () => n++); t.blur(); if (!n) t.dispatchEvent(new FocusEvent('blur')); })()")
-            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Note saved. Undo.'", "the typing saves when the box is left")
-            self.assertEqual(self.row(GO_LIVE)["internal_note"], "Half a sentence")
+            self.assertEqual(p.js("document.querySelector('#mvNote .ProseMirror').textContent"), "Half a sentence", "the typing is kept")
+            p.js("document.activeElement.blur()")
+            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Note saved. Undo.'", "the typing saves when the editor is left")
+            self.assertEqual(self.row(GO_LIVE)["internal_note"], "<p>Half a sentence</p>")
 
     def test_the_movement_buttons_fit_at_both_widths_in_both_themes(self):
         for width in (1400, 900):

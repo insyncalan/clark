@@ -6,8 +6,9 @@
 // peek). Below them is the owner's Internal note (#458), saved when the box is left. Each choice is one change with one Undo
 // (stores/changes.js). The Milestones page has no mode (row 823), so the choices are always there; the read-only branch below (no choices, no note) stays only as a guard for a place that would draw it where isEditing() is false. Words: edit/movementWords.js.
 import { signal } from "@preact/signals";
-import { useEffect, useRef } from "preact/hooks";
-import { useGrow } from "./useGrow.js";
+import { useEffect } from "preact/hooks";
+import { RichField } from "./RichField.jsx";
+import { richOrPlain } from "../logic/richOrPlain.js";
 import { isEditing } from "../logic/editing.js";
 import { project, fromFile, data, reread, openPeek } from "../stores/report.js";
 import { changeMilestone, say, undone } from "../stores/changes.js";
@@ -106,7 +107,7 @@ function focusRow(id) {
 }
 
 async function hold(r) {
-  const res = await changeMilestone({ id: r.id, changes: { movement: "hold" } }, W.TOAST_HOLD);
+  const res = await changeMilestone({ id: r.id, changes: { movement: "hold" } }, (reply) => (reply.note_trimmed ? W.TOAST_HOLD_TRIMMED : W.TOAST_HOLD));   // #603
   if (!res.ok) { say("problem", res.message || W.CHOICE_FAILED); return; }
   await reread(project.value);            // the Hold's dated line is in the internal note: the box shows it
   await load();
@@ -197,27 +198,25 @@ function MoveForm({ r }) {
   );
 }
 
-// The owner's Internal note (#458): saved when the box is left, never published. It is read from the project's own data (the Movement
-// read leaves it out), and the data is read again after the save and after an Undo, so the box shows what clark holds.
+// The owner's Internal note (item 458, item 1005): the one rich editor (RichField, with the / menu), saved when the field is left, never
+// published. It is read from the project's own data (the Movement read leaves it out) and drawn as richOrPlain of what is stored (an old
+// note is plain text), and the data is read again after the save and after an Undo, so the box shows what clark holds.
 function Note({ r }) {
-  const m = milestoneRow(r.id), saved = (m && m.internal_note) || "", box = useRef(null), typed = useRef(null);   // typed: the milestone whose box has unsaved typing
-  useEffect(() => {                       // #603: the box takes what clark holds, but never over text being typed (it saves when the box is left)
-    if (!box.current || typed.current === r.id) return;
-    box.current.value = saved;
-  }, [r.id, saved]);
-  useGrow(box, saved + r.id);
-  const save = async (e) => {
-    typed.current = null;
-    const text = e.currentTarget.value.trim();
-    if (text === saved.trim()) return;
-    const res = await changeMilestone({ id: r.id, changes: { internal_note: text } }, W.TOAST_NOTE);
-    if (!res.ok) { say("problem", res.message || W.NOTE_FAILED); return; }
+  const m = milestoneRow(r.id), saved = (m && m.internal_note) || "";
+  const save = async (html) => {
+    const res = await changeMilestone({ id: r.id, changes: { internal_note: html } }, W.TOAST_NOTE);
+    if (!res.ok) { say("problem", res.message || W.NOTE_FAILED); return null; }
     await reread(project.value);
+    return res;
   };
+  let shown = "";
+  try { shown = richOrPlain(saved); } catch (e) { shown = ""; }
   return (
     <>
       <h4>{W.NOTE_HEADING}</h4>
-      <textarea ref={box} class="field mvm-note grow" id="mvNote" rows="3" maxlength="2000" placeholder={W.NOTE_PLACEHOLDER} aria-describedby="mvNote-help" onInput={() => { typed.current = r.id; }} onBlur={save}></textarea>
+      <div class="mvm-note" id="mvNote" aria-describedby="mvNote-help">
+        <RichField key={r.id} field="internal_note" id={r.id} value={shown} label={W.NOTE_HEADING.toLowerCase()} empty={W.NOTE_PLACEHOLDER} save={save} />
+      </div>
       <p class="muted mvm-help" id="mvNote-help">{W.NOTE_HELP}</p>
     </>
   );

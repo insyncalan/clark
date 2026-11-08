@@ -1,7 +1,7 @@
 """#174: the first-run welcome (src/clark/page/src/edit/Welcome.jsx), in a real browser at 1400 and 900 px, in Light and in Dark.
 Run: python3 dev/run_tests.py test_welcome
 
-The first time clark is opened with no name in Settings › Personal › About you, a card asks for it. What is asserted: its words; it
+The first time clark is opened with no name in Settings › Profile › About you, a card asks for it. What is asserted: its words; it
 fits the window; it takes the focus into the Name box when the page has none (row 857, which reverses the
 earlier never-takes-focus rule) and keeps Tab inside it; Save keeps the name through clark (settings.json, the same route as About you) and the
 menu shows it at once; a refusal says why and keeps the card; Not now (or Esc) closes it and saves nothing; once answered or
@@ -19,7 +19,7 @@ from test_server import chrome
 WIDTHS = (1400, 900)
 HEAD = "Welcome to clark"
 ASK = "What is your name? It goes on each change you make, at the top of your menu, and on what you publish."
-LINE = "Not now leaves it empty: your changes show this computer's login name. You can add it later in Settings › Personal."
+LINE = "Not now leaves it empty: your changes show this computer's login name. You can add it later in Settings › Profile."
 CARD = "document.querySelector('[data-welcome]')"
 
 
