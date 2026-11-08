@@ -301,7 +301,7 @@ class Page(Base):
                 sid = self.load(cdp, width)
                 groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, [...t.querySelectorAll('tr[data-id]')].map(r => r.dataset.id)])", sid)
                 g, ids = next((k, v) for k, v in groups if len(v) >= 2)
-                box = f"tbody[data-group='{g}'] .gtick"
+                box = f"thead[data-group='{g}'] .gtick"
                 state = f"(b => b.checked ? 'checked' : b.indeterminate ? 'mixed' : 'unchecked')(document.querySelector(\"{box}\"))"
                 self.assertEqual(cdp.js(state, sid), "unchecked")
                 self.assertTrue(cdp.js(f"document.querySelector(\"{box}\").getAttribute('aria-label').startsWith('Select ')", sid))
@@ -315,7 +315,7 @@ class Page(Base):
                 self.assertEqual(cdp.js(state, sid), "checked")
                 tap(cdp, sid, box)
                 self.assertEqual(self.picked(cdp, sid), [], "and clears it")
-                tap(cdp, sid, f"tbody[data-group='{g}'] .grp-b")
+                tap(cdp, sid, f"thead[data-group='{g}'] .grp-b")
                 self.until(cdp, sid, f"document.querySelector(\"{box}\").disabled", "a collapsed group's tick is off")
                 cdp.js(f"document.querySelector(\"{box}\").click()", sid)
                 self.assertEqual(self.picked(cdp, sid), [], "and does nothing")
@@ -325,9 +325,9 @@ class Page(Base):
             sid = self.load(cdp)
             groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, [...t.querySelectorAll('tr[data-id]')].map(r => r.dataset.id)])", sid)
             (g, ids), (_, other) = [x for x in groups if len(x[1]) >= 2][:2]
-            tap(cdp, sid, f"tbody[data-group='{g}'] .gtick")
+            tap(cdp, sid, f"thead[data-group='{g}'] .gtick")
             tap(cdp, sid, self.rsel(other[0]), MOD)
-            tap(cdp, sid, f"tbody[data-group='{g}'] .grp-b")
+            tap(cdp, sid, f"thead[data-group='{g}'] .grp-b")
             self.until(cdp, sid, f"document.querySelector('#sel-note') && document.querySelector('#sel-note').textContent === '{len(ids)} left the selection'", "the note")
             self.assertEqual(self.picked(cdp, sid), [other[0]])
             self.assertEqual(cdp.js("document.querySelector('#sel-live').textContent.trim()", sid), f"{len(ids)} left the selection. 1 selected")
@@ -338,7 +338,7 @@ class Page(Base):
             groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, [...t.querySelectorAll('tr[data-id]')].map(r => r.dataset.id)])", sid)
             every = [i for _, v in groups for i in v]
             shut, hidden = groups[-1]
-            tap(cdp, sid, f"tbody[data-group='{shut}'] .grp-b")
+            tap(cdp, sid, f"thead[data-group='{shut}'] .grp-b")
             self.until(cdp, sid, f"!document.querySelector(\"tbody[data-group='{shut}'] tr[data-id]\")", "a group collapsed")
             shown = cdp.js(self.ROWS, sid)
             tap(cdp, sid, self.rsel(shown[0]))
