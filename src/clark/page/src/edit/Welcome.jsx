@@ -1,4 +1,4 @@
-// #174: the first-run welcome. The first time clark is opened with no name in Settings › Personal › About you, a small card asks for
+// #174: the first-run welcome. The first time clark is opened with no name in Settings › Profile › About you, a small card asks for
 // it. It saves through the same route as About you (stores/profile.js), so the name is kept by clark in the data folder, not here.
 // It never blocks the page. Row 857: when it opens it puts the focus in the Name box (unless the person is already in something
 // else), Tab stays inside it and Esc is Not now, like every dialog. It is asked once: it is never shown again once a name is saved (here or in
@@ -15,7 +15,7 @@ export const WELCOME_WORDS = {
   head: "Welcome to clark",
   ask: "What is your name? It goes on each change you make, at the top of your menu, and on what you publish.",
   label: "Your name",
-  line: "Not now leaves it empty: your changes show this computer's login name. You can add it later in Settings › Personal.",
+  line: "Not now leaves it empty: your changes show this computer's login name. You can add it later in Settings › Profile.",
   save: "Save",
   skip: "Not now",
   empty: "Type your name, or choose Not now.",

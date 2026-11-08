@@ -126,6 +126,16 @@ function AboutYou() {
   );
 }
 
+// Row 950: the Profile card, first on the Settings page: the About you boxes (name, Alias, email) that sat inside Personal.
+export function Profile() {
+  return (
+    <section class="frame personal profile" id="profile" aria-labelledby="profile-h">
+      <h2 id="profile-h" tabIndex={-1}>Profile</h2>
+      <AboutYou />
+    </section>
+  );
+}
+
 const KEYS_ON = "Single-key shortcuts are on";
 const KEYS_OFF = "Single-key shortcuts are off";
 
@@ -179,7 +189,6 @@ export function Personal() {
         </div>
         <p class="muted appearance-line" data-appearance-line aria-live="polite">{(APPEARANCES.find(([id]) => id === appearance.value) || APPEARANCES[0])[2]}</p>
       </fieldset>
-      <AboutYou />
       <fieldset class="styles keys">
         <legend>Keys</legend>
         <label class="sw key-sw"><button type="button" class="switch" role="switch" aria-label="Single-key shortcuts" aria-checked={singleKeys.value ? "true" : "false"} aria-describedby="keys-line"
