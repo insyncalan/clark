@@ -3,10 +3,12 @@
 Run: python3 dev/run_tests.py test_synced_folders
 Everything is a temporary folder standing in for the home folder: no real Dropbox, iCloud or Google Drive is read.
 """
+import os
 import tempfile
 import shutil
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _paths import ROOT  # noqa: F401
 
@@ -75,6 +77,47 @@ class Roots(Case):
     def test_not_the_mac_is_not_built_yet_and_a_container_finds_nothing(self):
         with self.assertRaises(pl.NotBuiltYet):
             pl.synced_roots(self.home, on=pl.WINDOWS)
+
+
+class Lookalikes(Case):
+    def test_names_that_only_start_with_dropbox_are_not_roots(self):
+        for name in ("Dropbox-old", "Dropboxes-of-notes", "DropboxArchive"):
+            with self.subTest(name=name):
+                inside = self.home / name / "clark"
+                inside.mkdir(parents=True)
+                self.assertIsNone(pl.inside_synced(inside, pl.synced_roots(self.home, on=pl.MAC)))
+                pl.check_data_dir(inside, roots=[], synced=pl.synced_roots(self.home, on=pl.MAC))
+
+    def test_dropbox_and_its_named_forms_are_roots(self):
+        for name in ("Dropbox", "Dropbox (Personal)", "Dropbox - Company"):
+            with self.subTest(name=name):
+                inside = self.home / name / "clark"
+                inside.mkdir(parents=True)
+                with self.assertRaises(pl.PlatformError) as caught:
+                    pl.check_data_dir(inside, roots=[], synced=pl.synced_roots(self.home, on=pl.MAC))
+                self.assertIn("inside Dropbox.", str(caught.exception))
+                shutil.rmtree(self.home / name)
+
+
+class Guards(Case):
+    def test_a_container_finds_nothing_even_with_dropbox_there(self):
+        (self.home / "Dropbox").mkdir()
+        with mock.patch.dict("os.environ", {"CLARK_CONTAINER": "1"}), \
+                mock.patch("os.path.exists", lambda p: p == "/.dockerenv" or os.path.lexists(p)):
+            self.assertTrue(pl.container_mode())
+            self.assertEqual(pl.synced_roots(self.home, on="linux"), [])
+
+    def test_not_built_yet_while_checking_is_not_a_refusal(self):
+        folder = self.home / "Documents" / "clark"
+        folder.mkdir(parents=True)
+        with mock.patch.object(pl, "inside_synced", side_effect=pl.NotBuiltYet("not built")):
+            self.assertEqual(pl.check_data_dir(folder, roots=[]), folder)
+
+    def test_no_home_folder_finds_nothing_and_the_doctor_does_not_crash(self):
+        with mock.patch("pathlib.Path.home", side_effect=RuntimeError("Could not determine home directory.")):
+            self.assertEqual(pl.synced_roots(None, on=pl.MAC), [])
+            self.assertEqual(pl.synced_roots(on=pl.MAC), [])
+            self.assertIsNone(pl.inside_synced(self.home, pl.synced_roots(on=pl.MAC)))
 
 
 class Refusal(Case):
