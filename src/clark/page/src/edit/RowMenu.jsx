@@ -165,7 +165,7 @@ function Panel({ s }) {
     const w = el.offsetWidth, h = el.offsetHeight;
     el.style.left = `${Math.round(Math.max(8, Math.min(s.x, window.innerWidth - w - 8)))}px`;
     el.style.top = `${Math.round(Math.max(8, Math.min(s.y, window.innerHeight - h - 8)))}px`;
-  }, []);                                         // placed once: a list opening beside an entry never moves or resizes the menu (row 848)
+  }, [reg]);                                      // placed from the click point: again only when the People list arrives (the Draft email entry may gain its reason line); a list opening beside an entry never moves or resizes the menu (row 848)
   const timer = useRef(0);
   useEffect(() => () => clearTimeout(timer.current), []);
   const hover = (id) => {                         // a pointer on an entry that opens a list opens it; on another entry it closes after a short grace (the list is on the way)

@@ -244,7 +244,7 @@ class Menu(board.Base):
             self.assertEqual(self.steps(), before)
             # The Draft email's line is read with it, so a screen reader hears that the To line is empty.
             why = cdp.js("(() => { const b = document.querySelector('.rowmenu [data-rm=draft]'); const d = document.getElementById(b.getAttribute('aria-describedby')); return d ? d.textContent : null; })()", sid)
-            self.assertEqual(why, "The To line is left empty: there is no People list to take the address from yet.")
+            self.assertEqual(why, "Sara Khan has no email on the People list, so the To line is left empty.")
             # The menu items have a real focus ring: 2 px, a colour, not none.
             key(cdp, sid, "ArrowDown")                       # a key moved focus, so :focus-visible applies
             self.until(cdp, sid, "document.getAnimations().length === 0", "the focus ring to finish")
