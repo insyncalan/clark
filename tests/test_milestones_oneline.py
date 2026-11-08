@@ -32,13 +32,13 @@ MEASURE = r"""(() => {
   const card = document.querySelector('.msl-box').closest('.card, .box, section, .ms-block') || document.querySelector('.msl-box').parentElement;
   const cb = card.getBoundingClientRect();
   const rows = [...document.querySelectorAll('.msl-row')].map((row) => {
-    const rb = row.getBoundingClientRect(), small = row.querySelector('.msl-date small'), name = row.querySelector('.msl-name');
+    const rb = row.getBoundingClientRect(), small = row.querySelector('.msl-sub'), name = row.querySelector('.msl-name');
     const cells = [...row.querySelectorAll('.msl-cells > *')].map((c) => c.getBoundingClientRect());
-    const sb = small.getBoundingClientRect(), db = row.querySelector('.msl-date').getBoundingClientRect(), nb = name.getBoundingClientRect();
+    const sb = small.getBoundingClientRect(), db = row.querySelector('.msl-date').getBoundingClientRect(), cr = row.querySelector('.msl-cells').getBoundingClientRect(), nb = name.getBoundingClientRect();
     const texts = [...row.querySelectorAll('.msl-cells > *')];
     return {text: small.textContent, lines: lines(small), nameLines: lines(name),
             inRow: cells.every((c) => c.left >= rb.left - 1 && c.right <= rb.right + 1),
-            smallInDate: sb.right <= db.right + 1, dateClearOfName: db.right <= nb.left + 1,
+            smallInDate: sb.right <= cr.right + 1 && sb.left >= cr.left - 1, dateClearOfName: db.right <= nb.left + 1,
             cellsClip: texts.some((t) => t.scrollWidth > t.clientWidth + 1),
             cols: getComputedStyle(row.querySelector('.msl-cells')).gridTemplateColumns.split(' ').length,
             across: cells.every((c, i) => i === 0 || c.left > cells[i - 1].left),
@@ -137,7 +137,7 @@ class Rows(unittest.TestCase):
         self.addCleanup(s.close)
         with chrome() as cdp:
             sid = self.open_page(cdp, s.port, 1400, "light", "TUL")
-            texts = cdp.js("[...document.querySelectorAll('.msl-date small')].map((e) => e.textContent)", sid)
+            texts = cdp.js("[...document.querySelectorAll('.msl-sub')].map((e) => e.textContent)", sid)
             self.assertIn("Expected 31-12-2028 · 780 days later", texts)
             for t in texts:
                 self.assertTrue(t in ("Agreed", "No agreed date", "Forecast, not agreed") or t.startswith(("Expected ", "Achieved")), t)
