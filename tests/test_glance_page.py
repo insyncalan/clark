@@ -124,6 +124,7 @@ class Tiles(Setup):
     def test_the_outline_is_drawn_on_the_bottom_left_and_fades(self):
         with chrome() as cdp:
             p = self.show(cdp)
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)      # pinned: no transition is mid-way when the outline is read
             got = p.js("(() => { const e = getComputedStyle(document.querySelector('[data-fig=overdue]'), '::after'); return [e.borderTopWidth, e.maskImage || e.webkitMaskImage, e.borderTopColor]; })()")
             self.assertEqual(got[0], "2px")
             self.assertIn("45deg", got[1], "the mask runs from the bottom-left corner")
@@ -147,14 +148,14 @@ class Health(Setup):
             self.assertEqual(p.js("[...document.querySelectorAll('#health-menu .hpill')].map(b => b.className.replace('hpill ', ''))"), ["g", "a", "r"], "each word is a coloured pill")
             self.assertEqual(p.js("document.querySelectorAll('#health-menu svg[data-icn=check]').length"), 1, "one check mark shape, on the one in use")
             p.js("document.querySelector('#health-menu [data-kind=\"At risk\"]').click()")
-            p.until("document.activeElement && document.activeElement.hasAttribute('data-reason')", "the reason box took focus")
+            p.until("document.activeElement && !!document.activeElement.closest('[data-reason]')", "the reason editor opened and took focus")      # item 1005: the reason is the one rich editor, so the focus is in its text
             time.sleep(0.4)
             self.assertEqual(self.project()["health"], "On track", "nothing is saved before the reason is written")
             p.type("Test environment is late")
             p.js("document.activeElement.blur()")
             p.saved()
             now = self.project()
-            self.assertEqual((now["health"], now["health_reason"]), ("At risk", "Test environment is late"))
+            self.assertEqual((now["health"], now["health_reason"]), ("At risk", "<p>Test environment is late</p>"))
             self.assertEqual(p.js("document.querySelector('[data-fig=health] .pill').textContent"), "At risk")
             self.undo(p)
             now = self.project()
@@ -186,9 +187,9 @@ class Health(Setup):
             p.js("document.querySelector('#health-pill').click()")
             p.until("!!document.querySelector('#health-menu')", "menu")
             p.js("document.querySelector('#health-menu [data-kind=\"Off track\"]').click()")
-            p.until("document.activeElement && document.activeElement.hasAttribute('data-reason')", "focus")
+            p.until("document.activeElement && !!document.activeElement.closest('[data-reason]')", "focus")
             time.sleep(0.4)                                    # the menu has closed; the box keeps focus
-            self.assertTrue(p.js("document.activeElement.hasAttribute('data-reason')"))
+            self.assertTrue(p.js("document.activeElement && !!document.activeElement.closest('[data-reason]')"))
             p.js("document.activeElement.blur()")
             wait(lambda: "needs a reason" in p.toast(), 3)
             self.assertIn("needs a reason", p.toast())
@@ -198,17 +199,18 @@ class Health(Setup):
         with chrome() as cdp:
             p = self.show(cdp)
             p.edit()
-            p.js("document.querySelector('[data-reason]').focus()")
+            p.js("document.querySelector('[data-reason]').click()")
+            p.until("document.activeElement && !!document.activeElement.closest('[data-reason]')", "the editor opened")
             p.type("Waiting on the test environment")
             p.js("document.activeElement.blur()")
             p.saved()
-            self.assertEqual(self.project()["health_reason"], "Waiting on the test environment")
+            self.assertEqual(self.project()["health_reason"], "<p>Waiting on the test environment</p>")
             p.clear_toast()
             p.js("document.querySelector('#health-pill').click()")
             p.until("!!document.querySelector('#health-menu')", "menu")
             p.js("document.querySelector('#health-menu [data-kind=\"Off track\"]').click()")
             p.saved()
-            self.assertEqual((self.project()["health"], self.project()["health_reason"]), ("Off track", "Waiting on the test environment"))
+            self.assertEqual((self.project()["health"], self.project()["health_reason"]), ("Off track", "<p>Waiting on the test environment</p>"))
             self.assertIn("Check that the reason still fits", p.toast())
             self.undo(p)
             self.assertEqual(self.project()["health"], "On track", "a pick that kept the reason can be undone")
@@ -217,15 +219,34 @@ class Health(Setup):
         with chrome() as cdp:
             p = self.show(cdp)
             p.edit()
-            self.assertEqual(p.js("document.querySelector('[data-reason]').tagName"), "TEXTAREA")
-            p.js("document.querySelector('[data-reason]').focus()")
-            p.type("First line\nSecond line")
+            self.assertEqual(p.js("document.querySelector('[data-reason]').getAttribute('role')"), "button", "the reason is a field that opens the one rich editor")
+            p.js("document.querySelector('[data-reason]').click()")
+            p.until("document.activeElement && !!document.activeElement.closest('[data-reason]')", "the editor opened")
+            self.assertEqual(p.js("document.querySelectorAll('[data-reason] .rt-bar, [data-reason] .ProseMirror').length"), 2, "the toolbar and the editor, as everywhere")
+            p.type("First line")
+            p.key("Enter", 0, "Enter", 13)
+            p.type("Second line")
             p.js("document.activeElement.blur()")
             p.saved()
-            self.assertEqual(self.project()["health_reason"], "First line\nSecond line")
+            self.assertEqual(self.project()["health_reason"], "<p>First line</p><p>Second line</p>")
             p.view()
-            self.assertEqual(p.js("document.querySelector('[data-fig=health] .hreason').textContent"), "First line\nSecond line")
+            self.assertEqual(p.js("document.querySelector('[data-fig=health] .hreason').innerHTML"), "<p>First line</p><p>Second line</p>")
             self.assertEqual(p.js("document.querySelectorAll('[data-fig=health] textarea, [data-fig=health] button').length"), 0, "View has no control on health")
+
+
+    def reason_in_view(self, stored):
+        with self.store.step("dashboard", USER) as st:               # written past the change route, as an old or hostile row is
+            st.update("projects", "ABC", {"health": "At risk", "health_reason": stored})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            return p.js("(() => { const e = document.querySelector('[data-fig=health] .hreason'); return e ? [e.tagName, e.innerHTML, e.textContent] : null; })()")
+
+    def test_view_draws_the_reason_through_the_pages_cleaner_and_an_old_plain_one_as_text(self):          # item 1005 (ReasonText, clean())
+        tag, html, text = self.reason_in_view('<p onclick="x()">Late <a href="javascript:alert(1)">link</a></p><script>alert(2)</script><img src=x onerror=alert(3)><ul><li>one</li></ul>')
+        self.assertEqual((tag, html), ("DIV", "<p>Late link</p><ul><li>one</li></ul>"), "the HTML went through clean(): no handler, script, image or javascript: link")
+        tag, html, text = self.reason_in_view('Old <b>plain</b> & "text"\nline two a < b')
+        self.assertEqual((tag, text), ("SPAN", 'Old <b>plain</b> & "text"\nline two a < b'), "an old plain reason is a text node, never markup")
+        self.assertNotIn("<b>", html)
 
 
 class EditTiles(Setup):

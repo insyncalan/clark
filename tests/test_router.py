@@ -28,6 +28,7 @@ import build_page  # noqa: E402
 import esbuild  # noqa: E402
 
 from clark import page  # noqa: E402
+from _editor_checks import after_reload, for_url
 from test_server import Running, chrome, wait  # noqa: E402  (the #33 browser harness, shared)
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -524,11 +525,20 @@ class Navigate(Browser):
 
 
 class Source(unittest.TestCase):
+    @staticmethod
+    def without_the_reload(p):
+        """#944: the report store may call location.replace (an address for another project, at the start or on a Back) and location.assign
+        (a project chosen) to load the page the server makes for that project; any other touch of the address in it is still found."""
+        text = p.read_text(encoding="utf-8")
+        if p.name == "report.js" and p.parent.name == "stores":
+            text = re.sub(r"location\.(replace|assign)\(", "(", text)
+        return text
+
     def test_only_the_router_touches_history_or_the_address(self):
         touching = re.compile(r"pushState|replaceState|history\.(back|forward|go)\b|location\s*\.\s*(hash|href|assign|replace)\b|"
                               r"location\s*=|window\.open|hashchange|popstate")
         found = [str(p.relative_to(ROOT)) for p in sorted(PAGE_SRC.rglob("*")) if p.suffix in (".js", ".jsx") and p.name != "router.js"
-                 and touching.search(p.read_text(encoding="utf-8"))]
+                 and touching.search(self.without_the_reload(p))]
         self.assertEqual(found, [], "every change of page, project or peek goes through router.navigate()")
     def test_the_report_store_exposes_f_read_only_and_changes_it_only_through_setfilters(self):
         store = (PAGE_SRC / "stores" / "report.js").read_text(encoding="utf-8")
@@ -556,7 +566,7 @@ class BuiltPage(Browser):
         s = self.serve()
         self.base = f"http://127.0.0.1:{s.port}/"
         self.cdp = cdp
-        self.sid = opened(cdp, self.base + hash_, extra)
+        self.sid = opened(cdp, for_url(self.base + hash_), extra)      # #944: the page for the project in the address
         self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", self.sid) == "1"), "the bundle ran")
         if expect:
             self.until("document.querySelector('h1') && document.querySelector('h1').textContent", expect, "the page drew")
@@ -713,9 +723,10 @@ class BuiltPage(Browser):
             self.assertEqual(self.peek(), {"kind": "item", "id": "A-12"})
             self.ev("clarkPage.closePeek()")
             self.until("clarkPage.peek()", None, "the peek closed too")
-            self.ev("clarkPage.setProject('QRS')")
+            self.ev("window.hold = false")           # #944: another project is a page load, which an address held still cannot make: the hold is let go first
+            after_reload(self.ev, "clarkPage.setProject('QRS')")
             self.until("document.getElementById('project-name').textContent", "Second Programme", "and the project changed")
-            self.assertEqual(self.ev("location.hash"), "#dashboard&p=PDF")
+            self.assertEqual(self.ev("location.hash"), "#work&p=QRS", "in the page loaded for it, at the page that was showing")
             self.no_errors()
 
     def test_previous_next_and_another_row_replace_the_entry(self):
@@ -746,7 +757,7 @@ class BuiltPage(Browser):
             self.draw(cdp, "#work&p=PDF")
             self.ev("clarkPage.openPeek('A-12')")
             n = self.at()[1]
-            self.ev("clarkPage.setProject('QRS')")
+            after_reload(self.ev, "clarkPage.setProject('QRS')")          # #944: its own page load
             self.assertEqual(self.at(), ["#work&p=QRS", n + 1])
             self.assertIsNone(self.peek(), "the peek closed")
             self.until("document.getElementById('project-name').textContent", "Second Programme", "the new project's data")
@@ -784,13 +795,15 @@ class BuiltPage(Browser):
                 self.click_tab(view)
             self.ev("clarkPage.show('work'); clarkPage.openPeek('A-12'); clarkPage.openPeek('A-13'); clarkPage.closePeek()")
             self.until("location.hash", "#work&p=PDF", "closed")
-            self.ev("clarkPage.setProject('QRS')")
-            urls = self.ev("window.urls")
+            urls = self.ev("window.urls")          # #944: read before the project changes, which is a page load (the next page starts its own list)
             self.assertGreaterEqual(len(urls), 6)
             for u in urls:
                 self.assertRegex(u, r"^(push|replace)State #(dashboard|work|milestones|settings)(&p=[A-Z0-9]+)?(&(item|ms)=[A-Za-z0-9._-]+)?$")
             self.assertEqual(self.ev("location.href.split('#')[0]"), before)
-            self.assertEqual(self.ev("location.search"), "")
+            self.assertEqual(self.ev("location.search"), "?project=PDF", "the page was opened for its project, and no call of the page changed that")
+            after_reload(self.ev, "clarkPage.setProject('QRS')")
+            self.assertEqual(self.ev("location.search"), "?project=QRS", "the other project is the page loaded for it")
+            self.assertEqual(self.ev("window.urls"), [], "and the page made no history call to get there")
 
     def test_a_reload_keeps_the_page_the_project_and_the_peek(self):
         for want in ("#work&p=PDF&item=A-13", "#milestones&p=PDF&ms=M-3", "#settings&p=PDF", "#dashboard&p=QRS"):
@@ -915,7 +928,7 @@ class BuiltPage(Browser):
             self.assertEqual(self.ev("clarkPage.filters()"), "", "the filters belong to one page")
             self.ev("history.back()")
             self.until("clarkPage.filters()", "keep", "back")
-            self.ev("clarkPage.setProject('QRS')")
+            after_reload(self.ev, "clarkPage.setProject('QRS')")          # #944: its own page load
             self.assertEqual(self.at(), ["#work&p=QRS", n + 1])
             self.assertEqual(self.ev("clarkPage.filters()"), "")
             self.until("document.getElementById('project-name').textContent", "Second Programme", "the new project")
@@ -934,7 +947,7 @@ class BuiltPage(Browser):
             for u in urls:
                 self.assertRegex(u, r"^(push|replace)State #[a-z]+(&p=[A-Z0-9]+)?(&(item|ms)=[A-Za-z0-9._-]+)?(&f=[A-Za-z0-9%._~-]+)?$")
             self.assertEqual(self.ev("location.href.split('#')[0]"), before)
-            self.assertEqual(self.ev("location.search"), "")
+            self.assertEqual(self.ev("location.search"), "?project=PDF", "the page was opened for its project (#944), and no call of the page changed that")
             self.no_errors()
 
 

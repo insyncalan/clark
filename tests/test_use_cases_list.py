@@ -78,7 +78,11 @@ class Setup(Base):
             p.js("document.documentElement.dataset.theme = 'dark'")
         if hash_ == "#usecases&p=ABC":
             p.until("document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0 || !!document.querySelector('#usecases [data-empty]')", "the list drew")
-        self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
+        if hash_.startswith("#dashboard"):
+            p.until("document.querySelectorAll('[data-mode]').length === 3", "the Dashboard drew its whole View | Edit switch (row 804)")
+            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 3, "the View | Edit switch is on the Dashboard")      # row 804: the Dashboard has it, so the page must have drawn before anything is read (a race on a slow runner)
+        else:
+            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
         if edit:
             p.until("!!document.querySelector('#usecases [data-eye]')", "the page shows the eyes")
         return p

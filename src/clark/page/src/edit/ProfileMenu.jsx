@@ -85,7 +85,7 @@ export function ProfileMenu() {
   if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings", tip: "Settings" });      // #443: Published reports opens Settings at its card, so it comes with Settings; after Export, as in the prototype; no short word, so the tooltip is as it was
   items.push({ id: "help", name: "Help" });
   // Who you are (#180), the top line: the name in bold with the email under it, or only the name; with neither, a link that opens
-  // Settings › Personal and puts the cursor in the name box. Only what was typed in Settings: clark never makes up an email.
+  // Settings › Profile and puts the cursor in the name box. Only what was typed in Settings: clark never makes up an email.
   const me = profile.value;
   const named = !!(me.name || me.email);
   // Issue 787: while the top line is the link to Settings, the Settings entry at the foot is left out (one way in to Settings, not two).

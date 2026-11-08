@@ -113,6 +113,8 @@ jobs:
           # update and platform modules and the workflows.
           if [ "$EVENT" = "pull_request" ] && [ -z "$FULL" ]; then
             if CHANGED="$(gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')"; then
+              # GitHub lists at most 3000 files for a pull request (#601): a list that long may be cut short, so the answer is full (fail safe).
+              if [ "$(printf '%s\n' "$CHANGED" | wc -l)" -ge 3000 ]; then FULL=1; MACOS=1; fi
               while IFS= read -r F; do
                 case "$F" in
                   src/clark/store.py|src/clark/schema.sql|src/clark/history.py|src/clark/server.py) FULL=1 ;;

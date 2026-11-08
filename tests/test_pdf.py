@@ -451,8 +451,8 @@ class PublishRealChrome(unittest.TestCase):
 class PublishedFileAndPdfCarryTheSame(unittest.TestCase):
     """Client safety: the PDF is printed from the published file, so every word it holds is a word the published file holds."""
 
-    # What the print itself adds: the tab headings, the footer and the page counter.
-    ADDED = {"dashboard", "items", "milestones", "published", "page", "work"}
+    # What the print itself adds: the footer ("Publication N", "Published", "Page X of Y"). #556: the tab headings are the page's own words.
+    ADDED = {"publication", "published", "page"}
 
     def test_every_word_in_the_pdf_is_in_the_published_file(self):
         chrome = chrome_path()
@@ -721,7 +721,10 @@ class TheSecondReview(unittest.TestCase):
 
     def test_extra_words_are_found_and_the_footer_and_headings_are_allowed(self):
         body = "<p>Harbour crossing plan</p> caf\\u00e9 &amp; bar".encode()
-        self.assertEqual(publish_pdf.extra_words("Harbour crossing PLAN Published Page Dashboard Work items Milestones", body), [])
+        self.assertEqual(publish_pdf.extra_words("Harbour crossing PLAN Publication Published Page", body), [], "the footer's words are allowed")
+        self.assertEqual(publish_pdf.extra_words("Harbour Dashboard Work items Milestones", body), ["dashboard", "items", "milestones", "work"],
+                         "#556: the tab headings come from the page itself, so a heading the file does not hold is caught")
+        self.assertEqual(publish_pdf.ADDED, frozenset({"publication", "published", "page"}), "#556: only what the footer prints (footer_text, footer_template)")
         self.assertEqual(publish_pdf.extra_words("Harbour zzextra crossing", body), ["zzextra"])
         self.assertEqual(publish_pdf.extra_words("caf\u00e9", body), [], "an escaped letter in the file is the same letter")
         for text, extra in (("Harbour crossing", False), ("Harbour crossing zzextra", True)):

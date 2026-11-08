@@ -13,6 +13,7 @@ import re
 import sys
 import tempfile
 import unittest
+from _editor_checks import for_url
 from pathlib import Path
 
 from _paths import ROOT, SRC, TOOLS
@@ -112,7 +113,7 @@ class Tab(unittest.TestCase):
 
     def load(self, over=None, edit=False, width=1400):
         self.cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
-        self.cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.server.port}/#dashboard&p=DEMO"}, self.sid)
+        self.cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{self.server.port}/#dashboard&p=DEMO")}, self.sid)
         self.assertTrue(wait(lambda: self.cdp.js("!!(window.G && window.G.mount)", self.sid)), "the test bundle ran")
         self.go(f"G.mount({lit(over or {})}, {lit(edit)})")
 

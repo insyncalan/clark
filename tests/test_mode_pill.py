@@ -66,6 +66,7 @@ class ModePill(Base):
         for theme in ("light", "dark"):
             with self.subTest(theme=theme), chrome() as cdp:
                 p = self.visit(cdp)
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)      # pinned: no transition is mid-way when the colours are read
                 p.js(f"document.documentElement.dataset.theme = '{theme}'")
                 got = p.js(f"(function(){{var b={GROUP}.querySelector('[aria-pressed=\"true\"]'), s=getComputedStyle(b), r=document.querySelector('#report-state');"
                            "var root=getComputedStyle(document.documentElement);"

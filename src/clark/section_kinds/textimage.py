@@ -6,8 +6,11 @@ group). They live here, not in a module of their own, because every module in th
 reads the folder); the other three import them from here. Pure: no file, no database, nothing from clark but this folder.
 
 The stored body (canonical JSON, `{"v": 1, ...}`):
-- `words`: the paragraphs, a list of plain text (a line break starts a new paragraph); `caption`, `alt`: one line each;
-  `side`: "left", or nothing for the default (the picture on the right).
+- `words`: the paragraphs, a list of plain text (a line break starts a new paragraph): the LEGACY form, still read and drawn as text;
+  `html` (row 1005): the words as the one rich editor writes them, cleaned by sanitise.clean_html on every save and again at publish
+  (section_bodies.RICH_KEYS does it before this module sees the value, so this folder stays pure).
+  When `html` is there it wins and `words` is not stored; the editor saves `html` and takes `words` out. Legacy is told by key, never
+  by sniffing the text. `caption`, `alt`: one line each; `side`: "left", or nothing for the default (the picture on the right).
 - `pictures`: {slot: "data:image/png|jpeg|webp;base64,..."}. A picture is never sent with the words: POST /api/change keeps the
   stored pictures (changes.py), and only POST /api/section-image sets or clears one, through `with_picture` (one step, one Undo).
 
@@ -31,6 +34,7 @@ SLOTS = ("image",)
 
 PICTURES = "pictures"
 WORDS_MAX = 20                      # paragraphs
+HTML_MAX = 20 * 2000                # characters of the rich words once cleaned, and of their plain text (the old lines x max length)
 PARAGRAPH_MAX = 2000                # characters in one paragraph
 LINE_MAX = 300                      # characters in a caption, a description or one line
 SIDES = ("right", "left")
@@ -40,6 +44,7 @@ UNKNOWN_FIELD = "That content has a field this section doesn't keep. Reload the 
 OLD_VERSION = "That content was saved by a newer version. Update and try again."
 TOO_MANY_WORDS = f"The text can be {WORDS_MAX} paragraphs at most. Shorten it and try again."
 LONG_PARAGRAPH = f"A paragraph can be {PARAGRAPH_MAX} characters at most. Split it or shorten it, then try again."
+LONG_HTML = f"The text can be {HTML_MAX:,} characters at most. Shorten it and try again."
 LONG_LINE = f"A caption or a description can be {LINE_MAX} characters at most. Shorten it and try again."
 NOT_A_LINE = "Use plain text, with no line breaks or hidden characters."
 BAD_SIDE = "A picture sits on the left or the right. Choose one and try again."
@@ -227,6 +232,19 @@ def paragraphs(value, key):
     return out
 
 
+def rich(value, key="html"):
+    """The rich words from `value[key]`, which section_bodies has already cleaned (this module imports nothing from clark): '' when
+    there are none; Bad when it is not text or is over HTML_MAX. Never stored or published without that cleaning."""
+    given = value.get(key, "")
+    if given is None:
+        return ""
+    if not isinstance(given, str):
+        raise Bad(NOT_A_LINE)
+    if len(given) > HTML_MAX:
+        raise Bad(LONG_HTML)
+    return given
+
+
 def put(out, key, value):
     """Set `out[key]` only when it holds something, so the same content always stores as the same text."""
     if value:
@@ -237,8 +255,11 @@ def put(out, key, value):
 # ── This template ─────────────────────────────────────────────────────────────
 
 def check(value, rules):
-    out = frame(value, ("words", "caption", "alt", "side", PICTURES))
-    put(out, "words", paragraphs(value, "words"))
+    out = frame(value, ("words", "html", "caption", "alt", "side", PICTURES))
+    words = paragraphs(value, "words")
+    put(out, "html", rich(value))
+    if "html" not in out:                            # the rich words win; the old lines are kept only when there are none
+        put(out, "words", words)
     put(out, "caption", line(value, "caption"))
     put(out, "alt", line(value, "alt"))
     side = value.get("side", "right")
@@ -260,10 +281,16 @@ def published(value, ctx):
     if type(value) is not dict:
         return None
     image = (value.get(PICTURES) or {}).get("image", "")
-    words = value.get("words") or []
-    if not image and not words:
+    try:
+        html = rich(value)                           # checked AGAIN: what is stored is never trusted at publish
+    except Bad:
+        html = ""
+    words = [] if html else (value.get("words") or [])
+    if not image and not words and not html:
         return None
     content = {"words": list(words), "side": value.get("side", "right")}
+    if html:
+        content["html"] = html
     if image:
         content.update({"image": image, "caption": value.get("caption", ""), "alt": value.get("alt", "")})
     return {"content": content}
