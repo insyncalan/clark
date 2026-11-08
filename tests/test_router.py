@@ -765,6 +765,59 @@ class BuiltPage(Browser):
             self.assertEqual(self.at(), ["#work&p=QRS", n + 1], "a bad code changes nothing")
             self.no_errors()
 
+    def scroll_y(self):
+        return self.ev("Math.round(window.scrollY)")
+
+    def scroll_to(self, y):
+        self.ev(f"dispatchEvent(new WheelEvent('wheel')); window.scrollTo(0, {y})")      # a person's scroll ends the page's own settling
+        self.assertTrue(wait(lambda: self.scroll_y() == y), f"scrolled to {y}")
+
+    def tall(self):
+        self.ev("document.querySelector('header.top').parentElement.style.minHeight = '5000px'")
+
+    def test_item_1019_the_dashboard_keeps_its_place_across_a_tab_and_back(self):
+        with chrome() as cdp:
+            self.draw(cdp, "#dashboard&p=PDF")
+            self.tall()
+            self.scroll_to(700)
+            self.click_tab("work")
+            self.assertTrue(wait(lambda: self.scroll_y() == 0), "a first visit to Work items starts at the top")
+            self.scroll_to(300)
+            self.click_tab("dashboard")
+            self.assertTrue(wait(lambda: self.scroll_y() == 700), f"the Dashboard came back to where it was: {self.scroll_y()}")
+            self.click_tab("work")
+            self.assertTrue(wait(lambda: self.scroll_y() == 300), "and Work items to its own place")
+            self.no_errors()
+
+    def test_item_1019_back_and_forward_restore_each_screens_place(self):
+        with chrome() as cdp:
+            self.draw(cdp, "#dashboard&p=PDF")
+            self.tall()
+            self.scroll_to(650)
+            self.click_tab("work")
+            self.assertTrue(wait(lambda: self.scroll_y() == 0))
+            self.scroll_to(250)
+            self.ev("history.back()")
+            self.until("document.querySelector('.tab[aria-selected=true]').dataset.view", "dashboard", "back")
+            self.assertTrue(wait(lambda: self.scroll_y() == 650), f"Back put the Dashboard where it was: {self.scroll_y()}")
+            self.ev("history.forward()")
+            self.until("document.querySelector('.tab[aria-selected=true]').dataset.view", "work", "forward")
+            self.assertTrue(wait(lambda: self.scroll_y() == 250), f"Forward put Work items where it was: {self.scroll_y()}")
+            self.no_errors()
+
+    def test_item_1019_a_peek_does_not_move_the_page_and_a_fresh_load_starts_at_the_top(self):
+        with chrome() as cdp:
+            self.draw(cdp, "#work&p=PDF")
+            self.tall()
+            self.scroll_to(400)
+            self.ev("clarkPage.openPeek('A-12')")
+            self.ev("clarkPage.closePeek()")
+            time.sleep(0.5)
+            self.assertEqual(self.scroll_y(), 400, "opening and closing a peek leaves the place alone")
+            self.ev("location.reload()")
+            self.until("document.documentElement.dataset.ready", "1", "reloaded")
+            self.assertEqual(self.scroll_y(), 0, "a fresh load starts at the top")
+
     def test_scroll_resize_escape_and_repeated_calls_add_no_entry(self):
         # The real "history.length unchanged" check for filters, search, sort, Edit and the calendar waits for #64a and #42.
         with chrome() as cdp:
@@ -967,6 +1020,27 @@ class FileUrl(Browser):
             self.until("location.hash", "#milestones&p=PDF", "back closed the peek")
             self.assertTrue(all(u.split(" ", 1)[1].startswith("#") for u in self.ev("window.urls")))
             self.no_errors()
+
+    def test_item_1019_the_published_page_keeps_the_dashboards_place_at_360_and_1400(self):
+        view = PAGE_SRC.parent / "page-view.html"                      # the published file's own bundle, from file://
+        for width in (360, 1400):
+            with chrome() as cdp:
+                self.cdp = cdp
+                self.sid = opened(cdp, view.as_uri() + "#dashboard&p=PDF")
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 800, "deviceScaleFactor": 1, "mobile": width < 500}, self.sid)
+                self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", self.sid) == "1"), f"ran at {width}")
+                self.assertEqual(self.ev("location.protocol"), "file:")
+                self.ev("document.querySelector('header.top').parentElement.style.minHeight = '5000px'")
+                self.assertTrue(wait(lambda: self.ev("window.scrollTo(0, 600), Math.round(window.scrollY)") == 600), f"scrolled at {width}")
+                click = lambda v: self.ev(f"document.querySelector('[data-view={v}]').click()")
+                click("settings")
+                self.assertTrue(wait(lambda: self.ev("Math.round(window.scrollY)") == 0), f"Settings starts at the top at {width}")
+                self.ev("history.back()")
+                self.assertTrue(wait(lambda: self.ev("Math.round(window.scrollY)") == 600), f"Back restored the Dashboard at {width}: {self.ev('[location.hash, window.scrollY, document.documentElement.scrollHeight, innerHeight]')}")
+                click("settings")
+                click("dashboard")
+                self.assertTrue(wait(lambda: self.ev("Math.round(window.scrollY)") == 600), f"the tab restored it at {width}: {self.ev('[location.hash, window.scrollY, document.documentElement.scrollHeight, innerHeight]')}")
+                self.no_errors()
 
     def test_f_works_from_a_file_url_too(self):
         with tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
