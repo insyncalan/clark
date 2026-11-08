@@ -74,16 +74,16 @@ class Setup:
         window is already open) or lets a PlatformError out (the window could not be opened)."""
         if not self._dialog.acquire(blocking=False):
             raise Refused("busy", "")
-        try:
+        try:                                                # the answer is checked and kept under the same lock as the window
             answer = self.choose_folder(prompt)
+            if answer is None:
+                return None
+            folder = self.accept(answer)
+            self.remember(folder)
+            self.folder = folder
+            return self.report(folder)
         finally:
             self._dialog.release()
-        if answer is None:
-            return None
-        folder = self.accept(answer)
-        self.remember(folder)
-        self.folder = folder
-        return self.report(folder)
 
     def accept(self, answer):
         """The folder `answer` names if it passes, else Refused. The answer is untrusted text; nothing is written here."""
@@ -142,7 +142,7 @@ class Setup:
         except (OSError, ValueError, platform.PlatformError, platform.NotBuiltYet):
             return None
         try:
-            return self.accept(text.strip())
+            return self.accept(text.rstrip("\r\n"))       # only the line end: a folder's own edge spaces are part of its name
         except Refused:
             return None
 
