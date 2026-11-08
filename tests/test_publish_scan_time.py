@@ -83,10 +83,22 @@ for name, call in (("outside_addresses", lambda: publish.outside_addresses(text)
 """
 
 
+def workers(cpus):
+    """How many children run at once: at most four, and at most half the cores, so a small or loaded runner is not starved."""
+    return min(4, max(1, (cpus or 1) // 2))
+
+
+def child_limit(cpus):
+    """Wall-clock seconds one child may take: HARD for each child that shares the machine with it. The CPU-time BOUND is unchanged;
+    this only keeps the hang guard from killing a slow-but-linear child when several run side by side."""
+    return HARD * workers(cpus)
+
+
 def run_shape(expr, n):
     code = CHILD.format(src=str(SRC), n=n, expr=expr, limit=LIMIT)
+    hard = child_limit(os.cpu_count())
     try:
-        done = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True, timeout=HARD)
+        done = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True, timeout=hard)
     except subprocess.TimeoutExpired as e:
         return None, (e.stdout or "")
     return done.stdout.split("\n"), done.stderr
@@ -97,8 +109,26 @@ def run_all(shapes):
     processes, so threads waiting on them are enough). Each child's own limits are unchanged. Four at a time at most, so a
     small runner is not starved, and the CPU seconds each child measures for itself stay the same."""
     shapes = list(shapes)
-    with ThreadPoolExecutor(max_workers=max(1, min(4, os.cpu_count() or 1))) as pool:
+    with ThreadPoolExecutor(max_workers=workers(os.cpu_count())) as pool:
         return dict(zip((k for k, _, _ in shapes), pool.map(lambda t: run_shape(t[1], t[2]), shapes)))
+
+
+class Parallelism(unittest.TestCase):
+    def test_wall_clock_limit_scales_with_the_parallelism(self):
+        for cpus in (1, 2, 4, 16):
+            with self.subTest(cpus=cpus):
+                self.assertGreaterEqual(child_limit(cpus), HARD * workers(cpus))
+                self.assertGreaterEqual(child_limit(cpus), HARD)
+        self.assertEqual(workers(16), 4)
+        self.assertEqual(child_limit(16), HARD * 4)
+        self.assertEqual(child_limit(2), HARD)
+
+    def test_a_small_runner_is_not_oversubscribed(self):
+        self.assertEqual(workers(None), 1)
+        for cpus in (1, 2, 3, 4, 8, 16):
+            with self.subTest(cpus=cpus):
+                self.assertLessEqual(workers(cpus), max(1, cpus // 2))
+                self.assertLessEqual(workers(cpus), 4)
 
 
 class Fast(unittest.TestCase):
