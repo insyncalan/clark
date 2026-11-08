@@ -466,7 +466,7 @@ export async function loadProjects() {
 function nameProject(s) {
   try {
     if (published() || !s.project || !/^https?:$/.test(location.protocol) || s.project === (new URLSearchParams(location.search).get("project") || "")) return;
-    history.replaceState(history.state, "", "/?project=" + s.project + route.format(s));
+    route.replaceAddress("/?project=" + s.project + route.format(s));
   } catch (e) {}
 }
 let firstLoad = true;          // only the page's first read may go to another page for its brand: a switch that could not get the page stays put (loadProject)
