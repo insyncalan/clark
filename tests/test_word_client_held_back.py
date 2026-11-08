@@ -6,10 +6,7 @@ the file's own text (word_route._held_back, with the same markers) before it wri
 
 Case b: a risk whose working note (response_action, one of publish_flow.NOTE_FIELDS) is also pasted into its client-visible
 description; markers_for lists every row's note, so the web publish and the Word export both refuse.
-Not here, because the web publish does not refuse them either (no assertion it would fail): case c, the main text of a left-out
-row pasted into a client-visible row (it is then part of kept text, so it is not a marker), and case d, a hidden report section's
-body quoted in a visible row or section (markers_for reads no hidden section). In both the Word copy carries the text as the web
-file does.
+Cases c and d (#619): a left-out row's text, and a hidden section's text, pasted into a visible row. Both routes refuse them.
 
 Fictional data only: the demo store's project ABC, a few rows, a client folder and Local folders in a temporary folder.
 Run: python3 dev/run_tests.py test_word_client_held_back
@@ -204,9 +201,47 @@ class CleanReport(Setup, unittest.TestCase):
         self.assertNotIn("<w:", text)
 
 
-# Not covered here, and not refused by either path today (the web publish does not refuse them either): case c, a left-out row's
-# main text pasted into a client-visible row (it is then kept text, so it is not a marker: by design in markers_for), and case d,
-# a hidden report section's text quoted in a visible row (markers_for reads no hidden section). For the Head to decide separately.
+LEFT_OUT_TEXT = "Renegotiate the supplier penalty clause before the March audit"
+SECTION_TEXT = "Our fallback is to drop the second vendor if pricing slips"
+
+
+class LeftOutTextPasted(Cases, unittest.TestCase):
+    """#619 case c: the main text of a row left out of the client's view (client flag off), pasted into a client-visible row.
+    markers_for exempts a left-out text only when a kept value is exactly those words, so pasted inside other text it is refused."""
+    leak, absent = LEFT_OUT_TEXT, ()
+
+    def plant(self):
+        self.demo.action(description=LEFT_OUT_TEXT, client_visible=0)
+        self.visible = f"Next: {LEFT_OUT_TEXT}"
+        self.demo.action(description=self.visible, client_visible=1)
+        (hidden,) = [r for r in self.store.read("actions", "ABC") if r["description"] == LEFT_OUT_TEXT]
+        self.look_at = hidden["id"]
+
+
+class HiddenSectionTextPasted(Cases, unittest.TestCase):
+    """#619 case d: the body of a hidden report section, quoted in a client-visible row. markers_for reads no hidden section."""
+    leak, absent = SECTION_TEXT, ()
+
+    def plant(self):
+        with self.store.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "text", "title": "Internal fallback",
+                                          "body": SECTION_TEXT, "hidden": 1, "sort_order": 50})
+        (sec,) = [r for r in self.store.read("report_sections", "ABC") if r["title"] == "Internal fallback"]
+        self.look_at = sec["id"]
+        self.visible = f"Context: {SECTION_TEXT}"
+        self.demo.action(description=self.visible, client_visible=1)
+
+
+class LeftOutTextSameAsKept(Setup, unittest.TestCase):
+    """#619: a left-out row whose text is exactly a kept row's text (nothing around it) is not a leak: both copies still save."""
+
+    def plant(self):
+        self.demo.action(description=LEFT_OUT_TEXT, client_visible=0)
+        self.demo.action(description=LEFT_OUT_TEXT, client_visible=1)
+
+    def test_the_word_copy_and_the_web_publish_still_save(self):
+        self.assertEqual(self.word_export()[0], 200)
+        self.assertEqual(self.web_publish()[0], 200)
 
 
 if __name__ == "__main__":

@@ -901,7 +901,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 
 /* row 880: opening a group, its column names and rows rise 4 px and fade in over --dur-layout (transform and opacity only: no height moves). Edit build only: the published file has no glide. */
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
+  :root:not([data-motion="reduce"]) thead.opening > tr:not(.grp), :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
 }
 
 /* row 970: a row added to the list rises 4 px and fades in over --dur-state; a deleted row fades out over --dur-instant where it stood (opacity and transform only:
@@ -982,6 +982,9 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 /* row 940 (macOS gate, test_edit_cells_layout): in Edit at 900 px and below the Due, priority and status columns are 8 px wider than the bare minimum, so a font a little wider than Linux's (macOS draws these three 2 to 3 px wider) stays inside its box. EDIT ONLY: shell.css is also the published page's, whose Item column must stay at least 280 px (test_published_item_column), so the widths are not set there. Same specificity as shell.css's 900 px rule and later in the page, so these win without !important. */
 @media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 101px; } table.items .c-status { width: 150px; } }
 
+/* row 834: at 900 px an item's meta line (ID, use case, plan) is one line cut short with an ellipsis, as in the prototype (nowrap), so a row is at most two title lines and one meta line (82 px, the prototype's 81) and not three lines of meta. EDIT ONLY: shell.css is also the published page's. */
+@media (max-width: 900px) { table.items .c-owner { width: 130px; } #work table.items .tcell .tx { min-width: 0; } #work table.items .tcell .meta { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
+
 /* The Gantt parts only Edit draws (rows 926 and 928), moved here from shell.css so a published file carries none of them: the Gantt tab's name box, the two
    ticks of Settings › Gantt, the title box in the banner, the Undo toast and the disabled Import button. */
 .top .tab-name { box-sizing: border-box; align-self: center; width: 12ch; min-width: 8ch; max-width: 24ch; height: 28px; margin: 0 var(--space-2); padding: 0 var(--space-2); border: 1px solid var(--brand-cyan); border-radius: 6px; background: transparent; color: var(--white); font: inherit; font-size: var(--size-small); }
@@ -1049,3 +1052,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   .ucl-wi small { display: inline; margin-left: 6px; }
   .ucl-hd { display: none; }   /* no header row on a phone: each row names its own parts */
 }
+
+/* The milestone peek's Description while its editor is open: the cell is half the peek at phone width, which left the toolbar 134 px of room and
+   four or more rows. The open editor takes the whole row there, so the toolbar wraps to two rows at most. Edit only (the editor is). */
+@container (max-width: 559px) { .pk-fields > .pk-row[data-row=description]:has(.rt) { grid-column: 1 / -1; } }
