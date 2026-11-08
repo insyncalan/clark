@@ -1,5 +1,5 @@
 """Plan #1022: in the item rows (Risks and issues, Open actions, Decisions) and in the RAID cards, an ID, a date and an owner
-never wrap and never run over the line below; only the title is cut, with an ellipsis.
+never wrap, never get an ellipsis and are never clipped (a second line is fine: the part moves down whole); only the title is cut, with an ellipsis.
 
 Run: python3 dev/run_tests.py test_row_ids_no_wrap
 A real browser over a real store of fictional rows (project LONGPRJ: a 13-character ID, a very long title with spaces, a title
@@ -70,11 +70,19 @@ def check(test, js, surface, where, width):
       document.querySelectorAll({box!r}).forEach(function (row) {{
         var edge = row.getBoundingClientRect().right + 1;
         row.querySelectorAll({parts!r}).forEach(function (e) {{
-          var owner = e.classList.contains('raid-bit') && /^owner /.test(e.textContent);      // an owner longer than a narrow card is clipped with an ellipsis, never wrapped
-          if (!e.classList.contains("wl-id") && e.scrollWidth > e.clientWidth + 1 && !(owner && getComputedStyle(e).textOverflow === 'ellipsis')) out.push('is cut: ' + e.className + ' ' + e.textContent.slice(0, 30));
-          if (getComputedStyle(e).whiteSpace !== 'nowrap') out.push('may wrap: ' + e.className + ' ' + e.textContent.slice(0, 30));
-          if (!oneLine(e)) out.push('wraps: ' + e.className + ' ' + e.textContent.slice(0, 30));
-          if (e.getBoundingClientRect().right > edge + (e.classList.contains('idl') ? 4 : 0)) out.push('runs over: ' + e.className + ' ' + e.textContent.slice(0, 30));
+          var what = e.className + ' ' + e.textContent.slice(0, 30);
+          var slack = e.classList.contains('idl') || e.classList.contains('wl-id') ? 4 : 0;      // the ID link's hit area reaches 4 px past its text (margin -4px); its text is what is measured
+          var cs = getComputedStyle(e);
+          // Whole, never cut: not by the box (scrollWidth), not by an ellipsis or a clip, and the text itself ends inside the row.
+          if (e.scrollWidth > e.clientWidth + 1 + slack) out.push('is cut: ' + what);
+          if (cs.textOverflow !== 'clip') out.push('has an ellipsis: ' + what);
+          var rg = document.createRange(); rg.selectNodeContents(e);
+          var tr = rg.getBoundingClientRect();
+          if (tr.width && tr.right > edge + slack) out.push('text runs over the row: ' + what);
+          if (tr.width && tr.right > e.getBoundingClientRect().right + slack + 1 && cs.overflowX !== 'visible') out.push('text is clipped by its box: ' + what);
+          if (cs.whiteSpace !== 'nowrap') out.push('may wrap: ' + what);
+          if (!oneLine(e)) out.push('wraps: ' + what);
+          if (e.getBoundingClientRect().right > edge + slack) out.push('runs over: ' + what);
         }});
         var t = row.querySelector({title!r});
         if (!oneLine(t)) out.push('title wraps');
@@ -91,6 +99,11 @@ def check(test, js, surface, where, width):
       return out;
     }})()""")
     test.assertEqual(bad, [], f"{where} at {width}: {bad}")
+
+
+AREAS = "(function(){var r=document.querySelector('.wl:not(.cr-wl) > .wl-row');var c=getComputedStyle(r);return [c.gridTemplateAreas, getComputedStyle(r.querySelector(':scope > .wl-state')).gridArea, getComputedStyle(r.querySelector(':scope > .wl-main')).gridArea, (r.querySelector(':scope > .wl-id') ? getComputedStyle(r.querySelector(':scope > .wl-id')).gridArea : 'id')];})()"
+PHONE_AREAS = ['"state id" "main main"', "state", "main", "id"]
+TAG_SHRINK = "(function(){var t=document.querySelector('.item-rows-edit .wl-title .tag');if(!t)return null;var c=getComputedStyle(t);var r=t.getBoundingClientRect();return {shrink:c.flexShrink,grow:c.flexGrow,oneLine:r.height<=parseFloat(c.lineHeight||c.fontSize)*1.4+parseFloat(c.paddingTop)+parseFloat(c.paddingBottom)+4,fits:t.scrollWidth<=t.clientWidth+1,text:t.textContent};})()"
 
 
 class RowIds(unittest.TestCase):
@@ -119,11 +132,30 @@ class RowIds(unittest.TestCase):
                 p.until(f"document.documentElement.clientWidth === {w} || document.documentElement.clientWidth < {w}", "resized")
                 check(self, p.js, ROWS, "View rows", w)
                 check(self, p.js, CARDS, "View cards", w)
+                self.phone_areas(p.js, w, "View")
             p.edit()
             for w in (360, 641, 900, 1100, 1101, 1400):
                 self.width(p, w)
                 p.until("document.querySelectorAll('.item-rows-edit .wl-row').length > 0", "Edit rows")
                 check(self, p.js, ROWS, "Edit rows", w)
+                self.phone_areas(p.js, w, "Edit")
+                self.tag_holds(p.js, w)
+
+    def phone_areas(self, js, w, where):
+        """On a phone (640 px and less) the pill and the ID share the first line and the item has the whole width below; above, the
+        three columns. The computed grid-template-areas is read, so any change to that line fails here."""
+        got = js(AREAS)
+        if w <= 640:
+            self.assertEqual(got, PHONE_AREAS, f"{where} phone grid areas at {w}")
+        else:
+            self.assertEqual(got[0], "none", f"{where} has no named areas above a phone, at {w}")
+
+    def tag_holds(self, js, w):
+        """The Risk or Issue tag in an Edit row's title keeps its width (flex: none in edit.css): it does not shrink, wrap or clip."""
+        got = js(TAG_SHRINK)
+        self.assertIsNotNone(got, f"Edit rows draw a tag in the title at {w}")
+        self.assertEqual((got["shrink"], got["grow"]), ("0", "0"), f"the tag does not flex at {w}: {got}")
+        self.assertTrue(got["oneLine"] and got["fits"], f"the tag keeps its whole word on one line at {w}: {got}")
 
     def test_the_published_file(self):
         folder = tempfile.mkdtemp(prefix="clark-pub-")
@@ -140,6 +172,7 @@ class RowIds(unittest.TestCase):
                                 "the file drew its rows and cards")
                 check(self, p.js, ROWS, "File rows", w)
                 check(self, p.js, CARDS, "File cards", w)
+                self.phone_areas(p.js, w, "File")
                 self.assertEqual(p.js("document.querySelectorAll('.wl-id').length"), 0, "a file draws no item number in its rows")
 
 
