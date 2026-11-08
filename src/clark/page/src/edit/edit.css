@@ -239,6 +239,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-sources summary { cursor: pointer; color: var(--text-muted); font-size: var(--size-small); min-height: 24px; }
 .ask-sources summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 .ask-sources ul { margin: 4px 0 0; padding-left: var(--space-4); font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
+.ask-source-open { background: none; border: 0; padding: 0; font: inherit; color: var(--link, inherit); text-decoration: underline; cursor: pointer; min-height: 24px; text-align: left; overflow-wrap: anywhere; }
+.ask-source-open:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 @keyframes ask-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 /* the suggestions: ONE row, faded at the right edge, scrolling sideways; the working line has the same height and takes their place */
 .ask-pills, .ask-work { flex: none; box-sizing: border-box; min-height: 46px; padding: 6px 20px 10px; }
@@ -381,14 +383,6 @@ table.items td.c-pick { vertical-align: middle; }
   .ucl-name small { display: block; }
   .ucl-count { margin-left: 0; flex-basis: 100%; }
 }
-@media (max-width: 640px) {      /* the use case list on a phone: the number and the name on a line, the status and the work items under the name, no header row */
-  .ucl-hd { display: none; }
-  .ucl-row { grid-template-columns: 56px minmax(0, 1fr) 36px; gap: 6px 10px; align-items: start; }
-  .ucl-row > .ucl-name { grid-column: 2; }
-  .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1; }
-  .ucl-row > .ucl-st, .ucl-row > .ucl-wi { grid-column: 2 / -1; }
-  .ucl-wi small { display: inline; margin-left: 6px; }
-}
 @media (max-width: 640px) {      /* the editor's fifth tab: the tabs scroll inside their own bar, so the mode switch and the profile stay in the window */
   .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .top .tabs::-webkit-scrollbar { display: none; }
@@ -404,6 +398,10 @@ table.items td.c-pick { vertical-align: middle; }
   .top .dd:has(> .projbtn) { flex-shrink: 1000; min-width: calc(var(--space-7) + var(--space-5)); }
   .top .tabs { flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .top .tabs::-webkit-scrollbar { display: none; }
+}
+@media (max-width: 480px) {      /* row 1033: at 420 px the project name kept 160 px and the tab row got 61 px (360 px: 1 px), so Settings was out of reach; the name gives way first, as from 801 to 1000 px; down to 48 px, an initial and the chevron */
+  .top .dd:has(> .projbtn) { flex-shrink: 1000; min-width: 48px; }
+  .top .tabs { flex: 0 1 auto; min-width: 0; }
 }
 
 /* Use cases page: detail */
@@ -776,6 +774,8 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .projects table.proj-table { table-layout: auto; }
 .projects table.proj-table td.acts { text-align: right; white-space: nowrap; }
 .projects table.proj-table td.acts .btn + .btn { margin-left: 8px; }
+/* item 842: with the Settings links down the left at exactly 900 px the cards are 596 px wide and the table (Open, Edit, Archive in one line) is 619 px: below 960 px the buttons may wrap onto a second line instead of making the page scroll sideways. */
+@media (max-width: 960px) { .projects table.proj-table td.acts { white-space: normal; } .projects table.proj-table td.acts .btn { margin: 2px 0 2px 8px; } }
 @media (max-width: 640px) { .projects table.proj-table td.acts { grid-column: 1 / -1; text-align: left; white-space: normal; } }
 .projects table.proj-table tr.arch td { color: var(--text-muted); }
 .projects table.proj-table .btn:disabled { opacity: .55; cursor: default; }
@@ -1048,6 +1048,26 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 
 /* Settings › Brands review panel: the plain label first, the file's name small and grey after it. Tokens only. */
 .brand-file { font-size: var(--size-small); color: var(--text-muted); margin-left: 4px; }
+/* sweep c7: the edit rows' owner and due wording wrap inside the window, and the use case link and eye are 44 px to tap */
+@media (max-width: 640px) {
+  .item-rows-edit .wl-meta .cell-val { flex-wrap: wrap; min-width: 0; }
+  .item-rows-edit .wl-meta .late { min-width: 0; overflow-wrap: anywhere; }
+  .ucl-go { min-height: 44px; display: flex; align-items: center; }
+  .ucl-eye { width: 44px; height: 44px; }
+  .ucl-row { grid-template-columns: 56px minmax(0, 1fr) 44px; gap: 4px 10px; }
+  .ucl-row > .ucl-name { grid-column: 2; }
+  .ucl-row > .ucl-st, .ucl-row > .ucl-wi { grid-column: 2; justify-self: start; }
+  .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1 / span 3; align-self: start; justify-self: end; }
+  .ucl-row > .ucl-ref { grid-row: 1; }
+  .ucl-wi small { display: inline; margin-left: 6px; }
+  .ucl-hd { display: none; }   /* no header row on a phone: each row names its own parts */
+}
+
+/* Plan 1022 (EDIT ONLY: the published page draws no editable wording): in the Work items rows a long wording is cut with an ellipsis like the View's title, and shows whole, wrapped, while it is being typed in. The row's title is a flex line so the Risk or Issue tag keeps its width and the wording gives way; its overflow stays visible so the focus ring is not cut off. */
+.item-rows-edit .wl-title { display: flex; align-items: baseline; gap: var(--space-1); overflow: visible; }
+.item-rows-edit .wl-title .tag { flex: none; }
+.item-rows-edit .wl-title .cell-ce { flex: 0 1 auto; min-width: 4ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-rows-edit .wl-title .cell-ce:focus { overflow: visible; text-overflow: clip; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* The milestone peek's Description while its editor is open: the cell is half the peek at phone width, which left the toolbar 134 px of room and
    four or more rows. The open editor takes the whole row there, so the toolbar wraps to two rows at most. Edit only (the editor is). */

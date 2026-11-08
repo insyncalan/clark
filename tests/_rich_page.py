@@ -83,7 +83,11 @@ class Harness:
         tid = next(t["targetId"] for t in self.cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
         self.sid = self.cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
         self.cdp.call("Page.enable", {}, self.sid)
+        # Without this the page may not count as focused (a Mac headless Chrome often does not), and then focusing another element fires no
+        # blur: "leaving the field saves" never saw the leave. The other browser tests that use focus set it too.
+        self.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, self.sid)
         self.resize(1400)
+        self.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, self.sid)   # the page has the focus from the start: element.focus() then fires blur/focus
         self.cdp.call("Page.navigate", {"url": (tmp / "page.html").as_uri()}, self.sid)
         assert wait_for(lambda: self.ev("typeof window.mount === 'function'") is True, 60), "the page's script did not load"
         self.mod = META if self.ev("/Mac/.test(navigator.platform)") else CTRL        # ProseMirror's Mod key
@@ -105,10 +109,13 @@ class Harness:
     def theme(self, name):
         self.ev(f"document.documentElement.dataset.theme = {json.dumps(name)}")
 
-    def key(self, key, modifiers=0, code=None, vk=0):
+    def key(self, key, modifiers=0, code=None, vk=0, commands=None):
+        """`commands` names the editing command a key stands for (["moveRight"]): macOS Chrome moves the caret through those, not the key."""
         for kind in ("keyDown", "keyUp"):
-            self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code or key, "windowsVirtualKeyCode": vk,
-                                                      "modifiers": modifiers}, self.sid)
+            args = {"type": kind, "key": key, "code": code or key, "windowsVirtualKeyCode": vk, "modifiers": modifiers}
+            if commands and kind == "keyDown":
+                args["commands"] = commands
+            self.cdp.call("Input.dispatchKeyEvent", args, self.sid)
 
     def type(self, text):
         self.cdp.call("Input.insertText", {"text": text}, self.sid)

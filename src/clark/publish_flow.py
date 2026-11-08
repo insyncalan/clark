@@ -53,13 +53,14 @@ LINK_FORM = re.compile(r"(?i)[a-z][a-z0-9+.-]*://|(?:[a-z0-9-]+\.)+[a-z]{2,}(?::
 
 # What the route says, by stable `code`. The words are the product's (RULES.md): plain, "clark" in lower case. The messages of
 # to_client.MESSAGES (the catalogue of the spec) are used as they are for everything that module decides.
+SAME_FOLDER = "That is the client's folder. Save the local copy somewhere else."      # #619: the Word export ends it "Nothing was saved."
 MESSAGES = {
     "bad_project_code": "Give the project's code (3 to 7 capital letters or digits).",
     "project_not_found": "There is no project with that code.",
     "busy": "A publish is already running. Wait for it to finish, then try again.",
     "cancelled": to_client.MESSAGES["cancelled"],
     "dialog_failed": "{reason} Nothing was published.",
-    "same_folder": "That is the client's folder. Save the local copy somewhere else. Nothing was published.",
+    "same_folder": SAME_FOLDER + " Nothing was published.",
     "local_not_html": "The local copy's name must end in .html. Nothing was published.",
     "local_clark_files": "That place is where clark keeps its own files. Save the local copy somewhere else. Nothing was published.",
     "local_failed": "{name} could not be saved. Check you can edit that folder and that the disk has room, then try again. Nothing was published.",
@@ -223,6 +224,16 @@ def gantt_markers(store, code, published, add, kept_whole):
             value = text(row.get(field))
             if len(value) >= MIN_MARKER and _same_words(value) not in kept:
                 add(value, row["id"])
+
+
+def folder_inside(fs, a, b):
+    """Whether folder `a` is `b` or below it (as written and with links followed; case and accent form ignored). The one rule
+    the web publish (Publisher.inside_folder) and the Word export (#619, which passes no `fs`: the real disk) share."""
+    real = fs.realpath if fs else os.path.realpath         # no `fs`: the real disk, as RealFs.realpath is
+    try:
+        return to_client._inside(a, b) or to_client._inside(real(a), real(b))
+    except (OSError, ValueError):
+        return False
 
 
 class Publisher:
@@ -462,10 +473,7 @@ class Publisher:
 
     def inside_folder(self, a, b):
         """Whether folder `a` is `b` or below it (as written and with links followed; case and accent form ignored)."""
-        try:
-            return to_client._inside(a, b) or to_client._inside(self.fs.realpath(a), self.fs.realpath(b))
-        except (OSError, ValueError):
-            return False
+        return folder_inside(self.fs, a, b)
 
     def write_local(self, dest, data, digest):
         """Write the Local file and read it back; None when it is good, else the failure to send."""

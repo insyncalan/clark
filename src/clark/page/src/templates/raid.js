@@ -45,13 +45,14 @@ export function kindWords(row, kind) {
   return kind === "raid" ? (String(row.type || "").toLowerCase() === "issue" ? "Issue" : "Risk") : kind === "actions" ? "Action" : "Decision";
 }
 // The line under a card's title: status, owner and the date that matters, in plain words.
-export function metaOf(row, kind) {
+export function metaBits(row, kind) {
   const who = kind === "decisions" ? row.made_by : row.owner;
   const day = kind === "decisions" ? (row.status === "Pending" ? row.needed_by : row.date) : row.due_date;
   const label = kind === "decisions" ? (row.status === "Pending" ? "needed by" : "made") : "due";
   const bits = [row.status ? String(row.status) : "", who && who !== "TBC" ? `owner ${who}` : "", dateWords(day) ? `${label} ${dateWords(day)}` : ""];
-  return bits.filter(Boolean).join(" · ");
+  return bits.filter(Boolean);
 }
+export const metaOf = (row, kind) => metaBits(row, kind).join(" · ");
 
 // The rules for the served page's data. The published file needs none: it holds only the rows publish kept.
 export function rulesOf(data) {
