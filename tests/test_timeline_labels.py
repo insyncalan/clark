@@ -106,6 +106,18 @@ class Labels(unittest.TestCase):
             self.assertTrue(got["scrolls"], "the fixture's line scrolls sideways")
             self.assertGreaterEqual(got["clear"], 16, f"the last label ends {got['clear']} px above the box's bottom edge, inside where an overlay scrollbar is drawn: {got}")
 
+    def test_every_label_has_a_24_px_hit_box(self):
+        """The labels are one line (about 18 px of text box); the padded box that takes the click is at least 24 px high."""
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            cdp.call("Page.enable", {}, sid)
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#milestones&p=TUL"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-strip .mv-lab').length", sid) > 1), "the timeline drew")
+            got = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('.mv-strip .mv-lab')].map(l => l.getBoundingClientRect().height))", sid))
+            self.assertTrue(got and min(got) >= 24, f"a label's hit box is {min(got)} px high, under 24: {got}")
+
 
 if __name__ == "__main__":
     unittest.main()
