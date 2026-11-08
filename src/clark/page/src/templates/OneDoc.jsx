@@ -5,15 +5,18 @@
 import { oneDoc } from "./files.js";
 import { FileRow } from "./DocLinks.jsx";
 
+import { CleanProse } from "../components/CleanProse.jsx";
+
 export const READY = true;
 
-export function View({ section }) {
-  const d = oneDoc(section);
+export function View({ section, clean }) {
+  const d = oneDoc(section, clean);
   if (!d) return null;
   return (
     <div class="tpl-od">
       <p class="tpl-od-file"><FileRow file={d.file} label={d.label} /></p>
-      {d.text.map((t, n) => <p key={n} class="tpl-od-text">{t}</p>)}
+      {d.html ? <CleanProse cls="tpl-od-text tpl-rich prose" html={d.html} />
+        : d.text.map((t, n) => <p key={n} class="tpl-od-text">{t}</p>)}
     </div>
   );
 }
