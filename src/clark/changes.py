@@ -1400,11 +1400,14 @@ def _checked_use_case_changes(fields):
             else:
                 out[k] = v
         elif k == "owner":                                          # row 875: plain one-line text, 200 characters; blank or None clears it
-            if v is not None and (not isinstance(v, str) or len(v) > UC_OWNER_LIMIT):
+            if v is not None and not isinstance(v, str):
+                raise Refused(ITEM_VALUE_WORDS)
+            stored = unicodedata.normalize("NFC", v).strip() if isinstance(v, str) else ""      # the limit counts what is kept, not the spaces round it
+            if len(stored) > UC_OWNER_LIMIT:
                 raise Refused(ITEM_VALUE_WORDS)
             if isinstance(v, str) and not _plain_text(v):
                 raise Refused(ITEM_TEXT_WORDS)
-            out[k] = unicodedata.normalize("NFC", v).strip() or None if isinstance(v, str) else None
+            out[k] = stored or None
         elif k == "standing":
             try:
                 out[k] = sanitise.clean_html(v)
