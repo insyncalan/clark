@@ -150,6 +150,12 @@
 .rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
 .rowmenu .ddmenu { max-height: calc(100vh - 2 * var(--space-2)); overflow-y: auto; }
 .rowmenu .rm-fly { position: fixed; min-width: 160px; }              /* the list beside its entry (row 848): on the window, so the menu itself never changes */
+.rowmenu .ddmenu[data-pointer] [role="menuitem"]:focus-visible:not(:hover) { outline: none; background: none; color: var(--text); }      /* row 979: opened by the mouse, no ring or tint on the first entry (the hovered one keeps its own) */
+/* row 979: the row menu and its list do not move as they open, they fade (opacity only; the page's own fade and tokens); the 4 px drop stays for every other menu. Still under reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  /* row 962: not on the copy of a closed list (.leaving, inside .rowmenu too): this rule outranks the exit rule in shell.css and it would run m-in over m-out */
+  :root:not([data-motion="reduce"]) .rowmenu .ddmenu:not(.leaving) { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
+}
 
 /* Changing several work items at once (#196): the bar's buttons wrap at 900 px, the "N items" menu, and the question. Tokens only. */
 .selbar { flex-wrap: wrap; row-gap: 6px; }
@@ -479,6 +485,10 @@ textarea.tpl-field { resize: vertical; }
 .tpl-table-edit th .btn { margin-top: var(--space-1); }
 .tpl-edit .btn { align-self: flex-start; }
 .tpl-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* #936: the Quote and the Link preview draw no coloured side stripe in Edit (a quiet panel, a plain frame); the published file keeps its own. Tokens only. */
+.tpl-quote { padding: var(--space-2) var(--space-4); border-left: 0; border-radius: var(--radius); background: var(--grey-50); }
+.tpl-lc { border-left: 1px solid var(--grey-200); }
 
 /* Section templates, G4 Dates and lists (#96): the Edit parts of Key dates and Checklist. Tokens only. */
 .tple { margin: var(--space-2) 0; min-width: 0; }
@@ -1012,6 +1022,10 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .fhints.on { visibility: visible; }
 /* row 988: with many lines the chart box is bounded and scrolls inside itself, so its sticky header row stays in view. Edit.css only: shell.css is the published page's. (.gt-full sets its own, tighter bound.) */
 .gt-gx { max-height: 70vh; }
+
+/* row 931: the icon at the start of a suggestion row (the Work items filter box); the row stays one line, the colours are tokens, nothing moves. */
+.fopt .i { align-self: center; color: var(--text-muted); }
+.fopt:hover .i, .fopt[aria-selected="true"] .i { color: inherit; }
 
 /* Settings › Brands review panel: the plain label first, the file's name small and grey after it. Tokens only. */
 .brand-file { font-size: var(--size-small); color: var(--text-muted); margin-left: 4px; }
