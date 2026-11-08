@@ -315,5 +315,29 @@ class HealthStepsSayWhatThePageDoes(unittest.TestCase):
         self.assertNotIn("warns you", self.TEXT)
 
 
+class KeyRowsSayWhatTheKeysDo(unittest.TestCase):
+    KEYS = {r[0]: r[1] for r in RAW["reference"]["keys"]}
+    ALL = json.dumps(RAW, ensure_ascii=False)
+
+    def test_alt_slash_is_not_a_key_the_page_binds(self):
+        self.assertNotIn("[[Alt+/]]", self.ALL)                            # no key handler binds Alt+/: the AI menu opens from the bar's AI button and the slash menu
+
+    def test_alt_slash_is_not_named_in_plain_text_either(self):
+        for name, blob in (("helpContent", self.ALL), ("helpLater", json.dumps(LATER, ensure_ascii=False))):
+            self.assertNotIn("Alt+/", blob, name)                          # the plain words too, not only the [[Alt+/]] markup
+
+    def test_mod_enter_is_only_what_the_page_does(self):
+        row = self.KEYS["[[Mod+Enter]]"]
+        self.assertIn("In an editor: keep the text and close it", row)     # core/editor.js
+        self.assertIn("In Sneak peek: confirm and apply a change that needs your OK", row)    # SneakPeek.jsx apply(mod, shift)
+        self.assertNotIn("AI suggestion", row)                             # AiCard.jsx handles only Escape
+        self.assertNotIn("health reason", row)                             # a reason saves on blur
+        self.assertNotIn("Accept** ([[Mod+Enter]])", self.ALL)
+
+    def test_no_row_for_a_last_instruction_or_mod_j(self):
+        self.assertNotIn("last instruction", self.ALL)
+        self.assertNotIn("Mod+J", self.ALL)
+
+
 if __name__ == "__main__":
     unittest.main()

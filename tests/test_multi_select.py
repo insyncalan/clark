@@ -634,7 +634,7 @@ class PublishedFile(unittest.TestCase):
     """A published file is read only: nothing to do with several, so no selection; Shift with an arrow still moves the row."""
 
     def test_no_selection_and_shift_arrows_still_move(self):
-        s = Running(data_for=DATA.get, page_html=published_page)
+        s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=published_page)
         self.addCleanup(s.close)
         with chrome() as cdp:
             sid = navigate(cdp, s.port, for_project("#work&p=ABC"))

@@ -511,8 +511,10 @@ class Import(Screens):
             for scheme in SCHEMES:
                 with self.subTest(width=w, scheme=scheme), chrome() as cdp:
                     p = self.page(cdp, w, scheme)
-                    p.js("document.querySelector('.tab[data-view=settings]').click()")
-                    p.until("document.querySelector('.tab[data-view=settings]').getAttribute('aria-selected') === 'true'", "Settings")
+                    p.js("document.querySelector('#profile-btn').click()")      # row 976: Settings is no tab; the profile circle's menu opens it
+                    p.until("!!document.querySelector('#profile-menu')", "the profile menu")
+                    p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+                    p.until("document.querySelector('h1') && document.querySelector('h1').textContent === 'Settings'", "Settings")
                     self.assertEqual(p.js("document.querySelectorAll('.top [data-mode]').length"), 0, "no View | Edit on Settings")
                     self.open_import(p)
                     self.inside(p, "word-import-dialog")

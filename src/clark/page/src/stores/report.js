@@ -340,6 +340,8 @@ const ALLOWED = {
          known: { [BAD_CODE]: BAD_CODE } },
   403: { fallback: NOT_ACCEPTED,
          known: { "Not allowed": NOT_ACCEPTED, [NOT_ACCEPTED]: NOT_ACCEPTED, [STALE]: STALE,
+                  "That was not accepted. Reload the page and try again.": NOT_ACCEPTED,       // server.MESSAGES not_allowed
+                  "This page is out of date because clark was restarted. Reload the page and try again.": STALE,       // server.STALE_PAGE
                   "The server was restarted since this page was opened. Reload the page (Cmd+R) and try again.": STALE } },
   404: { fallback: "Check the project's code.",
          known: { [NO_PROJECT]: NO_PROJECT,
@@ -369,12 +371,15 @@ const CHANGE_KNOWN = {
   // #80: a work item change clark would not make (clark/changes.py's words; the page says its own)
   "That item isn't in this project.": "That item is no longer in this project, and nothing was changed. Reload the page.",
   "The week ending date must be a real date. The old date was kept. Pick a date and try again.": "That isn't a real day, so the old week ending date was kept. Type another date as DD-MM-YYYY.",
-  "Pick a real date.": "That date isn't a real day, and nothing was changed. Pick another date.",
+  // changes.NOT_A_DATE, and DOC_NOT_A_DATE for a document's typed date
+  "That isn't a date. Pick a day from the calendar.": "That date isn't a real day, and nothing was changed. Pick another date.",
+  "That isn't a date. Write it as DD-MM-YYYY (day, month, year), or leave it empty.": "That date isn't right. Nothing was changed. Type it as DD-MM-YYYY, or leave it empty.",
   "That status isn't available for this item.": "That status isn't one this item can have, and nothing was changed.",
   "A decision that is made needs the date it was made.": "A made decision needs the date it was made, and nothing was changed. Pick a date.",
   "A decision that isn't made yet has no date.": "A decision that isn't made yet has no decision date, and nothing was changed.",
-  "A decision that has been made can't go back to pending. Record a new decision that replaces it.":
-    "A decision that has been made can't go back to pending, and nothing was changed. Record a new decision that replaces it.",
+  // = changes.MADE_STAYS exactly (capital P; a test keeps them equal)
+  "A decision that has been made can't go back to Pending. Record a new decision that replaces it.":
+    "A decision that has been made can't go back to Pending, and nothing was changed. Record a new decision that replaces it.",
   "A decision that has been made can't be put back. Record a new decision that replaces it.":
     "That decision has been made, so it was left as it is. Record a new decision that replaces it.",
   "Use plain text, with no line breaks or hidden characters.": "A name can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
@@ -387,8 +392,7 @@ const CHANGE_KNOWN = {
   "What is needed can be 300 characters at most.": "What is needed can be 300 characters at most. Nothing was changed.",
   "From can be 100 characters at most.": "From can be 100 characters at most. Nothing was changed.",
   "By must be a real day between 2000 and 2100, or empty.": "By must be a real day between 2000 and 2100, or empty. Nothing was changed.",
-  // the change route's own limit (server.py MESSAGES change_too_large): said as the route says it, and that nothing was changed
-  "That is too big to save. Shorten a line or remove some lines, then try again.": "That is too big to save, and nothing was changed. Make it shorter, then try again.",
+  // the change route's own limit (server.py MESSAGES change_too_large) is the key at the end of this table
   // row 1005: the Text and picture section's text over its limit (section_kinds/textimage.py's words, said as the server says them)
   "The text can be 40,000 characters at most. Shorten it and try again.": "The text can be 40,000 characters at most. Shorten it and try again.",
   // #189: a 'Progress tracker' clark would not save (clark/section_bodies.py's words; the page checks first and says the same)
