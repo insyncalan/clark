@@ -190,7 +190,7 @@ class Built(unittest.TestCase):
 
 class RealBrowser(unittest.TestCase):
     def test_the_page_is_set_in_inter_and_nothing_is_blocked(self):
-        s = Running(data_for=DATA.get, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         blocked = []
         handler = _Collect(blocked)

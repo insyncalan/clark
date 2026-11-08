@@ -138,10 +138,10 @@ def _mixed(value):
 
 
 def _plain(raw):
-    """Decoded base64 as text, or None when it is mostly not printable (a picture, a compressed file); the replacement
-    character counts as printable, so mostly-text data with a few bad bytes is still read."""
+    """Decoded base64 as text, or None when it is mostly not printable (a picture, a compressed file, random bytes); a bad byte
+    (the replacement character) is not printable (#502), so mostly-text data with a few bad bytes is still read."""
     text = raw.decode("utf-8", "replace")
-    return text if sum(c.isprintable() or c in "\r\n\t" for c in text) >= len(text) * 0.9 else None
+    return text if sum((c.isprintable() and c != "\ufffd") or c in "\r\n\t" for c in text) >= len(text) * 0.9 else None
 
 
 def _decoded(run):
@@ -169,10 +169,23 @@ def _clean(plain):
     return text if all(c.isprintable() or c in "\r\n\t" for c in text) else None
 
 
+def _name_like(run):
+    """Whether a run joined by _ or - reads as a name (a file, a project, a revision) and not as a key: it has at least three parts, no part is a
+    long one with the look of a random key (a key's own pieces are), and either most parts are plain words or one part is a word of three letters or more, perhaps with a number after it (Tulip, Final, Rev03, Jan2025)."""
+    parts = [p for p in re.split(r"[-_]+", run) if p]
+    if len(parts) < 3:
+        return False
+    if any(len(p) >= 12 and _random_look(p) for p in parts):
+        return False
+    word = [bool(re.fullmatch(r"([A-Z][a-z]{2,}|[a-z]{3,}|[A-Z]{3,})\d{0,4}[A-Za-z]?", p)) for p in parts]
+    plain = [p.isalpha() or p.isdigit() for p in parts]
+    return any(word) or sum(plain) * 2 > len(parts)
+
+
 def _random_look(run, often=True):
     """Whether a run has the look of a random key: an upper case letter, a lower case letter and a digit, not a word-joined name, and the
     class of character changing often (the long-run guess's own test)."""
-    if not (re.search(r"[a-z]", run) and re.search(r"[A-Z]", run) and re.search(r"\d", run)) or ask._words_joined(run):
+    if not (re.search(r"[a-z]", run) and re.search(r"[A-Z]", run) and re.search(r"\d", run)) or ask._words_joined(run) or _name_like(run):
         return False
     kind = [("l" if c.islower() else "u" if c.isupper() else "d" if c.isdigit() else "o") for c in run]
     return not often or sum(1 for x, y in zip(kind, kind[1:]) if x != y) >= len(run) // 2
@@ -235,7 +248,7 @@ def _loose(text):
     """The long-run guess, narrower than the question screen's (that one is for a short question; here a hit drops a whole file):
     a long mixed run with the look of a random key (the class of character changes often), not a word-joined name, not an
     address's path, not inside a picture's data address (the base64 look is decoded and read separately)."""
-    for m in re.finditer(r"[A-Za-z0-9+/_=-]{32,}", text):
+    for m in re.finditer(r"[A-Za-z0-9+/_=-]{25,}", text):
         run = m.group()
         if not _random_look(run):
             continue
