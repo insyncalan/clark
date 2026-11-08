@@ -132,7 +132,12 @@ class Minimap(Base):
                            "return [r.left >= 0, r.right <= window.innerWidth, r.top >= 0, r.bottom <= window.innerHeight,"
                            "document.documentElement.scrollWidth <= window.innerWidth];})()")
                     # The list can still be sliding into its place after the width changed (it was open at the width before): wait for it to settle.
-                    p.until(f"{fit}.every(Boolean)", f"{scheme} {w}: settled inside the window")
+                    # The numbers are read after the wait, so a failure shows where the list ended up:
+                    # [left, right, top, bottom of the list; window width, height; page scroll width, client width].
+                    settled = wait(lambda: all(p.js(fit)), 10)
+                    where = p.js("(function(){var r=document.querySelector('.toc-card').getBoundingClientRect();return [r.left,r.right,r.top,r.bottom,innerWidth,innerHeight,"
+                                 "document.documentElement.scrollWidth,document.documentElement.clientWidth];})()")
+                    self.assertTrue(settled, f"{scheme} {w}: settled inside the window: {where}")
                     self.assertEqual(p.js(fit), [True] * 5, f"{scheme} {w}")
 
     def test_the_current_section_mark_can_be_seen_against_the_page_in_both_colours(self):
