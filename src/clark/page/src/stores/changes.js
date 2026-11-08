@@ -267,7 +267,7 @@ export function changeCell(table, id, changes, done) {
   const code = project.value;
   return enqueue(async () => {
     const r = await sendCellChange(code, table, id, changes, done.place || "cell");
-    if (!r.ok) { if (typeof done.refused === "function") done.refused(r.message); else say("problem", r.message); return null; }
+    if (!r.ok) { if (typeof done.refused === "function") { trouble.n++; done.refused(r.message); } else say("problem", r.message); return null; }      // a refusal the box shows is still a problem for saved() (#944)
     const item = r.reply.item;
     const d = data.value;
     if (d && project.value === code && Array.isArray(d[table])) {
@@ -384,7 +384,7 @@ export function undoSeveral(steps, { preview = false, confirm = false } = {}) {
   if (preview) return sendUndoMany(code, steps, { preview: true });
   return enqueue(async () => {
     const r = await sendUndoMany(code, steps, { confirm });
-    if (!r.ok) { if (!r.confirm) say("problem", r.message); return r; }
+    if (!r.ok) { if (r.confirm) trouble.n++; else say("problem", r.message); return r; }      // clark asking first is no save either: saved() sees it (#944)
     redraw(code, r.reply);
     undone.value++;
     for (const s of steps) { const at = undoable.findIndex((u) => u.step === s); if (at >= 0) undoable.splice(at, 1); }

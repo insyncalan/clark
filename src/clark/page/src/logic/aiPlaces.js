@@ -9,6 +9,8 @@ export const PLACE_OF = {
   "section.body": "current",         // every text section of the report
   "current.state": "current",        // Current state (the report's headline)
   "usecase.standing": "current",     // a use case's "Where it stands"
+  "peek.latest_update": "current",   // an item's or milestone's Latest update (row 1005)
+  "milestone.description": "current", // a milestone's Description in its peek (row 1005)
   "textimage.text": "current",       // a Text and picture section's text (row 1005)
   "movement.internal_note": "current", // a milestone's Internal note on the Movement page (row 1005)
   "glance.health_reason": "current", // the At a glance Reason for the project's health (row 1005)
@@ -29,6 +31,8 @@ export const RICH_FIELDS = {
   body: "section.body",
   headline: "current.state",
   standing: "usecase.standing",
+  latest_update: "peek.latest_update",
+  description: "milestone.description",
   textimage: "textimage.text",
   internal_note: "movement.internal_note",
   health_reason: "glance.health_reason",
