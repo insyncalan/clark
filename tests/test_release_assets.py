@@ -9,6 +9,9 @@ from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+import _paths  # noqa: F401
+import _signing
+
 spec = importlib.util.spec_from_file_location("check_release_assets", ROOT / "dev" / "tools" / "check_release_assets.py")
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
@@ -268,6 +271,58 @@ class Check(unittest.TestCase):
         step = [l for l in text.splitlines() if l.startswith("20. ")][0]
         self.assertIn("--repo owner/name", step)
         self.assertIn("--repo owner/name", mod.__doc__)
+
+
+class Signature(unittest.TestCase):
+    """From the day the app holds a real release key, a release without a verifying clark-X.Y.Z-mac.zip.sig fails the check."""
+    ZIP = b"PK pretend download bytes"
+
+    def release(self, sig=True, tag="v0.5.0"):
+        rel = good(tag)
+        v = tag.lstrip("v")
+        rel["assets"] = [dict(rel["assets"][0], id=1)] + ([{"name": f"clark-{v}-mac.zip.sig", "size": 64, "id": 2}] if sig else [])
+        return rel
+
+    def fetch(self, seed=None):
+        sig = _signing.signature_for(self.ZIP, seed or _signing.TEST_SEED)
+        return lambda asset: self.ZIP if asset["id"] == 1 else sig
+
+    def test_a_release_with_a_verifying_sig_passes(self):
+        self.assertEqual(mod.problems([self.release()], None, [], self.fetch(), _signing.TEST_PUBLIC), [])
+
+    def test_a_release_without_its_sig_fails_when_the_key_is_real(self):
+        out = mod.problems([self.release(sig=False)], None, [], self.fetch(), _signing.TEST_PUBLIC)
+        self.assertEqual(len(out), 1)
+        self.assertIn("no clark-0.5.0-mac.zip.sig", out[0])
+        self.assertIn("step 7a", out[0])
+
+    def test_a_sig_made_with_another_key_or_over_other_bytes_fails(self):
+        out = mod.problems([self.release()], None, [], self.fetch(_signing.OTHER_SEED), _signing.TEST_PUBLIC)
+        self.assertEqual(len(out), 1)
+        self.assertIn("does not verify", out[0])
+        self.assertIn("badsig", out[0])
+        wrong_len = lambda asset: self.ZIP if asset["id"] == 1 else b"short"
+        self.assertEqual(len(mod.problems([self.release()], None, [], wrong_len, _signing.TEST_PUBLIC)), 1)
+
+    def test_a_sig_or_zip_that_cannot_be_downloaded_fails(self):
+        out = mod.problems([self.release()], None, [], lambda asset: None, _signing.TEST_PUBLIC)
+        self.assertEqual(len(out), 1)
+        self.assertIn("could not be downloaded", out[0])
+
+    def test_no_sig_is_asked_for_while_the_key_is_the_placeholder(self):
+        self.assertEqual(mod.problems([self.release(sig=False)], None, []), [])
+        self.assertEqual(mod.problems([self.release(sig=False)], None, [], self.fetch()), [])
+
+    def test_releases_before_0_5_0_are_not_asked_for_a_sig(self):
+        self.assertEqual(mod.problems([self.release(sig=False, tag="v0.4.0")], None, [], self.fetch(), _signing.TEST_PUBLIC), [])
+
+    def test_the_command_fails_a_release_without_its_sig_when_the_key_is_real(self):
+        out = io.StringIO()
+        run = mock.Mock(returncode=0, stdout=json.dumps([self.release(sig=False)]))
+        with mock.patch.object(mod.subprocess, "run", return_value=run), mock.patch.object(mod.updates, "RELEASE_PUBLIC_KEY", _signing.TEST_PUBLIC), \
+                contextlib.redirect_stdout(out):
+            self.assertEqual(mod.main(["v0.5.0"]), 1)
+        self.assertIn("no clark-0.5.0-mac.zip.sig", out.getvalue())
 
 
 if __name__ == "__main__":
