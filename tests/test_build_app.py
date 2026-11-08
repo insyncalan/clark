@@ -31,7 +31,17 @@ class BuildApp(unittest.TestCase):
         fake(self.bin, "uname", f"echo {system}")
         if not with_osa:
             (self.bin / "osacompile").unlink()
-        env = dict(os.environ, PATH=f"{self.bin}:/usr/bin:/bin", TMPDIR=str(self.tmp))
+        path = f"{self.bin}:/usr/bin:/bin"
+        if not with_osa:
+            # a real /usr/bin/osacompile may exist (a Mac): hide it behind a tools dir holding only what the script needs
+            tools = self.tmp / "tools"
+            tools.mkdir(exist_ok=True)
+            for name in ("mktemp", "mkdir", "rm", "cat", "dirname"):
+                found = shutil.which(name, path="/usr/bin:/bin")
+                if found and not (tools / name).exists():
+                    (tools / name).symlink_to(found)
+            path = f"{self.bin}:{tools}"
+        env = dict(os.environ, PATH=path, TMPDIR=str(self.tmp))
         return subprocess.run(["/bin/bash", str(SCRIPT), *args], capture_output=True, text=True, env=env)
 
     def source(self):
@@ -49,6 +59,7 @@ class BuildApp(unittest.TestCase):
     def test_it_stops_without_osacompile(self):
         r = self.run_script(str(self.out), with_osa=False)
         self.assertEqual(r.returncode, 1)
+        self.assertIn("osacompile (macOS) is needed", r.stderr)
         self.assertFalse((self.out / "clark.app").exists())
 
     def test_it_builds_into_the_folder_named(self):
@@ -103,6 +114,44 @@ class BuildApp(unittest.TestCase):
         self.assertIn("CLARK_BROWSER=/usr/bin/true", s)
         self.assertNotIn("display dialog msg", s)
         self.assertIn("applet-out.txt", s)
+
+    def test_a_test_port_must_be_plain_ascii_digits(self):
+        marker = self.tmp / "X"
+        hostile = [f"1; touch {marker}", "87 65", "8765;", f"`touch {marker}`", f"$(touch {marker})", "87\n65",
+                   "٨٧٦٥", "", "-1", "8765 ", "8765\n"]
+        for n, port in enumerate(hostile):
+            with self.subTest(port=port):
+                out = self.tmp / f"o{n}"
+                r = self.run_script("--test-data", str(self.tmp / "d"), "--test-port", port, str(out))
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn("--test-port", r.stderr)
+                self.assertIn("digits", r.stderr)
+                self.assertFalse((out / "clark.app").exists())
+                self.assertFalse(marker.exists())
+
+    def test_a_test_port_injection_would_reach_the_applets_shell_command(self):
+        # why the check matters: without it the text lands unquoted in the command the applet hands to the shell
+        marker = self.tmp / "X"
+        cmd = f"echo --port 1; touch {marker}"
+        subprocess.run(["/bin/sh", "-c", cmd], capture_output=True)
+        self.assertTrue(marker.exists())  # the shape of the hostile value does run when unquoted
+        marker.unlink()
+        r = self.run_script("--test-data", str(self.tmp / "d"), "--test-port", f"1; touch {marker}", str(self.out))
+        self.assertEqual(r.returncode, 1)
+        self.assertFalse(self.out.exists() and (self.out / "clark.app").exists())
+
+    def test_a_test_data_folder_with_a_quote_or_backslash_is_refused(self):
+        for n, data in enumerate(['/tmp/a"b', '/tmp/a\nb', "/tmp/a\\b", '"', '/tmp/x" & (do shell script "touch y") & "']):
+            with self.subTest(data=data):
+                out = self.tmp / f"d{n}"
+                r = self.run_script("--test-data", data, "--test-port", "8765", str(out))
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn("--test-data", r.stderr)
+                self.assertFalse((out / "clark.app").exists())
+
+    def test_ordinary_test_data_with_spaces_is_still_built(self):
+        r = self.run_script("--test-data", str(self.tmp / "my data"), "--test-port", "8765", str(self.out))
+        self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_the_script_writes_only_where_told(self):
         before = set(os.listdir(self.tmp))
