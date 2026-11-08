@@ -2,7 +2,8 @@
 // build that leaves this file out (the published page, view.jsx) has no way to change a thing and no mention of them.
 // Every reply is turned into plain words here: the page never shows the server's own text, only what plainChange (report.js)
 // picks for the status, or for a message it knows.
-import { token, plainChange, leaving } from "./stores/report.js";
+import { token, plainChange } from "./stores/report.js";
+import { leaving } from "./stores/leave.js";
 import { knownRefusal } from "./edit/movementWords.js";
 
 const KIND = "report_sections";

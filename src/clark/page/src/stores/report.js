@@ -10,6 +10,7 @@ import { searchIndex } from "../clientView.js";
 import { lineApi } from "./lineSlot.js";
 import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
+import { leaving, saved, beforeReload } from "./leave.js";
 import { editorOn, tabName } from "../gantt/ganttTab.js";
 
 export const VIEWS = route.VIEWS;
@@ -22,25 +23,11 @@ const start = route.current();
 
 // The brand block is the server's, for the project in the address (#944, GET /?project=<code>). An address for another project than the
 // one this page was served for (typed, bookmarked, or a Back) is loaded again for its own; a published file and a non-served page never are.
-// What is being typed is saved first, and the page waits for it (saved below), so a title not yet left is not lost; a message with Undo
+// What is being typed is saved first, and the page waits for it (saved, leave.js), so a title not yet left is not lost; a message with Undo
 // goes with the person to the new page (the hooks in beforeReload, given by the changes store: edit only).
-export const busy = [];                  // functions that give a promise for what is still being saved (changes.js: its queue)
-export const beforeReload = [];          // functions run just before the page is loaded again (changes.js: keep the message, once)
-async function saved(limit = 8000) {
-  const end = performance.now() + limit, left = () => Math.max(0, end - performance.now());
-  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  await wait(0);                                           // what the field's blur starts is started by now
-  for (let i = 0; i < 20; i++) {
-    const mine = busy.map((f) => f());
-    await Promise.race([Promise.all(mine), wait(left())]);
-    await wait(0);
-    if (!left() || busy.map((f) => f()).every((p, k) => p === mine[k])) return;      // nothing new was queued meanwhile
-  }
-}
 // The page going away for good (Back or Forward to another page load, which is what leaving a project by Back is: each project is its own
 // load, and the browser steps to that load without asking this page): a field still being typed in is left, so its save starts now, and api.js
 // sends it so that it outlives the page. The reply is not read by a page that has gone, so no message follows it.
-export const leaving = { on: false };
 addEventListener("pagehide", () => { if (published()) return; leaving.on = true; leaveField(); });
 addEventListener("pageshow", () => { leaving.on = false; });
 function reloadFor(s, wait = true) {

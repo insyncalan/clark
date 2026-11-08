@@ -2,7 +2,8 @@
 // A change is sent as it is; the page never edits its own copy. It redraws from the sections the reply carries, so what is on
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
-import { data, project, reread, busy, beforeReload } from "./report.js";
+import { data, project, reread } from "./report.js";
+import { busy, beforeReload } from "./leave.js";
 import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendRecordChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData, sendRestore } from "../api.js";
 import { isProject } from "../router.js";
 import { flashed } from "./wordsState.js";
