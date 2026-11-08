@@ -5,9 +5,11 @@ Each hostile shape is run in its own child process, so a scan that stops being l
 killed after a hard limit) instead of hanging the whole test run. In the child, outside_addresses, check_brand and
 to_client.check_copy each get the same input, up to the 5 MB limit, and must finish well inside the bound.
 """
+import os
 import subprocess
 import sys
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 
 from _paths import ROOT, SRC  # noqa: F401
 
@@ -90,11 +92,21 @@ def run_shape(expr, n):
     return done.stdout.split("\n"), done.stderr
 
 
+def run_all(shapes):
+    """{key: run_shape(expr, n)} for every (key, expr, n) in `shapes`, the children running side by side (they are separate
+    processes, so threads waiting on them are enough). Each child's own limits are unchanged. Four at a time at most, so a
+    small runner is not starved, and the CPU seconds each child measures for itself stay the same."""
+    shapes = list(shapes)
+    with ThreadPoolExecutor(max_workers=max(1, min(4, os.cpu_count() or 1))) as pool:
+        return dict(zip((k for k, _, _ in shapes), pool.map(lambda t: run_shape(t[1], t[2]), shapes)))
+
+
 class Fast(unittest.TestCase):
     def test_each_hostile_shape_finishes_quickly_on_every_function(self):
-        for name, expr in SHAPES.items():
+        done = run_all((name, expr, LIMIT) for name, expr in SHAPES.items())
+        for name in SHAPES:
             with self.subTest(name):
-                lines, err = run_shape(expr, LIMIT)
+                lines, err = done[name]
                 self.assertIsNotNone(lines, f"{name}: still running after {HARD} s (partial output: {err!r})")
                 times = {l.split()[0]: float(l.split()[1]) for l in lines if l.strip()}
                 self.assertEqual(sorted(times), ["check_brand", "check_copy", "outside_addresses"], f"{name}: {err}")
@@ -103,9 +115,11 @@ class Fast(unittest.TestCase):
 
     def test_a_quadratic_scan_would_fail_at_three_sizes(self):
         # the url( scan, at 3 sizes of url(data: openers: doubling the input must not much more than double the time
+        sizes = (500_000, 1_000_000, 2_000_000)
+        done = run_all((n, '"url(data:" * (n // 9)', n) for n in sizes)
         times = []
-        for n in (500_000, 1_000_000, 2_000_000):
-            lines, err = run_shape('"url(data:" * (n // 9)', n)
+        for n in sizes:
+            lines, err = done[n]
             self.assertIsNotNone(lines, "url(data: openers still running")
             times.append(max(float(l.split()[1]) for l in lines if l.strip() and l.split()[0] != "check_copy_unused"))
         self.assertLess(times[2], max(0.3, times[0] * 12), f"time grows faster than the size: {times}")
