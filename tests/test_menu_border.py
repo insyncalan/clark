@@ -19,7 +19,7 @@ from _paths import SRC  # noqa: F401  (puts src/ on the path)
 from clark import page, server as sv  # noqa: E402
 from clark.store import open_store  # noqa: E402
 from test_server import CHROME, Running, chrome, wait  # noqa: E402
-from test_work_filters import set_line  # noqa: E402
+from test_work_filters import arm, set_line  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
@@ -115,6 +115,7 @@ class MenuBorder(unittest.TestCase):
                     self.assertTrue(wait(lambda: not cdp.js("document.querySelector('.cpop')", sid)), "the picker closed")
                     # the filter line's suggestion list
                     set_line(cdp, sid, "owner:")
+                    arm(cdp, sid)                                       # row 931: the list follows Space
                     self.check(where + ": suggestion list", self.look(cdp, sid, ".flist"))
 
 

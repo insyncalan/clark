@@ -44,14 +44,30 @@ class Registry(unittest.TestCase):
         tree = ast.parse((SRC / "clark" / "section_bodies.py").read_text(encoding="utf-8"))
         names = [a.name for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom)) for a in n.names]
         self.assertTrue(all(isinstance(n, str) for n in names))
-        modules = {n.module or "" for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)} | \
+        modules = {(n.module + "." + a.name if n.module == "clark" else n.module or "") for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) for a in n.names} | \
                   {a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
-        self.assertEqual(modules, {"json", "unicodedata", "clark.section_kinds", "clark.section_kinds.base"})
+        # row 1005: the one rich editor's words are cleaned here, so exactly `re` and `clark.sanitise` are allowed besides the old set, and nothing else
+        self.assertEqual(modules, {"json", "re", "unicodedata", "clark.sanitise", "clark.section_kinds", "clark.section_kinds.base"})
+        clean = ast.parse((SRC / "clark" / "sanitise.py").read_text(encoding="utf-8"))      # sanitise is pure too: the standard library only, no file, no database
+        used = {n.module or "" for n in ast.walk(clean) if isinstance(n, ast.ImportFrom)} | {a.name for n in ast.walk(clean) if isinstance(n, ast.Import) for a in n.names}
+        self.assertEqual(used, {"html", "html.entities", "re", "unicodedata"})
         for f in sorted((SRC / "clark" / "section_kinds").glob("*.py")):      # #96: the registry it imports is pure too
             tree = ast.parse(f.read_text(encoding="utf-8"))
             used = {n.module or "" for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)} | \
                    {a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
             self.assertTrue(all(m.startswith("clark.section_kinds") or m in PURE_LIBRARY for m in used), (f.name, used))
+
+    def test_a_too_long_hand_written_rich_text_is_not_a_silent_loss_of_the_section(self):      # row 1005
+        from clark import sanitise
+        huge = "<p>" + "a" * (sanitise.MAX_CHARS + 1) + "</p>"
+        got = sb.published("textimage", {"html": huge, "words": ["Kept words"], "side": "right"})
+        self.assertEqual(got, {"content": {"words": ["Kept words"], "side": "right"}}, "the too-long text is left out, the rest of the section is published")
+        got = sb.published("textimage", {"html": huge, "side": "left", "pictures": {"image": "pic1"}, "caption": "c", "alt": "a"})
+        self.assertIsNotNone(got, "a picture is not lost with it")
+        self.assertNotIn("html", got["content"])
+        self.assertIsNone(sb.published("textimage", {"html": huge, "side": "right"}), "only a too-long text and nothing else: nothing to publish")
+        with self.assertRaises(sb.Bad):                    # on a save the refusal still says so
+            check("textimage", json.dumps({"html": huge, "words": [], "side": "right"}))
 
     def test_a_type_with_no_checker_has_no_content(self):
         for kind in ("text", "raid", "docs", "other"):

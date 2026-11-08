@@ -10,6 +10,7 @@ import json
 import tempfile
 import time
 import unittest
+from _editor_checks import after_reload
 from pathlib import Path
 
 from _demo import USER
@@ -150,6 +151,8 @@ class Archived(Base):
                 self.until(cdp, sid, f"document.activeElement && document.activeElement.dataset.maOpen === '{self.dated}'", "focus goes back to the name")
                 self.open_peek(cdp, sid, self.undated)
                 self.assertEqual(cdp.js("document.querySelector('#archived-peek .pk-title').textContent", sid), "Hand over the keys")
+                self.assertEqual(cdp.js("[...document.querySelectorAll('#archived-peek .pk-row')].filter(r => r.querySelector('dt').textContent === 'Workstream').map(r => r.querySelector('dd').textContent).join('|')", sid),
+                                 "Not set", "row 521: an empty Workstream says Not set, as Owner does, not a blank")
                 click(cdp, sid, "#archived-peek [data-pk-close]")
                 self.until(cdp, sid, "!document.querySelector('#archived-peek')", "Close closes it")
                 self.assertEqual(self.flags(), {self.dated: 1, self.undated: 1})
@@ -248,8 +251,10 @@ class Archived(Base):
             self.until(cdp, sid, f"!!document.querySelector('{PILL}')", "the Show archived button")
             click(cdp, sid, PILL)
             self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 2", "the rows")
-            cdp.js("location.hash = '#milestones&p=XYZ'", sid)
+            after_reload(lambda e: cdp.js(e, sid), "location.hash = '#milestones&p=XYZ'")      # #944: the other project is its own page load
             self.until(cdp, sid, f"document.querySelector('{PILL}') && document.querySelector('{PILL}').textContent === 'Show archived (1)'", "the other project's count")
+            self.assertEqual(cdp.js(f"document.querySelectorAll('{ROWS}').length", sid), 0, "the new page starts with the box shut: the first project's rows are gone")
+            click(cdp, sid, PILL)
             self.until(cdp, sid, f"document.querySelectorAll('{ROWS}').length === 1", "its one row")
             text = cdp.js("document.querySelector('#ms-archived').textContent", sid)
             self.assertIn("Other launch", text)

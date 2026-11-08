@@ -308,6 +308,10 @@ class Component(InBrowser):
         self.mount(state(mode="chase"), draft(mode="chase", picked=["ABC-A-001"]))
         self.assertIn("What is this holding up? (optional)", self.text(".de-opts"))
 
+    def test_the_mail_button_says_it_opens_your_mail_app(self):
+        self.mount()
+        self.assertEqual(self.text(".pk-foot a"), "Open in your mail app")
+
     def test_over_the_mail_limit_the_button_gives_way_to_the_too_long_message(self):
         self.mount()
         self.assertEqual(self.val("document.querySelectorAll('.pk-foot a').length"), 1)
@@ -433,7 +437,7 @@ class Component(InBrowser):
 
     def test_a_missing_sender_name_blocks_copying_with_its_next_step(self):
         self.mount(state(), draft(picked=["ABC-A-001"], **{"from": ""}))
-        self.assertEqual(self.text(".de-problem"), "Add your name in Settings › Personal › About you so it signs the email.")
+        self.assertEqual(self.text(".de-problem"), "Add your name in Settings › Profile so it signs the email.")
 
     def test_copy_for_outlook_puts_html_and_text_on_the_clipboard_and_says_copied(self):
         self.mount()
@@ -592,6 +596,24 @@ class Component(InBrowser):
             self.assertNotIn(banned, shown.lower())
         for line in shown.splitlines():
             self.assertFalse(line.strip().lower().startswith("clark"), line)
+
+
+class Placement(InBrowser):
+    """Row 981: the Draft email box sits inside the window below the top bar, buttons visible, at a short window."""
+
+    def test_the_box_and_its_buttons_are_inside_the_window_at_700_high(self):
+        css = next(l for l in (PAGE_SRC / "edit" / "edit.css").read_text(encoding="utf-8").splitlines() if l.startswith(".ad-scrim .de {"))
+        for width in (900, 1400):
+            self.load(width, 700)
+            self.js("(function(){ var s = new CSSStyleSheet(); s.replaceSync(%s); document.adoptedStyleSheets = [s]; })()" % lit(css))  # a sheet object, so the page's own style rules need no inline element
+            d = draft(picked=["ABC-A-001", "ABC-A-002"])
+            self.js(f"T.mountScrim({lit(OFFERED)}, {lit(state())}, {lit(d)}, '2026-10-13')")
+            self.settle()
+            box = self.val("(function(){ var r = document.querySelector('.de').getBoundingClientRect(); var b = document.querySelector('.pk-foot').getBoundingClientRect(); return {top: r.top, bottom: r.bottom, footBottom: b.bottom, footTop: b.top, h: innerHeight}; })()")
+            self.assertGreaterEqual(box["top"], 88, f"{width}: below the top bar")
+            self.assertLessEqual(box["bottom"], box["h"], f"{width}: the box ends inside the window")
+            self.assertLessEqual(box["footBottom"], box["h"], f"{width}: the buttons are visible")
+            self.assertGreaterEqual(box["footTop"], box["top"])
 
 
 if __name__ == "__main__":

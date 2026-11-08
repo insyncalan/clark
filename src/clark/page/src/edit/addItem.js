@@ -8,8 +8,8 @@
 // titles are PLACEHOLDER_TITLES (logic/placeholders.js, the one place they are kept): the Publish dialog warns while a
 // client-visible item still has one, so a placeholder never reaches the client unnoticed.
 // #449: the prototype adds in View, so a pick made in View stays in View: the item is made, the toast with its Undo is drawn in View
-// too (Toast.jsx), and the panel opens as View draws it (read only: there is no title to take the keyboard). As in the prototype, the list is then set so the new row is drawn: the Open, Closed, All switch, the type,
-// every filter and the search are cleared, and the item's group is opened; the panel opens and its title takes the keyboard.
+// too (Toast.jsx), and the panel opens as View draws it (read only). As in the prototype, the list is then set so the new row is drawn: the Open, Closed, All switch, the type,
+// every filter and the search are cleared, and the item's group is opened; the panel opens and its title takes the keyboard (focusTitle: the title box in Edit; in View the heading, which has tabIndex -1 in Peek.jsx, takes it and its words are selected).
 import { newItem } from "../stores/changes.js";
 import { openPeek, filterState, setFilterState, setQuery, rows } from "../stores/report.js";
 import { work, setWork, contextFor } from "../stores/work.js";

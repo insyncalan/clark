@@ -14,7 +14,7 @@ export const AI_UNAVAILABLE_LINE = "AI suggestions are off, because clark could 
 const client = realAiClient({ token });
 
 const TILES = [
-  ["claude", "Claude", "Through your Claude subscription, using the Claude command on this computer."],
+  ["claude", "Claude", "Through your Claude subscription, on this computer."],
   ["chatgpt", "ChatGPT", "Through your ChatGPT subscription, using the Codex command on this computer. What you ask goes to OpenAI."],
 ];
 

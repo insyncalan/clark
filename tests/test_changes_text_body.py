@@ -273,6 +273,43 @@ class Publishing(TextBody):
         self.assertEqual(published, self.stored(SUMMARY), "the file draws the saved text as View does")
 
 
+class TextBodyDirect(unittest.TestCase):
+    """#588: changes._text_body on its own, so taking the cleaner out of it fails here and not only in two route tests."""
+
+    def test_script_style_and_event_attributes_do_not_survive(self):
+        got = changes._text_body(DIRTY)
+        for bad in ("<script", "ZQ_RAN", "<style", "color:red", "onclick", "onerror", "onmouseover", "javascript:", "<img"):
+            self.assertNotIn(bad, got)
+        self.assertIn("<strong>bold</strong>", got)
+        self.assertIn("ZQ-SAFE-LINK", got)
+
+    def test_what_it_returns_is_what_the_cleaner_returns(self):
+        self.assertEqual(changes._text_body(DIRTY), sanitise.clean_html(DIRTY))
+
+    def test_bidi_controls_are_dropped(self):
+        got = changes._text_body("<p>a\u202eb\u2066c\u2069d</p>")
+        self.assertEqual(got, sanitise.clean_html("<p>abcd</p>"))
+        self.assertFalse(changes.BIDI_CONTROLS.search(got))
+
+    def test_a_bidi_mark_cannot_hide_a_script_link(self):
+        self.assertNotIn("javascript", changes._text_body('<a href="java\u202escript:x()">T</a>').lower())
+
+    def test_over_the_cap_once_cleaned_is_refused(self):
+        with self.assertRaises(changes.Refused) as caught:
+            changes._text_body("<p>" + "a" * (changes.TEXT_BODY_MAX + 1) + "</p>")
+        self.assertEqual(str(caught.exception), changes.WORDS_TOO_LONG)
+
+    def test_text_the_cleaner_refuses_is_refused_in_the_same_words(self):
+        def refuse(_):
+            raise sanitise.SanitiseError("too long")
+        real = sanitise.clean_html
+        sanitise.clean_html = refuse
+        self.addCleanup(setattr, sanitise, "clean_html", real)
+        with self.assertRaises(changes.Refused) as caught:
+            changes._text_body("<p>x</p>")
+        self.assertEqual(str(caught.exception), changes.WORDS_TOO_LONG)
+
+
 class Seam(unittest.TestCase):
     def test_the_page_lists_the_body_write_as_the_first_line_of_the_seam(self):
         rich = (SRC / "clark" / "page" / "src" / "edit" / "richSave.js").read_text(encoding="utf-8")

@@ -9,7 +9,7 @@ import { rows as allRows, project, filterCtx, fromFile, peek } from "../stores/r
 import { lineText, setLine, local } from "../stores/line.js";
 import * as FL from "../logic/filterLine.js";
 import * as Q from "../logic/filterQueryUi.js";
-import { Menu } from "./Menu.jsx";
+import { Menu, Fade } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce } from "../stores/work.js";
 import { say } from "../stores/changes.js";
@@ -194,9 +194,8 @@ export function FilterLine({ board }) {
   const [focused, setFocused] = useState(false);
   const [caret, setCaret] = useState(0);
   const [active, setActive] = useState(-1);                   // the suggestion the arrows are on (-1: none)
-  const [closed, setClosed] = useState(false);                // Esc closed the list; typing opens it again
+  const [armed, setArmed] = useState(false);                 // row 931: Space or Arrow Down opened the list; entering the box, a choice and Esc close it
   const [gloss, setGloss] = useState("");                    // the plain meaning of the chip the pointer or focus is on, shown in the examples line
-  const [touched, setTouched] = useState(false);              // something was typed or chosen since the focus came: a list is then wanted even after a space
   const setChips = (v) => { live.current.chips = v; setChipsRaw(v); };
   const setDraft = (v) => { live.current.draft = v; setDraftRaw(v); };
   const input = useRef(null), over = useRef(null), box = useRef(null), timer = useRef(0), applied = useRef(line), want = useRef(null);
@@ -232,10 +231,10 @@ export function FilterLine({ board }) {
   const notes = [...words, ...(Q.wantsMe(Q.parseFor(Q.joinLine(chips, draft), rows, ctx), ctx) ? [Q.NO_ME] : [])];
   const options = focused ? Q.withCounts(Q.suggestions(draft, caret, rows, ctx), chips, rows, ctx) : [];
   const wordNow = Q.wordAt(draft, caret).word;
-  const listed = focused && !closed && options.length > 0 && ((draft.trim() === "" && chips.length === 0) || touched);
+  const listed = focused && armed && options.length > 0;
   const pick = (o) => {
     const r = Q.accept(draft, caret, o);
-    want.current = r.caret; edit(r.text, r.caret); setActive(-1); setClosed(false); setTouched(true);
+    want.current = r.caret; edit(r.text, r.caret); setActive(-1); setArmed(false);
     if (input.current) input.current.focus();
   };
   const clear = () => {
@@ -246,9 +245,9 @@ export function FilterLine({ board }) {
   };
   const onKeyDown = (e) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      if (!options.length) return;
+      if (!options.length || (!listed && e.key === "ArrowUp")) return;
       e.preventDefault();
-      if (!listed) { setClosed(false); setTouched(true); setActive(e.key === "ArrowDown" ? 0 : options.length - 1); return; }
+      if (!listed) { setArmed(true); setActive(0); return; }
       setActive(e.key === "ArrowDown" ? (active + 1) % options.length : (active < 0 ? options.length : active) - 1);
     } else if (e.key === "Backspace" && live.current.chips.length && e.target.selectionStart === 0 && e.target.selectionEnd === 0) {
       e.preventDefault(); dropChip(live.current.chips.length - 1);        // an empty box takes the last chip away
@@ -258,8 +257,10 @@ export function FilterLine({ board }) {
     } else if (e.key === "Tab" && listed && !e.shiftKey && (active >= 0 || wordNow !== "")) {
       e.preventDefault();
       pick(options[active >= 0 ? active : 0]);
+    } else if (e.key === " " && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      setArmed(true);                                          // the space itself is typed as always; the list follows it
     } else if (e.key === "Escape" && listed) {
-      e.preventDefault(); e.stopPropagation(); setClosed(true); setActive(-1);
+      e.preventDefault(); e.stopPropagation(); setArmed(false); setActive(-1);
     }
   };
   // Leaving the line closes the list. While the button is still down (a click on a row or card took the focus) the closing waits for the
@@ -267,7 +268,7 @@ export function FilterLine({ board }) {
   const down = useRef(false), late = useRef(false);
   const leave = () => {
     if (down.current) { late.current = true; return; }
-    setFocused(false); setClosed(false); setTouched(false); setActive(-1);
+    setFocused(false); setArmed(false); setActive(-1);
   };
   useEffect(() => {
     const press = () => { down.current = true; };
@@ -300,22 +301,23 @@ export function FilterLine({ board }) {
   }, []);
   const hints = FL.hints(ctx);
   const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
-  const useHint = (h) => { const t = (draft && !/\s$/.test(draft) ? draft + " " : draft) + h.text + " "; setTouched(true); want.current = t.length; edit(t); if (input.current) input.current.focus(); };
+  const useHint = (h) => { const t = (draft && !/\s$/.test(draft) ? draft + " " : draft) + h.text + " "; want.current = t.length; edit(t); if (input.current) input.current.focus(); };
   // Row 808: the list floats over the page just under the box (it is out of the flow), so opening it pushes no row or card down.
   // Item 954: it floats just under the box when the message line is empty, and under that line when it says something, so it never covers the message
   // (the unknown-field error is there). The message line is after the examples' room; the list is out of the flow, so it sits where it is written.
   const suggestions = listed ? (
-    <ul class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
+    <Fade tag="ul" class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
       {options.map((o, i) => (
         <li key={`${o.ins}|${o.label}`} id={`fo-${i}`} role="option" aria-selected={i === active ? "true" : "false"} class={`fopt ${o.kind}`} data-ins={o.ins}
           onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>
+          {o.icon ? <Icon name={o.icon} /> : null}
           {o.tone ? <i class={`fdv ${o.tone}`} data-tone={o.tone} aria-hidden="true"></i> : null}
           <span class="fl1">{o.label}</span>
           {o.note ? <span class="fl2">{o.note}</span> : null}
           {o.n !== undefined ? <span class="c num" data-n={o.n}>{o.n}</span> : null}
         </li>
       ))}
-    </ul>
+    </Fade>
   ) : null;
   return (
     <div class="fline-wrap" ref={box}
@@ -348,14 +350,16 @@ export function FilterLine({ board }) {
             aria-activedescendant={listed && active >= 0 ? `fo-${active}` : undefined}
             aria-label="Filter work items" aria-autocomplete="list" aria-describedby="fline-msg"
             placeholder={chips.length ? undefined : FL.PLACEHOLDER} value={draft}
-            onFocus={() => { setClosed(false); setTouched(false); readCaret(); }}
-            onInput={(e) => { edit(e.target.value, e.target.selectionStart || 0); setCaret(e.target.selectionStart || 0); setActive(-1); setClosed(false); setTouched(true); }} onKeyDown={onKeyDown} onKeyUp={readCaret} onClick={readCaret}
+            onFocus={() => { setArmed(false); readCaret(); }}
+            onInput={(e) => { edit(e.target.value, e.target.selectionStart || 0); setCaret(e.target.selectionStart || 0); setActive(-1); }} onKeyDown={onKeyDown} onKeyUp={readCaret} onClick={readCaret}
             onScroll={() => { if (over.current && input.current) over.current.scrollLeft = input.current.scrollLeft; }} />
         </div>
         <span class="fcount num" id="fline-count" data-fcount>{`${matches} of ${rows.length}`}</span>
         {draft || chips.length ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
       </div>
       {notes.length ? null : suggestions}
+      {/* Row 833: the note comes before the examples, which float (out of the flow) from where they stand: under the note, never over it. */}
+      <p class={`fmsg${words.length ? " bad" : ""}`} id="fline-msg" role="status" aria-live="polite">{notes.join(" ")}</p>
       {
         // Always drawn, hidden unless the line is focused: the room stays, so a click that moves focus away from the line does not shift the page under the pointer.
         // The examples and the list of suggestions are never shown together: while the list is open the examples keep their room but are hidden.
@@ -365,7 +369,6 @@ export function FilterLine({ board }) {
           <span class="fgloss" id="fline-gloss" aria-hidden="true" hidden={!gloss}>{gloss}</span>
         </div>
       }
-      <p class={`fmsg${words.length ? " bad" : ""}`} id="fline-msg" role="status" aria-live="polite">{notes.join(" ")}</p>
       {notes.length ? suggestions : null}
     </div>
   );
