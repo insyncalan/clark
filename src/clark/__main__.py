@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import __version__, activity_read, ai_connect, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, store as clark_store, typed, updater as clark_updater, use_cases_read, word_route
+from clark import __version__, activity_read, ai_connect, brands, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, store as clark_store, typed, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -220,7 +220,7 @@ def finish_unfinished_update(folder, err):
         if not marker.exists():
             return True
         doc = json.loads(marker.read_text(encoding="utf-8"))
-        if doc.get("phase") == "started" and update_helper.Seams().helper_running(doc.get("helper_pid"), doc.get("helper_ident")):
+        if doc.get("phase") == "started" and update_helper.Seams().helper_running(doc.get("helper_pid"), doc.get("helper_ident"), doc.get("started_at")):
             return True
     except (OSError, ValueError, AttributeError):
         pass                                     # a marker that can't be read is for finish_update to deal with
@@ -262,8 +262,8 @@ def only_project(store):
 
 
 def projects_of(path, onedrive_roots=None):
-    """The `projects` function the server calls for GET /api/projects: [{"code", "name"}] for every project that isn't archived,
-    by code (`projects(archived=True)` gives the archived ones instead, for Show archived, #126). Each call opens its own short-lived store, because the server answers from several threads and a SQLite
+    """The `projects` function the server calls for GET /api/projects: [{"code", "name", "open"}] for every project that isn't archived
+    ("open": its open work items, from open_counts; the archived list has no "open"), by code (`projects(archived=True)` gives the archived ones instead, for Show archived, #126). Each call opens its own short-lived store, because the server answers from several threads and a SQLite
     connection belongs to the thread that made it: it must not use the launcher's own store (#90)."""
     def projects(archived=False):
         try:
@@ -274,7 +274,7 @@ def projects_of(path, onedrive_roots=None):
             raise
         try:
             rows = found.read("projects", archived=bool(archived))
-            opened = {} if archived else {r["code"]: open_items(found, r["code"]) for r in rows}     # #439: the switcher's "N open items"
+            opened = {} if archived else open_counts(found, [r["code"] for r in rows])     # #439: the switcher's "N open items"
         finally:
             found.close()
         return [{"code": r["code"], "name": r["name"], **({"open": opened[r["code"]]} if r["code"] in opened else {})}
@@ -282,14 +282,40 @@ def projects_of(path, onedrive_roots=None):
     return projects
 
 
+def page_of(path, onedrive_roots=None):
+    """The `page_html` the server calls for GET / (#944): page_html(project) gives the page in that open project's brand, one
+    brand-local block or none (Generic, no project, an unknown code, a removed brand). The brand is read from the project's row."""
+    def page_html(project=None):
+        brand = "generic"
+        if project is not None:
+            try:
+                found = clark_store.open_store(path, onedrive_roots=onedrive_roots)
+            except clark_store.Invalid as e:
+                if str(e) == backup.RESTORE_BUSY:
+                    raise server.Busy(str(e)) from None
+                raise
+            try:
+                brand = next((r["brand"] for r in found.read("projects") if r["code"] == project), "generic")
+            finally:
+                found.close()
+        folder = brands.folder(page.BRANDING.parent.parent, brand)
+        return page.page_html(branding=page.NO_BRAND if folder is brands.GENERIC else folder)
+    return page_html
+
+
 CLOSED_STATUSES = ("Closed", "Cancelled", "Made", "Withdrawn")      # as the page's isOpen (workItems.js): an action, risk, issue or decision with any other status is open
 
 
-def open_items(found, code):
-    """How many of the project's work items (actions, risks and issues, decisions) are open and not archived: the number the project
-    switcher says under each name. Counts only; never a title."""
-    return sum(1 for kind in ("actions", "raid", "decisions") for r in found.read(kind, project=code, archived=False)
-               if r["status"] not in CLOSED_STATUSES)
+def open_counts(found, codes):
+    """{code: how many of the project's work items (actions, risks and issues, decisions) are open and not archived} for every code
+    in `codes`: the number the project switcher says under each name. Counts only; never a title. One read of each kind for all
+    projects, not one per project (#528)."""
+    counts = dict.fromkeys(codes, 0)
+    for kind in ("actions", "raid", "decisions"):
+        for r in found.read(kind, archived=False):
+            if r["status"] not in CLOSED_STATUSES and r["project"] in counts:
+                counts[r["project"]] += 1
+    return counts
 
 
 def restore_main(argv, out, err, home=None, onedrive_roots=None):
@@ -486,12 +512,18 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                 print(str(e), file=err or sys.stderr, flush=True)
                 return 1
             print(str(e), file=err or sys.stderr)
+        brand_root = page.BRANDING.parent.parent         # #944: the clark folder that holds system/branding (as page.BRANDING finds it)
+        server.set_brand_paths(brand_root, store.path.parent)       # before serve(): until it is told, the brand routes answer 503
+        try:
+            brands.recover(brand_root)           # a crash between a brand's two renames is put right now, not at the next brand action
+        except OSError as e:
+            LOG.warning("brands: could not put right a leftover from a crash: %s", e)
         connect, asker = ai_connect.chain(store.path.parent)       # #54: Settings › AI; asking goes through it
         draft_seam = draft_email_feed.make(
             store.data_for, profile=lambda: {"name": who.get()[1]["name"], "own_domains": who.own_domains()},
             rules_for=lambda c: draft_email_feed.rules_from_inputs(publish.read_inputs(store, c)),
             chased=lambda c: draft_email_feed.chase_counts_of(store.email_sent_for(c)))
-        done = serve(port=port, data_for=store.data_for, page_html=page.page_html,
+        done = serve(port=port, data_for=store.data_for, page_html=page_of(store.path, roots),
                      projects=projects, out=shown,
                      err=err,
                      publisher=publish_flow.Publisher(store.path, roots, by_user=who.who, data_dir=store.path.parent),
@@ -512,7 +544,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      publication_mark=changes.make_publication_mark(store.path, roots, by_user=who.who),
                      as_at=as_at.AsAt(store.path),
                      demo=None if args.demo else demo_seed.Demo(store.path, roots),      # #731: --demo has its own demo, which is not removable
-                     brand_picture=page.brand_picture,
+                     brand_picture=page.brand_picture_of,
                      updater=updates_seam,
                      **handlers)
         LOG.info("stopped with code %d", done)

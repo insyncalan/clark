@@ -17,6 +17,7 @@ Standard library only, Python 3.9. Table and field names reach SQL only from TAB
 """
 import collections
 import json
+import logging
 import re
 import sqlite3
 import unicodedata
@@ -25,11 +26,14 @@ from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from clark import doclinks, freshness as fresh, people as people_rules, platform, published_copies, section_bodies
+from clark import doclinks, freshness as fresh, people as people_rules, platform, published_copies, sanitise, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
+LOG = logging.getLogger("clark.store")
+
 SCHEMA = Path(__file__).with_name("schema.sql")
+EMAIL_PROJECT_ARCHIVED = "That project is archived, so no email can be drafted for it. Restore it first."   # one sentence: the Draft email refusal (draft_email_feed) and the I sent it refusal share it
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
@@ -1536,6 +1540,8 @@ def health_reason_text(value):
         return None
     if not isinstance(value, str):
         raise Invalid(REASON_NOT_TEXT)
+    if sanitise.HTML_START.match(value):                                  # row 1005: the reason is the one rich editor's HTML now; an old row is still plain text
+        return _reason_html(value)
     text = value.replace("\r\n", "\n").replace("\t", " ")             # a tab (pasted from a table) becomes a space, not a refusal
     if not text:
         return None                                                        # an empty reason is stored one way only: None
@@ -1550,6 +1556,43 @@ def health_reason_text(value):
     if not text.strip():
         return None                                                        # spaces or line breaks only is blank: stored as None
     return text
+
+
+REASON_MARKUP_LIMIT = 64 * 1024                                           # bytes of the reason as stored, markup and all (the words are held to REASON_LIMIT)
+
+
+def _reason_html(value):
+    """Row 1005: a reason written as the editor's HTML, as it is stored: cleaned by the server's own cleaner, the words (not the markup)
+    held to REASON_LIMIT, no hidden character among them. No words at all is None."""
+    value = sanitise.nfc_for_markup(value)                                # BEFORE the cleaner (a mark after a tag would compose into it and lose the words inside)
+    if any(c not in "\n\r\t" and unicodedata.category(c) in _BAD_TITLE_KINDS for c in value):
+        raise Invalid(REASON_BAD_CHARS)                                   # a NUL or a bidi mark is refused, not quietly dropped by the cleaner
+    try:
+        html = sanitise.clean_html(value)
+    except sanitise.SanitiseError:
+        raise Invalid(REASON_TOO_LONG) from None
+    again = unicodedata.normalize("NFC", html)                            # an entity can decode to a mark that composes: take the composed text only if it is still clean
+    if sanitise.clean_html(again) == again:
+        html = again
+    words = sanitise.plain_text(html)
+    if any(c != "\n" and unicodedata.category(c) in _BAD_TITLE_KINDS for c in words):
+        raise Invalid(REASON_BAD_CHARS)
+    if not words.strip():
+        return None
+    if len(words) > REASON_LIMIT or len(html.encode("utf-8")) > REASON_MARKUP_LIMIT:
+        raise Invalid(REASON_TOO_LONG)
+    return html
+
+
+def health_reason_html(value):
+    """Row 1005: what the change route stores for a reason: the editor's HTML cleaned, or plain text from an older caller checked as
+    before (health_reason_text) and then made into escaped paragraphs. None (no words) stays None."""
+    if isinstance(value, str):
+        value = sanitise.nfc_for_markup(value)                            # BEFORE the check and the cleaner, so a mark after a tag name cannot hide the tag from the HTML test
+    text = health_reason_text(value)
+    if text is None or sanitise.HTML_START.match(value):
+        return text
+    return health_reason_text(sanitise.legacy_to_html(text))
 
 
 def _check_gantt_project(row, changes):
@@ -3267,15 +3310,19 @@ class Store:
         """#443 (from #342): keep a copy of a web page's file in clark's own `published-copies` folder, beside this database, once the
         publication's row is in (so a refused number keeps nothing). The copy is made from the file at `source` only while it still
         holds the bytes whose SHA-256 the row has; it is written once, never changed and never removed (published_copies.py). It is
-        best effort: a publication is made when its row is, so a copy that could not be kept is logged nowhere and listed as "Not kept".
+        best effort: a publication is made when its row is, so a copy that could not be kept is logged (#577: one line, no path and no hash) and listed as "Not kept".
         True when a copy was written. A Word file is not kept (its row has no page to open). #342: a copy of the page's data is kept
         beside it, cut from the same bytes (published_copies.keep)."""
         if str(self.path) == ":memory:":
             return False
         try:
-            return published_copies.keep(self.path.parent, code, number, source, sha256)
-        except Exception:        # noqa: BLE001  never let a copy that could not be kept undo a publication that was made
+            kept = published_copies.keep(self.path.parent, code, number, source, sha256)
+        except Exception as e:   # noqa: BLE001  never let a copy that could not be kept undo a publication that was made
+            LOG.warning("published copy not kept: publication %s of %s (%s)", number, code, type(e).__name__)      # #577: the kind only; a fault's words can hold a path
             return False
+        if not kept:
+            LOG.warning("published copy not kept: publication %s of %s (refused, already there, or the file changed)", number, code)
+        return kept
 
     def archive_publication(self, code, number, by_user=None):
         """#342: archive Publication `number` of `code`: the list leaves it out, and nothing is removed or changed (its row, its kept
@@ -3414,7 +3461,7 @@ class Store:
             if row is None:
                 raise Invalid("There is no project with that code. Nothing was saved.")
             if row["archived"]:
-                raise Invalid("That project is archived, so no email can be drafted for it. Restore it first. Nothing was saved.")
+                raise Invalid(f"{EMAIL_PROJECT_ARCHIVED} Nothing was saved.")
             def ours(item):
                 return any(self.con.execute(f"SELECT 1 FROM {_table(table)} WHERE project = ? AND id = ?", (code, item)).fetchone()
                            for table in ("actions", "raid", "decisions"))
@@ -3429,7 +3476,7 @@ class Store:
                                             "AND (archived = 1 OR status IN (?, ?))", (code, *values, *states)).fetchone()
                            for t, states in (("actions", ("Closed", "Cancelled")), ("raid", ("Closed", "Cancelled")),
                                              ("decisions", ("Withdrawn", "Withdrawn"))))):
-                raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or marked Sensitive. Nothing was saved. Reload the page and tick again.")
+                raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or labelled to be kept out of emails. Nothing was saved. Reload the page and tick again.")
             # The same person pressing the same record again within seconds (a second tab) is the same record, not a second chase.
             for r in self.con.execute("SELECT seq FROM email_sent WHERE project = ? AND day = ? AND mode = ? AND by_user = ? "
                                       "AND at >= datetime('now', ?)",

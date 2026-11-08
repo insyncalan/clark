@@ -14,7 +14,7 @@ import { readDraftEmail, sendEmailSent } from "../api.js";
 import { DraftEmail } from "../components/DraftEmail.jsx";
 import { todayIso } from "../workItems.js";
 import { format } from "../router.js";
-import { MenuPanel, menuMove, menuItemsIn } from "../components/Menu.jsx";
+import { MenuPanel, menuMove, menuItemsIn, useFadeOut } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { people, tableOf, canClearDue } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
@@ -40,9 +40,9 @@ function refocus(id) {
   setTimeout(back, 150);                        // row 848: the change redraws the row after the first look, and the redrawn row had lost the focus; if nothing holds it by then, the row does
 }
 
-function openFor(el, x, y) {
+function openFor(el, x, y, pointer) {
   if (!el.dataset.id) return;
-  state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: homeOf(el) };
+  state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: homeOf(el), pointer: !!pointer };      // row 979: `pointer` marks a mouse open, so the first entry shows no ring until a key is used
 }
 
 // A right click, or the menu key or Shift+F10 on the focused row or card (the key opens beside the row, not at the pointer).
@@ -57,7 +57,7 @@ function useOpeners() {
       e.preventDefault();
       const kbd = e.clientX === 0 && e.clientY === 0;             // a key made this one: there is no pointer to put the menu at
       const r = el.getBoundingClientRect();
-      openFor(el, kbd ? r.left + 24 : e.clientX, kbd ? r.bottom : e.clientY);
+      openFor(el, kbd ? r.left + 24 : e.clientX, kbd ? r.bottom : e.clientY, !kbd);
     };
     const onKey = (e) => {
       if (view.value !== "work" || workSelection.size.value >= 1 || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return;
@@ -97,18 +97,18 @@ function entries(row, level, edit, d, today) {
     return [...dueList(today).map((x) => ({ id: "d:" + x.day, name: x.name, line: x.line })), { id: "pick", name: "Pick a date" },
       ...(canClearDue(row) ? [{ id: "d:", name: "No date" }] : [])];
   }
-  const edits = (id, name) => ({ id, name, sub: edit && id !== "eye", disabled: !edit, why: edit ? "" : "rm-why-view" });
+  const edits = (id, name, icon) => ({ id, name, icon, sub: edit && id !== "eye", disabled: !edit, why: edit ? "" : "rm-why-view" });
   return [
-    { id: "draft", name: dr.name, line: dr.reason, disabled: dr.disabled },
-    { id: "peek", name: "Open the peek" },
+    { id: "draft", name: dr.name, icon: "pencil", line: dr.reason, disabled: dr.disabled },
+    { id: "peek", name: "Open the peek", icon: "expand" },
     { id: "sep1", sep: true },
     ...(edit ? [] : [{ id: "lab1", lab: why, dom: "rm-why-view" }]),
-    edits("status", "Change status"), edits("due", "Move due date"), edits("owner", "Change owner"),
-    edits("eye", eyeChange(row).name),
+    edits("status", "Change status", "half"), edits("due", "Move due date", "cal"), edits("owner", "Change owner", "user"),
+    edits("eye", eyeChange(row).name, row.client ? "eyeoff" : "eye"),
     { id: "sep2", sep: true },
-    { id: "link", name: "Copy link to this item" }, { id: "copyid", name: "Copy ID" },
+    { id: "link", name: "Copy link to this item", icon: "ext" }, { id: "copyid", name: "Copy ID", icon: "doc" },
     { id: "sep3", sep: true },
-    { id: "dup", name: "Duplicate", disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", disabled: !edit, why: edit ? "" : "rm-why-view" },
+    { id: "dup", name: "Duplicate", icon: "plus", disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", icon: "archive", disabled: !edit, why: edit ? "" : "rm-why-view" },
   ];
 }
 
@@ -126,6 +126,7 @@ function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, 
     el.style.top = `${Math.round(Math.max(8, Math.min(a.top - 4, window.innerHeight - h - 8)))}px`;
     if (focus) (menuItemsIn(el)[0] || el).focus({ preventScroll: true });
   }, []);
+  useFadeOut(box, true, "rowmenu");
   const keys = (e) => {
     if (menuMove(e, menuItemsIn(box.current))) return;
     if (e.key === "ArrowLeft" || e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onLeave(); }
@@ -142,6 +143,8 @@ function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, 
     </div>
   );
 }
+
+const REST = 140;      // ms the pointer rests on an entry before its list opens (row 979)
 
 function Panel({ s }) {
   const row = itemRows.value.find((r) => r.id === s.id), d = data.value, edit = true;     // Work items are always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
@@ -163,9 +166,16 @@ function Panel({ s }) {
   useEffect(() => () => clearTimeout(timer.current), []);
   const hover = (id) => {                         // a pointer on an entry that opens a list opens it; on another entry it closes after a short grace (the list is on the way)
     clearTimeout(timer.current);
-    if (id) { if (state.value && state.value.fly !== id) set({ fly: id, focusFly: false }); return; }
+    if (id) {      // row 979: a list opens (or swaps for another) only after the pointer has rested on its entry, so a pointer passing over entries does not mount a list at each
+      if (state.value && state.value.fly !== id) timer.current = setTimeout(() => { if (state.value && state.value.fly !== id) set({ fly: id, focusFly: false }); }, REST);
+      return;
+    }
     timer.current = setTimeout(() => { if (state.value && !state.value.focusFly) set({ fly: "" }); }, 250);
   };
+  useLayoutEffect(() => {      // row 979: opened by the mouse, the first entry takes the focus without a ring until a key is used (MenuPanel cannot know: its anchor is null on the first draw)
+    const box = s.pointer && wrap.current && wrap.current.querySelector(":scope > .ddmenu");
+    if (box) box.dataset.pointer = "1";
+  }, []);
   useEffect(() => { if (!row) state.value = null; }, [row]);          // the item went (archived, or another project): nothing to act on
   if (!row) return null;
 
@@ -220,12 +230,13 @@ function Panel({ s }) {
   const list = entries(row, "", edit, d, today);
   return (
     <div class="rowmenu" ref={wrap} data-rowmenu={row.id} style="left:-10000px;top:0" onKeyDown={keys}>
-      {s.pick ? null : <MenuPanel label={`Actions for ${row.id}`} cls="rm" anchor={wrap.current} onClose={close}>
+      {s.pick ? null : <MenuPanel label={`Actions for ${row.id}`} cls="rm" fade="rowmenu" anchor={wrap.current} onClose={close}>
         {list.map((it) => it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.lab ? <div key={it.id} id={it.dom} class="lab" role="presentation">{it.lab}</div> : (
           <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} data-sub={it.sub ? "1" : undefined}
             aria-haspopup={it.sub ? "menu" : undefined} aria-expanded={it.sub ? (s.fly === it.id ? "true" : "false") : undefined}
             onPointerEnter={(e) => { if (e.pointerType !== "touch") hover(it.sub ? it.id : ""); }} aria-disabled={it.disabled ? "true" : undefined}
             aria-describedby={(it.disabled || it.id === "draft") && (it.line || it.why) ? (it.why || "rm-why-" + it.id) : undefined} onClick={() => { if (!it.disabled) run(it.id); }}>
+            {it.icon ? <Icon name={it.icon} cls="rm-ic" /> : null}
             <span class="rm-t"><b>{it.id === "back" ? "‹ Back" : it.name}</b>{it.line ? <small id={"rm-why-" + it.id}>{it.line}</small> : null}</span>
             {it.sub ? <Icon name="right" cls="rm-go" /> : null}
           </button>

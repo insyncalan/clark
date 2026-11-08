@@ -2,7 +2,7 @@
 // for a token that cannot be used, the rows a line shows, and the list of suggestions with how a chosen one changes the text. No DOM,
 // no store, no clock: the component (components/FilterLine.jsx) draws these and owns the timing. It reads the parser and the evaluation of
 // issue 662 (filterQueryParse.js, filterQueryEval.js), so a field added to the schema, or passed in as `extra`, is understood here too.
-import { LINE_FIELDS, FIELD_NOTES, NO_ME, offers, isOn, word as typedWord, isStartingView } from "./filterLine.js";
+import { LINE_FIELDS, FIELD_NOTES, NO_ME, unknownFilter, offers, isOn, word as typedWord, isStartingView } from "./filterLine.js";
 import { NONE } from "../filters.js";
 import { parseQuery, schemaOf, resolveField, squash, colonAt } from "./filterQueryParse.js";
 import { evaluateQuery } from "./filterQueryEval.js";
@@ -35,7 +35,8 @@ export function messageOf(e) {
   if (!e) return "";
   const first = e.suggestions && e.suggestions[0];
   switch (e.code) {
-    case "unknown-field": return first ? `Unknown field '${e.name}'. Did you mean ${first.name}?` : `Unknown field '${e.name}'.`;
+    case "unknown-field": if (!e.qualifier) return unknownFilter(e.name);      // a word before a colon: the line's own sentence; has: and no: keep theirs
+      return first ? `Unknown field '${e.name}'. Did you mean ${first.name}?` : `Unknown field '${e.name}'.`;
     case "ambiguous-field": return `'${e.name}' could mean more than one field. Use the full name.`;
     case "unknown-state": return first ? `Unknown state '${e.name}'. Did you mean ${first.name}?` : `Unknown state '${e.name}'.`;
     case "missing-value": return `Add a value after '${e.name}:'.`;
@@ -160,7 +161,11 @@ export function wordAt(text, caret) {
 }
 
 const noteOf = (key) => (has(FIELD_NOTES, key) ? FIELD_NOTES[key] : "");
-const fieldRow = (key, neg) => ({ kind: "field", ins: `${neg ? "-" : ""}${key}:`, label: `${neg ? "-" : ""}${key}:`, note: noteOf(key), close: false });
+// Row 931: the icon (a name in components/Icon.jsx) on a field row and on the lead rows of a field; a custom field has the filter icon.
+export const FIELD_ICONS = { is: "check", type: "table", status: "half", owner: "user", priority: "flash", due: "cal", workstream: "bars",
+  usecase: "doc", milestone: "flag", client: "ext", has: "eye", no: "eyeoff" };
+export const iconOf = (key) => (has(FIELD_ICONS, key) ? FIELD_ICONS[key] : "filter");
+const fieldRow = (key, neg) => ({ kind: "field", ins: `${neg ? "-" : ""}${key}:`, label: `${neg ? "-" : ""}${key}:`, note: noteOf(key), icon: iconOf(key), close: false });
 
 /** What to offer for the word the caret is in. [{kind: "field" | "lead" | "value", ins, label, note, tone?, close}]:
  *  - an empty word: every filterable field, `is:` first, then the built-in fields, the custom ones, `has:` and `no:`; narrowed as it is typed
@@ -186,7 +191,7 @@ export function suggestions(text, caret, rows, ctx, extra) {
   if (q === "has" || q === "no") {
     const p = squash(part);
     return schema.fields.filter((f) => !taken.includes(squash(f.key)) && (!p || squash(f.key).startsWith(p) || squash(f.name).startsWith(p)))
-      .map((f) => ({ kind: "value", ins: `${pre}${q}:${done}${f.key}`, label: f.key, note: f.name, close: true }));
+      .map((f) => ({ kind: "value", ins: `${pre}${q}:${done}${f.key}`, label: f.key, note: f.name, icon: iconOf(f.key), close: true }));
   }
   if (q === "is") {
     return offers("is", rows, c).filter(([v]) => schema.states.includes(v) && !taken.includes(v) && (!part || v.startsWith(part)))
@@ -197,9 +202,9 @@ export function suggestions(text, caret, rows, ctx, extra) {
   const k = r.field, F = schema.fields.find((f) => f.key === k);
   const out = [];
   if (!done && !part && !neg) {
-    out.push({ kind: "lead", ins: `no:${k}`, label: `No ${F.name}`, note: "", close: true });
-    out.push({ kind: "lead", ins: `has:${k}`, label: `Has ${F.name}`, note: "", close: true });
-    out.push({ kind: "lead", ins: `-${k}:`, label: `Exclude ${F.name}`, note: "", close: false });
+    out.push({ kind: "lead", ins: `no:${k}`, label: `No ${F.name}`, note: "", icon: iconOf(k), close: true });
+    out.push({ kind: "lead", ins: `has:${k}`, label: `Has ${F.name}`, note: "", icon: iconOf(k), close: true });
+    out.push({ kind: "lead", ins: `-${k}:`, label: `Exclude ${F.name}`, note: "", icon: "circleminus", close: false });
   }
   if (!has(LINE_FIELDS, k)) return out;                                          // a custom field: the three lead rows only
   for (const [v, l] of offers(k, rows, c)) {
@@ -219,4 +224,60 @@ export function accept(text, caret, opt) {
   if (opt.close && /^\s/.test(tail)) tail = tail.slice(1);
   const head = String(text).slice(0, start) + opt.ins + (opt.close ? " " : "");
   return { text: head + tail, caret: head.length };
+}
+
+// ── Chips: the words of the line that are complete filters (row 845) ───────────────────────────────────────────────────────
+// The line stays one text (the saved views, the count and the parser read it); the box draws the complete filters as chips, each with its own
+// remove button, and holds only the rest (plain words, a word still being typed, a word that cannot be used).
+
+const isChipToken = (t) => !t.error && t.kind !== "text";
+const spaceAt = (s, i) => i < s.length && /\s/.test(s[i]);
+
+/** A line cut in two: its complete filters (each as typed) and the rest of the line (plain words and unusable words, in order). */
+export function splitLine(line, rows, ctx, extra) {
+  const toks = parseFor(line, rows, ctx, extra).tokens;
+  return { chips: toks.filter(isChipToken).map((t) => t.raw), rest: toks.filter((t) => !isChipToken(t)).map((t) => t.raw).join(" ") };
+}
+
+/** The chips and the text in the box as one line. */
+export function joinLine(chips, draft) {
+  const d = draft || "";
+  return d === "" ? chips.join(" ") : [...chips, d].join(" ");
+}
+
+/** Complete filters the caret has moved past (a space follows them) leave the text and become chips: {chips: [typed], text, caret}. */
+export function commitDraft(text, caret, rows, ctx, extra) {
+  const done = parseFor(text, rows, ctx, extra).tokens.filter((t) => isChipToken(t) && t.end < caret && spaceAt(text, t.end));
+  if (!done.length) return { chips: [], text, caret };
+  let out = "", at = 0, back = 0;
+  for (const t of done) {
+    let e = t.end;
+    while (spaceAt(text, e)) e++;
+    out += text.slice(at, t.start); at = e;
+    back += Math.min(e, caret) - t.start;
+  }
+  return { chips: done.map((t) => t.raw), text: out + text.slice(at), caret: caret - back };
+}
+
+const keyOfToken = (t) => (t.kind === "field" ? t.field : t.kind === "state" ? "is" : `${t.present ? "has" : "no"}:${(t.fields || []).join(",")}`);
+
+/** The suggestions with `n` on each row that closes a word: how many items the line would show with that choice in place of the chips on the
+ *  same field (row 846; the other chips still count). */
+export function withCounts(options, chips, rows, ctx, extra) {
+  if (!options.some((o) => o.close)) return options;
+  const held = chips.map((c) => ({ raw: c, tok: parseFor(c, rows, ctx, extra).tokens[0] }));
+  return options.map((o) => {
+    if (!o.close) return o;
+    const t = parseFor(o.ins, rows, ctx, extra).tokens[0];
+    if (!t || t.error || t.kind === "text") return o;
+    const k = keyOfToken(t), keep = held.filter((h) => !(h.tok && !h.tok.error && keyOfToken(h.tok) === k)).map((h) => h.raw);
+    return { ...o, n: rowsFor(rows, [...keep, o.ins].join(" "), ctx, extra).length };
+  });
+}
+
+/** The word a chip's remove button names: the field's name, or the word typed before the colon (is, has, no). */
+export function chipName(chip, rows, ctx, extra) {
+  const t = parseFor(chip, rows, ctx, extra).tokens[0];
+  if (t && t.kind === "field") { const f = pageSchema(rows, ctx, extra).fields.find((x) => x.key === t.field); return f ? f.name : t.field; }
+  return String(chip).replace(/^-/, "").split(":")[0];
 }

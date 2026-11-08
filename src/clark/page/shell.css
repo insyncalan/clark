@@ -50,6 +50,8 @@ main { position: relative; max-width: var(--max-width); margin: 0 auto; padding:
 .frame h1 { margin: 0 0 var(--space-3); font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
 /* The report's cover band (A-D1): navy, full width of the frame, the name, the kind of report, the week and the client. */
 .cover { margin: -24px -28px 20px; padding: var(--space-5) 28px 20px; background: var(--brand-navy); color: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.cover { position: relative; overflow: hidden; isolation: isolate; }      /* row 1003: the brand picture is laid behind the band, filling it (the prototype's cover::before); --image-cover is none without an own look, so the plain band is unchanged */
+.cover::before { content: ""; position: absolute; inset: 0 0 0 40%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .85; }
 .frame .cover h1 { margin: 0 0 6px; color: var(--white); }
 .cover-line { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) 10px; font-size: var(--size-small); color: var(--white); }
 .cover-line span + span::before, .cover-kind + span::before { content: "\00b7"; margin-right: 10px; }
@@ -57,10 +59,11 @@ main { position: relative; max-width: var(--max-width); margin: 0 auto; padding:
 @media (max-width: 900px) { .cover { margin: -18px -16px 16px; padding: 18px var(--space-4) var(--space-4); } }
 html:not([data-secstyle="card"]) .frame.report .cover { margin-top: 0; }      /* the report frame has only 4 px of top padding here, so the band starts at the frame, not 20 px above it */
 @media (max-width: 900px) { html:not([data-secstyle="card"]) .frame.report .cover { margin: 0 0 16px; } }      /* the report frame has no side padding here, so the band is the frame's width, not wider */
+html:not([data-secstyle="card"]) .frame.report .cover { border-radius: var(--radius-lg); box-shadow: var(--shadow); }      /* row 997: with separate section cards the band stands alone, so it is a card itself: four round corners and the shadow (DESIGN-SYSTEM.md:48); in the Card style it is the top of the frame and keeps the top two only */
 .crumbs { margin: 0 0 2px; font-size: var(--size-small); color: var(--text-muted); }
 .glance { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: 12px; }
 .tile { display: flex; flex-direction: column; }
-.tile .n { font-size: 22px; font-weight: var(--weight-medium); color: var(--heading); }
+.tile .n { font-size: var(--size-figure); font-weight: var(--weight-medium); color: var(--heading); }
 .tile .l { font-size: var(--size-caption); color: var(--text-muted); }
 /* A tile is neutral, with a thin outline in its status colour that fades out from the bottom-left corner. The
    outline is drawn on ::after under a mask, so the text and its contrast are those of the neutral tile. The tiles fill the row
@@ -76,7 +79,7 @@ html:not([data-secstyle="card"]) .frame.report .cover { margin-top: 0; }      /*
 .fig::after { content: ""; position: absolute; inset: -1px; border: 2px solid transparent; border-radius: inherit; pointer-events: none; -webkit-mask-image: linear-gradient(45deg, currentColor 0%, transparent 75%); mask-image: linear-gradient(45deg, currentColor 0%, transparent 75%); }
 .fig.rag-g::after { border-color: var(--status-green); } .fig.rag-a::after { border-color: var(--status-amber); } .fig.rag-r::after { border-color: var(--status-red); }
 .fig .k { display: flex; align-items: center; gap: 6px; font-size: var(--size-caption); color: var(--text-muted); }
-.fig .v { font-size: 22px; font-weight: var(--weight-medium); color: var(--heading); }
+.fig .v { font-size: var(--size-figure); font-weight: var(--weight-medium); color: var(--heading); }
 .fig .dd { font-size: var(--size-caption); color: var(--text-muted); }
 /* The status word is a small chip: its border is the word's own colour, so the edge keeps the text's contrast (5 to 1 or more on the
    tile and on a hidden tile, light and dark) and no fill is drawn over the tile. As in the prototype it sits beside the figure, at the
@@ -91,6 +94,7 @@ html:not([data-secstyle="card"]) .frame.report .cover { margin-top: 0; }      /*
 .fig .hrow { display: flex; align-items: flex-start; gap: var(--space-3); margin-top: var(--space-1); }
 .fig .hrow .dd { font-size: inherit; color: inherit; }
 .fig .hreason { flex: 1 1 auto; min-width: 0; font-size: var(--size-body); color: var(--text); white-space: pre-line; overflow-wrap: anywhere; }
+.fig .hreason p { margin: 0 0 var(--space-1); } .fig .hreason p:last-child { margin-bottom: 0; }   /* item 1005: the reason is the editor's paragraphs and lists, drawn tight inside the tile */
 .fig textarea.hreason { width: 100%; min-height: 62px; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); font: inherit; resize: vertical; white-space: pre-wrap; }
 .fig textarea.hreason.needs { border-color: var(--status-amber); }
 .fig textarea.hreason:focus-visible, .pillbtn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
@@ -330,9 +334,10 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .vtab[data-broken="true"] { border-bottom-style: dashed; border-bottom-color: var(--border); }
 .vbad { flex: 1 1 100%; margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
 .vbad:empty { display: none; }
-.fline { position: relative; display: flex; flex-wrap: nowrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
-.fedit { position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; }   /* issue 662: the box holds the whole line; its tokens are drawn over the text */
+.fedit { position: relative; flex: 1 1 140px; min-width: 0; display: flex; align-items: center; }   /* issue 662: the box holds the whole line; its tokens are drawn over the text */
+.fchips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }   /* row 845: the complete filters as chips (the chip look is .fchip, below) */
 .fline input { all: unset; box-sizing: border-box; flex: 1 1 auto; width: 100%; min-width: 0; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: transparent; caret-color: var(--text); }
 .fhi { position: absolute; inset: 0; display: flex; align-items: center; overflow: hidden; white-space: pre; pointer-events: none; font-size: var(--size-small); color: var(--text); }
 .fhs { flex: none; }
@@ -362,14 +367,16 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fdv.g { background: var(--status-green); }
 .fdv.n { background: var(--status-grey); }
 .fopt .c { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); }
-.fhints { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; min-height: 26px; visibility: hidden; }
-.fhints.on { visibility: visible; }
+.fgloss { flex-basis: 100%; font-size: var(--size-small); color: var(--text); }   /* row 845: the plain meaning of the chip the pointer or focus is on */
+.fgloss[hidden] { display: none; }
 .fhl { font-size: var(--size-small); color: var(--text-muted); }
 .fhint { all: unset; box-sizing: border-box; padding: 2px 10px; min-height: 24px; display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: var(--radius-pill); cursor: pointer; font-size: var(--size-small); color: var(--text-muted); background: var(--surface); }
 .fhint:hover { background: var(--grey-100); color: var(--text); }
 .fhint:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .fmsg { margin: 6px 0 0; font-size: var(--size-small); color: var(--status-amber-text); }
 .fmsg:empty { display: none; }
+.fline.bad, .fline.bad:focus-within { border-color: var(--status-red); box-shadow: 0 0 0 1px var(--status-red); }   /* row 846: a word the line cannot use turns the box red */
+.fmsg.bad { color: var(--status-red-text); }
 .factive { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 10px 0 4px; font-size: var(--size-small); }
 
 /* Work items on a phone (item 130, point 5): compact controls, and each row is a small card that shows Status, Due and Priority under the
@@ -679,23 +686,21 @@ input.sec-title { width: 100%; }
 /* Work items cells that change in place (#80, Edit only): the cell's content is a button, and its picker opens in one panel under
    it. The panels are the prototype's (.cell-pick, .menu, .cp), in clark's tokens, so dark mode follows. */
 .cell-pick { all: unset; box-sizing: border-box; display: inline-flex; flex-wrap: nowrap; align-items: center; gap: var(--space-1) var(--space-2); max-width: 100%; min-height: 28px; padding: 3px 6px; margin: -3px -6px; border-radius: var(--radius-sm); cursor: pointer; }
-.cell-pick { box-shadow: inset 0 -1px 0 var(--grey-300); }                                   /* at rest too: a quiet edge and a caret say it can be changed */
-.cell-pick::after { content: "▾"; flex: none; color: var(--text-muted); font-size: var(--size-small); line-height: 1; }
+.cell-pick::after { content: "▾"; opacity: 0; flex: none; color: var(--text-muted); font-size: var(--size-small); line-height: 1; }
 .cell-val { display: block; min-width: 0; }                                                                  /* the caret stays beside the value: the value shrinks and wraps by word, the caret never drops to a line of its own (tech debt 203) */
 .cell-pick { overflow-wrap: normal; }                                                              /* the table lets a cell break anywhere; a picker's value breaks only between words */
 .cell-pick[data-cell$=":priority"], .cell-pick[data-cell$=":status"], .cell-pick[data-cell$=":due"] { white-space: nowrap; }
 .cell-pick[data-cell$=":priority"] .cell-val, .cell-pick[data-cell$=":status"] .cell-val, .cell-pick[data-cell$=":due"] .cell-val { min-width: auto; flex: none; }   /* these never wrap, so the value keeps its own width and the caret sits after it, not under the pill */
 .cell-pick:hover, .cell-pick[aria-expanded="true"] { background: var(--grey-100); box-shadow: inset 0 0 0 1px var(--grey-300); }
+.cell-pick:hover::after, .cell-pick:focus-visible::after, .cell-pick[aria-expanded="true"]::after { opacity: 1; }   /* item 1013: plain text at rest; the box and the caret show on hover or focus (the caret keeps its room, so nothing moves) */
 .cell-pick:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 table.items tbody tr { cursor: pointer; }
 table.items tbody tr:hover { background: var(--grey-50); }
 table.items tbody tr:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
-/* Selecting several: not by colour alone. A picked row or card has a tick before its title and a border; the tint is extra. */
+/* Selecting several: not by colour alone. A picked row or card has a border, and a row a bar at its left edge; the tint is extra (row 807: no check mark on either). */
 table.items tbody tr.picked { background: color-mix(in srgb, var(--brand-blue-tint) 60%, var(--surface)); box-shadow: inset 4px 0 0 var(--brand-blue), inset 0 0 0 1px var(--brand-blue); }
 table.items tbody tr.picked:hover { background: var(--brand-blue-tint); }
 table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
-.tick { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-right: 6px; vertical-align: -2px; border-radius: 50%; background: var(--brand-blue); color: var(--surface); }
-.tick .i { width: 11px; height: 11px; stroke-width: 3; }
 .gtick-hit { display: inline-grid; place-items: center; width: 24px; height: 24px; margin-right: var(--space-1); vertical-align: middle; flex: none; cursor: pointer; }   /* the box is 16 px; the label around it is the 24 px target */
 .gtick { width: 16px; height: 16px; margin: 0; accent-color: var(--brand-blue); cursor: pointer; }
 .gtick:disabled { cursor: not-allowed; opacity: .45; }
@@ -936,14 +941,14 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-lab { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); margin-bottom: 2px; }
 .hp-sec { margin-top: 34px; }
 .hp-sec > h2, .hp-sh h2, .hp-hero h2 { margin: 0 0 6px; color: var(--heading); font-weight: 500; }
-.hp-sec > h2, .hp-sh h2 { font-size: var(--size-h2); }
+.hp-sec > h2, .hp-sh h2 { font-size: var(--size-h3); }
 .hp-sh p, .hp-lead { margin: 0 0 14px; color: var(--text-muted); font-size: var(--size-body); max-width: 72ch; }
 .hp-found { animation: hp-found 2.4s var(--ease-out); border-radius: var(--radius-sm); }
 @keyframes hp-found { 0%, 40% { background: var(--flash); box-shadow: 0 0 0 4px var(--flash); } 100% { background: transparent; box-shadow: 0 0 0 4px transparent; } }
 @media (prefers-reduced-motion: reduce) { .hp-found { animation: none; outline: 2px solid var(--status-amber); } }
 
 .hp-hero { display: block; gap: 20px; align-items: start; padding: 26px 28px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); }
-.hp-hero h2 { font-size: var(--size-display); line-height: 1.12; letter-spacing: -.01em; max-width: 22ch; }
+.hp-hero h2 { font-size: var(--size-h2); line-height: 1.12; letter-spacing: -.01em; max-width: 22ch; }
 .hp-hero p { margin: var(--space-2) 0 0; font-size: var(--size-body); line-height: 1.55; color: var(--text-muted); max-width: 68ch; }
 .hp-loop { padding: 20px 22px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); }
 .hp-loop .hp-sh { display: grid; grid-template-columns: minmax(160px, 1fr) 2fr; gap: 6px var(--space-5); align-items: baseline; }
@@ -1001,7 +1006,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-next li { margin: 0 0 4px; }
 .hp-next a { color: var(--status-blue-text); }
 .hp-col { min-width: 0; }
-.hp-col .hp-sh h2 { font-size: var(--size-h2); }
+.hp-col .hp-sh h2 { font-size: var(--size-h3); }
 .hp-grp { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); font-weight: 500; margin: 28px 0 10px; }
 .hp-task, .hp-ref { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: var(--space-3); scroll-margin-top: calc(var(--topbar) + 16px); }
 .hp-task h3, .hp-ref h3 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
@@ -1625,6 +1630,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
   :root:not([data-motion="reduce"]) {
     /* the placeholder fades out as the screen arrives */
     .skel-leave { position: absolute; left: var(--space-5); right: var(--space-5); top: 28px; z-index: 1; pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+    @media (max-width: 900px) { .skel-leave { left: var(--space-4); right: var(--space-4); top: 20px; } }     /* item 517: main's padding at 900 px */
     /* row 887: the dragged card lifts (its ghost, which follows the pointer, grows into place with the scale property; the card itself
        gets no transform, as its date picker and menu are drawn inside it), the column it would land in eases its highlight in, and a
        column dragged by its heading lifts the same way. Still: the highlight and the dimming only */
@@ -1961,11 +1967,35 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .mv-wrap { overflow: hidden; resize: none; min-height: 0; }   /* row 767: the printed timeline is drawn to the page width (MsTimeline.jsx), so it needs no sideways scroll; nothing is cut off */
   html.print-all thead { display: table-header-group; }
   html.print-all a { color: inherit; text-decoration: none; }
+  /* row 990: the Gantt on paper. No toolbar, menu or hover control; the chart and the table are drawn whole to the page width (no box to scroll, nothing sticky or fixed); the bars, the Today flag and the swatches keep their colour; a row is not split across two pages. */
+  html.print-all .gp-tools, html.print-all .gt-bar, html.print-all .gt-pop, html.print-all .gt-menu, html.print-all .gt-box, html.print-all .gt-grip, html.print-all .gt-addb, html.print-all .gt-rz, html.print-all .gt-cr { display: none; }
+  html.print-all .gt-full { position: static; inset: auto; z-index: auto; overflow: visible; padding: 0; background: none; }
+  html.print-all .gt-gx, html.print-all .gt-full .gt-gx { overflow: clip; max-width: 100%; max-height: none; height: auto !important; }
+  html.print-all .gt-scroll { overflow: visible; max-height: none; }
+  html.print-all .gt-lhead, html.print-all .gt-rhead, html.print-all .gt-left { position: relative; }
+  html.print-all .gt thead th, html.print-all .gt th.gt-fz, html.print-all .gt td.gt-fz, html.print-all .gt .gt-rh, html.print-all .gt .gt-rh0 { position: static; }
+  html.print-all .gt-b, html.print-all .gt-b > i, html.print-all .gt-b-phase, html.print-all .gt-ms, html.print-all .gt-tflag, html.print-all .gt-tstem, html.print-all .gt-sw, html.print-all .gt-dep { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html.print-all .gt-ln, html.print-all .gt-rw, html.print-all .gt-legend { break-inside: avoid; }
+  /* The print block's "html.print-all button { background: none; border: 0; padding: 0 }" (above) outranks the bars, the milestones and the Today flag, which are role=button elements and buttons: their fills, borders and padding are given back here, one step stronger, so the paper shows the bars. */
+  html.print-all .gt-b.gt-b[role=button] { background: var(--gt-task); padding: 0 var(--space-2); color: var(--text-on-brand); }
+  html.print-all .gt-b.gt-b-phase.gt-b-phase { background: var(--brand-navy); border: 1px solid var(--grey-500); padding: 0 var(--space-2); }
+  html.print-all .gt-ms.gt-ms { background: var(--status-amber); border: 2px solid var(--status-amber-text); }
+  html.print-all .gt-ms.gt-ms.done { background: var(--status-green); border-color: var(--status-green-text); }
+  html.print-all .gt-tflag.gt-tflag { background: var(--status-red-tint); border: 1px solid var(--status-red); padding: 2px 10px; color: var(--status-red-text); }
+  html.print-all .gt-mslab.gt-flip { --gt-room: none; max-width: var(--gt-room); overflow: hidden; text-overflow: ellipsis; }   /* a word placed left of its bar stays on one line inside the room left of it and ends in an ellipsis, never over the left columns (GanttChart.jsx sets --gt-room on the word itself, which wins over the `none` here; the left columns carry the full name) */
+  html.print-all .gt-in { width: auto; min-width: 0; }
+  /* the .gt-gx box clips (above): the canvas keeps its drawn width (labels beside a bar are placed from its right edge); only the empty tail past the last day is clipped at the page edge */
+  html.print-all .gt table { width: 100% !important; table-layout: auto; }   /* the table is shared out over the page width; its cells wrap instead of running on */
+  html.print-all .gt col { width: auto !important; }
+  html.print-all .gt th, html.print-all .gt td { white-space: normal; overflow-wrap: anywhere; overflow: visible; height: auto; padding-right: 4px; }
+  html.print-all .gt tr { break-inside: avoid; }
 }
 
 .pk-rating { color: var(--text-muted); }   /* a closed risk keeps its rating word beside its Closed pill */
 /* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
 .pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pk-row[data-row=status] .pk-val { flex-wrap: nowrap; white-space: nowrap; }
+.pk-fields > .pk-row[data-row=status]:has([data-pk-rating]) { grid-column: 1 / -1; }  /* a status with its rating word is too wide for half a row */
 .pk-val .i { width: 16px; height: 16px; }
 .ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
 .ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
@@ -2007,6 +2037,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .vtabmenu:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .vtabmenu .nch { width: 14px; height: 14px; }
 .vnew { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: calc(var(--space-6) + var(--space-1)); padding: 6px 10px; margin-bottom: -1px; border-bottom: 2px solid transparent; cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.fvacts { display: flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }   /* row 844: Save view and Discard changes beside the tabs while the dot shows */
 .vnew:hover { color: var(--text); }
 .vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: var(--radius-sm); }
 .lsw { flex: none; margin-bottom: var(--space-1); }   /* row 812: the Table and Board two-icon switch, a .seg of two icon buttons */
@@ -2096,8 +2127,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-hc.gt-u { top: 32px; height: 18px; line-height: 18px; font-weight: var(--weight-medium); color: var(--text); }
 .gt-hc.gt-l { top: 50px; height: 18px; line-height: 18px; }
 .gt-hc.gt-l:not(.gt-edge) { border-left-color: transparent; }
-.gt-tflag { all: unset; box-sizing: border-box; position: absolute; top: 2px; transform: translateX(-50%); z-index: 3; padding: 2px 10px; border-radius: var(--radius-sm); background: var(--status-red-tint); color: var(--status-red-text); border: 1px solid var(--status-red); font-weight: var(--weight-medium); line-height: 14px; cursor: pointer; white-space: nowrap; }
-.gt-tflag::after { content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -6px; border: 6px solid transparent; border-top-color: var(--status-red); border-bottom: 0; }
+.gt-tflag { all: unset; box-sizing: border-box; position: absolute; top: 2px; transform: translateX(max(-50%, calc(-1 * var(--tx, 999px)))); z-index: 3; padding: 2px 10px; border-radius: var(--radius-sm); background: var(--status-red-tint); color: var(--status-red-text); border: 1px solid var(--status-red); font-weight: var(--weight-medium); line-height: 14px; cursor: pointer; white-space: nowrap; }
+.gt-tflag::after { content: ""; position: absolute; bottom: -7px; margin-left: -6px; left: min(50%, var(--tx, 999px)); border: 6px solid transparent; border-top-color: var(--status-red); border-bottom: 0; }
 .gt-tstem { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--status-red); opacity: .6; z-index: 2; pointer-events: none; }
 .gt-tstem-h { top: 24px; bottom: auto; height: 8px; }   /* only joins the flag to the date rows: it never runs through a month label */
 .gt-left { position: sticky; left: 0; z-index: 5; background: var(--surface); border-right: 1px solid var(--border); }
@@ -2133,7 +2164,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-b.sel, .gt-ms.sel { outline: 2px solid var(--text); outline-offset: 2px; }
 .gt-ms { all: unset; box-sizing: border-box; position: absolute; z-index: 1; width: 14px; height: 14px; margin-left: -7px; transform: rotate(45deg); background: var(--status-amber); border: 2px solid var(--status-amber-text); cursor: pointer; }
 .gt-ms.done { background: var(--status-green); border-color: var(--status-green-text); }
-.gt-mslab { position: absolute; line-height: 20px; white-space: nowrap; color: var(--text); }
+.gt-mslab { position: absolute; line-height: 20px; white-space: nowrap; color: var(--text); max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
 .gt-flip { padding: 0 3px; margin-right: -3px; background: var(--surface); }
 .gt-phlab.gt-flip { background: var(--grey-50); }
 .gt-clash { position: absolute; line-height: 20px; color: var(--status-amber-text); font-weight: var(--weight-semibold); }

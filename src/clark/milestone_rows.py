@@ -22,7 +22,7 @@ with each. Not copied: the weekly history, and the forecast ranges from forecast
 import re
 from datetime import date, timedelta
 
-from clark import milestones as ms
+from clark import milestones as ms, sanitise
 from clark.timefmt import local_text
 
 CANCELLED = "Cancelled"
@@ -307,7 +307,7 @@ def movement(events, milestone_id, include_undone=True):
             entries.append(_entry(step, "movement", "Movement choice: %s" % (a.capitalize() if a else "cleared"), f["movement"]))
         if "internal_note" in f:
             entries.append(_entry(step, "internal_note", "Internal note changed", f["internal_note"],
-                                  detail=f["internal_note"][-1]["after"] or ""))
+                                  detail=sanitise.rich_plain_text(f["internal_note"][-1]["after"])))      # row 1005: the note is HTML now (or plain text before): its words
         if why:
             if entries:
                 entries[0]["why"] = entries[0]["why"] or why

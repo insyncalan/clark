@@ -20,7 +20,7 @@ Request (JSON; every key but `project` is optional; a key not listed is refused)
                     address that is not on one of your own domains, and for no address)
 Answer: {"ok": true, "project", "mode", "items": [{id, text, kind, due, owner, internal}], "picked": [ids], "draft": build()}.
 
-Settings that do not exist yet (your own domains, your name from Settings › Personal › About you) come from `profile`, a callable returning
+Settings that do not exist yet (your own domains, your name from Settings › Profile › About you) come from `profile`, a callable returning
 {"name": "", "own_domains": []}; the safe defaults are no name (the email says to add one) and no own domains (every address
 counts as outside, so internal items start unticked). `chased(code)` (how often each item has been asked about) is built from the "I sent it"
 records (chase_counts_of); it is empty with none. Standard library only, Python 3.9.
@@ -31,8 +31,9 @@ import unicodedata
 from datetime import datetime
 
 from clark import draft_email as de
-from clark import publish
+from clark import publish, sanitise
 from clark.changes import Refused, _call
+from clark.store import EMAIL_PROJECT_ARCHIVED
 
 CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 ID = re.compile(r"[A-Z][A-Z0-9]{2,6}-(?:[AD]-)?[0-9]{3}")        # the shape of an action, risk or decision ID
@@ -53,7 +54,7 @@ BAD_DATE = "Choose the reply-by date from the calendar, or leave it empty."
 BAD_ADDRESS = "That email address is not complete. Check it, or leave it empty."
 BAD_TEXT = "One of the fields is too long or is not text. Shorten it and try again."
 BAD_BOTH = "Choose one item or one person, not both."
-ARCHIVED = "That project is archived, so no email can be drafted for it. Restore it first."
+ARCHIVED = EMAIL_PROJECT_ARCHIVED
 
 
 def refuse(status, code, message):
@@ -92,7 +93,7 @@ def items_of(data, rules=None):
     for r in data.get("actions") or []:
         out.append({"id": r["id"], "project": r["project"], "kind": "actions", "text": r.get("description") or "",
                     "due": r.get("due_date"), "priority": r.get("priority"), "owner": r.get("owner"), "status": r.get("status"),
-                    de.LATEST: r.get("latest_update"), "client_visible": bool(r.get("client_visible")), **marks(r)})
+                    de.LATEST: sanitise.rich_plain_text(r.get("latest_update")) or None, "client_visible": bool(r.get("client_visible")), **marks(r)})
     for r in data.get("raid") or []:
         out.append({"id": r["id"], "project": r["project"], "kind": "raid", "text": r.get("description") or "",
                     "type": r.get("type"), "response": r.get("response_action"), "due": r.get("due_date"),

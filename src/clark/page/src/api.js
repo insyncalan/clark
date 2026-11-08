@@ -3,9 +3,14 @@
 // Every reply is turned into plain words here: the page never shows the server's own text, only what plainChange (report.js)
 // picks for the status, or for a message it knows.
 import { token, plainChange } from "./stores/report.js";
+import { leaving } from "./stores/leave.js";
 import { knownRefusal } from "./edit/movementWords.js";
 
 const KIND = "report_sections";
+
+// While the page is going away (Back to another page load, a closed tab) a save started by leaving a field must still reach clark: the browser
+// keeps a keepalive request going, up to its size limit (64 KiB, so a smaller body only; the reply is not read by a page that has gone).
+const alive = (body) => (leaving.on && body.length < 60000 ? { keepalive: true } : {});
 
 // {ok: true, reply} or {ok: false, message}: never a throw, whatever the network or the server did.
 // `fits(reply)` says whether a 200 reply has what the page needs: a section change's and an undo's carry the sections, a work
@@ -15,11 +20,13 @@ const hasItem = (reply) => !!reply.item && typeof reply.item === "object" && typ
 
 async function post(path, body, fits = hasSections) {
   try {
+    const sent = JSON.stringify(body);
     const r = await fetch(path, {
       method: "POST",
       headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: sent,
       cache: "no-store",
+      ...alive(sent),
     });
     const reply = await r.json().catch(() => null);
     if (!r.ok || !reply || reply.ok !== true || !fits(reply)) return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };
@@ -33,11 +40,13 @@ async function post(path, body, fits = hasSections) {
 // sentences (changes.py), so a short one is shown as it is; anything else gets plainChange's words.
 async function postItem(path, body, fits = (r) => !!r.item) {
   try {
+    const sent = JSON.stringify(body);
     const r = await fetch(path, {
       method: "POST",
       headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: sent,
       cache: "no-store",
+      ...alive(sent),
     });
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true && fits(reply)) return { ok: true, reply };
@@ -50,6 +59,8 @@ async function postItem(path, body, fits = (r) => !!r.item) {
 }
 
 // An archive, or a copy of an item (#97): the reply says the step (apply_id) and the record, with no sections.
+/** The one change route, for the few callers that need their own reply handling (row 986); no other file spells it. */
+export const CHANGE_ROUTE = "/api/change";
 export const sendRecordChange = (project, req) => postItem("/api/change", { ...req, project }, (r) => typeof r.apply_id === "number");
 
 // `req` is the change's own parts: op, id, values, changes, before, after, place (see clark/changes.py). `kind` is report_sections
@@ -83,7 +94,9 @@ export async function sendUndoMany(project, steps, { preview = false, confirm = 
 const SENT_REFUSAL_MAX = 600;
 // #484: with no answer (or a server fault) the request may have been recorded, so the page does not say nothing was saved: it says it may
 // or may not be, and where to check before pressing again.
-const SENT_MAYBE = "clark did not answer, so this may or may not be saved to the history. Look in the history to check before you press I sent it again.";
+const SENT_MAYBE = "This may or may not be saved to the history, because clark did not answer. Look in the history to check before you press I sent it again.";
+// No answer at all (the network failed or timed out): the request may have reached clark and been recorded, so this line does not say that nothing was saved.
+const SENT_NO_ANSWER = "No answer came back, so this may or may not have been recorded. Look in the history to see whether it is there before you press I sent it again.";
 
 // "I sent it" (#50): saves one record in the history: the item ids, the mode and the day, never any words of the email. Row 983: `extra`
 // may add the recipient's people id (person), the tone and the reply-by the draft used; the server finds the name from that record and
@@ -107,7 +120,7 @@ export async function sendEmailSent(project, entry, extra) {
     if (!r.ok && (r.status === 500 || r.status === 503)) return { ok: false, message: SENT_MAYBE };
     return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };
   } catch (e) {
-    return { ok: false, message: SENT_MAYBE };
+    return { ok: false, message: SENT_NO_ANSWER };
   }
 }
 
@@ -152,9 +165,10 @@ export async function sneakRead(project, id, words) {
 // other failure is said by plainChange.
 export async function sendPeekChange(project, kind, id, changes) {
   try {
+    const sent = JSON.stringify({ project, kind, op: "update", id, changes, place: "peek" });
     const r = await fetch("/api/change", {
       method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
-      body: JSON.stringify({ project, kind, op: "update", id, changes, place: "peek" }), cache: "no-store",
+      body: sent, cache: "no-store", ...alive(sent),
     });
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true) return { ok: true, reply };
@@ -177,7 +191,7 @@ export async function readData(project) {
   }
 }
 
-// Your name and email (#180, Settings › Personal › About you), kept in clark's own settings on this computer. getProfile answers
+// Your name and email (#180, Settings › Profile › About you), kept in clark's own settings on this computer. getProfile answers
 // {name, email} or null; saveProfile answers {ok: true, name, email} or {ok: false, message}: a refusal is in the route's own plain
 // words (ending "Nothing was saved."), any other failure in plainChange's.
 export async function getProfile() {
@@ -283,11 +297,13 @@ export async function sendMilestoneRestore(project, id) {
 // {ok: false, message, known}: `known` is true when the message is clark's own fixed refusal (shown as it is).
 export async function sendMilestoneChange(project, req) {
   try {
+    const sent = JSON.stringify({ project, kind: "milestones", op: "update", place: "movement", ...req });
     const r = await fetch("/api/change", {
       method: "POST",
       headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
-      body: JSON.stringify({ project, kind: "milestones", op: "update", place: "movement", ...req }),
+      body: sent,
       cache: "no-store",
+      ...alive(sent),
     });
     const reply = await r.json().catch(() => null);
     if (r.ok && reply && reply.ok === true) return { ok: true, reply };
