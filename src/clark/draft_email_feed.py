@@ -33,6 +33,7 @@ from datetime import datetime
 from clark import draft_email as de
 from clark import publish
 from clark.changes import Refused, _call
+from clark.store import EMAIL_PROJECT_ARCHIVED
 
 CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 ID = re.compile(r"[A-Z][A-Z0-9]{2,6}-(?:[AD]-)?[0-9]{3}")        # the shape of an action, risk or decision ID
@@ -53,7 +54,7 @@ BAD_DATE = "Choose the reply-by date from the calendar, or leave it empty."
 BAD_ADDRESS = "That email address is not complete. Check it, or leave it empty."
 BAD_TEXT = "One of the fields is too long or is not text. Shorten it and try again."
 BAD_BOTH = "Choose one item or one person, not both."
-ARCHIVED = "That project is archived, so no email can be drafted for it. Restore it first."
+ARCHIVED = EMAIL_PROJECT_ARCHIVED
 
 
 def refuse(status, code, message):
