@@ -896,13 +896,16 @@ class ClosedUnratedRiskPeek(unittest.TestCase):
         import tempfile
         import test_publish as tp
         _plant, _pub, text = tp.made(close_the_unrated_risk)
-        for width in (1400, 900):
+        for width in (1400, 900, 420):
             with self.subTest(width=width), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
                 path = Path(tmp) / "report.html"
                 path.write_text(text, encoding="utf-8")
                 sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-001", width)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-row=status]')", sid)), "the peek drew")
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status] dd').textContent.replace(/\\s+/g, ' ').trim()", sid), "Closed · Not rated")
+                # #532 follow-up: Closed and Not rated sit on one line, even at 420 px
+                one_line = "(function(){var a=document.querySelector('#peek [data-row=status] .pill').getBoundingClientRect(),b=document.querySelector('#peek [data-row=status] [data-pk-rating]').getBoundingClientRect();return Math.abs(a.top+a.height/2-(b.top+b.height/2))<4;})()"
+                self.assertEqual(cdp.js(one_line, sid), True, "Closed and Not rated on one line")
 
 
 def pub_block(data):
