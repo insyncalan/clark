@@ -27,7 +27,7 @@ COVERED = [
     ('465', "Print tab shows the published file's bytes, not a second build",
      'test_preview_export_route::Preview::test_the_print_tab_shows_the_bytes_that_were_published_even_if_the_project_changes_after'),
     ('471', 'A report line like token: or api_key: with a quoted word is left out of a folder read.',
-     'test_secret_screen::Screen::test_near_misses_of_the_quoted_token_rule_pass_471'),
+     'test_secret_screen::Screen::test_a_prefixed_or_suffixed_key_word_with_a_quoted_letters_value_is_refused'),
     ('479', 'The update put-back runs when the new server did not migrate, and a stuck new server is cleaned up',
      'test_update_rollback_data::RestoredTest::test_a_failed_start_that_did_not_migrate_but_changed_the_data_is_put_back_byte_for_byte'),
     ('480', 'If a publish fails after a link was replaced, the old link is back.',
