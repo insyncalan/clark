@@ -11,18 +11,20 @@ doctor's own words, unchanged. This module imports neither the store nor anythin
 import threading
 from pathlib import Path
 
-from clark import doctor, platform
+from clark import doctor, platform, setup_page
 
 POINTER_NAME = "clark-data-folder"          # one line, beside the default data folder (not in it)
+FOLDER_PROMPT = "Choose a folder for your clark data"      # the folder window's words (the owner's, #1017); the entry point gives it to Setup
 MAX_PATH = 1000                             # the rule settings.set_backup_copy_folder applies to a typed folder
 
 
 class Refused(Exception):
     """A folder (or a step) the service will not take. `code` is for the page, `words` is the doctor's own line."""
 
-    def __init__(self, code, words):
+    def __init__(self, code, words, page=None):
         super().__init__(words)
         self.code, self.words = code, words
+        self.page = words if page is None else page         # the same refusal said for a page (no "start clark again")
 
 
 def _plain_path(text):
@@ -57,7 +59,8 @@ class Setup:
         """The checks for the folder now in use, as data for a page. `ready` follows the doctor's own rule."""
         seen = self.seen(folder)
         results = doctor.run_checks(seen, self.checks)
-        rows = [dict(row, required=check.required) for row, (check, _) in zip(doctor.as_data(results), results)]
+        rows = [dict(row, required=check.required, page=setup_page.page_words(row["id"], row["status"], row["words"], seen))
+                for row, (check, _) in zip(doctor.as_data(results), results)]
         ready = not any(check.required and line.kind in (doctor.FIX, doctor.NOT_CHECKED) for check, line in results)
         return {"ok": True, "ready": ready, "folder": seen.tilde(seen.folder()), "checks": rows}
 
@@ -82,15 +85,23 @@ class Setup:
         """The folder `answer` names if it passes, else Refused. The answer is untrusted text; nothing is written here."""
         path = _plain_path(str(answer) if isinstance(answer, Path) else answer)
         if path is None or path.is_symlink() or not path.is_dir():
-            raise Refused("folder_refused", doctor.cant_save_line(self.seen(path or self.folder)).words)
+            raise Refused("folder_refused", doctor.cant_save_line(self.seen(path or self.folder)).words, self.cant_save_page(path or self.folder))
         try:
             resolved = platform.check_data_dir(path, self.onedrive_roots() if self.onedrive_roots else platform.onedrive_roots(
                 self.home, on=self.on))
         except platform.PlatformError as e:
             raise Refused("folder_refused", str(e))
         if not doctor._can_save_in(resolved):
-            raise Refused("folder_refused", doctor.cant_save_line(self.seen(resolved)).words)
+            raise Refused("folder_refused", doctor.cant_save_line(self.seen(resolved)).words, self.cant_save_page(resolved))
         return resolved
+
+    def cant_save_page(self, folder):
+        seen = self.seen(folder)
+        return setup_page.page_cant_save(seen.tilde(seen.folder()))
+
+    def page_html(self):
+        """The setup page the server sends for GET / and GET /setup (the server adds this run's token)."""
+        return setup_page.html()
 
     def remember(self, folder):
         platform.write_file(self.pointer(), str(folder) + "\n")
@@ -119,7 +130,7 @@ class Setup:
         except Refused as e:
             if e.code == "busy":
                 return 409, _busy()
-            return 409, {"ok": False, "code": e.code, "message": e.words}
+            return 409, {"ok": False, "code": e.code, "message": e.words, "page": e.page}
         except platform.PlatformError as e:                 # NotBuiltYet is one too; the system's own text is never in it
             return 409, {"ok": False, "code": "dialog_failed", "message": str(e)}
         if report is None:

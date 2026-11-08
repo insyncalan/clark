@@ -92,7 +92,10 @@ class Pages(Case):
         self.assertIn("text/html", a[1]["Content-Type"])
         self.assertIn("Content-Security-Policy", a[1])
 
-    def test_the_stand_in_page_has_no_new_words(self):
+    def test_a_service_without_a_page_is_given_the_stand_in(self):
+        class NoPage:
+            pass
+        self.s.httpd.setup = NoPage()
         self.assertIn("clark is starting.", self.s.ask("GET", "/")[2].decode())
 
     def test_health_has_no_new_key(self):

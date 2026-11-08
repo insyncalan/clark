@@ -1597,10 +1597,12 @@ SETUP_PAGES = ("/", "/setup")
 
 
 def setup_page_route(handler):
-    """GET / and GET /setup: the stand-in page (the normal server's own stand-in, one inline style and script) with this run's token."""
+    """GET / and GET /setup: the setup page with this run's token. It is the service's own (`setup.page_html()`); a service without one
+    gets the stand-in (the normal server's own, one inline style and script)."""
     if page_load_is_ours(handler.headers, handler.server.server_port):
         mark_here()
-    return handler.send(200, with_boot(placeholder_html()), "text/html")
+    page = getattr(handler.server.setup, "page_html", None)
+    return handler.send(200, with_boot(page() if page else placeholder_html()), "text/html")
 
 
 class SetupHandler(Handler):

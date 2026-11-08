@@ -47,7 +47,7 @@ class Report(Case):
     def test_the_report_is_the_doctors_lines_as_data(self):
         report = self.setup().report()
         self.assertEqual([r["id"] for r in report["checks"]], [doctor.check_id(c) for c in doctor.CHECKS])
-        self.assertTrue(all(set(r) == {"id", "status", "words", "required"} for r in report["checks"]))
+        self.assertTrue(all(set(r) == {"id", "status", "words", "required", "page"} for r in report["checks"]))
         self.assertEqual(report["folder"], "~/Library/Application Support/clark")
 
     def test_ready_follows_the_doctors_rule(self):
