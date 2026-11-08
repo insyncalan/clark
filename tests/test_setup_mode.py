@@ -6,7 +6,6 @@ import shutil
 import tempfile
 import threading
 import unittest
-from unittest import mock
 from pathlib import Path
 
 from _paths import ROOT
