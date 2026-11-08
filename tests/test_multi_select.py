@@ -301,7 +301,7 @@ class Page(Base):
                 sid = self.load(cdp, width)
                 groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, [...t.querySelectorAll('tr[data-id]')].map(r => r.dataset.id)])", sid)
                 g, ids = next((k, v) for k, v in groups if len(v) >= 2)
-                box = f"tbody[data-group='{g}'] .gtick"
+                box = f"thead[data-group='{g}'] .gtick"
                 state = f"(b => b.checked ? 'checked' : b.indeterminate ? 'mixed' : 'unchecked')(document.querySelector(\"{box}\"))"
                 self.assertEqual(cdp.js(state, sid), "unchecked")
                 self.assertTrue(cdp.js(f"document.querySelector(\"{box}\").getAttribute('aria-label').startsWith('Select ')", sid))
@@ -315,7 +315,7 @@ class Page(Base):
                 self.assertEqual(cdp.js(state, sid), "checked")
                 tap(cdp, sid, box)
                 self.assertEqual(self.picked(cdp, sid), [], "and clears it")
-                tap(cdp, sid, f"tbody[data-group='{g}'] .grp-b")
+                tap(cdp, sid, f"thead[data-group='{g}'] .grp-b")
                 self.until(cdp, sid, f"document.querySelector(\"{box}\").disabled", "a collapsed group's tick is off")
                 cdp.js(f"document.querySelector(\"{box}\").click()", sid)
                 self.assertEqual(self.picked(cdp, sid), [], "and does nothing")
@@ -325,9 +325,9 @@ class Page(Base):
             sid = self.load(cdp)
             groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, [...t.querySelectorAll('tr[data-id]')].map(r => r.dataset.id)])", sid)
             (g, ids), (_, other) = [x for x in groups if len(x[1]) >= 2][:2]
-            tap(cdp, sid, f"tbody[data-group='{g}'] .gtick")
+            tap(cdp, sid, f"thead[data-group='{g}'] .gtick")
             tap(cdp, sid, self.rsel(other[0]), MOD)
-            tap(cdp, sid, f"tbody[data-group='{g}'] .grp-b")
+            tap(cdp, sid, f"thead[data-group='{g}'] .grp-b")
             self.until(cdp, sid, f"document.querySelector('#sel-note') && document.querySelector('#sel-note').textContent === '{len(ids)} left the selection'", "the note")
             self.assertEqual(self.picked(cdp, sid), [other[0]])
             self.assertEqual(cdp.js("document.querySelector('#sel-live').textContent.trim()", sid), f"{len(ids)} left the selection. 1 selected")
@@ -338,7 +338,7 @@ class Page(Base):
             groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, [...t.querySelectorAll('tr[data-id]')].map(r => r.dataset.id)])", sid)
             every = [i for _, v in groups for i in v]
             shut, hidden = groups[-1]
-            tap(cdp, sid, f"tbody[data-group='{shut}'] .grp-b")
+            tap(cdp, sid, f"thead[data-group='{shut}'] .grp-b")
             self.until(cdp, sid, f"!document.querySelector(\"tbody[data-group='{shut}'] tr[data-id]\")", "a group collapsed")
             shown = cdp.js(self.ROWS, sid)
             tap(cdp, sid, self.rsel(shown[0]))
@@ -433,8 +433,9 @@ class Page(Base):
             press(cdp, sid, "Escape")
             self.assertEqual(self.picked(cdp, sid), [], "Esc")
             pick2()
-            tap(cdp, sid, "#project-name")     # the bar's own text: its middle is a tab now (Use cases)
+            tap(cdp, sid, "header.top .divider")     # a neutral spot on the bar: not the project name, which opens the project menu
             self.assertEqual(self.picked(cdp, sid), [], "a click outside")
+            self.assertFalse(cdp.js("!!document.querySelector('#project-menu')", sid), "the click outside opened no menu")
             pick2()
             tap(cdp, sid, "#work h1")
             self.assertEqual(len(self.picked(cdp, sid)), 2, "a click on the page itself, inside Work items, keeps it")
@@ -562,9 +563,9 @@ class Page(Base):
             tap(cdp, sid, self.rsel(rows[1]), MOD)
             on = f"document.querySelector(\"tr[data-id='{rows[0]}']\")"
             self.assertEqual(cdp.js(f"{on}.getAttribute('aria-selected')", sid), "true")
-            self.assertTrue(cdp.js(f"!!{on}.querySelector('.c-item .tick + .t')", sid), "a tick mark before the title")
+            self.assertFalse(cdp.js(f"!!{on}.querySelector('.tick')", sid), "row 807: no check mark on a selected row; the border, the bar and the tint show it")
             self.assertTrue(cdp.js(f"getComputedStyle({on}).boxShadow.includes('inset')", sid), "a border")
-            self.assertTrue(cdp.js(f"{on}.querySelector('.tick').getAttribute('aria-hidden') === 'true'", sid), "the tick is not read twice")
+            self.assertTrue(cdp.js(f"{on}.classList.contains('picked')", sid), "the row is marked picked")
             live = "document.querySelector('#sel-live')"
             self.assertEqual(cdp.js(f"[{live}.getAttribute('role'), {live}.getAttribute('aria-live'), {live}.textContent.trim()]", sid), ["status", "polite", "2 selected"])
             self.assertEqual(cdp.js("document.querySelector('#sel-clear').getAttribute('aria-label')", sid), "Clear the selection")

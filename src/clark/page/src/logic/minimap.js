@@ -4,6 +4,7 @@
 
 import { isOpen, todayIso } from "../workItems.js";
 import { milestoneRows } from "./milestones.js";
+import { CALM_WORDS } from "./useCasesList.js";
 
 // A section's anchor id on the page: "sec-" and its id, with anything outside letters, digits, "_" and "-" turned into "-".
 // The same id always gives the same anchor, so the report and the minimap agree without passing it around.
@@ -86,7 +87,7 @@ export function countOf(section, d, today, client) {
   const live = (rows) => (rows || []).filter((r) => !r.archived);
   const some = (n, word) => (n ? { text: `${n} ${word}`, hot: true } : null);
   switch (section && section.type) {
-    case "usecases": return some(live(data.use_cases).filter((u) => u.status && u.status !== "On track" && u.status !== "Done").length, "flagged");
+    case "usecases": return some(live(data.use_cases).filter((u) => u.status && !CALM_WORDS.includes(u.status)).length, "flagged");
     case "milestones": return some(milestoneRows(data.milestones, on, !!client).filter((m) => m.slip > 0).length, "slipped");
     case "actions": {
       const open = live(data.actions).filter(isOpen), late = open.filter((r) => r.due_date && r.due_date < on).length;
