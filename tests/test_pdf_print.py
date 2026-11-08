@@ -132,6 +132,11 @@ class Source(unittest.TestCase):
         self.assertIn("printing.value", jsx, "the timeline knows the page is printing")
         self.assertIn("PRINT_W / Math.max(1, dayNumber(end) - dayNumber(start))", jsx, "the whole span is fitted to the printed width")
 
+    def test_the_hover_only_legend_button_is_not_printed(self):
+        block = css_block(self.css, "@media print", "html.print-all, html.print-all body")
+        hide = re.search(r"((?:html\.print-all [^{,]+,\s*)+html\.print-all [^{,]+)\{\s*display: none;", block).group(1)
+        self.assertRegex(hide, r"html\.print-all \.mlg(?![\w-])", "the Legend help control is not content")
+
     def test_the_print_rules_are_in_the_pages_own_style_and_name_no_address(self):
         block = css_block(self.css, "@media print", "html.print-all, html.print-all body")
         for need in ("print-all", ".top", ".toc", ".peek", ".fbar", ".wbar", "print-color-adjust", ".print-tab", "break-inside", "break-before"):
@@ -383,6 +388,22 @@ class Browser(unittest.TestCase):
                         self.assertLessEqual(g["strip"], g["box"] + 1, f"{name}: the line is no wider than its box (nothing to scroll)")
                 cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)))
+
+    def test_the_printed_milestone_marks_are_drawn_shapes_with_a_colour(self):
+        # #1012: the milestone graphics on paper. Every mark is an svg with a visible width and at least one shape that is filled or stroked.
+        probe = """JSON.stringify([...document.querySelectorAll('.print-tab .mv-mk svg')].map((s) => { const r = s.getBoundingClientRect();
+          const shapes = [...s.querySelectorAll('circle, path')].filter((e) => { const c = getComputedStyle(e); return (c.fill !== 'none' && c.fill !== 'rgba(0, 0, 0, 0)') || (c.stroke !== 'none' && c.strokeWidth !== '0px'); });
+          return [Math.round(r.width), shapes.length]; }))"""
+        with chrome() as cdp:
+            sid = open_page(cdp, self.path.as_uri(), 1400, "light")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
+            self.printed(cdp, sid)
+            time.sleep(0.6)
+            got = json.loads(cdp.js(probe, sid))
+            self.assertTrue(got, "the printed milestones draw marks")
+            for width, shapes in got:
+                self.assertGreater(width, 4)
+                self.assertGreater(shapes, 0, "a mark has a painted shape")
 
     def test_the_printed_stack_is_light_whatever_the_page_theme_and_the_computer_prefer(self):
         # row 767: the PDF is light only. Every colour that is drawn in the stack is the same in the print of a dark computer as in a light one

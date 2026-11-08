@@ -65,6 +65,8 @@ FAMILIES = {
     "short sk key": "s" + "k-" + "abc123def456",
     "sk key, 16 mixed": "s" + "k-" + "Ab12Cd34Ef56ghij",
     "sk key, 28 mixed": "s" + "k-" + "Ab12Cd34Ef56Gh78Ij90Kl12Mn34",
+    "bare mixed run, 26": "Ab3Xk9Qw2Zr7Lm4Pt8Vn1Cy5Hd",
+    "bare mixed run, 31 in a sentence": "here is aB3xK9qW2zR7lM4pT8vN1cY5hD6jF0g ok",
     "short api key": "api_" + "key=" + "abc123",
     "short api key, colon": "api_" + "key: " + "x9y8z7q",
     "short api key, quoted": "api_" + 'key = "ab12cd"',
@@ -74,7 +76,52 @@ FAMILIES = {
     "long token near a word": "the api " + "key is " + "Xk9" + "Qm2Lp7" * 5 + "Zt4Rw8Vb1Nc",
 }
 
+ORDINARY = (        # names, ids and addresses that must never be refused (a refusal drops the whole file)
+    "Project_Tulip_Phase2_Rev03_v2", "Tulip_Phase2_Rev03_v2_Final", "Site_Survey_Rev03_v2_2024Q4",
+    "Gantt_Phase2_Rev03_v2_Jan2025", "Phase2_Rev03_Cost_Estimate_V2", "Budget_Q4_2024_Rev3_Approved1", "tt_Phase2_Rev03_v2_Jan2025", "S2_Rev03_v2_2024Q4_Jan2025",
+    "See Project_Tulip_Phase2_Rev03_v2.xlsx for details", "TUL-A-002_Rev3_Final_2024-11-08.xlsx",
+    "Project-Tulip-Phase2-Rev03-v2-Final", "Meeting-Notes-Tulip-Phase2-Rev03-v2", "Tulip_Phase2_Rev03_Site_Survey_Q4",
+    "Created 2024-11-08T10:15:30.123456Z by the site team", "Updated 2024-11-08T10:15:30+00:00 and 2024-11-09T11:16:31-05:00",
+    "id 123e4567-e89b-12d3-a456-426614174000", "id 123E4567-E89B-12D3-A456-426614174000",
+    "hash d41d8cd98f00b204e9800998ecf8427e",
+    "https://example.com/projects/Tulip_Phase2_Rev03_v2_Final/Site_Survey_Rev03_v2",
+    "https://example.com/files/2024/11/Tulip-Phase2-Rev03-v2-Final.pdf?download=1",
+    "{9A1B2C3D-4E5F-6071-8293-A4B5C6D7E8F9}", "urn:uuid:123e4567-e89b-12d3-a456-426614174000",
+    "Room7B_Floor7B_Wing7B", "Room4B_Floor12_Building7_Wing2", "Gantt7B_Phase2_Rev03_v2", "Room7B-Floor7B-Wing7B-Annex3", "Gantt7B-Wing7B-Booking7B-Rev7B", "Phase7B-Floor7B-90-Survey7B",
+    # the edges of _name_like, each one a name that is not refused: three parts, a random-looking part of 11 characters (12 is a key), a word of
+    # three letters (Tul, abc, ABC), a number of four digits after a word, one letter after the number, and most parts plain (not mixed)
+    "A7x9Kq2Zt4W_Tulip2024_B3v7N", "Zk9Xm2Qw7L_Tulip2024_p4Vn1", "A7x9Kq2_Q9z4Wm8_Tul_B3v7N", "A7x9Kq2_Q9z4Wm8_abc_B3v7N", "A7x9Kq2_Q9z4Wm8_ABC_B3v7N",
+    "A7x9Kq2_Q9z4Wm8_Tulip2024_B3v7N", "A7x9Kq2_Q9z4Wm8_Rev03b_B3v7N", "Tulip_Zk9Xm2Qw7Lp_Rev03_Final", "Zk9Xm2Qw7L_ab_12_cd_p4Vn1",
+)
+KEYS_WITH_SEPARATORS = (    # random keys that contain - or _ and must still be caught
+    "Ab3Xk9Qw2Zr7_Lm4Pt8Vn1Cy5-Hd6Jf0Gs", "Ab3Xk9_Qw2Zr7_Lm4Pt8_Vn1Cy5_Hd6Jf0", "live_" + "Ab3Xk9Qw2Zr7Lm4Pt8Vn1Cy5Hd6Jf0",
+    "Zt4Rw8Vb1Nc-Xk9Qm2Lp7Ab3Xk9Qw2", "my_live_" + "Ab3Xk9Qw2Zr7Lm4Pt8Vn1Cy5Hd6Jf0", "Prod-Token-" + "Zt4Rw8Vb1NcXk9Qm2Lp7Ab3",
+    # two parts (a name has at least three), the same edges of _name_like on the key side (a 12-character random part, a two-letter part, a number of
+    # five digits, half the parts plain), and a short first part that is no word
+    "Uxv7j-qqwyrKDaj9i9qomeZLINmIB", "gwg46m_SPLfaGB69pftFNdKBJtzOc", "Tulip_Zk9Xm2Qw7Lp4_Rev03_Final", "Ab_Zk9Xm2Qw7L_p4Vn1Ty8Rb3",
+    "AB_Zk9Xm2Qw7L_p4Vn1Ty8Rb3", "ab_Zk9Xm2Qw7L_p4Vn1Ty8Rb3", "A7x9Kq2_Q9z4Wm8_Tulip20245_B3v7N", "ab_Zk9Xm2Qw7L_12_p4Vn1Ty8Rb3", "Zk9Xm2Qw7L_ab_12_p4Vn1Ty8Rb3",
+)
+
+
 class Screen(unittest.TestCase):
+    def test_ordinary_names_ids_and_addresses_are_not_refused(self):
+        for text in ORDINARY:
+            for wrap in ("{}", "Notes before.\n{}\nNotes after.", "| {} | 2024 | ok |"):
+                with self.subTest(text=text, wrap=wrap):
+                    self.assertFalse(secret_screen.looks_like_secret(wrap.format(text)))
+
+    def test_a_single_unseparated_mixed_run_is_refused_by_design(self):
+        """Accepted false positive: one part, no separator, 25 to 31 characters of mixed case and digits cannot be told from a key. A refused file is
+        named and can be fixed; a leaked key cannot be taken back. So this ordinary-looking reference stays refused."""
+        self.assertTrue(secret_screen.looks_like_secret("BookingRef7K2M9X4P8Q1L5N3T6R0Z"))
+        self.assertTrue(secret_screen.looks_like_secret("Notes before.\nBookingRef7K2M9X4P8Q1L5N3T6R0Z\nNotes after."))
+
+    def test_random_keys_with_a_separator_are_still_caught(self):
+        for key in KEYS_WITH_SEPARATORS:
+            for wrap in ("Notes before.\n{}\nNotes after.", "| {} | 2024 | ok |", "{}"):    # a line break joins the next word on to the key's last part
+                with self.subTest(key=key, wrap=wrap):
+                    self.assertTrue(secret_screen.looks_like_secret(wrap.format(key)))
+
     def test_each_family_is_caught(self):
         for name, text in FAMILIES.items():
             with self.subTest(name):
@@ -83,6 +130,19 @@ class Screen(unittest.TestCase):
     def test_short_sk_and_api_key_near_misses_pass(self):
         for text in ("sk-learn", "skeleton-crew-2026", "ask-me-anything-2", "task-force-2026-plan", "api_key=ab1",
                      "API key: 2026-11-01", "api_key rotation: monthly", "the api key is in the vault", "api key rotation: monthly"):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
+    def test_uppercase_sk_and_pk_rk_keys_are_refused_and_near_misses_pass(self):
+        """#598: the prefix is read in any case, and pk- and rk- keys count like sk- keys (12 or more letters and digits with a digit and a letter)."""
+        for text in ("S" + "k-" + "ant-abcdefgh12", "S" + "K-" + "Ab12Cd34Ef56ghij", "s" + "K-" + "abc123def456", "p" + "k-" + "Ab12Cd34Ef56ghij",
+                     "P" + "k-" + "abc123def456", "r" + "k-" + "Ab12Cd34Ef56ghij", "R" + "K-" + "abc123def456", "my S" + "k-" + "abc123def456 key",
+                     "p" + "k-proj-abcdefgh12", "S" + "k-" + "A" * 40):
+            with self.subTest(text):
+                self.assertTrue(secret_screen.looks_like_secret(text))
+                self.assertTrue(ask._secret(text))
+        for text in ("Sk-learn", "pk-12345", "rk-bar-2026", "Pk-2026-plan-A1", "PK-ticket-2026", "Sk-abcdefghijkl", "pk-123456789012", "RK-20261101",
+                     "Task-force-2026-plan", "Park-abc123def456", "Ask-abc123def456", "Fork-abc123def456"):
             with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
@@ -284,6 +344,56 @@ class Screen(unittest.TestCase):
                 self.assertTrue(secret_screen.looks_like_secret(b64(b64(text))))
                 self.assertTrue(secret_screen.looks_like_secret(b64("so we know " + urllib.parse.quote(text, safe="") + " in full")))
         self.assertTrue(secret_screen.looks_like_secret(b64('password: "Sunshine"').rstrip("=")))
+
+    def test_base64_of_mostly_text_with_a_few_bad_bytes_is_still_read_for_key_words_but_mostly_bad_bytes_are_not_text_502(self):
+        """#502: in the lenient read of base64 that is not valid UTF-8, a bad byte (the replacement character) is not printable. A few
+        bad bytes around a key word and its value are still read and refused; data that is mostly bad bytes (random bytes) is not text and is not read."""
+        import base64
+        core = b'password: "' + PW.encode() + b'"\n'
+        def coded(raw):
+            return "Notes.\n" + base64.b64encode(raw).decode() + "\n(more notes)"
+        few = b"\xff" + core + b"\xfe\xff" + b"ordinary words after it " * 2
+        self.assertIsNone(secret_screen._plain(b"\xff" * 5 + b"abc"))
+        self.assertIsNotNone(secret_screen._plain(few))
+        self.assertTrue(secret_screen.looks_like_secret(coded(few)))
+        self.assertTrue(secret_screen.looks_like_secret(coded(few).replace("Notes.\n", "").replace("\n(more notes)", "")))
+        many = core + b"\xff" * 12
+        self.assertIsNone(secret_screen._plain(many))
+        self.assertFalse(secret_screen.looks_like_secret(coded(many)))
+
+    def test_a_key_word_then_a_line_break_with_no_space_then_a_quoted_word_is_accepted_plain_and_in_base64(self):
+        """#582, a known gap accepted in writing: `password`, a line break with no space or tab before it, then a quoted word passes as plain
+        text (it did on main before #340), so its base64 passes too. With a space or tab before the break it is refused, plain and in base64."""
+        import base64
+
+        def b64(text):
+            return base64.b64encode(text.encode()).decode()
+        for text in ("pass" + 'word\n"orangebicycle"', "pass" + 'word\r\n"orangebicycle"', "api key" + '\n"orangebicycle"', "my pass" + 'word\n\n"orangebicycle"'):
+            with self.subTest("accepted " + repr(text)):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+                self.assertFalse(secret_screen.looks_like_secret(b64(text)))
+                self.assertFalse(secret_screen.looks_like_secret("Notes.\n" + b64("so we know " + text + " in full") + "\n(more notes)"))
+        for text in ("my pass" + 'word \n"orangebicycle"', "my pass" + 'word\t\n"orangebicycle"', "pass" + 'word: \n"orangebicycle"'):
+            with self.subTest("refused " + repr(text)):
+                self.assertTrue(secret_screen.looks_like_secret(text))
+                self.assertTrue(secret_screen.looks_like_secret(b64(text)))
+
+    def test_a_key_word_then_a_lone_cr_break_then_a_quoted_word_is_read_as_it_is_for_lf_and_crlf_plain_and_in_base64(self):
+        """#582 follow-up: a lone CR (no LF) is a line break like LF and CRLF. No space or tab before it: accepted; with one: refused;
+        plain and in base64 alike."""
+        import base64
+
+        def b64(text):
+            return base64.b64encode(text.encode()).decode()
+        for text in ("pass" + 'word\r"orangebicycle"', "api key" + '\r"orangebicycle"', "my pass" + 'word\r\r"orangebicycle"'):
+            with self.subTest("accepted " + repr(text)):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+                self.assertFalse(secret_screen.looks_like_secret(b64(text)))
+                self.assertFalse(secret_screen.looks_like_secret("Notes.\n" + b64("so we know " + text + " in full") + "\n(more notes)"))
+        for text in ("my pass" + 'word \r"orangebicycle"', "my pass" + 'word\t\r"orangebicycle"', "pass" + 'word: \r"orangebicycle"'):
+            with self.subTest("refused " + repr(text)):
+                self.assertTrue(secret_screen.looks_like_secret(text))
+                self.assertTrue(secret_screen.looks_like_secret(b64(text)))
 
     def test_the_three_prose_texts_the_old_random_guess_caught_in_base64_are_allowed_as_they_are_plain(self):
         """A known gap, accepted in writing: these pass as plain text, so they pass as base64 too (the base64 of prose with a space is

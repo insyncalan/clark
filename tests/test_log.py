@@ -606,7 +606,7 @@ class RealCodePaths(Base):
         change = changes.make_change(s.path, [], USER)
         undo = changes.make_undo(s.path, [], USER)
 
-        def boom(code):
+        def boom(code, archived=None):
             raise KeyError(f"{m[7]} {HOME}/{m[5]}")
 
         run = Running(data_for=boom, change=change, undo=undo)
