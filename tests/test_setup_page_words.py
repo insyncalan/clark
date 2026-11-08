@@ -268,11 +268,13 @@ class Replies(Case):
         self.assertTrue(body["page"].endswith("Choose a different folder."))
         self.assertIn("can't be saved in", body["page"])
 
-    def test_a_onedrive_refusal_page_line_is_the_platforms_own(self):
+    def test_a_onedrive_refusal_page_line_is_the_approved_page_line_not_the_platforms(self):
         inside = self.onedrive / "clark"
         inside.mkdir()
         status, body = self.service(str(inside)).api_folder()
-        self.assertEqual(body["page"], body["message"])
+        self.assertEqual(body["page"], setup_page.page_onedrive("~/OneDrive - Work/clark"))
+        self.assertNotEqual(body["page"], body["message"])
+        self.assertIn("Settings", body["message"])
 
     def test_the_good_choice_report_has_the_page_lines(self):
         status, body = self.service(str(self.good)).api_folder()

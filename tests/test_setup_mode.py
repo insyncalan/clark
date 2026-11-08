@@ -110,6 +110,38 @@ class Choose(Case):
         self.assertEqual(words, str(self.expect_onedrive(inside)))
         self.assertFalse(self.pointer().exists())
 
+    def test_a_onedrive_refusal_has_a_page_line_with_no_settings_step(self):
+        inside = self.onedrive / "clark"
+        inside.mkdir()
+        with self.assertRaises(setup_mode.Refused) as caught:
+            self.setup(str(inside)).choose("Choose")
+        page = caught.exception.page
+        self.assertNotEqual(page, caught.exception.words)
+        self.assertIn("inside OneDrive", page)
+        self.assertIn("Choose a folder on this computer that OneDrive doesn't sync.", page)
+        self.assertIn("Backups can still go to OneDrive.", page)
+
+    def test_no_refusal_page_line_sends_the_person_to_terminal_or_settings(self):
+        inside = self.onedrive / "clark"
+        inside.mkdir()
+        link = self.home / "link"
+        link.symlink_to(self.good)
+        a_file = self.home / "file.txt"
+        a_file.write_text("x", encoding="utf-8")
+        answers = [str(inside), str(self.home / "missing"), "relative/path", "", 5, str(a_file), str(link), str(self.good) + "\x00"]
+        for answer in answers:
+            with self.subTest(answer=answer):
+                with self.assertRaises(setup_mode.Refused) as caught:
+                    self.setup(answer).choose("Choose")
+                page = caught.exception.page
+                self.assertTrue(page)
+                for bad in ("Terminal", "Settings", "\u203a", "start clark again", "python3", "xcode"):
+                    self.assertNotIn(bad, page)
+        status, body = self.setup(str(inside), prompt="Pick").api_folder()
+        self.assertEqual(status, 409)
+        self.assertNotIn("Settings", body["page"])
+        self.assertIn("Settings", body["message"])           # the doctor's own line is kept beside it, unchanged
+
     def expect_onedrive(self, inside):
         try:
             pl.check_data_dir(inside, [self.onedrive])

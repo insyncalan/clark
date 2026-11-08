@@ -90,7 +90,7 @@ class Setup:
             resolved = platform.check_data_dir(path, self.onedrive_roots() if self.onedrive_roots else platform.onedrive_roots(
                 self.home, on=self.on))
         except platform.PlatformError as e:
-            raise Refused("folder_refused", str(e))
+            raise Refused("folder_refused", str(e), self.onedrive_page(path))
         if not doctor._can_save_in(resolved):
             raise Refused("folder_refused", doctor.cant_save_line(self.seen(resolved)).words, self.cant_save_page(resolved))
         return resolved
@@ -98,6 +98,10 @@ class Setup:
     def cant_save_page(self, folder):
         seen = self.seen(folder)
         return setup_page.page_cant_save(seen.tilde(seen.folder()))
+
+    def onedrive_page(self, folder):
+        seen = self.seen(folder)
+        return setup_page.page_onedrive(seen.tilde(seen.folder()))
 
     def page_html(self):
         """The setup page the server sends for GET / and GET /setup (the server adds this run's token)."""

@@ -38,9 +38,7 @@ def page_words(check_id, status, words, seen):
     if check_id == "data_folder" and status == doctor.FIX:
         return page_cant_save(seen.tilde(seen.folder()))
     if check_id == "data_not_in_onedrive" and status == doctor.FIX:
-        return (f"Your clark data is set to go in {seen.tilde(seen.folder())}, which is inside OneDrive. OneDrive copies files while "
-                "they are being written, which damages the data. Choose a folder on this computer that OneDrive doesn't sync. "
-                "Backups can still go to OneDrive.")
+        return page_onedrive(seen.tilde(seen.folder()))
     if check_id == "browser":
         return ("Chrome is there, so clark opens in Chrome." if status == doctor.READY else
                 "Chrome wasn't found, so clark will open in your usual browser. Install Chrome to open clark there.")
@@ -55,6 +53,13 @@ def page_words(check_id, status, words, seen):
     words = words.replace(f"run {typed.doctor()} again.", f"{AGAIN}.")
     words = words.replace("Type xcode-select --install in Terminal, then start clark again.", f"Install a newer Python, then {AGAIN}.")
     return words.replace("start clark again.", f"{AGAIN}.")
+
+
+def page_onedrive(folder_text):
+    """The page line for a data folder inside OneDrive (the check's own line, and the reason a chosen folder in OneDrive is refused)."""
+    return (f"Your clark data is set to go in {folder_text}, which is inside OneDrive. OneDrive copies files while "
+            "they are being written, which damages the data. Choose a folder on this computer that OneDrive doesn't sync. "
+            "Backups can still go to OneDrive.")
 
 
 def page_cant_save(folder_text):
