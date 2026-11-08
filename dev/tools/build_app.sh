@@ -16,15 +16,25 @@
 # Exit codes: 0 built, 1 stopped (the reason is said).
 set -u
 
-out="" test_data="" test_port=""
+out="" test_data="" test_port="" port_given=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --test-data) test_data="${2:-}"; shift 2 ;;
-    --test-port) test_port="${2:-}"; shift 2 ;;
+    --test-port) test_port="${2:-}"; port_given=1; shift 2 ;;
     -*) echo "build_app.sh: unknown option $1" >&2; exit 1 ;;
     *) out="$1"; shift ;;
   esac
 done
+# Both values are pasted into the applet's source (the port into a shell command, the folder into an AppleScript string), so
+# only plain values pass: ASCII digits for the port; no double quote, backslash or line break in the folder.
+if [ -n "$port_given" ]; then
+  case "$test_port" in
+    ''|*[!0123456789]*) echo "build_app.sh: --test-port must be digits only (0-9)." >&2; exit 1 ;;
+  esac
+fi
+case "$test_data" in
+  *'"'*|*'\'*|*$'\n'*|*$'\r'*) echo "build_app.sh: --test-data must not contain a double quote, a backslash or a line break." >&2; exit 1 ;;
+esac
 if [ "$(uname -s)" != "Darwin" ] || ! command -v osacompile >/dev/null 2>&1; then
   echo "build_app.sh: osacompile (macOS) is needed." >&2
   exit 1
