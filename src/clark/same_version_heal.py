@@ -12,13 +12,13 @@ What it does, in order, and only when the folder is mixed:
   3. asks once whether to move src, vendor and clark (the names an older flat version leaves beside .app) into one folder
      called "clark older files", by rename; nothing is deleted;
   4. when the folder is still mixed, or the person said no, or there was nothing right to put back: says the existing sentence
-     of same_version.MESSAGE, then that the clark folder is open for it, and opens the folder.
+     of same_version.MESSAGE, then that the clark folder is open for the person, and returns 3; clark.command then opens the
+     folder (a program start is only platform.py's, and this file imports nothing of clark's).
 It changes something only after a typed y (any other key, an empty answer or no terminal is a no), never downloads, and never
 touches the data folder, system, docker or any other name: only .app/*, clark.command and the three stale names. An unfinished
 update (the marker in the data folder) means it waits: the launcher finishes that first.
 
-Exit codes: 0 = nothing for it to do, or the folder is right now (clark.command goes on); 3 = it has said the fallback and
-opened the folder (clark.command stops). Anything else (a crash) lets clark.command go on as it did before this file existed.
+Exit codes: 0 = nothing for it to do, or the folder is right now (clark.command goes on); 3 = it has said the fallback (clark.command opens the folder and stops). Anything else (a crash) lets clark.command go on as it did before this file existed.
 """
 import os
 import sys
@@ -30,7 +30,6 @@ sys.path[:] = [p for p in sys.path if os.path.abspath(p or os.getcwd()) not in _
 
 import hashlib  # noqa: E402
 import json  # noqa: E402
-import subprocess  # noqa: E402
 import zipfile  # noqa: E402
 from pathlib import Path, PurePosixPath  # noqa: E402
 
@@ -305,13 +304,6 @@ def tty_key():
         return ""
 
 
-def _open_folder(path):
-    try:
-        subprocess.run(["open", str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15)
-    except (OSError, subprocess.SubprocessError):
-        pass
-
-
 def _terminal():
     try:
         return os.isatty(sys.stdin.fileno()) and os.isatty(sys.stdout.fileno())
@@ -319,7 +311,7 @@ def _terminal():
         return False
 
 
-def run(top, data, key=None, out=None, err=None, opener=None, home=None, tty=None):
+def run(top, data, key=None, out=None, err=None, home=None, tty=None):
     """Heal the clark folder `top` if it is mixed and the person types y. Returns 0 (go on) or FALLBACK (said and opened)."""
     top = Path(top)
     out, err = out or sys.stdout, err or sys.stderr
@@ -329,7 +321,6 @@ def run(top, data, key=None, out=None, err=None, opener=None, home=None, tty=Non
     if os.path.lexists(str(marker_path(data))):
         return 0                                                    # an unfinished update: the launcher finishes that first
     key = key or tty_key
-    opener = opener or _open_folder
     home = home if home is not None else Path.home()
 
     try:
@@ -355,11 +346,7 @@ def run(top, data, key=None, out=None, err=None, opener=None, home=None, tty=Non
             say(COULD_NOT, err)
         say(EXISTING, err)
         say(OPEN_LINE, err)
-        try:
-            opener(top)
-        except Exception:  # noqa: BLE001  the sentences were said; a folder that won't open does not stop them
-            pass
-        return FALLBACK
+        return FALLBACK                                             # clark.command opens the folder (only platform.py starts programs)
 
     if differ:
         shown = [n[len(HIDDEN) + 1:] if n.startswith(HIDDEN + "/") else n for n in differ]

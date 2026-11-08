@@ -156,10 +156,10 @@ class Fixture(unittest.TestCase):
     def heal(self, keys="", tty=True, data=None):
         """Run the heal in this process. `keys` is what the person types, one character for each question (none left = an empty answer)."""
         typed = iter(keys)
-        out, err, opened = io.StringIO(), io.StringIO(), []
+        out, err = io.StringIO(), io.StringIO()
         code = self.heal_module.run(self.top, data if data is not None else self.data, key=lambda: next(typed, ""), out=out, err=err,
-                                    opener=opened.append, home=self.home, tty=tty)
-        return code, out.getvalue(), err.getvalue(), opened
+                                    home=self.home, tty=tty)
+        return code, out.getvalue(), err.getvalue(), []
 
     def person(self):
         return {k: v for k, v in snapshot(self.top).items() if k.split("/")[0] in ("data", "system", "docker", "README.md", "meet clark", "mydata")}
@@ -217,7 +217,6 @@ class NothingWithoutAYes(Fixture):
                 code, out, err, opened = self.heal(key)
                 self.assertEqual(3, code)
                 self.assertEqual(self.before, snapshot(self.tmp))
-                self.assertEqual([self.top], opened)
 
     def test_a_no_to_the_second_question_keeps_what_the_first_yes_did_and_moves_nothing(self):
         code, out, err, opened = self.heal("yn")
@@ -231,7 +230,7 @@ class NothingWithoutAYes(Fixture):
         def never():
             raise AssertionError("asked a key with no terminal")
         out, err = io.StringIO(), io.StringIO()
-        code = self.heal_module.run(self.top, self.data, key=never, out=out, err=err, opener=lambda p: self.fail("opened"),
+        code = self.heal_module.run(self.top, self.data, key=never, out=out, err=err,
                                     home=self.home, tty=False)
         self.assertEqual((0, "", ""), (code, out.getvalue(), err.getvalue()))
         self.assertEqual(self.before, snapshot(self.tmp))
@@ -284,7 +283,7 @@ class Restore(Fixture):
         self.assertEqual(0, code)
         self.assertEqual(self.good, {k: v for k, v in snapshot(self.top).items() if k in self.good})
         self.assertIn("Done. 3 files put back. Starting clark.\n", out)
-        self.assertEqual(("", []), (err, opened))
+        self.assertEqual("", err)
         self.assertEqual(0, self.heal("")[0])                                           # and now there is nothing to do
 
     def test_the_zip_in_the_folder_above_and_a_set_aside_folder_are_sources_too(self):
@@ -376,7 +375,6 @@ class Fallback(Fixture):
         code, out, err, opened = self.heal("y")
         self.assertEqual(3, code)
         self.assertEqual(MESSAGE + "\n" + OPEN_LINE + "\n", err)
-        self.assertEqual([self.top], opened)
         self.assertEqual(before, snapshot(self.tmp))
         self.assertNotIn(COULD_NOT, out + err)
 
@@ -385,7 +383,6 @@ class Fallback(Fixture):
         self.zip_of(self.home / "Downloads")
         code, out, err, opened = self.heal("n")
         self.assertEqual(MESSAGE + "\n" + OPEN_LINE + "\n", err)
-        self.assertEqual([self.top], opened)
 
     def test_still_mixed_after_the_repair_says_it_could_not_put_every_file_back_first(self):
         self.make_old(".app/src/clark/a.py", ".app/src/clark/b.py")
@@ -393,17 +390,7 @@ class Fallback(Fixture):
         code, out, err, opened = self.heal("y")
         self.assertEqual(3, code)
         self.assertEqual(COULD_NOT + "\n" + MESSAGE + "\n" + OPEN_LINE + "\n", err)
-        self.assertEqual([self.top], opened)
         self.assertEqual(self.good[".app/src/clark/a.py"], (self.top / ".app/src/clark/a.py").read_bytes())
-
-    def test_an_opener_that_cannot_open_does_not_stop_the_sentences(self):
-        self.make_old(".app/src/clark/a.py")
-        out, err = io.StringIO(), io.StringIO()
-        def broken(path):
-            raise OSError("no open here")
-        code = self.heal_module.run(self.top, self.data, key=lambda: "n", out=out, err=err, opener=broken, home=self.home, tty=True)
-        self.assertEqual(3, code)
-        self.assertEqual(MESSAGE + "\n" + OPEN_LINE + "\n", err.getvalue())
 
 
 class Waits(Fixture):
@@ -420,7 +407,7 @@ class Waits(Fixture):
         def never():
             raise AssertionError("asked while an update was unfinished")
         out, err = io.StringIO(), io.StringIO()
-        code = self.heal_module.run(self.top, self.data, key=never, out=out, err=err, opener=lambda p: self.fail("opened"),
+        code = self.heal_module.run(self.top, self.data, key=never, out=out, err=err,
                                     home=self.home, tty=True)
         self.assertEqual((0, "", ""), (code, out.getvalue(), err.getvalue()))
         self.assertEqual(before, snapshot(self.tmp))
@@ -621,6 +608,7 @@ class ClarkCommand(Fixture):
         self.assertFalse((self.top / "src").exists())
         self.assertEqual(STALE_FLAT["src/clark/old.py"], (self.top / OLDER / "src/clark/old.py").read_bytes())
         self.assertEqual(person, self.person())
+        self.assertFalse(self.open_log.exists(), "a healed folder is not opened")
 
     def test_no_says_the_sentence_opens_the_folder_and_waits_for_a_key(self):
         self.add_stale()
