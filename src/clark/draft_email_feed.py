@@ -213,7 +213,11 @@ def make_sent(path, onedrive_roots=None, by_user=None, today=None):
     that is not text of the right shape, or any words of the email is refused before the store is opened. Who pressed it comes from
     `by_user` (the login name unless one is given), never from the request. The store checks the rest (the project, that each id is
     one of its work items, the day) and writes one record in one transaction (Store.log_email_sent); nothing else is written.
-    Answer: {"ok": true, "seq": n}, or a refusal in plain words."""
+    Answer: {"ok": true, "seq": n}, or a refusal in plain words.
+    The in-flight guard below is kept in this seam instance and matches the exact record, and that is enough: Clark runs as one local
+    server on one machine, and the guard only stops a double press while the first write is still going. A press repeated after the
+    reply is a new record on purpose (the user may really have sent a second email), and a second server process is not a supported
+    setup. If that changes, guard on the store instead."""
     gate, in_flight = threading.Lock(), set()           # #258: the same record while one is being written is refused, not written twice
 
     def work(store, who, req):
