@@ -15,6 +15,9 @@ import unittest
 from pathlib import Path
 
 from _paths import ROOT  # noqa: F401  (puts src/ and dev/tools/ on the path)
+from _demo import USER
+from clark.store import Invalid
+from test_store_email_sent import Base as SentBase
 
 import build_page  # noqa: E402
 import esbuild  # noqa: E402
@@ -106,6 +109,20 @@ class RouteStaysUnderTheCap(unittest.TestCase):
         self.assertGreaterEqual(len(found), 10, "the scan found the route's refusals")
         for said in found:
             self.assertLessEqual(len(said), cap, said)
+
+
+class KeptOutWording(SentBase):
+    """#571: an item kept out of emails by its label is refused in words that name the label, not a word the page never shows."""
+    def test_a_keep_quiet_item_is_refused_without_the_word_sensitive(self):
+        item = self.demo.action(description="x")
+        with self.store.step("dashboard", USER) as st:
+            st.create("labels", {"name": "Keep quiet", "behaviour": "warn", "default_choice": "exclude"})
+            st.create("item_labels", {"item_id": item, "label": "Keep quiet"})
+        with self.assertRaises(Invalid) as caught:
+            self.send(ids=[self.a, item])
+        said = str(caught.exception)
+        self.assertNotIn("Sensitive", said)
+        self.assertIn("hidden, closed or labelled to be kept out of emails", said)
 
 
 if __name__ == "__main__":
