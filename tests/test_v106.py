@@ -182,7 +182,7 @@ COVERED = [
      'test_phone_tap_c7::PhoneWidth::test_people_table_does_not_run_past_the_window'),
     ('1197', 'Word report: a stored list or dict in a priority or status shows Not rated',
      'test_docx_build::HostileValues::test_a_priority_that_is_not_text_is_not_rated_on_a_linked_risk'),
-    ('1213', 'The Minimap card stays centred and inside the window when Reduce motion is on',
+    ('1213', 'The On this page list stays centred and inside the window when Reduce motion is on',
      'test_inline_67::Minimap::test_it_fits_a_short_window_with_reduced_motion_at_1400_and_900'),
 ]
 
@@ -268,7 +268,7 @@ BULLET_STARTS = {
     '1148': 'When your computer asks for less motion, the Earlier, Later and Today buttons on the milestone timeline jump instead of scrolling smoothly, and the contents card, the Legend pop-up and the tab underli',
     '1149': 'At phone width the People table and the edit rows fit the window',
     '1197': 'A stored list or dict in a priority or status no longer breaks the Word report',
-    '1213': 'The Minimap card now stays centred and inside the window when Reduce motion is on; before, it could hang off the bottom of a short window.',
+    '1213': 'The On this page list at the right edge now stays centred and inside the window when Reduce motion is on; before, it could hang off the bottom of a short window.',
 }
 
 # Merged rows with no visible change.
