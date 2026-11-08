@@ -40,7 +40,19 @@ def project(code, name, items, milestones):
             "actions": [{"id": i, "description": "Agree the cut-over plan"} for i in items], "raid": [], "decisions": [], "labels": {}}
 
 
+def click_real_tab(test, view):
+    """Click a top tab the way a person does: a real mouse press at the tab's centre."""
+    x, y = test.ev(f"(() => {{ const r = document.querySelector('[data-view={view}]').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }})()")
+    for kind, buttons in (("mouseMoved", 0), ("mousePressed", 1), ("mouseReleased", 0)):
+        test.cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left" if buttons or kind == "mouseReleased" else "none",
+                                                    "buttons": buttons, "clickCount": 0 if kind == "mouseMoved" else 1}, test.sid)
+
+
 DATA = {"PDF": project("PDF", "Example Programme", ["A-12", "A-13"], ["M-3"]),
+        "BIG": dict(project("BIG", "Big Programme", ["A-1"], []),       # a Dashboard that is tall on its own: twelve text sections of real prose
+                    report_sections=[{"id": f"S-{n}", "type": "text", "title": f"Section {n}", "sort_order": n,
+                                      "body": "".join(f"<p>Paragraph {k} of section {n}: the cut-over plan was agreed and the pilot went live.</p>" for k in range(6))}
+                                     for n in range(1, 13)]),
         "QRS": project("QRS", "Second Programme", ["A-1"], [])}
 
 # Fed to parse and format: none may throw, and each result must be a stable, hash-only address.
@@ -789,7 +801,7 @@ class BuiltPage(Browser):
             self.assertTrue(wait(lambda: self.scroll_y() == 300), "and Work items to its own place")
             self.no_errors()
 
-    def test_item_1019_a_second_scroller_during_a_restore_keeps_the_page_and_no_listener_is_left(self):
+    def test_item_1019_a_person_scrolling_during_a_restore_keeps_the_page_and_no_listener_is_left(self):
         with chrome() as cdp:
             self.draw(cdp, "#dashboard&p=PDF")
             self.tall()
@@ -807,12 +819,15 @@ class BuiltPage(Browser):
             self.click_tab("work")
             self.assertTrue(wait(lambda: self.scroll_y() == 0), "a first visit to Work items starts at the top")
             self.scroll_to(300)
-            # back to the Dashboard: its restore puts the page at 700, and a frame or two in something else (scrollIntoView,
-            # as a focus jump does) moves the page to the marker. The page must stay there, not be pulled back to 700.
+            # back to the Dashboard: its restore puts the page at 700, and a frame or two in the person scrolls (a wheel, then the page
+            # is at the marker). The restore must not fight that: the page stays where the person put it, not pulled back to 700.
+            # (The page's own scrolls, such as the open tab brought into view, are not the person's and do not end a restore: the test
+            # for the real tab bar covers that.)
             self.ev("""(() => {
                 window.frames_after = 0; window.moved_to = -1;
                 document.querySelector('[data-view=dashboard]').click();
                 requestAnimationFrame(() => requestAnimationFrame(() => {
+                    dispatchEvent(new WheelEvent('wheel'));
                     document.getElementById('second-scroller').scrollIntoView();
                     window.moved_to = Math.round(window.scrollY);
                     const tick = () => { if (++window.frames_after < 45) requestAnimationFrame(tick); };
@@ -821,13 +836,50 @@ class BuiltPage(Browser):
             })()""")
             self.assertTrue(wait(lambda: self.ev("frames_after") >= 45), "the page ran on for 45 frames after the second scroller")
             there = self.ev("moved_to")
-            self.assertGreater(there, 1000, "the second scroller moved the page well away from the saved 700")
-            self.assertEqual(self.scroll_y(), there, "the restore did not yank the page back to the saved place")
+            self.assertGreater(there, 1000, "the person scrolled the page well away from the saved 700")
+            self.assertEqual(self.scroll_y(), there, "the restore did not fight the person's scroll")
             self.assertEqual(self.ev("onceLeft()"), 0, "stopping the restore removed its wheel/touch/key/mouse listeners")
             self.click_tab("work")                                       # a restore that runs to its end also leaves none
             self.assertTrue(wait(lambda: self.scroll_y() == 300), "Work items came back to its place")
             self.assertTrue(wait(lambda: self.ev("onceLeft()") == 0), "a finished restore left no listener attached")
             self.no_errors()
+
+    def test_item_1019_the_real_dashboard_keeps_its_place_across_the_real_tab_bar_and_back(self):
+        """The by-eye failure: on the real Dashboard scroll to 648, go to Work items, click the Dashboard tab (or step Back): the page ended
+        at 0. The restore sets the place while the page is still short, and the app's own scrollIntoView for the open tab moves the page;
+        that must not end the restore. No minHeight: the height is the Dashboard's own, from real data, and the tab is pressed with a real mouse.
+        The page being short and its bar not yet stuck is staged for a quarter second after the press (the headless browser never shows that
+        by itself): the Dashboard's later sections are held back and the sticky bar is let go, so the app's own scrollIntoView has somewhere to go."""
+        for width in (1400, 900):
+            for how in ("tab", "back"):
+                with self.subTest(width=width, how=how), chrome() as cdp:
+                    self.draw(cdp, "#dashboard&p=BIG")
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                    room = lambda: self.ev("document.documentElement.scrollHeight - innerHeight")
+                    self.assertTrue(wait(lambda: room() >= 648), f"the real Dashboard is tall enough to scroll to 648: {room()}")
+                    self.ev("dispatchEvent(new WheelEvent('wheel')); window.scrollTo(0, 648)")
+                    self.assertTrue(wait(lambda: self.scroll_y() == 648), "scrolled the Dashboard to 648")
+                    click_real_tab(self, "work")
+                    self.until("document.querySelector('.tab[aria-selected=true]').dataset.view", "work", "Work items")
+                    self.assertTrue(wait(lambda: self.scroll_y() == 0), "Work items starts at the top")
+                    time.sleep(0.8)                                      # that restore is over
+                    self.ev("""(() => {
+                        const sh = new CSSStyleSheet();
+                        sh.replaceSync("article.sec ~ article.sec ~ article.sec ~ article.sec ~ article.sec ~ article.sec { display: none } header.top { position: static }");
+                        document.adoptedStyleSheets = [...document.adoptedStyleSheets, sh];
+                        window.staged = true;
+                        setTimeout(() => { document.adoptedStyleSheets = document.adoptedStyleSheets.filter((x) => x !== sh); window.staged = false; }, 250);
+                    })()""")
+                    if how == "tab":
+                        click_real_tab(self, "dashboard")
+                    else:
+                        self.ev("history.back()")
+                    self.until("document.querySelector('.tab[aria-selected=true]').dataset.view", "dashboard", "the Dashboard")
+                    self.until("window.staged", False, "the short, unstuck stage is over")
+                    self.assertTrue(wait(lambda: self.scroll_y() == 648, 10), f"the Dashboard came back to 648: {self.scroll_y()}")
+                    time.sleep(0.8)                                      # and it stays there through the whole restore
+                    self.assertEqual(self.scroll_y(), 648)
+                    self.no_errors()
 
     def test_item_1019_back_and_forward_restore_each_screens_place(self):
         with chrome() as cdp:

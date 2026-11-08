@@ -101,11 +101,11 @@ function scrollNow() {
 
 /** Put the page where `key` was left (a screen not seen before starts at the top). The page redraws after the move, and its height
  *  and layout settle over a few frames (a project's data may still be arriving), so the place is set again each frame until it has
- *  held for a few frames in a row. Any scroll the person starts (wheel, touch, key, click) or a newer move ends it. */
+ *  held for a few frames in a row. Only the person ends it (wheel, touch, key, click) or a newer move: the page's own scrolls (the open tab brought into view, a focus) are not the person's and are set right again, so the place holds. */
 function restore(key) {
   const mine = ++restoring;
   const want = spots.get(key) || 0;
-  let frames = 0, held = 0, last = -1;                     // last: where this restore left the page, to tell its own placing from someone else's scroll
+  let frames = 0, held = 0;
   const root = document.documentElement;
   const evs = ["wheel", "touchstart", "keydown", "mousedown"];
   const unhook = () => { for (const ev of evs) { try { removeEventListener(ev, stop); } catch (e) { /* none */ } } };     // none left attached once the restore has stopped or finished
@@ -118,10 +118,7 @@ function restore(key) {
     try {
       const room = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
       const at = Math.min(want, room);
-      const y = Math.round(window.scrollY);
-      if (last >= 0 && y !== last && last <= room) { stop(); return; }     // something else scrolled the page (scrollIntoView, focus) while it was tall enough to hold the place: leave it there. A page that shrank clamps the place and is not this.
-      if (y !== at) { window.scrollTo(0, at); held = 0; } else if (at === want) held++;
-      last = Math.round(window.scrollY);
+      if (Math.round(window.scrollY) !== at) { window.scrollTo(0, at); held = 0; } else if (at === want) held++;
       if (++frames < 120 && held < 30) requestAnimationFrame(step); else done();
     } catch (e) { /* no window to scroll */ }
   };
