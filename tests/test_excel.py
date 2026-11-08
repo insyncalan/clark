@@ -493,7 +493,7 @@ class HistorySheetTests(unittest.TestCase):
         ws = self.sheet()
         a1 = ws["A1"].value
         self.assertTrue(a1.endswith(history.FOOTNOTE))
-        self.assertIn("Settings \u203a Personal \u203a About you.", a1)
+        self.assertIn("Settings \u203a Profile.", a1)
         self.assertEqual([c.value for c in ws[1]][1:], [None] * 6)
         widths = sum(ws.column_dimensions[c].width for c in "ABCDEFG")
         self.assertGreaterEqual(widths, len(a1))
