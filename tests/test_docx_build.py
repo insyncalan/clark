@@ -38,7 +38,7 @@ def parts(data):
 
 
 def every_text(data):
-    return "\n".join(b.decode("utf-8") for b in parts(data).values())
+    return "\n".join(b.decode("utf-8", "replace") for b in parts(data).values())      # a picture part is bytes: it is searched too, as text
 
 
 def blocks(data):
@@ -91,6 +91,9 @@ class WellFormed(unittest.TestCase):
 
     def test_every_part_parses(self):
         for name, raw in self.parts.items():
+            if name.startswith("word/media/"):
+                self.assertTrue(name.endswith(".png") and raw.startswith(b"\x89PNG\r\n\x1a\n"), name)      # a picture: tests/test_docx_graphics.py reads it
+                continue
             xml.dom.minidom.parseString(raw)
             self.assertNotIn(b"<!DOCTYPE", raw, name)
             self.assertNotIn(b"<!ENTITY", raw, name)
@@ -200,6 +203,8 @@ class OnlyThePublishedRows(unittest.TestCase):
         p["data"]["actions"][0]["description"] = "Zażółć gęślą jaźń \u4e2d\u6587 \u0645\u0631\u062d\u0628\u0627"
         data = docx_build.build(p)
         for name, raw in parts(data).items():
+            if name.startswith("word/media/"):
+                continue                                                     # a picture is bytes, checked in tests/test_docx_graphics.py
             raw.decode("utf-8")
             self.assertTrue(raw.startswith(b"<?xml") is False or b'encoding="UTF-8"' in raw[:80], name)
         self.assertIn("Zażółć gęślą jaźń \u4e2d\u6587 \u0645\u0631\u062d\u0628\u0627", every_text(data))
@@ -411,7 +416,8 @@ class RichText(unittest.TestCase):
         data = docx_build.build(p)
         both = parts(data)
         for name, raw in both.items():
-            xml.dom.minidom.parseString(raw)
+            if not name.startswith("word/media/"):
+                xml.dom.minidom.parseString(raw)
         doc = both["word/document.xml"].decode("utf-8")
         self.assertNotIn("</w:t></w:r></w:p><w:p><w:r><w:t>INJECTED", doc)
         self.assertEqual(blocks(data)[0]["text"], '</w:t></w:r></w:p><w:p><w:r><w:t>INJECTED & "quoted" end')
@@ -544,7 +550,9 @@ class RoundTrip(unittest.TestCase):
 
     def test_what_the_reader_says_it_did_not_read(self):
         notes = docx_read.read(docx_build.build(published()), "report.docx").notes
-        self.assertEqual(notes, ["The web address of 1 link was not read; the words stay."])
+        pictures = parts(docx_build.build(published()))["word/document.xml"].decode("utf-8").count("<w:drawing>")
+        self.assertEqual(pictures, 2)                                            # the Health bar and the milestone plan
+        self.assertEqual(notes, ["2 pictures, drawings or text boxes were not read.", "The web address of 1 link was not read; the words stay."])
 
 
 class Source(unittest.TestCase):
