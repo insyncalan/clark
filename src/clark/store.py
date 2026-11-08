@@ -17,6 +17,7 @@ Standard library only, Python 3.9. Table and field names reach SQL only from TAB
 """
 import collections
 import json
+import logging
 import re
 import sqlite3
 import unicodedata
@@ -28,6 +29,8 @@ from pathlib import Path
 from clark import doclinks, freshness as fresh, people as people_rules, platform, published_copies, section_bodies
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
+
+LOG = logging.getLogger("clark.store")
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
@@ -3239,15 +3242,19 @@ class Store:
         """#443 (from #342): keep a copy of a web page's file in clark's own `published-copies` folder, beside this database, once the
         publication's row is in (so a refused number keeps nothing). The copy is made from the file at `source` only while it still
         holds the bytes whose SHA-256 the row has; it is written once, never changed and never removed (published_copies.py). It is
-        best effort: a publication is made when its row is, so a copy that could not be kept is logged nowhere and listed as "Not kept".
+        best effort: a publication is made when its row is, so a copy that could not be kept is logged (#577: one line, no path and no hash) and listed as "Not kept".
         True when a copy was written. A Word file is not kept (its row has no page to open). #342: a copy of the page's data is kept
         beside it, cut from the same bytes (published_copies.keep)."""
         if str(self.path) == ":memory:":
             return False
         try:
-            return published_copies.keep(self.path.parent, code, number, source, sha256)
-        except Exception:        # noqa: BLE001  never let a copy that could not be kept undo a publication that was made
+            kept = published_copies.keep(self.path.parent, code, number, source, sha256)
+        except Exception as e:   # noqa: BLE001  never let a copy that could not be kept undo a publication that was made
+            LOG.warning("published copy not kept: publication %s of %s (%s)", number, code, type(e).__name__)      # #577: the kind only; a fault's words can hold a path
             return False
+        if not kept:
+            LOG.warning("published copy not kept: publication %s of %s (refused, already there, or the file changed)", number, code)
+        return kept
 
     def archive_publication(self, code, number, by_user=None):
         """#342: archive Publication `number` of `code`: the list leaves it out, and nothing is removed or changed (its row, its kept
