@@ -93,6 +93,9 @@ PUBLISH_FIELDS = {
     "documents": ("title", "kind", "url", "date"),        # #74: never its id, place or archive flag
     "gantt_lines": ("id", "name") + tuple(c for c in GANTT_COLUMNS if c != "show"),   # row 926: every column a client may ever see; the line's eye (`show`) only decides, and gantt_hidden_columns takes columns out of the copy (gantt_for_client)
 }
+# Row 560 (ruled): a client-visible row with no client wording of its own (blank client_message) publishes its title only:
+# the text fields named here are emptied for it, in the web file and the Word copy alike (both read select()'s rows).
+WORDLESS_DROPS = {"actions": ("latest_update",), "milestones": ("description",)}
 RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update",), "milestones": ("description",)}     # HTML the editor wrote: through clean_html
 LEGACY_RICH = (("actions", "latest_update"), ("milestones", "description"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain)
 # Read from the database as well, only to decide (never copied): the gates, and what a milestone's state is worked out from.
@@ -536,6 +539,9 @@ def select(inputs):
         out[k] = []
         for r in rows[k]:
             c = _pick(r, PUBLISH_FIELDS[k])
+            if not str(r.get("client_message") or "").strip():       # row 560: no client wording, title only
+                for f in WORDLESS_DROPS.get(k, ()):
+                    c[f] = None
             for f in RICH.get(k, ()):
                 c[f] = clean_html(sanitise.legacy_to_html(c[f]) if (k, f) in LEGACY_RICH and c[f] and not sanitise.HTML_START.match(c[f]) else c[f])
             if k == "use_cases":                              # plain text the editor wrote: hidden characters out, cut at a limit
