@@ -76,6 +76,7 @@ import errno
 import hashlib
 import hmac
 import importlib
+import inspect
 import json
 import logging
 import os
@@ -538,18 +539,19 @@ def csp_report_route(handler):
 # ===== The brand's pictures (#98) =====
 BRAND_PREFIX = "/assets/"
 APP_ICON_PREFIX = "/app/"                 # the app icons (appfiles.ICONS): an image source too, or the browser cannot show the manifest's icons
+BRAND_ID = re.compile(r"[a-z0-9-]{1,40}")       # #944: a brand's id in /assets/<id>/<name>; only looked up by the seam, never joined onto a path
 BRAND_PICTURES = ("cover.png", "cover.jpg", "cover.jpeg", "cover.webp")     # the fixed allow-list; = page.PICTURES (a test keeps the two equal)
 
 
-def brand_picture_route(handler, name):
-    """GET /assets/<name>, for a name in BRAND_PICTURES only (the dispatcher checks): the brand's picture. No token, since an
+def brand_picture_route(handler, name, brand_id=None):
+    """GET /assets/<name> or (#944) /assets/<id>/<name>, for a name in BRAND_PICTURES only (the dispatcher checks, and checks the id's shape): the brand's picture. No token, since an
     <img> or a CSS url() can't send one, so the same local checks as /csp-report (csp_local: Host, a local address, no other
     site's Origin or Sec-Fetch-Site). The file comes from the `brand_picture` seam (page.brand_picture, given by the launcher), which never builds a path from a request."""
     if not csp_local(handler):
         return handler.send(403, error_body("not_allowed"))
     if handler.requestline.split()[1:2] != [handler.path]:      # newer Pythons fold "//assets/x" into "/assets/x": not this route
         return handler.send(404, error_body("not_found"))
-    got = handler.server.brand_picture(name)
+    got = handler.server.brand_picture(name) if brand_id is None else handler.server.brand_picture(name, brand_id)
     if got is None:
         return handler.send(404, error_body("picture_not_found"))
     data, ctype = got
@@ -1000,13 +1002,26 @@ p { margin: 0 0 8px; color: #55606e; }
 """
 
 
+def page_for(page_html, code):
+    """The page for a well-formed project code, or the page with no argument (no code, or a seam that takes none: tests pass one)."""
+    if code is not None:
+        try:
+            inspect.signature(page_html).bind(code)
+        except TypeError:
+            return page_html()
+        return page_html(code)
+    return page_html()
+
+
 def page_route(handler):
     """GET /: the page, with this run's token. Run through run_route like every other route, so a page that cannot be made (a
     copy of clark without its page files that cannot build them) is answered with a 500 in plain words.
     Before, the error left the handler and the standard library closed the connection with no answer at all."""
     if page_load_is_ours(handler.headers, handler.server.server_port):
         mark_here()
-    return handler.send(200, with_boot(handler.server.page_html()), "text/html")
+    given = parse_qs(urlsplit(handler.path).query).get("project") or [None]      # #944: GET /?project=<code> is the page in that project's brand
+    code = given[0] if len(given) == 1 and given[0] and PROJECT_CODE.fullmatch(given[0]) else None
+    return handler.send(200, with_boot(page_for(handler.server.page_html, code)), "text/html")
 
 
 def preview_page_route(handler):
@@ -1501,8 +1516,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.run_route(preview_page_route)
         if route == PAST_ROUTE:
             return self.run_route(past_page_route)
-        if route.startswith(BRAND_PREFIX) and route[len(BRAND_PREFIX):] in BRAND_PICTURES:
-            return self.run_route(brand_picture_route, route[len(BRAND_PREFIX):])
+        if route.startswith(BRAND_PREFIX):
+            parts = route[len(BRAND_PREFIX):].split("/")
+            if len(parts) == 1 and parts[0] in BRAND_PICTURES:
+                return self.run_route(brand_picture_route, parts[0])
+            if len(parts) == 2 and BRAND_ID.fullmatch(parts[0]) and parts[1] in BRAND_PICTURES:        # #944: exactly two parts
+                return self.run_route(brand_picture_route, parts[1], parts[0])
         api = GET_ROUTES.get(route)
         if api or route.startswith("/api/"):
             if not self.authorised() or updating(self, route):
@@ -1569,7 +1588,7 @@ class LocalServer(ThreadingHTTPServer):
         self.activity = activity              # activity(code, item) -> the peek's Activity rows, or None (#42); None: no such route
         self.milestones = milestones          # milestone_feed.make_feed (#146): the Calendar's rows; None: no such route
         self.use_cases = use_cases            # use_cases(code) -> the project's use cases, or None (#163); None: no such route
-        self.brand_picture = brand_picture or (lambda name: None)     # (bytes, type) of a brand picture by name, or None (#98; page.brand_picture); None: 404
+        self.brand_picture = brand_picture or (lambda name, brand_id=None: None)     # (bytes, type) of a brand picture by name, or None (#98; page.brand_picture); None: 404
         self.profile = profile                # profile_settings.Profile (#180): the name and email in Settings; None: those routes answer not found
         self.draft_email = draft_email        # #50: builds a Draft email for a request, read only; None until the launcher gives one
         self.draft_email_sent = draft_email_sent      # #50: records "I sent it" (ids, mode, day; no text); None until the launcher gives one

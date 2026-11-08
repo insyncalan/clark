@@ -13,6 +13,7 @@ import sys
 import tempfile
 import time
 import unittest
+from _editor_checks import for_project, for_url
 from pathlib import Path
 from unittest import mock
 
@@ -54,7 +55,7 @@ class Pg:
 
     @classmethod
     def at(cls, test, cdp, port, hash_="#dashboard&p=ABC", section_style="slim"):
-        return cls(test, cdp, navigate(cdp, port, hash_, section_style=section_style))
+        return cls(test, cdp, navigate(cdp, port, for_project(hash_), section_style=section_style))
 
     def js(self, expr):
         return self.cdp.js(expr, self.sid)
@@ -476,7 +477,7 @@ class Sections(Base):
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source":
                      "Object.defineProperty(HTMLElement.prototype, 'contentEditable', {configurable: true, "
                      "get: function () { return 'inherit'; }, set: function () {}});"}, sid)
-            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#dashboard&p=ABC"}, sid)
+            cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{self.s.port}/#dashboard&p=ABC")}, sid)
             p = Pg(self, cdp, sid)
             p.until("!!document.querySelector('.sec')", "drew")
             p.edit()

@@ -9,6 +9,7 @@ and Draft are drawn with the dark tokens and each line of text reads at 4.5:1 or
 """
 import json
 import unittest
+from _editor_checks import for_url
 from datetime import datetime, timezone
 
 from _paths import ROOT
@@ -215,7 +216,7 @@ class Browser(unittest.TestCase):
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": self.HOLD}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#work&p={self.code}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#work&p={self.code}")}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
         if dark:
             cdp.js("document.documentElement.dataset.theme = 'dark'", sid)

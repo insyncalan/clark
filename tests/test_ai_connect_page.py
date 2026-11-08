@@ -24,7 +24,7 @@ PAGE_UP = 90
 
 class Card(unittest.TestCase):
     def setUp(self):
-        self.s = Running(data_for=DATA.get, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(self.s.close)
         self.d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
         self.addCleanup(shutil.rmtree, self.d, True)
