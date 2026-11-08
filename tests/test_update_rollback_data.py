@@ -284,6 +284,23 @@ class RestoredTest(Rolled):
         self.assertEqual([], self.asides())
         self.assertFalse(run.m.get("data_restore"))
 
+    def test_a_restore_run_again_after_the_put_back_does_not_put_back_or_set_aside_again(self):
+        """#992 follow-up: the put-back went back to the early copy, which differs from the digest taken before the start (the person
+        edited between the two). A run again must see the put-back is done: same bytes, no second replaced-* folder."""
+        copy, run = self.started_by_a_writing_version()
+        self.start_new_and_fail(run)
+        self.assertTrue(run.m.get("new_pid"))
+        run.r_restore_data()
+        self.assertEqual("restored", run.m["data_restore"]["status"])
+        self.assertEqual(digest(copy), digest(self.db))
+        done = (digest(self.db), [a.name for a in self.asides()])
+        self.assertEqual(1, len(done[1]))
+        run.r_restore_data()                                                          # the same run, called again
+        again = h.Run(h.marker_path(self.data), self.seams)                           # and a new run over the saved marker
+        again.r_restore_data()
+        self.assertEqual("restored", again.m["data_restore"]["status"])
+        self.assertEqual(done, (digest(self.db), [a.name for a in self.asides()]))
+
     def test_a_digest_that_was_not_taken_puts_nothing_back(self):
         """No digest_before_start (the step never ran, or an older marker): there is nothing to compare with, so same_layout_copy
         gives None and the data is not put back."""

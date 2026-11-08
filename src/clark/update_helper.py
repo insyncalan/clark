@@ -1000,13 +1000,16 @@ class Run:
         """Put the database back as it was before the update, if the new version migrated it (#280). It runs after the new server
         was stopped and before the old one is started, because the old version refuses data in a newer layout. A migration is one
         transaction, so stopping the new server in the middle of one leaves either the old layout or the new, and this step
-        works from whichever it finds; that is what makes stopping a slow migration safe. Does nothing when the layout is still
-        the one recorded at the start (no migration ran, or this step already ran), so running it again is harmless. It never
+        works from whichever it finds; that is what makes stopping a slow migration safe. Does nothing when the put-back is already
+        recorded (data_restore restored), or when the layout is still the one recorded at the start (no migration ran), so running it again is harmless. It never
         raises for a refusal: the old files are put back anyway and the reason is kept for the person (data_restore)."""
         before = self.m.get("schema_before")
         db = self.data / DB_NAME
         if not isinstance(before, int):
             return                                       # there was no readable database at the start: nothing to compare with
+        done = self.m.get("data_restore")
+        if isinstance(done, dict) and done.get("status") == "restored":
+            return                                       # #992: the put-back already happened (saved by an earlier run): never again
         if db.is_symlink():                              # never read or replaced through a link: leave it, and offer the Undo
             self.keep_pending(Refused("stopped", "the database is a link"), None, None)
             return
