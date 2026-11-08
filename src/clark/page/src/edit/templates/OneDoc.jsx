@@ -6,7 +6,7 @@ import { oneDoc, fileOf } from "../../templates/files.js";
 import { FileRow } from "../../templates/DocLinks.jsx";
 import { chooseFile } from "./fileRoute.js";
 import { stored, oneLine, labelProblem, saveContent, wordsAsHtml, noBreaks } from "./filesEdit.js";
-import { RichWords } from "./noteEdit.jsx";
+import { RichField } from "../RichField.jsx";
 
 export function Edit({ section }) {
   const content = stored(section);
@@ -53,7 +53,7 @@ export function Edit({ section }) {
       </form>
       <div class="tpl-form tpl-rich-words">
         <span class="tpl-lbl">Words under the file (optional)</span>
-        <RichWords kind="onedoc" id={section.id} value={wordsAsHtml(content.html, content.text)} label="Words under the file"
+        <RichField field="onedoc" empty="Click to write." id={section.id} value={wordsAsHtml(content.html, content.text)} label="Words under the file"
           save={(html) => saveContent(section, { ...content, html: noBreaks(html), text: [] }, "Saved.")} />
       </div>
       {problem ? <p class="tpl-problem" role="alert">{problem}</p> : null}

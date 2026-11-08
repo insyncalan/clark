@@ -5,7 +5,6 @@
 // - A picture is made smaller on a canvas (shrink.js) and sent on its own to POST /api/section-image: one slot, one step, one Undo.
 // - Under each picture template, the running total of the pictures in the report against the 5 MB a published page can hold.
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
-import { useGrow } from "../useGrow.js";
 import { data, project, reread, token, plainChange } from "../../stores/report.js";
 import { change, say } from "../../stores/changes.js";
 import { stored, PICTURE_TYPES } from "../../templates/pictures.jsx";
@@ -92,30 +91,6 @@ export function LineField({ section, field, label, value, max, hint, words, chec
     <div class="tpl-pic-field">
       <label for={id}>{label}</label>
       <input id={id} ref={ref} type="text" maxLength={max} placeholder={hint || ""} defaultValue={value || ""} onBlur={commit} onKeyDown={onKeyDown} spellcheck={true} />
-    </div>
-  );
-}
-
-// Paragraphs: each line typed is a paragraph. Saved when the box is left; Esc puts the saved words back.
-export function WordsField({ section, field, label, value, max, hint, words }) {
-  const ref = useRef(null), esc = useRef(false);
-  const joined = (value || []).join("\n");
-  useGrow(ref, joined);
-  useLayoutEffect(() => { if (ref.current && document.activeElement !== ref.current) ref.current.value = joined; }, [joined]);
-  const commit = () => {
-    if (esc.current) { esc.current = false; return; }
-    const list = ref.current.value.split(/\r?\n/).map((p) => p.replace(/\s+/g, " ").trim()).filter(Boolean);
-    if (list.join("\n") === joined) return;
-    saveWords(section, { [field]: list }, words).then((r) => { if (!r && ref.current) ref.current.value = joined; });
-  };
-  const onKeyDown = (e) => {
-    if (e.key === "Escape") { e.preventDefault(); esc.current = true; ref.current.value = joined; ref.current.blur(); }
-  };
-  const id = `tpl-${section.id}-${field}`;
-  return (
-    <div class="tpl-pic-field">
-      <label for={id}>{label}</label>
-      <textarea id={id} class="grow" ref={ref} rows={3} maxLength={max} placeholder={hint || ""} defaultValue={joined} onBlur={commit} onKeyDown={onKeyDown} />
     </div>
   );
 }

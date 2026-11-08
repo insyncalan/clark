@@ -26,12 +26,6 @@ export function useSaver(section, saved, done) {
   };
 }
 
-// The words of a card or a note: the one editor with its / menu (RichField). `value` is the HTML to open, `save(html)` writes it
-// (one change: one step, one Undo) and resolves to the reply, or null when the save failed (the field then stays open).
-export function RichWords({ kind, id, value, label, save }) {
-  return <RichField field={kind} id={id} value={value} label={label} empty="Click to write." save={save} />;
-}
-
 // A plain text field (one line). `value` is what is saved; `onCommit(text)` is told the new words only when they differ.
 export function Field({ value, onCommit, label, max, cls = "" }) {
   const [draft, setDraft] = useState(value);

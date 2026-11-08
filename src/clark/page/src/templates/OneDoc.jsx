@@ -5,6 +5,8 @@
 import { oneDoc } from "./files.js";
 import { FileRow } from "./DocLinks.jsx";
 
+import { CleanProse } from "../components/CleanProse.jsx";
+
 export const READY = true;
 
 export function View({ section, clean }) {
@@ -13,7 +15,7 @@ export function View({ section, clean }) {
   return (
     <div class="tpl-od">
       <p class="tpl-od-file"><FileRow file={d.file} label={d.label} /></p>
-      {d.html ? <div class="tpl-od-text tpl-rich prose" dangerouslySetInnerHTML={{ __html: d.html }} />
+      {d.html ? <CleanProse cls="tpl-od-text tpl-rich prose" html={d.html} />
         : d.text.map((t, n) => <p key={n} class="tpl-od-text">{t}</p>)}
     </div>
   );

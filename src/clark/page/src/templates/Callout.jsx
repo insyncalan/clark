@@ -3,6 +3,8 @@
 // View and the published file alike). The Edit part is edit/templates/Callout.jsx; the content rules are section_kinds/callout.py.
 import { source, tidyCallout, calloutEmpty, TONE_WORDS } from "./notes.js";
 
+import { CleanProse } from "../components/CleanProse.jsx";
+
 export const READY = true;
 export const isEmpty = (section) => calloutEmpty(tidyCallout(source(section)));
 
@@ -12,7 +14,7 @@ export function View({ section, clean }) {
     <div class={`tpl-callout tone-${c.tone}`} role="note">
       <p class="tpl-callout-tone">{TONE_WORDS[c.tone]}</p>
       {c.title ? <p class="tpl-callout-h">{c.title}</p> : null}
-      {c.html ? <div class="tpl-callout-p tpl-rich prose" dangerouslySetInnerHTML={{ __html: c.html }} />
+      {c.html ? <CleanProse cls="tpl-callout-p tpl-rich prose" html={c.html} />
         : c.paras.map((p, i) => <p class="tpl-callout-p" key={i}>{p}</p>)}
     </div>
   );

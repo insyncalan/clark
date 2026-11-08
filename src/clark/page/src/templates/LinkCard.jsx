@@ -4,6 +4,8 @@
 // isEmpty: no link to draw, so the section is left out of the served View and the published file alike (FR-11).
 import { linkCard } from "./files.js";
 
+import { CleanProse } from "../components/CleanProse.jsx";
+
 export const READY = true;
 
 export function View({ section, clean }) {
@@ -13,7 +15,7 @@ export function View({ section, clean }) {
     <div class="tpl-lc">
       <p class="tpl-lc-site">{c.site || c.link.shown}</p>
       <p class="tpl-lc-title"><a href={c.link.href} target="_blank" rel="noopener noreferrer">{c.title || c.link.shown}</a></p>
-      {c.html ? <div class="tpl-lc-text tpl-rich prose" dangerouslySetInnerHTML={{ __html: c.html }} />
+      {c.html ? <CleanProse cls="tpl-lc-text tpl-rich prose" html={c.html} />
         : c.text.map((t, n) => <p key={n} class="tpl-lc-text">{t}</p>)}
     </div>
   );

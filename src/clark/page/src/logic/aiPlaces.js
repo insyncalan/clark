@@ -9,6 +9,14 @@ export const PLACE_OF = {
   "section.body": "current",         // every text section of the report
   "current.state": "current",        // Current state (the report's headline)
   "usecase.standing": "current",     // a use case's "Where it stands"
+  "peek.latest_update": "current",   // an item's or milestone's Latest update (row 1005)
+  "milestone.description": "current", // a milestone's Description in its peek (row 1005)
+  "textimage.text": "current",       // a Text and picture section's text (row 1005)
+  "movement.internal_note": "current", // a milestone's Internal note on the Movement page (row 1005)
+  "glance.health_reason": "current", // the At a glance Reason for the project's health (row 1005)
+  "linkcard.text": "current",        // a Link preview card's words (row 1005)
+  "onedoc.text": "current",          // a One document section's words under the file (row 1005)
+  "callout.text": "current",         // a Callout section's words (row 1005)
   // The notes editor: a Notes-kind section (when it lands) and any meeting-notes field. It adds Pull out the tasks.
   "notes.section": "notes",
   // Short plain fields in the peek: an item's text, a risk's wording. Section titles stay out (no entry).
@@ -26,6 +34,14 @@ export const RICH_FIELDS = {
   body: "section.body",
   headline: "current.state",
   standing: "usecase.standing",
+  latest_update: "peek.latest_update",
+  description: "milestone.description",
+  textimage: "textimage.text",
+  internal_note: "movement.internal_note",
+  health_reason: "glance.health_reason",
+  linkcard: "linkcard.text",
+  onedoc: "onedoc.text",
+  callout: "callout.text",
 };
 
 // The editors that are not a RichField (a plain editable box), by the file that mounts them -> key.

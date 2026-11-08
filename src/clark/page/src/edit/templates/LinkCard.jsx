@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "preact/hooks";
 import { linkProblem } from "../../templates/files.js";
 import { stored, oneLine, labelProblem, saveContent, wordsAsHtml, noBreaks } from "./filesEdit.js";
-import { RichWords } from "./noteEdit.jsx";
+import { RichField } from "../RichField.jsx";
 
 const asText = (v) => (typeof v === "string" ? v : "");
 
@@ -46,7 +46,7 @@ export function Edit({ section }) {
       </form>
       <div class="tpl-form tpl-rich-words">
         <span class="tpl-lbl">Words on the card (optional)</span>
-        <RichWords kind="linkcard" id={section.id} value={wordsAsHtml(content.html, content.text)} label="Words on the card"
+        <RichField field="linkcard" empty="Click to write." id={section.id} value={wordsAsHtml(content.html, content.text)} label="Words on the card"
           save={(html) => saveContent(section, { ...content, html: noBreaks(html), text: [] }, "Card saved.")} />
       </div>
       {problem ? <p class="tpl-problem" role="alert">{problem}</p> : null}

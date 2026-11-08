@@ -243,6 +243,7 @@ class RealBrowser(unittest.TestCase):
                            " && parseFloat(getComputedStyle(e).fontSize) < 12).map(e => e.className)", sid)
             self.assertEqual(small, [], "text is at least 12 px")
             cdp.js("document.querySelector('#fline-input').focus(); document.querySelector('#fline-input').select()", sid)
+            cdp.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", "key": " ", "code": "Space", "windowsVirtualKeyCode": 32}, sid)     # row 931: Space opens the list
             cdp.call("Input.insertText", {"text": "st"}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)))
             targets = cdp.js("[...document.querySelectorAll('#work .vtab, #work .fx, #work .newb, #work .fhint, #fline-list .fopt')]"
@@ -416,7 +417,7 @@ class RealBrowser(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelectorAll('main button').length", sid), 1, "Try again")
         broken = [True]
 
-        def data_for(code):
+        def data_for(code, archived=None):
             if broken[0]:
                 raise RuntimeError("the store is not there")
             return self.store.data_for(code)
@@ -443,7 +444,7 @@ class RealBrowser(unittest.TestCase):
                                  (cdp.js("document.querySelector('main').innerText", sid) or "")))
 
     def test_a_project_with_no_work_items_says_so(self):
-        s = self.serve(data_for=lambda code: {"project": {"code": code, "name": "Empty Project"}, "milestones": [], "workstreams": [],
+        s = self.serve(data_for=lambda code, archived=None: {"project": {"code": code, "name": "Empty Project"}, "milestones": [], "workstreams": [],
                                               "actions": [], "raid": [], "decisions": [], "use_cases": [], "links": [], "labels": {}})
         with chrome() as cdp:
             sid = self.load_page(cdp, s.port, 1400, "#work&p=EMPTY")

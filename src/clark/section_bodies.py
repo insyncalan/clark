@@ -31,7 +31,10 @@ published; the contract is section_kinds/base.py), and the tables below are buil
 eighteen types up front. A template's builder changes only its own module.
 """
 import json
+import re
 import unicodedata
+
+from clark import sanitise
 
 from clark.section_kinds import REGISTRY as TEMPLATES, TYPES as TEMPLATE_TYPES
 from clark.section_kinds.base import Bad, Context
@@ -113,6 +116,34 @@ def _rebuilt(value, rules, depth):
             out[key] = _rebuilt(v, rules, depth + 1)
         return out
     raise Bad(BAD_VALUE)
+
+
+# Keys that hold the words the one rich editor writes (row 1005), per template type. The template modules are pure and do not clean:
+# this module does, before a checker or a published() sees the value, on a save and AGAIN at publish.
+RICH_KEYS = {"textimage": ("html",)}
+RICH_TOO_LONG = "That text is too long to save. Shorten it and try again."
+
+
+def _clean_rich(kind, value, strict=True):
+    """`value` (a template body, already through the generic check) with each RICH_KEYS text cleaned: clean_html, a line break
+    written as a space (the generic check refuses one in any text), clean_html again (idempotent); '' when there are no words
+    (no plain text). A value that is not an object, or a key that is not text, is left for the module to refuse."""
+    keys = RICH_KEYS.get(kind)
+    if not keys or type(value) is not dict:
+        return value
+    out = dict(value)
+    for k in keys:
+        text = out.get(k)
+        if not isinstance(text, str):
+            continue
+        try:
+            html = sanitise.clean_html(re.sub(r"[\r\n]+", " ", sanitise.clean_html(text)))
+            out[k] = html if sanitise.plain_text(html).strip() else ""
+        except sanitise.SanitiseError:
+            if strict:
+                raise Bad(RICH_TOO_LONG) from None
+            out[k] = ""                      # at publish: a text that cannot be cleaned is left out, the rest of the section stays
+    return out
 
 
 def canonical(value):
@@ -412,7 +443,7 @@ def check(kind, body, rules):
         raise Bad(NOT_SAVED_YET)
     if body is None or body == "":
         return ""
-    value = checker(_generic(body, kind, rules), rules)
+    value = checker(_clean_rich(kind, _generic(body, kind, rules)), rules)
     if type(value) not in (dict, list):
         raise Bad(NOT_READABLE)          # a checker that hands back something else is a fault, never stored
     text = canonical(value)
@@ -471,6 +502,7 @@ def published(kind, value, ctx=None):
     absent), each field picked by name and kept as the checked text, a whole number of tenths or a count, dates written DD-MM-YYYY;
     None when no group has a line. Totals are never published: the page works them out."""
     if kind in TEMPLATES:
+        value = _clean_rich(kind, value, strict=False)       # cleaned AGAIN: what is stored is never trusted at publish; a text too long to clean is left out, not the whole section
         out = TEMPLATES[kind].published(value, ctx if ctx is not None else Context())
         return out if isinstance(out, dict) and out else None
     if kind == NEEDS:
