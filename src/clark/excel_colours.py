@@ -73,6 +73,8 @@ LATE = {
 
 def colour_for(table, field, value):
     """The colour name for a cell's value (red, amber, green, blue or grey), or None."""
+    if not isinstance(value, str):      # hostile data (a list, a dict) has no colour, and is never an unhashable lookup
+        return None
     return BY_FIELD.get((table, field), {}).get(value)
 
 

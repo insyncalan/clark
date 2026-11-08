@@ -116,6 +116,8 @@ def _need_today(today):
 
 def colour_of_priority(priority):
     """D-12: Urgent and High are red, Medium amber, Low green; anything else is not rated (None). (workItems.js colourOf)"""
+    if not isinstance(priority, str):      # hostile data (a list, a dict): not rated, never an unhashable lookup
+        return None
     if priority in HIGH:
         return "red"
     return {"Medium": "amber", "Low": "green"}.get(priority)

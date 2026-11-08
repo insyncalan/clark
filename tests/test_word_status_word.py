@@ -64,6 +64,12 @@ class WordCarriesThePageWord(unittest.TestCase):
         for priority, word in (("Urgent", "Red"), ("High", "Red"), ("Medium", "Amber"), ("Low", "Green")):
             self.assertEqual(word_status(edit("raid", "PUB-001", priority=priority))["PUB-001"], word, priority)
 
+    def test_a_priority_that_is_not_text_reads_Not_rated_and_does_not_break_the_build(self):
+        """Hostile data (a list, a dict, a number) in a risk's priority: the Word build must not raise (unhashable list in a dict lookup)."""
+        for bad in (["High"], {"a": 1}, 3, 1.5, True):
+            with self.subTest(bad=bad):
+                self.assertEqual(word_status(edit("raid", "PUB-001", priority=bad))["PUB-001"], "Not rated")
+
     def test_the_status_is_never_the_record_status_for_an_action_or_risk(self):
         got = word_status(lambda d: None)
         self.assertTrue(got)
