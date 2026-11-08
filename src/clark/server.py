@@ -1583,9 +1583,11 @@ def setup_route(method, needs_empty_body=True):
         if answer is None:
             return handler.send(404, error_body("not_found"))
         status, body = answer
-        handler.send(status, body)
-        if status == 200 and body.get("restart") is True:
-            threading.Thread(target=handler.server.shutdown, daemon=True).start()
+        try:
+            handler.send(status, body)
+        finally:           # setup's done is already true: the server stops even when the reply was dropped (else no window on the next start)
+            if status == 200 and body.get("restart") is True:
+                threading.Thread(target=handler.server.shutdown, daemon=True).start()
         return None
     return route
 

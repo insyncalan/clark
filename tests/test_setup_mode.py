@@ -378,6 +378,54 @@ class DoneRefusals(Case):
         held.assert_called_once_with(self.good)
 
 
+class DroppedReply(Case):
+    """Once done is set the server must stop, even when the reply to the page cannot be sent: else done stays true with the server
+    running, and the next start of clark finds no window."""
+
+    def run_done(self, send):
+        from clark import server
+        stopped = threading.Event()
+
+        class Handler:
+            pass
+        handler = Handler()
+        handler.send = send
+        handler.server = type("S", (), {"shutdown": lambda self: stopped.set()})()
+        handler.server.setup = self.setup(checks=[])
+        error = None
+        try:
+            server.setup_route("api_done")(handler, {})
+        except OSError as e:
+            error = e
+        return handler.server.setup, stopped.wait(5), error
+
+    def test_a_sent_reply_stops_the_server(self):
+        service, stopped, error = self.run_done(lambda code, body: None)
+        self.assertTrue(service.done)
+        self.assertTrue(stopped)
+        self.assertIsNone(error)
+
+    def test_a_dropped_reply_still_stops_the_server(self):
+        def broken(code, body):
+            raise BrokenPipeError("page went away")
+        service, stopped, error = self.run_done(broken)
+        self.assertTrue(service.done)
+        self.assertTrue(stopped, "done is true but the server was left running")
+        self.assertIsInstance(error, BrokenPipeError)
+
+    def test_a_refused_done_does_not_stop_the_server(self):
+        from clark import server
+        stopped = threading.Event()
+        handler = type("H", (), {})()
+        handler.send = lambda code, body: None
+        handler.server = type("S", (), {"shutdown": lambda self: stopped.set()})()
+        handler.server.setup = self.setup()
+        handler.server.setup.folder = self.onedrive / "clark"
+        server.setup_route("api_done")(handler, {})
+        self.assertFalse(stopped.wait(0.3))
+        self.assertFalse(handler.server.setup.done)
+
+
 class Relaunch(Case):
     """Design item 8: when the page's done is accepted and the server has stopped, main starts the normal clark on the chosen folder."""
 
