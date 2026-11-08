@@ -73,6 +73,26 @@ def paragraphs(value, rules, most, each, refusal):
     return [p for p in (words(p, rules, each, refusal) for p in value) if p]
 
 
+def rich(value, rules, most, refusal):
+    """The words of a card or a note as the one editor writes them (HTML), kept through the store's cleaner (`rules.html`, which is
+    sanitise.clean_html, the allow-list a text section's body meets; this module imports nothing of clark): '' for none, or text
+    with nothing to read in it; at most `most` characters once cleaned, else Bad in `refusal`. A publish checks the stored content
+    again with the same rules, so the file carries it cleaned again."""
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise Bad(refusal)
+    if rules.html is None:
+        raise Bad(refusal)
+    try:
+        out = rules.html(value)
+    except ValueError:
+        raise Bad(refusal) from None
+    if len(out) > most:
+        raise Bad(refusal)
+    return out
+
+
 def link(value):
     """A link a reader may follow: https://<site>... or mailto:<someone>, with no space or control character anywhere, at most
     LINK_MAX characters; kept as typed. Else Bad."""
