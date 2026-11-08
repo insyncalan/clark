@@ -12,7 +12,7 @@ import unittest
 
 from test_appearance import scheme
 from test_publish_dialog import Base
-from test_server import chrome
+from test_server import chrome, wait
 
 WIDTHS = (1400, 901, 900, 899, 800)
 MODES = ("light", "dark")
@@ -48,12 +48,32 @@ class Head(Base):
     def chips(self, p):
         return p.js("[...document.querySelectorAll('.set-nav .set-chip')].map(b => b.textContent)")
 
+    def numbers(self, p, head_id):
+        """What a red 'heading in view' needs to name itself (the hosted macOS runner printed no numbers): the heading's box, the scroll, the
+        window, the sticky set-bar, the scroll margin and padding that keep a heading clear of it, and whether the runner asks for reduced motion."""
+        return p.js(f"""(function(){{
+          var h = document.getElementById('{head_id}'), r = h ? h.getBoundingClientRect() : null;
+          var bar = document.querySelector('.set-head'), b = bar ? bar.getBoundingClientRect() : null;
+          var nav = document.querySelector('.set-nav'), n = nav ? nav.getBoundingClientRect() : null;
+          var card = h ? (h.closest('section, .card') || h) : null;
+          var pad = document.scrollingElement ? getComputedStyle(document.scrollingElement).scrollPaddingTop : 'n/a';
+          return 'head_id=' + '{head_id}' + ' heading top=' + (r ? r.top : 'none') + ' bottom=' + (r ? r.bottom : 'none') +
+            ' scrollY=' + window.scrollY + ' innerHeight=' + window.innerHeight +
+            ' set-head top=' + (b ? b.top : 'none') + ' bottom=' + (b ? b.bottom : 'none') + ' position=' + (bar ? getComputedStyle(bar).position : 'n/a') +
+            ' set-nav top=' + (n ? n.top : 'none') + ' bottom=' + (n ? n.bottom : 'none') + ' position=' + (nav ? getComputedStyle(nav).position : 'n/a') +
+            ' card scroll-margin-top=' + (card ? getComputedStyle(card).scrollMarginTop : 'n/a') +
+            ' heading scroll-margin-top=' + (h ? getComputedStyle(h).scrollMarginTop : 'n/a') +
+            ' scroll-padding-top=' + pad +
+            ' reduced-motion=' + matchMedia('(prefers-reduced-motion: reduce)').matches;
+        }})()""")
+
     def at_top(self, p, head_id):
         """The card is in view and its heading has the focus."""
         p.settled("the chip's scroll finished")      # before anything is measured: the smooth scroll may still be running (macOS)
         p.until(f"document.activeElement && document.activeElement.id === '{head_id}'", f"focus is on {head_id}")
-        p.until(f"(function(){{var r = document.getElementById('{head_id}').getBoundingClientRect(); return r.top >= 56 && r.bottom <= window.innerHeight;}})()",
-                "the heading is in view, clear of the top bar")
+        in_view = f"(function(){{var r = document.getElementById('{head_id}').getBoundingClientRect(); return r.top >= 56 && r.bottom <= window.innerHeight;}})()"
+        if not wait(lambda: p.js(in_view), 15):
+            p.t.fail("the heading is in view, clear of the top bar; " + self.numbers(p, head_id))
         # A window.scrollTo while the smooth scroll is still running cancels it and leaves the next chip's scroll stuck near the top, so
         # the position and the animations are checked again once the heading is found: still no animation, the same scrollY 100 ms apart.
         p.settled("the chip's scroll finished")
