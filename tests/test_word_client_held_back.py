@@ -244,5 +244,73 @@ class LeftOutTextSameAsKept(Setup, unittest.TestCase):
         self.assertEqual(self.web_publish()[0], 200)
 
 
+DOC_TITLE = "Vendor contract annex for the March audit"
+DOC_URL = "https://docs.example.com/vendor-annex-march-audit"
+GANTT_NAME = "Renegotiate penalty clause with vendor"
+
+
+def plant_document(demo, title=DOC_TITLE, url=DOC_URL, archived=1):
+    """A document written past the writer, as test_documents_published does; returns its id."""
+    ref = f"ABC-L-{90 + archived:02d}{len(title) % 10}"
+    con = sqlite3.connect(str(demo.store.path))
+    con.execute("INSERT INTO documents (project, id, title, kind, url, date, sort_order, archived) VALUES (?,?,?,?,?,?,?,?)",
+                ("ABC", ref, title, "Report", url, "2030-01-02", 90, archived))
+    con.commit()
+    con.close()
+    return ref
+
+
+def plant_gantt_line(demo, name, show=0):
+    with demo.store.step("dashboard", USER) as st:
+        st.create("gantt_lines", {"project": "ABC", "type": "task", "name": name, "start": "2026-11-02", "end": "2026-11-13",
+                                  "show": show, "sort_order": 90})
+    (row,) = [r for r in demo.store.read("gantt_lines", "ABC") if r["name"] == name]
+    return row["id"]
+
+
+class LeftOutDocumentPasted(Cases, unittest.TestCase):
+    """#619 follow-up (a): the title of a document left out of the client's view (archived), pasted inside a longer client-visible row."""
+    leak, absent = DOC_TITLE, ()
+
+    def plant(self):
+        self.look_at = plant_document(self.demo)
+        self.visible = f"See also the {DOC_TITLE} for details"
+        self.demo.action(description=self.visible, client_visible=1)
+
+
+class LeftOutDocumentPastedIntoKeptDocument(Cases, unittest.TestCase):
+    """The same words inside the title of a document that IS kept: the longer title does not excuse the left-out one."""
+    leak, absent = DOC_TITLE, ()
+
+    def plant(self):
+        self.look_at = plant_document(self.demo)
+        self.visible = f"Draft of the {DOC_TITLE}"
+        plant_document(self.demo, title=self.visible, url="https://docs.example.com/kept-one", archived=0)
+
+
+class LeftOutGanttLinePasted(Cases, unittest.TestCase):
+    """#619 follow-up (b): the name of a Gantt line whose eye is off, pasted inside a longer client-visible row."""
+    leak, absent = GANTT_NAME, ()
+
+    def plant(self):
+        self.look_at = plant_gantt_line(self.demo, GANTT_NAME)
+        self.visible = f"Next: {GANTT_NAME} this month"
+        self.demo.action(description=self.visible, client_visible=1)
+
+
+class DocumentAndGanttSameAsKept(Setup, unittest.TestCase):
+    """(c) A left-out document title, or Gantt name, that is exactly the whole of a kept value is not a leak: both copies still save."""
+
+    def plant(self):
+        plant_document(self.demo)
+        self.demo.action(description=DOC_TITLE, client_visible=1)
+        plant_gantt_line(self.demo, GANTT_NAME)
+        self.demo.action(description=GANTT_NAME, client_visible=1)
+
+    def test_the_word_copy_and_the_web_publish_still_save(self):
+        self.assertEqual(self.word_export()[0], 200)
+        self.assertEqual(self.web_publish()[0], 200)
+
+
 if __name__ == "__main__":
     unittest.main()
