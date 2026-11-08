@@ -647,13 +647,14 @@ input.sec-title { width: 100%; }
 @keyframes pk-out { to { transform: translateX(104%); } }
 @media (prefers-reduced-motion: reduce) { .peek.leaving { display: none; } }
 .pk-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; touch-action: none; }
-.pk-edge:hover, .pk-edge:focus-visible { background: var(--brand-cyan); opacity: .5; }
+.pk-edge:hover { background: var(--brand-cyan); opacity: .5; }
+.pk-edge:focus-visible { background: var(--brand-blue); opacity: 1; outline: 2px solid var(--focus); outline-offset: -2px; }   /* a ring, not only a faint fill, so the keyboard user sees the handle has focus */
 .pk-bar { display: flex; align-items: center; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--grey-100); }
 .pk-sp { flex: 1; }
 .pk-id { color: var(--text-muted); font-size: var(--size-caption); margin-left: 6px; }
 .pkp-btn { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius); cursor: pointer; color: var(--text); }
 .pkp-btn:hover:not(:disabled) { background: var(--grey-100); }
-.pkp-btn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 1px; }
+.pkp-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .pkp-btn:disabled { opacity: .35; cursor: default; }
 .pkp-btn[aria-pressed=true] { background: var(--brand-blue-tint); }
 .pkp-btn .i { width: 18px; height: 18px; }
@@ -1117,6 +1118,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-mk.plain, .mv-lab.plain, .cal-ms.plain, .msl-row.plain, .msl-row.plain .msl-cells { cursor: default; }   /* a published file: text, not a button */
 .mv-mk.plain:hover { transform: none; } .mv-lab.plain:hover { background: var(--grey-50); } .cal-ms.plain:hover { background: var(--grey-100); } .cal-ms.ghost.plain:hover { background: transparent; } .msl-row.plain:hover { background: none; }
 .mv-lab b { display: block; font-weight: var(--weight-medium); color: var(--text); } .mv-lab:hover { background: var(--grey-100); }
+.mv-lab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .mv-lab.ok { color: var(--status-green-text); } .mv-lab.gl { color: var(--status-red-text); }
 .mv-conn { position: absolute; height: 0; border-top: 2px dashed var(--status-red); z-index: 1; }
 .mv-ghost { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px dashed var(--status-red); border-radius: 50%; background: var(--surface); z-index: 2; }

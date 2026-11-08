@@ -97,18 +97,25 @@ function SavedViews({ board }) {
     else if (id === "rename" && active) setForm({ mode: "rename", name: active.name, error: "" });
     else if (id === "delete" && active) setForm({ mode: "delete", name: "", error: "" });
   };
+  // The form's input goes with the form, so focus is handed to the button that opened it (the tab's own menu for a rename or a delete) a moment after it closes.
+  const closeForm = () => {
+    const mode = form && form.mode;
+    setForm(null);
+    const order = mode === "rename" || mode === "delete" ? ["viewTabMenu", "viewNew", "viewMenu"] : ["viewNew", "viewMenu", "viewTabMenu"];
+    setTimeout(() => { const el = order.map((id) => document.getElementById(id)).find(Boolean); if (el) el.focus(); }, 0);
+  };
   const submit = (e) => {
     e.preventDefault();
     if (form.mode === "delete") {
       const r = FL.deleteView(all, active.id);
-      if (r.ok) { saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; setForm(null); } else setForm({ ...form, error: r.message });
+      if (r.ok) { saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; closeForm(); } else setForm({ ...form, error: r.message });
       return;
     }
     const r = form.mode === "rename" ? FL.renameView(all, active.id, form.name) : FL.addView(all, form.name, line.trim());
     if (!r.ok) { setForm({ ...form, error: r.message }); return; }
     saveViews(code, r.views);
     if (form.mode === "saveas") chosen.value = { ...chosen.value, [code]: r.id };
-    setForm(null);
+    closeForm();
   };
   // The name box takes focus once the menu has given focus back to its button (it does that in an effect of its own, so we go a moment later).
   useEffect(() => {
@@ -162,7 +169,7 @@ function SavedViews({ board }) {
       {fromFile.value ? null : <Menu label="View" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={lay.items} onPick={act} />}
       </div>
       {form ? (
-        <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setForm(null); } }}>
+        <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeForm(); } }}>
           {form.mode === "delete" ? (
             <>
               <span class="vask" id="vask">Delete this view?</span>
@@ -175,7 +182,7 @@ function SavedViews({ board }) {
               <button type="submit" class="btn sm" id="vsave">Save</button>
             </>
           )}
-          <button type="button" class="btn sm" onClick={() => setForm(null)}>{form.mode === "note" ? "Close" : "Cancel"}</button>
+          <button type="button" class="btn sm" onClick={closeForm}>{form.mode === "note" ? "Close" : "Cancel"}</button>
           <span class="vmsg" role="status">{form.error}</span>
         </form>
       ) : null}
