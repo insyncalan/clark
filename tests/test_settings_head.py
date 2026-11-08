@@ -2,7 +2,7 @@
 light and dark. Issue 697: above 900 px the links are a list down the left with the cards at the right; at 900 px and narrower they are the
 row of chips under the title again. Run: python3 dev/run_tests.py test_settings_head
 
-What is asserted: the title and the help line; a chip for each card that is on the page (Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, People, Asking) and none
+What is asserted: the title and the help line; a chip for each card that is on the page (Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking) and none
 for a card that is not; a click scrolls the card into view and moves focus to its heading; the keyboard does the same (Tab to a chip,
 Enter); the list stands at the left of the cards above 900 px and the chips wrap in a row under the title at 900 px and narrower, the page never scrolls sideways and nothing overlaps; each chip is at least 24 px high and wide; the chip text is at least 13 px
 and 4.5:1 on its ground; the focus ring is 2 px. Chrome is required: these tests fail, never skip, without it.
@@ -18,7 +18,7 @@ WIDTHS = (1400, 901, 900, 800)
 MODES = ("light", "dark")
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
 CARDS = [("Profile", "profile-h"), ("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
-         ("Version and updates", "update-h"), ("People", "people-h"), ("Asking", "ask-settings-h")]
+         ("Version and updates", "update-h"), ("Brands", "brands-h"), ("People", "people-h"), ("Asking", "ask-settings-h")]
 
 
 def ratio(a, b):
