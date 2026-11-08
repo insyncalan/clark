@@ -831,7 +831,7 @@ class Published(unittest.TestCase):
             marks = cdp.js("[...document.querySelectorAll('.mv-mk')].map(b => b.dataset.ms)", sid)
             self.assertEqual(sorted(marks), sorted([a, c, demo.milestone]), "the client-flagged milestones only")
             self.assertEqual(cdp.js("document.querySelectorAll('.mv-ghost').length", sid), 1)
-            self.assertEqual(cdp.js("document.querySelector('[data-slip]').textContent", sid), "52 days later")
+            self.assertEqual(cdp.js("document.querySelector('[data-slip]').textContent", sid), "+52 days")
             legend = cdp.js("document.querySelector('.mlg-p').textContent", sid)
             for word in ("Expected later", "Late", "Forecast"):
                 self.assertIn(word, legend)
@@ -983,7 +983,7 @@ class Crowded(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-lab').length", sid) >= len(CROWDED)), where)
         time.sleep(0.4)                       # the labels are measured, then laid out again
         got = cdp.js(BOXES, sid)
-        self.assertGreaterEqual(got["count"], len(CROWDED) + 4, where)
+        self.assertGreaterEqual(got["count"], len(CROWDED) + 1, where)       # row 1020: one label a milestone (a slipped one carries '+N days' on it), no separate expected-date label
         if "scrollbar font" in where:
             self.assertGreaterEqual(got["bar"], 10, f"{where}: this variant really draws a scrollbar that takes room inside the box")
         self.assertEqual(got["pairs"], [], f"{where}: no two labels overlap")
@@ -1007,7 +1007,7 @@ class Crowded(unittest.TestCase):
 
     def test_many_lanes_in_a_wider_font_still_fit_the_box(self):
         """A wider font than this machine's (forced here) needs more lanes than the 900 px box limit: the box grows to the measured lanes."""
-        extra = [(f"Extra milestone number {n} with a long name", f"2026-11-{10 + n % 3:02d}", f"2026-11-{20 + n % 5:02d}") for n in range(12)]
+        extra = [(f"Extra milestone number {n} with a long name", f"2026-11-{10 + n % 3:02d}", f"2026-11-{20 + n % 5:02d}") for n in range(40)]       # row 1020: a label is one line now, so more of them make the lanes the old 900 px limit could not hold
         store, folder, _ = load_demo()               # its own store: the shared one keeps ten milestones for the other tests
         self.addCleanup(shutil.rmtree, str(folder), True)
         self.addCleanup(store.close)

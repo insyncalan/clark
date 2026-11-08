@@ -1,5 +1,5 @@
 // The milestone timeline (#44a; FR-51): scrolls sideways inside its box, a today line and a Today button, a solid mark on each
-// agreed date, a ghost on the expected date of a slipped one with a dashed line back and "N days later". Dragging the bottom
+// agreed date, a ghost on the expected date of a slipped one with a dashed line back and "+N days" (one label line a milestone, 'name date +N days'; the Expected date is in the list). Dragging the bottom
 // edge zooms (70% to 300%), remembered for each place, with Reset. View and Edit draw the same markup; the click opens the peek
 // (#42) in the editor and does nothing in a published file.
 import { Fragment } from "preact";
@@ -11,10 +11,10 @@ import { dayNumber } from "../workItems.js";
 import { recall, remember } from "../logic/remember.js";
 import { printing } from "../stores/print.js";
 
-const PXD0 = 5, BASE = 76, LINE = 34;       // pixels a day at 100%, the strip's own height and each label line's (zoom scale)
+const PXD0 = 5, BASE = 68, LINE = 20;       // pixels a day at 100%, the strip's own height and each label line's (zoom scale)
 const MARGIN = 2;                               // spare pixels added to every measured label width (sub-pixel differences between fonts and systems)
 const PRINT_W = 680;                            // the printed line is this wide (an A4 page less its margins): the whole span fits, nothing scrolls (row 767)
-const LY0 = 50, T00 = 66, LANE = 40, GAP = 8;   // the line, the first label lane and each lane's height never shrink: a label is always readable
+const LY0 = 50, T00 = 64, LANE = 20, GAP = 8;   // the line, the first label lane and each lane's height never shrink: a label is always readable
 
 export function MsTimeline({ rows: all, today, place, open }) {
   const far = farRows(all), rows = all.filter((r) => !far.includes(r));   // a date far outside 2000 to 2100 is named below the line, not drawn
@@ -30,7 +30,6 @@ export function MsTimeline({ rows: all, today, place, open }) {
   for (const r of rows) {
     const s = r.marks.solid;
     if (s) labs.push({ r, kind: "main", at: s.date, x: x(s.date) });
-    if (r.marks.ghost) labs.push({ r, kind: "exp", at: r.marks.ghost.date, x: x(r.marks.ghost.date) });
   }
   labs.sort((a, b) => a.x - b.x);
   const strip = useRef(null);
@@ -45,7 +44,7 @@ export function MsTimeline({ rows: all, today, place, open }) {
   const lines = labelLines(labs.map((l) => l.cx), labs.map(wOf), GAP);
   labs.forEach((l, i) => { l.line = lines[i]; });
   const nLines = Math.max(1, ...labs.map((l) => l.line + 1));
-  const need = T00 + nLines * LANE + 8;
+  const need = T00 + nLines * LANE + 6;
   const height = Math.max(need, Math.round((BASE + nLines * LINE) * z)) + sb;   // the lanes and the box come from the same measured widths
   const allMonths = monthStarts(start, end);
   const months = fit ? allMonths.filter((_, i) => i % Math.ceil(allMonths.length / 10) === 0) : allMonths;   // on the page about ten names fit
@@ -130,11 +129,11 @@ export function MsTimeline({ rows: all, today, place, open }) {
               </Fragment>
             );
           })}
-          {labs.map((l) => l.kind === "exp"
-            ? <Tag {...btn(l.r.id)} class={`mv-lab gl${open ? "" : " plain"}`} key={`e${l.r.id}`} data-lab={`${l.r.id}:exp`} style={{ left: `${l.cx}px`, top: `${T0 + l.line * RH}px` }}>
-                <span data-slip={l.r.id}>{l.r.slipText}</span>{" · "}Expected {showDate(l.at)}<br />{l.r.name}</Tag>
-            : <Tag {...btn(l.r.id)} class={`mv-lab${l.r.state === "Achieved" ? " ok" : ""}${open ? "" : " plain"}`} key={`n${l.r.id}`} data-lab={`${l.r.id}:main`} style={{ left: `${l.cx}px`, top: `${T0 + l.line * RH}px` }}>
-                <b>{l.r.name}</b>{showDate(l.at)}</Tag>)}
+          {labs.map((l) => (
+            <Tag {...btn(l.r.id)} class={`mv-lab${l.r.state === "Achieved" ? " ok" : ""}${open ? "" : " plain"}`} key={`n${l.r.id}`} data-lab={`${l.r.id}:main`} style={{ left: `${l.cx}px`, top: `${T0 + l.line * RH}px` }}>
+              <b>{l.r.name}</b>{" "}{showDate(l.at)}
+              {l.r.marks.ghost ? <>{" "}<span class="sr">expected {showDate(l.r.marks.ghost.date)}, </span><span class="slip" data-slip={l.r.id}>+{l.r.slipText.replace(" later", "")}</span></> : null}
+            </Tag>))}
         </div>
       </div>
     </div>

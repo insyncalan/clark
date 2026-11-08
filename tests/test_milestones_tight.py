@@ -25,7 +25,7 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 OLD_TIMELINE, OLD_ROW = 289, 62
 TIMELINE_BUDGET = 175          # about half of 289 (a few px over for the sideways scrollbar some systems draw inside the box)
-ROW_BUDGET = 38                # about half of 62: one 18 px line and a small 13 px second line, a little padding
+ROW_BUDGET = 37                # about half of 62: one 17 px line and a small 13 px second line, a little padding
 
 LOOK = r"""(() => {
   const q = (s) => document.querySelector(s), box = (e) => { const r = e.getBoundingClientRect(); return {l: r.left, r: r.right, t: r.top, b: r.bottom, h: r.height, w: r.width}; };
@@ -45,9 +45,9 @@ LOOK = r"""(() => {
     tog: tog ? box(tog) : null, leg: leg ? box(leg) : null, bar: bar ? box(bar) : null,
     barKids: bar ? [...bar.children].map((c) => c.className) : null,
     colours: {green: probe('--status-green'), red: probe('--status-red'), amber: probe('--status-amber'), surface: probe('--surface')},
-    slips: [...document.querySelectorAll('[data-slip]')].map((e) => e.textContent), labs: [...document.querySelectorAll('.mv-lab')].map((e) => e.textContent),
+    slips: [...document.querySelectorAll('[data-slip]')].map((e) => e.textContent), labs: [...document.querySelectorAll('.mv-lab')].map((e) => { const c = e.cloneNode(true); c.querySelectorAll('.sr').forEach((x) => x.remove()); return c.textContent; }),   // what is seen: the screen-reader-only words are left out
     labH: [...document.querySelectorAll('.mv-lab')].map((e) => e.getBoundingClientRect().height),
-    pageScroll: document.documentElement.scrollWidth > window.innerWidth,
+    pageScroll: [...document.querySelectorAll('.msv *')].filter((e) => !e.closest('.mv-wrap') && e.getBoundingClientRect().right > window.innerWidth + 1).length > 0,   // inside the section (a published file's tab bar is wider than 420 px, which is not this row's)
     wrapInside: wrap ? box(wrap).r <= window.innerWidth + 1 : null};
 })()"""
 
@@ -56,7 +56,7 @@ FOCUS = r"""(() => { const e = document.activeElement, c = getComputedStyle(e);
 
 
 def narrow_ok(case, got, where):
-    case.assertFalse(got["pageScroll"], f"{where}: no sideways scroll on the page")
+    case.assertFalse(got["pageScroll"], f"{where}: nothing in the Milestones section runs past the screen")
     case.assertTrue(got["wrapInside"], f"{where}: the timeline stays on the screen")
     for r in got["rows"]:
         case.assertTrue(r["inRow"], f"{where}: every cell stays inside its row ({r['sub']})")

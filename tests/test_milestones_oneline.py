@@ -33,7 +33,7 @@ MEASURE = r"""(() => {
   const cb = card.getBoundingClientRect();
   const rows = [...document.querySelectorAll('.msl-row')].map((row) => {
     const rb = row.getBoundingClientRect(), small = row.querySelector('.msl-sub'), name = row.querySelector('.msl-name');
-    const cells = [...row.querySelectorAll('.msl-cells > *')].map((c) => c.getBoundingClientRect());
+    const cells = [...row.querySelectorAll('.msl-cells > *:not(.msl-sub)')].map((c) => c.getBoundingClientRect());
     const sb = small.getBoundingClientRect(), db = row.querySelector('.msl-date').getBoundingClientRect(), cr = row.querySelector('.msl-cells').getBoundingClientRect(), nb = name.getBoundingClientRect();
     const texts = [...row.querySelectorAll('.msl-cells > *')];
     return {text: small.textContent, lines: lines(small), nameLines: lines(name),
@@ -113,7 +113,7 @@ class Rows(unittest.TestCase):
     def test_the_cells_stack_in_two_columns_only_at_800_px_and_below(self):
         s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
-        for width, cols in ((901, 4), (900, 4), (801, 4), (800, 2), (700, 2)):
+        for width, cols in ((901, 4), (900, 4), (801, 4), (800, 3), (700, 3)):      # row 1020: below 801 px the cells sit in three columns (date and name, the second line, then state and progress)
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, s.port, width, "light", "TUL")
                 got = cdp.js(MEASURE, sid)
