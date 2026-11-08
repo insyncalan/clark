@@ -162,18 +162,27 @@ def onedrive_roots(home=None, on=None):
 SYNCED_SERVICES = ("Dropbox", "iCloud Drive", "Google Drive")      # NEW (step 6): the names the synced-folder lines say
 
 
+def _dropbox_name(name):
+    """Whether a name in the home folder is Dropbox's own: "Dropbox", "Dropbox (Personal)" or "Dropbox - Company"."""
+    return name == "Dropbox" or name.startswith("Dropbox (") or name.startswith("Dropbox -")
+
+
 def synced_roots(home=None, on=None):
     """NEW (step 6). The Dropbox, iCloud Drive and Google Drive folders on this machine, as (service, folder) pairs, sorted,
-    only those that exist. Like OneDrive's they are looked for by their usual places: Dropbox in ~/Dropbox* and
+    only those that exist. Like OneDrive's they are looked for by their usual places: Dropbox in ~/Dropbox, ~/Dropbox (...), ~/Dropbox - ... and
     ~/Library/CloudStorage/Dropbox*; iCloud Drive in ~/Library/Mobile Documents (which holds com~apple~CloudDocs and every
     app's iCloud folder); Google Drive in ~/Library/CloudStorage/GoogleDrive-*, ~/Google Drive and ~/My Drive. Inside the
     shipped container there is nothing to find (an empty list); on another system that is not the Mac it raises NotBuiltYet."""
     if (on or system()) == "linux" and container_mode():
         return []
     _only_mac("Finding Dropbox, iCloud Drive and Google Drive", on)
-    home = Path(home or Path.home())
+    try:
+        home = Path(home or Path.home())
+    except RuntimeError:                                     # no HOME to be found: nothing can be looked for, and nothing must crash
+        return []
     storage = home / "Library" / "CloudStorage"
-    found = [("Dropbox", p) for p in list(storage.glob("Dropbox*")) + list(home.glob("Dropbox*"))]
+    # In the home folder Dropbox is "Dropbox" or "Dropbox (Name)" / "Dropbox - Name", not any name that starts with it (Dropbox-old).
+    found = [("Dropbox", p) for p in list(storage.glob("Dropbox*")) + [q for q in home.glob("Dropbox*") if _dropbox_name(q.name)]]
     found += [("iCloud Drive", home / "Library" / "Mobile Documents")]
     found += [("Google Drive", p) for p in list(storage.glob("GoogleDrive-*")) + [home / "Google Drive", home / "My Drive"]]
     return sorted((service, p) for service, p in found if p.is_dir())
