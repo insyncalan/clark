@@ -13,6 +13,7 @@ import { printing } from "../stores/print.js";
 import { reduced } from "../stores/motion.js";
 
 const PXD0 = 5, BASE = 68, LINE = 20;       // pixels a day at 100%, the strip's own height and each label line's (zoom scale)
+const SBROOM = 16;                              // an overlay scrollbar's height, kept free under the last lane
 const MARGIN = 2;                               // spare pixels added to every measured label width (sub-pixel differences between fonts and systems)
 const PRINT_W = 680;                            // the printed line is this wide (an A4 page less its margins): the whole span fits, nothing scrolls (row 767)
 const LY0 = 50, T00 = 64, LANE = 20, GAP = 8;   // the line, the first label lane and each lane's height never shrink: a label is always readable
@@ -35,6 +36,7 @@ export function MsTimeline({ rows: all, today, place, open }) {
   labs.sort((a, b) => a.x - b.x);
   const strip = useRef(null);
   const [widths, setWidths] = useState({});           // each label's real width, measured after it draws
+  const [room, setRoom] = useState(0);              // overlay scrollbars (macOS) take no room but are drawn over the bottom of the box while it scrolls sideways: the last lane keeps clear of them
   const [sb, setSb] = useState(0);                      // the height of the sideways scrollbar when the system draws one inside the box (Linux, Windows)
   const [, setTick] = useState(0);                  // bumped when fonts finish loading or the window changes size: measure again
   const Tag = open ? "button" : "span";            // in a published file a mark or label is plain text, not a button
@@ -46,7 +48,7 @@ export function MsTimeline({ rows: all, today, place, open }) {
   labs.forEach((l, i) => { l.line = lines[i]; });
   const nLines = Math.max(1, ...labs.map((l) => l.line + 1));
   const need = T00 + nLines * LANE + 6;
-  const height = Math.max(need, Math.round((BASE + nLines * LINE) * z)) + sb;   // the lanes and the box come from the same measured widths
+  const height = Math.max(need, Math.round((BASE + nLines * LINE) * z)) + sb + room;   // the lanes and the box come from the same measured widths
   const allMonths = monthStarts(start, end);
   const months = fit ? allMonths.filter((_, i) => i % Math.ceil(allMonths.length / 10) === 0) : allMonths;   // on the page about ten names fit
   useLayoutEffect(() => {                              // measure the labels; if any width changed, lay them out again
@@ -60,6 +62,8 @@ export function MsTimeline({ rows: all, today, place, open }) {
       const cs = getComputedStyle(w);
       const bars = Math.max(0, Math.round(w.offsetHeight - w.clientHeight - parseFloat(cs.borderTopWidth || 0) - parseFloat(cs.borderBottomWidth || 0)));
       if (bars !== sb) setSb(bars);
+      const over = bars === 0 && w.scrollWidth > w.clientWidth + 1 ? SBROOM : 0;      // no scrollbar room of its own, yet it scrolls sideways: an overlay one
+      if (over !== room) setRoom(over);
     }
   });
   useEffect(() => {                                   // measure again once the fonts are in and when the window changes size
@@ -87,14 +91,14 @@ export function MsTimeline({ rows: all, today, place, open }) {
       clearTimeout(timer);
       timer = setTimeout(() => {
         centre.current = (w.scrollLeft + w.clientWidth / 2) / (w.scrollWidth || 1);
-        const next = clampZoom(Math.round((h - sb) / (BASE + nLines * LINE) * 100) / 100);
+        const next = clampZoom(Math.round((h - sb - room) / (BASE + nLines * LINE) * 100) / 100);
         remember(`tlZoom.${place}`, next);
         setZoom(next);
       }, 120);
     });
     ro.observe(w);
     return () => { clearTimeout(timer); ro.disconnect(); };
-  }, [height, nLines, place, sb]);
+  }, [height, nLines, place, sb, room]);
 
   const reset = () => { centre.current = (wrap.current.scrollLeft + wrap.current.clientWidth / 2) / (wrap.current.scrollWidth || 1); remember(`tlZoom.${place}`, 1); setZoom(1); };
   const step = (k) => { const w = wrap.current; if (w) w.scrollBy({ left: k * 30 * PXD0 * z, behavior: reduced() ? "auto" : "smooth" }); };

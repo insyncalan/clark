@@ -45,6 +45,13 @@ def tearDownModule():
     shutil.rmtree(EMPTY_BRANDING, ignore_errors=True)
 
 
+CLEAR = r"""(() => {
+  const wrap = document.querySelector('.mv-wrap'), w = wrap.getBoundingClientRect();
+  let low = 0; for (const l of document.querySelectorAll('.mv-strip .mv-lab')) low = Math.max(low, l.getBoundingClientRect().bottom);
+  return JSON.stringify({ scrolls: wrap.scrollWidth > wrap.clientWidth, clear: Math.round((w.bottom - low) * 10) / 10, wrapH: wrap.offsetHeight, clientH: wrap.clientHeight });
+})()"""
+
+
 class Labels(unittest.TestCase):
     def setUp(self):
         assert Path(CHROME).is_file(), f"Google Chrome is needed for the required browser tests ({CHROME}); set CLARK_CHROME"
@@ -82,6 +89,22 @@ class Labels(unittest.TestCase):
                     self.assertGreater(len(got["labels"]), 1, where)
                     for item in got["labels"]:
                         self.assertEqual(item["on"], "label", f"{where}: the Today line is drawn over the label {item['lab']} ({item['on']}); geometry {item['why']}")
+
+
+    def test_the_last_lane_keeps_clear_of_an_overlay_scrollbar(self):
+        """macOS draws its scrollbar over the bottom of a box that scrolls sideways while it scrolls: no label may sit under it
+        (the Today-line probe then reads the box, not the label). Scrollbars are hidden here as on the Mac (no room taken)."""
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            cdp.call("Page.enable", {}, sid)
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
+            cdp.call("Emulation.setScrollbarsHidden", {"hidden": True}, sid)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#milestones&p=TUL"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-strip .mv-lab').length", sid) > 1), "the timeline drew")
+            got = json.loads(cdp.js(CLEAR, sid))
+            self.assertTrue(got["scrolls"], "the fixture's line scrolls sideways")
+            self.assertGreaterEqual(got["clear"], 16, f"the last label ends {got['clear']} px above the box's bottom edge, inside where an overlay scrollbar is drawn: {got}")
 
 
 if __name__ == "__main__":
