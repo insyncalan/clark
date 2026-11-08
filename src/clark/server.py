@@ -565,13 +565,16 @@ def brand_picture_route(handler, name, brand_id=None):
 
 
 # ===== The page and the data (the seams to #35 and #31) =====
+# #960: the base text size (brand/tokens.css --size-body); this server imports nothing from clark, so a test keeps the two equal.
+BODY_SIZE = "15px"
 PLACEHOLDER = """<!doctype html>
 <html lang="en-GB"><head><meta charset="utf-8"><title>clark</title>
-<style>body{font:16px system-ui,sans-serif;margin:3rem}</style></head>
+<style>body{font:@SIZE_BODY@ system-ui,sans-serif;margin:3rem}</style></head>
 <body><p id="state">clark is starting.</p>
 <script>document.getElementById("state").dataset.ready = "1";</script>
 </body></html>
 """
+PLACEHOLDER = PLACEHOLDER.replace("@SIZE_BODY@", BODY_SIZE)
 
 
 def placeholder_html():
@@ -989,7 +992,7 @@ PREVIEW_GONE = """<!doctype html>
 <title>Preview not available</title>
 <style>
 :root { color-scheme: light dark; }
-body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: #f4f6f9; color: #1d2733; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: @SIZE_BODY@/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: #f4f6f9; color: #1d2733; }
 main { box-sizing: border-box; max-width: 34rem; margin: 24px; padding: 28px 32px; background: #fff; border: 1px solid #d9dee5; border-radius: 12px; }
 h1 { margin: 0 0 8px; font-size: 1.4rem; font-weight: 500; }
 p { margin: 0 0 8px; color: #55606e; }
@@ -1000,6 +1003,7 @@ p { margin: 0 0 8px; color: #55606e; }
 <p>Go back to clark, open your menu (the circle at the top right) and choose Preview the page in a new tab for a new one.</p>
 </main></body></html>
 """
+PREVIEW_GONE = PREVIEW_GONE.replace("@SIZE_BODY@", BODY_SIZE)
 
 
 def page_for(page_html, code):
