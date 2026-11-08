@@ -380,6 +380,12 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 
 /* Work items on a phone (item 130, point 5): compact controls, and each row is a small card that shows Status, Due and Priority under the
    item, so nothing scrolls sideways. 640 px and below only; the 900 and 1400 px table is unchanged. */
+@media (max-width: 700px) {      /* the published file has no editor rules: its tabs scroll inside their own bar, so the bar never pushes the page sideways (the editor's edit.css says the same) */
+  .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .top .tabs::-webkit-scrollbar { display: none; }
+  .top .tab { flex: none; }
+  .top .asat { flex: none; white-space: nowrap; }
+}
 @media (max-width: 640px) {
   .top { gap: 6px; padding: 0 6px; }
   .top .logo-icon { margin-right: var(--space-1); }
@@ -2068,12 +2074,12 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
    per card. The icon is a small tinted square: its letter is the kind, its colour the status (the status pill is gone). In a published file
    (.is-file) the status is also a small word beside the icon (beneath it when narrow), because a tooltip does not exist on paper or in a PDF.
    Narrow: the owner's name drops to the avatar first (900), then the priority (560); the id and the title never wrap (the title is cut with ...). */
-.irows { --cols: 28px minmax(0, 1fr) 150px 104px 84px 72px; }
-.irows.is-edit { --cols: 28px minmax(0, 1fr) 150px 104px 84px 100px; }
-.irows.is-file { --cols: 112px minmax(0, 1fr) 150px 104px 84px; }
-.irows.is-dec { --cols: 28px minmax(0, 1fr) 150px 170px 84px 72px; }
-.irows.is-dec.is-edit { --cols: 28px minmax(0, 1fr) 150px 170px 84px 100px; }
-.irows.is-dec.is-file { --cols: 112px minmax(0, 1fr) 150px 170px 84px; }
+.irows { --cols: 28px minmax(0, 1fr) 160px 112px 84px 88px; }      /* the date column holds 20-10-2026 and the id column ABC-A-001 whole (a 104 and a 72 px column cut them and the date ran into the id) */
+.irows.is-edit { --cols: 28px minmax(0, 1fr) 160px 112px 84px 124px; }
+.irows.is-file { --cols: 112px minmax(0, 1fr) 160px 112px 84px; }
+.irows.is-dec { --cols: 28px minmax(0, 1fr) 160px 184px 84px 88px; }
+.irows.is-dec.is-edit { --cols: 28px minmax(0, 1fr) 160px 184px 84px 124px; }
+.irows.is-dec.is-file { --cols: 112px minmax(0, 1fr) 160px 184px 84px; }
 .irows .wl-row, .irows .wl-head { display: grid; grid-template-columns: var(--cols); gap: 0 12px; align-items: center; min-height: 40px; padding: 6px 0; }
 .irows .wl-head { min-height: 0; padding: 4px 0 6px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-small); color: var(--text-muted); }
 .irows .wl-row > *, .irows .wl-head > * { min-width: 0; }
@@ -2090,6 +2096,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .irows .wl-head .c-ico, .irows .wl-head .c-owner, .irows .wl-head .c-date, .irows .wl-head .c-prio { font-size: var(--size-small); color: var(--text-muted); }
 .irows:not(.is-file) .wl-head .c-ico { overflow: hidden; text-indent: -999px; }      /* the icon column is its own header in the app; the file names it (Status) */
 .irows .c-id { display: flex; justify-content: flex-end; }
+.irows .c-id .idl { margin: 0; }      /* the shared -4 px margin pushed the last id letter 4 px out of the row's right edge */
 .ico { position: relative; display: inline-grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 6px; font-size: var(--size-caption); font-weight: var(--weight-semibold); line-height: 1; background: var(--grey-100); color: var(--grey-700); }
 .ico.r { background: var(--status-red-tint); color: var(--status-red-text); }
 .ico.a { background: var(--status-amber-tint); color: var(--status-amber-text); }
@@ -2100,23 +2107,37 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .irows [data-tip]:hover::after, .irows [data-tip]:focus-visible::after { left: 0; right: auto; }
 .ico-w { font-size: var(--size-caption); color: var(--text); white-space: nowrap; }
 @media (max-width: 900px) {
-  .irows, .irows.is-edit { --cols: 28px minmax(0, 1fr) 28px 104px 84px 72px; }
-  .irows.is-edit { --cols: 28px minmax(0, 1fr) 28px 104px 84px 100px; }
-  .irows.is-file { --cols: 112px minmax(0, 1fr) 28px 104px 84px; }
-  .irows.is-dec { --cols: 28px minmax(0, 1fr) 28px 170px 84px 72px; }
-  .irows.is-dec.is-edit { --cols: 28px minmax(0, 1fr) 28px 170px 84px 100px; }
-  .irows.is-dec.is-file { --cols: 112px minmax(0, 1fr) 28px 170px 84px; }
-  .irows .c-owner .nm { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }      /* the name stays the avatar's spoken name */
-  .irows .wl-head .c-owner { overflow: hidden; text-indent: -999px; }
-  .irows .c-owner { position: relative; }
+  /* the screen shows initials from here down; the published file (.is-file) and the printed page keep the full name (paper has room, initials alone are ambiguous) */
+  .irows:not(.is-file), .irows.is-edit { --cols: 28px minmax(0, 1fr) 28px 112px 84px 88px; }
+  .irows.is-edit { --cols: 28px minmax(0, 1fr) 28px 112px 84px 124px; }
+  .irows.is-dec { --cols: 28px minmax(0, 1fr) 28px 184px 84px 88px; }
+  .irows.is-dec.is-edit { --cols: 28px minmax(0, 1fr) 28px 184px 84px 124px; }
+  .irows:not(.is-file) .c-owner .nm { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }      /* the name stays the avatar's spoken name */
+  .irows:not(.is-file) .wl-head .c-owner { overflow: hidden; text-indent: -999px; }
+  .irows:not(.is-file) .c-owner { position: relative; }
+}
+@media (max-width: 720px) {      /* the file at phone width: the status icon and word at the left, the title, the date and the priority on the first line, the full owner name under the title (the date and the status take too much of the width for the name to keep a column of its own) */
+  .irows.is-file, .irows.is-dec.is-file { --cols: 60px minmax(0, 1fr) 112px 84px; row-gap: 0; }
+  .irows.is-file .wl-row { padding: 4px 0; }
+  .irows.is-file .wl-row > .c-ico { grid-row: 1 / span 2; align-self: start; flex-direction: column; align-items: flex-start; gap: 2px; }
+  .irows.is-file .wl-row > .c-title { grid-column: 2; grid-row: 1; }
+  .irows.is-file .wl-row > .c-date { grid-column: 3; grid-row: 1 / span 2; align-self: start; }      /* a decision's date takes two lines: it spans both rows */
+  .irows.is-file .wl-row > .c-prio { grid-column: 4; grid-row: 1; }
+  .irows.is-file .wl-row > .c-owner { grid-column: 2; grid-row: 2; }
+  .irows.is-file .c-owner .nm { white-space: normal; }
+  .irows.is-file .wl-head .c-owner { display: none; }
+  .irows.is-file.is-dec .c-date { white-space: normal; line-height: 1.25; }
 }
 @media (max-width: 560px) {
-  .irows, .irows.is-dec { --cols: 28px minmax(0, 1fr) 28px 92px 72px; }
-  .irows.is-edit, .irows.is-dec.is-edit { --cols: 28px minmax(0, 1fr) 28px 92px 100px; }
-  .irows.is-file, .irows.is-dec.is-file { --cols: 60px minmax(0, 1fr) 28px 92px; }
+  .irows:not(.is-file), .irows.is-dec:not(.is-file) { --cols: 28px minmax(0, 1fr) 28px 112px 88px; }
+  .irows.is-edit, .irows.is-dec.is-edit { --cols: 28px minmax(0, 1fr) 28px 112px; row-gap: 2px; }      /* Edit: the id and the eye are wider than the room left, so they sit under the title, at the right */
+  .irows.is-edit .wl-row > .c-id { grid-column: 2; grid-row: 2; }
+  .irows.is-edit .wl-row > .c-date { grid-column: 4; grid-row: 1 / span 2; align-self: start; }      /* a decision's date takes two lines here: it spans both rows, so it never runs down onto the id */
+  .irows.is-edit .wl-head .c-id { display: none; }
   .irows .wl-row, .irows .wl-head { gap: 0 8px; }
   .irows .c-prio { display: none; }
-  .irows.is-file .c-ico { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .irows.is-dec .c-date { white-space: normal; line-height: 1.25; }      /* 'Needed by 03-11-2026' goes on two lines rather than run into its neighbour */
+  .irows.is-file, .irows.is-dec.is-file { --cols: 60px minmax(0, 1fr) 112px; }
 }
 .item-rows-edit .note { color: var(--text-muted); }
 .item-rows-edit .add-from { display: inline-block; margin-top: 6px; }

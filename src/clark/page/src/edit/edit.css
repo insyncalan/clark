@@ -1058,6 +1058,10 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .irows .wl-title .cell-ce { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .irows .wl-title .cell-ce:focus { text-overflow: clip; }
 .irows .c-id .ib { flex: none; }
+@media (max-width: 560px) {      /* a decision's 'Needed by 03-11-2026' in Edit goes on two lines in its 112 px column rather than run into the id */
+  .irows.is-dec .c-date .cell-pick[data-cell$=":due"] { white-space: normal; line-height: 1.25; }
+  .irows.is-dec .c-date .cell-pick[data-cell$=":due"] .cell-val { flex: 0 1 auto; min-width: 0; }
+}
 /* The milestone peek's Description while its editor is open: the cell is half the peek at phone width, which left the toolbar 134 px of room and
    four or more rows. The open editor takes the whole row there, so the toolbar wraps to two rows at most. Edit only (the editor is). */
 @container (max-width: 559px) { .pk-fields > .pk-row[data-row=description]:has(.rt) { grid-column: 1 / -1; } }
