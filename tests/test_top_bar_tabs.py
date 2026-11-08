@@ -167,6 +167,20 @@ class TopBarTabs(Base):
                 self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"at {width} px, {active}: the page scrolls sideways {got['scroll']}")
                 self.assertLessEqual(max(i["right"] for i in got["items"]), got["bar"][1] + 0.5, f"at {width} px, {active}: an item runs past the window")
 
+    def test_the_tab_row_keeps_room_for_its_tabs_at_420_and_360_px(self):
+        # Row 1033: at 420 px the project name kept 160 px, so the tab row got 61 px (360 px: 1 px) and Settings, last of the five tabs, sat far off the
+        # bar's edge. The name gives way first (as it does from 801 to 1000 px); the row keeps room for at least a tab and a quarter and still scrolls inside its box.
+        # Row 976 (a branch) drops the Settings tab from the bar; this test then needs only the row's room, so it names the last tab, whichever it is.
+        for width in (420, 360):
+            for edit in (False, True):
+                with self.subTest(width=width, edit=edit):
+                    got = self.measure(width, "light", True, edit)
+                    where = f"at {width} px{', Edit' if edit else ''}"
+                    self.assertGreaterEqual(got["row"][1] - got["row"][0], 110, f"{where}: the tab row is only {got['row'][1] - got['row'][0]:.0f} px wide; the project name is {got['name']:.0f} px")
+                    self.assertGreaterEqual(got["name"], 48, f"{where}: the project name box is squeezed to {got['name']:.0f} px")
+                    self.assertLessEqual(max(i["right"] for i in got["items"]), got["bar"][1] + 0.5, f"{where}: an item runs past the window")
+                    self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"{where}: the page scrolls sideways {got['scroll']}")
+
     def test_a_row_narrowed_after_the_scroll_shows_the_open_tab_again_at_900(self):
         # The exact failing case: 900 px, the profile circle in the bar, the last tab open; then the tab row narrows (as it does when the mode switch joins
         # the bar on leaving the Dashboard) and the open tab, already scrolled to, must be brought into the row again.
