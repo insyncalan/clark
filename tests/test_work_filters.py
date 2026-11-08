@@ -650,6 +650,7 @@ class RealBrowser(unittest.TestCase):
             key(cdp, sid, "Tab")                                                              # a key press makes the focus a keyboard one
             cdp.js("document.querySelector('#newBtn').focus()", sid)
             self.assertTrue(wait(lambda: width() > small + 40), "and on keyboard focus")
+            self.assertTrue(wait(lambda: cdp.js("getComputedStyle(document.querySelector('#newBtn .w')).opacity", sid) == "1"), "its words fully shown")   # they fade in as it grows
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#newBtn .w')).opacity", sid), "1")
 
     def test_dark_tokens_are_there_and_differ_from_light_and_the_profile_tokens_are_neutral(self):

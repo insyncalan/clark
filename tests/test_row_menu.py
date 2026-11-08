@@ -825,7 +825,7 @@ class Menu(board.Base):
             self.until(cdp, sid, "document.getElementById('late-panel').hasAttribute('inert')", "the late panel to be held")
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('[data-draft-email]')", "the dialog to close")
-            self.assertFalse(cdp.js("!!document.querySelector('[inert]')", sid), "all released again")
+            self.until(cdp, sid, "!document.querySelector('[inert]')", "all released again")   # the release follows the close by a frame
 
     def test_draft_email_for_an_item_with_no_owner_stays_greyed_with_its_reason(self):
         with chrome() as cdp:
