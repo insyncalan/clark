@@ -141,10 +141,10 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
             safety += 1
             secret_labels.append(label)
             continue
-        parts = ask_data._cut(label, list(_chunks(lines)))[:MAX_PARTS]
+        parts = [ask.Passage(p.label, p.text, file=label) for p in ask_data._cut(label, list(_chunks(lines)))[:MAX_PARTS]]
         chars += sum(len(p.text) for p in parts)
         if len(parts) > 1:
-            parts = [ask.Passage(f"{label} (part {i})", p.text) for i, p in enumerate(parts, 1)]
+            parts = [ask.Passage(f"{label} (part {i})", p.text, file=label) for i, p in enumerate(parts, 1)]
         passages += parts
     chosen, left = ask_data.choose(passages, question, budget)
     if len(chosen) > max_passages:

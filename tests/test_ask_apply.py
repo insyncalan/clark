@@ -83,6 +83,15 @@ class WorkItems(Base):
         self.assertEqual(status, 200, body)
         self.assertIsNone(self.s.read("actions", ref=ref))
 
+    def test_an_item_ask_clark_creates_has_the_source_added_by_ask_clark(self):      # #1009: not 'by hand'
+        for kind, table, title in (("action", "actions", "Book the van"), ("milestone", "milestones", "Pilot starts")):
+            plan = self.planned({"op": "new", "kind": kind, "title": title, **({"owner": "Sam Lee"} if kind == "action" else {"agreed_date": "2030-02-01"})})
+            done = self.applied(plan["offer"])
+            self.assertEqual(self.s.read(table, ref=done["ref"])["source"], changes.ASK_SOURCE)
+            self.assertEqual(changes.ASK_SOURCE, "Added by ask clark")
+        hand = self.demo.action(owner="Sam Lee")
+        self.assertNotEqual(self.s.read("actions", ref=hand)["source"], changes.ASK_SOURCE)
+
     def test_change_an_action_and_undo_puts_the_old_values_back(self):
         plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan",
                              "current_owner": "Sam Lee", "owner": "Ana Ruiz", "due": "2030-01-15"})

@@ -45,6 +45,7 @@ export function ReportBar() {
       change({ kind: "projects", op: "update", changes: { week_ending: iso }, place: "cell" }, `Week ending changed to ${shownDay(iso)}.`).then(ownToast);
       return;
     }
+    if (!raw && stored) { say("problem", "Week ending cannot be left empty. The old week ending date was kept."); ownToast(); el.value = shownDay(week); return; }       // item 535: a cleared box says why the date came back
     if (!raw || iso === week) { el.value = shownDay(week); return; }
     if (!iso) { say("problem", problem.day + " The old week ending date was kept."); ownToast(); el.value = shownDay(week); return; }       // not a day: the old one comes back
     if (!isFriday(iso)) { say("problem", notFriday(iso) + " The old week ending date was kept."); ownToast(); el.value = shownDay(week); return; }       // item 570: the server says the same

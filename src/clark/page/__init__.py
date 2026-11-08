@@ -54,6 +54,7 @@ DEMO_ID = "brand-demo"            # the named hook: the local brand is layered a
 PICTURE_DIR = "assets"            # beside the user's tokens.css
 PICTURES = {"cover.png": "image/png", "cover.jpg": "image/jpeg", "cover.jpeg": "image/jpeg", "cover.webp": "image/webp"}
 PICTURE_MAX_BYTES = 5 * 1024 * 1024
+NO_BRAND = Path(os.devnull)       # #944: a "folder" with no tokens.css, so page_html(branding=NO_BRAND) has no brand block (a project on Generic)
 CLIENT_BRAND = ":root { --logo-icon: none; }\n"      # before the user's tokens, so theirs win
 
 
@@ -310,6 +311,16 @@ def after_demo_block(html):
         raise PageError(f'The page has no <style id="{DEMO_ID}"> block, so your brand cannot be layered over it. Rebuild the '
                         "page (python3 dev/tools/build_page.py) and start clark again.")
     return end.end()
+
+
+def brand_picture_of(name, brand_id=None):
+    """The server's picture seam (#944): no id, the one brand folder as before; an id, that installed brand's picture. The id is looked
+    up in brands.installed (through brands.folder), never joined onto a path; Generic and an unknown id have none."""
+    if brand_id is None:
+        return brand_picture(name)
+    from clark import brands
+    folder = brands.folder(BRANDING.parent.parent, brand_id)
+    return None if folder is brands.GENERIC else brand_picture(name, folder)
 
 
 def page_html(branding=None, view=False):

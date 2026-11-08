@@ -1,7 +1,7 @@
 // The project switcher in the top bar (A-D25, and item 439 row 37, prototype core.js:292-295): the open project's name, always a button,
 // with a chevron and a menu. The menu lists the projects (the open one marked, each with "N open items"), then "Project settings".
-// Choosing a project is setProject(): one new address entry, so Back returns to the project before, and the toast says
-// "Switched to <name>". Only the editor has it (a published file shows the name as plain words and never asks a server). The list is
+// Choosing a project is setProject(): one new address entry and a page load for that project (#944), so Back returns to the project before;
+// the name in the bar says which is open, so there is no message. Only the editor has it (a published file shows the name as plain words and never asks a server). The list is
 // GET /api/projects, read when the bar draws and again each time the menu opens (so the counts follow the work done since); until it is read, or if it cannot be, the menu has the open project and Project settings.
 // "New project..." (row 856) opens the project form Settings uses; the new project opens on Work items. The menu starts on the open project.
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -10,7 +10,6 @@ import { token, project, setProject, show, loadProjects, openProjectAt } from ".
 import { say } from "../stores/changes.js";
 import { openBox, closeBox } from "./boxes.js";
 import * as D from "../logic/dataCard.js";
-import { ownToast } from "./BarToast.jsx";
 
 const NEW = "\u0000new";
 const SETTINGS = "\u0000settings";      // not a project code, so no project can be mistaken for it
@@ -45,10 +44,7 @@ export function ProjectSwitch({ name }) {
   const pick = (id) => {
     if (id === NEW) { openBox("project", { row: null, opener: document.getElementById("project-name"), onSaved: created }); return; }
     if (id === SETTINGS) { show("settings"); return; }
-    const row = rows.find((p) => p.code === id);
     setProject(id);
-    say("note", `Switched to ${(row && row.name) || id}`, null, id);
-    ownToast();       // made in View too, so View shows it (BarToast.jsx)
   };
   return <Menu id="project-name" btnCls="proj projbtn" label={shown} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left items={items} onPick={pick} onOpen={read} focusChecked />;
 }
