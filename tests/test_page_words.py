@@ -197,10 +197,9 @@ class Words(unittest.TestCase):
                                   "See the Dashboard as it stood at the end of a day, rebuilt from the change history. Read only; it was not published in this form.",
                                   "Day", "Show",      # the box's label is read by a screen reader only
                                   "Personal",    # #45: Settings › Personal, the section styles
-                                  "These are for you, on this computer. The section style is used on the published report too; Light or Dark is yours alone.",
-                                  "Dashboard sections", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture.",
-                                  "Roomy gaps", "The same, with more space between the sections.", "Grey headers", "Slim gaps, and each section title in a grey band, like the Work items groups.",
-                                  "One card", "All the sections in one long card.",
+                                  "These are for you, on this computer. The Spacing is used on the published report too; Light or Dark is yours alone.",
+                                  "Spacing", "Compact", "Tighter gaps and shorter rows, so more fits on the screen.",
+                                  "Comfortable", "Looser gaps and taller rows, with more room around everything.",
                                   "Appearance", "System", "Light", "Dark", "Follows your Mac's setting.",      # #179
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",

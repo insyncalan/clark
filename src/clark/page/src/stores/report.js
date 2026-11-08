@@ -9,7 +9,7 @@ import { decode, encode, fits, hasReviewDates, setPublished, setReviewDays } fro
 import { searchIndex } from "../clientView.js";
 import { lineApi } from "./lineSlot.js";
 import { ucKey } from "../logic/useCasesList.js";
-import { useFileStyle } from "./style.js";
+import { useFileDensity } from "./density.js";
 import { leaving, saved, beforeReload, trouble } from "./leave.js";
 import { editorOn, tabName } from "../gantt/ganttTab.js";
 
@@ -315,7 +315,7 @@ function openPublished(p) {
   project.value = p.data.project.code;
   asAt.value = p.as_at || "";
   publication.value = p.publication && Number.isInteger(p.publication.n) && p.publication.n >= 1 ? p.publication.n : 0;
-  useFileStyle(p.style);                                  // the look it was published with (#45); a file written before that has the default
+  useFileDensity(p.style);                                  // the look it was published with (#45); a file written before that has the default
   data.value = { ...p.data, report_sections: Array.isArray(p.sections) ? p.sections : [] };     // the file holds only the sections that show
   status.value = "ready";
   settle();

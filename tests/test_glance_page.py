@@ -493,21 +493,21 @@ class Styles(Setup):
         with chrome() as cdp:
             p = self.show(cdp, hash_="#settings&p=ABC", settings=True, standard=True)
             p.until("!!document.querySelector('#personal')", "Personal")
-            self.assertEqual(p.js("[...document.querySelectorAll('input[name=secstyle]')].map(i => i.value)"), ["slim", "roomy", "grey", "card"])
-            self.assertEqual(p.js("document.querySelector('input[name=secstyle]:checked').value"), "card", "One card is the default")
-            for value in ("roomy", "grey", "card", "slim"):
-                p.js(f"document.querySelector('input[name=secstyle][value={value}]').click()")
-                p.until(f"document.documentElement.dataset.secstyle === '{value}'", f"{value} applied")
-            p.js("document.querySelector('input[name=secstyle][value=grey]').click()")
+            self.assertEqual(p.js("[...document.querySelectorAll('input[name=density]')].map(i => i.value)"), ["compact", "comfortable"])
+            self.assertEqual(p.js("document.querySelector('input[name=density]:checked').value"), "compact", "Compact is the default")
+            for value in ("comfortable", "compact"):
+                p.js(f"document.querySelector('input[name=density][value={value}]').click()")
+                p.until(f"document.documentElement.dataset.density === '{value}'", f"{value} applied")
+            p.js("document.querySelector('input[name=density][value=comfortable]').click()")
             reload_to_new_page(p.js)
-            p.until("document.documentElement.dataset.secstyle === 'grey'", "remembered after a reload")
+            p.until("document.documentElement.dataset.density === 'comfortable'", "remembered after a reload")
             gap = []
-            for value in ("slim", "roomy"):
+            for value in ("card", "roomy"):
                 p.js(f"document.documentElement.dataset.secstyle = '{value}'")
                 p.js("location.hash = '#dashboard&p=ABC'")
                 p.until("!!document.querySelector('.secs')", "dashboard")
                 gap.append(p.js("parseFloat(getComputedStyle(document.querySelector('.secs')).rowGap)"))
-            self.assertGreater(gap[1], gap[0], "Roomy gaps are roomier than Slim gaps")
+            self.assertGreater(gap[1], gap[0], "the looser section rules are roomier than the One card ones")
 
 
 class Published(PublishedFile, Setup):
@@ -598,7 +598,7 @@ class Published(PublishedFile, Setup):
         copy.write_text(marked, encoding="utf-8")
         with chrome() as cdp:
             p = self.draw(cdp, copy)
-            self.assertEqual(p.js("document.documentElement.dataset.secstyle"), "grey")
+            self.assertEqual(p.js("document.documentElement.dataset.density"), "compact", "a file with a word the page does not map is Compact")
 
 
 class PublishedPage(unittest.TestCase):

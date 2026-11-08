@@ -46,8 +46,11 @@ class Style(unittest.TestCase):
             self.assertEqual(got["style"], "slim")
 
     def test_the_style_is_a_word_the_page_knows(self):
-        page = (Path(publish.__file__).parent / "page" / "src" / "stores" / "style.js").read_text(encoding="utf-8")
-        self.assertIn('export const IDS = ["slim", "roomy", "grey", "card"];', page)
+        # item 1025: the page speaks two densities and sends each as one of the words publish knows (the bridge in density.js)
+        page = (Path(publish.__file__).parent / "page" / "src" / "stores" / "density.js").read_text(encoding="utf-8")
+        self.assertIn('export const IDS = ["compact", "comfortable"];', page)
+        self.assertIn('sectionWord = (d) => (d === "comfortable" ? "slim" : "card")', page)
+        self.assertLessEqual({"slim", "card"}, set(publish.STYLES))
 
 
 if __name__ == "__main__":

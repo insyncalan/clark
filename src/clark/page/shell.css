@@ -1400,11 +1400,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .secpick-pic { display: grid; height: 74px; box-sizing: border-box; padding: var(--space-2); gap: var(--space-1); margin-bottom: 6px; border-radius: 6px; background: var(--grey-100); grid-template-rows: 12px 1fr 1fr; }
 .secpick-pic i { display: block; border-radius: 3px; background: var(--surface); border: 1px solid var(--grey-700); }
 .secpick-pic i:first-child { background: var(--heading); border: 0; }
-.sk-roomy .secpick-pic { gap: var(--space-2); }
-.sk-grey .secpick-pic i:nth-child(n+2) { background: linear-gradient(var(--grey-300) 0 5px, var(--surface) 5px); }
-.sk-card .secpick-pic { gap: 0; }
-.sk-card .secpick-pic i:nth-child(2) { border-radius: 3px 3px 0 0; }
-.sk-card .secpick-pic i:nth-child(3) { border-top: 0; border-radius: 0 0 3px 3px; }
+.sk-comfortable .secpick-pic { gap: var(--space-2); }
+.sk-compact .secpick-pic { gap: 0; }
+.sk-compact .secpick-pic i:nth-child(2) { border-radius: 3px 3px 0 0; }
+.sk-compact .secpick-pic i:nth-child(3) { border-top: 0; border-radius: 0 0 3px 3px; }
 .secpick-name { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 22px; }
 .secpick-tick { display: none; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--brand-blue); color: var(--text-on-brand); }
 .secpick input:checked + .secpick-card .secpick-tick { display: grid; }
