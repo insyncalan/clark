@@ -130,6 +130,8 @@ def _holds_data(top, name, data):
 def stale_names(top, data=None):
     """Which of src, vendor and clark are beside .app (a link counts: it is as much in the way). A name that is the data folder
     (or holds it) is not listed: moving it would move the person's data."""
+    if _holds_data(top, FOLDER, data):
+        return []                                                   # the data folder is called clark older files, or is inside it: nothing moves
     return [n for n in STALE if os.path.lexists(os.path.join(str(top), n)) and not _holds_data(top, n, data)]
 
 
@@ -305,11 +307,13 @@ def put_back(top, copies, files, data=None):
     return count
 
 
-def move_stale(top, names):
+def move_stale(top, names, data=None):
     """Rename each of `names` into the one folder "clark older files" beside .app. Returns the names moved. Never deletes."""
     top = Path(top)
     folder = top / FOLDER
     moved = []
+    if _holds_data(top, FOLDER, data):
+        return moved                                                # that name is the person's data: never move into it
     try:
         folder.mkdir(exist_ok=True)
         if not folder.is_dir() or folder.is_symlink():
@@ -420,7 +424,7 @@ def run(top, data, key=None, out=None, err=None, home=None, tty=None):
         if not ask("Move the older files into a folder called clark older files? Nothing is deleted and your data is not touched. "
                    "Type y for yes, or any other key for no."):
             return fallback()
-        moved, acted = bool(move_stale(top, stale)), True
+        moved, acted = bool(move_stale(top, stale, data)), True
     if not acted:
         return fallback()                                           # no right copy and nothing to move
 
