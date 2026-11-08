@@ -65,9 +65,11 @@ export function PeekLatest({ row }) {
     const words = draftFor({ due: row.due_date, status: row.status, owner: row.owner, milestone: ms ? { name: ms.name, agreed: ms.baseline_date } : null }, todayIso());
     if (words === cleanLatest(richWords(now))) { say("note", "The latest update already says that."); return; }
     const focused = document.activeElement;
-    setReopen(!!(focused && focused.closest && focused.closest(".ProseMirror")));
-    setRev((n) => n + 1);                                              // Draft replaces the text: leave the editor without saving what was typed
-    changeCell("actions", row.id, { latest_update: words }, { text: "Latest update drafted from the item's own fields.", back: `Latest update of ${row.id} is back as it was.`, place: "draft" }).then(() => refresh());
+    const inBox = !!(focused && focused.closest && focused.closest(".ProseMirror"));    // read before the wait: the caret is where it was when Draft was pressed
+    // The editor is left only once clark has stored the draft and the page has read it again, so the new box is drawn from the drafted
+    // words (never the old text, which the next blur would save over the draft). A refused Draft leaves the box and what was typed as they are.
+    changeCell("actions", row.id, { latest_update: words }, { text: "Latest update drafted from the item's own fields.", back: `Latest update of ${row.id} is back as it was.`, place: "draft" })
+      .then(async (reply) => { if (!reply) return; await refresh(); setReopen(inBox); setRev((n) => n + 1); });
   };
   return (
     <div class="pk-latest" data-pk-latest>

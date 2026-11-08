@@ -354,6 +354,33 @@ class Browser(unittest.TestCase):
                 time.sleep(0.5)
                 self.assertTrue(cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), "and it stays there")
 
+    def test_after_draft_with_the_box_open_the_box_shows_the_drafted_words_and_a_click_elsewhere_saves_nothing_more(self):
+        """Row 549, data loss: Draft remounted the editor from the not-yet-refreshed text, so the box showed the OLD update and the next
+        blur saved that stale text as a second change over the draft. The box must show the drafted words, keep them, and send one save."""
+        a = self.action(OVERDUE)
+        ms = next(m for m in self.data["milestones"] if m["id"] == a["milestone"])
+        name = ms["name"][0].lower() + ms["name"][1:]
+        d, y, m = ms["baseline_date"][8:], ms["baseline_date"][:4], ms["baseline_date"][5:7]
+        want = f"Overdue since 22-10-2026. {a['owner']} is working on it. Needed for {name} on {d}-{m}-{y}."
+        text = lambda cdp, sid: cdp.js("(e => e ? e.textContent : null)(document.querySelector('#peek .ProseMirror'))", sid)
+
+        def press(cdp, sid, x, y):
+            for kind, buttons in (("mouseMoved", 0), ("mousePressed", 1), ("mouseReleased", 0)):
+                cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons, "clickCount": 1}, sid)
+        for dark in (False, True):
+            for width in (1400, 900):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, OVERDUE, dark=dark)
+                    self.open_box(cdp, sid)
+                    press(cdp, sid, *where(cdp, sid, "[data-pk-draft]"))
+                    self.assertTrue(wait(lambda: text(cdp, sid) == want, 15), "the box shows the drafted words, got " + repr(text(cdp, sid)))
+                    time.sleep(1)
+                    self.assertEqual(text(cdp, sid), want, "and still shows them a second later")
+                    press(cdp, sid, *where(cdp, sid, "#peek dt"))
+                    time.sleep(1)
+                    saves = [r["changes"] for r in sent if "latest_update" in r["changes"]]
+                    self.assertEqual(saves, [{"latest_update": want}], "exactly one save for the Latest update: the draft")
+
     def test_the_box_saves_on_cmd_enter_and_leaves_the_text_on_escape(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
