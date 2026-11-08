@@ -703,6 +703,27 @@ class SuiteSlots(unittest.TestCase):
         self.assertIsNotNone(got)
         self.assertFalse(old.exists())
 
+    def test_a_waiters_place_is_locked_while_it_waits(self):
+        import fcntl
+        q = Path(self.d.name) / "queue"
+        name, fd, path = run_tests.support._join(q)
+        self.addCleanup(os.close, fd)
+        other = os.open(path, os.O_RDWR)
+        self.addCleanup(os.close, other)
+        with self.assertRaises(OSError, msg="a waiting run's place must be locked, or another run clears it as a dead run's"):
+            fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    def test_a_file_in_the_queue_folder_that_is_not_a_ticket_is_left_alone(self):
+        q = Path(self.d.name) / "queue"
+        q.mkdir()
+        stray = q / "notes.txt"
+        stray.write_text("not a place in the line", encoding="utf-8")
+        os.utime(stray, (1, 1))
+        got, _ = self.take(max_wait=0.5)
+        self.addCleanup(os.close, got)
+        self.assertIsNotNone(got, "a stray file is not a run ahead")
+        self.assertTrue(stray.exists(), "only ticket-named places are cleared")
+
     def test_a_small_run_and_a_run_under_the_wrapper_need_no_slot(self):
         self.assertEqual(self.take(runs=run_tests.support.SMALL_RUN), (None, run_tests.support.BOX_JOBS))
         self.assertEqual(self.take(environ={run_tests.support.SLOT_HELD: "1"}), (None, run_tests.support.BOX_JOBS))

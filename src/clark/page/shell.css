@@ -1796,12 +1796,19 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .raid-cards { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
 .raid-n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .raid-n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .raid-n3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }   /* plan 1022: below 1100 px two cards a line, so an ID, an owner and a date fit whole */
+@media (max-width: 1400px) { .raid-n4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }   /* four across is 226 px a card at 1101 px: a whole owner does not fit, so four cards go two across up to 1400 px */
+@media (max-width: 640px) { .raid-n3, .raid-n4 { grid-template-columns: minmax(0, 1fr); } }   /* a phone: one card a line */
 .raid-card { min-width: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }
 .raid-card p { margin: 0 0 var(--space-1); }
 .raid-top { font-size: var(--size-caption); color: var(--text-muted); }
+.raid-top { display: flex; align-items: baseline; gap: 0 var(--space-1); min-width: 0; }   /* plan 1022: the kind and the ID share one line, the ID never breaks inside itself */
+.raid-top .raid-kind { flex: none; white-space: nowrap; }
+.raid-top .raid-id { white-space: nowrap; }   /* the ID shows whole: no clip, no ellipsis */
 .raid-kind { font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
-.raid-title { font-weight: var(--weight-medium); color: var(--heading); }
+.raid-title { font-weight: var(--weight-medium); color: var(--heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* plan 1022: only the title is cut, with an ellipsis */
 .raid-meta { font-size: var(--size-caption); color: var(--text-muted); }
+.raid-meta .raid-bit { display: inline-block; vertical-align: bottom; white-space: nowrap; }   /* plan 1022: the status, the owner and the date each show whole on one line; when they do not all fit, the next one goes to a second line (never an ellipsis) */
 .raid-text { margin-top: var(--space-2); color: var(--text); }
 
 /* #96 G3 Work items list (workitems): the view part. Full width draws the table, half width the two-line rows; tokens only. */
@@ -2045,6 +2052,14 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.wl:not(.cr-wl) .wl-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* plan 1022: a long title is cut with an ellipsis; the ID, the owner and the date never wrap and are never cut (the peek has the whole text) */
+.wl:not(.cr-wl) .wl-meta > span { white-space: nowrap; flex: none; }   /* the owner and the date show whole; .wl-meta wraps, so one that does not fit goes to a second line (never an ellipsis) */
+@media (max-width: 640px) {
+  .wl:not(.cr-wl) > .wl-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "state id" "main main"; }   /* a phone: the pill and the ID share the first line, the item has the whole width below */
+  .wl:not(.cr-wl) > .wl-row > .wl-state { grid-area: state; }
+  .wl:not(.cr-wl) > .wl-row > .wl-main { grid-area: main; }
+  .wl:not(.cr-wl) > .wl-row > .wl-id { grid-area: id; }
+}
 .vt { display: inline-flex; align-items: flex-end; gap: 2px; }
 .vtabmenu { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; align-self: center; cursor: pointer; color: var(--text-muted); }
 .vtabmenu:hover { background: var(--grey-100); color: var(--text); }
