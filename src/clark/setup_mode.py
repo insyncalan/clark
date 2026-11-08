@@ -14,7 +14,7 @@ import sys
 import threading
 from pathlib import Path
 
-from clark import doctor, platform, setup_page
+from clark import cloud_folder, doctor, platform, setup_page
 
 POINTER_NAME = "clark-data-folder"          # one line, beside the default data folder (not in it)
 FOLDER_PROMPT = "Choose a folder for your clark data"      # the folder window's words (the owner's, #1017); the entry point gives it to Setup
@@ -90,14 +90,34 @@ class Setup:
         path = _plain_path(str(answer) if isinstance(answer, Path) else answer)
         if path is None or path.is_symlink() or not path.is_dir():
             raise Refused("folder_refused", doctor.cant_save_line(self.seen(path or self.folder)).words, self.cant_save_page(path or self.folder))
+        self.windows_check(str(path))
+        self.cloud_check(path)
         try:
             resolved = platform.check_data_dir(path, self.onedrive_roots() if self.onedrive_roots else platform.onedrive_roots(
                 self.home, on=self.on))
         except platform.PlatformError as e:
             raise Refused("folder_refused", str(e), self.onedrive_page(path))
+        self.cloud_check(resolved)
         if not doctor._can_save_in(resolved):
             raise Refused("folder_refused", doctor.cant_save_line(self.seen(resolved)).words, self.cant_save_page(resolved))
         return resolved
+
+    def windows_check(self, text):
+        """On Windows, a path platform.windows_folder_problem refuses (a share, a device name, a bad character, too long...) is Refused:
+        OneDrive in its own words, any other problem as a folder that can't be saved in. Nothing on other systems."""
+        if (self.on or platform.system()) != platform.WINDOWS:
+            return
+        problem = platform.windows_folder_problem(text)
+        if problem == "onedrive":
+            raise Refused("folder_refused", self.onedrive_page(text), self.onedrive_page(text))
+        if problem:
+            raise Refused("folder_refused", doctor.cant_save_line(self.seen(text)).words, self.cant_save_page(text))
+
+    def cloud_check(self, folder):
+        """Refused if `folder` is inside Dropbox, iCloud Drive or Google Drive (cloud_folder's words, which name no step on the page)."""
+        words = cloud_folder.cloud_warning(folder, platform.shown(folder, self.home))
+        if words:
+            raise Refused("folder_refused", words)
 
     def cant_save_page(self, folder):
         seen = self.seen(folder)

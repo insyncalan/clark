@@ -10,7 +10,7 @@ from pathlib import Path
 
 from _paths import ROOT
 
-from clark import doctor, platform as pl, setup_mode
+from clark import cloud_folder, doctor, platform as pl, setup_mode
 
 
 class Case(unittest.TestCase):
@@ -67,6 +67,83 @@ class Report(Case):
         self.setup().report()
         self.assertFalse(self.default.exists())
         self.assertFalse(self.pointer().exists())
+
+
+class CloudFolders(Case):
+    """Finding 3: accept used only the OneDrive check; a Dropbox, iCloud Drive or Google Drive folder was kept."""
+    PLACES = (("Dropbox", "Dropbox"), ("Dropbox (Work)", "Dropbox"), ("Library/Mobile Documents/com~apple~CloudDocs", "iCloud Drive"),
+              ("Library/CloudStorage/GoogleDrive-a@b.test/My Drive", "Google Drive"), ("Google Drive", "Google Drive"))
+
+    def test_a_synced_cloud_folder_is_refused_with_the_page_words(self):
+        for place, service in self.PLACES:
+            with self.subTest(place=place):
+                inside = self.home / place / "proj"
+                inside.mkdir(parents=True)
+                service_ = self.setup(str(inside))
+                with self.assertRaises(setup_mode.Refused) as caught:
+                    service_.choose("Choose")
+                e = caught.exception
+                self.assertEqual(e.code, "folder_refused")
+                self.assertEqual(e.words, cloud_folder.cloud_warning(inside, pl.shown(inside, self.home)))
+                self.assertEqual(e.page, e.words)
+                self.assertIn(f"because it is inside {service}.", e.words)
+                for bad in ("Terminal", "Settings", "start clark again"):
+                    self.assertNotIn(bad, e.page)
+                self.assertFalse(self.pointer().exists())
+                self.assertEqual(service_.folder, self.default)
+
+    def test_the_synced_folder_itself_is_refused(self):
+        inside = self.home / "Dropbox"
+        inside.mkdir()
+        with self.assertRaises(setup_mode.Refused):
+            self.setup(str(inside)).accept(str(inside))
+
+    def test_a_link_into_a_synced_folder_is_followed_then_refused(self):
+        target = self.home / "Dropbox" / "proj"
+        target.mkdir(parents=True)
+        (self.home / "via").symlink_to(self.home / "Dropbox")
+        with self.assertRaises(setup_mode.Refused) as caught:
+            self.setup(str(self.home / "via" / "proj")).accept(str(self.home / "via" / "proj"))
+        self.assertIn("because it is inside Dropbox.", caught.exception.words)
+
+    def test_the_folder_route_gives_the_same_refusal(self):
+        inside = self.home / "Dropbox" / "proj"
+        inside.mkdir(parents=True)
+        status, body = self.setup(str(inside), prompt="Pick").api_folder()
+        self.assertEqual((status, body["code"]), (409, "folder_refused"))
+        self.assertIn("inside Dropbox", body["page"])
+
+    def test_a_remembered_synced_folder_is_ignored(self):
+        inside = self.home / "Dropbox" / "proj"
+        inside.mkdir(parents=True)
+        service = self.setup()
+        self.pointer().write_text(str(inside) + "\n", encoding="utf-8")
+        self.assertIsNone(service.remembered())
+
+    def test_a_folder_that_only_looks_similar_is_kept(self):
+        for name in ("Dropboxes", "My Dropbox notes", "Mobile", "Drive"):
+            with self.subTest(name=name):
+                ok = self.home / name / "proj"
+                ok.mkdir(parents=True)
+                self.assertEqual(self.setup().accept(str(ok)), ok.resolve())
+
+    def test_a_windows_path_with_a_problem_is_refused_when_on_windows(self):
+        service = self.setup(on=pl.WINDOWS)
+        for text, page in (("\\\\server\\share\\clark", "can't be saved in"), ("C:\\", "can't be saved in"),
+                           ("C:\\clark\\CON", "can't be saved in"), ("C:\\Users\\sam\\OneDrive\\clark", "inside OneDrive")):
+            with self.subTest(text=text):
+                with self.assertRaises(setup_mode.Refused) as caught:
+                    service.windows_check(text)
+                self.assertEqual(caught.exception.code, "folder_refused")
+                self.assertIn(page, caught.exception.page)
+
+    def test_a_good_windows_path_and_other_systems_are_not_refused(self):
+        self.assertIsNone(self.setup(on=pl.WINDOWS).windows_check("C:\\Users\\sam\\clark"))
+        self.assertIsNone(self.setup(on=pl.MAC).windows_check("\\\\server\\share\\clark"))
+
+    def test_accept_asks_the_windows_check_on_windows(self):
+        with self.assertRaises(setup_mode.Refused):
+            self.setup(on=pl.WINDOWS).accept(str(self.good))       # a posix path is not a full Windows path there
 
 
 class Choose(Case):
