@@ -10,7 +10,7 @@
 # folder, or a checkout's src): see TRANSLOCATION-PLAN.md for what that means for a quarantined download.
 #
 # Test build only (never for a shipped app): --test-data FOLDER --test-port N  bake a scratch data folder and port into the applet,
-# and CLARK_BROWSER=/usr/bin/true (a stub, so no window opens) and write the dialog text to FOLDER/../applet-out.txt instead of
+# and CLARK_BROWSER=/usr/bin/true (a stub, so no window opens) and write the dialog text to FOLDER.applet-out.txt (beside FOLDER) instead of
 # showing it, so the applet can be run unattended.
 #
 # Exit codes: 0 built, 1 stopped (the reason is said).
