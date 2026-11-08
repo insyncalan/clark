@@ -146,8 +146,12 @@ class Word(Rig):
 
     def test_word_carries_no_picture_and_no_brand_name_or_id(self):
         data = docx_build.build(self.published(), colours=excel_palette.palette(branding=self.zebra).tokens)
-        names = zipfile.ZipFile(io.BytesIO(data)).namelist()
-        self.assertFalse([n for n in names if n.startswith("word/media")], names)
+        z = zipfile.ZipFile(io.BytesIO(data))
+        names = z.namelist()
+        # The report draws two pictures of its own data (the Gantt and a progress bar, docx_build `images`), not a brand picture.
+        self.assertEqual([n for n in names if n.startswith("word/media")], ["word/media/image1.png", "word/media/image2.png"], names)
+        brand_pictures = {b[k] for b in BRANDS.values() for k in ("logo", "wave", "cover")} | {OWN_ICON}
+        self.assertTrue(brand_pictures.isdisjoint({z.read(n) for n in names if n.startswith("word/media")}))
         self.assertNotIn(b"zebra", b"".join(zipfile.ZipFile(io.BytesIO(data)).read(n) for n in names).lower())
 
     @unittest.expectedFailure
@@ -226,10 +230,8 @@ class PageAndPictures(Rig):
         self.assertIn("http://127.0.0.1:8766" + sv.BRAND_PREFIX, img)
         self.assertTrue(("/assets/zebra/cover.png").startswith(sv.BRAND_PREFIX))
 
-    @unittest.expectedFailure
     def test_NEW_the_route_dispatches_a_brand_id_segment_only_for_an_installed_brand(self):
-        # server.py:1389 dispatches only names in BRAND_PICTURES, so /assets/zebra/cover.png is a 404 today. Pins the shape of the
-        # change: the dispatcher must accept <id>/<name> and the brand_picture seam must take the id (page.brand_picture(name, branding)).
+        # Built (server.py dispatcher, two parts only; test_brand_route.py runs the route). Pins the shape: brand_picture_route takes the id.
         self.assertIn("brand_id", inspect.signature(sv.brand_picture_route).parameters)
 
 
