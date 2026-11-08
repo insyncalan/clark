@@ -351,7 +351,7 @@ class PageKey(unittest.TestCase):
 # The Settings cards on the page, by the part that draws each (components/Views.jsx, Settings): the visible title of the card.
 # A part the page adds that is not here fails the rule below, so the new card's line is written with it.
 # Asking is left out on purpose: it is the ask clark switch, and Help holds every entry about ask clark (helpLater.json).
-SETTINGS_PARTS = {"ClientFolder": "Publishing", "PublishedReports": "Published reports", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt",
+SETTINGS_PARTS = {"Profile": "Profile", "ClientFolder": "Publishing", "PublishedReports": "Published reports", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt",
                   "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Projects": "Projects", "Data": "Data", "Update": "Version and updates", "Brands": "Brands"}
 SETTINGS_LEFT_OUT = {"AskSettings"}
 PAGE_SRC = HELP.parent

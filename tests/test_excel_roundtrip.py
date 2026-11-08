@@ -16,7 +16,7 @@ import _paths  # noqa: F401  (puts src/ and vendor/ on the path)
 from _demo import USER, DemoStore
 from openpyxl import load_workbook
 
-from clark import excel
+from clark import excel, sanitise
 from clark import excel_import as xi
 from clark import page
 from clark.store import columns, open_store
@@ -939,6 +939,49 @@ class RichText(RoundTrip):
         for bad in ("<script", "onerror", "alert("):
             self.assertNotIn(bad, out)
         self.assertIn("Live", out)
+
+
+class RichNote(RoundTrip):
+    """Row 1005: the Internal note is the editor's HTML now (or plain text from before). The sheet carries its WORDS; the import compares a
+    cell with the words, so an export that is imported untouched changes nothing, and an edited cell is a change."""
+    HTML = "<p>Keep &amp; watch &lt;b&gt;</p><p>second line</p>"
+    WORDS = "Keep & watch <b>\nsecond line"
+
+    def cell(self):
+        wb = load_workbook(str(self.path))
+        ws = wb["Milestones"]
+        head = {c.value: c.column for c in ws[1]}
+        row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, 1).value == self.m2)
+        return ws.cell(row, head["Internal note"]).value
+
+    def set_note(self, text):
+        with self.s.step("dashboard", USER) as st:
+            st.update("milestones", self.m2, {"internal_note": text})
+        self.export_again()
+
+    def test_the_sheet_holds_the_words_not_the_markup(self):
+        self.set_note(self.HTML)
+        self.assertEqual(self.cell(), self.WORDS)
+        self.set_note("an old plain note\nwith < and &")
+        self.assertEqual(self.cell(), "an old plain note\nwith < and &")
+
+    def test_an_untouched_export_imports_as_no_change(self):
+        for stored in (self.HTML, "an old plain note\nwith < and &"):
+            self.set_note(stored)
+            p = self.read()
+            self.assertEqual([c for c in p.changes if c.id == self.m2], [], stored)
+            self.assertEqual(p.problems, [])
+
+    def test_an_edited_cell_is_one_change_and_reads_as_the_words_typed(self):
+        self.set_note(self.HTML)
+        edit(self.path, "Milestones", self.m2, **{"Internal note": "New <i>words</i>\nand more"})
+        p = self.read()
+        self.assertEqual([tuple(c.after) for c in p.changes if c.id == self.m2], [("internal_note",)])
+        p.accept_all()
+        self.assertTrue(xi.apply_import(self.s, p, USER, state_path=self.state).applied)
+        stored = self.s.read("milestones", ref=self.m2)["internal_note"]
+        self.assertEqual(sanitise.rich_plain_text(stored), "New <i>words</i>\nand more")
+        self.assertEqual(sanitise.rich_or_plain(stored), "<p>New &lt;i&gt;words&lt;/i&gt;</p><p>and more</p>", "an old-style plain text still reads, escaped")
 
 
 class Clash(RoundTrip):

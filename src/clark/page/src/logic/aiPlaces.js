@@ -11,6 +11,8 @@ export const PLACE_OF = {
   "usecase.standing": "current",     // a use case's "Where it stands"
   "peek.latest_update": "current",   // an item's or milestone's Latest update (row 1005)
   "milestone.description": "current", // a milestone's Description in its peek (row 1005)
+  "movement.internal_note": "current", // a milestone's Internal note on the Movement page (row 1005)
+  "glance.health_reason": "current", // the At a glance Reason for the project's health (row 1005)
   // The notes editor: a Notes-kind section (when it lands) and any meeting-notes field. It adds Pull out the tasks.
   "notes.section": "notes",
   // Short plain fields in the peek: an item's text, a risk's wording. Section titles stay out (no entry).
@@ -30,6 +32,8 @@ export const RICH_FIELDS = {
   standing: "usecase.standing",
   latest_update: "peek.latest_update",
   description: "milestone.description",
+  internal_note: "movement.internal_note",
+  health_reason: "glance.health_reason",
 };
 
 // The editors that are not a RichField (a plain editable box), by the file that mounts them -> key.

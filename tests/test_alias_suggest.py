@@ -1,6 +1,6 @@
 """#613: the Alias clark suggests from a full name (src/clark/page/src/logic/alias.js): the first name, then the initials, comma-separated.
 "Jane Doe" suggests "Jane,JD"; a one-word name suggests only that word; an empty name suggests nothing; a suggestion never overwrites
-an Alias already typed. Fictional names only. Settings › Personal › About you has an Alias box under Your name, kept by clark beside
+an Alias already typed. Fictional names only. Settings › Profile › About you has an Alias box under Your name, kept by clark beside
 the name and the email: while nothing was saved and nobody has typed in it, it is filled in from the name with a space after the
 comma ("Jane, JD") and follows the name; once saved, or typed in, it is never filled in again. It is checked in the real page
 at 1400 and 900 px, light and dark.

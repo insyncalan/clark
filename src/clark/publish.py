@@ -251,6 +251,23 @@ def reason_text(value):
     return "".join(c for c in text if c == "\n" or unicodedata.category(c) not in _UNSEEN)[:REASON_LIMIT]
 
 
+def reason_html(value):
+    """Row 1005: a project's health reason as the file carries it: the editor's HTML cleaned (publish.clean_html after the server's
+    cleaner), or an old plain reason made into escaped paragraphs; whatever is stored, hidden characters out and the words cut at
+    REASON_LIMIT. None stays None."""
+    if value is None:
+        return None
+    text = "".join(c for c in str(value) if c == "\n" or unicodedata.category(c) not in _UNSEEN)
+    try:
+        html = sanitise.rich_or_plain(text)
+    except sanitise.SanitiseError:
+        return ""
+    words = sanitise.plain_text(html)
+    if len(words) > REASON_LIMIT:
+        html = sanitise.rich_or_plain(words[:REASON_LIMIT])
+    return clean_html(html)
+
+
 def _pick(row, fields):
     return {f: row.get(f) for f in fields}
 
@@ -543,7 +560,7 @@ def select(inputs):
                     if x.get("from_item") in linkable and x.get("to_item") in linkable]
     out["labels"] = {i: list(item_labels[i]) for i in sorted(linkable) if item_labels.get(i)}
     proj = _pick(project, PUBLISH_FIELDS["projects"])
-    proj["health_reason"] = reason_text(proj["health_reason"])
+    proj["health_reason"] = reason_html(proj["health_reason"])
     proj["current_state"] = "" if "current" in hidden_types else clean_html(proj["current_state"])
     out["project"] = proj
     out["documents"] = documents(inputs.get("documents"), code, hidden_ids, hidden_types) if any(

@@ -179,7 +179,7 @@ export async function readData(project) {
   }
 }
 
-// Your name and email (#180, Settings › Personal › About you), kept in clark's own settings on this computer. getProfile answers
+// Your name and email (#180, Settings › Profile › About you), kept in clark's own settings on this computer. getProfile answers
 // {name, email} or null; saveProfile answers {ok: true, name, email} or {ok: false, message}: a refusal is in the route's own plain
 // words (ending "Nothing was saved."), any other failure in plainChange's.
 export async function getProfile() {
