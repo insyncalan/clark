@@ -658,6 +658,9 @@ class Menu(board.Base):
                     made.append(new)
                     self.assertEqual(self.row(new)["client_visible"], eye, where)
                     self.until(cdp, sid, f"location.hash.includes('item={new}')", f"{where}: the copy's peek to open")
+                    # The peek slides in as a whole: where() only waits for animations inside the button, so the fast wait found the hash
+                    # and clicked where the button was a moment before it settled. Wait for the page's animations to end, then click.
+                    self.until(cdp, sid, "document.getAnimations().length === 0", f"{where}: the peek to finish sliding in")
                     click(cdp, sid, "#peek [data-pk-close]")
                     self.until(cdp, sid, "!location.hash.includes('item=')", f"{where}: the peek closed")
                     self.until(cdp, sid, f"!!document.querySelector(\"{self.TABLE % new}\")", f"{where}: the copy in the list")
@@ -825,7 +828,8 @@ class Menu(board.Base):
             self.until(cdp, sid, "document.getElementById('late-panel').hasAttribute('inert')", "the late panel to be held")
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('[data-draft-email]')", "the dialog to close")
-            self.until(cdp, sid, "!document.querySelector('[inert]')", "all released again")   # the release follows the close by a frame
+            self.until(cdp, sid, "!document.querySelector('[inert]')", "all released again: no element may still be [inert] after the dialog closed",   # the release follows the close by a frame
+                       why=lambda: cdp.js("[...document.querySelectorAll('[inert]')].map(e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.className ? '.' + String(e.className).trim().split(/\\s+/).join('.') : ''))", sid))
 
     def test_draft_email_for_an_item_with_no_owner_stays_greyed_with_its_reason(self):
         with chrome() as cdp:
