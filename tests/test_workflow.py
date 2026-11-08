@@ -166,6 +166,11 @@ class Workflow(unittest.TestCase):
         # the second Python and macOS exist only on the full path
         self.assertIn("if: ${{ needs.plan.outputs.full == '1' && needs.plan.outputs.py39 == '1' }}", self.jobs["tests-py39"])
         self.assertIn("if: ${{ needs.plan.outputs.macos == '1' }}", self.jobs["macos"])
+        # the py39 output must be declared by the plan job and written by its step: without either, the job's `if` is never true,
+        # WANT_PY39 is always empty and Python 3.9 would silently never run while the gate stays green
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("py39: ${{ steps.plan.outputs.py39 }}", text)
+        self.assertIn('echo "py39=$PY39" >> "$GITHUB_OUTPUT"', text)
 
     def test_a_pull_request_fetches_the_whole_history_so_the_base_is_there(self):
         self.assertIn("fetch-depth: ${{ github.event_name == 'pull_request' && '0' || '1' }}", self.jobs["tests"])

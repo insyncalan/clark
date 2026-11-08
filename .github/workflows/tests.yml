@@ -32,7 +32,7 @@
 # test reads the reuse record. Skipping the run for a document would let a real name merge unchecked. The suite
 # takes seconds, so nothing is saved by skipping it.
 #
-# Shards (`--shard I/N`, balanced by the real per-file times in dev/tools/shard_times.txt): Ubuntu 3.x has six on both paths (three took 20 minutes; six keep the slowest near ten),
+# Shards (`--shard I/N`, balanced by the real per-file times in dev/tools/shard_times.txt): Ubuntu 3.x has six on the full path and for a pull request that touches a stylesheet or the page, and three on the cheap path otherwise (three took 20 minutes on a full run; six keep the slowest near ten),
 # Python 3.9 three (quick tier only; was one shard at 17 to 28 minutes). For Ubuntu (3.x and 3.9): add shards when the slowest job passes 10 minutes.
 # macOS three: measured 56.5 min with 2 shards (gate run 42092014127), about 38 min expected at 3 (the real macOS shard time was 0.71 of the simulated one),
 # with a 60-minute timeout; if the first real gate run exceeds 50 min, move to 4 shards (one line in the matrix). Every test file is in exactly one shard
@@ -209,7 +209,7 @@ jobs:
           python3 dev/run_tests.py -j "$JOBS" $SCOPE --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
 
   tests-py39:
-    # Python 3.9 (the oldest clark supports) on the quick tier (`--quick`: the files that never start Chrome). Full path only.
+    # Python 3.9 (the oldest clark supports) on the quick tier (`--quick`: the files that never start Chrome). Only where the plan wants it (py39=1: by hand, release line, label full-ci, Mac-specific files).
     if: ${{ needs.plan.outputs.full == '1' && needs.plan.outputs.py39 == '1' }}
     name: ubuntu-24.04 · Python 3.9 · shard ${{ matrix.shard }}/${{ needs.plan.outputs.count39 }}      # the gate reads needs.tests-py39.result (one value for the whole matrix), never this name
     needs: plan
@@ -302,7 +302,7 @@ jobs:
 
   passed:
     # The one result to wait for (and to require): green only if every required job is. The plan and the 3.x job must pass.
-    # Python 3.9 must pass when the plan wants the full matrix and must have been skipped when it doesn't; the same for macOS
+    # Python 3.9 must pass when the plan wants it (WANT_PY39) and must have been skipped when it doesn't; the same for macOS
     # with its own flag. So a FAILED or cancelled required job fails the gate, and a job skipped by the cheap path does not.
     # (A cancelled run posts no gate at all, see the header.)
     name: Tests passed
