@@ -162,7 +162,7 @@ def menu_for(place, address="", own_domains=()):
 
 
 def whole_field_menu(place):
-    """The toolbar's AI offers the same options on the whole field (Alt+/ opens the same list)."""
+    """The toolbar's AI offers the same options on the whole field (the page binds no Alt+/ key; the AI button and the slash menu open the list)."""
     return menu(place)
 
 

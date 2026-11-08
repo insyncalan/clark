@@ -160,7 +160,7 @@ export function RichText({ value, label, onSave, onClose }) {
   return (
     <div class="rt" ref={root} data-rt aria-label={label || "Rich text"} onFocusOut={away}>
       <div class="rt-bar" role="toolbar" aria-label="Formatting">
-        <Menu label={current ? current[1] : "Text"} ariaLabel="Text style" btnCls="rt-btn rt-style" left
+        <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls="rt-btn rt-style" left
           items={STYLES.map(([n, w]) => ({ id: n, name: w }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />
         {BAR.map((b, i) => (b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b)))}
         <span class="rt-keys">Cmd+Enter saves. Esc cancels.</span>

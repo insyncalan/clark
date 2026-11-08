@@ -6,6 +6,8 @@
 # its Ubuntu time and its macOS time scaled to Ubuntu seconds (macOS times x 1.525, the ratio of the two totals over the 557 files).
 # With the 07-11 weights the three macOS shards were 28, 43 and 23 minutes (the real run); with these weights the same simulation gives
 # 32, 31 and 31, and the six Ubuntu shards stay between 10 and 13 minutes. Files not listed count as 30 s.
+# 08-11-2026 (#907): the scrub test moved out of test_publish_public.py into test_publish_public_slow.py (#912 2B). Their one 227.8 weight is
+# split 35/65, the ratio of the two files' local times (95 s and 174 s); no other line changed, as no run since has had both OSes.
 test_about_you.py 216.2
 test_about_you_path.py 1.9
 test_activity_refusals.py 5.3
@@ -264,12 +266,13 @@ test_milestone_peek_828.py 57.9
 test_milestone_rows.py 2.2
 test_milestones.py 0.3
 test_milestones_archived.py 88.5
+test_milestones_crowded.py 62.0
 test_milestones_dashboard.py 25.2
 test_milestones_details.py 28.0
 test_milestones_eye.py 82.3
 test_milestones_inline.py 29.8
 test_milestones_oneline.py 65.2
-test_milestones_page.py 499.4
+test_milestones_page.py 279.0
 test_milestones_page_458.py 52.2
 test_milestones_parity.py 20.2
 test_milestones_route.py 6.6
@@ -368,11 +371,15 @@ test_publish_glance.py 1.2
 test_publish_in_menu.py 14.1
 test_publish_no_warnings.py 4.8
 test_publish_progress.py 34.6
-test_publish_public.py 227.8
+test_publish_public.py 79.7
+test_publish_public_slow.py 148.1
 test_publish_ring.py 15.1
 test_publish_route.py 138.7
 test_publish_scan_budget.py 97.9
-test_publish_scan_gaps.py 333.3
+test_publish_scan_brand.py 13.1
+test_publish_scan_foreign.py 103.5
+test_publish_scan_gaps.py 110.8
+test_publish_scan_gaps_more.py 110.8
 test_publish_scan_linear.py 39.3
 test_publish_scan_time.py 430.2
 test_publish_section_bodies.py 23.4

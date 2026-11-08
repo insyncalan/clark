@@ -155,7 +155,7 @@ class Cards(Base):
             else:
                 self.assertGreater(rows, 1, "wrapped")
                 tops = p.js(f"{CARDS}.map(c => Math.round(c.getBoundingClientRect().top))")
-                self.assertEqual([tops.count(t) for t in sorted(set(tops))], [3, 1], "three and one")
+                self.assertEqual([tops.count(t) for t in sorted(set(tops))], [2, 2], "two and two")
             self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
             self.assertTrue(p.js(f"{CARDS}.every(c => {{ const r = c.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth; }})"), "every card is on the screen")
 

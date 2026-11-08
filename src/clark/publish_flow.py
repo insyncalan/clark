@@ -22,7 +22,6 @@ Standard library only, Python 3.9.
 """
 import getpass
 import hashlib
-import json
 import os
 import re
 import secrets
@@ -54,13 +53,14 @@ LINK_FORM = re.compile(r"(?i)[a-z][a-z0-9+.-]*://|(?:[a-z0-9-]+\.)+[a-z]{2,}(?::
 
 # What the route says, by stable `code`. The words are the product's (RULES.md): plain, "clark" in lower case. The messages of
 # to_client.MESSAGES (the catalogue of the spec) are used as they are for everything that module decides.
+SAME_FOLDER = "That is the client's folder. Save the local copy somewhere else."      # #619: the Word export ends it "Nothing was saved."
 MESSAGES = {
     "bad_project_code": "Give the project's code (3 to 7 capital letters or digits).",
     "project_not_found": "There is no project with that code.",
     "busy": "A publish is already running. Wait for it to finish, then try again.",
     "cancelled": to_client.MESSAGES["cancelled"],
     "dialog_failed": "{reason} Nothing was published.",
-    "same_folder": "That is the client's folder. Save the local copy somewhere else. Nothing was published.",
+    "same_folder": SAME_FOLDER + " Nothing was published.",
     "local_not_html": "The local copy's name must end in .html. Nothing was published.",
     "local_clark_files": "That place is where clark keeps its own files. Save the local copy somewhere else. Nothing was published.",
     "local_failed": "{name} could not be saved. Check you can edit that folder and that the disk has room, then try again. Nothing was published.",
@@ -126,6 +126,11 @@ def _text(value):
     return value if isinstance(value, str) else None
 
 
+def _same_words(text):
+    """The words of a text with its spacing made one: what a left-out text and a kept value are compared by (#619)."""
+    return " ".join(text.split())
+
+
 class Markers(list):
     """The texts that must be absent, with `where`: for each, the ID of the item it came from (to name it in a refusal)."""
     where = None
@@ -136,8 +141,8 @@ def markers_for(store, code, published, template=""):
     and main text of every row that was left out (archived, the client flag off, hidden, a Sensitive or other excluded label),
     and every row's internal note, Movement and working notes. Texts shorter than MIN_MARKER are not used (they would be found
     anywhere); an ID always is. A note that is also in `template` (the bare page, which every file holds whatever the data)
-    is not a marker either: it cannot tell a leak from the page's own words. A left-out row's text that is also part of something published (the same words in a kept
-    row) is not a marker, because it may rightly be in the file. check_copy looks for each in its plain, lower-case, HTML-escaped
+    is not a marker either: it cannot tell a leak from the page's own words. A left-out row's text, or a hidden section's body, that is exactly the whole of a kept value (the same words as a kept
+    row, nothing around them) is not a marker, because it may rightly be in the file; the same words inside other kept text are (#619). check_copy looks for each in its plain, lower-case, HTML-escaped
     and JSON-escaped spellings."""
     data = published["data"]
     kept_ids = {r["id"] for kind in publish.KINDS for r in data.get(kind, ()) if isinstance(r, dict) and "id" in r}
@@ -146,6 +151,7 @@ def markers_for(store, code, published, template=""):
                  for v in r.values() if isinstance(v, str)]
     kept_text += [s.get("body") or "" for s in published.get("sections", ()) if isinstance(s, dict)]
     kept_text += [v for r in data.get("documents", ()) if isinstance(r, dict) for v in r.values() if isinstance(v, str)]     # #74: the links the client may see
+    kept_whole = {_same_words(t) for t in kept_text}              # #619: only a kept value that IS the whole text excuses it; the words pasted inside other text do not
     found, where = [], {}
     bare = to_client._key(template)
 
@@ -162,29 +168,44 @@ def markers_for(store, code, published, template=""):
             add(row["id"], row["id"])
             for field in TEXT_FIELDS[kind]:
                 value = (_text(row.get(field)) or "").strip()
-                if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
+                if len(value) >= MIN_MARKER and _same_words(value) not in kept_whole:
                     add(value, row["id"])
+    for sec in store.read("report_sections", project=code):      # #619: the body of a hidden section is absent, unless a kept value is exactly those words
+        body = (_text(sec.get("body")) or "").strip()
+        if sec.get("hidden") and len(body) >= MIN_MARKER and _same_words(body) not in kept_whole:
+            add(body, sec["id"])
     for row in store.read("documents", project=code):              # #74: a document's id, title and link are absent unless a kept document carries the same words (publish carries no id)
         add(row["id"], row["id"])
         for field in ("title", "url"):
             value = (_text(row.get(field)) or "").strip()
-            if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
+            if len(value) >= MIN_MARKER and _same_words(value) not in kept_whole:
                 add(value, row["id"])
-    gantt_markers(store, code, published, add)
+    gantt_markers(store, code, published, add, kept_whole)
     out = Markers(dict.fromkeys(found))
     out.where = where
     return out
 
 
-def gantt_markers(store, code, published, add):
+def gantt_markers(store, code, published, add, kept_whole):
     """Row 998: the Gantt markers are read from the RAW lines in the store, never from what publish.gantt_for_client produced, so a
     bug in its decision cannot blind the scan too. The policy is the same rules, read again here: the tab is in the file only when the
     project's show_gantt_client is exactly 1; a line is in it only when its `show` is exactly 1. A line that cannot be in the file
     (eye off, or no Gantt tab) is a marker by id, name and every column; a line that can be is a marker for each column the project's
-    hidden list (publish._gantt_hidden) takes out. A value that is also in the published data other than the Gantt copy (the same
-    words in a kept row) is not a marker, and neither is one shorter than MIN_MARKER; what the Gantt copy itself carries exempts nothing."""
+    hidden list (publish._gantt_hidden) takes out. A value that is exactly the whole of a value in the published data other than the Gantt copy (a kept row with the same words and
+    nothing around them), or of a value a shown line may carry, is not a marker (#619: the same words inside longer kept text are), and neither is one shorter than
+    MIN_MARKER; what the Gantt copy itself carries exempts nothing."""
     data = published["data"]
-    kept = json.dumps({k: v for k, v in data.items() if k != "gantt"}, ensure_ascii=False, default=str)
+    kept = set(kept_whole)                                               # the kept rows' values, whole (markers_for built them); the rest of the published data is added below
+
+    def leaves(node):
+        if isinstance(node, dict):
+            for v in node.values():
+                yield from leaves(v)
+        elif isinstance(node, (list, tuple)):
+            for v in node:
+                yield from leaves(v)
+        elif node is not None and not isinstance(node, bool):
+            yield node
     project = store.read("projects", ref=code) or {}
     tab = type(project.get("show_gantt_client")) is int and project["show_gantt_client"] == 1
     hidden = publish._gantt_hidden(project)
@@ -194,14 +215,25 @@ def gantt_markers(store, code, published, add):
         return v.strip() if isinstance(v, str) else str(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else ""
     rows = [(r, tab and type(r.get("show")) is int and r["show"] == 1) for r in store.read("gantt_lines", project=code)]
     shown = [r[f] for r, eyed in rows if eyed for f in ("id", "name") + columns if f in r and (f in ("id", "name") or f not in hidden)]
-    kept += "\n" + "\n".join(text(v) for v in shown)                      # what a line that can be in the file may legitimately show
+    kept |= {_same_words(text(v)) for v in leaves({k: v for k, v in data.items() if k != "gantt"})}
+    kept |= {_same_words(text(v)) for v in shown}                        # what a line that can be in the file may legitimately show
     for row, eyed in rows:
         if not eyed:
             add(row["id"], row["id"])
         for field in (tuple(f for f in columns if f in hidden) if eyed else ("name",) + columns):
             value = text(row.get(field))
-            if len(value) >= MIN_MARKER and value not in kept:
+            if len(value) >= MIN_MARKER and _same_words(value) not in kept:
                 add(value, row["id"])
+
+
+def folder_inside(fs, a, b):
+    """Whether folder `a` is `b` or below it (as written and with links followed; case and accent form ignored). The one rule
+    the web publish (Publisher.inside_folder) and the Word export (#619, which passes no `fs`: the real disk) share."""
+    real = fs.realpath if fs else os.path.realpath         # no `fs`: the real disk, as RealFs.realpath is
+    try:
+        return to_client._inside(a, b) or to_client._inside(real(a), real(b))
+    except (OSError, ValueError):
+        return False
 
 
 class Publisher:
@@ -441,10 +473,7 @@ class Publisher:
 
     def inside_folder(self, a, b):
         """Whether folder `a` is `b` or below it (as written and with links followed; case and accent form ignored)."""
-        try:
-            return to_client._inside(a, b) or to_client._inside(self.fs.realpath(a), self.fs.realpath(b))
-        except (OSError, ValueError):
-            return False
+        return folder_inside(self.fs, a, b)
 
     def write_local(self, dest, data, digest):
         """Write the Local file and read it back; None when it is good, else the failure to send."""

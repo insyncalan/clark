@@ -1,10 +1,10 @@
-"""The Settings head: the title, a line of help and one link for each card on the page, in a real browser at 1400, 901, 900 and 800 px,
-light and dark. Issue 697: above 900 px the links are a list down the left with the cards at the right; at 900 px and narrower they are the
-row of chips under the title again. Run: python3 dev/run_tests.py test_settings_head
+"""The Settings head: the title, a line of help and one link for each card on the page, in a real browser at 1400, 901, 900, 899 and 800 px,
+light and dark. Issues 697 and 842: at 900 px and wider the links are a list down the left with the cards at the right; below 900 px they are the
+row of chips under the title. Run: python3 dev/run_tests.py test_settings_head
 
 What is asserted: the title and the help line; a chip for each card that is on the page (Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking) and none
 for a card that is not; a click scrolls the card into view and moves focus to its heading; the keyboard does the same (Tab to a chip,
-Enter); the list stands at the left of the cards above 900 px and the chips wrap in a row under the title at 900 px and narrower, the page never scrolls sideways and nothing overlaps; each chip is at least 24 px high and wide; the chip text is at least 13 px
+Enter); the list stands at the left of the cards at 900 px and wider and the chips wrap in a row under the title below 900 px, the page never scrolls sideways and nothing overlaps; each chip is at least 24 px high and wide; the chip text is at least 13 px
 and 4.5:1 on its ground; the focus ring is 2 px. Chrome is required: these tests fail, never skip, without it.
 """
 import re
@@ -12,9 +12,9 @@ import unittest
 
 from test_appearance import scheme
 from test_publish_dialog import Base
-from test_server import chrome
+from test_server import chrome, wait
 
-WIDTHS = (1400, 901, 900, 800)
+WIDTHS = (1400, 901, 900, 899, 800)
 MODES = ("light", "dark")
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
 CARDS = [("Profile", "profile-h"), ("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
@@ -48,12 +48,32 @@ class Head(Base):
     def chips(self, p):
         return p.js("[...document.querySelectorAll('.set-nav .set-chip')].map(b => b.textContent)")
 
+    def numbers(self, p, head_id):
+        """What a red 'heading in view' needs to name itself (the hosted macOS runner printed no numbers): the heading's box, the scroll, the
+        window, the sticky set-bar, the scroll margin and padding that keep a heading clear of it, and whether the runner asks for reduced motion."""
+        return p.js(f"""(function(){{
+          var h = document.getElementById('{head_id}'), r = h ? h.getBoundingClientRect() : null;
+          var bar = document.querySelector('.set-head'), b = bar ? bar.getBoundingClientRect() : null;
+          var nav = document.querySelector('.set-nav'), n = nav ? nav.getBoundingClientRect() : null;
+          var card = h ? (h.closest('section, .card') || h) : null;
+          var pad = document.scrollingElement ? getComputedStyle(document.scrollingElement).scrollPaddingTop : 'n/a';
+          return 'head_id=' + '{head_id}' + ' heading top=' + (r ? r.top : 'none') + ' bottom=' + (r ? r.bottom : 'none') +
+            ' scrollY=' + window.scrollY + ' innerHeight=' + window.innerHeight +
+            ' set-head top=' + (b ? b.top : 'none') + ' bottom=' + (b ? b.bottom : 'none') + ' position=' + (bar ? getComputedStyle(bar).position : 'n/a') +
+            ' set-nav top=' + (n ? n.top : 'none') + ' bottom=' + (n ? n.bottom : 'none') + ' position=' + (nav ? getComputedStyle(nav).position : 'n/a') +
+            ' card scroll-margin-top=' + (card ? getComputedStyle(card).scrollMarginTop : 'n/a') +
+            ' heading scroll-margin-top=' + (h ? getComputedStyle(h).scrollMarginTop : 'n/a') +
+            ' scroll-padding-top=' + pad +
+            ' reduced-motion=' + matchMedia('(prefers-reduced-motion: reduce)').matches;
+        }})()""")
+
     def at_top(self, p, head_id):
         """The card is in view and its heading has the focus."""
         p.settled("the chip's scroll finished")      # before anything is measured: the smooth scroll may still be running (macOS)
         p.until(f"document.activeElement && document.activeElement.id === '{head_id}'", f"focus is on {head_id}")
-        p.until(f"(function(){{var r = document.getElementById('{head_id}').getBoundingClientRect(); return r.top >= 56 && r.bottom <= window.innerHeight;}})()",
-                "the heading is in view, clear of the top bar")
+        in_view = f"(function(){{var r = document.getElementById('{head_id}').getBoundingClientRect(); return r.top >= 56 && r.bottom <= window.innerHeight;}})()"
+        if not wait(lambda: p.js(in_view), 15):
+            p.t.fail("the heading is in view, clear of the top bar; " + self.numbers(p, head_id))
         # A window.scrollTo while the smooth scroll is still running cancels it and leaves the next chip's scroll stuck near the top, so
         # the position and the animations are checked again once the heading is found: still no animation, the same scrollY 100 ms apart.
         p.settled("the chip's scroll finished")
@@ -99,7 +119,7 @@ class Head(Base):
             self.at_top(p, "client-folder-h")
             self.assertEqual(p.js("getComputedStyle(document.activeElement).outlineWidth"), "2px", "the heading shows the ring after the keyboard")
 
-    def test_C_the_list_is_at_the_left_above_900_and_a_row_of_chips_at_900_and_narrower(self):
+    def test_C_the_list_is_at_the_left_at_900_and_wider_and_a_row_of_chips_below_900(self):
         for w in WIDTHS:
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
@@ -115,7 +135,7 @@ class Head(Base):
                     for h, wd in ((c[3] - c[1], c[2] - c[0]) for c in chips):
                         self.assertGreaterEqual(h, 24)
                         self.assertGreaterEqual(wd, 24)
-                    if w > 900:
+                    if w >= 900:
                         self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-nav')).flexDirection"), "column")
                         self.assertLessEqual(max(c[0] for c in chips) - min(c[0] for c in chips), 1, "the links stand in one column")
                         self.assertTrue(all(b[1] > a[1] for a, b in zip(chips, chips[1:])), "each link is below the one before")

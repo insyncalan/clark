@@ -39,7 +39,7 @@ class PeopleCard(unittest.TestCase):
             s.add_person(name="Jo Park", email="jo@example.com", organisation="Client", role="Programme manager", source="test")
             s.add_person(name="Sam Rivers", needs_details=1, source="test")
         store.close()
-        self.s = Running(data_for=DATA.get, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(self.s.close)
         who = lambda: "tester"          # noqa: E731
         self.s.httpd.people = changes.make_people(self.db, [], who)
