@@ -395,8 +395,8 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
   .fbtn { padding: 2px var(--space-2); min-height: 28px; }
   .fbox { width: min(260px, calc(100vw - 48px)); }
   .fbox .isnot button { min-height: 24px; display: inline-flex; align-items: center; }
-  table.items, table.items tbody { display: block; width: 100%; }
-  table.items thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  table.items, table.items tbody, table.items.grouped thead { display: block; width: 100%; }
+  table.items:not(.grouped) thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   table.items tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); gap: 6px var(--space-3); padding: 10px var(--space-1); border-top: 1px solid var(--grey-100); }
   table.items td, table.items td:first-child { display: block; min-width: 0; width: auto; padding: 0; border-top: 0; }
   table.items .c-item { grid-column: 1 / 4; grid-row: 1; }
@@ -1666,6 +1666,8 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     .ddmenu.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
     /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
     .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
+    /* item 519: a changed section dragged over keeps its glow (the two rules above each set animation, so the later one won) */
+    .sec.is-changed.drop-before { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1, m-line-top var(--dur-state) var(--ease-enter) 1; }
     .secs.drop-end { animation: m-line-end var(--dur-state) var(--ease-enter) 1; }
     .sec.drop-left::after, .sec.drop-right::after, .sec.drop-before.slot-left::before { animation: m-outline var(--dur-state) var(--ease-enter) 1; }
     /* the health badge and reason settle when health changes */
