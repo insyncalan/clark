@@ -18,6 +18,15 @@ export const oneLine = (text) => String(text || "").replace(/[\t\r\n]+/g, " ").t
 // A box of words as paragraphs: one per line, empty lines dropped.
 export const paragraphsOf = (text) => String(text || "").split(/\r?\n/).map(oneLine).filter(Boolean);
 
+// The words of a card or a note as the editor opens them: its HTML, or (a section saved by an older clark) its lines made into paragraphs.
+const escaped = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// A line break in HTML is a space; the section's content may hold none (the store refuses one in any field), so none is sent.
+export const noBreaks = (html) => String(html || "").replace(/[\r\n]+/g, " ");
+export function wordsAsHtml(html, lines) {
+  if (typeof html === "string" && html.trim()) return html;
+  return (Array.isArray(lines) ? lines : []).filter((t) => typeof t === "string" && t.trim()).map((t) => `<p>${escaped(t)}</p>`).join("");
+}
+
 // "" when `items` are at most `most` paragraphs of at most `each` characters; else the words `refusal`.
 export function linesProblem(list, most, each, refusal) {
   return list.length > most || list.some((p) => Array.from(p).length > each) ? refusal : "";
