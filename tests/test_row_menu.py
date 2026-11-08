@@ -121,6 +121,22 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.js(f"RM.draftState({json.dumps(reply)}, {json.dumps(st)})"),
                          {"mode": "decision", "picked": ["ABC-D-001"], "replyBy": "2026-11-20", "unblocks": " the go-live ", "includeUpdate": True})
 
+    def test_the_owners_address_and_name_come_from_their_people_row_and_ride_on_both_asks(self):
+        ppl = json.dumps([{"id": "P-001", "name": "Ada Quillfeather", "email": " ada@example.com "},
+                          {"id": "P-002", "name": "Bo Bad", "email": "a@b.co,c@d.co"}, {"id": "P-003", "name": "Cy None", "email": ""},
+                          {"id": "P-004", "name": "Di Line", "email": "a@b.co\nBcc: x@y.co"}, {"id": "P-005", "name": "Ed Long", "email": "x" * 250 + "@a.co"}])
+        self.assertEqual(self.js(f"RM.recipientOf({ppl}, 'P-001')"), {"email": "ada@example.com", "name": "Ada Quillfeather"})
+        for owner in ("P-002", "P-003", "P-004", "P-005", "P-404", "", None):
+            self.assertIsNone(self.js(f"RM.recipientOf({ppl}, {json.dumps(owner)})"), owner)       # never invented, never a bad address
+        self.assertIsNone(self.js("RM.recipientOf(null, 'P-001')"))
+        who = {"email": "ada@example.com", "name": "Ada Quillfeather"}
+        self.assertEqual(self.js(f"RM.draftRequest('ABC-A-001', null, {json.dumps(who)})"),
+                         {"item": "ABC-A-001", "picked": ["ABC-A-001"], "email": "ada@example.com", "name": "Ada Quillfeather"})
+        st = {"mode": "chase", "picked": ["ABC-A-001"], "replyBy": "", "unblocks": "", "includeUpdate": False}
+        self.assertEqual(self.js(f"RM.draftRequest('ABC-A-001', {json.dumps(st)}, {json.dumps(who)})"),
+                         {"item": "ABC-A-001", "mode": "chase", "picked": ["ABC-A-001"], "include_update": False, "email": "ada@example.com", "name": "Ada Quillfeather"})
+        self.assertEqual(self.js("RM.draftRequest('ABC-A-001', null, null)"), {"item": "ABC-A-001", "picked": ["ABC-A-001"]})
+
     def test_the_lists_offer_what_the_cells_offer_without_what_the_item_has(self):
         row = json.dumps(self.ACTION)
         self.assertEqual(self.js(f"RM.statusList({row})"), ["Delayed", "Closed", "Cancelled"])
