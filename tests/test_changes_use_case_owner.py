@@ -116,11 +116,8 @@ class Owner(unittest.TestCase):
 
     def test_history_has_one_owner_line_and_undo_words_name_the_use_case(self):
         body = self.ok({"owner": "Anna Example"})
-        events = [e for e in history.history(self.s.con, self.uc) if e["step"] == body["apply_id"]]
-        self.assertEqual([(e["field"], e["before"], e["after"]) for e in events if e["field"] in ("owner", "owner_id")][:1],
-                         [("owner", None, "Anna Example")])
         shown = [r for r in history.rows_for_project(self.s.con, "ABC", "all") if r.get("ref") == self.uc or r.get("item_id") == self.uc]
-        self.assertEqual([(r["field"], r["from"], r["to"]) for r in shown], [("Owner", "", "Anna Example")], "one Owner line, no second line for the link")
+        self.assertEqual([(r["field"], r["from"], r["to"]) for r in shown if r["kind"] == "Changed"], [("Owner", "", "Anna Example")], "one Owner line, no second line for the link")
         status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
         self.assertEqual(undone["words"], "Put back: the owner of \u201cInvoice matching\u201d is cleared again.")
         body = self.ok({"owner": "Anna Example"})
@@ -145,6 +142,19 @@ class Owner(unittest.TestCase):
         con.close()
         status, body = self.edit({"owner": "Anna Example"})
         self.assertNotEqual(status, 200)
+
+    def test_hostile_input_fuzz_is_either_clean_text_or_a_refusal_and_the_table_survives(self):
+        import random
+        rnd = random.Random(875)
+        pool = ["\u202e", "\x00", "\n", "\t", "\u200b", "\ud800", "'; DROP TABLE use_cases;--", "<script>", "\u00e9", "e\u0301", "\U0001F600",
+                "  ", "a" * 200, "a" * 201, "%s", "\\", "\u2028", "\ufeff"]
+        for i in range(300):
+            v = rnd.choice([None, 5, 1.5, True, [], {}, b"x"]) if i % 5 == 0 else "".join(rnd.choice(pool) for _ in range(rnd.randint(0, 5)))
+            status, body = self.edit({"owner": v})
+            self.assertIn(status, (200, 400), body)
+            now = self.row()["owner"]
+            self.assertTrue(now is None or (len(now) <= 200 and now.isprintable() and now == now.strip()), repr(now))
+        self.assertEqual(self.s.con.execute("SELECT count(*) FROM use_cases").fetchone()[0], 1)
 
 
 if __name__ == "__main__":

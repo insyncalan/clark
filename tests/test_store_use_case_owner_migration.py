@@ -91,7 +91,7 @@ class Migrating(unittest.TestCase):
             self.assertEqual(version(path), NOW)
             self.assertEqual(s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
             self.assertEqual(s.con.execute("SELECT count(*) FROM applies").fetchone()[0], 0)          # a migration is not a step: no Undo
-            self.assertEqual(s.con.execute("SELECT id, owner, owner_id FROM use_cases ORDER BY id").fetchall(),
+            self.assertEqual([tuple(r) for r in s.con.execute("SELECT id, owner, owner_id FROM use_cases ORDER BY id").fetchall()],
                              [("ABC-U-001", None, None), ("ABC-U-002", None, None)])
         finally:
             s.close()
