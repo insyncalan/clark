@@ -416,16 +416,20 @@ class HiddenOnTheServedPage(unittest.TestCase):
             sid = page_target(cdp)
             cdp.call("Page.enable", {}, sid)
             cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#clientreport&p=TUL"}, sid)
-            self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"), "the page drew")
-            # ready is set when the first draw is queued, before the data arrives: the tab bar and the mode switch come with the data
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.tabs .tab').length > 0 && !!document.querySelector('[data-mode=edit]')", sid)),
-                            "the tab bar and the mode switch are drawn")
+            def drew():   # the address #clientreport falls back by reloading the page: a read in that instant is refused ("navigated or closed"), so ask again
+                try:
+                    return cdp.js("document.documentElement.dataset.ready", sid) == "1"
+                except RuntimeError:
+                    return False
+            self.assertTrue(wait(drew), "the page drew")
+            wait(lambda: drew() and cdp.js("document.querySelectorAll('.tabs .tab').length", sid) >= 5)   # the fallback may reload once after the first ready: settle before the Edit click; the assertions below still judge the tabs
             for dashboard_mode in ("view", "edit"):  # Dashboard mode
                 if dashboard_mode == "edit":
-                    cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit][aria-pressed=true]')", sid)))
-                self.assertEqual(cdp.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.dataset.view)", sid),
-                                 ["dashboard", "work", "milestones", "usecases", "settings"], dashboard_mode)
+                    # a click before the page's handler is bound is lost on a loaded box: press again until the mode shows (Edit is a mode, not a toggle)
+                    self.assertTrue(wait(lambda: cdp.js("(document.querySelector('[data-mode=edit]').click(), !!document.querySelector('[data-mode=edit][aria-pressed=true]'))", sid)))
+                tabs = "[...document.querySelectorAll('.tabs .tab')].map(t => t.dataset.view)"
+                wait(lambda: len(cdp.js(tabs, sid)) >= 5)   # ready is set before the tab bar is drawn on a slow runner (CI flake); the assertion below still judges the list
+                self.assertEqual(cdp.js(tabs, sid), ["dashboard", "work", "milestones", "usecases", "settings"], dashboard_mode)
                 self.assertEqual(cdp.js("document.querySelectorAll('#clientreport').length", sid), 0, dashboard_mode)
                 self.assertEqual(cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid), "dashboard", dashboard_mode)
             self.assertNotIn("Client Requested Report View", cdp.js("document.body.innerText", sid))

@@ -155,6 +155,186 @@ class RestoredTest(Rolled):
         self.assertNotIn("data", result)
         self.assertEqual([], self.asides())
 
+    def test_a_failed_start_that_did_not_migrate_but_changed_the_data_is_put_back_byte_for_byte(self):
+        """#479: the put-back covers any failed start. The new version did not change the layout but wrote a row; the data goes back
+        to the update's own pre-update copy (compared as bytes), and the written row is kept aside."""
+        self.seams = MigratingSeams(self, migrate=False)
+
+        def start(app_dir, data_dir, port, log_path, original=self.seams.start_server):
+            if not self.seams.started:                                   # the new version's start only
+                con = sqlite3.connect(str(self.db))
+                con.execute("INSERT INTO projects (code, name) VALUES ('NEW', 'Written by a start that failed')")
+                con.commit()
+                con.close()
+            return original(app_dir, data_dir, port, log_path)
+        self.seams.start_server = start
+        body = self.reviewed()
+        self.assertEqual(200, self.up.install({"review_id": body["review_id"]})[0])
+        seen = []
+        first = self.seams.start_server
+        self.seams.start_server = lambda *a: (seen.append(digest(self.db)) if self.seams.started else None, first(*a))[1]
+        kept = Path(h.read_json(h.marker_path(self.data))["backup_dir"]) / "clark.db"
+        before_bytes = digest(kept)
+        self.seams.now += 20
+        code, result = self.run_helper()
+        self.assertEqual((h.ROLLED_BACK, "restored"), (code, result["data"]))
+        self.assertEqual([before_bytes], seen)                                  # the same bytes as the copy taken before
+        self.assertNotIn("NEW", [r[0] for r in rows(self.db, "projects")])
+        aside = self.asides()
+        self.assertEqual(1, len(aside))
+        self.assertIn("NEW", [r[0] for r in rows(aside[0] / "clark.db", "projects")])  # the write is not lost
+
+    def edit_after_the_snapshot(self):
+        """The person saves a row after the update's early copy was taken, while the old server still runs (before the helper starts)."""
+        body = self.reviewed()
+        self.assertEqual(200, self.up.install({"review_id": body["review_id"]})[0])
+        con = sqlite3.connect(str(self.db))
+        con.execute("INSERT INTO projects (code, name) VALUES ('MINE', 'Saved after the early copy')")
+        con.commit()
+        con.close()
+        return Path(h.read_json(h.marker_path(self.data))["backup_dir"]) / "clark.db"
+
+    def test_an_edit_after_the_snapshot_and_a_failed_start_that_wrote_nothing_leaves_the_data_untouched(self):
+        """The put-back only follows a write by the NEW version: the live file is compared with itself just before the new version
+        starts, not with the early copy. An edit between the two is the person's, so it stays."""
+        self.seams = MigratingSeams(self, migrate=False)
+        copy = self.edit_after_the_snapshot()
+        edited = digest(self.db)
+        self.assertNotEqual(edited, digest(copy))
+        self.seams.now += 20
+        code, result = self.run_helper()
+        self.assertEqual(h.ROLLED_BACK, code)
+        self.assertEqual(edited, digest(self.db))                                # byte for byte what the person saved
+        self.assertIn("MINE", [r[0] for r in rows(self.db, "projects")])
+        self.assertNotIn("data", result)
+        self.assertEqual([], self.asides())
+        self.assertEqual(2, len(self.seams.started))                              # the new version was started, then the old one again
+
+    def test_an_edit_after_the_snapshot_and_a_failed_start_that_wrote_is_put_back_byte_for_byte(self):
+        self.seams = MigratingSeams(self, migrate=False)
+        copy = self.edit_after_the_snapshot()
+
+        def start(app_dir, data_dir, port, log_path, original=self.seams.start_server):
+            if not self.seams.started:                                           # the new version's start only
+                con = sqlite3.connect(str(self.db))
+                con.execute("INSERT INTO projects (code, name) VALUES ('NEW', 'Written by a start that failed')")
+                con.commit()
+                con.close()
+            return original(app_dir, data_dir, port, log_path)
+        self.seams.start_server = start
+        seen = []
+        first = self.seams.start_server
+        self.seams.start_server = lambda *a: (seen.append(digest(self.db)) if self.seams.started else None, first(*a))[1]
+        self.seams.now += 20
+        code, result = self.run_helper()
+        self.assertEqual((h.ROLLED_BACK, "restored"), (code, result["data"]))
+        self.assertEqual([digest(copy)], seen)                                   # the early copy, the same bytes
+        names = [r[0] for r in rows(self.db, "projects")]
+        self.assertNotIn("NEW", names)
+        aside = self.asides()
+        self.assertEqual(1, len(aside))
+        kept = [r[0] for r in rows(aside[0] / "clark.db", "projects")]
+        self.assertIn("NEW", kept)                                                # nothing is lost: both rows are in the folder kept
+        self.assertIn("MINE", kept)
+
+    def started_by_a_writing_version(self):
+        """The update is handed over and its early copy taken; the new version's start writes a row and does not answer. Returns the
+        copy's path and a Run over the marker (a helper run, as the marker on disk stands)."""
+        self.seams = MigratingSeams(self, migrate=False)
+        copy = self.edit_after_the_snapshot()
+
+        def start(app_dir, data_dir, port, log_path, original=self.seams.start_server):
+            if not self.seams.started:                                           # the new version's first start only
+                con = sqlite3.connect(str(self.db))
+                con.execute("INSERT INTO projects (code, name) VALUES ('NEW', 'Written by a start that failed')")
+                con.commit()
+                con.close()
+            return original(app_dir, data_dir, port, log_path)
+        self.seams.start_server = start
+        return copy, h.Run(h.marker_path(self.data), self.seams)
+
+    def start_new_and_fail(self, run):
+        self.seams.now += 20
+        with self.assertRaises(h.StepError):
+            run.s_start_new()
+
+    def test_a_helper_run_again_after_the_new_version_wrote_does_not_take_the_digest_afresh(self):
+        """digest_before_start is taken once, before the new version is launched. A run again (the marker as it stands on disk) after
+        the new version wrote must keep it: taken afresh it would equal the live file and the write would never be put back."""
+        copy, run = self.started_by_a_writing_version()
+        taken = run.live_digest()
+        self.start_new_and_fail(run)
+        self.assertEqual(taken, run.m["digest_before_start"])
+        again = h.Run(h.marker_path(self.data), self.seams)                      # the helper run again
+        self.assertEqual(taken, again.m["digest_before_start"])                  # the first run's value was saved
+        self.assertNotEqual(taken, again.live_digest())                          # and the data now holds the new version's write
+        self.start_new_and_fail(again)
+        self.assertEqual(taken, again.m["digest_before_start"])                  # not taken afresh
+        again.r_stop_new()
+        again.r_restore_data()
+        self.assertEqual(digest(copy), digest(self.db))                          # so the write is still seen, and put back
+        self.assertNotIn("NEW", [r[0] for r in rows(self.db, "projects")])
+        self.assertEqual(1, len(self.asides()))
+
+    def put_back_refused_without_a_digest(self, run):
+        run.save(new_pid=4242)
+        run.r_stop_new()
+        run.r_restore_data()
+        self.assertIn("NEW", [r[0] for r in rows(self.db, "projects")])          # the data is left as the new version wrote it
+        self.assertEqual([], self.asides())
+        self.assertFalse(run.m.get("data_restore"))
+
+    def test_a_restore_run_again_after_the_put_back_does_not_put_back_or_set_aside_again(self):
+        """#992 follow-up: the put-back went back to the early copy, which differs from the digest taken before the start (the person
+        edited between the two). A run again must see the put-back is done: same bytes, no second replaced-* folder."""
+        copy, run = self.started_by_a_writing_version()
+        self.start_new_and_fail(run)
+        self.assertTrue(run.m.get("new_pid"))
+        run.r_restore_data()
+        self.assertEqual("restored", run.m["data_restore"]["status"])
+        self.assertEqual(digest(copy), digest(self.db))
+        done = (digest(self.db), [a.name for a in self.asides()])
+        self.assertEqual(1, len(done[1]))
+        run.r_restore_data()                                                          # the same run, called again
+        again = h.Run(h.marker_path(self.data), self.seams)                           # and a new run over the saved marker
+        again.r_restore_data()
+        self.assertEqual("restored", again.m["data_restore"]["status"])
+        self.assertEqual(done, (digest(self.db), [a.name for a in self.asides()]))
+
+    def test_a_stop_after_the_put_back_but_before_it_was_recorded_does_not_set_aside_again(self):
+        """#992 follow-up (second read LOW): the helper was killed after put_back_database and before the 'restored' record was saved.
+        A later run finds the live file already equal to the copy: nothing to put back, no second replaced-* folder."""
+        copy, run = self.started_by_a_writing_version()
+        self.start_new_and_fail(run)
+        with mock.patch.object(h.Run, "restored", side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                run.r_restore_data()
+        self.assertEqual(digest(copy), digest(self.db))                               # the put-back itself happened
+        done = (digest(self.db), [a.name for a in self.asides()])
+        self.assertEqual(1, len(done[1]))
+        again = h.Run(h.marker_path(self.data), self.seams)
+        again.r_restore_data()
+        self.assertEqual(done, (digest(self.db), [a.name for a in self.asides()]))
+
+    def test_a_digest_that_was_not_taken_puts_nothing_back(self):
+        """No digest_before_start (the step never ran, or an older marker): there is nothing to compare with, so same_layout_copy
+        gives None and the data is not put back."""
+        copy, run = self.started_by_a_writing_version()
+        self.seams.start_server(self.app, self.data, 8765, self.data / "server.log")     # the new version wrote; no s_start_new
+        self.assertNotIn("digest_before_start", run.m)
+        self.assertIsNone(run.same_layout_copy(sqlite3.connect(str(self.db))))
+        self.put_back_refused_without_a_digest(run)
+
+    def test_a_digest_that_could_not_be_read_puts_nothing_back(self):
+        """The live file could not be read when the new version was about to start: live_digest gives None, which is saved as the
+        digest, and the later comparison gives None too: no put-back."""
+        copy, run = self.started_by_a_writing_version()
+        with mock.patch.object(h.Run, "live_digest", return_value=None):
+            self.start_new_and_fail(run)
+        self.assertIsNone(run.m["digest_before_start"])
+        self.assertIsNone(run.same_layout_copy(sqlite3.connect(str(self.db))))
+        self.put_back_refused_without_a_digest(run)
+
     def test_the_helper_run_twice_is_safe_and_changes_nothing_the_second_time(self):
         code, result = self.go()
         after_first = (digest(self.db), [a.name for a in self.asides()])
@@ -367,6 +547,37 @@ class HandOverFailsAfterTheRestoreTest(Rolled):
         self.assertNotIn("nothing was changed", said["message"].lower())
         self.assertIn("kept in clark's backups folder", said["message"])
         self.assertIn("put back as it was before the update", said["message"])
+
+
+class UndoThenTheOldAppFailsToStartTest(Rolled):
+    def test_a_failed_start_after_an_undo_is_not_judged_against_the_undo_sets_newer_copy(self):
+        """Read of PR 992: an Undo's backup set holds the NEWER layout (what the person had before pressing Undo). If the old app then
+        fails to start, the #479 check must not compare against it: the data was put back correctly, so no 'different version' and
+        no data_restore_pending."""
+        self.seams = MigratingSeams(self, answers=True)
+        body = self.reviewed()
+        self.assertEqual(200, self.up.install({"review_id": body["review_id"]})[0])
+        self.assertEqual(h.OK, self.run_helper()[0])
+        s = open_store(self.db, onedrive_roots=[])
+        copy = s.migration_backup
+        s.close()
+        now = self.make(version="0.3.1", migration_backup=copy)
+        now.settle()
+        armed = now.arm_undo({})[1]
+        self.seams = MigratingSeams(self, migrate=False)                      # the old app is started by the undo and does not answer
+        status, said = now.undo({"arm_id": armed["arm_id"]})
+        self.assertEqual(200, status, said)
+        at_handover, asides = digest(self.db), self.asides()                   # the Undo itself kept the newer file aside
+        code, result = self.run_helper()
+        self.assertEqual(h.ROLLED_BACK, code)
+        self.assertNotIn("data", result)                                       # nothing for the data step to say
+        self.assertNotIn("different version", result["message"])
+        self.assertNotIn("install the update again", result["message"])
+        self.assertEqual("1", version(self.db))
+        self.assertEqual(at_handover, digest(self.db))                         # the put-back data is untouched
+        for record in (self.data / "updates").glob("*/update.json"):
+            self.assertNotIn("data_restore_pending", json.loads(record.read_text(encoding="utf-8")), record.parent.name)
+        self.assertEqual(asides, self.asides())                                # the helper put nothing back, so kept nothing more
 
 
 class ParityTest(unittest.TestCase):

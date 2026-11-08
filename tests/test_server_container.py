@@ -199,6 +199,30 @@ class Compose(unittest.TestCase):
         for block in bad:
             self.assertTrue(self.bad_ports(head + block), block)
 
+    def test_the_port_check_reads_ranges_protocol_suffixes_and_ipv6_samples(self):
+        """Ranges, /tcp and /udp suffixes and a bracketed IPv6 host are read like any other short entry: only 127.0.0.1 passes
+        (the check is strict on purpose: [::1] is flagged too, the compose file says 127.0.0.1)."""
+        head = "services:\n  clark:\n    image: x\n    ports:\n"
+        good = ['      - "127.0.0.1:8080:80/tcp"\n', "      - 127.0.0.1:8080:80/udp\n",
+                '      - "127.0.0.1:8000-8010:8000-8010"\n', '      - "127.0.0.1:8000-8010:8000-8010/tcp"\n']
+        bad = ['      - "8000-8010:8000-8010"\n', "      - 8080:80/tcp\n", '      - "0.0.0.0:8080:80/udp"\n',
+               '      - "0.0.0.0:8000-8010:8000-8010/tcp"\n', '      - "[::1]:8080:80"\n', "      - [::1]:8080:80\n",
+               '      - "[::]:8080:80/tcp"\n', '      - "127.0.0.1:8080:80"\n      - "8081:81/udp"\n']
+        for entry in good:
+            self.assertEqual(self.bad_ports(head + entry), [], entry)
+        for entry in bad:
+            self.assertTrue(self.bad_ports(head + entry), entry)
+        self.assertEqual(self.bad_ports(head + '      - "8000-8010:8000-8010"\n'), ["8000-8010:8000-8010"])
+        self.assertEqual(self.bad_ports(head + '      - "[::1]:8080:80"\n'), ["[::1]:8080:80"])
+
+    def test_a_flow_style_ports_list_is_not_read_so_the_guard_says_no_port_was_found(self):
+        """"ports: [...]" is not read as a list; that must never pass as 'nothing is published', it fires the guard."""
+        head = "services:\n  clark:\n    image: x\n"
+        for block in ('    ports: ["0.0.0.0:8766:8766"]\n', '    ports: [ "127.0.0.1:8766:8766" ]\n', "    ports: [8766:8766]\n",
+                      "    ports: []\n", "    image: y\n"):
+            self.assertEqual(self.bad_ports(head + block), ["no published port found"], block)
+        self.assertEqual(self.bad_ports(head + '    ports:\n      - "127.0.0.1:8766:8766"\n'), [])
+
     def service(self):
         return (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8")
 

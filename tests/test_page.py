@@ -224,7 +224,7 @@ DATA = {"ABC": {"project": {"code": "ABC", "name": "Example Programme", "health"
 
 class RealBrowser(unittest.TestCase):
     def serve(self, branding):
-        s = Running(data_for=DATA.get, page_html=lambda: page.page_html(branding))
+        s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(branding))
         self.addCleanup(s.close)
         return s
 
