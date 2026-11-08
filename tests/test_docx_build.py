@@ -91,6 +91,37 @@ class HostileValues(unittest.TestCase):
                 self.assertIsNone(glance.colour_of_priority(bad))
 
 
+class HostileHealthAndStatus(unittest.TestCase):
+    """Row 1035: a project's health or a use case's status that is a list or dict (an unhashable key in a colour lookup raised
+    TypeError) builds with no colour, with a use case linked to open work."""
+    def plant(self, bad):
+        plant = fx.load()
+        data = plant["data"]
+        data["project"]["health"] = bad
+        for uc in data["use_cases"]:
+            uc["status"] = bad
+        for row in data["raid"]:
+            row["use_case"] = data["use_cases"][0]["id"]
+            row["status"] = "Open"
+        return plant
+
+    def test_a_health_or_use_case_status_that_is_not_text_builds(self):
+        for bad in (["On track"], {"a": 1}):
+            with self.subTest(bad=bad):
+                self.assertTrue(docx_build.build(published(self.plant(bad))).startswith(b"PK"))
+
+    def test_the_pill_and_the_strip_give_no_colour(self):
+        for bad in (["On track"], {"a": 1}):
+            with self.subTest(bad=bad):
+                pill = glance.health_pill(bad)
+                self.assertIsNone(pill["colour"])
+                self.assertEqual(pill["words"], "Not set")
+                d = self.plant(bad)["data"]
+                rows = glance.use_case_strip(d["use_cases"], glance.work_rows(d), "2026-10-28")["rows"]
+                self.assertTrue(rows)
+                self.assertTrue(all(r["colour"] is None or r["colour"] == "grey" for r in rows))
+
+
 class Repeatable(unittest.TestCase):
     def test_the_same_rows_give_the_same_bytes(self):
         a = docx_build.build(published())
