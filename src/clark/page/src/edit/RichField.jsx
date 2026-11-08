@@ -9,18 +9,22 @@ import { saveRich } from "./richSave.js";
 
 const shown = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
 
-export function RichField({ field, id, value, label, empty = "Click to write.", save }) {
+// A field may bring a look and a few controls of its own (the At a glance Reason): `cls` and `attrs` go on the view and on the open box, `aria` is the
+// view's name instead of "Edit <label>", `forceOpen` opens it from outside (a health picked with no reason yet), `onClose(refocus)` is told when it closes.
+export function RichField({ field, id, value, label, empty = "Click to write.", save, cls = "", attrs = null, aria = "", forceOpen = false, onClose = null }) {
   const [open, setOpen] = useState(false);
   const view = useRef(null), back = useRef(false);
   // Esc or Cmd/Ctrl+Enter closed the editor: the focus goes to the field's view, not to the page body (#188). A close because the
   // focus went elsewhere leaves it where the person put it.
   useEffect(() => { if (!open && back.current) { back.current = false; if (view.current) view.current.focus(); } }, [open]);
+  useEffect(() => { if (forceOpen) setOpen(true); }, [forceOpen]);
   if (open) {
-    return <RichText value={value || ""} label={label} onSave={(html) => (save ? save(html) : saveRich(field, id, html))} onClose={(refocus) => { back.current = refocus === true; setOpen(false); }} />;
+    const editor = <RichText value={value || ""} label={label} onSave={(html) => (save ? save(html) : saveRich(field, id, html))} onClose={(refocus) => { back.current = refocus === true; if (onClose) onClose(refocus); setOpen(false); }} />;
+    return cls ? <div class={`${cls} rich`} {...(attrs || {})}>{editor}</div> : editor;
   }
   const html = shown(value);
   return (
-    <div class="rt-view" ref={view} data-edit-only data-rich={field} role="button" tabindex="0" aria-label={`Edit ${label || "text"}`}
+    <div class={cls ? `rt-view ${cls}` : "rt-view"} ref={view} data-edit-only data-rich={field} role="button" tabindex="0" aria-label={aria || `Edit ${label || "text"}`} {...(attrs || {})}
       onClick={(e) => { if (!e.target.closest("a")) setOpen(true); }}
       onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); setOpen(true); } }}>
       {html ? <div class="sec-body prose" dangerouslySetInnerHTML={{ __html: html }} /> : <p class="quiet">{empty}</p>}

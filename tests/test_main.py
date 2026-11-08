@@ -475,7 +475,7 @@ class InProcess(TempFolder):
         self.assertTrue(callable(call["projects"]))
         self.assertEqual(call["port"], 8123)
         self.assertEqual(call["data_for"].__name__, "data_for")
-        self.assertIs(call["page_html"], launcher.page.page_html)
+        self.assertEqual(call["page_html"].__qualname__, "page_of.<locals>.page_html")        # #944: the page seam takes the open project's code, so the launcher wraps page.page_html
         self.assertEqual(out.splitlines()[-2:], [f"Open http://127.0.0.1:8123/ to use clark. Leave this window open. "
                                                   f"Press Ctrl+C to stop.", "Stopped."])      # no project yet: no hash
         self.assertNotIn("report editor", out)

@@ -3,7 +3,7 @@ import json
 import unittest
 
 from _demo import USER, DemoStore
-from clark import changes, milestone_rows
+from clark import changes, milestone_rows, sanitise
 from clark.store import NEVER_PUBLISH
 
 WHO = {"agreed_with": "Pat Placeholder", "reason": "Build ran long", "source": "Steering, 01-10-2026"}
@@ -87,7 +87,7 @@ class TheFields(Base):
     def test_the_note_is_in_no_reply_of_a_change_or_its_undo_and_the_undo_words_name_it_without_the_text(self):      # #458
         note = "Waiting on the vendor SECRETNOTE-458"
         wrote = self.ok({"internal_note": note})
-        self.assertEqual(self.row()["internal_note"], note)
+        self.assertEqual(self.row()["internal_note"], "<p>%s</p>" % note)       # row 1005: the note is stored as the editor's HTML
         status, undone = self.undo({"project": "ABC", "apply_id": wrote["apply_id"]})
         self.assertEqual(status, 200, undone)
         self.assertIn("internal note", undone["words"])
@@ -103,7 +103,7 @@ class TheFields(Base):
 
     def test_the_note_counts_a_line_break_once_and_a_tab_is_refused(self):      # #458
         self.ok({"internal_note": "a\r\n" * 1000})                          # 2000 characters once folded: fits
-        self.assertEqual(self.row()["internal_note"], "\n".join(["a"] * 1000))
+        self.assertEqual(self.row()["internal_note"], "<p>a</p>" * 1000)       # row 1005: one paragraph a line
         self.refused(self.req({"internal_note": "a\r\n" * 1001}), changes.ITEM_VALUE_WORDS)
         self.refused(self.req({"internal_note": "a\tb"}), changes.NOTE_TEXT_WORDS)
 
@@ -279,15 +279,15 @@ class TheHold(Base):
         self.assertEqual(len(notes), 1)
         self.assertRegex(notes[0][0], r"^\d\d-\d\d-\d{4}: holding; agreed date unchanged, forecast 20-03-2030\.$")
         self.assertEqual({r["field"] for r in rows if r["table"] == "milestones"} - {"updated_at"}, {"movement", "internal_note", "note"})
-        self.assertEqual(self.row()["internal_note"], notes[0][0], "#458: the same dated line is in the internal note, which was empty")
+        self.assertEqual(self.row()["internal_note"], "<p>%s</p>" % notes[0][0], "#458: the same dated line is in the internal note, which was empty")
         again = self.ok({"movement": None})
         self.ok({"movement": "hold"})
-        lines = self.row()["internal_note"].split("\n")
+        lines = sanitise.plain_text(self.row()["internal_note"]).split("\n")
         self.assertEqual(lines, [notes[0][0]], "a second identical Hold today adds no second line")
         self.assertTrue(again["apply_id"])
         self.ok({"movement": None})
         self.ok({"movement": "hold", "forecast_date": "2030-04-01"})
-        lines = self.row()["internal_note"].split("\n")
+        lines = sanitise.plain_text(self.row()["internal_note"]).split("\n")
         self.assertEqual(len(lines), 2, "a Hold with a different forecast adds its own line")
         self.assertEqual(lines[0], notes[0][0])
         self.assertIn("forecast 01-04-2030", lines[1])
@@ -297,15 +297,15 @@ class TheHold(Base):
         self.ok({"internal_note": "Chase the vendor"})
         got = self.ok({"movement": "hold"})
         note = self.row()["internal_note"]
-        self.assertTrue(note.startswith("Chase the vendor\n"), note)
-        self.assertRegex(note.split("\n")[1], r"^\d\d-\d\d-\d{4}: holding; agreed date unchanged, forecast 20-03-2030\.$")
+        self.assertTrue(note.startswith("<p>Chase the vendor</p><p>"), note)
+        self.assertRegex(sanitise.plain_text(note).split("\n")[1], r"^\d\d-\d\d-\d{4}: holding; agreed date unchanged, forecast 20-03-2030\.$")
         status, undone = self.undo({"project": "ABC", "apply_id": got["apply_id"]})
         self.assertEqual(status, 200, undone)
-        self.assertEqual(self.row()["internal_note"], "Chase the vendor")
+        self.assertEqual(self.row()["internal_note"], "<p>Chase the vendor</p>")
         self.assertNotIn("Chase the vendor", json.dumps(got))
         self.assertNotIn("Chase the vendor", json.dumps(undone))
         self.ok({"movement": "hold", "internal_note": "Mine"})
-        self.assertEqual(self.row()["internal_note"], "Mine", "a note sent with the Hold is the owner's, as sent")
+        self.assertEqual(self.row()["internal_note"], "<p>Mine</p>", "a note sent with the Hold is the owner's, as sent")
 
     def test_a_hold_drops_the_oldest_lines_rather_than_pass_the_note_limit(self):      # #458
         self.slip()
@@ -313,20 +313,23 @@ class TheHold(Base):
         self.ok({"internal_note": filler})
         self.ok({"movement": "hold"})
         note = self.row()["internal_note"]
-        self.assertLessEqual(len(note), changes.INTERNAL_NOTE_MAX)
-        self.assertIn("holding; agreed date unchanged", note.split("\n")[-1])
-        self.assertEqual(changes._note_with_line("a" * 2000, "L"), "L")
+        self.assertLessEqual(len(sanitise.plain_text(note)), changes.INTERNAL_NOTE_MAX)      # row 1005: the words are counted, not the markup
+        self.assertIn("holding; agreed date unchanged", sanitise.plain_text(note).split("\n")[-1])
+        self.assertEqual(changes._note_with_line("<p>%s</p>" % ("a" * 2000), "L"), "<p>L</p>")      # an HTML note drops whole blocks
+        self.assertEqual(changes._note_with_line("a" * 2000, "L"), "L")                              # a plain one drops lines, as before
 
     def test_a_hold_that_drops_lines_says_so_in_its_reply_and_one_undo_restores_the_whole_note(self):      # #603
         self.slip()
         filler = "\n".join(["x" * 99] * 20)
         self.ok({"internal_note": filler})
+        stored = self.row()["internal_note"]                      # row 1005: stored as the editor's HTML, a paragraph a line
         got = self.ok({"movement": "hold"})
         self.assertIs(got.get("note_trimmed"), True)
-        self.assertNotEqual(self.row()["internal_note"], filler)
+        self.assertNotEqual(self.row()["internal_note"], stored)
         status, undone = self.undo({"project": "ABC", "apply_id": got["apply_id"]})
         self.assertEqual(status, 200, undone)
-        self.assertEqual(self.row()["internal_note"], filler, "Undo puts back the whole note, the dropped lines too")
+        self.assertEqual(self.row()["internal_note"], stored, "Undo puts back the whole note, the dropped lines too")
+        self.assertEqual(sanitise.rich_plain_text(stored), filler)
 
     def test_a_hold_that_drops_nothing_does_not_say_the_note_was_trimmed(self):      # #603
         self.slip()
@@ -342,6 +345,34 @@ class TheHold(Base):
     def test_note_with_line_reports_whether_it_dropped_lines(self):      # #603
         self.assertEqual(changes._note_with_line_trimmed("a\nb", "L"), ("a\nb\nL", False))
         self.assertEqual(changes._note_with_line_trimmed("a" * 2000, "L"), ("L", True))
+        self.assertEqual(changes._note_with_line_trimmed("<p>a</p><p>b</p>", "L<"), ("<p>a</p><p>b</p><p>L&lt;</p>", False))      # HTML: appended escaped, nothing dropped
+        self.assertEqual(changes._note_with_line_trimmed("<p>%s</p><p>b</p>" % ("a" * 1999), "L"), ("<p>b</p><p>L</p>", True))   # HTML: the oldest block goes
+        self.assertEqual(changes._note_with_line_trimmed(None, "L"), ("<p>L</p>", False))
+        self.assertEqual(changes._note_with_line_trimmed("", "L"), ("<p>L</p>", False))
+
+    def test_the_oldest_block_goes_whole_when_it_is_a_nested_list_or_quote(self):      # row 1005: top-level blocks, balanced
+        pad = "a" * 2000
+        for nested in ("<ul><li>a<ul><li>%s</li></ul></li><li>z</li></ul>" % pad,
+                       "<ol><li>a<ol><li>n<ul><li>%s</li></ul></li></ol></li></ol>" % pad,
+                       "<blockquote><p>q</p><blockquote><p>%s</p></blockquote></blockquote>" % pad):
+            got, dropped = changes._note_with_line_trimmed(nested + "<p>keep</p><h2>Head</h2>", "L")
+            self.assertEqual(got, "<p>keep</p><h2>Head</h2><p>L</p>", nested[:30])
+            self.assertTrue(dropped)
+            self.assertEqual(sanitise.clean_html(got), got, "what is stored is clean markup, no stray closing tags")
+        got, dropped = changes._note_with_line_trimmed("<ul><li>a<ul><li>n</li></ul></li></ul><p>%s</p>" % pad, "L")
+        self.assertEqual((got, dropped), ("<p>L</p>", True), "the whole list went, not a piece of it")
+        self.assertEqual(sanitise.clean_html(got), got)
+
+    def test_a_leading_fragment_without_a_tag_is_trimmed_and_flagged(self):      # the old cut stopped there with dropped False
+        self.assertEqual(changes._first_block_end("abc<p>keep</p>"), 3)      # a stored note never starts so (it would be plain), but the cut is whole either way
+        self.assertEqual(changes._first_block_end("<p>a</p><p>b</p>"), 8)
+        self.assertEqual(changes._first_block_end("<hr><p>b</p>"), 4)
+        self.assertEqual(changes._first_block_end("<p>never closed"), len("<p>never closed"))
+
+    def test_one_block_over_the_limit_alone_is_kept_and_not_flagged(self):      # nothing older to drop
+        big = "<p>%s</p>" % ("a" * 2100)
+        self.assertEqual(changes._note_with_line_trimmed(big, "L")[1], True, "the old one goes, the new line stays")
+        self.assertEqual(changes._note_with_line_trimmed(None, "x" * 2100), ("<p>%s</p>" % ("x" * 2100), False))
 
     def test_a_hold_shows_in_the_movement_read_with_its_line_and_clearing_it_is_a_change(self):
         self.ok({"movement": "hold"})
@@ -418,7 +449,7 @@ class TheInternalNote(Base):
     lines, and nothing about it comes back in a reply or a Movement entry."""
     def test_the_note_is_saved_with_its_line_breaks_cleared_and_undone(self):
         got = self.ok({"internal_note": "Waiting for the vendor\r\nChase on Friday  "})
-        self.assertEqual(self.row()["internal_note"], "Waiting for the vendor\nChase on Friday")
+        self.assertEqual(self.row()["internal_note"], "<p>Waiting for the vendor</p><p>Chase on Friday</p>")
         self.assertNotIn("internal_note", got["milestone"])
         self.assertNotIn("Waiting", repr(got))
         status, undone = self.undo({"project": "ABC", "apply_id": got["apply_id"]})
@@ -451,7 +482,9 @@ class TheLists(unittest.TestCase):
                                   "client_message", "movement", "internal_note",
                                   "name", "owner", "workstream", "percent_complete", "description"})      # #458: + the internal note; row 828: + the peek's fields
         self.assertFalse(fields & {"sort_order", "project", "id", "archived", "client_visible"})
-        self.assertEqual(changes.KIND_OP_KEYS["milestones"][changes.UPDATE], ("id", "changes", "rebaseline"))
+        self.assertEqual(changes.KIND_OP_KEYS["milestones"][changes.UPDATE], ("id", "changes", "rebaseline", "new_person"))      # row 986: + the owner's new person
+        for kind in ("actions", "raid", "decisions"):      # row 986: the owner update alone takes `new_person`
+            self.assertEqual(changes.KIND_OP_KEYS[kind][changes.UPDATE], ("id", "changes", "new_person"))
         self.assertTrue(fields <= set(changes.UNDOABLE["milestones"]))
         self.assertIn("archived", changes.UNDOABLE["milestones"])
         self.assertIn("internal_note", changes.UNDOABLE["milestones"])

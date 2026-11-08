@@ -277,7 +277,7 @@ class Cards(Base):
             p = self.page(cdp)
             self.open_settings(p)
             self.assertEqual(p.js("[...document.querySelectorAll('#personal > fieldset legend')].map(l => l.textContent).slice(0, 3)"),
-                             ["Dashboard sections", "Appearance", "About you"])
+                             ["Dashboard sections", "Appearance", "Keys"])      # row 950: About you moved to the Profile card
             self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('small').textContent)"), [
                 "Each section is its own card, with a slim gap that shows the page picture.", "The same, with more space between the sections.",
                 "Slim gaps, and each section title in a grey band, like the Work items groups.", "All the sections in one long card."])

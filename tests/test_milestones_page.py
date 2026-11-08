@@ -13,6 +13,7 @@ import shutil
 import tempfile
 import time
 import unittest
+from _editor_checks import for_url
 from pathlib import Path
 
 from _demo import USER, DemoStore
@@ -179,7 +180,7 @@ class RealBrowser(unittest.TestCase):
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Page.navigate", {"url": "about:blank"}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/{hash_}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{port}/{hash_}")}, sid)
         self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector('{ready}')", sid)), "the block drew")
         return sid
 
@@ -1000,7 +1001,7 @@ class Crowded(unittest.TestCase):
                 cdp.call("Page.enable", {}, sid)
                 cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE + ";" + self.style_for(font)}, sid)
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": width < 600}, sid)
-                cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#milestones&p=TUL"}, sid)
+                cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#milestones&p=TUL")}, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.mv-wrap')", sid)))
                 self.check(cdp, sid, f"app {font} font {width}px")
 
@@ -1023,7 +1024,7 @@ class Crowded(unittest.TestCase):
             cdp.call("Page.enable", {}, sid)
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE + ";" + self.style_for("wider")}, sid)
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#milestones&p=TUL"}, sid)
+            cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#milestones&p=TUL")}, sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-lab').length", sid) >= len(CROWDED) + len(extra)))
             time.sleep(0.4)
             got = cdp.js(BOXES, sid)

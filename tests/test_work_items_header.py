@@ -151,6 +151,10 @@ class Header(Base):
         self.each(check)
 
     # ---- row 844 ----
+    CLICK_DIAG = """(() => { const t = document.querySelector('.vtab[data-view-id=risky]'), r = t.getBoundingClientRect(), e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return JSON.stringify({tab: t.outerHTML.slice(0, 300), rect: [r.x, r.y, r.width, r.height], scroll: [scrollX, scrollY, document.querySelector('.vtabs').scrollLeft], at_point: e && e.outerHTML.slice(0, 200),
+        vtabs: document.querySelector('.vtabs').innerHTML.slice(0, 1500), line: document.querySelector('[data-fline]').dataset.line}); })()"""
+
     def test_row_844_a_changed_view_keeps_its_tab_with_a_dot_and_save_view_and_discard_changes_act_on_it(self):
         saved = [{"id": "risky", "name": "Risky", "line": "is:open type:risk"}]
 
@@ -174,7 +178,7 @@ class Header(Base):
             self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line.trim() === 'is:open'", "the saved line is back")
             # a made view: Save view writes the line into it
             click(cdp, sid, ".vtab[data-view-id=risky]")
-            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "the made view is open")
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "the made view is open", why=lambda: cdp.js(self.CLICK_DIAG, sid))
             click(cdp, sid, "#fline-input")
             key(cdp, sid, "End")
             cdp.call("Input.insertText", {"text": " no:owner "}, sid)

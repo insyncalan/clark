@@ -83,7 +83,7 @@ def set_backups_kept(data_dir, number):
     return number
 
 
-# ===== Your name and your email (#180, Settings › Personal › About you) =====
+# ===== Your name and your email (#180, Settings › Profile › About you) =====
 # Kept in the same file as the backups number: this person's, on this computer. Both are optional. The name is shown at the top of the
 # profile menu and is the name on each change (by_user) instead of the login name; the email is only used to tell which addresses are
 # the person's own (the Draft email's own domain). clark never reads either from the computer, the browser or the Claude sign-in, and

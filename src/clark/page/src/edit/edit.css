@@ -60,8 +60,14 @@
 .mvm-f span { font-size: var(--size-caption); color: var(--text-muted); }
 .mvm-f input { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .mvm-f input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.mvm-note { display: block; box-sizing: border-box; width: 100%; min-height: 84px; padding: var(--space-2) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; resize: vertical; }
-.mvm-note:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.mvm-note { display: block; box-sizing: border-box; width: 100%; }
+.mvm-note .rt-view { display: block; min-height: 84px; padding: var(--space-2) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+.mvm-note .rt-view .quiet { margin: 0; color: var(--text-muted); }
+/* item 1005: the At a glance reason is the one rich editor too: a bordered view that opens the editor in the tile */
+.fig .hreason.edit.rt-view { display: block; width: 100%; box-sizing: border-box; min-height: 62px; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); }
+.fig .hreason.edit.rt-view .quiet { margin: 0; color: var(--text-muted); }
+.fig .hreason.edit.rich { display: block; width: 100%; box-sizing: border-box; }
+.fig .hreason.edit.needs .rt, .fig .hreason.edit.needs.rt-view { border-color: var(--status-amber); }
 .mvm-confirm { margin: var(--space-3) 0 var(--space-1); }
 .mvm-problems p { margin: var(--space-1) 0; color: var(--status-red-text); }
 @media (max-width: 1100px) { .mvm-row { grid-template-columns: 1fr auto; } .mvm-track { grid-column: 1 / -1; } }
@@ -989,8 +995,23 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .sn-acts { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
 /* row 796: the Publish box is the prototype's 560 px; its heading keeps the .dlg h2 style every box uses. Edit's alone: the published file has no such box. */
 #publish-dialog { width: min(560px, calc(100vw - 32px)); }
+
+/* Row 985: the Owner picker's section headings, the "And N more" line and the TBC entry. Edit only (shell.css is in the published page). */
+.cp-sec { margin: 8px 6px 0; font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
+.cp-more { margin: 4px 6px 2px; font-size: var(--size-caption); color: var(--text-muted); }
+.cp-clear { margin-top: 6px; border-top: 1px solid var(--grey-200); border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+
+/* Row 986: Assign to, add a new person. The no-match offer and the small form (Name, optional Email) in the Owner picker. Edit only. */
+.cp-add { margin: 6px 0 2px; border-top: 1px solid var(--grey-200); padding-top: 4px; }
+.cp-new { display: flex; flex-direction: column; gap: var(--space-2); margin-top: 8px; }
+.cp-new .cp-sec { display: block; margin: 0 0 2px; }
+.cp-acts { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-1); }
+
 /* Row 833: the examples row under the filter line is out of the flow, so while it is hidden it takes no room (it reserved 33 px); shown it floats over what is below (layer 24: over the sticky bars, under the drop-down menus at 25, so an open menu is not covered). Edit only: the published page draws no filter line. */
 .fhints { position: absolute; left: 0; right: 0; z-index: 24; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; padding: 0 0 var(--space-1); background: var(--grey-50); visibility: hidden; }
 .fhints.on { visibility: visible; }
 /* row 988: with many lines the chart box is bounded and scrolls inside itself, so its sticky header row stays in view. Edit.css only: shell.css is the published page's. (.gt-full sets its own, tighter bound.) */
 .gt-gx { max-height: 70vh; }
+
+/* Settings › Brands review panel: the plain label first, the file's name small and grey after it. Tokens only. */
+.brand-file { font-size: var(--size-small); color: var(--text-muted); margin-left: 4px; }

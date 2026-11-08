@@ -16,6 +16,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from _editor_checks import for_url
 from pathlib import Path
 from unittest import mock
 
@@ -323,7 +324,7 @@ class Live(unittest.TestCase):
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{hash_}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{self.s.port}/{hash_}")}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr').length", sid) > 0), "the list drew")
         self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch off the Dashboard: the page is always editable")
         if edit:
@@ -877,6 +878,7 @@ class Live(unittest.TestCase):
                 click(cdp, sid, cell)
                 self.until(cdp, sid, "!!document.querySelector('[data-pop] input.cp-in')", "the owner picker opened")
                 self.assertEqual(cdp.js("document.activeElement.value", sid), "Ada Quillfeather", "the box holds the owner, selected")
+                self.until(cdp, sid, "document.querySelectorAll('[data-pop] [data-name]').length >= 3", "the project's people draw once the register is read")  # row 985: the names wait for the list
                 self.assertGreaterEqual(cdp.js("document.querySelectorAll('[data-pop] [data-name]').length", sid), 3, "the project's people")
                 cdp.call("Input.insertText", {"text": "Zelda Quince"}, sid)
                 key(cdp, sid, "Enter")
@@ -1060,8 +1062,9 @@ class Live(unittest.TestCase):
             cdp.js("(() => { const real = window.fetch; window.fetch = async (...a) => { const r = await real(...a); "
                    "if (String(a[0]).includes('/api/undo')) clarkPage.setProject('OTH'); return r; }; })()", sid)
             click(cdp, sid, "[data-undo]")
-            self.until(cdp, sid, "clarkPage.project() === 'OTH'", "another project is open")
-            self.until(cdp, sid, "(document.querySelector('.toast-text') || {}).textContent === 'Priority of TUL-A-001 is back to Urgent.'", "the undo said what went back, and nothing more")
+            self.until(cdp, sid, "clarkPage.project() === 'OTH' && new URLSearchParams(location.search).get('project') === 'OTH'", "another project is open, in the page loaded for it")      # #944: its own page load, so the old page's toast is gone
+            self.until(cdp, sid, "(document.querySelector('.toast-text') || {}).textContent === 'Priority of TUL-A-001 is back to Urgent.'", "the undo said what went back, and nothing more (carried across the page load)")
+            self.assertTrue(wait(lambda: self.row("actions", "TUL-A-001")["priority"] == "Urgent", 10), "it was undone")
             self.assertEqual(self.row("actions", "TUL-A-001")["priority"], "Urgent", "it was undone")
             self.assertNotIn("could not be refreshed", self.toast(cdp, sid))
             self.assertFalse(cdp.js("!!document.querySelector('.toast.problem')", sid), "no problem is said")
