@@ -25,7 +25,7 @@ class LatestUpdatePublished(unittest.TestCase):
         status, body = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": ref,
                                     "changes": {"latest_update": token}, "place": "peek"})
         self.assertEqual(status, 200, body)
-        self.assertEqual(self.s.read("actions", ref=ref)["latest_update"], token)
+        self.assertEqual(self.s.read("actions", ref=ref)["latest_update"], f"<p>{token}</p>")      # row 1005: stored as the editor's HTML
         return ref, token
 
     def published(self):
