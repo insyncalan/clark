@@ -337,12 +337,13 @@ class Saving(ServerTest):
                                                 "/api/demo/clear": 1024,                                               # #731
                                                 "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024,
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
-                                                "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024,     # #47, #47e
+                                                "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ask/open-source": 1024,     # #47, #47e, #943
                                                 "/api/section-file": 1024,
                                                 "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,     # #72
                                                 "/api/people": sv.PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #454: /api/people takes a paste of up to 500 rows (worked out in server.py)
                                                 "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024,
                                                 "/api/update/undo": 1024,
+                                                "/api/brands/review": 1024, "/api/brands/install": 1024, "/api/brands/remove": 1024, "/api/brands/undo": 1024,     # #944
                                                 "/api/publications/archive": 1024, "/api/publications/restore": 1024})     # #345: a project code and a number; #96: a project and a section only
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
             self.assertEqual(self.s.api("POST", route, b"{}")[0], 404, route)

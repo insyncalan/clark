@@ -7,6 +7,7 @@ clark's own) the controls snap as before. Checked at 1400 and 900 px, light and 
 import json
 import re
 import unittest
+from _editor_checks import for_url
 
 from _paths import ROOT
 import _testpage as testpage
@@ -45,7 +46,7 @@ class MotionPress(unittest.TestCase):
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme},
                                                               {"name": "prefers-reduced-motion", "value": motion}]}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#dashboard&p={self.code}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#dashboard&p={self.code}")}, sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#profile-btn')", sid)))
         return sid
 

@@ -487,6 +487,19 @@ class HistorySheetTests(unittest.TestCase):
         self.assertEqual(ws["F3"].alignment.wrap_text, True)
         self.assertEqual(ws["G3"].alignment.wrap_text, True)
 
+    def test_the_footnote_is_shown_whole_in_the_sheet_and_carried_by_the_activity_tab(self):
+        """#468: the longer footnote is one cell across row 1: nothing sits beside it to stop it spilling, and the seven columns
+        are wide enough to show all of it, so it is never cut off. The Activity tab carries the same words."""
+        ws = self.sheet()
+        a1 = ws["A1"].value
+        self.assertTrue(a1.endswith(history.FOOTNOTE))
+        self.assertIn("Settings \u203a Profile.", a1)
+        self.assertEqual([c.value for c in ws[1]][1:], [None] * 6)
+        widths = sum(ws.column_dimensions[c].width for c in "ABCDEFG")
+        self.assertGreaterEqual(widths, len(a1))
+        tab = history.view_for_project(self.d.store.con, "ABC", "all", 5)
+        self.assertEqual(tab["footnote"], history.FOOTNOTE)
+
     def test_rows_equal_view_for_project_cell_for_cell(self):
         ws = self.sheet()
         rows = self.view()["rows"]

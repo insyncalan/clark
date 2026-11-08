@@ -55,7 +55,7 @@
   "first": [
    {
     "t": "Say who you are",
-    "d": "In [Settings › Personal › About you](go:settings#personal), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
+    "d": "In [Settings › Profile](go:settings#profile), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
    },
    {
     "t": "Pick a project",
@@ -410,10 +410,10 @@
     "id": "change-an-item-in-words",
     "g": "Work items",
     "t": "Change an item with words (Sneak peek)",
-    "w": "A work item open in Edit › the sparkle, or [[/]] [[/]]",
+    "w": "A work item open in Edit › [[/]] [[/]]",
     "go": "work",
     "s": [
-     "With a work item open in the peek in Edit, press [[/]] twice quickly (when you aren’t typing in a box), or press the sparkle at the top, “Change an item with words”.",
+     "With a work item open in the peek in Edit, press [[/]] twice quickly (when you aren’t typing in a box).",
      "Type the change, for example “move to Friday, owner Jo, high priority”.",
      "Under the box, the words you typed are shown in the order you typed them, then a line for each field shows what it is now and what it will become.",
      "Press **Make the change** or [[Enter]] to make every change shown, in one step ([[Shift+Enter]] makes them and keeps the box open). **Not now** or [[Esc]] closes the box. The fields that changed flash for a moment, and the message has **Undo**.",
@@ -761,15 +761,15 @@
     "id": "set-your-profile",
     "g": "Settings and safety",
     "t": "Set your profile",
-    "w": "Settings › Personal › About you",
-    "go": "settings#personal",
+    "w": "Settings › Profile",
+    "go": "settings#profile",
     "s": [
      "Fill in your **Name**, **Alias**, **Email**, **Phone number** and **Organisation**.",
      "Each saves when you leave the box (or press [[Enter]]), with **Undo**.",
      "Your full name goes on every change you make, in each item’s history. Your initials fill the circle at the top right."
     ],
     "page": [
-     "settings#personal"
+     "settings#profile"
     ]
    },
    {
@@ -1356,6 +1356,10 @@
       "p",
       "The filter line takes a plain word, which finds the items with it in the title or the ID, or field:value, such as status:Open or priority:High,Urgent. A comma means or, a space means and, a - in front means not, no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you. The count at the right reads, for example, 12 of 40, and **Clear filter** (the **×**) empties the line. A published file has a **Search work items** box and a **Filter by** row instead, where each filter can be **is any of** or **is not**, and **Clear all** removes the chips.",
       "Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
+     ],
+     [
+      "p",
+      "Assign to: click the owner. Under Recent are the names used lately in this project, then the people clark holds. Type to search them. If the name is new, the box offers to add it “as a new person”, which puts them on the list of people and assigns them in one step; “Keep the name only” assigns the name alone. “TBC (no one yet)” leaves the item with no one yet, and the owner stays as TBC. Recent names are kept in this browser only, not in Excel or a published file. If the browser will not keep them, there is no Recent list, and everything else works."
      ]
     ]
    },
@@ -1420,7 +1424,7 @@
      [
       "ul",
       [
-       "**The top bar**: Close, Across the whole screen, Previous and Next, then the eye, the sparkle (Sneak peek, in Edit), Copy link and **⋯** (Duplicate, Archive).",
+       "**The top bar**: Close, Across the whole screen, Previous and Next, then the eye, Copy link and **⋯** (Duplicate, Archive).",
        "**The line above the title**: the type, the ID, the project, and Client when it is shown to the client.",
        "**A warning**, when an action is overdue or due on a weekend, with fixes.",
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
@@ -1521,7 +1525,7 @@
     "id": "sneak-peek",
     "g": "Working with items",
     "t": "Sneak peek",
-    "w": "A work item open in Edit › the sparkle or [[/]] [[/]]",
+    "w": "A work item open in Edit › [[/]] [[/]]",
     "b": [
      [
       "p",
@@ -1806,7 +1810,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title): Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, People, Asking and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
+      "A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
      ],
      [
       "tbl",
@@ -1816,8 +1820,12 @@
       ],
       [
        [
+        "Profile",
+        "About you (your name, Alias and Email)."
+       ],
+       [
         "Personal",
-        "Dashboard sections (Slim gaps, Roomy gaps, Grey headers, One card), Appearance (System, Light or Dark), About you (your name, Alias and Email) and Keys (Single-key shortcuts)."
+        "Dashboard sections (Slim gaps, Roomy gaps, Grey headers, One card), Appearance (System, Light or Dark) and Keys (Single-key shortcuts)."
        ],
        [
         "Published reports",
@@ -1968,7 +1976,7 @@
       "ul",
       [
        "There is no Save button. Each change is written when you make it: a pick from a menu, [[Enter]] in a field, leaving a box, or closing an editor.",
-       "Each change records who made it (your full name from Settings › Personal › About you, or “You”), how (by hand, in words, imported, ask clark), what it was and what it became.",
+       "Each change records who made it (your full name from Settings › Profile, or “You”), how (by hand, in words, imported, ask clark), what it was and what it became.",
        "**Undo** in the message reverses exactly that step. Several changes made together undo together."
       ]
      ]
@@ -2225,8 +2233,8 @@
    ],
    [
     "sparkle",
-    "Sneak peek",
-    "Change a work item with words",
+    "Draft",
+    "Write the latest update from the item’s own facts",
     "The peek, in Edit"
    ],
    [
@@ -2444,6 +2452,11 @@
    "full": "howto-find-a-past-publication",
    "cards": [
     {
+     "card": "profile",
+     "title": "Profile",
+     "line": "Your name, Alias and email."
+    },
+    {
      "card": "publishing",
      "title": "Publishing",
      "line": "Where Publish saves the report, and the client folder it is copied to."
@@ -2456,7 +2469,7 @@
     {
      "card": "personal",
      "title": "Personal",
-     "line": "How the Dashboard sections look, Light or Dark, your name and the single-key shortcuts."
+     "line": "How the Dashboard sections look, Light or Dark and the single-key shortcuts."
     },
     {
      "card": "freshness",
@@ -2492,6 +2505,11 @@
      "card": "update",
      "title": "Version and updates",
      "line": "The installed version of clark."
+    },
+    {
+     "card": "brands",
+     "title": "Brands",
+     "line": "Add a brand from a zip file, then replace or remove it."
     },
     {
      "card": "people",
