@@ -433,8 +433,9 @@ class Page(Base):
             press(cdp, sid, "Escape")
             self.assertEqual(self.picked(cdp, sid), [], "Esc")
             pick2()
-            tap(cdp, sid, "#project-name")     # the bar's own text: its middle is a tab now (Use cases)
+            tap(cdp, sid, "header.top .divider")     # a neutral spot on the bar: not the project name, which opens the project menu
             self.assertEqual(self.picked(cdp, sid), [], "a click outside")
+            self.assertFalse(cdp.js("!!document.querySelector('#project-menu')", sid), "the click outside opened no menu")
             pick2()
             tap(cdp, sid, "#work h1")
             self.assertEqual(len(self.picked(cdp, sid)), 2, "a click on the page itself, inside Work items, keeps it")
