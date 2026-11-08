@@ -1,0 +1,41 @@
+Updating clark with Docker
+
+Your data is not in this folder. It stays where it is, so a newer clark folder
+finds it again.
+
+To update:
+  1. Open Terminal (Mac) or PowerShell (Windows) in the clark folder you use
+     now and type this, then press Return:
+        docker compose -f docker/compose.yaml down
+  2. Unzip the new download into a new folder. Do not unzip it over the old one.
+  3. In Terminal or PowerShell, go to the new clark folder: type cd and a
+     space, drag the new folder into the window and press Return.
+  4. Type this and press Return:
+        docker compose -f docker/compose.yaml up -d
+  5. Open http://localhost:8766 in Chrome.
+
+If the new clark has a newer data layout than your data, it first copies your
+data (a file whose name ends in -migrate.db, in your data folder) and then
+brings your data up to date. The last 3 of these copies are kept.
+
+If it will not start and the words are "start from the newer clark folder.
+Nothing was changed.", your data was already used by a newer clark. Start from
+that newer clark folder instead. To see what Docker said, type this in the
+folder:
+        docker compose -f docker/compose.yaml logs --tail 50
+
+To go back to the old clark: stop the new one with the down command above in
+the new folder, then run the up command in the old folder. If the new clark
+brought your data up to date, the old clark will not open it and says so. Put
+the copy taken before the update back first. To see the copies, type this in
+the new folder:
+        docker compose -f docker/compose.yaml run --rm clark python3 -m clark restore --data /data
+then type the same line again with the name of the -migrate.db copy added at the
+end, and start the old clark.
+
+Update from file in Settings does not work under Docker, because the clark
+folder is shared in read-only. Use the steps above.
+
+Check the download: the release page shows the SHA-256 of the zip. On a Mac, type
+        shasum -a 256 clark-<version>-mac.zip
+The long number must match the one on the release page.

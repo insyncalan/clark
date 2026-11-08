@@ -17,7 +17,9 @@ services:
     image: python:3.12.12-slim-bookworm
     working_dir: /clark
     # The same start as the Terminal route's: python3 -m clark checks the pages (and in a checkout would build them), then serves.
-    command: ["python3", "-m", "clark", "--data", "/data", "--port", "8766"]
+    # First the data check (#633): it reads the data's version, takes a pre-update copy when this clark is newer than the data, and refuses
+    # (exit 2, "start from the newer clark folder. Nothing was changed.") when the data is newer than this clark. Only then the server.
+    command: ["sh", "-c", "python3 -m clark check-data --data /data && exec python3 -m clark --data /data --port 8766"]
     ports:
       - "127.0.0.1:${CLARK_PORT:-8766}:8766"
     # clark's code is shared in read-only, so the container cannot change it; only the data folder can be written. The data folder
