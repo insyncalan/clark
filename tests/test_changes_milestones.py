@@ -451,7 +451,9 @@ class TheLists(unittest.TestCase):
                                   "client_message", "movement", "internal_note",
                                   "name", "owner", "workstream", "percent_complete", "description"})      # #458: + the internal note; row 828: + the peek's fields
         self.assertFalse(fields & {"sort_order", "project", "id", "archived", "client_visible"})
-        self.assertEqual(changes.KIND_OP_KEYS["milestones"][changes.UPDATE], ("id", "changes", "rebaseline"))
+        self.assertEqual(changes.KIND_OP_KEYS["milestones"][changes.UPDATE], ("id", "changes", "rebaseline", "new_person"))      # row 986: + the owner's new person
+        for kind in ("actions", "raid", "decisions"):      # row 986: the owner update alone takes `new_person`
+            self.assertEqual(changes.KIND_OP_KEYS[kind][changes.UPDATE], ("id", "changes", "new_person"))
         self.assertTrue(fields <= set(changes.UNDOABLE["milestones"]))
         self.assertIn("archived", changes.UNDOABLE["milestones"])
         self.assertIn("internal_note", changes.UNDOABLE["milestones"])

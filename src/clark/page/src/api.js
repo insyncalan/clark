@@ -50,6 +50,8 @@ async function postItem(path, body, fits = (r) => !!r.item) {
 }
 
 // An archive, or a copy of an item (#97): the reply says the step (apply_id) and the record, with no sections.
+/** The one change route, for the few callers that need their own reply handling (row 986); no other file spells it. */
+export const CHANGE_ROUTE = "/api/change";
 export const sendRecordChange = (project, req) => postItem("/api/change", { ...req, project }, (r) => typeof r.apply_id === "number");
 
 // `req` is the change's own parts: op, id, values, changes, before, after, place (see clark/changes.py). `kind` is report_sections

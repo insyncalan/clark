@@ -19,20 +19,37 @@ const Name = ({ n, start, choose }) => (
   </li>
 );
 
-export function OwnerPick({ row, anchor, names, onPick, onClose }) {
+export function OwnerPick({ row, anchor, names, onPick, onAdd, onClose }) {
   const start = String(row.owner == null ? "" : row.owner);
   const [typed, setTyped] = useState(start);
   const [problem, setProblem] = useState("");
-  const box = useRef(null), list = useRef(null);
+  const [form, setForm] = useState(null);               // Row 986: {name, email} while the new-person form is open
+  const [already, setAlready] = useState(null);          // the person the server says is on the list already ({id, name}), offered as "Use this one"
+  const [busy, setBusy] = useState(false);
+  const box = useRef(null), list = useRef(null), nameBox = useRef(null);
   const what = fieldName(row, "owner");
   const [register, setRegister] = useState(null);       // null until the list has been read (or has failed), so Recent is never drawn short
   const code = project.value, recents = loadRecents(code);
   useEffect(() => { let on = true; readPeople().then((r) => { if (on) setRegister(r.ok ? r.people : []); }); return () => { on = false; }; }, []);
   useLayoutEffect(() => { if (box.current) { box.current.focus({ preventScroll: true }); box.current.select(); } }, []);
+  const formOpen = !!form;
+  useLayoutEffect(() => { if (formOpen && nameBox.current) { nameBox.current.focus({ preventScroll: true }); nameBox.current.select(); } }, [formOpen]);
   const searching = typed !== start && !!typed.trim();
   const found = searching ? searchPeople(register || [], names, typed).map((h) => h.name) : [];
   const lists = searching || register === null ? null : browse(recents, register, names);
   const choose = (v) => { const p = onPick(v); if (p) setProblem(p); else noteAssigned(code, v); };
+  const known = (n) => sameName(n, "TBC") || found.some((f) => sameName(f, n)) || names.some((f) => sameName(f, n)) || (register || []).some((p) => sameName(p.name, n));
+  const offerAdd = !!onAdd && register !== null && searching && !known(typed.trim());
+  const save = async () => {
+    if (busy || !form) return;
+    setBusy(true); setProblem(""); setAlready(null);
+    const r = await onAdd({ name: form.name, email: form.email });
+    if (r && r.ok) return;                                // the picker has closed
+    setBusy(false);
+    setProblem((r && r.message) || "That could not be saved just now. Nothing was changed.");
+    setAlready(r && r.code === "person_exists" && r.person ? r.person : null);
+  };
+  const inForm = (e) => { if (e.key === "Enter") { e.preventDefault(); save(); } };
   const options = () => Array.from(list.current ? list.current.querySelectorAll("button") : []);
   const inBox = (e) => {
     if (e.key === "Enter") { e.preventDefault(); choose(typed); }
@@ -52,6 +69,23 @@ export function OwnerPick({ row, anchor, names, onPick, onClose }) {
           onInput={(e) => { setTyped(e.currentTarget.value); setProblem(""); }} onKeyDown={inBox} />
       </label>
       {problem ? <p class="cp-problem" id={`own-p-${row.id}`} role="alert">{problem}</p> : null}
+      {form ? (
+        <div class="cp-new" data-new-person>
+          <label class="cp-l"><span class="cp-sec">Name</span>
+            <input ref={nameBox} type="text" class="cp-in" data-new-name value={form.name} autocomplete="off" spellcheck={false} maxLength={200}
+              onInput={(e) => { setForm({ ...form, name: e.currentTarget.value }); setProblem(""); setAlready(null); }} onKeyDown={inForm} />
+          </label>
+          <label class="cp-l"><span class="cp-sec">Email (optional)</span>
+            <input type="text" class="cp-in" data-new-email value={form.email} autocomplete="off" spellcheck={false} maxLength={254} inputMode="email"
+              onInput={(e) => { setForm({ ...form, email: e.currentTarget.value }); setProblem(""); }} onKeyDown={inForm} />
+          </label>
+          {already ? <button type="button" class="cp-name" data-use onClick={() => choose(already.name)}><span>Use this one</span></button> : null}
+          <div class="cp-acts">
+            <button type="button" class="btn" data-new-back onClick={() => { setForm(null); setProblem(""); setAlready(null); box.current && box.current.focus(); }}>Back</button>
+            <button type="button" class="btn pri" data-new-save disabled={busy} onClick={save}>Add and assign</button>
+          </div>
+        </div>
+      ) : (
       <div ref={list} onKeyDown={inList}>
         {register === null ? null : searching ? (found.length ? (
           <ul class="cp-names" aria-label="People found" data-section="found">
@@ -78,8 +112,15 @@ export function OwnerPick({ row, anchor, names, onPick, onClose }) {
             {lists.more ? <p class="cp-more" data-more>{`And ${lists.more} more. Keep typing to find them.`}</p> : null}
           </>
         )}
+        {offerAdd ? (
+          <div class="cp-add">
+            <button type="button" class="cp-name" data-add onClick={() => { setForm({ name: typed.trim(), email: "" }); setProblem(""); }}><span>{`Add ${typed.trim()} as a new person`}</span></button>
+            <button type="button" class="cp-name" data-keep onClick={() => choose(typed)}><span>Keep the name only</span></button>
+          </div>
+        ) : null}
         <button type="button" class="cp-name cp-clear" data-clear onClick={() => choose("TBC")}><span>TBC (no one yet)</span></button>
       </div>
+      )}
       <p class="cp-hint">Press Enter to keep what you typed.</p>
     </Pop>
   );
