@@ -556,7 +556,10 @@ def select(inputs):
         proj["gantt_default_rows"] = gantt["default_rows"]
     shown = []
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
-    ctx = section_bodies.Context({k: out[k] for k in KINDS}, as_at)          # #96: only what is already kept, as the file carries it
+    for_templates = {k: out[k] for k in KINDS}
+    for_templates["actions"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
+                                for r in out["actions"]]                      # row 1005: a template (pure) is handed the words of the latest update, as the file's HTML would be markup to it
+    ctx = section_bodies.Context(for_templates, as_at)          # #96: only what is already kept, as the file carries it
     extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
     dropped = 0
     listed = flagged_needs(rows)         # row 811b: the flagged open items, as rows of the 'Needs from you' list
