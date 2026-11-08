@@ -21,7 +21,7 @@ READ = """(() => { const p = document.querySelector('#peek');
   const cells = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = p.querySelector('.pk-fields > [data-row=' + k + ']'); if (e) cells[k] = b(e); }
   const rows = [...p.querySelectorAll('.pk-fields > .pk-row:not([data-row])')].map(b);
   return { cells, lastRow: rows[rows.length - 1], act: b(p.querySelector('.pk-act')), latest: b(p.querySelector('.pk-latest')), lab: b(p.querySelector('.pk-lab')),
-    text: b(p.querySelector('.pk-latest-text')), src: b(p.querySelector('.pk-latest')?.previousElementSibling?.matches('.pk-source') ? p.querySelector('.pk-source') : null), stamp: b(p.querySelector('.pk-last')), body: b(p.querySelector('.pk-body')) }; })()"""
+    text: b(p.querySelector('.pk-latest .rt-view')), src: b(p.querySelector('.pk-latest')?.previousElementSibling?.matches('.pk-source') ? p.querySelector('.pk-source') : null), stamp: b(p.querySelector('.pk-last')), body: b(p.querySelector('.pk-body')) }; })()"""
 
 
 class Spacing(unittest.TestCase):
@@ -59,7 +59,8 @@ class Spacing(unittest.TestCase):
                             g = cdp.js(READ, sid)
                         self.assertTrue(4 <= g["latest"]["t"] - g["act"]["b"] <= 10, f"{where}: switch to Latest update")
                         self.assertTrue(4 <= g["lab"]["t"] - g["latest"]["t"] <= 14, f"{where}: rule to the label")
-                        self.assertTrue(44 <= g["text"]["h"] <= 56, f"{where}: the empty Latest update area, {g['text']['h']}")
+                        # row 1005: the area is the rich editor's view, one prompt line (24 px), not the old textarea (44 and up); the ceiling stays
+                        self.assertTrue(20 <= g["text"]["h"] <= 56, f"{where}: the empty Latest update area, {g['text']['h']}")
                         self.assertTrue(2 <= g["stamp"]["t"] - g["text"]["b"] <= 5, f"{where}: area to Last updated")
                         self.assertLessEqual(g["body"]["h"], 690 if width == 1400 else 625, f"{where}: the whole section, {g['body']['h']}")
                 cdp.js("document.documentElement.dataset.theme = 'light'", sid)
