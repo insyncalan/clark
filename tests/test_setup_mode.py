@@ -200,6 +200,104 @@ class Remembered(Case):
         self.assertEqual(made, {self.pointer()})
 
 
+class Api(Case):
+    """Slice 2: what the server's setup routes ask of the service. Each answers (status, body), or None when it is not wired."""
+
+    def test_checks_is_the_report(self):
+        service = self.setup()
+        self.assertEqual(service.api_checks(), (200, service.report()))
+
+    def test_folder_without_a_prompt_is_not_wired(self):
+        service = self.setup(str(self.good))
+        self.assertIsNone(service.api_folder())
+        self.assertEqual(service.calls, [])
+
+    def test_folder_cancel_changes_nothing(self):
+        service = self.setup(None, prompt="Pick")
+        self.assertEqual(service.api_folder(), (200, {"ok": True, "chosen": False}))
+        self.assertEqual(service.calls, ["Pick"])
+        self.assertFalse(self.pointer().exists())
+
+    def test_folder_chosen_gives_the_new_report(self):
+        service = self.setup(str(self.good), prompt="Pick")
+        status, body = service.api_folder()
+        self.assertEqual(status, 200)
+        self.assertEqual((body["ok"], body["chosen"], body["folder"]), (True, True, "~/Elsewhere"))
+        self.assertEqual(set(body), {"ok", "chosen", "ready", "folder", "checks"})
+        self.assertTrue(self.pointer().exists())
+
+    def test_folder_refused_carries_the_checks_own_words(self):
+        inside = self.onedrive / "clark"
+        inside.mkdir()
+        status, body = self.setup(str(inside), prompt="Pick").api_folder()
+        self.assertEqual((status, body["ok"], body["code"]), (409, False, "folder_refused"))
+        self.assertIn("OneDrive", body["message"])
+        self.assertFalse(self.pointer().exists())
+
+    def test_folder_window_that_will_not_open_is_dialog_failed(self):
+        service = self.setup(pl.PlatformError("The folder window could not be opened. " + pl.TRY_AGAIN), prompt="Pick")
+        status, body = service.api_folder()
+        self.assertEqual((status, body["code"]), (409, "dialog_failed"))
+        self.assertEqual(body["message"], "The folder window could not be opened. " + pl.TRY_AGAIN)
+
+    def test_folder_while_a_window_is_open_is_busy_in_existing_words(self):
+        inside, release = threading.Event(), threading.Event()
+
+        def slow(prompt):
+            inside.set()
+            release.wait(5)
+            return None
+        service = self.setup(choose_folder=slow, prompt="Pick")
+        first = threading.Thread(target=service.api_folder)
+        first.start()
+        self.assertTrue(inside.wait(5))
+        self.assertEqual(service.api_folder(), (409, {"ok": False, "code": "busy", "message": pl.TRY_AGAIN}))
+        release.set()
+        first.join(5)
+
+    def test_finish_without_a_seam_is_not_wired(self):
+        self.assertIsNone(self.setup().api_finish())
+
+    def test_finish_gives_the_helpers_words(self):
+        service = self.setup(finish=lambda: (True, ["one", "two"]))
+        self.assertEqual(service.api_finish(), (200, {"ok": True, "finished": True, "words": ["one", "two"]}))
+        service = self.setup(finish=lambda: (False, ["no"]))
+        self.assertEqual(service.api_finish(), (200, {"ok": True, "finished": False, "words": ["no"]}))
+
+    def test_finish_one_at_a_time(self):
+        inside, release = threading.Event(), threading.Event()
+
+        def slow():
+            inside.set()
+            release.wait(5)
+            return True, []
+        service = self.setup(finish=slow)
+        first = threading.Thread(target=service.api_finish)
+        first.start()
+        self.assertTrue(inside.wait(5))
+        self.assertEqual(service.api_finish(), (409, {"ok": False, "code": "busy", "message": pl.TRY_AGAIN}))
+        release.set()
+        first.join(5)
+
+    def test_done_checks_again_and_refuses_while_a_required_check_fails(self):
+        service = self.setup()
+        service.folder = self.onedrive / "clark"
+        status, body = service.api_done()
+        self.assertEqual((status, body["ok"], body["code"], body["ready"]), (409, False, "not_ready", False))
+        self.assertEqual(body["checks"], service.report()["checks"])
+
+    def test_done_when_ready_says_restart(self):
+        service = self.setup(checks=[])
+        self.assertEqual(service.api_done(), (200, {"ok": True, "restart": True}))
+
+    def test_done_trusts_nothing_from_before(self):
+        service = self.setup(checks=[])
+        self.assertTrue(service.report()["ready"])
+        service.checks = [c for c in doctor.CHECKS if c.required]
+        service.folder = self.onedrive / "clark"
+        self.assertEqual(service.api_done()[0], 409)
+
+
 class Source(unittest.TestCase):
     def test_it_reaches_no_store_and_names_no_system_text(self):
         text = (ROOT / "src" / "clark" / "setup_mode.py").read_text(encoding="utf-8")
