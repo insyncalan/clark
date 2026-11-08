@@ -161,6 +161,13 @@ class Composing(Base):
         self.assertEqual(self.reason(), "<p>a</p><p>text</p>")
 
 
+class PublishedReason(unittest.TestCase):
+    def test_the_file_cuts_the_words_at_the_limit_and_drops_hidden_characters(self):
+        limit = publish.REASON_LIMIT
+        out = publish.reason_html("<p>" + "x" * (limit + 50) + "</p>")
+        self.assertEqual(len(sanitise.plain_text(out)), limit)
+
+
 class Readers(Base):
     """The readers that showed the raw HTML now show the words, for a new value and for an old plain one."""
     HTML = "<p>Keep &amp; watch &lt;b&gt;</p><p>second line</p>"
