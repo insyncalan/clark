@@ -227,7 +227,7 @@ class PlainWordsMedium(unittest.TestCase):
         self.assertEqual(build()["problems"], [])
 
     def test_a_missing_sender_name_asks_for_it(self):
-        msg = "Add your name in Settings › Personal › About you so it signs the email."
+        msg = "Add your name in Settings › Profile so it signs the email."
         for blank in ("", "   "):
             d = build(**{"from": blank})
             self.assertEqual(d["problems"], [msg])
@@ -472,7 +472,7 @@ class Dates(unittest.TestCase):
             with self.subTest(day=bad):
                 with self.assertRaises(ValueError) as caught:
                     de.sent_entry(["ABC-A-001"], "chase", bad)
-                self.assertEqual(str(caught.exception), "The day the email was sent must be a real date.")
+                self.assertEqual(str(caught.exception), "The day the email was sent must be a real date. Reload the page and try again. Nothing was saved.")
 
 
     def test_overdue_and_due_soon_in_words_and_colour(self):
