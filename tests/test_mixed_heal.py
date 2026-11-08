@@ -576,6 +576,7 @@ class HostileNames(Fixture):
         self.assertFalse((self.tmp / "escaped.txt").exists())
 
 
+@unittest.skipUnless(BASH, "needs bash")
 class ClarkCommand(Fixture):
     def setUp(self):
         super().setUp()
@@ -739,6 +740,15 @@ class ClarkCommand(Fixture):
                              cwd=str(self.tmp), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
         self.assertEqual(0, out.returncode, out.stderr)
         self.assertNotIn(str(link), out.stdout)
+
+
+class BashSkip(unittest.TestCase):
+    """The classes that run clark.command skip where bash is absent (Windows runners) and run where it exists."""
+
+    def test_the_classes_that_run_clark_command_skip_only_without_bash(self):
+        for cls in (ClarkCommand, HostileNames):
+            self.assertEqual(not BASH, bool(getattr(cls, "__unittest_skip__", False)), cls.__name__)
+            self.assertTrue(unittest.defaultTestLoader.loadTestsFromTestCase(cls).countTestCases() > 0, cls.__name__)
 
 
 class DataAndServer(Fixture):
