@@ -95,6 +95,9 @@ const SENT_REFUSAL_MAX = 600;
 
 // "I sent it" (#50): saves one record in the history: the item ids, the mode and the day, never any words of the email. Answers
 // {ok: true} or {ok: false, message}; a refusal comes back in the route's own plain words, any other failure in plainChange's.
+// No answer at all (the network failed or timed out): the request may have reached clark and been recorded, so this line does not say that nothing was saved.
+const SENT_NO_ANSWER = "No answer came back, so this may or may not have been recorded. Look in the history to see whether it is there before you press I sent it again.";
+
 export async function sendEmailSent(project, entry) {
   try {
     const r = await fetch("/api/draft-email/sent", {
@@ -108,7 +111,7 @@ export async function sendEmailSent(project, entry) {
     if ((r.status === 400 || r.status === 404 || r.status === 409) && said) return { ok: false, message: said };
     return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };
   } catch (e) {
-    return { ok: false, message: plainChange(0) };
+    return { ok: false, message: SENT_NO_ANSWER };
   }
 }
 

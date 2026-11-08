@@ -53,5 +53,35 @@ class SentGuardFreed(unittest.TestCase):
         self.assertEqual((status, body["ok"]), (200, True), body)
 
 
+class SentOnce(unittest.TestCase):
+    """#315: the guard that outlives the seam. The seam's in-flight set only covers a press while another is being written; a repeat
+    press after the reply, or one through a second server process (a second seam on the same file), is held by the store (Store.log_email_sent)."""
+    DAY = SentGuardFreed.DAY
+    setUp, req, rows = SentGuardFreed.setUp, SentGuardFreed.req, SentGuardFreed.rows
+
+    def test_a_repeat_press_after_the_reply_is_the_same_record(self):
+        first = self.seam(self.req())
+        again = self.seam(self.req())
+        self.assertEqual((first[0], again[0]), (200, 200))
+        self.assertEqual(again[1]["seq"], first[1]["seq"])
+        self.assertEqual(self.rows(), 1)
+
+    def test_a_second_server_process_is_the_same_record(self):
+        other = feed.make_sent(self.store.path, [], by_user="Sam Lee", today=date(2026, 10, 28))   # its own in-flight set, the same file
+        first = self.seam(self.req())
+        again = other(self.req())
+        self.assertEqual(again[1]["seq"], first[1]["seq"])
+        self.assertEqual(self.rows(), 1)
+
+    def test_a_press_after_the_window_is_a_new_record(self):
+        first = self.seam(self.req())
+        self.store.con.execute("DROP TRIGGER email_sent_no_update")                  # test only: age the record past the window
+        self.store.con.execute("UPDATE email_sent SET at = datetime('now', ?)", ("-60 seconds",))
+        self.store.con.commit()
+        again = self.seam(self.req())
+        self.assertNotEqual(again[1]["seq"], first[1]["seq"])
+        self.assertEqual(self.rows(), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

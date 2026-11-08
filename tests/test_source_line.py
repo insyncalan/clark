@@ -46,6 +46,13 @@ class TheLine(unittest.TestCase):
             a = self.demo.action(source=text)
             self.assertEqual(self.source(a), text + " by " + USER, text)
 
+    def test_no_words_shows_no_by_even_with_a_creator(self):
+        a = self.demo.action(source="demo")
+        con = self.demo.store.con
+        con.execute("UPDATE actions SET source = '' WHERE id = ?", (a,))      # the store requires words; an old row may hold none
+        con.commit()
+        self.assertEqual(self.source(a), "")
+
     def test_a_later_editor_is_not_the_creator(self):
         a = self.demo.action(source="demo")
         with self.demo.store.step("dashboard", "Someone Else") as st:

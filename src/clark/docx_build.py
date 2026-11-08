@@ -434,7 +434,7 @@ def section_milestones(published, ctx, title, sec):
         achieved = m.get("status") == "Done"
         slip = m.get("slip_days")
         name = para(run(m.get("name") or "", bold=True), "TableText")
-        for line, kw in ((m.get("description"), {}), (m.get("client_message"), {}),
+        for line, kw in ((sanitise.rich_plain_text(m.get("description")), {}), (m.get("client_message"), {}),
                          (f"Reason: {m['state_reason']}" if m.get("state_reason") else "", {"color": ctx.tok["grey-700"]})):
             if line:
                 name += text_paras(line, ctx, **kw)
@@ -551,7 +551,8 @@ def _due(table_name, field, row, ctx, extra=()):
 def section_actions(published, ctx, title, sec):
     rows = []
     for a in _open(_rows(published, "actions")):
-        update = f"Latest update: {a['latest_update']}" if a.get("latest_update") else ""
+        words = sanitise.rich_plain_text(a.get("latest_update"))
+        update = f"Latest update: {words}" if words else ""
         body = text_paras(_words(a, "client_message", "description"), ctx)
         if update:
             body += text_paras(update, ctx, color=ctx.tok["grey-700"])

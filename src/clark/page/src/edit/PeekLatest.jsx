@@ -1,14 +1,16 @@
 // The peek's Latest update with its Draft button and its 'Last updated' stamp, and the warning bar above the title (Edit only: a
 // published file and View show the fields and nothing else). Every change is one request with one Undo (changeCell), and the data is
 // read again after it so the stamp is the one clark wrote. Draft writes the text from the item's own fields (peekLatest.js draftFor),
-// with no AI. An action that is shown to the client carries a 'Shown to the client' label (its latest update is published). An action has a latest update; a risk, issue or decision has the stamp only.
-import { useLayoutEffect, useRef, useState } from "preact/hooks";
-import { useGrow } from "./useGrow.js";
+// with no AI. The text is on the one rich editor (RichField, item 1005). An action that is shown to the client carries a 'Shown to the client' label (its latest update is published). An action has a latest update; a risk, issue or decision has the stamp only.
+import { useState } from "preact/hooks";
+import { RichField } from "./RichField.jsx";
+import { richOrPlain } from "../logic/richOrPlain.js";
+import { richWords } from "../logic/richWords.js";
 import { data } from "../stores/report.js";
 import { changeCell, say, refresh } from "../stores/changes.js";
 import { showDate, todayIso } from "../workItems.js";
 import { changeFor, tableOf } from "./itemEdit.js";
-import { warnFor, draftFor, latestProblem, cleanLatest, stampText } from "./peekLatest.js";
+import { warnFor, draftFor, cleanLatest, stampText } from "./peekLatest.js";
 import { Icon } from "../components/Icon.jsx";
 
 const raw = (row) => ((data.value && data.value[tableOf(row)]) || []).find((r) => r.id === row.id) || null;
@@ -48,52 +50,28 @@ export function PeekNeeded({ row }) {
 
 export function PeekLatest({ row }) {
   const rec = raw(row), action = row.kind === "action";
-  const [open, setOpen] = useState(false), [text, setText] = useState(""), [problem, setProblem] = useState("");
-  const settled = useRef(false), saving = useRef(false), shown = useRef(null), box = useRef(null);
-  useGrow(box, open ? text : null);
-  // A layout effect: the box takes the focus in the step that draws it, not a frame later. A frame that arrives late (a busy runner) left the
-  // box drawn but not focused, so the key that came next went to the page, and a late focus elsewhere (the peek giving Close its focus) closed the box on blur.
-  useLayoutEffect(() => { if (open && box.current) { box.current.focus(); const n = box.current.value.length; box.current.setSelectionRange(n, n); } }, [open]);
+  const [rev, setRev] = useState(0);                                   // a new key after Draft, so an open editor is left and drawn from what clark stored
   const now = rec && rec.latest_update ? String(rec.latest_update) : "";
   const stamp = rec ? stampText(rec.updated_at) : "";
-  const start = () => { settled.current = false; setText(now); setProblem(""); setOpen(true); };
-  const stop = () => { settled.current = true; setOpen(false); setProblem(""); setTimeout(() => { if (shown.current) shown.current.focus(); }, 0); };
-  const save = (value) => {
-    const next = cleanLatest(value);
-    if (next === cleanLatest(now)) return stop();
-    const p = latestProblem(next);
-    if (p) { setProblem(p); return undefined; }
-    if (saving.current) return undefined;
-    // The box closes only when clark has saved it: a refusal (or no answer) leaves it open with what was typed, and says why in it.
-    saving.current = true;
-    return changeCell("actions", row.id, { latest_update: next || null },
-      { text: next ? `Latest update of ${row.id} saved.` : `Latest update of ${row.id} cleared.`, back: `Latest update of ${row.id} is back as it was.`,
-        place: "peek", refused: (message) => { setProblem(message); if (box.current) box.current.focus(); } })
-      .then((reply) => { saving.current = false; if (reply) { stop(); return refresh(); } return undefined; });
-  };
+  const html = (() => { try { return richOrPlain(now); } catch (e) { return "<p>" + String(now).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();    // item 1005: the editor's HTML, or the plain text an older clark stored
+  // The rich editor saves with Cmd/Ctrl+Enter and leaves with Esc. It closes only when clark has saved it: a refusal (the toast says why)
+  // or no answer leaves it open with what was typed.
+  const save = (value) => changeCell("actions", row.id, { latest_update: value },
+    { text: `Latest update of ${row.id} saved.`, back: `Latest update of ${row.id} is back as it was.`, place: "peek" })
+    .then((reply) => { if (reply) refresh(); return reply; });
   const draft = () => {
     const a = raw(row), ms = a && a.milestone && ((data.value && data.value.milestones) || []).find((m) => m.id === a.milestone);
     const words = draftFor({ due: row.due_date, status: row.status, owner: row.owner, milestone: ms ? { name: ms.name, agreed: ms.baseline_date } : null }, todayIso());
-    if (words === cleanLatest(now)) { say("note", "The latest update already says that."); return; }
-    if (open) stop();                                                  // Draft replaces the box's text: leave the box without saving what was typed
+    if (words === cleanLatest(richWords(now))) { say("note", "The latest update already says that."); return; }
+    setRev((n) => n + 1);                                              // Draft replaces the text: leave the editor without saving what was typed
     changeCell("actions", row.id, { latest_update: words }, { text: "Latest update drafted from the item's own fields.", back: `Latest update of ${row.id} is back as it was.`, place: "draft" }).then(() => refresh());
-  };
-  const key = (e) => {
-    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); stop(); }
-    else if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); save(e.currentTarget.value); }
   };
   return (
     <div class="pk-latest" data-pk-latest>
       {action ? <>
         <div class="pk-lab"><span id={`pk-latest-lab-${row.id}`}>Latest update</span> <button type="button" class="pk-draft" data-pk-draft onClick={draft}><Icon name="sparkle" cls="s" />Draft</button>
           {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
-        {open
-          ? <>
-            <textarea class="pk-latest-in grow" data-pk-latest-in aria-label="Latest update" rows={3} value={text} placeholder="Add the latest update…" ref={box}
-              onInput={(e) => { setText(e.currentTarget.value); if (problem) setProblem(""); }} onKeyDown={key} onBlur={(e) => { const to = e.relatedTarget; if (!settled.current && !(to && to.hasAttribute && to.hasAttribute("data-pk-draft"))) save(e.currentTarget.value); }} />
-            {problem ? <p class="pk-latest-err" role="alert" data-pk-latest-err>{problem}</p> : <p class="pk-latest-hint">Enter saves, Shift+Enter adds a line, Esc leaves it as it was.</p>}
-          </>
-          : <button type="button" class="pk-latest-text" data-pk-latest-text ref={shown} onClick={start} id={`pk-latest-txt-${row.id}`} aria-labelledby={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`} title="Edit the latest update">{now || <span class="muted">Add the latest update…</span>}</button>}
+        <RichField key={rev} field="latest_update" id={row.id} value={html} label="Latest update" empty="Add the latest update…" save={save} viewId={`pk-latest-txt-${row.id}`} labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`} />
       </> : null}
       {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
     </div>

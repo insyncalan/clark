@@ -192,6 +192,15 @@ class Items(Api):
         for marker in ("LATESTWORDS", "Pat Owner"):
             self.assertNotIn(marker, json.dumps(cards), marker)
 
+    def test_a_latest_card_publishes_the_words_of_the_editors_html_and_of_an_old_plain_text(self):      # row 1005: publish hands the pure template words, never markup
+        with self.s.step("dashboard", USER) as st:
+            st.update("actions", self.action, {"latest_update": "<p>Done &amp; <em>dusted</em></p><p>Next: a &lt; b</p>"})
+        self.save(card(self.action, "latest"))
+        self.assertEqual(self.file_section()["cards"][0]["text"], "Done & dusted\nNext: a < b")
+        with self.s.step("dashboard", USER) as st:
+            st.update("actions", self.action, {"latest_update": "old < new"})
+        self.assertEqual(self.file_section()["cards"][0]["text"], "old < new")
+
     def test_a_risk_has_no_latest_update_so_client_wording_and_own_words_only(self):
         self.save(card(self.action, "client"))
         self.assertEqual(self.file_section()["cards"][0]["text"], "Plan nearly agreed.")

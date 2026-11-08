@@ -31,7 +31,7 @@ import unicodedata
 from datetime import datetime
 
 from clark import draft_email as de
-from clark import publish
+from clark import publish, sanitise
 from clark.changes import Refused, _call
 from clark.store import EMAIL_PROJECT_ARCHIVED
 
@@ -93,7 +93,7 @@ def items_of(data, rules=None):
     for r in data.get("actions") or []:
         out.append({"id": r["id"], "project": r["project"], "kind": "actions", "text": r.get("description") or "",
                     "due": r.get("due_date"), "priority": r.get("priority"), "owner": r.get("owner"), "status": r.get("status"),
-                    de.LATEST: r.get("latest_update"), "client_visible": bool(r.get("client_visible")), **marks(r)})
+                    de.LATEST: sanitise.rich_plain_text(r.get("latest_update")) or None, "client_visible": bool(r.get("client_visible")), **marks(r)})
     for r in data.get("raid") or []:
         out.append({"id": r["id"], "project": r["project"], "kind": "raid", "text": r.get("description") or "",
                     "type": r.get("type"), "response": r.get("response_action"), "due": r.get("due_date"),
