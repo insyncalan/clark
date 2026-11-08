@@ -312,5 +312,72 @@ class DocumentAndGanttSameAsKept(Setup, unittest.TestCase):
         self.assertEqual(self.web_publish()[0], 200)
 
 
+LABEL_NAME = "Vendor-facing delivery stream"
+
+
+def plant_label_on_kept_action(demo, name, around=None):
+    """A kept action carrying a label (not an exclude one): the label is a value in the published data that is no row's own text.
+    `around` is a kept action whose text holds the label's words inside longer text (what a left-out line's name is found in)."""
+    demo.action(description="Kept action that carries a label", client_visible=1)
+    (kept,) = [r for r in demo.store.read("actions", "ABC") if r["description"] == "Kept action that carries a label"]
+    with demo.store.step("dashboard", USER) as st:
+        st.create("labels", {"name": name, "behaviour": "warn", "default_choice": "include"})
+        st.create("item_labels", {"item_id": kept["id"], "label": name})
+    if around:
+        demo.action(description=around, client_visible=1)
+
+
+class GanttLeftOutSameAsKeptNonRow(Setup, unittest.TestCase):
+    """#619 (reader's mutation run): gantt_markers' kept set holds the whole leaf values of the published data other than the Gantt
+    copy. A left-out Gantt line named exactly a kept NON-row value (a label on a kept action) is not a leak, even where its words
+    are also found inside a longer kept row: both copies still save."""
+
+    def plant(self):
+        plant_label_on_kept_action(self.demo, LABEL_NAME, around=f"Next: {LABEL_NAME} this month")
+        plant_gantt_line(self.demo, LABEL_NAME)
+
+    def test_the_word_copy_and_the_web_publish_still_save(self):
+        self.assertEqual(self.word_export()[0], 200)
+        self.assertEqual(self.web_publish()[0], 200)
+
+
+class GanttLeftOutInsideLongerKeptNonRow(Cases, unittest.TestCase):
+    """The contrast: the same words only inside a longer kept non-row value (a longer label) and a longer kept row excuse nothing."""
+    leak, absent = LABEL_NAME, ()
+
+    def plant(self):
+        self.look_at = plant_gantt_line(self.demo, LABEL_NAME)
+        self.visible = f"Next: {LABEL_NAME} this month"
+        plant_label_on_kept_action(self.demo, f"Review of the {LABEL_NAME} ahead", around=self.visible)
+
+
+SPACED = GANTT_NAME.replace(" penalty clause ", "  penalty  clause ")      # the same words, with double spaces
+
+
+class SpacingOnlyDiffersFromKeptWhole(Setup, unittest.TestCase):
+    """#619: _same_words makes spacing one. A left-out Gantt line, whose words are found inside a longer kept row, and a kept row
+    that holds exactly those words but spaced differently: the kept row is the whole value, so both copies still save."""
+
+    def plant(self):
+        plant_gantt_line(self.demo, GANTT_NAME)
+        self.demo.action(description=SPACED, client_visible=1)
+        self.demo.action(description=f"Next: {GANTT_NAME} this month", client_visible=1)
+
+    def test_the_word_copy_and_the_web_publish_still_save(self):
+        self.assertEqual(self.word_export()[0], 200)
+        self.assertEqual(self.web_publish()[0], 200)
+
+
+class SpacingInsideLongerKeptValue(Cases, unittest.TestCase):
+    """The contrast: the words spaced differently inside a longer kept value are not the whole value, so both copies refuse."""
+    leak, absent = GANTT_NAME, ()
+
+    def plant(self):
+        self.look_at = plant_gantt_line(self.demo, GANTT_NAME)
+        self.demo.action(description=f"{SPACED} today", client_visible=1)
+        self.visible = f"Next: {GANTT_NAME} this month"
+        self.demo.action(description=self.visible, client_visible=1)
+
+
 if __name__ == "__main__":
     unittest.main()
