@@ -367,6 +367,20 @@ class Edit(Setup):
             made = [r for r in self.store.read("actions", "ABC") if r["description"] == "Fix: the loader cables"]
             self.assertEqual((len(made), made[0]["owner"]), (1, "TBC"))
 
+    def test_link_button_and_see_all_do_not_run_together(self):
+        for width in (1400, 900):
+            for dark in (False, True):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    p = self.edit(cdp)
+                    p.js("document.documentElement.dataset.theme = %r" % ("dark" if dark else "light"))
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    self.click(p, ".ucrow .ucref")
+                    p.until("!!document.querySelector('.ucdetail [data-uc-link]') && !!document.querySelector('.ucdetail [data-seeall]')", "both controls")
+                    r = p.js("(() => { const a = document.querySelector('.ucdetail [data-uc-link]').getBoundingClientRect(), b = document.querySelector('.ucdetail [data-seeall]').getBoundingClientRect(); return [a.right, a.top, a.bottom, b.left, b.top, b.bottom]; })()")
+                    side_by_side = r[3] - r[0] >= 8
+                    stacked = r[4] >= r[2]
+                    self.assertTrue(side_by_side or stacked, "at least 8px (or a line) between the two controls: %r" % (r,))
+
     def test_link_an_existing_work_item_opens_a_box_beside_main_and_links_several_in_one_step(self):
         with chrome() as cdp:
             p = self.edit(cdp)

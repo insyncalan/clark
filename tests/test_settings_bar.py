@@ -6,10 +6,11 @@ it; one chip is marked (aria-current="location") and it follows the card you are
 (the last chip, near the foot of the page, too); the marked chip's words are 4.5:1 on its fill and its fill 3:1 on the bar; the menu's link still puts the cursor in the name
 box, clear of the bar. Chrome is required: these tests fail, never skip, without it.
 """
+import time
 import unittest
 
 from test_publish_dialog import Base
-from test_server import chrome
+from test_server import chrome, wait
 from test_settings_head import ratio, rgb
 
 WIDTHS = (1400, 901, 900, 899, 800)
@@ -30,6 +31,20 @@ class SettingsBar(Base):
         p.js("location.hash = '#settings&p=PUB'")
         p.until("!!document.querySelector('#personal-h') && !!document.querySelector('#ask-settings-h') && !!document.querySelector('.set-nav .set-chip[aria-current]')",
                 "Settings, its cards and a marked chip drew")
+        self.laid_out(p)
+
+    def laid_out(self, p, seconds=15, frames=6):
+        """A card above Personal (Profile) may still grow after the first draw, which moves every card below it: a scroll aimed at a card's top
+        read before that lands at the wrong place. Wait until the page height and the tops of three cards are the same on `frames` reads in a row,
+        100 ms apart; fail, naming what kept moving, when they do not settle."""
+        read = ("[document.documentElement.scrollHeight, ...['personal-h', 'safety-h', 'ask-settings-h'].map(id => Math.round(document.getElementById(id).getBoundingClientRect().top + window.scrollY))].join()")
+        seen = []
+
+        def still():
+            seen.append(p.js(read))
+            time.sleep(0.1)
+            return len(seen) >= frames and len(set(seen[-frames:])) == 1
+        self.assertTrue(wait(still, seconds), "the layout never settled in %d s (page height, tops of Personal, Backups, Asking, last reads: %s)" % (seconds, seen[-frames:]))
 
     def marked(self, p):
         return p.js(f"({MARKED} || {{}}).textContent || ''")
@@ -53,7 +68,7 @@ class SettingsBar(Base):
                     p = self.page(cdp)
                     self.open_settings(p, w, mode)
                     self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-bar')).position"), "sticky")
-                    self.assertEqual(self.marked(p), "Publishing", "at the top of the page the first chip is marked")
+                    self.assertEqual(self.marked(p), "Profile", "at the top of the page the first chip is marked")
                     p.js("window.scrollTo(0, 900)")
                     self.settle(p)
                     self.assertLess(abs(p.js("document.querySelector('.set-bar').getBoundingClientRect().top - document.querySelector('.top').getBoundingClientRect().bottom")), 2,
@@ -80,7 +95,7 @@ class SettingsBar(Base):
                     self.assertEqual(p.js("document.querySelectorAll('.set-nav .set-chip[aria-current]').length"), 1, "one chip is marked")
                     self.assertEqual(p.js(f"{MARKED}.getAttribute('aria-current')"), "location")
                 p.js("window.scrollTo(0, 0)")
-                p.until(f"({MARKED} || {{}}).textContent === 'Publishing'", "back at the top, the first chip is marked")
+                p.until(f"({MARKED} || {{}}).textContent === 'Profile'", "back at the top, the first chip is marked")
                 self.chip(p, "Asking")
                 p.until("document.activeElement && document.activeElement.id === 'ask-settings-h'", "focus is on the Asking heading")
                 self.settle(p)
@@ -114,7 +129,7 @@ class SettingsBar(Base):
                 p.until("document.activeElement && document.activeElement.id === 'about-name'", "the name box has the cursor")
                 self.settle(p)
                 self.assertTrue(self.clear_of_bar(p, "#about-name"), "the box is clear of the bar")
-                self.assertEqual(self.marked(p), "Personal", "the chip of the card holding the box is marked")
+                self.assertEqual(self.marked(p), "Profile", "the chip of the card holding the box is marked")
 
 
 if __name__ == "__main__":

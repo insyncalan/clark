@@ -57,10 +57,11 @@ main { position: relative; max-width: var(--max-width); margin: 0 auto; padding:
 @media (max-width: 900px) { .cover { margin: -18px -16px 16px; padding: 18px var(--space-4) var(--space-4); } }
 html:not([data-secstyle="card"]) .frame.report .cover { margin-top: 0; }      /* the report frame has only 4 px of top padding here, so the band starts at the frame, not 20 px above it */
 @media (max-width: 900px) { html:not([data-secstyle="card"]) .frame.report .cover { margin: 0 0 16px; } }      /* the report frame has no side padding here, so the band is the frame's width, not wider */
+html:not([data-secstyle="card"]) .frame.report .cover { border-radius: var(--radius-lg); box-shadow: var(--shadow); }      /* row 997: with separate section cards the band stands alone, so it is a card itself: four round corners and the shadow (DESIGN-SYSTEM.md:48); in the Card style it is the top of the frame and keeps the top two only */
 .crumbs { margin: 0 0 2px; font-size: var(--size-small); color: var(--text-muted); }
 .glance { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: 12px; }
 .tile { display: flex; flex-direction: column; }
-.tile .n { font-size: 22px; font-weight: var(--weight-medium); color: var(--heading); }
+.tile .n { font-size: var(--size-figure); font-weight: var(--weight-medium); color: var(--heading); }
 .tile .l { font-size: var(--size-caption); color: var(--text-muted); }
 /* A tile is neutral, with a thin outline in its status colour that fades out from the bottom-left corner. The
    outline is drawn on ::after under a mask, so the text and its contrast are those of the neutral tile. The tiles fill the row
@@ -76,7 +77,7 @@ html:not([data-secstyle="card"]) .frame.report .cover { margin-top: 0; }      /*
 .fig::after { content: ""; position: absolute; inset: -1px; border: 2px solid transparent; border-radius: inherit; pointer-events: none; -webkit-mask-image: linear-gradient(45deg, currentColor 0%, transparent 75%); mask-image: linear-gradient(45deg, currentColor 0%, transparent 75%); }
 .fig.rag-g::after { border-color: var(--status-green); } .fig.rag-a::after { border-color: var(--status-amber); } .fig.rag-r::after { border-color: var(--status-red); }
 .fig .k { display: flex; align-items: center; gap: 6px; font-size: var(--size-caption); color: var(--text-muted); }
-.fig .v { font-size: 22px; font-weight: var(--weight-medium); color: var(--heading); }
+.fig .v { font-size: var(--size-figure); font-weight: var(--weight-medium); color: var(--heading); }
 .fig .dd { font-size: var(--size-caption); color: var(--text-muted); }
 /* The status word is a small chip: its border is the word's own colour, so the edge keeps the text's contrast (5 to 1 or more on the
    tile and on a hidden tile, light and dark) and no fill is drawn over the tile. As in the prototype it sits beside the figure, at the
@@ -91,6 +92,7 @@ html:not([data-secstyle="card"]) .frame.report .cover { margin-top: 0; }      /*
 .fig .hrow { display: flex; align-items: flex-start; gap: var(--space-3); margin-top: var(--space-1); }
 .fig .hrow .dd { font-size: inherit; color: inherit; }
 .fig .hreason { flex: 1 1 auto; min-width: 0; font-size: var(--size-body); color: var(--text); white-space: pre-line; overflow-wrap: anywhere; }
+.fig .hreason p { margin: 0 0 var(--space-1); } .fig .hreason p:last-child { margin-bottom: 0; }   /* item 1005: the reason is the editor's paragraphs and lists, drawn tight inside the tile */
 .fig textarea.hreason { width: 100%; min-height: 62px; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); font: inherit; resize: vertical; white-space: pre-wrap; }
 .fig textarea.hreason.needs { border-color: var(--status-amber); }
 .fig textarea.hreason:focus-visible, .pillbtn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
@@ -363,8 +365,6 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fdv.g { background: var(--status-green); }
 .fdv.n { background: var(--status-grey); }
 .fopt .c { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); }
-.fhints { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; min-height: 26px; visibility: hidden; }
-.fhints.on { visibility: visible; }
 .fgloss { flex-basis: 100%; font-size: var(--size-small); color: var(--text); }   /* row 845: the plain meaning of the chip the pointer or focus is on */
 .fgloss[hidden] { display: none; }
 .fhl { font-size: var(--size-small); color: var(--text-muted); }
@@ -684,13 +684,13 @@ input.sec-title { width: 100%; }
 /* Work items cells that change in place (#80, Edit only): the cell's content is a button, and its picker opens in one panel under
    it. The panels are the prototype's (.cell-pick, .menu, .cp), in clark's tokens, so dark mode follows. */
 .cell-pick { all: unset; box-sizing: border-box; display: inline-flex; flex-wrap: nowrap; align-items: center; gap: var(--space-1) var(--space-2); max-width: 100%; min-height: 28px; padding: 3px 6px; margin: -3px -6px; border-radius: var(--radius-sm); cursor: pointer; }
-.cell-pick { box-shadow: inset 0 -1px 0 var(--grey-300); }                                   /* at rest too: a quiet edge and a caret say it can be changed */
-.cell-pick::after { content: "▾"; flex: none; color: var(--text-muted); font-size: var(--size-small); line-height: 1; }
+.cell-pick::after { content: "▾"; opacity: 0; flex: none; color: var(--text-muted); font-size: var(--size-small); line-height: 1; }
 .cell-val { display: block; min-width: 0; }                                                                  /* the caret stays beside the value: the value shrinks and wraps by word, the caret never drops to a line of its own (tech debt 203) */
 .cell-pick { overflow-wrap: normal; }                                                              /* the table lets a cell break anywhere; a picker's value breaks only between words */
 .cell-pick[data-cell$=":priority"], .cell-pick[data-cell$=":status"], .cell-pick[data-cell$=":due"] { white-space: nowrap; }
 .cell-pick[data-cell$=":priority"] .cell-val, .cell-pick[data-cell$=":status"] .cell-val, .cell-pick[data-cell$=":due"] .cell-val { min-width: auto; flex: none; }   /* these never wrap, so the value keeps its own width and the caret sits after it, not under the pill */
 .cell-pick:hover, .cell-pick[aria-expanded="true"] { background: var(--grey-100); box-shadow: inset 0 0 0 1px var(--grey-300); }
+.cell-pick:hover::after, .cell-pick:focus-visible::after, .cell-pick[aria-expanded="true"]::after { opacity: 1; }   /* item 1013: plain text at rest; the box and the caret show on hover or focus (the caret keeps its room, so nothing moves) */
 .cell-pick:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 table.items tbody tr { cursor: pointer; }
 table.items tbody tr:hover { background: var(--grey-50); }
@@ -941,14 +941,14 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-lab { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); margin-bottom: 2px; }
 .hp-sec { margin-top: 34px; }
 .hp-sec > h2, .hp-sh h2, .hp-hero h2 { margin: 0 0 6px; color: var(--heading); font-weight: 500; }
-.hp-sec > h2, .hp-sh h2 { font-size: var(--size-h2); }
+.hp-sec > h2, .hp-sh h2 { font-size: var(--size-h3); }
 .hp-sh p, .hp-lead { margin: 0 0 14px; color: var(--text-muted); font-size: var(--size-body); max-width: 72ch; }
 .hp-found { animation: hp-found 2.4s var(--ease-out); border-radius: var(--radius-sm); }
 @keyframes hp-found { 0%, 40% { background: var(--flash); box-shadow: 0 0 0 4px var(--flash); } 100% { background: transparent; box-shadow: 0 0 0 4px transparent; } }
 @media (prefers-reduced-motion: reduce) { .hp-found { animation: none; outline: 2px solid var(--status-amber); } }
 
 .hp-hero { display: block; gap: 20px; align-items: start; padding: 26px 28px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); }
-.hp-hero h2 { font-size: var(--size-display); line-height: 1.12; letter-spacing: -.01em; max-width: 22ch; }
+.hp-hero h2 { font-size: var(--size-h2); line-height: 1.12; letter-spacing: -.01em; max-width: 22ch; }
 .hp-hero p { margin: var(--space-2) 0 0; font-size: var(--size-body); line-height: 1.55; color: var(--text-muted); max-width: 68ch; }
 .hp-loop { padding: 20px 22px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); }
 .hp-loop .hp-sh { display: grid; grid-template-columns: minmax(160px, 1fr) 2fr; gap: 6px var(--space-5); align-items: baseline; }
@@ -1006,7 +1006,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-next li { margin: 0 0 4px; }
 .hp-next a { color: var(--status-blue-text); }
 .hp-col { min-width: 0; }
-.hp-col .hp-sh h2 { font-size: var(--size-h2); }
+.hp-col .hp-sh h2 { font-size: var(--size-h3); }
 .hp-grp { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); font-weight: 500; margin: 28px 0 10px; }
 .hp-task, .hp-ref { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: var(--space-3); scroll-margin-top: calc(var(--topbar) + 16px); }
 .hp-task h3, .hp-ref h3 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
@@ -1971,6 +1971,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .pk-rating { color: var(--text-muted); }   /* a closed risk keeps its rating word beside its Closed pill */
 /* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
 .pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pk-row[data-row=status] .pk-val { flex-wrap: nowrap; white-space: nowrap; }
+.pk-fields > .pk-row[data-row=status]:has([data-pk-rating]) { grid-column: 1 / -1; }  /* a status with its rating word is too wide for half a row */
 .pk-val .i { width: 16px; height: 16px; }
 .ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
 .ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
@@ -2139,7 +2141,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-b.sel, .gt-ms.sel { outline: 2px solid var(--text); outline-offset: 2px; }
 .gt-ms { all: unset; box-sizing: border-box; position: absolute; z-index: 1; width: 14px; height: 14px; margin-left: -7px; transform: rotate(45deg); background: var(--status-amber); border: 2px solid var(--status-amber-text); cursor: pointer; }
 .gt-ms.done { background: var(--status-green); border-color: var(--status-green-text); }
-.gt-mslab { position: absolute; line-height: 20px; white-space: nowrap; color: var(--text); }
+.gt-mslab { position: absolute; line-height: 20px; white-space: nowrap; color: var(--text); max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
 .gt-flip { padding: 0 3px; margin-right: -3px; background: var(--surface); }
 .gt-phlab.gt-flip { background: var(--grey-50); }
 .gt-clash { position: absolute; line-height: 20px; color: var(--status-amber-text); font-weight: var(--weight-semibold); }

@@ -1,4 +1,4 @@
-"""#180: the seam of GET and POST /api/profile, Settings › Personal › About you: this person's name and email, kept in the data folder's
+"""#180: the seam of GET and POST /api/profile, Settings › Profile › About you: this person's name and email, kept in the data folder's
 settings.json (settings.py) and nowhere else. The page asks for both when it opens Settings or the menu, and saves them when a box is
 left. The name is also the name on each change and each publication (`who()`), with the login name when none was typed; the email is
 only used to tell which addresses are the person's own (`own_domains()`). Nothing is read from the computer, the browser or the Claude
