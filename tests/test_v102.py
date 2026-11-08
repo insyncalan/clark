@@ -31,8 +31,8 @@ SCHEMA = 16              # 1.0.1 moved to layout 16; 1.0.2 does not change it
 COVERED = [
     ("#753", "In the Use cases list and on a use case the show-on-report choice is the eye alone, its words are the tooltip.",
      "test_use_cases_list::List::test_the_eye_is_an_icon_alone_with_a_tooltip_and_never_meets_the_commitment_chip"),
-    ("#753", "On a use case the eye is an icon with a tooltip and toggles with one Undo.",
-     "test_use_case_detail::Detail::test_the_eye_is_an_icon_with_a_tooltip_and_toggles_with_one_undo"),
+    ("#753", "On a use case the eye is one button with its words and toggles with one Undo.",
+     "test_use_case_detail::Detail::test_the_eye_is_one_button_with_its_words_and_toggles_with_one_undo"),
     ("#729", "ask clark can change a use case's status, headline and Where it stands, in one step with one Undo.",
      "test_ask_use_cases::UseCaseChanges::test_a_status_headline_and_standing_change_is_applied_once_and_undone_in_one_step"),
     ("#729", "ask clark reads the Commitment flag but a change to it is refused.",
