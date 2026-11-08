@@ -428,6 +428,49 @@ class Crash(Base):
         self.assertTrue(self.brand_dir().is_dir())
 
 
+class JournalAfterSwap(Base):
+    """The undo journal describes a swap that happened: a swap that fails puts the journal back as it was (the last change's undo stays true)."""
+
+    def flaky_rename(self, fail_on):
+        real, calls = os.rename, []
+
+        def flaky(src, dst, *a, **k):
+            calls.append((src, dst))
+            if len(calls) == fail_on:
+                raise OSError("no room")
+            return real(src, dst, *a, **k)
+        return flaky
+
+    def test_a_failed_replace_leaves_the_journal_as_it_was(self):
+        self.put(bz.valid())
+        self.assertTrue(brands.can_undo(self.root, self.data))
+        before = (self.data / brands.JOURNAL).read_bytes()
+        review = brands.review(write_zip(self.scratch, self.second_brand(), version="1.0.1"), self.root)
+        with mock.patch.object(brands.os, "rename", self.flaky_rename(2)):
+            with self.assertRaises(Exception):
+                brands.install(review["review_id"], self.root, self.data)
+        self.assertEqual((self.data / brands.JOURNAL).read_bytes(), before, "a swap that did not happen leaves the journal as it was")
+        self.assertTrue(brands.can_undo(self.root, self.data))
+
+    def test_a_failed_remove_leaves_the_journal_as_it_was(self):
+        self.put(bz.valid())
+        before = (self.data / brands.JOURNAL).read_bytes()
+        with mock.patch.object(brands.os, "rename", self.flaky_rename(1)):
+            with self.assertRaises(Exception):
+                brands.remove(bz.BRAND_ID, self.root, self.data)
+        self.assertEqual((self.data / brands.JOURNAL).read_bytes(), before)
+        self.assertTrue(brands.can_undo(self.root, self.data))
+
+    def test_success_still_journals_and_undo_works(self):
+        self.put(bz.valid())
+        old = snapshot(self.brand_dir())
+        self.put(self.second_brand(), version="1.0.1")
+        self.assertTrue((self.data / brands.JOURNAL).is_file())
+        self.assertTrue(brands.can_undo(self.root, self.data))
+        brands.undo(self.root, self.data)
+        self.assertEqual(snapshot(self.brand_dir()), old)
+
+
 class Lock(Base):
     def test_install_remove_and_undo_are_refused_while_that_brand_is_in_use(self):
         self.put(bz.valid())
