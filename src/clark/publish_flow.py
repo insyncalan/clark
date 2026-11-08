@@ -31,6 +31,7 @@ import tempfile
 import threading
 import time
 import unicodedata
+from html.parser import HTMLParser
 from pathlib import Path
 
 from clark import changes, milestones, page, past_files, platform, publish, publish_pdf, section_files, to_client
@@ -170,10 +171,57 @@ def markers_for(store, code, published, template=""):
             value = (_text(row.get(field)) or "").strip()
             if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
                 add(value, row["id"])
+    hidden_section_markers(store, code, kept_text, bare, add)
     gantt_markers(store, code, published, add)
     out = Markers(dict.fromkeys(found))
     out.where = where
     return out
+
+
+class _Runs(HTMLParser):
+    """The text runs of an HTML body, one per piece of text between tags."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.runs = []
+
+    def handle_data(self, data):
+        self.runs.append(data)
+
+
+def _body_runs(body):
+    """The pieces of text in a section body: the strings of a JSON body (needs, tracker, templates), else the text between the tags."""
+    try:
+        doc = json.loads(body)
+    except ValueError:
+        doc = None
+    if isinstance(doc, (dict, list)):
+        todo, out = [doc], []
+        while todo:
+            v = todo.pop()
+            if isinstance(v, str):
+                out.append(v)
+            elif isinstance(v, dict):
+                todo.extend(v.values())
+            elif isinstance(v, list):
+                todo.extend(v)
+        return out
+    parser = _Runs()
+    parser.feed(body)
+    parser.close()
+    return parser.runs
+
+
+def hidden_section_markers(store, code, kept_text, bare, add):
+    """Row S6: the words in the body of a section the owner hid are markers, like a left-out row's: select() drops the section, and
+    this is the second look at the finished file. A piece of text a kept part of the file also has, or the bare page itself, is not one."""
+    for row in store.read("report_sections", project=code):
+        if not row.get("hidden") or not _text(row.get("body")):
+            continue
+        for run in _body_runs(row["body"]):
+            value = " ".join(run.split())
+            if len(value) >= MIN_MARKER and not any(value in text for text in kept_text) and to_client._key(value) not in bare:
+                add(value, row.get("id"))
 
 
 def gantt_markers(store, code, published, add):
