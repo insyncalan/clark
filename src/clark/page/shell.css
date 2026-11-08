@@ -205,7 +205,7 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 /* Spacing (item 1025): the gaps, paddings and row heights of Work items, per density. Compact is the standard and the fallback for any
    other word, and is exactly the look before this item; Comfortable is one step looser. Type sizes, colours and the 44 px tap targets
    do not change with the density. */
-:root { --d-row-y: 9px; --d-colh-y: var(--space-2); --d-grp-y: 10px; --d-group-gap: var(--space-3); --d-card-gap: var(--space-2); --d-card-row-y: 10px; --d-bcard-y: 7px; --d-colbody-top: 10px; --d-colbody-bottom: 14px; --d-fbar-top: 10px; --d-fbar-gap: 6px; --d-fline-top: 12px; --d-fline-y: 5px; }
+:root { --d-row-y: 9px; --d-colh-y: var(--space-2); --d-grp-y: 10px; --d-group-gap: var(--space-3); --d-card-gap: var(--space-2); --d-card-row-y: 10px; --d-bcard-y: 7px; --d-colbody-top: 10px; --d-colbody-bottom: 14px; --d-fbar-top: 10px; --d-fbar-gap: 6px; --d-fline-top: 12px; --d-fline-y: 5px; --d-msl-top: 14px; --d-msl-y: 2px; --d-msl-det-y: 6px; --d-uc-strip-b: 10px; --d-uc-bar-y: 6px; --d-uc-detail-b: var(--space-3); }
 table.items { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--size-small); margin-top: var(--space-2); }
 table.items th { text-align: left; font-weight: var(--weight-regular); font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: var(--d-colh-y) 10px; border-top: 1px solid var(--grey-200); }
 table.items td { padding: var(--d-row-y) 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
@@ -458,7 +458,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
    (html[data-density="comfortable"]) redefines the same tokens. The Dashboard report sections read only these, so a later PR moves
    another part of the app onto them by using them, not by adding a rule per density. */
 :root { --secs-gap: var(--space-3) var(--space-5); --secs-mt: 16px; --secs-pad: var(--space-1) 0 var(--space-3); --sec-inset: 0px; --sec-pad-t: var(--space-3); --sec-pad-b: var(--space-1); }
-html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --sec-pad-t: 14px; --sec-pad-b: 10px; --d-row-y: 13px; --d-colh-y: var(--space-3); --d-grp-y: 14px; --d-group-gap: var(--space-4); --d-card-gap: var(--space-3); --d-card-row-y: 14px; --d-bcard-y: 11px; --d-colbody-top: 14px; --d-colbody-bottom: 18px; --d-fbar-top: 14px; --d-fbar-gap: 10px; --d-fline-top: 16px; --d-fline-y: 7px; }
+html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --sec-pad-t: 14px; --sec-pad-b: 10px; --d-row-y: 13px; --d-colh-y: var(--space-3); --d-grp-y: 14px; --d-group-gap: var(--space-4); --d-card-gap: var(--space-3); --d-card-row-y: 14px; --d-bcard-y: 11px; --d-colbody-top: 14px; --d-colbody-bottom: 18px; --d-fbar-top: 14px; --d-fbar-gap: 10px; --d-fline-top: 16px; --d-fline-y: 7px; --d-msl-top: 20px; --d-msl-y: 14px; --d-msl-det-y: 10px; --d-uc-strip-b: 14px; --d-uc-bar-y: 10px; --d-uc-detail-b: var(--space-4); }
 /* The section look (A-D3): by default each section is its own card, with a small coloured square before its heading, and a slim gap
    between the cards. The side gap stays 24 px so a right-hand section's control (Edit) has room beside the left card. Spacing (Settings > Personal,
    html[data-density]) is Compact (one card round every section, flat sections divided by thin lines) or Comfortable (the cards). Shared: the published page follows the same rules. */
@@ -1129,9 +1129,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-lab.ok { color: var(--status-green-text); } .mv-lab .slip { color: var(--status-red-text); margin-left: var(--space-1); } .mv-lab.gl { color: var(--status-red-text); }
 .mv-conn { position: absolute; height: 0; border-top: 2px dashed var(--status-red); z-index: 1; }
 .mv-ghost { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px dashed var(--status-red); border-radius: 50%; background: var(--surface); z-index: 2; }
-.msl { list-style: none; margin: 14px 0 0; padding: 0 0 0 var(--space-1); }
+.msl { list-style: none; margin: var(--d-msl-top) 0 0; padding: 0 0 0 var(--space-1); }
 .msl-row { position: relative; border-left: 2px solid var(--grey-200); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.msl-cells { display: grid; grid-template-columns: minmax(150px, 190px) minmax(160px, 1fr) 150px 130px; column-gap: var(--space-4); row-gap: 0; align-items: center; padding: 2px var(--space-2) 2px 22px; cursor: pointer; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.msl-cells { display: grid; grid-template-columns: minmax(150px, 190px) minmax(160px, 1fr) 150px 130px; column-gap: var(--space-4); row-gap: 0; align-items: center; padding: var(--d-msl-y) var(--space-2) var(--d-msl-y) 22px; cursor: pointer; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 .msl-row:hover { background: var(--grey-50); } .msl-cells:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .msl-row.out { opacity: .6; }
 .msl-row .node { position: absolute; left: -7px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--surface); border: 2px solid var(--grey-500); }
@@ -1150,7 +1150,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .msl-prog { display: flex; align-items: center; gap: var(--space-2); font-size: var(--size-caption); }
 .pbar { flex: 1; height: 6px; border-radius: 3px; background: var(--grey-100); overflow: hidden; } .pbar i { display: block; height: 100%; background: var(--brand-blue); }
 .msl-all { display: inline-block; margin: var(--space-2) 0 0 var(--space-1); }
-.msl-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-3); margin: 6px 0 2px; } .msl-bar .mlg { margin: 0; margin-left: auto; }   /* row 1020: 'Hide milestone details' at the left and the Legend at the right, one row */
+.msl-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-3); margin: var(--d-msl-det-y) 0 2px; } .msl-bar .mlg { margin: 0; margin-left: auto; }   /* row 1020: 'Hide milestone details' at the left and the Legend at the right, one row */
 .msl-det { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; min-height: 24px; margin: 0; font-size: var(--size-small); color: var(--text-muted); cursor: pointer; border-radius: 4px; }
 .msl-det:hover { color: var(--text); } .msl-det:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .msl-det .i { transition: transform var(--dur-instant) var(--ease-out); } .msl-det[aria-expanded="false"] .i { transform: rotate(-90deg); }
@@ -1350,7 +1350,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 /* The use case summary (#45): a strip, then one slim row for each use case. The rows are grids with fixed columns for the reference,
    the status word and the steps, so the status words' left edges are equal in every row. */
 .uc { margin-top: var(--space-2); }
-.ucstrip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-4); padding: var(--space-1) 0 10px; font-size: var(--size-body); }
+.ucstrip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-4); padding: var(--space-1) 0 var(--d-uc-strip-b); font-size: var(--size-body); }
 .uctotal { font-weight: var(--weight-medium); color: var(--heading); }
 .ucn { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
 .meter { display: flex; gap: 2px; flex: 1 1 120px; max-width: 280px; height: 8px; }
@@ -1358,7 +1358,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .meter .m-g { background: var(--status-green); } .meter .m-a { background: var(--status-amber); } .meter .m-r { background: var(--status-red); } .meter .m-n { background: var(--status-grey); }
 .ucrows { border-top: 1px solid var(--grey-200); }
 .ucrows > li.ucrow { padding: 0; border-top: 0; border-bottom: 1px solid var(--grey-100); }
-.ucbar { all: unset; box-sizing: border-box; display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px; gap: var(--space-3); align-items: center; width: 100%; min-height: 40px; padding: 6px var(--space-1); cursor: pointer; font-size: var(--size-body); }
+.ucbar { all: unset; box-sizing: border-box; display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px; gap: var(--space-3); align-items: center; width: 100%; min-height: 40px; padding: var(--d-uc-bar-y) var(--space-1); cursor: pointer; font-size: var(--size-body); }
 .ucbar:hover, .ucrow.open > .ucbar { background: var(--grey-100); }
 .ucbar:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .ucref { justify-self: start; padding: 2px var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-caption); font-weight: var(--weight-medium); white-space: nowrap; }
@@ -1374,7 +1374,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .cchip.cc-committed { border-color: var(--text); background: var(--text); color: var(--surface); }
 .cchip.cc-planned-2027 { background: var(--grey-50); }
 .ucsteps { color: var(--text-muted); font-size: var(--size-small); }
-.ucdetail { padding: var(--space-1) var(--space-1) var(--space-3) 72px; }
+.ucdetail { padding: var(--space-1) var(--space-1) var(--d-uc-detail-b) 72px; }
 .ucdetail h3 { margin: var(--space-2) 0 2px; font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
 .ucdcols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-5); }
 @media (max-width: 600px) { .ucdcols { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); } }   /* row 1004: one column on a phone, so a next step has the whole line and its id stays whole */
