@@ -6,9 +6,9 @@ at 1400 and 900 px: Compact computes the values the page had, Comfortable is loo
 the type size and the 32 px peek buttons do not move. Chrome is required: the browser tests fail, never skip, without it.
 """
 import re
-import time
 import unittest
 
+from _new_page import reload_to_new_page
 from _paths import SRC
 from test_publish_dialog import Base
 from test_server import chrome
@@ -57,8 +57,7 @@ class Browser(Base):
             p = self.page(cdp)
             p.width(width)
             p.js(f"localStorage.setItem('clark.density', {word!r})" if word else "localStorage.removeItem('clark.density')")
-            p.js("location.reload()")
-            time.sleep(1.5)
+            reload_to_new_page(p.js, "!!document.body && !!document.querySelector('main')", "the page reloaded")
             p.until("document.readyState === 'complete' && !!document.body && !!document.querySelector('main')", "the page drew")
             got = p.js(PROBE)
             self.assertIsInstance(got, dict, got)

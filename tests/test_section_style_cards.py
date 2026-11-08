@@ -314,6 +314,36 @@ class Cards(Base):
                 self.assertEqual(got["style"], word)
                 p.js("document.querySelector('[data-go]').click()")
 
+    def test_C_a_file_published_at_comfortable_draws_comfortable_and_one_at_compact_draws_compact(self):
+        # Behaviour, not words: pick the density in Settings, publish through the dialog, open the finished file from file://. Comfortable
+        # goes out as the word "slim" (the bridge) and the file must still draw the looser Comfortable spacing, not the Compact one.
+        drawn = {}
+        for pick in ("compact", "comfortable"):
+            with chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p)
+                p.js(f"document.querySelector('#personal input[name=density][value={pick}]').click()")
+                p.until(f"document.documentElement.dataset.density === '{pick}'", "the choice applied")
+                self.rig.save_to = self.rig.local / f"seen-{pick}.html"
+                p.open_publish()
+                p.go()
+                p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
+                p.js("document.querySelector('[data-go]').click()")
+            path = self.rig.local / f"seen-{pick}.html"
+            with chrome() as cdp:
+                tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+                sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, sid)
+                cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
+                f = type(p)(self, cdp, sid)
+                f.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('.secs .sec')", "the file drew")
+                drawn[pick] = f.js("(() => { const s = getComputedStyle(document.querySelector('.secs .sec')); return [document.documentElement.dataset.density,"
+                                   " parseFloat(s.paddingTop) + parseFloat(s.paddingBottom), s.boxShadow === 'none']; })()")
+        self.assertEqual(drawn["compact"][0], "compact")
+        self.assertEqual(drawn["comfortable"][0], "comfortable", "a file published at Comfortable opens Comfortable, though it carries the word slim")
+        self.assertGreater(drawn["comfortable"][1], drawn["compact"][1], "its sections have more room above and below")
+        self.assertEqual((drawn["compact"][2], drawn["comfortable"][2]), (True, False), "Compact sections run on flat, Comfortable ones are cards")
+
     def test_the_reading_of_a_files_word_is_slim_for_comfortable_and_compact_for_the_rest(self):
         src = (SRC / "clark" / "page" / "src" / "stores" / "density.js").read_text(encoding="utf-8")
         self.assertIn('densityOfWord = (w) => (w === "slim" ? "comfortable" : DEFAULT_DENSITY)', src)
