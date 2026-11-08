@@ -11,16 +11,19 @@ export const stayed = [];                // functions run when the page stays be
 // Resolves true when they all finished with no problem said since `since` (trouble.n then), false when one failed or the wait ran out:
 // the page then stays (stay()) with the field as it is and the problem on show, and nothing is loaded.
 export async function saved(limit = 8000, since = trouble.n) {
-  const end = performance.now() + limit, left = () => Math.max(0, end - performance.now());
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  await wait(0);                                           // what the field's blur starts is started by now
-  for (let i = 0; i < 20; i++) {
-    const mine = busy.map((f) => f());
-    await Promise.race([Promise.all(mine), wait(left())]);
-    await wait(0);
-    if (!left()) { stay(true); return false; }
-    if (busy.map((f) => f()).every((p, k) => p === mine[k])) break;      // nothing new was queued meanwhile
-  }
+  let timer;
+  const late = new Promise((r) => { timer = setTimeout(() => r("late"), limit); });     // the timer itself says the time is up (a clock check could read a hair early)
+  try {
+    await wait(0);                                         // what the field's blur starts is started by now
+    for (let i = 0; i < 20; i++) {
+      const mine = busy.map((f) => f());
+      const first = await Promise.race([Promise.all(mine).then(() => "done"), late]);
+      if (first === "late") { stay(true); return false; }
+      await wait(0);
+      if (busy.map((f) => f()).every((p, k) => p === mine[k])) break;      // nothing new was queued meanwhile
+    }
+  } finally { clearTimeout(timer); }
   if (trouble.n !== since) { stay(false); return false; }
   return true;
 }
