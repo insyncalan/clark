@@ -181,11 +181,13 @@ def synced_roots(home=None, on=None):
 
 def inside_synced(path, roots=None):
     """NEW (step 6). The (service, folder) pair from `synced_roots` that `path` is inside (after following links), or None.
-    OneDrive is not here: inside_onedrive is its own check and its behaviour is unchanged."""
+    OneDrive is not here: inside_onedrive is its own check."""
     path = Path(path).expanduser().resolve()
+    below = [part.casefold() for part in path.parts]       # the Mac disk ignores letter case, and resolve() does not fix it
     for service, root in synced_roots() if roots is None else roots:
         root = Path(root).resolve()
-        if path == root or root in path.parents:
+        top = [part.casefold() for part in root.parts]
+        if below[:len(top)] == top:
             return service, root
     return None
 
@@ -222,11 +224,13 @@ def never_read_places(on=None):
 
 
 def inside_onedrive(path, roots=None):
-    """The OneDrive root that `path` is inside (after following links), or None."""
+    """The OneDrive root that `path` is inside (after following links), or None. Letter case is ignored, as the Mac disk does."""
     path = Path(path).expanduser().resolve()
+    below = [part.casefold() for part in path.parts]
     for root in onedrive_roots() if roots is None else roots:
         root = Path(root).resolve()
-        if path == root or root in path.parents:
+        top = [part.casefold() for part in root.parts]
+        if below[:len(top)] == top:
             return root
     return None
 

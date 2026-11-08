@@ -55,6 +55,17 @@ class Roots(Case):
         self.assertIsNone(pl.inside_synced(elsewhere, pl.synced_roots(self.home, on=pl.MAC)))
         self.assertIsNone(pl.inside_synced(self.home / "Dropbox-not", pl.synced_roots(self.home, on=pl.MAC)))
 
+    def test_letter_case_is_ignored(self):
+        for service, place in PLACES:
+            for spelled in (place.lower(), place.swapcase()):
+                with self.subTest(place=spelled):
+                    (self.home / place).mkdir(parents=True)
+                    inside = self.home / spelled / "clark"
+                    roots = [(service, self.home / place)]
+                    self.assertEqual(pl.inside_synced(inside, roots), (service, self.home / place))
+                    self.assertIsNone(pl.inside_synced(self.home / (spelled + "-not") / "clark", roots))
+                    shutil.rmtree(self.home / place.split("/")[0])
+
     def test_a_link_into_one_is_followed(self):
         (self.home / "Dropbox").mkdir()
         link = self.home / "data"
@@ -95,6 +106,46 @@ class Refusal(Case):
         with self.assertRaises(pl.PlatformError) as caught:
             pl.check_data_dir(root / "clark", roots=[root], synced=[])
         self.assertIn("because it is inside OneDrive (OneDrive-Fictional Ltd).", str(caught.exception))
+
+
+class OneDriveCase(Case):
+    def test_letter_case_is_ignored(self):
+        root = self.home / "Library" / "CloudStorage" / "OneDrive-Fictional Ltd"
+        root.mkdir(parents=True)
+        for spelled in (str(root).lower(), str(root).swapcase()):
+            with self.subTest(place=spelled):
+                self.assertEqual(pl.inside_onedrive(Path(spelled) / "clark", [root]), root)
+                with self.assertRaises(pl.PlatformError):
+                    pl.check_data_dir(Path(spelled) / "clark", roots=[root], synced=[])
+        self.assertIsNone(pl.inside_onedrive(Path(str(root).lower() + "-not") / "clark", [root]))
+
+    def test_the_refusal_and_the_doctor_line_are_word_for_word_as_before(self):
+        root = self.home / "OneDrive"
+        root.mkdir()
+        inside = root / "clark"
+        with self.assertRaises(pl.PlatformError) as caught:
+            pl.check_data_dir(inside, roots=[root], synced=[])
+        self.assertEqual(str(caught.exception),
+                         f"Your data can't be kept in {pl.shown(inside)} because it is inside OneDrive (OneDrive). OneDrive "
+                         "copies files while they are being written, which damages the database. Choose a folder on "
+                         "this computer that OneDrive doesn't sync, and choose a backup folder in OneDrive instead (Settings \u203a "
+                         "Backups \u203a Copy my backups to): backups can still go to OneDrive.")
+        with self.assertRaises(pl.PlatformError) as caught:
+            pl.check_data_dir(inside, roots=[root], what="backups", synced=[])
+        self.assertEqual(str(caught.exception),
+                         f"Backups can't be kept in {pl.shown(inside)} because it is inside OneDrive (OneDrive). OneDrive "
+                         "copies files while they are being written, which damages a database. Keep them beside the "
+                         "database on this computer. To have a copy in OneDrive, choose it in Settings \u203a Backups \u203a Copy my "
+                         "backups to.")
+        seen = doctor.Seen(data=str(inside), on=pl.MAC, home=self.home, environ={}, app=self.home, version=(3, 9, 6),
+                           sqlite_version="3.37.0", onedrive_roots=lambda: [root])
+        line = doctor.check_data_not_in_onedrive(seen)
+        self.assertEqual(line.kind, doctor.FIX)
+        self.assertEqual(line.words, f"Your clark data is set to go in {seen.tilde(inside)}, which is inside OneDrive. OneDrive "
+                         "copies files while they are being written, which damages the data. Choose a folder on this computer "
+                         "that OneDrive doesn't sync. Then open Terminal, type cd and a space, drag clark's folder into the "
+                         f"Terminal window and press Return. Type {doctor.typed.clark('--data')} and a space, drag the folder you "
+                         "chose into the window, and press Return. Backups can still go to OneDrive.")
 
 
 class Doctor(Case):
