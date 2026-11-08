@@ -904,7 +904,7 @@ class ClosedUnratedRiskPeek(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-row=status]')", sid)), "the peek drew")
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status] dd').textContent.replace(/\\s+/g, ' ').trim()", sid), "Closed · Not rated")
                 # #532 follow-up: Closed and Not rated sit on one line, even at 420 px
-                one_line = "(function(){var a=document.querySelector('#peek [data-row=status] .pill').getBoundingClientRect(),b=document.querySelector('#peek [data-row=status] [data-pk-rating]').getBoundingClientRect();return Math.abs(a.top+a.height/2-(b.top+b.height/2))<4;})()"
+                one_line = "(function(){var a=document.querySelector('#peek [data-row=status] .pill').getBoundingClientRect(),b=document.querySelector('#peek [data-row=status] [data-pk-rating]').getBoundingClientRect();return Math.abs(a.top+a.height/2-(b.top+b.height/2))<4 && b.height<28;})()"
                 self.assertEqual(cdp.js(one_line, sid), True, "Closed and Not rated on one line")
 
 
