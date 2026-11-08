@@ -16,6 +16,7 @@ import json
 import os
 import shutil
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -28,7 +29,9 @@ from _real_server import real_server
 from clark import order, publish, server as sv
 from clark.store import open_store
 from test_page import navigate
+from _editor_checks import after_reload, for_project, set_project_and_wait
 from test_server import _Pipe, chrome, wait
+from _new_page import reload_to_new_page
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
 WATCH = ("window.errs = []; window.violations = [];"
@@ -52,11 +55,15 @@ class Editor(unittest.TestCase):
             st.create("projects", {"code": "XYZ", "name": "Second Programme", "health": "On track"})
         self.demo.action(description="Agree the cut-over plan", owner="Sam Rivers")
         self.sent = []
+        self.failure = None          # a function (req) -> (status, body): clark refuses the save on purpose
+        self.slow = 0                # seconds a save takes to be answered
 
         def seam(real, which):
             def call(req):
                 self.sent.append(which)
-                return real(req)
+                if self.slow:
+                    time.sleep(self.slow)
+                return self.failure(req) if self.failure else real(req)
             return call
         self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: testpage.html(), seam=seam)
         self.addCleanup(self.s.close)
@@ -128,29 +135,153 @@ class Editor(unittest.TestCase):
             self.assertEqual(self.page_titles()[0], "Where we are now")
             self.no_errors()
 
-    def test_back_to_another_project_saves_the_title_in_its_own_project_and_undo_stays_there(self):
+    def test_back_to_another_project_saves_the_title_in_its_own_project(self):
         with chrome() as cdp:
             self.visit(cdp, "#dashboard&p=XYZ")
             xyz_stored = self.titles("XYZ")      # #74: View (here) leaves out an empty Supporting documents; the page after Back is in Edit
             abc_before = self.titles("ABC")
-            self.js("clarkPage.setProject('ABC')")
+            set_project_and_wait(self.js, "ABC")           # #944: another project is its own page load
+            self.js(WATCH)
             self.until("document.getElementById('project-name').textContent === 'Example Programme' && !!document.querySelector('.sec')",
                        "ABC drew")
             self.edit()
             first = self.js("document.querySelector('.secs > .sec').dataset.id")
             self.type_title(first, "Where we are now")
-            self.js("history.back()")
+            after_reload(self.js, "history.back()")        # #944: Back to another project is a step to another page load; the title is still being typed (no blur): leaving the page saves it
             self.until("document.getElementById('project-name').textContent === 'Second Programme'", "Back went to XYZ")
-            self.until("!!document.querySelector('[data-undo]')", "the message says the title was saved")
-            self.assertEqual(self.titles("ABC")[0], "Where we are now", "saved in ABC, where it was typed")
+            self.assertTrue(wait(lambda: self.titles("ABC")[0] == "Where we are now", 10), "saved in ABC, where it was typed, though the field was not left first")
             self.assertEqual(self.titles("XYZ"), xyz_stored, "XYZ's report is untouched")
+            self.until("!!document.querySelector('.sec')", "XYZ drew")
+            self.js(WATCH)
+            self.edit()
             self.assertEqual(self.page_titles(), xyz_stored, "XYZ's page (in Edit) shows XYZ's sections, not the ones ABC's reply carried")
+            self.assertEqual(self.sent, ["change"], "saved once")
+            self.no_errors()
+
+    def test_an_address_typed_for_another_project_saves_the_title_first_and_the_message_with_undo_comes_with_you(self):
+        with chrome() as cdp:
+            self.visit(cdp, "#dashboard&p=XYZ")
+            xyz_stored = self.titles("XYZ")
+            abc_before = self.titles("ABC")
+            set_project_and_wait(self.js, "ABC")
+            self.js(WATCH)
+            self.until("!!document.querySelector('.sec')", "ABC drew")
+            self.edit()
+            first = self.js("document.querySelector('.secs > .sec').dataset.id")
+            self.type_title(first, "Where we are now")
+            after_reload(self.js, "location.hash = '#dashboard&p=XYZ'")      # the same page load is asked for another project: it is loaded again, after the save
+            self.until("document.getElementById('project-name').textContent === 'Second Programme'", "the address went to XYZ")
+            self.assertEqual(self.titles("ABC")[0], "Where we are now", "saved in ABC, where it was typed, before the page went")
+            self.assertEqual(self.titles("XYZ"), xyz_stored, "XYZ's report is untouched")
+            self.until("!!document.querySelector('.sec')", "XYZ drew")
+            self.js(WATCH)
+            self.edit()
+            self.until("!!document.querySelector('[data-undo]')", "the message says the title was saved, with Undo: it came across the page load")
+            self.assertEqual(self.js("document.querySelector('.toast-text').textContent"), "Title changed.")
+            self.assertEqual(self.page_titles(), xyz_stored, "XYZ's page shows XYZ's sections, not the ones ABC's reply carried")
             self.js("document.querySelector('[data-undo]').click()")
             self.until("!!document.querySelector('.toast') && document.querySelector('.toast-text').textContent === 'Undone.'", "undone")
-            self.assertEqual(self.titles("ABC"), abc_before, "Undo undid it in ABC")
+            self.assertTrue(wait(lambda: self.titles("ABC") == abc_before, 10), "Undo undid it in ABC")
             self.assertEqual(self.page_titles(), xyz_stored, "and XYZ's page still shows XYZ's sections")
             self.assertEqual(self.sent, ["change", "undo"])
+            self.assertIsNone(self.js("sessionStorage.getItem('clark-toast-carried')"), "the carried message is shown once and cleared")
             self.no_errors()
+
+    def stays(self, action, what, problem=None):
+        """#944: the typed title could not be saved (`self.failure`, or too slow): the page stays, in its project, at its address, keeps the
+        field and says the problem; nothing is carried and nothing is loaded."""
+        self.visit(self.cdp, "?project=ABC#dashboard&p=ABC")
+        self.edit()
+        self.js("window.__before = 1")
+        first = self.js("document.querySelector('.secs > .sec').dataset.id")
+        self.type_title(first, "Typed, then refused")
+        abc = self.titles("ABC")
+        n = self.js("history.length")
+        self.js(action)
+        self.until("!!document.querySelector('.toast.problem')", "the problem is said: " + what, 20)
+        time.sleep(1.5)
+        self.assertEqual(self.js("window.__before"), 1, "the same page: " + what)
+        self.assertEqual(self.js("document.getElementById('project-name').textContent"), "Example Programme")
+        self.assertEqual(self.js("new URLSearchParams(location.search).get('project')"), "ABC")
+        self.assertEqual(self.js("clarkPage.project()"), "ABC")
+        self.assertEqual(self.js("location.hash"), "#dashboard&p=ABC", "the address names the open project again")
+        self.assertEqual(self.titles("ABC"), abc, "nothing was saved")
+        self.assertIsNone(self.js("sessionStorage.getItem('clark-toast-carried')"), "nothing is carried")
+        if problem:
+            self.assertEqual(self.js("document.querySelector('.toast-text').textContent"), problem)
+        return n
+
+    def test_a_refused_save_keeps_the_page_when_another_project_is_chosen(self):
+        self.failure = lambda req: (503, {"ok": False})
+        with chrome() as cdp:
+            self.cdp = cdp
+            self.stays("clarkPage.setProject('XYZ')", "project chosen")
+
+    def test_a_refused_save_keeps_the_page_when_an_address_for_another_project_is_typed(self):
+        self.failure = lambda req: (400, {"ok": False, "message": "no"})
+        with chrome() as cdp:
+            self.cdp = cdp
+            self.stays("location.hash = '#dashboard&p=XYZ'", "address typed")
+
+    def test_a_refused_change_in_a_peek_box_keeps_the_page_when_another_project_is_chosen(self):      # #944 follow-up: a refusal the box shows is a problem too
+        self.failure = lambda req: (400, {"ok": False, "message": "Not that."})
+        with chrome() as cdp:
+            self.visit(cdp, "?project=ABC#dashboard&p=ABC")
+            self.edit()
+            ref = self.store.data_for("ABC")["actions"][0]["id"]
+            self.js("window.__before = 1")
+            self.js(f"clarkPage.openPeek('{ref}', 'item')")
+            self.until("!!document.querySelector('[data-pk-latest-text]')", "the peek drew")
+            self.js("document.querySelector('[data-pk-latest-text]').click()")
+            self.until("document.activeElement.hasAttribute('data-pk-latest-in')", "the box is open")
+            self.cdp.call("Input.insertText", {"text": "Typed, then refused"}, self.sid)
+            self.js("clarkPage.setProject('XYZ')")
+            self.assertTrue(wait(lambda: "change" in self.sent, 10), "the box's change was sent, and refused")
+            time.sleep(1.5)
+            self.assertEqual(self.js("window.__before"), 1, "the same page")
+            self.assertEqual(self.js("clarkPage.project()"), "ABC")
+            self.assertEqual(self.js("document.getElementById('project-name').textContent"), "Example Programme")
+            self.assertEqual(self.js("(document.querySelector('[data-pk-latest-err]') || {textContent: ''}).textContent"), "That change could not be made, and nothing was changed. Reload the page and try again.", "the box says why")
+
+    def test_a_save_that_runs_past_the_wait_keeps_the_page_and_says_so(self):
+        self.slow = 11
+        with chrome() as cdp:
+            self.cdp = cdp
+            self.stays("clarkPage.setProject('XYZ')", "too slow")
+
+    def test_a_carried_message_that_is_not_ours_is_not_shown_and_is_cleared(self):      # #944
+        with chrome() as cdp:
+            self.visit(cdp, "?project=ABC#dashboard&p=ABC")
+            for bad in ('not json', '{"kind":"done","text":"x","undo":"1; drop","code":"ABC"}', '{"kind":"done","text":"x","undo":5,"code":"../x"}',
+                        '{"kind":"problem","text":"x","undo":null,"code":"ABC"}', '{"kind":"done","text":"%s","undo":null,"code":"ABC"}' % ("y" * 500)):
+                self.js("sessionStorage.setItem('clark-toast-carried', %s)" % json.dumps(bad))
+                reload_to_new_page(self.js)
+                self.until("!!document.querySelector('.sec')", "the page drew")
+                self.edit()            # View draws no message on the Dashboard: Edit would
+                self.assertIsNone(self.js("sessionStorage.getItem('clark-toast-carried')"), "cleared: " + bad[:30])
+                self.assertFalse(self.js("!!document.querySelector('.toast-text')"), "nothing shown for " + bad[:30])
+            self.js("sessionStorage.setItem('clark-toast-carried', %s)" % json.dumps('{"kind":"note","text":"Carried words.","undo":null,"code":"ABC"}'))
+            reload_to_new_page(self.js)
+            self.edit()
+            self.until("!!document.querySelector('.toast-text')", "a well-formed one is shown")
+            self.assertEqual(self.js("document.querySelector('.toast-text').textContent"), "Carried words.")
+            self.assertFalse(self.js("!!document.querySelector('[data-undo]')"), "with no Undo when it had none")
+
+    def test_choosing_another_project_while_a_title_is_being_typed_saves_it_first(self):      # #944: no blur before the switch
+        with chrome() as cdp:
+            self.visit(cdp, "?project=ABC#dashboard&p=ABC")
+            self.edit()
+            first = self.js("document.querySelector('.secs > .sec').dataset.id")
+            self.type_title(first, "Typed, then switched")
+            self.assertEqual(self.sent, [], "nothing is saved while it is being typed")
+            after_reload(self.js, "clarkPage.setProject('XYZ')")
+            self.until("document.getElementById('project-name').textContent === 'Second Programme'", "the other project drew")
+            self.assertEqual(self.titles("ABC")[0], "Typed, then switched", "saved in ABC before the page went")
+            self.assertEqual(self.sent, ["change"], "saved once")
+            self.until("!!document.querySelector('.sec')", "XYZ drew")
+            self.edit()
+            self.until("!!document.querySelector('[data-undo]')", "the page waited for the save, and its message with Undo came across")
+            self.assertEqual(self.js("document.querySelector('.toast-text').textContent"), "Title changed.")
 
     # ---- menus and a filter's box ----
     def test_back_with_a_section_menu_open_closes_it_and_chooses_nothing(self):

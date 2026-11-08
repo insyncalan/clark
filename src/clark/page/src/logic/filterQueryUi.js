@@ -161,7 +161,11 @@ export function wordAt(text, caret) {
 }
 
 const noteOf = (key) => (has(FIELD_NOTES, key) ? FIELD_NOTES[key] : "");
-const fieldRow = (key, neg) => ({ kind: "field", ins: `${neg ? "-" : ""}${key}:`, label: `${neg ? "-" : ""}${key}:`, note: noteOf(key), close: false });
+// Row 931: the icon (a name in components/Icon.jsx) on a field row and on the lead rows of a field; a custom field has the filter icon.
+export const FIELD_ICONS = { is: "check", type: "table", status: "half", owner: "user", priority: "flash", due: "cal", workstream: "bars",
+  usecase: "doc", milestone: "flag", client: "ext", has: "eye", no: "eyeoff" };
+export const iconOf = (key) => (has(FIELD_ICONS, key) ? FIELD_ICONS[key] : "filter");
+const fieldRow = (key, neg) => ({ kind: "field", ins: `${neg ? "-" : ""}${key}:`, label: `${neg ? "-" : ""}${key}:`, note: noteOf(key), icon: iconOf(key), close: false });
 
 /** What to offer for the word the caret is in. [{kind: "field" | "lead" | "value", ins, label, note, tone?, close}]:
  *  - an empty word: every filterable field, `is:` first, then the built-in fields, the custom ones, `has:` and `no:`; narrowed as it is typed
@@ -187,7 +191,7 @@ export function suggestions(text, caret, rows, ctx, extra) {
   if (q === "has" || q === "no") {
     const p = squash(part);
     return schema.fields.filter((f) => !taken.includes(squash(f.key)) && (!p || squash(f.key).startsWith(p) || squash(f.name).startsWith(p)))
-      .map((f) => ({ kind: "value", ins: `${pre}${q}:${done}${f.key}`, label: f.key, note: f.name, close: true }));
+      .map((f) => ({ kind: "value", ins: `${pre}${q}:${done}${f.key}`, label: f.key, note: f.name, icon: iconOf(f.key), close: true }));
   }
   if (q === "is") {
     return offers("is", rows, c).filter(([v]) => schema.states.includes(v) && !taken.includes(v) && (!part || v.startsWith(part)))
@@ -198,9 +202,9 @@ export function suggestions(text, caret, rows, ctx, extra) {
   const k = r.field, F = schema.fields.find((f) => f.key === k);
   const out = [];
   if (!done && !part && !neg) {
-    out.push({ kind: "lead", ins: `no:${k}`, label: `No ${F.name}`, note: "", close: true });
-    out.push({ kind: "lead", ins: `has:${k}`, label: `Has ${F.name}`, note: "", close: true });
-    out.push({ kind: "lead", ins: `-${k}:`, label: `Exclude ${F.name}`, note: "", close: false });
+    out.push({ kind: "lead", ins: `no:${k}`, label: `No ${F.name}`, note: "", icon: iconOf(k), close: true });
+    out.push({ kind: "lead", ins: `has:${k}`, label: `Has ${F.name}`, note: "", icon: iconOf(k), close: true });
+    out.push({ kind: "lead", ins: `-${k}:`, label: `Exclude ${F.name}`, note: "", icon: "circleminus", close: false });
   }
   if (!has(LINE_FIELDS, k)) return out;                                          // a custom field: the three lead rows only
   for (const [v, l] of offers(k, rows, c)) {

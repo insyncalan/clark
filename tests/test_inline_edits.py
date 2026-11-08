@@ -16,6 +16,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from _editor_checks import for_url
 from pathlib import Path
 from unittest import mock
 
@@ -323,7 +324,7 @@ class Live(unittest.TestCase):
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{hash_}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{self.s.port}/{hash_}")}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr').length", sid) > 0), "the list drew")
         self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch off the Dashboard: the page is always editable")
         if edit:
@@ -487,9 +488,16 @@ class Live(unittest.TestCase):
                 sid = self.open_page(cdp, width)
                 cell = "[data-cell='TUL-A-001:priority']"
                 self.assertEqual(self.cell_text(cdp, sid, "TUL-A-001", "priority"), "Urgent")
-                # each picker cell looks changeable before any hover: a caret after its value and a quiet edge under it
-                looks = cdp.js("[...document.querySelectorAll('.cell-pick')].map(b => [getComputedStyle(b, '::after').content, getComputedStyle(b).boxShadow !== 'none'])", sid)
-                self.assertTrue(looks and all(x == ['"▾"', True] for x in looks), looks[:4])
+                # item 1013: at rest a picker cell reads as plain text (no edge, no box, no caret showing); hover shows the box and the caret
+                probe = "(b => { const s = getComputedStyle(b), a = getComputedStyle(b, '::after'); return [s.boxShadow, s.backgroundColor, a.opacity, a.content]; })"
+                rest = cdp.js("[...document.querySelectorAll('.cell-pick')].map(" + probe + ")", sid)
+                self.assertTrue(rest and all(x[0] == 'none' and x[1] == 'rgba(0, 0, 0, 0)' and x[2] == '0' for x in rest), rest[:4])
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 5, "y": 5}, sid)
+                r = cdp.js(f"(() => {{ const b = document.querySelector(\"{cell}\"); b.scrollIntoView({{block:'center'}}); const q = b.getBoundingClientRect(); return [q.x + q.width / 2, q.y + q.height / 2]; }})()", sid)
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": r[0], "y": r[1]}, sid)
+                self.until(cdp, sid, f"getComputedStyle(document.querySelector(\"{cell}\")).boxShadow !== 'none'", "hover shows the box")
+                self.assertEqual(cdp.js(f"getComputedStyle(document.querySelector(\"{cell}\"), '::after').opacity", sid), "1", "hover shows the caret")
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 5, "y": 5}, sid)
                 # by click: the menu opens on the value it has; a pick changes the row and the store, in one step, and the peek stays shut
                 before = self.steps()
                 click(cdp, sid, cell)
@@ -870,6 +878,7 @@ class Live(unittest.TestCase):
                 click(cdp, sid, cell)
                 self.until(cdp, sid, "!!document.querySelector('[data-pop] input.cp-in')", "the owner picker opened")
                 self.assertEqual(cdp.js("document.activeElement.value", sid), "Ada Quillfeather", "the box holds the owner, selected")
+                self.until(cdp, sid, "document.querySelectorAll('[data-pop] [data-name]').length >= 3", "the project's people draw once the register is read")  # row 985: the names wait for the list
                 self.assertGreaterEqual(cdp.js("document.querySelectorAll('[data-pop] [data-name]').length", sid), 3, "the project's people")
                 cdp.call("Input.insertText", {"text": "Zelda Quince"}, sid)
                 key(cdp, sid, "Enter")
@@ -1053,8 +1062,9 @@ class Live(unittest.TestCase):
             cdp.js("(() => { const real = window.fetch; window.fetch = async (...a) => { const r = await real(...a); "
                    "if (String(a[0]).includes('/api/undo')) clarkPage.setProject('OTH'); return r; }; })()", sid)
             click(cdp, sid, "[data-undo]")
-            self.until(cdp, sid, "clarkPage.project() === 'OTH'", "another project is open")
-            self.until(cdp, sid, "(document.querySelector('.toast-text') || {}).textContent === 'Priority of TUL-A-001 is back to Urgent.'", "the undo said what went back, and nothing more")
+            self.until(cdp, sid, "clarkPage.project() === 'OTH' && new URLSearchParams(location.search).get('project') === 'OTH'", "another project is open, in the page loaded for it")      # #944: its own page load, so the old page's toast is gone
+            self.until(cdp, sid, "(document.querySelector('.toast-text') || {}).textContent === 'Priority of TUL-A-001 is back to Urgent.'", "the undo said what went back, and nothing more (carried across the page load)")
+            self.assertTrue(wait(lambda: self.row("actions", "TUL-A-001")["priority"] == "Urgent", 10), "it was undone")
             self.assertEqual(self.row("actions", "TUL-A-001")["priority"], "Urgent", "it was undone")
             self.assertNotIn("could not be refreshed", self.toast(cdp, sid))
             self.assertFalse(cdp.js("!!document.querySelector('.toast.problem')", sid), "no problem is said")

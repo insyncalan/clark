@@ -271,3 +271,39 @@ class Autocomplete(unittest.TestCase):
         self.assertEqual(a("is:open sta", 11, {"ins": "status:", "close": False}), {"text": "is:open status:", "caret": 15})
         self.assertEqual(a("status:", 7, {"ins": "status:Open", "close": True}), {"text": "status:Open ", "caret": 12})
         self.assertEqual(a("sta other", 3, {"ins": "status:Open", "close": True}), {"text": "status:Open other", "caret": 12})
+
+
+class Icons(unittest.TestCase):
+    """Row 931: every field row, and the lead rows of a field, carry an icon name; a value keeps its tone dot and has no icon."""
+    ICON = {"is": "check", "type": "table", "status": "half", "owner": "user", "priority": "flash", "due": "cal", "workstream": "bars",
+            "usecase": "doc", "milestone": "flag", "client": "ext", "has": "eye", "no": "eyeoff"}
+
+    def test_each_field_row_has_the_icon_of_its_field(self):
+        rows = sug("")
+        self.assertEqual([o["ins"] for o in rows][:2], ["is:", "type:"])
+        for o in rows:
+            key = o["ins"].rstrip(":")
+            if key in self.ICON:
+                self.assertEqual(o["icon"], self.ICON[key], key)
+            self.assertTrue(o.get("icon"), o["ins"])
+        self.assertEqual({o["ins"].rstrip(":") for o in rows} & set(self.ICON), set(self.ICON), "all twelve fields are listed")
+
+    def test_the_lead_rows_show_the_field_icon_and_exclude_a_circle_minus(self):
+        lead = {o["label"]: o for o in sug("owner:") if o["kind"] == "lead"}
+        self.assertEqual(lead["No Owner"]["icon"], "user")
+        self.assertEqual(lead["Has Owner"]["icon"], "user")
+        self.assertEqual(lead["Exclude Owner"]["icon"], "circleminus")
+
+    def test_values_keep_their_tone_dot_and_get_no_icon(self):
+        vals = [o for o in sug("priority:") if o["kind"] == "value"]
+        self.assertTrue(vals)
+        for o in vals:
+            self.assertNotIn("icon", o)
+        self.assertTrue(any(o.get("tone") for o in vals), "the tone dots stay")
+
+    def test_the_fields_listed_after_has_and_no_carry_their_icons(self):
+        got = {o["label"]: o.get("icon") for o in sug("has:")}
+        self.assertEqual(got["priority"], "flash")
+
+    def test_a_negated_field_row_keeps_the_icon(self):
+        self.assertEqual(sug("-sta")[0]["icon"], "half")

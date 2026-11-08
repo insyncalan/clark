@@ -768,6 +768,25 @@ class FinishTest(unittest.TestCase, PlainWordsMixin):
         seams = Live(sleep=lambda s: None, platform=Plat("other"))
         self.assertFalse(seams.helper_running(99999, "ps:Mon  2 Nov 12:00:00 2026"))
 
+    def test_an_unreadable_identity_stops_counting_as_the_helper_after_the_age_bound(self):
+        """#561: ps keeps failing and an unrelated program holds the old id: BUSY must not last for ever."""
+        class Plat:
+            def run_python_check(self, *a, **k):
+                raise OSError("ps is not there")
+
+        class Live(h.Seams):
+            def process_gone(self, pid):
+                return False
+
+            def identity(self, pid):
+                return None
+        seams = Live(sleep=lambda s: None, platform=Plat())
+        ident = "ps:Mon  2 Nov 12:00:00 2026"
+        self.assertTrue(seams.helper_running(99999, ident, time.time() - 300), "a young update: still the helper")
+        self.assertTrue(seams.helper_running(99999, ident, time.time() - h.HELPER_MAX_AGE + 60), "just inside the bound")
+        self.assertFalse(seams.helper_running(99999, ident, time.time() - h.HELPER_MAX_AGE - 60), "past the bound: a recycled id")
+        self.assertTrue(seams.helper_running(99999, ident), "no start time recorded: no bound, the careful way")
+
     def test_the_helper_records_who_it_is_so_a_recycled_id_can_be_told(self):
         with tempfile.TemporaryDirectory() as t:
             fx = Fixture(t)

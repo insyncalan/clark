@@ -56,8 +56,8 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}
         {editing && section.type === "usecases" && tools.ucEdit ? <tools.ucEdit.Add /> : null}
       </header>
-      {section.type === "glance" ? <Glance tools={tools} /> : section.type === "usecases" ? <UseCases tools={tools} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} tools={tools} />
-        : tpl ? (editing ? <TemplateEdit section={section} tools={tools} /> : <tpl.view section={section} data={data.value} />)
+      {section.type === "glance" ? <Glance tools={tools} clean={clean} /> : section.type === "usecases" ? <UseCases tools={tools} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} tools={tools} />
+        : tpl ? (editing ? <TemplateEdit section={section} tools={tools} /> : <tpl.view section={section} data={data.value} clean={clean} />)
         : section.type === "needs" ? (editing ? <tools.NeedsEdit section={section} /> : <Needs section={section} />)
         : section.type === "docs" ? (editing ? <tools.DocumentsEdit section={section} /> : <Documents />)
         : section.type === "tracker" ? (editing ? <tools.TrackerEdit section={section} slot={slot} /> : <Tracker section={section} slot={slot} />)

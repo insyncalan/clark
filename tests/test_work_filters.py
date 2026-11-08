@@ -86,6 +86,12 @@ def key(cdp, sid, name):
     cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
 
 
+def arm(cdp, sid):
+    """Row 931: the filter box lists its suggestions after Space. This is the key down with no character, so the text does not change."""
+    cdp.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", "key": " ", "code": "Space", "windowsVirtualKeyCode": 32}, sid)
+    cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": " ", "code": "Space", "windowsVirtualKeyCode": 32}, sid)
+
+
 def where(cdp, sid, selector):
     # Measure only once the element has stopped changing size: a box measured mid-transition (the Add button shrinking
     # back to its "+" after it loses focus) is gone by the time the mouse gets there, and the click lands beside it.
@@ -681,6 +687,7 @@ class RealBrowser(unittest.TestCase):
             cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
             click(cdp, sid, "#fline-input")
             cdp.js("document.querySelector('#fline-input').select()", sid)
+            arm(cdp, sid)
             cdp.call("Input.insertText", {"text": "st"}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)))
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#fline-list')).backgroundColor", sid), "rgb(14, 45, 56)")
