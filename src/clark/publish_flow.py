@@ -39,6 +39,8 @@ from clark.store import Invalid, NumberTaken, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 CLIENT_WORKBOOK = True      # item 713: every file made here carries the client workbook (or the too-large sentence) in its data block
+MAX_RUN_MARKERS = 300                # a hidden section's text runs become at most this many markers in all (each marker costs a scan), and at most
+MAX_RUN_CHARS = 100000               # this many characters; past either, no more run markers (the whole-body marker still stands)
 MIN_MARKER = 8                       # a shorter piece of text can't be searched for without finding it everywhere
 TEXT_FIELDS = {"milestones": ("name", "description"), "actions": ("description",), "raid": ("description",),
                "decisions": ("decision",), "use_cases": ("title", "headline")}
@@ -171,7 +173,8 @@ def markers_for(store, code, published, template=""):
             value = (_text(row.get(field)) or "").strip()
             if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
                 add(value, row["id"])
-    hidden_section_markers(store, code, kept_text, bare, add)
+    kept_runs = [r for s in published.get("sections", ()) if isinstance(s, dict) and s.get("body") for r in _body_runs(s["body"])]
+    hidden_section_markers(store, code, kept_text, bare, add, kept_runs)
     gantt_markers(store, code, published, add)
     out = Markers(dict.fromkeys(found))
     out.where = where
@@ -212,16 +215,26 @@ def _body_runs(body):
     return parser.runs
 
 
-def hidden_section_markers(store, code, kept_text, bare, add):
+def hidden_section_markers(store, code, kept_text, bare, add, kept_runs=()):
     """Row S6: the words in the body of a section the owner hid are markers, like a left-out row's: select() drops the section, and
-    this is the second look at the finished file. A piece of text a kept part of the file also has, or the bare page itself, is not one."""
+    this is the second look at the finished file. A run is excused only when a kept value IS that run (the whole-value rule of
+    markers_for, #619; a kept section's own runs count as kept values), or when the bare page has it. At most MAX_RUN_MARKERS runs
+    and MAX_RUN_CHARS characters in all become markers, so a hostile section of thousands of runs cannot slow the scan; the section's
+    whole body is still one marker (markers_for), so pasting all of it is refused."""
+    kept_whole = {" ".join(t.split()) for t in kept_text} | {" ".join(r.split()) for r in kept_runs}
+    seen, chars = set(), 0
     for row in store.read("report_sections", project=code):
         if not row.get("hidden") or not _text(row.get("body")):
             continue
         for run in _body_runs(row["body"]):
             value = " ".join(run.split())
-            if len(value) >= MIN_MARKER and not any(value in text for text in kept_text) and to_client._key(value) not in bare:
-                add(value, row.get("id"))
+            if len(value) < MIN_MARKER or value in seen or value in kept_whole or to_client._key(value) in bare:
+                continue
+            if len(seen) >= MAX_RUN_MARKERS or chars + len(value) > MAX_RUN_CHARS:
+                return
+            seen.add(value)
+            chars += len(value)
+            add(value, row.get("id"))
 
 
 def gantt_markers(store, code, published, add):

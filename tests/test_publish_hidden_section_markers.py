@@ -5,6 +5,7 @@ Fictional data only.
 Run: python3 dev/run_tests.py test_publish_hidden_section_markers
 """
 import json
+import time
 import unicodedata
 
 from clark import publish, publish_flow, to_client
@@ -80,3 +81,36 @@ class HiddenSections(Base):
         self.assertNotIn("Zq bare page sentence here", publish_flow.markers_for(self.s, "ABC", built["published"], page))
         self.assertIn("Zq bare page sentence here", publish_flow.markers_for(self.s, "ABC", built["published"], ""))
         self.assertIn("Zq bare page sentence here", publish_flow.markers_for(self.s, "ABC", built["published"], "<p>Other words</p>"))
+
+    def test_a_hidden_run_inside_a_longer_shown_text_is_still_a_marker(self):
+        # Same whole-value rule as the left-out rows (#619): a kept value excuses a run only when it IS the run, not when the run
+        # is a piece of it. A hidden section pasted into a longer shown section must be refused.
+        self.section("s-vis", "text", "<p>Intro. Zqcorp Holdings secret plan, and more words after it.</p>", 0)
+        self.section("s-hid", "text", HID_TEXT, 1)
+        built, got = self.got()
+        self.assertIn("Zqcorp Holdings secret plan", got)
+
+    def test_a_shown_run_equal_to_the_hidden_run_is_still_no_marker(self):
+        self.section("s-vis", "text", "<p>Zqcorp Holdings secret plan</p>", 0)
+        self.section("s-hid", "text", HID_TEXT, 1)
+        self.assertNotIn("Zqcorp Holdings secret plan", self.got()[1])
+
+    def test_thousands_of_runs_are_capped_and_scan_fast(self):
+        # A hostile hidden section of 8,000 distinct runs made 8,006 markers and a 145 s scan. The run markers are capped
+        # (count and total characters); the whole-body marker stays, so a paste of the full body is still refused.
+        runs = "".join("<p>Hostile run number %05d of filler</p>" % i for i in range(8000))
+        self.section("s-big", "text", runs, 1)
+        t0 = time.monotonic()
+        built, got = self.got()
+        self.assertLessEqual(len([m for m in got if m.startswith("Hostile run number")]), publish_flow.MAX_RUN_MARKERS)
+        self.assertLessEqual(sum(len(m) for m in got), publish_flow.MAX_RUN_CHARS + 20000)
+        self.assertEqual(to_client.check_copy(built["body"], markers=got, folder=None), [])
+        self.assertLess(time.monotonic() - t0, 5.0)
+        self.assertTrue(self.refused(built, got, " ".join("Hostile run number %05d of filler" % i for i in range(8000))))
+
+    def test_a_section_under_the_cap_keeps_every_run(self):
+        runs = "".join("<p>Modest run number %02d of filler</p>" % i for i in range(20))
+        self.section("s-mid", "text", runs, 1)
+        got = self.got()[1]
+        for i in range(20):
+            self.assertIn("Modest run number %02d of filler" % i, got)
