@@ -4,9 +4,11 @@ Run: python3 tests/test_platform_windows_paths.py
 Pure functions over text: no Windows, no disk, no program. Every path below is a made-up string. Nothing here changes
 platform.data_dir, which still says "not built yet" on Windows; these are the rules the later Windows branch will use.
 """
+import os
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from clark import platform as pl  # noqa: E402
@@ -41,7 +43,8 @@ class Default(unittest.TestCase):
         self.assertIsNone(pl.windows_folder_problem(pl.windows_data_default(ENV)))
 
     def test_it_never_reads_the_real_environment(self):
-        self.assertIsNone(pl.windows_data_default({}))
+        with mock.patch.dict(os.environ, {"LOCALAPPDATA": "C:\\Real\\Local", "USERPROFILE": "C:\\Users\\Real"}):
+            self.assertIsNone(pl.windows_data_default({}))
 
 
 class Allowed(unittest.TestCase):

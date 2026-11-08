@@ -1633,7 +1633,9 @@ class SetupHandler(Handler):
         return self.send(404, error_body("not_found"))
 
     def do_POST(self):
-        if self.headers_ok() and self.path.split("?")[0] == CSP_REPORT_ROUTE:          # no report endpoint: no log is set up before a data folder
+        if not self.headers_ok():                  # sends the one 400; Handler.do_POST checks again, which sends nothing when they are fine
+            return None
+        if self.path.split("?")[0] == CSP_REPORT_ROUTE:          # no report endpoint: no log is set up before a data folder
             return self.send(404, error_body("not_found"))
         return super().do_POST()
 

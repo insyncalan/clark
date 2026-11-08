@@ -4,6 +4,7 @@ fake function. No store, no data folder, no browser."""
 import json
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -207,6 +208,20 @@ class Gates(Case):
     def test_a_get_with_a_body_is_refused(self):
         status, _, _ = self.s.ask("GET", "/api/setup/checks", {sv.TOKEN_HEADER: sv.TOKEN, "Content-Length": "2"}, b"{}")
         self.assertEqual(status, 400)
+
+    def test_a_bad_header_post_gets_one_answer_not_two(self):
+        for path in ("/api/setup/folder", sv.CSP_REPORT_ROUTE):
+            for dup in (b"Content-Length: 2\r\nContent-Length: 2\r\n", b"Host: 127.0.0.1\r\n"):
+                raw = (b"POST " + path.encode() + b" HTTP/1.1\r\nHost: 127.0.0.1:%d\r\n" % self.s.port + dup
+                       + b"Content-Type: application/json\r\nConnection: close\r\n"
+                       + (b"Content-Length: 2\r\n" if b"Content-Length" not in dup else b"") + b"\r\n{}")
+                with socket.create_connection((sv.HOST, self.s.port), timeout=10) as c:
+                    c.sendall(raw)
+                    data = b""
+                    while chunk := c.recv(65536):
+                        data += chunk
+                self.assertEqual(data.count(b"HTTP/1."), 1, (path, dup, data))
+                self.assertTrue(data.startswith(b"HTTP/1.0 400") or data.startswith(b"HTTP/1.1 400"), (path, dup, data[:40]))
 
     def test_the_wrong_method_is_not_found(self):
         self.assertEqual(self.s.api("POST", "/api/setup/checks", b"{}")[0], 404)
