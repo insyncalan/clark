@@ -515,8 +515,8 @@ def secret_note(count):
     """The plain-words line for `Request.left_out_secret`. "" for none."""
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return ""
-    return ("Part of your report was left out because it looks like a password or a key, so the answer may be missing something. "
-            "Take the password out of the item if you want it included.")
+    return (f"Part of your report {LOOKS_LIKE}, so it was left out and the answer may be missing something. "
+            "Take it out of the item if you want it included.")
 
 
 def dropped_note(count):

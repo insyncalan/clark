@@ -18,7 +18,7 @@ import { UseCaseDetail } from "../components/UseCaseDetail.jsx";
 import { UCEDIT, openAdd } from "./UseCasesEdit.jsx";
 import { exportExcel } from "./ProfileMenu.jsx";
 import { plural } from "../workItems.js";
-import { Menu } from "../components/Menu.jsx";
+import { Menu, Fade } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { CommitChip } from "../components/CommitChip.jsx";
 
@@ -109,12 +109,12 @@ function StatusFilter({ f }) {
         {f.st.length ? `Status: ${f.st.join(", ")}` : "Status: All"} <Icon name="chevdown" />
       </button>
       {open ? (
-        <div class="fbox ucl-pop" role="group" aria-label="Status" ref={box} onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); } }}>
+        <Fade boxRef={box} class="fbox ucl-pop" role="group" aria-label="Status" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); } }}>
           {STATUS_WORDS.map((w) => (
             <label key={w}><input type="checkbox" value={w} checked={f.st.includes(w)} onChange={() => toggle(w)} /><span class={`pill ${RAG[w]}`}>{w}</span></label>
           ))}
           <div class="fact ucl-pop-f"><button type="button" class="btn sm" data-clear onClick={() => set({ st: [] })}>Clear</button></div>
-        </div>
+        </Fade>
       ) : null}
     </span>
   );

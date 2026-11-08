@@ -47,6 +47,10 @@ export const savedFolder = () => {
   const d = data.value;
   return (d && d.project && typeof d.project.publish_client === "string" && d.project.publish_client) || null;
 };
+export const savedLocal = () => {
+  const d = data.value;
+  return (d && d.project && typeof d.project.publish_local === "string" && d.project.publish_local) || null;
+};
 export const folderName = (path) => (path ? String(path).replace(/[\\/]+$/, "").split(/[\\/]/).pop() || String(path) : "");
 
 const fresh = (saved) => ({ saved, ticked: false, pdf: false, word: false, step: "publish", published: "", num: null, wclash: null, wchoice: "number", wconfirmed: false, prev: null, phase: "choose", clash: null, choice: "number", newName: "", confirmed: false, message: null });
