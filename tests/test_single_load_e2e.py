@@ -45,6 +45,16 @@ class SingleLoad(unittest.TestCase):
             self.assertEqual(br.js("location.search"), "?project=THREE", "the address names the project as the reload left it, set in place")
             self.assertEqual(br.js("document.querySelectorAll('style#brand-local').length"), 0)
 
+    def test_a_hash_change_and_back_after_a_generic_first_load_stay_on_the_page(self):
+        with chrome() as cdp:
+            br = self.show(cdp, "#dashboard&p=THREE", "Project Three")
+            br.js("window.__same = 1; location.hash = '#milestones&p=THREE'")
+            br.until("location.hash === '#milestones&p=THREE'", "the hash changed")
+            br.js("history.back()")
+            br.until("location.hash === '#dashboard&p=THREE'", "Back")
+            self.assertEqual(br.js("window.__same"), 1, "the same document: no reload and no replace")
+            self.assertEqual(self.seen, [None], "the server was asked for the page once, not again for the project")
+
     def test_a_brand_of_its_own_still_gets_its_own_page(self):
         with chrome() as cdp:
             br = self.show(cdp, "#dashboard&p=ONE", "Project One")
