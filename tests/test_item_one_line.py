@@ -8,6 +8,7 @@ in a tooltip (hover and keyboard focus) and in its accessible name ('Action, Ove
 (printed from that file) and the Word copy NEVER leave the status as a tooltip: the file shows the status as a small WORD beside the
 icon, and the Word copy carries it as a word in its Status column. A real browser, a real server, fictional rows.
 """
+import json
 import shutil
 import sys
 import tempfile
@@ -48,6 +49,9 @@ ROWS = r"""[...document.querySelectorAll('[data-type=%s] .wl-row')].map(r => {
     idWs: id && getComputedStyle(id).whiteSpace, idH: id && id.getBoundingClientRect().height, late: (q('.c-prio') || {}).textContent || ''};
 })"""
 HEADS = "[...document.querySelectorAll('[data-type=%s] .wl-head')].map(h => [...h.children].map(c => c.textContent.trim()))"
+WORD_SHOWN = r"""(() => { const e = document.querySelector('.wl-row[data-id="' + %s + '"] .ico-w'); if (!e) return false; const b = e.getBoundingClientRect(), c = getComputedStyle(e);
+  return b.width > 4 && b.height > 4 && c.display !== 'none' && c.visibility === 'visible'; })()"""
+LISTS_FIT = "[...document.querySelectorAll('.irows')].every(u => u.scrollWidth <= u.clientWidth + 1 && [...u.children].every(r => r.getBoundingClientRect().right <= innerWidth + 1))"
 FITS = "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
 
 
@@ -181,12 +185,12 @@ class PublishedFileCarriesTheWord(Base):
                 for t in ("actions", "raid", "decisions"):
                     for r in cdp.js(ROWS % t, sid):
                         words[r["id"]] = r["word"]
-                        shown = cdp.js("(() => { const e = document.querySelector('.wl-row[data-id=%r] .ico-w'); const b = e.getBoundingClientRect(); return b.width > 4 && b.height > 4 && getComputedStyle(e).display !== 'none' && getComputedStyle(e).visibility === 'visible'; })()" % r["id"], sid)
+                        shown = cdp.js(WORD_SHOWN % json.dumps(r["id"]), sid)
                         self.assertTrue(shown, f"{r['id']}: the status word is visible text at {w}, not a tooltip")
                         self.assertLess(r["h"], 60, f"{r['id']} stays compact at {w}")
                     self.assertEqual(cdp.js(HEADS % t, sid)[0][0], "Status", "the file's header names the icon column")
                 self.assertEqual(sorted(set(words.values())), ["Due soon", "Green", "On track", "Overdue", "Pending", "Red"], words)
-                self.assertTrue(wait(lambda: cdp.js(FITS, sid)), f"no sideways scroll at {w}")
+                self.assertTrue(cdp.js(LISTS_FIT, sid), f"the lists fit their cards at {w}")      # the page header's own width at 420 is not this row's
             rows = {r["id"]: r for t in ("actions", "raid") for r in cdp.js(ROWS % t, sid)}
             by_text = {r["title"]: r for r in rows.values()}
             self.assertEqual(by_text["Cut-over plan to be agreed"]["word"], "Overdue")

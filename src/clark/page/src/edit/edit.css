@@ -1028,3 +1028,13 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 
 /* Settings › Brands review panel: the plain label first, the file's name small and grey after it. Tokens only. */
 .brand-file { font-size: var(--size-small); color: var(--text-muted); margin-left: 4px; }
+
+/* Row 1021: the status icon in Edit is the status control (a button around the tinted square): the caret and the tooltip share its ::after. */
+.irows .cell-pick[data-cell$=":status"]:not(:hover):not(:focus-visible)::after { content: none; }
+.irows .cell-pick[data-tip] { position: relative; }
+.irows .cell-pick[data-tip]:hover::after, .irows .cell-pick[data-tip]:focus-visible::after { opacity: 1; }
+.irows .c-owner .cell-pick, .irows .c-date .cell-pick { max-width: 100%; }
+.irows .c-owner .cell-val { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.irows .wl-title .cell-ce { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.irows .wl-title .cell-ce:focus { text-overflow: clip; }
+.irows .c-id .ib { flex: none; }
