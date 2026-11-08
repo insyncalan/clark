@@ -9,7 +9,7 @@ Each entry is a short text such as `button[data-edit-only][data-drag]` or `span[
 
 FINDER = """(function () {
   var found = document.querySelectorAll('input, textarea, select, [contenteditable], [data-edit-only]');
-  return Array.prototype.filter.call(found, function (el) { return !el.closest('#report-bar'); }).map(function (el) {
+  return Array.prototype.filter.call(found, function (el) { return el.id !== 'week-ending'; }).map(function (el) {
     var s = el.tagName.toLowerCase();
     if (el.id) s += '#' + el.id;
     if (el.hasAttribute('contenteditable')) s += '[contenteditable=' + el.getAttribute('contenteditable') + ']';

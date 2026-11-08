@@ -368,5 +368,43 @@ class TextImageSource(unittest.TestCase):
         self.assertNotIn("<textarea", edit)
 
 
+# Item 1005: the plain multiline fields that moved onto the one editor, one entry per field (LATEST_MOVED; the Movement note and the Reason are MOVED, above): (file, the RichField line's field name, the
+# column it writes). A field joins this list when its plain box is replaced; a plain box left in its file is not allowed to come back.
+LATEST_MOVED = (("edit/PeekLatest.jsx", "latest_update", "actions.latest_update"),
+         ("edit/MilestonePeek.jsx", "description", "milestones.description"))
+
+
+class MovedLatestFields(unittest.TestCase):
+    """Each moved field draws through RichField (so through clarkEditor and the / menu), stores through the server's cleaner, and keeps no plain box."""
+
+    def test_each_moved_field_is_a_rich_field_and_its_file_has_no_plain_box_for_it(self):
+        for rel, field, column in LATEST_MOVED:
+            with self.subTest(column):
+                text = (PAGE_SRC / rel).read_text(encoding="utf-8")
+                self.assertRegex(text, r'<RichField[^>]*field="%s"' % field)
+                self.assertIn("richOrPlain(", text, "an old plain value is read through the one legacy rule, never drawn as stored")
+                if rel.endswith("PeekLatest.jsx"):
+                    self.assertNotIn("<textarea", text)
+                else:
+                    self.assertNotRegex(text, r'<Text [^>]*field="description"')
+
+    def test_each_moved_field_is_cleaned_by_the_server_and_again_when_published(self):
+        from clark import publish
+        for table, field in (("actions", "latest_update"), ("milestones", "description")):
+            with self.subTest(field):
+                self.assertIn(field, publish.RICH.get(table, ()), "published through clean_html")
+                self.assertIn((table, field), publish.LEGACY_RICH, "an old plain row reads as escaped paragraphs")
+        from clark import excel
+        self.assertEqual(excel.RICH_WORDS, publish.LEGACY_RICH + (("milestones", "internal_note"),), "the workbook carries the words of the same fields, and of the Movement note (never published, so not in the published list)")
+        src = (SRC / "clark" / "changes.py").read_text(encoding="utf-8")
+        self.assertEqual(src.count("_rich_field("), 4, "the definition and the three fields' writes (latest update, Internal note, description)")
+
+    def test_the_published_page_carries_no_editor_for_them(self):
+        page.ensure_built()
+        view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
+        for word in ("richOrPlain", "legacyToHtml"):
+            self.assertNotIn(word, view, word)
+
+
 if __name__ == "__main__":
     unittest.main()

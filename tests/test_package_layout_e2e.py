@@ -117,6 +117,7 @@ class DownloadLayout(unittest.TestCase):
         stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
         port, data = free_port(), self.tmp / "server data"
         self.addCleanup(self.stop_server, port)
+        self.seed_project_on_local_brand(data)
         done = subprocess.run([BASH, str(self.clark / "clark.command"), "--data", str(data), "--port", str(port)],
                               cwd=str(self.tmp), env=self.env(CLARK_BROWSER=str(stub)), stdin=subprocess.DEVNULL,
                               capture_output=True, text=True, timeout=120)
@@ -124,11 +125,24 @@ class DownloadLayout(unittest.TestCase):
         self.assertIn("Opened clark in its own window.", done.stdout)
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=10) as reply:
             self.assertTrue(json.loads(reply.read())["ok"])
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=10) as reply:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/?project=BRN", timeout=10) as reply:
             page = reply.read()
-        self.assertIn(b"--e2e-brand-mark: 694", page, "the page carries the tokens from system/branding beside .app")
+        self.assertIn(b"--e2e-brand-mark: 694", page, "the page for a project on the local brand carries the tokens from system/branding beside .app")
         self.assertTrue((data / "clark.db").is_file())
         self.assertFalse(list((self.clark / ".app").rglob("clark.db")), "no data was written inside the download")
+
+    def seed_project_on_local_brand(self, data):
+        """Row 944: the top-level tokens.css is layered only for a project whose row has brand 'local-brand', so the data folder
+        starts with one (BRN), made by the download's own store code; the launcher then opens that same folder."""
+        code = ("import sys; sys.path[:0] = [sys.argv[1] + '/.app/src', sys.argv[1] + '/.app/vendor']\n"
+                "from pathlib import Path\nfrom clark.store import open_store\n"
+                "Path(sys.argv[2]).mkdir(parents=True, exist_ok=True)\n"
+                "s = open_store(Path(sys.argv[2]) / 'clark.db', onedrive_roots=[])\n"
+                "s.con.execute(\"INSERT INTO projects (code, name, brand) VALUES ('BRN', 'Brand check', 'local-brand')\")\n"
+                "s.con.commit(); s.close()\n")
+        done = subprocess.run([PY3, "-I", "-c", code, str(self.clark), str(data)], cwd=str(self.tmp), capture_output=True,
+                              text=True, timeout=60, env=self.env())
+        self.assertEqual(0, done.returncode, done.stderr)
 
     def stop_server(self, port):
         out = subprocess.run(["lsof", "-ti", f"tcp:{port}", "-sTCP:LISTEN"], capture_output=True, text=True).stdout.split()
