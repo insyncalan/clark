@@ -49,6 +49,7 @@ SLOT_DIR = "/run/clark"
 SLOT_HELD = "CLARK_SUITE_HELD"                  # set by clark-one-suite, which has already taken a slot for this run
 SMALL_RUN = 3                                   # this many test files, repeats counted, need no slot: one file while working goes straight through
 BOX_JOBS = 4                                    # at most this many files at once on such a box, so two runs fill 16 processors and no more
+TICKET = re.compile(r"\d{20}-\d+\Z")                # a place in the line, as _join names it: time of arrival, then the process
 SLOT_MAX_WAIT = 1800.0
 SLOT_SAY_EVERY = 60.0
 
@@ -145,13 +146,15 @@ def _join(queue):
 
 def _ahead(queue, mine):
     """True when a live run joined the line before `mine` (or at all, when mine is None). A place whose lock is free and that is over 5 seconds old
-    belongs to a run that has gone: it is cleared."""
+    belongs to a run that has gone: it is cleared. Only ticket-named files count; anything else in the folder is left alone."""
     import fcntl
     try:
         names = sorted(os.listdir(queue))
     except OSError:
         return False
     for name in names:
+        if not TICKET.match(name):
+            continue                                        # not a place in the line: never ours to clear
         if name == mine:
             return False
         path = str(queue / name)

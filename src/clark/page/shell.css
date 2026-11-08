@@ -1253,8 +1253,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn:disabled { cursor: default; opacity: .6; }
 .setting { margin-top: var(--space-3); }
 .set-head p { margin: 0; }
-/* The Settings links (item 440, S2; issue 697). Above 900 px they are a list down the left, the cards at the right; the list stays under the top bar
-   as you scroll (and scrolls itself if the window is short). At 900 px and narrower it is the old bar of chips under the head, on the page's own
+/* The Settings links (item 440, S2; issue 697). At 900 px and wider (item 842) they are a list down the left, the cards at the right; the list stays under the top bar
+   as you scroll (and scrolls itself if the window is short). Below 900 px it is the old bar of chips under the head, on the page's own
    ground carried out to both edges, and its height is kept clear when a card or a box is scrolled into view (--set-bar, Views.jsx). */
 .set-layout { display: grid; grid-template-columns: minmax(150px, 14rem) minmax(0, 1fr); column-gap: var(--space-5); align-items: start; }
 .set-layout > .set-head { grid-column: 1 / -1; }
@@ -1264,7 +1264,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-nav { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .set-nav li { display: block; }
 .set-chip { all: unset; box-sizing: border-box; display: flex; align-items: center; width: 100%; min-height: 28px; padding: 3px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out); }      /* no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
-@media (max-width: 900px) {
+/* From 900 to 1099 px the list is the narrowest the grid allows (150 px), so the cards are wider at 900 (about 670 px, not 596) and a control keeps more than 420 px beside its label; the four section styles wrap two and two. */
+@media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 150px minmax(0, 1fr); } }
+@media (max-width: 899px) {
   .set-layout { display: block; }
   .set-bar { position: sticky; padding: var(--space-2) 0; margin-top: var(--space-3); max-height: none; overflow-y: visible; box-shadow: 0 0 0 100vmax var(--grey-50); clip-path: inset(0 -100vmax); }
   :root:has(.set-bar) { scroll-padding-top: var(--set-bar, 0px); }
@@ -1625,6 +1627,12 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .sec-ctl.hint { opacity: 1; z-index: 20; }
 .sec-hint { position: absolute; left: 30px; top: 0; white-space: nowrap; pointer-events: none; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: var(--size-small); }
 @media (max-width: 640px) { .sec-hint { white-space: normal; max-width: calc(100vw - 72px); } }
+/* sweep c7: the People table keeps to the window, and the Settings chips and the menu rows are 44 px to tap */
+@media (max-width: 640px) {
+  table.pp-table { table-layout: fixed; }
+  .set-chip { min-height: 44px; }
+  .ddmenu [role="menuitem"], .ddmenu [role="menuitemradio"], .ddmenu [role="menuitemradio"].hp { min-height: 44px; display: flex; align-items: center; }
+}
 
 /* Motion: motion that explains and never decorates. Every rule here is inside one block, so a motion is absent (not switched
    off afterwards) when the computer asks for reduced motion or clark's own setting (<html data-motion="reduce">) is on. Nothing
@@ -1788,12 +1796,19 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .raid-cards { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
 .raid-n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .raid-n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .raid-n3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }   /* plan 1022: below 1100 px two cards a line, so an ID, an owner and a date fit whole */
+@media (max-width: 1400px) { .raid-n4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }   /* four across is 226 px a card at 1101 px: a whole owner does not fit, so four cards go two across up to 1400 px */
+@media (max-width: 640px) { .raid-n3, .raid-n4 { grid-template-columns: minmax(0, 1fr); } }   /* a phone: one card a line */
 .raid-card { min-width: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }
 .raid-card p { margin: 0 0 var(--space-1); }
 .raid-top { font-size: var(--size-caption); color: var(--text-muted); }
+.raid-top { display: flex; align-items: baseline; gap: 0 var(--space-1); min-width: 0; }   /* plan 1022: the kind and the ID share one line, the ID never breaks inside itself */
+.raid-top .raid-kind { flex: none; white-space: nowrap; }
+.raid-top .raid-id { white-space: nowrap; }   /* the ID shows whole: no clip, no ellipsis */
 .raid-kind { font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
-.raid-title { font-weight: var(--weight-medium); color: var(--heading); }
+.raid-title { font-weight: var(--weight-medium); color: var(--heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* plan 1022: only the title is cut, with an ellipsis */
 .raid-meta { font-size: var(--size-caption); color: var(--text-muted); }
+.raid-meta .raid-bit { display: inline-block; vertical-align: bottom; white-space: nowrap; }   /* plan 1022: the status, the owner and the date each show whole on one line; when they do not all fit, the next one goes to a second line (never an ellipsis) */
 .raid-text { margin-top: var(--space-2); color: var(--text); }
 
 /* #96 G3 Work items list (workitems): the view part. Full width draws the table, half width the two-line rows; tokens only. */
@@ -2037,6 +2052,14 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+.wl:not(.cr-wl) .wl-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* plan 1022: a long title is cut with an ellipsis; the ID, the owner and the date never wrap and are never cut (the peek has the whole text) */
+.wl:not(.cr-wl) .wl-meta > span { white-space: nowrap; flex: none; }   /* the owner and the date show whole; .wl-meta wraps, so one that does not fit goes to a second line (never an ellipsis) */
+@media (max-width: 640px) {
+  .wl:not(.cr-wl) > .wl-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "state id" "main main"; }   /* a phone: the pill and the ID share the first line, the item has the whole width below */
+  .wl:not(.cr-wl) > .wl-row > .wl-state { grid-area: state; }
+  .wl:not(.cr-wl) > .wl-row > .wl-main { grid-area: main; }
+  .wl:not(.cr-wl) > .wl-row > .wl-id { grid-area: id; }
+}
 .vt { display: inline-flex; align-items: flex-end; gap: 2px; }
 .vtabmenu { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; align-self: center; cursor: pointer; color: var(--text-muted); }
 .vtabmenu:hover { background: var(--grey-100); color: var(--text); }
