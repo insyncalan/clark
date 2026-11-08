@@ -335,6 +335,38 @@ class PageGate(unittest.TestCase):
             self.assertIn("Original words", shown, "the reply carried no body, so the section kept the one the page had")
             self.assertNotIn("Click to write", shown)
 
+    def test_the_text_and_image_words_open_the_one_editor_and_old_lines_read_in_it(self):
+        """Row 1005: the Text and image template's words are a RichField (the / menu), not a plain box; its old lines open in it."""
+        with self.store.step("dashboard", USER) as st:
+            ref = st.create("report_sections", {"project": "ABC", "type": "textimage", "title": "Fictional words", "sort_order": 999, "hidden": 0})
+        with self.store.step("dashboard", USER) as st:
+            st.update("report_sections", ref, {"body": '{"v":1,"words":["Old a < b & c","He said \\"yes\\""]}'})
+        s = self.serve(self.page_on)
+        with chrome() as cdp:
+            js, sid = self.edit(cdp, s)
+            sel = f"[data-id='{ref}']"
+            self.assertTrue(wait(lambda: js(f"!!document.querySelector(\"{sel} [data-rich]\")"), 10), "the words are a rich field")
+            self.assertEqual(js(f"document.querySelectorAll(\"{sel} textarea\").length"), 0, "no plain box for the words")
+            self.assertEqual(js(f"[...document.querySelectorAll(\"{sel} [data-rich] p\")].map(function(e){{ return e.textContent; }})"),
+                             ["Old a < b & c", 'He said "yes"'])
+            js(f"document.querySelector(\"{sel} [data-rich]\").click()")
+            self.assertTrue(wait(lambda: js(f"!!document.querySelector(\"{sel} .ProseMirror\")"), 10))
+            self.assertEqual(js(f"typeof document.querySelector(\"{sel} .ProseMirror\").cxed.html"), "function", "it is clarkEditor")
+            js(f"document.querySelector(\"{sel} .ProseMirror\").cxed.editor.commands.insertContent('<p>New words</p>'); true")
+            self.key(cdp, sid, "Enter", "Enter", 13, self.mod(js))
+            self.assertTrue(wait(lambda: '"html"' in next(r for r in self.store.read("report_sections", "ABC") if r["id"] == ref)["body"], 20))
+            body = next(r for r in self.store.read("report_sections", "ABC") if r["id"] == ref)["body"]
+            self.assertNotIn('"words"', body, "the editor saves html and takes the old lines out")
+            self.assertIn("&lt; b &amp; c", body, "the old line came into the editor as text, and is stored escaped")
+
+
+class TextImageSource(unittest.TestCase):
+    def test_the_text_and_image_words_use_the_rich_field_and_no_plain_box(self):
+        edit = (PAGE_SRC / "edit" / "templates" / "TextImage.jsx").read_text(encoding="utf-8")
+        self.assertIn("RichField", edit)
+        self.assertNotIn("WordsField", edit)
+        self.assertNotIn("<textarea", edit)
+
 
 # Item 1005: the plain multiline fields that moved onto the one editor, one entry per field (LATEST_MOVED; the Movement note and the Reason are MOVED, above): (file, the RichField line's field name, the
 # column it writes). A field joins this list when its plain box is replaced; a plain box left in its file is not allowed to come back.
