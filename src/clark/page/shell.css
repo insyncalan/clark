@@ -1630,6 +1630,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
   :root:not([data-motion="reduce"]) {
     /* the placeholder fades out as the screen arrives */
     .skel-leave { position: absolute; left: var(--space-5); right: var(--space-5); top: 28px; z-index: 1; pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+    @media (max-width: 900px) { .skel-leave { left: var(--space-4); right: var(--space-4); top: 20px; } }     /* item 517: main's padding at 900 px */
     /* row 887: the dragged card lifts (its ghost, which follows the pointer, grows into place with the scale property; the card itself
        gets no transform, as its date picker and menu are drawn inside it), the column it would land in eases its highlight in, and a
        column dragged by its heading lifts the same way. Still: the highlight and the dimming only */
@@ -2104,8 +2105,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-hc.gt-u { top: 32px; height: 18px; line-height: 18px; font-weight: var(--weight-medium); color: var(--text); }
 .gt-hc.gt-l { top: 50px; height: 18px; line-height: 18px; }
 .gt-hc.gt-l:not(.gt-edge) { border-left-color: transparent; }
-.gt-tflag { all: unset; box-sizing: border-box; position: absolute; top: 2px; transform: translateX(-50%); z-index: 3; padding: 2px 10px; border-radius: var(--radius-sm); background: var(--status-red-tint); color: var(--status-red-text); border: 1px solid var(--status-red); font-weight: var(--weight-medium); line-height: 14px; cursor: pointer; white-space: nowrap; }
-.gt-tflag::after { content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -6px; border: 6px solid transparent; border-top-color: var(--status-red); border-bottom: 0; }
+.gt-tflag { all: unset; box-sizing: border-box; position: absolute; top: 2px; transform: translateX(max(-50%, calc(-1 * var(--tx, 999px)))); z-index: 3; padding: 2px 10px; border-radius: var(--radius-sm); background: var(--status-red-tint); color: var(--status-red-text); border: 1px solid var(--status-red); font-weight: var(--weight-medium); line-height: 14px; cursor: pointer; white-space: nowrap; }
+.gt-tflag::after { content: ""; position: absolute; bottom: -7px; margin-left: -6px; left: min(50%, var(--tx, 999px)); border: 6px solid transparent; border-top-color: var(--status-red); border-bottom: 0; }
 .gt-tstem { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--status-red); opacity: .6; z-index: 2; pointer-events: none; }
 .gt-tstem-h { top: 24px; bottom: auto; height: 8px; }   /* only joins the flag to the date rows: it never runs through a month label */
 .gt-left { position: sticky; left: 0; z-index: 5; background: var(--surface); border-right: 1px solid var(--border); }
