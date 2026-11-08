@@ -749,10 +749,11 @@ class Child:
             pass
 
 
-def start_child(argv, pipe=None, **_unused):
+def start_child(argv, pipe=None, env=None, **_unused):
     """Start `argv` (an argument list, never a shell) in a process group of its own, with nothing on its standard streams.
     With `pipe` = (read_fd, write_fd) (two descriptors of this program's), the child gets them as its descriptors 3 and 4 (what
-    Chrome's --remote-debugging-pipe reads and writes) and they are closed in the child's other places. Uses os.posix_spawn,
+    Chrome's --remote-debugging-pipe reads and writes) and they are closed in the child's other places. `env` (a dict) is the child's
+    environment; none given, it has this program's own. Uses os.posix_spawn,
     which is safe in a program with threads (no code runs in the child before the program starts). Returns a Child; raises
     OSError if the program cannot be started."""
     if hasattr(os, "posix_spawn"):
@@ -762,11 +763,11 @@ def start_child(argv, pipe=None, **_unused):
             actions += [(os.POSIX_SPAWN_DUP2, pipe[0], 3), (os.POSIX_SPAWN_DUP2, pipe[1], 4),
                         (os.POSIX_SPAWN_CLOSE, pipe[0]), (os.POSIX_SPAWN_CLOSE, pipe[1])]
         args = [str(a) for a in argv]
-        return Child(pid=os.posix_spawn(args[0], args, os.environ, file_actions=actions, setpgroup=0))
+        return Child(pid=os.posix_spawn(args[0], args, os.environ if env is None else env, file_actions=actions, setpgroup=0))
     if pipe:
         raise OSError("this system cannot pass descriptors to a program this way")
     return Child(popen=subprocess.Popen([str(a) for a in argv], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                                        stderr=subprocess.DEVNULL))
+                                        stderr=subprocess.DEVNULL, env=env))
 
 
 STOP_WAIT = 2.0          # seconds between the polite stop and the kill of a run_stoppable group
