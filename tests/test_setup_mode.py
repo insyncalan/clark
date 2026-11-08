@@ -268,6 +268,33 @@ class Choose(Case):
         first.join(5)
         self.assertEqual(count, ["a"])
 
+    def test_a_second_window_while_the_first_answer_is_being_kept_is_busy(self):
+        # the answer is checked, written and reported under the same lock as the window: no second choose in between
+        inside, release = threading.Event(), threading.Event()
+        other = self.home / "Other"
+        other.mkdir()
+        service = self.setup(str(self.good))
+        real = service.remember
+
+        def slow(folder):
+            inside.set()
+            release.wait(5)
+            real(folder)
+        service.remember = slow
+        first = threading.Thread(target=service.choose, args=("a",))
+        first.start()
+        self.assertTrue(inside.wait(5))
+        service.choose_folder = lambda prompt: str(other)
+        try:
+            with self.assertRaises(setup_mode.Refused) as caught:
+                service.choose("b")
+            self.assertEqual(caught.exception.code, "busy")
+        finally:
+            release.set()
+            first.join(5)
+        self.assertEqual(service.folder, self.good)
+        self.assertEqual(self.pointer().read_text(encoding="utf-8"), str(self.good) + "\n")
+
     def test_the_real_chooser_is_the_default_and_is_not_called_here(self):
         service = setup_mode.Setup(self.default, home=self.home, on=pl.MAC)
         self.assertIs(service.choose_folder, pl.choose_folder)
@@ -282,6 +309,18 @@ class Choose(Case):
 class Remembered(Case):
     def test_a_kept_folder_comes_back(self):
         self.setup(str(self.good)).choose("Choose")
+        self.assertEqual(self.setup().remembered(), self.good)
+
+    def test_a_folder_name_with_edge_spaces_comes_back_as_it_was_kept(self):
+        # the pointer is the path plus one line end: only the line end is taken off, never the folder's own spaces
+        odd = self.home / " Spaced name "
+        odd.mkdir()
+        self.setup(str(odd)).choose("Choose")
+        self.assertEqual(self.pointer().read_text(encoding="utf-8"), str(odd) + "\n")
+        self.assertEqual(self.setup().remembered(), odd)
+
+    def test_a_windows_line_end_in_the_pointer_is_taken_off(self):
+        self.pointer().write_bytes((str(self.good) + "\r\n").encode("utf-8"))
         self.assertEqual(self.setup().remembered(), self.good)
 
     def test_no_file_gives_none(self):
