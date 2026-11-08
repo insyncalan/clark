@@ -1356,6 +1356,10 @@
       "p",
       "The filter line takes a plain word, which finds the items with it in the title or the ID, or field:value, such as status:Open or priority:High,Urgent. A comma means or, a space means and, a - in front means not, no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you. The count at the right reads, for example, 12 of 40, and **Clear filter** (the **×**) empties the line. A published file has a **Search work items** box and a **Filter by** row instead, where each filter can be **is any of** or **is not**, and **Clear all** removes the chips.",
       "Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
+     ],
+     [
+      "p",
+      "Assign to: click the owner. Under Recent are the names used lately in this project, then the people clark holds. Type to search them. If the name is new, the box offers to add it “as a new person”, which puts them on the list of people and assigns them in one step; “Keep the name only” assigns the name alone. “TBC (no one yet)” leaves the item with no one yet, and the owner stays as TBC. Recent names are kept in this browser only, not in Excel or a published file. If the browser will not keep them, there is no Recent list, and everything else works."
      ]
     ]
    },
