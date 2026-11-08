@@ -41,9 +41,15 @@ function refocus(id) {
   setTimeout(back, 150);                        // row 848: the change redraws the row after the first look, and the redrawn row had lost the focus; if nothing holds it by then, the row does
 }
 
+let opened = 0;                                // counts the opens, so only the last one draws
 function openFor(el, x, y, pointer) {
   if (!el.dataset.id) return;
-  state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: homeOf(el), pointer: !!pointer };      // row 979: `pointer` marks a mouse open, so the first entry shows no ring until a key is used
+  const at = ++opened;
+  // #1048: the People list is read first, so the Draft email entry has its reason line from the first paint (the menu never changes size once open, row 848)
+  readPeople().then((r) => {
+    if (at !== opened || !el.isConnected) return;                  // a later open, or the row went, while the list was read
+    state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: homeOf(el), pointer: !!pointer, reg: r.ok ? r.people : null };      // row 979: `pointer` marks a mouse open, so the first entry shows no ring until a key is used
+  });
 }
 
 // A right click, or the menu key or Shift+F10 on the focused row or card (the key opens beside the row, not at the pointer).
@@ -151,8 +157,7 @@ const REST = 140;      // ms the pointer rests on an entry before its list opens
 function Panel({ s }) {
   const row = itemRows.value.find((r) => r.id === s.id), d = data.value, edit = true;     // Work items are always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
   const wrap = useRef(null), today = todayIso();
-  const [reg, setReg] = useState(null);              // #1048: the People list, read when the menu opens (null until it has been read or failed)
-  useEffect(() => { let on = true; readPeople().then((r) => { if (on) setReg(r.ok ? r.people : null); }); return () => { on = false; }; }, []);
+  const reg = s.reg;                              // #1048: the People list, read before the menu opens (null when it could not be read)
   const set = (patch) => { state.value = { ...state.value, ...patch }; };
   const close = (how) => {
     const from = s.from;
@@ -165,7 +170,7 @@ function Panel({ s }) {
     const w = el.offsetWidth, h = el.offsetHeight;
     el.style.left = `${Math.round(Math.max(8, Math.min(s.x, window.innerWidth - w - 8)))}px`;
     el.style.top = `${Math.round(Math.max(8, Math.min(s.y, window.innerHeight - h - 8)))}px`;
-  }, [reg]);                                      // placed from the click point: again only when the People list arrives (the Draft email entry may gain its reason line); a list opening beside an entry never moves or resizes the menu (row 848)
+  }, []);                                         // placed once: a list opening beside an entry never moves or resizes the menu (row 848)
   const timer = useRef(0);
   useEffect(() => () => clearTimeout(timer.current), []);
   const hover = (id) => {                         // a pointer on an entry that opens a list opens it; on another entry it closes after a short grace (the list is on the way)
