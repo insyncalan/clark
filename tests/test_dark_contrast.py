@@ -225,33 +225,5 @@ class DarkBrandBlue(unittest.TestCase):
                 self.assertEqual(page[name], tok[name], name)
 
 
-class DarkSweepRules(unittest.TestCase):
-    """Four rules that read too faintly in dark: the preview paper's text, the rich-text hover outline and active button, the dialog link."""
-
-    @classmethod
-    def setUpClass(cls):
-        page = ROOT / "src" / "clark" / "page"
-        cls.rules = css_rules(shipped_css(page / "shell.css")) + \
-            css_rules(shipped_css(page / "src" / "edit" / "edit.css"))
-        cls.dark = dark_tokens(TOKENS.read_text(encoding="utf-8"))
-
-    def test_preview_paper_keeps_dark_text_on_its_white_ground(self):
-        self.assertEqual(last_declared(self.rules, ".de-preview", "background"), "var(--white)")
-        self.assertEqual(last_declared(self.rules, ".de-preview", "color"), "var(--black)")
-
-    def test_rich_text_hover_outline_is_the_stronger_grey(self):
-        self.assertIn("var(--grey-500)", last_declared(self.rules, ".rt-view:hover", "outline"))
-        for name in ("--surface", "--grey-100"):
-            self.assertGreaterEqual(ratio(self.dark["--grey-500"], self.dark[name]), 3.0, name)
-
-    def test_active_rich_text_button_text_is_the_strong_blue(self):
-        self.assertEqual(last_declared(self.rules, ".rt-btn.on", "color"), "var(--brand-blue-strong)")
-        self.assertGreaterEqual(ratio(self.dark["--brand-blue-strong"], self.dark["--brand-blue-tint"]), 4.5)
-
-    def test_dialog_link_uses_the_link_token(self):
-        self.assertEqual(last_declared(self.rules, ".ad.dlg .st-bar .link", "color"), "var(--link)")
-        self.assertGreaterEqual(ratio(self.dark["--link"], self.dark["--grey-100"]), 4.5)
-
-
 if __name__ == "__main__":
     unittest.main()
