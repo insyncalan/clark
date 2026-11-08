@@ -68,6 +68,31 @@ class Refusals(unittest.TestCase):
         for step in steps.values():
             self.assertEqual(said[step], self.reason(step))
 
+    def test_the_reason_is_the_one_undo_several_gives_for_an_undo_and_a_flagged_step(self):
+        """#600: the undo case, and a step whose applies row says undone_at: the tab and the preview ask the same questions."""
+        step = self.write("dashboard")
+        undo = self.store.undo(step, USER)["step_id"]
+        flagged = self.write("dashboard")
+        self.store.con.execute("UPDATE applies SET undone_at = '2026-11-07T00:00:00Z' WHERE apply_id = ?", (flagged,))
+        self.store.con.commit()
+        steps = [undo, flagged]
+        status, got = changes.make_undo(self.store.path, [], USER)({"project": "ABC", "steps": steps, "preview": True})
+        self.assertEqual(status, 200, got)
+        said = {s["step"]: s["why"] for s in got["skipped"]}
+        self.assertEqual(set(said), set(steps))
+        self.assertEqual(self.reason(flagged), changes.UNDONE_ALREADY, "the tick is withheld for a step Undo several would skip")
+        self.assertEqual(self.reason(undo), changes.IS_AN_UNDO)
+        for step in steps:
+            self.assertEqual(said[step], self.reason(step), "the same words in the tab and in the preview")
+
+    def test_step_undone_follows_the_applies_flag_that_undo_several_uses(self):
+        step = self.write("dashboard")
+        self.assertFalse(self.store.step_undone(step))
+        self.store.con.execute("UPDATE applies SET undone_at = '2026-11-07T00:00:00Z' WHERE apply_id = ?", (step,))
+        self.store.con.commit()
+        self.assertTrue(self.store.step_undone(step))
+        self.assertEqual(self.store.step_undone(99999), False, "a step that is not there is not undone")
+
     def two_row_step(self):
         """One step that changes two fields of the item; its step."""
         with self.store.step("dashboard", USER) as st:
