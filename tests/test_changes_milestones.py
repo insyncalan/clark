@@ -350,6 +350,30 @@ class TheHold(Base):
         self.assertEqual(changes._note_with_line_trimmed(None, "L"), ("<p>L</p>", False))
         self.assertEqual(changes._note_with_line_trimmed("", "L"), ("<p>L</p>", False))
 
+    def test_the_oldest_block_goes_whole_when_it_is_a_nested_list_or_quote(self):      # row 1005: top-level blocks, balanced
+        pad = "a" * 2000
+        for nested in ("<ul><li>a<ul><li>%s</li></ul></li><li>z</li></ul>" % pad,
+                       "<ol><li>a<ol><li>n<ul><li>%s</li></ul></li></ol></li></ol>" % pad,
+                       "<blockquote><p>q</p><blockquote><p>%s</p></blockquote></blockquote>" % pad):
+            got, dropped = changes._note_with_line_trimmed(nested + "<p>keep</p><h2>Head</h2>", "L")
+            self.assertEqual(got, "<p>keep</p><h2>Head</h2><p>L</p>", nested[:30])
+            self.assertTrue(dropped)
+            self.assertEqual(sanitise.clean_html(got), got, "what is stored is clean markup, no stray closing tags")
+        got, dropped = changes._note_with_line_trimmed("<ul><li>a<ul><li>n</li></ul></li></ul><p>%s</p>" % pad, "L")
+        self.assertEqual((got, dropped), ("<p>L</p>", True), "the whole list went, not a piece of it")
+        self.assertEqual(sanitise.clean_html(got), got)
+
+    def test_a_leading_fragment_without_a_tag_is_trimmed_and_flagged(self):      # the old cut stopped there with dropped False
+        self.assertEqual(changes._first_block_end("abc<p>keep</p>"), 3)      # a stored note never starts so (it would be plain), but the cut is whole either way
+        self.assertEqual(changes._first_block_end("<p>a</p><p>b</p>"), 8)
+        self.assertEqual(changes._first_block_end("<hr><p>b</p>"), 4)
+        self.assertEqual(changes._first_block_end("<p>never closed"), len("<p>never closed"))
+
+    def test_one_block_over_the_limit_alone_is_kept_and_not_flagged(self):      # nothing older to drop
+        big = "<p>%s</p>" % ("a" * 2100)
+        self.assertEqual(changes._note_with_line_trimmed(big, "L")[1], True, "the old one goes, the new line stays")
+        self.assertEqual(changes._note_with_line_trimmed(None, "x" * 2100), ("<p>%s</p>" % ("x" * 2100), False))
+
     def test_a_hold_shows_in_the_movement_read_with_its_line_and_clearing_it_is_a_change(self):
         self.ok({"movement": "hold"})
         got = self.s.milestone_moves("ABC")["milestones"][self.m]["events"]

@@ -1189,7 +1189,29 @@ def _milestone_words(e):
     return ITEM_VALUE_WORDS
 
 
-_FIRST_BLOCK = re.compile(r"<p>.*?</p>|<h([123])>.*?</h\1>|<(ul|ol|blockquote)>.*?</\2>|<hr>", re.S)
+_TAG = re.compile(r"<(/?)([A-Za-z][A-Za-z0-9]*)[^>]*>")
+_VOID = {"br", "hr", "img"}
+
+
+def _first_block_end(html):
+    """Where the first top-level block of clean markup ends: nesting is counted, so a list inside a list goes whole; text before the
+    first tag is a block of its own; markup that never closes is one block to the end."""
+    if not html.startswith("<"):
+        cut = html.find("<")
+        return len(html) if cut < 0 else cut
+    depth = 0
+    for m in _TAG.finditer(html):
+        name = m.group(2).lower()
+        if name in _VOID:
+            if depth == 0:
+                return m.end()
+        elif m.group(1):
+            depth -= 1
+            if depth <= 0:
+                return m.end()
+        else:
+            depth += 1
+    return len(html)
 
 
 def _note_with_line_trimmed(was, line):
@@ -1205,10 +1227,12 @@ def _note_with_line_trimmed(was, line):
     html = (was or "") + "<p>%s</p>" % sanitise.text_escape(line)
     whole = html
     while len(sanitise.plain_text(html)) > INTERNAL_NOTE_MAX:
-        first = _FIRST_BLOCK.match(html)
-        if not first or first.end() == len(html):
+        end = _first_block_end(html)
+        if end <= 0 or end >= len(html):                           # the last block (the new line) is never the one dropped
             break
-        html = html[first.end():]
+        html = html[end:]
+    if html != whole:
+        html = sanitise.clean_html(html)                           # the Hold stores without the route's cleaner: the cut is cleaned here
     return html, html != whole
 
 
