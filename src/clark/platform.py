@@ -466,7 +466,8 @@ def _dialog(script, args, run, which):
         if CANCELLED in (done.stderr or ""):
             return None
         raise PlatformError(f"The {which} window could not be opened. {TRY_AGAIN}")
-    return Path(done.stdout.strip())
+    picked = (done.stdout or "").strip()
+    return Path(picked) if picked else None      # exit 0 with nothing printed is no pick; Path("") would be "." (the cwd)
 
 
 # File names and replacing files
