@@ -203,7 +203,7 @@ class RealBrowser(unittest.TestCase):
                     self.assertEqual(sorted(ghosts), sorted(r["id"] for r in slipped))
                     self.assertEqual(cdp.js("document.querySelectorAll('.mv-conn').length", sid), len(slipped), "a dashed line each")
                     text = {i: cdp.js(f"document.querySelector('[data-slip=\"{i}\"]').textContent", sid) for i in (r["id"] for r in slipped)}
-                    self.assertEqual(text, {r["id"]: r["slip_text"] for r in slipped}, "N days later, the Python's slip_days")
+                    self.assertEqual(text, {r["id"]: "+" + r["slip_text"].replace(" later", "") for r in slipped}, "+N days on the timeline (row 1020), the Python's slip_days; 'N days later' stays in the list")
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-today]').length", sid), 1)
                     self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no page-wide scroll")
                     self.assertEqual(cdp.js("(() => { const w = document.querySelector('.mv-wrap'); return w.scrollWidth >= w.clientWidth"
@@ -836,7 +836,7 @@ class Published(unittest.TestCase):
             marks = cdp.js("[...document.querySelectorAll('.mv-mk')].map(b => b.dataset.ms)", sid)
             self.assertEqual(sorted(marks), sorted([a, c, demo.milestone]), "the client-flagged milestones only")
             self.assertEqual(cdp.js("document.querySelectorAll('.mv-ghost').length", sid), 1)
-            self.assertEqual(cdp.js("document.querySelector('[data-slip]').textContent", sid), "52 days later")
+            self.assertEqual(cdp.js("document.querySelector('[data-slip]').textContent", sid), "+52 days")
             legend = cdp.js("document.querySelector('.mlg-p').textContent", sid)
             for word in ("Expected later", "Late", "Forecast"):
                 self.assertIn(word, legend)

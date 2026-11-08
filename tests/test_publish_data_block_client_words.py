@@ -1,22 +1,23 @@
-"""#560: the published file's data block carries only client wording for a client-visible item that has none.
+"""#560: a client-visible item with no client wording publishes its title only.
 
-For a client-visible action or risk with no client_message, the file's embedded data must not hold the team's own description
-(or an action's latest_update): the page may draw nothing from them, and anyone reading the file's source sees them. The tests read
-the file source from the real `publish.build`. Each is marked expectedFailure: PUBLISH_FIELDS still carries "description" (actions,
-raid) and "latest_update" (actions). Open design question, not decided here: the page draws `description` as the item's title
-(workItems.js, clientRisks.js) and, per #870, whether a row with no client wording shows its title is a pending ruling; the
-Latest update is published on purpose by test_latest_update_publish (#457). The fix is blocked on both. All rows are fictional.
+Ruling: for a client-visible row with no client_message, the file holds the row's title (an action's or risk's own
+sentence, a milestone's name) and nothing of its description or its Latest update, in the web file's data and in the Word copy
+(which reads the same selected rows). A row with client wording is unchanged. A marker is put in every free-text field the
+row has and the whole file source and the Word file's text are scanned. All rows are fictional.
 
 Run: python3 dev/run_tests.py test_publish_data_block_client_words
 """
-import contextlib
+import io
 import unittest
+import zipfile
 from unittest import mock
 
 from _demo import USER, DemoStore
-from clark import publish
+from clark import docx_build, publish
 
 TEAM_ONLY = "zz-team-only-wording-560"
+TITLE = "zz-plain-title-560"
+CLIENT = "zz-client-wording-560"
 
 
 class DataBlockClientWords(unittest.TestCase):
@@ -33,51 +34,63 @@ class DataBlockClientWords(unittest.TestCase):
         with self.s.step("dashboard", USER) as st:
             return st.create("raid", {**base, **values})
 
-    @unittest.expectedFailure
-    def test_action_description_not_in_source_without_client_message(self):
-        self.demo.action(description=TEAM_ONLY)
-        self.assertNotIn(TEAM_ONLY, self.source())
+    def word_text(self):
+        pub = publish.select(publish.read_inputs(self.s, "ABC", "2026-10-29"))
+        with zipfile.ZipFile(io.BytesIO(docx_build.build(pub))) as z:
+            return "".join(z.read(n).decode("utf-8", "replace") for n in z.namelist() if n.endswith(".xml"))
 
-    @unittest.expectedFailure
     def test_action_latest_update_not_in_source_without_client_message(self):
-        ref = self.demo.action(description="Plain title")
+        ref = self.demo.action(description=TITLE)
+        self.demo.update("actions", ref, {"latest_update": TEAM_ONLY})
+        self.assertNotIn(TEAM_ONLY, self.source())
+        self.assertIn(TITLE, self.source())
+
+    def test_action_latest_update_not_in_word_without_client_message(self):
+        ref = self.demo.action(description=TITLE)
+        self.demo.update("actions", ref, {"latest_update": TEAM_ONLY})
+        self.assertNotIn(TEAM_ONLY, self.word_text())
+        self.assertIn(TITLE, self.word_text())
+
+    def test_milestone_description_not_in_source_or_word_without_client_message(self):
+        self.demo.update("milestones", self.demo.milestone, {"description": TEAM_ONLY})
+        self.assertNotIn(TEAM_ONLY, self.source())
+        self.assertNotIn(TEAM_ONLY, self.word_text())
+        self.assertIn("Pilot live", self.source())
+
+    def test_a_blank_client_message_counts_as_none(self):
+        ref = self.demo.action(description=TITLE, client_message="   ")
         self.demo.update("actions", ref, {"latest_update": TEAM_ONLY})
         self.assertNotIn(TEAM_ONLY, self.source())
 
-    @unittest.expectedFailure
-    def test_risk_description_not_in_source_without_client_message(self):
-        self.raid()
-        self.assertNotIn(TEAM_ONLY, self.source())
+    def test_risk_title_is_published_and_has_no_other_text(self):
+        self.raid(description=TITLE)
+        src = self.source()
+        self.assertIn(TITLE, src)
+        self.assertNotIn(TEAM_ONLY, src)
+
+    def test_action_with_client_wording_keeps_its_latest_update(self):
+        ref = self.demo.action(description=TITLE, client_message=CLIENT)
+        self.demo.update("actions", ref, {"latest_update": TEAM_ONLY})
+        self.assertIn(TEAM_ONLY, self.source())
+        self.assertIn(TEAM_ONLY, self.word_text())
+
+    def test_milestone_with_client_wording_keeps_its_description(self):
+        self.demo.update("milestones", self.demo.milestone, {"description": TEAM_ONLY, "client_message": CLIENT})
+        self.assertIn(TEAM_ONLY, self.source())
 
     def test_control_client_message_is_published(self):
         """Not a failure mark: the client's own wording is always in the file (guards the tests above from passing vacuously)."""
-        self.raid(client_message="zz-client-wording-560")
-        self.assertIn("zz-client-wording-560", self.source())
+        self.raid(client_message=CLIENT)
+        self.assertIn(CLIENT, self.source())
 
-    def without(self, table, field):
-        cut = {**publish.PUBLISH_FIELDS, table: tuple(f for f in publish.PUBLISH_FIELDS[table] if f != field)}
-        rich = {**publish.RICH, table: tuple(f for f in publish.RICH.get(table, ()) if f != field)}   # select cleans every RICH field of the picked row: a field no longer picked must leave RICH too, or its key is missing (KeyError)
-        stack = contextlib.ExitStack()
-        stack.enter_context(mock.patch.dict(publish.PUBLISH_FIELDS, cut))
-        stack.enter_context(mock.patch.dict(publish.RICH, rich))
-        return stack
-
-    def test_mutation_actions_description(self):
-        """Mutation per field: with the field out of PUBLISH_FIELDS the team text is gone, so the marked test above is red for that field alone."""
-        self.demo.action(description=TEAM_ONLY)
-        with self.without("actions", "description"):
-            self.assertNotIn(TEAM_ONLY, self.source())
-
-    def test_mutation_actions_latest_update(self):
-        ref = self.demo.action(description="Plain title")
+    def test_mutation_the_strip_is_what_removes_it(self):
+        """Mutation: with the rule turned off the marker is in the file, so the tests above are red without the fix."""
+        ref = self.demo.action(description=TITLE)
         self.demo.update("actions", ref, {"latest_update": TEAM_ONLY})
-        with self.without("actions", "latest_update"):
-            self.assertNotIn(TEAM_ONLY, self.source())
-
-    def test_mutation_raid_description(self):
-        self.raid()
-        with self.without("raid", "description"):
-            self.assertNotIn(TEAM_ONLY, self.source())
+        self.demo.update("milestones", self.demo.milestone, {"description": TEAM_ONLY + "-m"})
+        with mock.patch.object(publish, "WORDLESS_DROPS", {}):
+            self.assertIn(TEAM_ONLY, self.source())
+            self.assertIn(TEAM_ONLY + "-m", self.source())
 
 
 if __name__ == "__main__":
